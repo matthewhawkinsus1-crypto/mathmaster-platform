@@ -117,9 +117,11 @@ test('the legacy pick-a-point line is a described group with pressed marks', () 
 
 test('the three-plane model is described by its planes; the detail follows the question\'s lifecycle', () => {
   const source = executableSource(read('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx'));
-  assert.match(source, /^import \{ describeThreePlaneModel \} from '\.\/threePlaneDescription\.js';$/m);
+  assert.match(source, /^import \{ threePlaneModelReading \} from '\.\/threePlaneDescription\.js';$/m);
   assert.match(source, /^import \{ useQuestionLifecycle \} from '\.\.\/\.\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
-  const description = region(source, 'const modelDescription = useMemo(() => describeThreePlaneModel({', '}), [', 'the description');
+  // The reading's English is the description (its messages are Read aloud's
+  // in Spanish: AX05, figureReadingSpanish.test.mjs).
+  const description = region(source, 'const { text: modelDescription, say: modelSay } = useMemo(() => threePlaneModelReading({', '}), [', 'the description');
   assert.match(description, /visible: visiblePlanes,/, 'follows Show plane');
   assert.match(description, /crossings: intersectionLines\.map/, 'the dashed lines actually drawn');
   assert.match(description, /detail: questionClosed \? 'features' : 'kinds',/, 'pairs only once the question is closed');
@@ -150,8 +152,8 @@ test('the static question graph carries the shared plane\'s description, by the 
 
 test('the legacy graph workspace and the Graph Story sketch are described by the student\'s work', () => {
   const workspace = executableSource(read('src/InteractiveGraphWorkspace.jsx'));
-  assert.match(workspace, /^import \{ describeGraphWorkspace \} from '\.\/platform\/language\/graphWorkspaceDescription\.js';$/m);
-  const call = region(workspace, 'const workspaceDescription = describeGraphWorkspace({', '\n  });', 'the description');
+  assert.match(workspace, /^import \{ graphWorkspaceReading \} from '\.\/platform\/language\/graphWorkspaceDescription\.js';$/m);
+  const call = region(workspace, 'const { text: workspaceDescription, say: workspaceSay } = graphWorkspaceReading({', '\n  });', 'the description');
   assert.match(call, /construction\.placements\[task\.id\]/, 'the points the student placed');
   assert.match(call, /givenGraph: mode === 'analysis' && !pointOnly,/);
   assert.match(workspace, /aria-label="Coordinate plane"\s*aria-describedby=\{`\$\{workspaceDescriptionId\} \$\{workspaceDescriptionId\}-keys`\}/);

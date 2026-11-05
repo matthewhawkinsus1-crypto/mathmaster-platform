@@ -4,7 +4,7 @@ import { zoomedWindow } from './graphWorkspaceViewport.js';
 import { clientPointToViewBox, viewBoxRenderScale } from './utils/responsiveCoordinates.js';
 import { revealInNearestScroller } from './platform/workView/workViewReveal.js';
 import { majorTicks } from './platform/graph/graphScaleService.js';
-import { describeGraphWorkspace } from './platform/language/graphWorkspaceDescription.js';
+import { graphWorkspaceReading } from './platform/language/graphWorkspaceDescription.js';
 import { PublishFigureReading } from './platform/language/figureReadings.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
@@ -1176,7 +1176,8 @@ export default function InteractiveGraphWorkspace({
   // What the plane shows, in words (student pass 3, Q-8): the student's own
   // points, strokes, graph ends and selections; a given graph only as drawn.
   // Never whether any of it is right (graphWorkspaceDescription.js).
-  const workspaceDescription = describeGraphWorkspace({
+  // `workspaceSay`: the same reading as messages, for Read aloud in Spanish (AX05).
+  const { text: workspaceDescription, say: workspaceSay } = graphWorkspaceReading({
     window: renderWindow,
     givenGraph: mode === 'analysis' && !pointOnly,
     placedPoints: constructionEnabled
@@ -1616,7 +1617,7 @@ export default function InteractiveGraphWorkspace({
             </g>
           </svg>
           {/* Read through the plane's aria-describedby: what is on it, then its keys. */}
-          <PublishFigureReading entry={{ kind: 'figure', label: 'Graph', text: workspaceDescription }} />
+          <PublishFigureReading entry={{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay }} />
           <span id={workspaceDescriptionId} data-graph-workspace-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{workspaceDescription}</span>
           <span id={`${workspaceDescriptionId}-keys`} aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor.</span>
           <figcaption style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : !endsDescribedForStudent ? 'Arrows show continuation; open and closed circles show finite-domain boundaries.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>

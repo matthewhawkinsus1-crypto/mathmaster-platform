@@ -230,8 +230,8 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   [
     ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
     ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
-    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{modelDescription\}<\/span>/],
-    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/],
+    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{modelDescription\}<\/span>/],
+    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/],
   ].forEach(([path, wiring]) => assert.match(code(path), wiring, path));
 
   const engine = code('src/QuestionEngine.jsx');

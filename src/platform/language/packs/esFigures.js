@@ -6,11 +6,15 @@
  *
  * Each entry is the Spanish for one of the platform's own figure sentences,
  * by the message id its generator gives it: GRAPH_WORDS
- * (../graphDescription.js), NUMBER_LINE_WORDS (../numberLineDescription.js)
- * and AXIS_TITLE_WORDS (../../../tools/shared/planeAxisTitles.js). The pieces
+ * (../graphDescription.js), NUMBER_LINE_WORDS (../numberLineDescription.js),
+ * AXIS_TITLE_WORDS (../../../tools/shared/planeAxisTitles.js), and in slice 2
+ * THREE_PLANE_WORDS (../../../tools/systemsWorkspace/threePlaneDescription.js)
+ * and GRAPH_WORKSPACE_WORDS (../graphWorkspaceDescription.js). The pieces
  * are the figure's own: a number, a coordinate, a count or a label is placed
  * exactly as it comes, so "−6", "(2, 1)" and "13/8" are the same in both
  * languages, and a label or an axis quantity is said as the screen shows it.
+ * An equation is mathematics, said in Spanish words by the reader's own
+ * speech rules (../speechText.js), as Read aloud says the prompt's.
  * A figure whose reading has any sentence without Spanish here is read in
  * English, and the reader says so (../questionReading.js).
  *
@@ -22,6 +26,8 @@
  * tests/platform/figureReadingSpanish.test.mjs holds the ids to the English
  * vocabularies and the numbers to the English readings.
  */
+
+import { mathToSpeech } from '../speechText.js';
 
 const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 // "A, B y C": no comma before the last item in Spanish.
@@ -161,6 +167,32 @@ export const words = Object.freeze({
 
   xAxisShows: (quantity) => `El eje x horizontal muestra ${quantity}.`,
   yAxisShows: (quantity) => `El eje y vertical muestra ${quantity}.`,
+
+  /* --------------------------------------- the 3D model (Systems Workspace) */
+  // "x, y, z" with no "y" between: "los ejes x, y y z" would say "y" twice.
+  modelAxes: (variables) => `Modelo 3D con los ejes ${variables.join(', ')}.`,
+  planeShown: (n, colour, equation) => `Plano ${n}, ${colour}: ${equation}.`,
+  planeHidden: (n, colour, equation) => `Plano ${n}, ${colour}: ${equation}, oculto.`,
+  planeBlue: () => 'azul',
+  planeRed: () => 'rojo',
+  planeGreen: () => 'verde',
+  spokenMath: (math) => mathToSpeech(math, { language: 'es' }),
+  noPlaneShown: () => 'No se muestra ningún plano.',
+  // Where two planes cross is a straight line: "recta", as on the plane.
+  planesCross: (first, second) => `Una recta discontinua marca dónde se cortan los planos ${first} y ${second}.`,
+  planesNoLine: (first, second) => `Entre los planos ${first} y ${second} no hay ninguna recta discontinua.`,
+  shownPlanesCross: () => 'Unas rectas discontinuas marcan dónde se cortan los planos que se muestran.',
+  markedOnModel: (point) => `Marcado en el modelo: ${point}.`,
+
+  /* -------------------------------------------- the graph workspace (legacy) */
+  givenGraphDrawn: () => 'Hay una gráfica dibujada. Sus posiciones no se leen mientras se pueda responder esta pregunta.',
+  youPlaced: (marks) => `Colocaste ${count(marks.length, 'punto', 'puntos')}: ${marks.join('; ')}.`,
+  curveThroughYourPoints: () => 'Tu curva está dibujada a través de tus puntos.',
+  youDrewStrokes: (n) => `Dibujaste ${count(n, 'trazo', 'trazos')}.`,
+  graphEndsMarked: (marks) => `Extremos de la gráfica que marcaste: ${marks.join('; ')}.`,
+  arrowAt: (at) => `una flecha en ${at}`,
+  youSelected: (pairs) => `Seleccionaste ${count(pairs.length, 'punto', 'puntos')}: ${pairs.join('; ')}.`,
+  nothingPlacedYet: () => 'Todavía no hay nada colocado.',
 
   /* --------------------------------------------------------- the number line */
   numberLine: (min, max) => `Recta numérica de ${min} a ${max}.`,

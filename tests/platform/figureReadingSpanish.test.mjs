@@ -15,13 +15,14 @@
  *           sentence and a fixable graph's scale caption), the interval number
  *           line and the pick-a-point number line; in slice 2, the plane's
  *           full reading once a question is closed or for the graph read-out
- *           (AX03), with its positions and the same numbers.
+ *           (AX03), with its positions and the same numbers, the 3D model (its
+ *           equations in Spanish words) and the graph workspace.
  *           In English, after "La descripción de esta figura está en inglés.":
- *           an author's description, the 3D model, the graph workspace, and a
- *           tool's own sentence the pack does not know.
+ *           an author's description, and a tool's own sentence the pack does
+ *           not know.
  *
- * The browser half: tests/browser/readAloudTranslate.mjs (the real DOL graph
- * and the 3D model, with an authored Spanish prompt).
+ * The browser half: tests/browser/readAloudTranslate.mjs (the real DOL graph,
+ * the 3D model and the graph workspace, with an authored Spanish prompt).
  */
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,6 +41,8 @@ import { studentBuildInequalityEnabled } from '../../functions/shared/toolMath/s
 import { describeCoordinatePlane, GRAPH_WORDS } from '../../src/platform/language/graphDescription.js';
 import { NUMBER_LINE_WORDS, numberLineReading, pointChoiceLineReading } from '../../src/platform/language/numberLineDescription.js';
 import { AXIS_TITLE_WORDS } from '../../src/tools/shared/planeAxisTitles.js';
+import { THREE_PLANE_WORDS, threePlaneModelReading } from '../../src/tools/systemsWorkspace/threePlaneDescription.js';
+import { GRAPH_WORKSPACE_WORDS, graphWorkspaceReading } from '../../src/platform/language/graphWorkspaceDescription.js';
 import { englishOnly, loadFigureWords, say, sayFigure } from '../../src/platform/language/figureSay.js';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
@@ -74,11 +77,12 @@ after(async () => { await capture?.close(); });
 /* --------------------------------------------------------- the pack's words */
 
 test('the Spanish pack says every sentence the figure generators say, and no other', () => {
-  const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS };
+  const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS, ...THREE_PLANE_WORDS, ...GRAPH_WORKSPACE_WORDS };
   const ids = Object.keys(english);
-  // Measured: every message the three generators have (112 today: 51, and
-  // 61 for the full reading in slice 2).
-  assert.ok(ids.length >= 112, `${ids.length} figure messages`);
+  // Measured: every message the generators have (155 today: 74 in slice 1;
+  // 61 for the full reading, 12 for the 3D model and 8 for the graph
+  // workspace in slice 2).
+  assert.ok(ids.length >= 155, `${ids.length} figure messages`);
   ids.forEach((id) => assert.equal(typeof esFigures.words[id], 'function', `Spanish for "${id}"`));
   Object.keys(esFigures.words).forEach((id) => assert.ok(Object.hasOwn(english, id), `"${id}" is a message a generator says`));
   // Built from the same pieces, a sentence keeps the English's numbers.
@@ -225,7 +229,7 @@ test('the reader: Spanish where the figure can say it, its English and a note wh
   const question = { prompt: 'La gráfica muestra una función.' };
   const open = describeCoordinatePlane({ xMin: -4, xMax: 7, yMin: -6, yMax: 16, functions: [(x) => 3 * x + 1], points: [{ x: -1, y: -2, marker: 'closed' }, { x: 4, y: 13, marker: 'open' }] });
   const graph = { kind: 'figure', label: 'Question graph', text: open.description, say: open.say };
-  const model = { kind: 'figure', label: '3D model', text: '3D model with the x, y and z axes. Dashed lines mark where shown planes cross.' };
+  const authored = { kind: 'figure', label: 'Graph', text: 'A scatter plot of ten students.' };
   const read = (figures, options) => questionReadingParts(question, { figures, ...options }).filter((part) => part.kind === 'figure');
 
   const [spanish] = read([graph], { language: 'es', figurePack: esFigures });
@@ -233,9 +237,9 @@ test('the reader: Spanish where the figure can say it, its English and a note wh
   assert.equal(spanish.text, 'Gráfica de la pregunta. El eje x va de −4 a 7 y el eje y, de −6 a 16. 1 curva. 1 círculo abierto y 1 círculo cerrado. Las posiciones no se leen mientras se pueda responder esta pregunta.');
   assert.equal(speechTextFor(spanish.text, { language: 'es' }).includes('El eje x va de negativo 4 a 7'), true);
 
-  // A figure with no Spanish: its English, after a sentence that says so.
-  const [english] = read([model], { language: 'es', figurePack: esFigures });
-  assert.equal(english.text, `Modelo 3D. ${NOTE} 3D model with the x, y and z axes. Dashed lines mark where shown planes cross.`);
+  // A figure with no Spanish (an author's description): its English, after a sentence that says so.
+  const [english] = read([authored], { language: 'es', figurePack: esFigures });
+  assert.equal(english.text, `Gráfica. ${NOTE} A scatter plot of ten students.`);
   // A tool's own sentence the pack does not know: the same.
   const marked = describeCoordinatePlane({ xMin: -6, xMax: 6, yMin: -6, yMax: 6, hasUndescribedMarks: true, toolMarks: { kinds: 'Boundary line 1: solid.' } });
   assert.match(read([{ kind: 'figure', label: 'Coordinate plane', text: marked.description, say: marked.say }], { language: 'es', figurePack: esFigures })[0].text, new RegExp(`^Plano de coordenadas\\. ${NOTE} x from −6 to 6`));
@@ -248,7 +252,7 @@ test('the reader: Spanish where the figure can say it, its English and a note wh
   const [plain] = read([graph], { language: 'en', figurePack: esFigures });
   assert.equal(plain.label, 'Question graph');
   assert.equal(plain.text, `Question graph. ${open.description}`);
-  assert.doesNotMatch(questionReadingText(questionReadingParts(question, { figures: [graph, model], figurePack: esFigures })), /inglés|El eje/);
+  assert.doesNotMatch(questionReadingText(questionReadingParts(question, { figures: [graph, authored], figurePack: esFigures })), /inglés|El eje/);
 
   // A table keeps the name its author gave it; its frame was already Spanish.
   const table = { kind: 'table', label: 'Phone bill', table: { columns: [{ key: 'x', label: 'x' }], rows: [[1]] } };
@@ -387,6 +391,85 @@ test('the number lines publish their readings as messages', async () => {
   const interval = numberLineReading({ min: -7.5, max: 7.5, labelStep: 2.5, pieces: [{ min: 13 / 8, max: Infinity, minClosed: true }] });
   assert.equal(sayFigure(interval.say, esFigures.words), 'Recta numérica de −7.5 a 7.5, con números cada 2.5. Tu gráfica: Sombreada desde un círculo cerrado en 13/8 hacia la derecha, terminando en una flecha.');
   assert.match(code('src/tools/intervalNumberLine/IntervalNumberLine.jsx'), /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>/);
+});
+
+/* --------------------------------------- the 3D model and the graph workspace */
+
+// Said in Spanish with the English's numbers, and in English from the same messages.
+const spanishOf = (reading, words, where) => {
+  assert.equal(sayFigure(reading.say, words, { english: true }), reading.text, `${where}: the English is said from the same messages`);
+  const spanish = sayFigure(reading.say, esFigures.words);
+  assert.ok(spanish, `${where}: has Spanish`);
+  sameNumbers(reading.text, spanish, where);
+  return spanish;
+};
+
+test('the 3D model is said in Spanish: each plane by its equation in Spanish words; which planes cross only once closed', () => {
+  const equations = ['x + y + z = 6', '2x - y + z = 3', '-x + 2y + z = 5'];
+  const model = (input) => spanishOf(threePlaneModelReading({ equations, ...input }), THREE_PLANE_WORDS, JSON.stringify(input));
+  assert.equal(
+    model({ visible: [true, false, true], crossings: [[0, 2]] }),
+    'Modelo 3D con los ejes x, y, z. Plano 1, azul: x más y más z es igual a 6. Plano 2, rojo: 2x menos y más z es igual a 3, oculto. Plano 3, verde: negativo x más 2y más z es igual a 5. Unas rectas discontinuas marcan dónde se cortan los planos que se muestran.',
+  );
+  // While it can be answered: no pair, no classification, no point.
+  for (const crossings of [[[0, 1]], [[0, 1], [1, 2]], [[0, 1], [0, 2], [1, 2]]]) {
+    assert.doesNotMatch(model({ crossings }), /planos \d y \d|paralel|un punto|ningún punto|infinit|Marcado/i);
+  }
+  // Closed: each shown pair, and the point the model marks.
+  assert.match(
+    model({ crossings: [[0, 1], [1, 2]], detail: 'features', markedPoint: '(1, −2, 4)' }),
+    /Una recta discontinua marca dónde se cortan los planos 1 y 2\. Entre los planos 1 y 3 no hay ninguna recta discontinua\. Una recta discontinua marca dónde se cortan los planos 2 y 3\. Marcado en el modelo: el punto 1, negativo 2, 4\.$/,
+  );
+  assert.match(model({ visible: [false, false, false] }), /No se muestra ningún plano\.$/);
+  assert.match(model({ variables: ['a', 'b', 'c'], equations: ['a + b + c = 1'] }), /^Modelo 3D con los ejes a, b, c\. Plano 1, azul: a más b más c es igual a 1\.$/);
+});
+
+test('the real 3D model publishes its reading as messages, open and closed (3x3-d1-cw-1)', async () => {
+  const { default: ThreePlaneWorkspace } = await capture.load('/src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx');
+  const { QuestionLifecycleProvider } = await capture.load('/src/platform/question/QuestionLifecycleContext.jsx');
+  const lesson = JSON.parse(readFileSync(new URL('docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json', ROOT), 'utf8'));
+  const stored = compileAuthoringIntentV5(lesson).package.sections.flatMap((section) => section.questions).find((entry) => entry.questionId === '3x3-d1-cw-1');
+  const question = normalizeContextualQuestion(generateQuestion(prepareQuestionForRuntimeRouting(stored, {}), 0, null, null, null));
+  const published = (lifecycle) => {
+    const { entries } = capture.render(React.createElement(QuestionLifecycleProvider, lifecycle, React.createElement(ThreePlaneWorkspace, { questionData: question, onAction: () => {} })));
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].label, '3D model');
+    return entries[0];
+  };
+  const open = published({ terminal: false, positionsReadable: false });
+  const spanish = spanishOf(open, THREE_PLANE_WORDS, 'open');
+  assert.equal(spanish, 'Modelo 3D con los ejes x, y, z. Plano 1, azul: 2x menos y más 2z es igual a 15. Plano 2, rojo: negativo x más y más z es igual a 3. Plano 3, verde: 3x menos y más 2z es igual a 18. Unas rectas discontinuas marcan dónde se cortan los planos que se muestran.');
+  // The reader says it in Spanish, with no note.
+  const part = questionReadingParts({ prompt: 'Gira el modelo 3D.' }, { figures: [open], language: 'es', figurePack: esFigures }).find((entry) => entry.kind === 'figure');
+  assert.equal(part.text, `Modelo 3D. ${spanish}`);
+  const closed = spanishOf(published({ terminal: true, positionsReadable: true }), THREE_PLANE_WORDS, 'closed');
+  assert.match(closed, /Una recta discontinua marca dónde se cortan los planos 1 y 2\./);
+});
+
+test('the graph workspace is said in Spanish: the student\'s own work, and a given graph only as drawn', async () => {
+  const window = { xMin: -4, xMax: 4, yMin: -6, yMax: 8 };
+  const workspace = (input) => spanishOf(graphWorkspaceReading({ window, ...input }), { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...GRAPH_WORKSPACE_WORDS }, JSON.stringify(input));
+  assert.equal(workspace({}), 'El eje x va de −4 a 4 y el eje y, de −6 a 8. Todavía no hay nada colocado.');
+  // The task's label is the item's own words, said as written.
+  assert.equal(
+    workspace({ placedPoints: [{ label: 'Plot the point where x = 0', point: [0, 1] }, { label: '', point: [2, -5] }], strokeCount: 2, markers: [{ type: 'arrow', point: [3, 7] }, { type: 'open', point: [-2, -3] }, { type: 'closed', point: [1, 1] }], selectedPoints: [[1, 3]] }),
+    'El eje x va de −4 a 4 y el eje y, de −6 a 8. Colocaste 2 puntos: Plot the point where x = 0 en (0, 1); (2, −5). Dibujaste 2 trazos. Extremos de la gráfica que marcaste: una flecha en (3, 7); un círculo abierto en (−2, −3); un círculo cerrado en (1, 1). Seleccionaste 1 punto: (1, 3).',
+  );
+  assert.match(workspace({ curveDrawn: true, strokeCount: 3 }), /Tu curva está dibujada a través de tus puntos\.$/);
+  assert.equal(workspace({ givenGraph: true }), 'El eje x va de −4 a 4 y el eje y, de −6 a 8. Hay una gráfica dibujada. Sus posiciones no se leen mientras se pueda responder esta pregunta.');
+
+  // The real workspace publishes the same messages beside its description.
+  const { default: InteractiveGraphWorkspace } = await capture.load('/src/InteractiveGraphWorkspace.jsx');
+  const graph = { functionSpec: { type: 'linear', m: 2, b: 1 }, graph: window };
+  [
+    [{ type: 'functionGraph', prompt: 'Graph y = 2x + 1.', ...graph, pointTasks: [{ id: 'p1', label: 'Plot the point where x = 0', x: 0, expected: [0, 1] }] }, 'investigate', 'Todavía no hay nada colocado.'],
+    [{ type: 'graphAnalysis', prompt: 'Read the graph.', ...graph, analysisRequests: [{ id: 'at-two', kind: 'value', label: 'The value of $f(2)$', expected: 5 }] }, 'analysis', 'Hay una gráfica dibujada.'],
+  ].forEach(([question, mode, said]) => {
+    const { markup, entries } = capture.render(React.createElement(InteractiveGraphWorkspace, { question, mode, onStateChange: () => {} }));
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].text, /data-graph-workspace-description=""[^>]*>([^<]*)</.exec(markup)?.[1], 'the reading is the workspace\'s own description');
+    assert.ok(spanishOf(entries[0], { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...GRAPH_WORKSPACE_WORDS }, mode).includes(said), mode);
+  });
 });
 
 /* ---------------------------------------------------- loaded only for Spanish */

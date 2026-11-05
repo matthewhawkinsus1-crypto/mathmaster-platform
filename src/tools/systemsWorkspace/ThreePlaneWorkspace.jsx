@@ -27,7 +27,7 @@ import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tool
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
 import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
-import { describeThreePlaneModel } from './threePlaneDescription.js';
+import { threePlaneModelReading } from './threePlaneDescription.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
@@ -298,9 +298,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   // equations, which are shown, the dashed crossings and a marked point. While
   // the question can be answered it never says which planes cross or classifies
   // the system (threePlaneDescription.js); a closed question names each pair.
+  // `modelSay`: the same reading as messages, for Read aloud in Spanish (AX05).
   const modelDescriptionId = `${instructionId}-model`;
   const { positionsReadable: questionClosed } = useQuestionLifecycle();
-  const modelDescription = useMemo(() => describeThreePlaneModel({
+  const { text: modelDescription, say: modelSay } = useMemo(() => threePlaneModelReading({
     variables,
     equations,
     visible: visiblePlanes,
@@ -392,7 +393,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
           <span id={instructionId} className="mathmaster-threeplane-sr-only">
             Arrow keys rotate the model: Left and Right turn it, Up and Down tilt it. Hold Shift for larger steps. Home returns to the opening view.
           </span>
-          <PublishFigureReading entry={{ kind: 'figure', label: '3D model', text: modelDescription }} />
+          <PublishFigureReading entry={{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay }} />
           <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true">{modelDescription}</span>
           <span className="mathmaster-threeplane-sr-only" role="status" aria-live="polite">{viewAnnouncement}</span>
           <svg

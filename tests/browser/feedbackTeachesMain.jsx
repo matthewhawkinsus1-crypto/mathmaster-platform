@@ -24,6 +24,9 @@
 //                           the same way: with ?support=translate Read aloud reads
 //                           in Spanish, a figure in its own Spanish words or in
 //                           English with a sentence saying so (AX05)
+//   ?q=workspacees          the legacy graph workspace (plot two points of
+//                           y = 2x + 1) with an authored Spanish prompt: the
+//                           student's own points are read in Spanish (AX05, slice 2)
 //   ?q=ltw|dml|sequence     the real DOL #3 review's tools that draw their own
 //                           tables (dol3-review-q03, q11, q13), and the Linear
 //   ?q=lmrtable             Multiple Representations board's given table (lmr-pr-1):
@@ -130,6 +133,17 @@ const QUESTIONS = {
     .find((entry) => entry.questionId === '3x3-d1-cw-1'),
   dolgraphes: withSpanishPrompt(lessonItem(dolGraphLesson, 'q_section-4_4_1'), 'La gráfica muestra una función con un conjunto restringido de entradas. Determina su dominio y su rango con desigualdades.'),
   planeses: withSpanishPrompt(lessonItem(threeByThreeDay1, '3x3-d1-cw-1'), 'Con tu maestro, gira el modelo 3D y muestra u oculta los tres planos. Antes de que se revelen las coordenadas, decide qué debe representar una solución de las tres ecuaciones.'),
+  workspacees: withSpanishPrompt({
+    questionId: 'feedback-workspace',
+    type: 'functionGraph',
+    prompt: 'Graph y = 2x + 1.',
+    functionSpec: { type: 'linear', m: 2, b: 1 },
+    graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 },
+    pointTasks: [
+      { id: 'p1', label: 'Plot the point where x = 0', x: 0, expected: [0, 1] },
+      { id: 'p2', label: 'Plot the point where x = 2', x: 2, expected: [2, 5] },
+    ],
+  }, 'Grafica y = 2x + 1.'),
   ltw: lessonItem(dol3Review, 'dol3-review-q03'),
   dml: lessonItem(dol3Review, 'dol3-review-q11'),
   sequence: lessonItem(dol3Review, 'dol3-review-q13'),

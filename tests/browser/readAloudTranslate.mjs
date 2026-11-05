@@ -27,8 +27,8 @@
 //   figures, es  under an authored Spanish prompt the real DOL graph is read
 //                in its own Spanish words, with the same numbers and still no
 //                position; with the graph read-out (AX03) it is read in full,
-//                in Spanish (AX05, slice 2); the 3D model, which has no Spanish
-//                yet, is read in English after a sentence that says so (AX05).
+//                in Spanish, and the 3D model and the graph workspace (the
+//                student's own point) are read in Spanish too (AX05, slice 2).
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
@@ -197,12 +197,37 @@ for (const device of DEVICES) {
     await context.close();
   }
   {
-    // A figure with no Spanish words yet: its English, and the student is told.
+    // The 3D model in its own Spanish words, its equations said as Spanish
+    // mathematics, and no pair of planes while it can be answered (AX05, slice 2).
     const { page, context } = await open(device, 'q=planeses&role=classwork&support=translate');
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const heard = await lastSpoken(page);
     const said = heard?.text || '';
-    check(heard?.lang === 'es' && /Modelo 3D\. La descripción de esta figura está en inglés\. 3D model with the x, y and z axes\./.test(said), `${device.name}: the 3D model is read in English, after a sentence that says so`, said.slice(0, 400));
+    check(heard?.lang === 'es' && said.includes('Modelo 3D. Modelo 3D con los ejes x, y, z. Plano 1, azul: 2x menos y más 2z es igual a 15. Plano 2, rojo: negativo x más y más z es igual a 3. Plano 3, verde: 3x menos y más 2z es igual a 18.'), `${device.name}: the 3D model is read in Spanish`, said.slice(0, 400));
+    check(!/inglés|3D model with|planos \d y \d/.test(said), `${device.name}: no English, no note, and no pair of planes named`, said.slice(0, 400));
+    await context.close();
+  }
+  {
+    // The legacy graph workspace: the student's own point, read back in Spanish;
+    // the task's label is the item's own words (AX05, slice 2).
+    const { page, context } = await open(device, 'q=workspacees&role=practice&support=translate');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    await read.click();
+    const before = await lastSpoken(page);
+    check(before?.lang === 'es' && (before?.text || '').includes('Gráfica. El eje x va de negativo 4 a 4 y el eje y, de negativo 6 a 8. Todavía no hay nada colocado.'), `${device.name}: the graph workspace is read in Spanish`, (before?.text || '').slice(0, 300));
+    await page.getByRole('button', { name: /^Plot the point where x = 0/ }).click();
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('0');
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('1');
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(300);
+    // On a phone the keypad holds the work bar's place until "Done".
+    const done = page.locator('button:visible', { hasText: /^Done$/ });
+    if (await done.count()) await done.first().click();
+    else await page.evaluate(() => document.activeElement?.blur());
+    await page.waitForTimeout(300);
+    await read.click();
+    const after = (await lastSpoken(page))?.text || '';
+    check(after.includes('Colocaste 1 punto: Plot the point where x es igual a 0 en el punto 0, 1.') && !/inglés|You placed/.test(after), `${device.name}: the student's point is read back in Spanish`, after.slice(0, 300));
     await context.close();
   }
 
