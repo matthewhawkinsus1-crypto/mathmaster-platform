@@ -109,10 +109,18 @@ test('a Spanish figure reading says the English reading\'s numbers, in order, ov
       windowSteps: rand() < 0.4 ? { x: 1, y: 1 } : null,
       listPlottedPoints: rand() < 0.5, snapStep: pick([1, 0.5]),
       points: Array.from({ length: int(0, 4) }, () => ({ x: int(-5, 5) / pick([1, 2]), y: int(-5, 5), label: pick(['', 'A', 'P₁']), marker: pick([undefined, undefined, 'open', 'closed', 'arrow']) })),
-      lines: Array.from({ length: int(0, 2) }, () => ({ m: int(-3, 3), b: int(-4, 4) })),
+      // A line's style, a reference line, and the shaded sides of an
+      // inequality's figure (N38, CT04): said in Spanish with the same numbers.
+      lines: Array.from({ length: int(0, 2) }, () => ({ m: int(-3, 3), b: int(-4, 4), ...(rand() < 0.4 ? { dash: '10 6' } : {}), ...(rand() < 0.15 ? { reference: true } : {}) })),
       functions: Array.from({ length: int(0, 2) }, () => (x) => x * x - 2),
-      verticalLines: Array.from({ length: int(0, 2) }, () => int(-3, 3)),
+      curveDashes: rand() < 0.3 ? [true, false] : null,
+      verticalLines: Array.from({ length: int(0, 2) }, () => (rand() < 0.5 ? int(-3, 3) : { x: int(-3, 3), boundaryStyle: pick(['solid', 'dashed']) })),
       horizontalLines: Array.from({ length: int(0, 1) }, () => int(-3, 3)),
+      polylines: rand() < 0.3 ? [{ points: [[0, 0], [1, 2]], dash: rand() < 0.5 ? '10 6' : undefined }] : [],
+      halfPlanes: Array.from({ length: int(0, 2) }, () => ({
+        sides: Array.from({ length: int(1, 2) }, () => pick([{ side: pick(['above', 'below']), line: int(0, 1) }, { side: pick(['left', 'right']), vertical: int(0, 1) }, { side: 'below' }])),
+        polygon: [[0, 0], [2, 0], [0, 2]],
+      })),
       axisNumbersHidden: pick([{}, {}, { x: true }, { y: true }, { x: true, y: true }]),
       emptyText: pick(['Nothing is plotted.', 'Nothing is plotted yet.']),
       hasUndescribedMarks: rand() < 0.2,

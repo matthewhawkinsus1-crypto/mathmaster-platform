@@ -4,6 +4,7 @@ import CoordinatePlane from '../../tools/shared/CoordinatePlane';
 import MathDisplay from '../../MathDisplay';
 import { evaluateModelAt } from './modelExpression';
 import { workflowEndpointMarkers } from './workflowGraphVisuals.js';
+import { GUIDE_DASH, GUIDE_STROKE } from '../graph/verticalLineStyle.js';
 import {
   buildFigureMatchResponse,
   figureEquationLines,
@@ -96,6 +97,23 @@ const normalizePoint = (point) => {
   return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
 };
 
+/*
+ * THE LINE EVERY FIGURE IS COMPARED WITH (CT04, L3 PR 9: "parallel to the
+ * reference line, perpendicular to it, or neither?"). A sort's shared window
+ * (`graph`) may carry `referenceLine: { m, b, label }`: every figure drawn on
+ * it then shows that line too, dashed in the plane's guide colour so the
+ * figure's own line stays the one being sorted, and the key above the cards
+ * names it. Not a vertical line: a figure's line is y = f(x).
+ */
+const readReferenceLine = (graph) => {
+  const line = graph && typeof graph === 'object' ? graph.referenceLine : null;
+  if (!line || typeof line !== 'object') return null;
+  const m = Number(line.m);
+  const b = Number(line.b);
+  if (!Number.isFinite(m) || !Number.isFinite(b)) return null;
+  return { m, b, label: typeof line.label === 'string' ? line.label.trim() : '' };
+};
+
 function FigureGraph({ graph, label }) {
   const spec = graph && typeof graph === 'object' ? graph : {};
   const xMin = Number.isFinite(Number(spec.xMin)) ? Number(spec.xMin) : -10;
@@ -126,14 +144,26 @@ function FigureGraph({ graph, label }) {
     () => (functions.length ? workflowEndpointMarkers({ evaluate: functions[0], viewWindow }) : []),
     [functions, viewWindow],
   );
+  const reference = readReferenceLine(spec);
+  const referenceM = reference?.m;
+  const referenceB = reference?.b;
+  // Read as a reference line, not as one of the figure's own (graphDescription.js).
+  const lines = useMemo(
+    () => (Number.isFinite(referenceM) ? [{ m: referenceM, b: referenceB, stroke: GUIDE_STROKE, dash: GUIDE_DASH, reference: true }] : []),
+    [referenceM, referenceB],
+  );
 
   return (
     <CoordinatePlane
       {...viewWindow}
+      // One unit is the same length both ways where the author asks, so a
+      // right angle to the reference line looks like one.
+      equalUnits={spec.equalUnits === true}
       points={[
         ...points.map(([x, y]) => ({ x, y, fill: '#1a73e8', r: 5, movable: false })),
         ...endpointMarkers,
       ]}
+      lines={lines}
       functions={functions}
       {...(!model && points.length > 1 && spec.connect !== false ? { polylines: [points] } : {})}
       revealCoordinates={false}
@@ -168,12 +198,22 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
   };
 
   const answered = items.filter((item) => assignments[String(item.id ?? '').trim()]).length;
+  const reference = items.map((item) => readReferenceLine(item.graph)).find(Boolean);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {wrong.size ? (
         <p data-figure-match-wrong="" style={{ margin: 0, fontWeight: 700, color: 'var(--mm-danger)' }}>
           {`${figureList([...wrong].sort((a, b) => a - b), noun)} ${wrong.size === 1 ? 'is' : 'are'} not in the right category yet.`}
+        </p>
+      ) : null}
+      {reference ? (
+        <p data-reference-line-key="" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))' }}>
+          <svg width="34" height="10" aria-hidden="true" focusable="false" style={{ flex: '0 0 auto' }}>
+            <line x1="1" y1="5" x2="33" y2="5" stroke={GUIDE_STROKE} strokeWidth="3" strokeDasharray={GUIDE_DASH} />
+          </svg>
+          {/* Beside its swatch on a phone too: the words wrap, not the swatch. */}
+          <span style={{ flex: '1 1 12em', minWidth: 0 }}>{reference.label ? `The dashed line on each graph is the reference line, ${reference.label}.` : 'The dashed line on each graph is the reference line.'}</span>
         </p>
       ) : null}
       <div

@@ -307,6 +307,7 @@ const auditQuestionGraphs = (question, type, label, errors, warnings, composedQu
   if (isObject(question.graph)) {
     const graphHasOwnDrawing = nonEmptyArray(question.graph.functions) || nonEmptyArray(question.graph.points)
       || nonEmptyArray(question.graph.segments) || isObject(question.graph.line)
+      || nonEmptyArray(question.graph.verticalLines) || nonEmptyArray(question.graph.shading)
       || has(question.graph.m) || has(question.graph.b);
     // Not every `graph` object is a GraphDisplay card. functionGraph and
     // graphAnalysis take their curve from `functionSpec`, and an interactive

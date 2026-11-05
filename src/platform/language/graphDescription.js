@@ -62,7 +62,7 @@
  */
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { majorTicks, niceStep } from '../graph/graphScaleService.js';
-import { verticalLineDrawings } from '../graph/verticalLineStyle.js';
+import { verticalLineDrawing } from '../graph/verticalLineStyle.js';
 import { englishOnly, say, sayFigure } from './figureSay.js';
 
 // Above this many resolution steps across the window the plane cannot draw a
@@ -249,14 +249,15 @@ const gridPointsOnLine = (m, b, res, w) => {
   return found.slice(0, 2).sort((p, q) => p[0] - q[0]);
 };
 
-const describeLine = (line, index, res, w) => {
+// `styled`: the figure draws its lines' styles (N38), so a solid line is said
+// to be solid, not only a dashed one dashed.
+const describeLine = (line, name, res, w, styled = false) => {
   const m = Number(line?.m);
   const b = Number(line?.b);
-  const name = `Line ${index + 1}`;
   if (!Number.isFinite(m) || !Number.isFinite(b)) return null;
   const yLeft = m * w.xMin + b;
   const yRight = m * w.xMax + b;
-  const style = line?.dash ? ' (dashed)' : '';
+  const style = line?.dash ? ' (dashed)' : styled ? ' (solid)' : '';
   if (Math.max(yLeft, yRight) < w.yMin - EPS || Math.min(yLeft, yRight) > w.yMax + EPS) {
     return { name, text: `${name}${style} is outside the window.` };
   }
@@ -379,12 +380,15 @@ const curveFeatures = (fn, res, w) => {
   return { features, visible: samples.some((s) => s.inside) };
 };
 
-const describeCurve = (fn, index, count, res, w) => {
+const describeCurve = (fn, index, count, res, w, dashes = null) => {
   if (typeof fn !== 'function') return null;
   // CoordinatePlane draws the first curve solid and every later one dashed;
-  // with one curve there is nothing to tell apart.
+  // with one curve there is nothing to tell apart. A figure that says which
+  // curves it draws dashed (`curveDashes`, GraphDisplay) is said as drawn.
   const name = `Curve ${index + 1}`;
-  const style = count < 2 ? '' : index === 0 ? ' (solid)' : ' (dashed)';
+  const style = dashes
+    ? (dashes[index] ? ' (dashed)' : ' (solid)')
+    : count < 2 ? '' : index === 0 ? ' (solid)' : ' (dashed)';
   const { features, visible } = curveFeatures(fn, res, w);
   if (!visible) return { name, text: `${name}${style} is outside the window.` };
   const shown = features.slice(0, MAX_CURVE_FEATURES).map((f) => f.text);
@@ -424,6 +428,33 @@ export const GRAPH_WORDS = Object.freeze({
   // What is drawn, never where.
   lineCount: (count) => `${plural(count, 'line')}.`,
   curveCount: (count) => (count > 1 ? `${plural(count, 'curve')}, the first solid and the others dashed.` : '1 curve.'),
+  // A figure that draws a line's style or a shaded side (N38): each line is
+  // solid or dashed, and a shaded side is said with its line. The side is how
+  // the picture is drawn, as an open or a closed dot is; no position is said.
+  solidLineCount: (count) => `${plural(count, 'solid line')}.`,
+  dashedLineCount: (count) => `${plural(count, 'dashed line')}.`,
+  solidLineShaded: (side) => `1 solid line, shaded ${side}.`,
+  dashedLineShaded: (side) => `1 dashed line, shaded ${side}.`,
+  solidVerticalShaded: (side) => `1 solid vertical line, shaded ${side}.`,
+  dashedVerticalShaded: (side) => `1 dashed vertical line, shaded ${side}.`,
+  sideAbove: () => 'above',
+  sideBelow: () => 'below',
+  sideLeft: () => 'to the left',
+  sideRight: () => 'to the right',
+  // The overlap of a system's shaded sides, drawn as one region.
+  regionShaded: (where) => `The region ${where} is shaded.`,
+  aboveBothLines: () => 'above both lines',
+  belowBothLines: () => 'below both lines',
+  aboveOneBelowOther: () => 'above one line and below the other',
+  // Said by the way each line goes, which the picture shows: otherwise the two
+  // regions between a rising and a falling line would be said alike.
+  aboveRisingBelowFalling: () => 'above the rising line and below the falling line',
+  belowRisingAboveFalling: () => 'below the rising line and above the falling line',
+  solidCurveCount: (count) => `${plural(count, 'solid curve')}.`,
+  dashedCurveCount: (count) => `${plural(count, 'dashed curve')}.`,
+  dashedPathCount: (count) => `${plural(count, 'dashed connected path')}.`,
+  // A line every figure of a sort shares, drawn to compare each one with (CT04).
+  referenceLineCount: (count) => `${plural(count, 'reference line')}.`,
   dashedVerticalCount: (count) => `${plural(count, 'dashed vertical line')}.`,
   solidVerticalCount: (count) => `${plural(count, 'solid vertical line')}.`,
   dashedHorizontalCount: (count) => `${plural(count, 'dashed horizontal line')}.`,
@@ -470,34 +501,124 @@ const graphSentenceSay = (text) => {
   return found ? say(found[0]) : englishOnly(value);
 };
 
+/* ------------------------------------------------------- shaded sides (N38) */
+
+const SIDE_SAYS = Object.freeze({ above: 'sideAbove', below: 'sideBelow', left: 'sideLeft', right: 'sideRight' });
+const SIDE_WORDS = Object.freeze({ above: 'above', below: 'below', left: 'to the left of', right: 'to the right of' });
+
+/*
+ * WHICH DRAWN LINE EACH SHADED SIDE BELONGS TO. A figure's `halfPlanes` say,
+ * for each shaded region, the side of each boundary it lies on and which drawn
+ * line that boundary is: { sides: [{ side, line | vertical }], polygon }. A
+ * region on one side of one drawn line is said with that line ("1 dashed line,
+ * shaded below"); one bounded by two drawn lines is a system's overlap; a
+ * region whose boundary is not drawn is a shaded region like any other.
+ * Entries come back in the figure's order.
+ */
+const shadingPlan = ({ lines = [], verticalLines = [], halfPlanes = [] }) => {
+  const lineSide = new Map();
+  const verticalSide = new Map();
+  const entries = [];
+  const drawnLine = (index) => Number.isInteger(index) && Number.isFinite(Number(lines[index]?.m)) && Number.isFinite(Number(lines[index]?.b));
+  const drawnVertical = (index) => Number.isInteger(index) && verticalLines[index] != null;
+  (Array.isArray(halfPlanes) ? halfPlanes : []).forEach((region) => {
+    const sides = Array.isArray(region?.sides) ? region.sides : [];
+    const named = sides.length > 0 && sides.every((entry) => SIDE_SAYS[entry?.side]
+      && (drawnLine(entry.line) || drawnVertical(entry.vertical)));
+    if (!named) {
+      entries.push({ kind: 'region', polygon: region?.polygon });
+      return;
+    }
+    if (sides.length === 1) {
+      const [only] = sides;
+      const vertical = !drawnLine(only.line);
+      const map = vertical ? verticalSide : lineSide;
+      const key = vertical ? only.vertical : only.line;
+      if (!map.has(key)) {
+        map.set(key, only.side);
+        entries.push({ kind: vertical ? 'vertical' : 'line', index: key, side: only.side });
+        return;
+      }
+    }
+    entries.push({ kind: 'overlap', sides, polygon: region?.polygon });
+  });
+  return { lineSide, verticalSide, entries };
+};
+
+// The overlap of two drawn lines' sides, in words that give no position: null
+// for any other overlap, which is then said as a shaded region.
+const overlapWhere = (sides, lines = []) => {
+  if (sides.length !== 2 || !sides.every((entry) => Number.isInteger(entry.line))) return null;
+  const kinds = sides.map((entry) => entry.side).sort().join(',');
+  if (kinds === 'above,above') return 'aboveBothLines';
+  if (kinds === 'below,below') return 'belowBothLines';
+  if (kinds !== 'above,below') return null;
+  const slope = (side) => Number(lines[sides.find((entry) => entry.side === side).line]?.m);
+  if (slope('above') > 0 && slope('below') < 0) return 'aboveRisingBelowFalling';
+  if (slope('above') < 0 && slope('below') > 0) return 'belowRisingAboveFalling';
+  return 'aboveOneBelowOther';
+};
+
 /* ------------------------------------------- kinds only (still answerable) */
 
 // What is drawn, never where: no crossings, extremes, positions or table.
 const describeKinds = ({
   windowSays, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, toolMarksText = '',
-  points, lines, functions, polylines, regions, verticalLines, horizontalLines,
+  points, lines, functions, polylines, regions, verticalLines, horizontalLines, halfPlanes, curveDashes,
   positionsWithheldText,
 }) => {
-  const lineCount = lines.filter((line) => Number.isFinite(Number(line?.m)) && Number.isFinite(Number(line?.b))).length;
-  const curveCount = functions.filter((fn) => typeof fn === 'function').length;
-  const verticalDrawings = verticalLineDrawings(verticalLines);
-  const solidVerticals = verticalDrawings.filter((line) => !line.dash).length;
-  const verticals = verticalDrawings.length - solidVerticals;
+  const plan = shadingPlan({ lines, verticalLines, halfPlanes });
+  const finiteLine = (line) => Number.isFinite(Number(line?.m)) && Number.isFinite(Number(line?.b));
+  const drawnLines = lines.map((line, index) => ({ line, index })).filter(({ line }) => finiteLine(line));
+  const referenceCount = drawnLines.filter(({ line }) => line?.reference === true).length;
+  const ownLines = drawnLines.filter(({ line }) => line?.reference !== true);
+  // A figure that draws a dashed line or a shaded side says every line's style.
+  const styled = ownLines.some(({ line }) => line?.dash) || plan.lineSide.size > 0
+    || plan.entries.some((entry) => entry.kind === 'overlap');
+  const curves = functions.map((fn, index) => (typeof fn === 'function' ? { dashed: Boolean(curveDashes?.[index]) } : null)).filter(Boolean);
+  const curveStyled = Array.isArray(curveDashes) && curves.some((curve) => curve.dashed);
+  const verticalDrawings = verticalLines.map((entry, index) => ({ ...verticalLineDrawing(entry), index })).filter((line) => Number.isFinite(line.x));
+  const unshadedVerticals = verticalDrawings.filter((line) => !plan.verticalSide.has(line.index));
+  const solidVerticals = unshadedVerticals.filter((line) => !line.dash).length;
+  const verticals = unshadedVerticals.length - solidVerticals;
   const horizontals = horizontalLines.map(Number).filter(Number.isFinite).length;
-  const paths = polylines.map(rawPointList).filter((v) => v.length).length;
-  const shaded = regions.map(rawPointList).filter((v) => v.length).length;
+  const pathEntries = polylines.filter((entry) => rawPointList(entry).length);
+  const dashedPaths = pathEntries.filter((entry) => entry?.dash).length;
+  const paths = pathEntries.length - dashedPaths;
+  const overlapSays = plan.entries.filter((entry) => entry.kind === 'overlap').map((entry) => overlapWhere(entry.sides, lines));
+  const shaded = regions.map(rawPointList).filter((v) => v.length).length
+    + plan.entries.filter((entry) => entry.kind === 'region').length
+    + overlapSays.filter((where) => !where).length;
   const drawn = points.filter((point) => readGraphPointCoordinates(point));
   const isPlotted = (point) => listPlottedPoints && !point?.marker && point?.movable !== false;
   const given = drawn.filter((point) => !isPlotted(point));
   const plotted = drawn.filter(isPlotted);
 
   const says = [...windowSays];
-  if (lineCount) says.push(say('lineCount', lineCount));
-  if (curveCount) says.push(say('curveCount', curveCount));
+  if (styled) {
+    ownLines.forEach(({ line, index }) => {
+      if (plan.lineSide.has(index)) says.push(say(line?.dash ? 'dashedLineShaded' : 'solidLineShaded', say(SIDE_SAYS[plan.lineSide.get(index)])));
+    });
+    const unshaded = ownLines.filter(({ index }) => !plan.lineSide.has(index));
+    const solidLines = unshaded.filter(({ line }) => !line?.dash).length;
+    if (solidLines) says.push(say('solidLineCount', solidLines));
+    if (unshaded.length - solidLines) says.push(say('dashedLineCount', unshaded.length - solidLines));
+  } else if (ownLines.length) says.push(say('lineCount', ownLines.length));
+  if (referenceCount) says.push(say('referenceLineCount', referenceCount));
+  if (curveStyled) {
+    const dashedCurves = curves.filter((curve) => curve.dashed).length;
+    if (curves.length - dashedCurves) says.push(say('solidCurveCount', curves.length - dashedCurves));
+    says.push(say('dashedCurveCount', dashedCurves));
+  } else if (curves.length) says.push(say('curveCount', curves.length));
+  verticalDrawings.forEach((line) => {
+    if (plan.verticalSide.has(line.index)) says.push(say(line.dash ? 'dashedVerticalShaded' : 'solidVerticalShaded', say(SIDE_SAYS[plan.verticalSide.get(line.index)])));
+  });
   if (verticals) says.push(say('dashedVerticalCount', verticals));
   if (solidVerticals) says.push(say('solidVerticalCount', solidVerticals));
   if (horizontals) says.push(say('dashedHorizontalCount', horizontals));
   if (paths) says.push(say('pathCount', paths));
+  if (dashedPaths) says.push(say('dashedPathCount', dashedPaths));
+  overlapSays.filter(Boolean).forEach((where) => says.push(say('regionShaded', say(where))));
   if (shaded) says.push(say('regionCount', shaded));
   if (given.length) {
     const arrows = given.filter((point) => point?.marker === 'arrow').length;
@@ -510,10 +631,14 @@ const describeKinds = ({
   if (plotted.length) {
     says.push(say('plotted', plotted.map((point) => { const [x, y] = readGraphPointCoordinates(point); return readPairSay(x, y, res); })));
   }
-  const described = lineCount + curveCount + verticals + horizontals + paths + shaded + drawn.length;
+  // Every vertical line counts as drawn, solid as well as dashed: a figure of
+  // a solid boundary x = c alone said "Nothing is plotted." after it.
+  const marks = drawnLines.length + curves.length + verticalDrawings.length + horizontals + pathEntries.length
+    + shaded + overlapSays.filter(Boolean).length;
+  const described = marks + drawn.length;
   if (!described && !hasUndescribedMarks) says.push(graphSentenceSay(emptyText));
   if (hasUndescribedMarks) says.push(toolMarksText ? graphSentenceSay(toolMarksText) : say('undescribedMarks'));
-  if (lineCount + curveCount + verticals + horizontals + paths + shaded + given.length || (hasUndescribedMarks && toolMarksText)) {
+  if (marks + given.length || (hasUndescribedMarks && toolMarksText)) {
     // The student's own points were just read out: what is withheld is the rest.
     says.push(positionsWithheldText
       ? graphSentenceSay(positionsWithheldText)
@@ -574,6 +699,15 @@ export function describeCoordinatePlane({
   // The sentence that says positions are withheld, for a host that knows why:
   // a closed question whose review is not shown cannot "be answered".
   positionsWithheldText = null,
+  // THE SHADED SIDES OF A FIGURE'S INEQUALITIES (N38): one entry per shaded
+  // region, { sides: [{ side: 'above' | 'below' | 'left' | 'right', line |
+  // vertical }], polygon }, where `line` and `vertical` index the `lines` and
+  // `verticalLines` above. See shadingPlan.
+  halfPlanes = [],
+  // Which `functions` a figure draws dashed (true) and which solid, when it
+  // says (GraphDisplay). Without it, CoordinatePlane's rule: the first solid,
+  // the others dashed.
+  curveDashes = null,
 } = {}) {
   const w = { xMin: Number(xMin), xMax: Number(xMax), yMin: Number(yMin), yMax: Number(yMax) };
   const xStep = Number(xTickStep) > 0 ? Number(xTickStep) : niceStep(w.xMax - w.xMin);
@@ -601,36 +735,67 @@ export function describeCoordinatePlane({
       toolMarksText: toolMarkSentence(toolMarks, 'kinds'),
       points: list(points), lines: list(lines), functions: list(functions), polylines: list(polylines),
       regions: list(regions), verticalLines: list(verticalLines), horizontalLines: list(horizontalLines),
+      halfPlanes: list(halfPlanes), curveDashes: Array.isArray(curveDashes) ? curveDashes : null,
     });
   }
 
   // The full reading is English only for now (say: null below).
   const sentences = windowSays.map(english);
-  const lineEntries = list(lines).map((line, i) => describeLine(line, i, res, w)).filter(Boolean);
-  if (lineEntries.length) {
-    sentences.push(`${plural(lineEntries.length, 'line')}.`);
-    lineEntries.forEach((entry) => sentences.push(entry.text));
-  }
+  const plan = shadingPlan({ lines: list(lines), verticalLines: list(verticalLines), halfPlanes: list(halfPlanes) });
+  const styled = list(lines).some((line) => line?.reference !== true && line?.dash) || plan.lineSide.size > 0
+    || plan.entries.some((entry) => entry.kind === 'overlap');
+  // Each line's name, said in its own sentence and wherever a shaded side
+  // names it: a sort's shared reference line is "Reference line" (CT04).
+  const lineNames = new Map();
+  let lineNumber = 0;
+  const lineEntries = list(lines).map((line, i) => {
+    const reference = line?.reference === true;
+    if (!reference) lineNumber += 1;
+    const name = reference ? 'Reference line' : `Line ${lineNumber}`;
+    const entry = describeLine(line, name, res, w, styled && !reference);
+    if (entry) lineNames.set(i, name);
+    return entry;
+  }).filter(Boolean);
+  const ownLineCount = list(lines).filter((line, i) => lineNames.has(i) && line?.reference !== true).length;
+  if (ownLineCount) sentences.push(`${plural(ownLineCount, 'line')}.`);
+  if (lineEntries.length > ownLineCount) sentences.push(`${plural(lineEntries.length - ownLineCount, 'reference line')}.`);
+  lineEntries.forEach((entry) => sentences.push(entry.text));
 
-  const curveFns = list(functions).filter((fn) => typeof fn === 'function');
-  const curveEntries = curveFns.map((fn, i) => describeCurve(fn, i, curveFns.length, res, w)).filter(Boolean);
+  const curveIndexes = list(functions).map((fn, i) => (typeof fn === 'function' ? i : null)).filter((i) => i !== null);
+  const curveFns = curveIndexes.map((i) => list(functions)[i]);
+  const dashes = Array.isArray(curveDashes) && curveIndexes.some((i) => curveDashes[i]) ? curveIndexes.map((i) => Boolean(curveDashes[i])) : null;
+  const curveEntries = curveFns.map((fn, i) => describeCurve(fn, i, curveFns.length, res, w, dashes)).filter(Boolean);
   if (curveEntries.length) {
     sentences.push(`${plural(curveEntries.length, 'curve')}.`);
     curveEntries.forEach((entry) => sentences.push(entry.text));
   }
 
   // Said the way it is drawn: a guide or a strict boundary dashed, an inclusive one solid.
-  const verticals = verticalLineDrawings(list(verticalLines));
+  const verticalEntries = list(verticalLines).map((entry, index) => ({ ...verticalLineDrawing(entry), index }));
+  const verticals = verticalEntries.filter((line) => Number.isFinite(line.x));
   const horizontals = list(horizontalLines).map(Number).filter(Number.isFinite);
   verticals.forEach(({ x, dash }) => sentences.push(`${dash ? 'Dashed' : 'Solid'} vertical line through ${readText(x, res.x)} on the x-axis.`));
   horizontals.forEach((y) => sentences.push(`Dashed horizontal line through ${readText(y, res.y)} on the y-axis.`));
 
-  const polyVertices = list(polylines).map(rawPointList).filter((v) => v.length);
-  polyVertices.forEach((vertices, i) => {
-    sentences.push(`Connected path ${i + 1} through ${vertexList(vertices, res)}.`);
+  // Each shaded side, said with the line it is beside (N38).
+  const sideOf = (entry) => (Number.isInteger(entry.line) && lineNames.has(entry.line)
+    ? `${SIDE_WORDS[entry.side]} ${lineNames.get(entry.line).replace(/^Line\b/, 'line').replace(/^Reference line/, 'the reference line')}`
+    : `${SIDE_WORDS[entry.side]} the vertical line through ${readText(verticalEntries[entry.vertical]?.x, res.x)}`);
+  const looseRegions = [];
+  plan.entries.forEach((entry) => {
+    if (entry.kind === 'line') sentences.push(`Shaded ${sideOf({ line: entry.index, side: entry.side })}.`);
+    else if (entry.kind === 'vertical') sentences.push(`Shaded ${sideOf({ vertical: entry.index, side: entry.side })}.`);
+    else if (entry.kind === 'overlap') sentences.push(`The region ${joinClauses(entry.sides.map(sideOf))} is shaded.`);
+    else looseRegions.push(entry.polygon);
   });
 
-  const regionVertices = list(regions).map(rawPointList).filter((v) => v.length);
+  const polyEntries = list(polylines).filter((entry) => rawPointList(entry).length);
+  const polyVertices = polyEntries.map(rawPointList);
+  polyEntries.forEach((entry, i) => {
+    sentences.push(`Connected path ${i + 1}${entry?.dash ? ' (dashed)' : ''} through ${vertexList(polyVertices[i], res)}.`);
+  });
+
+  const regionVertices = [...list(regions), ...looseRegions].map(rawPointList).filter((v) => v.length);
   regionVertices.forEach((vertices, i) => {
     sentences.push(`Shaded region ${i + 1} with corners at ${vertexList(vertices, res)}.`);
   });
@@ -644,7 +809,7 @@ export function describeCoordinatePlane({
   }
 
   const described = lineEntries.length + curveEntries.length + verticals.length + horizontals.length
-    + polyVertices.length + regionVertices.length + pointEntries.length;
+    + polyVertices.length + regionVertices.length + plan.entries.filter((entry) => entry.kind !== 'region').length + pointEntries.length;
   if (!described && !hasUndescribedMarks) sentences.push(emptyText);
   if (hasUndescribedMarks) sentences.push(toolMarkSentence(toolMarks, 'features') || GRAPH_WORDS.undescribedMarks());
 
@@ -664,7 +829,7 @@ export function describeCoordinatePlane({
   }
   if (lineEntries.length || curveEntries.length) {
     const series = [
-      ...list(lines).map((line, i) => ({ name: `Line ${i + 1}`, at: (x) => (Number.isFinite(Number(line?.m)) && Number.isFinite(Number(line?.b)) ? Number(line.m) * x + Number(line.b) : null) })),
+      ...list(lines).map((line, i) => ({ name: lineNames.get(i) || `Line ${i + 1}`, at: (x) => (Number.isFinite(Number(line?.m)) && Number.isFinite(Number(line?.b)) ? Number(line.m) * x + Number(line.b) : null) })),
       ...curveFns.map((fn, i) => ({ name: `Curve ${i + 1}`, at: (x) => safeCall(fn, x) })),
     ];
     const ticks = majorTicks(w.xMin, w.xMax, xStep);
