@@ -669,7 +669,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
             {(seed.rejected?.length || 0) > 0 && (
               <details style={{ marginTop: 10 }} open>
                 <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-error-text)' }}>{seed.rejected.length} rejected document{seed.rejected.length === 1 ? '' : 's'}</summary>
-                <div style={{ overflowX: 'auto' }}>
+                <div role="region" aria-label="Rejected question documents" tabIndex={0} style={{ overflowX: 'auto' }}>
                   <table style={{ marginTop: 8, borderCollapse: 'collapse', fontSize: 'calc(12 * var(--mm-px))', minWidth: 920, width: '100%' }}>
                     <thead><tr style={{ textAlign: 'left', background: 'var(--mm-surface-control)' }}>
                       <th style={{ padding: 6 }}>Question ID</th><th style={{ padding: 6 }}>Family</th>
@@ -824,7 +824,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
               Show only unfinished standards
             </label>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          <div role="region" aria-label="Path coverage by standard" tabIndex={0} style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(14 * var(--mm-px))' }}>
               <thead>
                 <tr style={{ background: 'var(--mm-surface-control)', textAlign: 'left' }}>

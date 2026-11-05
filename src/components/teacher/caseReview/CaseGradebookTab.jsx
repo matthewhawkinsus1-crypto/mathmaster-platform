@@ -87,7 +87,7 @@ function ImportPanel({ student, onUse, onSave, saving, saveError }) {
       {roleOptions.length > 0 && (
         <details>
           <summary>How each column was read (correct it if needed)</summary>
-          <div className="cr-scroll-x">
+          <div className="cr-scroll-x" role="region" aria-label="How each column was read" tabIndex={0}>
             <table className="cr-table">
               <thead><tr><th>Column</th><th>Read as</th></tr></thead>
               <tbody>
@@ -171,7 +171,7 @@ export default function CaseGradebookTab({
               {' '}{sis.reconciliation.counts.changedSinceExport} changed since export · {sis.reconciliation.counts.unmatchedSisItems} with no MathMaster match ·
               {' '}{sis.reconciliation.counts.missingFromSis} MathMaster parts not in the file. {sis.reconciliation.note}
             </p>
-            <div className="cr-scroll-x">
+            <div className="cr-scroll-x" role="region" aria-label="Gradebook items" tabIndex={0}>
               <table className="cr-table">
                 <thead><tr><th>Gradebook item</th><th>Category</th><th>Official</th><th>Matched MathMaster work</th><th>MathMaster now</th><th>Last exported</th><th>Comparison</th></tr></thead>
                 <tbody>
@@ -221,7 +221,7 @@ export default function CaseGradebookTab({
             {sis.contribution.sufficient ? (
               <>
                 <p className="cr-note">{sis.contribution.explanation}</p>
-                <div className="cr-scroll-x">
+                <div className="cr-scroll-x" role="region" aria-label="Grade contribution by category" tabIndex={0}>
                   <table className="cr-table">
                     <thead><tr><th>Category</th><th>Weight</th><th>Category average</th><th>Average points carried</th><th>Points below full</th></tr></thead>
                     <tbody>{sis.contribution.categories.map((row) => <tr key={row.name}><td>{row.name}</td><td className="cr-num">{row.weightShare}%</td><td className="cr-num">{row.average}%</td><td className="cr-num">{row.contributionPoints}</td><td className="cr-num">{row.pointsBelowFull}</td></tr>)}</tbody>

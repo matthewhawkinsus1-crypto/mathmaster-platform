@@ -803,7 +803,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
 
           {/* 8px into the card's own padding on each side: the columns need the
               room, and the cells' padding keeps the text clear of the border. */}
-          <div ref={scrollerRef} style={{ overflowX: 'auto', margin: '12px -8px 0' }}>
+          <div ref={scrollerRef} role="region" aria-label="Test cycle progress by student" tabIndex={0} style={{ overflowX: 'auto', margin: '12px -8px 0' }}>
             {/* On a teacher's laptop the page is 1126px wide whatever the
                 screen, and with the sidebar open this box is 790px. The ten
                 columns are kept to that: a wider table hides Recorded, the

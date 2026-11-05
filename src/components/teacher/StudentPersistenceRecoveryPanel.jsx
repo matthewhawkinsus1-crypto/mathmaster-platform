@@ -323,7 +323,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
           )}
 
           {proposals?.proposals?.length > 0 && (
-            <div style={{ overflowX: 'auto', marginTop: 14 }}>
+            <div role="region" aria-label="Draft responses proposed for recovery" tabIndex={0} style={{ overflowX: 'auto', marginTop: 14 }}>
               <h4 style={{ margin: '0 0 8px' }}>{proposals.proposalCount > 0 ? 'Draft responses proposed for recovery' : 'Responses that were not recovered'}</h4>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1100 }}>
                 <thead><tr>{['Student', 'Student ID', 'Question', 'Question ID', 'Section / role', 'Draft saved', 'Academic time recorded', 'Why eligible', 'Current canonical status', 'Proposed result', 'Outcome'].map((heading) => <th key={heading} style={{ ...CELL, fontWeight: 900, borderBottom: '2px solid var(--mm-border)' }}>{heading}</th>)}</tr></thead>
@@ -342,7 +342,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
             </div>
           )}
 
-          <div style={{ overflowX: 'auto', marginTop: 14 }}>
+          <div role="region" aria-label="Recovery status by student" tabIndex={0} style={{ overflowX: 'auto', marginTop: 14 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
               <thead>
                 <tr>

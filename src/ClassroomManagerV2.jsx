@@ -739,7 +739,7 @@ export default function ClassroomManagerV2({
               <datalist id="mathmaster-roster-id-options">
                 {identityAugmentedStudents.map((student) => <option key={student.id} value={student.id}>{mathMasterStudentLabel(student)} · ID {student.id}</option>)}
               </datalist>
-              <div style={{ overflowX: 'auto', marginTop: 12 }}>
+              <div role="region" aria-label="Google Classroom roster matches" tabIndex={0} style={{ overflowX: 'auto', marginTop: 12 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
                 <thead><tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
                   <th style={{ padding: 8 }}>Google Classroom</th><th style={{ padding: 8 }}>MathMaster match</th><th style={{ padding: 8 }}>Match</th><th></th>
@@ -1126,7 +1126,7 @@ export default function ClassroomManagerV2({
         {gradeSyncs.length === 0 ? (
           <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>No grade-sync events yet.</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div role="region" aria-label="Recent grade syncs to Google Classroom" tabIndex={0} style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12 * var(--mm-px))' }}>
               <thead><tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
                 <th style={{ padding: 7 }}>Student</th><th style={{ padding: 7 }}>Assignment</th><th style={{ padding: 7 }}>Course</th><th style={{ padding: 7 }}>Grade / progress</th><th style={{ padding: 7 }}>Stage</th><th style={{ padding: 7 }}>Status</th><th></th>

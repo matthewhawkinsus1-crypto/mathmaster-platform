@@ -257,7 +257,7 @@ export default function WeeklyPathControls({
         {!rows.length ? (
           <p style={note}>No students in this class yet.</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div role="region" aria-label="Weekly path goals by student" tabIndex={0} style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13.5 * var(--mm-px))' }}>
               <thead>
                 <tr style={{ background: 'var(--mm-surface-sunken)' }}>

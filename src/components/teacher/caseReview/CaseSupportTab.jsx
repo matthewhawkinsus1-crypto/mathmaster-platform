@@ -36,7 +36,7 @@ export default function CaseSupportTab({ model, onOpenSupportReport = null }) {
         <h2 id="cr-support-counts">Supports in this period</h2>
         <p className="cr-note">Configured is not available, available is not used, and no record is not "not provided". Academic results are never used to infer whether a support was provided.</p>
         {summary.supports.length ? (
-          <div className="cr-scroll-x">
+          <div className="cr-scroll-x" role="region" aria-label="Supports in this period" tabIndex={0}>
             <table className="cr-table">
               <thead><tr><th>Support</th><th>Type</th><th>Configured</th><th>Assignments available</th><th>Assignments provided</th><th>Uses</th><th>Staff documented</th></tr></thead>
               <tbody>
@@ -60,7 +60,7 @@ export default function CaseSupportTab({ model, onOpenSupportReport = null }) {
 
       <section className="cr-section" aria-labelledby="cr-support-assignments">
         <h2 id="cr-support-assignments">By assignment</h2>
-        <div className="cr-scroll-x">
+        <div className="cr-scroll-x" role="region" aria-label="Supports by assignment" tabIndex={0}>
           <table className="cr-table">
             <thead><tr><th>Assignment</th><th>Condition</th><th>Profile revision</th><th>Individualized due</th><th>Supports (record in MathMaster)</th><th>Staff records</th></tr></thead>
             <tbody>

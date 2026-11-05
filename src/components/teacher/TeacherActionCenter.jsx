@@ -58,7 +58,7 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
       <label>Action type <select value={kind} onChange={(event) => setKind(event.target.value)}><option value="">All action types</option>{Object.entries(kindLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label>Status <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="open">Open</option><option value="completed">Completed</option></select></label>
     </div>
-    {!visible.length ? <p>No {status} actions match these filters.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    {!visible.length ? <p>No {status} actions match these filters.</p> : <div role="region" aria-label="Teacher actions" tabIndex={0} style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead><tr><th>Student</th><th>Class / period</th><th>Reason</th><th>Date / due</th><th>Status</th><th>Authoritative workflow</th></tr></thead>
       <tbody>{visible.map((item) => <tr key={item.id} style={{ borderTop: '1px solid var(--mm-border)' }}>
         <td style={{ padding: 10 }}>{studentCell(item)}</td><td>{item.classLabel || '—'}</td>

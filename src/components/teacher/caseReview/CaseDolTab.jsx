@@ -12,7 +12,7 @@ function Comparison({ sections, title }) {
   const rows = SECTION_ORDER.map((key) => sections.find((entry) => entry.key === key)).filter(Boolean);
   if (!rows.length) return null;
   return (
-    <div className="cr-scroll-x">
+    <div className="cr-scroll-x" role="region" aria-label={title} tabIndex={0}>
       <table className="cr-table" aria-label={title}>
         <thead><tr><th>{title}</th><th>Answered</th><th>First-attempt correct</th><th>Final accuracy</th><th>Calculator recorded on</th></tr></thead>
         <tbody>
@@ -51,7 +51,7 @@ export default function CaseDolTab({ model }) {
       <section className="cr-section" aria-labelledby="cr-dol-assignments">
         <h2 id="cr-dol-assignments">Where DOL sits well below the same lesson&apos;s instruction</h2>
         {comparison.assignmentsWithDolGap.length ? (
-          <div className="cr-scroll-x">
+          <div className="cr-scroll-x" role="region" aria-label="Assignments where DOL is well below instruction" tabIndex={0}>
             <table className="cr-table">
               <thead><tr><th>Assignment</th><th>Classwork + Practice</th><th>DOL</th><th>Difference</th></tr></thead>
               <tbody>

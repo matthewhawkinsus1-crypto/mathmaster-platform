@@ -28,7 +28,7 @@ const inputStyle = {
 const clonePeriods = (periods = {}) => JSON.parse(JSON.stringify(periods));
 
 const PeriodTable = ({ periods, classPeriods, onChange }) => (
-  <div style={{ overflowX: 'auto' }}>
+  <div role="region" aria-label="Class period schedule" tabIndex={0} style={{ overflowX: 'auto' }}>
     <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ background: 'var(--mm-surface-sunken)' }}>

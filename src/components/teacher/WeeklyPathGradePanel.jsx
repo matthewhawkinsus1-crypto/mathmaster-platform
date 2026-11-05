@@ -90,7 +90,7 @@ export default function WeeklyPathGradePanel({
           {readiness.reason}
         </div>
       )}
-      <div style={{ overflowX: 'auto' }}>
+      <div role="region" aria-label="Path grade by student" tabIndex={0} style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>

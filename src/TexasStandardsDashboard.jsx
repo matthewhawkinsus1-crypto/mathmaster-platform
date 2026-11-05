@@ -341,7 +341,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
 
       {view === 'matrix' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 280px), 370px)', gap: '14px', alignItems: 'start' }}>
-          <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
+          <div role="region" aria-label="Student mastery matrix" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${650 + visibleCodes.length * 90}px`, fontSize: 'calc(12 * var(--mm-px))' }}>
               <thead>
                 <tr style={{ background: 'var(--mm-surface-sunken)' }}>
