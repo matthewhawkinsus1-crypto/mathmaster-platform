@@ -51,11 +51,12 @@ Nothing here has been deployed, and no operator script has been run.
 | AX05 slice 2 | Under an authored Spanish translation, every figure is read in Spanish: a closed question's graph and the graph read-out, the 3D model (each plane by its colour, its equation in Spanish words), the graph workspace's points and strokes, and process mode's row chooser and table to extend. The six figures' hidden screen-reader descriptions are in Spanish, marked `lang="es"`. The English readings are unchanged, checked on 17,000 random graphs. | `cb375b69`, `adda4b0c`, `1f7ef20f`, `20c8b906` |
 | Review My Work offline (PF01) | Offline, the result page stays: the grade, section scores, Up next and the buttons. Only Review My Work's place says it needs a connection, with Try again; back online it loads and moves focus to its heading. | `e8865b72`, `9dccffeb` |
 | Inequality example | An inequality box's example is `y ≥ mx + b` where the student reads both x and y, and `a ≤ x ≤ b` elsewhere. Neither is a key in any version of any lesson, and the old example, `0 ≤ x ≤ 4`, can be one (a Path family draws it). Secure fields still show none. | `75c7bc4a` |
-| Keypad on one-try sections (N56) | On an exit ticket, quiz or test before release, the keypad has no "Needed for this answer" row, every box of a type gets the same keys, and the letters come from what the student reads, plus x and y. The import read a template filter (`{{m|pow}}`) as the letters m, p, o and w; it no longer does. Practice and classwork keep their scaffold, and grading is unchanged. | `456c405a` |
+| Keypad on one-try sections (N56) | On an exit ticket, quiz or test before release, the keypad has no "Needed for this answer" row, every box of a type gets the same keys, and the letters come from what the student reads, plus x and y. The import read a template filter (`{{m|pow}}`) as the letters m, p, o and w; it no longer does. Practice and classwork keep their scaffold, and grading is unchanged. | `456c405a`, `30c0e58f` |
 | Systems Workspace, one inequality | The model step, the graph's name and the closed review say "the inequality", not "the system". | `53e27452` |
 | Radicals: the last choices typed | Ten more Check Your Progress values are typed: L1 CW 7, L2 CW 8, 10 and 11, and L3 CW 3, 4, 6, 7, 8 and 9. Example D gives each root its own box, so the order is never a guess. 21 more slips are named, 80 in the three lessons. A browser driver types five of the new values on a real keyboard. | `24b2fac1`, `ab568d41` |
 | L4/L5 inequality examples | Nine boxes whose answers relate x and y showed the one-variable example: the "With y alone" boxes of L4 Honors PR 16 and L5 CW 15, and L5 PR 10's two boundaries. They show `y ≥ mx + b`, and a test holds every L4/L5 box whose key relates x and y to an example in x and y that no key accepts. | `b17dae33` |
 | Keypad "Needed" row | In practice, a key typed as `y >= x + 2` asked for = and never for ≥. A typed `<=`, `>=` or `!=` now asks for ≤, ≥ or ≠, and = only where the answer has one. | `ab44afb7` |
+| Choices that gave the answer away (the rest) | In 21 more lesson files the wrong options of each reasoning choice are a claim with a reason, wrong in one way, so the right answer no longer stands out by length: Algebra I M2 T2 L2/L3, M3 T1 L1/L3 and M3 T2 L1/L2, regular and Honors (64 choices), and ten Algebra II lessons on matrices, polynomials and radicals (27). No key changed. The ratchet holds the 3 left, in 3 files, each named with its reason (section 5). | `d42ec6c4`, `2a81a71c`, `8adfb4f1`, `a488f9a3`, `4caa0a5e`, `d1aec45e` |
 
 ## 3. Checked, with no change needed
 
@@ -73,6 +74,7 @@ Nothing here has been deployed, and no operator script has been run.
    - **Algebra II Honors radicals L1, L2, L3, only after Hosting is live.** An older client reads the new slips against every box, right ones included.
    - **Algebra I M3 T2: L4 and L5, regular and Honors, only after Hosting is live**, for the same reason.
    - Algebra I M2 T2: L2 and L3 (regular).
+   - The 21 lesson files with rewritten choices, at any time: the options are plain text. Their order on screen changes, because the shuffle is seeded by the option text.
    - Any lesson imported again also takes the keypad fix: 35 keys in 13 lesson files lose the stray letters m, p, o and w. Until then, an assignment already imported keeps them in practice.
 
 ## 5. Waiting on the owner
@@ -96,6 +98,10 @@ Nothing here has been deployed, and no operator script has been run.
 - **Live Challenge pause and auto-end (LC17).** In October the decision was "Not now" for pause/resume and a server-side round close. Both are built and tested, but they are not on this branch until you say so:
   - **N43, pause:** the host's Pause and Resume, honoured by every screen and the server. Answers sent during a pause are kept and sent on resume, and the clock gives back exactly the time that was left.
   - **N73, auto-end:** after 30 minutes with no teacher screen, the server cancels a lobby nobody started (the students' banner goes away) and finishes a Pace Race round as End Game would.
+- **Keys that give an answer away.** A rewrite of these changes a key, and a re-import that renames a key can mark saved right answers wrong, so they wait on you:
+  - A1 M3 T1 L1 PR 8 (r2) and its Honors twin (CW 5, j2) name the property behind each of five steps from one shared list, and every option but one is another step's key. Step 2's key is the longest name on the list.
+  - A1 M3 T2 L2 CW 7's key says "$10.50 behind", the answer to its own `ninety` box; CW 1's key gives 6.25 and 5 chickens, from which the goat and pig answers follow.
+  - The DOL #3 Honors review's audited TSIA2 item (`mm_tsia2_psr_analysis_8_v21`) has the longest choice as its key. Its fix belongs in the bank.
 - **Only the owner can:**
   - **SI01 (N04).** Turn on the class-scoped assignment reads (Administration → Classes), then run `node scripts/report-assignment-key-exposure.mjs --project <id>`. Until then the answer-key split runs in shadow, and a student's device can read each item's key and worked steps.
   - **N05.** Run the re-grade report, read it, then run `apply-upward-regrade`, dry run first.
@@ -106,7 +112,8 @@ Nothing here has been deployed, and no operator script has been run.
 ## 6. What remains
 
 - **Content:**
-  - Prose choices in 22 other lesson files hold the answer by length: 94 choices, listed by the ratchet (1 day).
+  - The matrices Warm-Up 1's Recovery versions come from a question family (`questionFamiliesMatrices.mjs`) and still show the old wrong options. A family change ships as a new version (1 hour).
+  - Short choices the ratchet does not count still give the answer away by length: Remainder and Factor Theorems Honors CW 2's reason (45 characters against 25) and A1 M3 T2 L1 CW 4's range (44 against 26) (1 hour).
   - Personal Check Your Progress per student, N34 (1 day).
 - **Live Challenge:**
   - Group where wrong rush taps land, N42 (1–2 days).
