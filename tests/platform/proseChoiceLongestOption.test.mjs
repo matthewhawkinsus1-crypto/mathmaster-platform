@@ -12,9 +12,10 @@
  * This reads every prose choice in teacher-import-jsons (options that average
  * 25 characters or more, as the file writes them) and flags one whose key is
  * the unique longest option by more than 20%. The Algebra II Honors radicals
- * lessons and the Algebra I Module 3 Topic 2 Lessons 4 and 5 (regular and
- * Honors) have none. Every other lesson's count is a ratchet: it may go down,
- * never up, and a lesson not listed has none.
+ * lessons, the Algebra I Module 3 Topic 2 Lessons 4 and 5 (regular and
+ * Honors) and ten Algebra II lessons on matrices, polynomials and radicals
+ * have none. Every other lesson's count is a ratchet: it may go down, never
+ * up, and a lesson not listed has none.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -68,8 +69,10 @@ const offenders = (file) => choicesOf(JSON.parse(readFileSync(path.join(LESSONS,
  * THE RATCHET: each other lesson's offenders when this check was written
  * (138 in 26 files). A rewrite lowers its number here; nothing raises one.
  * The four Algebra I Module 3 Topic 2 Lesson 4 and 5 files held 44 of them;
- * their rewrite took every one to 0, so they left the ratchet (94 in 22
- * files now) and are held to none by the test after the radicals'.
+ * their rewrite took every one to 0, so they left the ratchet and are held
+ * to none by the test after the radicals'. The ten Algebra II files on
+ * matrices, polynomials and radicals held 27, and theirs did the same (67 in
+ * 12 files now).
  */
 const RATCHET = Object.freeze({
   'algebra1-dol3/Algebra1_DOL3_Review_Honors.json': 1,
@@ -84,16 +87,6 @@ const RATCHET = Object.freeze({
   'algebra1-module3/T2_L1_Solving_Systems_by_Graphing_Honors.json': 9,
   'algebra1-module3/T2_L2_Solving_Systems_by_Substitution.json': 13,
   'algebra1-module3/T2_L2_Solving_Systems_by_Substitution_Honors.json': 12,
-  'algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json': 1,
-  'algebra2-honors-module2/L1_Operations_on_Polynomials.json': 1,
-  'algebra2-honors-module2/L2_Dividing_Polynomials.json': 3,
-  'algebra2-polynomials-radicals/1_Factoring_Polynomials.json': 1,
-  'algebra2-polynomials-radicals/3_Radical_Expressions.json': 1,
-  'algebra2-polynomials-radicals-honors/1_Factoring_Polynomials_Honors.json': 3,
-  'algebra2-polynomials-radicals-honors/2_Remainder_and_Factor_Theorems_Honors.json': 3,
-  'algebra2-polynomials-radicals-honors/3_Radical_Expressions_Honors.json': 4,
-  'algebra2-polynomials-radicals-honors/4_Rational_Exponents_Honors.json': 5,
-  'algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors.json': 5,
 });
 
 const RADICALS = ['L1_nth_Roots.json', 'L2_Operations_with_Radical_Expressions.json', 'L3_Rational_Exponents.json']
@@ -103,6 +96,17 @@ const INEQUALITIES = [
   'T2_L4_Graphing_Inequalities_in_Two_Variables.json', 'T2_L4_Graphing_Inequalities_in_Two_Variables_Honors.json',
   'T2_L5_Systems_of_Linear_Inequalities.json', 'T2_L5_Systems_of_Linear_Inequalities_Honors.json',
 ].map((name) => `algebra1-module3/${name}`);
+// Ten Algebra II lessons on matrices, polynomials and radicals: 27 offenders
+// in all before their rewrite.
+const ALGEBRA2 = [
+  'algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json',
+  'algebra2-honors-module2/L1_Operations_on_Polynomials.json',
+  'algebra2-honors-module2/L2_Dividing_Polynomials.json',
+  'algebra2-polynomials-radicals/1_Factoring_Polynomials.json',
+  'algebra2-polynomials-radicals/3_Radical_Expressions.json',
+  ...['1_Factoring_Polynomials', '2_Remainder_and_Factor_Theorems', '3_Radical_Expressions', '4_Rational_Exponents', '5_Solving_Radical_Equations']
+    .map((name) => `algebra2-polynomials-radicals-honors/${name}_Honors.json`),
+];
 
 test('what counts: a prose choice whose key is the unique longest option by more than 20%', () => {
   const choice = (key, ...others) => ({ options: [key, ...others], key });
@@ -135,6 +139,20 @@ test('Algebra I M3 T2 Lessons 4 and 5: no reasoning choice gives its key away by
   INEQUALITIES.forEach((file) => {
     const prose = choicesOf(JSON.parse(readFileSync(path.join(LESSONS, file), 'utf8'))).filter(isProse);
     assert.ok(prose.length >= 16, `${file}: ${prose.length} prose choices read`);
+    assert.deepEqual(offenders(file), [], file);
+    assert.equal(RATCHET[file], undefined, `${file} is held to none, not to a ratchet`);
+  });
+});
+
+test('ten Algebra II lessons on matrices, polynomials and radicals: no reasoning choice gives its key away by length', () => {
+  // Only the distractors were rewritten, never a key. Each is a claim with a
+  // reason, wrong in one way: a false reason that leads to a wrong claim
+  // ("There is no error: x + 2 = 0 when x = 2, so P(2) = 0 makes x + 2 a
+  // factor"), or the right claim for a wrong reason ("No — 16 is not a
+  // perfect square, so it fails the second check").
+  ALGEBRA2.forEach((file) => {
+    const prose = choicesOf(JSON.parse(readFileSync(path.join(LESSONS, file), 'utf8'))).filter(isProse);
+    assert.ok(prose.length >= 1, `${file}: ${prose.length} prose choices read`);
     assert.deepEqual(offenders(file), [], file);
     assert.equal(RATCHET[file], undefined, `${file} is held to none, not to a ratchet`);
   });

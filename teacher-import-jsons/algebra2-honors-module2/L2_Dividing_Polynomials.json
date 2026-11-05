@@ -1232,9 +1232,9 @@
               "type": "choice",
               "options": [
                 "8x + 40 = 8(x + 5), so dividing by x + 5 always leaves 8",
-                "x + 5 is always 8 more than x",
-                "The remainder is always 8",
-                "It only works for even numbers"
+                "7x + 40 = 7(x + 5) + 5, so dividing by x + 5 always leaves 7",
+                "8x + 40 = 8(x + 5), so the remainder is always 8",
+                "8x + 40 is always even, so dividing by x + 5 always leaves 8"
               ],
               "answer": "8x + 40 = 8(x + 5), so dividing by x + 5 always leaves 8"
             }
@@ -1297,9 +1297,9 @@
               "type": "choice",
               "options": [
                 "Used r = −3 instead of r = 3, so divided by x + 3",
-                "Left out a 0 placeholder",
-                "Added the exponents",
-                "Multiplied instead of adding in a column"
+                "Left out a 0 placeholder, so the columns shifted",
+                "Added the exponents, so x³ ÷ x became x⁴",
+                "Multiplied instead of adding, so −4 and 6 gave −24"
               ],
               "answer": "Used r = −3 instead of r = 3, so divided by x + 3"
             },
@@ -1434,9 +1434,9 @@
               "type": "choice",
               "options": [
                 "It has a variable in a denominator, so it is not a polynomial",
-                "It has only one term",
-                "Its coefficient is 5",
-                "It has more than one letter"
+                "It has only one term, and a polynomial needs at least two terms",
+                "It is a fraction, and a polynomial never has a fraction in it",
+                "It has only one letter, and each of the others has two or more"
               ],
               "answer": "It has a variable in a denominator, so it is not a polynomial"
             }

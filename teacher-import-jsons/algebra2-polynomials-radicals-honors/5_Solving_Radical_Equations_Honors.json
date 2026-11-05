@@ -449,9 +449,9 @@
               "type": "choice",
               "options": [
                 "Squaring √(x + 6) = x and −√(x + 6) = x both give x + 6 = x², so the squared equation solves both",
-                "Because −2 is negative",
-                "Because of a rounding error",
-                "Squaring never adds solutions, so −2 is a real solution"
+                "Squaring hides that x + 6 is negative at x = −2, where √(x + 6) is not real",
+                "y = x crosses y = √(x + 6) at (−2, −2) as well as at (3, 3), so −2 is a second solution",
+                "Squaring never adds solutions, so −2 must solve √(x + 6) = x as well as x + 6 = x²"
               ],
               "answer": "Squaring √(x + 6) = x and −√(x + 6) = x both give x + 6 = x², so the squared equation solves both"
             },
@@ -529,9 +529,9 @@
               "type": "choice",
               "options": [
                 "(∛x)² = 9 gives ∛x = 3 or ∛x = −3, and a cube root can be negative",
-                "Every equation with an exponent has two solutions",
-                "9 has two square roots, but only 27 checks",
-                "There is only one solution, 27"
+                "Every equation with an exponent has two solutions, a positive and a negative",
+                "9 has two square roots, but a cube root is never negative, so only 27 works",
+                "There is only one solution: raising both sides to the 3/2 power gives 27"
               ],
               "answer": "(∛x)² = 9 gives ∛x = 3 or ∛x = −3, and a cube root can be negative"
             }
@@ -601,9 +601,9 @@
               "type": "choice",
               "options": [
                 "No: (x − 1)^(3/2) needs x − 1 ≥ 0, and (−4)^(3/2) is not real",
-                "Yes: (−4)^(3/2) = 8",
-                "Yes: every even root gives ±",
-                "No: negative numbers are never solutions"
+                "Yes: (−4)³ = −64, and the square root of −64 is 8",
+                "Yes: every even root gives ±, so x − 1 = −4 works too",
+                "No: −3 is negative, and a radical equation never has a negative solution"
               ],
               "answer": "No: (x − 1)^(3/2) needs x − 1 ≥ 0, and (−4)^(3/2) is not real"
             }
@@ -840,9 +840,9 @@
               "type": "choice",
               "options": [
                 "No: it says √(x − 3) = −3, and a square root is never negative",
-                "Yes: x = 12",
-                "Yes: x = 6",
-                "It has two solutions"
+                "Yes: x = 12, since squaring √(x − 3) = −3 gives x − 3 = 9",
+                "No: squaring gives x − 3 = −9, and a radicand is never negative",
+                "It has two solutions, since squaring gives x − 3 = 9 or x − 3 = −9"
               ],
               "answer": "No: it says √(x − 3) = −3, and a square root is never negative"
             }
@@ -1772,9 +1772,9 @@
               "type": "choice",
               "options": [
                 "x^(3/4) = (∜x)³ needs x ≥ 0; x^(4/3) = (∛x)⁴ allows ∛x = 2 or −2",
-                "Because 3/4 is less than 1",
-                "Because 8 is a perfect cube",
-                "They both have two solutions"
+                "An exponent below 1, like 3/4, gives one solution; one above 1 gives two",
+                "8 = 2³, so x = 2 is the only solution; 16 = 4², so x = 4 or x = −4",
+                "They both have two solutions: the even root in x^(3/4) gives ± as well"
               ],
               "answer": "x^(3/4) = (∜x)³ needs x ≥ 0; x^(4/3) = (∛x)⁴ allows ∛x = 2 or −2"
             }

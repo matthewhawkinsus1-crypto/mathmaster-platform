@@ -581,9 +581,9 @@
               "type": "choice",
               "options": [
                 "He changed the sign of only the first term of the second polynomial.",
-                "He added the two polynomials.",
-                "He subtracted the first polynomial from the second.",
-                "Nothing — his answer is correct."
+                "He added the two polynomials, so no sign in the second one changed.",
+                "He subtracted the first polynomial from the second, so every sign flipped.",
+                "Nothing — −(2y² − 6y + 1) is −2y² − 6y + 1, so his answer is correct."
               ],
               "answer": "He changed the sign of only the first term of the second polynomial."
             },

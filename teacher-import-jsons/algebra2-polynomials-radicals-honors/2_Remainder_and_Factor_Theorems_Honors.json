@@ -430,9 +430,9 @@
               "type": "choice",
               "options": [
                 "P(2) = 0 makes x − 2 a factor; x + 2 is a factor when P(−2) = 0",
-                "There is no error: P(2) = 0 means x + 2 is a factor",
-                "P(2) = 0 means the remainder is 2",
-                "A factor needs P(0) = 0"
+                "There is no error: x + 2 = 0 when x = 2, so P(2) = 0 makes x + 2 a factor",
+                "P(2) = 0 says only that 2 is the remainder when P(x) is divided by x − 2",
+                "P(2) = 0 makes x − 2 and x + 2 both factors, because 2² = (−2)²"
               ],
               "answer": "P(2) = 0 makes x − 2 a factor; x + 2 is a factor when P(−2) = 0"
             }
@@ -741,9 +741,9 @@
               "type": "choice",
               "options": [
                 "2x − 1 = 2(x − 1/2), so dividing by x − 1/2 leaves the factor 2 inside the quotient",
-                "Synthetic division always doubles the quotient",
-                "One of the two divisions is wrong",
-                "Because the remainder is 0"
+                "Synthetic division always doubles the quotient, so its answer must always be halved",
+                "One of the two divisions is wrong: two divisors with the same zero, 1/2, give the same quotient",
+                "6x² + 10x + 4 has an extra factor of 2 because its leading coefficient 6 is even"
               ],
               "answer": "2x − 1 = 2(x − 1/2), so dividing by x − 1/2 leaves the factor 2 inside the quotient"
             },
@@ -1965,9 +1965,9 @@
               "type": "choice",
               "options": [
                 "Dividing x³ + 4x² + x − 66 by x − 3 leaves x² + 7x + 22, which has no real zeros",
-                "A cubic always has exactly one real zero",
-                "The other candidates are all negative",
-                "Volume formulas have one solution by definition"
+                "A cubic always has exactly one real zero, so once one x works there is no other",
+                "The other candidates for x are all negative, and a negative x cannot make a box",
+                "x² + 7x + 22 = (x + 2)(x + 11), so its zeros are negative and cannot make a box"
               ],
               "answer": "Dividing x³ + 4x² + x − 66 by x − 3 leaves x² + 7x + 22, which has no real zeros"
             }

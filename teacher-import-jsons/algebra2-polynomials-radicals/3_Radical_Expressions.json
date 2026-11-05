@@ -398,9 +398,9 @@
               "type": "choice",
               "options": [
                 "b may be negative, so b⁷ may be negative, but a fourth root is never negative",
-                "b⁷ is always negative",
-                "k⁵ might be negative",
-                "Every variable outside a radical needs absolute value bars"
+                "b⁷ is always negative, so the bars are needed to make it positive",
+                "Every variable outside an even root needs bars, so k⁵ needs them as well as b⁷",
+                "b has the largest exponent, 28, so b⁷ is the part that gets bars"
               ],
               "answer": "b may be negative, so b⁷ may be negative, but a fourth root is never negative"
             }

@@ -305,9 +305,9 @@
               "type": "choice",
               "options": [
                 "y may be negative, so y³ may be negative, but a fourth root is never negative; x² is never negative",
-                "y³ is always negative",
-                "Every variable outside an even root needs bars",
-                "x² needs bars too, because x may be negative"
+                "y³ is always negative, so it needs bars to make it positive; x² is never negative",
+                "Bars go on the variable with the larger exponent in the answer: y³ has 3, and x² has 2",
+                "x² needs bars too: x may be negative, so x² may be negative, but a fourth root is never negative"
               ],
               "answer": "y may be negative, so y³ may be negative, but a fourth root is never negative; x² is never negative"
             }
@@ -382,9 +382,9 @@
               "type": "choice",
               "options": [
                 "The index 5 is odd, and an odd root keeps the sign of the radicand",
-                "Because a and b are positive",
-                "Because the coefficient is negative",
-                "Absolute value bars are never used with roots"
+                "a and b are always positive here, so no factor of the answer needs bars",
+                "The coefficient −64 is negative, and bars go only with a positive coefficient",
+                "Absolute value bars are never used with roots: every root keeps its sign"
               ],
               "answer": "The index 5 is odd, and an odd root keeps the sign of the radicand"
             }
@@ -820,9 +820,9 @@
               "type": "choice",
               "options": [
                 "false in general: a = 9, b = 16 is a counterexample",
-                "true for all a, b ≥ 0",
-                "true only for whole numbers",
-                "true whenever a and b are perfect squares"
+                "true for all a, b ≥ 0: a square root distributes over a sum",
+                "false only when a = 9 and b = 16; for other values it is true",
+                "true when a and b are perfect squares, such as 9 and 16"
               ],
               "answer": "false in general: a = 9, b = 16 is a counterexample"
             },
@@ -2228,9 +2228,9 @@
               "type": "choice",
               "options": [
                 "She multiplied by √6 − √2 instead of its conjugate √6 + √2, and (√6 − √2)² is not 4",
-                "Nothing: her answer is correct",
-                "She should have multiplied by √2",
-                "She forgot to square the numerator"
+                "Nothing: (√6 − √2)² has no radical in it, so her denominator 4 is right",
+                "She should have multiplied by √2, since √2 · √2 = 2 clears the radicals from the denominator",
+                "She forgot to square the numerator: it should be 4(√6 − √2)² over 4"
               ],
               "answer": "She multiplied by √6 − √2 instead of its conjugate √6 + √2, and (√6 − √2)² is not 4"
             },

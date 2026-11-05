@@ -816,9 +816,9 @@
               "type": "choice",
               "options": [
                 "No — the middle term would have to be 2(3x)(4) = 24x",
-                "Yes — it is (3x − 4)²",
-                "Yes — it is (3x + 4)(3x − 4)",
-                "No — 16 is not a perfect square"
+                "Yes — 9x² and 16 are perfect squares, so it is (3x − 4)²",
+                "Yes — it is (3x + 4)(3x − 4): 3x · 3x = 9x² and 4 · 4 = 16",
+                "No — 16 is not a perfect square, so it fails the second check"
               ],
               "answer": "No — the middle term would have to be 2(3x)(4) = 24x"
             },
