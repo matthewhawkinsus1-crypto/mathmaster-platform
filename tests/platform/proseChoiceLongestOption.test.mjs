@@ -75,12 +75,12 @@ const offenders = (file) => choicesOf(JSON.parse(readFileSync(path.join(LESSONS,
  * matrices, polynomials and radicals held 27, and theirs did the same. Each
  * Algebra I file in ALGEBRA1 left the ratchet when its rewrite took it to 0;
  * one that keeps an offender keeps its number here, and ALGEBRA1 names what
- * it keeps (63 in 9 files now).
+ * it keeps (54 in 9 files now).
  */
 const RATCHET = Object.freeze({
   'algebra1-dol3/Algebra1_DOL3_Review_Honors.json': 1,
-  'algebra1-module3/T1_L1_Solving_Linear_Equations.json': 3,
-  'algebra1-module3/T1_L1_Solving_Linear_Equations_Honors.json': 8,
+  'algebra1-module3/T1_L1_Solving_Linear_Equations.json': 1,
+  'algebra1-module3/T1_L1_Solving_Linear_Equations_Honors.json': 1,
   'algebra1-module3/T1_L3_Modeling_and_Solving_Linear_Inequalities.json': 4,
   'algebra1-module3/T1_L3_Modeling_and_Solving_Linear_Inequalities_Honors.json': 5,
   'algebra1-module3/T2_L1_Solving_Systems_by_Graphing.json': 8,
@@ -111,13 +111,20 @@ const ALGEBRA2 = [
  * The Algebra I lessons rewritten next, each with the offenders it keeps, by
  * name, so a fix in one place cannot hide a new one in another. What is kept:
  *   - dol3-honors-q15 is the bank's audited TSIA2 item
- *     (mm_tsia2_psr_analysis_8_v21), carried as the bank wrote it.
+ *     (mm_tsia2_psr_analysis_8_v21), carried as the bank wrote it;
+ *   - m3l1-pr-8 and m3l1h-cw-5 name the property behind each of five steps
+ *     from one shared list, and every option in it but one is another
+ *     step's key, so rewording an option there changes a key. Step 2's key,
+ *     "Combine like terms (Commutative and Associative Properties)", is the
+ *     longest name on the list.
  */
 const ALGEBRA1 = Object.freeze({
   'algebra1-dol3/Algebra1_DOL3_Review_Honors.json': ['dol3-honors-q15 answer'],
   'algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': [],
   'algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': [],
   'algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': [],
+  'algebra1-module3/T1_L1_Solving_Linear_Equations.json': ['m3l1-pr-8 r2'],
+  'algebra1-module3/T1_L1_Solving_Linear_Equations_Honors.json': ['m3l1h-cw-5 j2'],
 });
 
 test('what counts: a prose choice whose key is the unique longest option by more than 20%', () => {

@@ -322,9 +322,9 @@
               "type": "choice",
               "options": [
                 "changes the solutions, so it does not make an equivalent equation",
-                "keeps the solution x = 2 and nothing else",
-                "is the same as dividing by 0",
-                "removes every solution"
+                "keeps only the solution x = 2, so it makes an equivalent equation",
+                "is not allowed, because it is the same as dividing by 0",
+                "removes every solution, since 0 = 0 has no x left in it"
               ],
               "answer": "changes the solutions, so it does not make an equivalent equation"
             },
@@ -344,9 +344,9 @@
               "type": "choice",
               "options": [
                 "It adds the solution 0, so the new equation is not equivalent to x + 7 = 9",
-                "It keeps exactly the solution 2",
-                "It removes the solution 2",
-                "It leaves no solution at all"
+                "It keeps exactly the solution 2, so it is still equivalent to x + 7 = 9",
+                "It removes the solution 2, because both sides were multiplied by x",
+                "It leaves no solution, because x² + 7x = 9x is no longer linear"
               ],
               "answer": "It adds the solution 0, so the new equation is not equivalent to x + 7 = 9"
             }
@@ -1208,7 +1208,7 @@
                 "the x-coefficients are the same and the constants are different",
                 "the x-coefficients are different",
                 "both sides are exactly the same",
-                "the solution is 0"
+                "the x-coefficients are different and the constants are the same"
               ],
               "answer": "the x-coefficients are the same and the constants are different"
             },
@@ -1756,9 +1756,9 @@
               "type": "choice",
               "options": [
                 "She multiplied only the x-term on the right side by 3, not the −4.",
-                "She should have divided both sides by 3.",
-                "She subtracted x from only one side.",
-                "She added 6 instead of subtracting it."
+                "She should have divided both sides by 3, not multiplied them by 3.",
+                "She subtracted x from only one side in Step 2, not from both sides.",
+                "She should have subtracted 4 from both sides in Step 2, not added 4."
               ],
               "answer": "She multiplied only the x-term on the right side by 3, not the −4."
             },
@@ -2094,9 +2094,9 @@
               "type": "choice",
               "options": [
                 "The outputs are equal at an input between two of the inputs in the table",
-                "f(x) and h(x) are never equal",
-                "The table only lists whole-number outputs",
-                "h(x) is not a function"
+                "f(x) and h(x) are never equal, since no row shows the same output for both",
+                "The table lists only whole-number outputs, so it can never show a crossing",
+                "The outputs are equal at an input past x = 4, beyond the end of the table"
               ],
               "answer": "The outputs are equal at an input between two of the inputs in the table"
             }
@@ -2179,9 +2179,9 @@
               "type": "choice",
               "options": [
                 "No — x = 0 makes the side 3x − 2 negative, and a side cannot be negative",
-                "Yes — x = 0 is a solution, so the shapes exist",
-                "No — a solution can never be 0",
-                "Yes — all three sides are positive"
+                "Yes — x = 0 solves the equation, so the triangle and the square both exist",
+                "No — a solution can never be 0, because a side cannot be 0 cm long",
+                "Yes — at x = 0 the triangle’s sides are 1, 5 and 2 cm, all positive"
               ],
               "answer": "No — x = 0 makes the side 3x − 2 negative, and a side cannot be negative"
             }
@@ -2361,9 +2361,9 @@
               "type": "choice",
               "options": [
                 "The x-terms are equal and the constants are not, so subtracting 5x leaves a false statement",
-                "The constants are equal, so the equation is always true",
-                "The x-coefficients are different",
-                "It has a negative constant"
+                "The constants are equal and the x-terms are not, so subtracting 5x leaves a false statement",
+                "The x-coefficients are different, so no value of x can make the two sides equal",
+                "It has a negative constant, so no value of x can make the two sides equal"
               ],
               "answer": "The x-terms are equal and the constants are not, so subtracting 5x leaves a false statement"
             },

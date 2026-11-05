@@ -260,9 +260,9 @@
               "type": "choice",
               "options": [
                 "creates an equivalent equation with the same solution",
-                "changes the solution each time",
-                "only works with addition",
-                "makes the equation false"
+                "changes the solution, since each side gets new numbers",
+                "keeps the solution only when the operation is addition",
+                "makes the equation false, since both sides have changed"
               ],
               "answer": "creates an equivalent equation with the same solution"
             }
@@ -1116,7 +1116,7 @@
                 "the x-coefficients are the same and the constants are different",
                 "the x-coefficients are different",
                 "both sides are exactly the same",
-                "the solution is 0"
+                "the x-coefficients are different and the constants are the same"
               ],
               "answer": "the x-coefficients are the same and the constants are different"
             },
