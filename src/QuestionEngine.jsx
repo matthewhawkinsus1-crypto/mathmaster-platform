@@ -2422,7 +2422,9 @@ function QuestionEngineBody({
       case 'orderedPair':
         return <OrderedPairGrader {...commonModuleProps} />;
       case 'multiAnswer':
-        return <MultiAnswerGrader {...commonModuleProps} />;
+        // An exit ticket, a quiz or a test before its release: the keypad says
+        // nothing about the answer (N56, withheldVerdictKeypad.js).
+        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} />;
       case 'relationshipModel':
         return <RelationshipModel {...commonModuleProps} />;
       case 'graphScenarioMatch':

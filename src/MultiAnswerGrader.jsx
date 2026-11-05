@@ -16,6 +16,7 @@ import { choiceShowsMixedMath, labelHasDelimitedMath, resolveLabelFormat } from 
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat, describeBoxPlaceholder } from './platform/interaction/answerFormatHints.js';
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
+import { declaredKeypadProfile, withheldVerdictKeys } from './platform/interaction/withheldVerdictKeypad.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
 import { choiceAccessibleLabel, choiceFieldAsksDimensions, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
@@ -126,8 +127,12 @@ const shouldUsePlainTextInput = (field) => {
 // Stable fallback: `answerFields = []` built a new array per render, and the
 // report effect below depends on what is derived from it.
 const NO_FIELDS = Object.freeze([]);
+const NO_SYMBOLS = Object.freeze([]);
 
-export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
+// `verdictsWithheld`: an exit ticket, a quiz or a test before its release
+// (QuestionEngine). Then the keypad says nothing about the answer
+// (withheldVerdictKeypad.js, N56); practice and classwork keep their scaffold.
+export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false }) {
   const { prompt, answerFields = NO_FIELDS } = question;
   // Read as the box its key says it is: an older import stamped some number
   // boxes as set boxes (RT02), and the grader reads them the same way.
@@ -246,6 +251,8 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           const markId = `${markBase}-${field.id}-mark`;
           const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
           const inferredRequiredSymbols = inferRequiredAnswerSymbols(acceptedAnswersForField(field));
+          // The keys a field names, the import's reading of its key among
+          // them, and this box's own reading of its accepted answers.
           const requiredSymbols = [
             ...(Array.isArray(field.requiredSymbols) ? field.requiredSymbols : []),
             ...(Array.isArray(field.inputContract?.requiredSymbols) ? field.inputContract.requiredSymbols : []),
@@ -263,6 +270,14 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
             inferredFormat: shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : '',
             prompt,
           });
+          // The keypad: the box's shape, the pad its field names (a number,
+          // an ordered pair), else the general one. Where the verdict is
+          // withheld nothing in it comes from the key: the pad is the one the
+          // field declares, and the keys of the secure field's profile and the
+          // letters the student reads take the place of the field's required
+          // symbols (withheldVerdictKeypad.js, N56).
+          const toolProfile = field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : (verdictsWithheld ? declaredKeypadProfile(field) : keypadProfileForResponseField(field)) || 'basic');
+          const withheldKeys = verdictsWithheld ? withheldVerdictKeys(field, { prompt, toolProfile }) : null;
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
@@ -328,10 +343,13 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
                   placeholder={box.placeholder}
                   ariaLabel={accessibleFieldLabel(field)}
-                  toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : keypadProfileForResponseField(field) || 'basic')}
+                  toolProfile={toolProfile}
                   answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
-                  requiredSymbols={requiredSymbols}
-                  showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || inferredRequiredSymbols.length > 0}
+                  requiredSymbols={withheldKeys ? NO_SYMBOLS : requiredSymbols}
+                  extraKeys={withheldKeys || undefined}
+                  hideNeededSymbols={Boolean(withheldKeys)}
+                  // Open on arrival by the box's shape, and, with a scaffold, by its key.
+                  showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || (!withheldKeys && inferredRequiredSymbols.length > 0)}
                   inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
                   ariaInvalid={grade ? !grade.isCorrect : false}
                   ariaDescribedBy={grade ? markId : ''}

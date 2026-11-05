@@ -42,6 +42,13 @@
 //                      breakdown ("still to fix: …") only where feedback is open
 //   graph-reading      a given graph whose intercepts are the answer: no feature
 //                      value in its description and no data table, in any role
+//   keypad             a typed box's keypad, on a laptop (1366×768) and a phone
+//                      (390×844): practice keeps the "Needed for this answer"
+//                      keys read from the key; on a DOL or test no key comes
+//                      from it (no fraction key on only the boxes whose answer
+//                      has a fraction, no letters of a template's filter), the
+//                      letters are the ones the student reads, and right and
+//                      wrong are still graded so (N56)
 //
 // (The modeling lab's result after submission comes from a Cloud Function, so
 // it is held in node by tests/platform/solverRuntimeOutcomePolicy.test.mjs.)
@@ -920,6 +927,98 @@ const graphReading = async () => {
   }
 };
 
+/* ---------------------------------------------------------------- keypad */
+
+const KEYPAD_SIZES = [
+  { name: 'laptop', viewport: { width: 1366, height: 768 } },
+  { name: 'phone', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+];
+// A page of its own size (the gate's own pages are a laptop's).
+const openSized = async (size, role, q) => {
+  const sized = await browser.newContext({ viewport: size.viewport, isMobile: Boolean(size.isMobile), hasTouch: Boolean(size.hasTouch), deviceScaleFactor: size.deviceScaleFactor || 1 });
+  pageCount += 1;
+  const page = await sized.newPage();
+  pages.push(page);
+  page.setDefaultTimeout(8000);
+  page.on('pageerror', (error) => check(false, `${size.name} ${role} ${q}: page error`, error.message));
+  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${run}-${pageCount}`, { waitUntil: 'networkidle' });
+  await page.locator('[data-leak-fixture]').waitFor();
+  await settle(page, 900);
+  return { page, close: () => sized.close() };
+};
+// Box `index`'s keypad as the student meets it: in the box (a tap on a
+// phone), its keys opened if a laptop keeps them closed.
+const keypadOfBox = async (page, size, index) => {
+  const box = page.locator('.mathmaster-math-input').nth(index);
+  const field = box.locator('math-field');
+  if (size.hasTouch) await field.tap(); else await field.click();
+  await settle(page, 350);
+  if (!size.hasTouch && !(await box.locator('[role="toolbar"][aria-label="Math tools"]').count())) {
+    await box.getByRole('button', { name: 'Show math tools' }).click();
+    await settle(page, 250);
+  }
+  return box.evaluate((root) => {
+    const keys = (label) => [...root.querySelectorAll(`[role="toolbar"][aria-label="${label}"] button`)].map((button) => button.innerText.trim());
+    return { tools: keys('Math tools'), needed: keys('Keys needed for this answer') };
+  });
+};
+const allKeys = (keypad) => [...new Set([...keypad.tools, ...keypad.needed])].sort();
+const keypadSurface = async () => {
+  for (const size of KEYPAD_SIZES) {
+    for (const role of ['practice', 'dol', 'test']) {
+      await scenario(`${size.name} ${role} keypad-graphs`, async () => {
+        const { page, close } = await openSized(size, role, 'keypad-graphs');
+        try {
+          const keypads = [];
+          for (let index = 0; index < 3; index += 1) keypads.push(await keypadOfBox(page, size, index));
+          const fraction = keypads.map((keypad) => (size.hasTouch ? keypad.needed : keypad.tools).includes('a⁄b'));
+          if (role === 'practice') {
+            check(JSON.stringify(fraction) === '[false,true,true]', `${size.name} practice keypad-graphs: the scaffold names a fraction key where the answer has one`, JSON.stringify(keypads));
+          } else {
+            check(JSON.stringify(keypads.map(allKeys)) === JSON.stringify([allKeys(keypads[0]), allKeys(keypads[0]), allKeys(keypads[0])]), `${size.name} ${role} keypad-graphs: graphs a, b and c have the same keys`, JSON.stringify(keypads.map(allKeys)));
+            check(keypads.every((keypad) => allKeys(keypad).includes('a⁄b')), `${size.name} ${role} keypad-graphs: a fraction key on every box`);
+            check(keypads.every((keypad) => !keypad.needed.includes('a⁄b')), `${size.name} ${role} keypad-graphs: no "Needed for this answer" fraction`, JSON.stringify(keypads.map((keypad) => keypad.needed)));
+          }
+        } finally {
+          await close();
+        }
+      });
+      await scenario(`${size.name} ${role} keypad-letters`, async () => {
+        const { page, close } = await openSized(size, role, 'keypad-letters');
+        try {
+          const keypad = await keypadOfBox(page, size, 0);
+          const keys = allKeys(keypad);
+          if (role === 'practice') {
+            if (size.hasTouch) check(keypad.needed.length > 0, 'phone practice keypad-letters: the "Needed for this answer" row is there', JSON.stringify(keypad));
+          } else {
+            check(!['m', 'p', 'o', 'w'].some((letter) => keys.includes(letter)), `${size.name} ${role} keypad-letters: none of m, p, o, w`, keys.join(' '));
+            check(['x', 'y', 'xⁿ', '|x|'].every((key) => keys.includes(key)), `${size.name} ${role} keypad-letters: x, y, a power and bars, from what the student reads and the pad`, keys.join(' '));
+            check(keypad.needed.length === 0, `${size.name} ${role} keypad-letters: no "Needed for this answer" row`, keypad.needed.join(' '));
+          }
+          // What is graded does not change: right is right, wrong is wrong.
+          if (role === 'dol') {
+            await setMathField(page, page.locator('.mathmaster-math-input math-field').first(), '3\\left|x^{3}\\right|y^{4}');
+            await submitAnswer(page);
+            check((await lastGrade(page))?.isCorrect === true, `${size.name} dol keypad-letters: the right answer is graded right`, brief(await lastGrade(page)));
+          }
+        } finally {
+          await close();
+        }
+      });
+    }
+    await scenario(`${size.name} dol keypad-letters wrong`, async () => {
+      const { page, close } = await openSized(size, 'dol', 'keypad-letters');
+      try {
+        await setMathField(page, page.locator('.mathmaster-math-input math-field').first(), '3x^{3}y^{4}');
+        await submitAnswer(page);
+        check((await lastGrade(page))?.isCorrect === false, `${size.name} dol keypad-letters: a wrong answer is graded wrong`, brief(await lastGrade(page)));
+      } finally {
+        await close();
+      }
+    });
+  }
+};
+
 /* ----------------------------------------------------------------- runner */
 
 const SURFACES = {
@@ -933,6 +1032,7 @@ const SURFACES = {
   'three-plane-reveal': threePlaneReveal,
   'feedback-ladder': feedbackLadder,
   'graph-reading': graphReading,
+  keypad: keypadSurface,
 };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SURFACES);
 for (const name of selected) {

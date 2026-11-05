@@ -96,8 +96,10 @@ const normalizedMathText = (value) => String(value ?? '')
 // are template syntax, so a Digital SAT number box keyed `{{a}}` asked for the
 // `{`, `}` and `a` keys. A placeholder is read as a plain number here, which
 // keeps every symbol the surrounding key really needs (`{{a}}/{{b}}` still
-// needs a⁄b, `{{m}}x+{{b}}` still needs x).
-const TEMPLATE_PLACEHOLDER = /\{\{\s*[A-Za-z_][\w.]*\s*\}\}/g;
+// needs a⁄b, `{{m}}x+{{b}}` still needs x). So is one with a filter, which
+// the generator writes as a power, a sign or a coefficient: the radicals exit
+// ticket's `{{d}}|x{{m|pow}}|y^{{k}}` asked for the keys m, p, o and w (N56).
+const TEMPLATE_PLACEHOLDER = /\{\{\s*[A-Za-z_][\w.]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
 
 export const inferRequiredAnswerSymbols = (values = []) => {
   const text = flattenAnswerValues(values).join(' ').replace(TEMPLATE_PLACEHOLDER, '1');
