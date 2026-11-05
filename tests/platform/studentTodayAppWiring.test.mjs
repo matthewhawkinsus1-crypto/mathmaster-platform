@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 /*
  * App.jsx WIRING FOR THE ONE "TODAY" RULE.
@@ -125,6 +126,7 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
   // boundary (lazyStudentScreens.test.mjs); App imports it from there.
   assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /^export const ReviewMyWork = studentPanel\(\(\) => import\('\.\.\/components\/student\/ReviewMyWork\.jsx'\), \{/m);
   assert.match(app, /\bReviewMyWork,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
+  assert.equal(importsComponent('src/App.jsx', 'ReviewMyWork', 'src/components/student/ReviewMyWork.jsx'), 'onDemand');
   assert.match(app, /import \{ loadMyReviewWork \} from '\.\/services\/reviewMyWorkService\.js'/);
   const panel = region(app, 'const resultReviewPanel =', ': null;', 'review panel');
   assert.match(app, /reviewPanel=\{resultReviewPanel\}/);
