@@ -47,16 +47,25 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/regressionCalculatorPhone.mjs
 
+      # CI02 (C2-58): Polynomial Workshop, Representation Bridge, Representation
+      # Match and Matrix Lab are not Path tools, so the capture above never
+      # reached them. What they record with an attempt is captured the same way.
+      - name: Capture real Polynomial Workshop, Representation Bridge, Representation Match and Matrix Lab responses
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/captureRegistryToolResponses.mjs
+
       - name: Show browser-contract drift
         if: ${{ !cancelled() }}
         run: |
-          git diff -- tests/platform/fixtures/capturedToolResponses.json || true
+          git diff -- tests/platform/fixtures/capturedToolResponses.json tests/platform/fixtures/capturedRegistryToolResponses.json || true
 
       - name: Require committed capture to match the real browser
-        run: git diff --exit-code -- tests/platform/fixtures/capturedToolResponses.json
+        run: git diff --exit-code -- tests/platform/fixtures/capturedToolResponses.json tests/platform/fixtures/capturedRegistryToolResponses.json
 
       - name: Re-grade the captured wire format on the server contract
-        run: node --test tests/platform/toolResponseContracts.test.mjs tests/platform/pathDataModelingGrading.test.mjs
+        run: node --test tests/platform/toolResponseContracts.test.mjs tests/platform/pathDataModelingGrading.test.mjs tests/platform/registryToolCapturedResponses.test.mjs
 
       - name: Upload Regression Calculator phone screenshot
         if: always()

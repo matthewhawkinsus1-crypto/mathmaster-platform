@@ -15,6 +15,11 @@
 //             with the attempt.
 //   dol       no Hint control, no miss message, no review while the item is
 //             open — the submission is still graded.
+//   dataAndModels  a tool item the dataAndModels family claims (Exponential ↔
+//             Log Bridge, 2^(2x − 1) = 16): the first hint is the family's and
+//             names no answer, "Try a similar one" works a sibling with other
+//             numbers, and after two misses an inclusion student's "Let's back
+//             up" step is the family's question about this problem (CI02, A1-69).
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/feedbackTeaches.
 import { mkdirSync } from 'node:fs';
@@ -238,6 +243,58 @@ for (const device of DEVICES) {
     check(!(await dolHint.isVisible().catch(() => false)) || (await dolHint.getAttribute('aria-label')) === 'Ask my teacher', `${device.name} ${which} dol: no Hint control`);
     check((await dol.page.locator('.mathmaster-hint-panel li').count()) === 0, `${device.name} ${which} dol: no hint in the document`);
     await dol.context.close();
+  }
+
+  /* ----- a dataAndModels tool item: its hints, its worked sibling, its back-up step (CI02) */
+  {
+    const { page, context } = await open(device, 'q=explog&role=practice');
+    const answers = await page.evaluate(() => window.__mmAnswers);
+    const hint = page.locator('[data-hint-control]');
+    check(await hint.isVisible(), `${device.name} explog: a Hint control`);
+    await hint.click();
+    const panel = page.locator('.mathmaster-hint-panel');
+    await panel.locator('button', { hasText: 'Show a hint' }).click();
+    const family = panel.locator('li[data-hint-source="family"]').first();
+    check(await family.count() === 1, `${device.name} explog: the first hint comes from the dataAndModels family`);
+    const hintText = (await family.textContent().catch(() => '')).replace(/\s+/g, '');
+    check(hintText.length > 10 && answers.every((value) => !hintText.includes(value)), `${device.name} explog: the hint names no answer`, hintText.slice(0, 160));
+    check(await reachable(page, family), `${device.name} explog: the hint is on screen`);
+    // The family's worked sibling: other numbers, worked in full, and not this answer.
+    await panel.getByRole('button', { name: 'Try a similar one' }).click();
+    const example = panel.locator('[data-similar-example]');
+    check(await example.count() === 1, `${device.name} explog: "Try a similar one" opens a worked sibling`);
+    const exampleText = (await example.innerText().catch(() => '')).replace(/\s+/g, ' ');
+    check(/Answer:/.test(exampleText) && (await example.locator('ol li').count()) >= 3, `${device.name} explog: the sibling is worked step by step to its answer`, exampleText.slice(0, 160));
+    const exampleAnswer = (exampleText.split('Answer:')[1] || '').split('Your question')[0];
+    check(!/x\s*=\s*(?:5\/2|2\.5)\b/.test(exampleAnswer.replace(/\s+/g, ' ')), `${device.name} explog: the sibling's answer is not this question's`, exampleAnswer.slice(0, 80));
+    check(await reachable(page, example), `${device.name} explog: the sibling is on screen`);
+    await noSidewaysScroll(page, `${device.name} explog`);
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `data-models-explog-${device.name}.png`), fullPage: true });
+    await context.close();
+  }
+  {
+    const { page, context } = await open(device, 'q=explog&role=practice&support=inclusion');
+    // Two misses, two different answers (the same one again asks to confirm first).
+    for (const [exponent, x] of [['5', '3'], ['3', '2']]) {
+      await page.getByRole('textbox', { name: /^Exponent value/ }).fill(exponent);
+      await page.getByRole('textbox', { name: 'x', exact: true }).fill(x);
+      await page.waitForTimeout(200);
+      await submit(page);
+      await page.waitForTimeout(400);
+    }
+    const graded = await page.evaluate(() => window.__mmGrades);
+    check(graded.length === 2 && graded.every((entry) => entry.isCorrect === false), `${device.name} explog: two misses were graded`);
+    const overlay = page.locator('[data-scaffold][aria-label="Let\'s back up"]');
+    check(await overlay.count() === 1, `${device.name} explog: an inclusion student gets the family's "Let's back up" step`);
+    const heading = ((await overlay.locator('h2').textContent().catch(() => '')) || '').trim();
+    check(/first move for an equation like/.test(heading) && !heading.includes('$'), `${device.name} explog: the step asks this problem's first move`, heading);
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `data-models-explog-back-up-${device.name}.png`), fullPage: true });
+    await overlay.getByRole('button', { name: 'Divide both sides by the base' }).click();
+    check(await overlay.getByText('Try the other choice.').count() === 1, `${device.name} explog: a wrong pick leaves only the other choice`);
+    await overlay.getByRole('button', { name: 'Write the right side as a power of the same base' }).click();
+    await page.waitForTimeout(300);
+    check(await page.locator('[data-scaffold]').count() === 0, `${device.name} explog: the right pick gives the work back`);
+    await context.close();
   }
 
   /* -------------------------------------------------------------- DOL */

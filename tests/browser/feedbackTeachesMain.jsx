@@ -37,6 +37,9 @@
 //   ?q=lmrtablees           lmr-pr-1 with an authored Spanish prompt: process mode's
 //                           row chooser and the table to extend are read in Spanish
 //                           (AX05, slice 2)
+//   ?q=explog               an Exponential ↔ Log Bridge item (2^(2x − 1) = 16) the
+//                           dataAndModels family claims: its hints, its worked
+//                           sibling and its "Let's back up" step (CI02, A1-69)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -152,6 +155,14 @@ const QUESTIONS = {
   sequence: lessonItem(dol3Review, 'dol3-review-q13'),
   lmrtable: lessonItem(linearRepresentationsLesson, 'lmr-pr-1'),
   lmrtablees: withSpanishPrompt(lessonItem(linearRepresentationsLesson, 'lmr-pr-1'), 'Tienes una tabla de valores de una relación lineal. Construye todas las demás representaciones de esta misma recta, en el orden que quieras.'),
+  // The dataAndModels family's: 2^(2x − 1) = 16, so 2x − 1 = 4 and x = 5/2 (CI02).
+  explog: {
+    questionId: 'feedback-explog',
+    type: 'exponentialLogBridge',
+    mode: 'solveExponential',
+    prompt: 'Solve 2^(2x − 1) = 16 for x.',
+    equation: { base: 2, m: 2, c: -1, rhs: 16 },
+  },
   regression: {
     questionId: 'feedback-regression',
     type: 'regressionCalculator',
@@ -179,7 +190,8 @@ const question = QUESTIONS[which];
 const FAMILY_INSTANCES = new Set(['family', 'vertex', 'absval']);
 // The question's own answers, for the driver's leak check (never rendered).
 window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? ''))
-  : which === 'table' ? Object.values(question?.table?.answers || {}).map(String) : [];
+  : which === 'table' ? Object.values(question?.table?.answers || {}).map(String)
+    : which === 'explog' ? ['5/2', '2.5', '4'] : [];
 const SUPPORT_PROFILES = {
   translate: { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' },
   // The same, with the graph read-out (AX03): a graph is read in full while it can be answered.

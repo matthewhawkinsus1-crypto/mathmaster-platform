@@ -1,0 +1,58 @@
+{
+  "matrixLab": {
+    "toolId": "matrixLab",
+    "browserIsCorrect": true,
+    "toolResponse": {
+      "kind": "tool",
+      "schemaVersion": 1,
+      "type": "matrixLab",
+      "toolId": "matrixLab",
+      "mode": "equation",
+      "contractVersion": 1,
+      "value": "{\"A\":[[\"2\",\"-3\",\"1\"],[\"1\",\"1\",\"1\"],[\"1\",\"2\",\"4\"]],\"B\":[\"7\",\"-5\",\"-17\"]}",
+      "fields": []
+    }
+  },
+  "polynomialWorkshop": {
+    "toolId": "polynomialWorkshop",
+    "browserIsCorrect": true,
+    "toolResponse": {
+      "kind": "tool",
+      "schemaVersion": 1,
+      "type": "polynomialWorkshop",
+      "toolId": "polynomialWorkshop",
+      "mode": "factorQuadratic",
+      "contractVersion": 1,
+      "value": "{\"p\":\"-2\",\"q\":\"-3\"}",
+      "fields": []
+    }
+  },
+  "representationBridge": {
+    "toolId": "representationBridge",
+    "browserIsCorrect": true,
+    "toolResponse": {
+      "kind": "tool",
+      "schemaVersion": 1,
+      "type": "representationBridge",
+      "toolId": "representationBridge",
+      "mode": "linear",
+      "contractVersion": 1,
+      "value": "{\"factoredForm\":{\"a\":\"5\",\"c\":\"4\",\"equation\":\"y = 5(x - 4)\"},\"generalForm\":{\"b\":\"-20\",\"equation\":\"y = 5x - 20\",\"m\":\"5\"},\"graphConstruction\":{\"points\":[]},\"meaningAssignments\":{},\"rateConclusion\":\"\",\"studentSlope\":\"\",\"tableEvidence\":[]}",
+      "fields": []
+    }
+  },
+  "representationMatch": {
+    "toolId": "representationMatch",
+    "browserIsCorrect": true,
+    "toolResponse": {
+      "kind": "tool",
+      "schemaVersion": 1,
+      "type": "representationMatch",
+      "toolId": "representationMatch",
+      "mode": "linearConnections",
+      "contractVersion": 1,
+      "value": "{\"correctionChoice\":\"minus\",\"selectedId\":\"m:pointSlope\"}",
+      "fields": []
+    }
+  }
+}
