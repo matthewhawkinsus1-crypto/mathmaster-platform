@@ -256,9 +256,12 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           // identical and reject each other's answers.
           const answerShape = describeAnswerFormat(field);
           // The box keeps the example alone and the words sit above it, where
-          // they wrap ("for exampl…" was all a 127px box could show).
+          // they wrap ("for exampl…" was all a 127px box could show). An
+          // inequality's example is in x and y when the prompt and the label
+          // name both (answerFormatHints.js readsXAndY).
           const box = describeBoxPlaceholder(field, {
-            inferredExample: shouldUseSetInput(field) ? '{1, 2, 3}' : shouldUseInequalityInput(field) ? '0 ≤ x ≤ 4' : '',
+            inferredFormat: shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : '',
+            prompt,
           });
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>

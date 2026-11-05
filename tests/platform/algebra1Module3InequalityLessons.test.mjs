@@ -224,10 +224,11 @@ for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS) {
 /*
  * THE EXAMPLE IN AN EMPTY "WRITE THE INEQUALITY THIS GRAPH SHOWS" BOX
  * (F-GRAPH-IN-WORDS, the same walkthrough). The platform's example for any
- * inequality box is "0 ≤ x ≤ 4", a compound inequality in one variable. L4's
- * graph items ask for one inequality in x and y, so their boxes show one, and
- * it is nobody's answer: no key in any version accepts it, and no student
- * builds its graph.
+ * inequality box was "0 ≤ x ≤ 4", a compound inequality in one variable (it
+ * is "y ≥ mx + b" now where the prompt and label name x and y, and "a ≤ x ≤ b"
+ * elsewhere: inequalityExample.test.mjs). L4's graph items ask for one
+ * inequality in x and y, so their boxes show one, and it is nobody's answer:
+ * no key in any version accepts it, and no student builds its graph.
  */
 const GRAPH_ITEMS = ['cw-7', 'cw-12', 'cw-13', 'cw-17', 'p-6', 'p-10', 'p-12', 'p-15'];
 
@@ -240,10 +241,10 @@ for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS.filter((candidate) => lessonO
     const P = questions[0].questionId.replace(/-wu-1$/, '');
     const boxes = questions
       .filter((question) => GRAPH_ITEMS.some((suffix) => question.questionId === `${P}-${suffix}`))
-      .flatMap((question) => (question.answerFields || []).filter((field) => field.inputProfile === 'inequality'));
+      .flatMap((question) => (question.answerFields || []).filter((field) => field.inputProfile === 'inequality').map((field) => ({ field, prompt: question.prompt })));
     assert.ok(boxes.length >= 15, `${boxes.length} graph boxes`);
     // What each empty box shows, asked as MultiAnswerGrader asks it.
-    const shown = new Set(boxes.map((field) => describeBoxPlaceholder(field, { inferredExample: '0 ≤ x ≤ 4' }).placeholder));
+    const shown = new Set(boxes.map(({ field, prompt }) => describeBoxPlaceholder(field, { inferredFormat: 'inequality', prompt }).placeholder));
     assert.equal(shown.size, 1, [...shown].join(' | '));
     const [example] = shown;
     // One relation between x and y, and no longer than the platform's own
