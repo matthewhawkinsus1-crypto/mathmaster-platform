@@ -25,7 +25,7 @@
 import { auditedCcmrQuestion, backUp, choice, guidedNotes, inequality, number, review, teks } from '../lib/lessonKit.mjs';
 import {
   A2H, A3D, SLIP, computedChoice, graphSlips, inequalityBuild, inequalityFigure, keyedGraphs, otherInterceptSign, otherSymbols, restyled, slip,
-  symbolSlip, tex, turned, withOwnHint,
+  symbolSlip, tex, turned, withOwnHint, Y_ALONE_EXAMPLE,
 } from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 4';
@@ -998,7 +998,7 @@ const practiceHonors = (P) => [
     directionSteps: ['Use the origin to choose the symbol in standard form.', 'Solve for y.', 'Explain why the symbol changes.'],
     responses: [
       inequality('standard', 'Standard form', '3x - 4y > 12'),
-      inequality('slopeIntercept', 'With y alone', 'y < 3/4x - 3'),
+      inequality('slopeIntercept', 'With y alone', 'y < 3/4x - 3', { placeholder: Y_ALONE_EXAMPLE }),
       choice('why', 'Why does the symbol change?', [
         'Dividing both sides by −4 reverses the inequality',
         'Subtracting 3x from both sides reverses the inequality',

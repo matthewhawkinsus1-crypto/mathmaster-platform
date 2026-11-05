@@ -3739,7 +3739,8 @@
               "id": "slopeIntercept",
               "label": "With y alone",
               "answer": "y < 3/4x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ mx + b"
             },
             {
               "id": "why",

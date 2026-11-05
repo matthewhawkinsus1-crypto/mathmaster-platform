@@ -34,7 +34,7 @@
  */
 import { auditedCcmrQuestion, backUp, choice, guidedNotes, inequality, number, review, sortBoard, teks } from '../lib/lessonKit.mjs';
 import {
-  A3D, A3H, A3H_MODEL, FIGURE_WINDOW, computedChoice, graphSlips, inequalityBuild, inequalityFigure, restyled, slip, tex, turned, withOwnHint,
+  A3D, A3H, A3H_MODEL, FIGURE_WINDOW, computedChoice, graphSlips, inequalityBuild, inequalityFigure, restyled, slip, tex, turned, withOwnHint, Y_ALONE_EXAMPLE,
 } from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 5';
@@ -672,8 +672,8 @@ const classwork = (P) => [
     prompt: 'Talk the Talk — Get to Know the Region. The solution set of a system of two linear inequalities can be a region above both lines, a region below both lines, a region between the lines, or no solution. Rewrite each system with y alone to decide which. a. y < 8 + 2x and 3 + 2x > y. b. 5 + x < y and y > 7 + x. c. y > 12 − 3x and 10 − 3x > y. d. 6 − x < y and y < 9 − x.',
     directionSteps: ['Rewrite system c with y alone in each inequality.', 'Compare the slopes and the y-intercepts in each system.', 'Decide which region each system has.', 'Compare with systems of equations.'],
     responses: [
-      inequality('c1', 'System c, first inequality with y alone', 'y > -3x + 12'),
-      inequality('c2', 'System c, second inequality with y alone', 'y < -3x + 10'),
+      inequality('c1', 'System c, first inequality with y alone', 'y > -3x + 12', { placeholder: Y_ALONE_EXAMPLE }),
+      inequality('c2', 'System c, second inequality with y alone', 'y < -3x + 10', { placeholder: Y_ALONE_EXAMPLE }),
       choice('a', 'System a', REGIONS, 'A region below both lines'),
       choice('b', 'System b', REGIONS, 'A region above both lines'),
       choice('c', 'System c', REGIONS, 'No solution'),
@@ -1002,8 +1002,8 @@ const practiceRegular = (P) => [
     graph: inequalityFigure([SYSTEM_FROM_GRAPH_KEYS.solid, SYSTEM_FROM_GRAPH_KEYS.dashed], { strokes: [null, '#d93025'] }),
     directionSteps: ['Write the inequality for the solid boundary.', 'Write the inequality for the dashed boundary.', 'Decide whether the corner is a solution.'],
     responses: [
-      inequality('solid', 'Inequality for the solid boundary', SYSTEM_FROM_GRAPH_KEYS.solid),
-      inequality('dashed', 'Inequality for the dashed boundary', SYSTEM_FROM_GRAPH_KEYS.dashed),
+      inequality('solid', 'Inequality for the solid boundary', SYSTEM_FROM_GRAPH_KEYS.solid, { placeholder: Y_ALONE_EXAMPLE }),
+      inequality('dashed', 'Inequality for the dashed boundary', SYSTEM_FROM_GRAPH_KEYS.dashed, { placeholder: Y_ALONE_EXAMPLE }),
       choice('corner', 'Is the corner (1.5, 3.5) a solution?', [
         'No — it is on the dashed boundary, which is not included',
         'Yes — it is on the solid boundary, which is included',

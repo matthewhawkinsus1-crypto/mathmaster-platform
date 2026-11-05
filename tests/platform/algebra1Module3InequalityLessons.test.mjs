@@ -269,3 +269,37 @@ for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS.filter((candidate) => lessonO
     }));
   });
 }
+
+/*
+ * THE EXAMPLE IN EVERY BOX WHOSE ANSWER RELATES x AND y. The platform reads x
+ * and y in the prompt and the label to choose between "y ≥ mx + b" and the
+ * one-variable "a ≤ x ≤ b". Nine boxes showed the one-variable shape: a label
+ * that names only y ("With y alone", L4 Honors PR 16 and L5 CW 15), or a
+ * graph's boundary whose prompt names neither letter (L5 PR 10). They carry
+ * the two-variable example now (Y_ALONE_EXAMPLE), and no key in any version
+ * accepts what any box shows.
+ */
+for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS.filter((candidate) => ['Lesson 4', 'Lesson 5'].includes(lessonOf(candidate)))) {
+  const name = entry.lesson.assignment.title;
+  const text = readRepoFile(entry.file);
+
+  test(`${name}: every box whose answer relates x and y shows an example in x and y, which no key accepts`, () => {
+    const { questions } = compiled(text);
+    const problems = [];
+    let boxes = 0;
+    questions.forEach((question) => (question.answerFields || []).filter((field) => field.inputProfile === 'inequality').forEach((field) => {
+      const key = String(field.answer);
+      if (!(/x/.test(key) && /y/.test(key))) return;
+      boxes += 1;
+      // What the empty box shows, asked as MultiAnswerGrader asks it.
+      const shown = describeBoxPlaceholder(field, { inferredFormat: 'inequality', prompt: question.prompt }).placeholder || '';
+      if (!(/x/.test(shown) && /y/.test(shown))) problems.push(`${question.questionId} ${field.id} ("${field.label}") shows "${shown}"`);
+      versionsOf(question).filter((version) => version.type === 'multiAnswer').forEach((version) => {
+        const part = gradeMultiAnswerResponse(version, { [field.id]: shown }).parts.find((candidate) => candidate.id === field.id);
+        if (part?.isCorrect) problems.push(`${version.questionId} ${field.id} accepts its own example "${shown}"`);
+      });
+    }));
+    assert.ok(boxes >= 10, `${boxes} boxes`);
+    assert.deepEqual(problems, []);
+  });
+}

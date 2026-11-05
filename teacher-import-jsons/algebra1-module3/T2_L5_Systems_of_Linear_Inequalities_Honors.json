@@ -2406,13 +2406,15 @@
               "id": "c1",
               "label": "System c, first inequality with y alone",
               "answer": "y > -3x + 12",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ mx + b"
             },
             {
               "id": "c2",
               "label": "System c, second inequality with y alone",
               "answer": "y < -3x + 10",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ mx + b"
             },
             {
               "id": "a",
@@ -3518,13 +3520,15 @@
               "id": "solid",
               "label": "Inequality for the solid boundary",
               "answer": "y >= x + 2",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ mx + b"
             },
             {
               "id": "dashed",
               "label": "Inequality for the dashed boundary",
               "answer": "y < -x + 5",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ mx + b"
             },
             {
               "id": "corner",

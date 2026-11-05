@@ -18,6 +18,15 @@ export const tex = (strings, ...values) => String.raw(strings, ...values).replac
 
 export const WINDOW = Object.freeze({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
 
+/*
+ * The example in an empty box that asks for an inequality with y alone, or for
+ * the inequality a boundary on a graph shows. The platform reads x and y in
+ * the prompt and the label to choose its own example; these labels name only
+ * y ("With y alone") or neither letter, so it showed the one-variable
+ * "a ≤ x ≤ b". This is the platform's two-variable example, which no key is.
+ */
+export const Y_ALONE_EXAMPLE = 'y ≥ mx + b';
+
 /**
  * One Systems Workspace inequality item. `constraints` are the hidden grading
  * canon ({ m, b, relation } or { A, B, C, relation }, A·x + B·y + C relation
