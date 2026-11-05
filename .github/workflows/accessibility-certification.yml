@@ -96,6 +96,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/accessibilityTeacherLiveClassTabs.mjs
+      # The administrator's five section tabs: one Tab stop, the arrow keys, and a panel.
+      - name: The administrator's tabs by keyboard (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherAdminTabs.mjs
       # The teacher workspace's one main landmark and its skip link, over every screen and the dialogs on top,
       # and the three states where a student's own screen runs inside it (the Test Cycle preview, a Demo
       # Experience session, a Path Simulator session), which used to draw a second main.
