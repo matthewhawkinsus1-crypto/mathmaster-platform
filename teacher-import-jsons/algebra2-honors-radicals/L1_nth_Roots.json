@@ -92,7 +92,7 @@
             }
           ],
           "hints": [
-            "A power is repeated multiplication: (−{{c}})³ = (−{{c}})(−{{c}})(−{{c}}).",
+            "How many negative factors does each power have, and is that number odd or even?",
             "An odd number of negative factors gives a negative product; an even number gives a positive one.",
             "A root undoes a power: if r multiplied by itself n times is b, then r is an nth root of b."
           ],
@@ -326,7 +326,7 @@
             }
           ],
           "hints": [
-            "Square the inside first: the square of a negative number is positive.",
+            "What number is under each radical once you work out the inside? Can it be negative?",
             "The radical sign √ means the principal (nonnegative) square root.",
             "Which rule gives a nonnegative answer for every x, including a negative x?"
           ],
@@ -461,7 +461,7 @@
             }
           ],
           "hints": [
-            "The index is the small number tucked into the radical sign; the radicand is under it.",
+            "Which number is written small in the radical sign, and which is under it?",
             "Which number, used as a factor 4 times, gives 81? Its opposite works too.",
             "The principal root is the nonnegative one."
           ],
@@ -601,8 +601,8 @@
             }
           ],
           "hints": [
-            "An even index with a positive radicand gives a positive root and its opposite.",
-            "An odd index always gives exactly one real root, with the same sign as the radicand.",
+            "For each card: is the index even or odd, and is the radicand positive, negative or 0?",
+            "An odd index always gives exactly one real root. An even index gives two when the radicand is positive.",
             "No real number raised to an even power is negative. And 0 has only one root: 0."
           ],
           "scaffold": {
@@ -685,9 +685,9 @@
             }
           ],
           "hints": [
-            "List the perfect squares in order and test which ones divide each radicand.",
-            "Split each radicand into a perfect square times what is left.",
-            "Multiply the outside coefficient by the square root of the perfect square."
+            "What is the largest perfect square that divides 63? That divides 12?",
+            "Write each radicand as a perfect square times a number with no square factor.",
+            "Take the square root of the perfect square, then multiply it by any coefficient outside."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(ab) equals…",
@@ -765,9 +765,9 @@
             }
           ],
           "hints": [
-            "16 = 4² and x⁸ = (x⁴)².",
-            "± asks for both square roots: the positive one and its opposite.",
-            "For 9x⁸, take the square root of 9 and halve the exponent 8."
+            "Which number, squared, gives 16? Which power of x, squared, gives x⁸?",
+            "Squaring a power doubles its exponent. ± asks for both roots: the positive one and its opposite.",
+            "16 = 4² and x⁸ = (x⁴)². Do the same for 9x⁸."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(x⁸) equals…",
@@ -855,9 +855,9 @@
             }
           ],
           "hints": [
-            "Treat q³ + 5 as one block: (q³ + 5)⁴ = [(q³ + 5)²]².",
+            "Treat q³ + 5 as one block. What power of that block, squared, gives (q³ + 5)⁴?",
             "The negative sign is outside the radical. Take the principal root first, then make it the opposite.",
-            "A square is never negative, so no bars are needed around (q³ + 5)²."
+            "(q³ + 5)⁴ = [(q³ + 5)²]². A square is never negative, so no bars are needed."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The negative sign in −√(…) is…",
@@ -940,9 +940,9 @@
             }
           ],
           "hints": [
-            "243 = 3⁵. Divide each exponent by 5: a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵.",
-            "An odd root of a negative number is negative, so an odd root never needs bars.",
-            "32 = 2⁵; x⁵ = (x)⁵; y¹⁰ = (y²)⁵."
+            "Which number to the fifth power is 243? Which power of a, to the fifth, gives a¹⁰?",
+            "Divide each exponent by 5. Is the index odd or even, and does an odd root keep the sign?",
+            "243 = 3⁵, a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵, and an odd root needs no bars. Do the same for 32x⁵y¹⁰."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 243 equals…",
@@ -1122,9 +1122,9 @@
             }
           ],
           "hints": [
-            "t is a sixth root of t⁶, but t could be negative. The principal sixth root must be nonnegative.",
-            "16x⁴y⁸ = (2xy²)⁴.",
-            "Bars are needed only around a factor that can be negative."
+            "If t = −2, what is t⁶, and what is its sixth root? Is that t, or something else?",
+            "What monomial, to the fourth power, gives 16x⁴y⁸? Which of its factors can be negative?",
+            "16x⁴y⁸ = (2xy²)⁴. Bars go only around a factor that can be negative: x can, y² cannot."
           ],
           "scaffold": {
             "prompt": "Let’s back up. For an even index n, ⁿ√(aⁿ) equals…",
@@ -1205,9 +1205,9 @@
             }
           ],
           "hints": [
-            "243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵.",
-            "The index is odd, so no absolute value bars are needed.",
-            "For the cube root, find the number whose cube is 8, and divide the exponent 15 by the index 3."
+            "Which number to the fifth power is 243? Which power of (x + 2), to the fifth, gives (x + 2)¹⁵?",
+            "Treat x + 2 as one block and divide its exponent by the index. Is the index odd or even?",
+            "243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵. An odd root keeps the sign, so no bars. For the cube root, divide 15 by 3."
           ],
           "scaffold": {
             "prompt": "Let’s back up. For an odd index n, ⁿ√(aⁿ) equals…",
@@ -1277,9 +1277,9 @@
             }
           ],
           "hints": [
-            "Halve every exponent: x⁴ = (x²)², y¹⁰ = (y⁵)², z⁴ = (z²)².",
-            "The square root of a square is the absolute value of its base.",
-            "Which factor of 3x²y⁵z² can be negative?"
+            "Which number squared is 9? What power of each letter, squared, gives x⁴, y¹⁰ and z⁴?",
+            "The square root of a square is the absolute value of its base. Which factors of that base can be negative?",
+            "9x⁴y¹⁰z⁴ = (3x²y⁵z²)². Of 3x², y⁵ and z², only y⁵ can be negative."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(y¹⁰) equals…",
@@ -1350,9 +1350,9 @@
             }
           ],
           "hints": [
-            "Use the Product Property backward: √m · √n = √(mn).",
-            "Multiply the numbers under the radicals, then add the exponents of a.",
-            "a² is never negative, so √(a⁴) = a² with no bars."
+            "How can you write a product of two square roots as one square root?",
+            "Multiply the coefficients outside and the radicands inside. What happens to the exponents of a?",
+            "√m · √n = √(mn), and a² is never negative, so √(a⁴) = a² with no bars."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √m · √n equals…",
@@ -1429,9 +1429,9 @@
             }
           ],
           "hints": [
-            "Write the quotient under one radical and reduce the fraction there.",
-            "A radical left in a denominator is cleared by multiplying the top and the bottom by that radical.",
-            "Square the coefficient and the radical separately. For the product, find the largest perfect-square factor of the new radicand."
+            "What is √2/√6 as one square root, with its fraction reduced?",
+            "To clear a radical from a denominator, multiply the top and the bottom by that radical. To square a product, square each factor.",
+            "For the product, multiply the coefficients and the radicands, then take the largest perfect square out of the new radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To rationalize 3/√3, multiply by…",
@@ -1515,9 +1515,9 @@
             }
           ],
           "hints": [
-            "On a calculator, ∛3.5 is 3.5^(1/3).",
-            "Order matters: cube root first, then multiply by 0.926, then subtract 0.169.",
-            "Undo the steps in reverse order: add 0.169, divide by 0.926, then cube."
+            "Which part of 0.926∛k − 0.169 do you work out first when you know k?",
+            "On a calculator, ∛3.5 is 3.5^(1/3). Find the cube root, multiply by 0.926, then subtract 0.169.",
+            "For (b), undo the steps in reverse order: add 0.169, divide by 0.926, then cube."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To undo a cube root, you…",
@@ -1607,8 +1607,8 @@
             }
           ],
           "hints": [
-            "Divide the length by g first.",
-            "Take the square root of that quotient, then multiply by 2π.",
+            "In T = 2π√(L/g), which operation comes first when you know L?",
+            "Divide L by g, take the square root, then multiply by 2π. For (b), which of those steps do you undo first?",
             "For (b): 5 = 2π√(L/32). Divide by 2π, square both sides, then multiply by 32."
           ],
           "scaffold": {
@@ -1673,8 +1673,8 @@
             }
           ],
           "hints": [
-            "{{p}} = {{b}}², and halve the exponent of x.",
-            "± means the positive root and its opposite."
+            "Which number, squared, gives {{p}}? What power of x, squared, gives x^{{e}}?",
+            "{{p}} = {{b}}² and x^{{e}} = (x^{{h}})². ± means the positive root and its opposite."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ±√(25x⁶) equals…",
@@ -1746,8 +1746,8 @@
             }
           ],
           "hints": [
-            "{{c3}} = {{c}}³. Divide each exponent by 3.",
-            "A cube root of a negative number is negative."
+            "Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?",
+            "{{c3}} = {{c}}³; divide each exponent by 3. A cube root of a negative number is negative."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(−8) equals…",
@@ -1828,8 +1828,8 @@
             }
           ],
           "hints": [
-            "{{d4}} = {{d}}⁴; divide each exponent by 4.",
-            "x^{{m}} has an odd exponent, so it can be negative. y^{{n}} has an even exponent."
+            "Which number to the fourth power is {{d4}}? After you take the root, which factor can be negative?",
+            "{{d4}} = {{d}}⁴; divide each exponent by 4. x{{m|pow}} has an odd exponent, so it can be negative; y^{{n}} cannot."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁴√(x⁴) equals…",
@@ -1912,8 +1912,8 @@
             }
           ],
           "hints": [
-            "{{c5}} = {{c}}⁵.",
-            "(x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. Is the index odd or even?"
+            "Which number to the fifth power is {{c5}}? What power of (x + {{h}}), to the fifth, gives (x + {{h}})^{{e}}?",
+            "{{c5}} = {{c}}⁵ and (x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. The index is odd, so no bars are needed."
           ],
           "scaffold": {
             "prompt": "Let’s back up. An odd root of a negative number is…",
@@ -1997,7 +1997,7 @@
             }
           ],
           "hints": [
-            "Try the perfect squares 4, 9, 16, 25, 36, 49, 64, 81, … from the largest down.",
+            "Which perfect squares divide {{R}}? Which is the largest?",
             "Write the radicand as a perfect square times what is left, then take the square root of the perfect square."
           ],
           "scaffold": {
@@ -2089,8 +2089,8 @@
             }
           ],
           "hints": [
-            "√m · √n = √(mn).",
-            "{{w}} is a perfect square: {{kj}}² = {{w}}."
+            "How can you write the product of the two square roots as one square root?",
+            "Multiply the coefficients, and multiply the radicands. The new radicand is a perfect square: what is its square root?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(16x²) equals (x positive)…",
@@ -2200,9 +2200,9 @@
             }
           ],
           "hints": [
-            "No real number squared is negative.",
-            "i² = −1, so a multiple of i can square to a negative number.",
-            "An odd root keeps the sign of its radicand."
+            "Can a real number, squared, be negative? What about a multiple of i?",
+            "i² = −1, so a multiple of i can square to a negative number. Does an odd root keep the sign of its radicand?",
+            "Find the whole number whose square is {{p}}, then attach i. An odd root keeps the sign of its radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. An odd root of a negative number is…",
@@ -2297,9 +2297,9 @@
             }
           ],
           "hints": [
-            "Even index and a negative radicand: no real roots.",
-            "Which whole number to the sixth power is 64? Its opposite works too, because the power is even.",
-            "An odd index gives one real root with the radicand’s sign."
+            "For each one, is the index even or odd, and is the radicand positive or negative?",
+            "No real number to an even power is negative. Which whole number to the sixth power is 64?",
+            "An odd index gives one real root with the radicand’s sign; a positive radicand under an even index has two."
           ],
           "scaffold": {
             "prompt": "Let’s back up. How many real sixth roots does a positive number have?",
@@ -2363,8 +2363,8 @@
             }
           ],
           "hints": [
-            "Multiply 3 by the volume, then divide by 4π.",
-            "Take the cube root: the result raised to the 1/3 power."
+            "What is the value under the radical when V = {{V}}?",
+            "Multiply 3 by {{V}} and divide by 4π, then take the cube root: raise it to the 1/3 power."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛125 equals…",
@@ -2445,8 +2445,8 @@
             }
           ],
           "hints": [
-            "Undo the operations in reverse order.",
-            "Cubing undoes a cube root."
+            "Which operation in d = 0.926∛k − 0.169 is done last, so you undo it first?",
+            "Add 0.169, divide by 0.926, then cube: cubing undoes a cube root."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The first step to undo is…",
@@ -2543,9 +2543,9 @@
             }
           ],
           "hints": [
-            "Evaluate x⁴ at the test value first, then take the fourth root.",
-            "Evaluate x³ at the test value first, then take the cube root.",
-            "Compare each result with x itself and with |x|."
+            "What is x⁴ at the test value? What is the fourth root of that number?",
+            "Do the same with x³ and the cube root. Is each result x, or |x|?",
+            "A fourth root is never negative; a cube root keeps the sign. Compare each result with x and with |x|."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(−27) equals…",
@@ -2640,8 +2640,8 @@
             }
           ],
           "hints": [
-            "Try a = −2 with n = 2 and with n = 3.",
-            "√(x²) = |x|. When is |x| = −x?",
+            "What is ⁿ√(aⁿ) when a = −2, for n = 2 and for n = 3?",
+            "√(x²) = |x|. When is |x| equal to −x? Which power of x, to the sixth, gives x¹⁸?",
             "x¹⁸ = (x³)⁶ and x¹² = (x²)⁶. Can x³ be negative? Can x²?"
           ],
           "scaffold": {
@@ -2777,9 +2777,9 @@
             }
           ],
           "hints": [
-            "√(2/32) = 1/4, √(8/32) = 1/2, √(18/32) = 3/4 and √(32/32) = 1.",
-            "Compare rows where the length is multiplied by the same factor.",
-            "Use the Product Property on the square root of a product."
+            "What is L/32 for each length in the table, and what is its square root?",
+            "Compare rows where the length is multiplied by the same factor. How does the period change?",
+            "Use the Product Property: the square root of a product is the product of the square roots."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √4 · √L equals…",
@@ -2905,7 +2905,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "Which perfect square is a factor of {{radCoef}}? For x > 0, what is the square root of x²?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -3016,7 +3016,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "How can you write the product of the two square roots as one square root? What is √(x²) for x ≥ 0?"
           ],
           "ccmrSource": {
             "source": "auditedBank",

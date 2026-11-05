@@ -58,8 +58,8 @@
             }
           ],
           "hints": [
-            "Find the number whose cube is the coefficient, and divide each exponent by 3.",
-            "An odd root of a negative number is negative."
+            "Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?",
+            "{{c3}} = {{c}}³ and each exponent divides by 3. An odd root of a negative number is negative."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(a⁶) equals…",
@@ -158,8 +158,8 @@
             }
           ],
           "hints": [
-            "Like terms have the same variable part; add or subtract their coefficients.",
-            "Radicals with the same index and the same radicand are like terms: add their coefficients and keep the radical."
+            "What do the three terms have in common? What do the two radicals have in common?",
+            "Like terms keep their common part and add their coefficients. Radicals with the same index and radicand are like terms too."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 3√2 + 5√2 is like…",
@@ -291,9 +291,9 @@
             }
           ],
           "hints": [
-            "Multiply each term of the first binomial by each term of the second.",
-            "The two middle products are opposites, so they add to zero.",
-            "A square root times itself is its radicand."
+            "What are the four products when you multiply the two binomials?",
+            "The two middle products are opposites. What do they add to?",
+            "A square root times itself is its radicand, so no radical is left."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (a + b)(a − b) equals…",
@@ -455,9 +455,9 @@
             }
           ],
           "hints": [
-            "Like radicals have the same index and the same radicand once each is simplified.",
-            "Simplify √20, √45, √50 and √80 first: pull out the largest perfect square.",
-            "A cube root is never a like radical with a square root."
+            "Once each card is simplified, does it have the same index and the same radicand as √5?",
+            "Which perfect square can you pull out of √20, √45, √50 and √80?",
+            "A cube root is never a like radical with a square root, and √(5x) has a different radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Simplified, √12 is…",
@@ -539,9 +539,9 @@
             }
           ],
           "hints": [
-            "For a square root, use the largest even exponent; for a cube root, the largest multiple of 3.",
-            "b⁹ = b⁸ · b and p²⁰ = p¹⁸ · p².",
-            "Take the root of the perfect-power factor; what is left stays under the radical."
+            "Which exponents in 25a⁴b⁹ are even? Which in 125m³⁰p²⁰ are multiples of 3?",
+            "For a square root, use the largest even exponent of each letter; for a cube root, the largest multiple of 3.",
+            "b⁹ = b⁸ · b and p²⁰ = p¹⁸ · p². Take the root of the perfect-power factor; what is left stays under the radical."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁿ√(ab) equals…",
@@ -606,7 +606,7 @@
             }
           ],
           "hints": [
-            "For a square root, use the largest even exponent; for a cube root, the largest multiple of 3.",
+            "What is the largest even exponent of y up to 11? The largest multiple of 3 up to 14?",
             "y¹¹ is not a perfect square and y¹⁴ is not a perfect cube, so a power of y stays under each radical.",
             "Take the root of the perfect-power factor; what is left stays under the radical."
           ],
@@ -719,9 +719,9 @@
             }
           ],
           "hints": [
-            "Test each rule one at a time.",
-            "⁶√(x²) = x^(2/6) = x^(1/3).",
-            "A radical in a numerator is fine; a radical in a denominator is not."
+            "For each expression, which of the four rules does it break, if any?",
+            "A radical in a numerator is fine; a radical in a denominator is not. Can ⁶√(x²) be written with a smaller index?",
+            "⁶√(x²) = x^(2/6) = x^(1/3)."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is √3/3 in simplest form?",
@@ -791,9 +791,9 @@
             }
           ],
           "hints": [
-            "Use the Quotient Property: the root of a quotient is the quotient of the roots.",
-            "x⁷ = (x³)² · x.",
-            "A square root times itself equals its radicand."
+            "What is the largest even exponent of x up to 7?",
+            "Split the root over the top and the bottom. What can you multiply by so no radical is left in the denominator?",
+            "x⁷ = (x³)² · x, and a square root times itself equals its radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁿ√(a/b) equals…",
@@ -868,9 +868,9 @@
             }
           ],
           "hints": [
-            "A perfect cube has every exponent a multiple of 3, and a coefficient that is a cube.",
-            "9x · ? should be 3³ · x³.",
-            "Multiply the numerator by the same cube root."
+            "What do you multiply 9 by to get a perfect cube? And x?",
+            "A perfect cube has a coefficient that is a cube and every exponent a multiple of 3. Multiply the numerator by the same cube root.",
+            "9x · 3x² = 27x³ = (3x)³, so multiply the top and bottom by ∛(3x²)."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Which is a perfect cube?",
@@ -935,9 +935,9 @@
             }
           ],
           "hints": [
-            "For the first: √(x³) = x√x and √(y⁷) = y³√y, then rationalize.",
-            "For the second: 3y² times what gives (3y)³?",
-            "∛8 is a whole number."
+            "For the first, what are √(x³) and √(y⁷) with the perfect squares taken out?",
+            "Clear the √y left in the denominator. For the second: 3y² times what gives (3y)³?",
+            "√(x³) = x√x and √(y⁷) = y³√y; multiply the top and bottom by √y. ∛8 is a whole number."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To rationalize 1/(y³√y), multiply by…",
@@ -1006,9 +1006,9 @@
             }
           ],
           "hints": [
-            "Use the Product Property: ∛m · ∛n = ∛(mn).",
-            "Look for a perfect cube: a number times a³.",
-            "For the second, multiply the coefficients 3 and 2 too."
+            "How can you write a product of two cube roots as one cube root?",
+            "Multiply the radicands. Is the product a perfect cube: a cube number times a³?",
+            "∛m · ∛n = ∛(mn). Keep the coefficients: for the second, multiply 3 and 2 too."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(1000) equals…",
@@ -1070,9 +1070,9 @@
             }
           ],
           "hints": [
-            "Use the largest exponent that is a multiple of the index.",
-            "625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³.",
-            "For k²³ to have a real fourth root, k cannot be negative."
+            "Which number to the fourth power is 625? What is the largest multiple of 4 up to 28? Up to 23?",
+            "b can be negative, so which factor needs bars? For k²³ to have a real fourth root, can k be negative?",
+            "625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³. Only b⁷ can be negative."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁴√(b²⁸) equals…",
@@ -1155,9 +1155,9 @@
             }
           ],
           "hints": [
-            "Factor each radicand using a perfect square.",
-            "Once every term is a multiple of the same radical, add and subtract the coefficients.",
-            "Keep the subtraction signs with their terms."
+            "What is the largest perfect square that divides 45? 80? 20?",
+            "Once every term is a multiple of √5, add and subtract the coefficients, keeping each sign with its term.",
+            "45 = 9 · 5, 80 = 16 · 5 and 20 = 4 · 5. Do the same for 75 and 48."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 9√5 − 20√5 + 8√5 equals…",
@@ -1256,9 +1256,9 @@
             }
           ],
           "hints": [
-            "FOIL: first, outer, inner, last.",
-            "√3 · √3 = 3, and √5 · √3 = √15.",
-            "Unlike radicals stay as separate terms."
+            "Which four products does FOIL give? Name the first, outer, inner and last pairs.",
+            "What is √3 · √3? What is √5 · √3?",
+            "√3 · √3 = 3 and √5 · √3 = √15. Unlike radicals stay as separate terms."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √3 · √3 equals…",
@@ -1337,9 +1337,9 @@
             }
           ],
           "hints": [
-            "A conjugate changes the sign between the two terms.",
-            "(a√2)² − a² = 2a² − a².",
-            "Factor out the common factor a (or x) and cancel it."
+            "What do you change in a√2 − a to get its conjugate?",
+            "A conjugate pair multiplies to a difference of squares. What is (a√2)²?",
+            "(a√2)² − a² = 2a² − a². Factor out the common factor a (or x) and cancel it."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The conjugate of √3 + 1 is…",
@@ -1405,8 +1405,8 @@
             }
           ],
           "hints": [
-            "Multiply by a fraction equal to 1 whose top and bottom are the radical.",
-            "A square root times itself is its radicand."
+            "What can you multiply √{{m}} by to get a whole number?",
+            "Multiply the top and the bottom by √{{m}}: a square root times itself is its radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √7 · √7 equals…",
@@ -1484,8 +1484,8 @@
             }
           ],
           "hints": [
-            "Split the coefficient into a perfect cube times a number with no cube factor.",
-            "Use the largest exponent of m that is a multiple of 3."
+            "Which perfect cube divides {{R}}? What is the largest multiple of 3 up to {{e}}?",
+            "{{R}} = {{c}}³ · {{k}}: take the cube root of the perfect cube, and use the largest exponent of m that is a multiple of 3."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(m⁷) equals…",
@@ -1595,8 +1595,8 @@
             }
           ],
           "hints": [
-            "Factor each radicand as a perfect square times the same number.",
-            "Combine the coefficients of the like radicals, keeping each sign."
+            "What is the largest perfect square that divides each radicand?",
+            "Each radicand is a perfect square times {{k}}. Simplify each term, then combine the coefficients, keeping each sign."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 5√3 − 7√3 equals…",
@@ -1721,8 +1721,8 @@
             }
           ],
           "hints": [
-            "∛m · ∛n = ∛(mn).",
-            "Look for a perfect cube in the product."
+            "How can you write the product of the two cube roots as one cube root?",
+            "Multiply the radicands: the product is a perfect cube. Then multiply by the coefficients {{c1}} and {{c2}}."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(8a³) equals…",
@@ -1805,9 +1805,9 @@
             }
           ],
           "hints": [
-            "Use FOIL.",
-            "A radical times itself is its radicand.",
-            "The two middle products are like radicals."
+            "Which four products does FOIL give?",
+            "What is a radical times itself? Which two products are like radicals?",
+            "A radical times itself is its radicand, and the two middle products combine into one radical term."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √5 · √5 equals…",
@@ -1904,8 +1904,8 @@
             }
           ],
           "hints": [
-            "Split the coefficient into a perfect square times a number with no square factor.",
-            "Use the largest even exponent of b; one b stays inside."
+            "Which perfect square divides {{R}}? What is the largest even exponent of b up to {{e2}}?",
+            "{{R}} = {{s}}² · {{k}}: take the square root of the perfect square, and use the largest even exponent of b; one b stays inside."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(b⁷) equals (b positive)…",
@@ -1999,8 +1999,8 @@
             }
           ],
           "hints": [
-            "The conjugate of a sum with a square root changes the sign between the terms.",
-            "The denominator becomes a difference of squares with no radical."
+            "What is the conjugate of the denominator?",
+            "Multiply the top and the bottom by the conjugate: the denominator becomes a difference of squares with no radical."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The conjugate of 4 + √3 is…",
@@ -2096,9 +2096,9 @@
             }
           ],
           "hints": [
-            "Every term has a factor of a.",
-            "Multiply the top and bottom by √2 − 1.",
-            "(√2 + 1)(√2 − 1) has no radical."
+            "What factor do all three terms share?",
+            "Cancel that factor. What do you multiply the top and bottom by to clear the radical from the denominator?",
+            "Multiply the top and bottom by √2 − 1: (√2 + 1)(√2 − 1) has no radical."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (√2 + 1)(√2 − 1) equals…",
@@ -2174,8 +2174,8 @@
             }
           ],
           "hints": [
-            "Evaluate both sides of the rule with the given numbers.",
-            "Simplify each radical first: each one is a multiple of √x."
+            "Does √(a + b) = √a + √b hold for a = 9 and b = 16? Work out each side.",
+            "Simplify each radical first: each one is a whole number times √x."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(16x) equals (x positive)…",
@@ -2261,8 +2261,8 @@
             }
           ],
           "hints": [
-            "(a√b)² = a² · b.",
-            "Squaring keeps the order of positive numbers."
+            "How do you square a number like 3√5: what happens to the 3, and to the √5?",
+            "(a√b)² = a² · b, and squaring keeps the order of positive numbers."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (3√5)² equals…",
@@ -2376,9 +2376,9 @@
             }
           ],
           "hints": [
-            "(a + b)(a − b) = a² − b².",
-            "(2√3)² = 4 · 3.",
-            "Perimeter = 2 · length + 2 · width; the radicals add, the ones cancel."
+            "Each length and width are a + b and a − b. What is their product?",
+            "How do you square 2√3? Square the 2 and the √3 separately.",
+            "(a + b)(a − b) = a² − b², and (2√3)² = 4 · 3. Perimeter = 2 · length + 2 · width."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (4 + √3)(4 − √3) equals…",
@@ -2442,9 +2442,9 @@
             }
           ],
           "hints": [
-            "4 · 2 = 8 is a perfect cube; 25 · 5 = 125 is too.",
-            "Multiply the top and bottom by the same cube root.",
-            "Reduce the fraction at the end."
+            "What do you multiply 4 by to get a perfect cube? And 25?",
+            "Multiply the top and the bottom by the same cube root, so the denominator is the cube root of a perfect cube.",
+            "4 · 2 = 8 and 25 · 5 = 125 are perfect cubes. Reduce the fraction at the end."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛4 · ∛2 equals…",
@@ -2574,7 +2574,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "What is √({{a2}}x) as a whole number times √x? And √({{b2}}x)?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -2709,7 +2709,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "Can you write the quotient as one square root? What is x⁵ ÷ x?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -2782,8 +2782,8 @@
             }
           ],
           "hints": [
-            "Evaluate the cube root first, then multiply by 0.46.",
-            "Undo the multiplication, then undo the cube root by cubing."
+            "In L = 0.46∛M, what do you work out first when you know M?",
+            "Evaluate ∛30, then multiply by 0.46. For the second part, divide by 0.46, then cube."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To undo ∛M, you…",

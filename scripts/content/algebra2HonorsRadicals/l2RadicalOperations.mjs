@@ -22,6 +22,10 @@ import { auditedCcmrQuestion, backUp, choice, expression, guidedNotes, number, r
 // template literal a bare `${` would interpolate.
 const tex = (strings, ...values) => String.raw(strings, ...values).replace(/\\\$/g, '$');
 const T = teks('A2.7G');
+// An audited item keeps the bank's item exactly. Its one hint is the lesson's
+// own question about this item's move (F-HINT-GIVES-STEP): the bank's hint
+// ("Combine like terms, distribute, factor, …") names no move for it.
+const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -35,7 +39,10 @@ const warmup = [
     prompt: tex`Lesson 1 review. Simplify $\sqrt[3]{ -{{c3}}a^{ {{e1}} }y^{ {{e2}} } }$.`,
     directionSteps: ['Write the radicand as a cube.', 'Take the cube root and keep its sign.'],
     responses: [simplest('simplified', 'Simplified', '-{{c}}a{{j|pow}}y{{k|pow}}')],
-    hints: ['Find the number whose cube is the coefficient, and divide each exponent by 3.', 'An odd root of a negative number is negative.'],
+    hints: [
+      'Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?',
+      '{{c3}} = {{c}}³ and each exponent divides by 3. An odd root of a negative number is negative.',
+    ],
     scaffold: backUp('∛(a⁶) equals…', ['a²', 'a³'], 'a²'),
     guidedNotes: guidedNotes(['Odd index', 'An odd root keeps the sign: ∛(−8) = −2.']),
     solutionReview: review(
@@ -63,7 +70,10 @@ const warmup = [
       expression('terms', '{{a}}x − {{b}}x + {{c}}x =', '{{t}}x'),
       simplest('radicals', '{{d}}√{{k}} + {{e}}√{{k}} =', '{{de}}√{{k}}'),
     ],
-    hints: ['Like terms have the same variable part; add or subtract their coefficients.', 'Radicals with the same index and the same radicand are like terms: add their coefficients and keep the radical.'],
+    hints: [
+      'What do the three terms have in common? What do the two radicals have in common?',
+      'Like terms keep their common part and add their coefficients. Radicals with the same index and radicand are like terms too.',
+    ],
     scaffold: backUp('3√2 + 5√2 is like…', ['3x + 5x', '3x + 5y'], '3x + 5x'),
     guidedNotes: guidedNotes(['Like radical expressions', 'Same index and same radicand: 3√5 and −8√5 are like radicals, but √5 and ∛5 are not.']),
     solutionReview: review(
@@ -97,7 +107,11 @@ const warmup = [
         'you can add the radicands',
       ], 'the middle terms cancel, and √{{k}} · √{{k}} = {{k}}'),
     ],
-    hints: ['Multiply each term of the first binomial by each term of the second.', 'The two middle products are opposites, so they add to zero.', 'A square root times itself is its radicand.'],
+    hints: [
+      'What are the four products when you multiply the two binomials?',
+      'The two middle products are opposites. What do they add to?',
+      'A square root times itself is its radicand, so no radical is left.',
+    ],
     scaffold: backUp('(a + b)(a − b) equals…', ['a² − b²', 'a² + b²'], 'a² − b²'),
     guidedNotes: guidedNotes(['Conjugates', 'a + b and a − b are conjugates: their product is a² − b². With a square root in a or b, the product has no radical.']),
     solutionReview: review(
@@ -132,9 +146,9 @@ const classwork = [
       { id: 'unlike', label: 'Cannot be combined with √5', cards: [['f', '∛5'], ['g', '5√3'], ['h', '√50'], ['i', '√(5x)']] },
     ], ['f', 'c', 'a', 'h', 'd', 'g', 'b', 'i', 'e']),
     hints: [
-      'Like radicals have the same index and the same radicand once each is simplified.',
-      'Simplify √20, √45, √50 and √80 first: pull out the largest perfect square.',
-      'A cube root is never a like radical with a square root.',
+      'Once each card is simplified, does it have the same index and the same radicand as √5?',
+      'Which perfect square can you pull out of √20, √45, √50 and √80?',
+      'A cube root is never a like radical with a square root, and √(5x) has a different radicand.',
     ],
     scaffold: backUp('Simplified, √12 is…', ['2√3', '3√2'], '2√3'),
     guidedNotes: guidedNotes(
@@ -163,9 +177,9 @@ const classwork = [
       simplest('second', '∛(125m³⁰p²⁰) =', '5m^10p^6∛(p^2)'),
     ],
     hints: [
-      'For a square root, use the largest even exponent; for a cube root, the largest multiple of 3.',
-      'b⁹ = b⁸ · b and p²⁰ = p¹⁸ · p².',
-      'Take the root of the perfect-power factor; what is left stays under the radical.',
+      'Which exponents in 25a⁴b⁹ are even? Which in 125m³⁰p²⁰ are multiples of 3?',
+      'For a square root, use the largest even exponent of each letter; for a cube root, the largest multiple of 3.',
+      'b⁹ = b⁸ · b and p²⁰ = p¹⁸ · p². Take the root of the perfect-power factor; what is left stays under the radical.',
     ],
     scaffold: backUp('ⁿ√(ab) equals…', ['ⁿ√a · ⁿ√b', 'ⁿ√a + ⁿ√b'], 'ⁿ√a · ⁿ√b'),
     guidedNotes: guidedNotes(['Product Property of Radicals', 'ⁿ√(ab) = ⁿ√a · ⁿ√b if n is even and a and b are nonnegative, or if n is odd. √2 · √8 = √16 = 4 and ∛3 · ∛9 = ∛27 = 3.']),
@@ -195,7 +209,7 @@ const classwork = [
       simplest('second', '∛(27x⁹y¹⁴) =', '3x^3y^4∛(y^2)'),
     ],
     hints: [
-      'For a square root, use the largest even exponent; for a cube root, the largest multiple of 3.',
+      'What is the largest even exponent of y up to 11? The largest multiple of 3 up to 14?',
       'y¹¹ is not a perfect square and y¹⁴ is not a perfect cube, so a power of y stays under each radical.',
       'Take the root of the perfect-power factor; what is left stays under the radical.',
     ],
@@ -227,7 +241,11 @@ const classwork = [
       choice('e', '2∛(3x²)', ['Simplified', 'Not simplified: 3x² has a perfect-cube factor', 'Not simplified: the index can be smaller', 'Not simplified: a radical is in the denominator'], 'Simplified'),
       simplest('fix', 'Write ⁶√(x²) in simplest form (x positive)', '∛(x)'),
     ],
-    hints: ['Test each rule one at a time.', '⁶√(x²) = x^(2/6) = x^(1/3).', 'A radical in a numerator is fine; a radical in a denominator is not.'],
+    hints: [
+      'For each expression, which of the four rules does it break, if any?',
+      'A radical in a numerator is fine; a radical in a denominator is not. Can ⁶√(x²) be written with a smaller index?',
+      '⁶√(x²) = x^(2/6) = x^(1/3).',
+    ],
     scaffold: backUp('Is √3/3 in simplest form?', ['Yes', 'No'], 'Yes'),
     solutionReview: review(
       'Four rules, one at a time.',
@@ -249,7 +267,11 @@ const classwork = [
       choice('multiplier', 'To clear the radical from x³√x, multiply the top and bottom by', ['√x', 'x³', '√(x⁷)', 'x'], '√x'),
       simplest('simplified', '√(y⁸/x⁷) =', '(y^4√x)/x^4'),
     ],
-    hints: ['Use the Quotient Property: the root of a quotient is the quotient of the roots.', 'x⁷ = (x³)² · x.', 'A square root times itself equals its radicand.'],
+    hints: [
+      'What is the largest even exponent of x up to 7?',
+      'Split the root over the top and the bottom. What can you multiply by so no radical is left in the denominator?',
+      'x⁷ = (x³)² · x, and a square root times itself equals its radicand.',
+    ],
     scaffold: backUp('ⁿ√(a/b) equals…', ['ⁿ√a / ⁿ√b', 'ⁿ√a − ⁿ√b'], 'ⁿ√a / ⁿ√b'),
     guidedNotes: guidedNotes(
       ['Quotient Property of Radicals', 'ⁿ√(a/b) = ⁿ√a / ⁿ√b if all roots are defined. √27/√3 = √9 = 3.'],
@@ -275,7 +297,11 @@ const classwork = [
       expression('perfectCube', 'The new radicand in the denominator', '27x^3'),
       simplest('simplified', '∛(2/(9x)) =', '∛(6x^2)/(3x)'),
     ],
-    hints: ['A perfect cube has every exponent a multiple of 3, and a coefficient that is a cube.', '9x · ? should be 3³ · x³.', 'Multiply the numerator by the same cube root.'],
+    hints: [
+      'What do you multiply 9 by to get a perfect cube? And x?',
+      'A perfect cube has a coefficient that is a cube and every exponent a multiple of 3. Multiply the numerator by the same cube root.',
+      '9x · 3x² = 27x³ = (3x)³, so multiply the top and bottom by ∛(3x²).',
+    ],
     scaffold: backUp('Which is a perfect cube?', ['27x³', '9x²'], '27x³'),
     solutionReview: review(
       'Build a perfect cube in the denominator.',
@@ -301,7 +327,11 @@ const classwork = [
       expression('multiplier', 'Multiply 3y² by ? to get a perfect cube', '9y', { type: 'math' }),
       simplest('second', '∛(8/(3y²)) =', '(2∛(9y))/(3y)'),
     ],
-    hints: ['For the first: √(x³) = x√x and √(y⁷) = y³√y, then rationalize.', 'For the second: 3y² times what gives (3y)³?', '∛8 is a whole number.'],
+    hints: [
+      'For the first, what are √(x³) and √(y⁷) with the perfect squares taken out?',
+      'Clear the √y left in the denominator. For the second: 3y² times what gives (3y)³?',
+      '√(x³) = x√x and √(y⁷) = y³√y; multiply the top and bottom by √y. ∛8 is a whole number.',
+    ],
     scaffold: backUp('To rationalize 1/(y³√y), multiply by…', ['√y/√y', 'y/y'], '√y/√y'),
     solutionReview: review(
       'Split, simplify, rationalize.',
@@ -323,7 +353,11 @@ const classwork = [
       simplest('first', '5∛(100a²) · ∛(10a) =', '50a'),
       choice('second', '3∛(16a²) · 2∛(4a) =', ['12a', '24a', '4a', '6a'], '24a'),
     ],
-    hints: ['Use the Product Property: ∛m · ∛n = ∛(mn).', 'Look for a perfect cube: a number times a³.', 'For the second, multiply the coefficients 3 and 2 too.'],
+    hints: [
+      'How can you write a product of two cube roots as one cube root?',
+      'Multiply the radicands. Is the product a perfect cube: a cube number times a³?',
+      '∛m · ∛n = ∛(mn). Keep the coefficients: for the second, multiply 3 and 2 too.',
+    ],
     scaffold: backUp('∛(1000) equals…', ['10', '100'], '10'),
     solutionReview: review(
       'One radical, a perfect cube, then the coefficients.',
@@ -355,7 +389,11 @@ const classwork = [
         'Only the first variable needs bars',
       ], 'b⁷ is negative when b is; k is under an even root, so k ≥ 0 already'),
     ],
-    hints: ['Use the largest exponent that is a multiple of the index.', '625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³.', 'For k²³ to have a real fourth root, k cannot be negative.'],
+    hints: [
+      'Which number to the fourth power is 625? What is the largest multiple of 4 up to 28? Up to 23?',
+      'b can be negative, so which factor needs bars? For k²³ to have a real fourth root, can k be negative?',
+      '625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³. Only b⁷ can be negative.',
+    ],
     scaffold: backUp('⁴√(b²⁸) equals…', ['|b⁷|', 'b⁷'], '|b⁷|'),
     solutionReview: review(
       'Pull out the largest perfect power; bars only where a factor can be negative.',
@@ -379,7 +417,11 @@ const classwork = [
       simplest('sum', '3√45 − 5√80 + 4√20 =', '-3√5'),
       choice('cyp', '3√75 − 2√48 + √3 =', ['12√3', '3√3', '24√3', '8√3'], '8√3'),
     ],
-    hints: ['Factor each radicand using a perfect square.', 'Once every term is a multiple of the same radical, add and subtract the coefficients.', 'Keep the subtraction signs with their terms.'],
+    hints: [
+      'What is the largest perfect square that divides 45? 80? 20?',
+      'Once every term is a multiple of √5, add and subtract the coefficients, keeping each sign with its term.',
+      '45 = 9 · 5, 80 = 16 · 5 and 20 = 4 · 5. Do the same for 75 and 48.',
+    ],
     scaffold: backUp('9√5 − 20√5 + 8√5 equals…', ['−3√5', '−3√15'], '−3√5'),
     guidedNotes: guidedNotes(['Combine like radicals', 'Simplify every radical first; then add or subtract the coefficients of like radicals.']),
     solutionReview: review(
@@ -405,7 +447,11 @@ const classwork = [
       simplest('sum', '(2√3 + 3√5)(3 − √3) =', '6√3-6+9√5-3√15'),
       choice('cyp', '(2√5 + 4√6)(5 − √7) =', ['10√5 − 2√35 − 4√42', '24√66', '10√5 − 4√42', '10√5 − 2√35 + 20√6 − 4√42'], '10√5 − 2√35 + 20√6 − 4√42'),
     ],
-    hints: ['FOIL: first, outer, inner, last.', '√3 · √3 = 3, and √5 · √3 = √15.', 'Unlike radicals stay as separate terms.'],
+    hints: [
+      'Which four products does FOIL give? Name the first, outer, inner and last pairs.',
+      'What is √3 · √3? What is √5 · √3?',
+      '√3 · √3 = 3 and √5 · √3 = √15. Unlike radicals stay as separate terms.',
+    ],
     scaffold: backUp('√3 · √3 equals…', ['3', '9'], '3'),
     solutionReview: review(
       'Four products, then combine only like terms.',
@@ -428,7 +474,11 @@ const classwork = [
       simplest('first', 'a/(a√2 − a) =', '√2+1'),
       simplest('second', 'x/(x√3 + x) =', '(√3-1)/2'),
     ],
-    hints: ['A conjugate changes the sign between the two terms.', '(a√2)² − a² = 2a² − a².', 'Factor out the common factor a (or x) and cancel it.'],
+    hints: [
+      'What do you change in a√2 − a to get its conjugate?',
+      'A conjugate pair multiplies to a difference of squares. What is (a√2)²?',
+      '(a√2)² − a² = 2a² − a². Factor out the common factor a (or x) and cancel it.',
+    ],
     scaffold: backUp('The conjugate of √3 + 1 is…', ['√3 − 1', '1 − √3 · 1'], '√3 − 1'),
     guidedNotes: guidedNotes(['Conjugate', 'a√b + c√d and a√b − c√d are conjugates. Multiplying a binomial denominator by its conjugate clears the radical.']),
     solutionReview: review(
@@ -455,7 +505,7 @@ const practice = [
     prompt: tex`Rationalize the denominator: simplify $\dfrac{ {{a}} }{\sqrt{ {{m}} }}$.`,
     directionSteps: ['Multiply the top and bottom by the radical in the denominator.', 'Simplify.'],
     responses: [simplest('simplified', 'Simplified', '({{a}}√{{m}})/{{m}}')],
-    hints: ['Multiply by a fraction equal to 1 whose top and bottom are the radical.', 'A square root times itself is its radicand.'],
+    hints: ['What can you multiply √{{m}} by to get a whole number?', 'Multiply the top and the bottom by √{{m}}: a square root times itself is its radicand.'],
     scaffold: backUp('√7 · √7 equals…', ['7', '49'], '7'),
     solutionReview: review(
       'Multiply by √{{m}}/√{{m}}.',
@@ -478,7 +528,10 @@ const practice = [
     prompt: tex`Simplify $\sqrt[3]{ {{R}}m^{ {{e}} } }$.`,
     directionSteps: ['Find the largest perfect-cube factor.', 'Take its cube root outside the radical.', 'Keep what is left under the radical.'],
     responses: [simplest('simplified', 'Simplified', '{{c}}m{{q|pow}}∛({{k}}m{{r|pow}})')],
-    hints: ['Split the coefficient into a perfect cube times a number with no cube factor.', 'Use the largest exponent of m that is a multiple of 3.'],
+    hints: [
+      'Which perfect cube divides {{R}}? What is the largest multiple of 3 up to {{e}}?',
+      '{{R}} = {{c}}³ · {{k}}: take the cube root of the perfect cube, and use the largest exponent of m that is a multiple of 3.',
+    ],
     scaffold: backUp('∛(m⁷) equals…', ['m²∛m', 'm³∛m'], 'm²∛m'),
     solutionReview: review(
       'Perfect cube out, the rest in.',
@@ -506,7 +559,10 @@ const practice = [
       simplest('t3', '{{c}}√{{r3}} =', '{{u3}}√{{k}}'),
       simplest('sum', 'Simplified', '{{t|coef}}√{{k}}'),
     ],
-    hints: ['Factor each radicand as a perfect square times the same number.', 'Combine the coefficients of the like radicals, keeping each sign.'],
+    hints: [
+      'What is the largest perfect square that divides each radicand?',
+      'Each radicand is a perfect square times {{k}}. Simplify each term, then combine the coefficients, keeping each sign.',
+    ],
     scaffold: backUp('5√3 − 7√3 equals…', ['−2√3', '−2√9'], '−2√3'),
     solutionReview: review(
       'Simplify each term, then combine.',
@@ -537,7 +593,10 @@ const practice = [
       expression('radicand', '{{u}}a² · {{w}}a =', '{{w3}}a^3'),
       simplest('product', 'Simplified', '{{r}}a'),
     ],
-    hints: ['∛m · ∛n = ∛(mn).', 'Look for a perfect cube in the product.'],
+    hints: [
+      'How can you write the product of the two cube roots as one cube root?',
+      'Multiply the radicands: the product is a perfect cube. Then multiply by the coefficients {{c1}} and {{c2}}.',
+    ],
     scaffold: backUp('∛(8a³) equals…', ['2a', '8a'], '2a'),
     solutionReview: review(
       'One radical, a perfect cube, then the coefficients.',
@@ -563,7 +622,11 @@ const practice = [
       number('last', 'The last product, {{q|coef}}√{{m}} · {{s|coef}}√{{m}} =', '{{L}}'),
       simplest('product', 'Simplified', '{{A}}+{{B}}√{{m}}'),
     ],
-    hints: ['Use FOIL.', 'A radical times itself is its radicand.', 'The two middle products are like radicals.'],
+    hints: [
+      'Which four products does FOIL give?',
+      'What is a radical times itself? Which two products are like radicals?',
+      'A radical times itself is its radicand, and the two middle products combine into one radical term.',
+    ],
     scaffold: backUp('√5 · √5 equals…', ['5', '25'], '5'),
     solutionReview: review(
       'FOIL, then combine like terms.',
@@ -587,7 +650,10 @@ const practice = [
     prompt: tex`Simplify $\sqrt{ {{R}}a^{ {{e1}} }b^{ {{e2}} } }$. Assume $a$ and $b$ are positive.`,
     directionSteps: ['Find the largest perfect-square factor.', 'Take its square root outside the radical.', 'Keep what is left under the radical.'],
     responses: [simplest('simplified', 'Simplified', '{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)')],
-    hints: ['Split the coefficient into a perfect square times a number with no square factor.', 'Use the largest even exponent of b; one b stays inside.'],
+    hints: [
+      'Which perfect square divides {{R}}? What is the largest even exponent of b up to {{e2}}?',
+      '{{R}} = {{s}}² · {{k}}: take the square root of the perfect square, and use the largest even exponent of b; one b stays inside.',
+    ],
     scaffold: backUp('√(b⁷) equals (b positive)…', ['b³√b', 'b⁴√b'], 'b³√b'),
     solutionReview: review(
       'Perfect square out, the rest in.',
@@ -613,7 +679,10 @@ const practice = [
       number('denominator', '({{b}} + √{{m}})({{b}} − √{{m}}) =', '{{d}}'),
       simplest('simplified', 'Simplified', '({{ab}}-{{a}}√{{m}})/{{d}}'),
     ],
-    hints: ['The conjugate of a sum with a square root changes the sign between the terms.', 'The denominator becomes a difference of squares with no radical.'],
+    hints: [
+      'What is the conjugate of the denominator?',
+      'Multiply the top and the bottom by the conjugate: the denominator becomes a difference of squares with no radical.',
+    ],
     scaffold: backUp('The conjugate of 4 + √3 is…', ['4 − √3', '−4 + √3'], '4 − √3'),
     solutionReview: review(
       'Multiply by the conjugate over itself.',
@@ -640,7 +709,11 @@ const practice = [
       simplest('cancelled', 'After cancelling a: √2 / ( ? )', '√2+1'),
       simplest('simplified', 'Simplified ratio', '2-√2'),
     ],
-    hints: ['Every term has a factor of a.', 'Multiply the top and bottom by √2 − 1.', '(√2 + 1)(√2 − 1) has no radical.'],
+    hints: [
+      'What factor do all three terms share?',
+      'Cancel that factor. What do you multiply the top and bottom by to clear the radical from the denominator?',
+      'Multiply the top and bottom by √2 − 1: (√2 + 1)(√2 − 1) has no radical.',
+    ],
     scaffold: backUp('(√2 + 1)(√2 − 1) equals…', ['1', '3'], '1'),
     solutionReview: review(
       'Cancel, then use the conjugate.',
@@ -668,7 +741,7 @@ const practice = [
       ], 'She added the radicands; only like radicals combine, by adding coefficients'),
       simplest('correct', '√(16x) + √(9x) =', '7√x'),
     ],
-    hints: ['Evaluate both sides of the rule with the given numbers.', 'Simplify each radical first: each one is a multiple of √x.'],
+    hints: ['Does √(a + b) = √a + √b hold for a = 9 and b = 16? Work out each side.', 'Simplify each radical first: each one is a whole number times √x.'],
     scaffold: backUp('√(16x) equals (x positive)…', ['4√x', '16√x'], '4√x'),
     solutionReview: review(
       'Radicals do not add like radicands.',
@@ -697,7 +770,7 @@ const practice = [
         'Only the coefficients matter',
       ], 'For positive numbers, the larger number has the larger square'),
     ],
-    hints: ['(a√b)² = a² · b.', 'Squaring keeps the order of positive numbers.'],
+    hints: ['How do you square a number like 3√5: what happens to the 3, and to the √5?', '(a√b)² = a² · b, and squaring keeps the order of positive numbers.'],
     scaffold: backUp('(3√5)² equals…', ['9 · 5', '3 · 25'], '9 · 5'),
     solutionReview: review(
       'Square, compare, and order.',
@@ -734,7 +807,11 @@ const practice = [
         'the areas were rounded',
       ], 'each length and width are conjugates, so the product is a difference of squares with no radical'),
     ],
-    hints: ['(a + b)(a − b) = a² − b².', '(2√3)² = 4 · 3.', 'Perimeter = 2 · length + 2 · width; the radicals add, the ones cancel.'],
+    hints: [
+      'Each length and width are a + b and a − b. What is their product?',
+      'How do you square 2√3? Square the 2 and the √3 separately.',
+      '(a + b)(a − b) = a² − b², and (2√3)² = 4 · 3. Perimeter = 2 · length + 2 · width.',
+    ],
     scaffold: backUp('(4 + √3)(4 − √3) equals…', ['16 − 3', '16 + 3'], '16 − 3'),
     solutionReview: review(
       'Conjugates multiply to a difference of squares.',
@@ -756,7 +833,11 @@ const practice = [
       simplest('first', '6/∛4 =', '3∛(2)'),
       simplest('second', '10/∛25 =', '2∛(5)'),
     ],
-    hints: ['4 · 2 = 8 is a perfect cube; 25 · 5 = 125 is too.', 'Multiply the top and bottom by the same cube root.', 'Reduce the fraction at the end.'],
+    hints: [
+      'What do you multiply 4 by to get a perfect cube? And 25?',
+      'Multiply the top and the bottom by the same cube root, so the denominator is the cube root of a perfect cube.',
+      '4 · 2 = 8 and 25 · 5 = 125 are perfect cubes. Reduce the fraction at the end.',
+    ],
     scaffold: backUp('∛4 · ∛2 equals…', ['2', '∛6'], '2'),
     solutionReview: review(
       'Build a perfect cube under the denominator.',
@@ -765,7 +846,7 @@ const practice = [
       'Multiplying by ∛4/∛4: 4 · 4 = 16 is not a perfect cube.',
     ),
   },
-  auditedCcmrQuestion({
+  withOwnHint('What is √({{a2}}x) as a whole number times √x? And √({{b2}}x)?', auditedCcmrQuestion({
     documentId: 'mm_sat_A2_7G_challenge_1_combine-variable-radicals_v21',
     questionId: 'a2r2-p-13',
     scaffold: backUp('√(4x) + √(9x) equals, for x ≥ 0…', ['5√x', '√(13x)'], '5√x'),
@@ -778,8 +859,8 @@ const practice = [
         'This adds under one root, but √A + √B is not √(A + B). Simplify each root first.',
       ],
     },
-  }),
-  auditedCcmrQuestion({
+  })),
+  withOwnHint('Can you write the quotient as one square root? What is x⁵ ÷ x?', auditedCcmrQuestion({
     documentId: 'mm_sat_A2_7G_challenge_2_radical-quotient-variable_v21',
     questionId: 'a2r2-p-14',
     scaffold: backUp('√(x⁵)/√x equals, for x > 0…', ['x²', 'x⁴'], 'x²'),
@@ -793,7 +874,7 @@ const practice = [
         'This brings {{a2}} out of the root whole and keeps only one factor of x: take the square root of each factor of {{a2}}x⁴.',
       ],
     },
-  }),
+  })),
   {
     questionId: 'a2r2-p-15',
     ...teks('A2.7G', 'A2.6B'),
@@ -808,7 +889,10 @@ const practice = [
       number('divided', 'For L = 2: ∛M = 2 ÷ 0.46 ≈ (nearest thousandth)', '4.348', { numericTolerance: 0.001 }),
       number('mass', 'M ≈ (kilograms, nearest tenth)', '82.2', { numericTolerance: 0.1 }),
     ],
-    hints: ['Evaluate the cube root first, then multiply by 0.46.', 'Undo the multiplication, then undo the cube root by cubing.'],
+    hints: [
+      'In L = 0.46∛M, what do you work out first when you know M?',
+      'Evaluate ∛30, then multiply by 0.46. For the second part, divide by 0.46, then cube.',
+    ],
     scaffold: backUp('To undo ∛M, you…', ['cube', 'divide by 3'], 'cube'),
     solutionReview: review(
       'Evaluate, then undo in reverse.',

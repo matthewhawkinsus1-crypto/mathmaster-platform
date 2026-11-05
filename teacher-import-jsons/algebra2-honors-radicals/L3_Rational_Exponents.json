@@ -75,9 +75,9 @@
             }
           ],
           "hints": [
-            "Multiplying powers with the same base: add the exponents.",
-            "A power of a power: multiply the exponents.",
-            "Dividing powers with the same base: subtract the exponents."
+            "When you multiply powers of x, what happens to the exponents? Raise a power to a power? Divide?",
+            "Write a product of powers as repeated factors of x: how many factors of x are there in all?",
+            "Add the exponents to multiply, multiply them for a power of a power, and subtract them to divide."
           ],
           "scaffold": {
             "prompt": "Let’s back up. x² · x³ equals…",
@@ -198,7 +198,7 @@
             }
           ],
           "hints": [
-            "A negative exponent means the reciprocal of the positive power.",
+            "What does a negative exponent tell you to do with the positive power?",
             "Evaluate the positive power first, then take its reciprocal."
           ],
           "scaffold": {
@@ -305,8 +305,8 @@
             }
           ],
           "hints": [
-            "Multiply a whole number by its reciprocal.",
-            "If raising a number to the power {{n}} gives {{p}}, that number is the one you want.",
+            "What is a whole number times its reciprocal?",
+            "Which number, raised to this power, gives {{p}}?",
             "Which operation undoes raising to the nth power?"
           ],
           "scaffold": {
@@ -424,9 +424,9 @@
             }
           ],
           "hints": [
-            "Add the exponents of the same base when multiplying.",
-            "Move any factor with a negative exponent to the other part of the fraction.",
-            "For a power of a quotient, raise every factor to the power."
+            "Which base appears twice in the first expression? What do you do with its exponents when you multiply?",
+            "Move any factor with a negative exponent to the other part of the fraction. For a power of a quotient, raise every factor to the power.",
+            "a⁻³ · a² = a⁻¹, n² ÷ n¹⁰ = n⁻⁸, and (3a³)² = 9a⁶."
           ],
           "scaffold": {
             "prompt": "Let’s back up. a⁻¹ equals…",
@@ -509,9 +509,9 @@
             }
           ],
           "hints": [
-            "Add the exponents of each base.",
-            "Subtracting a negative exponent adds it.",
-            "Simplify 6/3 inside the parentheses first."
+            "In the first expression, which factors have the same base? What do their exponents add to?",
+            "Subtracting a negative exponent adds it. In the third, what is 6/3?",
+            "x⁻² · x⁻³ = x⁻⁵ and y⁻³ · y⁵ = y²; then move x⁻⁵ to the denominator. For the third, 6/3 = 2."
           ],
           "scaffold": {
             "prompt": "Let’s back up. m⁵ / m⁻² equals…",
@@ -594,8 +594,8 @@
             }
           ],
           "hints": [
-            "The denominator of the exponent is the index of the radical.",
-            "A square root has index 2."
+            "In b^(1/n) = ⁿ√b, which part of the exponent becomes the index?",
+            "The denominator of the exponent is the index, and a square root has index 2."
           ],
           "scaffold": {
             "prompt": "Let’s back up. b^(1/4) equals…",
@@ -692,9 +692,9 @@
             }
           ],
           "hints": [
-            "A negative exponent means the reciprocal.",
-            "Another method: write the base as a power of a smaller number, then multiply the exponents.",
-            "Write 16 as a power of a smaller number, then multiply the exponents."
+            "Which part of a fractional exponent is the root, and which is the power? What does a negative exponent tell you to do?",
+            "Take the root first, then the power. A negative exponent means the reciprocal.",
+            "Another method: write the base as a power of a smaller number, then multiply the exponents."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 32 equals…",
@@ -786,8 +786,8 @@
             }
           ],
           "hints": [
-            "The denominator of the exponent is the root, the numerator is the power.",
-            "An odd root of a negative number is real; an even root is not.",
+            "In b^(x/y), which number is the root and which is the power? Which do you take first?",
+            "An odd root of a negative number is real; an even root is not. Is the root in each power odd or even?",
             "Find ∛(−8) first, then square it."
           ],
           "scaffold": {
@@ -873,8 +873,8 @@
             }
           ],
           "hints": [
-            "B^(−8/5) = 1/B^(8/5), so multiplying by it divides by B^(8/5).",
-            "On a calculator, enter the exponent 8/5 in parentheses.",
+            "What does the negative exponent in B^(−8/5) tell you to do with 146,230?",
+            "B^(−8/5) = 1/B^(8/5), so divide 146,230 by B^(8/5). On a calculator, put 8/5 in parentheses.",
             "Subtract the quotient from 512 last."
           ],
           "scaffold": {
@@ -971,8 +971,8 @@
             }
           ],
           "hints": [
-            "Add the fractions in the exponents.",
-            "Multiply the top and bottom by the power that makes the denominator’s exponent a whole number.",
+            "When you multiply powers of y, what do you do with their exponents?",
+            "A negative exponent means a reciprocal. What can you multiply the top and bottom by so the denominator’s exponent is a whole number?",
             "Exponents add when you multiply: two thirds plus one third is one."
           ],
           "scaffold": {
@@ -1069,9 +1069,9 @@
             }
           ],
           "hints": [
-            "16 = 2⁴, so ⁶√16 = 2^(4/6).",
-            "Reduce the fraction in the exponent before writing a radical.",
-            "4x⁴ = (2x²)², so ⁶√(4x⁴) = (2x²)^(2/6)."
+            "What power of 2 is 16? How do you write the sixth root of a power as a rational exponent?",
+            "Write each radical as a power of 2, then reduce the fraction in the exponent before writing a radical.",
+            "16 = 2⁴, so ⁶√16 = 2^(4/6); and 4x⁴ = (2x²)², so ⁶√(4x⁴) = (2x²)^(2/6)."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 3^(2/4) equals…",
@@ -1160,8 +1160,8 @@
             }
           ],
           "hints": [
-            "A conjugate changes the sign between the two terms.",
-            "y^(1/2) · y^(1/2) = y.",
+            "What do you change in y^(1/2) − 1 to get its conjugate?",
+            "What is y^(1/2) · y^(1/2)? The middle terms cancel in the denominator.",
             "Square the numerator by multiplying it by itself."
           ],
           "scaffold": {
@@ -1267,9 +1267,9 @@
             }
           ],
           "hints": [
-            "Test each rule one at a time.",
-            "A whole-number exponent in a denominator is allowed.",
-            "x^(4/8) can be reduced."
+            "For each expression, which of the four rules does it break, if any?",
+            "A whole-number exponent in a denominator is allowed. Can the index of ⁸√(x⁴) be smaller?",
+            "⁸√(x⁴) = x^(4/8), and 4/8 can be reduced."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is (y^(1/3))/y simplified?",
@@ -1337,8 +1337,8 @@
             }
           ],
           "hints": [
-            "The denominator of the exponent is the root.",
-            "Then raise that root to the numerator."
+            "Which part of a fractional exponent is the root, and which is the power?",
+            "Take the root that the denominator names first, then raise it to the power the numerator names."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 8^(2/3) equals…",
@@ -1428,8 +1428,8 @@
             }
           ],
           "hints": [
-            "A negative exponent means the reciprocal.",
-            "Evaluate the positive power first."
+            "What does a negative exponent tell you to do?",
+            "Evaluate the positive power first, root then power, then take its reciprocal."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 100^(−1/2) equals…",
@@ -1517,8 +1517,8 @@
             }
           ],
           "hints": [
-            "The index becomes the denominator of the exponent.",
-            "The denominator of the exponent becomes the index."
+            "When you write a radical as a power, where does the index go, and where does the power go?",
+            "The index becomes the denominator of the exponent, and the power becomes its numerator. Radical form goes the other way."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(a²) equals…",
@@ -1607,8 +1607,8 @@
             }
           ],
           "hints": [
-            "Multiplying powers with the same base: add the exponents.",
-            "The exponents have the same denominator."
+            "When you multiply powers of the same base, what do you do with the exponents?",
+            "Add the exponents: they have the same denominator, so add the numerators."
           ],
           "scaffold": {
             "prompt": "Let’s back up. a^(1/5) · a^(2/5) equals…",
@@ -1695,8 +1695,8 @@
             }
           ],
           "hints": [
-            "Move the power to the denominator to make the exponent positive.",
-            "Multiply the top and bottom by the power that brings the denominator’s exponent up to a whole number."
+            "How do you write x^(−{{a}}/{{n}}) with a positive exponent?",
+            "Multiply the top and the bottom by the power of x that brings the denominator’s exponent up to 1."
           ],
           "scaffold": {
             "prompt": "Let’s back up. x^(−1/3) equals…",
@@ -1793,8 +1793,8 @@
             }
           ],
           "hints": [
-            "A negative exponent divides: 146,230 · B^(−8/5) = 146,230 ÷ B^(8/5).",
-            "Put the exponent 8/5 in parentheses on the calculator."
+            "What does the negative exponent in B^(−8/5) tell you to do?",
+            "146,230 · B^(−8/5) = 146,230 ÷ B^(8/5). Put 8/5 in parentheses on the calculator."
           ],
           "scaffold": {
             "prompt": "Let’s back up. B^(−8/5) equals…",
@@ -1867,8 +1867,8 @@
             }
           ],
           "hints": [
-            "The radicand is a perfect square: a number squared times a power of x squared.",
-            "Halve the index after taking that square."
+            "Is {{c2}}x^{{e}} a perfect square? Of what?",
+            "{{c2}}x^{{e}} = ({{c}}x{{k|pow}})², so the exponent 2/{{n}} reduces: halve the index."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁶√(9x²) equals (x positive)…",
@@ -1975,8 +1975,8 @@
             }
           ],
           "hints": [
-            "Put the exponent in parentheses on the calculator.",
-            "The denominator of the exponent is the index; the numerator is the power of the radicand."
+            "How do you enter a fractional exponent on a calculator so the whole fraction is the power?",
+            "Put the exponent in parentheses. For radical form, the denominator is the index and the numerator is the power of the radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 7^(2/3) in radical form is…",
@@ -2141,9 +2141,9 @@
             }
           ],
           "hints": [
-            "Each volume is a perfect cube: find its cube root, square it, then multiply by 6.",
-            "The denominator 3 is the index of the radical.",
-            "Use the power of a product: (ab)^(2/3) = a^(2/3) · b^(2/3)."
+            "What is the cube root of each volume? What does the 2 in V^(2/3) do after that?",
+            "Each volume is a perfect cube. In V^(2/3), the denominator 3 is the index of the radical.",
+            "Find the cube root, square it, then multiply by 6. For 8V, use (ab)^(2/3) = a^(2/3) · b^(2/3)."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 1000^(2/3) equals…",
@@ -2230,8 +2230,8 @@
             }
           ],
           "hints": [
-            "Square −8 first, then take the sixth root.",
-            "An odd root of a negative number is negative.",
+            "In Ben’s steps, what is (−8)²? What is the sixth root of that?",
+            "Is ∛(−8) positive or negative? An odd root keeps the sign.",
             "Which first step uses an exponent law with a condition on the base?"
           ],
           "scaffold": {
@@ -2308,9 +2308,9 @@
             }
           ],
           "hints": [
-            "√x = x^(1/2) and ∛x = x^(1/3).",
-            "Use a common denominator to add the exponents.",
-            "3/4 − 1/2 = 1/4."
+            "How do you write √x and ∛x as powers of x?",
+            "Multiplying powers adds their exponents. What common denominator do 1/2 and 1/3 have?",
+            "√x = x^(1/2) and ∛x = x^(1/3), and 3/4 − 1/2 = 1/4."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 1/2 + 1/3 equals…",
@@ -2378,9 +2378,9 @@
             }
           ],
           "hints": [
-            "16 = 2⁴; divide each exponent by 4.",
-            "((2xy³)⁴)^(1/8) = (2xy³)^(1/2).",
-            "Pull the perfect square out of 2xy³."
+            "Which number to the fourth power is 16? What monomial, to the fourth, gives x⁴y¹²?",
+            "Write the eighth root as the power 1/8 of a fourth power. What does the exponent 4/8 reduce to?",
+            "16x⁴y¹² = (2xy³)⁴, so the root is (2xy³)^(1/2) = √(2xy³). Then pull the perfect square y² out."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (a⁴)^(1/8) equals…",
@@ -2465,8 +2465,8 @@
             }
           ],
           "hints": [
-            "Use the power of a power rule: multiply the exponents.",
-            "6 is a common multiple of 2 and 3."
+            "When you raise a power to a power, what happens to the exponents?",
+            "Multiply the exponents: 6 is a common multiple of 2 and 3, so both sixth powers are whole numbers."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (2^(1/2))⁶ equals…",
@@ -2596,7 +2596,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "What power of x, under a square root, comes out as x{{k|pow}}?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -2745,7 +2745,7 @@
             "Use the algebraic structure of the expression rather than changing its value."
           ],
           "supportHints": [
-            "Look for a factoring or exponent-law relationship that preserves equivalence."
+            "What does raising a power to a power do to the exponents? And dividing powers of x?"
           ],
           "ccmrSource": {
             "source": "auditedBank",

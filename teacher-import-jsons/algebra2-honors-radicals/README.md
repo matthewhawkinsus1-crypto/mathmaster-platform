@@ -46,7 +46,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 
 **Exit Ticket** has three generated questions, each server-graded.
 
-**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and many have Guided Coach notes. The Exit Ticket has none of these. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
+**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and many have Guided Coach notes. Hint 1 asks a question that points at the next move, and only the last hint shows a step. The Exit Ticket has none of these. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
 
 ## Slide notes
 

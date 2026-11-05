@@ -18,6 +18,10 @@ import { auditedCcmrQuestion, backUp, choice, expression, guidedNotes, number, r
 // template literal a bare `${` would interpolate.
 const tex = (strings, ...values) => String.raw(strings, ...values).replace(/\\\$/g, '$');
 const T = teks('A2.7G');
+// An audited item keeps the bank's item exactly. Its one hint is the lesson's
+// own question about this item's move (F-HINT-GIVES-STEP): the bank's hint
+// ("Combine like terms, distribute, factor, …") names no move for it.
+const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
 // Rational exponents are where A2.7G meets the laws of exponents (A.11B).
 const TX = teks('A2.7G', 'A.11B');
 
@@ -37,7 +41,11 @@ const warmup = [
       number('power', '(x^{{c}})^{{d}} = x^?', '{{p}}'),
       number('quotient', 'x^{{e}} / x^{{f}} = x^?', '{{q}}'),
     ],
-    hints: ['Multiplying powers with the same base: add the exponents.', 'A power of a power: multiply the exponents.', 'Dividing powers with the same base: subtract the exponents.'],
+    hints: [
+      'When you multiply powers of x, what happens to the exponents? Raise a power to a power? Divide?',
+      'Write a product of powers as repeated factors of x: how many factors of x are there in all?',
+      'Add the exponents to multiply, multiply them for a power of a power, and subtract them to divide.',
+    ],
     scaffold: backUp('x² · x³ equals…', ['x⁵', 'x⁶'], 'x⁵'),
     guidedNotes: guidedNotes(
       ['Product and quotient of powers', 'xᵃ · xᵇ = xᵃ⁺ᵇ and xᵃ/xᵇ = xᵃ⁻ᵇ (x ≠ 0).'],
@@ -68,7 +76,7 @@ const warmup = [
       number('number', '{{b}}^(−{{n}}) =', '1/{{bn}}'),
       expression('variable', 'x^(−{{k}}) =', '1/x^{{k}}'),
     ],
-    hints: ['A negative exponent means the reciprocal of the positive power.', 'Evaluate the positive power first, then take its reciprocal.'],
+    hints: ['What does a negative exponent tell you to do with the positive power?', 'Evaluate the positive power first, then take its reciprocal.'],
     scaffold: backUp('10⁻² equals…', ['1/100', '−20'], '1/100'),
     guidedNotes: guidedNotes(['Negative exponent', 'x⁻ᵃ = 1/xᵃ and 1/x⁻ᵃ = xᵃ (x ≠ 0). A negative exponent is never a negative number.']),
     solutionReview: review(
@@ -96,7 +104,11 @@ const warmup = [
       number('value', '{{p}}^(1/{{n}}) =', '{{c}}'),
       choice('meaning', 'So b^(1/n) must be…', ['the nth root of b', 'b divided by n', 'b times n', 'the nth power of b'], 'the nth root of b'),
     ],
-    hints: ['Multiply a whole number by its reciprocal.', 'If raising a number to the power {{n}} gives {{p}}, that number is the one you want.', 'Which operation undoes raising to the nth power?'],
+    hints: [
+      'What is a whole number times its reciprocal?',
+      'Which number, raised to this power, gives {{p}}?',
+      'Which operation undoes raising to the nth power?',
+    ],
     scaffold: backUp('(x^(1/2))² equals…', ['x', 'x²'], 'x'),
     guidedNotes: guidedNotes(['b^(1/n)', 'For any real b and positive integer n, b^(1/n) = ⁿ√b, except when b < 0 and n is even. 27^(1/3) = ∛27 = 3.']),
     solutionReview: review(
@@ -131,7 +143,11 @@ const classwork = [
       simplest('b', 'n²/n¹⁰ =', '1/n^8'),
       simplest('c', '(3a³/b⁴)² =', '(9a^6)/b^8'),
     ],
-    hints: ['Add the exponents of the same base when multiplying.', 'Move any factor with a negative exponent to the other part of the fraction.', 'For a power of a quotient, raise every factor to the power.'],
+    hints: [
+      'Which base appears twice in the first expression? What do you do with its exponents when you multiply?',
+      'Move any factor with a negative exponent to the other part of the fraction. For a power of a quotient, raise every factor to the power.',
+      'a⁻³ · a² = a⁻¹, n² ÷ n¹⁰ = n⁻⁸, and (3a³)² = 9a⁶.',
+    ],
     scaffold: backUp('a⁻¹ equals…', ['1/a', '−a'], '1/a'),
     guidedNotes: guidedNotes(
       ['Properties of exponents', 'Product, quotient, negative exponent, power of a power, of a product and of a quotient, and zero power (x⁰ = 1).'],
@@ -159,7 +175,11 @@ const classwork = [
       simplest('b', 'h⁶/h⁻² =', 'h^8'),
       simplest('c', '(6r²/(3s³))² =', '(4r^4)/s^6'),
     ],
-    hints: ['Add the exponents of each base.', 'Subtracting a negative exponent adds it.', 'Simplify 6/3 inside the parentheses first.'],
+    hints: [
+      'In the first expression, which factors have the same base? What do their exponents add to?',
+      'Subtracting a negative exponent adds it. In the third, what is 6/3?',
+      'x⁻² · x⁻³ = x⁻⁵ and y⁻³ · y⁵ = y²; then move x⁻⁵ to the denominator. For the third, 6/3 = 2.',
+    ],
     // The rule on other numbers: h⁶⁺² would leave the typed h⁸ one sum away.
     scaffold: backUp('m⁵ / m⁻² equals…', ['m⁵⁺²', 'm⁵⁻²'], 'm⁵⁺²'),
     solutionReview: review(
@@ -183,7 +203,7 @@ const classwork = [
       choice('a3', 'a^(1/3) in radical form', ['√(a^(1/3))', '√(a³)', '∛a', 'a³'], '∛a'),
       choice('x5', '⁵√x in exponential form', ['x^(1/5)', '√(x⁵)', 'x⁵', '√(x^(1/5))'], 'x^(1/5)'),
     ],
-    hints: ['The denominator of the exponent is the index of the radical.', 'A square root has index 2.'],
+    hints: ['In b^(1/n) = ⁿ√b, which part of the exponent becomes the index?', 'The denominator of the exponent is the index, and a square root has index 2.'],
     scaffold: backUp('b^(1/4) equals…', ['⁴√b', 'b/4'], '⁴√b'),
     solutionReview: review(
       'The denominator is the index.',
@@ -208,7 +228,11 @@ const classwork = [
       choice('cyp25', '25^(−1/2) =', ['5', '1/5', '1/625', '−1/5'], '1/5'),
       choice('cyp16', '16^(3/4) =', ['8', '∛65,536', '256', '64'], '8'),
     ],
-    hints: ['A negative exponent means the reciprocal.', 'Another method: write the base as a power of a smaller number, then multiply the exponents.', 'Write 16 as a power of a smaller number, then multiply the exponents.'],
+    hints: [
+      'Which part of a fractional exponent is the root, and which is the power? What does a negative exponent tell you to do?',
+      'Take the root first, then the power. A negative exponent means the reciprocal.',
+      'Another method: write the base as a power of a smaller number, then multiply the exponents.',
+    ],
     scaffold: backUp('32 equals…', ['2⁵', '5²'], '2⁵'),
     guidedNotes: guidedNotes(
       ['Method 1', 'Take the root first, then the power: 32^(2/5) = (⁵√32)² = 2² = 4.'],
@@ -240,7 +264,11 @@ const classwork = [
         'a real number, because 3/2 is positive',
       ], 'not a real number: the root is even and the base is negative (in the complex numbers it is −64i)'),
     ],
-    hints: ['The denominator of the exponent is the root, the numerator is the power.', 'An odd root of a negative number is real; an even root is not.', 'Find ∛(−8) first, then square it.'],
+    hints: [
+      'In b^(x/y), which number is the root and which is the power? Which do you take first?',
+      'An odd root of a negative number is real; an even root is not. Is the root in each power odd or even?',
+      'Find ∛(−8) first, then square it.',
+    ],
     scaffold: backUp('∛(−8) equals…', ['−2', 'not real'], '−2'),
     solutionReview: review(
       'Root first: the index decides whether a negative base works.',
@@ -264,7 +292,11 @@ const classwork = [
       number('mass', 'M ≈ (kilograms, nearest whole number)', '472', { numericTolerance: 1 }),
       choice('cyp', 'For B = 80 kilograms, M is about…', ['300 kg', '340 kg', '380 kg', '400 kg'], '380 kg'),
     ],
-    hints: ['B^(−8/5) = 1/B^(8/5), so multiplying by it divides by B^(8/5).', 'On a calculator, enter the exponent 8/5 in parentheses.', 'Subtract the quotient from 512 last.'],
+    hints: [
+      'What does the negative exponent in B^(−8/5) tell you to do with 146,230?',
+      'B^(−8/5) = 1/B^(8/5), so divide 146,230 by B^(8/5). On a calculator, put 8/5 in parentheses.',
+      'Subtract the quotient from 512 last.',
+    ],
     scaffold: backUp('146,230 · B^(−8/5) equals…', ['146,230 ÷ B^(8/5)', '−146,230 · B^(8/5)'], '146,230 ÷ B^(8/5)'),
     solutionReview: review(
       'A negative exponent divides.',
@@ -288,7 +320,11 @@ const classwork = [
       choice('cyp1', 'x^(1/5) · x^(2/5) =', ['x^(2/5)', 'x^(3/5)', 'x^(1/2)', 'x²'], 'x^(3/5)'),
       choice('cyp2', 'y^(−3/4) =', ['y^(3/4)', '(y^(1/4))/y⁴', '(y^(1/4))/y', 'y⁴/y³'], '(y^(1/4))/y'),
     ],
-    hints: ['Add the fractions in the exponents.', 'Multiply the top and bottom by the power that makes the denominator’s exponent a whole number.', 'Exponents add when you multiply: two thirds plus one third is one.'],
+    hints: [
+      'When you multiply powers of y, what do you do with their exponents?',
+      'A negative exponent means a reciprocal. What can you multiply the top and bottom by so the denominator’s exponent is a whole number?',
+      'Exponents add when you multiply: two thirds plus one third is one.',
+    ],
     scaffold: backUp('x^(2/3) · x^(1/3) equals…', ['x', 'x^(2/9)'], 'x'),
     solutionReview: review(
       'Add exponents; clear the fractional exponent from the denominator.',
@@ -312,7 +348,11 @@ const classwork = [
       choice('cyp1', '⁴√4 / √2 =', ['2^(−1/4)', '1', '2^(1/2)', '2^(1/4)'], '1'),
       choice('cyp2', '⁶√(16x²) =', ['∛(4x)', '∛(4x²)', '∛(2x)', '∛(2x²)'], '∛(4x)'),
     ],
-    hints: ['16 = 2⁴, so ⁶√16 = 2^(4/6).', 'Reduce the fraction in the exponent before writing a radical.', '4x⁴ = (2x²)², so ⁶√(4x⁴) = (2x²)^(2/6).'],
+    hints: [
+      'What power of 2 is 16? How do you write the sixth root of a power as a rational exponent?',
+      'Write each radical as a power of 2, then reduce the fraction in the exponent before writing a radical.',
+      '16 = 2⁴, so ⁶√16 = 2^(4/6); and 4x⁴ = (2x²)², so ⁶√(4x⁴) = (2x²)^(2/6).',
+    ],
     scaffold: backUp('3^(2/4) equals…', ['3^(1/2)', '3^2'], '3^(1/2)'),
     solutionReview: review(
       'Exponents make different indices comparable.',
@@ -335,7 +375,11 @@ const classwork = [
       simplest('simplified', '(y^(1/2) + 1)/(y^(1/2) − 1) =', '(y+2y^(1/2)+1)/(y-1)'),
       choice('cyp', '(x^(1/2) − 1)/(x^(1/2) + 1) =', ['(x − 2x^(1/2) + 1)/(x − 1)', '(x + 1)/(x − 1)', '(x − 2x^(1/2) + 1)/(x + 1)', '(x − 1)/(x + 1)'], '(x − 2x^(1/2) + 1)/(x − 1)'),
     ],
-    hints: ['A conjugate changes the sign between the two terms.', 'y^(1/2) · y^(1/2) = y.', 'Square the numerator by multiplying it by itself.'],
+    hints: [
+      'What do you change in y^(1/2) − 1 to get its conjugate?',
+      'What is y^(1/2) · y^(1/2)? The middle terms cancel in the denominator.',
+      'Square the numerator by multiplying it by itself.',
+    ],
     scaffold: backUp('(a − 1)(a + 1) equals…', ['a² − 1', 'a² + 1'], 'a² − 1'),
     solutionReview: review(
       'Multiply by the conjugate over itself.',
@@ -359,7 +403,11 @@ const classwork = [
       choice('d', '(x^(1/3))/x', ['Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: a fractional exponent is in the denominator', 'Not simplified: the index can be smaller'], 'Simplified'),
       simplest('fix', 'Write ⁸√(x⁴) in simplest form (x positive)', '√x'),
     ],
-    hints: ['Test each rule one at a time.', 'A whole-number exponent in a denominator is allowed.', 'x^(4/8) can be reduced.'],
+    hints: [
+      'For each expression, which of the four rules does it break, if any?',
+      'A whole-number exponent in a denominator is allowed. Can the index of ⁸√(x⁴) be smaller?',
+      '⁸√(x⁴) = x^(4/8), and 4/8 can be reduced.',
+    ],
     scaffold: backUp('Is (y^(1/3))/y simplified?', ['Yes', 'No'], 'Yes'),
     solutionReview: review(
       'Four rules, one at a time.',
@@ -385,7 +433,10 @@ const practice = [
       number('root', '{{p}}^(1/{{n}}) =', '{{c}}'),
       number('value', '{{p}}^({{m}}/{{n}}) =', '{{cm}}'),
     ],
-    hints: ['The denominator of the exponent is the root.', 'Then raise that root to the numerator.'],
+    hints: [
+      'Which part of a fractional exponent is the root, and which is the power?',
+      'Take the root that the denominator names first, then raise it to the power the numerator names.',
+    ],
     scaffold: backUp('8^(2/3) equals…', ['(∛8)²', '(8²)/3'], '(∛8)²'),
     solutionReview: review(
       'Root, then power.',
@@ -412,7 +463,7 @@ const practice = [
       number('positive', '{{p}}^({{m}}/{{n}}) =', '{{cm}}'),
       number('value', '{{p}}^(−{{m}}/{{n}}) =', '1/{{cm}}'),
     ],
-    hints: ['A negative exponent means the reciprocal.', 'Evaluate the positive power first.'],
+    hints: ['What does a negative exponent tell you to do?', 'Evaluate the positive power first, root then power, then take its reciprocal.'],
     scaffold: backUp('100^(−1/2) equals…', ['1/10', '−10'], '1/10'),
     solutionReview: review(
       'Reciprocal of the positive power.',
@@ -439,7 +490,10 @@ const practice = [
       simplest('exponential', 'Exponential form', 'x^({{m}}/{{n}})'),
       simplest('radical', 'Radical form', 'root({{b}})(y^{{a}})'),
     ],
-    hints: ['The index becomes the denominator of the exponent.', 'The denominator of the exponent becomes the index.'],
+    hints: [
+      'When you write a radical as a power, where does the index go, and where does the power go?',
+      'The index becomes the denominator of the exponent, and the power becomes its numerator. Radical form goes the other way.',
+    ],
     scaffold: backUp('∛(a²) equals…', ['a^(2/3)', 'a^(3/2)'], 'a^(2/3)'),
     solutionReview: review(
       'Index ↔ denominator, power ↔ numerator.',
@@ -462,7 +516,10 @@ const practice = [
     prompt: tex`Simplify $x^{ {{a}}/{{n}} }\cdot x^{ {{b}}/{{n}} }$. Write the answer with a rational exponent.`,
     directionSteps: ['Add the exponents.', 'Reduce the exponent if you can.'],
     responses: [simplest('simplified', 'Simplified', 'x^({{s}}/{{n}})')],
-    hints: ['Multiplying powers with the same base: add the exponents.', 'The exponents have the same denominator.'],
+    hints: [
+      'When you multiply powers of the same base, what do you do with the exponents?',
+      'Add the exponents: they have the same denominator, so add the numerators.',
+    ],
     scaffold: backUp('a^(1/5) · a^(2/5) equals…', ['a^(3/5)', 'a^(2/25)'], 'a^(3/5)'),
     solutionReview: review(
       'Add the exponents.',
@@ -486,7 +543,10 @@ const practice = [
     prompt: tex`Simplify $ {{k}}x^{-{{a}}/{{n}}} $ so it has no negative exponent and no fractional exponent in a denominator.`,
     directionSteps: ['Rewrite with a positive exponent.', 'Clear the fractional exponent from the denominator.'],
     responses: [simplest('simplified', 'Simplified', '({{k}}x^({{b}}/{{n}}))/x')],
-    hints: ['Move the power to the denominator to make the exponent positive.', 'Multiply the top and bottom by the power that brings the denominator’s exponent up to a whole number.'],
+    hints: [
+      'How do you write x^(−{{a}}/{{n}}) with a positive exponent?',
+      'Multiply the top and the bottom by the power of x that brings the denominator’s exponent up to 1.',
+    ],
     scaffold: backUp('x^(−1/3) equals…', ['1/x^(1/3)', '−x^(1/3)'], '1/x^(1/3)'),
     solutionReview: review(
       'Positive exponent, then a whole-number exponent below.',
@@ -514,7 +574,7 @@ const practice = [
       number('power', '{{B}}^(8/5) ≈ (nearest whole number)', '{{P}}', { numericTolerance: 1 }),
       number('mass', 'M ≈ (kilograms, nearest whole number)', '{{M}}', { numericTolerance: 1 }),
     ],
-    hints: ['A negative exponent divides: 146,230 · B^(−8/5) = 146,230 ÷ B^(8/5).', 'Put the exponent 8/5 in parentheses on the calculator.'],
+    hints: ['What does the negative exponent in B^(−8/5) tell you to do?', '146,230 · B^(−8/5) = 146,230 ÷ B^(8/5). Put 8/5 in parentheses on the calculator.'],
     scaffold: backUp('B^(−8/5) equals…', ['1/B^(8/5)', '−B^(8/5)'], '1/B^(8/5)'),
     solutionReview: review(
       'Divide by the positive power, then subtract.',
@@ -541,7 +601,7 @@ const practice = [
     prompt: tex`Simplify $\sqrt[{{n}}]{ {{c2}}x^{ {{e}} } }$. Assume $x$ is positive. Reduce the index.`,
     directionSteps: ['Write the radical with a rational exponent.', 'Reduce the exponent.', 'Write the answer as a radical with the smaller index.'],
     responses: [simplest('simplified', 'Simplified', 'root({{h}})({{c}}x{{k|pow}})')],
-    hints: ['The radicand is a perfect square: a number squared times a power of x squared.', 'Halve the index after taking that square.'],
+    hints: ['Is {{c2}}x^{{e}} a perfect square? Of what?', '{{c2}}x^{{e}} = ({{c}}x{{k|pow}})², so the exponent 2/{{n}} reduces: halve the index.'],
     scaffold: backUp('⁶√(9x²) equals (x positive)…', ['∛(3x)', '∛(9x²)'], '∛(3x)'),
     solutionReview: review(
       'Rational exponents reduce the index.',
@@ -569,7 +629,10 @@ const practice = [
       number('value', '{{b}}^({{m}}/{{n}}) ≈ (nearest hundredth)', '{{v}}', { numericTolerance: 0.01 }),
       simplest('radical', '{{b}}^({{m}}/{{n}}) in radical form', 'root({{n}})({{bm}})'),
     ],
-    hints: ['Put the exponent in parentheses on the calculator.', 'The denominator of the exponent is the index; the numerator is the power of the radicand.'],
+    hints: [
+      'How do you enter a fractional exponent on a calculator so the whole fraction is the power?',
+      'Put the exponent in parentheses. For radical form, the denominator is the index and the numerator is the power of the radicand.',
+    ],
     scaffold: backUp('7^(2/3) in radical form is…', ['∛(7²)', '√(7³)'], '∛(7²)'),
     solutionReview: review(
       'Root and power; a calculator gives the decimal.',
@@ -610,7 +673,11 @@ const practice = [
         'The surface area does not depend on the volume',
       ], '(8V)^(2/3) = 8^(2/3) · V^(2/3), and 8^(2/3) = 4'),
     ],
-    hints: ['Each volume is a perfect cube: find its cube root, square it, then multiply by 6.', 'The denominator 3 is the index of the radical.', 'Use the power of a product: (ab)^(2/3) = a^(2/3) · b^(2/3).'],
+    hints: [
+      'What is the cube root of each volume? What does the 2 in V^(2/3) do after that?',
+      'Each volume is a perfect cube. In V^(2/3), the denominator 3 is the index of the radical.',
+      'Find the cube root, square it, then multiply by 6. For 8V, use (ab)^(2/3) = a^(2/3) · b^(2/3).',
+    ],
     scaffold: backUp('1000^(2/3) equals…', ['100', '10'], '100'),
     solutionReview: review(
       'Root, power, multiply by 6.',
@@ -641,7 +708,11 @@ const practice = [
       ], 'Ben: the law that turns it into ⁶√((−8)²) needs a base ≥ 0'),
       choice('rule', 'So, for a negative base, a rational exponent must be written in…', ['lowest terms', 'any form', 'decimal form', 'a form with an even denominator'], 'lowest terms'),
     ],
-    hints: ['Square −8 first, then take the sixth root.', 'An odd root of a negative number is negative.', 'Which first step uses an exponent law with a condition on the base?'],
+    hints: [
+      'In Ben’s steps, what is (−8)²? What is the sixth root of that?',
+      'Is ∛(−8) positive or negative? An odd root keeps the sign.',
+      'Which first step uses an exponent law with a condition on the base?',
+    ],
     scaffold: backUp('(−8)² equals…', ['64', '−64'], '64'),
     solutionReview: review(
       'Exponent laws need a nonnegative base.',
@@ -663,7 +734,11 @@ const practice = [
       simplest('product', '√x · ∛x in radical form', 'root(6)(x^5)'),
       choice('quotient', '⁴√(x³) / √x in radical form', ['∛x', '√x', '∜x', '⁸√(x³)'], '∜x'),
     ],
-    hints: ['√x = x^(1/2) and ∛x = x^(1/3).', 'Use a common denominator to add the exponents.', '3/4 − 1/2 = 1/4.'],
+    hints: [
+      'How do you write √x and ∛x as powers of x?',
+      'Multiplying powers adds their exponents. What common denominator do 1/2 and 1/3 have?',
+      '√x = x^(1/2) and ∛x = x^(1/3), and 3/4 − 1/2 = 1/4.',
+    ],
     scaffold: backUp('1/2 + 1/3 equals…', ['5/6', '2/5'], '5/6'),
     solutionReview: review(
       'Common denominators combine different indices.',
@@ -685,7 +760,11 @@ const practice = [
       expression('reduced', '⁸√(16x⁴y¹²) as a square root', '√(2xy^3)'),
       simplest('simplified', 'Simplest radical form', 'y√(2xy)'),
     ],
-    hints: ['16 = 2⁴; divide each exponent by 4.', '((2xy³)⁴)^(1/8) = (2xy³)^(1/2).', 'Pull the perfect square out of 2xy³.'],
+    hints: [
+      'Which number to the fourth power is 16? What monomial, to the fourth, gives x⁴y¹²?',
+      'Write the eighth root as the power 1/8 of a fourth power. What does the exponent 4/8 reduce to?',
+      '16x⁴y¹² = (2xy³)⁴, so the root is (2xy³)^(1/2) = √(2xy³). Then pull the perfect square y² out.',
+    ],
     scaffold: backUp('(a⁴)^(1/8) equals…', ['a^(1/2)', 'a²'], 'a^(1/2)'),
     solutionReview: review(
       'Rational exponents reduce the index.',
@@ -713,7 +792,10 @@ const practice = [
         'Only the bases matter',
       ], 'Both numbers are positive, and for positive numbers raising to the sixth power keeps their order'),
     ],
-    hints: ['Use the power of a power rule: multiply the exponents.', '6 is a common multiple of 2 and 3.'],
+    hints: [
+      'When you raise a power to a power, what happens to the exponents?',
+      'Multiply the exponents: 6 is a common multiple of 2 and 3, so both sixth powers are whole numbers.',
+    ],
     scaffold: backUp('(2^(1/2))⁶ equals…', ['2³', '2¹²'], '2³'),
     solutionReview: review(
       'A common power removes both roots.',
@@ -722,7 +804,7 @@ const practice = [
       'Comparing the exponents 1/2 > 1/3 and concluding 2^(1/2) is greater: the bases differ too.',
     ),
   },
-  auditedCcmrQuestion({
+  withOwnHint('What power of x, under a square root, comes out as x{{k|pow}}?', auditedCcmrQuestion({
     documentId: 'mm_sat_A2_7G_challenge_3_radical-exponent-parameter_v21',
     questionId: 'a2r3-p-12',
     scaffold: backUp('x² · √x as one radical equals, for x > 0…', ['√(x⁵)', '√(x³)'], '√(x⁵)'),
@@ -736,8 +818,8 @@ const practice = [
         'This doubles the exponent under the root instead of the one outside it.',
       ],
     },
-  }),
-  auditedCcmrQuestion({
+  })),
+  withOwnHint('What does raising a power to a power do to the exponents? And dividing powers of x?', auditedCcmrQuestion({
     documentId: 'mm_sat_A_11B_challenge_1_nested_rational_exponents_v21',
     questionId: 'a2r3-p-13',
     scaffold: backUp('(x^(1/3))² equals…', ['x^(2/3)', 'x^(1/6)'], 'x^(2/3)'),
@@ -751,7 +833,7 @@ const practice = [
         'This adds {{p}} and {{r}}; raising a power to a power multiplies the exponents.',
       ],
     },
-  }),
+  })),
 ];
 
 /* ------------------------------------------------------ Exit Ticket */
