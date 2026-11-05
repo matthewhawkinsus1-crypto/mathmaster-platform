@@ -57,6 +57,11 @@ Nothing here has been deployed, and no operator script has been run.
 | L4/L5 inequality examples | Nine boxes whose answers relate x and y showed the one-variable example: the "With y alone" boxes of L4 Honors PR 16 and L5 CW 15, and L5 PR 10's two boundaries. They show `y ≥ mx + b`, and a test holds every L4/L5 box whose key relates x and y to an example in x and y that no key accepts. | `b17dae33` |
 | Keypad "Needed" row | In practice, a key typed as `y >= x + 2` asked for = and never for ≥. A typed `<=`, `>=` or `!=` now asks for ≤, ≥ or ≠, and = only where the answer has one. | `ab44afb7` |
 | Choices that gave the answer away (the rest) | In 21 more lesson files the wrong options of each reasoning choice are a claim with a reason, wrong in one way, so the right answer no longer stands out by length: Algebra I M2 T2 L2/L3, M3 T1 L1/L3 and M3 T2 L1/L2, regular and Honors (64 choices), and ten Algebra II lessons on matrices, polynomials and radicals (27). No key changed. The ratchet holds the 3 left, in 3 files, each named with its reason (section 5). | `d42ec6c4`, `2a81a71c`, `8adfb4f1`, `a488f9a3`, `4caa0a5e`, `d1aec45e` |
+| TL43 | A 3×3 whose equations each hold one variable (2x = 2, 3y = 6, 4z = 12) could not be finished in the Systems Workspace's algebraic mode. It opens a "Solve each equation" board, as a 2×2 with separated rows does: each equation in Step Algebra, then the three values checked in all three. Pre-Flight still warns that it practises no elimination or substitution. | `ce4c6bc8` |
+| TC05 | On a miss, Corrections names a term moved without changing its sign, or a division of only part of a side, on 11 bank templates (typed-answer, Step Algebra and solve-the-equation items), and only when the equation shown solves to the item's own key. On a secure Test the name waits on the server until release. | `593ac4d4` |
+| N54 | The Digital SAT item that printed the point it asked about (`mm_sat_A_3H_challenge_3_intersection-feasible-vertex_v21`) is retired in all four copies; no lesson used it. A.3H's SAT challenge sessions now draw three questions from two families, so one repeats with new numbers. | `44cfe838` |
+| N76 | The demo bank's 17 system items show two equations in a brace instead of "∧". Their formula, which Step Algebra reads, is unchanged. A browser that already holds a demo seed keeps the old copy until "Reset Demo Classroom". | `9e1382b1` |
+| CI02 | The Path Tool Browser Contract job recaptures four more tools and fails when a capture drifts. feedbackTeaches covers an Exponential ↔ Log Bridge item, and feedbackReasons2 the two messages no student scene reached. | `8d066d4e` |
 
 ## 3. Checked, with no change needed
 
@@ -67,13 +72,14 @@ Nothing here has been deployed, and no operator script has been run.
 ## 4. Releasing this work
 
 1. **Firestore rules** (`dc16bfa9`, Ask my teacher).
-2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report). Deploy outside class hours and outside Sunday 6 pm to midnight Central.
+2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report), and so did Corrections' slip names (TC05) and the bundled SAT seed (N54). Deploy outside class hours and outside Sunday 6 pm to midnight Central.
 3. **Hosting.**
 4. **Then the re-imports.** A changed lesson reaches a class only when its teacher imports it again:
    - Algebra II Honors module 2: Operations on Polynomials, Dividing Polynomials.
    - **Algebra II Honors radicals L1, L2, L3, only after Hosting is live.** An older client reads the new slips against every box, right ones included.
    - **Algebra I M3 T2: L4 and L5, regular and Honors, only after Hosting is live**, for the same reason.
    - Algebra I M2 T2: L2 and L3 (regular).
+   - **After Functions:** Administration → My Math Path content coverage → **Refresh SAT / ACT / TSIA2 release**, so the retired SAT item (N54) leaves the Path. It validates everything read-only before it writes.
    - The 21 lesson files with rewritten choices, at any time: the options are plain text. Their order on screen changes, because the shuffle is seeded by the option text.
    - Any lesson imported again also takes the keypad fix: 35 keys in 13 lesson files lose the stray letters m, p, o and w. Until then, an assignment already imported keeps them in practice.
 
