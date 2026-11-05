@@ -568,6 +568,23 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 family for the static Mapping Diagram Warm-Up and DOL
+  // questions (questionFamiliesRelations.mjs, RC01): Algebra II Honors Module 1
+  // Lesson 1 (A2.7I) and the Algebra I District DOL 1 review (A.12A).
+  'relations.mappingDiagram': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.',
+      missingCapability: 'A relation given as a graph, a table or a rule to map first (the Mapping Diagram\'s plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.',
+      teacherReason: 'MathMaster\'s mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.',
+      missingCapability: 'A relation given as a graph, a table or a rule to map first (the Mapping Diagram\'s plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.',
+      teacherReason: 'MathMaster\'s mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
 });
 
 /**

@@ -24,6 +24,7 @@ import {
   representationSetsFor,
 } from './toolMath/representationMatch/representationMath.mjs';
 import { gradedContextFields, resolveRequiredCards } from './toolMath/representationBridge/linearMultipleRepresentationsCards.mjs';
+import { correctFunctionChoice } from './relationFunctionChoice.mjs';
 
 const fieldsResponse = (responses) => ({
   kind: 'fields',
@@ -293,6 +294,35 @@ export const linearBoardKeyWork = (question = {}, answer = {}) => {
   return { right: work, wrong };
 };
 
+/**
+ * The Mapping Diagram work a student who solved a relations.* version would
+ * send (serverGrading/tools/relationMapping.mjs): an arrow for every pair of
+ * the key, its domain and range typed as lists, and — where the question asks
+ * — the function choice the definition gives (RC01). The wrong work chooses
+ * the other verdict, or, where none is asked, leaves an output out of the
+ * range. Null for any other answer.
+ */
+export const relationMappingKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'relation' || !isObject(answer.value)) return null;
+  const { pairs, domain, range, isFunction } = answer.value;
+  if (![pairs, domain, range].every((entry) => Array.isArray(entry) && entry.length) || typeof isFunction !== 'boolean') return null;
+  const ask = Array.isArray(question.ask) ? question.ask : ['mapping', 'domain', 'range'];
+  const right = {
+    plottedPoints: [],
+    arrows: pairs.map(([x, y]) => [x, y]),
+    domainText: domain.join(', '),
+    rangeText: range.join(', '),
+    domain: [...domain],
+    range: [...range],
+    isFunction: ask.includes('isFunction') ? correctFunctionChoice(isFunction) : '',
+    fields: [],
+  };
+  const wrong = ask.includes('isFunction')
+    ? { ...right, isFunction: correctFunctionChoice(!isFunction) }
+    : { ...right, rangeText: range.slice(0, -1).join(', '), range: range.slice(0, -1) };
+  return { right, wrong };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -352,6 +382,14 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.right }),
       wrong: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.wrong }),
+    };
+  }
+  // The Mapping Diagram (relations.mappingDiagram, RC01).
+  const relationWork = question.type === 'relationMapping' ? relationMappingKeyWork(question, answer) : null;
+  if (relationWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'relationMapping', work: relationWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'relationMapping', work: relationWork.wrong }),
     };
   }
   // The Multiple Representations board (linear.multipleRepresentations, RC01).

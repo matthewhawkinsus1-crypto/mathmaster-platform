@@ -286,31 +286,41 @@ const liveCopy = (lesson, id) => ({
 });
 const AT = '2026-10-25T15:00:00.000Z';
 
-test('Prepare Recovery on Day 1: the Warm-Up becomes ready from the interval family; the DOL waits on the two questions no family writes; no question changes', () => {
+test('Prepare Recovery on Day 1: the Warm-Up becomes ready from the interval family; the DOL waits on the question no family writes; no question changes', () => {
   const assignment = liveCopy(DAY_ONE, 'live-interval-day-1');
   assert.equal(recoveryPreparationAvailable(assignment), true, 'the card says Recovery can be added');
   const { report } = buildRecoveryUpgradePreview({ assignment, manifest: null, gradeSample: serverRecoveryKeyCheck, trackers: [], at: AT });
-  assert.deepEqual(report.changes.map((change) => `${change.label}:${change.questionId}:${change.action}:${change.family.id}:${change.constraints.shape}`), [
+  const intervalChanges = report.changes.filter((change) => change.family.id === FAMILY_ID);
+  assert.deepEqual(intervalChanges.map((change) => `${change.label}:${change.questionId}:${change.action}:${change.family.id}:${change.constraints.shape}`), [
     'Warm-Up Q1:q_warmup-1_1_1:add:intervals.graphAndWrite:segment',
     'Warm-Up Q2:q_warmup-1_1_2:add:intervals.graphAndWrite:ray',
     'Warm-Up Q3:q_warmup-1_1_3:add:intervals.graphAndWrite:twoRays',
     'DOL Q1:q_dol-4_4_1:add:intervals.graphAndWrite:rayAndSegment',
   ]);
+  // DOL Q3, the relation's mapping, has the Mapping Diagram family's Recovery
+  // (recoveryRelationFamilies.test.mjs).
+  assert.deepEqual(report.changes.filter((change) => change.family.id !== FAMILY_ID).map((change) => `${change.label}:${change.family.id}`), ['DOL Q3:relations.mappingDiagram']);
   report.changes.forEach((change) => assert.ok(change.freshVersions >= RECOVERY_MINIMUM_FRESH_VERSIONS, `${change.label}: ${change.freshVersions} fresh versions`));
   assert.deepEqual(report.readiness, {
     warmup: { before: 'unavailable', after: 'ready', message: null },
     dol: { before: 'unavailable', after: 'unavailable', message: null },
   });
-  assert.deepEqual(report.notReady.map((row) => `${row.label}:${row.issues[0].code}`), ['DOL Q2:no-certified-family', 'DOL Q3:no-certified-family']);
-  assert.deepEqual(report.recoveryContent, { versionBefore: 0, versionAfter: 1, bindingsBefore: 0, bindingsAfter: 4 });
+  assert.deepEqual(report.notReady.map((row) => `${row.label}:${row.issues[0].code}`), ['DOL Q2:no-certified-family']);
+  assert.deepEqual(report.recoveryContent, { versionBefore: 0, versionAfter: 1, bindingsBefore: 0, bindingsAfter: 5 });
   assert.deepEqual(report.untouched.questions.map((entry) => entry.signature), flattenAssignmentQuestions(assignment).map(recoverySourceSignature));
 });
 
-test('Prepare Recovery on Day 2: its number-line Warm-Up question makes the Warm-Up ready; nothing else changes', () => {
+test('Prepare Recovery on Day 2: its number-line Warm-Up question makes the Warm-Up ready; no question changes', () => {
   const assignment = liveCopy(DAY_TWO, 'live-interval-day-2');
   const { report } = buildRecoveryUpgradePreview({ assignment, manifest: null, gradeSample: serverRecoveryKeyCheck, trackers: [], at: AT });
-  assert.deepEqual(report.changes.map((change) => `${change.label}:${change.questionId}:${change.family.id}:${change.constraints.shape}`), [
+  assert.deepEqual(report.changes.filter((change) => change.family.id === FAMILY_ID).map((change) => `${change.label}:${change.questionId}:${change.family.id}:${change.constraints.shape}`), [
     'Warm-Up Q2:q_warmup-1_1_2:intervals.graphAndWrite:segment',
+  ]);
+  // Warm-Up Q3 and DOL Q2, the mapping diagrams, have the Mapping Diagram
+  // family's Recovery (recoveryRelationFamilies.test.mjs).
+  assert.deepEqual(report.changes.filter((change) => change.family.id !== FAMILY_ID).map((change) => `${change.label}:${change.family.id}`), [
+    'Warm-Up Q3:relations.mappingDiagram',
+    'DOL Q2:relations.mappingDiagram',
   ]);
   assert.deepEqual(report.readiness.warmup, { before: 'unavailable', after: 'ready', message: null });
   assert.equal(report.readiness.dol.after, 'unavailable');

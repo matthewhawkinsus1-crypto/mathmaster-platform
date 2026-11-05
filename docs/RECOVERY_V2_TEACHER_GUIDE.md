@@ -176,6 +176,25 @@ stays "not ready": its three questions review the parent functions |x|, √x
 and 2ˣ, and every new version of a review like that would have the same
 answer, so MathMaster does not make one.
 
+### Mapping diagrams (Algebra II Honors Lesson 1, and the District DOL 1 review)
+
+The Mapping Diagram questions that ask for the arrows of a short relation, and
+its domain and range or whether it is a function, can now be recovered:
+
+| Question | Recovery versions |
+| --- | --- |
+| Algebra II Honors Lesson 1 Day 1, DOL Q3 — {(−1, 3), (2, 0), (4, 3), (7, −2)} | a new relation of four pairs in which two inputs share an output: map it, state the domain and range, decide whether it is a function |
+| Lesson 1 Day 2, Warm-Up Q3 — {(−2, 1), (0, 3), (2, 5)} | a new relation of three pairs, every output used once: map it, state the domain and range |
+| Lesson 1 Day 2, DOL Q2 — {(−1, 2), (2, 5), (2, −3), (6, 1)} | a new relation of four pairs in which one input has two outputs: map it, state the domain and range, decide whether it is a function |
+| District DOL 1 review, Warm-Up Q1 | a new relation of four pairs in which two inputs share an output: map it, decide whether it is a function |
+
+Every version is a new relation (never one already in the lesson), graded by
+MathMaster, in the same tool, at the same DOK and difficulty. Prepare Recovery
+makes the review's Warm-Up ready. The review's DOL Q7 asks the same task as its
+Warm-Up Q1 but is set at DOK 2, difficulty 3, so it is not recovered at the
+Warm-Up's level; the lessons' DOLs still have other questions no Recovery family
+writes yet.
+
 ## Seeing who can recover
 
 In the assignment details, **Show who can recover in (class)** lists, for the

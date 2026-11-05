@@ -1431,6 +1431,8 @@ const platformFamilySentences = [
   // A transformed cube root read off its graph (transformations.identifyCubeRoot, RC01):
   // the worked example's last step when a is 1.
   ['So the graph is {1} ∛{2}.', 'Así que la gráfica es {1} ∛{2}.'],
+  // A relation's mapping, domain and range (relations.mappingDiagram, RC01).
+  ['Answer: arrows {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; domain {{9}, {10}, {11}, {12}}; range {{13}, {14}, {15}}', 'Respuesta: flechas {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; dominio {{9}, {10}, {11}, {12}}; rango {{13}, {14}, {15}}'],
 ];
 
 // Their back-up choices.

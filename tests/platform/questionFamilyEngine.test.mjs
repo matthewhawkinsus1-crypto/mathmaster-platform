@@ -40,7 +40,13 @@ import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serve
 import { buildLinearConnectionCards, linearConnectionsCardKinds, representationSetsFor } from '../../functions/shared/toolMath/representationMatch/representationMath.mjs';
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
-import { intervalNumberLineKeyWork, matrixLabKeyWork, polynomialWorkshopKeyWork, transformationsLabKeyWork } from '../../functions/shared/recoveryCertificationGrading.mjs';
+import {
+  intervalNumberLineKeyWork,
+  matrixLabKeyWork,
+  polynomialWorkshopKeyWork,
+  relationMappingKeyWork,
+  transformationsLabKeyWork,
+} from '../../functions/shared/recoveryCertificationGrading.mjs';
 
 const SAMPLE = 160;
 
@@ -123,6 +129,9 @@ const REGISTRY_TOOL_WORK = {
   // notation as the tool's Check sends them, and the same work with one
   // endpoint's open or closed dot flipped.
   intervalNumberLine: (question, instance) => intervalNumberLineKeyWork(instance.answer),
+  // The Mapping Diagram (relations.*, RC01): every arrow, the domain and range,
+  // and the function choice — and the other verdict (or an output left out).
+  relationMapping: (question, instance) => relationMappingKeyWork(question, instance.answer),
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
     const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));

@@ -68,6 +68,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `polynomials.subtractMissingTerm` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (addSubtract) | yes — shared server grader | yes | about 395,259,243 — every student unique | — |
 | `polynomials.syntheticDivision` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (syntheticDivision) | yes — shared server grader | yes | about 1,101,391 — every student unique | — |
 | `quadratics.identifyVertex` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 884 — every student unique | — |
+| `relations.mappingDiagram` | v1 · what an unpinned reference means | — | — | `relationMapping` (default) | yes — shared server grader | yes | about 33,366,639 — every student unique | — |
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
 | `systems.classifyByStructure` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,680 — every student unique | — |
 | `systems.contextModel` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,794 — every student unique | — |
@@ -1135,6 +1136,33 @@ Vertex of a quadratic function.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | 884 | — |
+
+### `relations.mappingDiagram` v1
+
+Map a relation, state its domain and range, and decide whether it is a function.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.7I, A.12A
+- **Answered in:** `relationMapping` (default)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `ask` | choice | `"mappingDomainRange"` | `"mappingDomainRange"`, `"mappingDomainRangeFunction"`, `"mappingFunction"` | yes |
+| `relation` | choice | `"oneToOne"` | `"oneToOne"`, `"sharedOutput"`, `"repeatedInput"` | yes |
+| `pairCount` | choice | `4` | `3`, `4` | yes |
+| `valueRange` | range | `[-6, 10]` | whole-number range inside [-12, 12] | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 33,366,639 | — |
+| ask: "mappingDomainRangeFunction" | about 33,366,639 | — |
+| ask: "mappingFunction" | about 33,366,639 | — |
+| relation: "sharedOutput" | about 14,420,422 | — |
+| relation: "repeatedInput" | about 31,717,996 | — |
+| pairCount: 3 | about 803,237 | — |
 
 ### `systems.algebraic2x2` v1
 

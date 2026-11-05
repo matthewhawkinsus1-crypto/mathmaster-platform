@@ -5119,6 +5119,142 @@
       "declared": {}
     },
     {
+      "id": "relations.mappingDiagram",
+      "version": 1,
+      "title": "Map a relation, state its domain and range, and decide whether it is a function",
+      "alignments": [
+        "A2.7I",
+        "A.12A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "ask",
+          "label": "What the diagram asks for",
+          "kind": "choice",
+          "default": "mappingDomainRange",
+          "concept": true,
+          "values": [
+            "mappingDomainRange",
+            "mappingDomainRangeFunction",
+            "mappingFunction"
+          ]
+        },
+        {
+          "name": "relation",
+          "label": "Kind of relation",
+          "kind": "choice",
+          "default": "oneToOne",
+          "concept": true,
+          "values": [
+            "oneToOne",
+            "sharedOutput",
+            "repeatedInput"
+          ]
+        },
+        {
+          "name": "pairCount",
+          "label": "Ordered pairs",
+          "kind": "choice",
+          "default": 4,
+          "concept": true,
+          "values": [
+            3,
+            4
+          ]
+        },
+        {
+          "name": "valueRange",
+          "label": "Inputs and outputs",
+          "kind": "range",
+          "default": [
+            -6,
+            10
+          ],
+          "concept": false,
+          "limits": [
+            -12,
+            12
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "ask",
+        "relation",
+        "pairCount"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "relationMapping",
+          "default": true,
+          "mode": "default",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 33366639,
+          "exact": false
+        },
+        {
+          "label": "ask: \"mappingDomainRangeFunction\"",
+          "constraints": {
+            "ask": "mappingDomainRangeFunction"
+          },
+          "capacity": 33366639,
+          "exact": false
+        },
+        {
+          "label": "ask: \"mappingFunction\"",
+          "constraints": {
+            "ask": "mappingFunction"
+          },
+          "capacity": 33366639,
+          "exact": false
+        },
+        {
+          "label": "relation: \"sharedOutput\"",
+          "constraints": {
+            "relation": "sharedOutput"
+          },
+          "capacity": 14420422,
+          "exact": false
+        },
+        {
+          "label": "relation: \"repeatedInput\"",
+          "constraints": {
+            "relation": "repeatedInput"
+          },
+          "capacity": 31717996,
+          "exact": false
+        },
+        {
+          "label": "pairCount: 3",
+          "constraints": {
+            "pairCount": 3
+          },
+          "capacity": 803237,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "systems.algebraic2x2",
       "version": 1,
       "title": "System of two linear equations (algebraic: one, none or infinitely many)",

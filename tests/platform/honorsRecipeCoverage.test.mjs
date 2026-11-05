@@ -149,7 +149,9 @@ test('the committed report is generated from the live registry and audit, never 
   // inequalities.contextModel, systems.contextModel) and six BLOCKED.
   // The interval Recovery family (RC01, intervals.graphAndWrite) is Algebra II
   // content (A2.7I): NOT APPROPRIATE in Algebra I, BLOCKED in Algebra II. So
-  // are the three parent-function transformation families (RC01, A2.2A).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 54 \| 4 \| 8 \| 28 \| 14 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 54 \| 0 \| 1 \| 27 \| 26 \|/);
+  // are the three parent-function transformation families (RC01, A2.2A). The
+  // Mapping Diagram family (RC01) is aligned to both courses (A.12A, A2.7I):
+  // BLOCKED in each.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 55 \| 4 \| 8 \| 29 \| 14 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 55 \| 0 \| 1 \| 28 \| 26 \|/);
 });

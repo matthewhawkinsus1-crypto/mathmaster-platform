@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 54,
+  "familyCount": 55,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -719,6 +719,20 @@
           "teacherReason": "MathMaster's vertex generator only makes whole-number vertices read from a single equation, so it cannot yet ask the fractional-vertex or vertex-from-zeros work an Honors extension needs."
         },
         {
+          "familyId": "relations.mappingDiagram",
+          "familyTitle": "Map a relation, state its domain and range, and decide whether it is a function",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.",
+          "missingCapability": "A relation given as a graph, a table or a rule to map first (the Mapping Diagram's plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.",
+          "teacherReason": "MathMaster's mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "systems.algebraic2x2",
           "familyTitle": "System of two linear equations (algebraic: one, none or infinitely many)",
           "familyDifficulty": {
@@ -1007,7 +1021,7 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 8,
-        "BLOCKED": 28,
+        "BLOCKED": 29,
         "NOT APPROPRIATE": 14
       }
     },
@@ -1590,6 +1604,20 @@
           "teacherReason": "MathMaster has no generator for completing the square or for parabolas from their geometry yet, so it cannot build a no-AI Algebra II Honors extension for vertex work."
         },
         {
+          "familyId": "relations.mappingDiagram",
+          "familyTitle": "Map a relation, state its domain and range, and decide whether it is a function",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.",
+          "missingCapability": "A relation given as a graph, a table or a rule to map first (the Mapping Diagram's plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.",
+          "teacherReason": "MathMaster's mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "systems.algebraic2x2",
           "familyTitle": "System of two linear equations (algebraic: one, none or infinitely many)",
           "familyDifficulty": {
@@ -1973,7 +2001,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 27,
+        "BLOCKED": 28,
         "NOT APPROPRIATE": 26
       }
     }

@@ -879,7 +879,7 @@ test('matches(): every item is claimed, and the index gives it to this family', 
   });
 });
 
-test('matches(): multiAnswer items that are transformations, vertices, inverses or compositions are not claimed, nor is any platform family instance', () => {
+test('matches(): multiAnswer items that are transformations, vertices, inverses or compositions are not claimed, nor is any platform family instance but a Mapping Diagram', () => {
   NOT_ATTRIBUTE_PROMPTS.forEach((prompt) => {
     const item = CORPUS.find(({ question }) => text(question.prompt) === prompt);
     assert.ok(item, `corpus has "${prompt}"`);
@@ -894,7 +894,9 @@ test('matches(): multiAnswer items that are transformations, vertices, inverses 
         allocation: { seat, variant: 0, stride: 40, index: seat, basis: 'seated' },
       });
       const question = instance?.question || instance;
-      assert.equal(functionFeatures.matches(question), false, `${familyId} seat ${seat}`);
+      // The Mapping Diagram is this module's whoever wrote it (relations.mappingDiagram,
+      // RC01): its hints and worked example read the instance's own pairs.
+      assert.equal(functionFeatures.matches(question), question?.type === 'relationMapping', `${familyId} seat ${seat}`);
     }
   });
   assert.equal(functionFeatures.matches({ type: 'stepAlgebra', equation: '2x + 3 = 7' }), false);
