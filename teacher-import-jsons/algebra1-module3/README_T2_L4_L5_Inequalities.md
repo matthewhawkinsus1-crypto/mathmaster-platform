@@ -36,7 +36,7 @@ Every graph is built in the Systems Workspace, one checked step at a time: each 
 
 The one exception is Emma's workout in Lesson 5. Her calorie boundary, 6.9x + 10.4y = 400, passes through no whole-number point a student could plot, so the tool draws her system and the student works with the overlap, a marked point and a point of their own. The slides say to graph it with technology. The algebraic check follows in the next question.
 
-Graph descriptions that the slides show as pictures (matching graphs, writing an inequality from a graph) are given in words. The static graph display cannot draw dashed lines or shading.
+The graphs the slides show as pictures are drawn on the question: writing an inequality from a graph (Lesson 4 CW 7, CW 12, CW 13, PR 6, PR 10 and PR 12), and Activity 5.4's graphs and possible solution sets and the system to write from its graph (Lesson 5 CW 12, CW 13 and PR 10). Each boundary line is solid or dashed and the side where the inequality is true is shaded, and each figure is drawn from the inequality the item's own key holds, so the picture and the answer cannot disagree. The prompt no longer describes the graph in words.
 
 ## What is in each lesson
 
@@ -60,6 +60,7 @@ A class gets these changes only when its teacher imports the file again. An assi
 - **Lesson 4:** Activity 4.2's y > 4x − 6 (CW 6) now comes right after CW 1. Before, the first graph a student built was Kai's word problem (CW 2), and the first graph with no story came sixth.
 - **Lesson 5:** Classwork has 17 questions. The plain system (y > x − 2 and y ≤ −x + 4) is new and comes first, and Noah's four questions now follow Activity 5.2's system. Before, the first system a student built was Noah's, a word problem in standard form, and the plain case first appeared as item 14 of 16. The first hint on Noah's graph now asks for the intercepts instead of listing all four.
 - **Lesson 4:** an empty box that asks for the inequality a graph shows (or a description of one) now shows the example y ≥ 3x + 5, one inequality in x and y that is no question's answer. It used to show 0 ≤ x ≤ 4, a compound inequality in one variable.
+- **Lessons 4 and 5:** the graphs that were described in a sentence are drawn: Lesson 4's CW 7, CW 12, CW 13, PR 6, PR 10 and PR 12, and Lesson 5's CW 12, CW 13 and PR 10 (in both files of each lesson). Keys are unchanged.
 - Question ids keep their numbers, so they no longer follow the order: Lesson 4's second Classwork question is `m3t2l4-cw-6`, and Lesson 5's first is the new `m3t2l5-cw-17` (`m3t2l5h-cw-17` in Honors).
 
 ## Changing a lesson

@@ -134,12 +134,19 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   const safeFields = useMemo(() => (
     Array.isArray(answerFields) ? answerFields.filter((field) => field?.id).map(withoutStaleSetStamp) : []
   ), [answerFields]);
+  // Graphs to choose among are shuffled, so their order cannot point to the
+  // answer. Graphs the prompt names in order, each answered in its own box
+  // ("write the inequality for graphs a, b and c", N38), are figures to read:
+  // `candidateGraphsInOrder` keeps them as written.
+  const graphsInOrder = question.candidateGraphsInOrder === true;
   const candidateGraphs = useMemo(
-    () => stableShuffleChoices(
-      Array.isArray(question.candidateGraphs) ? question.candidateGraphs : [],
-      choiceSeed(question.questionId || question.prompt, 'candidate-graphs'),
-    ),
-    [question.candidateGraphs, question.questionId, question.prompt],
+    () => (graphsInOrder
+      ? (Array.isArray(question.candidateGraphs) ? question.candidateGraphs : [])
+      : stableShuffleChoices(
+        Array.isArray(question.candidateGraphs) ? question.candidateGraphs : [],
+        choiceSeed(question.questionId || question.prompt, 'candidate-graphs'),
+      )),
+    [question.candidateGraphs, question.questionId, question.prompt, graphsInOrder],
   );
   const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
   const answers = history.value;
@@ -198,10 +205,13 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       {candidateGraphs.length > 0 && (
         <div
           role="group"
-          aria-label="Candidate graphs"
+          aria-label={graphsInOrder ? 'Graphs' : 'Candidate graphs'}
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+            // A graph to read is read off its grid: it gets the width to be
+            // legible (one per row in the question's column), where a
+            // candidate to pick from can stay a thumbnail.
+            gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${graphsInOrder ? 440 : 240}px), 1fr))`,
             gap: 16,
             margin: '18px 0 4px',
           }}

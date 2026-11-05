@@ -1652,7 +1652,144 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "Activity 5.4 — Identifying Systems of Linear Inequalities. The four systems use the same two dashed boundary lines, the rising line y = (3/5)x + 3 and the falling line y = −(3/5)x + 3, which cross at (0, 3). System A: y < (3/5)x + 3 and y > −(3/5)x + 3. System B: y > (3/5)x + 3 and y > −(3/5)x + 3. System C: y > (3/5)x + 3 and y < −(3/5)x + 3. System D: y < (3/5)x + 3 and y < −(3/5)x + 3. Graph A shades the region below both lines. Graph B shades the region above the rising line and below the falling line, to the left of (0, 3). Graph C shades the region below the rising line and above the falling line, to the right of (0, 3). Graph D is blank. Match each system to its graph, check a point, and evaluate Isabella’s claim.",
+          "prompt": "Activity 5.4 — Identifying Systems of Linear Inequalities. The four systems use the same two dashed boundary lines, the rising line y = (3/5)x + 3 and the falling line y = −(3/5)x + 3, which cross at (0, 3). System A: y < (3/5)x + 3 and y > −(3/5)x + 3. System B: y > (3/5)x + 3 and y > −(3/5)x + 3. System C: y > (3/5)x + 3 and y < −(3/5)x + 3. System D: y < (3/5)x + 3 and y < −(3/5)x + 3. Graphs A, B and C each shade the solutions of one system, and Graph D is blank. Match each system to its graph, check a point, and evaluate Isabella’s claim.",
+          "candidateGraphs": [
+            {
+              "id": "A",
+              "label": "Graph A",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.6,
+                    "b": 3,
+                    "dashed": true
+                  },
+                  {
+                    "type": "line",
+                    "m": -0.6,
+                    "b": 3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "inequalities": [
+                      {
+                        "m": 0.6,
+                        "b": 3,
+                        "relation": "<"
+                      },
+                      {
+                        "m": -0.6,
+                        "b": 3,
+                        "relation": "<"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "B",
+              "label": "Graph B",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.6,
+                    "b": 3,
+                    "dashed": true
+                  },
+                  {
+                    "type": "line",
+                    "m": -0.6,
+                    "b": 3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "inequalities": [
+                      {
+                        "m": 0.6,
+                        "b": 3,
+                        "relation": ">"
+                      },
+                      {
+                        "m": -0.6,
+                        "b": 3,
+                        "relation": "<"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "C",
+              "label": "Graph C",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.6,
+                    "b": 3,
+                    "dashed": true
+                  },
+                  {
+                    "type": "line",
+                    "m": -0.6,
+                    "b": 3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "inequalities": [
+                      {
+                        "m": 0.6,
+                        "b": 3,
+                        "relation": "<"
+                      },
+                      {
+                        "m": -0.6,
+                        "b": 3,
+                        "relation": ">"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "D",
+              "label": "Graph D",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Use each system’s symbols to decide above or below each line.",
             "Match each system to its graph.",
@@ -1788,7 +1925,146 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Match a possible solution set to each system. System A: y < (3/5)x + 3 and y > −(3/5)x + 3. System B: y > (3/5)x + 3 and y > −(3/5)x + 3. System C: y > (3/5)x + 3 and y < −(3/5)x + 3. System D: y < (3/5)x + 3 and y < −(3/5)x + 3. Possible Solutions A: (0, −6) and (4, −4). Possible Solutions B: (0, 7.5) and (−4, 10). Possible Solutions C: (−6, 4) and (−10, 8). Possible Solutions D is blank: complete it for the system with no solution set yet. Check the point (5, 3) for System A.",
+          "prompt": "Match a possible solution set to each system. System A: y < (3/5)x + 3 and y > −(3/5)x + 3. System B: y > (3/5)x + 3 and y > −(3/5)x + 3. System C: y > (3/5)x + 3 and y < −(3/5)x + 3. System D: y < (3/5)x + 3 and y < −(3/5)x + 3. Possible Solutions A, B and C are plotted with the systems’ two dashed boundary lines. Possible Solutions D is blank: complete it for the system with no solution set yet. Check the point (5, 3) for System A.",
+          "candidateGraphs": [
+            {
+              "id": "A",
+              "label": "Possible Solutions A",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.6,
+                    "b": 3,
+                    "dashed": true
+                  },
+                  {
+                    "type": "line",
+                    "m": -0.6,
+                    "b": 3,
+                    "dashed": true
+                  }
+                ],
+                "points": [
+                  {
+                    "x": 0,
+                    "y": -6,
+                    "label": "(0, −6)"
+                  },
+                  {
+                    "x": 4,
+                    "y": -4,
+                    "label": "(4, −4)"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "B",
+              "label": "Possible Solutions B",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.6,
+                    "b": 3,
+                    "dashed": true
+                  },
+                  {
+                    "type": "line",
+                    "m": -0.6,
+                    "b": 3,
+                    "dashed": true
+                  }
+                ],
+                "points": [
+                  {
+                    "x": 0,
+                    "y": 7.5,
+                    "label": "(0, 7.5)"
+                  },
+                  {
+                    "x": -4,
+                    "y": 10,
+                    "label": "(−4, 10)"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "C",
+              "label": "Possible Solutions C",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.6,
+                    "b": 3,
+                    "dashed": true
+                  },
+                  {
+                    "type": "line",
+                    "m": -0.6,
+                    "b": 3,
+                    "dashed": true
+                  }
+                ],
+                "points": [
+                  {
+                    "x": -6,
+                    "y": 4,
+                    "label": "(−6, 4)"
+                  },
+                  {
+                    "x": -10,
+                    "y": 8,
+                    "label": "(−10, 8)"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "D",
+              "label": "Possible Solutions D",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.6,
+                    "b": 3,
+                    "dashed": true
+                  },
+                  {
+                    "type": "line",
+                    "m": -0.6,
+                    "b": 3,
+                    "dashed": true
+                  }
+                ]
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Test a point from each solution set in the systems.",
             "Match each system to its solution set.",
@@ -3202,7 +3478,40 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "Write a system from the description of its graph. One boundary line is solid, with slope 1 and y-intercept 2, and the half-plane above it is shaded. The other boundary line is dashed, with slope −1 and y-intercept 5, and the half-plane below it is shaded. Then decide whether the corner where the lines meet, (1.5, 3.5), is a solution.",
+          "prompt": "Write the system the graph shows. Then decide whether the corner where the lines meet, (1.5, 3.5), is a solution.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "equalUnits": true,
+            "functions": [
+              {
+                "type": "line",
+                "m": 1,
+                "b": 2
+              },
+              {
+                "type": "line",
+                "m": -1,
+                "b": 5,
+                "dashed": true,
+                "stroke": "#d93025"
+              }
+            ],
+            "shading": [
+              {
+                "m": 1,
+                "b": 2,
+                "relation": ">="
+              },
+              {
+                "m": -1,
+                "b": 5,
+                "relation": "<"
+              }
+            ]
+          },
           "directionSteps": [
             "Write the inequality for the solid boundary.",
             "Write the inequality for the dashed boundary.",

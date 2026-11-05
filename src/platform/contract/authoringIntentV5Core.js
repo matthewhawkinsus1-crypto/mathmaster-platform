@@ -1750,6 +1750,8 @@ const compileOne = (q, index, repairs) => {
         sequence: q.sequence,
         graph: graphFromIntent(q),
         candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
+        // Labelled graphs the prompt names in order, kept in that order (N38).
+        candidateGraphsInOrder: candidateGraphs.length && q.candidateGraphsInOrder === true ? true : undefined,
         visual: q.visual,
         mathDisplay: q.mathDisplay,
         // Named matrices to show beside the fields (QuestionVisual).

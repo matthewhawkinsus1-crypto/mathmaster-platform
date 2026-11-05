@@ -940,7 +940,87 @@
           ],
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Four graphs share one boundary line, y = (1/2)x − 3, through (0, −3) and (6, 0). Graph a: dashed line, the half-plane above it shaded. Graph b: solid line, the half-plane below it shaded. Graph c: dashed line, the half-plane below it shaded. Write the inequality graphs a, b and c show, and the fourth inequality with this boundary, which none of them shows.",
+          "prompt": "Graphs a, b and c share one boundary line, y = (1/2)x − 3. Write the inequality each graph shows, and the fourth inequality with this boundary, which none of them shows.",
+          "candidateGraphs": [
+            {
+              "id": "a",
+              "label": "Graph a",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": ">"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "b",
+              "label": "Graph b",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": "<="
+                  }
+                ]
+              }
+            },
+            {
+              "id": "c",
+              "label": "Graph c",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": "<"
+                  }
+                ]
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Use solid or dashed to narrow the symbol.",
             "Use the shaded side to finish each inequality.",
@@ -1311,7 +1391,28 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Worked example — write a linear inequality for a graph. A graph has a SOLID boundary line through (0, −5) and (2, −8), and the half-plane ABOVE the line is shaded. Write the boundary’s equation pieces, choose the symbol, and check with a test point.",
+          "prompt": "Worked example — write a linear inequality for the graph. Write the boundary’s equation pieces, choose the symbol, and check with a test point.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "equalUnits": true,
+            "functions": [
+              {
+                "type": "line",
+                "m": -1.5,
+                "b": -5
+              }
+            ],
+            "shading": [
+              {
+                "m": -1.5,
+                "b": -5,
+                "relation": ">="
+              }
+            ]
+          },
           "directionSteps": [
             "Find the slope of the boundary line.",
             "Find its y-intercept.",
@@ -1364,8 +1465,8 @@
             }
           ],
           "hints": [
-            "Slope = change in y ÷ change in x between the two points.",
-            "The point with x = 0 gives the y-intercept.",
+            "Pick two points where the line crosses grid lines: slope = change in y ÷ change in x between them.",
+            "Where the line crosses the y-axis is the y-intercept.",
             "Solid means the boundary is included; above means y is greater."
           ],
           "scaffold": {
@@ -1415,7 +1516,87 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Write a linear inequality for graphs a, b and c. Graph a: a DASHED boundary line through (0, 2) and (1, 6); the shaded half-plane contains (0, 0). Graph b: a SOLID boundary line through (0, −3) and (6, 0); the half-plane above it is shaded. Graph c: a DASHED boundary line through (0, −2) and (4, 1); the half-plane below it is shaded.",
+          "prompt": "Write a linear inequality for graphs a, b and c.",
+          "candidateGraphs": [
+            {
+              "id": "a",
+              "label": "Graph a",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 4,
+                    "b": 2,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 4,
+                    "b": 2,
+                    "relation": "<"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "b",
+              "label": "Graph b",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": ">="
+                  }
+                ]
+              }
+            },
+            {
+              "id": "c",
+              "label": "Graph c",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.75,
+                    "b": -2,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.75,
+                    "b": -2,
+                    "relation": "<"
+                  }
+                ]
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Find each boundary line’s slope and y-intercept.",
             "Choose each symbol from the line style and the shaded side.",
@@ -1445,7 +1626,7 @@
             }
           ],
           "hints": [
-            "Find each slope from the two points, and read the y-intercept at x = 0.",
+            "Find each slope from two points where the line crosses grid lines, and read the y-intercept at x = 0.",
             "Dashed: < or >. Solid: ≤ or ≥.",
             "For graph a, test (0, 0): which symbol makes 0 ? 4(0) + 2 true?"
           ],
@@ -2246,7 +2427,59 @@
           ],
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Vertical and horizontal boundaries. Write an inequality for graphs a and b. Graph a: a dashed vertical line x = 3, the half-plane to its left shaded. Graph b: a solid horizontal line y = −2, the half-plane above it shaded.",
+          "prompt": "Vertical and horizontal boundaries. Write an inequality for graphs a and b.",
+          "candidateGraphs": [
+            {
+              "id": "a",
+              "label": "Graph a",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "verticalLines": [
+                  {
+                    "x": 3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "orientation": "vertical",
+                    "x": 3,
+                    "relation": "<"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "b",
+              "label": "Graph b",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0,
+                    "b": -2
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0,
+                    "b": -2,
+                    "relation": ">="
+                  }
+                ]
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Use the line and its style to choose the symbol.",
             "Write each inequality."
@@ -2534,7 +2767,28 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "Error analysis. Marcus graphed y < −2x + 1 with a SOLID boundary line and shaded the half-plane below it. Write the inequality his graph actually shows, identify his error, and check his shading with the point (0, 0).",
+          "prompt": "Error analysis. Marcus graphed y < −2x + 1, and his graph is shown. Write the inequality his graph actually shows, identify his error, and check his shading with the point (0, 0).",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "equalUnits": true,
+            "functions": [
+              {
+                "type": "line",
+                "m": -2,
+                "b": 1
+              }
+            ],
+            "shading": [
+              {
+                "m": -2,
+                "b": 1,
+                "relation": "<="
+              }
+            ]
+          },
           "directionSteps": [
             "Write the inequality Marcus’s graph shows.",
             "Decide which part of the graph is wrong.",
@@ -2714,10 +2968,31 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "A boundary line passes through (0, 4) and (2, 0). It is solid, and (0, 0) is NOT in the shaded half-plane. Write the inequality.",
+          "prompt": "Write the inequality the graph shows. Find the slope of its boundary line first.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "equalUnits": true,
+            "functions": [
+              {
+                "type": "line",
+                "m": -2,
+                "b": 4
+              }
+            ],
+            "shading": [
+              {
+                "m": -2,
+                "b": 4,
+                "relation": ">="
+              }
+            ]
+          },
           "directionSteps": [
             "Find the boundary line.",
-            "Use the test point to choose the side.",
+            "Use a test point to choose the side.",
             "Write the inequality."
           ],
           "responses": [
@@ -2736,7 +3011,7 @@
             }
           ],
           "hints": [
-            "Find the slope from the two points; the y-intercept is where x = 0.",
+            "Find the slope from two points where the line crosses grid lines; the y-intercept is where x = 0.",
             "(0, 0) is not shaded, so the inequality is false at (0, 0).",
             "Solid: ≤ or ≥."
           ],

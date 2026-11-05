@@ -33,7 +33,7 @@
  * and two audited Digital SAT items from MathMaster's CCMR bank in Practice.
  */
 import { auditedCcmrQuestion, backUp, choice, guidedNotes, inequality, number, review, sortBoard, teks } from '../lib/lessonKit.mjs';
-import { A3D, A3H, A3H_MODEL, computedChoice, inequalityBuild, tex } from './shared.mjs';
+import { A3D, A3H, A3H_MODEL, FIGURE_WINDOW, computedChoice, inequalityBuild, inequalityFigure, tex } from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 5';
 // Writing the constraints of a situation (A.2H) for the system it makes (A.3H).
@@ -163,12 +163,57 @@ const twoConstraintsWarmup = (id) => ({
 
 const noahStory = 'Noah guides groups of adults and children down a river. His raft holds 800 pounds; more weight can make it sink, hit more rocks or maneuver more slowly. Each adult weighs about 200 pounds and each child about 100 pounds. Noah charges adults $75 and children $50, and his goal is to earn at least $150 each trip. Let x be the number of adults and y the number of children.';
 
-const SYSTEM_A = 'System A: y < (3/5)x + 3 and y > −(3/5)x + 3.';
-const SYSTEM_B = 'System B: y > (3/5)x + 3 and y > −(3/5)x + 3.';
-const SYSTEM_C = 'System C: y > (3/5)x + 3 and y < −(3/5)x + 3.';
-const SYSTEM_D = 'System D: y < (3/5)x + 3 and y < −(3/5)x + 3.';
+/*
+ * Activity 5.4's four systems, and what each one is matched with. The graphs
+ * and the solution sets are drawn from these tables (N38), the same ones the
+ * keys are written from, so a figure cannot show another system than its key.
+ */
+const SYSTEM_KEYS = Object.freeze({
+  A: ['y < (3/5)x + 3', 'y > −(3/5)x + 3'],
+  B: ['y > (3/5)x + 3', 'y > −(3/5)x + 3'],
+  C: ['y > (3/5)x + 3', 'y < −(3/5)x + 3'],
+  D: ['y < (3/5)x + 3', 'y < −(3/5)x + 3'],
+});
+const systemText = (name) => `System ${name}: ${SYSTEM_KEYS[name][0]} and ${SYSTEM_KEYS[name][1]}.`;
+const SYSTEM_A = systemText('A');
+const SYSTEM_B = systemText('B');
+const SYSTEM_C = systemText('C');
+const SYSTEM_D = systemText('D');
 const FOUR_SYSTEMS = `The four systems use the same two dashed boundary lines, the rising line y = (3/5)x + 3 and the falling line y = −(3/5)x + 3, which cross at (0, 3). ${SYSTEM_A} ${SYSTEM_B} ${SYSTEM_C} ${SYSTEM_D}`;
+// CW 12: the graph each system shades. Graph D is blank: CW 14 graphs System B on it.
+const GRAPH_OF_SYSTEM = Object.freeze({ A: 'C', B: 'D', C: 'B', D: 'A' });
+const GRAPH_OPTIONS = ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'];
+const graphOption = (graph) => GRAPH_OPTIONS.find((option) => option.startsWith(`Graph ${graph}`));
+const systemOfGraph = (graph) => Object.keys(GRAPH_OF_SYSTEM).find((system) => GRAPH_OF_SYSTEM[system] === graph);
+const SYSTEM_GRAPHS = Object.freeze({
+  candidateGraphs: ['A', 'B', 'C', 'D'].map((graph) => ({
+    id: graph,
+    label: `Graph ${graph}`,
+    graph: graph === 'D' ? { ...FIGURE_WINDOW } : inequalityFigure(SYSTEM_KEYS[systemOfGraph(graph)], { shade: 'overlap' }),
+  })),
+  candidateGraphsInOrder: true,
+});
+// CW 13: Possible Solutions A–C, each plotted with the systems' two boundary
+// lines, and the system each set solves. D is blank: the student completes it.
+const POSSIBLE_SOLUTIONS = Object.freeze({ A: [[0, -6], [4, -4]], B: [[0, 7.5], [-4, 10]], C: [[-6, 4], [-10, 8]], D: [] });
+const SOLUTIONS_OF_SYSTEM = Object.freeze({ A: 'D', B: 'B', C: 'C', D: 'A' });
+const SOLUTION_OPTIONS = ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'];
+const solutionOption = (set) => SOLUTION_OPTIONS.find((option) => option.startsWith(`Possible Solutions ${set}`));
+const pairText = ([x, y]) => `(${x}, ${y})`.replace(/-/g, '−');
+const SOLUTION_GRAPHS = Object.freeze({
+  candidateGraphs: ['A', 'B', 'C', 'D'].map((set) => ({
+    id: set,
+    label: `Possible Solutions ${set}`,
+    graph: inequalityFigure(SYSTEM_KEYS[Object.keys(SOLUTIONS_OF_SYSTEM).find((system) => SOLUTIONS_OF_SYSTEM[system] === set)], {
+      shade: 'none',
+      points: POSSIBLE_SOLUTIONS[set].map(([x, y]) => ({ x, y, label: pairText([x, y]) })),
+    }),
+  })),
+  candidateGraphsInOrder: true,
+});
 const REGIONS = ['A region above both lines', 'A region below both lines', 'A region between the lines', 'No solution'];
+// PR 10: the system its graph shows, one box per boundary.
+const SYSTEM_FROM_GRAPH_KEYS = Object.freeze({ solid: 'y >= x + 2', dashed: 'y < -x + 5' });
 
 const classwork = (P) => [
   // The plainest system first (F-L5-HARDEST-FIRST in
@@ -510,13 +555,14 @@ const classwork = (P) => [
     studentActions: ['multipleResponses'],
     dok: 3,
     difficultyBand: 3,
-    prompt: `Activity 5.4 — Identifying Systems of Linear Inequalities. ${FOUR_SYSTEMS} Graph A shades the region below both lines. Graph B shades the region above the rising line and below the falling line, to the left of (0, 3). Graph C shades the region below the rising line and above the falling line, to the right of (0, 3). Graph D is blank. Match each system to its graph, check a point, and evaluate Isabella’s claim.`,
+    prompt: `Activity 5.4 — Identifying Systems of Linear Inequalities. ${FOUR_SYSTEMS} Graphs A, B and C each shade the solutions of one system, and Graph D is blank. Match each system to its graph, check a point, and evaluate Isabella’s claim.`,
+    ...SYSTEM_GRAPHS,
     directionSteps: ['Use each system’s symbols to decide above or below each line.', 'Match each system to its graph.', 'Check the given point against both lines.', 'Explain why Isabella is wrong.'],
     responses: [
-      choice('sysA', 'System A', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph C'),
-      choice('sysB', 'System B', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph D (the blank one)'),
-      choice('sysC', 'System C', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph B'),
-      choice('sysD', 'System D', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph A'),
+      choice('sysA', 'System A', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.A)),
+      choice('sysB', 'System B', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.B)),
+      choice('sysC', 'System C', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.C)),
+      choice('sysD', 'System D', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.D)),
       number('rise4', 'At x = 4, the rising line’s y-value, (3/5)(4) + 3, is', '5.4'),
       number('fall4', 'At x = 4, the falling line’s y-value is', '0.6'),
       choice('check', 'So the point (4, −4) is…', ['below both lines: a solution of System D', 'between the lines: a solution of System A', 'above both lines: a solution of System B', 'on a boundary line'], 'below both lines: a solution of System D'),
@@ -542,13 +588,14 @@ const classwork = (P) => [
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 3,
-    prompt: `Match a possible solution set to each system. ${SYSTEM_A} ${SYSTEM_B} ${SYSTEM_C} ${SYSTEM_D} Possible Solutions A: (0, −6) and (4, −4). Possible Solutions B: (0, 7.5) and (−4, 10). Possible Solutions C: (−6, 4) and (−10, 8). Possible Solutions D is blank: complete it for the system with no solution set yet. Check the point (5, 3) for System A.`,
+    prompt: `Match a possible solution set to each system. ${SYSTEM_A} ${SYSTEM_B} ${SYSTEM_C} ${SYSTEM_D} Possible Solutions A, B and C are plotted with the systems’ two dashed boundary lines. Possible Solutions D is blank: complete it for the system with no solution set yet. Check the point (5, 3) for System A.`,
+    ...SOLUTION_GRAPHS,
     directionSteps: ['Test a point from each solution set in the systems.', 'Match each system to its solution set.', 'Check (5, 3) for System A.'],
     responses: [
-      choice('solA', 'System A', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions D (to complete)'),
-      choice('solB', 'System B', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions B'),
-      choice('solC', 'System C', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions C'),
-      choice('solD', 'System D', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions A'),
+      choice('solA', 'System A', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.A)),
+      choice('solB', 'System B', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.B)),
+      choice('solC', 'System C', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.C)),
+      choice('solD', 'System D', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.D)),
       number('rise5', 'At x = 5, (3/5)x + 3 =', '6'),
       number('fall5', 'At x = 5, −(3/5)x + 3 =', '0'),
       choice('check', '(5, 3) for System A:', [
@@ -897,11 +944,13 @@ const practiceRegular = (P) => [
     studentActions: ['multipleResponses'],
     dok: 3,
     difficultyBand: 3,
-    prompt: 'Write a system from the description of its graph. One boundary line is solid, with slope 1 and y-intercept 2, and the half-plane above it is shaded. The other boundary line is dashed, with slope −1 and y-intercept 5, and the half-plane below it is shaded. Then decide whether the corner where the lines meet, (1.5, 3.5), is a solution.',
+    prompt: 'Write the system the graph shows. Then decide whether the corner where the lines meet, (1.5, 3.5), is a solution.',
+    // The second boundary in the Systems Workspace's second colour, its shading with it.
+    graph: inequalityFigure([SYSTEM_FROM_GRAPH_KEYS.solid, SYSTEM_FROM_GRAPH_KEYS.dashed], { strokes: [null, '#d93025'] }),
     directionSteps: ['Write the inequality for the solid boundary.', 'Write the inequality for the dashed boundary.', 'Decide whether the corner is a solution.'],
     responses: [
-      inequality('solid', 'Inequality for the solid boundary', 'y >= x + 2'),
-      inequality('dashed', 'Inequality for the dashed boundary', 'y < -x + 5'),
+      inequality('solid', 'Inequality for the solid boundary', SYSTEM_FROM_GRAPH_KEYS.solid),
+      inequality('dashed', 'Inequality for the dashed boundary', SYSTEM_FROM_GRAPH_KEYS.dashed),
       choice('corner', 'Is the corner (1.5, 3.5) a solution?', [
         'No — it is on the dashed boundary, which is not included',
         'Yes — it is on the solid boundary',
