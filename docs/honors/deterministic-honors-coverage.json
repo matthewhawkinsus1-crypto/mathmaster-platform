@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 56,
+  "familyCount": 58,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -39,6 +39,20 @@
           "reason": "It substitutes one given value into each side of a linear equation with the variable on both sides and asks whether the two values agree; the value and the equation are the whole task, so no deeper reasoning can be generated.",
           "missingCapability": "A `solutionCase: \"none\" | \"infinite\"` knob (an equation that no value, or every value, satisfies) with a server-marked part asking what the check shows about every other value.",
           "teacherReason": "MathMaster's solution-check generator only asks whether one given value works, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.compositionFromValues",
+          "familyTitle": "Evaluate a composition f(g(a)) from function values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Composing functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Composing functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         },
         {
           "familyId": "functions.domainRangeFromGraph",
@@ -113,6 +127,20 @@
           "reason": "Zeros are always two distinct integers of a quadratic with leading coefficient ±1 or ±2, entered as two numbers; \"small\" leading coefficients only add a common factor of 2.",
           "missingCapability": "`zeroForm: \"rational\"` (zeros p/q from a non-unit leading coefficient, factored as (ax + p)(x + q)) and `zeroForm: \"irrational\"` (quadratic formula) with fraction and radical answer fields; or a Question Family for polynomialWorkshop mode \"factorQuadratic\" (the workshop and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the rational or irrational zeros an Honors extension needs."
+        },
+        {
+          "familyId": "functions.pointwiseFromValues",
+          "familyTitle": "Add and subtract two functions at one input, from their values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Operations on functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Operations on functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         },
         {
           "familyId": "inequalities.contextModel",
@@ -1036,7 +1064,7 @@
         "READY": 4,
         "CAPABLE": 8,
         "BLOCKED": 29,
-        "NOT APPROPRIATE": 15
+        "NOT APPROPRIATE": 17
       }
     },
     "algebra2": {
@@ -1070,6 +1098,20 @@
           "reason": "Checking a solution of a linear equation is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
           "missingCapability": null,
           "teacherReason": "Checking a solution of a linear equation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "functions.compositionFromValues",
+          "familyTitle": "Evaluate a composition f(g(a)) from function values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version reads f(g(a)) from two given values; it is the readiness check before composition, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task on composition anchors on a family that composes the functions themselves (f∘g and g∘f, and whether they are inverses).",
+          "teacherReason": "MathMaster's function-values generator only chains two given values, so it cannot carry a built-in Honors extension."
         },
         {
           "familyId": "functions.domainRangeFromGraph",
@@ -1112,6 +1154,20 @@
           "reason": "Algebra II solves quadratics with irrational and complex solutions (A2.4F, A2.7A); this family only produces two integer zeros.",
           "missingCapability": "`zeroForm: \"irrational\" | \"complex\"` with radical and complex answer fields, or a Question Family for complexPlaneLab mode \"quadraticRoots\" (the lab and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the irrational or complex solutions an Algebra II Honors extension needs."
+        },
+        {
+          "familyId": "functions.pointwiseFromValues",
+          "familyTitle": "Add and subtract two functions at one input, from their values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version adds and subtracts two given function values at one input; it is the readiness check before operations on functions, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task on operations anchors on a family that writes the functions themselves (sum, difference, product, quotient and the quotient's excluded inputs).",
+          "teacherReason": "MathMaster's function-values generator only combines two given numbers, so it cannot carry a built-in Honors extension."
         },
         {
           "familyId": "inequalities.contextModel",
@@ -2029,7 +2085,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 29,
+        "BLOCKED": 31,
         "NOT APPROPRIATE": 26
       }
     }

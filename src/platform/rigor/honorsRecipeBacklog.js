@@ -568,6 +568,26 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 families for the numeric Warm-Up of Algebra II Honors
+  // Module 1 Lesson 4 (questionFamiliesFunctionValues.mjs, RC01), A2.2D.
+  'functions.pointwiseFromValues': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Operations on functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version adds and subtracts two given function values at one input; it is the readiness check before operations on functions, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task on operations anchors on a family that writes the functions themselves (sum, difference, product, quotient and the quotient\'s excluded inputs).',
+      teacherReason: 'MathMaster\'s function-values generator only combines two given numbers, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
+  'functions.compositionFromValues': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Composing functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version reads f(g(a)) from two given values; it is the readiness check before composition, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task on composition anchors on a family that composes the functions themselves (f∘g and g∘f, and whether they are inverses).',
+      teacherReason: 'MathMaster\'s function-values generator only chains two given values, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
   // The Recovery V2 family for the graphed domain and range of Algebra II
   // Honors Module 1 Lesson 1 (questionFamiliesGraphReading.mjs, RC01), A2.7I.
   'functions.domainRangeFromGraph': Object.freeze({

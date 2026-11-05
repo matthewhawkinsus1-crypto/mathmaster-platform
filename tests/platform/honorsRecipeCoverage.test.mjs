@@ -152,7 +152,7 @@ test('the committed report is generated from the live registry and audit, never 
   // are the three parent-function transformation families (RC01, A2.2A). The
   // Mapping Diagram family (RC01) is aligned to both courses (A.12A, A2.7I):
   // BLOCKED in each. The graphed domain-and-range family (RC01) is Algebra II
-  // content (A2.7I).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 56 \| 4 \| 8 \| 29 \| 15 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 56 \| 0 \| 1 \| 29 \| 26 \|/);
+  // content (A2.7I), as are the two function-values families (RC01, A2.2D).
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 58 \| 4 \| 8 \| 29 \| 17 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 58 \| 0 \| 1 \| 31 \| 26 \|/);
 });

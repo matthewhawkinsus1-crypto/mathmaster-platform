@@ -207,6 +207,18 @@ still has two questions no Recovery family writes yet (the increasing,
 decreasing, positive and negative intervals of a parabola, and the filling
 tank's attributes).
 
+### Operations on functions from their values (Algebra II Honors Lesson 4)
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q2 — if f(2) = 7 and g(2) = −3, find (f + g)(2) and (f − g)(2) | new values (f's positive, g's negative) at a new input |
+| Warm-Up Q3 — if g(4) = 2 and f(2) = 9, find g(4) and f(g(4)) | three new whole numbers that chain the same way |
+
+Prepare Recovery makes Lesson 4's Warm-Up ready. Its Warm-Up Q1 and its exit
+ticket (inverses and compositions chosen from written-out choices) have no
+Recovery family yet; the exit ticket's Q3 ("are these inverses?") always has the
+answer "yes" in fresh versions of the same pair, so it needs your decision first.
+
 ## Seeing who can recover
 
 In the assignment details, **Show who can recover in (class)** lists, for the
