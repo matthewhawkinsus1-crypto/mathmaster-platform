@@ -41,6 +41,13 @@
  *   multiAnswer, fields a typed equation that is the right line in the wrong
  *                       form, as the field asks it (`fieldLineForm`, the
  *                       classifier's own rule) → line-wrong-form-*
+ *   algebra, stepAlgebra, and a field that asks for the solution of the one
+ *                       linear equation its prompt shows: the value a term
+ *                       moved without changing its sign gives, or dividing
+ *                       only part of a side (the linear-equation family
+ *                       classifiers' own candidates, read from the equation
+ *                       the item showed) → inverse-operation-sign /
+ *                       partial-division (TC05)
  *
  * Anything else says nothing, and the attempt keeps its authored feedback.
  *
@@ -68,6 +75,7 @@ import { normalizePathIntervals, sameSet } from './pathToolContracts.mjs';
 import { formAwareAnchorsForMode } from './toolMath/graphing2/constructionPolicy.mjs';
 import { choicesAreOwn } from './toolMath/shared/judgmentChoices.mjs';
 import { answerCandidatesForField } from './answerUtils.mjs';
+import { asNumber, normalizeAnswer } from './answerEquivalence.mjs';
 import { LINE_FORMS, sameLine, writtenLineForm } from './linearEquationForm.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -166,7 +174,152 @@ const pointOnOneLineOnly = (system, point, solution) => {
     : [];
 };
 
+/*
+ * TC05: A LINEAR EQUATION SOLVED WITH A PREDICTABLE SLIP.
+ *
+ * The family classifiers name these two slips from the values a Question
+ * Family generated (misconceptionClassifiers.mjs, linear.twoStepEquation@1 and
+ * linear.multiStepEquation@1), which a Path item does not carry. A Path item
+ * shows its equation instead, so it is read from what the student was shown,
+ * strictly: one equation in the item's variable, each side at most one term in
+ * the variable and one number (3x + 5 = 20, 7x − 4 = 3x + 12, x + (−6) = 9,
+ * 20 = 3x + 5). A bracket around a sum, a fraction, a power or another letter
+ * is not read. And only when that equation's solution IS the item's key, so
+ * nothing is named from an equation the grader did not use. Then the
+ * classifiers' own candidates decide, with the uniqueness rule: the value
+ * matches exactly one modeled slip, never a blocker and never the answer.
+ */
+const NUMBER = /^\d+(?:\.\d+)?$/;
+const linearSide = (raw, variable) => {
+  const text = String(raw ?? '')
+    .replace(/\\left|\\right|\\,|\s+/g, '')
+    .replace(/[−–]/g, '-')
+    .replace(/\\cdot|\*/g, '')
+    // A bracketed signed number is that number: + (−5) is − 5, − (−5) is + 5.
+    .replace(/([+-]?)\(([+-]?)(\d+(?:\.\d+)?)\)/g, (match, outer, inner, digits) => `${(outer === '-') !== (inner === '-') ? '-' : '+'}${digits}`);
+  if (!text) return null;
+  const terms = [];
+  let rest = text;
+  while (rest) {
+    const term = /^([+-])?(\d+(?:\.\d+)?)?([A-Za-z])?/.exec(rest);
+    const [whole, sign, digits, letter] = term;
+    if (!whole || (!digits && !letter) || (!sign && terms.length)) return null;
+    if (letter && letter !== variable) return null;
+    if (digits && !NUMBER.test(digits)) return null;
+    terms.push({ letter: Boolean(letter), value: (sign === '-' ? -1 : 1) * (digits ? Number(digits) : 1) });
+    rest = rest.slice(whole.length);
+  }
+  const withVariable = terms.filter((term) => term.letter);
+  const numbers = terms.filter((term) => !term.letter);
+  if (withVariable.length > 1 || numbers.length > 1) return null;
+  return { a: withVariable[0]?.value ?? 0, b: numbers[0]?.value ?? 0 };
+};
+
+/** a·v + b = c·v + d from the equation shown, or null. */
+const shownLinearEquation = (equation, variable) => {
+  const sides = String(equation ?? '').split('=');
+  if (sides.length !== 2 || !/^[A-Za-z]$/.test(variable)) return null;
+  const left = linearSide(sides[0], variable);
+  const right = linearSide(sides[1], variable);
+  if (!left || !right || closeTo(left.a, right.a)) return null;
+  return { left, right, solution: (right.b - left.b) / (left.a - right.a) };
+};
+
+/** The value on the far side of `v = …` (either way round), or a typed number. */
+const valueGiven = (value, variable) => {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  if (!text.includes('=')) return asNumber(text);
+  const sides = text.split('=');
+  if (sides.length !== 2) return null;
+  const [left, right] = sides.map((side) => normalizeAnswer(side));
+  const target = normalizeAnswer(variable);
+  if (left === target) return asNumber(sides[1]);
+  if (right === target) return asNumber(sides[0]);
+  return null;
+};
+
+/*
+ * The family classifiers' candidates, for the equation as written. With the
+ * variable on one side only (a·v + b = c, or c = a·v + b): the number moved
+ * across without changing its sign, (c + b)/a; and only the variable's term
+ * divided, c/a − b. −v (two causes) and c − b (no division) are recognized but
+ * never named. With the variable on both sides (a·v + b = c·v + d): the number,
+ * the variable term, or both moved without changing sign; −v is recognized but
+ * never named.
+ */
+const equationSlip = ({ equation, variable, key, given }) => {
+  const shown = shownLinearEquation(equation, variable);
+  if (!shown || !finite(given) || !finite(key) || !closeTo(shown.solution, key) || closeTo(given, key)) return null;
+  const x = shown.solution;
+  const ratio = (numerator, denominator) => (finite(numerator) && finite(denominator) && denominator !== 0 ? numerator / denominator : null);
+  let candidates;
+  const oneSided = closeTo(shown.left.a, 0) || closeTo(shown.right.a, 0);
+  if (oneSided) {
+    const withVariable = closeTo(shown.right.a, 0) ? shown.left : shown.right;
+    const other = closeTo(shown.right.a, 0) ? shown.right : shown.left;
+    const [a, b, c] = [withVariable.a, withVariable.b, other.b];
+    candidates = [
+      { code: 'inverse-operation-sign', value: ratio(c + b, a) },
+      { code: 'partial-division', value: ratio(c, a) === null ? null : c / a - b },
+      { code: null, value: -x },
+      { code: null, value: c - b },
+    ];
+  } else {
+    const [a, b, cc, d] = [shown.left.a, shown.left.b, shown.right.a, shown.right.b];
+    candidates = [
+      { code: 'inverse-operation-sign', value: ratio(d + b, a - cc) },
+      { code: 'inverse-operation-sign', value: ratio(d - b, a + cc) },
+      { code: 'inverse-operation-sign', value: ratio(d + b, a + cc) },
+      { code: null, value: -x },
+    ];
+  }
+  const matched = candidates.filter((candidate) => finite(candidate.value) && !closeTo(candidate.value, x) && closeTo(given, candidate.value));
+  const codes = new Set(matched.map((candidate) => candidate.code));
+  return codes.size === 1 && !codes.has(null) ? [...codes][0] : null;
+};
+
+/** The item's key as one number (`4`, or `x = 4`; spellings of one value count once), or null. */
+const numericKey = (values, variable) => {
+  const keys = values.filter((value) => value !== null && value !== undefined).map((value) => valueGiven(value, variable)).filter(finite);
+  const distinct = keys.filter((key, index) => keys.findIndex((other) => closeTo(other, key)) === index);
+  return distinct.length === 1 ? distinct[0] : null;
+};
+
+/** A workspace item: the equation it opened on, the value its final equation (or an older client's box) gives. */
+const workspaceEquationSlip = (partId) => ({ definition, grading, raw, question }) => {
+  if (!wrongPart(grading, partId) || !isObject(question)) return [];
+  const variable = text(definition?.variable || 'x');
+  const equation = [question.equation, question.equationAscii, question.equationLatex].find((value) => typeof value === 'string' && value.trim());
+  const given = typeof raw?.finalEquation === 'string' && raw.finalEquation.trim() ? valueGiven(raw.finalEquation, variable) : valueGiven(raw?.value, variable);
+  const code = equationSlip({ equation, variable, key: numericKey([definition?.expected, ...list(definition?.accepted)], variable), given });
+  return code ? [finding(code, [partId])] : [];
+};
+
+/** A field item's prompt: the one equation in it, and its one letter. */
+const promptEquation = (prompt) => {
+  const equations = [...String(prompt ?? '').matchAll(/\$([^$]+)\$/g)].map((match) => match[1]).filter((span) => span.includes('='));
+  if (equations.length !== 1) return null;
+  const letters = new Set(equations[0].replace(/\\[A-Za-z]+/g, '').match(/[A-Za-z]/g) || []);
+  return letters.size === 1 ? { equation: equations[0], variable: [...letters][0] } : null;
+};
+
+const fieldEquationSlips = ({ privateGrading, grading, responses, question }) => {
+  const shown = promptEquation(isObject(question) ? question.prompt : null);
+  if (!shown) return [];
+  return list(privateGrading?.fields).flatMap((field) => {
+    const id = text(field?.id);
+    if (!id || !wrongPart(grading, id)) return [];
+    const response = isObject(responses) ? responses[id] : null;
+    if (typeof response !== 'string') return [];
+    const code = equationSlip({ ...shown, key: numericKey([field?.expected, ...list(field?.accepted)], shown.variable), given: valueGiven(response, shown.variable) });
+    return code ? [finding(code, [id])] : [];
+  });
+};
+
 const DETECTORS = {
+  algebra: workspaceEquationSlip('value'),
+  stepAlgebra: workspaceEquationSlip('algebra-objective'),
   system: ({ definition, grading, raw }) => {
     if (!wrongPart(grading, 'solution')) return [];
     const expected = correctionPair(definition?.solution);
@@ -288,13 +441,16 @@ const DETECTORS = {
   fields: ({ privateGrading, grading, responses, question }) => {
     const fields = list(privateGrading?.fields);
     const authored = isObject(question) ? list(question.responseFields).filter(isObject) : [];
-    return lineFormFindings({
-      keysById: { ids: fields.map((field) => text(field?.id)), keys: fields.map((field) => ({ expected: field?.expected, accepted: list(field?.accepted) })) },
-      authoredFields: authored,
-      prompt: question?.prompt,
-      responses: isObject(responses) ? responses : {},
-      grading,
-    });
+    return [
+      ...lineFormFindings({
+        keysById: { ids: fields.map((field) => text(field?.id)), keys: fields.map((field) => ({ expected: field?.expected, accepted: list(field?.accepted) })) },
+        authoredFields: authored,
+        prompt: question?.prompt,
+        responses: isObject(responses) ? responses : {},
+        grading,
+      }),
+      ...fieldEquationSlips({ privateGrading, grading, responses, question }),
+    ];
   },
 };
 

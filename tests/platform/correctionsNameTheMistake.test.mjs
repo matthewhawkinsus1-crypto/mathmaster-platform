@@ -133,11 +133,13 @@ test('(b) the diagnosis is fixed text: no value from the item, never a refused i
     assert.doesNotMatch(studentMisconceptionMessage(code), /\b[35]\b/, `${code} carries no value from the item`);
   }
   // Wave 7 extends the tools to every Path shape a platform classifier's rule
-  // reads (tests/platform/secureTestMistakeEvidence.test.mjs proves each one).
-  assert.deepEqual([...CORRECTION_MISS_DIAGNOSIS_TOOLS].sort(), ['dataModelingLab', 'fields', 'graphing2', 'intervalNumberLine', 'multiAnswer', 'relationMapping', 'system', 'systemsWorkspace']);
+  // reads (tests/platform/secureTestMistakeEvidence.test.mjs proves each one);
+  // TC05 adds the two balance workspaces (correctionsEquationSlips.test.mjs).
+  assert.deepEqual([...CORRECTION_MISS_DIAGNOSIS_TOOLS].sort(), ['algebra', 'dataModelingLab', 'fields', 'graphing2', 'intervalNumberLine', 'multiAnswer', 'relationMapping', 'stepAlgebra', 'system', 'systemsWorkspace']);
   // A refused (unfinished) answer is not a miss.
   assert.equal(diagnoseCorrectionMiss({ privateGrading: { pathToolId: 'system', definition: { solution: [5, 3] } }, grading: { isCorrect: false, rejected: true, parts: [{ id: 'solution', isCorrect: false }] }, raw: { x: 3, y: 5 } }), null);
-  // A field item names only a right line in the wrong form: a wrong number names nothing.
+  // A field item with no equation in its prompt names only a right line in the
+  // wrong form: a wrong number names nothing.
   assert.equal(diagnoseCorrectionMiss({ privateGrading: { fields: [{ id: 'a', expected: '5' }] }, grading: { isCorrect: false, parts: [{ id: 'a', isCorrect: false }] }, raw: null, responses: { a: '3' } }), null);
   assert.equal(diagnoseCorrectionMiss({ privateGrading: { pathToolId: 'system', definition: null }, grading: { isCorrect: false, parts: null }, raw: { x: {} } }), null);
 });
