@@ -400,9 +400,9 @@
               "type": "choice",
               "options": [
                 "(r − r)Q(r) = 0 · Q(r) = 0, so only R is left",
-                "Q(r) is always 0",
-                "R is always 0",
-                "r is always a factor of R"
+                "Q(r) = 0 when x = r, so the product drops out",
+                "R becomes 0 at x = r, so P(r) equals the product",
+                "x − r divides R evenly, so R is all that remains"
               ],
               "answer": "(r − r)Q(r) = 0 · Q(r) = 0, so only R is left"
             },
