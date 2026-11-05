@@ -78,6 +78,14 @@ export const A3H_MODEL = teks('A.3H', 'A.2H');
 export const computedChoice = (id, label, options, answer) => ({ id, label, type: 'choice', options, answer });
 
 /*
+ * An audited item keeps the bank's item exactly. Its one hint is the lesson's
+ * own question about the item's move (F-HINT-GIVES-STEP, as the radicals
+ * lessons do it): the bank's hint, "Check boundary conditions and whether the
+ * requested point or feature satisfies every condition.", asks nothing.
+ */
+export const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
+
+/*
  * THE GRAPH A KEY HOLDS (N38, F-GRAPH-IN-WORDS in
  * docs/qa/2026-11-03-pr537-walkthrough/findings.md). "Write the inequality for
  * graphs a, b and c" showed no graph: each was a sentence ("a DASHED boundary

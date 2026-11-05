@@ -86,9 +86,9 @@
             "Test the point."
           ],
           "hints": [
-            "Plot the y-intercept first, then use the slope.",
-            "≤ includes the boundary; solved for y, it shades below.",
-            "Substitute (0, 0) to check the side you shaded."
+            "Where does the boundary cross the y-axis, and which way does the slope take you from there?",
+            "Does ≤ include the line? With y alone, does ≤ shade above or below?",
+            "Plot the y-intercept, then use the slope. ≤ includes the line, so it is solid, and it shades below; substitute (0, 0) to check."
           ],
           "scaffold": {
             "prompt": "Let’s back up. For ≤ or ≥, the boundary line is…",
@@ -199,8 +199,8 @@
             }
           ],
           "hints": [
-            "Substitute the point’s x-coordinate into each right side, then compare the result with its y-coordinate.",
-            "A point that makes only one of the inequalities true is not a solution of the system."
+            "What is each right side at the point’s x-coordinate? How does the point’s y-coordinate compare with it?",
+            "Substitute the x-coordinate into each right side and compare the result with the y-coordinate. A point that makes only one inequality true is not a solution of the system."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A solution of a system must make…",
@@ -335,9 +335,9 @@
             }
           ],
           "hints": [
-            "People: adults plus students is at most the number of seats.",
-            "Money: each group’s price times its count, added, is at least the goal.",
-            "\"At most\" is ≤; \"at least\" is ≥."
+            "What does each constraint count: people or dollars? Which phrase is a ceiling, and which is a floor?",
+            "Adults plus students can be at most the seats. Each group’s price times its count, added, must be at least the goal. Which symbol fits each?",
+            "\"At most\" is ≤ and \"at least\" is ≥. For the money paid, multiply each count by its price and add."
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"At most\" means…",
@@ -478,9 +478,9 @@
             "Choose a point of your own in the overlap."
           ],
           "hints": [
-            "Build each boundary from its y-intercept and slope.",
-            "One boundary is dashed and one is solid: which symbol leaves its line out?",
-            "The solutions are the points shaded by BOTH inequalities."
+            "What are the y-intercept and the slope of each boundary line?",
+            "Which symbol leaves its line out, so that boundary is dashed? Which side does each inequality shade?",
+            "Plot each y-intercept and use each slope. y > x − 2 is dashed and shades above; y ≤ −x + 4 is solid and shades below. The solutions are where both shadings overlap."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A point is a solution of a system when it is…",
@@ -585,9 +585,9 @@
             "Classify the region and find its corner."
           ],
           "hints": [
-            "x + y > 1 becomes y > −x + 1; −x + y ≤ 3 becomes y ≤ x + 3.",
-            "One boundary is dashed and one is solid: which is which?",
-            "The corner is where the boundary lines meet. Is it on a dashed line?"
+            "What do you add or subtract on each side to get y alone in each inequality?",
+            "Subtract x from both sides of the first and add x to both sides of the second. Which boundary is dashed, and which is solid?",
+            "x + y > 1 becomes y > −x + 1, and −x + y ≤ 3 becomes y ≤ x + 3. The corner is where the lines meet: is it on the dashed line?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. For x + y > 1, the boundary is…",
@@ -708,9 +708,9 @@
             }
           ],
           "hints": [
-            "Substitute each point into x + y and into −x + y, then compare with each right side.",
-            "Only the region shaded by both inequalities holds solutions of the system.",
-            "On a dashed boundary, the inequality is false."
+            "At each point, what are x + y and −x + y? How does each compare with its right side?",
+            "A point is in the overlap only when it makes both inequalities true. At the intersection, is x + y greater than its right side, or equal to it?",
+            "Substitute each point into both inequalities. At the intersection, x + y equals its right side, and on a dashed boundary the inequality is false."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is 1 > 1 true?",
@@ -783,9 +783,9 @@
             }
           ],
           "hints": [
-            "Weight: (pounds per adult)(adults) + (pounds per child)(children) is at most the raft’s limit.",
-            "Money: (price per adult)(adults) + (price per child)(children) is at least Noah’s goal.",
-            "\"Holds\" a limit means at most (≤); a goal of \"at least\" means ≥."
+            "How much do x adults weigh in all? And y children? How much do they pay in all?",
+            "The total weight can be at most the raft’s limit, and the total money must be at least Noah’s goal. Which symbol fits each?",
+            "Weight: (pounds per adult)(adults) + (pounds per child)(children) ≤ the raft’s limit. Money: (price per adult)(adults) + (price per child)(children) ≥ Noah’s goal."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The weight of x adults at about 200 pounds each is…",
@@ -908,9 +908,9 @@
             }
           ],
           "hints": [
-            "Weight: multiply each count by its weight and add.",
-            "Money: multiply each count by its price and add.",
-            "A trip solves the system only when it meets every constraint."
+            "How much do 2 adults and 2 children weigh in all? How much do they pay?",
+            "Multiply each count by its weight, and by its price, and add. Is each trip within the raft’s limit, and does it reach Noah’s goal?",
+            "A trip solves the system only when it meets every constraint: the weight at most the raft’s limit, and the money at least Noah’s goal."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A combination is a solution of a system when it meets…",
@@ -1121,9 +1121,9 @@
             }
           ],
           "hints": [
-            "Substitute the point into each expression and compare with the raft’s limit and Noah’s goal.",
-            "A solid boundary (≤ or ≥) includes its points.",
-            "Check each combination of rafters in both constraints."
+            "What are 200x + 100y and 75x + 50y at (10, −12)? How do they compare with the raft’s limit and Noah’s goal?",
+            "Is each boundary solid or dashed, and does it include its points? Can a trip have a negative number of children?",
+            "A solid boundary (≤ or ≥) includes its points. Check each combination of rafters in both constraints: the weight limit and the money goal."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A point on a solid boundary line makes that inequality…",
@@ -1207,9 +1207,9 @@
             "Classify the solution region."
           ],
           "hints": [
-            "Compare the slopes of the two boundaries.",
-            "One inequality shades above the higher line; the other shades below the lower line.",
-            "Do the shaded half-planes overlap anywhere?"
+            "How do the slopes of the two boundaries compare? What does that tell you about the lines?",
+            "Which line is higher? Does each inequality shade above or below its line?",
+            "Both lines have slope 5, so they are parallel. One inequality shades above the higher line and the other below the lower line: do the shadings ever overlap?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. Two boundary lines with the same slope are…",
@@ -1293,9 +1293,9 @@
             "Classify the region and choose a solution of your own."
           ],
           "hints": [
-            "x = c is a vertical line: use the vertical-line method.",
-            "x ≥ c shades to the right of the line.",
-            "Which shading lies inside the other?"
+            "What kind of line is x = −5? And x = 1?",
+            "Does x ≥ c shade to the left or to the right of its line? Which shading lies inside the other?",
+            "Both boundaries are vertical lines: use the vertical-line method. x ≥ c shades to the right, so every point with x ≥ 1 also has x ≥ −5."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The graph of x ≥ 1 is the half-plane…",
@@ -1400,9 +1400,9 @@
             }
           ],
           "hints": [
-            "Only the stair stepper rows matter for Emma.",
-            "Minutes: light plus vigorous is at most her time.",
-            "Calories: calories per minute times minutes, for each effort, added."
+            "Which rows of the table are about the stair stepper? What does each constraint count: minutes or calories?",
+            "Light minutes plus vigorous minutes can be at most her time. Calories per minute times minutes, for each effort, added, must be at least her goal.",
+            "Use the stair stepper rows, 6.9 for light and 10.4 for vigorous. \"At most\" is ≤ and \"at least\" is ≥; for 45 minutes at vigorous effort, multiply 45 by 10.4."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Calories burned in y minutes at 10.4 calories per minute are…",
@@ -1491,9 +1491,9 @@
             "Choose a point of your own in the overlap and check it."
           ],
           "hints": [
-            "Substitute the marked point into both inequalities.",
-            "A point solves the system only if it makes both inequalities true.",
-            "The overlap is below the time line and above the calorie line."
+            "Does the marked point make x + y ≤ 45 true? Does it make 6.9x + 10.4y ≥ 400 true?",
+            "A point solves the system only if it makes both inequalities true. Which line does the overlap lie below, and which above?",
+            "Substitute (10, 30) into both inequalities. The overlap is below the time line and above the calorie line: choose a point there and check it in both."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Emma’s calories for x minutes light and y minutes vigorous are…",
@@ -1609,9 +1609,9 @@
             }
           ],
           "hints": [
-            "Calories: 6.9 times the light minutes plus 10.4 times the vigorous minutes.",
-            "Minutes: add the two times and compare with the time she has.",
-            "A workout solves the system only if it meets both constraints."
+            "For each workout, how many calories does 6.9x + 10.4y give? How many minutes is it in all?",
+            "Substitute the light minutes for x and the vigorous minutes for y. Is the total time at most 45 minutes? Are the calories at least 400?",
+            "Calories: 6.9 times the light minutes plus 10.4 times the vigorous minutes. A workout solves the system only if it meets both constraints."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The first constraint, x + y ≤ 45, is about…",
@@ -1883,9 +1883,9 @@
             }
           ],
           "hints": [
-            "> shades above a line and < shades below it.",
-            "Read each system one inequality at a time: above or below the rising line, then above or below the falling line.",
-            "Compare the point’s y-coordinate with each line’s value at its x-coordinate."
+            "For each inequality, is the shading above or below its line? Which line rises, and which falls?",
+            "Read each system one inequality at a time: above or below the rising line, then above or below the falling line. What is each line’s y-value at x = 4?",
+            "> shades above a line and < shades below it. Substitute x = 4 into each line, then compare −4 with both values."
           ],
           "scaffold": {
             "prompt": "Let’s back up. y > (3/5)x + 3 shades…",
@@ -2145,9 +2145,9 @@
             }
           ],
           "hints": [
-            "Substitute a point from a solution set into both inequalities of a system.",
-            "Each solution set fits exactly one system.",
-            "Compare y = 3 with each line’s value at x = 5."
+            "Which system does a point from each solution set make true in both of its inequalities?",
+            "Test one point from each set in both inequalities of each system. Each set fits exactly one system: which system is left for D?",
+            "Substitute x = 5 into each line, and compare y = 3 with both values."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A point is in a system’s solution set when it makes…",
@@ -2236,9 +2236,9 @@
             "Classify the region."
           ],
           "hints": [
-            "Both lines pass through (0, 3): one rises 3 for every 5 to the right, the other falls 3.",
-            "Both symbols are >.",
-            "The overlap is above both lines."
+            "Where does each line cross the y-axis? What do the slopes 3/5 and −3/5 tell you to do from there?",
+            "Both symbols are >. Are the lines solid or dashed, and is each shading above or below?",
+            "Both lines cross the y-axis at 3: one rises 3 for every 5 to the right, and the other falls 3. Both are dashed, and the overlap is above both lines."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A slope of 3/5 means…",
@@ -2360,9 +2360,9 @@
             }
           ],
           "hints": [
-            "Each system’s boundary lines are parallel: they have the same slope.",
-            "Decide above or below each line, then whether the shadings overlap.",
-            "\"10 − 3x > y\" is the same as \"y < 10 − 3x\"."
+            "In each system, how do the slopes of the two boundaries compare? Which side of each line is shaded?",
+            "With y alone, is each inequality above or below its line? Then do the two shadings overlap, and where?",
+            "Each system’s boundaries are parallel, so compare their y-intercepts. \"10 − 3x > y\" is the same as \"y < 10 − 3x\"."
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"3 + 2x > y\" with y alone is…",
@@ -2447,9 +2447,9 @@
             "Classify the region and choose a solution of your own."
           ],
           "hints": [
-            "6 − x < y is the same as y > −x + 6.",
-            "Both boundaries are parallel and dashed.",
-            "The overlap lies between the lines."
+            "Which side of 6 − x < y is y on? How would you write it with y on the left?",
+            "Read 6 − x < y from right to left: is y greater or less than 6 − x? Are the two boundaries parallel, and solid or dashed?",
+            "6 − x < y is the same as y > −x + 6, and y < 9 − x is y < −x + 9. Both boundaries are parallel and dashed, and the overlap lies between them."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 6 − x < y with y alone is…",
@@ -2597,9 +2597,9 @@
             "scope": "assignment"
           },
           "hints": [
-            "Build each boundary from its y-intercept and slope.",
-            "> is dashed and ≤ is solid.",
-            "The corner is where the lines meet. Is it on the dashed line?"
+            "What are the y-intercept and the slope of each boundary?",
+            "Which symbol leaves its line out, and which includes it? Which side does each inequality shade?",
+            "Build each boundary from its y-intercept and slope: > is dashed and ≤ is solid. The corner is where the lines meet: is it on the dashed line?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. A corner on a dashed boundary is…",
@@ -2680,9 +2680,9 @@
             "Test the marked point on the boundaries."
           ],
           "hints": [
-            "Subtract the x-term from both sides of each inequality.",
-            "The marked point is on both lines: is each boundary solid or dashed there?",
-            "A point on a dashed boundary fails that inequality."
+            "To get y alone in each inequality, what do you subtract or add on both sides?",
+            "Subtract the x-term from both sides of the first, and add x to both sides of the second. The marked point is on both lines: which boundary is dashed?",
+            "Rewrite each inequality with y alone, then build and shade. A point on a dashed boundary fails that inequality, so check the marked point in both."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A point on the dashed boundary of y > −x + 1 makes the inequality…",
@@ -2798,9 +2798,9 @@
             "Classify the solution region."
           ],
           "hints": [
-            "The two boundaries have the same slope: they are parallel.",
-            "Is the line you shade above lower than the line you shade below?",
-            "If the shadings never meet, the system has no solution."
+            "How do the slopes of the two boundaries compare? What does that make the lines?",
+            "The lines are parallel. Is the line you shade above lower than the line you shade below?",
+            "Compare the y-intercepts. The shadings overlap in a strip only when the line you shade above is the lower one; otherwise there is no solution."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Two lines with the same slope and different y-intercepts…",
@@ -2913,9 +2913,9 @@
             }
           ],
           "hints": [
-            "Prints: small plus large is at most the number the club can make.",
-            "Money: price times count for each size, added, is at least the goal.",
-            "The plan is a solution only if it meets both constraints."
+            "What does each constraint count: prints or dollars? Which one is a ceiling, and which a floor?",
+            "Small plus large can be at most the prints the club can make; price times count for each size, added, must be at least the goal. Which symbol fits each?",
+            "\"At most\" is ≤ and \"at least\" is ≥. For the plan, add its prints and find its money, then check each constraint."
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"At least\" means…",
@@ -3071,8 +3071,8 @@
             }
           ],
           "hints": [
-            "Substitute x into each right side, then compare with y.",
-            "The point where the lines meet is on both boundaries: which boundary is dashed?"
+            "At each point, what is each right side? How does the point’s y compare with it?",
+            "Substitute x into each right side, then compare with y. The point where the lines meet is on both boundaries: which boundary is dashed?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. At (2, 3), is 3 < −2 + 5 true?",
@@ -3162,9 +3162,9 @@
             "Classify the region and find its corners."
           ],
           "hints": [
-            "y ≥ 0 is the x-axis and above; x ≥ 0 is the y-axis and to its right.",
-            "All three boundaries are solid.",
-            "The corners are where two boundaries meet."
+            "Which line is the boundary of y ≥ 0? Of x ≥ 0? Which side does each shade?",
+            "Are the three boundaries solid or dashed? Where do two of them meet?",
+            "y ≥ 0 is the x-axis and above it; x ≥ 0 is the y-axis and to its right. Every boundary is solid, and the corners are where two boundaries meet."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The boundary of y ≥ 0 is…",
@@ -3243,9 +3243,9 @@
             }
           ],
           "hints": [
-            "At (3, 2), compare 2 with 3 − 1 and with 2(3) − 4.",
-            "A point on a dashed boundary fails that inequality.",
-            "Including the boundary turns < into ≤."
+            "At (3, 2), what are x − 1 and 2x − 4? Is 2 at least the first, and less than the second?",
+            "Is (3, 2) on a dashed boundary? A point on a dashed boundary fails that inequality. Which symbol includes the boundary?",
+            "At (3, 2), 2 ≥ 3 − 1 is true, but 2 < 2(3) − 4 is false. Including the boundary turns < into ≤."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is 2 < 2 true?",
@@ -3343,9 +3343,9 @@
             "Test the marked point and choose a solution of your own."
           ],
           "hints": [
-            "Hours: tutoring plus lifeguarding is at most her limit.",
-            "Money: each job’s pay times its hours, added, is at least her goal.",
-            "The earnings boundary passes through (16, 0) and (0, 24)."
+            "What two limits does Kim have, one on her hours and one on her money? Which symbol fits \"at most\", and which fits \"at least\"?",
+            "Hours: tutoring hours plus lifeguarding hours. Money: each job’s pay per hour times its hours, added. Which side of each boundary do you shade?",
+            "For each boundary, set x = 0 and solve for y, then set y = 0 and solve for x: those two points are on the line. Then test (6, 12) in both inequalities."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Kim’s earnings for x hours of tutoring at $15 an hour are…",
@@ -3436,9 +3436,9 @@
             }
           ],
           "hints": [
-            "Earnings: 15 times the tutoring hours plus 10 times the lifeguarding hours.",
-            "With 12 hours of lifeguarding, find the most tutoring hours the hours constraint allows.",
-            "Then find the fewest tutoring hours the earnings constraint needs."
+            "How much does Kim earn for each schedule: what is 15x + 10y?",
+            "Compare each schedule’s hours with her limit and its earnings with her goal. With 12 hours of lifeguarding, what is the most tutoring the hours allow?",
+            "With 12 hours of lifeguarding, find the most tutoring hours the hours constraint allows and the fewest the earnings constraint needs."
           ],
           "scaffold": {
             "prompt": "Let’s back up. With 12 hours lifeguarding, Kim earns from lifeguarding…",
@@ -3544,9 +3544,9 @@
             }
           ],
           "hints": [
-            "Write each boundary’s equation from its slope and y-intercept.",
-            "Solid: ≤ or ≥. Dashed: < or >.",
-            "Above: y is greater. Below: y is less."
+            "Where does each line cross the y-axis, and what is its rise over run?",
+            "Which boundary is solid, and which dashed? Which side of each is shaded?",
+            "Write y = mx + b for each line. Solid is ≤ or ≥ and dashed is < or >; above means y is greater, and below means y is less."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A dashed boundary with the half-plane below it shaded uses…",

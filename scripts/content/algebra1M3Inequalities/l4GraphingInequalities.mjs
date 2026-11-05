@@ -23,7 +23,7 @@
  * and two audited Digital SAT items from MathMaster's CCMR bank in Practice.
  */
 import { auditedCcmrQuestion, backUp, choice, guidedNotes, inequality, number, review, teks } from '../lib/lessonKit.mjs';
-import { A2H, A3D, computedChoice, inequalityBuild, inequalityFigure, keyedGraphs, tex } from './shared.mjs';
+import { A2H, A3D, computedChoice, inequalityBuild, inequalityFigure, keyedGraphs, tex, withOwnHint } from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 4';
 
@@ -63,8 +63,8 @@ const numberLineWarmup = (id) => ({
   intervals: [{ min: null, max: '{{a}}', minInclusive: false, maxInclusive: false }],
   ask: ['graph'],
   hints: [
-    'An open circle means the number is not a solution; a closed circle means it is.',
-    'x < a is true for every number to the left of a on the number line.',
+    'Is a number ever less than itself? So is the circle open or closed?',
+    'An open circle leaves the number out. x < a is true for every number to the left of a, so shade to the left.',
   ],
   scaffold: backUp('For x < 2, the number 2 is…', ['not a solution', 'a solution'], 'not a solution'),
   guidedNotes: guidedNotes(
@@ -91,9 +91,11 @@ const boundaryLineWarmup = (id, honors) => ({
   directionSteps: ['Plot the y-intercept.', 'Use the slope to plot a second point.', 'Draw the line through both points.'],
   questionFamily: { id: 'linear.graphFromSlopeIntercept', ...(honors ? { constraints: { slope: 'fraction' } } : {}) },
   hints: [
-    'The constant term is the y-intercept: plot that point on the y-axis first.',
-    honors ? 'A fraction slope is rise over run: move up or down by the numerator and right by the denominator.' : 'The slope is rise over run: from the y-intercept, move up (or down) and right.',
-    'Check your second point by substituting it into the equation.',
+    'Where does the line cross the y-axis? Which number in the equation tells you?',
+    honors ? 'A fraction slope is rise over run. Which part of the fraction is the rise, and which is the run?' : 'The slope is rise over run. From the y-intercept, how far up or down do you move for each 1 to the right?',
+    honors
+      ? 'Plot the y-intercept, the constant term. Then move up or down by the numerator and right by the denominator, and check your second point in the equation.'
+      : 'Plot the y-intercept, the constant term. Then move up or down by the slope for each 1 to the right, and check your second point in the equation.',
   ],
   scaffold: honors
     ? backUp('A slope of 2/3 means…', ['up 2, right 3', 'up 3, right 2'], 'up 2, right 3')
@@ -126,8 +128,8 @@ const testPointWarmup = (id, honors) => ({
       computedChoice('which', 'Which point is a solution?', ['({{x1}}, {{y1}})', '({{x2}}, {{y2}})', 'Both points', 'Neither point'], '({{xa}}, {{ya}})'),
     ],
   hints: [
-    'Substitute the x-coordinate (and the y-coordinate) of each point.',
-    'A point is a solution when the inequality is a true statement there.',
+    'What do you get when you put each point’s coordinates into the inequality: a true statement or a false one?',
+    'Put the x-coordinate in for x and the y-coordinate in for y, then compare the two sides. A point is a solution when the inequality is true there.',
   ],
   scaffold: backUp('A point is a solution of an inequality when, substituted, it makes the inequality…', ['true', 'equal to zero'], 'true'),
   solutionReview: honors
@@ -186,7 +188,7 @@ const classwork = (P) => [
       number('game3', '7 two-point shots and 4 three-point shots: total points', '26'),
       { id: 'equation', label: 'Equation for exactly 20 points', answer: '2x + 3y = 20', inputProfile: 'equation', equivalence: 'polynomialRelation' },
     ],
-    hints: ['A two-point shot is worth 2 points: multiply each count by its value.', 'Add the two products to get the total.', 'For the equation, set the total of the two kinds of shots equal to Kai’s average.'],
+    hints: ['How many points does each kind of shot score? How many of each did Kai make?', 'Multiply each count by its point value, then add. Which expression in x and y gives Kai’s total?', 'Two-point shots score 2x points and three-point shots 3y. Set their total equal to Kai’s average.'],
     scaffold: backUp('Points from x two-point shots is…', ['2x', 'x + 2'], '2x'),
     guidedNotes: guidedNotes(['Two variables', 'One equation in two variables has many solutions: every pair (x, y) that makes it true. 2x + 3y = 20 is true for (7, 2), (10, 0), (4, 4) and more.']),
     solutionReview: review(
@@ -210,7 +212,7 @@ const classwork = (P) => [
     constraints: [{ m: 4, b: -6, relation: '>' }],
     testPoint: { x: 0, y: 0 },
     directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.', 'Test the point.'],
-    hints: ['The boundary of y > 4x − 6 is the line with slope 4 and y-intercept −6.', '> leaves the line itself out of the solutions.', 'Substitute (0, 0): is 0 > 4(0) − 6 true?'],
+    hints: ['What are the slope and the y-intercept of the boundary line y = 4x − 6?', 'Does > include the points on the line itself? Which line style shows that?', 'Plot (0, −6) and go up 4, right 1. > leaves the line out, so it is dashed. Then substitute (0, 0): is 0 > 4(0) − 6 true?'],
     scaffold: backUp('For > or <, the boundary line is…', ['dashed', 'solid'], 'dashed'),
     guidedNotes: guidedNotes(
       ['Boundary line', 'The boundary line divides the plane into two half-planes; the symbol says which half-plane holds the solutions.'],
@@ -235,7 +237,14 @@ const classwork = (P) => [
     testPoint: { x: 6, y: 4 },
     graph: { xMin: 0, xMax: 12, yMin: 0, yMax: 10 },
     directionSteps: ['Write the inequality for at least 20 points.', 'Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane that meets the goal.', 'Test the point.'],
-    hints: ['"At least" means greater than or equal to.', 'Points that make exactly 20 points are on the boundary line, such as (10, 0) and (4, 4).', 'A point that meets the goal is on the side you shade.'],
+    // Hint 2 used to give the boundary's points, (10, 0) and (4, 4): the whole
+    // boundary step (F-HINT-GIVES-STEP). It now asks for one, and the last
+    // hint says how to find them.
+    hints: [
+      'Does "at least 20" include exactly 20 points? Which symbol says "20 or more"?',
+      'Combinations worth exactly 20 points lie on the boundary line. How many two-point shots make 20 points with no three-point shots?',
+      'Exactly 20 points means 2x + 3y = 20: draw the line through two whole-number combinations that make it true. Then test (6, 4) to choose the side.',
+    ],
     scaffold: backUp('"At least 20" means…', ['≥ 20', '≤ 20'], '≥ 20'),
     guidedNotes: guidedNotes(
       ['From an equation to an inequality', 'Replace "=" with the symbol the situation needs: at least ≥, no more than ≤, more than >, fewer than <.'],
@@ -277,7 +286,7 @@ const classwork = (P) => [
         'on or below the line 2x + 3y = 20',
       ], 'on or above the line 2x + 3y = 20'),
     ],
-    hints: ['Total = 2 · (two-point shots) + 3 · (three-point shots).', 'Compare each total with 20.', 'The points with totals of 20 or more fall on one side of the boundary.'],
+    hints: ['How many points is each two-point shot worth? Each three-point shot?', 'Multiply each count by its point value and add. Which totals are 20 or more?', 'Total = 2 · (two-point shots) + 3 · (three-point shots). The rows worth 20 or more lie on one side of the line 2x + 3y = 20.'],
     scaffold: backUp('The total for (8, 2) is…', ['2(8) + 3(2)', '8 + 2'], '2(8) + 3(2)'),
     solutionReview: review(
       'Evaluate 2x + 3y for each row.',
@@ -319,7 +328,7 @@ const classwork = (P) => [
         '(2, 3) is above the line and beats the goal; (1, 6) is on the line and meets it exactly',
       ], '(2, 3) is below the line and misses the goal; (1, 6) is on the line and meets it exactly'),
     ],
-    hints: ['An equation is true only on its line; an inequality with ≥ is true on the line and on one side of it.', 'Substitute each point into 2x + 3y and compare the total with Kai’s goal.', 'Think about what x and y count.'],
+    hints: ['Where is the equation true: only on its line, or off it too? Where is the inequality true?', 'Substitute each point into 2x + 3y. Is the total below Kai’s goal, equal to it or above it? What do x and y count?', 'An equation is true only on its line; an inequality with ≥ is true on the line and on one side of it. x and y count shots, so only whole numbers make sense.'],
     scaffold: backUp('The number of shots Kai makes must be…', ['a whole number', 'any real number'], 'a whole number'),
     solutionReview: review(
       'A solution must make the inequality true and make sense.',
@@ -342,7 +351,7 @@ const classwork = (P) => [
       inequality('fewer', 'She makes fewer than 12 shots in all.', 'x + y < 12'),
       inequality('more', 'Her two-point shots outnumber her three-point shots by more than 4.', 'x - y > 4'),
     ],
-    hints: ['"At least" and "no more than" include the number itself.', '"More than" and "fewer than" leave the number out.', 'Points come from 2x + 3y; the number of shots is x + y.'],
+    hints: ['Does each statement count points or shots? Does its phrase include the number itself?', '"At least" and "no more than" include the number; "more than" and "fewer than" leave it out. Which way does each symbol point?', 'Points come from 2x + 3y and the number of shots from x + y. "Outnumber by more than 4" compares x − y with 4.'],
     scaffold: backUp('"No more than" includes the number itself?', ['yes', 'no'], 'yes'),
     solutionReview: review(
       'Include the number or leave it out.',
@@ -366,7 +375,7 @@ const classwork = (P) => [
       graphInequality('c', 'Graph c', SHARED_BOUNDARY_KEYS.c),
       graphInequality('d', 'The inequality no graph shows (you graph it next)', SHARED_BOUNDARY_KEYS.d),
     ],
-    hints: ['Dashed goes with < or >; solid with ≤ or ≥.', 'Solved for y, > and ≥ shade above; < and ≤ shade below.'],
+    hints: ['Which graphs have a dashed line, and which a solid one? Which side of the line is shaded in each?', 'Dashed goes with < or >, solid with ≤ or ≥. With y alone, > and ≥ shade above, and < and ≤ shade below.'],
     scaffold: backUp('Solved for y, y < mx + b shades…', ['below the line', 'above the line'], 'below the line'),
     solutionReview: review(
       'Line style, then side.',
@@ -384,7 +393,7 @@ const classwork = (P) => [
     source: ['y >= (1/2)x - 3'],
     constraints: [{ m: 0.5, b: -3, relation: '>=' }],
     directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.'],
-    hints: ['Start at the y-intercept and use the slope as rise over run.', '≥ includes the boundary.', 'Solved for y, ≥ shades above.'],
+    hints: ['Where does the boundary cross the y-axis, and what is its rise over run?', 'Does ≥ include the points on the line? Which side of the line has the greater y-values?', 'Plot (0, −3), then go up 1 and right 2. ≥ includes the line, so it is solid, and it shades above.'],
     scaffold: backUp('A slope of 1/2 means…', ['up 1, right 2', 'up 2, right 1'], 'up 1, right 2'),
     solutionReview: review(
       'Solid line, shaded above.',
@@ -402,7 +411,7 @@ const classwork = (P) => [
     source: ['y > x + 3'],
     constraints: [{ m: 1, b: 3, relation: '>' }],
     directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.'],
-    hints: ['The boundary has slope 1 and y-intercept 3.', 'Which symbols use a dashed line?', 'Test a point that is not on the line.'],
+    hints: ['What are the slope and the y-intercept of y = x + 3?', 'Which symbols use a dashed line? Is (0, 0) above or below the boundary?', 'Plot (0, 3) and go up 1, right 1: > means a dashed line. Test (0, 0): 0 > 0 + 3 is false, so shade the side without (0, 0).'],
     scaffold: backUp('For y > x + 3, the point (0, 0) is…', ['not a solution', 'a solution'], 'not a solution'),
     solutionReview: review(
       'Dashed line, shaded above.',
@@ -420,7 +429,7 @@ const classwork = (P) => [
     source: ['y <= -(1/3)x + 4'],
     constraints: [{ m: -1 / 3, b: 4, relation: '<=' }],
     directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.'],
-    hints: ['A slope of −1/3: down 1, right 3 (or up 1, left 3).', '≤ includes the boundary.', 'Test (0, 0).'],
+    hints: ['From the y-intercept, what does a slope of −1/3 tell you to do: up or down, and how far to the right?', 'Does ≤ include the line? Is (0, 0) a solution of y ≤ −(1/3)x + 4?', 'Plot (0, 4), then go down 1 and right 3. ≤ includes the line, so it is solid; 0 ≤ 4 is true, so shade the side with (0, 0).'],
     scaffold: backUp('A slope of −1/3 means…', ['down 1, right 3', 'down 3, right 1'], 'down 1, right 3'),
     solutionReview: review(
       'Solid line, shaded below.',
@@ -439,7 +448,7 @@ const classwork = (P) => [
     constraints: [{ A: 2, B: -1, C: -4, relation: '<' }],
     rewrite: true,
     directionSteps: ['Rewrite the inequality with y alone.', 'Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.'],
-    hints: ['Subtract 2x from each side first.', 'Dividing (or multiplying) both sides by a negative number reverses the symbol.', 'Check the side you shade with a test point in the original inequality.'],
+    hints: ['To get y alone, what do you do to each side first?', 'Subtract 2x from each side. Then you divide by −1: what happens to the symbol?', 'Subtracting 2x gives −y < −2x + 4. Divide each side by −1 and reverse the symbol, then check your side with (0, 0) in 2x − y < 4.'],
     scaffold: backUp('When you divide both sides of an inequality by −1, the symbol…', ['reverses', 'stays the same'], 'reverses'),
     solutionReview: review(
       'Rewrite, reverse, graph.',
@@ -469,7 +478,7 @@ const classwork = (P) => [
         'true, so the boundary line must be dashed',
       ], 'true, and (0, 0) is in the shaded half-plane'),
     ],
-    hints: ['Pick two points where the line crosses grid lines: slope = change in y ÷ change in x between them.', 'Where the line crosses the y-axis is the y-intercept.', 'Solid means the boundary is included; above means y is greater.'],
+    hints: ['Which two points on the line sit exactly where grid lines cross? How much do y and x change between them?', 'The slope is the change in y divided by the change in x. Where does the line cross the y-axis?', 'Write y = mx + b with your slope and y-intercept. Solid means the line is included, and shaded above means y is greater.'],
     scaffold: backUp('A solid boundary line means the points on the line are…', ['solutions', 'not solutions'], 'solutions'),
     guidedNotes: guidedNotes(['Writing an inequality from a graph', 'Write the boundary’s equation as you would for a line, then replace = with the symbol the line style and the shaded side call for. Test a point to check.']),
     solutionReview: review(
@@ -493,7 +502,7 @@ const classwork = (P) => [
       graphInequality('b', 'Graph b', THREE_GRAPHS_KEYS.b),
       graphInequality('c', 'Graph c', THREE_GRAPHS_KEYS.c),
     ],
-    hints: ['Find each slope from two points where the line crosses grid lines, and read the y-intercept at x = 0.', 'Dashed: < or >. Solid: ≤ or ≥.', 'For graph a, test (0, 0): which symbol makes 0 ? 4(0) + 2 true?'],
+    hints: ['Where does each line cross the y-axis? Between two grid points on it, what is the rise over the run?', 'Is each line dashed or solid? Is the shaded side above or below the line?', 'Write each line as y = mx + b. Dashed is < or >, solid is ≤ or ≥, and a test point such as (0, 0) tells you the side.'],
     scaffold: backUp('A dashed boundary uses…', ['< or >', '≤ or ≥'], '< or >'),
     solutionReview: review(
       'Line first, then the symbol.',
@@ -525,7 +534,7 @@ const classwork = (P) => [
         'He can use less than the card but not all of it, so they are only below the line',
       ], 'He can use the whole card or less, so the combinations are on or below the line'),
     ],
-    hints: ['Rate of change = change in y ÷ change in x between two rows.', 'The row with x = 0 gives the y-intercept.', 'He cannot spend more than the card holds.'],
+    hints: ['From one row to the next, how much do the Mexico minutes change? How much do the United States minutes change?', 'The rate of change is the change in y divided by the change in x. Which row has x = 0?', 'Write y = (rate of change)x + (y-intercept). He cannot spend more than the card holds, so the combinations are on or below the line.'],
     scaffold: backUp('The card is worth $50, so he can spend…', ['at most $50', 'at least $50'], 'at most $50'),
     solutionReview: review(
       'A line from the table, then "at most".',
@@ -545,7 +554,7 @@ const classwork = (P) => [
     testPoint: { x: 100, y: 80 },
     graph: { xMin: 0, xMax: 260, yMin: 0, yMax: 110 },
     directionSteps: ['Enter the model in the tool.', 'Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of combinations he can afford.', 'Test the point.'],
-    hints: ['Cost of calls within the United States plus cost of calls to Mexico is at most 50.', 'The intercepts from the table are on the boundary.', 'Substitute (100, 80) into the cost.'],
+    hints: ['What do x minutes within the United States cost at $0.20 a minute? And y minutes to Mexico at $0.50?', 'Their total cost can be at most $50. Where does the boundary cross each axis? The prompt says how many minutes of each kind use the whole card.', 'The boundary crosses the axes where the whole $50 buys one kind of call: 250 minutes, or 100 minutes. Shade the side that costs at most $50, and substitute (100, 80) to check.'],
     scaffold: backUp('The cost of x minutes at $0.20 per minute is…', ['0.2x', 'x + 0.2'], '0.2x'),
     solutionReview: review(
       'Cost model, then graph.',
@@ -575,7 +584,7 @@ const classwork = (P) => [
       choice('above', 'Points above the line mean…', ['combinations that cost more than $50', 'combinations that use exactly $50', 'combinations that leave money on the card', 'free calls'], 'combinations that cost more than $50'),
       choice('belowLine', 'Points below the line (in the first quadrant) mean…', ['combinations that leave money on the card', 'combinations that cost more than the $50 card', 'combinations that use exactly $50', 'negative minutes'], 'combinations that leave money on the card'),
     ],
-    hints: ['70 minutes to Mexico costs 0.5 · 70 dollars; what is left pays for minutes at $0.20 each.', 'Find the total cost of each pair of calls and compare it with $50.', 'On the line the cost is exactly $50.'],
+    hints: ['How much of the $50 do 70 minutes to Mexico use? How many $0.20 minutes does the rest buy?', 'Find the total cost of each pair of calls. Is it more than $50, or at most $50?', '70 minutes to Mexico cost $35, which leaves $15 at $0.20 a minute. On the line the cost is exactly $50; above it, more; below it, less.'],
     scaffold: backUp('70 minutes to Mexico costs…', ['$35', '$14'], '$35'),
     solutionReview: review(
       'Cost decides: on the line $50, above more, below less.',
@@ -617,7 +626,7 @@ const classwork = (P) => [
       graphInequality('lt0', 'The half-plane below the line x + y = 0, without the line', 'x + y < 0'),
       graphInequality('le0', 'The line x + y = 0 and the half-plane below it', 'x + y <= 0'),
     ],
-    hints: ['The symbol decides solid or dashed.', 'The second line passes through the origin, so test a different point, such as (1, 1).', 'Solved for y, > and ≥ are above; < and ≤ are below.'],
+    hints: ['Which symbols make the line solid, and which make it dashed? Which side does a test point tell you to shade?', 'The line x + y = 0 passes through (0, 0), so (0, 0) cannot tell you a side. Which other point could you test?', 'Test (1, 1): x + y = 2, which is greater than 0, so (1, 1) is above the line. Include the line with ≤ or ≥, and leave it out with < or >.'],
     scaffold: backUp('x + y = 0 passes through (0, 0), so to test a side use…', ['another point, such as (1, 1)', '(0, 0)'], 'another point, such as (1, 1)'),
     solutionReview: review(
       'Same line, different symbols.',
@@ -641,7 +650,7 @@ const practiceRegular = (P) => [
     constraints: [{ m: '{{m}}', b: '{{b}}', relation: '>' }],
     testPoint: { x: 0, y: 0 },
     directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.', 'Test the point.'],
-    hints: ['Plot the y-intercept, then use the slope.', '> leaves the boundary out.', 'Substitute (0, 0) to decide the side.'],
+    hints: ['Where does the boundary cross the y-axis, and which way does the slope take you from there?', 'Does > include the points on the line? So is the line solid or dashed?', 'Plot the y-intercept, then use the slope as rise over run. Draw a dashed line, and substitute (0, 0) to decide the side.'],
     scaffold: backUp('For y > mx + b, the line is…', ['dashed', 'solid'], 'dashed'),
     solutionReview: review('Dashed line, shaded above.', ['Boundary y = {{m|coef}}x {{b|signed}}: plot (0, {{b}}) and (1, {{mb}}).', '> is strict: dashed. Solved for y with >, shade above.'], 'dashed, above', 'Using the slope’s sign to pick the side.'),
     generator: { parameters: { m: { type: 'int', min: -4, max: 4, exclude: [0] }, b: { type: 'int', min: -6, max: 6, exclude: [0] } }, derived: { mb: 'm + b' } },
@@ -656,7 +665,7 @@ const practiceRegular = (P) => [
     source: ['y <= {{sg|coef}}({{pa}}/{{q}})x {{b|signed}}'],
     constraints: [{ m: '{{m}}', b: '{{b}}', relation: '<=' }],
     directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.'],
-    hints: ['From the y-intercept, rise by the numerator and run by the denominator.', '≤ includes the boundary.', 'Solved for y, ≤ shades below.'],
+    hints: ['In a fraction slope, which number is the rise and which is the run?', 'Does ≤ include the line? With y alone, does ≤ shade above or below?', 'From the y-intercept, rise by the numerator and run by the denominator. ≤ includes the line, so it is solid, and it shades below.'],
     scaffold: backUp('A slope of p/q means…', ['rise p, run q', 'rise q, run p'], 'rise p, run q'),
     solutionReview: review('Solid line, shaded below.', ['Plot (0, {{b}}), then use a rise of {{p}} and a run of {{q}} to reach ({{q}}, {{bp}}).', '≤ includes equality: solid; shade below.'], 'solid, below', 'Swapping the rise and the run.'),
     generator: { parameters: { pa: { type: 'int', min: 1, max: 3 }, sg: { type: 'choice', values: [-1, 1] }, q: { type: 'int', min: 2, max: 4 }, b: { type: 'int', min: -5, max: 5, exclude: [0] } }, derived: { p: 'sg*pa', m: 'sg*pa/q', bp: 'b + sg*pa' }, constraints: ['gcd(pa, q) == 1'] },
@@ -672,7 +681,7 @@ const practiceRegular = (P) => [
     constraints: [{ A: '{{A}}', B: -1, C: '{{nC}}', relation: '<' }],
     rewrite: true,
     directionSteps: ['Rewrite the inequality with y alone.', 'Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.'],
-    hints: ['Subtract the x-term from both sides first.', 'Dividing by a negative number reverses the symbol.'],
+    hints: ['To get y alone, what do you subtract from both sides first? What is left in front of y?', 'Subtract the x-term from both sides, then divide by −1: dividing by a negative number reverses the symbol.'],
     scaffold: backUp('−y < 6 becomes…', ['y > −6', 'y < −6'], 'y > −6'),
     solutionReview: review('Rewrite, reverse, graph.', ['{{A}}x − y < {{C}} → −y < −{{A}}x {{C|signed}} → y > {{A}}x {{nC|signed}} (dividing by −1 reverses the symbol).', 'Dashed line, shaded above.'], 'y > {{A}}x {{nC|signed}}', 'Forgetting to reverse the symbol.'),
     generator: { parameters: { A: { type: 'int', min: 2, max: 5 }, C: { type: 'int', min: -6, max: 6, exclude: [0] } }, derived: { nC: '0 - C' } },
@@ -691,7 +700,7 @@ const practiceRegular = (P) => [
       number('money', 'Money raised by {{x0}} muffins and {{y0}} smoothies ($)', '{{R}}'),
       number('extra', 'How many dollars over the goal is that?', '{{E}}'),
     ],
-    hints: ['Money from muffins plus money from smoothies is at least the goal.', 'Multiply each count by its price, then add.'],
+    hints: ['How much money do x muffins bring in? And y smoothies? Does "at least" include the goal itself?', 'Price times count for each, added, is at least the goal, so the symbol is ≥. For the plan, multiply each count by its price and add.'],
     scaffold: backUp('"At least" means…', ['≥', '≤'], '≥'),
     solutionReview: review('Price times count, then "at least".', ['{{p}}x + {{q}}y ≥ {{T}}.', '{{p}}({{x0}}) + {{q}}({{y0}}) = {{R}}, which is {{E}} over the goal.'], '{{p}}x + {{q}}y ≥ {{T}}', 'Using ≤ for "at least".'),
     generator: {
@@ -714,7 +723,7 @@ const practiceRegular = (P) => [
       number('v2', 'At ({{x2}}, {{y2}}): {{A}}x + {{B}}y =', '{{v2}}'),
       computedChoice('which', 'Which point is a solution?', ['({{x1}}, {{y1}})', '({{x2}}, {{y2}})', 'Both points', 'Neither point'], '({{xa}}, {{ya}})'),
     ],
-    hints: ['Substitute x and y, then compare the value with the constant.', '≤ is true when the value is less than or equal to the constant.'],
+    hints: ['What is the value of the left side at each point? Is it at most the constant?', 'Substitute each point’s x and y into the left side. ≤ is true when that value is less than or equal to the constant.'],
     scaffold: backUp('8 ≤ 8 is…', ['true', 'false'], 'true'),
     solutionReview: review('Substitute and compare.', ['({{x1}}, {{y1}}) gives {{v1}}; ({{x2}}, {{y2}}) gives {{v2}}.', 'Only ({{xa}}, {{ya}}) is at most {{C}}.'], '({{xa}}, {{ya}})', 'Reversing the comparison.'),
     generator: {
@@ -739,7 +748,7 @@ const practiceRegular = (P) => [
     ...keyedGraphs(VERTICAL_HORIZONTAL_KEYS, ['a', 'b']),
     directionSteps: ['Use the line and its style to choose the symbol.', 'Write each inequality.'],
     responses: [graphInequality('a', 'Graph a', VERTICAL_HORIZONTAL_KEYS.a), graphInequality('b', 'Graph b', VERTICAL_HORIZONTAL_KEYS.b)],
-    hints: ['A vertical line x = c: left means x is less than c.', 'A horizontal line y = c: above means y is greater than c.'],
+    hints: ['Which variable does a vertical line fix, x or y? And a horizontal line? Is each line dashed or solid?', 'A vertical line is x = c, and to its left x is less than c. A horizontal line is y = c, and above it y is greater than c.'],
     scaffold: backUp('Points to the left of x = 3 have x-coordinates…', ['less than 3', 'greater than 3'], 'less than 3'),
     solutionReview: review('Vertical: compare x. Horizontal: compare y.', ['Left of the dashed line x = 3: x < 3.', 'Above the solid line y = −2: y ≥ −2.'], 'x < 3; y ≥ −2', 'Writing y < 3 for a vertical boundary.'),
   },
@@ -752,7 +761,7 @@ const practiceRegular = (P) => [
     source: ['x >= -2'],
     constraints: [{ orientation: 'vertical', x: -2, relation: '>=' }],
     directionSteps: ['Build the vertical boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.'],
-    hints: ['x = −2 is a vertical line: use the vertical-line method.', '≥ includes the line.', 'Points to the right have larger x-coordinates.'],
+    hints: ['Which points have x = −2? What kind of line do they make?', 'Does ≥ include the line? Which side has x-coordinates greater than −2?', 'x = −2 is a vertical line: use the vertical-line method. ≥ includes it, so it is solid; shade to the right, where x is greater.'],
     scaffold: backUp('The graph of x = −2 in the plane is…', ['a vertical line', 'a horizontal line'], 'a vertical line'),
     solutionReview: review('Solid vertical line, shaded right.', ['Boundary x = −2 (vertical), solid because ≥.', 'Shade to the right, where x ≥ −2.'], 'solid x = −2, shaded right', 'Drawing a horizontal line y = −2.'),
   }),
@@ -765,7 +774,7 @@ const practiceRegular = (P) => [
     prompt: 'Write an inequality for each statement. Let x and y be the two numbers. (a) The sum of two numbers is at most 12. (b) Twice the first number minus the second number is more than 4.',
     directionSteps: ['Translate the first statement.', 'Translate the second statement.'],
     responses: [inequality('a', '(a)', 'x + y <= 12'), inequality('b', '(b)', '2x - y > 4')],
-    hints: ['"At most" means less than or equal to.', '"Twice the first" is 2x; "minus the second" subtracts y.'],
+    hints: ['Which phrase includes the number itself: "at most" or "more than"? Which expression is twice the first number minus the second?', '"At most" means ≤ and "more than" means >. "Twice the first" is 2x, and "minus the second" subtracts y.'],
     scaffold: backUp('"At most 12" means…', ['≤ 12', '≥ 12'], '≤ 12'),
     solutionReview: review('Words to symbols.', ['(a) x + y ≤ 12. (b) 2x − y > 4.'], 'x + y ≤ 12; 2x − y > 4', 'Writing y − 2x for "twice the first minus the second".'),
   },
@@ -780,7 +789,13 @@ const practiceRegular = (P) => [
     testPoint: { x: 40, y: 20 },
     graph: { xMin: 0, xMax: 90, yMin: 0, yMax: 35 },
     directionSteps: ['Enter the model in the tool.', 'Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane that meets the goal.', 'Test the point.'],
-    hints: ['Taco money plus burrito money is at least 240.', 'The intercepts (80, 0) and (0, 30) are on the boundary.', '3(40) + 8(20) = ?'],
+    // Hint 2 used to give the boundary's points, (80, 0) and (0, 30): the whole
+    // boundary step (F-HINT-GIVES-STEP).
+    hints: [
+      'How much money do x tacos bring in at $3 each? And y burritos at $8? Does "at least" include $240?',
+      'Taco money plus burrito money is at least $240. How many tacos alone make $240? How many burritos alone?',
+      'Those two numbers give the points where the boundary crosses the axes. Then substitute (40, 20): is 3(40) + 8(20) at least 240?',
+    ],
     scaffold: backUp('Money from x tacos at $3 each is…', ['3x', 'x + 3'], '3x'),
     solutionReview: review('Model, graph, test.', ['3x + 8y ≥ 240; boundary through (80, 0) and (0, 30), solid.', 'Shade above; (40, 20) gives 280 ≥ 240, so it meets the goal.'], '3x + 8y ≥ 240', 'Shading below the line, where the money is less than $240.'),
   }),
@@ -808,7 +823,7 @@ const practiceRegular = (P) => [
         'not useful here, because the origin is on the boundary',
       ], 'true, so the shading below (with the origin) is correct'),
     ],
-    hints: ['A solid line shaded below shows ≤.', 'Check the line style against the symbol.', 'Check the side with a test point.'],
+    hints: ['Is Marcus’s line solid or dashed? Which side did he shade?', 'Which symbols go with a solid line? Is that the < he was graphing?', 'A solid line shaded below shows ≤, but < needs a dashed line. Check his shading with (0, 0) in y < −2x + 1.'],
     scaffold: backUp('For <, the boundary is…', ['dashed', 'solid'], 'dashed'),
     solutionReview: review('Check style, then side.', ['A solid line shaded below shows y ≤ −2x + 1, which includes the line.', '< is strict, so the boundary must be dashed.', '(0, 0): 0 < 1 is true and the origin is below the line, so the shading is right.'], 'y ≤ −2x + 1; the line should be dashed', 'Fixing the shading too: it was already correct.'),
   },
@@ -828,7 +843,7 @@ const practiceRegular = (P) => [
       choice('notSolution', 'Which point is NOT a solution?', ['(0, 0)', '(3, 1)', '(2, 0)', '(5, 7)'], '(3, 1)'),
       choice('onBoundary', 'Which point is on the boundary line?', ['(0, 0)', '(3, 1)', '(2, 0)', '(5, 7)'], '(2, 0)'),
     ],
-    hints: ['Substitute x and y, then compare the value with the right side.', 'A point that makes the two sides equal is on the solid boundary — and ≤ includes it.'],
+    hints: ['What is the value of 4x − 2y at each point? How does it compare with the right side?', 'Substitute x and y and compare the value with the right side. A point where the two sides are equal is on the solid boundary, and ≤ includes it.'],
     scaffold: backUp('At (1, 1), 4x − 2y equals…', ['2', '4'], '2'),
     solutionReview: review('Substitute and compare with 8.', ['(0, 0): 0 ≤ 8 yes. (3, 1): 10 ≤ 8 no. (2, 0): 8 ≤ 8 yes, on the line. (5, 7): 6 ≤ 8 yes.'], '0, 10, 8, 6; (3, 1) is not a solution; (2, 0) is on the line', 'Calling (2, 0) not a solution: ≤ includes the boundary.'),
   },
@@ -845,7 +860,7 @@ const practiceRegular = (P) => [
       number('slope', 'Slope', '-2'),
       graphInequality('inequality', 'Inequality', NOT_THE_ORIGIN_KEY),
     ],
-    hints: ['Find the slope from two points where the line crosses grid lines; the y-intercept is where x = 0.', '(0, 0) is not shaded, so the inequality is false at (0, 0).', 'Solid: ≤ or ≥.'],
+    hints: ['Which two points on the line sit where grid lines cross? What are the rise and the run between them?', 'Where does the line cross the y-axis? Is (0, 0) in the shaded region, and so is the inequality true or false there?', 'Write y = mx + b for the line. (0, 0) is not shaded, so choose the symbol that makes the inequality false at (0, 0); solid means ≤ or ≥.'],
     scaffold: backUp('Is 0 ≤ −2(0) + 4 true?', ['yes', 'no'], 'yes'),
     solutionReview: review('Line, then the side without the origin.', ['Slope −2, y-intercept 4: y = −2x + 4.', '0 ≤ 4 is true, but (0, 0) is not shaded, so the symbol is ≥: y ≥ −2x + 4.'], 'y ≥ −2x + 4', 'Choosing ≤ because the origin is "below": the origin must be excluded.'),
   },
@@ -864,7 +879,7 @@ const practiceHonors = (P) => [
     rewrite: true,
     testPoint: { x: 0, y: 0 },
     directionSteps: ['Rewrite the inequality with y alone.', 'Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.', 'Test the point.'],
-    hints: ['Subtract the x-term from both sides, then divide by the coefficient of y.', 'Dividing by a negative number reverses the symbol.', 'Use the test point to check your side.'],
+    hints: ['To get y alone, what do you subtract from both sides first, and what do you divide by?', 'The coefficient of y is negative. What happens to the symbol when you divide both sides by a negative number?', 'Subtract the x-term from both sides, then divide by the coefficient of y and reverse the symbol. Use the test point to check your side.'],
     scaffold: backUp('Dividing both sides of −3y ≥ 6 by −3 gives…', ['y ≤ −2', 'y ≥ −2'], 'y ≤ −2'),
     solutionReview: review(
       'Rewrite, reverse, graph.',
@@ -887,8 +902,10 @@ const practiceHonors = (P) => [
       inequality('k', 'Values of k', 'k < 2'),
       choice('boundary', 'When k = 2, the point (2, 3) is…', ['on the dashed boundary, so it is not a solution', 'a solution', 'below the line', 'above the line'], 'on the dashed boundary, so it is not a solution'),
     ],
-    hints: ['Substitute x = 2 and y = 3 into y > kx − 1.', 'Solve 3 > 2k − 1 for k.', 'At the boundary value, the two sides are equal.'],
-    scaffold: backUp('3 > 2k − 1 becomes…', ['4 > 2k', '2 > 2k'], '4 > 2k'),
+    // The box takes 3 > 2k − 1 as k < 2 unsolved, so only the last hint writes it.
+    hints: ['What do you get when you put x = 2 and y = 3 into y > kx − 1?', 'Solve the inequality you get for k, as you would an equation. Do you multiply or divide by a negative number on the way?', 'Substituting gives 3 > 2k − 1, so 4 > 2k. At the boundary value the two sides are equal, and > leaves that value out.'],
+    // Not "3 > 2k − 1 becomes… 4 > 2k": the k box takes 4 > 2k as its answer.
+    scaffold: backUp('To find the values of k, substitute the point (2, 3) for…', ['x and y', 'k and y'], 'x and y'),
     solutionReview: review('Substitute, then solve for the parameter.', ['3 > 2k − 1 → 4 > 2k → k < 2.', 'When k = 2, 3 = 2(2) − 1: the point is on the boundary, which > leaves out.'], 'k < 2', 'Including k = 2: the boundary of a strict inequality is not part of the solution.'),
   },
   {
@@ -904,8 +921,9 @@ const practiceHonors = (P) => [
       number('intercept', 'y-intercept', '3'),
       graphInequality('inequality', 'Inequality', 'y <= -x + 3'),
     ],
-    hints: ['Slope = change in y ÷ change in x between the two given points.', 'Substitute one point and the slope into y = mx + b and solve for b.', 'The line is solid and the origin is shaded: which symbol makes the statement true at (0, 0)?'],
-    scaffold: backUp('The slope through (−2, 5) and (4, −1) is…', ['−1', '1'], '−1'),
+    hints: ['How much does y change between the two given points? How much does x change?', 'The slope is the change in y over the change in x. Which number b makes y = mx + b true at one of the two points?', 'Substitute one point and the slope into y = mx + b and solve for b. The line is solid and the origin is shaded: choose the symbol that is true at (0, 0).'],
+    // Not "The slope … is −1": that is the slope box's own answer.
+    scaffold: backUp('From (−2, 5) to (4, −1), the change in y is…', ['−6', '6'], '−6'),
     solutionReview: review('Line from two points, then the origin’s side.', ['Slope −6/6 = −1; 5 = −1(−2) + b gives b = 3.', '0 ≤ 3 is true, the line is solid: y ≤ −x + 3.'], 'y ≤ −x + 3', 'Using < for a solid boundary.'),
   },
   {
@@ -926,16 +944,16 @@ const practiceHonors = (P) => [
         'It does not change: dividing keeps the symbol the same',
       ], 'Dividing both sides by −4 reverses the inequality'),
     ],
-    hints: ['At the origin, 3x − 4y = 0. Which strict symbol makes 0 ? 12 false?', 'Subtract 3x from both sides, then divide by −4.'],
+    hints: ['At the origin, 3x − 4y = 0. Which strict symbol makes 0 ? 12 false?', 'Subtract 3x from both sides, then divide each side by −4: dividing by a negative number reverses the symbol.'],
     scaffold: backUp('Is 0 > 12 true?', ['no', 'yes'], 'no'),
     solutionReview: review('Exclude the origin, then solve for y.', ['0 > 12 is false, so the origin is excluded by 3x − 4y > 12 (strict, because the boundary is excluded).', '−4y > −3x + 12 → y < (3/4)x − 3 (dividing by −4 reverses the symbol).'], '3x − 4y > 12; y < (3/4)x − 3', 'Keeping > after dividing by −4.'),
   },
-  auditedCcmrQuestion({
+  withOwnHint('A point ON the boundary line makes the equation of the line true, not just the inequality. What equation in k do you get when you substitute the point?', auditedCcmrQuestion({
     documentId: 'mm_sat_A_3D_challenge_1_parameter-boundary-point_v21',
     questionId: `${P}-p-17`,
     scaffold: backUp('A point on the boundary line of y ≤ kx + 2 makes…', ['y = kx + 2 true', 'y < kx + 2 true'], 'y = kx + 2 true'),
-  }),
-  auditedCcmrQuestion({
+  })),
+  withOwnHint('What is the boundary’s y-value at this x? With >, can y equal that value, or must it be greater?', auditedCcmrQuestion({
     documentId: 'mm_sat_A_3D_challenge_3_minimum-integer-y_v21',
     questionId: `${P}-p-18`,
     scaffold: backUp('For y > 4, is y = 4 a solution?', ['no', 'yes'], 'no'),
@@ -949,7 +967,7 @@ const practiceHonors = (P) => [
         'This changes the sign of the constant: the boundary is {{m}}x {{b|signed}}.',
       ],
     },
-  }),
+  })),
 ];
 
 /* ------------------------------------------------------ Exit Ticket */
