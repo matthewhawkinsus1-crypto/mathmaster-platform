@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePlotHelpSlot } from './plotHelpScope.js';
-import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
+import { clientPointToGraphCoordinate, viewBoxRenderScale } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
@@ -14,7 +14,7 @@ import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
-import { readoutChipSpot } from './planeTouch.js';
+import { FINGER_REACH_PX, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
@@ -396,6 +396,10 @@ export default function CoordinatePlane({
 
   const graphPointFromEvent = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
+    // A finger reaches a little past the grid's edge and is given a point
+    // inside the window drawn (planeTouch.js, N60). A mouse, a pen and the
+    // keyboard keep plain rounding.
+    const finger = event.pointerType === 'touch';
     const point = clientPointToGraphCoordinate({
       clientX: event.clientX,
       clientY: event.clientY,
@@ -407,10 +411,11 @@ export default function CoordinatePlane({
       xMax,
       yMin,
       yMax,
+      reach: finger ? FINGER_REACH_PX / viewBoxRenderScale({ rect, viewBoxWidth: width, viewBoxHeight: height }) : 0,
     });
     if (!point) return null;
-    const x = snapValue(point.x, snapStep);
-    const y = snapValue(point.y, snapStep);
+    const x = finger ? snapInsideWindow(point.x, snapStep, xMin, xMax) : snapValue(point.x, snapStep);
+    const y = finger ? snapInsideWindow(point.y, snapStep, yMin, yMax) : snapValue(point.y, snapStep);
     if (x == null || y == null) return null;
     // CLAMPED TO THE AUTHORED DOMAIN, not to the current view. Intentional
     // button zoom must not become a way to answer outside the authored graph.

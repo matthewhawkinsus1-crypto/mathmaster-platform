@@ -18,7 +18,10 @@
 //   phone      the same journey on a 390×844 touch screen
 //   phonePrecision  on that phone, while a finger is down, the chip names the
 //              point a lift gives, above the fingertip, and the lift gives it;
-//              a mouse keeps the chip beside the cursor (N60)
+//              a finger just outside the grid lands on its edge, and zoomed in
+//              it is never given a point off the window; a mouse keeps the
+//              chip beside the cursor and a click outside the grid does
+//              nothing (N60)
 //   reload    work, the open step and what was checked survive a reload; a
 //              changed answer counts only once it is checked again
 //   keyboard   the graph plots from the arrow keys and Enter, a plotted point is
@@ -703,8 +706,9 @@ const modelingDol = async () => {
 // N60 (PR #537 walkthrough): on a 390x844 phone a unit of a −10 to 10 grid is
 // 12.8 px across and 8 px up, so a fingertip covers several points. While a
 // finger is down the chip names the point a lift will give, above the
-// fingertip, and the lift gives that point (planeTouch.js). A mouse keeps the
-// chip beside the cursor. The finger is the DevTools touch input, which runs
+// fingertip, and the lift gives that point; a finger reaches the grid's edge
+// from just outside it, and is never given a point off the window
+// (planeTouch.js). A mouse keeps what it had. The finger is the DevTools touch input, which runs
 // the page's touch-action; the lift a row off is dispatched, since a touch
 // input cannot end anywhere but where it last moved.
 const svgPoint = (page, [x, y], bounds) => page.evaluate(([gx, gy, b, selector]) => {
@@ -763,6 +767,38 @@ const phonePrecision = async () => {
   // The fingertip rolls as it lifts: a lift most of a row above (4, 4) still gives (4, 4).
   await liftOffBy(page, [4, 4], 0.8, 'touch');
   check((await chips(page))[1] === 'Point 2 (4, 4)', 'phonePrecision: a lift a row off still gives the point the finger was shown', (await chips(page)).join(' | '));
+  // A finger 10 px outside the grid's edge lands on the edge (it did nothing).
+  const tapWithFinger = async (at) => {
+    await finger('touchStart', at);
+    await settle(page, 120);
+    const said = await readout(page);
+    await finger('touchEnd');
+    await settle(page, 250);
+    return said?.text || null;
+  };
+  await page.getByRole('button', { name: /^Remove point 2 / }).click();
+  await settle(page, 200);
+  const edge = await svgPoint(page, [BUILD.xMin, 3], BUILD);
+  await tapWithFinger([edge[0] - 10, edge[1]]);
+  check((await chips(page))[1] === 'Point 2 (−6, 3)', 'phonePrecision: a finger just outside the grid\'s edge lands on the edge', (await chips(page)).join(' | '));
+  // Zoomed in three times the window ends between grid lines (x to 3.55, y to
+  // 5.55): a finger just past its corner is given the last point inside, not
+  // (4, 6), which plain rounding gives and which is drawn off the grid.
+  for (let zoom = 0; zoom < 3; zoom += 1) await page.locator('button[aria-label="Zoom in"]').first().click();
+  await settle(page, 250);
+  await page.getByRole('button', { name: /^Remove point 2 / }).click();
+  await settle(page, 200);
+  const corner = await page.evaluate((selector) => {
+    const svg = document.querySelector(selector);
+    const point = svg.createSVGPoint();
+    point.x = 560 - 42;
+    point.y = 42;
+    const screen = point.matrixTransform(svg.getScreenCTM());
+    return [screen.x, screen.y];
+  }, GRAPH);
+  const atCorner = await tapWithFinger([corner[0] + 3, corner[1] - 3]);
+  check(atCorner === '(3, 5)' && (await chips(page))[1] === 'Point 2 (3, 5)', 'phonePrecision: zoomed in, a finger at the window\'s corner is given the last point inside it',
+    `chip ${atCorner}; ${(await chips(page)).join(' | ')}`);
   await cdp.detach().catch(() => {});
 
   // A mouse: the chip beside the cursor, and the point where the button is let go, as before.
@@ -775,6 +811,12 @@ const phonePrecision = async () => {
     'phonePrecision (mouse): the chip stays beside the cursor, up and to the right', shown?.box ? `left +${Math.round(shown.box.left - aim[0])}, bottom −${Math.round(aim[1] - shown.box.bottom)}` : 'no chip');
   await liftOffBy(laptop, [4, 4], 0.8, 'mouse');
   check((await chips(laptop))[0] === 'Point 1 (4, 5)', 'phonePrecision (mouse): the point lands where the button is let go', (await chips(laptop)).join(' | '));
+  const outside = await svgPoint(laptop, [BUILD.xMin, 3], BUILD);
+  await laptop.mouse.move(outside[0] - 10, outside[1]);
+  await laptop.mouse.down();
+  await laptop.mouse.up();
+  await settle(laptop, 250);
+  check((await chips(laptop)).join(' | ') === 'Point 1 (4, 5) | Point 2: plot it on the graph', 'phonePrecision (mouse): a click outside the grid does nothing, as before', (await chips(laptop)).join(' | '));
 };
 
 /* ------------------------------------------------------------------- run */

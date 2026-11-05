@@ -4,15 +4,19 @@
  * unit across and 8.0 px up, so a tap gives the point it aims at only within
  * 6.4 px and 4.0 px of it. The plane shows the point a lift will give while a
  * finger is down, and these hold that a student can read it there and gets
- * it (planeTouch.js, CoordinatePlane.jsx). The browser half, on the real
+ * it, that a finger's tap reaches the grid's edge from just outside it, and
+ * that it is never given a point off the window (planeTouch.js,
+ * CoordinatePlane.jsx); a mouse, a pen and the keyboard keep what they had.
+ * The browser half, on the real
  * workspace by touch at 390x844 and by mouse at 1366x768, is the
  * `phonePrecision` scenario of tests/browser/systemsWorkspaceStudio.mjs.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FINGER_CLEARANCE_PX, readoutChipSpot } from '../../src/tools/shared/planeTouch.js';
+import { FINGER_CLEARANCE_PX, FINGER_REACH_PX, readoutChipSpot, snapInsideWindow } from '../../src/tools/shared/planeTouch.js';
 import { planeFontSize } from '../../src/tools/shared/planeTextScale.js';
+import { clientPointToGraphCoordinate, viewBoxRenderScale } from '../../src/utils/responsiveCoordinates.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const plane = executableSource(readFileSync(new URL('../../src/tools/shared/CoordinatePlane.jsx', import.meta.url), 'utf8'));
@@ -96,4 +100,69 @@ test('the plane takes the chip\'s place from the gesture, and a finger\'s lift l
   assert.match(lift, /const point = event\.pointerType === 'touch' \? shownPointRef\.current : \(graphPointFromEvent\(event\) \|\| pointerPreview\);/);
   // A gesture the browser takes away leaves nothing to land.
   assert.match(region(plane, 'const handlePointerCancel = () => {', '};', 'the cancel'), /shownPointRef\.current = null;/);
+});
+
+/* ---------- where a finger's tap lands ---------- */
+
+test('on the authored window a finger snaps exactly as a mouse does', () => {
+  for (const step of [1, 0.5]) {
+    for (let value = -10; value <= 10 + 1e-9; value += 0.05) {
+      assert.equal(snapInsideWindow(value, step, -10, 10), Number((Math.round(value / step) * step).toFixed(6)), `${value.toFixed(2)} by ${step}`);
+    }
+  }
+});
+
+test('a finger never snaps to a point off the window, however the zoom left it', () => {
+  // Three presses of Zoom in on −10 to 10: the window ends between grid lines.
+  const edge = 20 / 1.4 ** 3 / 2;
+  for (let value = -edge; value <= edge; value += 0.01) {
+    assert.equal(snapInsideWindow(value, 1, -edge, edge), Math.min(3, Math.max(-3, Math.round(value))) || 0, `${value.toFixed(2)}`);
+  }
+  assert.equal(snapInsideWindow(3.6, 1, -edge, edge), 3, 'plain rounding gave 4, a point drawn outside the grid');
+  assert.equal(snapInsideWindow(-3.6, 1, -edge, edge), -3);
+  assert.equal(snapInsideWindow(2.4, 1, -edge, edge), 2, 'inside, the nearest point as ever');
+  assert.equal(snapInsideWindow(3.6, 0.5, -edge, edge), 3.5, 'and by half steps');
+  // A window off the origin (a corner zoomed into).
+  assert.equal(snapInsideWindow(5.58, 1, 0.449, 5.551), 5);
+  assert.equal(snapInsideWindow(0.42, 1, 0.449, 5.551), 1);
+  // No grid line inside: plain rounding (the zoom never gets there).
+  assert.equal(snapInsideWindow(0.6, 1, 0.2, 0.8), 1);
+  assert.equal(snapInsideWindow(Number.NaN, 1, -10, 10), null);
+});
+
+test('a finger reaches a little past the grid\'s edge and lands on it; a mouse does not', () => {
+  // The phone's plane: 560x380 units drawn 302 px wide.
+  const rect = { left: 20, top: 100, width: 302, height: (302 * 380) / 560 };
+  const view = { rect, viewBoxWidth: 560, viewBoxHeight: 380, padding: 42, xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+  const scale = viewBoxRenderScale({ rect, viewBoxWidth: 560, viewBoxHeight: 380 });
+  const reach = FINGER_REACH_PX / scale;
+  const at = (vx, vy) => ({ clientX: rect.left + vx * scale, clientY: rect.top + vy * scale });
+  const levelWith3 = 380 - 42 - (13 / 20) * 296;
+  // 10 CSS px left of the grid's left edge, level with y = 3.
+  const outside = at(42 - 10 / scale, levelWith3);
+  assert.equal(clientPointToGraphCoordinate({ ...outside, ...view }), null, 'without a reach (a mouse) outside is outside, as before');
+  const reached = clientPointToGraphCoordinate({ ...outside, ...view, reach });
+  assert.equal(reached.x, -10, 'a finger lands on the edge');
+  assert.ok(Math.abs(reached.y - 3) < 1e-9, 'level with where it pressed');
+  // Above and right of the top-right corner: the corner.
+  const corner = clientPointToGraphCoordinate({ ...at(518 + 8 / scale, 42 - 8 / scale), ...view, reach });
+  assert.ok(Math.abs(corner.x - 10) < 1e-9 && Math.abs(corner.y - 10) < 1e-9, `(${corner.x}, ${corner.y})`);
+  // Past the reach, nothing: the press was not meant for the grid.
+  assert.equal(clientPointToGraphCoordinate({ ...at(42 - 30 / scale, levelWith3), ...view, reach }), null);
+  // Inside the grid the reach changes nothing.
+  for (const [vx, vy] of [[42, 42], [300, 200], [518, 338], [100.5, 77.25]]) {
+    assert.deepEqual(clientPointToGraphCoordinate({ ...at(vx, vy), ...view, reach }), clientPointToGraphCoordinate({ ...at(vx, vy), ...view }));
+  }
+});
+
+test('the plane gives a finger the reach and the window snap, and a mouse, a pen and the keyboard what they had', () => {
+  const convert = region(plane, 'const graphPointFromEvent = (event) => {', 'const MIN_SPAN_STEPS', 'the press-to-point conversion');
+  assert.match(convert, /const finger = event\.pointerType === 'touch';/);
+  assert.match(convert, /reach: finger \? FINGER_REACH_PX \/ viewBoxRenderScale\(\{ rect, viewBoxWidth: width, viewBoxHeight: height \}\) : 0,/);
+  assert.match(convert, /const x = finger \? snapInsideWindow\(point\.x, snapStep, xMin, xMax\) : snapValue\(point\.x, snapStep\);/);
+  assert.match(convert, /const y = finger \? snapInsideWindow\(point\.y, snapStep, yMin, yMax\) : snapValue\(point\.y, snapStep\);/);
+  // Still clamped to the authored domain after the snap (planePanZoomContract).
+  assert.match(convert, /return \[clamp\(x, domainXMin, domainXMax\), clamp\(y, domainYMin, domainYMax\)\];/);
+  // The keyboard's crosshair is not a press: it keeps its own unit steps.
+  assert.doesNotMatch(region(plane, 'const moveKeyboardCursor = (dx, dy) => {', 'const handleKeyDown', 'the keyboard crosshair'), /snapInsideWindow|FINGER_REACH_PX/);
 });

@@ -13,7 +13,14 @@
  * the finger, under the fingertip. Under a finger it goes ABOVE the fingertip
  * instead, and the lift lands the point it showed (CoordinatePlane.jsx).
  *
- * A mouse, a pen and the keyboard keep the chip where it always was.
+ * Where a finger's tap lands is snapped to the grid as a mouse's is, with two
+ * differences. It reaches a little past the grid's edge: a press on the 22 px
+ * border round a phone's grid used to do nothing, so half the presses aimed at
+ * an edge point were lost. And it is always a point inside the window drawn:
+ * once zoomed in, a window can end between grid lines, and rounding a press at
+ * its edge gave a point outside the grid, where the student could not see it.
+ *
+ * A mouse, a pen and the keyboard keep what they had.
  */
 
 /*
@@ -58,4 +65,29 @@ export const readoutChipSpot = ({ cx, cy, chipWidth, chipHeight, planeWidth, pla
     left: roomRight >= roomLeft ? cx + clearance : cx - clearance - chipWidth,
     top: clamp(cy - chipHeight, EDGE, planeHeight - EDGE - chipHeight),
   };
+};
+
+/*
+ * How far outside the grid a finger's press still counts, in CSS px: half the
+ * 44 px touch minimum the plane's own buttons keep. It lands on the edge.
+ */
+export const FINGER_REACH_PX = 22;
+
+const tidy = (value) => Number(Number(value).toFixed(6));
+
+/*
+ * The grid value nearest `value` among those inside the window [low, high]:
+ * plain rounding wherever the window ends on a grid line (the authored −10 to
+ * 10 does), the last line inside where it ends between two (−3.64 to 3.64,
+ * three presses of Zoom in). With no grid line inside, plain rounding: the
+ * zoom never makes a window narrower than four steps.
+ */
+export const snapInsideWindow = (value, step, low, high) => {
+  if (!Number.isFinite(value)) return null;
+  const size = Number(step);
+  if (!Number.isFinite(size) || size <= 0) return tidy(value);
+  const first = Math.ceil(low / size - 1e-9);
+  const last = Math.floor(high / size + 1e-9);
+  const nearest = Math.round(value / size);
+  return tidy((first <= last ? clamp(nearest, first, last) : nearest) * size);
 };
