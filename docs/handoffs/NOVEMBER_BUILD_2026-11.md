@@ -62,6 +62,7 @@ Nothing here has been deployed, and no operator script has been run.
 | N54 | The Digital SAT item that printed the point it asked about (`mm_sat_A_3H_challenge_3_intersection-feasible-vertex_v21`) is retired in all four copies; no lesson used it. A.3H's SAT challenge sessions now draw three questions from two families, so one repeats with new numbers. | `44cfe838` |
 | N76 | The demo bank's 17 system items show two equations in a brace instead of "∧". Their formula, which Step Algebra reads, is unchanged. A browser that already holds a demo seed keeps the old copy until "Reset Demo Classroom". | `9e1382b1` |
 | CI02 | The Path Tool Browser Contract job recaptures four more tools and fails when a capture drifts. feedbackTeaches covers an Exponential ↔ Log Bridge item, and feedbackReasons2 the two messages no student scene reached. | `8d066d4e` |
+| Abandoned lobbies and Pace Race rounds (N73) | Decision LC05 (end abandoned games that write no grade after 30 minutes with no host heard) now reaches the two cases the sweep missed. A lobby nobody started is cancelled: nothing played, nothing recorded, and the students' banner goes away. A Pace Race round, which has no deadline, is finished as End Game would finish it. Same guards: the heartbeat must have been heard, the switch allows it, never a Warm-Up, re-checked in the transaction. | `6f08a1b9` |
 
 ## 3. Checked, with no change needed
 
@@ -101,9 +102,7 @@ Nothing here has been deployed, and no operator script has been run.
   - "Colocaste", "Dibujaste", "Seleccionaste"; "Tu curva está dibujada a través de tus puntos";
   - "Elige dos filas: primero la fila 1 y luego la fila 2"; "elegida como fila 2"; "Filas para elegir"; "Tabla para continuar".
   - The reader says "entre negativo 4 y menos 2": a sign after "y" or "o" is read as a subtraction. Choose "negativo" or "menos" for a sign, and the reader can follow.
-- **Live Challenge pause and auto-end (LC17).** In October the decision was "Not now" for pause/resume and a server-side round close. Both are built and tested, but they are not on this branch until you say so:
-  - **N43, pause:** the host's Pause and Resume, honoured by every screen and the server. Answers sent during a pause are kept and sent on resume, and the clock gives back exactly the time that was left.
-  - **N73, auto-end:** after 30 minutes with no teacher screen, the server cancels a lobby nobody started (the students' banner goes away) and finishes a Pace Race round as End Game would.
+- **Live Challenge pause (LC17).** In October the decision on pause/resume was "Not now". It is built and tested (N43), but it is not on this branch until you say so: the host's Pause and Resume, honoured by every screen and the server. Answers sent during a pause are kept and sent on resume, and the clock gives back exactly the time that was left.
 - **Keys that give an answer away.** A rewrite of these changes a key, and a re-import that renames a key can mark saved right answers wrong, so they wait on you:
   - A1 M3 T1 L1 PR 8 (r2) and its Honors twin (CW 5, j2) name the property behind each of five steps from one shared list, and every option but one is another step's key. Step 2's key is the longest name on the list.
   - A1 M3 T2 L2 CW 7's key says "$10.50 behind", the answer to its own `ninety` box; CW 1's key gives 6.25 and 5 chickens, from which the goat and pig answers follow.
