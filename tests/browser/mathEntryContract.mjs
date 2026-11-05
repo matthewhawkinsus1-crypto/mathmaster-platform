@@ -119,6 +119,12 @@ const RADICAL_ANSWERS = [
   [L3, 'a2r3-p-7', 'radical', 'cbrt(V^2)'],
   [L3, 'a2r3-p-10', 'reduced', 'sqrt(2xy^3)'],
   [L3, 'a2r3-p-10', 'simplified', 'ysqrt(2xy)'],
+  // Check Your Progress values that were choices, typed now (F-CYP-AS-CHOICE).
+  [L1, 'a2r1-cw-6', 'cypRoot', '4i'],
+  [L2, 'a2r2-cw-8', 'second', '24a'],
+  [L2, 'a2r2-cw-9', 'cyp', '8sqrt(3)'],
+  [L2, 'a2r2-cw-10', 'cyp', '10sqrt(5)-2sqrt(35)+20sqrt(6)-4sqrt(42)'],
+  [L3, 'a2r3-cw-8', 'cyp2', 'cbrt(4x)'],
 ];
 const lessonQuestions = new Map();
 const radicalQuestion = (file, questionId) => {
