@@ -487,6 +487,7 @@ it, and the Recovery is generated from that family.
 | `recoveryMigrations.mjs` | Prepared, reviewed bindings for a known live lesson (`recovery-v2-algebra1-m2t2-l2`), certified like any other. |
 | `questionFamiliesIntervals.mjs` | RC01: `intervals.graphAndWrite`, the Interval Number Line asking for the graph and the interval notation of an inequality the prompt states — a bounded interval, a ray, two rays, or a ray and a bounded interval (`shape`, a strict concept, each at the rigor the lesson teaches it). It recognizes the five static number-line Warm-Up and DOL questions of Algebra II Honors Module 1, Lesson 1 Days 1 and 2, the most common static shape no family recognized. |
 | `questionFamiliesRepresentations.mjs` (version 2) | RC01: `linear.representationSort` v2 (`deck`: `equationForms`, `situations`) and `linear.multipleRepresentations` v2 (`board`: `drainingTank`) write the baseline Multiple Representations lesson's own Warm-Up sorts and DOL board in full — cards, stories, meanings — from a slot with no wording, and recognize exactly those static questions. Version 1 of each wrote only what its slot said and recognizes nothing; it is unchanged. The planner's candidates are each family at the first version that recognizes (version 1 for every family that always did), so these two are candidates at version 2. |
+| `questionFamiliesParentTransformations.mjs` | RC01: `transformations.identifyCubeRoot` (the Transformations Lab's identify mode on a reflected, stretched and shifted cube root), `transformations.describeEveryChange` (g(x) = ±f(±B(x − C)) + D described in five choices; `reflections`, a strict concept) and `transformations.mapExponentialPoint` (the lab's pointMap mode: (0, 1) through y = a·2^(x − h) + k). They recognize the three exit-ticket questions of Algebra II Honors Module 1, Lesson 2 Day 2, each at its rigor. |
 | `scripts/recovery-coverage-report.mjs` | RC01: the planner over every lesson file in `teacher-import-jsons/` and `docs/assignments/` — per lesson, the Warm-Up and DOL questions with Recovery now and once prepared, and every question still without it, by shape. `tests/platform/recoveryCoverageReport.test.mjs` pins the counts. |
 | `assignmentPracticeEvidence.mjs` | The assignment's own Practice as mastery evidence, only where trustworthy (below). |
 
@@ -560,7 +561,9 @@ operator script against an in-memory Firestore), `recoveryIntervalFamilies`
 Recovery and a missed Warm-Up end to end), `recoveryRepresentationFamilies`
 (every version of the two sorts and the tank board, the baseline lesson's
 three questions, its Prepare Recovery, and a missed Warm-Up and DOL end to
-end), `recoveryCoverageReport` (the
+end), `recoveryParentTransformationFamilies` (every version of the three
+transformation families, the lesson's exit ticket, its Prepare Recovery and a
+missed DOL end to end), `recoveryCoverageReport` (the
 lesson-by-lesson counts), `recoveryV2StudentJourney`
 (the real lesson end to end: a part-way class, the upgrade, the original
 finished, Practice, the Recovery, the grade on every surface) and

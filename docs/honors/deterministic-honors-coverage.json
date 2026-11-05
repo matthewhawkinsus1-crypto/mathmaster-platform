@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 51,
+  "familyCount": 54,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -817,6 +817,34 @@
           "teacherReason": "MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
         },
         {
+          "familyId": "transformations.describeEveryChange",
+          "familyTitle": "Describe every change in g(x) = ±f(±B(x − C)) + D",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Describing the transformations of a parent function is Algebra II content (A2.2A); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2A is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Describing the transformations of a parent function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "transformations.identifyCubeRoot",
+          "familyTitle": "Read a transformed cube-root graph and determine a, h and k",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Transforming the cube-root parent function is Algebra II content (A2.2A); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2A is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Transforming the cube-root parent function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
           "familyId": "transformations.linearCompareEffects",
           "familyTitle": "Compare horizontal and vertical transformations of f(x) = x",
           "familyDifficulty": {
@@ -857,6 +885,20 @@
           "reason": "It plots the images of three points under one transformation of f(x) = x at a time; Honors depth combines a shift with a stretch, where the order of the moves matters.",
           "missingCapability": "A `moves: 2` knob that composes a shift with a vertical or horizontal scale (g(x) = a·f(b(x − h)) + k), answered with the same plotted images in the Transformations Lab.",
           "teacherReason": "MathMaster's transformations generator plots one transformation at a time, so it cannot yet build the combined-transformation work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "transformations.mapExponentialPoint",
+          "familyTitle": "Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Mapping a point through a transformed exponential function is Algebra II content (A2.2A); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2A is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Mapping a point through a transformed exponential function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         }
       ],
       "concepts": [
@@ -966,7 +1008,7 @@
         "READY": 4,
         "CAPABLE": 8,
         "BLOCKED": 28,
-        "NOT APPROPRIATE": 11
+        "NOT APPROPRIATE": 14
       }
     },
     "algebra2": {
@@ -1646,6 +1688,34 @@
           "teacherReason": "MathMaster has no generator for linear-quadratic systems yet, so it cannot build a no-AI Algebra II Honors extension for systems by substitution."
         },
         {
+          "familyId": "transformations.describeEveryChange",
+          "familyTitle": "Describe every change in g(x) = ±f(±B(x − C)) + D",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is g(x) = ±f(±B(x − C)) + D described in five fixed choices (each reflection, the horizontal compression by 1/B, both translations); the choices fix the reasoning.",
+          "missingCapability": "A vertical stretch A and a typed description of the combined effect on a named point or feature, graded by the server, so the student composes the changes rather than naming each one.",
+          "teacherReason": "MathMaster's transformation-description generator only asks fixed-choice questions, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "transformations.identifyCubeRoot",
+          "familyTitle": "Read a transformed cube-root graph and determine a, h and k",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is one reflected, stretched and shifted cube root drawn on the lab's grid, whose a, h and k the student reads back; the remaining levers are other whole numbers, which are not rigor.",
+          "missingCapability": "A `parent` knob over the other parent functions, or a horizontal factor b read from the graph, so the student identifies a transformation they have not been shown the family of.",
+          "teacherReason": "MathMaster's cube-root generator only asks for a, h and k of one graph, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "transformations.linearCompareEffects",
           "familyTitle": "Compare horizontal and vertical transformations of f(x) = x",
           "familyDifficulty": {
@@ -1686,6 +1756,20 @@
           "reason": "Plotting a transformation of f(x) = x is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
           "missingCapability": null,
           "teacherReason": "Plotting a transformation of f(x) = x is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "transformations.mapExponentialPoint",
+          "familyTitle": "Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version maps the reference point (0, 1) of 2^x through y = a·2^(x − h) + k with whole-number a, h and k; the remaining levers are other whole numbers, which are not rigor.",
+          "missingCapability": "Other parent points and a horizontal factor b (x/b + h), or a mapped asymptote, so the student carries a whole transformation rather than one point.",
+          "teacherReason": "MathMaster's point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension."
         }
       ],
       "concepts": [
@@ -1889,7 +1973,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 24,
+        "BLOCKED": 27,
         "NOT APPROPRIATE": 26
       }
     }

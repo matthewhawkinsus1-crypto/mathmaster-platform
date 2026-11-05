@@ -136,6 +136,37 @@ const clean = (value) => String(value ?? '').trim();
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 /**
+ * The Transformations Lab work a student who solved a transformations.*
+ * version would send (serverGrading/tools/transformationsLab.mjs): each
+ * labeled point's image in plotting order (plotTransform), the parameters
+ * typed into their boxes (identify, RC01), or the mapped point (pointMap,
+ * RC01) — and the same work with one image, one parameter or one coordinate
+ * wrong. Null for any other answer.
+ */
+export const transformationsLabKeyWork = (answer = {}) => {
+  if (answer.kind === 'images' && Array.isArray(answer.value)) {
+    const images = answer.value.map(([x, y]) => [x, y]);
+    return {
+      right: { plottedPoints: images },
+      wrong: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) },
+    };
+  }
+  if (answer.kind === 'parameters' && isObject(answer.value)) {
+    const { a, h, k } = answer.value;
+    if (![a, h, k].every(Number.isFinite)) return null;
+    // Another a draws another graph (the lab credits any a, h, k that draws the same one).
+    const boxes = (values) => ({ a: String(values.a), h: String(values.h), k: String(values.k) });
+    return { right: boxes({ a, h, k }), wrong: boxes({ a: a + 1, h, k }) };
+  }
+  if (answer.kind === 'point' && Array.isArray(answer.value) && answer.value.length === 2) {
+    const [x, y] = answer.value.map(Number);
+    if (![x, y].every(Number.isFinite)) return null;
+    return { right: { mappedX: String(x), mappedY: String(y) }, wrong: { mappedX: String(x), mappedY: String(y + 1) } };
+  }
+  return null;
+};
+
+/**
  * The card sort a student who solved a linear.representationSort version
  * would send (serverGrading/tools/representationMatch.mjs: every card placed
  * in a group), placed by the KEY: each card goes with the one line of the
@@ -283,15 +314,12 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
       wrong: buildToolResponse({ question, toolId: 'graphing2', work: { points: points.map(([x, y]) => [x, y + 1]) } }),
     };
   }
-  if (question.type === 'transformationsLab' && answer.kind === 'images') {
-    const images = (answer.value || []).map(([x, y]) => [x, y]);
+  // The Transformations Lab (transformations.*): the work the lab's Check sends.
+  const labWork = question.type === 'transformationsLab' ? transformationsLabKeyWork(answer) : null;
+  if (labWork) {
     return {
-      right: buildToolResponse({ question, toolId: 'transformationsLab', work: { plottedPoints: images } }),
-      wrong: buildToolResponse({
-        question,
-        toolId: 'transformationsLab',
-        work: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) },
-      }),
+      right: buildToolResponse({ question, toolId: 'transformationsLab', work: labWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'transformationsLab', work: labWork.wrong }),
     };
   }
   // Matrix Lab (matrices.*): the work the lab's Check sends.

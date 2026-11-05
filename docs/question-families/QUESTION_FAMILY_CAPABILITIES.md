@@ -76,9 +76,12 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `systems.knownValue` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 210 — every student unique | — |
 | `systems.substitution` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 212,550 — every student unique | — |
 | `systems.substitution` | v2 · only when pinned (`"version": 2`) | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 193,855 — every student unique | reduce-complexity: solutionRange [-6, 6], slopeRange [-3, 3], coefficientRange [-4, 4]; keeps solutionCase, form |
+| `transformations.describeEveryChange` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | — |
+| `transformations.identifyCubeRoot` | v1 · what an unpinned reference means | — | — | `transformationsLab` (identify) | yes — shared server grader | yes | 120 — every student unique | — |
 | `transformations.linearCompareEffects` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 1,152 — every student unique | — |
 | `transformations.linearHorizontalShiftAlgebra` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | reduce-complexity: slopeRange [2, 3], shiftRange [1, 3] |
 | `transformations.linearPlotImages` | v1 · what an unpinned reference means | — | — | `transformationsLab` (plotTransform) | yes — shared server grader | yes | 49 — every student unique | reduce-complexity: shiftRange [1, 5]; keeps transformation |
+| `transformations.mapExponentialPoint` | v1 · what an unpinned reference means | — | — | `transformationsLab` (pointMap) | yes — shared server grader | yes | 270 — every student unique | — |
 
 ## Families
 
@@ -1322,6 +1325,52 @@ System of linear equations by substitution (Systems Workspace: one, none or infi
 
 - **reduce-complexity:** `solutionRange` [-6, 6], `slopeRange` [-3, 3], `coefficientRange` [-4, 4] — about 41,859 distinct questions; never changes `solutionCase`, `form`.
 
+### `transformations.describeEveryChange` v1
+
+Describe every change in g(x) = ±f(±B(x − C)) + D.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.2A
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `reflections` | choice | `"vertical"` | `"vertical"`, `"horizontal"`, `"both"`, `"none"` | yes |
+| `scaleRange` | range | `[2, 5]` | whole-number range inside [2, 9] | — |
+| `shiftRange` | range | `[1, 6]` | whole-number range inside [1, 9] | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 576 | — |
+| reflections: "horizontal" | 576 | — |
+| reflections: "both" | 576 | — |
+| reflections: "none" | 576 | — |
+
+### `transformations.identifyCubeRoot` v1
+
+Read a transformed cube-root graph and determine a, h and k.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.2A
+- **Answered in:** `transformationsLab` (identify)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `reflected` | boolean | `true` | `true`, `false` | yes |
+| `stretchRange` | range | `[2, 3]` | whole-number range inside [2, 3] | — |
+| `shiftRange` | range | `[1, 4]` | whole-number range inside [1, 5] | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 120 | — |
+| reflected: false | 120 | — |
+
 ### `transformations.linearCompareEffects` v1
 
 Compare horizontal and vertical transformations of f(x) = x.
@@ -1393,3 +1442,25 @@ Graph a transformation of f(x) = x by mapping labeled points.
 | transformation: "horizontalScale" | 6 | — |
 
 - **reduce-complexity:** `shiftRange` [1, 5] — about 33 distinct questions; never changes `transformation`.
+
+### `transformations.mapExponentialPoint` v1
+
+Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.2A
+- **Answered in:** `transformationsLab` (pointMap)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `reflected` | boolean | `true` | `true`, `false` | yes |
+| `stretchRange` | range | `[2, 4]` | whole-number range inside [2, 5] | — |
+| `shiftRange` | range | `[1, 5]` | whole-number range inside [1, 6] | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 270 | — |
+| reflected: false | 270 | — |

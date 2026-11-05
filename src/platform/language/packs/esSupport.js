@@ -1428,6 +1428,9 @@ const platformFamilySentences = [
   ['Solve the first equation for {1}: {2}.', 'Despeja {1} en la primera ecuación: {2}.'],
   ['Solve the second equation for {1}: {2}.', 'Despeja {1} en la segunda ecuación: {2}.'],
   ['Both equations give {1}, so set the right sides equal: {2}.', 'Las dos ecuaciones dan {1}, así que iguala los lados derechos: {2}.'],
+  // A transformed cube root read off its graph (transformations.identifyCubeRoot, RC01):
+  // the worked example's last step when a is 1.
+  ['So the graph is {1} ∛{2}.', 'Así que la gráfica es {1} ∛{2}.'],
 ];
 
 // Their back-up choices.

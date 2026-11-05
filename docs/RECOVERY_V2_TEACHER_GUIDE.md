@@ -158,6 +158,24 @@ Every version is a new problem (never one already in the lesson), graded by
 MathMaster, in the same tool, at the same DOK and difficulty. Prepare Recovery
 makes both the Warm-Up and the DOL ready.
 
+### The Algebra II Honors transformations lesson
+
+"**Algebra II Honors — Lesson 2 Day 2: Transformations of Parent Functions**"
+(Module 1) had no Recovery for its exit ticket. All three DOL questions can now
+be recovered:
+
+| Question | Recovery versions |
+| --- | --- |
+| DOL Q1 — read y = −2∛(x − 1) − 3 off its graph | a new reflected, stretched and shifted cube-root graph; find a, h and k |
+| DOL Q2 — describe g(x) = −f(3(x + 2)) + 4 | a new g(x) with the same reflection, a new horizontal compression and new shifts; the same five choices |
+| DOL Q3 — map (0, 1) through y = −3·2^(x − 2) + 1 | map (0, 1) through a new reflected, stretched and shifted exponential |
+
+Every version is a new problem, graded by MathMaster, in the same tool, at the
+same DOK and difficulty. Prepare Recovery makes the DOL ready. The Warm-Up
+stays "not ready": its three questions review the parent functions |x|, √x
+and 2ˣ, and every new version of a review like that would have the same
+answer, so MathMaster does not make one.
+
 ## Seeing who can recover
 
 In the assignment details, **Show who can recover in (class)** lists, for the

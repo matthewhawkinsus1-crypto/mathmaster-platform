@@ -40,7 +40,7 @@ import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serve
 import { buildLinearConnectionCards, linearConnectionsCardKinds, representationSetsFor } from '../../functions/shared/toolMath/representationMatch/representationMath.mjs';
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
-import { intervalNumberLineKeyWork, matrixLabKeyWork, polynomialWorkshopKeyWork } from '../../functions/shared/recoveryCertificationGrading.mjs';
+import { intervalNumberLineKeyWork, matrixLabKeyWork, polynomialWorkshopKeyWork, transformationsLabKeyWork } from '../../functions/shared/recoveryCertificationGrading.mjs';
 
 const SAMPLE = 160;
 
@@ -109,11 +109,9 @@ const REGISTRY_TOOL_WORK = {
     const points = [[0, b], [run, b + m * run]];
     return { right: { points }, wrong: { points: points.map(([x, y]) => [x, y + 1]) } };
   },
-  // The Transformations Lab: each labeled point's image, and one image moved.
-  transformationsLab: (question, instance) => {
-    const images = instance.answer.value.map(([x, y]) => [x, y]);
-    return { right: { plottedPoints: images }, wrong: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) } };
-  },
+  // The Transformations Lab: each labeled point's image, and one image moved;
+  // the parameters read off a graph, or a mapped point (RC01), and one wrong.
+  transformationsLab: (question, instance) => transformationsLabKeyWork(instance.answer),
   // The Matrix Lab (matrices.*): the work the lab's Check sends, and one cell
   // (or one value, or the classification) wrong.
   matrixLab: (question, instance) => matrixLabKeyWork(instance.answer),

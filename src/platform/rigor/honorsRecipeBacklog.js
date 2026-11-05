@@ -538,6 +538,36 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s interval generator only writes a stated inequality in interval notation, so it cannot yet build the move-between-notations work a built-in Honors extension needs.',
     }),
   }),
+  // The Recovery V2 families for the exit ticket of Algebra II Honors Module 1,
+  // Lesson 2 Day 2 (questionFamiliesParentTransformations.mjs, RC01). Each asks
+  // exactly its original's skill at its rigor, aligned to A2.2A.
+  'transformations.identifyCubeRoot': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Transforming the cube-root parent function', 'A2.2A')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is one reflected, stretched and shifted cube root drawn on the lab\'s grid, whose a, h and k the student reads back; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'A `parent` knob over the other parent functions, or a horizontal factor b read from the graph, so the student identifies a transformation they have not been shown the family of.',
+      teacherReason: 'MathMaster\'s cube-root generator only asks for a, h and k of one graph, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'transformations.describeEveryChange': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Describing the transformations of a parent function', 'A2.2A')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is g(x) = ±f(±B(x − C)) + D described in five fixed choices (each reflection, the horizontal compression by 1/B, both translations); the choices fix the reasoning.',
+      missingCapability: 'A vertical stretch A and a typed description of the combined effect on a named point or feature, graded by the server, so the student composes the changes rather than naming each one.',
+      teacherReason: 'MathMaster\'s transformation-description generator only asks fixed-choice questions, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'transformations.mapExponentialPoint': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Mapping a point through a transformed exponential function', 'A2.2A')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version maps the reference point (0, 1) of 2^x through y = a·2^(x − h) + k with whole-number a, h and k; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'Other parent points and a horizontal factor b (x/b + h), or a mapped asymptote, so the student carries a whole transformation rather than one point.',
+      teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
 });
 
 /**

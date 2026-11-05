@@ -6469,6 +6469,206 @@
       }
     },
     {
+      "id": "transformations.describeEveryChange",
+      "version": 1,
+      "title": "Describe every change in g(x) = ±f(±B(x − C)) + D",
+      "alignments": [
+        "A2.2A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "reflections",
+          "label": "Which reflections g(x) makes",
+          "kind": "choice",
+          "default": "vertical",
+          "concept": true,
+          "values": [
+            "vertical",
+            "horizontal",
+            "both",
+            "none"
+          ]
+        },
+        {
+          "name": "scaleRange",
+          "label": "Horizontal factor B",
+          "kind": "range",
+          "default": [
+            2,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            9
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Shift sizes |C| and |D|",
+          "kind": "range",
+          "default": [
+            1,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "reflections"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 576,
+          "exact": true
+        },
+        {
+          "label": "reflections: \"horizontal\"",
+          "constraints": {
+            "reflections": "horizontal"
+          },
+          "capacity": 576,
+          "exact": true
+        },
+        {
+          "label": "reflections: \"both\"",
+          "constraints": {
+            "reflections": "both"
+          },
+          "capacity": 576,
+          "exact": true
+        },
+        {
+          "label": "reflections: \"none\"",
+          "constraints": {
+            "reflections": "none"
+          },
+          "capacity": 576,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.identifyCubeRoot",
+      "version": 1,
+      "title": "Read a transformed cube-root graph and determine a, h and k",
+      "alignments": [
+        "A2.2A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "reflected",
+          "label": "The graph is reflected across the x-axis (a < 0)",
+          "kind": "boolean",
+          "default": true,
+          "concept": true,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "stretchRange",
+          "label": "Vertical stretch |a|",
+          "kind": "range",
+          "default": [
+            2,
+            3
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            3
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Shift sizes |h| and |k|",
+          "kind": "range",
+          "default": [
+            1,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            5
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "reflected"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "transformationsLab",
+          "default": true,
+          "mode": "identify",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 120,
+          "exact": true
+        },
+        {
+          "label": "reflected: false",
+          "constraints": {
+            "reflected": false
+          },
+          "capacity": 120,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "transformations.linearCompareEffects",
       "version": 1,
       "title": "Compare horizontal and vertical transformations of f(x) = x",
@@ -6794,6 +6994,97 @@
           "capacity": 33
         }
       ],
+      "declared": {}
+    },
+    {
+      "id": "transformations.mapExponentialPoint",
+      "version": 1,
+      "title": "Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k",
+      "alignments": [
+        "A2.2A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "reflected",
+          "label": "The graph is reflected across the x-axis (a < 0)",
+          "kind": "boolean",
+          "default": true,
+          "concept": true,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "stretchRange",
+          "label": "Vertical stretch |a|",
+          "kind": "range",
+          "default": [
+            2,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            5
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Shift sizes |h| and |k|",
+          "kind": "range",
+          "default": [
+            1,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            6
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "reflected"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "transformationsLab",
+          "default": true,
+          "mode": "pointMap",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 270,
+          "exact": true
+        },
+        {
+          "label": "reflected: false",
+          "constraints": {
+            "reflected": false
+          },
+          "capacity": 270,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
       "declared": {}
     }
   ]
