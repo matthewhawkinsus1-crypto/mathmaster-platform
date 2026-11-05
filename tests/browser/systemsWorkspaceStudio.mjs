@@ -16,7 +16,10 @@
 //              out and keep the student on that step; a right one moves on by
 //              itself; the whole graph is on screen for every tap; graded right
 //   phone      the same journey on a 390×844 touch screen
-//   reload     work, the open step and what was checked survive a reload; a
+//   phonePrecision  on that phone, while a finger is down, the chip names the
+//              point a lift gives, above the fingertip, and the lift gives it;
+//              a mouse keeps the chip beside the cursor (N60)
+//   reload    work, the open step and what was checked survive a reload; a
 //              changed answer counts only once it is checked again
 //   keyboard   the graph plots from the arrow keys and Enter, a plotted point is
 //              moved and a side is shaded the same way, the lines say so before
@@ -695,11 +698,91 @@ const modelingDol = async () => {
     'modeling (DOL): Submit grades the model wrong and the graph of it right, as before', JSON.stringify({ parts, partial: grade?.partialCreditPercent }));
 };
 
+/* ------------------------------------------------------- phone precision */
+
+// N60 (PR #537 walkthrough): on a 390x844 phone a unit of a −10 to 10 grid is
+// 12.8 px across and 8 px up, so a fingertip covers several points. While a
+// finger is down the chip names the point a lift will give, above the
+// fingertip, and the lift gives that point (planeTouch.js). A mouse keeps the
+// chip beside the cursor. The finger is the DevTools touch input, which runs
+// the page's touch-action; the lift a row off is dispatched, since a touch
+// input cannot end anywhere but where it last moved.
+const svgPoint = (page, [x, y], bounds) => page.evaluate(([gx, gy, b, selector]) => {
+  const svg = document.querySelector(selector);
+  const point = svg.createSVGPoint();
+  point.x = 42 + ((gx - b.xMin) / (b.xMax - b.xMin)) * (560 - 84);
+  point.y = 380 - 42 - ((gy - b.yMin) / (b.yMax - b.yMin)) * (380 - 84);
+  const screen = point.matrixTransform(svg.getScreenCTM());
+  return [screen.x, screen.y];
+}, [x, y, bounds, GRAPH]);
+const readout = (page) => page.evaluate((selector) => {
+  const group = document.querySelector(`${selector} [data-plane-readout]`);
+  const box = group?.querySelector('rect')?.getBoundingClientRect();
+  return group ? { text: group.querySelector('text')?.textContent || '', box: box && { left: box.left, right: box.right, top: box.top, bottom: box.bottom } } : null;
+}, GRAPH);
+const clearOf = ([x, y], box) => Math.hypot(Math.max(box.left - x, 0, x - box.right), Math.max(box.top - y, 0, y - box.bottom));
+const pointerAt = (page, type, [x, y], pointerType) => page.evaluate(([selector, kind, cx, cy, by]) => {
+  document.querySelector(selector).dispatchEvent(new PointerEvent(kind, {
+    bubbles: true, cancelable: true, composed: true, pointerId: 7, pointerType: by, isPrimary: true, clientX: cx, clientY: cy, buttons: kind === 'pointerup' ? 0 : 1,
+  }));
+}, [GRAPH, type, x, y, pointerType]);
+// A press at one point, a slide to `shown`, and a lift `liftOff` units above it.
+const liftOffBy = async (page, shown, liftOff, pointerType) => {
+  const at = await svgPoint(page, shown, BUILD);
+  const lift = await svgPoint(page, [shown[0], shown[1] + liftOff], BUILD);
+  await pointerAt(page, 'pointerdown', at, pointerType);
+  await settle(page, 60);
+  await pointerAt(page, 'pointermove', at, pointerType);
+  await settle(page, 60);
+  await pointerAt(page, 'pointerup', lift, pointerType);
+  await settle(page, 250);
+};
+
+const phonePrecision = async () => {
+  const page = await open('build', { viewport: PHONE, touch: true });
+  const cdp = await page.context().newCDPSession(page);
+  const finger = (type, at) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: at[0], y: at[1], id: 1 }] });
+  const start = await svgPoint(page, [0, 1], BUILD);
+  await finger('touchStart', start);
+  await settle(page, 200);
+  let shown = await readout(page);
+  check(shown?.text === '(0, 1)', 'phonePrecision: while a finger is down the chip names the point a lift gives', shown?.text);
+  check(Boolean(shown?.box) && shown.box.bottom < start[1] && clearOf(start, shown.box) >= 30,
+    'phonePrecision: the chip is above the fingertip, clear of it', shown?.box ? `${Math.round(clearOf(start, shown.box))} px from the finger` : 'no chip');
+  const end = await svgPoint(page, [2, 3], BUILD);
+  for (let step = 1; step <= 6; step += 1) {
+    await finger('touchMove', [start[0] + ((end[0] - start[0]) * step) / 6, start[1] + ((end[1] - start[1]) * step) / 6]);
+    await settle(page, 40);
+  }
+  await settle(page, 150);
+  shown = await readout(page);
+  check(shown?.text === '(2, 3)' && shown.box.bottom < end[1] && clearOf(end, shown.box) >= 30, 'phonePrecision: sliding, the chip follows the point and stays above the fingertip', shown?.text);
+  await finger('touchEnd');
+  await settle(page, 250);
+  check((await chips(page)).join(' | ') === 'Point 1 (2, 3) | Point 2: plot it on the graph', 'phonePrecision: the lift gives the point the chip showed', (await chips(page)).join(' | '));
+  // The fingertip rolls as it lifts: a lift most of a row above (4, 4) still gives (4, 4).
+  await liftOffBy(page, [4, 4], 0.8, 'touch');
+  check((await chips(page))[1] === 'Point 2 (4, 4)', 'phonePrecision: a lift a row off still gives the point the finger was shown', (await chips(page)).join(' | '));
+  await cdp.detach().catch(() => {});
+
+  // A mouse: the chip beside the cursor, and the point where the button is let go, as before.
+  const laptop = await open('build');
+  const aim = await svgPoint(laptop, [2, 3], BUILD);
+  await laptop.mouse.move(aim[0], aim[1]);
+  await settle(laptop, 200);
+  shown = await readout(laptop);
+  check(Boolean(shown?.box) && shown.box.left > aim[0] && shown.box.left - aim[0] < 20 && shown.box.bottom < aim[1] && aim[1] - shown.box.bottom < 14,
+    'phonePrecision (mouse): the chip stays beside the cursor, up and to the right', shown?.box ? `left +${Math.round(shown.box.left - aim[0])}, bottom −${Math.round(aim[1] - shown.box.bottom)}` : 'no chip');
+  await liftOffBy(laptop, [4, 4], 0.8, 'mouse');
+  check((await chips(laptop))[0] === 'Point 1 (4, 5)', 'phonePrecision (mouse): the point lands where the button is let go', (await chips(laptop)).join(' | '));
+};
+
 /* ------------------------------------------------------------------- run */
 
 const SCENARIOS = {
   journey: () => scenario('journey', () => fullJourney('journey', { viewport: CHROMEBOOK, touch: false })),
   phone: () => scenario('phone', () => fullJourney('phone', { viewport: PHONE, touch: true })),
+  phonePrecision: () => scenario('phonePrecision', phonePrecision),
   reload: () => scenario('reload', reload),
   keyboard: () => scenario('keyboard', keyboard),
   keyboardReasoning: () => scenario('keyboardReasoning', keyboardReasoning),

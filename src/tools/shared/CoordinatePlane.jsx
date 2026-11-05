@@ -14,6 +14,7 @@ import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
+import { readoutChipSpot } from './planeTouch.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
@@ -309,6 +310,11 @@ export default function CoordinatePlane({
   // has been dragged to. Null when the gesture is placing a new point instead.
   const [dragIndex, setDragIndex] = useState(null);
   const [gestureActive, setGestureActive] = useState(false);
+  // UNDER A FINGER (N60, planeTouch.js). Whether the preview is a finger's,
+  // so its chip goes above the fingertip; and the point it showed last, which
+  // is the point a finger's lift lands (a ref, so the lift reads the latest).
+  const [previewByTouch, setPreviewByTouch] = useState(false);
+  const shownPointRef = useRef(null);
   // CONTENT ON HOVER (WCAG 1.4.13). The pointer's crosshair, its coordinate
   // chip and a hovered point's coordinates are drawn over the plot, so Escape
   // puts them away without the pointer or focus moving. They come back when
@@ -484,6 +490,8 @@ export default function CoordinatePlane({
     setReadoutDismissed(false);
     setGestureActive(true);
     setDragIndex(pointIndexNear(point));
+    setPreviewByTouch(event.pointerType === 'touch');
+    shownPointRef.current = point;
     setPointerPreview(point);
     // Capture so the gesture survives the finger leaving the plane's bounds —
     // without it a drag toward the edge silently stops updating. If the browser
@@ -494,12 +502,18 @@ export default function CoordinatePlane({
   const handlePointerMove = (event) => {
     if (!interactive) return;
     setKeyboardActive(false);
-    setPointerPreview(graphPointFromEvent(event));
+    const point = graphPointFromEvent(event);
+    setPreviewByTouch(event.pointerType === 'touch');
+    shownPointRef.current = point;
+    setPointerPreview(point);
   };
 
   const handlePointerUp = (event) => {
     if (!interactive || !gestureActive) return;
-    const point = graphPointFromEvent(event) || pointerPreview;
+    // A finger lands the point its chip showed: lifting rolls the fingertip,
+    // and on a phone a unit is 8 px high, so the lift's own position can be a
+    // row off the point the student saw (N60). A mouse lands where it is let go.
+    const point = event.pointerType === 'touch' ? shownPointRef.current : (graphPointFromEvent(event) || pointerPreview);
     const movedIndex = dragIndex;
     setGestureActive(false);
     setDragIndex(null);
@@ -515,6 +529,7 @@ export default function CoordinatePlane({
   const handlePointerCancel = () => {
     setGestureActive(false);
     setDragIndex(null);
+    shownPointRef.current = null;
     setPointerPreview(null);
   };
 
@@ -750,19 +765,23 @@ export default function CoordinatePlane({
     : cursorAt ? `${cursorLabel} ${formatCoordinate(cursorAt)}` : '';
 
   // The readout chip flips to the other side of the cursor near the edges so it
-  // never gets clipped by the plot border.
+  // never gets clipped by the plot border. Under a finger it sits above the
+  // fingertip instead, sized to the coordinates it shows (planeTouch.js, N60).
+  const chipByTouch = previewByTouch && !keyboardActive;
   const chip = useMemo(() => {
     if (!preview) return null;
     const cx = sx(preview[0]);
     const cy = sy(preview[1]);
     // Grows with the plane's text on a narrow plane (planeTextScale.js).
     const grow = planeFontSize(12, width, renderedWidth) / 12;
-    const chipWidth = revealCoordinates ? Math.max(58, previewText.length * 7.2) * grow : 0;
+    const characters = chipByTouch ? formatCoordinate(preview).length + 2 : previewText.length;
+    const chipWidth = revealCoordinates ? Math.max(58, characters * 7.2) * grow : 0;
     const chipHeight = 22 * grow;
-    const left = cx + 12 + chipWidth > width - 4 ? cx - 12 - chipWidth : cx + 12;
-    const top = cy - 8 - chipHeight < 4 ? cy + 14 : cy - 8 - chipHeight;
+    const { left, top } = readoutChipSpot({
+      cx, cy, chipWidth, chipHeight, planeWidth: width, planeHeight: height, touch: chipByTouch, scale: renderedWidth ? renderedWidth / width : 1,
+    });
     return { cx, cy, left, top, chipWidth, chipHeight, fontSize: 12 * grow };
-  }, [preview, previewText, revealCoordinates, width, renderedWidth, xMin, xMax, yMin, yMax]);
+  }, [preview, previewText, revealCoordinates, width, height, renderedWidth, chipByTouch, xMin, xMax, yMin, yMax]);
 
   /*
    * WHAT THIS PLANE CAN DO, TOLD TO WHOEVER IS HOLDING IT.
