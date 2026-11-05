@@ -49,6 +49,9 @@ const FIXED_CLASSES = ['exponentOne', 'denominatorOne', 'collapsedFactor', 'cons
 const EDITED_BY_EXAM = { digitalSAT: 39, act: 9, tsia2: 12 };
 const EDITED_COUNT = 60;
 
+/** Edited here, and retired later (N54): its prompt gives the intersection point it then asks the x-coordinate of. */
+const RETIRED_SINCE = new Set(['mm_sat_A_3H_challenge_3_intersection-feasible-vertex_v21']);
+
 /** The templates CT14 edits, by what changed in them. */
 const EDITED = {
   // An exponent of 1 shown in the question (the 'pow' filter), or in a worked step.
@@ -175,7 +178,8 @@ test('the edited templates are listed once each, are in the bank, and are in the
     assert.ok(nowDoc(id), `${id} is in the bank`);
     assert.ok(mainDoc(id), `${id} is in the fixture`);
     assert.notEqual(JSON.stringify(nowDoc(id)), JSON.stringify(mainDoc(id)), `${id} is not the base commit's version: it was edited`);
-    assert.equal(nowDoc(id).active, true, `${id} is still active`);
+    // Still dealt, except the one N54 retired since: it states the point it asks about.
+    assert.equal(nowDoc(id).active, !RETIRED_SINCE.has(id), `${id} is ${RETIRED_SINCE.has(id) ? 'retired' : 'still active'}`);
   });
 });
 

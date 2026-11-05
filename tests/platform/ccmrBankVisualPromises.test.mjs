@@ -71,7 +71,8 @@ const VISUAL_PROMISE = /refers to (?:a graph|a table|a number line|a diagram) in
 
 test('no audited item refers to a graph, a table, a number line or a diagram it does not show, and every response profile is the contract’s own', () => {
   const items = [...documents.values()].filter(eligible);
-  assert.ok(items.length >= 1000, `${items.length} eligible audited items are read`);
+  // Every active audited item (N54 retired one Digital SAT item, which printed its own answer).
+  assert.ok(items.length >= 999, `${items.length} eligible audited items are read`);
   const found = [];
   items.forEach((document) => {
     const question = compileInPractice(document);

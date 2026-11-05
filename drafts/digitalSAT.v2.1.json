@@ -54687,7 +54687,7 @@
     },
     {
       "id": "mm_sat_A_3H_challenge_3_intersection-feasible-vertex_v21",
-      "active": true,
+      "active": false,
       "alignmentKeys": [
         "texas:A.3H"
       ],
