@@ -568,6 +568,17 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 family for the graphed domain and range of Algebra II
+  // Honors Module 1 Lesson 1 (questionFamiliesGraphReading.mjs, RC01), A2.7I.
+  'functions.domainRangeFromGraph': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Writing a graphed domain and range in interval notation', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is an unrestricted parabola or absolute value with a moved vertex, so the domain is always all real numbers and only the range\'s end moves; the remaining levers are other vertices, which are not rigor.',
+      missingCapability: 'A restricted domain (a closed or half-open interval, as Lesson 1\'s own restricted line has) and other parents (square root, rational), so the domain and range are both found, not recalled.',
+      teacherReason: 'MathMaster\'s graphed domain-and-range generator only draws unrestricted parabolas and absolute values, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
   // The Recovery V2 family for the static Mapping Diagram Warm-Up and DOL
   // questions (questionFamiliesRelations.mjs, RC01): Algebra II Honors Module 1
   // Lesson 1 (A2.7I) and the Algebra I District DOL 1 review (A.12A).

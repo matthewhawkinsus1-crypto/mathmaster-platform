@@ -323,6 +323,24 @@ export const relationMappingKeyWork = (question = {}, answer = {}) => {
   return { right, wrong };
 };
 
+/**
+ * The Graph Analysis work a student who solved a functions.domainRangeFromGraph
+ * version would send (serverGrading/tools/graphWorkspace.mjs, analysis mode):
+ * the domain and the range typed in interval notation from the key, one per
+ * request the question makes (RC01). The wrong work opens the range's closed
+ * end. Null for any other answer.
+ */
+export const domainRangeKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'domainRange' || !isObject(answer.value)) return null;
+  const { domain, range } = answer.value;
+  if (typeof domain !== 'string' || typeof range !== 'string') return null;
+  const requests = Array.isArray(question.analysisRequests) ? question.analysisRequests : [];
+  const idOf = (kind) => clean(requests.find((request) => request?.kind === kind)?.id);
+  if (!idOf('domain') || !idOf('range')) return null;
+  const typed = (rangeTyped) => ({ analysis: { answers: { [idOf('domain')]: domain, [idOf('range')]: rangeTyped } } });
+  return { right: typed(range), wrong: typed(range.replace('[', '(').replace(']', ')')) };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -382,6 +400,15 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.right }),
       wrong: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.wrong }),
+    };
+  }
+  // Graph Analysis's domain and range (functions.domainRangeFromGraph, RC01):
+  // the graph workspace grades it, so the response names that tool.
+  const domainRangeWork = question.type === 'graphAnalysis' ? domainRangeKeyWork(question, answer) : null;
+  if (domainRangeWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'graphWorkspace', work: domainRangeWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'graphWorkspace', work: domainRangeWork.wrong }),
     };
   }
   // The Mapping Diagram (relations.mappingDiagram, RC01).

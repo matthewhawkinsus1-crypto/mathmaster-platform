@@ -22,6 +22,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `absoluteValue.solveEquation` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 8,588 — every student unique | — |
 | `equations.verifySolution` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 474,764 — every student unique | — |
+| `functions.domainRangeFromGraph` | v1 · what an unpinned reference means | — | — | `graphAnalysis` (analysis) | yes — shared server grader | yes | 144 — every student unique | — |
 | `functions.identifyIntercepts` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 324 — every student unique | — |
 | `functions.identifyZeros` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 162 — every student unique | — |
 | `inequalities.contextModel` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 290 — every student unique | — |
@@ -126,6 +127,29 @@ Check a solution by substitution.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 474,764 | solution: about 237,382; notSolution: about 1,170,028 |
+
+### `functions.domainRangeFromGraph` v1
+
+State the domain and range of a graphed parabola or absolute value.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.7I
+- **Answered in:** `graphAnalysis` (analysis)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `parent` | choice | `"quadratic"` | `"quadratic"`, `"absolute"` | yes |
+| `opens` | choice | `"up"` | `"up"`, `"down"` | yes |
+| `shiftRange` | range | `[1, 6]` | whole-number range inside [1, 8] | — |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 144 | — |
+| parent: "absolute" | 144 | — |
+| opens: "down" | 144 | — |
 
 ### `functions.identifyIntercepts` v1
 

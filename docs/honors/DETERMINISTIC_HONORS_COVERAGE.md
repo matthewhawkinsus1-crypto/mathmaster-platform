@@ -20,8 +20,8 @@ nothing and says why. This report is what the teacher can rely on, family by fam
 
 | Course | Registered families | READY | CAPABLE | BLOCKED | NOT APPROPRIATE | Concepts with no registered family |
 | --- | --- | --- | --- | --- | --- | --- |
-| Algebra I | 55 | 4 | 8 | 29 | 14 | 7 (all BLOCKED) |
-| Algebra II | 55 | 0 | 1 | 28 | 26 | 13 (all BLOCKED) |
+| Algebra I | 56 | 4 | 8 | 29 | 15 | 7 (all BLOCKED) |
+| Algebra II | 56 | 0 | 1 | 29 | 26 | 13 (all BLOCKED) |
 
 ## Algebra I
 
@@ -31,6 +31,7 @@ nothing and says why. This report is what the teacher can rely on, family by fam
 | --- | --- | --- | --- |
 | `absoluteValue.solveEquation` | NOT APPROPRIATE | Absolute value equations are Algebra II (A2.6E); Texas Algebra I does not teach them. An Algebra I-labelled lesson aligned to A2.6E is the course/TEKS conflict selection already refuses. | — |
 | `equations.verifySolution` | BLOCKED | It substitutes one given value into each side of a linear equation with the variable on both sides and asks whether the two values agree; the value and the equation are the whole task, so no deeper reasoning can be generated. | A `solutionCase: "none" \| "infinite"` knob (an equation that no value, or every value, satisfies) with a server-marked part asking what the check shows about every other value. |
+| `functions.domainRangeFromGraph` | NOT APPROPRIATE | Writing a graphed domain and range in interval notation is Algebra II content (A2.7I); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7I is the course/TEKS conflict selection already refuses. | — |
 | `functions.identifyIntercepts` | **READY** | `honors.functions.identifyIntercepts.interceptsInContext` v1 — Recover both intercepts of a situation and interpret them | — |
 | `functions.identifyZeros` | BLOCKED | Zeros are always two distinct integers of a quadratic with leading coefficient ±1 or ±2, entered as two numbers; "small" leading coefficients only add a common factor of 2. | `zeroForm: "rational"` (zeros p/q from a non-unit leading coefficient, factored as (ax + p)(x + q)) and `zeroForm: "irrational"` (quadratic formula) with fraction and radical answer fields; or a Question Family for polynomialWorkshop mode "factorQuadratic" (the workshop and its server grader exist). |
 | `inequalities.contextModel` | CAPABLE | It models growing and shrinking situations (`direction`; the shrinking ones reverse the symbol when solved), solves exactly to hundredths, and asks for the whole number the situation needs — rounding up or down from the boundary, which the situation decides. No vetted recipe has been written yet. | — |
@@ -107,6 +108,7 @@ The rich tool and its server grader already exist; only a generator (a registere
 | --- | --- | --- | --- |
 | `absoluteValue.solveEquation` | BLOCKED | Every instance has exactly two integer solutions h ± d, entered as two numbers. The depth Honors needs — an equation with no solution or one solution, an extraneous root, or the inequality \|x − h\| ≤ c (A2.6F) — cannot be generated. | A `solutionCase` knob (two \| one \| none \| mixed) with a "No solution" answer the multiAnswer key can state, and an `inequality` knob (<, ≤, >, ≥) answered on intervalNumberLine (the number-line tool and its server grader exist). |
 | `equations.verifySolution` | NOT APPROPRIATE | Checking a solution of a linear equation is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none. | — |
+| `functions.domainRangeFromGraph` | BLOCKED | Every version is an unrestricted parabola or absolute value with a moved vertex, so the domain is always all real numbers and only the range's end moves; the remaining levers are other vertices, which are not rigor. | A restricted domain (a closed or half-open interval, as Lesson 1's own restricted line has) and other parents (square root, rational), so the domain and range are both found, not recalled. |
 | `functions.identifyIntercepts` | NOT APPROPRIATE | Intercepts of a line is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none. | — |
 | `functions.identifyZeros` | BLOCKED | Algebra II solves quadratics with irrational and complex solutions (A2.4F, A2.7A); this family only produces two integer zeros. | `zeroForm: "irrational" \| "complex"` with radical and complex answer fields, or a Question Family for complexPlaneLab mode "quadraticRoots" (the lab and its server grader exist). |
 | `inequalities.contextModel` | NOT APPROPRIATE | Modeling a situation with a linear inequality is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none. | — |

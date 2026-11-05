@@ -34,6 +34,7 @@ import { SYSTEMS_CONTEXT_FAMILIES } from './questionFamiliesSystemsContext.mjs';
 import { INTERVAL_FAMILIES } from './questionFamiliesIntervals.mjs';
 import { PARENT_TRANSFORMATION_FAMILIES } from './questionFamiliesParentTransformations.mjs';
 import { RELATION_FAMILIES } from './questionFamiliesRelations.mjs';
+import { GRAPH_READING_FAMILIES } from './questionFamiliesGraphReading.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
@@ -47,7 +48,8 @@ import { RELATION_FAMILIES } from './questionFamiliesRelations.mjs';
 // The interval family (RC01) recovers the static number-line Warm-Up and DOL
 // questions no other family recognized: it is a Recovery V2 family too, as
 // are the parent-function transformation families (RC01, Algebra II Honors
-// Module 1 Lesson 2 Day 2's exit ticket) and the Mapping Diagram family (RC01).
+// Module 1 Lesson 2 Day 2's exit ticket), the Mapping Diagram family and the
+// graphed domain-and-range family (RC01).
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...LINEAR_CASE_FAMILIES,
@@ -70,6 +72,7 @@ const REGISTERED = Object.freeze([
   ...INTERVAL_FAMILIES,
   ...PARENT_TRANSFORMATION_FAMILIES,
   ...RELATION_FAMILIES,
+  ...GRAPH_READING_FAMILIES,
 ]);
 
 const byKey = new Map();

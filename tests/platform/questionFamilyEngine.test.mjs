@@ -41,6 +41,7 @@ import { buildLinearConnectionCards, linearConnectionsCardKinds, representationS
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
 import {
+  domainRangeKeyWork,
   intervalNumberLineKeyWork,
   matrixLabKeyWork,
   polynomialWorkshopKeyWork,
@@ -132,6 +133,9 @@ const REGISTRY_TOOL_WORK = {
   // The Mapping Diagram (relations.*, RC01): every arrow, the domain and range,
   // and the function choice — and the other verdict (or an output left out).
   relationMapping: (question, instance) => relationMappingKeyWork(question, instance.answer),
+  // Graph Analysis's domain and range (functions.domainRangeFromGraph, RC01),
+  // typed in interval notation, and the range's closed end opened.
+  graphAnalysis: (question, instance) => domainRangeKeyWork(question, instance.answer),
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
     const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));

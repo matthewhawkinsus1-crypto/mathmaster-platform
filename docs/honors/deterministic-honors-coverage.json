@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 55,
+  "familyCount": 56,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -39,6 +39,20 @@
           "reason": "It substitutes one given value into each side of a linear equation with the variable on both sides and asks whether the two values agree; the value and the equation are the whole task, so no deeper reasoning can be generated.",
           "missingCapability": "A `solutionCase: \"none\" | \"infinite\"` knob (an equation that no value, or every value, satisfies) with a server-marked part asking what the check shows about every other value.",
           "teacherReason": "MathMaster's solution-check generator only asks whether one given value works, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.domainRangeFromGraph",
+          "familyTitle": "State the domain and range of a graphed parabola or absolute value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing a graphed domain and range in interval notation is Algebra II content (A2.7I); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7I is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Writing a graphed domain and range in interval notation is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         },
         {
           "familyId": "functions.identifyIntercepts",
@@ -1022,7 +1036,7 @@
         "READY": 4,
         "CAPABLE": 8,
         "BLOCKED": 29,
-        "NOT APPROPRIATE": 14
+        "NOT APPROPRIATE": 15
       }
     },
     "algebra2": {
@@ -1056,6 +1070,20 @@
           "reason": "Checking a solution of a linear equation is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
           "missingCapability": null,
           "teacherReason": "Checking a solution of a linear equation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "functions.domainRangeFromGraph",
+          "familyTitle": "State the domain and range of a graphed parabola or absolute value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is an unrestricted parabola or absolute value with a moved vertex, so the domain is always all real numbers and only the range's end moves; the remaining levers are other vertices, which are not rigor.",
+          "missingCapability": "A restricted domain (a closed or half-open interval, as Lesson 1's own restricted line has) and other parents (square root, rational), so the domain and range are both found, not recalled.",
+          "teacherReason": "MathMaster's graphed domain-and-range generator only draws unrestricted parabolas and absolute values, so it cannot yet build a built-in Honors extension."
         },
         {
           "familyId": "functions.identifyIntercepts",
@@ -2001,7 +2029,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 28,
+        "BLOCKED": 29,
         "NOT APPROPRIATE": 26
       }
     }

@@ -192,8 +192,20 @@ Every version is a new relation (never one already in the lesson), graded by
 MathMaster, in the same tool, at the same DOK and difficulty. Prepare Recovery
 makes the review's Warm-Up ready. The review's DOL Q7 asks the same task as its
 Warm-Up Q1 but is set at DOK 2, difficulty 3, so it is not recovered at the
-Warm-Up's level; the lessons' DOLs still have other questions no Recovery family
-writes yet.
+Warm-Up's level.
+
+### Domain and range from a graph (Algebra II Honors Lesson 1)
+
+| Question | Recovery versions |
+| --- | --- |
+| Lesson 1 Day 1, DOL Q2 — the graph of f(x) = (x + 2)² − 5 | a parabola with a new vertex, opening the same way: its domain and range in interval notation |
+| Lesson 1 Day 2, Warm-Up Q1 — the graph of f(x) = \|x + 1\| − 2 | an absolute value with a new vertex, opening the same way: its domain and range |
+
+With the number-line and mapping-diagram families, Prepare Recovery now makes
+Lesson 1 Day 1's exit ticket ready as well as its Warm-Up. Day 2's exit ticket
+still has two questions no Recovery family writes yet (the increasing,
+decreasing, positive and negative intervals of a parabola, and the filling
+tank's attributes).
 
 ## Seeing who can recover
 

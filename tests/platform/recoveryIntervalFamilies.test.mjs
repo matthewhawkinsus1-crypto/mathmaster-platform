@@ -286,7 +286,7 @@ const liveCopy = (lesson, id) => ({
 });
 const AT = '2026-10-25T15:00:00.000Z';
 
-test('Prepare Recovery on Day 1: the Warm-Up becomes ready from the interval family; the DOL waits on the question no family writes; no question changes', () => {
+test('Prepare Recovery on Day 1: the Warm-Up becomes ready from the interval family, and the DOL with the graph and Mapping Diagram families; no question changes', () => {
   const assignment = liveCopy(DAY_ONE, 'live-interval-day-1');
   assert.equal(recoveryPreparationAvailable(assignment), true, 'the card says Recovery can be added');
   const { report } = buildRecoveryUpgradePreview({ assignment, manifest: null, gradeSample: serverRecoveryKeyCheck, trackers: [], at: AT });
@@ -297,16 +297,20 @@ test('Prepare Recovery on Day 1: the Warm-Up becomes ready from the interval fam
     'Warm-Up Q3:q_warmup-1_1_3:add:intervals.graphAndWrite:twoRays',
     'DOL Q1:q_dol-4_4_1:add:intervals.graphAndWrite:rayAndSegment',
   ]);
-  // DOL Q3, the relation's mapping, has the Mapping Diagram family's Recovery
-  // (recoveryRelationFamilies.test.mjs).
-  assert.deepEqual(report.changes.filter((change) => change.family.id !== FAMILY_ID).map((change) => `${change.label}:${change.family.id}`), ['DOL Q3:relations.mappingDiagram']);
+  // DOL Q2, the graphed parabola, and DOL Q3, the relation's mapping, have
+  // their own families' Recovery (recoveryGraphReadingFamilies.test.mjs,
+  // recoveryRelationFamilies.test.mjs).
+  assert.deepEqual(report.changes.filter((change) => change.family.id !== FAMILY_ID).map((change) => `${change.label}:${change.family.id}`), [
+    'DOL Q2:functions.domainRangeFromGraph',
+    'DOL Q3:relations.mappingDiagram',
+  ]);
   report.changes.forEach((change) => assert.ok(change.freshVersions >= RECOVERY_MINIMUM_FRESH_VERSIONS, `${change.label}: ${change.freshVersions} fresh versions`));
   assert.deepEqual(report.readiness, {
     warmup: { before: 'unavailable', after: 'ready', message: null },
-    dol: { before: 'unavailable', after: 'unavailable', message: null },
+    dol: { before: 'unavailable', after: 'ready', message: null },
   });
-  assert.deepEqual(report.notReady.map((row) => `${row.label}:${row.issues[0].code}`), ['DOL Q2:no-certified-family']);
-  assert.deepEqual(report.recoveryContent, { versionBefore: 0, versionAfter: 1, bindingsBefore: 0, bindingsAfter: 5 });
+  assert.deepEqual(report.notReady, []);
+  assert.deepEqual(report.recoveryContent, { versionBefore: 0, versionAfter: 1, bindingsBefore: 0, bindingsAfter: 6 });
   assert.deepEqual(report.untouched.questions.map((entry) => entry.signature), flattenAssignmentQuestions(assignment).map(recoverySourceSignature));
 });
 
@@ -316,9 +320,10 @@ test('Prepare Recovery on Day 2: its number-line Warm-Up question makes the Warm
   assert.deepEqual(report.changes.filter((change) => change.family.id === FAMILY_ID).map((change) => `${change.label}:${change.questionId}:${change.family.id}:${change.constraints.shape}`), [
     'Warm-Up Q2:q_warmup-1_1_2:intervals.graphAndWrite:segment',
   ]);
-  // Warm-Up Q3 and DOL Q2, the mapping diagrams, have the Mapping Diagram
-  // family's Recovery (recoveryRelationFamilies.test.mjs).
+  // Warm-Up Q1, the graphed absolute value, and Warm-Up Q3 and DOL Q2, the
+  // mapping diagrams, have their own families' Recovery.
   assert.deepEqual(report.changes.filter((change) => change.family.id !== FAMILY_ID).map((change) => `${change.label}:${change.family.id}`), [
+    'Warm-Up Q1:functions.domainRangeFromGraph',
     'Warm-Up Q3:relations.mappingDiagram',
     'DOL Q2:relations.mappingDiagram',
   ]);
