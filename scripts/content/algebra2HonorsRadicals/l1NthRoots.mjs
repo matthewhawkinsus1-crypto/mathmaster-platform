@@ -5,7 +5,9 @@
  * an nth root, real nth roots by index and sign, principal roots, Examples A–D
  * and their Check Your Progress, simplifying with absolute value, the
  * product and quotient work on the "Simplify" slides, and the two calculator
- * applications (the solar-cell hole and the pendulum).
+ * applications (the solar-cell hole and the pendulum). One change to the
+ * slides' order: the numerical radicals (√63, 3√12) come before Example A, so
+ * the largest perfect-square factor is met with numbers first.
  *
  * The slides' Do Now reviews dividing polynomials (the lesson before). The
  * Warm-Up here instead walks from what students already know to what this
@@ -247,6 +249,46 @@ const classwork = [
       ],
       null,
       'Putting the cube roots of −64 under "No real roots": an odd index takes a negative radicand to a negative root, −4.',
+    ),
+  },
+  // Numbers first (PR #537 walkthrough, L1 pacing). The slides simplify √63
+  // and 3√12 after Examples A–D and the absolute-value items, so a student met
+  // "largest perfect-square factor" only after writing perfect powers of
+  // variables. It needs only the definitions before it (CW 1–2: index,
+  // radicand, real roots), so it comes straight after them, before Example A.
+  // It keeps its id; every other item keeps the slides' order.
+  {
+    questionId: 'a2r1-cw-9',
+    ...T,
+    studentActions: ['multipleResponses'],
+    dok: 1,
+    difficultyBand: 2,
+    prompt: tex`Simplify numerical radicals. For $\sqrt{63}$ and $3\sqrt{12}$, find the largest perfect-square factor of the radicand, then write each in simplest radical form.`,
+    directionSteps: [
+      'Find the largest perfect-square factor of each radicand.',
+      'Take its square root outside the radical.',
+      'Write each in simplest radical form.',
+    ],
+    responses: [
+      number('factor63', 'Largest perfect-square factor of 63', '9'),
+      simplest('root63', '√63 =', '3√7'),
+      number('factor12', 'Largest perfect-square factor of 12', '4'),
+      simplest('root12', '3√12 =', '6√3'),
+    ],
+    hints: [
+      'List the perfect squares in order and test which ones divide each radicand.',
+      'Split each radicand into a perfect square times what is left.',
+      'Multiply the outside coefficient by the square root of the perfect square.',
+    ],
+    scaffold: backUp('√(ab) equals…', ['√a · √b', '√a + √b'], '√a · √b'),
+    guidedNotes: guidedNotes(
+      ['Product Property', 'ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split off the largest perfect nth-power factor.'],
+    ),
+    solutionReview: review(
+      'Split off the largest perfect square.',
+      ['63 = 9 · 7, so √63 = 3√7.', '12 = 4 · 3, so 3√12 = 3 · 2√3 = 6√3.'],
+      '3√7; 6√3',
+      'Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out.',
     ),
   },
   {
@@ -497,40 +539,6 @@ const classwork = [
       ],
       '3(x + 2)³; 2(x + 2)⁵',
       'Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2.',
-    ),
-  },
-  {
-    questionId: 'a2r1-cw-9',
-    ...T,
-    studentActions: ['multipleResponses'],
-    dok: 1,
-    difficultyBand: 2,
-    prompt: tex`Simplify numerical radicals. For $\sqrt{63}$ and $3\sqrt{12}$, find the largest perfect-square factor of the radicand, then write each in simplest radical form.`,
-    directionSteps: [
-      'Find the largest perfect-square factor of each radicand.',
-      'Take its square root outside the radical.',
-      'Write each in simplest radical form.',
-    ],
-    responses: [
-      number('factor63', 'Largest perfect-square factor of 63', '9'),
-      simplest('root63', '√63 =', '3√7'),
-      number('factor12', 'Largest perfect-square factor of 12', '4'),
-      simplest('root12', '3√12 =', '6√3'),
-    ],
-    hints: [
-      'List the perfect squares in order and test which ones divide each radicand.',
-      'Split each radicand into a perfect square times what is left.',
-      'Multiply the outside coefficient by the square root of the perfect square.',
-    ],
-    scaffold: backUp('√(ab) equals…', ['√a · √b', '√a + √b'], '√a · √b'),
-    guidedNotes: guidedNotes(
-      ['Product Property', 'ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split off the largest perfect nth-power factor.'],
-    ),
-    solutionReview: review(
-      'Split off the largest perfect square.',
-      ['63 = 9 · 7, so √63 = 3√7.', '12 = 4 · 3, so 3√12 = 3 · 2√3 = 6√3.'],
-      '3√7; 6√3',
-      'Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out.',
     ),
   },
   {
@@ -1197,7 +1205,7 @@ export const L1_NTH_ROOTS = {
       gradingPurpose: 'classwork',
       essentialQuestion: 'Why can it be useful to simplify expressions?',
       instructions: 'nth roots. Every answer is entered in a step-by-step tool: write the radicand as a perfect power, take the root, and decide whether absolute value bars are needed — the tool checks each step. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.',
-      teacherNotes: 'Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; "Simplify" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW8’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy.',
+      teacherNotes: 'Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; "Simplify" answers are graded by value AND form (simplest radical form, bars only where needed). CW3, the numerical radicals √63 and 3√12, comes before the variable examples so students find the largest perfect-square factor with numbers first; the other items keep the slides’ order. Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW9’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy.',
     },
     variantPolicy: {
       mode: 'personalized',

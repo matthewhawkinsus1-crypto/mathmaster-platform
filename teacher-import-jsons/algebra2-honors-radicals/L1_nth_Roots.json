@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "Why can it be useful to simplify expressions?",
     "instructions": "nth roots. Every answer is entered in a step-by-step tool: write the radicand as a perfect power, take the root, and decide whether absolute value bars are needed — the tool checks each step. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; \"Simplify\" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the \"Simplify\" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW8’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy."
+    "teacherNotes": "Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; \"Simplify\" answers are graded by value AND form (simplest radical form, bars only where needed). CW3, the numerical radicals √63 and 3√12, comes before the variable examples so students find the largest perfect-square factor with numbers first; the other items keep the slides’ order. Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the \"Simplify\" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW9’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -636,6 +636,86 @@
           }
         },
         {
+          "questionId": "a2r1-cw-9",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 1,
+          "difficultyBand": 2,
+          "prompt": "Simplify numerical radicals. For $\\sqrt{63}$ and $3\\sqrt{12}$, find the largest perfect-square factor of the radicand, then write each in simplest radical form.",
+          "directionSteps": [
+            "Find the largest perfect-square factor of each radicand.",
+            "Take its square root outside the radical.",
+            "Write each in simplest radical form."
+          ],
+          "responses": [
+            {
+              "id": "factor63",
+              "label": "Largest perfect-square factor of 63",
+              "answer": "9",
+              "inputProfile": "number"
+            },
+            {
+              "id": "root63",
+              "label": "√63 =",
+              "answer": "3√7",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "factor12",
+              "label": "Largest perfect-square factor of 12",
+              "answer": "4",
+              "inputProfile": "number"
+            },
+            {
+              "id": "root12",
+              "label": "3√12 =",
+              "answer": "6√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "List the perfect squares in order and test which ones divide each radicand.",
+            "Split each radicand into a perfect square times what is left.",
+            "Multiply the outside coefficient by the square root of the perfect square."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(ab) equals…",
+            "options": [
+              "√a · √b",
+              "√a + √b"
+            ],
+            "correct": "√a · √b"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Product Property",
+                "instruction": "ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split off the largest perfect nth-power factor."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Split off the largest perfect square.",
+            "reasoning": [
+              "63 = 9 · 7, so √63 = 3√7.",
+              "12 = 4 · 3, so 3√12 = 3 · 2√3 = 6√3."
+            ],
+            "answerSummary": "3√7; 6√3",
+            "commonError": "Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out."
+          }
+        },
+        {
           "questionId": "a2r1-cw-3",
           "standard": "A2.7G",
           "alignments": [
@@ -1146,86 +1226,6 @@
             ],
             "answerSummary": "3(x + 2)³; 2(x + 2)⁵",
             "commonError": "Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2."
-          }
-        },
-        {
-          "questionId": "a2r1-cw-9",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 1,
-          "difficultyBand": 2,
-          "prompt": "Simplify numerical radicals. For $\\sqrt{63}$ and $3\\sqrt{12}$, find the largest perfect-square factor of the radicand, then write each in simplest radical form.",
-          "directionSteps": [
-            "Find the largest perfect-square factor of each radicand.",
-            "Take its square root outside the radical.",
-            "Write each in simplest radical form."
-          ],
-          "responses": [
-            {
-              "id": "factor63",
-              "label": "Largest perfect-square factor of 63",
-              "answer": "9",
-              "inputProfile": "number"
-            },
-            {
-              "id": "root63",
-              "label": "√63 =",
-              "answer": "3√7",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            },
-            {
-              "id": "factor12",
-              "label": "Largest perfect-square factor of 12",
-              "answer": "4",
-              "inputProfile": "number"
-            },
-            {
-              "id": "root12",
-              "label": "3√12 =",
-              "answer": "6√3",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            }
-          ],
-          "hints": [
-            "List the perfect squares in order and test which ones divide each radicand.",
-            "Split each radicand into a perfect square times what is left.",
-            "Multiply the outside coefficient by the square root of the perfect square."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. √(ab) equals…",
-            "options": [
-              "√a · √b",
-              "√a + √b"
-            ],
-            "correct": "√a · √b"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Product Property",
-                "instruction": "ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split off the largest perfect nth-power factor."
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "Split off the largest perfect square.",
-            "reasoning": [
-              "63 = 9 · 7, so √63 = 3√7.",
-              "12 = 4 · 3, so 3√12 = 3 · 2√3 = 6√3."
-            ],
-            "answerSummary": "3√7; 6√3",
-            "commonError": "Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out."
           }
         },
         {

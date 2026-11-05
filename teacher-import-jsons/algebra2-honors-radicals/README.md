@@ -31,7 +31,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 
 **Warm-Up — prior knowledge to the objective.** Each Warm-Up was rebuilt to climb to the lesson: powers → perfect powers → √(x²) = |x| (Lesson 1); a Lesson 1 root, like terms → like radicals, and (x + a)(x − a) → conjugates (Lesson 2); integer exponent laws → negative exponents → why b^(1/n) must be the nth root (Lesson 3).
 
-**Classwork** follows every slide example and Check Your Progress, staged so each step is its own graded box. "Simplify" answers are graded by value and form: simplest radical form, with absolute-value bars only where they are needed.
+**Classwork** follows every slide example and Check Your Progress, staged so each step is its own graded box. In Lesson 1 the numerical radicals (√63 and 3√12, Classwork 3) come before the variable examples, so students find the largest perfect-square factor with numbers first. "Simplify" answers are graded by value and form: simplest radical form, with absolute-value bars only where they are needed.
 
 **Practice** has new versions for each student, the Honors extension (DOK 3–4: error analysis, reasoning about the index, tables, comparing without a calculator) and two CCMR items. In Lesson 3 the band-3 index reduction and calculator items come before the extension, so a student who stops early has met them:
 
@@ -48,7 +48,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 ## Slide notes
 
 - Lesson 1: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z². When y can be negative it is 3x²|y⁵|z². Classwork 10 teaches this.
-- Lesson 1: the odd-index Check Your Progress on the slide, ∛(27(x + 2)⁹), is 3(x + 2)³, the example's own answer, so a student could copy it into the box. Classwork 8 asks for ∛(8(x + 2)¹⁵) = 2(x + 2)⁵ instead.
+- Lesson 1: the odd-index Check Your Progress on the slide, ∛(27(x + 2)⁹), is 3(x + 2)³, the example's own answer, so a student could copy it into the box. Classwork 9 asks for ∛(8(x + 2)¹⁵) = 2(x + 2)⁵ instead.
 - Lesson 3: the objectives slide is titled "Rational Expressions" instead of Rational Exponents. The Check Your Progress ⁶√(16x²) = ∛(4x) holds only for x ≥ 0; for every real x it is ∛(4|x|). Classwork 8 states the assumption.
 
 ## These are not the Bluebonnet lessons

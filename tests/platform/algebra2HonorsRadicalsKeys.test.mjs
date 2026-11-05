@@ -189,3 +189,30 @@ test('L1 CW 3: ±√(9x⁸) is two typed boxes, the positive root and the negati
   assert.equal(right('cypPositive', '\\sqrt{9x^8}'), false, 'the radical retyped is not its simplification');
   assert.equal(question.answerFields.some((field) => /±/.test(String(field.answer))), false);
 });
+
+// L1 pacing (PR #537 walkthrough): the slides simplify √63 and 3√12 (CW 9)
+// after Examples A–D and the absolute-value items, so a student met "largest
+// perfect-square factor" only after writing perfect powers of variables.
+const sectionOf = (file, role) => lesson(file).sections.find((section) => section.role === role).questions;
+/** The radicands a prompt writes, \sqrt{…} or \sqrt[n]{…}, one level of braces inside. */
+const radicands = (question) => [...String(question.prompt).matchAll(/\\sqrt(?:\[\d+\])?\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((match) => match[1]);
+/** The slide number a classwork id carries (a2r1-cw-9 is the slides' ninth). */
+const slideNumber = (question) => Number(question.questionId.split('-').pop());
+
+test('L1 Classwork: the numerical radicals come before the variable work, after the definitions they use', () => {
+  const classwork = sectionOf(L1, 'classwork');
+  const numbers = classwork.findIndex((question) => question.questionId === 'a2r1-cw-9');
+  assert.ok(numbers >= 0);
+  assert.match(classwork[numbers].prompt, /largest perfect-square factor/);
+  assert.deepEqual(radicands(classwork[numbers]), ['63', '12'], 'its radicands are numbers');
+  const variables = classwork.findIndex((question) => radicands(question).some((radicand) => /[a-z]/i.test(radicand)));
+  assert.ok(variables >= 0, 'the classwork has variable radicands');
+  assert.ok(numbers < variables, `the numbers (CW ${numbers + 1}) come before the first variable radicand (CW ${variables + 1})`);
+  // What it needs comes first: the index and the radicand (CW 1), real roots (CW 2).
+  const definitions = classwork.filter((question) => slideNumber(question) <= 2).map((question) => classwork.indexOf(question));
+  assert.equal(definitions.length, 2);
+  assert.ok(definitions.every((index) => index < numbers), 'the definitions come before it');
+  // Every other item keeps the slides' order.
+  const others = classwork.filter((_, index) => index !== numbers).map(slideNumber);
+  assert.deepEqual(others, [...others].sort((a, b) => a - b), `the slides' order: ${others.join(', ')}`);
+});
