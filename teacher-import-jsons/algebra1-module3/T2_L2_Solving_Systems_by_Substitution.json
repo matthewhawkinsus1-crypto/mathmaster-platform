@@ -213,9 +213,9 @@
               "type": "choice",
               "options": [
                 "No — Lyndi’s 3 chickens and 1 pig are worth 6.25 chickens, but Simpson’s 4 goats are worth only 5 chickens.",
-                "Yes — each farmer offers 4 animals.",
-                "No — Simpson’s 4 goats are worth more than Lyndi’s animals.",
-                "Yes — both offers are worth 5 chickens."
+                "Yes — each farmer offers 4 animals, so the two offers are worth the same.",
+                "No — Simpson’s 4 goats are worth 6.25 chickens, but Lyndi’s 3 chickens and 1 pig are worth only 5 chickens.",
+                "Yes — a pig is worth 2 chickens, so each offer is worth 5 chickens."
               ],
               "answer": "No — Lyndi’s 3 chickens and 1 pig are worth 6.25 chickens, but Simpson’s 4 goats are worth only 5 chickens."
             },
@@ -399,9 +399,9 @@
               "type": "choice",
               "options": [
                 "No — the lines cross between grid lines, so the graph only gives an estimate.",
-                "Yes — the lines cross exactly at a grid point.",
-                "No — the lines never cross.",
-                "Yes — the solution is where y = 8x crosses the y-axis."
+                "Yes — the lines cross exactly at a grid point, so its coordinates are exact.",
+                "No — the lines never cross, so the system has no solution to read.",
+                "Yes — the solution is where y = 8x crosses the y-axis, at the origin."
               ],
               "answer": "No — the lines cross between grid lines, so the graph only gives an estimate."
             },
@@ -681,9 +681,9 @@
               "type": "choice",
               "options": [
                 "No — both earn $7 per hour, so Chloe stays $10.50 behind.",
-                "Yes — at noon.",
-                "Yes — after 10.5 hours.",
-                "No — Chloe earns less per hour than Daniel."
+                "Yes — at noon, when both have worked for 5 hours.",
+                "Yes — after 10.5 hours, when Chloe has caught up.",
+                "No — Chloe earns less per hour, so she falls further behind."
               ],
               "answer": "No — both earn $7 per hour, so Chloe stays $10.50 behind."
             }
@@ -820,9 +820,9 @@
               "type": "choice",
               "options": [
                 "They describe the same line, so there are infinitely many solutions.",
-                "The lines are parallel, so there is no solution.",
-                "The lines cross once, so there is exactly one solution.",
-                "You cannot tell anything without graphing."
+                "They have the same slope, so the lines are parallel: no solution.",
+                "The equations look different, so the lines cross once: one solution.",
+                "You cannot tell anything about them until you graph both lines."
               ],
               "answer": "They describe the same line, so there are infinitely many solutions."
             }
@@ -930,9 +930,9 @@
               "type": "choice",
               "options": [
                 "You cannot tell: any whole numbers that add to 5 work, such as 2 student and 3 adult.",
-                "Exactly 2 student tickets and 3 adult tickets.",
-                "No combination of tickets works.",
-                "5 student tickets and 5 adult tickets."
+                "Exactly 2 student and 3 adult tickets, the one pair that makes 4x + 4y = 20 true.",
+                "No combination works: a true statement with no variable means no solution.",
+                "5 student and 5 adult tickets: the true statement says each count is 5."
               ],
               "answer": "You cannot tell: any whole numbers that add to 5 work, such as 2 student and 3 adult."
             },
@@ -1255,9 +1255,9 @@
               "type": "choice",
               "options": [
                 "Both equations are solved for y, so set the right sides equal to each other.",
-                "Solve Line A’s equation for x first.",
-                "Add the two equations.",
-                "Graph the tables and read the crossing point."
+                "Solve Line A’s equation for x first, because x is the variable to substitute.",
+                "Add the two equations, so that the y-terms cancel each other out.",
+                "Graph the tables and read the crossing point, since substitution needs a graph."
               ],
               "answer": "Both equations are solved for y, so set the right sides equal to each other."
             }
@@ -1326,9 +1326,9 @@
               "type": "choice",
               "options": [
                 "The price of each kind of seat that brings in exactly $236,000 when every seat is sold",
-                "How many seats of each kind are sold",
-                "How much money each level brings in",
-                "How many more main-level seats than upper-level seats there are"
+                "The number of seats of each kind that must be sold to bring in exactly $236,000",
+                "The money each level brings in when every seat is sold, which adds up to $236,000",
+                "How many more main-level seats than upper-level seats must be sold to reach $236,000"
               ],
               "answer": "The price of each kind of seat that brings in exactly $236,000 when every seat is sold"
             }
@@ -1489,9 +1489,9 @@
               "type": "choice",
               "options": [
                 "They give the first two customers’ totals: 2(8) + 2(16) = 48 and 3(8) + 16 = 40.",
-                "The prices are whole numbers.",
-                "The adult price is double the student price.",
-                "They work for the new customer."
+                "The prices are whole numbers of dollars, as ticket prices always are.",
+                "They give the first customer’s total, 2(8) + 2(16) = 48, so both prices are right.",
+                "They give the new customer’s total, which is a whole number of dollars."
               ],
               "answer": "They give the first two customers’ totals: 2(8) + 2(16) = 48 and 3(8) + 16 = 40."
             }
@@ -1558,9 +1558,9 @@
               "type": "choice",
               "options": [
                 "Choose an equation already solved for a variable, or a variable with a coefficient of 1 or −1.",
-                "Always use the first equation.",
-                "Choose the equation with the largest numbers.",
-                "Choose the variable with the largest coefficient."
+                "Always use the first equation, because substitution has to start from the first one.",
+                "Choose the equation with the largest numbers, because it holds the most information.",
+                "Choose the variable with the largest coefficient, because dividing by it keeps the numbers small."
               ],
               "answer": "Choose an equation already solved for a variable, or a variable with a coefficient of 1 or −1."
             },
@@ -1570,9 +1570,9 @@
               "type": "choice",
               "options": [
                 "Substitute the x-value into one of the original equations — the one solved for y is easiest.",
-                "y always equals x.",
-                "Solve the one-variable equation again.",
-                "Subtract x from the constant term."
+                "Set y equal to the x-value — the two coordinates of a solution are always equal.",
+                "Solve the one-variable equation again — its answer is the y-value as well as the x-value.",
+                "Subtract the x-value from the constant term of either equation — that always gives y."
               ],
               "answer": "Substitute the x-value into one of the original equations — the one solved for y is easiest."
             },
@@ -1582,9 +1582,9 @@
               "type": "choice",
               "options": [
                 "Substitute both values into BOTH original equations; each one must be true.",
-                "Substitute the values into one equation.",
-                "Check that x and y are whole numbers.",
-                "Graph one of the equations."
+                "Substitute both values into ONE original equation; if it is true, so is the other.",
+                "Check that x and y are whole numbers; a system’s solution is always whole.",
+                "Graph one of the equations and check that the point lies on that line."
               ],
               "answer": "Substitute both values into BOTH original equations; each one must be true."
             }
@@ -2140,9 +2140,9 @@
               "type": "choice",
               "options": [
                 "Kai left out the parentheses around 2x − 1, so −2 multiplied only 2x.",
-                "Kai substituted into the wrong equation.",
-                "Kai should have solved for x first.",
-                "Nothing — Kai’s equation is correct."
+                "Kai substituted into the wrong equation; it belongs in y = 2x − 1.",
+                "Kai should have solved for x first, since x comes before y in the system.",
+                "Nothing — Kai’s equation is correct, since −2 multiplies all of 2x − 1."
               ],
               "answer": "Kai left out the parentheses around 2x − 1, so −2 multiplied only 2x."
             },
@@ -2562,9 +2562,9 @@
               "type": "choice",
               "options": [
                 "Its solution is not on a grid point, so a graph only gives an estimate; substitution gives the exact values.",
-                "Graphing never works for linear systems.",
-                "Substitution always gives whole-number answers.",
-                "Graphing cannot show two lines at once."
+                "Graphing never works for linear systems, because the lines go on forever and never fit on one graph.",
+                "Substitution always gives whole-number answers, so it finds the grid point that the graph misses.",
+                "Graphing cannot show two lines on the same grid, so a graph can never show where the lines cross."
               ],
               "answer": "Its solution is not on a grid point, so a graph only gives an estimate; substitution gives the exact values."
             }

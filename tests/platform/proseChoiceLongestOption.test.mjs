@@ -75,14 +75,12 @@ const offenders = (file) => choicesOf(JSON.parse(readFileSync(path.join(LESSONS,
  * matrices, polynomials and radicals held 27, and theirs did the same. Each
  * Algebra I file in ALGEBRA1 left the ratchet when its rewrite took it to 0;
  * one that keeps an offender keeps its number here, and ALGEBRA1 names what
- * it keeps (28 in 5 files now).
+ * it keeps (3 in 3 files now).
  */
 const RATCHET = Object.freeze({
   'algebra1-dol3/Algebra1_DOL3_Review_Honors.json': 1,
   'algebra1-module3/T1_L1_Solving_Linear_Equations.json': 1,
   'algebra1-module3/T1_L1_Solving_Linear_Equations_Honors.json': 1,
-  'algebra1-module3/T2_L2_Solving_Systems_by_Substitution.json': 13,
-  'algebra1-module3/T2_L2_Solving_Systems_by_Substitution_Honors.json': 12,
 });
 
 const RADICALS = ['L1_nth_Roots.json', 'L2_Operations_with_Radical_Expressions.json', 'L3_Rational_Exponents.json']
@@ -125,6 +123,8 @@ const ALGEBRA1 = Object.freeze({
   'algebra1-module3/T1_L3_Modeling_and_Solving_Linear_Inequalities_Honors.json': [],
   'algebra1-module3/T2_L1_Solving_Systems_by_Graphing.json': [],
   'algebra1-module3/T2_L1_Solving_Systems_by_Graphing_Honors.json': [],
+  'algebra1-module3/T2_L2_Solving_Systems_by_Substitution.json': [],
+  'algebra1-module3/T2_L2_Solving_Systems_by_Substitution_Honors.json': [],
 });
 
 test('what counts: a prose choice whose key is the unique longest option by more than 20%', () => {
