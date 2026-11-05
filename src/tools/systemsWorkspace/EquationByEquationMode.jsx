@@ -34,12 +34,15 @@ import { allOriginalsVerified, buildReductionSystem } from './substitutionReduct
 import { verificationTokenNeeded } from './verificationTokenState.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import AlgebraicOutcome from './AlgebraicOutcome.jsx';
+import { eliminationActionStyle } from './EliminationStack.jsx';
 import './AlgebraicSystemMode.css';
 
 /** The `method` this route reports: the route on screen, never a pick between the other two. */
 export const BY_EQUATION_METHOD = 'byEquation';
 
-const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
+// The same action button as the elimination route's (its colours are the theme
+// audit's documented exception there), not a copy with a new hard-coded colour.
+const actionStyle = eliminationActionStyle;
 
 const emptyCheck = () => ({ verification: {} });
 
