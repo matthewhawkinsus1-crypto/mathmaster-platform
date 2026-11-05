@@ -60,6 +60,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { FALLBACK_HINTS } from '../../src/platform/supports/hints/questionHints.js';
@@ -122,7 +123,9 @@ const scenario = async (label, body) => {
     const plain = (text) => text.split(String.fromCharCode(27)).map((piece) => piece.replace(/^\[\d+m/, '')).join('');
     check(false, `${label}: the journey could not be completed`, `${error.message.split('\n')[0]}${waitedFor ? ` (waiting for ${plain(waitedFor)})` : ''}`);
     mkdirSync(ARTIFACTS, { recursive: true });
-    await pages.at(-1)?.screenshot({ path: path.join(ARTIFACTS, `FAILED-${label.replace(/[^a-z0-9]+/gi, '-')}.png`), fullPage: true }).catch(() => {});
+    // Through the helper: the keypad surface's phone context has touch, and a
+    // full-page screenshot would take it away for the scenes after this one.
+    await screenshotKeepingTouch(pages.at(-1), { path: path.join(ARTIFACTS, `FAILED-${label.replace(/[^a-z0-9]+/gi, '-')}.png`), fullPage: true }).catch(() => {});
   } finally {
     while (pages.length) await pages.pop().close().catch(() => {});
   }
