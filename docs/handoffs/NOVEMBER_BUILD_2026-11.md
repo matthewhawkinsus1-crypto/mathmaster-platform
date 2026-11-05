@@ -63,6 +63,9 @@ Nothing here has been deployed, and no operator script has been run.
 | N76 | The demo bank's 17 system items show two equations in a brace instead of "∧". Their formula, which Step Algebra reads, is unchanged. A browser that already holds a demo seed keeps the old copy until "Reset Demo Classroom". | `9e1382b1` |
 | CI02 | The Path Tool Browser Contract job recaptures four more tools and fails when a capture drifts. feedbackTeaches covers an Exponential ↔ Log Bridge item, and feedbackReasons2 the two messages no student scene reached. | `8d066d4e` |
 | Abandoned lobbies and Pace Race rounds (N73) | Decision LC05 (end abandoned games that write no grade after 30 minutes with no host heard) now reaches the two cases the sweep missed. A lobby nobody started is cancelled: nothing played, nothing recorded, and the students' banner goes away. A Pace Race round, which has no deadline, is finished as End Game would finish it. Same guards: the heartbeat must have been heard, the switch allows it, never a Warm-Up, re-checked in the transaction. | `6f08a1b9` |
+| Where wrong rush taps land (N42) | A wrong tap in a graph rush that lands on another feature of the same graph is recorded on its receipt, and the teacher's report lists "Where wrong taps landed, most common first" ("Tapped the y-intercept when asked for zeros (x-intercepts) · 7"). The teacher's console only: no verdict, point or cooldown moves, and no student's device receives it. | `5e40bff4` |
+| Class memory for more games (N80) | Graph the Line and Solver Race open with the class's last-time card and a suggestion ("64% accuracy → try Easy"), with "Use last settings" and "Use suggestion". Standard Challenge has none: it has no easier or harder setting, the server fits each round's clock to its question, and a mixed review's weakest standard rests on one or two questions. | `5373b43d` |
+| Placing points on a phone (N60) | Under a finger, the plane's coordinate chip sits above the fingertip, and lifting places exactly the point it showed. A tap up to 22 px past the grid's edge lands on the edge, in every tool's plane. On a −10 to 10 grid a phone unit is 12.8 by 8.0 px, so sliding with the chip is the way to aim. Laptops are unchanged. | `e8846679`, `613ac3e1` |
 
 ## 3. Checked, with no change needed
 
@@ -73,7 +76,7 @@ Nothing here has been deployed, and no operator script has been run.
 ## 4. Releasing this work
 
 1. **Firestore rules** (`dc16bfa9`, Ask my teacher).
-2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report), and so did Corrections' slip names (TC05) and the bundled SAT seed (N54). Deploy outside class hours and outside Sunday 6 pm to midnight Central.
+2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report, its wrong-tap list and the class memory: N42, N80), and so did Corrections' slip names (TC05) and the bundled SAT seed (N54). Deploy outside class hours and outside Sunday 6 pm to midnight Central.
 3. **Hosting.**
 4. **Then the re-imports.** A changed lesson reaches a class only when its teacher imports it again:
    - Algebra II Honors module 2: Operations on Polynomials, Dividing Polynomials.
@@ -107,6 +110,7 @@ Nothing here has been deployed, and no operator script has been run.
   - A1 M3 T1 L1 PR 8 (r2) and its Honors twin (CW 5, j2) name the property behind each of five steps from one shared list, and every option but one is another step's key. Step 2's key is the longest name on the list.
   - A1 M3 T2 L2 CW 7's key says "$10.50 behind", the answer to its own `ninety` box; CW 1's key gives 6.25 and 5 chickens, from which the goat and pig answers follow.
   - The DOL #3 Honors review's audited TSIA2 item (`mm_tsia2_psr_analysis_8_v21`) has the longest choice as its key. Its fix belongs in the bank.
+- **Opening the graph zoomed on a phone (N60).** A unit of 24 px allows at most a 10 × 6 window on a phone. Only 15 of the 26 fixed-number build items could open that way with every point in view, templated items would differ by student, and a window framed around the key shows where the boundary is, so it would have to stay off on exit tickets, quizzes and tests. Not built.
 - **Only the owner can:**
   - **SI01 (N04).** Turn on the class-scoped assignment reads (Administration → Classes), then run `node scripts/report-assignment-key-exposure.mjs --project <id>`. Until then the answer-key split runs in shadow, and a student's device can read each item's key and worked steps.
   - **N05.** Run the re-grade report, read it, then run `apply-upward-regrade`, dry run first.
@@ -120,9 +124,11 @@ Nothing here has been deployed, and no operator script has been run.
   - The matrices Warm-Up 1's Recovery versions come from version 1 of `matrices.arrayRecordTotals` and still show the old wrong options. A family change ships as a new version, and Recovery binds only a family's version 1 unless a caller pins another, so the new options need a version 2 and a way for Recovery to bind it (half a day, with the Recovery binding rules).
   - Personal Check Your Progress per student, N34 (1 day).
 - **Live Challenge:**
-  - Group where wrong rush taps land, N42 (1–2 days).
   - Remove a student from a running game, N53 (3–5 days).
-  - Class memory for the other games, N80 (1 day).
+  - The console reads a game's report once, when the room finishes; a report written a moment later shows only after a refresh (half a day).
+- **Coordinate plane** (found by N60, on laptops too):
+  - On a zoomed plane the keyboard crosshair stops at the window's edge, which can fall between grid lines, and Enter plots it there ("Point 1 (4.571429, 0)") (1 hour).
+  - On a −10 to 10 grid, pressing the grid point just above or below a placed point picks that point up instead of placing a new one: the pick-up radius (18 drawing units, pinned by planeOnPhone.test.mjs) is wider than one vertical grid step there (14.8) (1 hour).
 - **Accessibility:**
   - AX05: under a Spanish translation a tool's own sentences (the Systems Workspace's region corners, the parabola) and an author's description are still English, with the note. Figure names (`aria-label`) stay English, English words inside a Spanish description are not marked `lang="en"`, and a secure Test field's figures are not covered.
   - TT27: the administrator tab list, and teacher screens at 200% text and 320 px.
