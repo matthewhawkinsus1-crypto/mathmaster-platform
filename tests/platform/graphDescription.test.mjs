@@ -202,6 +202,12 @@ test('CoordinatePlane imports the describer it calls, and memoises it on the dat
   for (const bound of ['xMin', 'xMax', 'yMin', 'yMax', 'snapStep']) {
     assert.match(deps, new RegExp(`\\b${bound}\\b`), `memo deps must include ${bound}`);
   }
+  // A tool's words for what it draws re-run it when what they say changes:
+  // both details, by value, since a reading ({ text, say }, AX05 slice 3) is
+  // a new object on every render.
+  assert.match(call, /toolMarks: hasToolMarks \? toolMarks : null,/);
+  assert.match(planeCode, /const toolMarksKey = JSON\.stringify\(\[toolMarks\?\.kinds \?\? null, toolMarks\?\.features \?\? null\]\);/);
+  assert.match(deps, /\btoolMarksKey\b/, 'memo deps must include the tool\'s words');
 });
 
 test('the plane svg is described by the generated (or authored) summary paragraph', () => {

@@ -18,7 +18,11 @@
  *             { id, args }: a platform sentence or phrase, said with the
  *             words for `id`;
  *             { english }: platform English with no message (a tool's own
- *             sentence, an author's description), said only in English.
+ *             sentence, an author's description), said only in English;
+ *             { english, say }: a tool's own sentence with its messages
+ *             (slice 3): said in English as the tool says it, and in
+ *             another language from the messages, which the tool says its
+ *             English from, so the two cannot drift.
  *   arg       a string or a number (a value, a coordinate, a count: the same
  *             in every language), a message, or an array of args (a list,
  *             joined by the language's own rule).
@@ -34,6 +38,13 @@ export const say = (id, ...args) => ({ id, args });
 /** Platform English with no message: said only in English. */
 export const englishOnly = (text) => ({ english: String(text ?? '') });
 
+/**
+ * A tool's own sentence about what it draws, and the same sentence as
+ * messages (AX05, slice 3): its English is said as the tool says it, and
+ * another language says the messages with its own words.
+ */
+export const toolSentence = (english, segments) => ({ english: String(english ?? ''), say: Array.isArray(segments) ? segments : [] });
+
 const renderArg = (arg, words, english) => {
   if (Array.isArray(arg)) {
     const items = arg.map((item) => renderArg(item, words, english));
@@ -47,13 +58,23 @@ const renderArg = (arg, words, english) => {
 function renderSegment(segment, words, english) {
   if (typeof segment === 'string') return segment;
   if (!segment || typeof segment !== 'object') return null;
-  if (typeof segment.english === 'string') return english ? segment.english : null;
+  if (typeof segment.english === 'string') {
+    if (english) return segment.english;
+    // A tool's own sentence that has its messages: said from them.
+    return Array.isArray(segment.say) ? renderSegments(segment.say, words, english) : null;
+  }
   const word = words?.[segment.id];
   if (typeof word !== 'function') return null;
   const args = (Array.isArray(segment.args) ? segment.args : []).map((arg) => renderArg(arg, words, english));
   if (args.includes(null)) return null;
   const text = word(...args);
   return typeof text === 'string' ? text : null;
+}
+
+function renderSegments(segments, words, english) {
+  const parts = segments.map((segment) => renderSegment(segment, words, english));
+  if (parts.includes(null)) return null;
+  return parts.filter((part) => part !== '').join(' ');
 }
 
 /**
@@ -63,9 +84,7 @@ function renderSegment(segment, words, english) {
  */
 export const sayFigure = (segments, words, { english = false } = {}) => {
   if (!Array.isArray(segments) || !words) return null;
-  const parts = segments.map((segment) => renderSegment(segment, words, english));
-  if (parts.includes(null)) return null;
-  return parts.filter((part) => part !== '').join(' ');
+  return renderSegments(segments, words, english);
 };
 
 /** Several pieces of one figure's reading: null if any piece has none. */

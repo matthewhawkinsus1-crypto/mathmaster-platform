@@ -637,6 +637,9 @@ export default function CoordinatePlane({
   const graphReadOut = useGraphReadOut();
   const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed, explicit: describeFeatures });
   const descriptionDetail = (describeFeatures == null ? questionClosed || readOut : describeFeatures === true) ? 'features' : 'kinds';
+  // A tool's words may be a reading ({ text, say }, AX05 slice 3) built on
+  // every render: the description follows what they say, not the object.
+  const toolMarksKey = JSON.stringify([toolMarks?.kinds ?? null, toolMarks?.features ?? null]);
   const generatedDescription = useMemo(() => describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     detail: descriptionDetail,
@@ -656,7 +659,7 @@ export default function CoordinatePlane({
   }), [
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
-    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarks?.kinds, toolMarks?.features,
+    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarksKey,
   ]);
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const axisTitles = { x: cleanAxisLabel(xAxisTitle), y: cleanAxisLabel(yAxisTitle) };

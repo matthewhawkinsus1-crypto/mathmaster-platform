@@ -56,7 +56,7 @@ import { diagnoseModelRows, modelRowMessage, modelRowVerdicts } from './inequali
 import { pointSubstitution, valueEntered, valueWorkedOut } from './testPointSubstitution.js';
 import { wordsFor } from './inequalitySystemWords.js';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
-import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
+import { inequalityGraphMarksReading } from './inequalityGraphMarks.js';
 import {
   BoundaryStepFields,
   CLASSIFICATION_OPTIONS,
@@ -947,8 +947,9 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
             cursorLabel={tapAction.kind === 'boundaryPoint' ? `Point ${tapAction.which}` : 'Point'}
             points={graphPoints}
             ariaLabel={graphLabel}
-            // What InequalityGraphLayers draws, said by the plane (inequalityGraphMarks.js).
-            toolMarks={{ kinds: inequalityGraphMarksText({ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon }) }}
+            // What InequalityGraphLayers draws, said by the plane, as messages a
+            // Spanish reading says too (inequalityGraphMarks.js; AX05, slice 3).
+            toolMarks={{ kinds: inequalityGraphMarksReading({ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon }) }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
           >

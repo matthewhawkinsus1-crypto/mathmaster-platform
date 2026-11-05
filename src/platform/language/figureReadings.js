@@ -38,8 +38,8 @@
  * words (<FigureWordsProvider>); a figure then writes that description from
  * the same messages in that language and marks it lang="es", so a screen
  * reader speaks it in Spanish. One its messages cannot say completely (an
- * author's description, a tool's own sentence) stays English and unmarked:
- * the page is English.
+ * author's description, or a tool's own sentence given without its messages)
+ * stays English and unmarked: the page is English.
  */
 import React, { createContext, useContext, useEffect, useId } from 'react';
 import { sayFigure } from './figureSay.js';

@@ -59,12 +59,13 @@
  * `say` beside their English, which is said from the same messages: the same
  * sentences, with the same numbers, can be read in Spanish from
  * ./packs/esFigures.js under an authored Spanish translation. A tool's own
- * sentence the pack has no words for keeps the figure in English.
+ * sentence is said from the messages the tool gives with it (slice 3); one
+ * with none, that the pack has no words for, keeps the figure in English.
  */
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { majorTicks, niceStep } from '../graph/graphScaleService.js';
 import { verticalLineDrawing } from '../graph/verticalLineStyle.js';
-import { englishOnly, say, sayFigure } from './figureSay.js';
+import { englishOnly, say, sayFigure, toolSentence } from './figureSay.js';
 
 // Above this many resolution steps across the window the plane cannot draw a
 // minor grid (CoordinatePlane's MAX_MINOR_LINES), so the eye has only the major
@@ -411,9 +412,17 @@ const vertexListSay = (vertices, res) => say(
   Math.max(0, vertices.length - MAX_VERTICES),
 );
 
+// A tool's words for what it draws, at one detail: a sentence, or { text,
+// say } where the tool gives the same sentence as messages (AX05, slice 3).
+const toolMarkReading = (value) => {
+  const reading = value && typeof value === 'object' ? value : { text: value };
+  return { text: String(reading.text ?? '').replace(/\s+/g, ' ').trim(), say: Array.isArray(reading.say) ? reading.say : null };
+};
 const toolMarkSentence = (toolMarks, detail) => {
-  const pick = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
-  return detail === 'features' ? pick(toolMarks?.features) || pick(toolMarks?.kinds) : pick(toolMarks?.kinds);
+  const kinds = toolMarkReading(toolMarks?.kinds);
+  if (detail !== 'features') return kinds;
+  const features = toolMarkReading(toolMarks?.features);
+  return features.text ? features : kinds;
 };
 
 /* ------------------------------------------------ the platform's sentences */
@@ -487,10 +496,15 @@ export const GRAPH_WORDS = Object.freeze({
   positionsWithheld: () => 'Positions are not read out while this question can be answered.',
   givenPositionsWithheld: () => 'Positions of the given marks are not read out while this question can be answered.',
   positionsNotReadHere: () => 'Positions are not read out on this question.',
-  // Marks a tool names in its own words (`toolMarks.kinds`): said as one of
-  // these when they are these words, and only in English otherwise.
+  // Marks a tool names in its own words (`toolMarks`): said as one of these
+  // when they are these words, from the tool's own messages when it gives
+  // them (the Systems Workspace's: inequalityGraphMarks.js), and only in
+  // English otherwise.
   segmentsFromOrigin: () => 'A segment joins the origin to each point.',
   oneCurve: () => '1 curve.',
+  // The sideways parabola once values may be said (ParabolaGeometryLab).
+  curveOpensRight: () => '1 curve, opening to the right.',
+  curveOpensLeft: () => '1 curve, opening to the left.',
   oneShadedRegion: () => '1 shaded region.',
   regionWhereAllTrue: () => '1 shaded region, where every inequality is true.',
   noRegionShadedYet: () => 'No region is shaded yet.',
@@ -575,9 +589,14 @@ export const GRAPH_WORDS = Object.freeze({
 
 const english = (segment) => sayFigure([segment], GRAPH_WORDS, { english: true });
 
-/** A fixed sentence a caller passes, as its message when it is one of the platform's. */
-const graphSentenceSay = (text) => {
+/**
+ * A fixed sentence a caller passes, as its message when it is one of the
+ * platform's. A tool that gives its sentence as messages (`says`) has it said
+ * from them in another language, and as it wrote it in English.
+ */
+const graphSentenceSay = (text, says = null) => {
   const value = String(text ?? '');
+  if (Array.isArray(says)) return toolSentence(value, says);
   const found = Object.entries(GRAPH_WORDS).find(([, words]) => words.length === 0 && words() === value);
   return found ? say(found[0]) : englishOnly(value);
 };
@@ -644,7 +663,7 @@ const overlapWhere = (sides, lines = []) => {
 
 // What is drawn, never where: no crossings, extremes, positions or table.
 const describeKinds = ({
-  windowSays, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, toolMarksText = '',
+  windowSays, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, toolMark = { text: '', say: null },
   points, lines, functions, polylines, regions, verticalLines, horizontalLines, halfPlanes, curveDashes,
   positionsWithheldText,
 }) => {
@@ -718,8 +737,8 @@ const describeKinds = ({
     + shaded + overlapSays.filter(Boolean).length;
   const described = marks + drawn.length;
   if (!described && !hasUndescribedMarks) says.push(graphSentenceSay(emptyText));
-  if (hasUndescribedMarks) says.push(toolMarksText ? graphSentenceSay(toolMarksText) : say('undescribedMarks'));
-  if (marks + given.length || (hasUndescribedMarks && toolMarksText)) {
+  if (hasUndescribedMarks) says.push(toolMark.text ? graphSentenceSay(toolMark.text, toolMark.say) : say('undescribedMarks'));
+  if (marks + given.length || (hasUndescribedMarks && toolMark.text)) {
     // The student's own points were just read out: what is withheld is the rest.
     says.push(positionsWithheldText
       ? graphSentenceSay(positionsWithheldText)
@@ -758,6 +777,8 @@ export function describeCoordinatePlane({
   // the question can be answered (no position or value, the rule everything
   // here follows), `features` once it is closed (else `kinds`) — so a tool
   // cannot say more than the plane would. Without it, "marks … not listed".
+  // Each is a sentence, or { text, say }: the sentence and the same sentence
+  // as messages, which another language says (AX05, slice 3).
   toolMarks = null,
   emptyText = 'Nothing is plotted.',
   // 'kinds' (default — fails closed) or 'features'. See the module header.
@@ -813,7 +834,7 @@ export function describeCoordinatePlane({
   if (detail !== 'features' || hideX || hideY) {
     return describeKinds({
       windowSays, res, w, label, hasUndescribedMarks, emptyText, listPlottedPoints, positionsWithheldText,
-      toolMarksText: toolMarkSentence(toolMarks, 'kinds'),
+      toolMark: toolMarkSentence(toolMarks, 'kinds'),
       points: list(points), lines: list(lines), functions: list(functions), polylines: list(polylines),
       regions: list(regions), verticalLines: list(verticalLines), horizontalLines: list(horizontalLines),
       halfPlanes: list(halfPlanes), curveDashes: Array.isArray(curveDashes) ? curveDashes : null,
@@ -894,7 +915,7 @@ export function describeCoordinatePlane({
   if (!described && !hasUndescribedMarks) says.push(graphSentenceSay(emptyText));
   if (hasUndescribedMarks) {
     const own = toolMarkSentence(toolMarks, 'features');
-    says.push(own ? graphSentenceSay(own) : say('undescribedMarks'));
+    says.push(own.text ? graphSentenceSay(own.text, own.say) : say('undescribedMarks'));
   }
   const sentences = says.map(english);
 

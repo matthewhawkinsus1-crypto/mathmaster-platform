@@ -37,6 +37,9 @@
 //   ?q=lmrtablees           lmr-pr-1 with an authored Spanish prompt: process mode's
 //                           row chooser and the table to extend are read in Spanish
 //                           (AX05, slice 2)
+//   ?q=inequalityes         Algebra I M3 T2 L4 CW 9 (graph y > x + 3, built by the
+//                           student) with an authored Spanish prompt: the Systems
+//                           Workspace's own sentences are read in Spanish (AX05, slice 3)
 //   ?q=explog               an Exponential ↔ Log Bridge item (2^(2x − 1) = 16) the
 //                           dataAndModels family claims: its hints, its worked
 //                           sibling and its "Let's back up" step (CI02, A1-69)
@@ -63,6 +66,7 @@ import transformationsLesson from '../../teacher-import-jsons/algebra1-module2-t
 import threeByThreeDay1 from '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json';
 import dol3Review from '../../teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json';
 import linearRepresentationsLesson from '../../docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json';
+import inequalitiesLesson from '../../teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -155,6 +159,7 @@ const QUESTIONS = {
   sequence: lessonItem(dol3Review, 'dol3-review-q13'),
   lmrtable: lessonItem(linearRepresentationsLesson, 'lmr-pr-1'),
   lmrtablees: withSpanishPrompt(lessonItem(linearRepresentationsLesson, 'lmr-pr-1'), 'Tienes una tabla de valores de una relación lineal. Construye todas las demás representaciones de esta misma recta, en el orden que quieras.'),
+  inequalityes: withSpanishPrompt(lessonItem(inequalitiesLesson, 'm3t2l4-cw-9'), 'Grafica $y > x + 3$.'),
   // The dataAndModels family's: 2^(2x − 1) = 16, so 2x − 1 = 4 and x = 5/2 (CI02).
   explog: {
     questionId: 'feedback-explog',

@@ -21,7 +21,9 @@
  *           an author's description, and a tool's own sentence the pack does
  *           not know. Each figure's screen-reader description follows the same
  *           rule: Spanish, marked lang="es", where its messages say it all;
- *           English and unmarked otherwise (slice 2).
+ *           English and unmarked otherwise (slice 2). In slice 3 the tools'
+ *           own sentences are messages too: the Systems Workspace's graph and
+ *           region corners and the sideways parabola are said in Spanish.
  *
  * The browser half: tests/browser/readAloudTranslate.mjs (the real DOL graph,
  * the 3D model and the graph workspace, with an authored Spanish prompt).
@@ -46,6 +48,8 @@ import { AXIS_TITLE_WORDS } from '../../src/tools/shared/planeAxisTitles.js';
 import { THREE_PLANE_WORDS, threePlaneModelReading } from '../../src/tools/systemsWorkspace/threePlaneDescription.js';
 import { GRAPH_WORKSPACE_WORDS, graphWorkspaceReading } from '../../src/platform/language/graphWorkspaceDescription.js';
 import { ROW_CHOOSER_WORDS } from '../../src/tools/shared/toolTableReading.js';
+import { INEQUALITY_GRAPH_WORDS, inequalityGraphMarksReading, regionCornersReading } from '../../src/tools/systemsWorkspace/inequalityGraphMarks.js';
+import { boundaryFromSlopeIntercept, boundaryWithChosenSide, feasibleRegionPolygon } from '../../src/tools/systemsWorkspace/inequalityBuilderAdapter.js';
 import { englishOnly, loadFigureWords, say, sayFigure } from '../../src/platform/language/figureSay.js';
 import { describedIn } from '../../src/platform/language/figureReadings.js';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
@@ -53,6 +57,8 @@ import { speechTextFor } from '../../src/platform/language/speechText.js';
 import esFigures from '../../src/platform/language/packs/esFigures.js';
 import { figureCaptureServer } from './helpers/figureCapture.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+// A tool that keeps its drafts needs a browser's storage to render.
+import { withBrowser as withWindow } from './helpers/studentToolRender.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const ROOT_PATH = fileURLToPath(ROOT);
@@ -81,12 +87,13 @@ after(async () => { await capture?.close(); });
 /* --------------------------------------------------------- the pack's words */
 
 test('the Spanish pack says every sentence the figure generators say, and no other', () => {
-  const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS, ...THREE_PLANE_WORDS, ...GRAPH_WORKSPACE_WORDS, ...ROW_CHOOSER_WORDS };
+  const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS, ...THREE_PLANE_WORDS, ...GRAPH_WORKSPACE_WORDS, ...ROW_CHOOSER_WORDS, ...INEQUALITY_GRAPH_WORDS };
   const ids = Object.keys(english);
-  // Measured: every message the generators have (164 today: 74 in slice 1;
+  // Measured: every message the generators have (181 today: 74 in slice 1;
   // 61 for the full reading, 12 for the 3D model, 8 for the graph workspace
-  // and 9 for process mode's row chooser in slice 2).
-  assert.ok(ids.length >= 164, `${ids.length} figure messages`);
+  // and 9 for process mode's row chooser in slice 2; in slice 3, 15 for the
+  // Systems Workspace's own sentences and 2 for the sideways parabola).
+  assert.ok(ids.length >= 181, `${ids.length} figure messages`);
   ids.forEach((id) => assert.equal(typeof esFigures.words[id], 'function', `Spanish for "${id}"`));
   Object.keys(esFigures.words).forEach((id) => assert.ok(Object.hasOwn(english, id), `"${id}" is a message a generator says`));
   // Built from the same pieces, a sentence keeps the English's numbers.
@@ -219,10 +226,12 @@ test('the full reading in Spanish: each line, curve, guide, shaded side, path, r
     spanish({ minorGridDrawn: true, points: [{ x: 2, y: 3, label: 'A' }, { x: -1, y: -2, marker: 'closed' }, { x: 4, y: 1, marker: 'open' }, { x: 3, y: 3, marker: 'arrow', vector: [-1, 1] }, { x: 9, y: 2 }] }),
     'El eje x va de −5 a 5 y el eje y, de −5 a 5. 4 puntos y 1 punta de flecha: A en (2, 3); (−1, −2), círculo cerrado; (4, 1), círculo abierto; punta de flecha en (3, 3) que apunta hacia arriba y a la izquierda; (9, 2), fuera de la ventana.',
   );
-  // Nothing drawn: the plane's own sentence. A tool's own sentence the pack
-  // does not know keeps the figure in English, as while it is open.
+  // Nothing drawn: the plane's own sentence. The sideways parabola's own
+  // sentence is one the pack says (slice 3); a sentence it does not know, with
+  // no messages, keeps the figure in English, as while it is open.
   assert.equal(spanish({}), 'El eje x va de −5 a 5 y el eje y, de −5 a 5. No hay nada graficado.');
-  assert.equal(spanish({ hasUndescribedMarks: true, toolMarks: { kinds: '1 curve.', features: '1 curve, opening to the right.' } }), null);
+  assert.equal(spanish({ hasUndescribedMarks: true, toolMarks: { kinds: '1 curve.', features: '1 curve, opening to the right.' } }), 'El eje x va de −5 a 5 y el eje y, de −5 a 5. 1 curva, que abre hacia la derecha.');
+  assert.equal(spanish({ hasUndescribedMarks: true, toolMarks: { kinds: '1 curve.', features: '1 curve, opening to the north.' } }), null);
   // The Spanish is said with the reader's own words for the mathematics.
   assert.match(speechTextFor(spanish({ lines: [{ m: 1, b: -2 }] }), { language: 'es' }), /cruza el eje y en negativo 2, cruza el eje x en 2 y pasa por el punto 0, negativo 2 y el punto 2, 0\.$/);
 });
@@ -474,6 +483,120 @@ test('the graph workspace is said in Spanish: the student\'s own work, and a giv
     assert.equal(entries[0].text, /data-graph-workspace-description=""[^>]*>([^<]*)</.exec(markup)?.[1], 'the reading is the workspace\'s own description');
     assert.ok(spanishOf(entries[0], { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...GRAPH_WORKSPACE_WORDS }, mode).includes(said), mode);
   });
+});
+
+/* --------------------------------------- a tool's own sentences (slice 3) */
+
+/*
+ * A TOOL'S OWN SENTENCES (slice 3). The Systems Workspace says what the
+ * student's inequality graph shows and, once positions may be said, its
+ * region's corners, in its own sentences; the sideways parabola says which
+ * way it opens. Under an authored Spanish translation they were read in
+ * English, after "La descripción de esta figura está en inglés.", and a screen
+ * reader heard the whole description in English. They are now messages
+ * (inequalityGraphMarks.js; graphDescription.js), said in Spanish with the
+ * same numbers, and in English from the same messages.
+ */
+test('the Systems Workspace\'s own sentences are said in Spanish over many graphs, and in English from the same messages', () => {
+  let seed = 20261106;
+  const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const pick = (list) => list[Math.floor(rand() * list.length)];
+  const int = (lo, hi) => lo + Math.floor(rand() * (hi - lo + 1));
+  const said = new Set();
+  const check = (reading, where) => {
+    const spanish = spanishOf(reading, INEQUALITY_GRAPH_WORDS, where);
+    const ids = (segments) => segments.flatMap((segment) => [segment.id, ...(segment.args || []).flatMap((arg) => (arg?.id ? [arg.id] : []))]);
+    ids(reading.say).forEach((id) => said.add(id));
+    return spanish;
+  };
+  for (let n = 0; n < 600; n += 1) {
+    const bounds = { xMin: pick([-6, -10, 0]), xMax: pick([8, 10, 12]), yMin: pick([-4, -10, 0]), yMax: pick([10, 12]) };
+    const count = int(1, 3);
+    const relations = Array.from({ length: count }, () => pick(['>=', '<=', '>', '<']));
+    const inequalities = relations.map((relation) => ({ m: pick([-2, -1, -0.5, 0, 0.5, 1, 3]), b: int(-4, 6), relation }));
+    const lines = inequalities.map(({ m, b, relation }) => boundaryFromSlopeIntercept(m, b, relation));
+    const build = lines.map(() => (rand() < 0.1 ? null : { visible: rand() < 0.85, style: pick(['solid', 'dashed', null]), shadePoint: rand() < 0.7 ? [int(-5, 5), int(-3, 9)] : null }));
+    const shaded = lines.map((line, index) => boundaryWithChosenSide(line, rand() < 0.5 ? 1 : -1, relations[index].length === 1));
+    const marks = inequalityGraphMarksReading({
+      build, effectiveLines: lines, buildConfig: { lineStyle: rand() < 0.6, shading: rand() < 0.8 },
+      workingConstraints: relations.map((relation) => ({ relation })), bounds,
+      combined: rand() < 0.6, studentPolygon: feasibleRegionPolygon(shaded, bounds),
+    });
+    check(marks, `graph ${n}`);
+    const corners = regionCornersReading({ polygon: feasibleRegionPolygon(inequalities, bounds), lines: inequalities, everyInequalityTrue: rand() < 0.5 });
+    if (corners) check(corners, `region ${n}`);
+  }
+  // The graphs above reach every sentence the Systems Workspace says.
+  Object.keys(INEQUALITY_GRAPH_WORDS).forEach((id) => assert.ok(said.has(id), `a graph says ${id}`));
+});
+
+test('the Systems Workspace\'s sentences in Spanish: the graph as built, and the region by its corners', () => {
+  const bounds = { xMin: -6, xMax: 8, yMin: -4, yMax: 10 };
+  const lines = [boundaryFromSlopeIntercept(1, 2, '>='), boundaryFromSlopeIntercept(-1, 6, '<')];
+  const studentPolygon = feasibleRegionPolygon([boundaryWithChosenSide(lines[0], 1, false), boundaryWithChosenSide(lines[1], -1, true)], bounds);
+  const marks = (input) => sayFigure(inequalityGraphMarksReading({ effectiveLines: lines, bounds, ...input }).say, esFigures.words);
+  assert.equal(
+    marks({ build: [{ style: 'solid', shadePoint: [0, 9] }, { style: null, shadePoint: [0, 0] }], buildConfig: { lineStyle: true, shading: true }, workingConstraints: [{}, {}], combined: true, studentPolygon }),
+    'Recta frontera 1: continua. Recta frontera 2: todavía no se ha elegido su estilo. Un lado de cada una de las rectas frontera 1 y 2 está sombreado. La zona donde se superponen los lados sombreados está rayada.',
+  );
+  // One inequality has no overlap: its shaded side is hatched (F-SW-SYSTEM-WORDS).
+  assert.equal(
+    marks({ build: [{ style: 'dashed', shadePoint: [0, 9] }], buildConfig: { lineStyle: true, shading: true }, workingConstraints: [{}], combined: true, studentPolygon }),
+    'Recta frontera 1: discontinua. Un lado de la recta frontera 1 está sombreado. El lado sombreado está rayado.',
+  );
+  assert.equal(marks({}), 'Todavía no hay ninguna recta frontera dibujada.');
+  // The region's corners: a closed triangle, and an open region the window cuts.
+  const corners = (inequalities, everyInequalityTrue) => sayFigure(regionCornersReading({ polygon: feasibleRegionPolygon(inequalities, bounds), lines: inequalities, everyInequalityTrue }).say, esFigures.words);
+  assert.equal(corners([{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: 0, relation: '<=' }], true), '1 región sombreada, donde todas las desigualdades son verdaderas, con esquinas en (0, 0), (4, 0) y (2, 2).');
+  assert.equal(corners([{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: -2, relation: '>=' }], false), '1 región sombreada, con esquinas en (2, 0) y (3, 1). Continúa más allá del borde de la gráfica.');
+  assert.equal(corners([{ m: 1, b: 0, relation: '>=' }], false), '1 región sombreada, sin ninguna esquina dentro de la gráfica. Continúa más allá del borde de la gráfica.');
+});
+
+test('the real Systems Workspace planes are described in Spanish, marked lang="es", and read with no note: open, no corner; closed, its corners', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { QuestionLifecycleProvider } = await capture.load('/src/platform/question/QuestionLifecycleContext.jsx');
+  const { default: SystemsWorkspace } = await capture.load('/src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+  // Algebra I M3 T2 L4's student build (one inequality), and a given system's feasible region.
+  const build = { type: 'systemsWorkspace', mode: 'inequalities', questionId: 'words-kai', prompt: 'Write the inequality, then graph it.',
+    modeling: { variables: [{ symbol: 'x', label: 'two-point shots' }, { symbol: 'y', label: 'three-point shots' }], expectedConstraints: [{ A: 2, B: 3, C: -20, relation: '>=' }] },
+    studentBuild: { rewrite: false, boundary: true, lineStyle: true, shading: true }, reasoning: { testPoint: true, classifyRegion: false, vertices: false },
+    testPoint: { x: 6, y: 4 }, graph: { xMin: 0, xMax: 12, yMin: 0, yMax: 10 } };
+  const given = { type: 'systemsWorkspace', mode: 'inequalities', questionId: 'feasible', prompt: 'Test a point.' };
+  const plane = (questionData, closed) => withWindow(() => {
+    const figure = React.createElement(SystemsWorkspace, { questionData, onAction: () => {} });
+    const lifecycle = { terminal: closed, positionsReadable: closed };
+    const spanish = capture.render(React.createElement(QuestionLifecycleProvider, lifecycle, React.createElement(FigureWordsProvider, { pack: esFigures }, figure)));
+    const english = capture.render(React.createElement(QuestionLifecycleProvider, lifecycle, figure));
+    const entry = spanish.entries.find((candidate) => candidate.kind === 'figure');
+    const described = descriptionIn(spanish.markup, /<p id="(mm-plane-desc-[^"]+)"([^>]*)>(.*?)<\/p>/, questionData.questionId);
+    assert.equal(described.lang, 'es', `${questionData.questionId}: marked lang="es"`);
+    assert.equal(described.text, sayFigure(entry.say, esFigures.words), 'the plane\'s own messages, in Spanish');
+    sameNumbers(entry.text, described.text, questionData.questionId);
+    assert.deepEqual(spanish.entries, english.entries, 'Read aloud gets the same entry');
+    const part = questionReadingParts({ prompt: 'Escribe la desigualdad.' }, { figures: [entry], language: 'es', figurePack: esFigures }).find((candidate) => candidate.kind === 'figure');
+    assert.ok(!part.text.includes(NOTE) && part.text.includes(described.text), `${questionData.questionId}: read in Spanish, with no note`);
+    return described.text;
+  });
+  assert.match(await plane(build, false), /Todavía no hay ninguna recta frontera dibujada\. Las posiciones no se leen mientras se pueda responder esta pregunta\.$/);
+  assert.match(await plane(given, false), /1 región sombreada, donde todas las desigualdades son verdaderas\. Las posiciones no se leen/);
+  assert.doesNotMatch(await plane(given, false), POSITIONS_ES, 'open: no corner, no position');
+  assert.match(await plane(given, true), /1 región sombreada, donde todas las desigualdades son verdaderas, con una esquina en \(3\.333333, 4\.333333\)\. Continúa más allá del borde de la gráfica\.$/);
+});
+
+test('the sideways parabola says which way it opens in Spanish, once positions may be said', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { QuestionLifecycleProvider } = await capture.load('/src/platform/question/QuestionLifecycleContext.jsx');
+  const { default: ParabolaGeometryLab } = await capture.load('/src/tools/parabolaGeometry/ParabolaGeometryLab.jsx');
+  for (const [p, way] of [[2, 'derecha'], [-2, 'izquierda']]) {
+    const questionData = { type: 'parabolaGeometryLab', mode: 'features', h: 1, k: -1, p, orientation: 'horizontal' };
+    const figure = (closed) => React.createElement(QuestionLifecycleProvider, { terminal: closed, positionsReadable: closed }, React.createElement(FigureWordsProvider, { pack: esFigures }, React.createElement(ParabolaGeometryLab, { questionData, onAction: () => {} })));
+    const open = await withWindow(() => capture.render(figure(false)));
+    const closed = await withWindow(() => capture.render(figure(true)));
+    const said = (rendered) => sayFigure(rendered.entries.find((entry) => entry.kind === 'figure').say, esFigures.words);
+    assert.match(said(open), /1 curva\. .*Las posiciones no se leen/, 'open: the kind only');
+    assert.match(said(closed), new RegExp(`1 curva, que abre hacia la ${way}\\.$`), `p = ${p}`);
+    assert.match(descriptionIn(closed.markup, /<p id="(mm-plane-desc-[^"]+)"([^>]*)>(.*?)<\/p>/, 'parabola').lang ?? '', /^es$/);
+  }
 });
 
 /* ------------------------------------------------ what a screen reader hears */

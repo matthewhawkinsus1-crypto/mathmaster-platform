@@ -10,7 +10,9 @@
  * AXIS_TITLE_WORDS (../../../tools/shared/planeAxisTitles.js), and in slice 2
  * THREE_PLANE_WORDS (../../../tools/systemsWorkspace/threePlaneDescription.js),
  * GRAPH_WORKSPACE_WORDS (../graphWorkspaceDescription.js) and
- * ROW_CHOOSER_WORDS (../../../tools/shared/toolTableReading.js). The pieces
+ * ROW_CHOOSER_WORDS (../../../tools/shared/toolTableReading.js), and in slice
+ * 3 the Systems Workspace's own sentences, INEQUALITY_GRAPH_WORDS
+ * (../../../tools/systemsWorkspace/inequalityGraphMarks.js). The pieces
  * are the figure's own: a number, a coordinate, a count or a label is placed
  * exactly as it comes, so "−6", "(2, 1)" and "13/8" are the same in both
  * languages, and a label or an axis quantity is said as the screen shows it.
@@ -93,6 +95,9 @@ export const words = Object.freeze({
   positionsNotReadHere: () => 'En esta pregunta no se leen las posiciones.',
   segmentsFromOrigin: () => 'Un segmento une el origen con cada punto.',
   oneCurve: () => '1 curva.',
+  // "Abre hacia", as ./esSupport.js says a parabola "opens up or down".
+  curveOpensRight: () => '1 curva, que abre hacia la derecha.',
+  curveOpensLeft: () => '1 curva, que abre hacia la izquierda.',
   oneShadedRegion: () => '1 región sombreada.',
   regionWhereAllTrue: () => '1 región sombreada, donde todas las desigualdades son verdaderas.',
   noRegionShadedYet: () => 'Todavía no hay ninguna región sombreada.',
@@ -184,6 +189,27 @@ export const words = Object.freeze({
   planesNoLine: (first, second) => `Entre los planos ${first} y ${second} no hay ninguna recta discontinua.`,
   shownPlanesCross: () => 'Unas rectas discontinuas marcan dónde se cortan los planos que se muestran.',
   markedOnModel: (point) => `Marcado en el modelo: ${point}.`,
+
+  /* ------------- the student's inequality graph (Systems Workspace, slice 3) */
+  // "Recta frontera", as ./esSupport.js says "your boundary line".
+  boundarySolid: (n) => `Recta frontera ${n}: continua.`,
+  boundaryDashed: (n) => `Recta frontera ${n}: discontinua.`,
+  boundaryStyleNotChosen: (n) => `Recta frontera ${n}: todavía no se ha elegido su estilo.`,
+  oneSideShaded: (n) => `Un lado de la recta frontera ${n} está sombreado.`,
+  oneSideOfEachShaded: (numbers) => `Un lado de cada una de las rectas frontera ${list(numbers)} está sombreado.`,
+  // "Rayada": drawn with lines across it, as the hatching is.
+  overlapHatched: () => 'La zona donde se superponen los lados sombreados está rayada.',
+  shadedSideHatched: () => 'El lado sombreado está rayado.',
+  noBoundaryLineYet: () => 'Todavía no hay ninguna recta frontera dibujada.',
+  // The region and its corners, once positions may be said: "esquinas", as
+  // the plane's own regionCorners says them.
+  shadedRegionIntro: () => '1 región sombreada',
+  regionAllTrueIntro: () => '1 región sombreada, donde todas las desigualdades son verdaderas',
+  regionWithCorners: (intro, corners) => `${intro}, ${corners}.`,
+  noCornerInGraph: () => 'sin ninguna esquina dentro de la gráfica',
+  cornerAt: (pair) => `con una esquina en ${pair}`,
+  cornersAt: (pairs) => `con esquinas en ${list(pairs)}`,
+  regionGoesOn: () => 'Continúa más allá del borde de la gráfica.',
 
   /* -------------------------------------------- the graph workspace (legacy) */
   givenGraphDrawn: () => 'Hay una gráfica dibujada. Sus posiciones no se leen mientras se pueda responder esta pregunta.',

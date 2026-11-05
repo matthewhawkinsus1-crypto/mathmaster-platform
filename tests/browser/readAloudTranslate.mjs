@@ -33,6 +33,10 @@
 //                description is the same Spanish, marked lang="es", and is what
 //                Chromium's accessibility tree describes the figure with; in
 //                English it is unmarked (AX05, slice 2).
+//   tool, es     the Systems Workspace's own sentences about the student's
+//                inequality graph are read in Spanish with no "in English"
+//                note, and its description follows the boundary the student
+//                plots, in Spanish (AX05, slice 3).
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
@@ -263,6 +267,45 @@ for (const device of DEVICES) {
     check(after.includes('Colocaste 1 punto: Plot the point where x es igual a 0 en el punto 0, 1.') && !/inglés|You placed/.test(after), `${device.name}: the student's point is read back in Spanish`, after.slice(0, 300));
     const hidden = await screenReaderDescription(page, '[data-graph-workspace-description]', 'svg[role="application"]');
     check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 4 y el eje y, de −6 a 8. Colocaste 1 punto: Plot the point where x = 0 en (0, 1).' && (hidden.ax || '').startsWith(hidden.text), `${device.name}: the workspace's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden).slice(0, 400));
+    await context.close();
+  }
+  {
+    // The Systems Workspace's own sentences (AX05, slice 3): the student's
+    // inequality graph (A1 M3 T2 L4 CW 9) is read in Spanish with no "in
+    // English" note, and its screen-reader description follows the student's
+    // work in Spanish as they build the boundary.
+    const { page, context } = await open(device, 'q=inequalityes&role=classwork&support=translate');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const plane = 'svg[aria-label^="Student-constructed graph of the inequality"]';
+    await read.click();
+    const before = await lastSpoken(page);
+    check(before?.lang === 'es' && (before?.text || '').includes('El eje x va de negativo 10 a 10 y el eje y, de negativo 10 a 10. Todavía no hay ninguna recta frontera dibujada. Las posiciones no se leen mientras se pueda responder esta pregunta.') && !/inglés|boundary line|Positions are not/.test(before?.text || ''),
+      `${device.name}: the student's inequality graph is read in Spanish, with no note`, (before?.text || '').slice(0, 400));
+    const empty = await screenReaderDescription(page, 'p[id^="mm-plane-desc-"]', plane);
+    check(empty.lang === 'es' && empty.text === 'El eje x va de −10 a 10 y el eje y, de −10 a 10. Todavía no hay ninguna recta frontera dibujada. Las posiciones no se leen mientras se pueda responder esta pregunta.' && empty.ax === empty.text,
+      `${device.name}: the graph's screen-reader description is the same Spanish, marked lang="es"`, JSON.stringify(empty));
+    // Two boundary points, (0, 3) and (1, 4), tapped where the student sees them.
+    for (const [x, y] of [[0, 3], [1, 4]]) {
+      const at = await page.evaluate(([gx, gy, selector]) => {
+        const svg = document.querySelector(selector);
+        const [, , width, height] = svg.getAttribute('viewBox').split(/\s+/).map(Number);
+        const point = svg.createSVGPoint();
+        point.x = 42 + ((gx + 10) / 20) * (width - 84);
+        point.y = height - 42 - ((gy + 10) / 20) * (height - 84);
+        const screen = point.matrixTransform(svg.getScreenCTM());
+        return [screen.x, screen.y];
+      }, [x, y, plane]);
+      if (device.hasTouch) await page.touchscreen.tap(at[0], at[1]);
+      else await page.mouse.click(at[0], at[1]);
+      await page.waitForTimeout(300);
+    }
+    const built = await screenReaderDescription(page, 'p[id^="mm-plane-desc-"]', plane);
+    check(built.lang === 'es' && built.text.includes('Recta frontera 1: todavía no se ha elegido su estilo.') && built.ax === built.text && !/Boundary line/.test(built.text),
+      `${device.name}: once a boundary is plotted, the description says so in Spanish`, JSON.stringify(built));
+    await read.click();
+    const after = (await lastSpoken(page))?.text || '';
+    check(after.includes('Recta frontera 1: todavía no se ha elegido su estilo.') && !/inglés|Boundary line/.test(after), `${device.name}: and Read aloud says it in Spanish`, after.slice(0, 400));
+    await noSidewaysScroll(page, `${device.name} Spanish inequality graph`);
     await context.close();
   }
 

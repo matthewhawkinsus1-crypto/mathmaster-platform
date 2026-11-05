@@ -27,7 +27,7 @@ import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import StudentBuildInequalityMode from './StudentBuildInequalityMode.jsx';
 import { ChoiceGroup, InequalityLayout, LineStyleIcon, PLANE_KEYS, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
-import { regionCornersText } from './inequalityGraphMarks.js';
+import { regionCornersReading } from './inequalityGraphMarks.js';
 import { formatInequality, formatLine, formatPoint, formatQuadratic } from './inequalityFormat.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 import { systemAxisNames } from './systemAxisNames.js';
@@ -358,10 +358,11 @@ function ClassicInequalityMode({ questionData, onAction }) {
             ariaLabel={requiresConstruction ? 'Student-constructed graph of the inequality solution region' : 'Graph of the system of inequalities with its shaded feasible region'}
             // The region it shades below, said by the plane: its kind while the
             // question is open (no corners: they are positions), its corners
-            // once positions may be said (AX12).
+            // once positions may be said (AX12), as messages a Spanish reading
+            // says too (AX05, slice 3).
             toolMarks={{
               kinds: shownPolygon.length >= 3 ? `${regionIntro}.` : 'No region is shaded yet.',
-              features: regionCornersText({ polygon: shownPolygon, lines: requiresConstruction ? studentInequalities : inequalities, intro: regionIntro }) || undefined,
+              features: regionCornersReading({ polygon: shownPolygon, lines: requiresConstruction ? studentInequalities : inequalities, everyInequalityTrue: !requiresConstruction }) || undefined,
             }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
