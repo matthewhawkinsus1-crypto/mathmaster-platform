@@ -5,6 +5,7 @@ import { formatPoint } from './inequalityFormat.js';
 import { EyeIcon, LineStyleIcon, PLANE_KEYS, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { constraintColor } from './constraintPalette.js';
 import { wordsFor } from './inequalitySystemWords.js';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 
 /*
  * WHAT THE STUDENT-BUILD STEPS LOOK LIKE (StudentBuildInequalityMode.jsx owns
@@ -236,7 +237,8 @@ export function TestPointQuestions({ point, response, setResponse, count, inequa
                 type="text"
                 inputMode="text"
                 autoComplete="off"
-                aria-label={`Inequality ${index + 1}: the value of ${substitutions[index].text}`}
+                // Its name says the expression as words ("2 times the quantity 6 …"), not its symbols.
+                aria-label={`Inequality ${index + 1}: the value of ${spokenMathValue(substitutions[index].text)}`}
                 value={response.values?.[index] ?? ''}
                 onChange={(event) => setValue(index, event.target.value)}
               />
