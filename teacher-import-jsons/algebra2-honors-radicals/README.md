@@ -10,7 +10,7 @@ Three Assignment V5 teacher imports built from the district's lesson decks (TEKS
 
 ## Before importing: deploy Hosting
 
-The "Break it down" steps these lessons write for each question reach students only on a build that includes the import-compiler fix shipped with them (`authoringIntentV5Core.js` used to drop `directionSteps`). On an older build, students whose plans give chunked directions get the automatic split of the prompt instead. Check what is live with `node scripts/release-firebase.mjs --whats-live`. If Hosting is older, deploy it first:
+The "Break it down" steps these lessons write for each question reach students only on a build that includes the import-compiler fix shipped with them (`authoringIntentV5Core.js` used to drop `directionSteps`). On an older build, students whose plans give chunked directions get the automatic split of the prompt instead. The slips named on a miss need it too: each is read only in its own answer box (`attemptFeedbackPlan.js`), and an older build reads it against every box, right ones included. Check what is live with `node scripts/release-firebase.mjs --whats-live`. If Hosting is older, deploy it first:
 
 ```bash
 npm run build
@@ -46,7 +46,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 
 **Exit Ticket** has three generated questions, each server-graded.
 
-**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and many have Guided Coach notes. Hint 1 asks a question that points at the next move, and only the last hint shows a step. The Exit Ticket has none of these. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
+**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and many have Guided Coach notes. Hint 1 asks a question that points at the next move, and only the last hint shows a step. A predictable slip typed in a box is named in a sentence on a miss: missing absolute value bars ("Your answer is right when x ≥ 0. Try x = −1."), the sign of an odd power or root, an even power of a negative, and the others each question's common error names. The Exit Ticket has none of these, and says nothing about a slip until you release feedback. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
 
 ## Slide notes
 

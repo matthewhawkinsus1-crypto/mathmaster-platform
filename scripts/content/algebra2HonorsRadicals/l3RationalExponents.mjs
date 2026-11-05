@@ -18,12 +18,16 @@ import { auditedCcmrQuestion, backUp, choice, expression, guidedNotes, number, r
 // template literal a bare `${` would interpolate.
 const tex = (strings, ...values) => String.raw(strings, ...values).replace(/\\\$/g, '$');
 const T = teks('A2.7G');
+// Rational exponents are where A2.7G meets the laws of exponents (A.11B).
+const TX = teks('A2.7G', 'A.11B');
 // An audited item keeps the bank's item exactly. Its one hint is the lesson's
 // own question about this item's move (F-HINT-GIVES-STEP): the bank's hint
 // ("Combine like terms, distribute, factor, …") names no move for it.
 const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
-// Rational exponents are where A2.7G meets the laws of exponents (A.11B).
-const TX = teks('A2.7G', 'A.11B');
+// A predictable slip in one answer box, named on a miss
+// (F-NO-MISCONCEPTION-FEEDBACK): missFeedback reads it in that box only, by
+// that box's own grader, and never when the box is right.
+const slip = (field, match, message) => ({ field, match: [match].flat(), message });
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -46,6 +50,7 @@ const warmup = [
       'Write a product of powers as repeated factors of x: how many factors of x are there in all?',
       'Add the exponents to multiply, multiply them for a power of a power, and subtract them to divide.',
     ],
+    misconceptions: [slip('product', '{{ab}}', 'Multiplying powers adds the exponents; it does not multiply them.')],
     scaffold: backUp('x² · x³ equals…', ['x⁵', 'x⁶'], 'x⁵'),
     guidedNotes: guidedNotes(
       ['Product and quotient of powers', 'xᵃ · xᵇ = xᵃ⁺ᵇ and xᵃ/xᵇ = xᵃ⁻ᵇ (x ≠ 0).'],
@@ -59,7 +64,8 @@ const warmup = [
     ),
     generator: {
       parameters: { a: { type: 'int', min: 2, max: 7 }, b: { type: 'int', min: 2, max: 7 }, c: { type: 'int', min: 2, max: 5 }, d: { type: 'int', min: 2, max: 4 }, e: { type: 'int', min: 7, max: 12 }, f: { type: 'int', min: 2, max: 5 } },
-      derived: { s: 'a + b', p: 'c*d', q: 'e - f' },
+      // ab: the slip of multiplying the exponents of a product (a != b keeps it wrong).
+      derived: { s: 'a + b', p: 'c*d', q: 'e - f', ab: 'a*b' },
       constraints: ['a != b', 'a + b != c*d', 'a + b != e - f', 'c*d != e - f'],
     },
     questionFamily: { scope: 'assignment' },
@@ -77,6 +83,7 @@ const warmup = [
       expression('variable', 'x^(−{{k}}) =', '1/x^{{k}}'),
     ],
     hints: ['What does a negative exponent tell you to do with the positive power?', 'Evaluate the positive power first, then take its reciprocal.'],
+    misconceptions: [slip('number', ['-{{bn}}', '-1/{{bn}}'], 'A negative exponent makes a reciprocal, not a negative number.')],
     scaffold: backUp('10⁻² equals…', ['1/100', '−20'], '1/100'),
     guidedNotes: guidedNotes(['Negative exponent', 'x⁻ᵃ = 1/xᵃ and 1/x⁻ᵃ = xᵃ (x ≠ 0). A negative exponent is never a negative number.']),
     solutionReview: review(
@@ -148,6 +155,7 @@ const classwork = [
       'Move any factor with a negative exponent to the other part of the fraction. For a power of a quotient, raise every factor to the power.',
       'a⁻³ · a² = a⁻¹, n² ÷ n¹⁰ = n⁻⁸, and (3a³)² = 9a⁶.',
     ],
+    misconceptions: [slip('b', 'n^5', 'Dividing powers subtracts the exponents; it does not divide them.')],
     scaffold: backUp('a⁻¹ equals…', ['1/a', '−a'], '1/a'),
     guidedNotes: guidedNotes(
       ['Properties of exponents', 'Product, quotient, negative exponent, power of a power, of a product and of a quotient, and zero power (x⁰ = 1).'],
@@ -180,6 +188,7 @@ const classwork = [
       'Subtracting a negative exponent adds it. In the third, what is 6/3?',
       'x⁻² · x⁻³ = x⁻⁵ and y⁻³ · y⁵ = y²; then move x⁻⁵ to the denominator. For the third, 6/3 = 2.',
     ],
+    misconceptions: [slip('c', '(4r^4)/s^9', 'A power of a power multiplies the exponents: (s³)² is not s⁹.')],
     // The rule on other numbers: h⁶⁺² would leave the typed h⁸ one sum away.
     scaffold: backUp('m⁵ / m⁻² equals…', ['m⁵⁺²', 'm⁵⁻²'], 'm⁵⁺²'),
     solutionReview: review(
@@ -204,6 +213,7 @@ const classwork = [
       choice('x5', '⁵√x in exponential form', ['x^(1/5)', '√(x⁵)', 'x⁵', '√(x^(1/5))'], 'x^(1/5)'),
     ],
     hints: ['In b^(1/n) = ⁿ√b, which part of the exponent becomes the index?', 'The denominator of the exponent is the index, and a square root has index 2.'],
+    misconceptions: [slip('a7', '√(a^7)', 'In a^(1/7), the 7 is the index of the root, not a power.')],
     scaffold: backUp('b^(1/4) equals…', ['⁴√b', 'b/4'], '⁴√b'),
     solutionReview: review(
       'The denominator is the index.',
@@ -233,6 +243,7 @@ const classwork = [
       'Take the root first, then the power. A negative exponent means the reciprocal.',
       'Another method: write the base as a power of a smaller number, then multiply the exponents.',
     ],
+    misconceptions: [slip('value49', ['-7', '-1/7'], 'A negative exponent makes a reciprocal, not a negative number.')],
     scaffold: backUp('32 equals…', ['2⁵', '5²'], '2⁵'),
     guidedNotes: guidedNotes(
       ['Method 1', 'Take the root first, then the power: 32^(2/5) = (⁵√32)² = 2² = 4.'],
@@ -269,6 +280,7 @@ const classwork = [
       'An odd root of a negative number is real; an even root is not. Is the root in each power odd or even?',
       'Find ∛(−8) first, then square it.',
     ],
+    misconceptions: [slip('valueNeg8', '-4', 'An even power of a negative number is positive.')],
     scaffold: backUp('∛(−8) equals…', ['−2', 'not real'], '−2'),
     solutionReview: review(
       'Root first: the index decides whether a negative base works.',
@@ -380,6 +392,7 @@ const classwork = [
       'What is y^(1/2) · y^(1/2)? The middle terms cancel in the denominator.',
       'Square the numerator by multiplying it by itself.',
     ],
+    misconceptions: [slip('simplified', '(y+1)/(y-1)', '(y^(1/2) + 1)² has a middle term: multiply it out term by term.')],
     scaffold: backUp('(a − 1)(a + 1) equals…', ['a² − 1', 'a² + 1'], 'a² − 1'),
     solutionReview: review(
       'Multiply by the conjugate over itself.',
@@ -464,6 +477,7 @@ const practice = [
       number('value', '{{p}}^(−{{m}}/{{n}}) =', '1/{{cm}}'),
     ],
     hints: ['What does a negative exponent tell you to do?', 'Evaluate the positive power first, root then power, then take its reciprocal.'],
+    misconceptions: [slip('value', ['-{{cm}}', '-1/{{cm}}'], 'A negative exponent makes a reciprocal, not a negative number.')],
     scaffold: backUp('100^(−1/2) equals…', ['1/10', '−10'], '1/10'),
     solutionReview: review(
       'Reciprocal of the positive power.',
@@ -493,6 +507,10 @@ const practice = [
     hints: [
       'When you write a radical as a power, where does the index go, and where does the power go?',
       'The index becomes the denominator of the exponent, and the power becomes its numerator. Radical form goes the other way.',
+    ],
+    misconceptions: [
+      slip('exponential', 'x^({{n}}/{{m}})', 'The index is the denominator of the exponent, and the power is its numerator.'),
+      slip('radical', 'root({{a}})(y^{{b}})', 'The denominator of the exponent is the index, and the numerator is the power.'),
     ],
     scaffold: backUp('∛(a²) equals…', ['a^(2/3)', 'a^(3/2)'], 'a^(2/3)'),
     solutionReview: review(
@@ -633,6 +651,7 @@ const practice = [
       'How do you enter a fractional exponent on a calculator so the whole fraction is the power?',
       'Put the exponent in parentheses. For radical form, the denominator is the index and the numerator is the power of the radicand.',
     ],
+    misconceptions: [slip('value', '{{bm}}/{{n}}', 'Put the whole exponent in parentheses: {{b}}^{{m}}/{{n}} divides {{b}}^{{m}} by {{n}}.')],
     scaffold: backUp('7^(2/3) in radical form is…', ['∛(7²)', '√(7³)'], '∛(7²)'),
     solutionReview: review(
       'Root and power; a calculator gives the decimal.',
@@ -678,6 +697,7 @@ const practice = [
       'Each volume is a perfect cube. In V^(2/3), the denominator 3 is the index of the radical.',
       'Find the cube root, square it, then multiply by 6. For 8V, use (ab)^(2/3) = a^(2/3) · b^(2/3).',
     ],
+    misconceptions: [slip('factor', '8', 'Area grows like the square of the edge, and volume like its cube.')],
     scaffold: backUp('1000^(2/3) equals…', ['100', '10'], '100'),
     solutionReview: review(
       'Root, power, multiply by 6.',
@@ -713,6 +733,7 @@ const practice = [
       'Is ∛(−8) positive or negative? An odd root keeps the sign.',
       'Which first step uses an exponent law with a condition on the base?',
     ],
+    misconceptions: [slip('cubeRoot', '2', 'An odd root keeps the sign of its radicand.')],
     scaffold: backUp('(−8)² equals…', ['64', '−64'], '64'),
     solutionReview: review(
       'Exponent laws need a nonnegative base.',
@@ -739,6 +760,7 @@ const practice = [
       'Multiplying powers adds their exponents. What common denominator do 1/2 and 1/3 have?',
       '√x = x^(1/2) and ∛x = x^(1/3), and 3/4 − 1/2 = 1/4.',
     ],
+    misconceptions: [slip('product', '∛(x^2)', '√x · ∛x is not ∛(x²): write each as a power of x and add the exponents.')],
     scaffold: backUp('1/2 + 1/3 equals…', ['5/6', '2/5'], '5/6'),
     solutionReview: review(
       'Common denominators combine different indices.',

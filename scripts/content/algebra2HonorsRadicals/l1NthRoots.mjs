@@ -25,6 +25,11 @@ const T = teks('A2.7G');
 // own question about this item's move (F-HINT-GIVES-STEP): the bank's hint
 // ("Combine like terms, distribute, factor, …") names no move for it.
 const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
+// A predictable slip in one answer box, named on a miss
+// (F-NO-MISCONCEPTION-FEEDBACK): missFeedback reads it in that box only, by
+// that box's own grader, and never when the box is right.
+const slip = (field, match, message) => ({ field, match: [match].flat(), message });
+const BARS = (letter) => `Your answer is right when ${letter} ≥ 0. Try ${letter} = −1.`;
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -52,6 +57,11 @@ const warmup = [
       'How many negative factors does each power have, and is that number odd or even?',
       'An odd number of negative factors gives a negative product; an even number gives a positive one.',
       'A root undoes a power: if r multiplied by itself n times is b, then r is an nth root of b.',
+    ],
+    misconceptions: [
+      slip('negativeCube', '{{c3}}', 'A negative number cubed is negative: three negative factors make a negative product.'),
+      slip('negativeFourth', '-{{d4}}', 'A negative number to the fourth power is positive: four negative factors make a positive product.'),
+      slip('cubeRoot', '{{c}}', 'Check the sign: a positive number cubed is positive, so it is not a cube root of a negative number.'),
     ],
     scaffold: backUp('An even power of a negative number is…', ['negative', 'positive'], 'positive'),
     guidedNotes: guidedNotes(
@@ -145,6 +155,7 @@ const warmup = [
       'The radical sign √ means the principal (nonnegative) square root.',
       'Which rule gives a nonnegative answer for every x, including a negative x?',
     ],
+    misconceptions: [slip('negativeSquared', '-{{r}}', '√ means the principal square root, which is never negative.')],
     scaffold: backUp('√ always gives a value that is…', ['never negative', 'sometimes negative'], 'never negative'),
     guidedNotes: guidedNotes(
       ['Principal square root', 'The radical sign √ means the nonnegative square root: √25 = 5, never −5.'],
@@ -201,6 +212,7 @@ const classwork = [
       'Which number, used as a factor 4 times, gives 81? Its opposite works too.',
       'The principal root is the nonnegative one.',
     ],
+    misconceptions: [slip('principal', '-3', 'The principal root is the one that is not negative.')],
     scaffold: backUp('In ⁿ√b, the number under the radical sign is the…', ['index', 'radicand'], 'radicand'),
     guidedNotes: guidedNotes(
       ['nth root', 'For real numbers a and b and a positive integer n, if aⁿ = b, then a is an nth root of b.'],
@@ -321,6 +333,12 @@ const classwork = [
       'Squaring a power doubles its exponent. ± asks for both roots: the positive one and its opposite.',
       '16 = 4² and x⁸ = (x⁴)². Do the same for 9x⁸.',
     ],
+    misconceptions: [
+      slip('square', '4x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
+      slip('negative', '-4x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
+      slip('cypPositive', '3x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
+      slip('cypNegative', '-3x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
+    ],
     scaffold: backUp('√(x⁸) equals…', ['x⁴', 'x⁶'], 'x⁴'),
     guidedNotes: guidedNotes(
       ['Find roots', 'Write the radicand as a perfect power whose exponent is the index, then take the root.'],
@@ -363,6 +381,10 @@ const classwork = [
       'Treat q³ + 5 as one block. What power of that block, squared, gives (q³ + 5)⁴?',
       'The negative sign is outside the radical. Take the principal root first, then make it the opposite.',
       '(q³ + 5)⁴ = [(q³ + 5)²]². A square is never negative, so no bars are needed.',
+    ],
+    misconceptions: [
+      slip('simplified', '(q^3+5)^2', 'The negative sign in front of the radical stays in your answer.'),
+      slip('cyp', '(a^3+2)^4', 'The negative sign in front of the radical stays in your answer.'),
     ],
     scaffold: backUp('The negative sign in −√(…) is…', ['part of the radicand', 'outside the radical'], 'outside the radical'),
     guidedNotes: guidedNotes(
@@ -408,6 +430,7 @@ const classwork = [
       'Divide each exponent by 5. Is the index odd or even, and does an odd root keep the sign?',
       '243 = 3⁵, a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵, and an odd root needs no bars. Do the same for 32x⁵y¹⁰.',
     ],
+    misconceptions: [slip('cyp', '±2xy^2', 'An odd index gives exactly one real root, so there is no ±.')],
     scaffold: backUp('243 equals…', ['3⁵', '5³'], '3⁵'),
     guidedNotes: guidedNotes(
       ['Odd index', 'ⁿ√(aⁿ) = a when n is odd: the root keeps the sign.'],
@@ -491,6 +514,7 @@ const classwork = [
       'What monomial, to the fourth power, gives 16x⁴y⁸? Which of its factors can be negative?',
       '16x⁴y⁸ = (2xy²)⁴. Bars go only around a factor that can be negative: x can, y² cannot.',
     ],
+    misconceptions: [slip('sixth', 't', BARS('t')), slip('fourth', 'x', BARS('x')), slip('mixed', '2xy^2', BARS('x'))],
     scaffold: backUp('For an even index n, ⁿ√(aⁿ) equals…', ['a', '|a|'], '|a|'),
     guidedNotes: guidedNotes(
       ['Even index', 'ⁿ√(aⁿ) = |a| when n is even, because the principal root is nonnegative and a might not be.'],
@@ -533,6 +557,7 @@ const classwork = [
       'Treat x + 2 as one block and divide its exponent by the index. Is the index odd or even?',
       '243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵. An odd root keeps the sign, so no bars. For the cube root, divide 15 by 3.',
     ],
+    misconceptions: [slip('cyp', '|2(x+2)^5|', 'An odd root keeps the sign, so it needs no absolute value bars.')],
     scaffold: backUp('For an odd index n, ⁿ√(aⁿ) equals…', ['a', '|a|'], 'a'),
     solutionReview: review(
       'Write the fifth power; odd roots keep the sign.',
@@ -572,6 +597,7 @@ const classwork = [
       'The square root of a square is the absolute value of its base. Which factors of that base can be negative?',
       '9x⁴y¹⁰z⁴ = (3x²y⁵z²)². Of 3x², y⁵ and z², only y⁵ can be negative.',
     ],
+    misconceptions: [slip('simplified', '3x^2y^5z^2', BARS('y'))],
     scaffold: backUp('√(y¹⁰) equals…', ['y⁵', '|y⁵|'], '|y⁵|'),
     solutionReview: review(
       'Halve the exponents; bars only where a factor can be negative.',
@@ -604,6 +630,7 @@ const classwork = [
       'Multiply the coefficients outside and the radicands inside. What happens to the exponents of a?',
       '√m · √n = √(mn), and a² is never negative, so √(a⁴) = a² with no bars.',
     ],
+    misconceptions: [slip('radicand', '26a^2', 'The Product Property multiplies the radicands; it does not add them.')],
     scaffold: backUp('√m · √n equals…', ['√(mn)', '√(m + n)'], '√(mn)'),
     solutionReview: review(
       'Coefficients times coefficients, radicands times radicands.',
@@ -773,6 +800,9 @@ const practice = [
       'Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?',
       '{{c3}} = {{c}}³; divide each exponent by 3. A cube root of a negative number is negative.',
     ],
+    misconceptions: [
+      slip('simplified', '{{c}}a{{m|pow}}b{{n|pow}}', 'An odd root keeps the sign of its radicand: the cube root of a negative number is negative.'),
+    ],
     scaffold: backUp('∛(−8) equals…', ['−2', 'not a real number'], '−2'),
     solutionReview: review(
       'Write a cube; an odd root keeps the sign.',
@@ -800,6 +830,7 @@ const practice = [
       'Which number to the fourth power is {{d4}}? After you take the root, which factor can be negative?',
       '{{d4}} = {{d}}⁴; divide each exponent by 4. x{{m|pow}} has an odd exponent, so it can be negative; y^{{n}} cannot.',
     ],
+    misconceptions: [slip('simplified', '{{d}}x{{m|pow}}y^{{n}}', BARS('x'))],
     scaffold: backUp('⁴√(x⁴) equals…', ['x', '|x|'], '|x|'),
     solutionReview: review(
       'A fourth power, then bars where a factor can be negative.',
@@ -826,6 +857,7 @@ const practice = [
       'Which number to the fifth power is {{c5}}? What power of (x + {{h}}), to the fifth, gives (x + {{h}})^{{e}}?',
       '{{c5}} = {{c}}⁵ and (x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. The index is odd, so no bars are needed.',
     ],
+    misconceptions: [slip('simplified', '|{{c}}(x+{{h}})^{{k}}|', 'An odd root keeps the sign, so it needs no absolute value bars.')],
     scaffold: backUp('An odd root of a negative number is…', ['negative', 'not real'], 'negative'),
     solutionReview: review(
       'One block, a fifth power, no bars for an odd index.',
@@ -885,6 +917,7 @@ const practice = [
       'How can you write the product of the two square roots as one square root?',
       'Multiply the coefficients, and multiply the radicands. The new radicand is a perfect square: what is its square root?',
     ],
+    misconceptions: [slip('product', '{{kj}}x', 'That is the square root alone: multiply it by the coefficients {{a}} and {{b}} too.')],
     scaffold: backUp('√(16x²) equals (x positive)…', ['4x', '16x'], '4x'),
     solutionReview: review(
       'Multiply outside and inside, then take the root.',
@@ -917,6 +950,7 @@ const practice = [
       'i² = −1, so a multiple of i can square to a negative number. Does an odd root keep the sign of its radicand?',
       'Find the whole number whose square is {{p}}, then attach i. An odd root keeps the sign of its radicand.',
     ],
+    misconceptions: [slip('cube', '{{m}}', 'An odd root keeps the sign of its radicand: the cube root of a negative number is negative.')],
     scaffold: backUp('An odd root of a negative number is…', ['negative', 'not real'], 'negative'),
     solutionReview: review(
       'Even root of a negative: not real. Odd root: real and negative.',
@@ -949,6 +983,10 @@ const practice = [
       'For each one, is the index even or odd, and is the radicand positive or negative?',
       'No real number to an even power is negative. Which whole number to the sixth power is 64?',
       'An odd index gives one real root with the radicand’s sign; a positive radicand under an even index has two.',
+    ],
+    misconceptions: [
+      slip('count1', ['1', '2'], 'No real number to an even power is negative, so a negative number has no real fourth root.'),
+      slip('root3', '3', 'An odd root keeps the sign of its radicand: the fifth root of a negative number is negative.'),
     ],
     scaffold: backUp('How many real sixth roots does a positive number have?', ['two', 'one'], 'two'),
     solutionReview: review(
@@ -1041,6 +1079,10 @@ const practice = [
       'Do the same with x³ and the cube root. Is each result x, or |x|?',
       'A fourth root is never negative; a cube root keeps the sign. Compare each result with x and with |x|.',
     ],
+    misconceptions: [
+      slip('jamalValue', '-2', 'x⁴ is positive, and a fourth root is never negative.'),
+      slip('priyaValue', '2', 'A cube root keeps the sign: the cube root of a negative number is negative.'),
+    ],
     scaffold: backUp('∛(−27) equals…', ['−3', '3'], '−3'),
     solutionReview: review(
       'A counterexample decides it.',
@@ -1074,6 +1116,7 @@ const practice = [
       '√(x²) = |x|. When is |x| equal to −x? Which power of x, to the sixth, gives x¹⁸?',
       'x¹⁸ = (x³)⁶ and x¹² = (x²)⁶. Can x³ be negative? Can x²?',
     ],
+    misconceptions: [slip('eighteen', 'x^3', BARS('x'))],
     scaffold: backUp('|x| = −x when x is…', ['zero or negative', 'positive'], 'zero or negative'),
     solutionReview: review(
       'Odd index keeps the sign; even index gives the absolute value.',
@@ -1123,6 +1166,7 @@ const practice = [
       'Compare rows where the length is multiplied by the same factor. How does the period change?',
       'Use the Product Property: the square root of a product is the product of the square roots.',
     ],
+    misconceptions: [slip('doubleLength', '2', 'Doubling the length does not double the period: the period depends on √L.')],
     scaffold: backUp('√4 · √L equals…', ['2√L', '4√L'], '2√L'),
     solutionReview: review(
       'The period grows like the square root of the length.',
@@ -1168,6 +1212,7 @@ const dol = [
     prompt: tex`Simplify $\sqrt[{{n}}]{ {{dn}}x^{ {{e1}} }y^{ {{e2}} } }$. The variables $x$ and $y$ can be any real numbers, so use absolute value bars where they are needed.`,
     directionSteps: ['Write the radicand as a power whose exponent is the index.', 'Take the principal root.', 'Put bars only around a factor that can be negative.'],
     responses: [simplest('simplified', 'Simplified', '{{d}}|x{{m|pow}}|y^{{k}}')],
+    misconceptions: [slip('simplified', '{{d}}x{{m|pow}}y^{{k}}', BARS('x'))],
     solutionReview: review(
       'An even index: bars around any factor that can be negative.',
       ['{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{k}})^{{n}}.', 'The index {{n}} is even, so the root is |{{d}}x^{{m}}y^{{k}}| = {{d}}|x^{{m}}|y^{{k}}.'],
@@ -1192,6 +1237,9 @@ const dol = [
     prompt: tex`Simplify $\sqrt[{{n}}]{ -{{cn}}a^{ {{e1}} }b^{ {{e2}} } }$.`,
     directionSteps: ['Write the radicand as a power whose exponent is the index.', 'Take the root and keep its sign.'],
     responses: [simplest('simplified', 'Simplified', '-{{c}}a{{m|pow}}b{{k|pow}}')],
+    misconceptions: [
+      slip('simplified', '{{c}}a{{m|pow}}b{{k|pow}}', 'An odd root keeps the sign of its radicand, so the root of a negative number is negative.'),
+    ],
     solutionReview: review(
       'An odd index keeps the sign.',
       ['−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{k}})^{{n}}.', 'The index {{n}} is odd, so the root is −{{c}}a^{{m}}b^{{k}}.'],

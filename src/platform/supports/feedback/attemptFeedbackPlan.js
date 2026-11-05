@@ -20,7 +20,8 @@
  * An activity role nobody recognises fails closed (`roleKnown: false`).
  *
  * missFeedback — the sentence under "Not quite": an authored message keyed
- * to this wrong answer first, then the lesson's own common error when it is
+ * to this wrong answer first (in its own box, when the author names one; see
+ * slipMade), then the lesson's own common error when it is
  * the one the student made (commonErrorMiss, FB04), then the misconception /
  * generic diagnosis (missDiagnosis.js), then the authored attempt feedback for
  * this attempt number. Null when there is nothing specific to say — the
@@ -118,6 +119,51 @@ export const commonErrorMiss = ({ question = null, parts = [] } = {}) => {
   return { message: `A common slip here: ${sentence}.`, source: 'authored-common-error' };
 };
 
+/*
+ * A PREDICTABLE SLIP, NAMED ON A MISS (PR #537 walkthrough,
+ * F-NO-MISCONCEPTION-FEEDBACK).
+ *
+ * An authored `misconceptions` entry ({ match, message }) is the author's
+ * sentence for one predictable wrong answer, so only a wrong answer is read:
+ * a box the grader marked right is never a slip, even where its value is
+ * another box's slip ((−6)³ = −216 has the slip 216, which is (6)³ in the box
+ * above it). An entry that names its box (`field`, the answer field's id) is
+ * read in that box alone, by that box's own grader, so the student's spelling
+ * (2xy^{2}, 2x y^2) is the slip 2xy^2 wherever the grader says so. The two
+ * are compared both ways: a slip read as a key samples its letters positive
+ * only, and |x|³ is not the slip x³. An entry with no box is read as text,
+ * as it always was, but in the wrong boxes only.
+ */
+const answerField = (question, id) => KEY_FIELDS.flatMap((key) => list(question?.[key]))
+  .find((field) => field && text(field.id) === id) || null;
+// The box with the slip in place of its key: no other accepted answer.
+const keyedAs = (field, answer) => {
+  const { expected: _expected, accepted: _accepted, acceptedAnswers: _acceptedAnswers, ...rest } = field;
+  return { ...rest, answer };
+};
+// A slip is written in Unicode, as Pre-Flight asks of every string in a
+// question; MathLive writes ± as \pm, which the graders read only in a set.
+const plusMinus = (value) => String(value).replace(/\\pm(?![A-Za-z])/g, '±');
+const isSlip = (field, typed, slip) => {
+  const response = plusMinus(typed);
+  try {
+    return matchesFieldAnswer(response, keyedAs(field, slip)) && matchesFieldAnswer(slip, keyedAs(field, response));
+  } catch {
+    return false;
+  }
+};
+const slipMade = (question, entry, missed) => {
+  const squash = (value) => text(value).toLowerCase().replace(/\s+/g, '');
+  if (!entry.field) {
+    const given = submittedValues(missed).map(squash);
+    return entry.match.some((candidate) => given.includes(squash(candidate)));
+  }
+  const field = answerField(question, entry.field);
+  const part = missed.find((candidate) => text(candidate.id) === entry.field);
+  const response = part && typeof part.response === 'string' ? part.response : '';
+  return Boolean(field && response.trim()) && entry.match.some((slip) => isSlip(field, response, slip));
+};
+
 export const missFeedback = ({ question = null, attemptNumber = 1, diagnosis = null, parts = [] } = {}) => {
   let support = null;
   try {
@@ -125,9 +171,8 @@ export const missFeedback = ({ question = null, attemptNumber = 1, diagnosis = n
   } catch {
     support = null;
   }
-  const given = submittedValues(parts).map((value) => value.toLowerCase().replace(/\s+/g, ''));
-  const authoredMatch = list(support?.misconceptions).find((entry) => entry.match
-    .some((candidate) => given.includes(text(candidate).toLowerCase().replace(/\s+/g, ''))));
+  const missed = list(parts).filter((part) => part && part.graded !== false && part.isCorrect !== true);
+  const authoredMatch = list(support?.misconceptions).find((entry) => slipMade(question, entry, missed));
   if (authoredMatch) return { message: authoredMatch.message, source: 'authored-misconception' };
   const commonError = commonErrorMiss({ question, parts });
   if (commonError) return commonError;

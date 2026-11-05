@@ -79,6 +79,15 @@
             "Write a product of powers as repeated factors of x: how many factors of x are there in all?",
             "Add the exponents to multiply, multiply them for a power of a power, and subtract them to divide."
           ],
+          "misconceptions": [
+            {
+              "field": "product",
+              "match": [
+                "{{ab}}"
+              ],
+              "message": "Multiplying powers adds the exponents; it does not multiply them."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. x² · x³ equals…",
             "options": [
@@ -145,7 +154,8 @@
             "derived": {
               "s": "a + b",
               "p": "c*d",
-              "q": "e - f"
+              "q": "e - f",
+              "ab": "a*b"
             },
             "constraints": [
               "a != b",
@@ -200,6 +210,16 @@
           "hints": [
             "What does a negative exponent tell you to do with the positive power?",
             "Evaluate the positive power first, then take its reciprocal."
+          ],
+          "misconceptions": [
+            {
+              "field": "number",
+              "match": [
+                "-{{bn}}",
+                "-1/{{bn}}"
+              ],
+              "message": "A negative exponent makes a reciprocal, not a negative number."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. 10⁻² equals…",
@@ -428,6 +448,15 @@
             "Move any factor with a negative exponent to the other part of the fraction. For a power of a quotient, raise every factor to the power.",
             "a⁻³ · a² = a⁻¹, n² ÷ n¹⁰ = n⁻⁸, and (3a³)² = 9a⁶."
           ],
+          "misconceptions": [
+            {
+              "field": "b",
+              "match": [
+                "n^5"
+              ],
+              "message": "Dividing powers subtracts the exponents; it does not divide them."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. a⁻¹ equals…",
             "options": [
@@ -513,6 +542,15 @@
             "Subtracting a negative exponent adds it. In the third, what is 6/3?",
             "x⁻² · x⁻³ = x⁻⁵ and y⁻³ · y⁵ = y²; then move x⁻⁵ to the denominator. For the third, 6/3 = 2."
           ],
+          "misconceptions": [
+            {
+              "field": "c",
+              "match": [
+                "(4r^4)/s^9"
+              ],
+              "message": "A power of a power multiplies the exponents: (s³)² is not s⁹."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. m⁵ / m⁻² equals…",
             "options": [
@@ -596,6 +634,15 @@
           "hints": [
             "In b^(1/n) = ⁿ√b, which part of the exponent becomes the index?",
             "The denominator of the exponent is the index, and a square root has index 2."
+          ],
+          "misconceptions": [
+            {
+              "field": "a7",
+              "match": [
+                "√(a^7)"
+              ],
+              "message": "In a^(1/7), the 7 is the index of the root, not a power."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. b^(1/4) equals…",
@@ -696,6 +743,16 @@
             "Take the root first, then the power. A negative exponent means the reciprocal.",
             "Another method: write the base as a power of a smaller number, then multiply the exponents."
           ],
+          "misconceptions": [
+            {
+              "field": "value49",
+              "match": [
+                "-7",
+                "-1/7"
+              ],
+              "message": "A negative exponent makes a reciprocal, not a negative number."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. 32 equals…",
             "options": [
@@ -789,6 +846,15 @@
             "In b^(x/y), which number is the root and which is the power? Which do you take first?",
             "An odd root of a negative number is real; an even root is not. Is the root in each power odd or even?",
             "Find ∛(−8) first, then square it."
+          ],
+          "misconceptions": [
+            {
+              "field": "valueNeg8",
+              "match": [
+                "-4"
+              ],
+              "message": "An even power of a negative number is positive."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(−8) equals…",
@@ -1164,6 +1230,15 @@
             "What is y^(1/2) · y^(1/2)? The middle terms cancel in the denominator.",
             "Square the numerator by multiplying it by itself."
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "(y+1)/(y-1)"
+              ],
+              "message": "(y^(1/2) + 1)² has a middle term: multiply it out term by term."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. (a − 1)(a + 1) equals…",
             "options": [
@@ -1431,6 +1506,16 @@
             "What does a negative exponent tell you to do?",
             "Evaluate the positive power first, root then power, then take its reciprocal."
           ],
+          "misconceptions": [
+            {
+              "field": "value",
+              "match": [
+                "-{{cm}}",
+                "-1/{{cm}}"
+              ],
+              "message": "A negative exponent makes a reciprocal, not a negative number."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. 100^(−1/2) equals…",
             "options": [
@@ -1519,6 +1604,22 @@
           "hints": [
             "When you write a radical as a power, where does the index go, and where does the power go?",
             "The index becomes the denominator of the exponent, and the power becomes its numerator. Radical form goes the other way."
+          ],
+          "misconceptions": [
+            {
+              "field": "exponential",
+              "match": [
+                "x^({{n}}/{{m}})"
+              ],
+              "message": "The index is the denominator of the exponent, and the power is its numerator."
+            },
+            {
+              "field": "radical",
+              "match": [
+                "root({{a}})(y^{{b}})"
+              ],
+              "message": "The denominator of the exponent is the index, and the numerator is the power."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(a²) equals…",
@@ -1978,6 +2079,15 @@
             "How do you enter a fractional exponent on a calculator so the whole fraction is the power?",
             "Put the exponent in parentheses. For radical form, the denominator is the index and the numerator is the power of the radicand."
           ],
+          "misconceptions": [
+            {
+              "field": "value",
+              "match": [
+                "{{bm}}/{{n}}"
+              ],
+              "message": "Put the whole exponent in parentheses: {{b}}^{{m}}/{{n}} divides {{b}}^{{m}} by {{n}}."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. 7^(2/3) in radical form is…",
             "options": [
@@ -2145,6 +2255,15 @@
             "Each volume is a perfect cube. In V^(2/3), the denominator 3 is the index of the radical.",
             "Find the cube root, square it, then multiply by 6. For 8V, use (ab)^(2/3) = a^(2/3) · b^(2/3)."
           ],
+          "misconceptions": [
+            {
+              "field": "factor",
+              "match": [
+                "8"
+              ],
+              "message": "Area grows like the square of the edge, and volume like its cube."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. 1000^(2/3) equals…",
             "options": [
@@ -2234,6 +2353,15 @@
             "Is ∛(−8) positive or negative? An odd root keeps the sign.",
             "Which first step uses an exponent law with a condition on the base?"
           ],
+          "misconceptions": [
+            {
+              "field": "cubeRoot",
+              "match": [
+                "2"
+              ],
+              "message": "An odd root keeps the sign of its radicand."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. (−8)² equals…",
             "options": [
@@ -2311,6 +2439,15 @@
             "How do you write √x and ∛x as powers of x?",
             "Multiplying powers adds their exponents. What common denominator do 1/2 and 1/3 have?",
             "√x = x^(1/2) and ∛x = x^(1/3), and 3/4 − 1/2 = 1/4."
+          ],
+          "misconceptions": [
+            {
+              "field": "product",
+              "match": [
+                "∛(x^2)"
+              ],
+              "message": "√x · ∛x is not ∛(x²): write each as a power of x and add the exponents."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. 1/2 + 1/3 equals…",

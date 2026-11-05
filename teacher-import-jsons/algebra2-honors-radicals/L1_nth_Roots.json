@@ -96,6 +96,29 @@
             "An odd number of negative factors gives a negative product; an even number gives a positive one.",
             "A root undoes a power: if r multiplied by itself n times is b, then r is an nth root of b."
           ],
+          "misconceptions": [
+            {
+              "field": "negativeCube",
+              "match": [
+                "{{c3}}"
+              ],
+              "message": "A negative number cubed is negative: three negative factors make a negative product."
+            },
+            {
+              "field": "negativeFourth",
+              "match": [
+                "-{{d4}}"
+              ],
+              "message": "A negative number to the fourth power is positive: four negative factors make a positive product."
+            },
+            {
+              "field": "cubeRoot",
+              "match": [
+                "{{c}}"
+              ],
+              "message": "Check the sign: a positive number cubed is positive, so it is not a cube root of a negative number."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. An even power of a negative number is…",
             "options": [
@@ -330,6 +353,15 @@
             "The radical sign √ means the principal (nonnegative) square root.",
             "Which rule gives a nonnegative answer for every x, including a negative x?"
           ],
+          "misconceptions": [
+            {
+              "field": "negativeSquared",
+              "match": [
+                "-{{r}}"
+              ],
+              "message": "√ means the principal square root, which is never negative."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. √ always gives a value that is…",
             "options": [
@@ -464,6 +496,15 @@
             "Which number is written small in the radical sign, and which is under it?",
             "Which number, used as a factor 4 times, gives 81? Its opposite works too.",
             "The principal root is the nonnegative one."
+          ],
+          "misconceptions": [
+            {
+              "field": "principal",
+              "match": [
+                "-3"
+              ],
+              "message": "The principal root is the one that is not negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. In ⁿ√b, the number under the radical sign is the…",
@@ -769,6 +810,36 @@
             "Squaring a power doubles its exponent. ± asks for both roots: the positive one and its opposite.",
             "16 = 4² and x⁸ = (x⁴)². Do the same for 9x⁸."
           ],
+          "misconceptions": [
+            {
+              "field": "square",
+              "match": [
+                "4x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            },
+            {
+              "field": "negative",
+              "match": [
+                "-4x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            },
+            {
+              "field": "cypPositive",
+              "match": [
+                "3x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            },
+            {
+              "field": "cypNegative",
+              "match": [
+                "-3x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. √(x⁸) equals…",
             "options": [
@@ -859,6 +930,22 @@
             "The negative sign is outside the radical. Take the principal root first, then make it the opposite.",
             "(q³ + 5)⁴ = [(q³ + 5)²]². A square is never negative, so no bars are needed."
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "(q^3+5)^2"
+              ],
+              "message": "The negative sign in front of the radical stays in your answer."
+            },
+            {
+              "field": "cyp",
+              "match": [
+                "(a^3+2)^4"
+              ],
+              "message": "The negative sign in front of the radical stays in your answer."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. The negative sign in −√(…) is…",
             "options": [
@@ -943,6 +1030,15 @@
             "Which number to the fifth power is 243? Which power of a, to the fifth, gives a¹⁰?",
             "Divide each exponent by 5. Is the index odd or even, and does an odd root keep the sign?",
             "243 = 3⁵, a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵, and an odd root needs no bars. Do the same for 32x⁵y¹⁰."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "±2xy^2"
+              ],
+              "message": "An odd index gives exactly one real root, so there is no ±."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. 243 equals…",
@@ -1126,6 +1222,29 @@
             "What monomial, to the fourth power, gives 16x⁴y⁸? Which of its factors can be negative?",
             "16x⁴y⁸ = (2xy²)⁴. Bars go only around a factor that can be negative: x can, y² cannot."
           ],
+          "misconceptions": [
+            {
+              "field": "sixth",
+              "match": [
+                "t"
+              ],
+              "message": "Your answer is right when t ≥ 0. Try t = −1."
+            },
+            {
+              "field": "fourth",
+              "match": [
+                "x"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            },
+            {
+              "field": "mixed",
+              "match": [
+                "2xy^2"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. For an even index n, ⁿ√(aⁿ) equals…",
             "options": [
@@ -1209,6 +1328,15 @@
             "Treat x + 2 as one block and divide its exponent by the index. Is the index odd or even?",
             "243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵. An odd root keeps the sign, so no bars. For the cube root, divide 15 by 3."
           ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "|2(x+2)^5|"
+              ],
+              "message": "An odd root keeps the sign, so it needs no absolute value bars."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. For an odd index n, ⁿ√(aⁿ) equals…",
             "options": [
@@ -1280,6 +1408,15 @@
             "Which number squared is 9? What power of each letter, squared, gives x⁴, y¹⁰ and z⁴?",
             "The square root of a square is the absolute value of its base. Which factors of that base can be negative?",
             "9x⁴y¹⁰z⁴ = (3x²y⁵z²)². Of 3x², y⁵ and z², only y⁵ can be negative."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "3x^2y^5z^2"
+              ],
+              "message": "Your answer is right when y ≥ 0. Try y = −1."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(y¹⁰) equals…",
@@ -1353,6 +1490,15 @@
             "How can you write a product of two square roots as one square root?",
             "Multiply the coefficients outside and the radicands inside. What happens to the exponents of a?",
             "√m · √n = √(mn), and a² is never negative, so √(a⁴) = a² with no bars."
+          ],
+          "misconceptions": [
+            {
+              "field": "radicand",
+              "match": [
+                "26a^2"
+              ],
+              "message": "The Product Property multiplies the radicands; it does not add them."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √m · √n equals…",
@@ -1749,6 +1895,15 @@
             "Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?",
             "{{c3}} = {{c}}³; divide each exponent by 3. A cube root of a negative number is negative."
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{c}}a{{m|pow}}b{{n|pow}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the cube root of a negative number is negative."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(−8) equals…",
             "options": [
@@ -1830,6 +1985,15 @@
           "hints": [
             "Which number to the fourth power is {{d4}}? After you take the root, which factor can be negative?",
             "{{d4}} = {{d}}⁴; divide each exponent by 4. x{{m|pow}} has an odd exponent, so it can be negative; y^{{n}} cannot."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{d}}x{{m|pow}}y^{{n}}"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁴√(x⁴) equals…",
@@ -1914,6 +2078,15 @@
           "hints": [
             "Which number to the fifth power is {{c5}}? What power of (x + {{h}}), to the fifth, gives (x + {{h}})^{{e}}?",
             "{{c5}} = {{c}}⁵ and (x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. The index is odd, so no bars are needed."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "|{{c}}(x+{{h}})^{{k}}|"
+              ],
+              "message": "An odd root keeps the sign, so it needs no absolute value bars."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. An odd root of a negative number is…",
@@ -2092,6 +2265,15 @@
             "How can you write the product of the two square roots as one square root?",
             "Multiply the coefficients, and multiply the radicands. The new radicand is a perfect square: what is its square root?"
           ],
+          "misconceptions": [
+            {
+              "field": "product",
+              "match": [
+                "{{kj}}x"
+              ],
+              "message": "That is the square root alone: multiply it by the coefficients {{a}} and {{b}} too."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. √(16x²) equals (x positive)…",
             "options": [
@@ -2204,6 +2386,15 @@
             "i² = −1, so a multiple of i can square to a negative number. Does an odd root keep the sign of its radicand?",
             "Find the whole number whose square is {{p}}, then attach i. An odd root keeps the sign of its radicand."
           ],
+          "misconceptions": [
+            {
+              "field": "cube",
+              "match": [
+                "{{m}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the cube root of a negative number is negative."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. An odd root of a negative number is…",
             "options": [
@@ -2300,6 +2491,23 @@
             "For each one, is the index even or odd, and is the radicand positive or negative?",
             "No real number to an even power is negative. Which whole number to the sixth power is 64?",
             "An odd index gives one real root with the radicand’s sign; a positive radicand under an even index has two."
+          ],
+          "misconceptions": [
+            {
+              "field": "count1",
+              "match": [
+                "1",
+                "2"
+              ],
+              "message": "No real number to an even power is negative, so a negative number has no real fourth root."
+            },
+            {
+              "field": "root3",
+              "match": [
+                "3"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the fifth root of a negative number is negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. How many real sixth roots does a positive number have?",
@@ -2547,6 +2755,22 @@
             "Do the same with x³ and the cube root. Is each result x, or |x|?",
             "A fourth root is never negative; a cube root keeps the sign. Compare each result with x and with |x|."
           ],
+          "misconceptions": [
+            {
+              "field": "jamalValue",
+              "match": [
+                "-2"
+              ],
+              "message": "x⁴ is positive, and a fourth root is never negative."
+            },
+            {
+              "field": "priyaValue",
+              "match": [
+                "2"
+              ],
+              "message": "A cube root keeps the sign: the cube root of a negative number is negative."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(−27) equals…",
             "options": [
@@ -2643,6 +2867,15 @@
             "What is ⁿ√(aⁿ) when a = −2, for n = 2 and for n = 3?",
             "√(x²) = |x|. When is |x| equal to −x? Which power of x, to the sixth, gives x¹⁸?",
             "x¹⁸ = (x³)⁶ and x¹² = (x²)⁶. Can x³ be negative? Can x²?"
+          ],
+          "misconceptions": [
+            {
+              "field": "eighteen",
+              "match": [
+                "x^3"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. |x| = −x when x is…",
@@ -2780,6 +3013,15 @@
             "What is L/32 for each length in the table, and what is its square root?",
             "Compare rows where the length is multiplied by the same factor. How does the period change?",
             "Use the Product Property: the square root of a product is the product of the square roots."
+          ],
+          "misconceptions": [
+            {
+              "field": "doubleLength",
+              "match": [
+                "2"
+              ],
+              "message": "Doubling the length does not double the period: the period depends on √L."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √4 · √L equals…",
@@ -3077,6 +3319,15 @@
               "gradingMode": "simplestRadicalForm"
             }
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{d}}x{{m|pow}}y^{{k}}"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
+          ],
           "solutionReview": {
             "headline": "An even index: bars around any factor that can be negative.",
             "reasoning": [
@@ -3153,6 +3404,15 @@
               "answer": "-{{c}}a{{m|pow}}b{{k|pow}}",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{c}}a{{m|pow}}b{{k|pow}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand, so the root of a negative number is negative."
             }
           ],
           "solutionReview": {

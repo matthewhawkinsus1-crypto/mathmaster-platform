@@ -26,6 +26,11 @@ const T = teks('A2.7G');
 // own question about this item's move (F-HINT-GIVES-STEP): the bank's hint
 // ("Combine like terms, distribute, factor, …") names no move for it.
 const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
+// A predictable slip in one answer box, named on a miss
+// (F-NO-MISCONCEPTION-FEEDBACK): missFeedback reads it in that box only, by
+// that box's own grader, and never when the box is right.
+const slip = (field, match, message) => ({ field, match: [match].flat(), message });
+const BARS = (letter) => `Your answer is right when ${letter} ≥ 0. Try ${letter} = −1.`;
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -42,6 +47,9 @@ const warmup = [
     hints: [
       'Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?',
       '{{c3}} = {{c}}³ and each exponent divides by 3. An odd root of a negative number is negative.',
+    ],
+    misconceptions: [
+      slip('simplified', '{{c}}a{{j|pow}}y{{k|pow}}', 'An odd root keeps the sign of its radicand: the cube root of a negative number is negative.'),
     ],
     scaffold: backUp('∛(a⁶) equals…', ['a²', 'a³'], 'a²'),
     guidedNotes: guidedNotes(['Odd index', 'An odd root keeps the sign: ∛(−8) = −2.']),
@@ -213,6 +221,7 @@ const classwork = [
       'y¹¹ is not a perfect square and y¹⁴ is not a perfect cube, so a power of y stays under each radical.',
       'Take the root of the perfect-power factor; what is left stays under the radical.',
     ],
+    misconceptions: [slip('second', '3x^3y^4∛(y)', 'Check what stays under the cube root: y¹⁴ is y¹² times what?')],
     scaffold: backUp('∛(a⁸) equals…', ['a²∛(a²)', 'a²∛a'], 'a²∛(a²)'),
     solutionReview: review(
       'As in the examples: perfect power out, the rest stays in.',
@@ -302,6 +311,10 @@ const classwork = [
       'A perfect cube has a coefficient that is a cube and every exponent a multiple of 3. Multiply the numerator by the same cube root.',
       '9x · 3x² = 27x³ = (3x)³, so multiply the top and bottom by ∛(3x²).',
     ],
+    misconceptions: [
+      slip('multiplier', '9x', '9x · 9x = 81x², which is not a perfect cube.'),
+      slip('perfectCube', '81x^2', '9x · 9x = 81x², which is not a perfect cube.'),
+    ],
     scaffold: backUp('Which is a perfect cube?', ['27x³', '9x²'], '27x³'),
     solutionReview: review(
       'Build a perfect cube in the denominator.',
@@ -358,6 +371,7 @@ const classwork = [
       'Multiply the radicands. Is the product a perfect cube: a cube number times a³?',
       '∛m · ∛n = ∛(mn). Keep the coefficients: for the second, multiply 3 and 2 too.',
     ],
+    misconceptions: [slip('first', '10a', 'That is the cube root alone: keep the coefficient 5 in front.')],
     scaffold: backUp('∛(1000) equals…', ['10', '100'], '10'),
     solutionReview: review(
       'One radical, a perfect cube, then the coefficients.',
@@ -394,6 +408,7 @@ const classwork = [
       'b can be negative, so which factor needs bars? For k²³ to have a real fourth root, can k be negative?',
       '625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³. Only b⁷ can be negative.',
     ],
+    misconceptions: [slip('second', '5b^7k^5∜(k^3)', BARS('b')), slip('second', '125|b^7|k^5∜(k^3)', 'The fourth root of 625 is not 625 ÷ 5.')],
     scaffold: backUp('⁴√(b²⁸) equals…', ['|b⁷|', 'b⁷'], '|b⁷|'),
     solutionReview: review(
       'Pull out the largest perfect power; bars only where a factor can be negative.',
@@ -506,6 +521,7 @@ const practice = [
     directionSteps: ['Multiply the top and bottom by the radical in the denominator.', 'Simplify.'],
     responses: [simplest('simplified', 'Simplified', '({{a}}√{{m}})/{{m}}')],
     hints: ['What can you multiply √{{m}} by to get a whole number?', 'Multiply the top and the bottom by √{{m}}: a square root times itself is its radicand.'],
+    misconceptions: [slip('simplified', '{{a}}/{{m}}', 'Multiplying only the bottom by √{{m}} changes the value: multiply the top by √{{m}} too.')],
     scaffold: backUp('√7 · √7 equals…', ['7', '49'], '7'),
     solutionReview: review(
       'Multiply by √{{m}}/√{{m}}.',
@@ -597,6 +613,7 @@ const practice = [
       'How can you write the product of the two cube roots as one cube root?',
       'Multiply the radicands: the product is a perfect cube. Then multiply by the coefficients {{c1}} and {{c2}}.',
     ],
+    misconceptions: [slip('product', '{{w}}a', 'That is the cube root alone: multiply it by the coefficients {{c1}} and {{c2}} too.')],
     scaffold: backUp('∛(8a³) equals…', ['2a', '8a'], '2a'),
     solutionReview: review(
       'One radical, a perfect cube, then the coefficients.',
@@ -742,6 +759,7 @@ const practice = [
       simplest('correct', '√(16x) + √(9x) =', '7√x'),
     ],
     hints: ['Does √(a + b) = √a + √b hold for a = 9 and b = 16? Work out each side.', 'Simplify each radical first: each one is a whole number times √x.'],
+    misconceptions: [slip('correct', '5√x', 'That is Maya’s answer: √(16x) + √(9x) is not √(25x).')],
     scaffold: backUp('√(16x) equals (x positive)…', ['4√x', '16√x'], '4√x'),
     solutionReview: review(
       'Radicals do not add like radicands.',
@@ -812,6 +830,7 @@ const practice = [
       'How do you square 2√3? Square the 2 and the √3 separately.',
       '(a + b)(a − b) = a² − b², and (2√3)² = 4 · 3. Perimeter = 2 · length + 2 · width.',
     ],
+    misconceptions: [slip('areaC', '5', '(2√3)² is not 2 · 3: square the 2 as well.')],
     scaffold: backUp('(4 + √3)(4 − √3) equals…', ['16 − 3', '16 + 3'], '16 − 3'),
     solutionReview: review(
       'Conjugates multiply to a difference of squares.',
@@ -838,6 +857,7 @@ const practice = [
       'Multiply the top and the bottom by the same cube root, so the denominator is the cube root of a perfect cube.',
       '4 · 2 = 8 and 25 · 5 = 125 are perfect cubes. Reduce the fraction at the end.',
     ],
+    misconceptions: [slip('multiplier1', '∛(4)', '4 · 4 = 16 is not a perfect cube.')],
     scaffold: backUp('∛4 · ∛2 equals…', ['2', '∛6'], '2'),
     solutionReview: review(
       'Build a perfect cube under the denominator.',
@@ -893,6 +913,7 @@ const practice = [
       'In L = 0.46∛M, what do you work out first when you know M?',
       'Evaluate ∛30, then multiply by 0.46. For the second part, divide by 0.46, then cube.',
     ],
+    misconceptions: [slip('mass', '17.4', 'Undo the steps in reverse order: divide by 0.46 first, then cube.')],
     scaffold: backUp('To undo ∛M, you…', ['cube', 'divide by 3'], 'cube'),
     solutionReview: review(
       'Evaluate, then undo in reverse.',

@@ -61,6 +61,15 @@
             "Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?",
             "{{c3}} = {{c}}³ and each exponent divides by 3. An odd root of a negative number is negative."
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{c}}a{{j|pow}}y{{k|pow}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the cube root of a negative number is negative."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(a⁶) equals…",
             "options": [
@@ -610,6 +619,15 @@
             "y¹¹ is not a perfect square and y¹⁴ is not a perfect cube, so a power of y stays under each radical.",
             "Take the root of the perfect-power factor; what is left stays under the radical."
           ],
+          "misconceptions": [
+            {
+              "field": "second",
+              "match": [
+                "3x^3y^4∛(y)"
+              ],
+              "message": "Check what stays under the cube root: y¹⁴ is y¹² times what?"
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(a⁸) equals…",
             "options": [
@@ -872,6 +890,22 @@
             "A perfect cube has a coefficient that is a cube and every exponent a multiple of 3. Multiply the numerator by the same cube root.",
             "9x · 3x² = 27x³ = (3x)³, so multiply the top and bottom by ∛(3x²)."
           ],
+          "misconceptions": [
+            {
+              "field": "multiplier",
+              "match": [
+                "9x"
+              ],
+              "message": "9x · 9x = 81x², which is not a perfect cube."
+            },
+            {
+              "field": "perfectCube",
+              "match": [
+                "81x^2"
+              ],
+              "message": "9x · 9x = 81x², which is not a perfect cube."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. Which is a perfect cube?",
             "options": [
@@ -1010,6 +1044,15 @@
             "Multiply the radicands. Is the product a perfect cube: a cube number times a³?",
             "∛m · ∛n = ∛(mn). Keep the coefficients: for the second, multiply 3 and 2 too."
           ],
+          "misconceptions": [
+            {
+              "field": "first",
+              "match": [
+                "10a"
+              ],
+              "message": "That is the cube root alone: keep the coefficient 5 in front."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(1000) equals…",
             "options": [
@@ -1073,6 +1116,22 @@
             "Which number to the fourth power is 625? What is the largest multiple of 4 up to 28? Up to 23?",
             "b can be negative, so which factor needs bars? For k²³ to have a real fourth root, can k be negative?",
             "625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³. Only b⁷ can be negative."
+          ],
+          "misconceptions": [
+            {
+              "field": "second",
+              "match": [
+                "5b^7k^5∜(k^3)"
+              ],
+              "message": "Your answer is right when b ≥ 0. Try b = −1."
+            },
+            {
+              "field": "second",
+              "match": [
+                "125|b^7|k^5∜(k^3)"
+              ],
+              "message": "The fourth root of 625 is not 625 ÷ 5."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁴√(b²⁸) equals…",
@@ -1408,6 +1467,15 @@
             "What can you multiply √{{m}} by to get a whole number?",
             "Multiply the top and the bottom by √{{m}}: a square root times itself is its radicand."
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{a}}/{{m}}"
+              ],
+              "message": "Multiplying only the bottom by √{{m}} changes the value: multiply the top by √{{m}} too."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. √7 · √7 equals…",
             "options": [
@@ -1723,6 +1791,15 @@
           "hints": [
             "How can you write the product of the two cube roots as one cube root?",
             "Multiply the radicands: the product is a perfect cube. Then multiply by the coefficients {{c1}} and {{c2}}."
+          ],
+          "misconceptions": [
+            {
+              "field": "product",
+              "match": [
+                "{{w}}a"
+              ],
+              "message": "That is the cube root alone: multiply it by the coefficients {{c1}} and {{c2}} too."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(8a³) equals…",
@@ -2177,6 +2254,15 @@
             "Does √(a + b) = √a + √b hold for a = 9 and b = 16? Work out each side.",
             "Simplify each radical first: each one is a whole number times √x."
           ],
+          "misconceptions": [
+            {
+              "field": "correct",
+              "match": [
+                "5√x"
+              ],
+              "message": "That is Maya’s answer: √(16x) + √(9x) is not √(25x)."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. √(16x) equals (x positive)…",
             "options": [
@@ -2380,6 +2466,15 @@
             "How do you square 2√3? Square the 2 and the √3 separately.",
             "(a + b)(a − b) = a² − b², and (2√3)² = 4 · 3. Perimeter = 2 · length + 2 · width."
           ],
+          "misconceptions": [
+            {
+              "field": "areaC",
+              "match": [
+                "5"
+              ],
+              "message": "(2√3)² is not 2 · 3: square the 2 as well."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. (4 + √3)(4 − √3) equals…",
             "options": [
@@ -2445,6 +2540,15 @@
             "What do you multiply 4 by to get a perfect cube? And 25?",
             "Multiply the top and the bottom by the same cube root, so the denominator is the cube root of a perfect cube.",
             "4 · 2 = 8 and 25 · 5 = 125 are perfect cubes. Reduce the fraction at the end."
+          ],
+          "misconceptions": [
+            {
+              "field": "multiplier1",
+              "match": [
+                "∛(4)"
+              ],
+              "message": "4 · 4 = 16 is not a perfect cube."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛4 · ∛2 equals…",
@@ -2784,6 +2888,15 @@
           "hints": [
             "In L = 0.46∛M, what do you work out first when you know M?",
             "Evaluate ∛30, then multiply by 0.46. For the second part, divide by 0.46, then cube."
+          ],
+          "misconceptions": [
+            {
+              "field": "mass",
+              "match": [
+                "17.4"
+              ],
+              "message": "Undo the steps in reverse order: divide by 0.46 first, then cube."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. To undo ∛M, you…",

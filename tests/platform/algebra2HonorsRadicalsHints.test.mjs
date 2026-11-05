@@ -19,97 +19,12 @@ import assert from 'node:assert/strict';
 
 import { ALGEBRA2_HONORS_RADICALS_LESSONS } from '../../scripts/content/build-algebra2-honors-radicals.mjs';
 import { compiled, readRepoFile, versionsOf } from './helpers/lessonFileChecks.mjs';
-import { authoredHintTexts, questionDisplayText, questionHintAudit, questionVisibleText } from '../../src/platform/supports/hints/questionHints.js';
-import { statedAnswers } from '../../src/platform/supports/hints/hintLeakGuard.js';
-import { unicodeSuperscriptsToMathMarkup } from '../../src/mathDisplayFormat.js';
-import { expandLatexShorthand } from '../../functions/shared/algebraicForm.mjs';
-import { radicalFormMiss, sameSimplestRadicalForm } from '../../functions/shared/simplestRadicalFormEquivalence.mjs';
+import { boxesStated } from './helpers/boxesStated.mjs';
+import { authoredHintTexts, questionHintAudit } from '../../src/platform/supports/hints/questionHints.js';
 
 const HINTED = new Set(['warmup', 'classwork', 'practice']);
 const hintedQuestions = () => ALGEBRA2_HONORS_RADICALS_LESSONS.flatMap((entry) => compiled(readRepoFile(entry.file)).questions
   .filter((question) => HINTED.has(question.sectionId)));
-
-/* ------------------------------------------------- what a hint states */
-
-// Mathematics as the comparisons read it: superscripts and written radicals
-// as LaTeX (x⁴ is x^4, ⁶√16 is \sqrt[6]{16}, √(x³) is \sqrt{x^3}), one minus
-// sign, one multiplication sign.
-const asMath = (text) => expandLatexShorthand(unicodeSuperscriptsToMathMarkup(String(text), 'latex'))
-  .replace(/[−–]/g, '-')
-  .replace(/·|×|\\cdot|\\times/g, '*');
-const squash = (text) => expandLatexShorthand(asMath(text).replace(/\s+/g, ''));
-const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** `piece` is written whole in `text`: not as part of a longer number, monomial or power. */
-const writesWhole = (text, piece) => new RegExp(`(?<![0-9A-Za-z^.\\\\])${escaped(piece)}(?![0-9A-Za-z^.({])`).test(text);
-
-// A token of mathematics: a digit, a command, a bracket or an operator, and
-// no word of three letters or more once the commands are set aside.
-const isMathToken = (token) => {
-  const bare = token.replace(/\$/g, '').replace(/[.,;:?]+$/, '');
-  return /[0-9\\^()[\]{}|/*=+-]/.test(bare) && !/[A-Za-z]{3}/.test(bare.replace(/\\[A-Za-z]+/g, ''));
-};
-/** The runs of mathematics a text writes, each without its spaces ("(q³ + 5)⁴" is one). */
-const mathRuns = (text) => {
-  const runs = [];
-  let run = [];
-  const close = () => {
-    if (run.length) runs.push(expandLatexShorthand(run.join('').replace(/\$/g, '').replace(/[.,;:?]+$/, '')));
-    run = [];
-  };
-  asMath(text).split(/\s+/).forEach((token) => {
-    if (!isMathToken(token)) { close(); return; }
-    run.push(token);
-    if (/[.,;:?]$/.test(token)) close();
-  });
-  close();
-  return runs.filter(Boolean);
-};
-/**
- * The expressions a hint writes: each side of each equation in it, and the
- * base of each bracketed power ("(2xy²)⁴" writes 2xy²). A lone letter is a
- * name, not a statement.
- */
-const fragments = (hint) => {
-  const sides = mathRuns(hint).flatMap((run) => run.split('=')).map((side) => side.replace(/^[*/+]|[*/+-]$/g, ''));
-  const bases = sides.flatMap((side) => [...side.matchAll(/[([]([^()[\]]+)[)\]]\^/g)].map(([, base]) => base));
-  return [...new Set([...sides, ...bases])].filter((piece) => piece && !/^-?[A-Za-z]$/.test(piece));
-};
-
-// The same value, as the radicals grader reads it: the key itself, the key
-// left unsimplified, or the key in the other notation.
-const sameValue = (written, key) => {
-  try {
-    return sameSimplestRadicalForm(written, key) || ['notSimplest', 'notation'].includes(radicalFormMiss(written, key));
-  } catch {
-    return false;
-  }
-};
-// Its value where every letter is positive: 2xy² is 2|x|y² with the bars left off.
-const withoutBars = (key) => key.replace(/\|([^|]*)\|/g, '($1)');
-
-/**
- * The boxes whose answer this hint states, in this version: a number box
- * whose number it writes (the leak guard's reading, by value, a quotation
- * of the problem excepted), or any other box whose key it writes in its
- * simplest-form spelling, or whose value it writes as an expression the
- * problem does not show.
- */
-const boxesStated = (hint, version) => {
-  const visible = questionVisibleText(version);
-  // The prompt's and the labels' own mathematics: quoting it states nothing new.
-  const shown = mathRuns(visible);
-  const quoted = (piece) => shown.some((run) => writesWhole(run, piece));
-  const written = fragments(hint);
-  return (version.answerFields || []).filter((field) => field.type !== 'choice').filter((field) => {
-    const key = String(field.answer);
-    if (field.inputProfile === 'number') {
-      return statedAnswers(hint, { answers: [key], visibleText: visible, displayText: questionDisplayText(version) }).length > 0;
-    }
-    if (written.includes(squash(key))) return true;
-    return written.some((piece) => !quoted(piece)
-      && (sameValue(piece, key) || (key.includes('|') && sameValue(piece, withoutBars(key)))));
-  }).map((field) => `${field.id} (${field.answer})`);
-};
 
 /* ------------------------------------------------------------- the rules */
 
