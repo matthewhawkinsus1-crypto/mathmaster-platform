@@ -789,9 +789,9 @@
               "label": "Do u(x) and v(x) have the same graph?",
               "type": "choice",
               "options": [
-                "Yes — they are the same line.",
+                "Yes — both shift j(x) 2 units, so they are one line.",
                 "No — they are parallel lines 2 units apart.",
-                "No — they intersect at one point."
+                "No — their slopes differ, so they cross once."
               ],
               "answer": "No — they are parallel lines 2 units apart."
             },
@@ -1164,9 +1164,9 @@
               "label": "So the dilation pattern holds for …",
               "type": "choice",
               "options": [
-                "every linear function",
+                "every linear function, whatever its y-intercept",
                 "linear functions whose graphs pass through the origin",
-                "no linear functions"
+                "no linear functions, since a(x) and b(x) are different lines"
               ],
               "answer": "linear functions whose graphs pass through the origin"
             }

@@ -1818,8 +1818,8 @@
               "type": "choice",
               "options": [
                 "Yes — opposite sides are parallel and adjacent sides are perpendicular.",
-                "No — the opposite sides are not parallel.",
-                "No — the adjacent sides are not perpendicular."
+                "No — adjacent sides are perpendicular, but opposite sides are not parallel.",
+                "No — opposite sides are parallel, but adjacent sides are not perpendicular."
               ],
               "answer": "Yes — opposite sides are parallel and adjacent sides are perpendicular."
             }

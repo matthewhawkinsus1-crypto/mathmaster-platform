@@ -14,8 +14,9 @@
  * the unique longest option by more than 20%. The Algebra II Honors radicals
  * lessons, the Algebra I Module 3 Topic 2 Lessons 4 and 5 (regular and
  * Honors) and ten Algebra II lessons on matrices, polynomials and radicals
- * have none. Every other lesson's count is a ratchet: it may go down, never
- * up, and a lesson not listed has none.
+ * have none. The Algebra I lessons in ALGEBRA1 have none but the ones named
+ * there, each kept for a reason written beside it. Every other lesson's count
+ * is a ratchet: it may go down, never up, and a lesson not listed has none.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -71,14 +72,13 @@ const offenders = (file) => choicesOf(JSON.parse(readFileSync(path.join(LESSONS,
  * The four Algebra I Module 3 Topic 2 Lesson 4 and 5 files held 44 of them;
  * their rewrite took every one to 0, so they left the ratchet and are held
  * to none by the test after the radicals'. The ten Algebra II files on
- * matrices, polynomials and radicals held 27, and theirs did the same (67 in
- * 12 files now).
+ * matrices, polynomials and radicals held 27, and theirs did the same. Each
+ * Algebra I file in ALGEBRA1 left the ratchet when its rewrite took it to 0;
+ * one that keeps an offender keeps its number here, and ALGEBRA1 names what
+ * it keeps (63 in 9 files now).
  */
 const RATCHET = Object.freeze({
   'algebra1-dol3/Algebra1_DOL3_Review_Honors.json': 1,
-  'algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': 2,
-  'algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': 1,
-  'algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': 1,
   'algebra1-module3/T1_L1_Solving_Linear_Equations.json': 3,
   'algebra1-module3/T1_L1_Solving_Linear_Equations_Honors.json': 8,
   'algebra1-module3/T1_L3_Modeling_and_Solving_Linear_Inequalities.json': 4,
@@ -107,6 +107,18 @@ const ALGEBRA2 = [
   ...['1_Factoring_Polynomials', '2_Remainder_and_Factor_Theorems', '3_Radical_Expressions', '4_Rational_Exponents', '5_Solving_Radical_Equations']
     .map((name) => `algebra2-polynomials-radicals-honors/${name}_Honors.json`),
 ];
+/*
+ * The Algebra I lessons rewritten next, each with the offenders it keeps, by
+ * name, so a fix in one place cannot hide a new one in another. What is kept:
+ *   - dol3-honors-q15 is the bank's audited TSIA2 item
+ *     (mm_tsia2_psr_analysis_8_v21), carried as the bank wrote it.
+ */
+const ALGEBRA1 = Object.freeze({
+  'algebra1-dol3/Algebra1_DOL3_Review_Honors.json': ['dol3-honors-q15 answer'],
+  'algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': [],
+  'algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': [],
+  'algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': [],
+});
 
 test('what counts: a prose choice whose key is the unique longest option by more than 20%', () => {
   const choice = (key, ...others) => ({ options: [key, ...others], key });
@@ -155,6 +167,18 @@ test('ten Algebra II lessons on matrices, polynomials and radicals: no reasoning
     assert.ok(prose.length >= 1, `${file}: ${prose.length} prose choices read`);
     assert.deepEqual(offenders(file), [], file);
     assert.equal(RATCHET[file], undefined, `${file} is held to none, not to a ratchet`);
+  });
+});
+
+test('the Algebra I lessons in ALGEBRA1: no reasoning choice gives its key away by length, but the ones named', () => {
+  // Each distractor is a claim with a reason, wrong in one way ("No — their
+  // slopes differ, so they cross once" beside "No — they are parallel lines
+  // 2 units apart"), so the key no longer stands out among bare claims.
+  Object.entries(ALGEBRA1).forEach(([file, kept]) => {
+    const prose = choicesOf(JSON.parse(readFileSync(path.join(LESSONS, file), 'utf8'))).filter(isProse);
+    assert.ok(prose.length > 0, `${file}: its prose choices are read`);
+    assert.deepEqual(offenders(file), kept, file);
+    assert.equal(RATCHET[file], kept.length || undefined, `${file}: in the ratchet only for what it keeps, at that number`);
   });
 });
 
