@@ -357,7 +357,7 @@ export function ChallengeRound({
     if (delayMs === null) {
       // Still locked and kept; the Retry button sends it.
       setWaitingForGo(false);
-      setSubmitError('Your answer is locked in but was not sent. Tap Retry locked answer to send it.');
+      setSubmitError('Your answer is locked in but was not sent. Press Retry locked answer to send it.');
       return;
     }
     resendsAtGoRef.current += 1;

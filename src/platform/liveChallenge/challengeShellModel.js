@@ -95,10 +95,10 @@ const RUSH_WORDS = Object.freeze({
     many: 'graphs',
     task: 'Find the features',
     working: 'Students are finding features on their own graphs.',
-    go: 'Everyone has their own graphs. Tap the features. Go!',
+    go: 'Everyone has their own graphs. Find the features. Go!',
     countdown: 'Everyone gets their own graphs',
-    lobby: 'Graph Feature Rush — tap the features on your own graphs',
-    earn: 'Tap the features on your graphs to earn points.',
+    lobby: 'Graph Feature Rush — find the features on your own graphs',
+    earn: 'Find the features on your graphs to earn points.',
   }),
   [QUESTION_SET_GAME.INEQUALITY_RUSH]: Object.freeze({
     game: 'Inequality Graphing Rush',

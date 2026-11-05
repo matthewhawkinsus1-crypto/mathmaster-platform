@@ -344,7 +344,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
     const { category, pointChecks: checks } = readConstructionFeedback({ isCorrect: feedback.isCorrect, parts: feedback.metadata?.parts });
     if (feedback.metadata?.strategy === 'formAware' && category) return formAwareFeedback(category);
     const onLine = checks.filter(Boolean).length;
-    if (!studentLine) return 'Those two clicks landed on the same spot. Two different points are needed to determine a line.';
+    if (!studentLine) return 'Those two points landed on the same spot. Two different points are needed to determine a line.';
     const turned = orientationMissMessage(target, studentLine);
     if (turned) return turned;
     if (onLine === 0) return 'Neither point is on the target line yet. Find one point you are certain about — the y-intercept is usually easiest — and start there.';

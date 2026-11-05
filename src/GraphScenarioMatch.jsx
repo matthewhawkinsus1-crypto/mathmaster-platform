@@ -250,7 +250,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
       <div className="graph-scenario-match-instructions" aria-live="polite">
         <div>
           <strong>{selectedGraph ? `${selectedGraph.label || selectedGraph.id} selected` : '1. Select a graph'}</strong>
-          <span>{selectedGraph ? '2. Now select the scenario that tells its story.' : 'Select a graph, or drag it directly onto a scenario.'}</span>
+          <span>{selectedGraph ? '2. Now select the scenario that tells its story.' : 'Select a graph (click or tap, or Tab to it and press Enter), or drag it directly onto a scenario.'}</span>
         </div>
         <div className="graph-scenario-match-actions">
           {selectedGraph && (

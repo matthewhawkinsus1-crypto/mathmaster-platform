@@ -227,7 +227,7 @@ const buildReview = (question) => {
     scatterplot
       ? `Read the ${n} plotted points from the scatterplot — ${pairs} — and enter them in an x₁/y₁ table, one point per row. The table must hold exactly these ${n} pairs; the row order does not matter.`
       : `Enter the ${n} given points in an x₁/y₁ table, one point per row: ${pairs}. The table must hold exactly these ${n} pairs; the row order does not matter.`,
-    `Run a linear regression on that table: tap Add Regression (or type y₁ ~ mx₁ + b) so the calculator fits the line of best fit to these ${n} points.`,
+    `Run a linear regression on that table: press Add Regression (or type y₁ ~ mx₁ + b) so the calculator fits the line of best fit to these ${n} points.`,
     `Where the calculator's numbers come from: the means are x̄ ${relation(xBar)} ${xBar.text} and ȳ ${relation(yBar)} ${yBar.text}, and the sums are Sxx = Σ(x − x̄)² ${relation(sXX)} ${sXX.text}, Syy = Σ(y − ȳ)² ${relation(sYY)} ${sYY.text} and Sxy = Σ(x − x̄)(y − ȳ) ${relation(sXY)} ${sXY.text}.`,
     `The slope is ${slopeWork} and the intercept is ${interceptWork}, so the line of best fit is ${line}.`,
     `The correlation is r = Sxy ÷ √(Sxx · Syy) ${relation(r)} ${r.text}, and R² = r² ${relation(r2)} ${r2.text} — the r and R² the calculator reports.`,

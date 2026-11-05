@@ -264,7 +264,7 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-buttons { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
 .mm-rush-buttons[data-off-screen="1"] { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); }
 .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
-/* Buttons with a little depth (a crisp ledge, no blur), pressed down on a tap (a transform only). */
+/* Buttons with a little depth (a crisp ledge, no blur), pressed down when pressed (a transform only). */
 .mm-rush-dne { border: 0; background: linear-gradient(180deg, #ffe680 0%, #ffc21a 60%, #f59f00 100%); color: #2b1700; box-shadow: 0 4px 0 #a86400; }
 .mm-rush-off { border: 2px solid #ffd23f; background: rgba(255,210,63,.1); color: #ffd23f; }
 .mm-rush-skip { border: 1px solid rgba(53,227,255,.45); background: rgba(10,16,52,.6); color: #eef2ff; }
@@ -707,7 +707,7 @@ export default function GraphFeatureRushRound({
   let overlay = null;
   if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : `Getting your ${noun.many} ready.`}</span></>;
   else if (phase === 'closed' || roundClosed) overlay = <><strong>Round over</strong><span>Waiting for the results…</span></>;
-  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>{inequalityGame ? 'Graph each inequality on the number line.' : 'Tap each feature you are asked for.'}</span></>;
+  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>{inequalityGame ? 'Graph each inequality on the number line.' : 'Tap each feature you are asked for, or use the arrow keys and Enter.'}</span></>;
   else if (over) {
     overlay = practice
       ? (
@@ -717,15 +717,18 @@ export default function GraphFeatureRushRound({
           {typeof onPracticeAgain === 'function' && <button type="button" className="mm-rush-skip" style={{ marginTop: 8 }} onClick={onPracticeAgain}>Play again</button>}
         </>
       )
-      : <><strong>Time!</strong><span>{completedWords}. {queued ? 'Saving your last taps…' : 'Waiting for the results…'}</span></>;
+      : <><strong>Time!</strong><span>{completedWords}. {queued ? 'Saving your last answers…' : 'Waiting for the results…'}</span></>;
   } else if (input === RUSH_INPUT.EXHAUSTED) overlay = <><strong>All done!</strong><span>You finished every {noun.one} in this round.</span></>;
   else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next {noun.one}.</span></>;
 
-  let promptHint = 'Tap it on the graph. Not there? Choose Does Not Exist.';
-  if (inequalityItem) promptHint = 'Tap the number line: once for a closed dot, twice for open, three times to take it away. Tap an end arrow for "keeps going". Nothing works? No Solution.';
+  // Each hint names the keys beside the tap (AX32): the graph takes focus when play begins, its
+  // arrow keys move a crosshair and Enter presses where it is; a set question's Page Up and
+  // Page Down step to each arrow and point. The graph's own name says the same.
+  let promptHint = 'Tap it on the graph, or use the arrow keys and Enter. Not there? Choose Does Not Exist.';
+  if (inequalityItem) promptHint = 'Tap the number line, or use the arrow keys and Enter: once for a closed dot, twice for open, three times to take it away. Tap an end arrow, or arrow past the last number onto it, for "keeps going". Nothing works? No Solution.';
   // Two lines on a phone: the tip a wrong tap gets says the rest.
-  else if (setQuestion) promptHint = `Tap the graph: an arrow for "keeps going", a point for its ${vertical ? 'y' : 'x'}-value — twice for an open dot.${setCanBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
-  else if (offScreenGame) promptHint = 'Tap it on the graph. Past the edge? Off Screen. Not there at all? Does Not Exist.';
+  else if (setQuestion) promptHint = `Tap the graph, or use Page Up, Page Down and Enter: an arrow for "keeps going", a point for its ${vertical ? 'y' : 'x'}-value — twice for an open dot.${setCanBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
+  else if (offScreenGame) promptHint = 'Tap it on the graph, or use the arrow keys and Enter. Past the edge? Off Screen. Not there at all? Does Not Exist.';
 
   return (
     <div className="mm-rush-shell" role="region" aria-label={practice ? `${noun.game} practice` : `${noun.game}, round ${roundIndex + 1}`}>
@@ -736,7 +739,7 @@ export default function GraphFeatureRushRound({
         {/* The round's points, and items completed: each pops once as it goes up (keyed to it). */}
         <span className="mm-rush-points"><span key={points} className={points > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">★ {points}</span><span style={SR_ONLY_STYLE}>{`${points} ${points === 1 ? 'point' : 'points'}`}</span></span>
         <span className="mm-rush-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
-        {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your taps are saved</span>}
+        {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your answers are saved</span>}
         <RushClock startMono={timing.startMono} endMono={timing.endMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-rush-exit" onClick={onExit}>{exitLabel}</button>}
       </header>
@@ -815,7 +818,7 @@ export default function GraphFeatureRushRound({
                     {form}
                   </span>
                 ))
-                : (inequalityItem ? 'Tap the number line to place a dot.' : 'Tap the graph to place a dot.')}
+                : (inequalityItem ? 'Tap the number line, or use the arrow keys and Enter, to place a dot.' : 'Tap the graph, or use the arrow keys and Enter, to place a dot.')}
             </div>
           )}
           {setQuestion ? (

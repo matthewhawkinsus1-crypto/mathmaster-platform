@@ -572,6 +572,11 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
   </ToolShell>;
 }
 
+// How the plane is worked without a pointer, for the end of the line that names the
+// click (AX32). The plane under it says the same in its own sentence ("From the keyboard,
+// focus the grid and use the arrow keys and Enter."); a test holds the two together.
+const PLANE_KEYS = 'focus the grid and use the arrow keys and Enter';
+
 function CompareSequences({ questionData, feedback, submit, onAction }) {
   const { left, right } = compareSpecsFromQuestion(questionData);
   const actions = sequenceStudentActions(questionData);
@@ -677,7 +682,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
         {requirePlot && (
           <>
             <p style={{ marginTop: 0, color: 'var(--mm-text-muted)' }}>
-              Choose a sequence, then click each ordered pair on the graph. Switching sequences changes which model receives the next point.
+              {`Choose a sequence, then plot each ordered pair on the graph (click or tap it, or ${PLANE_KEYS}).`} Switching sequences changes which model receives the next point.
             </p>
             <div role="group" aria-label="Sequence to plot" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               <button

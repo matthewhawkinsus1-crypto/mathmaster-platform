@@ -400,8 +400,9 @@ function AdditiveExpressionRegion({
                   event.stopPropagation();
                   onCancellationDragStart(termIndex, event);
                 }}
+                // A term is a button, so Enter chooses it as a tap does (AX32).
                 title={placementMode
-                  ? 'Click this term to choose Before, Under, or After'
+                  ? 'Select this term to choose Before, Under, or After (click or tap, or press Enter)'
                   : canCancel && cancellationCues
                     ? 'Matching opposite terms can be cancelled directly'
                     : 'Term'}
@@ -2645,7 +2646,7 @@ export default function MultiRelationAlgebra({
       {showCancellationCues && (
         <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35 }}>
           Cancellation works directly on visible matching opposite terms and common numerator/denominator factors.
-          Click two items, or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
+          Select two items (click or tap, or Tab to each and press Enter), or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
         </div>
       )}
 

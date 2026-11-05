@@ -17,7 +17,9 @@ test('operation input starts blank and resets blank', () => {
 
 test('cancellation is performed on actual equation tokens rather than a duplicate cancellation box', () => {
   assert.match(source, /data-cancel-index/);
-  assert.match(source, /Tap or slash either matching factor once/);
+  // The cue tells a student to act on a factor of the equation itself, by click, tap or slash,
+  // or from the keyboard (AX32: what the keys do is held in toolDirectionsNameKeyboardRoute.test.mjs).
+  assert.match(source, /Click, tap or slash either matching factor once, or /);
   // The balanced-step prompt names what actually cancels: opposite terms after
   // + / −, matching factors after × / ÷ (live QA: "factors" for +12 and −12).
   assert.match(source, /const cancelledPieces = \['add', 'subtract'\]\.includes\(move\.operation\) \? 'opposite terms' : 'matching factors';/);

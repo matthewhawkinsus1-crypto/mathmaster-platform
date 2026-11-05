@@ -13,6 +13,11 @@
 // called by its part ("Domain in interval notation"), not by its placeholder —
 // the format example "[2, ∞)" — or, with none, "Math answer".
 //
+// AX32 (slice 4): the hints beside the point cards and the end markers name the
+// keys ("From the keyboard, select a point card, then focus the plane and use the
+// arrow keys and Enter"), and those keys place a point and a marker: Enter on the
+// card, Tab to the plane, the arrow keys, Enter.
+//
 // And (pass 3, TOOL-1) the whole function-graph question by keyboard alone:
 // points typed, Check Point Placements, "Connect my points" (focus goes there
 // when the check passes), the end markers by arrow keys and Enter, Submit —
@@ -123,6 +128,20 @@ for (const role of ['practice', 'dol']) {
   // ...and the route it offers works.
   await typePoint(page, 'Plot the point where x = 0', 0, 1);
   check(/^Placed Plot the point where x = 0 at \(0, 1\)\.$/.test(await announcement(page)), `${label}: the typed coordinate places the point`, `"${await announcement(page)}"`);
+
+  // AX32 (slice 4): the hint over the point cards names the keys, and they place a point.
+  const pointHint = (await page.locator('.mathmaster-function-workspace-sidebar p').first().innerText()).replace(/\s+/g, ' ').trim();
+  check(pointHint === 'Drag a point, or select it and click the coordinate plane. From the keyboard, select a point card, then focus the plane and use the arrow keys and Enter. Colored guides show the exact location.',
+    `${label}: the hint over the point cards names the keys beside the pointer`, `"${pointHint}"`);
+  await page.getByRole('button', { name: /^Plot the point where x = 2/ }).focus();
+  await page.keyboard.press('Enter');
+  let tabs = 0;
+  while (tabs < 30 && (await page.evaluate(() => document.activeElement?.getAttribute('role'))) !== 'application') { await page.keyboard.press('Tab'); tabs += 1; }
+  check(tabs < 30, `${label}: Tab goes on from the selected card to the plane`, `${tabs} presses`);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(200);
+  check((await announcement(page)).startsWith('Placed Plot the point where x = 2 at ('), `${label}: the keys the hint names place the point`, `"${await announcement(page)}"`);
   await typePoint(page, 'Plot the point where x = 2', 2, 5);
   if (role === 'practice') {
     await page.getByRole('button', { name: 'Check Point Placements' }).click();
@@ -139,6 +158,10 @@ for (const role of ['practice', 'dol']) {
   check(!(await exactEntryShown(page)), `${label}: with the curve drawn the typed entry is not on screen`);
   check(/^Arrow selected\. Use the arrow keys on the plane and press Enter\.$/.test(said) && !OFFERS_TYPING.test(said),
     `${label}: the marker announcement offers only what is there — the arrow keys and Enter`, `"${said}"`);
+  // AX32 (slice 4): and the hint over the markers names those keys, beside the drag.
+  const markerHint = (await page.locator('.mathmaster-function-workspace-sidebar p').first().innerText()).replace(/\s+/g, ' ').trim();
+  check(/^.*Drag or select a marker, then place it .* From the keyboard, select a marker, then focus the plane and use the arrow keys and Enter\.$/.test(markerHint),
+    `${label}: the hint over the end markers names the keys beside the pointer`, `"${markerHint}"`);
 
   // ...and the route it does offer places the marker.
   await plane(page).focus();

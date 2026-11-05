@@ -501,7 +501,10 @@ await run('two-player-grand-prix', async () => {
   if (!afterCooldown.targets.length) await a.page.getByRole('button', { name: 'Does Not Exist' }).click();
   check(S, await waitForQuestionChange(a, afterCooldown.questionIndex), 'A: the first graph did not complete');
 
-  // Keyboard play on the Chromebook: arrows to the target, Enter.
+  // Keyboard play on the Chromebook: arrows to the target, Enter. The hint under the prompt
+  // names these keys beside the tap (AX32), so a student who reads it plays the way it says.
+  const rushHint = (await a.page.locator('.mm-rush-hint').first().innerText().catch(() => '')).trim();
+  check(S, rushHint === 'Tap it on the graph, or use the arrow keys and Enter. Not there? Choose Does Not Exist.', `A: the hint does not name the arrow keys and Enter (${JSON.stringify(rushHint)})`);
   const keyed = await questionOnScreen(a, roomId);
   if (keyed?.targets.length) {
     await a.page.locator('svg.mm-rush-graph').focus();

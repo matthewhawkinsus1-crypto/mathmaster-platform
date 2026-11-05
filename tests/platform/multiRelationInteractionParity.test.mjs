@@ -100,7 +100,9 @@ test('advanced workspace keeps term-specific placement with one compact contextu
   assert.match(src, /\['before', 'Before'\]/);
   assert.match(src, /\['under', 'Under'\]/);
   assert.match(src, /\['after', 'After'\]/);
-  assert.match(src, /Click this term to choose Before, Under, or After/);
+  // The term's own description says it chooses the position, and how (a tap or the
+  // Enter key; AX32). What the keys do is read in tests/browser/stepAlgebraStructureTools.mjs.
+  assert.match(src, /Select this term to choose Before, Under, or After \(click or tap, or press Enter\)/);
 
   // V4 intentionally removed the always-visible placement icon forest.
   assert.doesNotMatch(src, /Placement is optional/);

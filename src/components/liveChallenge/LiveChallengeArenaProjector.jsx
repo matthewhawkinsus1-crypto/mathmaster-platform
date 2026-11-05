@@ -502,7 +502,7 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
           <div style={{ marginTop: 10, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(28 * var(--mm-px)))', fontWeight: 900 }}>{joinedCount === 1 ? 'student ready' : 'students ready'}</div>
           {eligible > 0 && <div style={{ marginTop: 4, color: 'rgba(236,241,255,.65)', fontWeight: 700 }}>{joinedCount} of {eligible} invited</div>}
           <div style={{ marginTop: 18, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(calc(15 * var(--mm-px)), calc(1.5vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))', lineHeight: 1.4 }}>
-            Open MathMaster and tap <strong>Live Challenge</strong> on your dashboard.
+            Open MathMaster and choose <strong>Live Challenge</strong> on your dashboard.
           </div>
           {lines.length > 0 && <div style={{ marginTop: 10, color: '#ffd166', fontWeight: 900, fontSize: 'clamp(calc(15 * var(--mm-px)), calc(1.5vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>🏆 {lines.join(' · ')}</div>}
           <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '10px 14px', borderRadius: 999, background: 'rgba(99,226,255,.1)', border: '1px solid rgba(99,226,255,.28)', color: '#c8f6ff', fontWeight: 900 }}>
@@ -639,7 +639,7 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
         <div style={{ alignSelf: 'center' }}>
           <div style={labelStyle}>{locked ? 'Time is up' : words.task}</div>
           <div style={{ marginTop: 10, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(5vh * var(--mm-text-scale, 1)), calc(48 * var(--mm-px)))', lineHeight: 1.2, fontWeight: 900, color: '#f7f9ff' }}>
-            {locked ? 'Saving the last taps — results next.' : words.go}
+            {locked ? 'Saving the last answers — results next.' : words.go}
           </div>
           <div style={{ marginTop: 10, color: 'rgba(236,241,255,.68)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(19 * var(--mm-px)))' }}>{rushSettingsLine(room)}</div>
         </div>

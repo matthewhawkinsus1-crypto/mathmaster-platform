@@ -102,6 +102,13 @@ const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined
 const markerLabels = { arrow: 'Arrow', open: 'Open Circle', closed: 'Closed Circle' };
 // Said for the arrow-key cursor and the typed entry alike, so it names neither.
 const CHOOSE_A_POINT_FIRST = 'Choose which point you are placing first.';
+// How the plane is worked without a pointer, for the end of a placement hint (AX32). The
+// point cards and the end markers are buttons (Enter selects one) and the plane is a tab
+// stop: its arrow keys move a crosshair and its Enter places the selected point or marker
+// there (tests/browser/graphKeyboardRoute.mjs). The plane's own sentence, "From the
+// keyboard, focus the grid and use the arrow keys and Enter", with the selecting first.
+const POINT_CARD_KEYS = 'From the keyboard, select a point card, then focus the plane and use the arrow keys and Enter.';
+const MARKER_KEYS = 'From the keyboard, select a marker, then focus the plane and use the arrow keys and Enter.';
 const markerExplanations = { arrow: 'Function continues', open: 'Endpoint excluded', closed: 'Endpoint included' };
 const markerSymbols = { arrow: '➤', open: '○', closed: '●' };
 const markerValue = (placement) => typeof placement === 'string' ? placement : placement?.marker || '';
@@ -1368,7 +1375,7 @@ export default function InteractiveGraphWorkspace({
               </h3>
               {!construction.snapped && (
                 <>
-                  <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
+                  <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{mobileInteraction.isMobile ? `Tap a point card, then tap its location on the coordinate plane. ${POINT_CARD_KEYS}` : `Drag a point, or select it and click the coordinate plane. ${POINT_CARD_KEYS} Colored guides show the exact location.`}</p>
                   {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
                   <div style={{ display: 'grid', gap: '8px' }}>
                 {tasks.map((task) => {
@@ -1442,8 +1449,8 @@ export default function InteractiveGraphWorkspace({
               )}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
                 <p style={{ margin: '0 0 8px', fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{endpointInstruction} {outcomesWithheld
-                  ? (mobileInteraction.isMobile ? 'Tap a marker, then tap the end of your curve.' : 'Drag or select a marker, then place it at the end of your curve.')
-                  : (mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.')}</p>
+                  ? (mobileInteraction.isMobile ? `Tap a marker, then tap the end of your curve. ${MARKER_KEYS}` : `Drag or select a marker, then place it at the end of your curve. ${MARKER_KEYS}`)
+                  : (mobileInteraction.isMobile ? `Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place. ${MARKER_KEYS}` : `Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place. ${MARKER_KEYS}`)}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
                   onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter${typedRouteOffer(' below')}.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: 'calc(23 * var(--mm-px))', color: 'var(--mm-primary)' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
                 <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: 'calc(12 * var(--mm-px))', color: placement ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)' }}>{boundaryOnly && endsDescribedForStudent ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>

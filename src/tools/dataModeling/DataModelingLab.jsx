@@ -65,7 +65,7 @@ const FitStepper = ({ label, value, control, onChange }) => {
         <button type="button" aria-label={`Increase ${label}`} disabled={upperDisabled} onClick={() => change(1)}
           style={{ minHeight:48, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)', fontSize:'calc(24 * var(--mm-px))', fontWeight:900 }}>+</button>
       </div>
-      <div style={{ marginTop:6, color:'var(--mm-text-muted)', fontSize:'calc(12 * var(--mm-px))' }}>Each tap changes the value by {Number(control?.step).toFixed(decimals)}.</div>
+      <div style={{ marginTop:6, color:'var(--mm-text-muted)', fontSize:'calc(12 * var(--mm-px))' }}>Each press changes the value by {Number(control?.step).toFixed(decimals)}.</div>
     </div>
   );
 };
