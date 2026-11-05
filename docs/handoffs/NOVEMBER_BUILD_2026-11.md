@@ -47,6 +47,7 @@ Nothing here has been deployed, and no operator script has been run.
 | Figures (N38, CT04) | The static graph draws dashed lines, vertical lines and shaded half-planes. It is read aloud, in English and Spanish, and printed. The nine "write the inequality for a graph" items in L4/L5 draw their graphs from their own keys. CT04's two items are done. | `b7731372`, `2de53535`, `94a4eb3a` |
 | AX10 slice 2 | Read aloud reads the Regression Calculator's tables and the LMR board's process-mode pickers. | `2ca1cc7b` |
 | AX32 slice 4 | The last pointer-only directions name the keyboard route: Step Algebra's cancellation and placement, the rewrite tools, the graph workspace, the Graph Axis Editor, Graph Scenario Match, the Sequence Explorer and the rush. | `fa23f19c` |
+| A1 M3 T2 L4/L5 feedback | Reasoning choices no longer give the answer away by length: 0 offenders in the four files, down from 44. On all 133 Warm-Up, Classwork and Practice questions hint 1 is a question, and no hint hands over a boundary's two points. 172 slips are named on a miss, in practice only: the symbol turned round, < for ≤, a wrong intercept sign. Two Honors back-up steps no longer offer a box's own answer. | `81e1c05a`, `965f3e75`, `185a494e` |
 
 ## 3. Checked, with no change needed
 
@@ -62,7 +63,7 @@ Nothing here has been deployed, and no operator script has been run.
 4. **Then the re-imports.** A changed lesson reaches a class only when its teacher imports it again:
    - Algebra II Honors module 2: Operations on Polynomials, Dividing Polynomials.
    - **Algebra II Honors radicals L1, L2, L3, only after Hosting is live.** An older client reads the new slips against every box, right ones included.
-   - Algebra I M3 T2: L4 and L5, regular and Honors.
+   - **Algebra I M3 T2: L4 and L5, regular and Honors, only after Hosting is live**, for the same reason.
    - Algebra I M2 T2: L2 and L3 (regular).
 
 ## 5. Waiting on the owner
