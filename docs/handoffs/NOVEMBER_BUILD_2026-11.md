@@ -53,7 +53,9 @@ Nothing here has been deployed, and no operator script has been run.
 | Inequality example | An inequality box's example is `y ≥ mx + b` where the student reads both x and y, and `a ≤ x ≤ b` elsewhere. Neither is a key in any version of any lesson, and the old example, `0 ≤ x ≤ 4`, can be one (a Path family draws it). Secure fields still show none. | `75c7bc4a` |
 | Keypad on one-try sections (N56) | On an exit ticket, quiz or test before release, the keypad has no "Needed for this answer" row, every box of a type gets the same keys, and the letters come from what the student reads, plus x and y. The import read a template filter (`{{m|pow}}`) as the letters m, p, o and w; it no longer does. Practice and classwork keep their scaffold, and grading is unchanged. | `456c405a` |
 | Systems Workspace, one inequality | The model step, the graph's name and the closed review say "the inequality", not "the system". | `53e27452` |
-| Radicals: the last choices typed | Ten more Check Your Progress values are typed: L1 CW 7, L2 CW 8, 10 and 11, and L3 CW 3, 4, 6, 7, 8 and 9. Example D gives each root its own box, so the order is never a guess. 21 more slips are named, 80 in the three lessons. | `24b2fac1` |
+| Radicals: the last choices typed | Ten more Check Your Progress values are typed: L1 CW 7, L2 CW 8, 10 and 11, and L3 CW 3, 4, 6, 7, 8 and 9. Example D gives each root its own box, so the order is never a guess. 21 more slips are named, 80 in the three lessons. A browser driver types five of the new values on a real keyboard. | `24b2fac1`, `ab568d41` |
+| L4/L5 inequality examples | Nine boxes whose answers relate x and y showed the one-variable example: the "With y alone" boxes of L4 Honors PR 16 and L5 CW 15, and L5 PR 10's two boundaries. They show `y ≥ mx + b`, and a test holds every L4/L5 box whose key relates x and y to an example in x and y that no key accepts. | `b17dae33` |
+| Keypad "Needed" row | In practice, a key typed as `y >= x + 2` asked for = and never for ≥. A typed `<=`, `>=` or `!=` now asks for ≤, ≥ or ≠, and = only where the answer has one. | `ab44afb7` |
 
 ## 3. Checked, with no change needed
 
@@ -103,9 +105,6 @@ Nothing here has been deployed, and no operator script has been run.
 
 ## 6. What remains
 
-- **Platform:**
-  - Nine boxes in A1 M3 T2 L4/L5 still show the one-variable example, though their answers use x and y: five whose labels say "With y alone", and L5 PR 10's four, whose prompt names neither letter. An authored example fixes them, as L4's graph boxes have (1 hour).
-  - In practice, a key with ≥ also puts = in the "Needed for this answer" row (1 hour).
 - **Content:**
   - Prose choices in 22 other lesson files hold the answer by length: 94 choices, listed by the ratchet (1 day).
   - Personal Check Your Progress per student, N34 (1 day).
