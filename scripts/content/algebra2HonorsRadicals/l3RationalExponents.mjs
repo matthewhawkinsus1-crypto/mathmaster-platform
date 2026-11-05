@@ -269,11 +269,11 @@ const classwork = [
       number('value27', '27^(2/3) =', '9'),
       number('valueNeg8', '(−8)^(2/3) =', '4'),
       choice('neg16', '(−16)^(3/2) is…', [
-        'not a real number: the root is even and the base is negative (in the complex numbers it is −64i)',
-        '−64',
-        '64',
-        'a real number, because 3/2 is positive',
-      ], 'not a real number: the root is even and the base is negative (in the complex numbers it is −64i)'),
+        'not a real number: the root is even and the base is negative',
+        '−64: (−16)^(3/2) = −(16^(3/2)), and 16^(3/2) = 64',
+        '64: the even root makes the result positive, and 16^(3/2) = 64',
+        'a real number: the power 3 is odd, so it keeps the sign of the base',
+      ], 'not a real number: the root is even and the base is negative'),
     ],
     hints: [
       'In b^(x/y), which number is the root and which is the power? Which do you take first?',
@@ -410,10 +410,10 @@ const classwork = [
     prompt: 'Is it simplified? An expression with rational exponents is simplified when it has no negative exponents, no exponents that are not positive integers in a denominator, it is not a complex fraction, and the index of any remaining radical is as small as possible. Decide whether each is simplified, and name the rule it breaks if it is not.',
     directionSteps: ['Check each expression against the four rules.', 'Decide whether it is simplified.', 'Name the rule it breaks, if any.'],
     responses: [
-      choice('a', 'x^(−1/2)', ['Not simplified: it has a negative exponent', 'Simplified', 'Not simplified: it is a complex fraction', 'Not simplified: the index can be smaller'], 'Not simplified: it has a negative exponent'),
-      choice('b', '1 / y^(2/3)', ['Not simplified: a fractional exponent is in the denominator', 'Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: the index can be smaller'], 'Not simplified: a fractional exponent is in the denominator'),
-      choice('c', '⁸√(x⁴)', ['Not simplified: the index can be smaller', 'Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: it is a complex fraction'], 'Not simplified: the index can be smaller'),
-      choice('d', '(x^(1/3))/x', ['Simplified', 'Not simplified: it has a negative exponent', 'Not simplified: a fractional exponent is in the denominator', 'Not simplified: the index can be smaller'], 'Simplified'),
+      choice('a', 'x^(−1/2)', ['Not simplified: it has a negative exponent', 'Simplified: the exponent −1/2 is in lowest terms', 'Not simplified: it is a complex fraction', 'Not simplified: the index can be smaller'], 'Not simplified: it has a negative exponent'),
+      choice('b', '1 / y^(2/3)', ['Not simplified: a fractional exponent is in the denominator', 'Simplified: it has no negative exponent, and 2/3 is in lowest terms', 'Not simplified: 1 / y^(2/3) has a negative exponent', 'Not simplified: the exponent 2/3 can be reduced'], 'Not simplified: a fractional exponent is in the denominator'),
+      choice('c', '⁸√(x⁴)', ['Not simplified: the index can be smaller', 'Simplified: x⁴ has no perfect eighth-power factor', 'Not simplified: it has a negative exponent', 'Not simplified: it is a complex fraction'], 'Not simplified: the index can be smaller'),
+      choice('d', '(x^(1/3))/x', ['Simplified: the denominator’s exponent is a whole number', 'Not simplified: it has a negative exponent', 'Not simplified: a fractional exponent is in the denominator', 'Not simplified: the index can be smaller'], 'Simplified: the denominator’s exponent is a whole number'),
       simplest('fix', 'Write ⁸√(x⁴) in simplest form (x positive)', '√x'),
     ],
     hints: [
@@ -687,9 +687,9 @@ const practice = [
       number('factor', 'When V is multiplied by 8, S is multiplied by', '4'),
       choice('why', 'Why?', [
         '(8V)^(2/3) = 8^(2/3) · V^(2/3), and 8^(2/3) = 4',
-        'S is proportional to V',
-        '8 · 2/3 is about 5',
-        'The surface area does not depend on the volume',
+        '(8V)^(2/3) = 8 · V^(2/3), so S is multiplied by 8',
+        '(8V)^(2/3) = 8^(2/3) · V^(2/3), and 8^(2/3) = 16/3',
+        'S is proportional to V, so S is multiplied by 8 as well',
       ], '(8V)^(2/3) = 8^(2/3) · V^(2/3), and 8^(2/3) = 4'),
     ],
     hints: [
@@ -808,11 +808,11 @@ const practice = [
       number('second', '(3^(1/3))⁶ =', '9'),
       choice('greater', 'Which is greater?', ['3^(1/3)', '2^(1/2)', 'They are equal', 'It cannot be decided without a calculator'], '3^(1/3)'),
       choice('justify', 'Why does comparing sixth powers work?', [
-        'Both numbers are positive, and for positive numbers raising to the sixth power keeps their order',
-        'The sixth power of every number is positive',
-        'Sixth powers reverse the order',
-        'Only the bases matter',
-      ], 'Both numbers are positive, and for positive numbers raising to the sixth power keeps their order'),
+        'For positive numbers, raising to the sixth power keeps their order',
+        'The sixth power of every number is positive, so the order is kept',
+        'Sixth powers reverse the order, so the smaller number wins',
+        'Sixth powers keep the order of any two numbers, positive or not',
+      ], 'For positive numbers, raising to the sixth power keeps their order'),
     ],
     hints: [
       'When you raise a power to a power, what happens to the exponents?',

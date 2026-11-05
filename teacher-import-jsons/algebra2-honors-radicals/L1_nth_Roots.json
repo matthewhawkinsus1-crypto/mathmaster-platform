@@ -912,9 +912,9 @@
               "type": "choice",
               "options": [
                 "(q³ + 5)² is never negative, so it is already the principal root",
-                "q is always positive",
-                "The index is odd",
-                "The radicand is negative"
+                "q is never negative, so q³ + 5 and its square are positive",
+                "The index is odd, so the root keeps the sign of (q³ + 5)²",
+                "(q³ + 5)⁴ is never negative, so its root never needs bars"
               ],
               "answer": "(q³ + 5)² is never negative, so it is already the principal root"
             },
@@ -1011,12 +1011,12 @@
               "label": "Does the answer need absolute value bars?",
               "type": "choice",
               "options": [
-                "No — the index is odd, so a fifth root keeps the sign of 3a²b³",
-                "Yes — b³ can be negative",
-                "Yes — every variable needs bars",
-                "No — because a and b are always positive"
+                "No — the index is odd, so the root keeps the sign of 3a²b³",
+                "Yes — b³ can be negative, so bars must go around the b³ factor",
+                "Yes — a fifth root is never negative, so 3a²b³ needs bars",
+                "No — a and b are always positive here, so 3a²b³ is too"
               ],
-              "answer": "No — the index is odd, so a fifth root keeps the sign of 3a²b³"
+              "answer": "No — the index is odd, so the root keeps the sign of 3a²b³"
             },
             {
               "id": "cyp",
@@ -1095,9 +1095,9 @@
               "type": "choice",
               "options": [
                 "not a real number: the index is even and the radicand is negative",
-                "−2, because (−2)² = −4",
-                "2",
-                "−2"
+                "−2: (−2)² = −4, so −2 is the square root of −4",
+                "a real number: −4 is negative, and an odd root of a negative is real",
+                "not a real number: every root of a negative number is imaginary"
               ],
               "answer": "not a real number: the index is even and the radicand is negative"
             },
@@ -1209,12 +1209,12 @@
               "label": "Why does x need bars in the last answer but y² does not?",
               "type": "choice",
               "options": [
-                "x may be negative, but a fourth root is never negative; y² is never negative",
-                "x is always negative",
-                "Every variable outside an even root needs bars",
-                "y² needs bars too, because y may be negative"
+                "x may be negative, but a fourth root is never negative; y² never is",
+                "x is always negative, so it needs bars; y² is never negative",
+                "A fourth root can be negative, so x needs bars; y² is never negative",
+                "Bars go on the variable with the smaller exponent: x has 1, y² has 2"
               ],
-              "answer": "x may be negative, but a fourth root is never negative; y² is never negative"
+              "answer": "x may be negative, but a fourth root is never negative; y² never is"
             }
           ],
           "hints": [
@@ -1310,9 +1310,9 @@
               "type": "choice",
               "options": [
                 "No — the index is odd, so the root keeps the sign of 3(x + 2)³",
-                "Yes — x + 2 can be negative",
-                "Yes — every binomial root needs bars",
-                "No — because x + 2 is always positive"
+                "Yes — x + 2 can be negative, so the root needs bars around it",
+                "Yes — a root of a power of a binomial always needs bars around it",
+                "No — x + 2 is always positive here, so 3(x + 2)³ never needs them"
               ],
               "answer": "No — the index is odd, so the root keeps the sign of 3(x + 2)³"
             },
@@ -1396,12 +1396,12 @@
               "label": "Why does only y⁵ need bars?",
               "type": "choice",
               "options": [
-                "y⁵ is negative when y is negative; x² and z² never are",
-                "y has the largest exponent",
+                "y⁵ is negative whenever y is negative; x² and z² never are",
+                "y has the largest exponent, so y⁵ is the largest factor",
                 "x² and z² are always positive, and y⁵ is always negative",
-                "Only odd numbers need bars"
+                "5 is odd, and every odd number in an answer needs bars"
               ],
-              "answer": "y⁵ is negative when y is negative; x² and z² never are"
+              "answer": "y⁵ is negative whenever y is negative; x² and z² never are"
             }
           ],
           "hints": [
@@ -2725,9 +2725,9 @@
               "type": "choice",
               "options": [
                 "wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|",
-                "right for every x",
-                "wrong: ⁴√(x⁴) = x²",
-                "wrong: ⁴√(x⁴) = −x"
+                "right: a fourth root undoes the power, so ⁴√(x⁴) = x",
+                "wrong: x⁴ = (x²)², so its fourth root is x²",
+                "wrong: x = −2 gives a root of −2, so ⁴√(x⁴) = −x"
               ],
               "answer": "wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|"
             },
@@ -2743,9 +2743,9 @@
               "type": "choice",
               "options": [
                 "wrong: an odd root keeps the sign, so ∛(x³) = x",
-                "right for every x",
-                "wrong: ∛(x³) = x²",
-                "right, because roots are never negative"
+                "right: a root is never negative, so ∛(x³) = |x|",
+                "wrong: x = −2 gives ∛(−8) = 2, so ∛(x³) = −x",
+                "right: like a fourth root, a cube root is never negative"
               ],
               "answer": "wrong: an odd root keeps the sign, so ∛(x³) = x"
             }
@@ -3002,9 +3002,9 @@
               "type": "choice",
               "options": [
                 "T depends on √L, and √(4L) = 2√L",
-                "T is proportional to L",
-                "Multiplying L by 4 adds 2 to T",
-                "The period does not depend on the length"
+                "T depends on √L, and √(4L) = 4√L",
+                "T depends on √L, and √(4L) = 2 + √L",
+                "T is proportional to L, so the period doubles"
               ],
               "answer": "T depends on √L, and √(4L) = 2√L"
             }

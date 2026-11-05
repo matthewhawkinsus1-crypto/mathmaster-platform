@@ -369,9 +369,9 @@ const classwork = [
       expression('simplified', '−√((q³ + 5)⁴) =', '-(q^3+5)^2'),
       choice('bars', 'Why are absolute value bars not needed?', [
         '(q³ + 5)² is never negative, so it is already the principal root',
-        'q is always positive',
-        'The index is odd',
-        'The radicand is negative',
+        'q is never negative, so q³ + 5 and its square are positive',
+        'The index is odd, so the root keeps the sign of (q³ + 5)²',
+        '(q³ + 5)⁴ is never negative, so its root never needs bars',
       ], '(q³ + 5)² is never negative, so it is already the principal root'),
       // Typed, as the example's own boxes are (F-CYP-AS-CHOICE); the bars
       // decision above stays a choice.
@@ -418,11 +418,11 @@ const classwork = [
     responses: [
       expression('fifthPower', '243a¹⁰b¹⁵ = ( ? )⁵', '3a^2b^3'),
       choice('bars', 'Does the answer need absolute value bars?', [
-        'No — the index is odd, so a fifth root keeps the sign of 3a²b³',
-        'Yes — b³ can be negative',
-        'Yes — every variable needs bars',
-        'No — because a and b are always positive',
-      ], 'No — the index is odd, so a fifth root keeps the sign of 3a²b³'),
+        'No — the index is odd, so the root keeps the sign of 3a²b³',
+        'Yes — b³ can be negative, so bars must go around the b³ factor',
+        'Yes — a fifth root is never negative, so 3a²b³ needs bars',
+        'No — a and b are always positive here, so 3a²b³ is too',
+      ], 'No — the index is odd, so the root keeps the sign of 3a²b³'),
       simplest('cyp', '⁵√(32x⁵y¹⁰) =', '2xy^2'),
     ],
     hints: [
@@ -457,9 +457,9 @@ const classwork = [
     responses: [
       choice('real', '√(−4) is…', [
         'not a real number: the index is even and the radicand is negative',
-        '−2, because (−2)² = −4',
-        '2',
-        '−2',
+        '−2: (−2)² = −4, so −2 is the square root of −4',
+        'a real number: −4 is negative, and an odd root of a negative is real',
+        'not a real number: every root of a negative number is imaginary',
       ], 'not a real number: the index is even and the radicand is negative'),
       expression('rootPlus', 'The two imaginary square roots of −4 are', '2i'),
       expression('rootMinus', 'and', '-2i'),
@@ -503,11 +503,11 @@ const classwork = [
       simplest('fourth', '⁴√(x⁴) =', '|x|', { type: 'math' }),
       simplest('mixed', '⁴√(16x⁴y⁸) =', '2|x|y^2'),
       choice('why', 'Why does x need bars in the last answer but y² does not?', [
-        'x may be negative, but a fourth root is never negative; y² is never negative',
-        'x is always negative',
-        'Every variable outside an even root needs bars',
-        'y² needs bars too, because y may be negative',
-      ], 'x may be negative, but a fourth root is never negative; y² is never negative'),
+        'x may be negative, but a fourth root is never negative; y² never is',
+        'x is always negative, so it needs bars; y² is never negative',
+        'A fourth root can be negative, so x needs bars; y² is never negative',
+        'Bars go on the variable with the smaller exponent: x has 1, y² has 2',
+      ], 'x may be negative, but a fourth root is never negative; y² never is'),
     ],
     hints: [
       'If t = −2, what is t⁶, and what is its sixth root? Is that t, or something else?',
@@ -543,9 +543,9 @@ const classwork = [
       expression('fifthPower', '243(x + 2)¹⁵ = [ ? ]⁵. This base is the fifth root.', '3(x+2)^3'),
       choice('bars', 'Does ⁵√(243(x + 2)¹⁵) need absolute value bars?', [
         'No — the index is odd, so the root keeps the sign of 3(x + 2)³',
-        'Yes — x + 2 can be negative',
-        'Yes — every binomial root needs bars',
-        'No — because x + 2 is always positive',
+        'Yes — x + 2 can be negative, so the root needs bars around it',
+        'Yes — a root of a power of a binomial always needs bars around it',
+        'No — x + 2 is always positive here, so 3(x + 2)³ never needs them',
       ], 'No — the index is odd, so the root keeps the sign of 3(x + 2)³'),
       // Typed (F-CYP-AS-CHOICE). The slide's ∛(27(x + 2)⁹) is 3(x + 2)³, the
       // example's own answer, so a typed box could be filled by copying it:
@@ -586,11 +586,11 @@ const classwork = [
       expression('square', '9x⁴y¹⁰z⁴ = ( ? )²', '3x^2y^5z^2'),
       simplest('simplified', '√(9x⁴y¹⁰z⁴) =', '3x^2|y^5|z^2'),
       choice('why', 'Why does only y⁵ need bars?', [
-        'y⁵ is negative when y is negative; x² and z² never are',
-        'y has the largest exponent',
+        'y⁵ is negative whenever y is negative; x² and z² never are',
+        'y has the largest exponent, so y⁵ is the largest factor',
         'x² and z² are always positive, and y⁵ is always negative',
-        'Only odd numbers need bars',
-      ], 'y⁵ is negative when y is negative; x² and z² never are'),
+        '5 is odd, and every odd number in an answer needs bars',
+      ], 'y⁵ is negative whenever y is negative; x² and z² never are'),
     ],
     hints: [
       'Which number squared is 9? What power of each letter, squared, gives x⁴, y¹⁰ and z⁴?',
@@ -1062,16 +1062,16 @@ const practice = [
       number('jamalValue', 'When x = −2, ⁴√(x⁴) =', '2'),
       choice('jamal', 'Jamal’s statement is…', [
         'wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|',
-        'right for every x',
-        'wrong: ⁴√(x⁴) = x²',
-        'wrong: ⁴√(x⁴) = −x',
+        'right: a fourth root undoes the power, so ⁴√(x⁴) = x',
+        'wrong: x⁴ = (x²)², so its fourth root is x²',
+        'wrong: x = −2 gives a root of −2, so ⁴√(x⁴) = −x',
       ], 'wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|'),
       number('priyaValue', 'When x = −2, ∛(x³) =', '-2'),
       choice('priya', 'Priya’s statement is…', [
         'wrong: an odd root keeps the sign, so ∛(x³) = x',
-        'right for every x',
-        'wrong: ∛(x³) = x²',
-        'right, because roots are never negative',
+        'right: a root is never negative, so ∛(x³) = |x|',
+        'wrong: x = −2 gives ∛(−8) = 2, so ∛(x³) = −x',
+        'right: like a fourth root, a cube root is never negative',
       ], 'wrong: an odd root keeps the sign, so ∛(x³) = x'),
     ],
     hints: [
@@ -1156,9 +1156,9 @@ const practice = [
       expression('newPeriod', 'A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is', '2T'),
       choice('why', 'Why?', [
         'T depends on √L, and √(4L) = 2√L',
-        'T is proportional to L',
-        'Multiplying L by 4 adds 2 to T',
-        'The period does not depend on the length',
+        'T depends on √L, and √(4L) = 4√L',
+        'T depends on √L, and √(4L) = 2 + √L',
+        'T is proportional to L, so the period doubles',
       ], 'T depends on √L, and √(4L) = 2√L'),
     ],
     hints: [

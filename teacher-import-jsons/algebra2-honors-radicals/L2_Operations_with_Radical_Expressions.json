@@ -292,9 +292,9 @@
               "type": "choice",
               "options": [
                 "the middle terms cancel, and √{{k}} · √{{k}} = {{k}}",
-                "radicals always cancel when you multiply",
-                "the square root of {{a}} is a whole number",
-                "you can add the radicands"
+                "radicals always cancel when you multiply two binomials",
+                "the middle terms cancel, and √{{k}} + √{{k}} = {{k}}",
+                "the square root of {{a}} is a whole number, so no radical is left"
               ],
               "answer": "the middle terms cancel, and √{{k}} · √{{k}} = {{k}}"
             }
@@ -674,7 +674,7 @@
               "type": "choice",
               "options": [
                 "Not simplified: 12 has a perfect-square factor",
-                "Simplified",
+                "Simplified: 12 is not a perfect square",
                 "Not simplified: a fraction is under the radical",
                 "Not simplified: the index can be smaller"
               ],
@@ -686,9 +686,9 @@
               "type": "choice",
               "options": [
                 "Not simplified: a radical is in the denominator",
-                "Simplified",
+                "Simplified: 5 has no perfect-square factor",
                 "Not simplified: 5 has a perfect-square factor",
-                "Not simplified: the index can be smaller"
+                "Not simplified: the index of √5 can be smaller"
               ],
               "answer": "Not simplified: a radical is in the denominator"
             },
@@ -698,7 +698,7 @@
               "type": "choice",
               "options": [
                 "Not simplified: the index can be smaller",
-                "Simplified",
+                "Simplified: x² has no perfect sixth-power factor",
                 "Not simplified: a radical is in the denominator",
                 "Not simplified: a fraction is under the radical"
               ],
@@ -710,7 +710,7 @@
               "type": "choice",
               "options": [
                 "Not simplified: a fraction is under the radical",
-                "Simplified",
+                "Simplified: x and 2 have no perfect-square factor",
                 "Not simplified: the index can be smaller",
                 "Not simplified: x has a perfect-square factor"
               ],
@@ -721,12 +721,12 @@
               "label": "2∛(3x²)",
               "type": "choice",
               "options": [
-                "Simplified",
-                "Not simplified: 3x² has a perfect-cube factor",
+                "Simplified: 3x² has no perfect-cube factor",
+                "Not simplified: x² is a perfect square",
                 "Not simplified: the index can be smaller",
                 "Not simplified: a radical is in the denominator"
               ],
-              "answer": "Simplified"
+              "answer": "Simplified: 3x² has no perfect-cube factor"
             },
             {
               "id": "fix",
@@ -1104,12 +1104,12 @@
               "label": "Why does b⁷ need bars but k⁵ does not?",
               "type": "choice",
               "options": [
-                "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already",
-                "b has a larger exponent than k",
-                "k⁵ is always negative",
-                "Only the first variable needs bars"
+                "b⁷ is negative when b is; k is under an even root, so k ≥ 0",
+                "b has the larger exponent, so b⁷ is the factor that can be negative",
+                "b⁷ is negative when b is; k⁵ needs bars too, but they are not written",
+                "Only the first variable outside an even root ever needs bars"
               ],
-              "answer": "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already"
+              "answer": "b⁷ is negative when b is; k is under an even root, so k ≥ 0"
             }
           ],
           "hints": [
@@ -2235,12 +2235,12 @@
               "label": "Maya’s error:",
               "type": "choice",
               "options": [
-                "She added the radicands; only like radicals combine, by adding coefficients",
-                "She should have multiplied the coefficients",
-                "Her answer is right",
-                "She forgot absolute value bars"
+                "She added the radicands; like radicals add by their coefficients",
+                "Her answer is right: radicals add by adding their radicands",
+                "She forgot bars: √x needs |x|, because x could be negative",
+                "She should have multiplied the coefficients: 4 · 3√x = 12√x"
               ],
-              "answer": "She added the radicands; only like radicals combine, by adding coefficients"
+              "answer": "She added the radicands; like radicals add by their coefficients"
             },
             {
               "id": "correct",
@@ -2339,9 +2339,9 @@
               "type": "choice",
               "options": [
                 "For positive numbers, the larger number has the larger square",
-                "Squaring reverses the order of positive numbers",
-                "All three numbers are equal",
-                "Only the coefficients matter"
+                "For any numbers, the larger number has the larger square",
+                "Only the coefficients matter, and squaring keeps them in order",
+                "Squaring reverses the order of positive numbers, so read it backward"
               ],
               "answer": "For positive numbers, the larger number has the larger square"
             }
@@ -2453,12 +2453,12 @@
               "label": "Every area is a whole number because…",
               "type": "choice",
               "options": [
-                "each length and width are conjugates, so the product is a difference of squares with no radical",
-                "radicals always multiply to whole numbers",
-                "the widths are whole numbers",
-                "the areas were rounded"
+                "length and width are conjugates, so their product has no radical",
+                "radicals always multiply to whole numbers, so any length times width does",
+                "the widths are whole numbers, and a whole number times a radical is whole",
+                "length and width are conjugates, so their sum has no radical"
               ],
-              "answer": "each length and width are conjugates, so the product is a difference of squares with no radical"
+              "answer": "length and width are conjugates, so their product has no radical"
             }
           ],
           "hints": [
