@@ -119,12 +119,14 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   if (/∞|\\infty|\b(?:infinity|inf)\b/i.test(text)) add('∞');
   if (/∪|\\cup/.test(text)) add('∪');
   if (/∅|\\varnothing|\\emptyset/.test(text)) add('∅');
-  if (/≤|\\leq?\b/.test(text)) add('≤');
-  if (/≥|\\geq?\b/.test(text)) add('≥');
-  if (/≠|\\neq?\b/.test(text)) add('≠');
+  // A key may spell a relation as typed: <= is ≤, >= is ≥ and != is ≠. Their
+  // "=" is not an equals sign: "y >= x + 2" asked for = and never for ≥.
+  if (/≤|<=|\\leq?\b/.test(text)) add('≤');
+  if (/≥|>=|\\geq?\b/.test(text)) add('≥');
+  if (/≠|!=|\\neq?\b/.test(text)) add('≠');
   if (/(^|[^<])<([^=]|$)/.test(text)) add('<');
   if (/(^|[^>])>([^=]|$)/.test(text)) add('>');
-  if (/=/.test(text)) add('=');
+  if (/(^|[^<>!])=/.test(text)) add('=');
   if (/π|\\pi\b|\bpi\b/i.test(text)) add('π');
   if (/√|\\sqrt|(?<![A-Za-z])sqrt\b/i.test(text)) add('√');
   if (/\\sqrt\s*\[|[∛∜]|(?<![A-Za-z])(?:cbrt|root)\s*\(/.test(text)) add('ⁿ√');
