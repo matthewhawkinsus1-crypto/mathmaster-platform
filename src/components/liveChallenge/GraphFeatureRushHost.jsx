@@ -155,10 +155,12 @@ export function RushHostStatus({ room, players = [], clockOffsetMs = 0, joinedCo
 const pct = (value) => (value == null ? '—' : `${value}%`);
 
 /**
- * The after-game breakdown for a rush: by feature, by family, and what wrong
- * checks got wrong. An Inequality Graphing Rush report (`inequalityRush`) has
- * the same shape, its rows named by kind of inequality, and one feature, so
- * no feature table.
+ * The after-game breakdown for a rush: by feature, by family, what wrong
+ * checks got wrong, and where wrong taps landed ("Tapped the y-intercept
+ * when asked for zeros (x-intercepts)", N42) — the teacher's console only,
+ * class counts, never on the projector. An Inequality Graphing Rush report
+ * (`inequalityRush`) has the same shape, its rows named by kind of
+ * inequality, and one feature and no taps, so no feature or tap table.
  */
 export function RushReport({ report }) {
   const inequality = Boolean(report?.inequalityRush);
@@ -194,6 +196,17 @@ export function RushReport({ report }) {
         <div>
           <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>What wrong checks got wrong, most common first</div>
           {rush.mistakes.map((row) => (
+            <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
+              <span>{row.label}</span>
+              <span style={{ color: 'var(--mm-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{row.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {!inequality && rush.wrongTaps?.length > 0 && (
+        <div data-mm-rush-report="wrongTaps">
+          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>Where wrong taps landed, most common first</div>
+          {rush.wrongTaps.map((row) => (
             <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
               <span>{row.label}</span>
               <span style={{ color: 'var(--mm-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{row.count}</span>
