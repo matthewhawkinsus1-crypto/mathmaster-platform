@@ -1610,6 +1610,280 @@
       "declared": {}
     },
     {
+      "id": "linear.multipleRepresentations",
+      "version": 2,
+      "title": "One linear relationship in every representation",
+      "alignments": [
+        "A.2B",
+        "A.2C",
+        "A.3A",
+        "A.3B",
+        "A.3C"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "given",
+          "label": "Given representation",
+          "kind": "choice",
+          "default": "slopeIntercept",
+          "concept": false,
+          "values": [
+            "standardForm",
+            "slopeIntercept",
+            "pointSlope",
+            "twoPoints",
+            "table",
+            "scenario"
+          ]
+        },
+        {
+          "name": "slope",
+          "label": "Slope",
+          "kind": "choice",
+          "default": "integer",
+          "concept": false,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "slopeSign",
+          "label": "Slope sign",
+          "kind": "choice",
+          "default": "any",
+          "concept": false,
+          "values": [
+            "any",
+            "positive",
+            "negative"
+          ]
+        },
+        {
+          "name": "slopeRange",
+          "label": "Slope size (numerator)",
+          "kind": "range",
+          "default": [
+            1,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        },
+        {
+          "name": "denominatorRange",
+          "label": "Slope denominator (fractional slopes)",
+          "kind": "range",
+          "default": [
+            2,
+            3
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            6
+          ]
+        },
+        {
+          "name": "interceptRange",
+          "label": "y-intercept range",
+          "kind": "range",
+          "default": [
+            -8,
+            8
+          ],
+          "concept": false,
+          "limits": [
+            -60,
+            60
+          ]
+        },
+        {
+          "name": "xInterceptRange",
+          "label": "x-intercept range",
+          "kind": "range",
+          "default": [
+            -8,
+            8
+          ],
+          "concept": false,
+          "limits": [
+            -60,
+            60
+          ]
+        },
+        {
+          "name": "standardScale",
+          "label": "Given standard form multiplied by",
+          "kind": "choice",
+          "default": 1,
+          "concept": false,
+          "values": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "tablePattern",
+          "label": "Given table x-values",
+          "kind": "choice",
+          "default": "spread",
+          "concept": false,
+          "values": [
+            "spread",
+            "consecutive"
+          ]
+        },
+        {
+          "name": "rateRange",
+          "label": "Story: amount lost per step",
+          "kind": "range",
+          "default": [
+            2,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            20
+          ]
+        },
+        {
+          "name": "durationRange",
+          "label": "Story: steps until it runs out",
+          "kind": "range",
+          "default": [
+            3,
+            15
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            30
+          ]
+        },
+        {
+          "name": "startRange",
+          "label": "Story: starting amount",
+          "kind": "range",
+          "default": [
+            6,
+            36
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            200
+          ]
+        },
+        {
+          "name": "scenarioStart",
+          "label": "Story: starting amount stated, or found from a later reading",
+          "kind": "choice",
+          "default": "stated",
+          "concept": false,
+          "values": [
+            "stated",
+            "fromReading"
+          ]
+        },
+        {
+          "name": "coordinateRange",
+          "label": "Given and plotted points: coordinate range",
+          "kind": "range",
+          "default": [
+            -10,
+            10
+          ],
+          "concept": false,
+          "limits": [
+            -60,
+            60
+          ]
+        },
+        {
+          "name": "integerXIntercept",
+          "label": "Whole-number x-intercept",
+          "kind": "boolean",
+          "default": true,
+          "concept": false,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "board",
+          "label": "Board: the slot's own cards and meanings, or a board the family writes (drainingTank: a story, with given \"scenario\")",
+          "kind": "choice",
+          "default": "authored",
+          "concept": true,
+          "values": [
+            "authored",
+            "drainingTank"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "board"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "representationBridge",
+          "default": true,
+          "mode": "linearMultipleRepresentations",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 62,
+          "exact": true
+        },
+        {
+          "label": "board: \"drainingTank\"",
+          "constraints": {
+            "board": "drainingTank"
+          },
+          "capacity": 0,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "slope": "integer",
+            "standardScale": 1
+          },
+          "keeps": [
+            "board"
+          ],
+          "capacity": 62
+        }
+      ],
+      "declared": {}
+    },
+    {
       "id": "linear.multiStepEquation",
       "version": 1,
       "title": "Linear equation with variables on both sides",
@@ -2767,6 +3041,119 @@
           "label": "default",
           "constraints": {},
           "capacity": 236,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "linear.representationSort",
+      "version": 2,
+      "title": "Sort the representations of two lines",
+      "alignments": [
+        "A.3B",
+        "A.3C",
+        "A.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "slopeRange",
+          "label": "Slope size",
+          "kind": "range",
+          "default": [
+            1,
+            3
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            12
+          ]
+        },
+        {
+          "name": "interceptRange",
+          "label": "y-intercept range",
+          "kind": "range",
+          "default": [
+            -6,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            -100,
+            100
+          ]
+        },
+        {
+          "name": "integerXIntercepts",
+          "label": "Whole-number x-intercepts",
+          "kind": "boolean",
+          "default": true,
+          "concept": false,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "deck",
+          "label": "Deck: the slot's own cards, or a deck the family writes",
+          "kind": "choice",
+          "default": "authored",
+          "concept": true,
+          "values": [
+            "authored",
+            "equationForms",
+            "situations"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "deck"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "representationMatch",
+          "default": true,
+          "mode": "linearConnections",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 236,
+          "exact": true
+        },
+        {
+          "label": "deck: \"equationForms\"",
+          "constraints": {
+            "deck": "equationForms"
+          },
+          "capacity": 236,
+          "exact": true
+        },
+        {
+          "label": "deck: \"situations\"",
+          "constraints": {
+            "deck": "situations"
+          },
+          "capacity": 10,
           "exact": true
         }
       ],

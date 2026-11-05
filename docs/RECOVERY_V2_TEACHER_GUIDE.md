@@ -141,6 +141,23 @@ at the same DOK and difficulty. Prepare Recovery makes both Warm-Ups ready. The
 DOLs stay "not ready": Day 1's DOL Q2 and Q3 and Day 2's DOL have questions no
 Recovery family writes yet.
 
+### The Algebra I Multiple Representations lesson
+
+"**Algebra I — Multiple Representations of Linear Equations**" (the version
+with fixed questions, not the one whose questions already change for every
+student) had no Recovery for its Warm-Up or its DOL. All three questions can
+now be recovered:
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q1 — sort the cards of y = 2x − 4 and y = −x + 3 | two new lines named in the prompt; each one's slope-intercept, standard and point-slope equation, graph and x-intercept to sort |
+| Warm-Up Q2 — sort Maya's savings and the draining tub | the same two stories with new numbers; each one's equation, graph, rate and starting value to sort |
+| DOL Q1 — the draining tank | a tank with a new size and drain rate: the same six cards and the same three meanings (slope, y-intercept, domain), submitted once |
+
+Every version is a new problem (never one already in the lesson), graded by
+MathMaster, in the same tool, at the same DOK and difficulty. Prepare Recovery
+makes both the Warm-Up and the DOL ready.
+
 ## Seeing who can recover
 
 In the assignment details, **Show who can recover in (class)** lists, for the

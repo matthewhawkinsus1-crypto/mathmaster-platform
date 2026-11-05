@@ -16,6 +16,14 @@
  */
 import { gradeServerResponse } from './serverGrading/serverResponseGrading.mjs';
 import { buildToolResponse } from './serverGrading/toolResponseContract.mjs';
+import { canonicalFromEquationText, canonicalFromSlopeIntercept, linesEquivalent } from './toolMath/shared/linearEquations.mjs';
+import {
+  buildLinearConnectionCards,
+  linearConnectionsCardKinds,
+  linearConnectionsTask,
+  representationSetsFor,
+} from './toolMath/representationMatch/representationMath.mjs';
+import { gradedContextFields, resolveRequiredCards } from './toolMath/representationBridge/linearMultipleRepresentationsCards.mjs';
 
 const fieldsResponse = (responses) => ({
   kind: 'fields',
@@ -124,6 +132,136 @@ export const intervalNumberLineKeyWork = (answer = {}) => {
   };
 };
 
+const clean = (value) => String(value ?? '').trim();
+const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * The card sort a student who solved a linear.representationSort version
+ * would send (serverGrading/tools/representationMatch.mjs: every card placed
+ * in a group), placed by the KEY: each card goes with the one line of the
+ * family's answer it describes — an equation by the line it is, the graph by
+ * the line it draws, a slope, an intercept, a point or a table by its
+ * numbers, a story by the story the answer tells for that line (RC01). The
+ * grader marks the placement against the sets the question deals, so a card
+ * dealt into the wrong set cannot pass. The wrong sort moves one card into
+ * the other group. Null when the answer is not two lines, or a card is not on
+ * exactly one of them.
+ */
+export const representationSortKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'groups' || question?.mode !== 'linearConnections' || linearConnectionsTask(question) !== 'group') return null;
+  const lines = [answer.value?.first, answer.value?.second].map((line) => ({
+    m: Number(line?.slope),
+    b: Number(line?.yIntercept),
+    context: line?.context,
+  }));
+  if (lines.some(({ m, b }) => !Number.isFinite(m) || !Number.isFinite(b) || m === 0)) return null;
+  const on = ({ m, b }, point) => Array.isArray(point) && Math.abs(m * Number(point[0]) + b - Number(point[1])) < 1e-9;
+  const describes = ({ kind, value }, line) => {
+    if (['slopeIntercept', 'standard', 'pointSlope', 'factoredLinear'].includes(kind)) {
+      const read = canonicalFromEquationText(String(value));
+      return Boolean(read) && linesEquivalent(read, canonicalFromSlopeIntercept(line.m, line.b));
+    }
+    if (kind === 'graph') {
+      const a = Number(value?.a ?? 1);
+      return value?.type === 'linear' && a === line.m && Number(value?.k ?? 0) - a * Number(value?.h ?? 0) === line.b;
+    }
+    if (kind === 'slope') return Number(value) === line.m;
+    if (kind === 'xIntercept') return on(line, value) && Number(value[1]) === 0;
+    if (kind === 'yIntercept') return on(line, value) && Number(value[0]) === 0;
+    if (kind === 'point') return on(line, value);
+    if (kind === 'table') return Array.isArray(value) && value.length >= 2 && value.every((row) => on(line, row));
+    if (kind === 'context') return typeof line.context === 'string' && clean(line.context) === clean(value);
+    return false;
+  };
+  const cards = buildLinearConnectionCards(representationSetsFor(question), linearConnectionsCardKinds(question));
+  const assignments = [];
+  for (const card of cards) {
+    const slots = lines.map((line, slot) => (describes(card, line) ? slot : null)).filter((slot) => slot !== null);
+    if (slots.length !== 1) return null;
+    assignments.push({ cardId: card.id, slot: slots[0] });
+  }
+  if (!assignments.length) return null;
+  return {
+    right: { assignments },
+    wrong: { assignments: assignments.map((entry, index) => (index === 0 ? { ...entry, slot: 1 - entry.slot } : entry)) },
+  };
+};
+
+const gcdOf = (left, right) => {
+  let [a, b] = [Math.abs(left), Math.abs(right)];
+  while (b) [a, b] = [b, a % b];
+  return a;
+};
+const fractionOf = (num, den) => {
+  const divisor = gcdOf(num, den) || 1;
+  const sign = den < 0 ? -1 : 1;
+  return { p: (sign * num) / divisor + 0, q: Math.abs(den) / divisor };
+};
+const fractionText = ({ p, q }) => (q === 1 ? String(p) : `${p}/${q}`);
+const fractionLatex = ({ p, q }) => (q === 1 ? String(p) : `${p < 0 ? '-' : ''}\\frac{${Math.abs(p)}}{${q}}`);
+
+/**
+ * The Multiple Representations board a student who solved a
+ * linear.multipleRepresentations version would send — the board's own fields,
+ * typed the way the board takes them (whole numbers, LaTeX for a fractional
+ * slope, ordered pairs, graph points) — built from the KEY: the family's
+ * slope, intercepts and standard form, and, on a board whose meanings the
+ * family writes, each meaning's answer (RC01). Exactly the cards and meanings
+ * the question asks for. The wrong board has its slope (or its y-intercept)
+ * wrong. Null for a Process Mode board (its facts need their own process), a
+ * card the key alone cannot answer, or a meaning the key does not name.
+ */
+export const linearBoardKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'line' || question?.mode !== 'linearMultipleRepresentations') return null;
+  if (clean(question?.interactionMode) === 'process') return null;
+  const value = answer.value || {};
+  const slope = /^(-?\d+)(?:\/(\d+))?$/.exec(clean(value.slope));
+  const b = Number(value.yIntercept?.[1]);
+  const { A, B, C } = isObject(value.standard) ? value.standard : {};
+  if (!slope || ![b, A, B, C].every(Number.isInteger)) return null;
+  const m = fractionOf(Number(slope[1]), Number(slope[2] || 1));
+  if (!m.p || !m.q) return null;
+  const zero = fractionOf(-b * m.q, m.p);
+  if (Math.abs(zero.p / zero.q - Number(value.xIntercept?.[0])) > 1e-9) return null;
+  const required = new Set(resolveRequiredCards(question));
+  const signed = (number) => (number === 0 ? '' : ` ${number < 0 ? '-' : '+'} ${Math.abs(number)}`);
+  const slopeTerm = m.q === 1 && Math.abs(m.p) === 1 ? (m.p < 0 ? '-x' : 'x') : `${fractionLatex(m)}x`;
+  const work = {};
+  if (required.has('standardForm')) {
+    work.standardFormEquation = `${A === 1 ? '' : A}x ${B < 0 ? '-' : '+'} ${Math.abs(B) === 1 ? '' : Math.abs(B)}y = ${C}`;
+  }
+  if (required.has('slopeIntercept')) work.slopeInterceptEquation = `y = ${slopeTerm}${signed(b)}`;
+  // Point-slope form through the y-intercept, and the slope step from it.
+  if (required.has('pointSlope')) work.pointSlopeEquation = `y${signed(-b) || ' - 0'} = ${fractionLatex(m)}\\left(x - 0\\right)`;
+  if (required.has('slope')) work.featureSlope = fractionText(m);
+  if (required.has('xIntercept')) work.featureXIntercept = `(${fractionText(zero)}, 0)`;
+  if (required.has('yIntercept')) work.featureYIntercept = `(0, ${b})`;
+  if (required.has('twoPoints')) {
+    work.featurePoint1 = `(0, ${b})`;
+    work.featurePoint2 = `(${m.q}, ${b + m.p})`;
+  }
+  if (required.has('table')) work.tableRows = [0, 1, 2, 3].map((k) => ({ x: String(k * m.q), y: String(b + k * m.p) }));
+  if (required.has('graphIntercepts')) work.graph1Points = [[zero.p / zero.q, 0], [0, b]];
+  if (required.has('graphSlopeIntercept')) work.graph2Points = [[0, b], [m.q, b + m.p]];
+  if (required.has('graphPointSlope')) {
+    // Graph 3 starts from the GIVEN's own point when the GIVEN is point-slope form.
+    if (clean(question?.source?.kind) === 'pointSlope') return null;
+    work.graph3Points = [[0, b], [m.q, b + m.p]];
+  }
+  const meanings = isObject(value.meanings) ? value.meanings : {};
+  for (const { field, key } of gradedContextFields(question)) {
+    if (typeof meanings[key] !== 'string') return null;
+    work[field] = meanings[key];
+  }
+  if (!Object.keys(work).length) return null;
+  const wrong = { ...work };
+  if ('featureSlope' in wrong) wrong.featureSlope = fractionText({ p: m.p + 7 * m.q, q: m.q });
+  else if ('featureYIntercept' in wrong) wrong.featureYIntercept = `(0, ${b + 7})`;
+  else if ('slopeInterceptEquation' in wrong) wrong.slopeInterceptEquation = `y = ${m.p + 7 * m.q}x${signed(b)}`;
+  else return null;
+  return { right: work, wrong };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -178,6 +316,22 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'intervalNumberLine', work: intervalWork.right }),
       wrong: buildToolResponse({ question, toolId: 'intervalNumberLine', work: intervalWork.wrong }),
+    };
+  }
+  // The two-line card sort (linear.representationSort, RC01): every card in its line's group.
+  const sortWork = question.type === 'representationMatch' ? representationSortKeyWork(question, answer) : null;
+  if (sortWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.wrong }),
+    };
+  }
+  // The Multiple Representations board (linear.multipleRepresentations, RC01).
+  const boardWork = question.type === 'representationBridge' ? linearBoardKeyWork(question, answer) : null;
+  if (boardWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'representationBridge', work: boardWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'representationBridge', work: boardWork.wrong }),
     };
   }
   return null;

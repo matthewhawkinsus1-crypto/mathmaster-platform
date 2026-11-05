@@ -30,7 +30,9 @@ import {
 import { recoveryCandidateFamilies } from '../../functions/shared/recoveryContentPlan.mjs';
 
 // "now/prepared/questions status" for the Warm-Up, then the DOL. Measured on
-// 2026-10-25 with intervals.graphAndWrite (RC01) registered. The Algebra I
+// 2026-10-25 with intervals.graphAndWrite (RC01) registered, and on 2026-11-05
+// with version 2 of linear.representationSort and linear.multipleRepresentations
+// (RC01: the baseline Multiple Representations file). The Algebra I
 // Module 3 Topic 2 Lesson 4 and 5 files and the Algebra II Honors radicals
 // lessons (added 2026-11-03) generate every Warm-Up and DOL question from an
 // assignment Question Family, so each section is 3/3/3 ready with nothing
@@ -40,7 +42,7 @@ const PINNED = Object.freeze({
   'docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json': ['0/0/2 unavailable', '0/0/2 unavailable'],
   'docs/assignments/Algebra_II_Honors_3x3_Systems_Day2_V5.json': ['0/0/2 unavailable', '0/0/2 unavailable'],
   'docs/assignments/Algebra_II_Honors_3x3_Systems_Day2_V5_FINAL.json': ['0/0/2 unavailable', '0/0/2 unavailable'],
-  'docs/assignments/algebra1-linear-multiple-representations-final-v5.json': ['0/0/2 unavailable', '0/0/1 unavailable'],
+  'docs/assignments/algebra1-linear-multiple-representations-final-v5.json': ['0/2/2 ready', '0/1/1 ready'],
   'teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': ['0/0/4 unavailable', '0/0/8 unavailable'],
   'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
   'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review_Honors.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
@@ -86,8 +88,8 @@ const PINNED = Object.freeze({
 });
 
 const TOTALS = Object.freeze({
-  warmup: { questions: 132, now: 81, prepared: 103, lessonsWithSection: 45, lessonsReady: 35 },
-  dol: { questions: 123, now: 70, prepared: 89, lessonsWithSection: 45, lessonsReady: 33 },
+  warmup: { questions: 132, now: 81, prepared: 105, lessonsWithSection: 45, lessonsReady: 36 },
+  dol: { questions: 123, now: 70, prepared: 90, lessonsWithSection: 45, lessonsReady: 34 },
 });
 
 // What is left: [shape, questions, lessons], most first. A typed-and-chosen
@@ -101,7 +103,6 @@ const WITHOUT_RECOVERY_BY_SHAPE = Object.freeze([
   ['relationMapping · mapping + domain + range + isFunction', 2, 2],
   ['figureMatch', 2, 1],
   ['relationMapping · mapping + isFunction', 2, 1],
-  ['representationMatch/linearConnections', 2, 1],
   ['functionCharacteristics · xInterceptExists + xIntercept + xInterceptValue + yInterceptExists + yIntercept + yInterceptValue + asymptote + behavior', 1, 1],
   ['functionCharacteristics · xInterceptExists + xIntercept + xInterceptValue + zeros + yInterceptExists + yIntercept + yInterceptValue + behavior', 1, 1],
   ['functionCharacteristics · xInterceptExists + xIntercept + xInterceptValue + zeros + yInterceptExists + yIntercept + yInterceptValue + extremeKind + extremePoint + extremeValue + axisOfSymmetry + behavior', 1, 1],
@@ -110,7 +111,6 @@ const WITHOUT_RECOVERY_BY_SHAPE = Object.freeze([
   ['graphAnalysis · increasing + decreasing + positive + negative', 1, 1],
   ['graphChoicePreview', 1, 1],
   ['relationMapping · mapping + domain + range', 1, 1],
-  ['representationBridge/linearMultipleRepresentations', 1, 1],
   ['transformationsLab/identify', 1, 1],
   ['transformationsLab/match', 1, 1],
   ['transformationsLab/pointMap', 1, 1],
@@ -177,12 +177,44 @@ test('the interval family is what changed: without it the five number-line quest
   assert.deepEqual(before.withoutRecoveryByShape.slice(0, 2).map((entry) => [entry.shape, entry.questions, entry.lessons]), [['multiAnswer', 31, 9], [intervalShape, 5, 2]]);
   assert.ok(!REPORT.withoutRecoveryByShape.some((entry) => entry.shape === intervalShape), 'none is left');
   // (78, 26 and 67 before the 2026-11-03 lessons, whose 21 + 21 questions and
-  // 7 lessons never needed the interval family.)
-  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21, 26 + 7, 67 + 21]);
+  // 7 lessons never needed the interval family, and before the baseline
+  // Multiple Representations file's 2 + 1 questions, below.)
+  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 2, 26 + 7 + 1, 67 + 21 + 1]);
+});
+
+const BASELINE_LMR = 'docs/assignments/algebra1-linear-multiple-representations-final-v5.json';
+
+test('version 2 of the representation families is what changed next: without it the baseline Multiple Representations file\'s two sorts and its board have no Recovery, and nothing else moves', () => {
+  const families = recoveryCandidateFamilies();
+  const representation = new Set(['linear.representationSort', 'linear.multipleRepresentations']);
+  const without = families.filter((family) => !representation.has(family.id));
+  assert.deepEqual(families.filter((family) => representation.has(family.id)).map((family) => `${family.id}@${family.version}`), [
+    'linear.multipleRepresentations@2',
+    'linear.representationSort@2',
+  ], 'each is a Recovery candidate at version 2, the first that recognizes');
+  const before = measureRecoveryCoverage({ families: without });
+  const beforeRows = rowsOf(before);
+  const afterRows = rowsOf(REPORT);
+  const moved = Object.keys(afterRows).filter((file) => JSON.stringify(afterRows[file]) !== JSON.stringify(beforeRows[file]));
+  assert.deepEqual(moved, [BASELINE_LMR]);
+  assert.deepEqual(beforeRows[BASELINE_LMR], ['0/0/2 unavailable', '0/0/1 unavailable']);
+  assert.deepEqual(afterRows[BASELINE_LMR], ['0/2/2 ready', '0/1/1 ready']);
+  assert.deepEqual(
+    before.lessons.find((lesson) => lesson.file === BASELINE_LMR).withoutRecovery.map((question) => `${question.label} ${question.questionId} ${question.shape}`),
+    [
+      'Warm-Up Q1 lmr-wu-1 representationMatch/linearConnections',
+      'Warm-Up Q2 lmr-wu-2 representationMatch/linearConnections',
+      'DOL Q1 lmr-dol-1 representationBridge/linearMultipleRepresentations',
+    ],
+  );
+  assert.deepEqual(
+    [before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared, before.totals.dol.lessonsReady],
+    [TOTALS.warmup.prepared - 2, TOTALS.warmup.lessonsReady - 1, TOTALS.dol.prepared - 1, TOTALS.dol.lessonsReady - 1],
+  );
 });
 
 test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'s model does for the lessons this changed', () => {
-  [DAY_ONE, DAY_TWO].forEach((file) => {
+  [DAY_ONE, DAY_TWO, BASELINE_LMR].forEach((file) => {
     const text = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
     const parsed = measureLessonRecovery({ file, assignment: lessonAssignmentForCoverage(text) });
     const preflight = measureLessonRecovery({ file, assignment: lessonAssignmentForCoverage(text, { preflight: true }) });
@@ -193,8 +225,9 @@ test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'
 test('the printed report says the same', () => {
   const text = renderRecoveryCoverageText(REPORT);
   assert.match(text, /^teacher-import-jsons\/algebra2-honors-module1\/L1_Day1_Interval_Domain_Range\.json +Warm-Up 3\/3 ready +DOL 1\/3 unavailable$/m);
-  assert.match(text, /^Warm-Up: 103 of 132 questions have Recovery once prepared \(81 with nothing prepared\); 35 of 45 lessons ready\.$/m);
-  assert.match(text, /^DOL: 89 of 123 questions have Recovery once prepared \(70 with nothing prepared\); 33 of 45 lessons ready\.$/m);
+  assert.match(text, /^Warm-Up: 105 of 132 questions have Recovery once prepared \(81 with nothing prepared\); 36 of 45 lessons ready\.$/m);
+  assert.match(text, /^DOL: 90 of 123 questions have Recovery once prepared \(70 with nothing prepared\); 34 of 45 lessons ready\.$/m);
+  assert.match(text, /^docs\/assignments\/algebra1-linear-multiple-representations-final-v5\.json +Warm-Up 2\/2 ready +DOL 1\/1 ready$/m);
   assert.match(text, /^ +31 {2}multiAnswer {2}\(9 lessons\)$/m);
   assert.match(text, /L1_Day1_Interval_Domain_Range\.json {2}DOL Q2 {2}graphAnalysis · domain \+ range {2}no-certified-family/);
 });

@@ -759,31 +759,36 @@ test('the board reports the same live work it submits, and asks before submittin
 // Every family that builds this board, with the GIVEN kinds (and authored
 // story) its instance parity is proven on. A new board-building family fails
 // the first assertion until it is added here.
+const BOARD_V1_FIXTURES = [
+  [{ given: 'standardForm', slope: 'fraction', standardScale: 2 }, {}],
+  [{ given: 'slopeIntercept' }, {}],
+  [{ given: 'pointSlope', slope: 'fraction' }, {}],
+  [{ given: 'twoPoints' }, {}],
+  [{ given: 'table', tablePattern: 'consecutive' }, {}],
+  [{ given: 'scenario' }, {
+    source: { kind: 'scenario', prompt: 'A tank holds {{start}} liters of water. It drains at a steady rate of {{rate}} liters every minute until it is empty.' },
+    requiredCards: ['slopeIntercept', 'standardForm', 'slope', 'xIntercept', 'yIntercept', 'graphSlopeIntercept'],
+    context: {
+      slopeMeaning: { value: 'The tank loses {{rate}} liters of water every minute.', choices: ['The tank loses {{rate}} liters of water every minute.', 'The tank gains {{rate}} liters of water every minute.'] },
+      domain: { min: 0, max: '{{end}}', value: '0 ≤ x ≤ {{end}}', choices: ['0 ≤ x ≤ {{end}}', '0 ≤ x ≤ {{start}}'] },
+    },
+  }],
+];
+// Per family VERSION. Version 2 (RC01) writes version 1's boards for the
+// slot's own task, and the draining-tank checkpoint on its own, from a slot
+// with no wording at all (the way Recovery deals it).
 const BOARD_FAMILY_FIXTURES = {
-  'linear.multipleRepresentations': [
-    [{ given: 'standardForm', slope: 'fraction', standardScale: 2 }, {}],
-    [{ given: 'slopeIntercept' }, {}],
-    [{ given: 'pointSlope', slope: 'fraction' }, {}],
-    [{ given: 'twoPoints' }, {}],
-    [{ given: 'table', tablePattern: 'consecutive' }, {}],
-    [{ given: 'scenario' }, {
-      source: { kind: 'scenario', prompt: 'A tank holds {{start}} liters of water. It drains at a steady rate of {{rate}} liters every minute until it is empty.' },
-      requiredCards: ['slopeIntercept', 'standardForm', 'slope', 'xIntercept', 'yIntercept', 'graphSlopeIntercept'],
-      context: {
-        slopeMeaning: { value: 'The tank loses {{rate}} liters of water every minute.', choices: ['The tank loses {{rate}} liters of water every minute.', 'The tank gains {{rate}} liters of water every minute.'] },
-        domain: { min: 0, max: '{{end}}', value: '0 ≤ x ≤ {{end}}', choices: ['0 ≤ x ≤ {{end}}', '0 ≤ x ≤ {{start}}'] },
-      },
-    }],
-  ],
+  'linear.multipleRepresentations@1': BOARD_V1_FIXTURES,
+  'linear.multipleRepresentations@2': [...BOARD_V1_FIXTURES, [{ given: 'scenario', board: 'drainingTank' }, {}]],
 };
 
 test('Question Family instances of the board: browser and server mark every generated version identically', () => {
   const families = allRegisteredQuestionFamilies().filter((family) => (
     family.defaultTool === 'representationBridge' || Object.keys(family.tools || {}).includes('representationBridge')
   ));
-  assert.deepEqual(families.map((family) => family.id).sort(), Object.keys(BOARD_FAMILY_FIXTURES).sort(), 'every family that builds the board has instance parity fixtures here');
+  assert.deepEqual(families.map((family) => `${family.id}@${family.version}`).sort(), Object.keys(BOARD_FAMILY_FIXTURES).sort(), 'every family version that builds the board has instance parity fixtures here');
   for (const family of families) {
-    for (const [overrides, authored] of BOARD_FAMILY_FIXTURES[family.id]) {
+    for (const [overrides, authored] of BOARD_FAMILY_FIXTURES[`${family.id}@${family.version}`]) {
       const { values } = resolveFamilyConstraints(family, overrides);
       const sequence = createFamilyInstanceSequence(family, values, `lmr-parity|${JSON.stringify(overrides)}`);
       for (let index = 0; index < 12; index += 1) {

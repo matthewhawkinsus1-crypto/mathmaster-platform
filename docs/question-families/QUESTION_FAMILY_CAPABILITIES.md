@@ -32,10 +32,12 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `linear.graphFromSlopeIntercept` | v1 · what an unpinned reference means | — | — | `graphing2` (slopeIntercept) | yes — shared server grader | yes | 150 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope |
 | `linear.keyCharacteristics` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 180 — every student unique | reduce-complexity: slopeRange [1, 3]; keeps slope, xIntercept |
 | `linear.multipleRepresentations` | v1 · what an unpinned reference means | — | — | `representationBridge` (linearMultipleRepresentations) | yes — shared server grader | yes | 62 — every student unique | reduce-complexity: slope "integer", standardScale 1 |
+| `linear.multipleRepresentations` | v2 · only when pinned (`"version": 2`) | — | — | `representationBridge` (linearMultipleRepresentations) | yes — shared server grader | yes | 62 — every student unique | reduce-complexity: slope "integer", standardScale 1; keeps board |
 | `linear.multiStepEquation` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (equation) default, `multiAnswer` | yes — shared server grader | yes | about 132,851 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6] |
 | `linear.multiStepEquation` | v2 · only when pinned (`"version": 2`) | one, none, infinite, mixed | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 3,923,640 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6]; keeps solutionCase, distribute, solutionForm, coefficientForm |
 | `linear.multiStepEquation` | v3 · only when pinned (`"version": 3`) | one, none, infinite, mixed | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 3,875,760 — every student unique | reduce-complexity: coefficientRange [-6, 6], constantRange [-10, 10], solutionRange [-6, 6]; keeps solutionCase, distribute, solutionForm, coefficientForm |
 | `linear.representationSort` | v1 · what an unpinned reference means | — | — | `representationMatch` (linearConnections) | yes — shared server grader | yes | 236 — every student unique | — |
+| `linear.representationSort` | v2 · only when pinned (`"version": 2`) | — | — | `representationMatch` (linearConnections) | yes — shared server grader | yes | 236 — every student unique | — |
 | `linear.slopeFromPoints` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 64,231 — every student unique | — |
 | `linear.twoStepEquation` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (equation) default, `multiAnswer` | yes — shared server grader | yes | about 10,080 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6] |
 | `linear.twoStepEquation` | v2 · only when pinned (`"version": 2`) | one | integer, fraction | `stepAlgebra` (equation) | yes — shared server grader | yes | about 9,671 — every student unique | reduce-complexity: coefficientRange [2, 6], constantRange [-8, 8], solutionRange [-6, 6]; keeps distribute, solutionForm, coefficientForm |
@@ -363,6 +365,43 @@ One linear relationship in every representation.
 
 - **reduce-complexity:** `slope` "integer", `standardScale` 1 — about 62 distinct questions.
 
+### `linear.multipleRepresentations` v2
+
+One linear relationship in every representation.
+
+- **Pinning:** used only by a slot that says `"version": 2`; an unpinned reference still means v1, so no existing question changes.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A.2B, A.2C, A.3A, A.3B, A.3C
+- **Answered in:** `representationBridge` (linearMultipleRepresentations)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `given` | choice | `"slopeIntercept"` | `"standardForm"`, `"slopeIntercept"`, `"pointSlope"`, `"twoPoints"`, `"table"`, `"scenario"` | — |
+| `slope` | choice | `"integer"` | `"integer"`, `"fraction"` | — |
+| `slopeSign` | choice | `"any"` | `"any"`, `"positive"`, `"negative"` | — |
+| `slopeRange` | range | `[1, 4]` | whole-number range inside [1, 9] | — |
+| `denominatorRange` | range | `[2, 3]` | whole-number range inside [2, 6] | — |
+| `interceptRange` | range | `[-8, 8]` | whole-number range inside [-60, 60] | — |
+| `xInterceptRange` | range | `[-8, 8]` | whole-number range inside [-60, 60] | — |
+| `standardScale` | choice | `1` | `1`, `2`, `3` | — |
+| `tablePattern` | choice | `"spread"` | `"spread"`, `"consecutive"` | — |
+| `rateRange` | range | `[2, 6]` | whole-number range inside [1, 20] | — |
+| `durationRange` | range | `[3, 15]` | whole-number range inside [2, 30] | — |
+| `startRange` | range | `[6, 36]` | whole-number range inside [2, 200] | — |
+| `scenarioStart` | choice | `"stated"` | `"stated"`, `"fromReading"` | — |
+| `coordinateRange` | range | `[-10, 10]` | whole-number range inside [-60, 60] | — |
+| `integerXIntercept` | boolean | `true` | `true`, `false` | — |
+| `board` | choice | `"authored"` | `"authored"`, `"drainingTank"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 62 | — |
+| board: "drainingTank" | 0 | — |
+
+- **reduce-complexity:** `slope` "integer", `standardScale` 1 — about 62 distinct questions; never changes `board`.
+
 ### `linear.multiStepEquation` v1
 
 Linear equation with variables on both sides.
@@ -481,6 +520,30 @@ Sort the representations of two lines.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | 236 | — |
+
+### `linear.representationSort` v2
+
+Sort the representations of two lines.
+
+- **Pinning:** used only by a slot that says `"version": 2`; an unpinned reference still means v1, so no existing question changes.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A.3B, A.3C, A.2B
+- **Answered in:** `representationMatch` (linearConnections)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `slopeRange` | range | `[1, 3]` | whole-number range inside [1, 12] | — |
+| `interceptRange` | range | `[-6, 6]` | whole-number range inside [-100, 100] | — |
+| `integerXIntercepts` | boolean | `true` | `true`, `false` | — |
+| `deck` | choice | `"authored"` | `"authored"`, `"equationForms"`, `"situations"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 236 | — |
+| deck: "equationForms" | 236 | — |
+| deck: "situations" | 10 | — |
 
 ### `linear.slopeFromPoints` v1
 

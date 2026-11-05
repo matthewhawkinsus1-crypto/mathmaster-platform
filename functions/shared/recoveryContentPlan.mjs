@@ -39,7 +39,7 @@ import { normalizeRecoveryPolicy } from './recoveryPolicy.mjs';
 import { resolveWarmupDelivery, warmupIsNotAssignmentDelivered } from './warmupDelivery.mjs';
 import { isTestCycleAssignment } from './testCyclePolicy.mjs';
 import { isFamilyBackedQuestion } from './questionFamilyInstance.mjs';
-import { allRegisteredQuestionFamilies, defaultFamilyVersion } from './questionFamilyRegistry.mjs';
+import { allRegisteredQuestionFamilies } from './questionFamilyRegistry.mjs';
 import { assessRecoverySlot } from './sectionRecoveryReadiness.mjs';
 import {
   RECOVERY_BINDING_ORIGIN,
@@ -130,13 +130,25 @@ export const flattenAssignmentQuestions = (assignment = {}) => list(assignment?.
 
 /*
  * The candidate families, in a fixed order: every registered family that can
- * recognize a static question, at the version an unpinned reference means.
- * A newer version is never chosen on its own — only a prepared migration or
- * an author may pin one.
+ * recognize a static question, at the FIRST version that can. For a family
+ * that recognized from its first version that is the version an unpinned
+ * reference means, and a newer version of it is never chosen on its own —
+ * only a prepared migration or an author may pin one. A family whose first
+ * versions wrote only what their slot told them, and so could not recognize
+ * (linear.representationSort and linear.multipleRepresentations, recognizing
+ * from version 2, RC01), is a candidate at the version that first could. A
+ * binding always stores the version it was certified with, so this never
+ * moves a question or a pin.
  */
-export const recoveryCandidateFamilies = () => allRegisteredQuestionFamilies()
-  .filter((family) => typeof family.recognize === 'function' && family.recovery?.eligible)
-  .filter((family) => family.version === defaultFamilyVersion(family.id));
+export const recoveryCandidateFamilies = () => {
+  const recognizing = allRegisteredQuestionFamilies()
+    .filter((family) => typeof family.recognize === 'function' && family.recovery?.eligible);
+  const first = new Map();
+  recognizing.forEach((family) => {
+    if (!first.has(family.id) || family.version < first.get(family.id).version) first.set(family.id, family);
+  });
+  return recognizing.filter((family) => first.get(family.id) === family);
+};
 
 /*
  * COULD PREPARE RECOVERY ADD ANYTHING HERE? — cheap enough for every card.
