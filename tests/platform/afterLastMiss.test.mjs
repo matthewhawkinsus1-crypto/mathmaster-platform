@@ -445,8 +445,9 @@ test('HELP-12: Review My Work shows the one solution panel, told the outcome, wi
   assert.match(supports, /toolsEntitlementFromProfile\(studentProfile, \{ activityRole: role \|\| null, universalDesignRole: role \|\| null \}\)/);
   assert.match(supports, /speechReady && \(presentation\?\.textToSpeech \|\| toolList\.includes\('read-aloud'\)\)/);
   // The signed-in student's own profile reaches the screen (the prop order,
-  // and the other props the mount carries, are not the contract).
-  const mount = region(code('src/App.jsx'), '<ReviewMyWork', '</Suspense>');
+  // and the other props the mount carries, are not the contract). The mount
+  // runs to its own closing "/>" (the one inside teacherAnswers is followed by "}").
+  const mount = region(code('src/App.jsx'), '<ReviewMyWork', '/>\n');
   assert.match(mount, /\bstudentProfile=\{user\.profile\}/);
 });
 

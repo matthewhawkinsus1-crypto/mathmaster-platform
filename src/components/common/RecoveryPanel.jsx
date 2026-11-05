@@ -53,6 +53,10 @@ export default function RecoveryPanel({
   technicalMessage = '',
   offerReport = true,
   compact = false,
+  // The width of its place, edge to edge: one panel of a screen, in the
+  // screen's flow (ScreenErrorBoundary `codeTitle`), not a whole screen's
+  // message centred in it.
+  fill = false,
 }) {
   const [copied, setCopied] = useState('');
   const colors = TONES[tone] || TONES.error;
@@ -75,9 +79,9 @@ export default function RecoveryPanel({
       data-recovery-panel={tone}
       style={{
         boxSizing: 'border-box',
-        width: compact ? '100%' : 'min(640px, 100%)',
-        maxWidth: 640,
-        margin: '0 auto',
+        width: compact || fill ? '100%' : 'min(640px, 100%)',
+        maxWidth: fill ? 'none' : 640,
+        margin: fill ? 0 : '0 auto',
         padding: compact ? '18px 20px' : '24px 26px',
         borderRadius: 14,
         border: `1px solid ${colors.border}`,

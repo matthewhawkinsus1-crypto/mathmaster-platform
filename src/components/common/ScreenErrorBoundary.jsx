@@ -24,9 +24,16 @@ import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics
  * again, load the page again, or, still offline, say so. Such a boundary has
  * no words for any other error (no `title`): that goes on to AppErrorBoundary,
  * as it did before the screen loaded on demand.
+ *
+ * ONE PANEL OF A SCREEN (Review My Work on the result page, app/lazyScreens.js
+ * studentPanel). Its code loads apart from the screen's, so it fails apart
+ * too: given `codeTitle`, the message names the panel in those words and
+ * takes the panel's place in the page, and the rest of the screen stays.
  */
 const CHECK_CONNECTION = 'Check that this device is connected to the internet, then try again.';
 const STILL_OFFLINE = 'This device is still offline. Connect it to the internet, then try again.';
+const SCREEN_PLACE = { padding: '20px 14px 48px' };
+const PANEL_PLACE = { marginTop: 14 };
 
 export default class ScreenErrorBoundary extends Component {
   constructor(props) {
@@ -75,14 +82,15 @@ export default class ScreenErrorBoundary extends Component {
     const { error, stillOffline } = this.state;
     if (!error) return this.props.children;
     if (!this.shows(error)) throw error;
-    const { title, message, exitLabel, onExit } = this.props;
+    const { title, message, exitLabel, onExit, codeTitle } = this.props;
     if (isChunkLoadError(error)) {
       return (
-        <div data-screen-code-failed style={{ padding: '20px 14px 48px' }}>
+        <div data-screen-code-failed={codeTitle ? 'panel' : 'screen'} style={codeTitle ? PANEL_PLACE : SCREEN_PLACE}>
           <RecoveryPanel
             compact
+            fill={Boolean(codeTitle)}
             tone="offline"
-            title="This screen could not load"
+            title={codeTitle || 'This screen could not load'}
             primaryLabel="Try again"
             onPrimary={() => this.tryAgain()}
             secondaryLabel={exitLabel}

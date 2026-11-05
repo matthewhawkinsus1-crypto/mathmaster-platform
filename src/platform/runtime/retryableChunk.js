@@ -72,9 +72,10 @@ export const retryableChunk = (load, { online = deviceOnline } = {}) => {
      *   - The screen's own code, refused offline: ask again. If Home's prefetch
      *     fetched it once the device was back, the screen draws at once.
      *   - The screen's own code, after a request for it failed: a new page.
-     *   - Code the screen loads itself (the result page's Review My Work, a
-     *     lazy of App's): React and the browser both keep that failure, so
-     *     only a new page helps.
+     *   - Code the screen loads itself, with no boundary of its own: React and
+     *     the browser both keep that failure, so only a new page helps. (The
+     *     result page's Review My Work has its own since it failed this way
+     *     offline: lazyScreens.js studentPanel.)
      */
     retry: (error) => {
       if (!online()) return CHUNK_RETRY.OFFLINE;

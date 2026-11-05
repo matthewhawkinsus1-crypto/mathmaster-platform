@@ -42,20 +42,21 @@ test('one request, shared by Home\'s prefetch and the screen; once it is here, i
 });
 
 test('code the screen loads itself failed (a lazy panel of its own): a new page, once online', async () => {
-  // The result page's Review My Work is App's own lazy panel: offline, its
-  // chunk fails and reaches the result screen's boundary. React.lazy and the
-  // browser both keep that failure, so mounting the screen again would fail
-  // the same way: Try again loads the page again, once online.
+  // A lazy the screen draws with no boundary of its own: its chunk fails and
+  // reaches the screen's boundary. React.lazy and the browser both keep that
+  // failure, so mounting the screen again would fail the same way: Try again
+  // loads the page again, once online. (Review My Work failed this way on the
+  // result page until it had a boundary of its own: lazyStudentScreens.test.mjs.)
   let online = true;
   const screen = fakeImport();
   const chunk = retryableChunk(screen.load, { online: () => online });
   const loading = chunk.load();
   screen.requests[0].resolve(gradesModule());
   await loading;
-  const reviewMyWork = failedFetch('ReviewMyWork');
-  assert.equal(chunk.retry(reviewMyWork), CHUNK_RETRY.RELOAD);
+  const panel = failedFetch('SomePanel');
+  assert.equal(chunk.retry(panel), CHUNK_RETRY.RELOAD);
   online = false;
-  assert.equal(chunk.retry(reviewMyWork), CHUNK_RETRY.OFFLINE);
+  assert.equal(chunk.retry(panel), CHUNK_RETRY.OFFLINE);
 });
 
 test('offline, nothing is asked for, so the browser remembers no failure; back online, Try again really asks', async () => {

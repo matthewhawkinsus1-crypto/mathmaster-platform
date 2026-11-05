@@ -205,3 +205,110 @@ test('the device\'s report keeps each failure once: the screen\'s own code here,
     delete globalThis.window;
   }
 });
+
+/*
+ * REVIEW MY WORK: A PANEL OF THE RESULT PAGE, WITH A BOUNDARY OF ITS OWN.
+ *
+ * The result page draws Review My Work once the work is closed and its
+ * feedback released: App's own chunk, about 1 MB with MathLive, which Home
+ * does not prefetch. Offline before it had loaded, its failure reached the
+ * result screen's boundary, and the whole page said "This screen could not
+ * load". It is a `studentPanel` of lazyScreens.js now: its place in the page
+ * holds a boundary of its own, which says in that place that Review My Work
+ * needs a connection, with Try again, and the rest of the page stays. The
+ * browser half (a real import that cannot arrive, offline and back, at both
+ * sizes) is tests/browser/reviewMyWork.mjs.
+ */
+const PANEL_TITLE = 'Review My Work needs a connection';
+const reviewProps = () => ({ assignment: { id: 'asg-1' }, load: async () => ({ questions: [] }), studentProfile: null, teacherAnswers: null });
+
+test('Review My Work has a place of its own, holding its own boundary around one visit, with App\'s props passed through', () => {
+  const props = reviewProps();
+  const place = screens.ReviewMyWork(props);
+  assert.equal(place.type, 'div');
+  assert.equal(place.props['data-student-panel'], 'review-my-work');
+  const boundary = place.props.children;
+  assert.equal(boundary.type, ScreenErrorBoundary, 'a boundary of its own, inside the result screen\'s');
+  assert.equal(boundary.props.codeTitle, PANEL_TITLE);
+  assert.equal(boundary.props.source, 'review-my-work');
+  // No way out of its own: the result page around it keeps every way on.
+  assert.equal(boundary.props.exitLabel, undefined);
+  assert.equal(boundary.props.onExit, undefined);
+  // Its own loader's answer (retryableChunk.js): a failure it did not hand
+  // out needs a new page.
+  assert.equal(boundary.props.retryChunk(failedChunk()), CHUNK_RETRY.RELOAD);
+  assert.deepEqual(boundary.props.children.props, props, 'one visit to the panel, with exactly App\'s props');
+});
+
+test('while its code is on its way, Review My Work\'s place says so: the result page around it is not held up', async () => {
+  // Offline, so the loader asks for nothing (retryableChunk.js) and the code
+  // stays away: this draws the place as it is while the code would be on its way.
+  const page = await freshPage('panel-loading');
+  Object.defineProperty(globalThis.navigator, 'onLine', { configurable: true, get: () => false });
+  try {
+    const markup = renderToStaticMarkup(createElement(page.ReviewMyWork, reviewProps()));
+    assert.equal(markup, '<div data-student-panel="review-my-work" style="min-width:0"><p role="status" style="margin:14px 0 0">Loading your work…</p></div>');
+  } finally {
+    delete globalThis.navigator.onLine;
+  }
+});
+
+// The panel's boundary as the place mounts it, driven by hand.
+const panelBoundary = (retry) => {
+  const boundary = new ScreenErrorBoundary({ source: 'review-my-work', retryChunk: retry, codeTitle: PANEL_TITLE, children: 'the panel' });
+  boundary.setState = (next) => { boundary.state = { ...boundary.state, ...next }; };
+  return boundary;
+};
+const offlineRefusal = () => Object.assign(new Error('This device is offline, so the screen was not requested.'), { mmChunkLoad: true });
+
+test('Review My Work\'s code cannot arrive: its own place says it needs a connection, with Try again and nothing else', () => {
+  const boundary = panelBoundary(() => CHUNK_RETRY.LOAD);
+  assert.equal(boundary.render(), 'the panel');
+  fail(boundary, offlineRefusal());
+  const markup = renderToStaticMarkup(boundary.render());
+  // In the page's flow, not the screen's padded place, and as wide as the
+  // panel it stands for, not a screen's message centred in it.
+  assert.match(markup, /^<div data-screen-code-failed="panel" style="margin-top:14px"><section role="alert"[^>]* style="box-sizing:border-box;width:100%;max-width:none;margin:0;/);
+  assert.match(markup, /<h2[^>]*>Review My Work needs a connection<\/h2>/);
+  assert.doesNotMatch(markup, /This screen could not load/, 'the screen did load: only the panel did not');
+  assert.match(markup, /Check that this device is connected to the internet, then try again\./);
+  assert.deepEqual([...markup.matchAll(/<button[^>]*>([^<]*)<\/button>/g)].map((match) => match[1]), ['Try again'], 'no "Back to Home": the page keeps its own ways on');
+  // A screen's own boundary keeps its words and its place.
+  const screen = studentScreenBoundary(() => CHUNK_RETRY.LOAD);
+  fail(screen, offlineRefusal());
+  assert.match(renderToStaticMarkup(screen.render()), /^<div data-screen-code-failed="screen" style="padding:20px 14px 48px"><section role="alert"[^>]* style="box-sizing:border-box;width:100%;max-width:640px;margin:0 auto;[\s\S]*<h2[^>]*>This screen could not load<\/h2>/);
+});
+
+test('Review My Work\'s Try again: still offline it says so; back online it asks again; after a failed request, a new page', () => {
+  let next = CHUNK_RETRY.OFFLINE;
+  const asked = [];
+  const boundary = panelBoundary((error) => { asked.push(error); return next; });
+  const refusal = offlineRefusal();
+  fail(boundary, refusal);
+  boundary.render().props.children.props.onPrimary();
+  assert.deepEqual(asked, [refusal], 'its loader is told what failed');
+  assert.ok(boundary.state.error, 'nothing would arrive: the message stays');
+  assert.match(renderToStaticMarkup(boundary.render()), /<h2[^>]*>Review My Work needs a connection<\/h2>[\s\S]*This device is still offline\. Connect it to the internet, then try again\./);
+  next = CHUNK_RETRY.LOAD;
+  boundary.render().props.children.props.onPrimary();
+  assert.equal(boundary.render(), 'the panel', 'a new visit, with a lazy of its own');
+  const replaced = [];
+  globalThis.window = {
+    location: { href: 'https://mathmaster.example/?view=assignmentResult', replace: (url) => replaced.push(url) },
+    sessionStorage: { getItem: () => null, setItem: () => {} },
+  };
+  try {
+    next = CHUNK_RETRY.RELOAD;
+    fail(boundary, failedChunk());
+    boundary.render().props.children.props.onPrimary();
+    assert.equal(replaced.length, 1, 'the browser will not fetch that code again in this page');
+  } finally {
+    delete globalThis.window;
+  }
+});
+
+test('any other error in Review My Work still goes on, as before it had a boundary of its own', () => {
+  const boundary = panelBoundary(() => CHUNK_RETRY.LOAD);
+  fail(boundary, new TypeError("Cannot read properties of undefined (reading 'questions')"));
+  assert.throws(() => boundary.render(), /reading 'questions'/);
+});

@@ -12216,19 +12216,20 @@ function App() {
     const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
     // Decision 3: once the work is closed for this student and feedback is
     // released, their own answers beside the worked solutions. The callable
-    // re-checks every gate; this only decides whether to show the panel.
+    // re-checks every gate; this only decides whether to show the panel. The
+    // panel carries its own loading line and its own boundary: code that
+    // cannot arrive (offline) leaves the rest of the result page on screen
+    // (app/lazyScreens.js studentPanel).
     const resultReviewPanel = resultEntry && recoveryAssignment && resultEntry.frozen
       && !resultEntry.isTestCycle
       && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
       ? (
-        <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
-          <ReviewMyWork
-            assignment={recoveryAssignment}
-            load={loadMyReviewWork}
-            studentProfile={user.profile}
-            teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
-          />
-        </Suspense>
+        <ReviewMyWork
+          assignment={recoveryAssignment}
+          load={loadMyReviewWork}
+          studentProfile={user.profile}
+          teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
+        />
       )
       : null;
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'
