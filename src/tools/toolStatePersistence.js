@@ -214,6 +214,7 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     dragIndex: 'Which point the current gesture is moving. Gone at pointer-up.',
     keyboardHeldIndex: 'Which point the keyboard has picked up to move. Gone at Enter or Escape.',
     gestureActive: 'Whether a pointer gesture is in progress.',
+    previewByTouch: 'Whether the pointer preview is a finger\'s, so its coordinate chip sits above the fingertip (N60, planeTouch.js). Set at each pointer press or move; the point a lift lands is the one the chip showed, and the points themselves are the tool\'s.',
     keyboardHelpVisible: 'Whether the fuller keyboard plotting help is shown (it replaces the short keyboard line that is there before): from the plane’s first keyboard focus until the question changes.',
     renderedWidth: 'How wide the plane is drawn, measured, so its text stays readable on a phone (pass 3, TOOL-11). Layout.',
     dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',
