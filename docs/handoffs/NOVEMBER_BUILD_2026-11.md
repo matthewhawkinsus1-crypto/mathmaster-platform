@@ -66,6 +66,8 @@ Nothing here has been deployed, and no operator script has been run.
 | Where wrong rush taps land (N42) | A wrong tap in a graph rush that lands on another feature of the same graph is recorded on its receipt, and the teacher's report lists "Where wrong taps landed, most common first" ("Tapped the y-intercept when asked for zeros (x-intercepts) · 7"). The teacher's console only: no verdict, point or cooldown moves, and no student's device receives it. | `5e40bff4` |
 | Class memory for more games (N80) | Graph the Line and Solver Race open with the class's last-time card and a suggestion ("64% accuracy → try Easy"), with "Use last settings" and "Use suggestion". Standard Challenge has none: it has no easier or harder setting, the server fits each round's clock to its question, and a mixed review's weakest standard rests on one or two questions. | `5373b43d` |
 | Placing points on a phone (N60) | Under a finger, the plane's coordinate chip sits above the fingertip, and lifting places exactly the point it showed. A tap up to 22 px past the grid's edge lands on the edge, in every tool's plane. On a −10 to 10 grid a phone unit is 12.8 by 8.0 px, so sliding with the chip is the way to aim. Laptops are unchanged. | `e8846679`, `613ac3e1` |
+| TT27 (teacher screens) | The administrator's five sections are one Tab stop with arrow keys and a tab panel, as Live Class has. 45 sideways-scrolling table wrappers on teacher screens are named regions. All 48 teacher scenes pass at 200% text, at 320 px and with text spacing, with every target at least 24 px: stacks and grids shrink to a phone, long words wrap, and student-name buttons, link buttons, summaries, checkboxes and accommodation fields grow. A new CI job runs the teacher sweep (about 50 minutes, in parallel, when a pull request touches the accessibility area). | `2afe045b`, `c390501a`, `3a679a5f` |
+| RC01 (Recovery coverage) | Recovery for questions no family recognized: the baseline Multiple Representations file (Warm-Up 2/2, exit ticket 1/1), the Algebra II Honors L2 Day 2 exit ticket (3/3), Lesson 1's mapping diagrams and graphed domain and range (the L1 Day 1 exit ticket is now 3/3), and Lesson 4's numeric Warm-Up questions. Warm-Up questions with Recovery: 103 → 110 of 132; exit-ticket questions 89 → 96 of 123. Seven new families, each certified on the device and the server. The Recovery planner now takes a family at the first version that can recognize a static question, which is still version 1 for every family that had Recovery. | `562b62be`, `8e6877d8`, `16716f0b`, `9e38cc5e`, `59f9c0a8` |
 
 ## 3. Checked, with no change needed
 
@@ -76,7 +78,7 @@ Nothing here has been deployed, and no operator script has been run.
 ## 4. Releasing this work
 
 1. **Firestore rules** (`dc16bfa9`, Ask my teacher).
-2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report, its wrong-tap list and the class memory: N42, N80), and so did Corrections' slip names (TC05) and the bundled SAT seed (N54). Deploy outside class hours and outside Sunday 6 pm to midnight Central.
+2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report, its wrong-tap list and the class memory: N42, N80), and so did Corrections' slip names (TC05), the bundled SAT seed (N54) and the Recovery families and their certification (RC01). The new Recovery reaches a class when its teacher approves Prepare Recovery. Deploy outside class hours and outside Sunday 6 pm to midnight Central.
 3. **Hosting.**
 4. **Then the re-imports.** A changed lesson reaches a class only when its teacher imports it again:
    - Algebra II Honors module 2: Operations on Polynomials, Dividing Polynomials.
@@ -111,6 +113,7 @@ Nothing here has been deployed, and no operator script has been run.
   - A1 M3 T2 L2 CW 7's key says "$10.50 behind", the answer to its own `ninety` box; CW 1's key gives 6.25 and 5 chickens, from which the goat and pig answers follow.
   - The DOL #3 Honors review's audited TSIA2 item (`mm_tsia2_psr_analysis_8_v21`) has the longest choice as its key. Its fix belongs in the bank.
 - **Opening the graph zoomed on a phone (N60).** A unit of 24 px allows at most a 10 × 6 window on a phone. Only 15 of the 26 fixed-number build items could open that way with every point in view, templated items would differ by student, and a window framed around the key shows where the boundary is, so it would have to stay off on exit tickets, quizzes and tests. Not built.
+- **Fixed-answer questions without Recovery (RC01).** Every fresh version of these would have the same answer, so no family was built: Algebra II Honors L2 Day 2 Warm-Up Q1–Q3, all six L2 Day 1 questions, L3 Warm-Up Q2 and Q3, and L4 exit ticket Q3 ("are these inverses?" is always yes). Keep them without Recovery, or rewrite them so their answers vary. The District DOL 1 review's DOL Q7 is the same task as its Warm-Up Q1 at DOK 2 and difficulty 3 instead of 1 and 1; its authored rigor may need aligning.
 - **Only the owner can:**
   - **SI01 (N04).** Turn on the class-scoped assignment reads (Administration → Classes), then run `node scripts/report-assignment-key-exposure.mjs --project <id>`. Until then the answer-key split runs in shadow, and a student's device can read each item's key and worked steps.
   - **N05.** Run the re-grade report, read it, then run `apply-upward-regrade`, dry run first.
@@ -126,11 +129,12 @@ Nothing here has been deployed, and no operator script has been run.
 - **Live Challenge:**
   - Remove a student from a running game, N53 (3–5 days).
   - The console reads a game's report once, when the room finishes; a report written a moment later shows only after a refresh (half a day).
+- **Recovery (RC01's next shapes):** L1 Day 2 exit ticket Q1 (intervals) and Q3 (the filling tank), L3 Warm-Up Q1 and exit ticket Q1–Q3, L4 Warm-Up Q1 and exit ticket Q1–Q2, the rest of the District DOL 1 review (figure sorts, the vertex choice, five function-characteristics boards, the sequence question) and the ALEKS bridge lesson (2–3 days).
 - **Coordinate plane** (found by N60, on laptops too):
   - On a zoomed plane the keyboard crosshair stops at the window's edge, which can fall between grid lines, and Enter plots it there ("Point 1 (4.571429, 0)") (1 hour).
   - On a −10 to 10 grid, pressing the grid point just above or below a placed point picks that point up instead of placing a new one: the pick-up radius (18 drawing units, pinned by planeOnPhone.test.mjs) is wider than one vertical grid step there (14.8) (1 hour).
 - **Accessibility:**
   - AX05: under a Spanish translation a tool's own sentences (the Systems Workspace's region corners, the parabola) and an author's description are still English, with the note. Figure names (`aria-label`) stay English, English words inside a Spanish description are not marked `lang="en"`, and a secure Test field's figures are not covered.
-  - TT27: the administrator tab list, and teacher screens at 200% text and 320 px.
+  - The VPAT's teacher rows still describe TT27's tab list, 200% text and target size as open (30 minutes).
   - The four pointer-only places the VPAT lists.
 - Everything else in REMAINING_WORK_2026-10.md section 3 not named above.
