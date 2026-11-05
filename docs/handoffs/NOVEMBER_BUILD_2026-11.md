@@ -49,6 +49,11 @@ Nothing here has been deployed, and no operator script has been run.
 | AX32 slice 4 | The last pointer-only directions name the keyboard route: Step Algebra's cancellation and placement, the rewrite tools, the graph workspace, the Graph Axis Editor, Graph Scenario Match, the Sequence Explorer and the rush. | `fa23f19c` |
 | A1 M3 T2 L4/L5 feedback | Reasoning choices no longer give the answer away by length: 0 offenders in the four files, down from 44. On all 133 Warm-Up, Classwork and Practice questions hint 1 is a question, and no hint hands over a boundary's two points. 172 slips are named on a miss, in practice only: the symbol turned round, < for ≤, a wrong intercept sign. Two Honors back-up steps no longer offer a box's own answer. | `81e1c05a`, `965f3e75`, `185a494e` |
 | AX05 slice 2 | Under an authored Spanish translation, every figure is read in Spanish: a closed question's graph and the graph read-out, the 3D model (each plane by its colour, its equation in Spanish words), the graph workspace's points and strokes, and process mode's row chooser and table to extend. The six figures' hidden screen-reader descriptions are in Spanish, marked `lang="es"`. The English readings are unchanged, checked on 17,000 random graphs. | `cb375b69`, `adda4b0c`, `1f7ef20f`, `20c8b906` |
+| Review My Work offline (PF01) | Offline, the result page stays: the grade, section scores, Up next and the buttons. Only Review My Work's place says it needs a connection, with Try again; back online it loads and moves focus to its heading. | `e8865b72`, `9dccffeb` |
+| Inequality example | An inequality box's example is `y ≥ mx + b` where the student reads both x and y, and `a ≤ x ≤ b` elsewhere. Neither is a key in any version of any lesson, and the old example, `0 ≤ x ≤ 4`, can be one (a Path family draws it). Secure fields still show none. | `75c7bc4a` |
+| Keypad on one-try sections (N56) | On an exit ticket, quiz or test before release, the keypad has no "Needed for this answer" row, every box of a type gets the same keys, and the letters come from what the student reads, plus x and y. The import read a template filter (`{{m|pow}}`) as the letters m, p, o and w; it no longer does. Practice and classwork keep their scaffold, and grading is unchanged. | `456c405a` |
+| Systems Workspace, one inequality | The model step, the graph's name and the closed review say "the inequality", not "the system". | `53e27452` |
+| Radicals: the last choices typed | Ten more Check Your Progress values are typed: L1 CW 7, L2 CW 8, 10 and 11, and L3 CW 3, 4, 6, 7, 8 and 9. Example D gives each root its own box, so the order is never a guess. 21 more slips are named, 80 in the three lessons. | `24b2fac1` |
 
 ## 3. Checked, with no change needed
 
@@ -66,6 +71,7 @@ Nothing here has been deployed, and no operator script has been run.
    - **Algebra II Honors radicals L1, L2, L3, only after Hosting is live.** An older client reads the new slips against every box, right ones included.
    - **Algebra I M3 T2: L4 and L5, regular and Honors, only after Hosting is live**, for the same reason.
    - Algebra I M2 T2: L2 and L3 (regular).
+   - Any lesson imported again also takes the keypad fix: 35 keys in 13 lesson files lose the stray letters m, p, o and w. Until then, an assignment already imported keeps them in practice.
 
 ## 5. Waiting on the owner
 
@@ -85,6 +91,9 @@ Nothing here has been deployed, and no operator script has been run.
   - "Colocaste", "Dibujaste", "Seleccionaste"; "Tu curva está dibujada a través de tus puntos";
   - "Elige dos filas: primero la fila 1 y luego la fila 2"; "elegida como fila 2"; "Filas para elegir"; "Tabla para continuar".
   - The reader says "entre negativo 4 y menos 2": a sign after "y" or "o" is read as a subtraction. Choose "negativo" or "menos" for a sign, and the reader can follow.
+- **Live Challenge pause and auto-end (LC17).** In October the decision was "Not now" for pause/resume and a server-side round close. Both are built and tested, but they are not on this branch until you say so:
+  - **N43, pause:** the host's Pause and Resume, honoured by every screen and the server. Answers sent during a pause are kept and sent on resume, and the clock gives back exactly the time that was left.
+  - **N73, auto-end:** after 30 minutes with no teacher screen, the server cancels a lobby nobody started (the students' banner goes away) and finishes a Pace Race round as End Game would.
 - **Only the owner can:**
   - **SI01 (N04).** Turn on the class-scoped assignment reads (Administration → Classes), then run `node scripts/report-assignment-key-exposure.mjs --project <id>`. Until then the answer-key split runs in shadow, and a student's device can read each item's key and worked steps.
   - **N05.** Run the re-grade report, read it, then run `apply-upward-regrade`, dry run first.
@@ -95,17 +104,13 @@ Nothing here has been deployed, and no operator script has been run.
 ## 6. What remains
 
 - **Platform:**
-  - Review My Work has its own large chunk that is not prefetched, so offline it shows "Try again" before it has loaded once. It needs a boundary of its own (half a day).
-  - The default inequality placeholder "0 ≤ x ≤ 4" should be a two-variable shape when the prompt names x and y, and never a key (2 hours).
-  - Systems Workspace: the closed review still says "the whole system" for one inequality, and the model button says "Graph these constraints" with one constraint (1 hour).
+  - Nine boxes in A1 M3 T2 L4/L5 still show the one-variable example, though their answers use x and y: five whose labels say "With y alone", and L5 PR 10's four, whose prompt names neither letter. An authored example fixes them, as L4's graph boxes have (1 hour).
+  - In practice, a key with ≥ also puts = in the "Needed for this answer" row (1 hour).
 - **Content:**
   - Prose choices in 22 other lesson files hold the answer by length: 94 choices, listed by the ratchet (1 day).
-  - Choices that remain choices: L1 CW 6, L2 CW 8, and the Check Your Progress halves of L2 CW 10 and 11 (2 hours).
   - Personal Check Your Progress per student, N34 (1 day).
 - **Live Challenge:**
   - Group where wrong rush taps land, N42 (1–2 days).
-  - A host pause and resume, N43 (1–2 days).
-  - End a lobby or Pace Race round nobody returns to, N73 (half a day).
   - Remove a student from a running game, N53 (3–5 days).
   - Class memory for the other games, N80 (1 day).
 - **Accessibility:**
