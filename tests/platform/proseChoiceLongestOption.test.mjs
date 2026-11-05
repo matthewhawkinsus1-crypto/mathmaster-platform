@@ -12,7 +12,8 @@
  * This reads every prose choice in teacher-import-jsons (options that average
  * 25 characters or more, as the file writes them) and flags one whose key is
  * the unique longest option by more than 20%. The Algebra II Honors radicals
- * lessons have none. Every other lesson's count is a ratchet: it may go down,
+ * lessons and the Algebra I Module 3 Topic 2 Lessons 4 and 5 (regular and
+ * Honors) have none. Every other lesson's count is a ratchet: it may go down,
  * never up, and a lesson not listed has none.
  */
 import test from 'node:test';
@@ -66,8 +67,9 @@ const offenders = (file) => choicesOf(JSON.parse(readFileSync(path.join(LESSONS,
 /*
  * THE RATCHET: each other lesson's offenders when this check was written
  * (138 in 26 files). A rewrite lowers its number here; nothing raises one.
- * The four Algebra I Module 3 Topic 2 Lesson 4 and 5 files are being
- * rewritten for this finding by another batch, which lowers their numbers.
+ * The four Algebra I Module 3 Topic 2 Lesson 4 and 5 files held 44 of them;
+ * their rewrite took every one to 0, so they left the ratchet (94 in 22
+ * files now) and are held to none by the test after the radicals'.
  */
 const RATCHET = Object.freeze({
   'algebra1-dol3/Algebra1_DOL3_Review_Honors.json': 1,
@@ -82,11 +84,6 @@ const RATCHET = Object.freeze({
   'algebra1-module3/T2_L1_Solving_Systems_by_Graphing_Honors.json': 9,
   'algebra1-module3/T2_L2_Solving_Systems_by_Substitution.json': 13,
   'algebra1-module3/T2_L2_Solving_Systems_by_Substitution_Honors.json': 12,
-  // Another batch's rewrite (Algebra I M3 T2 L4 and L5, regular and Honors).
-  'algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json': 10,
-  'algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables_Honors.json': 11,
-  'algebra1-module3/T2_L5_Systems_of_Linear_Inequalities.json': 11,
-  'algebra1-module3/T2_L5_Systems_of_Linear_Inequalities_Honors.json': 12,
   'algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json': 1,
   'algebra2-honors-module2/L1_Operations_on_Polynomials.json': 1,
   'algebra2-honors-module2/L2_Dividing_Polynomials.json': 3,
@@ -101,6 +98,11 @@ const RATCHET = Object.freeze({
 
 const RADICALS = ['L1_nth_Roots.json', 'L2_Operations_with_Radical_Expressions.json', 'L3_Rational_Exponents.json']
   .map((name) => `algebra2-honors-radicals/${name}`);
+// Algebra I M3 T2 L4 and L5: 44 offenders in all before their rewrite.
+const INEQUALITIES = [
+  'T2_L4_Graphing_Inequalities_in_Two_Variables.json', 'T2_L4_Graphing_Inequalities_in_Two_Variables_Honors.json',
+  'T2_L5_Systems_of_Linear_Inequalities.json', 'T2_L5_Systems_of_Linear_Inequalities_Honors.json',
+].map((name) => `algebra1-module3/${name}`);
 
 test('what counts: a prose choice whose key is the unique longest option by more than 20%', () => {
   const choice = (key, ...others) => ({ options: [key, ...others], key });
@@ -123,6 +125,18 @@ test('the Algebra II Honors radicals lessons: no reasoning choice gives its key 
     const prose = choicesOf(JSON.parse(readFileSync(path.join(LESSONS, file), 'utf8'))).filter(isProse);
     assert.ok(prose.length >= 8, `${file}: ${prose.length} prose choices read`);
     assert.deepEqual(offenders(file), [], file);
+  });
+});
+
+test('Algebra I M3 T2 Lessons 4 and 5: no reasoning choice gives its key away by length', () => {
+  // Each distractor is a claim with a reason, wrong in one way ("No — it is
+  // below the line, because 6.5 + 5.5 is less than 20"), so the key, which
+  // carries a reason, no longer stands out among bare claims.
+  INEQUALITIES.forEach((file) => {
+    const prose = choicesOf(JSON.parse(readFileSync(path.join(LESSONS, file), 'utf8'))).filter(isProse);
+    assert.ok(prose.length >= 16, `${file}: ${prose.length} prose choices read`);
+    assert.deepEqual(offenders(file), [], file);
+    assert.equal(RATCHET[file], undefined, `${file} is held to none, not to a ratchet`);
   });
 });
 

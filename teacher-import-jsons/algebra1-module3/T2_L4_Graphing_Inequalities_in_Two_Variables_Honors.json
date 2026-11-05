@@ -710,7 +710,7 @@
                 "on or above the line 2x + 3y = 20",
                 "below the line 2x + 3y = 20",
                 "only on the line 2x + 3y = 20",
-                "on the y-axis"
+                "on or below the line 2x + 3y = 20"
               ],
               "answer": "on or above the line 2x + 3y = 20"
             }
@@ -772,9 +772,9 @@
               "type": "choice",
               "options": [
                 "The equation’s solutions are only the points on the line; the inequality’s are the line and the half-plane above it",
-                "They are the same points",
-                "The inequality has fewer solutions than the equation",
-                "The equation’s solutions are the half-plane above the line"
+                "The equation’s solutions are only the points on the line; the inequality’s are the half-plane above it, not the line",
+                "The equation’s solutions are the line and the half-plane above it; the inequality’s are only the points on the line",
+                "The equation’s solutions are the points on the line; the inequality’s are the same points, since both use 2x + 3y"
               ],
               "answer": "The equation’s solutions are only the points on the line; the inequality’s are the line and the half-plane above it"
             },
@@ -789,12 +789,12 @@
               "label": "Does (6.5, 5.5) make sense as a solution for Kai?",
               "type": "choice",
               "options": [
-                "No — it satisfies the inequality, but Kai cannot make half of a shot, so only whole numbers make sense",
-                "Yes — every point in the shaded half-plane makes sense",
-                "No — it is below the line",
-                "Yes — Kai can make any number of shots"
+                "No — it satisfies the inequality, but Kai cannot make half of a shot",
+                "Yes — it satisfies the inequality, so it is a combination Kai can make",
+                "No — it is below the line, because 6.5 + 5.5 is less than 20",
+                "Yes — Kai can make any number of shots, so decimals make sense too"
               ],
-              "answer": "No — it satisfies the inequality, but Kai cannot make half of a shot, so only whole numbers make sense"
+              "answer": "No — it satisfies the inequality, but Kai cannot make half of a shot"
             },
             {
               "id": "below",
@@ -814,9 +814,9 @@
               "type": "choice",
               "options": [
                 "(2, 3) is below the line and misses the goal; (1, 6) is on the line and meets it exactly",
-                "(2, 3) is on the line; (1, 6) is below it",
-                "Both points miss the goal",
-                "Both points are above the line"
+                "(2, 3) is on the line and meets the goal exactly; (1, 6) is below the line and misses it",
+                "(2, 3) is below the line and misses the goal; (1, 6) is on the line, so it misses it too",
+                "(2, 3) is above the line and beats the goal; (1, 6) is on the line and meets it exactly"
               ],
               "answer": "(2, 3) is below the line and misses the goal; (1, 6) is on the line and meets it exactly"
             }
@@ -1457,9 +1457,9 @@
               "type": "choice",
               "options": [
                 "true, and (0, 0) is in the shaded half-plane",
-                "false, so (0, 0) is not shaded",
-                "true, so the line is dashed",
-                "impossible to test"
+                "false, so (0, 0) is not in the shaded half-plane",
+                "true, but (0, 0) is not in the shaded half-plane",
+                "true, so the boundary line must be dashed"
               ],
               "answer": "true, and (0, 0) is in the shaded half-plane"
             }
@@ -1734,12 +1734,12 @@
               "label": "Why that symbol?",
               "type": "choice",
               "options": [
-                "He can use the whole card or less of it, so the combinations are on or below the line",
-                "He must spend more than $50",
-                "He must use exactly $50",
-                "Calls to Mexico cost less"
+                "He can use the whole card or less, so the combinations are on or below the line",
+                "He must use more than the whole card, so the combinations are above the line",
+                "He must use exactly the whole card, so the combinations are only on the line",
+                "He can use less than the card but not all of it, so they are only below the line"
               ],
-              "answer": "He can use the whole card or less of it, so the combinations are on or below the line"
+              "answer": "He can use the whole card or less, so the combinations are on or below the line"
             }
           ],
           "hints": [
@@ -1897,7 +1897,7 @@
               "type": "choice",
               "options": [
                 "No — that costs $60, more than the card",
-                "Yes — it costs $45.50",
+                "Yes — 180 minutes at $0.20 cost only $36",
                 "Yes — 180 minutes is less than 250",
                 "No — calls to Mexico are not allowed"
               ],
@@ -1909,9 +1909,9 @@
               "type": "choice",
               "options": [
                 "Yes — that costs $45.50, which is at most $50",
-                "No — that costs $60",
-                "No — the point is above the line",
-                "Yes — any 145 minutes fit"
+                "No — that costs $56, which is more than $50",
+                "No — (90, 55) is above the line, so it costs too much",
+                "Yes — 145 minutes is fewer than 250, so it fits"
               ],
               "answer": "Yes — that costs $45.50, which is at most $50"
             },
@@ -1921,7 +1921,7 @@
               "type": "choice",
               "options": [
                 "combinations that use exactly the whole $50",
-                "combinations he cannot afford",
+                "combinations that cost more than he can afford",
                 "combinations that leave money on the card",
                 "only calls to Mexico"
               ],
@@ -1945,7 +1945,7 @@
               "type": "choice",
               "options": [
                 "combinations that leave money on the card",
-                "combinations that cost more than $50",
+                "combinations that cost more than the $50 card",
                 "combinations that use exactly $50",
                 "negative minutes"
               ],
@@ -2008,9 +2008,9 @@
               "type": "choice",
               "options": [
                 "dashed line, shade below (test (0, 0): 0 < 12 is true)",
-                "solid line, shade below",
-                "dashed line, shade above",
-                "solid line, shade above"
+                "solid line, shade below (test (0, 0): 0 < 12 is true)",
+                "dashed line, shade above (test (0, 0): 0 < 12 is true)",
+                "dashed line, shade above (test (0, 0): 0 < 12 is false)"
               ],
               "answer": "dashed line, shade below (test (0, 0): 0 < 12 is true)"
             },
@@ -2019,12 +2019,12 @@
               "label": "x + y ≤ 12",
               "type": "choice",
               "options": [
-                "solid line, shade below",
-                "dashed line, shade below",
-                "solid line, shade above",
-                "dashed line, shade above"
+                "solid line, shade below (test (0, 0): 0 ≤ 12 is true)",
+                "dashed line, shade below (test (0, 0): 0 ≤ 12 is true)",
+                "solid line, shade above (test (0, 0): 0 ≤ 12 is true)",
+                "solid line, shade above (test (0, 0): 0 ≤ 12 is false)"
               ],
-              "answer": "solid line, shade below"
+              "answer": "solid line, shade below (test (0, 0): 0 ≤ 12 is true)"
             },
             {
               "id": "gt12",
@@ -2032,9 +2032,9 @@
               "type": "choice",
               "options": [
                 "dashed line, shade above (test (0, 0): 0 > 12 is false)",
-                "solid line, shade above",
-                "dashed line, shade below",
-                "solid line, shade below"
+                "solid line, shade above (test (0, 0): 0 > 12 is false)",
+                "dashed line, shade below (test (0, 0): 0 > 12 is false)",
+                "dashed line, shade below (test (0, 0): 0 > 12 is true)"
               ],
               "answer": "dashed line, shade above (test (0, 0): 0 > 12 is false)"
             },
@@ -2808,9 +2808,9 @@
               "type": "choice",
               "options": [
                 "The line should be dashed, because < does not include the boundary",
-                "The shading should be above the line",
-                "The slope should be 2",
-                "There is no error"
+                "The shading should be above the line, because the slope is negative",
+                "The slope should be 2, because the line falls from left to right",
+                "There is no error, because < includes the points on the boundary"
               ],
               "answer": "The line should be dashed, because < does not include the boundary"
             },
@@ -2820,9 +2820,9 @@
               "type": "choice",
               "options": [
                 "true, so the shading below (with the origin) is correct",
-                "false, so the shading is wrong",
-                "true, so the line is solid",
-                "not useful here"
+                "false, so the shading below (with the origin) is wrong",
+                "true, so the solid line and the shading are both correct",
+                "not useful here, because the origin is on the boundary"
               ],
               "answer": "true, so the shading below (with the origin) is correct"
             }
@@ -3335,9 +3335,9 @@
               "type": "choice",
               "options": [
                 "Dividing both sides by −4 reverses the inequality",
-                "Subtracting 3x reverses it",
-                "The slope is positive",
-                "It does not change"
+                "Subtracting 3x from both sides reverses the inequality",
+                "The slope 3/4 is positive, so the inequality reverses",
+                "It does not change: dividing keeps the symbol the same"
               ],
               "answer": "Dividing both sides by −4 reverses the inequality"
             }
