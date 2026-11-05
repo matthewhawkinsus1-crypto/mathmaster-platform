@@ -48,6 +48,7 @@ Nothing here has been deployed, and no operator script has been run.
 | AX10 slice 2 | Read aloud reads the Regression Calculator's tables and the LMR board's process-mode pickers. | `2ca1cc7b` |
 | AX32 slice 4 | The last pointer-only directions name the keyboard route: Step Algebra's cancellation and placement, the rewrite tools, the graph workspace, the Graph Axis Editor, Graph Scenario Match, the Sequence Explorer and the rush. | `fa23f19c` |
 | A1 M3 T2 L4/L5 feedback | Reasoning choices no longer give the answer away by length: 0 offenders in the four files, down from 44. On all 133 Warm-Up, Classwork and Practice questions hint 1 is a question, and no hint hands over a boundary's two points. 172 slips are named on a miss, in practice only: the symbol turned round, < for ≤, a wrong intercept sign. Two Honors back-up steps no longer offer a box's own answer. | `81e1c05a`, `965f3e75`, `185a494e` |
+| AX05 slice 2 | Under an authored Spanish translation, every figure is read in Spanish: a closed question's graph and the graph read-out, the 3D model (each plane by its colour, its equation in Spanish words), the graph workspace's points and strokes, and process mode's row chooser and table to extend. The six figures' hidden screen-reader descriptions are in Spanish, marked `lang="es"`. The English readings are unchanged, checked on 17,000 random graphs. | `cb375b69`, `adda4b0c`, `1f7ef20f`, `20c8b906` |
 
 ## 3. Checked, with no change needed
 
@@ -77,6 +78,13 @@ Nothing here has been deployed, and no operator script has been run.
 - **Systems Workspace practice credit.** On practice, a wrong model can no longer be graphed, so a student who submits without fixing it loses the follow-through credit for graphing their own model. That credit is still reachable on an exit ticket, quiz or test, where nothing is checked early. Keep the walkthrough's fix, or let the model be graphed as written?
 - **TS05's remaining keys.** Add a multiplication key, subscripts and ⁿ√ to the phone pads, and take letters from the prompt's words. Then the secure fields can move to the editor.
 - **The g(x) line in point maps.** CT04 removed the dashed g(x) from Algebra I M2 T2 L2 PR 10, because students could read y off it. The Algebra II Honors point maps (L2 Day 2, DOL #2 WU 2) still draw it.
+- **The Spanish wording (AX05 slice 2), for a Spanish-speaking teacher to read.** The new phrases:
+  - "fuera de la ventana" for off the graph; "esquinas", not "vértices"; "punto alto" and "punto bajo", not "máximo" and "mínimo";
+  - "La región por debajo de la recta 1 está sombreada"; "Recta vertical discontinua que pasa por 3 en el eje x"; "recta discontinua" where two planes cross;
+  - "La línea poligonal 1 pasa por…"; "punta de flecha … que apunta hacia arriba y a la izquierda"; "Modelo 3D con los ejes x, y, z"; "oculto";
+  - "Colocaste", "Dibujaste", "Seleccionaste"; "Tu curva está dibujada a través de tus puntos";
+  - "Elige dos filas: primero la fila 1 y luego la fila 2"; "elegida como fila 2"; "Filas para elegir"; "Tabla para continuar".
+  - The reader says "entre negativo 4 y menos 2": a sign after "y" or "o" is read as a subtraction. Choose "negativo" or "menos" for a sign, and the reader can follow.
 - **Only the owner can:**
   - **SI01 (N04).** Turn on the class-scoped assignment reads (Administration → Classes), then run `node scripts/report-assignment-key-exposure.mjs --project <id>`. Until then the answer-key split runs in shadow, and a student's device can read each item's key and worked steps.
   - **N05.** Run the re-grade report, read it, then run `apply-upward-regrade`, dry run first.
@@ -91,8 +99,7 @@ Nothing here has been deployed, and no operator script has been run.
   - The default inequality placeholder "0 ≤ x ≤ 4" should be a two-variable shape when the prompt names x and y, and never a key (2 hours).
   - Systems Workspace: the closed review still says "the whole system" for one inequality, and the model button says "Graph these constraints" with one constraint (1 hour).
 - **Content:**
-  - Prose choices in the other lessons hold the answer by length. The ratchet lists them; the A1 M3 T2 L4/L5 files are first (1 day).
-  - Hints that give a boundary's points: L4 CW 2 hint 2, L5 PR 8 hint 3 (1 hour).
+  - Prose choices in 22 other lesson files hold the answer by length: 94 choices, listed by the ratchet (1 day).
   - Choices that remain choices: L1 CW 6, L2 CW 8, and the Check Your Progress halves of L2 CW 10 and 11 (2 hours).
   - Personal Check Your Progress per student, N34 (1 day).
 - **Live Challenge:**
@@ -102,7 +109,7 @@ Nothing here has been deployed, and no operator script has been run.
   - Remove a student from a running game, N53 (3–5 days).
   - Class memory for the other games, N80 (1 day).
 - **Accessibility:**
-  - AX05 slice 2: Spanish for closed-question readings, the 3D model and graph workspace, `lang="es"` descriptions, and the two new table readings. About two and a half days, plus a Spanish-speaking teacher's review.
+  - AX05: under a Spanish translation a tool's own sentences (the Systems Workspace's region corners, the parabola) and an author's description are still English, with the note. Figure names (`aria-label`) stay English, English words inside a Spanish description are not marked `lang="en"`, and a secure Test field's figures are not covered.
   - TT27: the administrator tab list, and teacher screens at 200% text and 320 px.
   - The four pointer-only places the VPAT lists.
 - Everything else in REMAINING_WORK_2026-10.md section 3 not named above.
