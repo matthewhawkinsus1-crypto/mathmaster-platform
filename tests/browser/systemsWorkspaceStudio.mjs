@@ -131,7 +131,8 @@ const lastGrade = async (page) => (await page.evaluate(() => window.__mmGraded))
 const chips = (page) => page.locator('[data-boundary-point]:visible').allInnerTexts().then((texts) => texts.map((text) => text.replace('×', '').trim()));
 const status = (page, index) => page.locator(`[data-constraint-index="${index}"] .mm-ineq-card-status-text`).innerText();
 
-const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality system"]';
+// "…of the inequality system", or with one constraint "…of the inequality" (inequalitySystemWords.js).
+const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality"]';
 const BUILD = { xMin: -6, xMax: 8, yMin: -4, yMax: 10 };
 
 /**
@@ -629,7 +630,7 @@ const modeling = async () => {
   const page = await open('kai');
   check(await cursor(page) === 'model', 'modeling: the question opens on writing the model');
   await writeModel(page, [2, 3, '<=', 20]);
-  await press(page, 'Graph these constraints');
+  await press(page, 'Graph this inequality');
   const said = await bodyText(page);
   check(said.includes('“At least 20 points” means 20 points or more: ≥.') && await cursor(page) === 'model',
     'modeling: ≤ for "at least 20" is called out in the situation\'s words, and the student stays on the model', await cursor(page));
@@ -637,7 +638,7 @@ const modeling = async () => {
   await page.getByLabel('Constraint 1: relation', { exact: true }).selectOption('>=');
   await settle(page, 200);
   check(!(await bodyText(page)).includes('means 20 points or more'), 'modeling: the line goes with the row it was about');
-  await press(page, 'Graph these constraints');
+  await press(page, 'Graph this inequality');
   check(await cursor(page) === 'c0:boundary', 'modeling: the right model is graphed, and the boundary step opens', await cursor(page));
   await buildKai(page, [8, 8]);
   check(await cursor(page) === 'combine', 'modeling: the graph of the right model is built step by step', await cursor(page));
@@ -666,7 +667,7 @@ const modelingEquivalent = async () => {
   // −2x − 3y ≤ −20 is 2x + 3y ≥ 20 with every sign switched: the grader accepts it, so the step does.
   const page = await open('kai');
   await writeModel(page, [-2, -3, '<=', -20]);
-  await press(page, 'Graph these constraints');
+  await press(page, 'Graph this inequality');
   check(await cursor(page) === 'c0:boundary' && !MODEL_VERDICT.test(await bodyText(page)), 'modeling: an equivalent model passes, with nothing said against it', await cursor(page));
 };
 
@@ -675,7 +676,7 @@ const modelingDol = async () => {
   // model is graphed as written, every step is recorded, and Submit grades it.
   const page = await open('kai', { role: 'dol' });
   await writeModel(page, [2, 3, '<=', 20]);
-  await press(page, 'Graph these constraints');
+  await press(page, 'Graph this inequality');
   check(await cursor(page) === 'c0:boundary', 'modeling (DOL): the model is graphed as written', await cursor(page));
   await buildKai(page, [1, 1]);
   check((await bodyText(page)).includes('Your inequality is built. Check your region to see it on the graph.'), 'modeling (DOL): the region opens on finished work, in one inequality\'s words');

@@ -12,7 +12,10 @@
  * always did; wordsFor(count) gives the one-constraint sentence for it. Every
  * sentence here is one the screen says (tests/platform/
  * inequalitySystemWords.test.mjs holds the two together), so an edited system
- * sentence cannot quietly lose its one-constraint wording.
+ * sentence cannot quietly lose its one-constraint wording. The model step
+ * ("Graph this inequality"), the graph's name and the closed solution review
+ * (tools/shared/reviews/systemsWorkspaceReview.js: "Inequality solution", "a
+ * solution?") follow it too, since the November build's notes.
  *
  * No React here.
  */
@@ -49,6 +52,39 @@ export const ONE_CONSTRAINT_WORDS = Object.freeze({
     'A region is unbounded when the inequality leaves a direction open forever. If no point satisfies the inequality, there is no solution.',
   'Solid means the boundary is included (≤ or ≥). Dashed means it is not (< or >). Shade the side where a point makes the original inequality true, then check a point in that shaded region against every inequality to find the system solution.':
     'Solid means the boundary is included (≤ or ≥). Dashed means it is not (< or >). Shade the side where a point makes the original inequality true, then check a point in that shaded region against the inequality.',
+  // The model step (StudentBuildInequalityMode.jsx; its title is
+  // inequalityBuildFlow.js STEP_LABELS.model).
+  'Write the constraints': 'Write the inequality',
+  'Write each constraint, then graph them.': 'Write the inequality, then graph it.',
+  'write each constraint.': 'write the inequality.',
+  'Graph these constraints': 'Graph this inequality',
+  'Every constraint needs both coefficients, a relation and a constant.': 'The inequality needs both coefficients, a relation and a constant.',
+  'Edit constraints': 'Edit the inequality',
+  // The graph's name, which the browser drivers find it by.
+  'the inequality system': 'the inequality',
+  // The closed solution review (tools/shared/reviews/systemsWorkspaceReview.js).
+  'Inequality-system solution': 'Inequality solution',
+  'Write one inequality for each condition': 'Write an inequality for the condition',
+  'Enter each one\'s coefficients, symbol and constant, then send your model.': 'Enter its coefficients, symbol and constant, then send your model.',
+  'Rewrite each constraint with': 'Rewrite the inequality with',
+  'The shaded sides overlap in a region that keeps going without end in at least one direction, so it is an unbounded region.':
+    'The shaded side keeps going without end in at least one direction, so it is an unbounded region.',
+  'It satisfies every constraint, so it is a solution of the system.': 'It satisfies the inequality, so it is a solution.',
+  'It fails at least one constraint, so it is not a solution of the system.': 'It fails the inequality, so it is not a solution.',
+  'each inequality': 'the inequality',
+  'the whole system': 'a solution?',
+  'included in the solution region, because it satisfies every constraint': 'included in the solution region, because it satisfies the inequality',
+  'not included in the solution region, because it fails a constraint': 'not included in the solution region, because it fails the inequality',
+  'A point solves the system exactly when it satisfies every constraint, so the solution region is the overlap of the shaded sides; a boundary point belongs to it only where its line is solid.':
+    'A point solves the inequality exactly when it makes it true, so the solution region is the shaded side; a boundary point belongs to it only where its line is solid.',
+  // The legacy review (a given y = mx + b boundary).
+  'in each inequality': 'in the inequality',
+  'It satisfies every inequality, so it is in the feasible region.': 'It satisfies the inequality, so it is in the feasible region.',
+  'inside the overlap': 'inside the shaded region',
+  'Any point that satisfies every inequality': 'Any point that satisfies the inequality',
+  'Any point that makes every inequality true is accepted, not only the example.': 'Any point that makes the inequality true is accepted, not only the example.',
+  'A point is a solution of the system exactly when it makes every inequality true; the boundary belongs to the region only for ≤ or ≥.':
+    'A point is a solution exactly when it makes the inequality true; the boundary belongs to the region only for ≤ or ≥.',
 });
 
 /** The words for a workspace of `constraintCount` constraints: the system sentence, or its one-constraint wording. */

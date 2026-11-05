@@ -736,8 +736,8 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const emphasised = (index) => flow.activeIndex == null || flow.activeIndex === index;
   const hatchId = `mm-ineq-overlap-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   // Named for what a tap will do, after a fixed prefix the browser gates find
-  // the plane by.
-  const graphLabel = `Student-constructed graph of the inequality system${(() => {
+  // the plane by ("Student-constructed graph of the inequality", one or more).
+  const graphLabel = `Student-constructed graph of ${said('the inequality system')}${(() => {
     if (tapAction.kind === 'boundaryPoint') return `. Plot ${tapAction.method === 'slopeIntercept' && tapAction.which === 1 ? 'the y-intercept' : `boundary point ${tapAction.which}`} for constraint ${tapAction.index + 1}`;
     if (tapAction.kind === 'boundaryFull') return `. Both boundary points of constraint ${tapAction.index + 1} are placed`;
     if (tapAction.kind === 'shade') return `. Choose the side to shade for constraint ${tapAction.index + 1}`;
@@ -901,7 +901,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       if (parsedCursor.step === 'boundary') return `${prefix}${lowerFirst(boundaryInstruction(build[parsedCursor.index]?.method))}`;
       return `${prefix}${lowerFirst(STEP_INSTRUCTIONS[parsedCursor.step])}`;
     }
-    if (cursor === 'model') return 'Write each constraint, then graph them.';
+    if (cursor === 'model') return said('Write each constraint, then graph them.');
     if (cursor === 'combine') return said('Show where the shaded regions overlap.');
     if (cursor === 'classify') return said('Classify the combined solution region.');
     if (cursor === 'teacherPoint') return said('Test the marked point against each inequality.');
@@ -973,16 +973,16 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
           </CoordinatePlane>
         )}
       >
-          {modeling ? phaseCard('model', STEP_LABELS.model, (
+          {modeling ? phaseCard('model', said(STEP_LABELS.model), (
             <>
               <p className="mm-ineq-instruction">
-                Using {variables.map((v) => `${v.symbol} = ${v.label || v.symbol}`).join(' and ')}, write each constraint.
+                Using {variables.map((v) => `${v.symbol} = ${v.label || v.symbol}`).join(' and ')}, {said('write each constraint.')}
               </p>
               <ModelingFields entries={modelingEntries} variables={variables} onChange={updateModelingEntry} />
               <div className="mm-ineq-actions">
-                <button type="button" className="mm-ineq-action" onClick={sendModel} disabled={!modelingEntriesReady}>Graph these constraints</button>
+                <button type="button" className="mm-ineq-action" onClick={sendModel} disabled={!modelingEntriesReady}>{said('Graph these constraints')}</button>
               </div>
-              {!modelingEntriesReady ? <p className="mm-ineq-note">Every constraint needs both coefficients, a relation and a constant.</p> : null}
+              {!modelingEntriesReady ? <p className="mm-ineq-note">{said('Every constraint needs both coefficients, a relation and a constant.')}</p> : null}
               <StepFeedback tone="revise">
                 {modelLines.length ? modelLines.map((line, index) => <span key={index} style={{ display: 'block' }}>{line}</span>) : null}
               </StepFeedback>
@@ -990,7 +990,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
           ), modelingSent ? modelingEntries.map((entry) => formatModelingConstraint(entry, variables)).join(';  ') : '') : null}
           {modeling && modelAccepted ? (
             <div className="mm-ineq-actions" style={{ justifyContent: 'flex-end', marginTop: -4 }}>
-              <button type="button" className="mm-ineq-link" onClick={reopenModeling}>Edit constraints</button>
+              <button type="button" className="mm-ineq-link" onClick={reopenModeling}>{said('Edit constraints')}</button>
             </div>
           ) : null}
 

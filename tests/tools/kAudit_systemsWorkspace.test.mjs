@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { all, create } from 'mathjs';
 
 import { buildSystemsWorkspaceReview } from '../../src/tools/shared/reviews/systemsWorkspaceReview.js';
+// The review's words for one constraint ("the inequality", "a solution?").
+import { wordsFor } from '../../src/tools/systemsWorkspace/inequalitySystemWords.js';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 
 /*
@@ -598,6 +600,8 @@ const auditStudentBuild = (question, label) => {
   assert.ok(model, `${label}: a review`);
   assertClean(model, label);
   const constraints = question.inequalities.map(constraintOf);
+  const said = wordsFor(constraints.length);
+  const each = `: ${said('each inequality')}`;
   const work = { build: [], regionClassification: '', vertices: [] };
   work.build = constraints.map((constraint, index) => {
     const k = index + 1;
@@ -635,18 +639,18 @@ const auditStudentBuild = (question, label) => {
   if (hasItem(model, 'Solution region')) {
     work.regionClassification = { 'Bounded region': 'bounded', 'Unbounded region': 'unbounded', 'No solution': 'empty' }[itemValue(model, 'Solution region')];
   }
-  const marked = model.items.find((item) => /^Marked point .*: each inequality$/.test(item.label));
+  const marked = model.items.find((item) => item.label.startsWith('Marked point ') && item.label.endsWith(each));
   if (marked) {
-    const prefix = marked.label.replace(/: each inequality$/, '');
+    const prefix = marked.label.slice(0, -each.length);
     const [point] = pointsIn(prefix);
     const verdicts = constraints.map((constraint) => (satisfies(constraint, point) ? 'Yes' : 'No'));
     assert.equal(marked.value, verdicts.join(', '), `${label}: the marked point, inequality by inequality`);
-    assert.equal(itemValue(model, `${prefix}: the whole system`), verdicts.every((verdict) => verdict === 'Yes') ? 'Yes' : 'No', `${label}: the marked point overall`);
+    assert.equal(itemValue(model, `${prefix}: ${said('the whole system')}`), verdicts.every((verdict) => verdict === 'Yes') ? 'Yes' : 'No', `${label}: the marked point overall`);
     const probe = hasItem(model, `${prefix}: on a boundary line?`);
     if (probe) assert.ok(constraints.some((constraint) => onLine(constraint, point)), `${label}: "on a boundary" only for a point on one`);
     work.teacherPointResponse = {
       perInequality: marked.value.split(', ').map((text) => text.toLowerCase()),
-      overall: itemValue(model, `${prefix}: the whole system`).toLowerCase(),
+      overall: itemValue(model, `${prefix}: ${said('the whole system')}`).toLowerCase(),
       onBoundary: probe ? 'yes' : '',
       boundaryIncluded: probe ? itemValue(model, `${prefix}: included in the region?`).toLowerCase() : '',
     };
@@ -654,7 +658,7 @@ const auditStudentBuild = (question, label) => {
   if (hasItem(model, 'Your own test point (example)')) {
     const [point] = pointsIn(itemValue(model, 'Your own test point (example)'));
     const verdicts = constraints.map((constraint) => (satisfies(constraint, point) ? 'Yes' : 'No'));
-    assert.equal(itemValue(model, 'Your point: each inequality'), verdicts.join(', '), `${label}: own point verdicts`);
+    assert.equal(itemValue(model, `Your point: ${said('each inequality')}`), verdicts.join(', '), `${label}: own point verdicts`);
     work.studentTestPoint = point;
     work.studentPointResponse = { perInequality: verdicts.map((text) => text.toLowerCase()), overall: verdicts.every((verdict) => verdict === 'Yes') ? 'yes' : 'no', onBoundary: '', boundaryIncluded: '' };
   }

@@ -7,6 +7,8 @@ import buildDefault, {
   implemented,
 } from '../../src/tools/shared/reviews/systemsWorkspaceReview.js';
 import { TOOL_REVIEW_BUILDERS } from '../../src/tools/shared/reviews/index.js';
+// The review's words for one constraint ("the inequality", "a solution?").
+import { wordsFor } from '../../src/tools/systemsWorkspace/inequalitySystemWords.js';
 import { buildToolSolutionReviewModel } from '../../src/tools/shared/toolSolutionReview.js';
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { parseNumericAnswer } from '../../functions/shared/toolMath/shared/toolMath.mjs';
@@ -391,13 +393,15 @@ const studentBuildWork = (question, model) => {
   if (hasItem(model, 'Solution region')) {
     work.regionClassification = { 'Bounded region': 'bounded', 'Unbounded region': 'unbounded', 'No solution': 'empty' }[itemValue(model, 'Solution region')];
   }
-  const marked = model.items.find((item) => /^Marked point .*: each inequality$/.test(item.label));
+  const said = wordsFor(count);
+  const each = `: ${said('each inequality')}`;
+  const marked = model.items.find((item) => item.label.startsWith('Marked point ') && item.label.endsWith(each));
   if (marked) {
-    const prefix = marked.label.replace(/: each inequality$/, '');
+    const prefix = marked.label.slice(0, -each.length);
     const probe = hasItem(model, `${prefix}: on a boundary line?`);
     work.teacherPointResponse = {
       perInequality: marked.value.split(', ').map(yes),
-      overall: yes(itemValue(model, `${prefix}: the whole system`)),
+      overall: yes(itemValue(model, `${prefix}: ${said('the whole system')}`)),
       onBoundary: probe ? yes(itemValue(model, `${prefix}: on a boundary line?`)) : '',
       boundaryIncluded: probe ? yes(itemValue(model, `${prefix}: included in the region?`)) : '',
     };
@@ -405,8 +409,8 @@ const studentBuildWork = (question, model) => {
   if (hasItem(model, 'Your own test point (example)')) {
     work.studentTestPoint = pointsIn(itemValue(model, 'Your own test point (example)'))[0];
     work.studentPointResponse = {
-      perInequality: itemValue(model, 'Your point: each inequality').split(', ').map(yes),
-      overall: yes(itemValue(model, 'Your point: the whole system')),
+      perInequality: itemValue(model, `Your point: ${said('each inequality')}`).split(', ').map(yes),
+      overall: yes(itemValue(model, `Your point: ${said('the whole system')}`)),
       onBoundary: '', boundaryIncluded: '',
     };
   }
