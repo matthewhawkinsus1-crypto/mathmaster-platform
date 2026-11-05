@@ -311,7 +311,10 @@ const gradeThreeByThree = (question, work) => {
   const key = reductionAnswerKey(system);
   // Algebraic3SystemMode: the authored method, or the student's pick under
   // studentChoice. No pick is the choice screen; any pick other than
-  // elimination renders the substitution workspace.
+  // elimination renders the substitution workspace. A system whose equations
+  // each hold one different variable shows no choice: it is solved equation
+  // by equation and reports 'byEquation' (TL43), graded below as any unique
+  // system is, on its values and its checks.
   const chosen = config.method === 'studentChoice' ? entered(work.method).trim() : config.method;
   if (!chosen) return allOrNothing([{ id: 'method', label: 'Method', isComplete: false, isCorrect: false, response: '' }]);
   if (key.type === 'invalid') {
