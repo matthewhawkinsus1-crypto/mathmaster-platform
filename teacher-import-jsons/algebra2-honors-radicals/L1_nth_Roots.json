@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "Why can it be useful to simplify expressions?",
     "instructions": "nth roots. Every answer is entered in a step-by-step tool: write the radicand as a perfect power, take the root, and decide whether absolute value bars are needed — the tool checks each step. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; \"Simplify\" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the \"Simplify\" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches."
+    "teacherNotes": "Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; \"Simplify\" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the \"Simplify\" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW8’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -650,11 +650,11 @@
           ],
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Example A, then Check Your Progress A. Simplify $\\pm\\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\\pm\\sqrt{9x^8}$.",
+          "prompt": "Example A, then Check Your Progress A. Simplify $\\pm\\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\\pm\\sqrt{9x^8}$: give both square roots.",
           "directionSteps": [
             "Write the radicand as a perfect square.",
             "Name the negative square root too.",
-            "Choose the simplified form of the second expression."
+            "Give both square roots of the second expression."
           ],
           "responses": [
             {
@@ -670,16 +670,18 @@
               "inputProfile": "expression"
             },
             {
-              "id": "cyp",
-              "label": "±√(9x⁸) =",
-              "type": "choice",
-              "options": [
-                "±3x⁶",
-                "±3x⁴",
-                "3x⁴",
-                "±3x²"
-              ],
-              "answer": "±3x⁴"
+              "id": "cypPositive",
+              "label": "The positive square root of 9x⁸",
+              "answer": "3x^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "cypNegative",
+              "label": "The negative square root of 9x⁸",
+              "answer": "-3x^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
@@ -712,9 +714,9 @@
             "reasoning": [
               "16x⁸ = (4x⁴)².",
               "The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.",
-              "9x⁸ = (3x⁴)², so ±√(9x⁸) = ±3x⁴."
+              "9x⁸ = (3x⁴)², so the square roots of 9x⁸ are 3x⁴ and −3x⁴: ±√(9x⁸) = ±3x⁴."
             ],
-            "answerSummary": "±4x⁴; ±3x⁴",
+            "answerSummary": "±4x⁴; 3x⁴ and −3x⁴",
             "commonError": "Taking the square root of the exponent (x⁸ → x^√8) or dividing it by 4: √(x⁸) halves the exponent, x⁴."
           }
         },
@@ -738,7 +740,7 @@
             "Write the radicand as a perfect square.",
             "Take the principal square root and keep the negative sign in front.",
             "Decide whether absolute value bars are needed.",
-            "Choose the simplified form of the second expression."
+            "Simplify the second expression the same way."
           ],
           "responses": [
             {
@@ -768,14 +770,8 @@
             {
               "id": "cyp",
               "label": "−√((a³ + 2)⁸) =",
-              "type": "choice",
-              "options": [
-                "−(a³ + 2)⁴",
-                "−(a³ + 2)⁸",
-                "(a³ + 2)⁴",
-                "(a + 2)⁴"
-              ],
-              "answer": "−(a³ + 2)⁴"
+              "answer": "-(a^3+2)^4",
+              "inputProfile": "expression"
             }
           ],
           "hints": [
@@ -808,7 +804,7 @@
             "reasoning": [
               "(q³ + 5)⁴ = [(q³ + 5)²]², so √((q³ + 5)⁴) = (q³ + 5)², which is never negative.",
               "The opposite of the principal root is −(q³ + 5)².",
-              "In the same way, −√((a³ + 2)⁸) = −(a³ + 2)⁴."
+              "In the same way, (a³ + 2)⁸ = [(a³ + 2)⁴]² and (a³ + 2)⁴ is never negative, so −√((a³ + 2)⁸) = −(a³ + 2)⁴."
             ],
             "answerSummary": "−(q³ + 5)²; −(a³ + 2)⁴",
             "commonError": "Dropping the negative sign, or halving the 3 inside the base: only the outside exponent is halved."
@@ -1012,26 +1008,18 @@
             {
               "id": "sixth",
               "label": "⁶√(t⁶) =",
-              "type": "choice",
-              "options": [
-                "t",
-                "−t",
-                "|t|",
-                "t⁶"
-              ],
-              "answer": "|t|"
+              "answer": "|t|",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             },
             {
               "id": "fourth",
               "label": "⁴√(x⁴) =",
-              "type": "choice",
-              "options": [
-                "x",
-                "−x",
-                "|x|",
-                "1"
-              ],
-              "answer": "|x|"
+              "answer": "|x|",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             },
             {
               "id": "mixed",
@@ -1104,11 +1092,11 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Simplify using absolute value (odd index). Simplify $\\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[3]{27(x+2)^9}$.",
+          "prompt": "Simplify using absolute value (odd index). Simplify $\\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[3]{8(x+2)^{15}}$.",
           "directionSteps": [
             "Write the radicand as a fifth power.",
             "Decide whether absolute value bars are needed.",
-            "Choose the simplified form of the second expression."
+            "Simplify the second expression the same way."
           ],
           "responses": [
             {
@@ -1131,21 +1119,15 @@
             },
             {
               "id": "cyp",
-              "label": "∛(27(x + 2)⁹) =",
-              "type": "choice",
-              "options": [
-                "|3(x + 2)³|",
-                "3(x + 2)³",
-                "|3(x + 2)⁶|",
-                "3(x + 2)⁶"
-              ],
-              "answer": "3(x + 2)³"
+              "label": "∛(8(x + 2)¹⁵) =",
+              "answer": "2(x+2)^5",
+              "inputProfile": "expression"
             }
           ],
           "hints": [
             "243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵.",
             "The index is odd, so no absolute value bars are needed.",
-            "27 = 3³ and (x + 2)⁹ = [(x + 2)³]³."
+            "For the cube root, find the number whose cube is 8, and divide the exponent 15 by the index 3."
           ],
           "scaffold": {
             "prompt": "Let’s back up. For an odd index n, ⁿ√(aⁿ) equals…",
@@ -1160,9 +1142,9 @@
             "reasoning": [
               "243(x + 2)¹⁵ = [3(x + 2)³]⁵.",
               "The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.",
-              "In the same way ∛(27(x + 2)⁹) = 3(x + 2)³."
+              "8(x + 2)¹⁵ = [2(x + 2)⁵]³, and the index is odd again, so ∛(8(x + 2)¹⁵) = 2(x + 2)⁵."
             ],
-            "answerSummary": "3(x + 2)³; 3(x + 2)³",
+            "answerSummary": "3(x + 2)³; 2(x + 2)⁵",
             "commonError": "Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2."
           }
         },

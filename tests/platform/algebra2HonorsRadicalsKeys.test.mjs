@@ -1,16 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
+import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import '../../functions/shared/formSpecificFieldGrading.mjs';
 
 // The answer keys of the Algebra II Honors radicals lessons, recomputed, and
-// two pacing rules from the same review. The lesson test
+// the pacing and scaffolding rules from the same review. The lesson test
 // (algebra2HonorsRadicalsLessons) holds each file to its builder; this one
 // holds the mathematics. Two keys shipped wrong (PR #537 review):
 // L3 CW 6 keyed 168^(8/5) as 3638 (it is 3634.92, so the right 3635 was
 // refused), and L1 PR 1 called b·x^h the positive square root of b²x^(2h) for
 // odd h, where a negative x makes it the negative one.
 
-const lesson = (file) => JSON.parse(readFileSync(new URL(`../../teacher-import-jsons/algebra2-honors-radicals/${file}`, import.meta.url), 'utf8'));
+const fileText = (file) => readFileSync(new URL(`../../teacher-import-jsons/algebra2-honors-radicals/${file}`, import.meta.url), 'utf8');
+const lesson = (file) => JSON.parse(fileText(file));
+const compiledLessons = new Map();
+/** A question as the teacher import compiles it: what students get and the grader reads. */
+const compiledQuestion = (file, questionId) => {
+  if (!compiledLessons.has(file)) compiledLessons.set(file, compileTeacherImport(fileText(file)).questions);
+  return compiledLessons.get(file).find((question) => question.questionId === questionId);
+};
 const find = (node, questionId) => {
   if (Array.isArray(node)) {
     for (const item of node) {
@@ -100,4 +113,79 @@ test('L3 Practice: the band-3 items come before the Honors extension and the CCM
   assert.deepEqual(bands.slice(peak).filter((band) => band < 4), [], `no easier item after the climb: ${bands.join(', ')}`);
   const reduction = practice.findIndex((question) => /Reduce the index/.test(question.prompt));
   assert.ok(reduction >= 0 && reduction < peak, 'the index reduction comes before the extension');
+});
+
+// F-CYP-AS-CHOICE: the "Check Your Progress" half of these items, where the
+// student repeats the example alone, was a choice of four. With three tries it
+// could be guessed, and the student never wrote the simplification the example
+// had just modeled. Each is typed now, in a math box like the example's own; a
+// choice is left only for a decision (bars or no bars, or the reason for
+// them), which asks a question, never for a value ("… =").
+const L1 = 'L1_nth_Roots.json';
+const L2 = 'L2_Operations_with_Radical_Expressions.json';
+const L3 = 'L3_Rational_Exponents.json';
+const CHECK_YOUR_PROGRESS = [
+  [L1, ['a2r1-cw-3', 'a2r1-cw-4', 'a2r1-cw-7', 'a2r1-cw-8']],
+  [L2, ['a2r2-cw-6']],
+  [L3, ['a2r3-cw-2']],
+];
+
+test('Check Your Progress: each simplification is typed in a math box, and a choice is left only for a decision', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, ws: false, hmr: false, watch: null }, appType: 'custom', logLevel: 'silent' });
+  try {
+    const { default: MultiAnswerGrader } = await server.ssrLoadModule('/src/MultiAnswerGrader.jsx');
+    for (const [file, ids] of CHECK_YOUR_PROGRESS) {
+      for (const questionId of ids) {
+        const question = compiledQuestion(file, questionId);
+        const choices = question.answerFields.filter((field) => field.type === 'choice');
+        assert.deepEqual(choices.filter((field) => /=\s*$/.test(field.label)).map((field) => field.label), [], `${questionId}: a choice asks for a value`);
+        // As a student sees it: |t| was drawn as a plain text box, read as the word "t".
+        const typed = question.answerFields.filter((field) => field.type !== 'choice');
+        const markup = renderToStaticMarkup(React.createElement(MultiAnswerGrader, { question, onStateChange() {}, onUndoStateChange() {}, feedback: null, draftKey: null }));
+        assert.equal((markup.match(/<math-field\b/g) || []).length, typed.length, `${questionId}: every typed answer is a math box`);
+        assert.doesNotMatch(markup, /<input\b[^>]*type="text"/, `${questionId}: no answer is a plain text box`);
+      }
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+// Each typed half is graded by value and form: its simplification, as MathLive
+// spells it, is right; the expression copied from the prompt, or the slip the
+// item is about, is not. [file, question, box, right, wrong answers]
+const TYPED_HALVES = [
+  [L1, 'a2r1-cw-4', 'cyp', '-\\left(a^{3}+2\\right)^{4}', ['-\\sqrt{\\left(a^3+2\\right)^8}', '\\left(a^3+2\\right)^4', '-\\left(a^3+2\\right)^8']],
+  [L1, 'a2r1-cw-7', 'sixth', '\\left|t\\right|', ['t', '\\sqrt[6]{t^6}']],
+  [L1, 'a2r1-cw-7', 'fourth', '\\left|x\\right|', ['x', '-x']],
+  [L1, 'a2r1-cw-8', 'cyp', '2\\left(x+2\\right)^{5}', ['\\sqrt[3]{8\\left(x+2\\right)^{15}}', '\\left|2\\left(x+2\\right)^5\\right|', '3\\left(x+2\\right)^3']],
+  [L2, 'a2r2-cw-6', 'first', '\\frac{x\\sqrt{xy}}{y^{4}}', ['\\sqrt{\\frac{x^3}{y^7}}', '\\frac{x\\sqrt{x}}{y^3\\sqrt{y}}']],
+  [L3, 'a2r3-cw-2', 'a', '\\frac{y^{2}z^{2}}{x^{5}}', ['x^{-5}y^2z^2', '\\frac{y^2}{x^5z^2}']],
+  [L3, 'a2r3-cw-2', 'b', 'h^{8}', ['\\frac{h^6}{h^{-2}}', 'h^{6+2}', 'h^4']],
+];
+
+test('Check Your Progress: each typed half takes its simplification and refuses the expression copied or the slip', () => {
+  for (const [file, questionId, fieldId, right, wrongs] of TYPED_HALVES) {
+    const question = compiledQuestion(file, questionId);
+    const key = Object.fromEntries(question.answerFields.map((field) => [field.id, String(field.answer)]));
+    const verdict = (typed) => gradeMultiAnswerResponse(question, { ...key, [fieldId]: typed }).parts.find((part) => part.id === fieldId)?.isCorrect;
+    assert.equal(verdict(right), true, `${questionId} ${fieldId}: ${right} is right`);
+    for (const wrong of wrongs) assert.equal(verdict(wrong), false, `${questionId} ${fieldId}: ${wrong} is not`);
+  }
+});
+
+test('L1 CW 3: ±√(9x⁸) is two typed boxes, the positive root and the negative root, as PR 1 asks', () => {
+  // Never a box that asks a student to type ±: one root in each, each graded alone.
+  const question = compiledQuestion(L1, 'a2r1-cw-3');
+  const key = Object.fromEntries(question.answerFields.map((field) => [field.id, String(field.answer)]));
+  const right = (fieldId, typed) => gradeMultiAnswerResponse(question, { ...key, [fieldId]: typed }).parts.find((part) => part.id === fieldId)?.isCorrect;
+  assert.deepEqual([key.cypPositive, key.cypNegative], ['3x^4', '-3x^4']);
+  assert.equal(right('cypPositive', '3x^{4}'), true);
+  assert.equal(right('cypNegative', '-3x^{4}'), true);
+  assert.equal(right('cypPositive', '-3x^4'), false, 'the positive root is not the negative one');
+  assert.equal(right('cypNegative', '3x^4'), false, 'the negative root is not the positive one');
+  assert.equal(right('cypPositive', '\\pm3x^4'), false, 'one root to a box');
+  assert.equal(right('cypPositive', '\\sqrt{9x^8}'), false, 'the radical retyped is not its simplification');
+  assert.equal(question.answerFields.some((field) => /±/.test(String(field.answer))), false);
 });

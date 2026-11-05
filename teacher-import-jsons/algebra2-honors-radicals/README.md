@@ -48,6 +48,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 ## Slide notes
 
 - Lesson 1: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z². When y can be negative it is 3x²|y⁵|z². Classwork 10 teaches this.
+- Lesson 1: the odd-index Check Your Progress on the slide, ∛(27(x + 2)⁹), is 3(x + 2)³, the example's own answer, so a student could copy it into the box. Classwork 8 asks for ∛(8(x + 2)¹⁵) = 2(x + 2)⁵ instead.
 - Lesson 3: the objectives slide is titled "Rational Expressions" instead of Rational Exponents. The Check Your Progress ⁶√(16x²) = ∛(4x) holds only for x ≥ 0; for every real x it is ∛(4|x|). Classwork 8 states the assumption.
 
 ## These are not the Bluebonnet lessons

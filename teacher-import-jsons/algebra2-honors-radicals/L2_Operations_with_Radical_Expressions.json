@@ -807,7 +807,7 @@
           "difficultyBand": 4,
           "prompt": "Check Your Progress A and B. Simplify $\\sqrt{\\dfrac{x^3}{y^7}}$ and $\\sqrt[3]{\\dfrac{8}{3y^2}}$. Assume $x$ and $y$ are positive.",
           "directionSteps": [
-            "Choose the simplified form of the first quotient.",
+            "Simplify the first quotient.",
             "Find the multiplier for the second denominator.",
             "Simplify the second quotient."
           ],
@@ -815,20 +815,16 @@
             {
               "id": "first",
               "label": "√(x³/y⁷) =",
-              "type": "choice",
-              "options": [
-                "x²√(xy)/y⁸",
-                "x√x/y⁴",
-                "x√(xy)/y⁴",
-                "x√x/(y³√y)"
-              ],
-              "answer": "x√(xy)/y⁴"
+              "answer": "(x√(xy))/y^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             },
             {
               "id": "multiplier",
               "label": "Multiply 3y² by ? to get a perfect cube",
               "answer": "9y",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "second",
@@ -858,7 +854,7 @@
               "3y² · 9y = 27y³, so ∛(8/(3y²)) = ∛8 · ∛(9y)/∛(27y³) = 2∛(9y)/(3y)."
             ],
             "answerSummary": "x√(xy)/y⁴; 2∛(9y)/(3y)",
-            "commonError": "Choosing x√x/(y³√y): it still has a radical in the denominator."
+            "commonError": "Stopping at x√x/(y³√y): it still has a radical in the denominator."
           }
         },
         {

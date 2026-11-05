@@ -481,7 +481,7 @@
           "difficultyBand": 2,
           "prompt": "Check Your Progress A–C. Assume no variable equals 0. Simplify $(x^{-2}y^{-3})(x^{-3}y^5)(z^2)$, $\\dfrac{h^6}{h^{-2}}$ and $\\left(\\dfrac{6r^2}{3s^3}\\right)^2$.",
           "directionSteps": [
-            "Choose the simplified form of the first expression.",
+            "Simplify the first expression.",
             "Simplify the second expression.",
             "Simplify the third expression."
           ],
@@ -489,26 +489,16 @@
             {
               "id": "a",
               "label": "(x⁻²y⁻³)(x⁻³y⁵)(z²) =",
-              "type": "choice",
-              "options": [
-                "y²/(x⁵z²)",
-                "z²/(x⁵y²)",
-                "y²z²/x⁵",
-                "x⁵/(y²z²)"
-              ],
-              "answer": "y²z²/x⁵"
+              "answer": "(y^2z^2)/x^5",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             },
             {
               "id": "b",
               "label": "h⁶/h⁻² =",
-              "type": "choice",
-              "options": [
-                "h⁸",
-                "h²/h⁶",
-                "1/h⁸",
-                "h⁴"
-              ],
-              "answer": "h⁸"
+              "answer": "h^8",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             },
             {
               "id": "c",
@@ -524,12 +514,12 @@
             "Simplify 6/3 inside the parentheses first."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. h⁶ / h⁻² equals…",
+            "prompt": "Let’s back up. m⁵ / m⁻² equals…",
             "options": [
-              "h⁶⁺²",
-              "h⁶⁻²"
+              "m⁵⁺²",
+              "m⁵⁻²"
             ],
-            "correct": "h⁶⁺²"
+            "correct": "m⁵⁺²"
           },
           "solutionReview": {
             "headline": "Same rules, mind the signs.",
@@ -539,7 +529,7 @@
               "(6r²/(3s³))² = (2r²/s³)² = 4r⁴/s⁶."
             ],
             "answerSummary": "y²z²/x⁵; h⁸; 4r⁴/s⁶",
-            "commonError": "Choosing 4r⁴/s⁹: (s³)² is s⁶, not s⁹."
+            "commonError": "Writing 4r⁴/s⁹: (s³)² is s⁶, not s⁹."
           }
         },
         {

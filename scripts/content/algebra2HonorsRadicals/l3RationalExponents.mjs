@@ -151,19 +151,22 @@ const classwork = [
     dok: 2,
     difficultyBand: 2,
     prompt: tex`Check Your Progress A–C. Assume no variable equals 0. Simplify $(x^{-2}y^{-3})(x^{-3}y^5)(z^2)$, $\dfrac{h^6}{h^{-2}}$ and $\left(\dfrac{6r^2}{3s^3}\right)^2$.`,
-    directionSteps: ['Choose the simplified form of the first expression.', 'Simplify the second expression.', 'Simplify the third expression.'],
+    directionSteps: ['Simplify the first expression.', 'Simplify the second expression.', 'Simplify the third expression.'],
     responses: [
-      choice('a', '(x⁻²y⁻³)(x⁻³y⁵)(z²) =', ['y²/(x⁵z²)', 'z²/(x⁵y²)', 'y²z²/x⁵', 'x⁵/(y²z²)'], 'y²z²/x⁵'),
-      choice('b', 'h⁶/h⁻² =', ['h⁸', 'h²/h⁶', '1/h⁸', 'h⁴'], 'h⁸'),
+      // Typed, as the examples' boxes are (F-CYP-AS-CHOICE): a simplified
+      // monomial, so a negative exponent left in is refused.
+      simplest('a', '(x⁻²y⁻³)(x⁻³y⁵)(z²) =', '(y^2z^2)/x^5'),
+      simplest('b', 'h⁶/h⁻² =', 'h^8'),
       simplest('c', '(6r²/(3s³))² =', '(4r^4)/s^6'),
     ],
     hints: ['Add the exponents of each base.', 'Subtracting a negative exponent adds it.', 'Simplify 6/3 inside the parentheses first.'],
-    scaffold: backUp('h⁶ / h⁻² equals…', ['h⁶⁺²', 'h⁶⁻²'], 'h⁶⁺²'),
+    // The rule on other numbers: h⁶⁺² would leave the typed h⁸ one sum away.
+    scaffold: backUp('m⁵ / m⁻² equals…', ['m⁵⁺²', 'm⁵⁻²'], 'm⁵⁺²'),
     solutionReview: review(
       'Same rules, mind the signs.',
       ['x⁻²⁻³ = x⁻⁵ and y⁻³⁺⁵ = y², so the product is y²z²/x⁵.', 'h⁶⁻⁽⁻²⁾ = h⁸.', '(6r²/(3s³))² = (2r²/s³)² = 4r⁴/s⁶.'],
       'y²z²/x⁵; h⁸; 4r⁴/s⁶',
-      'Choosing 4r⁴/s⁹: (s³)² is s⁶, not s⁹.',
+      'Writing 4r⁴/s⁹: (s³)² is s⁶, not s⁹.',
     ),
   },
   {

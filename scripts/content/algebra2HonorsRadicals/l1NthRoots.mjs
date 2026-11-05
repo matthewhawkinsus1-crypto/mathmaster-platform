@@ -255,16 +255,20 @@ const classwork = [
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 2,
-    prompt: tex`Example A, then Check Your Progress A. Simplify $\pm\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\pm\sqrt{9x^8}$.`,
+    prompt: tex`Example A, then Check Your Progress A. Simplify $\pm\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\pm\sqrt{9x^8}$: give both square roots.`,
     directionSteps: [
       'Write the radicand as a perfect square.',
       'Name the negative square root too.',
-      'Choose the simplified form of the second expression.',
+      'Give both square roots of the second expression.',
     ],
     responses: [
       expression('square', '16x⁸ = ( ? )². This base is the positive square root.', '4x^4'),
       expression('negative', 'The negative square root of 16x⁸', '-4x^4'),
-      choice('cyp', '±√(9x⁸) =', ['±3x⁶', '±3x⁴', '3x⁴', '±3x²'], '±3x⁴'),
+      // Check Your Progress is typed, one box per root, as PR 1 asks
+      // (F-CYP-AS-CHOICE): a choice of four could be guessed in three tries,
+      // and the student never wrote the simplification the example modeled.
+      simplest('cypPositive', 'The positive square root of 9x⁸', '3x^4'),
+      simplest('cypNegative', 'The negative square root of 9x⁸', '-3x^4'),
     ],
     hints: [
       '16 = 4² and x⁸ = (x⁴)².',
@@ -278,8 +282,8 @@ const classwork = [
     ),
     solutionReview: review(
       'Perfect square first, then both roots.',
-      ['16x⁸ = (4x⁴)².', 'The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.', '9x⁸ = (3x⁴)², so ±√(9x⁸) = ±3x⁴.'],
-      '±4x⁴; ±3x⁴',
+      ['16x⁸ = (4x⁴)².', 'The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.', '9x⁸ = (3x⁴)², so the square roots of 9x⁸ are 3x⁴ and −3x⁴: ±√(9x⁸) = ±3x⁴.'],
+      '±4x⁴; 3x⁴ and −3x⁴',
       'Taking the square root of the exponent (x⁸ → x^√8) or dividing it by 4: √(x⁸) halves the exponent, x⁴.',
     ),
   },
@@ -294,7 +298,7 @@ const classwork = [
       'Write the radicand as a perfect square.',
       'Take the principal square root and keep the negative sign in front.',
       'Decide whether absolute value bars are needed.',
-      'Choose the simplified form of the second expression.',
+      'Simplify the second expression the same way.',
     ],
     responses: [
       expression('square', '(q³ + 5)⁴ = [ ? ]²', '(q^3+5)^2'),
@@ -305,7 +309,9 @@ const classwork = [
         'The index is odd',
         'The radicand is negative',
       ], '(q³ + 5)² is never negative, so it is already the principal root'),
-      choice('cyp', '−√((a³ + 2)⁸) =', ['−(a³ + 2)⁴', '−(a³ + 2)⁸', '(a³ + 2)⁴', '(a + 2)⁴'], '−(a³ + 2)⁴'),
+      // Typed, as the example's own boxes are (F-CYP-AS-CHOICE); the bars
+      // decision above stays a choice.
+      expression('cyp', '−√((a³ + 2)⁸) =', '-(a^3+2)^4'),
     ],
     hints: [
       'Treat q³ + 5 as one block: (q³ + 5)⁴ = [(q³ + 5)²]².',
@@ -322,7 +328,7 @@ const classwork = [
       [
         '(q³ + 5)⁴ = [(q³ + 5)²]², so √((q³ + 5)⁴) = (q³ + 5)², which is never negative.',
         'The opposite of the principal root is −(q³ + 5)².',
-        'In the same way, −√((a³ + 2)⁸) = −(a³ + 2)⁴.',
+        'In the same way, (a³ + 2)⁸ = [(a³ + 2)⁴]² and (a³ + 2)⁴ is never negative, so −√((a³ + 2)⁸) = −(a³ + 2)⁴.',
       ],
       '−(q³ + 5)²; −(a³ + 2)⁴',
       'Dropping the negative sign, or halving the 3 inside the base: only the outside exponent is halved.',
@@ -420,8 +426,12 @@ const classwork = [
       'Explain when absolute value bars are needed.',
     ],
     responses: [
-      choice('sixth', '⁶√(t⁶) =', ['t', '−t', '|t|', 't⁶'], '|t|'),
-      choice('fourth', '⁴√(x⁴) =', ['x', '−x', '|x|', '1'], '|x|'),
+      // Typed (F-CYP-AS-CHOICE): the student writes the bars, or leaves them
+      // off, instead of picking |t| from four. The grader tries a negative t.
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows, such as |t|, as words (the CT04 fix in Algebra I M2 T2 L2).
+      simplest('sixth', '⁶√(t⁶) =', '|t|', { type: 'math' }),
+      simplest('fourth', '⁴√(x⁴) =', '|x|', { type: 'math' }),
       simplest('mixed', '⁴√(16x⁴y⁸) =', '2|x|y^2'),
       choice('why', 'Why does x need bars in the last answer but y² does not?', [
         'x may be negative, but a fourth root is never negative; y² is never negative',
@@ -453,11 +463,11 @@ const classwork = [
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 3,
-    prompt: tex`Simplify using absolute value (odd index). Simplify $\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\sqrt[3]{27(x+2)^9}$.`,
+    prompt: tex`Simplify using absolute value (odd index). Simplify $\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\sqrt[3]{8(x+2)^{15}}$.`,
     directionSteps: [
       'Write the radicand as a fifth power.',
       'Decide whether absolute value bars are needed.',
-      'Choose the simplified form of the second expression.',
+      'Simplify the second expression the same way.',
     ],
     responses: [
       expression('fifthPower', '243(x + 2)¹⁵ = [ ? ]⁵. This base is the fifth root.', '3(x+2)^3'),
@@ -467,18 +477,25 @@ const classwork = [
         'Yes — every binomial root needs bars',
         'No — because x + 2 is always positive',
       ], 'No — the index is odd, so the root keeps the sign of 3(x + 2)³'),
-      choice('cyp', '∛(27(x + 2)⁹) =', ['|3(x + 2)³|', '3(x + 2)³', '|3(x + 2)⁶|', '3(x + 2)⁶'], '3(x + 2)³'),
+      // Typed (F-CYP-AS-CHOICE). The slide's ∛(27(x + 2)⁹) is 3(x + 2)³, the
+      // example's own answer, so a typed box could be filled by copying it:
+      // the same power of x + 2 under a cube root has an answer of its own.
+      expression('cyp', '∛(8(x + 2)¹⁵) =', '2(x+2)^5'),
     ],
     hints: [
       '243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵.',
       'The index is odd, so no absolute value bars are needed.',
-      '27 = 3³ and (x + 2)⁹ = [(x + 2)³]³.',
+      'For the cube root, find the number whose cube is 8, and divide the exponent 15 by the index 3.',
     ],
     scaffold: backUp('For an odd index n, ⁿ√(aⁿ) equals…', ['a', '|a|'], 'a'),
     solutionReview: review(
       'Write the fifth power; odd roots keep the sign.',
-      ['243(x + 2)¹⁵ = [3(x + 2)³]⁵.', 'The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.', 'In the same way ∛(27(x + 2)⁹) = 3(x + 2)³.'],
-      '3(x + 2)³; 3(x + 2)³',
+      [
+        '243(x + 2)¹⁵ = [3(x + 2)³]⁵.',
+        'The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.',
+        '8(x + 2)¹⁵ = [2(x + 2)⁵]³, and the index is odd again, so ∛(8(x + 2)¹⁵) = 2(x + 2)⁵.',
+      ],
+      '3(x + 2)³; 2(x + 2)⁵',
       'Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2.',
     ),
   },
@@ -1180,7 +1197,7 @@ export const L1_NTH_ROOTS = {
       gradingPurpose: 'classwork',
       essentialQuestion: 'Why can it be useful to simplify expressions?',
       instructions: 'nth roots. Every answer is entered in a step-by-step tool: write the radicand as a perfect power, take the root, and decide whether absolute value bars are needed — the tool checks each step. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.',
-      teacherNotes: 'Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; "Simplify" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches.',
+      teacherNotes: 'Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; "Simplify" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW8’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy.',
     },
     variantPolicy: {
       mode: 'personalized',

@@ -254,10 +254,14 @@ const classwork = [
     dok: 2,
     difficultyBand: 4,
     prompt: tex`Check Your Progress A and B. Simplify $\sqrt{\dfrac{x^3}{y^7}}$ and $\sqrt[3]{\dfrac{8}{3y^2}}$. Assume $x$ and $y$ are positive.`,
-    directionSteps: ['Choose the simplified form of the first quotient.', 'Find the multiplier for the second denominator.', 'Simplify the second quotient.'],
+    directionSteps: ['Simplify the first quotient.', 'Find the multiplier for the second denominator.', 'Simplify the second quotient.'],
     responses: [
-      choice('first', '√(x³/y⁷) =', ['x²√(xy)/y⁸', 'x√x/y⁴', 'x√(xy)/y⁴', 'x√x/(y³√y)'], 'x√(xy)/y⁴'),
-      expression('multiplier', 'Multiply 3y² by ? to get a perfect cube', '9y'),
+      // Typed (F-CYP-AS-CHOICE): the student writes the rationalized quotient
+      // the examples modeled, instead of picking it from four.
+      simplest('first', '√(x³/y⁷) =', '(x√(xy))/y^4'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows, such as 9y, as words (the CT04 fix in Algebra I M2 T2 L2).
+      expression('multiplier', 'Multiply 3y² by ? to get a perfect cube', '9y', { type: 'math' }),
       simplest('second', '∛(8/(3y²)) =', '(2∛(9y))/(3y)'),
     ],
     hints: ['For the first: √(x³) = x√x and √(y⁷) = y³√y, then rationalize.', 'For the second: 3y² times what gives (3y)³?', '∛8 is a whole number.'],
@@ -266,7 +270,7 @@ const classwork = [
       'Split, simplify, rationalize.',
       ['√(x³/y⁷) = x√x/(y³√y) = x√x · √y/(y³ · y) = x√(xy)/y⁴.', '3y² · 9y = 27y³, so ∛(8/(3y²)) = ∛8 · ∛(9y)/∛(27y³) = 2∛(9y)/(3y).'],
       'x√(xy)/y⁴; 2∛(9y)/(3y)',
-      'Choosing x√x/(y³√y): it still has a radical in the denominator.',
+      'Stopping at x√x/(y³√y): it still has a radical in the denominator.',
     ),
   },
   {

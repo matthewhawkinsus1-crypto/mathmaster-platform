@@ -51,7 +51,8 @@ const looksLikeFiniteCategoryField = (field) => {
   if (!accepted.length || accepted.length > 6) return false;
   return accepted.every((value) => {
     const text = String(value ?? '').trim();
-    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/.test(text) || ALGEBRAIC_TERM.test(text) || MONOMIAL.test(text)) return false;
+    // Absolute value bars are mathematics too: |t| is not the word "t".
+    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩|]/.test(text) || ALGEBRAIC_TERM.test(text) || MONOMIAL.test(text)) return false;
     const words = text.match(/[A-Za-z]+/g) || [];
     return words.length >= 1 && words.length <= 3;
   });
