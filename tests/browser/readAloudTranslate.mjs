@@ -34,7 +34,9 @@
 //                model changes), the sequence table (what the student typed,
 //                never a term), and the board's given table (AX10); the
 //                Regression Calculator's listed data and typed table, and the
-//                board's process-mode row chooser (AX10, slice 2).
+//                board's process-mode row chooser (AX10, slice 2); under an
+//                authored Spanish prompt the row chooser and the table to
+//                extend are read in Spanish (AX05, slice 2).
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/readAloudTranslate.
 import { mkdirSync } from 'node:fs';
@@ -398,6 +400,39 @@ for (const device of DEVICES) {
     await read.click();
     const picked = (await lastSpoken(page))?.text || '';
     check(buttons[1] === 'Row 2, chosen as row 1' && buttons[3] === 'Row 4, chosen as row 2' && picked.includes('Row 2: x, 1; y, 7; chosen as row 1. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3; chosen as row 2.'), `${device.name}: the picks are read as the buttons name them`, picked.slice(0, 360));
+    await context.close();
+  }
+  {
+    // The same chooser, and the table the student extends, under an authored
+    // Spanish prompt: in Spanish, with the rows' values as drawn (AX05, slice 2).
+    const { page, context } = await open(device, 'q=lmrtablees&role=practice&support=translate');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const touch = device.hasTouch;
+    const press = async (locator) => { await locator.scrollIntoViewIfNeeded(); if (touch) await locator.tap(); else await locator.click(); await page.waitForTimeout(300); };
+    await press(page.locator('[data-process-facts] [data-process-find="slope"]'));
+    const workspace = page.locator('[data-lmr-card="process"]');
+    await workspace.waitFor();
+    await press(workspace.locator('[data-process-choice="method:tableDelta"]'));
+    await press(workspace.locator('[data-process-row="1"]'));
+    await press(workspace.locator('[data-process-row="3"]'));
+    await read.click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    const at = said.indexOf('Filas para elegir');
+    // The rows as the board's given table draws them (this fixture's own variant), read before the chooser.
+    const rows = [...said.slice(said.indexOf('Tabla de valores dada'), at).matchAll(/Fila \d: x, ([^;]+); y, ([^;.]+)\./g)].map((match) => [match[1], match[2]]);
+    const chooser = `Filas para elegir. Elige dos filas: primero la fila 1 y luego la fila 2. ${rows.map(([x, y], index) => `Fila ${index + 1}: x, ${x}; y, ${y}${index === 1 ? '; elegida como fila 1' : index === 3 ? '; elegida como fila 2' : ''}.`).join(' ')}`;
+    check(heard?.lang === 'es' && rows.length === 4 && said.includes(chooser), `${device.name}: the row chooser and the picks are read in Spanish`, at >= 0 ? said.slice(at, at + 300) : said.slice(0, 300));
+    check(!/inglés|Rows to choose|Choose two|chosen/.test(said), `${device.name}: no English, and no note that it is`, said.slice(0, 300));
+    await press(page.locator('[data-process-facts] [data-process-find="yIntercept"]'));
+    await press(workspace.locator('[data-process-choice="method:extendTable"]'));
+    await workspace.locator('[data-process-extend="0:x"]').fill('0');
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.waitForTimeout(300);
+    await read.click();
+    const extended = (await lastSpoken(page))?.text || '';
+    const from = extended.indexOf('Tabla para continuar');
+    check(rows.length === 4 && extended.includes(`Tabla para continuar, de 5 filas. Columnas: x; y. ${rows.map(([x, y], index) => `Fila ${index + 1}: x, ${x}; y, ${y}.`).join(' ')} Fila 5: x, escribiste 0; y, en blanco.`), `${device.name}: the table to extend is read in Spanish, the student's box as typed`, from >= 0 ? extended.slice(from, from + 260) : extended.slice(0, 300));
     await context.close();
   }
 

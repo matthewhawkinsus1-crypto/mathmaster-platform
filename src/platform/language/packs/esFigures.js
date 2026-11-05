@@ -8,8 +8,9 @@
  * by the message id its generator gives it: GRAPH_WORDS
  * (../graphDescription.js), NUMBER_LINE_WORDS (../numberLineDescription.js),
  * AXIS_TITLE_WORDS (../../../tools/shared/planeAxisTitles.js), and in slice 2
- * THREE_PLANE_WORDS (../../../tools/systemsWorkspace/threePlaneDescription.js)
- * and GRAPH_WORKSPACE_WORDS (../graphWorkspaceDescription.js). The pieces
+ * THREE_PLANE_WORDS (../../../tools/systemsWorkspace/threePlaneDescription.js),
+ * GRAPH_WORKSPACE_WORDS (../graphWorkspaceDescription.js) and
+ * ROW_CHOOSER_WORDS (../../../tools/shared/toolTableReading.js). The pieces
  * are the figure's own: a number, a coordinate, a count or a label is placed
  * exactly as it comes, so "−6", "(2, 1)" and "13/8" are the same in both
  * languages, and a label or an axis quantity is said as the screen shows it.
@@ -194,6 +195,18 @@ export const words = Object.freeze({
   youSelected: (pairs) => `Seleccionaste ${count(pairs.length, 'punto', 'puntos')}: ${pairs.join('; ')}.`,
   nothingPlacedYet: () => 'Todavía no hay nada colocado.',
 
+  /* ------------------- a table the student chooses rows from (process mode) */
+  // "Toca el eje", as ./esSupport.js says "meets the axis".
+  chooseTwoRows: () => 'Elige dos filas: primero la fila 1 y luego la fila 2.',
+  chooseXInterceptRow: () => 'Elige la fila donde la recta toca el eje x.',
+  chooseYInterceptRow: () => 'Elige la fila donde la recta toca el eje y.',
+  chooseRowAsPoint: () => 'Elige una fila para usarla como un punto de la recta.',
+  chooserRow: (n, x, y) => `Fila ${n}: x, ${x}; y, ${y}.`,
+  chosenChooserRow: (n, x, y, note) => `Fila ${n}: x, ${x}; y, ${y}; ${note}.`,
+  rowChosen: () => 'elegida',
+  rowChosenAs: (n) => `elegida como fila ${n}`,
+  noRowChosenYet: () => 'Todavía no hay ninguna fila elegida.',
+
   /* --------------------------------------------------------- the number line */
   numberLine: (min, max) => `Recta numérica de ${min} a ${max}.`,
   numberLineLabelled: (min, max, step) => `Recta numérica de ${min} a ${max}, con números cada ${step}.`,
@@ -245,6 +258,9 @@ const LABELS = Object.freeze({
   'Table of values': 'Tabla de valores',
   'Residual table': 'Tabla de residuos',
   'Sequence table': 'Tabla de la sucesión',
+  // Process mode's tables (AX10, slice 2).
+  'Table to extend': 'Tabla para continuar',
+  'Rows to choose from': 'Filas para elegir',
 });
 
 /** The Spanish for a platform name, or null for a name the pack does not know. */

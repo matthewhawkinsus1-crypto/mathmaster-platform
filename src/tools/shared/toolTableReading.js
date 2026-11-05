@@ -27,10 +27,16 @@
  * student has chosen — their own picks, never which row is right — and a table
  * the student extends says what they typed, or blank.
  *
+ * IN THE READER'S LANGUAGE (AX05, slice 2): a table is worded by the reader
+ * (Fila, Columnas, en blanco); a row chooser's own sentences are messages
+ * (ROW_CHOOSER_WORDS), said in Spanish from platform/language/packs/esFigures.js
+ * under an authored Spanish translation, with the rows' values as drawn.
+ *
  * Pure. A column's `name` is the quantity it holds when the question names
  * one ("Rental time (hours)"), said once with the headers.
  */
 import { round } from './toolMath.js';
+import { say, sayFigure } from '../../platform/language/figureSay.js';
 
 const column = (key, label, name = '') => (name ? { key, label, name } : { key, label });
 const list = (rows) => (Array.isArray(rows) ? rows : []);
@@ -65,36 +71,61 @@ export const extendedXyTable = (givenRows, newRows) => ({
 });
 
 /**
+ * What a row chooser says, by message id, in English: what it asks (its
+ * caption on the screen, too), each row, and the student's picks.
+ */
+export const ROW_CHOOSER_WORDS = Object.freeze({
+  chooseTwoRows: () => 'Choose two rows: row 1, then row 2.',
+  chooseXInterceptRow: () => 'Choose the row where the line meets the x-axis.',
+  chooseYInterceptRow: () => 'Choose the row where the line meets the y-axis.',
+  chooseRowAsPoint: () => 'Choose a row to use as a point on the line.',
+  chooserRow: (number, x, y) => `Row ${number}: x, ${x}; y, ${y}.`,
+  chosenChooserRow: (number, x, y, note) => `Row ${number}: x, ${x}; y, ${y}; ${note}.`,
+  rowChosen: () => 'chosen',
+  rowChosenAs: (number) => `chosen as row ${number}`,
+  noRowChosenYet: () => 'None is chosen yet.',
+});
+const english = (segments) => sayFigure(segments, ROW_CHOOSER_WORDS, { english: true }) || '';
+
+/** What a chooser asks (one of ROW_CHOOSER_WORDS' questions, by id), as the screen draws it. */
+export const rowChooserAsk = (ask) => english([say(ask)]);
+
+const chosenRowNoteSay = (position, chosenCount) => {
+  if (!(position >= 0)) return null;
+  return chosenCount > 1 ? say('rowChosenAs', position + 1) : say('rowChosen');
+};
+
+/**
  * What a row chooser's button says about its row, and so what is read: nothing
  * for a row that is not chosen; "chosen" for one that is, and, where two rows
  * are being chosen, as which ("chosen as row 2"). `position` is the row's place
  * among the chosen rows, in the order they were chosen (-1 for none).
  */
 export const chosenRowNote = (position, chosenCount) => {
-  if (!(position >= 0)) return '';
-  return `chosen${chosenCount > 1 ? ` as row ${position + 1}` : ''}`;
+  const note = chosenRowNoteSay(position, chosenCount);
+  return note ? english([note]) : '';
 };
 
 /**
  * A table the student chooses rows from (process mode's row chooser), as a
- * figure: what it asks ("Choose two rows: row 1, then row 2."), every given row
- * as the screen draws it, and which of them the student has chosen. A choice is
- * words, which the reader says in English and says so under a translation
- * (figureReadings.js); it is the student's pick, never the row that answers the
+ * figure: what it asks (`ask`, a ROW_CHOOSER_WORDS id: "Choose two rows: row 1,
+ * then row 2."), every given row as the screen draws it, and which of them the
+ * student has chosen. It is the student's pick, never the row that answers the
  * question: nothing here knows which that is. `chosen` is the picked rows'
- * numbers (0-based), in the order they were picked.
+ * numbers (0-based), in the order they were picked. `say` is the same reading
+ * as messages: Read aloud says it in Spanish under a translation (AX05).
  */
-export const rowChooserEntry = ({ caption, rows, chosen = [] }) => {
+export const rowChooserEntry = ({ ask, rows, chosen = [] }) => {
   const picked = list(chosen);
-  const lines = list(rows).map(([x, y], index) => {
-    const note = chosenRowNote(picked.indexOf(index), picked.length);
-    return `Row ${index + 1}: x, ${x}; y, ${y}${note ? `; ${note}` : ''}.`;
-  });
-  return {
-    kind: 'figure',
-    label: 'Rows to choose from',
-    text: [String(caption ?? '').trim(), ...lines, picked.length ? '' : 'None is chosen yet.'].filter(Boolean).join(' '),
-  };
+  const says = [
+    say(ask),
+    ...list(rows).map(([x, y], index) => {
+      const note = chosenRowNoteSay(picked.indexOf(index), picked.length);
+      return note ? say('chosenChooserRow', index + 1, String(x), String(y), note) : say('chooserRow', index + 1, String(x), String(y));
+    }),
+    ...(picked.length ? [] : [say('noRowChosenYet')]),
+  ];
+  return { kind: 'figure', label: 'Rows to choose from', text: english(says), say: says };
 };
 
 /** The Data Modeling Lab's residual table: x, y, ŷ and the residual, rounded as the lab draws them. */

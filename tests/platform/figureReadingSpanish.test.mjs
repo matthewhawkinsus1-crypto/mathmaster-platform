@@ -43,6 +43,7 @@ import { NUMBER_LINE_WORDS, numberLineReading, pointChoiceLineReading } from '..
 import { AXIS_TITLE_WORDS } from '../../src/tools/shared/planeAxisTitles.js';
 import { THREE_PLANE_WORDS, threePlaneModelReading } from '../../src/tools/systemsWorkspace/threePlaneDescription.js';
 import { GRAPH_WORKSPACE_WORDS, graphWorkspaceReading } from '../../src/platform/language/graphWorkspaceDescription.js';
+import { ROW_CHOOSER_WORDS } from '../../src/tools/shared/toolTableReading.js';
 import { englishOnly, loadFigureWords, say, sayFigure } from '../../src/platform/language/figureSay.js';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
@@ -77,12 +78,12 @@ after(async () => { await capture?.close(); });
 /* --------------------------------------------------------- the pack's words */
 
 test('the Spanish pack says every sentence the figure generators say, and no other', () => {
-  const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS, ...THREE_PLANE_WORDS, ...GRAPH_WORKSPACE_WORDS };
+  const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS, ...THREE_PLANE_WORDS, ...GRAPH_WORKSPACE_WORDS, ...ROW_CHOOSER_WORDS };
   const ids = Object.keys(english);
-  // Measured: every message the generators have (155 today: 74 in slice 1;
-  // 61 for the full reading, 12 for the 3D model and 8 for the graph
-  // workspace in slice 2).
-  assert.ok(ids.length >= 155, `${ids.length} figure messages`);
+  // Measured: every message the generators have (164 today: 74 in slice 1;
+  // 61 for the full reading, 12 for the 3D model, 8 for the graph workspace
+  // and 9 for process mode's row chooser in slice 2).
+  assert.ok(ids.length >= 164, `${ids.length} figure messages`);
   ids.forEach((id) => assert.equal(typeof esFigures.words[id], 'function', `Spanish for "${id}"`));
   Object.keys(esFigures.words).forEach((id) => assert.ok(Object.hasOwn(english, id), `"${id}" is a message a generator says`));
   // Built from the same pieces, a sentence keeps the English's numbers.

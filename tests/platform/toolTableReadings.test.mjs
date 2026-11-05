@@ -17,7 +17,9 @@
  *           Calculator's table (what the student typed, and its source data
  *           where the screen lists it) and the board's process-mode row
  *           choosers (the rows, and which the student chose) and extended
- *           table.
+ *           table. Under an authored Spanish translation those two are read in
+ *           Spanish too (AX05, slice 2): the table under its Spanish name, the
+ *           chooser from its own messages, with the rows' values as drawn.
  *   not yet Representation Match's card tables (inside the cards' buttons,
  *           already named by them; how to read a button is the owner's
  *           decision), and the process mode's point choosers and method chips
@@ -40,6 +42,7 @@ import { questionReadingParts, tableReading } from '../../src/platform/language/
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import { generateSequence } from '../../src/tools/sequenceExplorer/sequenceMath.js';
 import esFigures from '../../src/platform/language/packs/esFigures.js';
+import { sayFigure } from '../../src/platform/language/figureSay.js';
 import { figureCaptureServer } from './helpers/figureCapture.mjs';
 import { withBrowser } from './helpers/studentToolRender.mjs';
 
@@ -343,13 +346,22 @@ test('a chooser is read only while its workspace is open, and in the reading\'s 
   const extending = await processBoard(item, { target: 'yIntercept', strategy: 'extendTable', work: { rows: [{ x: '0', y: '' }] } });
   const figures = [chooserOf(picked.entries), tablesOf(extending.entries).find((entry) => entry.label === 'Table to extend')];
   const spanish = questionReadingParts({ prompt: 'Construye la recta.' }, { figures, language: 'es', figurePack: esFigures });
-  // A chosen row is words the pack has none for: the English follows, after a sentence that says so.
+  // In Spanish (AX05, slice 2): what it asks, every row as drawn and the
+  // student's picks, with no note that it is in English.
   const chooser = spanish.find((entry) => entry.kind === 'figure');
-  assert.match(chooser.text, /^Rows to choose from\. La descripción de esta figura está en inglés\. Choose two rows: row 1, then row 2\./);
-  assert.match(chooser.text, /Row 2: x, 1; y, 7; chosen as row 1\./);
-  // A table is read in the reading's own words for rows, boxes and blanks.
+  assert.equal(chooser.label, 'Filas para elegir');
+  assert.equal(
+    speechTextFor(chooser.text, { language: 'es' }),
+    'Filas para elegir. Elige dos filas: primero la fila 1 y luego la fila 2. Fila 1: x, negativo 1; y, 9. Fila 2: x, 1; y, 7; elegida como fila 1. Fila 3: x, 3; y, 5. Fila 4: x, 5; y, 3; elegida como fila 2.',
+  );
+  // A table is read in the reading's own words for rows, boxes and blanks, under its Spanish name.
   const table = spanish.find((entry) => entry.kind === 'table');
-  assert.equal(speechTextFor(table.text, { language: 'es' }), 'Table to extend, de 5 filas. Columnas: x; y. Fila 1: x, negativo 1; y, 9. Fila 2: x, 1; y, 7. Fila 3: x, 3; y, 5. Fila 4: x, 5; y, 3. Fila 5: x, escribiste 0; y, en blanco.');
+  assert.equal(table.label, 'Tabla para continuar');
+  assert.equal(speechTextFor(table.text, { language: 'es' }), 'Tabla para continuar, de 5 filas. Columnas: x; y. Fila 1: x, negativo 1; y, 9. Fila 2: x, 1; y, 7. Fila 3: x, 3; y, 5. Fila 4: x, 5; y, 3. Fila 5: x, escribiste 0; y, en blanco.');
+  // In English, unchanged.
+  const english = questionReadingParts({ prompt: 'Build the line.' }, { figures, figurePack: esFigures });
+  assert.deepEqual(english.filter((entry) => entry.kind !== 'prompt').map((entry) => entry.label), ['Rows to choose from', 'Table to extend']);
+  assert.match(english.find((entry) => entry.kind === 'figure').text, /^Rows to choose from\. Choose two rows: row 1, then row 2\. Row 1: x, -1; y, 9\./);
   // The pack's own names for the two Regression Calculator tables are reused.
   const named = questionReadingParts({ prompt: 'Ajusta una recta.' }, {
     figures: [
@@ -360,6 +372,39 @@ test('a chooser is read only while its workspace is open, and in the reading\'s 
     figurePack: esFigures,
   }).filter((entry) => entry.kind === 'table');
   assert.deepEqual(named.map((entry) => entry.label), ['Tabla de valores dada', 'Tabla de valores']);
+});
+
+test('every question a row chooser asks is said in Spanish as the screen asks it, with the rows as drawn and never which is right', async () => {
+  // y = x + 1, with a row on each axis, so every question is offered.
+  const item = { ...realItem(LMR, 'lmr-pr-1'), source: { kind: 'table', rows: [{ x: -1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 3 }] } };
+  const cases = [
+    [{ target: 'slope', strategy: 'tableDelta', work: { r1: 3, r2: 0 } }, 'Elige dos filas: primero la fila 1 y luego la fila 2.'],
+    [{ target: 'xIntercept', strategy: 'tableRead' }, 'Elige la fila donde la recta toca el eje x.'],
+    [{ target: 'yIntercept', strategy: 'tableRead', work: { row: 1 } }, 'Elige la fila donde la recta toca el eje y.'],
+    [{ target: 'point', strategy: 'tableRow', work: { row: 2 } }, 'Elige una fila para usarla como un punto de la recta.'],
+  ];
+  for (const [workspace, asks] of cases) {
+    const { markup, entries } = await processBoard(item, workspace);
+    const chooser = chooserOf(entries);
+    assert.ok(chooser, `${workspace.strategy}: a chooser is read`);
+    // The caption the screen draws is the English the reading opens with.
+    const caption = text(/<caption[^>]*>([\s\S]*?)<\/caption>/.exec(markup)?.[1] || '');
+    assert.ok(caption && chooser.text.startsWith(`${caption} `), `${workspace.strategy}: "${caption}" opens "${chooser.text}"`);
+    const spanish = sayFigure(chooser.say, esFigures.words);
+    assert.ok(spanish?.startsWith(`${asks} `), `${workspace.strategy}: ${spanish}`);
+    // Every row's values as drawn, in the same order; each pick as the button says it.
+    const values = (said) => (said.match(/-?\d+/g) || []).join(' ');
+    assert.equal(values(spanish), values(chooser.text), `${workspace.strategy}: the same numbers`);
+    drawnChoices(markup).forEach((label, index) => {
+      const note = /, chosen(?: as row (\d))?$/.exec(label);
+      const row = new RegExp(`Fila ${index + 1}: x, -?\\d+; y, -?\\d+(; elegida(?: como fila (\\d))?)?\\.`).exec(spanish);
+      assert.ok(row, `row ${index + 1} is read: ${spanish}`);
+      assert.equal(Boolean(row[1]), Boolean(note), `row ${index + 1}: chosen in Spanish exactly when its button says so`);
+      assert.equal(row[2], note?.[1], `row ${index + 1}: chosen as the same row`);
+    });
+    assert.equal(spanish.endsWith('Todavía no hay ninguna fila elegida.'), !workspace.work, `${workspace.strategy}: "none yet" only before a pick`);
+    assert.doesNotMatch(spanish, /correct|incorrect|bien|mal\b|respuesta|intersección es/i, 'no verdict, no answer');
+  }
 });
 
 /* ------------------------------------------------------- in the reading */

@@ -34,6 +34,9 @@
 //   ?q=regression           a Regression Calculator item that lists its source data;
 //                           its table and the board's process-mode choosers are read
 //                           as drawn (AX10, slice 2)
+//   ?q=lmrtablees           lmr-pr-1 with an authored Spanish prompt: process mode's
+//                           row chooser and the table to extend are read in Spanish
+//                           (AX05, slice 2)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -148,6 +151,7 @@ const QUESTIONS = {
   dml: lessonItem(dol3Review, 'dol3-review-q11'),
   sequence: lessonItem(dol3Review, 'dol3-review-q13'),
   lmrtable: lessonItem(linearRepresentationsLesson, 'lmr-pr-1'),
+  lmrtablees: withSpanishPrompt(lessonItem(linearRepresentationsLesson, 'lmr-pr-1'), 'Tienes una tabla de valores de una relación lineal. Construye todas las demás representaciones de esta misma recta, en el orden que quieras.'),
   regression: {
     questionId: 'feedback-regression',
     type: 'regressionCalculator',
