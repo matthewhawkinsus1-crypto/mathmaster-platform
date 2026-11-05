@@ -14,7 +14,7 @@ import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
-import { FINGER_REACH_PX, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
+import { FINGER_REACH_PX, keyboardGridPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
@@ -545,6 +545,14 @@ export default function CoordinatePlane({
     setReadoutDismissed(false);
   };
 
+  // THE KEYBOARD'S CROSSHAIR STANDS ON THE GRID (planeTouch.js). It starts at
+  // the grid point nearest the origin and moves a grid step a key. At an edge
+  // it stops at the last grid line inside the window, which once zoomed in
+  // can end between two: it stopped at the edge itself, and Enter plotted
+  // (4.571429, 0). Zoomed out, it stops at the authored graph's edge, where a
+  // press lands. A crosshair a zoom has left outside comes back to the grid.
+  const keyboardSpot = (point) => keyboardGridPoint(point, minorStep, { xMin, xMax, yMin, yMax }, domain);
+
   const moveKeyboardCursor = (dx, dy) => {
     plotCommitRef.current = null;
     setPlotAnnouncement('');
@@ -552,11 +560,8 @@ export default function CoordinatePlane({
     setReadoutDismissed(false);
     setPointerPreview(null);
     setKeyboardCursor((current) => {
-      const base = current || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
-      return [
-        clamp(tidy(base[0] + dx * minorStep), xMin, xMax),
-        clamp(tidy(base[1] + dy * minorStep), yMin, yMax),
-      ];
+      const base = keyboardSpot(current || [0, 0]);
+      return keyboardSpot([base[0] + dx * minorStep, base[1] + dy * minorStep]);
     });
   };
 
@@ -571,7 +576,9 @@ export default function CoordinatePlane({
       case 'Enter':
       case ' ': {
         event.preventDefault();
-        const target = keyboardCursor || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
+        // Never a point off the grid: where the crosshair stands, or its
+        // nearest grid point inside the window when a zoom has left it outside.
+        const target = keyboardSpot(keyboardCursor || [0, 0]);
         setKeyboardCursor(target);
         setKeyboardActive(true);
         setReadoutDismissed(false);

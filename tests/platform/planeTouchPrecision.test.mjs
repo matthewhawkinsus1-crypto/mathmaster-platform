@@ -6,15 +6,19 @@
  * finger is down, and these hold that a student can read it there and gets
  * it, that a finger's tap reaches the grid's edge from just outside it, and
  * that it is never given a point off the window (planeTouch.js,
- * CoordinatePlane.jsx); a mouse, a pen and the keyboard keep what they had.
+ * CoordinatePlane.jsx); a mouse and a pen keep what they had. The same
+ * walkthrough found the keyboard's crosshair stopping at a zoomed window's
+ * edge, between grid lines, and Enter plotting it there: it now stands only
+ * on a grid point inside the window (the keyboard tests at the end).
  * The browser half, on the real
  * workspace by touch at 390x844 and by mouse at 1366x768, is the
- * `phonePrecision` scenario of tests/browser/systemsWorkspaceStudio.mjs.
+ * `phonePrecision` scenario of tests/browser/systemsWorkspaceStudio.mjs, and
+ * its `zoomedKeyboard` scenario for the keyboard.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FINGER_CLEARANCE_PX, FINGER_REACH_PX, readoutChipSpot, snapInsideWindow } from '../../src/tools/shared/planeTouch.js';
+import { FINGER_CLEARANCE_PX, FINGER_REACH_PX, keyboardGridPoint, readoutChipSpot, snapInsideWindow } from '../../src/tools/shared/planeTouch.js';
 import { planeFontSize } from '../../src/tools/shared/planeTextScale.js';
 import { clientPointToGraphCoordinate, viewBoxRenderScale } from '../../src/utils/responsiveCoordinates.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -155,7 +159,7 @@ test('a finger reaches a little past the grid\'s edge and lands on it; a mouse d
   }
 });
 
-test('the plane gives a finger the reach and the window snap, and a mouse, a pen and the keyboard what they had', () => {
+test('the plane gives a finger the reach and the window snap, and a mouse and a pen what they had', () => {
   const convert = region(plane, 'const graphPointFromEvent = (event) => {', 'const MIN_SPAN_STEPS', 'the press-to-point conversion');
   assert.match(convert, /const finger = event\.pointerType === 'touch';/);
   assert.match(convert, /reach: finger \? FINGER_REACH_PX \/ viewBoxRenderScale\(\{ rect, viewBoxWidth: width, viewBoxHeight: height \}\) : 0,/);
@@ -163,6 +167,119 @@ test('the plane gives a finger the reach and the window snap, and a mouse, a pen
   assert.match(convert, /const y = finger \? snapInsideWindow\(point\.y, snapStep, yMin, yMax\) : snapValue\(point\.y, snapStep\);/);
   // Still clamped to the authored domain after the snap (planePanZoomContract).
   assert.match(convert, /return \[clamp\(x, domainXMin, domainXMax\), clamp\(y, domainYMin, domainYMax\)\];/);
-  // The keyboard's crosshair is not a press: it keeps its own unit steps.
-  assert.doesNotMatch(region(plane, 'const moveKeyboardCursor = (dx, dy) => {', 'const handleKeyDown', 'the keyboard crosshair'), /snapInsideWindow|FINGER_REACH_PX/);
+  // The keyboard's crosshair is not a press: no finger's reach. (Where it may
+  // stand is the keyboard tests' below.)
+  assert.doesNotMatch(region(plane, 'const moveKeyboardCursor = (dx, dy) => {', 'const handleKeyDown', 'the keyboard crosshair'), /FINGER_REACH_PX|graphPointFromEvent/);
+});
+
+/* ---------- the keyboard on a zoomed plane ---------- */
+
+// The plane's zoom buttons, as applyZoom moves the window: about its centre.
+const zoomed = (view, presses, factor = 1 / 1.4) => {
+  const scale = factor ** presses;
+  const cx = (view.xMin + view.xMax) / 2;
+  const cy = (view.yMin + view.yMax) / 2;
+  const halfX = ((view.xMax - view.xMin) * scale) / 2;
+  const halfY = ((view.yMax - view.yMin) * scale) / 2;
+  return { xMin: cx - halfX, xMax: cx + halfX, yMin: cy - halfY, yMax: cy + halfY };
+};
+// An arrow key, as the plane's moveKeyboardCursor applies it (CoordinatePlane.jsx).
+const ARROWS = { right: [1, 0], left: [-1, 0], up: [0, 1], down: [0, -1] };
+const keyPress = (cursor, key, step, view, domain, large = 1) => {
+  const base = keyboardGridPoint(cursor || [0, 0], step, view, domain);
+  return keyboardGridPoint([base[0] + ARROWS[key][0] * large * step, base[1] + ARROWS[key][1] * large * step], step, view, domain);
+};
+const keyPresses = (cursor, key, count, step, view, domain) => {
+  let at = cursor;
+  const passed = [];
+  for (let index = 0; index < count; index += 1) {
+    at = keyPress(at, key, step, view, domain);
+    passed.push(at);
+  }
+  return { at, passed };
+};
+const onGridInside = ([x, y], step, view) => Number.isInteger(Number((x / step).toFixed(6))) && Number.isInteger(Number((y / step).toFixed(6)))
+  && x >= view.xMin - 1e-9 && x <= view.xMax + 1e-9 && y >= view.yMin - 1e-9 && y <= view.yMax + 1e-9;
+
+// The Systems Workspace's build grid, where the walkthrough saw it.
+const BUILD = { xMin: -6, xMax: 8, yMin: -4, yMax: 10 };
+
+test('on a zoomed plane the keyboard crosshair stops at the last grid line inside the window, and Enter plots there', () => {
+  // Two presses of Zoom in: x from -2.571429 to 4.571429, y from -0.571429 to 6.571429.
+  const view = zoomed(BUILD, 2);
+  assert.ok(Math.abs(view.xMax - 4.571429) < 1e-6 && Math.abs(view.yMin + 0.571429) < 1e-6, JSON.stringify(view));
+  const right = keyPresses(null, 'right', 6, 1, view, BUILD);
+  assert.deepEqual(right.at, [4, 0], 'it stopped at 4.571429, and Enter plotted (4.571429, 0)');
+  right.passed.forEach((at) => assert.ok(onGridInside(at, 1, view), `(${at}) is a grid point inside the window`));
+  assert.deepEqual(keyPresses(right.at, 'left', 10, 1, view, BUILD).at, [-2, 0], 'the left edge: -2, not -2.571429');
+  assert.deepEqual(keyPresses([0, 0], 'up', 10, 1, view, BUILD).at, [0, 6], 'the top: 6, not 6.571429');
+  assert.deepEqual(keyPresses([0, 6], 'down', 10, 1, view, BUILD).at, [0, 0], 'the bottom: 0, the last grid line above -0.571429');
+  // Shift moves five, and stops at the same line.
+  assert.deepEqual(keyPress([0, 0], 'right', 1, view, BUILD, 5), [4, 0]);
+  // Half steps stop at the last half step inside.
+  assert.deepEqual(keyPresses(null, 'right', 20, 0.5, view, BUILD).at, [4.5, 0]);
+  // Enter plots where the crosshair stands (handleKeyDown's target).
+  assert.deepEqual(keyboardGridPoint(right.at, 1, view, BUILD), [4, 0]);
+  // Three presses of Zoom in on -10 to 10: the window ends at 3.644.
+  const three = zoomed({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }, 3);
+  assert.deepEqual(keyPresses(null, 'right', 9, 1, three, { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }).at, [3, 0]);
+});
+
+test('Enter never plots a point off the grid: a crosshair a zoom left outside the window comes back to the grid inside it', () => {
+  const authored = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+  // The crosshair at (7, 0), then three presses of Zoom in (the buttons take focus, so it is not moved).
+  const left = keyPresses(null, 'right', 7, 1, authored, authored).at;
+  assert.deepEqual(left, [7, 0]);
+  const view = zoomed(authored, 3);
+  assert.deepEqual(keyboardGridPoint(left, 1, view, authored), [3, 0], 'Enter: the last grid point inside, not (7, 0) off the window');
+  assert.deepEqual(keyPress(left, 'left', 1, view, authored), [2, 0], 'and the next arrow moves on from there');
+  // The first key on a window that does not hold the origin starts at the grid point nearest it.
+  assert.deepEqual(keyboardGridPoint([0, 0], 1, { xMin: 0.4, xMax: 5.6, yMin: 2.2, yMax: 9.8 }), [1, 3]);
+});
+
+test('on the authored window the keyboard moves exactly as it did', () => {
+  // The old arithmetic: one step a key, clamped to the window.
+  const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+  const tidy = (value) => Number(Number(value).toFixed(6));
+  const start = (low, high, step) => tidy(Math.round(clamp(0, low, high) / step) * step);
+  const before = (cursor, [dx, dy], step, view) => {
+    const base = cursor || [start(view.xMin, view.xMax, step), start(view.yMin, view.yMax, step)];
+    return [clamp(tidy(base[0] + dx * step), view.xMin, view.xMax), clamp(tidy(base[1] + dy * step), view.yMin, view.yMax)];
+  };
+  // Authored windows end on grid lines, so nothing moves: 300 random key runs on each.
+  let seed = 7;
+  const random = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (const [view, step] of [[{ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }, 1], [BUILD, 1], [{ xMin: 0, xMax: 12, yMin: 0, yMax: 10 }, 1], [{ xMin: -5, xMax: 5, yMin: -6, yMax: 6 }, 0.5]]) {
+    for (let run = 0; run < 300; run += 1) {
+      let now = null;
+      let old = null;
+      for (let key = 0; key < 12; key += 1) {
+        const name = Object.keys(ARROWS)[Math.floor(random() * 4)];
+        const large = random() < 0.3 ? 5 : 1;
+        now = keyPress(now, name, step, view, view, large);
+        old = before(old, ARROWS[name].map((d) => d * large), step, view);
+        assert.deepEqual(now, old, `${JSON.stringify(view)} by ${step}: ${name}${large === 5 ? ' (Shift)' : ''}`);
+      }
+    }
+  }
+});
+
+test('zoomed out, the keyboard crosshair stays on the authored graph, as a press does', () => {
+  // A press outside the authored graph lands on its edge (graphPointFromEvent
+  // clamps to the domain); the crosshair stopped at the window's 14, and Enter
+  // plotted a point the question never allowed.
+  const authored = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+  const view = zoomed(authored, 1, 1.4);
+  assert.ok(Math.abs(view.xMax - 14) < 1e-9);
+  assert.deepEqual(keyPresses(null, 'right', 20, 1, view, authored).at, [10, 0]);
+  assert.deepEqual(keyPresses(null, 'down', 20, 1, view, authored).at, [0, -10]);
+});
+
+test('the plane\'s keys go through that rule: the arrows, the first key and Enter', () => {
+  assert.match(plane, /const keyboardSpot = \(point\) => keyboardGridPoint\(point, minorStep, \{ xMin, xMax, yMin, yMax \}, domain\);/, 'the window drawn, and the authored graph');
+  const move = region(plane, 'const moveKeyboardCursor = (dx, dy) => {', 'const handleKeyDown', 'the arrow keys');
+  assert.match(move, /const base = keyboardSpot\(current \|\| \[0, 0\]\);\s*return keyboardSpot\(\[base\[0\] \+ dx \* minorStep, base\[1\] \+ dy \* minorStep\]\);/, 'a grid step a key, from a grid point to a grid point');
+  assert.doesNotMatch(move, /clamp\(tidy\(base/, 'no longer clamped to the window\'s edge');
+  const enter = region(region(plane, 'const handleKeyDown = (event) => {', '\n  };', 'the plane\'s keys'), "case 'Enter':", "case 'Escape':", 'Enter');
+  assert.match(enter, /const target = keyboardSpot\(keyboardCursor \|\| \[0, 0\]\);\s*setKeyboardCursor\(target\);/, 'Enter plots where the crosshair stands, on the grid');
 });

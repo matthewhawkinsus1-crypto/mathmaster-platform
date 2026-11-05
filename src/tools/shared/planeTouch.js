@@ -20,7 +20,8 @@
  * once zoomed in, a window can end between grid lines, and rounding a press at
  * its edge gave a point outside the grid, where the student could not see it.
  *
- * A mouse, a pen and the keyboard keep what they had.
+ * A mouse and a pen keep what they had. The keyboard's crosshair keeps its one
+ * step a key, and stands only on a grid point inside the window (below).
  */
 
 /*
@@ -91,3 +92,20 @@ export const snapInsideWindow = (value, step, low, high) => {
   const nearest = Math.round(value / size);
   return tidy((first <= last ? clamp(nearest, first, last) : nearest) * size);
 };
+
+/*
+ * WHERE THE KEYBOARD'S CROSSHAIR STANDS (found by N60, on laptops too).
+ *
+ * The arrow keys move it one grid step at a time. Zoomed in, a window can end
+ * between grid lines (the Systems Workspace's −6 to 8 after two presses of Zoom
+ * in ends at x = 4.571429), and the crosshair stopped at the edge itself,
+ * where Enter plotted "Point 1 (4.571429, 0)". It now stands only on a grid
+ * point inside the window drawn, so at an edge it stops at the last grid line
+ * inside. It is held to the authored graph as well, as a press is: zoomed out,
+ * the window shows more than the question asks about, and a press there lands
+ * on the authored edge (CoordinatePlane.jsx).
+ */
+export const keyboardGridPoint = ([x, y], step, view, domain = view) => [
+  snapInsideWindow(x, step, Math.max(view.xMin, domain.xMin), Math.min(view.xMax, domain.xMax)),
+  snapInsideWindow(y, step, Math.max(view.yMin, domain.yMin), Math.min(view.yMax, domain.yMax)),
+];

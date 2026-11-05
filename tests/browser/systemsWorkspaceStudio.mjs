@@ -22,6 +22,10 @@
 //              it is never given a point off the window; a mouse keeps the
 //              chip beside the cursor and a click outside the grid does
 //              nothing (N60)
+//   zoomedKeyboard  zoomed in, the keyboard's crosshair stops at the last grid
+//              line inside the window and Enter plots it there, not at the
+//              window's edge between grid lines; zoomed out it stops at the
+//              authored graph's edge (Chromebook and phone)
 //   reload    work, the open step and what was checked survive a reload; a
 //              changed answer counts only once it is checked again
 //   keyboard   the graph plots from the arrow keys and Enter, a plotted point is
@@ -819,12 +823,57 @@ const phonePrecision = async () => {
   check((await chips(laptop)).join(' | ') === 'Point 1 (4, 5) | Point 2: plot it on the graph', 'phonePrecision (mouse): a click outside the grid does nothing, as before', (await chips(laptop)).join(' | '));
 };
 
+/* ------------------------------------------------- the keyboard, zoomed */
+
+// Found by N60, on laptops too: two presses of Zoom in end the build grid's
+// window at x = 4.571429, between grid lines, and the keyboard's crosshair
+// stopped there; Enter plotted "Point 1 (4.571429, 0)". It stops at the last
+// grid line inside the window, and zoomed out it stays on the authored graph,
+// as a press does (planeTouch.js, keyboardGridPoint).
+const zoomedKeyboard = async (viewport, touch) => {
+  const where = touch ? 'phone' : 'Chromebook';
+  const page = await open('build', { viewport, touch });
+  const plane = keyboardPlane(page);
+  const zoom = async (name, times) => {
+    for (let index = 0; index < times; index += 1) await page.getByRole('button', { name, exact: true }).first().click();
+    await settle(page, 250);
+  };
+  const arrows = async (key, times) => {
+    for (let index = 0; index < times; index += 1) await page.keyboard.press(key);
+    await settle(page, 150);
+  };
+  await zoom('Zoom in', 2);
+  const shownWindow = (await bodyText(page)).match(/Showing x [^\n]*/)?.[0] || '';
+  check(shownWindow.startsWith('Showing x -2.571429 to 4.571429'), `zoomedKeyboard (${where}): two presses of Zoom in end the window between grid lines`, shownWindow);
+  check(await plane.focus(), `zoomedKeyboard (${where}): the graph is reached with Tab`);
+  await arrows('ArrowRight', 6);
+  check((await readout(page))?.text === '(4, 0)', `zoomedKeyboard (${where}): the crosshair stops at the last grid line inside the window`, (await readout(page))?.text);
+  await page.keyboard.press('Enter');
+  await settle(page, 250);
+  check((await chips(page))[0] === 'Point 1 (4, 0)', `zoomedKeyboard (${where}): Enter plots it on the grid`, (await chips(page)).join(' | '));
+  await arrows('ArrowUp', 9);
+  check((await readout(page))?.text === '(4, 6)', `zoomedKeyboard (${where}): and up, at the top edge's last grid line`, (await readout(page))?.text);
+  // Zoomed out the window runs to x = 10.8; the authored graph, and a press, stop at 8.
+  await zoom('Reset view', 1);
+  await zoom('Zoom out', 1);
+  check(await plane.focus(), `zoomedKeyboard (${where}): back to the graph with Tab`);
+  await arrows('ArrowRight', 8);
+  check((await readout(page))?.text === '(8, 6)', `zoomedKeyboard (${where}): zoomed out, the crosshair stops at the authored graph's edge`, (await readout(page))?.text);
+  await page.keyboard.press('Enter');
+  await settle(page, 250);
+  check((await chips(page)).join(' | ') === 'Point 1 (4, 0) | Point 2 (8, 6)', `zoomedKeyboard (${where}): and Enter plots no point the question never allowed`, (await chips(page)).join(' | '));
+};
+
 /* ------------------------------------------------------------------- run */
 
 const SCENARIOS = {
   journey: () => scenario('journey', () => fullJourney('journey', { viewport: CHROMEBOOK, touch: false })),
   phone: () => scenario('phone', () => fullJourney('phone', { viewport: PHONE, touch: true })),
   phonePrecision: () => scenario('phonePrecision', phonePrecision),
+  zoomedKeyboard: async () => {
+    await scenario('zoomedKeyboard', () => zoomedKeyboard(CHROMEBOOK, false));
+    await scenario('zoomedKeyboard phone', () => zoomedKeyboard(PHONE, true));
+  },
   reload: () => scenario('reload', reload),
   keyboard: () => scenario('keyboard', keyboard),
   keyboardReasoning: () => scenario('keyboardReasoning', keyboardReasoning),
