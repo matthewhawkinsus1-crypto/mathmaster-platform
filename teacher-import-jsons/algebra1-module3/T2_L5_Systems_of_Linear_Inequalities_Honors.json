@@ -352,6 +352,38 @@
             "Adults plus students can be at most the seats. Each group’s price times its count, added, must be at least the goal. Which symbol fits each?",
             "\"At most\" is ≤ and \"at least\" is ≥. For the money paid, multiply each count by its price and add."
           ],
+          "misconceptions": [
+            {
+              "field": "seats",
+              "match": [
+                "x + y >= {{n}}",
+                "x + y > {{n}}"
+              ],
+              "message": "\"At most\" means as many people as there are seats, or fewer."
+            },
+            {
+              "field": "seats",
+              "match": [
+                "x + y < {{n}}"
+              ],
+              "message": "\"At most\" includes filling every seat."
+            },
+            {
+              "field": "money",
+              "match": [
+                "{{p}}x + {{q}}y <= {{M}}",
+                "{{p}}x + {{q}}y < {{M}}"
+              ],
+              "message": "\"At least\" means the trip collects the goal or more."
+            },
+            {
+              "field": "money",
+              "match": [
+                "{{p}}x + {{q}}y > {{M}}"
+              ],
+              "message": "\"At least\" includes collecting exactly the goal."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. \"At most\" means…",
             "options": [
@@ -799,6 +831,38 @@
             "How much do x adults weigh in all? And y children? How much do they pay in all?",
             "The total weight can be at most the raft’s limit, and the total money must be at least Noah’s goal. Which symbol fits each?",
             "Weight: (pounds per adult)(adults) + (pounds per child)(children) ≤ the raft’s limit. Money: (price per adult)(adults) + (price per child)(children) ≥ Noah’s goal."
+          ],
+          "misconceptions": [
+            {
+              "field": "weight",
+              "match": [
+                "200x + 100y >= 800",
+                "200x + 100y > 800"
+              ],
+              "message": "The raft holds at most 800 pounds: the weight can be 800 pounds or less."
+            },
+            {
+              "field": "weight",
+              "match": [
+                "200x + 100y < 800"
+              ],
+              "message": "Exactly 800 pounds is allowed: the raft holds that much."
+            },
+            {
+              "field": "money",
+              "match": [
+                "75x + 50y <= 150",
+                "75x + 50y < 150"
+              ],
+              "message": "Noah wants at least $150: the money can be $150 or more."
+            },
+            {
+              "field": "money",
+              "match": [
+                "75x + 50y > 150"
+              ],
+              "message": "Exactly $150 meets Noah’s goal."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. The weight of x adults at about 200 pounds each is…",
@@ -1416,6 +1480,45 @@
             "Which rows of the table are about the stair stepper? What does each constraint count: minutes or calories?",
             "Light minutes plus vigorous minutes can be at most her time. Calories per minute times minutes, for each effort, added, must be at least her goal.",
             "Use the stair stepper rows, 6.9 for light and 10.4 for vigorous. \"At most\" is ≤ and \"at least\" is ≥; for 45 minutes at vigorous effort, multiply 45 by 10.4."
+          ],
+          "misconceptions": [
+            {
+              "field": "time",
+              "match": [
+                "x + y >= 45",
+                "x + y > 45"
+              ],
+              "message": "She has at most 45 minutes: her time can be 45 minutes or less."
+            },
+            {
+              "field": "time",
+              "match": [
+                "x + y < 45"
+              ],
+              "message": "Exercising for exactly 45 minutes is allowed."
+            },
+            {
+              "field": "calories",
+              "match": [
+                "6.9x + 10.4y <= 400",
+                "6.9x + 10.4y < 400"
+              ],
+              "message": "She wants at least 400 calories: 400 or more."
+            },
+            {
+              "field": "calories",
+              "match": [
+                "6.9x + 10.4y > 400"
+              ],
+              "message": "Burning exactly 400 calories meets her goal."
+            },
+            {
+              "field": "calories",
+              "match": [
+                "7.6x + 12.4y >= 400"
+              ],
+              "message": "Emma uses the stair stepper: use its two rows of the table."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Calories burned in y minutes at 10.4 calories per minute are…",
@@ -2377,6 +2480,38 @@
             "With y alone, is each inequality above or below its line? Then do the two shadings overlap, and where?",
             "Each system’s boundaries are parallel, so compare their y-intercepts. \"10 − 3x > y\" is the same as \"y < 10 − 3x\"."
           ],
+          "misconceptions": [
+            {
+              "field": "c1",
+              "match": [
+                "y < -3x + 12",
+                "y <= -3x + 12"
+              ],
+              "message": "Reordering the terms on one side does not change the symbol."
+            },
+            {
+              "field": "c1",
+              "match": [
+                "y >= -3x + 12"
+              ],
+              "message": "The symbol in the system is strict, so the line is left out: your symbol should be strict too."
+            },
+            {
+              "field": "c2",
+              "match": [
+                "y > -3x + 10",
+                "y >= -3x + 10"
+              ],
+              "message": "Read \"10 − 3x > y\" from y’s side: which side is greater?"
+            },
+            {
+              "field": "c2",
+              "match": [
+                "y <= -3x + 10"
+              ],
+              "message": "The symbol in the system is strict, so the line is left out: your symbol should be strict too."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. \"3 + 2x > y\" with y alone is…",
             "options": [
@@ -2930,6 +3065,38 @@
             "Small plus large can be at most the prints the club can make; price times count for each size, added, must be at least the goal. Which symbol fits each?",
             "\"At most\" is ≤ and \"at least\" is ≥. For the plan, add its prints and find its money, then check each constraint."
           ],
+          "misconceptions": [
+            {
+              "field": "count",
+              "match": [
+                "x + y >= {{n}}",
+                "x + y > {{n}}"
+              ],
+              "message": "\"At most\" means the club makes that many prints or fewer."
+            },
+            {
+              "field": "count",
+              "match": [
+                "x + y < {{n}}"
+              ],
+              "message": "\"At most\" includes making exactly that many prints."
+            },
+            {
+              "field": "money",
+              "match": [
+                "{{p}}x + {{q}}y <= {{M}}",
+                "{{p}}x + {{q}}y < {{M}}"
+              ],
+              "message": "\"At least\" means the club raises the goal or more."
+            },
+            {
+              "field": "money",
+              "match": [
+                "{{p}}x + {{q}}y > {{M}}"
+              ],
+              "message": "\"At least\" includes raising exactly the goal."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. \"At least\" means…",
             "options": [
@@ -3058,6 +3225,23 @@
             "At (3, 2), what are x − 1 and 2x − 4? Is 2 at least the first, and less than the second?",
             "Is (3, 2) on a dashed boundary? A point on a dashed boundary fails that inequality. Which symbol includes the boundary?",
             "At (3, 2), 2 ≥ 3 − 1 is true, but 2 < 2(3) − 4 is false. Including the boundary turns < into ≤."
+          ],
+          "misconceptions": [
+            {
+              "field": "fixed",
+              "match": [
+                "y >= 2x - 4",
+                "y > 2x - 4"
+              ],
+              "message": "Turning the symbol around moves the shading to the other side. Keep its direction, and include the boundary."
+            },
+            {
+              "field": "fixed",
+              "match": [
+                "y < 2x - 4"
+              ],
+              "message": "That is the inequality as it was: its boundary is dashed, so (3, 2) is still left out."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is 2 < 2 true?",
@@ -3360,6 +3544,52 @@
             "Which boundary is solid, and which dashed? Which side of each is shaded?",
             "Write y = mx + b for each line. Solid is ≤ or ≥ and dashed is < or >; above means y is greater, and below means y is less."
           ],
+          "misconceptions": [
+            {
+              "field": "solid",
+              "match": [
+                "y <= x + 2",
+                "y < x + 2"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "solid",
+              "match": [
+                "y > x + 2"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "solid",
+              "match": [
+                "y >= x - 2"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            },
+            {
+              "field": "dashed",
+              "match": [
+                "y > -x + 5",
+                "y >= -x + 5"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "dashed",
+              "match": [
+                "y <= -x + 5"
+              ],
+              "message": "The line is dashed, so the points on it are not solutions: your symbol should leave them out."
+            },
+            {
+              "field": "dashed",
+              "match": [
+                "y < -x - 5"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. A dashed boundary with the half-plane below it shaded uses…",
             "options": [
@@ -3440,6 +3670,23 @@
             "What do the slopes of the two boundaries tell you about the lines?",
             "The system shades above y = 2x + k and below y = 2x + 3. When do those two shadings overlap?",
             "The lines are parallel. The shadings overlap only when the line shaded above is not higher than the line shaded below."
+          ],
+          "misconceptions": [
+            {
+              "field": "k",
+              "match": [
+                "k >= 3",
+                "k > 3"
+              ],
+              "message": "The symbol points the wrong way: a smaller k lowers the line y = 2x + k. Does that help the shadings meet?"
+            },
+            {
+              "field": "k",
+              "match": [
+                "k < 3"
+              ],
+              "message": "At k = 3 the two boundaries are the same solid line, and its points solve the system."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. y ≥ 2x + k and y ≤ 2x + 3 can both be true only if 2x + k is…",
@@ -4409,6 +4656,38 @@
               "label": "Greatest number of large prints",
               "answer": "{{G}}",
               "inputProfile": "number"
+            }
+          ],
+          "misconceptions": [
+            {
+              "field": "count",
+              "match": [
+                "x + y >= {{n}}",
+                "x + y > {{n}}"
+              ],
+              "message": "\"At most\" means the club makes that many prints or fewer."
+            },
+            {
+              "field": "count",
+              "match": [
+                "x + y < {{n}}"
+              ],
+              "message": "\"At most\" includes making exactly that many prints."
+            },
+            {
+              "field": "budget",
+              "match": [
+                "{{p}}x + {{q}}y >= {{B}}",
+                "{{p}}x + {{q}}y > {{B}}"
+              ],
+              "message": "\"At most\" means the supplies cost the budget or less."
+            },
+            {
+              "field": "budget",
+              "match": [
+                "{{p}}x + {{q}}y < {{B}}"
+              ],
+              "message": "\"At most\" includes spending exactly the budget."
             }
           ],
           "solutionReview": {

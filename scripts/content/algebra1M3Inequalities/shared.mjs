@@ -149,3 +149,52 @@ export const keyedGraphs = (keys, ids, label = (id) => `Graph ${id}`) => ({
   candidateGraphs: ids.map((id) => ({ id, label: label(id), graph: inequalityFigure([keys[id]]) })),
   candidateGraphsInOrder: true,
 });
+
+/*
+ * THE PREDICTABLE SLIPS IN A "WRITE THE INEQUALITY" BOX (PR #537 walkthrough,
+ * F-NO-MISCONCEPTION-FEEDBACK, as the radicals lessons name theirs). A wrong
+ * box got "Not quite…" and nothing more, though three slips are predictable:
+ * the symbol turned the wrong way, < for ≤ (a dashed line for a solid one) or
+ * ≤ for <, and a wrong sign on the y-intercept. Each is an authored
+ * misconception tied to its box: missFeedback (attemptFeedbackPlan.js) reads
+ * it in that box only, by that box's own grader, and never when the box is
+ * right, so a slip may be another box's right answer (CW 7's graph c is graph
+ * a with its symbol turned). The support keeps six to an item
+ * (pathSolutionSupport.mjs), so an item with three or four boxes names all of
+ * a box's wrong symbols in one sentence.
+ */
+const TOGGLE = Object.freeze({ '<': '<=', '<=': '<', '>': '>=', '>=': '>' });
+const withRelation = (key, table) => {
+  if ((String(key).match(/<=|>=|<|>/g) || []).length !== 1) throw new Error(`Not one inequality: ${key}`);
+  return String(key).replace(/<=|>=|<|>/, (relation) => table[relation]);
+};
+export const slip = (field, match, message) => ({ field, match: [match].flat(), message });
+/** The symbol turned the wrong way: y > … typed as y < …, or as y ≤ … (the other side and the other line). */
+export const turned = (key) => [withRelation(key, FLIP), withRelation(withRelation(key, FLIP), TOGGLE)];
+/** < for ≤, or ≤ for <: the line style swapped. */
+export const restyled = (key) => withRelation(key, TOGGLE);
+/** Every other symbol on the same boundary. */
+export const otherSymbols = (key) => [...turned(key), restyled(key)];
+/** The sign of the constant changed: y > 4x + 2 as y > 4x − 2, and x < 3 as x < −3. */
+export const otherInterceptSign = (key) => {
+  const [left, relation, right] = String(key).split(/(<=|>=|<|>)/);
+  const term = /^(.*\S)\s*([+-])\s*(\d+(?:\.\d+)?)$/.exec(right.trim());
+  if (term) return `${left}${relation} ${term[1]} ${term[2] === '+' ? '-' : '+'} ${term[3]}`;
+  const alone = /^(-?)(\d+(?:\.\d+)?)$/.exec(right.trim());
+  if (alone) return `${left}${relation} ${alone[1] ? '' : '-'}${alone[2]}`;
+  throw new Error(`No constant to change the sign of: ${key}`);
+};
+export const SLIP = Object.freeze({
+  turned: 'The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true.',
+  solid: 'The line is solid, so the points on it are solutions: your symbol should include them.',
+  dashed: 'The line is dashed, so the points on it are not solutions: your symbol should leave them out.',
+  intercept: 'Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?',
+});
+/** One line read from a graph: its symbol turned, its line style swapped and its y-intercept's sign, each with its sentence. */
+export const graphSlips = (field, key, { turnedMessage = SLIP.turned, lineMessage = (/<=|>=/.test(key) ? SLIP.solid : SLIP.dashed), interceptMessage = SLIP.intercept } = {}) => [
+  slip(field, turned(key), turnedMessage),
+  slip(field, restyled(key), lineMessage),
+  slip(field, otherInterceptSign(key), interceptMessage),
+];
+/** Every wrong symbol of a graph box in one sentence, for an item with too many boxes for one sentence each. */
+export const symbolSlip = (field, key, graph = field) => slip(field, otherSymbols(key), `The line is right, so check the symbol: is graph ${graph}’s line solid or dashed, and which side is shaded?`);

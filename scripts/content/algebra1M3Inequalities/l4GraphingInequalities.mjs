@@ -23,7 +23,10 @@
  * and two audited Digital SAT items from MathMaster's CCMR bank in Practice.
  */
 import { auditedCcmrQuestion, backUp, choice, guidedNotes, inequality, number, review, teks } from '../lib/lessonKit.mjs';
-import { A2H, A3D, computedChoice, inequalityBuild, inequalityFigure, keyedGraphs, tex, withOwnHint } from './shared.mjs';
+import {
+  A2H, A3D, SLIP, computedChoice, graphSlips, inequalityBuild, inequalityFigure, keyedGraphs, otherInterceptSign, otherSymbols, restyled, slip,
+  symbolSlip, tex, turned, withOwnHint,
+} from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 4';
 
@@ -49,6 +52,9 @@ const THREE_GRAPHS_KEYS = Object.freeze({ a: 'y < 4x + 2', b: 'y >= 1/2x - 3', c
 const VERTICAL_HORIZONTAL_KEYS = Object.freeze({ a: 'x < 3', b: 'y >= -2' });
 const MARCUS_GRAPH_KEY = 'y <= -2x + 1';
 const NOT_THE_ORIGIN_KEY = 'y >= -2x + 4';
+// Two more lines read from what the student sees: César's table and Honors PR 15's two points.
+const CESAR_KEY = 'y <= -0.4x + 100';
+const TWO_POINTS_KEY = 'y <= -x + 3';
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -352,6 +358,13 @@ const classwork = (P) => [
       inequality('more', 'Her two-point shots outnumber her three-point shots by more than 4.', 'x - y > 4'),
     ],
     hints: ['Does each statement count points or shots? Does its phrase include the number itself?', '"At least" and "no more than" include the number; "more than" and "fewer than" leave it out. Which way does each symbol point?', 'Points come from 2x + 3y and the number of shots from x + y. "Outnumber by more than 4" compares x − y with 4.'],
+    // Four boxes: each names every wrong symbol in one sentence (six to an item).
+    misconceptions: [
+      slip('atLeast', otherSymbols('2x + 3y >= 20'), '"At least 20" means 20 or more, and 20 itself counts.'),
+      slip('noMore', otherSymbols('2x + 3y <= 30'), '"No more than 30" means 30 or less, and 30 itself counts.'),
+      slip('fewer', otherSymbols('x + y < 12'), '"Fewer than 12" means less than 12, and 12 itself does not count.'),
+      slip('more', otherSymbols('x - y > 4'), '"More than 4" means greater than 4, and 4 itself does not count.'),
+    ],
     scaffold: backUp('"No more than" includes the number itself?', ['yes', 'no'], 'yes'),
     solutionReview: review(
       'Include the number or leave it out.',
@@ -376,6 +389,12 @@ const classwork = (P) => [
       graphInequality('d', 'The inequality no graph shows (you graph it next)', SHARED_BOUNDARY_KEYS.d),
     ],
     hints: ['Which graphs have a dashed line, and which a solid one? Which side of the line is shaded in each?', 'Dashed goes with < or >, solid with ≤ or ≥. With y alone, > and ≥ shade above, and < and ≤ shade below.'],
+    // The prompt prints the boundary, so only the symbol can slip; graph d's
+    // wrong symbols are the three the graphs show.
+    misconceptions: [
+      ...['a', 'b', 'c'].map((id) => symbolSlip(id, SHARED_BOUNDARY_KEYS[id])),
+      slip('d', otherSymbols(SHARED_BOUNDARY_KEYS.d), 'The line is right, but graphs a, b and c already show that inequality. Which symbol is left?'),
+    ],
     scaffold: backUp('Solved for y, y < mx + b shades…', ['below the line', 'above the line'], 'below the line'),
     solutionReview: review(
       'Line style, then side.',
@@ -479,6 +498,7 @@ const classwork = (P) => [
       ], 'true, and (0, 0) is in the shaded half-plane'),
     ],
     hints: ['Which two points on the line sit exactly where grid lines cross? How much do y and x change between them?', 'The slope is the change in y divided by the change in x. Where does the line cross the y-axis?', 'Write y = mx + b with your slope and y-intercept. Solid means the line is included, and shaded above means y is greater.'],
+    misconceptions: graphSlips('inequality', WORKED_EXAMPLE_KEY),
     scaffold: backUp('A solid boundary line means the points on the line are…', ['solutions', 'not solutions'], 'solutions'),
     guidedNotes: guidedNotes(['Writing an inequality from a graph', 'Write the boundary’s equation as you would for a line, then replace = with the symbol the line style and the shaded side call for. Test a point to check.']),
     solutionReview: review(
@@ -503,6 +523,8 @@ const classwork = (P) => [
       graphInequality('c', 'Graph c', THREE_GRAPHS_KEYS.c),
     ],
     hints: ['Where does each line cross the y-axis? Between two grid points on it, what is the rise over the run?', 'Is each line dashed or solid? Is the shaded side above or below the line?', 'Write each line as y = mx + b. Dashed is < or >, solid is ≤ or ≥, and a test point such as (0, 0) tells you the side.'],
+    // Three boxes: every wrong symbol in one sentence, and the y-intercept's sign.
+    misconceptions: ['a', 'b', 'c'].flatMap((id) => [symbolSlip(id, THREE_GRAPHS_KEYS[id]), slip(id, otherInterceptSign(THREE_GRAPHS_KEYS[id]), SLIP.intercept)]),
     scaffold: backUp('A dashed boundary uses…', ['< or >', '≤ or ≥'], '< or >'),
     solutionReview: review(
       'Line first, then the symbol.',
@@ -526,7 +548,7 @@ const classwork = (P) => [
     responses: [
       number('rate', 'Rate of change (Mexico minutes per United States minute)', '-0.4'),
       number('intercept', 'y-intercept', '100'),
-      inequality('inequality', 'Inequality for the minutes César can use', 'y <= -0.4x + 100'),
+      inequality('inequality', 'Inequality for the minutes César can use', CESAR_KEY),
       choice('why', 'Why that symbol?', [
         'He can use the whole card or less, so the combinations are on or below the line',
         'He must use more than the whole card, so the combinations are above the line',
@@ -535,6 +557,11 @@ const classwork = (P) => [
       ], 'He can use the whole card or less, so the combinations are on or below the line'),
     ],
     hints: ['From one row to the next, how much do the Mexico minutes change? How much do the United States minutes change?', 'The rate of change is the change in y divided by the change in x. Which row has x = 0?', 'Write y = (rate of change)x + (y-intercept). He cannot spend more than the card holds, so the combinations are on or below the line.'],
+    misconceptions: graphSlips('inequality', CESAR_KEY, {
+      turnedMessage: 'The symbol points the wrong way: can César spend more than the card holds?',
+      lineMessage: 'Using up the whole card is allowed, so the points on the line count: your symbol should include them.',
+      interceptMessage: 'Check the sign of the y-intercept: with no calls in the United States, how many minutes to Mexico does the card buy?',
+    }),
     scaffold: backUp('The card is worth $50, so he can spend…', ['at most $50', 'at least $50'], 'at most $50'),
     solutionReview: review(
       'A line from the table, then "at most".',
@@ -627,6 +654,15 @@ const classwork = (P) => [
       graphInequality('le0', 'The line x + y = 0 and the half-plane below it', 'x + y <= 0'),
     ],
     hints: ['Which symbols make the line solid, and which make it dashed? Which side does a test point tell you to shade?', 'The line x + y = 0 passes through (0, 0), so (0, 0) cannot tell you a side. Which other point could you test?', 'Test (1, 1): x + y = 2, which is greater than 0, so (1, 1) is above the line. Include the line with ≤ or ≥, and leave it out with < or >.'],
+    // The labels print the line, so only the symbol can slip: its side, or the line kept or left out.
+    misconceptions: [
+      slip('ge0', turned('x + y >= 0'), 'The symbol points the wrong way. Test a point above the line, such as (1, 1): it should make your inequality true.'),
+      slip('ge0', restyled('x + y >= 0'), 'This set includes the line, so your symbol should include it too.'),
+      slip('lt0', turned('x + y < 0'), 'The symbol points the wrong way. Test a point below the line, such as (−1, −1): it should make your inequality true.'),
+      slip('lt0', restyled('x + y < 0'), 'This set leaves the line out, so your symbol should leave it out too.'),
+      slip('le0', turned('x + y <= 0'), 'The symbol points the wrong way. Test a point below the line, such as (−1, −1): it should make your inequality true.'),
+      slip('le0', restyled('x + y <= 0'), 'This set includes the line, so your symbol should include it too.'),
+    ],
     scaffold: backUp('x + y = 0 passes through (0, 0), so to test a side use…', ['another point, such as (1, 1)', '(0, 0)'], 'another point, such as (1, 1)'),
     solutionReview: review(
       'Same line, different symbols.',
@@ -701,6 +737,10 @@ const practiceRegular = (P) => [
       number('extra', 'How many dollars over the goal is that?', '{{E}}'),
     ],
     hints: ['How much money do x muffins bring in? And y smoothies? Does "at least" include the goal itself?', 'Price times count for each, added, is at least the goal, so the symbol is ≥. For the plan, multiply each count by its price and add.'],
+    misconceptions: [
+      slip('model', turned('{{p}}x + {{q}}y >= {{T}}'), '"At least" means the club raises the goal or more.'),
+      slip('model', restyled('{{p}}x + {{q}}y >= {{T}}'), '"At least" includes raising exactly the goal.'),
+    ],
     scaffold: backUp('"At least" means…', ['≥', '≤'], '≥'),
     solutionReview: review('Price times count, then "at least".', ['{{p}}x + {{q}}y ≥ {{T}}.', '{{p}}({{x0}}) + {{q}}({{y0}}) = {{R}}, which is {{E}} over the goal.'], '{{p}}x + {{q}}y ≥ {{T}}', 'Using ≤ for "at least".'),
     generator: {
@@ -749,6 +789,10 @@ const practiceRegular = (P) => [
     directionSteps: ['Use the line and its style to choose the symbol.', 'Write each inequality.'],
     responses: [graphInequality('a', 'Graph a', VERTICAL_HORIZONTAL_KEYS.a), graphInequality('b', 'Graph b', VERTICAL_HORIZONTAL_KEYS.b)],
     hints: ['Which variable does a vertical line fix, x or y? And a horizontal line? Is each line dashed or solid?', 'A vertical line is x = c, and to its left x is less than c. A horizontal line is y = c, and above it y is greater than c.'],
+    misconceptions: [
+      ...graphSlips('a', VERTICAL_HORIZONTAL_KEYS.a, { interceptMessage: 'Check the sign: is the line to the left or the right of the y-axis?' }),
+      ...graphSlips('b', VERTICAL_HORIZONTAL_KEYS.b, { interceptMessage: 'Check the sign: is the line above or below the x-axis?' }),
+    ],
     scaffold: backUp('Points to the left of x = 3 have x-coordinates…', ['less than 3', 'greater than 3'], 'less than 3'),
     solutionReview: review('Vertical: compare x. Horizontal: compare y.', ['Left of the dashed line x = 3: x < 3.', 'Above the solid line y = −2: y ≥ −2.'], 'x < 3; y ≥ −2', 'Writing y < 3 for a vertical boundary.'),
   },
@@ -775,6 +819,14 @@ const practiceRegular = (P) => [
     directionSteps: ['Translate the first statement.', 'Translate the second statement.'],
     responses: [inequality('a', '(a)', 'x + y <= 12'), inequality('b', '(b)', '2x - y > 4')],
     hints: ['Which phrase includes the number itself: "at most" or "more than"? Which expression is twice the first number minus the second?', '"At most" means ≤ and "more than" means >. "Twice the first" is 2x, and "minus the second" subtracts y.'],
+    misconceptions: [
+      slip('a', turned('x + y <= 12'), '"At most 12" means 12 or less.'),
+      slip('a', restyled('x + y <= 12'), '"At most 12" includes 12 itself.'),
+      slip('b', turned('2x - y > 4'), '"More than 4" means greater than 4.'),
+      slip('b', restyled('2x - y > 4'), '"More than 4" leaves 4 itself out.'),
+      // The item's own common error: the difference the other way round.
+      slip('b', 'y - 2x > 4', 'Check the order: start from twice the first number, then subtract the second.'),
+    ],
     scaffold: backUp('"At most 12" means…', ['≤ 12', '≥ 12'], '≤ 12'),
     solutionReview: review('Words to symbols.', ['(a) x + y ≤ 12. (b) 2x − y > 4.'], 'x + y ≤ 12; 2x − y > 4', 'Writing y − 2x for "twice the first minus the second".'),
   },
@@ -824,6 +876,7 @@ const practiceRegular = (P) => [
       ], 'true, so the shading below (with the origin) is correct'),
     ],
     hints: ['Is Marcus’s line solid or dashed? Which side did he shade?', 'Which symbols go with a solid line? Is that the < he was graphing?', 'A solid line shaded below shows ≤, but < needs a dashed line. Check his shading with (0, 0) in y < −2x + 1.'],
+    misconceptions: graphSlips('graphed', MARCUS_GRAPH_KEY, { lineMessage: 'That is the inequality Marcus meant to graph. His line is solid, so it shows a symbol that includes the line.' }),
     scaffold: backUp('For <, the boundary is…', ['dashed', 'solid'], 'dashed'),
     solutionReview: review('Check style, then side.', ['A solid line shaded below shows y ≤ −2x + 1, which includes the line.', '< is strict, so the boundary must be dashed.', '(0, 0): 0 < 1 is true and the origin is below the line, so the shading is right.'], 'y ≤ −2x + 1; the line should be dashed', 'Fixing the shading too: it was already correct.'),
   },
@@ -861,6 +914,7 @@ const practiceRegular = (P) => [
       graphInequality('inequality', 'Inequality', NOT_THE_ORIGIN_KEY),
     ],
     hints: ['Which two points on the line sit where grid lines cross? What are the rise and the run between them?', 'Where does the line cross the y-axis? Is (0, 0) in the shaded region, and so is the inequality true or false there?', 'Write y = mx + b for the line. (0, 0) is not shaded, so choose the symbol that makes the inequality false at (0, 0); solid means ≤ or ≥.'],
+    misconceptions: graphSlips('inequality', NOT_THE_ORIGIN_KEY, { turnedMessage: 'The symbol points the wrong way: (0, 0) is not shaded, so it should make your inequality false.' }),
     scaffold: backUp('Is 0 ≤ −2(0) + 4 true?', ['yes', 'no'], 'yes'),
     solutionReview: review('Line, then the side without the origin.', ['Slope −2, y-intercept 4: y = −2x + 4.', '0 ≤ 4 is true, but (0, 0) is not shaded, so the symbol is ≥: y ≥ −2x + 4.'], 'y ≥ −2x + 4', 'Choosing ≤ because the origin is "below": the origin must be excluded.'),
   },
@@ -904,6 +958,10 @@ const practiceHonors = (P) => [
     ],
     // The box takes 3 > 2k − 1 as k < 2 unsolved, so only the last hint writes it.
     hints: ['What do you get when you put x = 2 and y = 3 into y > kx − 1?', 'Solve the inequality you get for k, as you would an equation. Do you multiply or divide by a negative number on the way?', 'Substituting gives 3 > 2k − 1, so 4 > 2k. At the boundary value the two sides are equal, and > leaves that value out.'],
+    misconceptions: [
+      slip('k', turned('k < 2'), 'The symbol points the wrong way: try k = 0, and check whether (2, 3) is then a solution.'),
+      slip('k', restyled('k < 2'), 'At k = 2 the point is on the boundary, and > leaves the boundary out.'),
+    ],
     // Not "3 > 2k − 1 becomes… 4 > 2k": the k box takes 4 > 2k as its answer.
     scaffold: backUp('To find the values of k, substitute the point (2, 3) for…', ['x and y', 'k and y'], 'x and y'),
     solutionReview: review('Substitute, then solve for the parameter.', ['3 > 2k − 1 → 4 > 2k → k < 2.', 'When k = 2, 3 = 2(2) − 1: the point is on the boundary, which > leaves out.'], 'k < 2', 'Including k = 2: the boundary of a strict inequality is not part of the solution.'),
@@ -919,9 +977,13 @@ const practiceHonors = (P) => [
     responses: [
       number('slope', 'Slope', '-1'),
       number('intercept', 'y-intercept', '3'),
-      graphInequality('inequality', 'Inequality', 'y <= -x + 3'),
+      graphInequality('inequality', 'Inequality', TWO_POINTS_KEY),
     ],
     hints: ['How much does y change between the two given points? How much does x change?', 'The slope is the change in y over the change in x. Which number b makes y = mx + b true at one of the two points?', 'Substitute one point and the slope into y = mx + b and solve for b. The line is solid and the origin is shaded: choose the symbol that is true at (0, 0).'],
+    misconceptions: graphSlips('inequality', TWO_POINTS_KEY, {
+      turnedMessage: 'The symbol points the wrong way: the origin is shaded, so it should make your inequality true.',
+      interceptMessage: 'Check the sign of b: substitute one of the two points and the slope into y = mx + b again.',
+    }),
     // Not "The slope … is −1": that is the slope box's own answer.
     scaffold: backUp('From (−2, 5) to (4, −1), the change in y is…', ['−6', '6'], '−6'),
     solutionReview: review('Line from two points, then the origin’s side.', ['Slope −6/6 = −1; 5 = −1(−2) + b gives b = 3.', '0 ≤ 3 is true, the line is solid: y ≤ −x + 3.'], 'y ≤ −x + 3', 'Using < for a solid boundary.'),
@@ -945,6 +1007,13 @@ const practiceHonors = (P) => [
       ], 'Dividing both sides by −4 reverses the inequality'),
     ],
     hints: ['At the origin, 3x − 4y = 0. Which strict symbol makes 0 ? 12 false?', 'Subtract 3x from both sides, then divide each side by −4: dividing by a negative number reverses the symbol.'],
+    misconceptions: [
+      slip('standard', turned('3x - 4y > 12'), 'The symbol points the wrong way: the origin is not in the solution set, so it should make your inequality false.'),
+      slip('standard', restyled('3x - 4y > 12'), 'The boundary is not part of the solution set, so your symbol should leave it out.'),
+      slip('slopeIntercept', turned('y < 3/4x - 3'), 'Dividing both sides by −4 reverses the symbol.'),
+      slip('slopeIntercept', restyled('y < 3/4x - 3'), 'The boundary is not part of the solution set, so your symbol should leave it out.'),
+      slip('slopeIntercept', otherInterceptSign('y < 3/4x - 3'), 'Check the sign of the y-intercept: what is 12 divided by −4?'),
+    ],
     scaffold: backUp('Is 0 > 12 true?', ['no', 'yes'], 'no'),
     solutionReview: review('Exclude the origin, then solve for y.', ['0 > 12 is false, so the origin is excluded by 3x − 4y > 12 (strict, because the boundary is excluded).', '−4y > −3x + 12 → y < (3/4)x − 3 (dividing by −4 reverses the symbol).'], '3x − 4y > 12; y < (3/4)x − 3', 'Keeping > after dividing by −4.'),
   },
@@ -1013,6 +1082,11 @@ const dolRegular = (P) => [
       inequality('model', 'Inequality', '{{p}}x + {{q}}y <= {{T}}'),
       number('most', 'Greatest number of adult tickets with no student tickets', '{{M}}'),
     ],
+    // Said on a miss only once the teacher releases feedback (feedbackOpenForItem).
+    misconceptions: [
+      slip('model', turned('{{p}}x + {{q}}y <= {{T}}'), '"At most" means the class spends the budget or less.'),
+      slip('model', restyled('{{p}}x + {{q}}y <= {{T}}'), '"At most" includes spending exactly the budget.'),
+    ],
     solutionReview: review('Price times count, then "at most".', ['{{p}}x + {{q}}y ≤ {{T}}.', 'With x = 0: {{q}}y ≤ {{T}}, so y ≤ {{T}}/{{q}}; the greatest whole number is {{M}}.'], '{{p}}x + {{q}}y ≤ {{T}}; {{M}}', 'Rounding up: that many tickets would cost more than ${{T}}.'),
     generator: {
       parameters: { p: { type: 'int', min: 5, max: 8 }, q: { type: 'int', min: 9, max: 13 }, T: { type: 'int', min: 100, max: 200, step: 5 } },
@@ -1063,6 +1137,11 @@ const dolHonors = (P) => [
     responses: [
       inequality('model', 'Inequality', '{{p}}x + {{q}}y >= {{T}}'),
       number('least', 'Least number of adult tickets', '{{L}}'),
+    ],
+    // Said on a miss only once the teacher releases feedback (feedbackOpenForItem).
+    misconceptions: [
+      slip('model', turned('{{p}}x + {{q}}y >= {{T}}'), '"At least" means the club takes in the goal or more.'),
+      slip('model', restyled('{{p}}x + {{q}}y >= {{T}}'), '"At least" includes taking in exactly the goal.'),
     ],
     solutionReview: review('Model, substitute, round up.', ['{{p}}x + {{q}}y ≥ {{T}}.', 'With x = {{x0}}: {{q}}y ≥ {{rest}}, so y ≥ {{rest}}/{{q}}; the least whole number is {{L}}.'], '{{p}}x + {{q}}y ≥ {{T}}; {{L}}', 'Rounding down: that many tickets falls short of ${{T}}.'),
     generator: {

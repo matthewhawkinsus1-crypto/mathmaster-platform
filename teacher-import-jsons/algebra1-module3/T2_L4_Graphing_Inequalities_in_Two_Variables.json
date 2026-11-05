@@ -897,6 +897,44 @@
             "\"At least\" and \"no more than\" include the number; \"more than\" and \"fewer than\" leave it out. Which way does each symbol point?",
             "Points come from 2x + 3y and the number of shots from x + y. \"Outnumber by more than 4\" compares x − y with 4."
           ],
+          "misconceptions": [
+            {
+              "field": "atLeast",
+              "match": [
+                "2x + 3y <= 20",
+                "2x + 3y < 20",
+                "2x + 3y > 20"
+              ],
+              "message": "\"At least 20\" means 20 or more, and 20 itself counts."
+            },
+            {
+              "field": "noMore",
+              "match": [
+                "2x + 3y >= 30",
+                "2x + 3y > 30",
+                "2x + 3y < 30"
+              ],
+              "message": "\"No more than 30\" means 30 or less, and 30 itself counts."
+            },
+            {
+              "field": "fewer",
+              "match": [
+                "x + y > 12",
+                "x + y >= 12",
+                "x + y <= 12"
+              ],
+              "message": "\"Fewer than 12\" means less than 12, and 12 itself does not count."
+            },
+            {
+              "field": "more",
+              "match": [
+                "x - y < 4",
+                "x - y <= 4",
+                "x - y >= 4"
+              ],
+              "message": "\"More than 4\" means greater than 4, and 4 itself does not count."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. \"No more than\" includes the number itself?",
             "options": [
@@ -1054,6 +1092,44 @@
           "hints": [
             "Which graphs have a dashed line, and which a solid one? Which side of the line is shaded in each?",
             "Dashed goes with < or >, solid with ≤ or ≥. With y alone, > and ≥ shade above, and < and ≤ shade below."
+          ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "y < 1/2x - 3",
+                "y <= 1/2x - 3",
+                "y >= 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph a’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y >= 1/2x - 3",
+                "y > 1/2x - 3",
+                "y < 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph b’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "c",
+              "match": [
+                "y > 1/2x - 3",
+                "y >= 1/2x - 3",
+                "y <= 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph c’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "d",
+              "match": [
+                "y <= 1/2x - 3",
+                "y < 1/2x - 3",
+                "y > 1/2x - 3"
+              ],
+              "message": "The line is right, but graphs a, b and c already show that inequality. Which symbol is left?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Solved for y, y < mx + b shades…",
@@ -1464,6 +1540,30 @@
             "The slope is the change in y divided by the change in x. Where does the line cross the y-axis?",
             "Write y = mx + b with your slope and y-intercept. Solid means the line is included, and shaded above means y is greater."
           ],
+          "misconceptions": [
+            {
+              "field": "inequality",
+              "match": [
+                "y <= -3/2x - 5",
+                "y < -3/2x - 5"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y > -3/2x - 5"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y >= -3/2x + 5"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. A solid boundary line means the points on the line are…",
             "options": [
@@ -1625,6 +1725,56 @@
             "Is each line dashed or solid? Is the shaded side above or below the line?",
             "Write each line as y = mx + b. Dashed is < or >, solid is ≤ or ≥, and a test point such as (0, 0) tells you the side."
           ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "y > 4x + 2",
+                "y >= 4x + 2",
+                "y <= 4x + 2"
+              ],
+              "message": "The line is right, so check the symbol: is graph a’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "a",
+              "match": [
+                "y < 4x - 2"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y <= 1/2x - 3",
+                "y < 1/2x - 3",
+                "y > 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph b’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y >= 1/2x + 3"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            },
+            {
+              "field": "c",
+              "match": [
+                "y > 3/4x - 2",
+                "y >= 3/4x - 2",
+                "y <= 3/4x - 2"
+              ],
+              "message": "The line is right, so check the symbol: is graph c’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "c",
+              "match": [
+                "y < 3/4x + 2"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. A dashed boundary uses…",
             "options": [
@@ -1741,6 +1891,30 @@
             "From one row to the next, how much do the Mexico minutes change? How much do the United States minutes change?",
             "The rate of change is the change in y divided by the change in x. Which row has x = 0?",
             "Write y = (rate of change)x + (y-intercept). He cannot spend more than the card holds, so the combinations are on or below the line."
+          ],
+          "misconceptions": [
+            {
+              "field": "inequality",
+              "match": [
+                "y >= -0.4x + 100",
+                "y > -0.4x + 100"
+              ],
+              "message": "The symbol points the wrong way: can César spend more than the card holds?"
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y < -0.4x + 100"
+              ],
+              "message": "Using up the whole card is allowed, so the points on the line count: your symbol should include them."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y <= -0.4x - 100"
+              ],
+              "message": "Check the sign of the y-intercept: with no calls in the United States, how many minutes to Mexico does the card buy?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. The card is worth $50, so he can spend…",
@@ -2059,6 +2233,53 @@
             "Which symbols make the line solid, and which make it dashed? Which side does a test point tell you to shade?",
             "The line x + y = 0 passes through (0, 0), so (0, 0) cannot tell you a side. Which other point could you test?",
             "Test (1, 1): x + y = 2, which is greater than 0, so (1, 1) is above the line. Include the line with ≤ or ≥, and leave it out with < or >."
+          ],
+          "misconceptions": [
+            {
+              "field": "ge0",
+              "match": [
+                "x + y <= 0",
+                "x + y < 0"
+              ],
+              "message": "The symbol points the wrong way. Test a point above the line, such as (1, 1): it should make your inequality true."
+            },
+            {
+              "field": "ge0",
+              "match": [
+                "x + y > 0"
+              ],
+              "message": "This set includes the line, so your symbol should include it too."
+            },
+            {
+              "field": "lt0",
+              "match": [
+                "x + y > 0",
+                "x + y >= 0"
+              ],
+              "message": "The symbol points the wrong way. Test a point below the line, such as (−1, −1): it should make your inequality true."
+            },
+            {
+              "field": "lt0",
+              "match": [
+                "x + y <= 0"
+              ],
+              "message": "This set leaves the line out, so your symbol should leave it out too."
+            },
+            {
+              "field": "le0",
+              "match": [
+                "x + y >= 0",
+                "x + y > 0"
+              ],
+              "message": "The symbol points the wrong way. Test a point below the line, such as (−1, −1): it should make your inequality true."
+            },
+            {
+              "field": "le0",
+              "match": [
+                "x + y < 0"
+              ],
+              "message": "This set includes the line, so your symbol should include it too."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. x + y = 0 passes through (0, 0), so to test a side use…",
@@ -2451,6 +2672,23 @@
             "How much money do x muffins bring in? And y smoothies? Does \"at least\" include the goal itself?",
             "Price times count for each, added, is at least the goal, so the symbol is ≥. For the plan, multiply each count by its price and add."
           ],
+          "misconceptions": [
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y <= {{T}}",
+                "{{p}}x + {{q}}y < {{T}}"
+              ],
+              "message": "\"At least\" means the club raises the goal or more."
+            },
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y > {{T}}"
+              ],
+              "message": "\"At least\" includes raising exactly the goal."
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. \"At least\" means…",
             "options": [
@@ -2736,6 +2974,52 @@
             "Which variable does a vertical line fix, x or y? And a horizontal line? Is each line dashed or solid?",
             "A vertical line is x = c, and to its left x is less than c. A horizontal line is y = c, and above it y is greater than c."
           ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "x > 3",
+                "x >= 3"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "a",
+              "match": [
+                "x <= 3"
+              ],
+              "message": "The line is dashed, so the points on it are not solutions: your symbol should leave them out."
+            },
+            {
+              "field": "a",
+              "match": [
+                "x < -3"
+              ],
+              "message": "Check the sign: is the line to the left or the right of the y-axis?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y <= -2",
+                "y < -2"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "b",
+              "match": [
+                "y > -2"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "b",
+              "match": [
+                "y >= 2"
+              ],
+              "message": "Check the sign: is the line above or below the x-axis?"
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. Points to the left of x = 3 have x-coordinates…",
             "options": [
@@ -2868,6 +3152,45 @@
           "hints": [
             "Which phrase includes the number itself: \"at most\" or \"more than\"? Which expression is twice the first number minus the second?",
             "\"At most\" means ≤ and \"more than\" means >. \"Twice the first\" is 2x, and \"minus the second\" subtracts y."
+          ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "x + y >= 12",
+                "x + y > 12"
+              ],
+              "message": "\"At most 12\" means 12 or less."
+            },
+            {
+              "field": "a",
+              "match": [
+                "x + y < 12"
+              ],
+              "message": "\"At most 12\" includes 12 itself."
+            },
+            {
+              "field": "b",
+              "match": [
+                "2x - y < 4",
+                "2x - y <= 4"
+              ],
+              "message": "\"More than 4\" means greater than 4."
+            },
+            {
+              "field": "b",
+              "match": [
+                "2x - y >= 4"
+              ],
+              "message": "\"More than 4\" leaves 4 itself out."
+            },
+            {
+              "field": "b",
+              "match": [
+                "y - 2x > 4"
+              ],
+              "message": "Check the order: start from twice the first number, then subtract the second."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"At most 12\" means…",
@@ -3064,6 +3387,30 @@
             "Which symbols go with a solid line? Is that the < he was graphing?",
             "A solid line shaded below shows ≤, but < needs a dashed line. Check his shading with (0, 0) in y < −2x + 1."
           ],
+          "misconceptions": [
+            {
+              "field": "graphed",
+              "match": [
+                "y >= -2x + 1",
+                "y > -2x + 1"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "graphed",
+              "match": [
+                "y < -2x + 1"
+              ],
+              "message": "That is the inequality Marcus meant to graph. His line is solid, so it shows a symbol that includes the line."
+            },
+            {
+              "field": "graphed",
+              "match": [
+                "y <= -2x - 1"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
+          ],
           "scaffold": {
             "prompt": "Let’s back up. For <, the boundary is…",
             "options": [
@@ -3246,6 +3593,30 @@
             "Which two points on the line sit where grid lines cross? What are the rise and the run between them?",
             "Where does the line cross the y-axis? Is (0, 0) in the shaded region, and so is the inequality true or false there?",
             "Write y = mx + b for the line. (0, 0) is not shaded, so choose the symbol that makes the inequality false at (0, 0); solid means ≤ or ≥."
+          ],
+          "misconceptions": [
+            {
+              "field": "inequality",
+              "match": [
+                "y <= -2x + 4",
+                "y < -2x + 4"
+              ],
+              "message": "The symbol points the wrong way: (0, 0) is not shaded, so it should make your inequality false."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y > -2x + 4"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y >= -2x - 4"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is 0 ≤ −2(0) + 4 true?",
@@ -3489,6 +3860,23 @@
               "label": "Greatest number of adult tickets with no student tickets",
               "answer": "{{M}}",
               "inputProfile": "number"
+            }
+          ],
+          "misconceptions": [
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y >= {{T}}",
+                "{{p}}x + {{q}}y > {{T}}"
+              ],
+              "message": "\"At most\" means the class spends the budget or less."
+            },
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y < {{T}}"
+              ],
+              "message": "\"At most\" includes spending exactly the budget."
             }
           ],
           "solutionReview": {

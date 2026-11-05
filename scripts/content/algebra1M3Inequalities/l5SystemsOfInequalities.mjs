@@ -33,7 +33,9 @@
  * and two audited Digital SAT items from MathMaster's CCMR bank in Practice.
  */
 import { auditedCcmrQuestion, backUp, choice, guidedNotes, inequality, number, review, sortBoard, teks } from '../lib/lessonKit.mjs';
-import { A3D, A3H, A3H_MODEL, FIGURE_WINDOW, computedChoice, inequalityBuild, inequalityFigure, tex, withOwnHint } from './shared.mjs';
+import {
+  A3D, A3H, A3H_MODEL, FIGURE_WINDOW, computedChoice, graphSlips, inequalityBuild, inequalityFigure, restyled, slip, tex, turned, withOwnHint,
+} from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 5';
 // Writing the constraints of a situation (A.2H) for the system it makes (A.3H).
@@ -146,6 +148,12 @@ const twoConstraintsWarmup = (id) => ({
     number('paid', 'Money paid by {{x0}} adults and {{y0}} students ($)', '{{R}}'),
   ],
   hints: ['What does each constraint count: people or dollars? Which phrase is a ceiling, and which is a floor?', 'Adults plus students can be at most the seats. Each group’s price times its count, added, must be at least the goal. Which symbol fits each?', '"At most" is ≤ and "at least" is ≥. For the money paid, multiply each count by its price and add.'],
+  misconceptions: [
+    slip('seats', turned('x + y <= {{n}}'), '"At most" means as many people as there are seats, or fewer.'),
+    slip('seats', restyled('x + y <= {{n}}'), '"At most" includes filling every seat.'),
+    slip('money', turned('{{p}}x + {{q}}y >= {{M}}'), '"At least" means the trip collects the goal or more.'),
+    slip('money', restyled('{{p}}x + {{q}}y >= {{M}}'), '"At least" includes collecting exactly the goal.'),
+  ],
   scaffold: backUp('"At most" means…', ['≤', '≥'], '≤'),
   solutionReview: review(
     'One inequality for each constraint.',
@@ -329,6 +337,12 @@ const classwork = (P) => [
       'The total weight can be at most the raft’s limit, and the total money must be at least Noah’s goal. Which symbol fits each?',
       'Weight: (pounds per adult)(adults) + (pounds per child)(children) ≤ the raft’s limit. Money: (price per adult)(adults) + (price per child)(children) ≥ Noah’s goal.',
     ],
+    misconceptions: [
+      slip('weight', turned('200x + 100y <= 800'), 'The raft holds at most 800 pounds: the weight can be 800 pounds or less.'),
+      slip('weight', restyled('200x + 100y <= 800'), 'Exactly 800 pounds is allowed: the raft holds that much.'),
+      slip('money', turned('75x + 50y >= 150'), 'Noah wants at least $150: the money can be $150 or more.'),
+      slip('money', restyled('75x + 50y >= 150'), 'Exactly $150 meets Noah’s goal.'),
+    ],
     scaffold: backUp('The weight of x adults at about 200 pounds each is…', ['200x', 'x + 200'], '200x'),
     guidedNotes: guidedNotes(
       ['Constraints', 'In a system of linear inequalities, the inequalities are called constraints: they "constrain" the solutions to one region of the graph.'],
@@ -494,6 +508,14 @@ const classwork = (P) => [
       number('allVigorous', 'Calories burned in 45 minutes, all at vigorous effort', '468'),
     ],
     hints: ['Which rows of the table are about the stair stepper? What does each constraint count: minutes or calories?', 'Light minutes plus vigorous minutes can be at most her time. Calories per minute times minutes, for each effort, added, must be at least her goal.', 'Use the stair stepper rows, 6.9 for light and 10.4 for vigorous. "At most" is ≤ and "at least" is ≥; for 45 minutes at vigorous effort, multiply 45 by 10.4.'],
+    misconceptions: [
+      slip('time', turned('x + y <= 45'), 'She has at most 45 minutes: her time can be 45 minutes or less.'),
+      slip('time', restyled('x + y <= 45'), 'Exercising for exactly 45 minutes is allowed.'),
+      slip('calories', turned('6.9x + 10.4y >= 400'), 'She wants at least 400 calories: 400 or more.'),
+      slip('calories', restyled('6.9x + 10.4y >= 400'), 'Burning exactly 400 calories meets her goal.'),
+      // The item's own common error: the treadmill's rates.
+      slip('calories', '7.6x + 12.4y >= 400', 'Emma uses the stair stepper: use its two rows of the table.'),
+    ],
     scaffold: backUp('Calories burned in y minutes at 10.4 calories per minute are…', ['10.4y', 'y + 10.4'], '10.4y'),
     solutionReview: review(
       'Time is a ceiling, calories a floor.',
@@ -664,6 +686,13 @@ const classwork = (P) => [
       ], 'Equations: usually one solution, the intersection point. Inequalities: a whole region or none, which may not include that point'),
     ],
     hints: ['In each system, how do the slopes of the two boundaries compare? Which side of each line is shaded?', 'With y alone, is each inequality above or below its line? Then do the two shadings overlap, and where?', 'Each system’s boundaries are parallel, so compare their y-intercepts. "10 − 3x > y" is the same as "y < 10 − 3x".'],
+    misconceptions: [
+      slip('c1', turned('y > -3x + 12'), 'Reordering the terms on one side does not change the symbol.'),
+      slip('c1', restyled('y > -3x + 12'), 'The symbol in the system is strict, so the line is left out: your symbol should be strict too.'),
+      // The item's own common error: reading "10 − 3x > y" as y > 10 − 3x.
+      slip('c2', turned('y < -3x + 10'), 'Read "10 − 3x > y" from y’s side: which side is greater?'),
+      slip('c2', restyled('y < -3x + 10'), 'The symbol in the system is strict, so the line is left out: your symbol should be strict too.'),
+    ],
     scaffold: backUp('"3 + 2x > y" with y alone is…', ['y < 2x + 3', 'y > 2x + 3'], 'y < 2x + 3'),
     solutionReview: review(
       'Parallel boundaries: compare the intercepts.',
@@ -813,6 +842,12 @@ const practiceRegular = (P) => [
       number('met', 'How many of the two constraints does the plan meet?', '{{cnt}}'),
     ],
     hints: ['What does each constraint count: prints or dollars? Which one is a ceiling, and which a floor?', 'Small plus large can be at most the prints the club can make; price times count for each size, added, must be at least the goal. Which symbol fits each?', '"At most" is ≤ and "at least" is ≥. For the plan, add its prints and find its money, then check each constraint.'],
+    misconceptions: [
+      slip('count', turned('x + y <= {{n}}'), '"At most" means the club makes that many prints or fewer.'),
+      slip('count', restyled('x + y <= {{n}}'), '"At most" includes making exactly that many prints.'),
+      slip('money', turned('{{p}}x + {{q}}y >= {{M}}'), '"At least" means the club raises the goal or more.'),
+      slip('money', restyled('{{p}}x + {{q}}y >= {{M}}'), '"At least" includes raising exactly the goal.'),
+    ],
     scaffold: backUp('"At least" means…', ['≥', '≤'], '≥'),
     solutionReview: review(
       'Write both constraints, then test the plan in each.',
@@ -891,6 +926,11 @@ const practiceRegular = (P) => [
       inequality('fixed', 'The second inequality with its boundary included', 'y <= 2x - 4'),
     ],
     hints: ['At (3, 2), what are x − 1 and 2x − 4? Is 2 at least the first, and less than the second?', 'Is (3, 2) on a dashed boundary? A point on a dashed boundary fails that inequality. Which symbol includes the boundary?', 'At (3, 2), 2 ≥ 3 − 1 is true, but 2 < 2(3) − 4 is false. Including the boundary turns < into ≤.'],
+    misconceptions: [
+      // The item's own common error: changing < to >, which flips the shading.
+      slip('fixed', turned('y <= 2x - 4'), 'Turning the symbol around moves the shading to the other side. Keep its direction, and include the boundary.'),
+      slip('fixed', restyled('y <= 2x - 4'), 'That is the inequality as it was: its boundary is dashed, so (3, 2) is still left out.'),
+    ],
     scaffold: backUp('Is 2 < 2 true?', ['no', 'yes'], 'no'),
     solutionReview: review(
       'Check the crossing point in both inequalities.',
@@ -972,6 +1012,7 @@ const practiceRegular = (P) => [
       ], 'No — it is on the dashed boundary, which is not included'),
     ],
     hints: ['Where does each line cross the y-axis, and what is its rise over run?', 'Which boundary is solid, and which dashed? Which side of each is shaded?', 'Write y = mx + b for each line. Solid is ≤ or ≥ and dashed is < or >; above means y is greater, and below means y is less.'],
+    misconceptions: [...graphSlips('solid', SYSTEM_FROM_GRAPH_KEYS.solid), ...graphSlips('dashed', SYSTEM_FROM_GRAPH_KEYS.dashed)],
     scaffold: backUp('A dashed boundary with the half-plane below it shaded uses…', ['<', '≤'], '<'),
     solutionReview: review(
       'Each boundary, its style and its side.',
@@ -1003,6 +1044,11 @@ const practiceHonors = (P) => [
       ], 'empty — above y = 2x + 5 and below y = 2x + 3 never meet'),
     ],
     hints: ['What do the slopes of the two boundaries tell you about the lines?', 'The system shades above y = 2x + k and below y = 2x + 3. When do those two shadings overlap?', 'The lines are parallel. The shadings overlap only when the line shaded above is not higher than the line shaded below.'],
+    misconceptions: [
+      slip('k', turned('k <= 3'), 'The symbol points the wrong way: a smaller k lowers the line y = 2x + k. Does that help the shadings meet?'),
+      // The item's own common error: k < 3.
+      slip('k', restyled('k <= 3'), 'At k = 3 the two boundaries are the same solid line, and its points solve the system.'),
+    ],
     scaffold: backUp('y ≥ 2x + k and y ≤ 2x + 3 can both be true only if 2x + k is…', ['at most 2x + 3', 'more than 2x + 3'], 'at most 2x + 3'),
     solutionReview: review(
       'A strip between parallel lines, if the order is right.',
@@ -1204,6 +1250,13 @@ const dolRegular = (P) => [
       inequality('money', 'Money collected', '{{p}}x + {{q}}y >= {{M}}'),
       number('met', 'How many of the two constraints does the sale meet?', '{{cnt}}'),
     ],
+    // Said on a miss only once the teacher releases feedback (feedbackOpenForItem).
+    misconceptions: [
+      slip('seats', turned('x + y <= {{n}}'), '"At most" means as many tickets as there are seats, or fewer.'),
+      slip('seats', restyled('x + y <= {{n}}'), '"At most" includes selling every seat.'),
+      slip('money', turned('{{p}}x + {{q}}y >= {{M}}'), '"At least" means the show collects the goal or more.'),
+      slip('money', restyled('{{p}}x + {{q}}y >= {{M}}'), '"At least" includes collecting exactly the goal.'),
+    ],
     solutionReview: review(
       'Write both constraints, then test the sale in each.',
       ['x + y ≤ {{n}} and {{p}}x + {{q}}y ≥ {{M}}.', '{{x0}} + {{y0}} = {{T}} tickets and {{p}}({{x0}}) + {{q}}({{y0}}) = {{R}} dollars, so the sale meets {{cnt}} of the 2 constraints.'],
@@ -1282,6 +1335,13 @@ const dolHonors = (P) => [
       inequality('count', 'Number of prints', 'x + y <= {{n}}'),
       inequality('budget', 'Supply cost', '{{p}}x + {{q}}y <= {{B}}'),
       number('most', 'Greatest number of large prints', '{{G}}'),
+    ],
+    // Said on a miss only once the teacher releases feedback (feedbackOpenForItem).
+    misconceptions: [
+      slip('count', turned('x + y <= {{n}}'), '"At most" means the club makes that many prints or fewer.'),
+      slip('count', restyled('x + y <= {{n}}'), '"At most" includes making exactly that many prints.'),
+      slip('budget', turned('{{p}}x + {{q}}y <= {{B}}'), '"At most" means the supplies cost the budget or less.'),
+      slip('budget', restyled('{{p}}x + {{q}}y <= {{B}}'), '"At most" includes spending exactly the budget.'),
     ],
     solutionReview: review(
       'Each constraint gives a limit; the smaller limit wins.',
