@@ -116,7 +116,9 @@ test('the report carries the question set the export needs', () => {
   // …and the report is written from that result, after private state is gone.
   const server = codeOf('functions/index.js');
   const writerStart = server.indexOf('async function writeLiveChallengeReportFromResult');
+  // The writer and the classic report it stores (classicChallengeReportFromResult, beside it).
   const writer = server.slice(writerStart, server.indexOf('async function writeWarmupCreditFromResult', writerStart));
+  assert.match(writer, /const report = await classicChallengeReportFromResult\(result\);/);
   assert.match(writer, /questionIds: Array\.isArray\(result\.questionIds\) \? result\.questionIds : \[\]/);
 });
 

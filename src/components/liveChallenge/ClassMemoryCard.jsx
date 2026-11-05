@@ -8,8 +8,9 @@ import {
 } from '../../../functions/shared/liveChallengeClassMemory.mjs';
 
 /*
- * LAST TIME, AND WHAT TO TRY NEXT — the card at the top of a rush's setup
- * when this class has played the game before (liveChallengeClassMemory.mjs):
+ * LAST TIME, AND WHAT TO TRY NEXT — the card at the top of a game's setup
+ * (a rush, Graph the Line, Solver Race) when this class has played the game
+ * before (liveChallengeClassMemory.mjs):
  *
  *   Period 5 last played this on Oct 28 at Standard, 3 × 60 s, 86% accuracy → try Challenge.
  *   4.2 graphs per student · weakest: vertex (41% completed)

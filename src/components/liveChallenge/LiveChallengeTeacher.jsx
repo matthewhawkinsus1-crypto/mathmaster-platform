@@ -17,7 +17,7 @@ import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeSc
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
-import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
+import { CLASSIC_SETUP_CHOICES, getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
 import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
 import { teacherErrorSentence } from '../../platform/teacher/teacherErrorWords.js';
@@ -108,6 +108,9 @@ const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.j
 const InequalityRushSetup = lazy(() => import('./InequalityRushSetup.jsx'));
 // Graph the Line's the same way: loaded only when a teacher chooses it.
 const LineGraphSetup = lazy(() => import('./LineGraphSetup.jsx'));
+// The last-time card a Solver Race setup shows (the game setups above carry
+// their own): loaded only when the class has a memory of the game.
+const ClassMemoryCard = lazy(() => import('./ClassMemoryCard.jsx'));
 const LineGraphPractice = lazy(() => import('./LineGraphPractice.jsx'));
 // Whether Graph the Line's modes are offered to every teacher (not a preview).
 const LINE_GRAPH_LAUNCHED = LINE_GRAPH_MODE_IDS.every((id) => getChallengeMode(id).teacherSelectable);
@@ -349,7 +352,7 @@ export default function LiveChallengeTeacher({
   const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
   const [inequalitySetup, setInequalitySetup] = useState(() => defaultInequalitySetup(courseId));
-  // What the chosen class did the last time it played the chosen rush, if it
+  // What the chosen class did the last time it played the chosen game, if it
   // has (liveChallengeClassMemory.mjs): the setup card's "last played … → try …".
   const [classMemory, setClassMemory] = useState(null);
   const [lineSetup, setLineSetup] = useState(() => defaultLineSetup(courseId));
@@ -580,9 +583,24 @@ export default function LiveChallengeTeacher({
   const classicStrategyId = resolveClassicScoring(challengeMode, classicScoringId);
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
   const inequalityProblem = inequalityMode ? inequalitySetupProblem(inequalitySetup) : null;
+  // The games with a memory (N80). Standard Challenge has none: there is no
+  // easier or harder setting to suggest (liveChallengeClassMemory.mjs).
   let memoryGame = null;
   if (rushMode) memoryGame = 'graphFeatureRush';
   else if (inequalityMode) memoryGame = 'inequalityRush';
+  else if (lineMode) memoryGame = LINE_GRAPH_GAME;
+  else if (challengeMode === 'solverRace') memoryGame = 'solverRace';
+  // "Use last settings" or "Use suggestion" on a Solver Race card: the race
+  // as the memory holds it (focus, difficulty, rounds, clock, scoring).
+  const takeSolverRaceSetup = (setup) => {
+    if (!setup) return;
+    setSolverRaceFocus(setup.focus);
+    setSolverRaceDifficulty(setup.difficulty);
+    setRoundCount(setup.roundCount);
+    setRoundSeconds(setup.roundSeconds);
+    setTimingMode(setup.timingMode);
+    setClassicScoringId(setup.scoringStrategyId);
+  };
   // Followed while setup is open, not read once: New Challenge can be chosen
   // before the game that just ended has written its memory (the room closes
   // first), and the write then updates the card. Nothing is shown while a
@@ -1162,6 +1180,11 @@ export default function LiveChallengeTeacher({
                 {inequalityMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own inequalities and races the clock to graph each one on a number line — open or closed, which way, and "no solution".</span>}
                 {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn.{LINE_GRAPH_LAUNCHED ? '' : ' In preview: only you can launch it.'}</span>}
               </label>
+              {challengeMode === 'solverRace' && classMemory?.game === 'solverRace' && (
+                <Suspense fallback={null}>
+                  <ClassMemoryCard memory={classMemory} onUse={takeSolverRaceSetup} />
+                </Suspense>
+              )}
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
                   <option value="mixed">Mixed Solver Race</option>
@@ -1209,11 +1232,11 @@ export default function LiveChallengeTeacher({
               )}
               {lineMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph the Line settings…</p>}>
-                  <LineGraphSetup setup={lineSetup} onChange={setLineSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                  <LineGraphSetup setup={lineSetup} onChange={setLineSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === LINE_GRAPH_GAME ? classMemory : null} />
                 </Suspense>
               )}
               {!ownSettingsGame && <>
-              <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
+              <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{CLASSIC_SETUP_CHOICES.roundCounts.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
               <label style={{ fontWeight: 800, opacity: timingMode === 'pace' ? 0.55 : 1 }}>Time per round
                 <select
                   value={roundSeconds}
@@ -1222,7 +1245,7 @@ export default function LiveChallengeTeacher({
                   onChange={(event) => setRoundSeconds(Number(event.target.value))}
                   style={{ ...field, cursor: timingMode === 'pace' ? 'not-allowed' : 'pointer' }}
                 >
-                  {[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
+                  {CLASSIC_SETUP_CHOICES.roundSeconds.map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
                 </select>
                 {timingMode === 'pace' && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Disabled in Pace Race. Students have unlimited solving time until the closing threshold starts the separate closing countdown.</span>}
               </label>

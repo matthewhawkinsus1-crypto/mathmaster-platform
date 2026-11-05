@@ -6,6 +6,13 @@ import * as M from '../../functions/shared/liveChallengeClassMemory.mjs';
 import { buildRushReport } from '../../functions/shared/graphFeatureRush.mjs';
 import { normalizeGraphFeatureRushConfig } from '../../functions/shared/graphFeatureRushConfig.mjs';
 import { INEQUALITY_REPORT_LABELS, normalizeInequalityRushConfig } from '../../functions/shared/inequalityRush.mjs';
+import { buildLineGraphReport } from '../../functions/shared/lineGraphAttempts.mjs';
+import { LINE_ROUND_LIMITS, normalizeLineGraphConfig } from '../../functions/shared/lineGraphConfig.mjs';
+import { LINE_GRAPH_MODE_ID } from '../../functions/shared/lineGraphRules.mjs';
+import { buildChallengeReport } from '../../functions/shared/liveChallengeReport.mjs';
+import { CLASSIC_SETUP_CHOICES } from '../../functions/shared/liveChallengeModes.mjs';
+import { SOLVER_RACE_DIFFICULTIES, SOLVER_RACE_FOCUS, planSolverRace } from '../../functions/shared/solverRace.mjs';
+import { LINE_GRAPH_GAME, defaultLineSetup, lineCreateRequest, lineSetupProblem } from '../../src/platform/liveChallenge/lineGraphSetupModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 /*
@@ -228,9 +235,18 @@ test('the server writes the memory as a finalization effect, from the result and
   const writer = region(index, 'async function writeClassMemoryFromResult(db, result) {', '\n}\n', 'the writer');
   assert.match(writer, /if \(!game \|\| result\.status !== "finished" \|\| !result\.classId\) return;/);
   assert.match(writer, /db\.collection\(LIVE_CHALLENGE_ROOMS\)\.doc\(String\(result\.roomId \|\| ""\)\)\.get\(\)/, 'the settings come from the room');
-  assert.match(writer, /buildRushReport\(result, labels\)/, 'the totals from the durable result');
+  // The totals come from the durable result: each game's report (its
+  // `report`) is built from the match result, as the teacher's report is.
+  assert.match(writer, /const report = await classMemoryReportFromResult\(game, result\);/);
+  const reports = region(index, 'async function classMemoryReportFromResult(game, result) {', '\n}\n', 'the report each memory reads');
+  assert.match(reports, /if \(game\.report === "lineGraph"\) return \(await lineGraphModules\(\)\)\.attempts\.buildLineGraphReport\(result\);/, 'Graph the Line\'s report');
+  assert.match(reports, /if \(game\.report === "classic"\) return classicChallengeReportFromResult\(result\);/, 'the classic report, for Solver Race');
+  assert.match(reports, /buildRushReport\(result, labels\)/, 'a rush\'s report');
+  const classic = region(index, 'async function classicChallengeReportFromResult(result) {', '\n}\n', 'the classic report');
+  assert.match(classic, /reportRules\.buildChallengeReport\(\{\s*room: result,/);
+  assert.match(region(index, 'async function writeLiveChallengeReportFromResult(db, result) {', '\n}\n', 'the teacher\'s report'), /const report = await classicChallengeReportFromResult\(result\);/, 'the same report the teacher reads');
+  for (const source of [writer, reports, classic]) assert.doesNotMatch(source, /LIVE_CHALLENGE_PRIVATE|liveChallengePrivate/, 'never private state');
   assert.match(writer, /if \(stored\.exists && memoryRules\.memoryIsNewer\(stored\.data\(\), memory\)\) return;/);
-  assert.doesNotMatch(writer, /LIVE_CHALLENGE_PRIVATE/, 'never private state');
   assert.equal(M.CLASS_MEMORY_COLLECTION, 'liveChallengeClassMemory');
 });
 
@@ -275,4 +291,230 @@ test('the setup card follows the memory: a game finishing after New Challenge wa
   const none = [];
   M.watchClassMemory({ classId: '', game: 'graphFeatureRush', listen: () => assert.fail('no listener'), onValue: (v) => none.push(v) });
   assert.deepEqual(none, [null]);
+});
+
+/* ------------- Graph the Line, Solver Race — and not Standard (N80) ------------- */
+
+const lineMemory = (accuracy, settings = {}, weakest = { key: 'pointSlope', label: 'Point-slope form', completionPercent: 40, accuracyPercent: 52 }) => ({
+  version: 1,
+  game: 'lineGraph',
+  classId: 'class-5',
+  classLabel: 'Period 5',
+  playedAtMs: OCT_28,
+  settings: {
+    format: 'sprint', presetId: 'allThreeForms', itemTypes: ['graph'], forms: ['slopeIntercept', 'standard', 'pointSlope'], specialLines: false,
+    difficulty: 'standard', nameStyle: 'choice', triesPerItem: 3, sprintLength: 10, sameEquations: false, showMethod: false, slopeHelper: false,
+    roundCount: 2, roundSeconds: 180, scoringStrategyId: 'grandPrix',
+    ...settings,
+  },
+  results: { accuracyPercent: accuracy, completedPerStudent: 6, players: 22, weakest },
+});
+
+const raceMemory = (accuracy, settings = {}) => ({
+  version: 1,
+  game: 'solverRace',
+  classId: 'class-5',
+  classLabel: 'Period 5',
+  playedAtMs: OCT_28,
+  settings: { focus: 'linearEquation', difficulty: 'developing', timingMode: 'timed', roundCount: 10, roundSeconds: 45, scoringStrategyId: 'accuracyFirst', ...settings },
+  results: { accuracyPercent: accuracy, completedPerStudent: 7.5, players: 24, weakest: null },
+});
+
+test('Standard Challenge has no memory: nothing easier or harder to suggest; the other games each have one', () => {
+  assert.deepEqual([...M.CLASS_MEMORY_GAME_IDS].sort(), ['graphFeatureRush', 'inequalityRush', 'lineGraph', 'solverRace']);
+  assert.equal(M.classMemoryGameOfMode('standard'), null);
+  assert.equal(M.classMemoryGameOfMode('solverRace').id, 'solverRace');
+  for (const modeId of Object.values(LINE_GRAPH_MODE_ID)) assert.equal(M.classMemoryGameOfMode(modeId).id, 'lineGraph', `${modeId}: one memory for the three formats`);
+  assert.equal(M.getClassMemoryGame(LINE_GRAPH_GAME)?.id, LINE_GRAPH_GAME, 'the console names the game the memory keeps');
+  // A finished Standard Challenge, with its whole report, leaves nothing.
+  const standard = { ...finishedResult('standard'), standings: [{ studentId: 's1', alias: 's1', joined: true, roundsAnswered: 5, correctCount: 2, score: 2000 }] };
+  const report = buildChallengeReport({ room: standard, scheduledRoundCount: 5, roundMisses: { 0: 1 }, answeredCounts: { 0: 2 }, roundStandards: { 0: 'A.5A' }, players: standard.standings });
+  assert.equal(report.classAccuracyPercent, 50, 'a report with an accuracy and a weakest standard …');
+  assert.equal(report.weakestStandard.standard, 'A.5A');
+  assert.equal(M.buildClassMemory({ result: standard, room: { challengeMode: 'standard', standardCode: 'mixed', roundSeconds: 45 }, report }), null, '… and still no memory');
+  assert.equal(M.suggestNextSettings({ game: 'standard', settings: { difficulty: 'standard', roundCount: 10, roundSeconds: 45 }, results: { accuracyPercent: 40 } }), null);
+});
+
+test('Graph the Line steps the same way, keeps its format, and drops its weakest form', () => {
+  const up = M.suggestNextSettings(lineMemory(88));
+  assert.equal(up.kind, 'stepUp');
+  assert.equal(up.phrase, 'try Challenge');
+  assert.equal(up.settings.difficulty, 'challenge');
+  assert.equal(up.settings.format, 'sprint', 'a Sprint stays a Sprint');
+  assert.deepEqual([up.settings.roundCount, up.settings.roundSeconds, up.settings.sprintLength], [2, 180, 10]);
+  assert.equal(M.suggestNextSettings(lineMemory(70)).kind, 'repeat');
+  assert.equal(M.suggestNextSettings(lineMemory(50)).settings.difficulty, 'easy');
+  // At the top, a shorter clock from the format's own choices.
+  const faster = M.suggestNextSettings(lineMemory(95, { difficulty: 'challenge' }));
+  assert.deepEqual([faster.kind, faster.settings.roundSeconds, faster.phrase], ['faster', 120, 'try 120 s rounds']);
+  assert.ok(LINE_ROUND_LIMITS.sprint.secondsOptions.includes(120));
+  const classicFaster = M.suggestNextSettings(lineMemory(95, { format: 'classic', difficulty: 'challenge', roundCount: 8, roundSeconds: 45, sameEquations: true }));
+  assert.equal(classicFaster.settings.roundSeconds, 30, 'Classic\'s clock is its own');
+  // At the bottom, the weakest form goes; with one form left, more time.
+  const dropped = M.suggestNextSettings(lineMemory(50, { difficulty: 'easy' }));
+  assert.equal(dropped.kind, 'drop');
+  assert.deepEqual(dropped.settings.forms, ['slopeIntercept', 'standard']);
+  assert.equal(dropped.phrase, 'try it without point-slope form');
+  assert.equal(dropped.settings.presetId, 'custom');
+  const slower = M.suggestNextSettings(lineMemory(50, { difficulty: 'easy', forms: ['pointSlope'] }));
+  assert.deepEqual([slower.kind, slower.settings.roundSeconds], ['slower', 240]);
+  // Every suggestion is a game the server would create.
+  let checked = 0;
+  for (const format of ['classic', 'sprint', 'rush']) {
+    for (const difficulty of ['easy', 'standard', 'challenge', 'mixed']) {
+      for (let accuracy = 0; accuracy <= 100; accuracy += 9) {
+        const seconds = LINE_ROUND_LIMITS[format].defaultSeconds;
+        const next = M.suggestNextSettings(lineMemory(accuracy, { format, difficulty, roundSeconds: seconds }));
+        assert.doesNotThrow(() => normalizeLineGraphConfig(next.settings, { format: next.settings.format }), `${format} ${difficulty} ${accuracy}%`);
+        assert.equal(next.settings.format, format);
+        assert.ok(LINE_ROUND_LIMITS[format].secondsOptions.includes(next.settings.roundSeconds), `${format}: ${next.settings.roundSeconds} s is a choice`);
+        checked += 1;
+      }
+    }
+  }
+  assert.ok(checked > 100);
+});
+
+test('Graph the Line\'s card names the format, and either button fills in a setup the console can create', () => {
+  const memory = lineMemory(86);
+  assert.equal(M.classMemorySentence(memory, M.suggestNextSettings(memory), { nowMs: NOV_1 }),
+    'Period 5 last played this on Oct 28 at Standard, Sprint, 2 × 180 s, 86% accuracy → try Challenge.');
+  assert.equal(M.classMemoryDetail(memory), '6 lines per student · weakest: Point-slope form (40% completed)');
+  const setup = M.setupFromMemory('lineGraph', memory.settings);
+  assert.deepEqual(Object.keys(setup).sort(), Object.keys(defaultLineSetup('algebra1', 'sprint')).sort(), 'every field the setup holds');
+  assert.equal(lineSetupProblem(setup), null);
+  assert.equal(lineCreateRequest(setup).challengeMode, LINE_GRAPH_MODE_ID.SPRINT);
+  const next = M.setupFromMemory('lineGraph', M.suggestNextSettings(memory).settings);
+  assert.equal(lineSetupProblem(next), null);
+  assert.equal(next.difficulty, 'challenge');
+  assert.equal(M.setupFromMemory('lineGraph', { ...memory.settings, roundSeconds: 200 }).roundSeconds, 180, 'the nearest of the format\'s choices');
+  assert.equal(M.setupFromMemory('lineGraph', { ...memory.settings, format: 'rush', roundCount: 40 }).roundCount, LINE_ROUND_LIMITS.rush.maxRounds);
+});
+
+test('Solver Race steps along its bands; a Pace Race has no clock to change', () => {
+  assert.deepEqual([M.suggestNextSettings(raceMemory(90)).kind, M.suggestNextSettings(raceMemory(90)).phrase, M.suggestNextSettings(raceMemory(90)).settings.difficulty], ['stepUp', 'try Advanced', 'advanced']);
+  assert.equal(M.suggestNextSettings(raceMemory(84)).kind, 'repeat');
+  assert.equal(M.suggestNextSettings(raceMemory(64)).phrase, 'try Foundation');
+  // Ramp Up climbs from Foundation to Challenge: up is Challenge, down Foundation.
+  assert.equal(M.suggestNextSettings(raceMemory(90, { difficulty: 'ramp' })).settings.difficulty, 'challenge');
+  assert.equal(M.suggestNextSettings(raceMemory(40, { difficulty: 'ramp' })).settings.difficulty, 'foundation');
+  // At the top a shorter clock, at the bottom a longer one — the console's own choices.
+  const faster = M.suggestNextSettings(raceMemory(92, { difficulty: 'challenge' }));
+  assert.deepEqual([faster.kind, faster.settings.roundSeconds], ['faster', 30]);
+  const slower = M.suggestNextSettings(raceMemory(40, { difficulty: 'foundation' }));
+  assert.deepEqual([slower.kind, slower.settings.roundSeconds, slower.phrase], ['slower', 60, 'try 60 s rounds']);
+  assert.equal(M.suggestNextSettings(raceMemory(92, { difficulty: 'challenge', timingMode: 'pace' })).kind, 'repeat', 'no clock to shorten');
+  assert.equal(M.suggestNextSettings(raceMemory(40, { difficulty: 'foundation', timingMode: 'pace' })).kind, 'repeat', 'no clock to lengthen');
+  // The focus is the teacher's: no suggestion changes it.
+  let checked = 0;
+  for (const focus of SOLVER_RACE_FOCUS) {
+    for (const difficulty of SOLVER_RACE_DIFFICULTIES) {
+      for (const timingMode of ['timed', 'pace']) {
+        for (let accuracy = 0; accuracy <= 100; accuracy += 11) {
+          const next = M.suggestNextSettings(raceMemory(accuracy, { focus, difficulty, timingMode }));
+          assert.equal(next.settings.focus, focus);
+          assert.ok(SOLVER_RACE_DIFFICULTIES.includes(next.settings.difficulty));
+          assert.ok(CLASSIC_SETUP_CHOICES.roundSeconds.includes(next.settings.roundSeconds), `${next.settings.roundSeconds} s is a choice`);
+          // A race the server plans: every round has its question.
+          const plan = planSolverRace({ roundCount: next.settings.roundCount, focus: next.settings.focus, difficulty: next.settings.difficulty, seed: `${focus}-${difficulty}` });
+          assert.equal(plan.filter(Boolean).length, next.settings.roundCount, `${focus} ${next.settings.difficulty}`);
+          checked += 1;
+        }
+      }
+    }
+  }
+  assert.ok(checked > 400);
+});
+
+test('Solver Race\'s card names the focus and the band, and its buttons fill in the race', () => {
+  const memory = raceMemory(78);
+  assert.equal(M.classMemorySentence(memory, M.suggestNextSettings(memory), { nowMs: NOV_1 }),
+    'Period 5 last played this on Oct 28 at Developing, 10 × 45 s, 78% accuracy → run it again.');
+  assert.equal(M.classMemoryDetail(memory), 'Linear Equations · 7.5 rounds solved per student');
+  const pace = raceMemory(88, { timingMode: 'pace', difficulty: 'advanced' });
+  assert.equal(M.classMemorySentence(pace, M.suggestNextSettings(pace), { nowMs: NOV_1 }),
+    'Period 5 last played this on Oct 28 at Advanced, 10 rounds, Pace Race, 88% accuracy → try Challenge.');
+  assert.equal(M.classMemoryDetail({ ...memory, settings: { ...memory.settings, focus: 'mixed' }, results: { ...memory.results, completedPerStudent: 1 } }), 'Mixed Solver Race · 1 round solved per student');
+  assert.deepEqual(M.setupFromMemory('solverRace', memory.settings), memory.settings, 'the race as it was');
+  const odd = M.setupFromMemory('solverRace', { ...memory.settings, roundCount: 7, roundSeconds: 50 });
+  assert.deepEqual([odd.roundCount, odd.roundSeconds], [8, 45], 'the nearest of the console\'s choices');
+  assert.equal(M.setupFromMemory('solverRace', { ...memory.settings, focus: 'somethingElse', difficulty: 'impossible' }).difficulty, 'ramp');
+});
+
+const lineStanding = (studentId, joined, summary) => ({ studentId, alias: studentId, joined, rank: 1, score: 1, questionSetSummary: summary });
+
+test('a finished Graph the Line game or Solver Race leaves its class totals — and nothing about any student', () => {
+  // Graph the Line, a Sprint: forms hardest first from its own report.
+  const line = finishedResult(LINE_GRAPH_MODE_ID.SPRINT, {
+    roundSeconds: 180,
+    roomRoundCount: 2,
+    standings: [
+      lineStanding('s1', true, { questions: 10, completed: 8, skipped: 1, attempts: 12, hits: 8, byTag: { form: { slopeIntercept: { questions: 5, completed: 5, attempts: 5, hits: 5 }, pointSlope: { questions: 5, completed: 3, attempts: 7, hits: 3 } } } }),
+      lineStanding('s2', true, { questions: 6, completed: 4, attempts: 8, hits: 4, byTag: { form: { slopeIntercept: { questions: 3, completed: 3, attempts: 3, hits: 3 }, pointSlope: { questions: 3, completed: 1, attempts: 5, hits: 1 } } } }),
+      lineStanding('s3', false, {}),
+    ],
+  });
+  const lineRoom = { roundCount: 2, roundSeconds: 180, lineGraph: { config: normalizeLineGraphConfig({ presetId: 'allThreeForms', sprintLength: 10 }, { format: 'sprint' }) } };
+  const remembered = M.buildClassMemory({ result: line, room: lineRoom, report: buildLineGraphReport(line) });
+  assert.equal(remembered.game, 'lineGraph');
+  assert.equal(remembered.modeId, LINE_GRAPH_MODE_ID.SPRINT);
+  assert.equal(remembered.settings.format, 'sprint');
+  assert.deepEqual([remembered.settings.roundCount, remembered.settings.roundSeconds, remembered.settings.sprintLength], [2, 180, 10]);
+  assert.equal(remembered.results.accuracyPercent, 60, '12 of 20 checks right');
+  assert.equal(remembered.results.completedPerStudent, 6, '12 lines by 2 students');
+  assert.equal(remembered.results.weakest.key, 'pointSlope');
+  assert.equal(remembered.results.weakest.label, 'Point-slope form');
+  assert.doesNotMatch(JSON.stringify(remembered), /s1|s2|s3/);
+  assert.equal(M.buildClassMemory({ result: line, room: {}, report: buildLineGraphReport(line) }), null, 'no settings, no memory');
+  // A Solver Race: the classic report's accuracy and each student's rounds solved.
+  const race = finishedResult('solverRace', {
+    roundSeconds: 45,
+    roomRoundCount: 5,
+    scoringStrategyId: 'accuracyFirst',
+    standings: [
+      { studentId: 's1', alias: 's1', joined: true, roundsAnswered: 5, correctCount: 4, score: 4200 },
+      { studentId: 's2', alias: 's2', joined: true, roundsAnswered: 4, correctCount: 2, score: 2100 },
+      { studentId: 's3', alias: 's3', joined: false, roundsAnswered: 0, correctCount: 0, score: 0 },
+    ],
+  });
+  const raceReport = buildChallengeReport({
+    room: race, scheduledRoundCount: 5, roundMisses: { 0: 0, 1: 1, 2: 1, 3: 1, 4: 0 }, answeredCounts: { 0: 2, 1: 2, 2: 2, 3: 2, 4: 1 }, players: race.standings,
+  });
+  const raceRoom = { challengeMode: 'solverRace', solverRaceFocus: 'linearInequality', solverRaceDifficulty: 'advanced', timingMode: 'timed', roundCount: 5, roundSeconds: 45 };
+  const raced = M.buildClassMemory({ result: race, room: raceRoom, report: raceReport });
+  assert.equal(raced.game, 'solverRace');
+  assert.deepEqual(raced.settings, { focus: 'linearInequality', difficulty: 'advanced', timingMode: 'timed', roundCount: 5, roundSeconds: 45, scoringStrategyId: 'accuracyFirst' });
+  assert.equal(raced.results.accuracyPercent, raceReport.classAccuracyPercent);
+  assert.equal(raced.results.accuracyPercent, 67, '6 of 9 answers right');
+  assert.equal(raced.results.completedPerStudent, 3, '6 rounds solved by 2 students');
+  assert.equal(raced.results.players, 2);
+  assert.equal(raced.results.weakest, null, 'its rounds record no standard: nothing to drop');
+  assert.doesNotMatch(JSON.stringify(raced), /s1|s2|s3/);
+  const nobody = { ...race, standings: [{ studentId: 's1', alias: 's1', joined: true, roundsAnswered: 0, correctCount: 0 }] };
+  assert.equal(M.buildClassMemory({ result: nobody, room: raceRoom, report: buildChallengeReport({ room: nobody, scheduledRoundCount: 5, players: nobody.standings }) }), null, 'nobody answered');
+  const nests = (value) => (Array.isArray(value) ? value.some((entry) => Array.isArray(entry) || nests(entry)) : Boolean(value) && typeof value === 'object' && Object.values(value).some(nests));
+  assert.equal(nests(remembered) || nests(raced), false);
+});
+
+test('the console follows the memory of Graph the Line and Solver Race too, and their cards fill in the setup', () => {
+  const teacher = executableSource(read('src/components/liveChallenge/LiveChallengeTeacher.jsx'));
+  const games = region(teacher, 'let memoryGame = null;', 'useEffect(() => {', 'the game whose memory is followed');
+  assert.match(games, /else if \(lineMode\) memoryGame = LINE_GRAPH_GAME;/);
+  assert.match(games, /else if \(challengeMode === 'solverRace'\) memoryGame = 'solverRace';/);
+  assert.doesNotMatch(games, /'standard'/, 'Standard Challenge has no memory to follow');
+  assert.match(teacher, /<LineGraphSetup [^\n]*memory=\{classMemory\?\.game === LINE_GRAPH_GAME \? classMemory : null\}/);
+  assert.match(read('src/components/liveChallenge/LineGraphSetup.jsx'), /\{memory && <ClassMemoryCard memory=\{memory\} onUse=\{onChange\} \/>\}/);
+  assert.match(teacher, /\{challengeMode === 'solverRace' && classMemory\?\.game === 'solverRace' && \(\s*<Suspense fallback=\{null\}>\s*<ClassMemoryCard memory=\{classMemory\} onUse=\{takeSolverRaceSetup\} \/>/);
+  const take = region(teacher, 'const takeSolverRaceSetup = (setup) => {', '\n  };', 'a Solver Race card\'s buttons');
+  for (const call of ['setSolverRaceFocus(setup.focus)', 'setSolverRaceDifficulty(setup.difficulty)', 'setRoundCount(setup.roundCount)', 'setRoundSeconds(setup.roundSeconds)', 'setTimingMode(setup.timingMode)', 'setClassicScoringId(setup.scoringStrategyId)']) {
+    assert.ok(take.includes(call), call);
+  }
+  // The classic setup offers exactly the choices the memory fills in.
+  assert.match(teacher, /CLASSIC_SETUP_CHOICES\.roundCounts\.map\(\(count\) => <option key=\{count\} value=\{count\}>/);
+  assert.match(teacher, /CLASSIC_SETUP_CHOICES\.roundSeconds\.map\(\(seconds\) => <option key=\{seconds\} value=\{seconds\}>/);
+  // And names the race the way the card does.
+  const focus = region(teacher, 'Race focus', '</select>', 'the race focus');
+  Object.entries(M.SOLVER_RACE_FOCUS_LABEL).forEach(([id, label]) => assert.ok(focus.includes(`<option value="${id}">${label}</option>`), `${id}: ${label}`));
+  const band = region(teacher, "{challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Difficulty", '</select>', 'the race difficulty');
+  Object.entries(M.SOLVER_RACE_DIFFICULTY_LABEL).forEach(([id, label]) => assert.ok(band.includes(`<option value="${id}">${label}</option>`), `${id}: ${label}`));
 });

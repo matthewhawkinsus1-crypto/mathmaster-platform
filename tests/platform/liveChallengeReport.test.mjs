@@ -147,7 +147,9 @@ test('the report is written before the state it reads is deleted', () => {
   // transaction copies everything it needs into the durable match result, and
   // the report is built from that. Private state is deleted last.
   const source = codeOf('functions/index.js');
+  // The writer and the classic report it stores (classicChallengeReportFromResult, beside it).
   const writer = regionOf(source, 'async function writeLiveChallengeReportFromResult', 'async function writeWarmupCreditFromResult');
+  assert.match(writer, /const report = await classicChallengeReportFromResult\(result\);/);
   assert.match(writer, /const players = Array\.isArray\(result\.standings\) \? result\.standings : \[\]/);
   assert.match(writer, /roundStandards: result\.roundStandards/);
   assert.doesNotMatch(writer, /LIVE_CHALLENGE_PRIVATE|privateRef|loadPrivateChallengePlayers/);
@@ -185,6 +187,7 @@ test('every answer is counted, not only the misses', () => {
   // must still receive both.
   const source = codeOf('functions/index.js');
   const writer = regionOf(source, 'async function writeLiveChallengeReportFromResult', 'async function writeWarmupCreditFromResult');
+  assert.match(writer, /const report = await classicChallengeReportFromResult\(result\);/, 'the classic report, beside the writer');
   // The answered count is the denominator the report builder actually reads.
   assert.match(writer, /answeredCounts: derivedTallies\.roundAnswers/);
   assert.match(writer, /roundMisses: derivedTallies\.roundMisses/);

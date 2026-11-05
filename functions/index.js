@@ -13212,8 +13212,8 @@ function planNextLiveChallengeRound({ challenge, engine, room, privateState, pla
 }
 
 // Which finalization effects a match needs. Cancelled matches earn no rewards,
-// and leave their class no memory (only a finished rush game does; the effect
-// itself passes over every other game).
+// and leave their class no memory (only a finished game of a kind that has
+// one does; the effect itself passes over every other game).
 function liveChallengeFinalizationEffects(room = {}, status) {
   const challengeFinished = status === "finished";
   return {
@@ -13396,11 +13396,25 @@ async function liveChallengeEffectRecipients(transaction, db, studentIds = []) {
 }
 
 /*
+ * The report a game's class memory is read from (its `report`), built from
+ * the durable match result as the teacher's own report is: a rush's, Graph
+ * the Line's, or the classic one (Solver Race).
+ */
+async function classMemoryReportFromResult(game, result) {
+  if (game.report === "lineGraph") return (await lineGraphModules()).attempts.buildLineGraphReport(result);
+  if (game.report === "classic") return classicChallengeReportFromResult(result);
+  const labels = game.report === "inequalityRush" ? (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS : undefined;
+  return (await graphFeatureRushRules()).rush.buildRushReport(result, labels);
+}
+
+/*
  * CLASS MEMORY, written from the durable match result like the report: a
- * finished rush game leaves its class one small record — when, with which
- * settings (read from the room, which keeps them), and how the class did —
- * for the next setup's card (liveChallengeClassMemory.mjs). Class totals
- * only. A late or repeated run for an older game never replaces a newer one.
+ * finished game that has one (the rushes, Graph the Line, Solver Race —
+ * liveChallengeClassMemory.mjs says why Standard Challenge has none) leaves
+ * its class one small record — when, with which settings (read from the
+ * room, which keeps them), and how the class did — for the next setup's
+ * card. Class totals only. A late or repeated run for an older game never
+ * replaces a newer one.
  */
 async function writeClassMemoryFromResult(db, result) {
   const memoryRules = await liveChallengeClassMemoryRules();
@@ -13408,8 +13422,7 @@ async function writeClassMemoryFromResult(db, result) {
   if (!game || result.status !== "finished" || !result.classId) return;
   const roomSnapshot = await db.collection(LIVE_CHALLENGE_ROOMS).doc(String(result.roomId || "")).get();
   if (!roomSnapshot.exists) return;
-  const labels = game.id === "inequalityRush" ? (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS : undefined;
-  const report = (await graphFeatureRushRules()).rush.buildRushReport(result, labels);
+  const report = await classMemoryReportFromResult(game, result);
   const memory = memoryRules.buildClassMemory({ result, room: roomSnapshot.data() || {}, report });
   if (!memory) return;
   const memoryRef = db.collection(LIVE_CHALLENGE_CLASS_MEMORY).doc(memoryRules.classMemoryId(memory.classId, memory.game));
@@ -13422,27 +13435,8 @@ async function writeClassMemoryFromResult(db, result) {
 
 async function writeLiveChallengeReportFromResult(db, result) {
   const reportRules = await liveChallengeReportRules();
-  const challengeRules = await liveChallengeRules();
   const players = Array.isArray(result.standings) ? result.standings : [];
-  const secondChanceOf = result.secondChanceOf || {};
-  // Counted from the player records rather than read off a shared counter.
-  const derivedTallies = challengeRules.deriveRoundTallies({
-    players,
-    secondChanceOf,
-    storedRoundAnswers: result.legacyRoundAnswers || null,
-    storedRoundMisses: result.legacyRoundMisses || null,
-  });
-  const report = reportRules.buildChallengeReport({
-    room: result,
-    scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
-    playedRoundCount: typeof result.playedRoundCount === "number" ? result.playedRoundCount : null,
-    roundMisses: derivedTallies.roundMisses,
-    roundStandards: result.roundStandards || {},
-    answeredCounts: derivedTallies.roundAnswers,
-    secondChanceOf,
-    questionIds: Array.isArray(result.questionIds) ? result.questionIds : [],
-    players,
-  });
+  const report = await classicChallengeReportFromResult(result);
   const finishedAt = Number(result.finalizedAtMs) ? new Date(Number(result.finalizedAtMs)) : FieldValue.serverTimestamp();
   // A question-set game has no one question per round and no standard per
   // round: its report is its mode's own breakdown (by feature and family for
@@ -13481,6 +13475,36 @@ async function writeLiveChallengeReportFromResult(db, result) {
       ...document,
       ...reportRules.reportRowsWithout(document, (studentId) => !recipients.has(studentId)),
     });
+  });
+}
+
+/*
+ * THE CLASSIC REPORT — rounds, standards, the class by name — from the
+ * durable match result alone: what the teacher's report stores, and what a
+ * Solver Race's class memory reads (liveChallengeClassMemory.mjs).
+ */
+async function classicChallengeReportFromResult(result) {
+  const reportRules = await liveChallengeReportRules();
+  const challengeRules = await liveChallengeRules();
+  const players = Array.isArray(result.standings) ? result.standings : [];
+  const secondChanceOf = result.secondChanceOf || {};
+  // Counted from the player records rather than read off a shared counter.
+  const derivedTallies = challengeRules.deriveRoundTallies({
+    players,
+    secondChanceOf,
+    storedRoundAnswers: result.legacyRoundAnswers || null,
+    storedRoundMisses: result.legacyRoundMisses || null,
+  });
+  return reportRules.buildChallengeReport({
+    room: result,
+    scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
+    playedRoundCount: typeof result.playedRoundCount === "number" ? result.playedRoundCount : null,
+    roundMisses: derivedTallies.roundMisses,
+    roundStandards: result.roundStandards || {},
+    answeredCounts: derivedTallies.roundAnswers,
+    secondChanceOf,
+    questionIds: Array.isArray(result.questionIds) ? result.questionIds : [],
+    players,
   });
 }
 

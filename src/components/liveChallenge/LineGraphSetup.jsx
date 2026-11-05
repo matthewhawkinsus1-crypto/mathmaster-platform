@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import ClassMemoryCard from './ClassMemoryCard.jsx';
 import {
   LINE_DIFFICULTY_OPTIONS,
   LINE_FORMAT_OPTIONS,
@@ -69,7 +70,10 @@ const SAME_EQUATIONS_HINT = Object.freeze({
   [LINE_GRAPH_FORMAT.RUSH]: 'Everyone gets the same equations, each student in their own order. Off: everyone gets their own.',
 });
 
-export default function LineGraphSetup({ setup, onChange, classSize = 0, onPractice = null }) {
+// `memory`: what this class did the last time it played Graph the Line, if it
+// has (liveChallengeClassMemory.mjs) — the card at the top, whose buttons fill
+// in the whole setup, the format included.
+export default function LineGraphSetup({ setup, onChange, classSize = 0, onPractice = null, memory = null }) {
   const problem = useMemo(() => lineSetupProblem(setup), [setup]);
   const update = (patch) => onChange(changeLineSetup(setup, patch));
   const limits = LINE_ROUND_LIMITS[setup.format];
@@ -78,6 +82,7 @@ export default function LineGraphSetup({ setup, onChange, classSize = 0, onPract
 
   return (
     <div style={{ gridColumn: '1 / -1', display: 'grid', gap: 16 }} data-mm-line-setup="1">
+      {memory && <ClassMemoryCard memory={memory} onUse={onChange} />}
       <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
         <legend style={{ fontWeight: 900, marginBottom: 8 }}>Format</legend>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 8 }}>
