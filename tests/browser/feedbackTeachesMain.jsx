@@ -27,6 +27,9 @@
 //                           tables (dol3-review-q03, q11, q13), and the Linear
 //   ?q=lmrtable             Multiple Representations board's given table (lmr-pr-1):
 //                           Read aloud reads each table as drawn (AX10)
+//   ?q=regression           a Regression Calculator item that lists its source data;
+//                           its table and the board's process-mode choosers are read
+//                           as drawn (AX10, slice 2)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -130,6 +133,13 @@ const QUESTIONS = {
   dml: lessonItem(dol3Review, 'dol3-review-q11'),
   sequence: lessonItem(dol3Review, 'dol3-review-q13'),
   lmrtable: lessonItem(linearRepresentationsLesson, 'lmr-pr-1'),
+  regression: {
+    questionId: 'feedback-regression',
+    type: 'regressionCalculator',
+    prompt: 'Enter the data, run linear regression, and say what the correlation means.',
+    sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+    sourceMode: 'data',
+  },
   // No question family claims it and it has no authored scaffold: no step is
   // written for it (HELP-19, readAloudTranslate.mjs).
   plain: {

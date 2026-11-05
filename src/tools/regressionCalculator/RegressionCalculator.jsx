@@ -21,6 +21,8 @@ import './RegressionCalculator.css';
 import { useSubmitLabel } from '../shared/ToolRuntimeContext';
 import { regressionFeedbackText } from './regressionFeedback.js';
 import { START_OVER } from '../../platform/student/studentWords.js';
+import { enteredXyTable, givenXyTable } from '../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../platform/language/figureReadings.js';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -361,6 +363,10 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
 
       {sourceMode === 'data' ? (
         <aside className="regression-givens" aria-label="Source data">
+          {/* Read aloud reads the source pairs only where the screen lists them
+              (AX10). Beside a source scatterplot they are the data the student
+              reads off the graph, so they are never published there. */}
+          <PublishFigureReading entry={{ kind: 'table', label: 'Given table of values', table: givenXyTable(source) }} />
           <strong>Source data</strong>
           <div className="regression-givens-list">
             {source.map(([x, y], index) => <span key={index}>({x}, {y})</span>)}
@@ -582,6 +588,9 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
                     </div>
                   ) : (
                     <div className="regression-table-wrap">
+                      {/* Read aloud reads each box as the student typed it, or
+                          blank, under the headings the table draws (AX10). */}
+                      <PublishFigureReading entry={{ kind: 'table', label: 'Table of values', table: enteredXyTable((row.rows || []).map(([x, y]) => ({ x, y })), { x: 'x₁', y: 'y₁' }) }} />
                       <table className="regression-table">
                         <thead>
                           <tr>

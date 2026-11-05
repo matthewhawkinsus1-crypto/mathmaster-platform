@@ -31,7 +31,9 @@
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
-//                never a term), and the board's given table (AX10).
+//                never a term), and the board's given table (AX10); the
+//                Regression Calculator's listed data and typed table, and the
+//                board's process-mode row chooser (AX10, slice 2).
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/readAloudTranslate.
 import { mkdirSync } from 'node:fs';
@@ -305,6 +307,52 @@ for (const device of DEVICES) {
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const said = (await lastSpoken(page))?.text || '';
     check(said.includes('Given table of values, 4 rows. Columns: x; y. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3.'), `${device.name}: the board's given table is read`, said.slice(0, 300));
+    await context.close();
+  }
+
+  {
+    // The Regression Calculator (AX10, slice 2): its listed source data, then the table the student fills.
+    const { page, context } = await open(device, 'q=regression&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    await read.click();
+    const said = (await lastSpoken(page))?.text || '';
+    const listed = await page.locator('.regression-givens-list span').allInnerTexts();
+    check(listed.length === 4 && said.includes('Given table of values, 4 rows. Columns: x; y. Row 1: x, 1; y, 2. Row 2: x, 2; y, 4. Row 3: x, 3; y, 5. Row 4: x, 4; y, 8.'), `${device.name}: the calculator's listed source data is read (${listed.join(' ')})`, said.slice(0, 300));
+    check(!/Table of values, \d+ rows/.test(said), `${device.name}: no table of the student's own before they add one`);
+    await page.getByRole('button', { name: 'Add Item' }).click();
+    await page.getByRole('menuitem', { name: 'table' }).click();
+    const boxes = page.locator('.regression-table input');
+    await boxes.nth(0).fill('1');
+    await boxes.nth(1).fill('-2');
+    await boxes.nth(1).blur();
+    await page.waitForTimeout(300);
+    const rowCount = await page.locator('.regression-table tbody tr').count();
+    await read.click();
+    const typed = (await lastSpoken(page))?.text || '';
+    const at = typed.indexOf('Table of values, ');
+    check(rowCount > 0 && typed.includes(`Table of values, ${rowCount} rows. Columns: x sub 1; y sub 1. Row 1: x sub 1, you wrote 1; y sub 1, you wrote negative 2.`), `${device.name}: the student's table is read as typed, under x1 and y1`, at >= 0 ? typed.slice(at, at + 260) : typed.slice(0, 200));
+    check(rowCount < 2 || typed.includes('Row 2: x sub 1, blank; y sub 1, blank.'), `${device.name}: an empty row is blank`);
+    await context.close();
+  }
+  {
+    // The board's process mode (AX10, slice 2): a row chooser says the rows and the picks, never the right row.
+    const { page, context } = await open(device, 'q=lmrtable&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const touch = device.hasTouch;
+    const press = async (locator) => { await locator.scrollIntoViewIfNeeded(); if (touch) await locator.tap(); else await locator.click(); await page.waitForTimeout(300); };
+    await press(page.locator('[data-process-facts] [data-process-find="slope"]'));
+    const workspace = page.locator('[data-lmr-card="process"]');
+    await workspace.waitFor();
+    await press(workspace.locator('[data-process-choice="method:tableDelta"]'));
+    await read.click();
+    const none = (await lastSpoken(page))?.text || '';
+    check(none.includes('Rows to choose from. Choose two rows: row 1, then row 2. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3. None is chosen yet.'), `${device.name}: the row chooser is read, no row chosen`, none.slice(0, 360));
+    await press(workspace.locator('[data-process-row="1"]'));
+    await press(workspace.locator('[data-process-row="3"]'));
+    const buttons = await workspace.locator('[data-process-row]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
+    await read.click();
+    const picked = (await lastSpoken(page))?.text || '';
+    check(buttons[1] === 'Row 2, chosen as row 1' && buttons[3] === 'Row 4, chosen as row 2' && picked.includes('Row 2: x, 1; y, 7; chosen as row 1. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3; chosen as row 2.'), `${device.name}: the picks are read as the buttons name them`, picked.slice(0, 360));
     await context.close();
   }
 
