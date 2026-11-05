@@ -241,9 +241,9 @@
               "type": "choice",
               "options": [
                 "No — many different combinations raise exactly $3,000.",
-                "Yes — only one combination raises $3,000.",
-                "No — but only one combination is correct.",
-                "Yes — because there are two variables."
+                "Yes — only one pair of ticket numbers raises $3,000.",
+                "No — but only one of the pairs they found raises $3,000.",
+                "Yes — two variables means the equation has one solution."
               ],
               "answer": "No — many different combinations raise exactly $3,000."
             }
@@ -478,9 +478,9 @@
               "type": "choice",
               "options": [
                 "Whole numbers of student tickets from 0 to 600",
-                "All real numbers",
-                "Every number from 0 to 300",
-                "Any number of tickets greater than 600"
+                "All real numbers, since s can be any number of tickets",
+                "Whole numbers of student tickets from 0 to 300",
+                "Whole numbers of student tickets greater than 600"
               ],
               "answer": "Whole numbers of student tickets from 0 to 600"
             },
@@ -507,9 +507,9 @@
               "type": "choice",
               "options": [
                 "Every 2 more student tickets sold means 1 fewer adult ticket is needed.",
-                "Every 2 more adult tickets means 1 fewer student ticket.",
-                "Student tickets cost half as much as the goal.",
-                "Each ticket adds $0.50."
+                "Every 2 more adult tickets sold means 1 fewer student ticket is needed.",
+                "Every 2 more student tickets sold means 1 more adult ticket is needed.",
+                "Each student ticket sold adds $0.50 more toward the $3,000 goal."
               ],
               "answer": "Every 2 more student tickets sold means 1 fewer adult ticket is needed."
             }
@@ -1213,9 +1213,9 @@
               "type": "choice",
               "options": [
                 "No — both save $10 a week, so their totals are always equal.",
-                "Yes — he saves $10 and Isabella saves only $4.",
-                "Yes — his line is above hers.",
-                "No — Isabella saves more each week."
+                "Yes — he saves $10 a week, but Isabella saves only $4.",
+                "Yes — his line is above hers, so his total is always larger.",
+                "No — Isabella saves more each week, since she makes two deposits."
               ],
               "answer": "No — both save $10 a week, so their totals are always equal."
             },
@@ -1398,9 +1398,9 @@
               "type": "choice",
               "options": [
                 "It lies on both lines, so it makes both equations true.",
-                "It lies on the first line only.",
-                "Its coordinates add to 9.",
-                "It is the y-intercept of both lines."
+                "It lies on the first line, so it solves the system.",
+                "Its coordinates add to 9, so it makes both equations true.",
+                "It is the y-intercept of both lines, so both equations share it."
               ],
               "answer": "It lies on both lines, so it makes both equations true."
             }
@@ -1479,9 +1479,9 @@
               "type": "choice",
               "options": [
                 "Exactly one — the slopes are different, so the lines must cross",
-                "None — the lines look parallel",
-                "Infinitely many — the lines are almost the same",
-                "None — the y-intercepts are different"
+                "None — the lines look parallel on the graph, so they never cross",
+                "Infinitely many — the slopes are so close that the lines are the same",
+                "None — the y-intercepts differ, so the lines can never meet"
               ],
               "answer": "Exactly one — the slopes are different, so the lines must cross"
             },
@@ -1497,9 +1497,9 @@
               "type": "choice",
               "options": [
                 "The lines cross at an x-value outside the window shown",
-                "The lines never cross",
-                "The graph is drawn wrong",
-                "Graphs cannot show solutions of systems"
+                "The lines never cross, since they look parallel here",
+                "The graph is drawn wrong, so the crossing is missing",
+                "Graphs cannot show the solution of a system; only algebra can"
               ],
               "answer": "The lines cross at an x-value outside the window shown"
             }
@@ -1563,9 +1563,9 @@
               "type": "choice",
               "options": [
                 "No — the y-intercepts 3 and −1 are different, so the lines can never be the same line",
-                "Yes — k = 2",
-                "Yes — k = −1",
-                "Yes — every k"
+                "Yes — k = 2 makes the two slopes match, and matching slopes make the lines the same line",
+                "No — whatever k is, the two slopes are different, so the lines always cross exactly once",
+                "Yes — every k works, because any two lines in a system share at least one point"
               ],
               "answer": "No — the y-intercepts 3 and −1 are different, so the lines can never be the same line"
             },
@@ -2013,9 +2013,9 @@
               "type": "choice",
               "options": [
                 "The lines cross between grid lines, so the graph gives only an estimate",
-                "The graph is wrong",
-                "The lines are parallel",
-                "Graphs never give solutions"
+                "The graph is wrong, since the lines should cross at a grid point",
+                "The lines are parallel, so only algebra can show where they meet",
+                "Graphs never give solutions of systems; they only show where each line goes"
               ],
               "answer": "The lines cross between grid lines, so the graph gives only an estimate"
             }
