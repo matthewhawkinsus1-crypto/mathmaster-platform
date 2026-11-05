@@ -324,7 +324,11 @@ for (const device of DEVICES) {
     const boxes = page.locator('.regression-table input');
     await boxes.nth(0).fill('1');
     await boxes.nth(1).fill('-2');
-    await boxes.nth(1).blur();
+    // On a phone the number keypad holds the bar's place until "Done", as in
+    // the Sequence Explorer case above.
+    const done = page.locator('button:visible', { hasText: /^Done$/ });
+    if (await done.count()) await done.first().click();
+    else await boxes.nth(1).blur();
     await page.waitForTimeout(300);
     const rowCount = await page.locator('.regression-table tbody tr').count();
     await read.click();
