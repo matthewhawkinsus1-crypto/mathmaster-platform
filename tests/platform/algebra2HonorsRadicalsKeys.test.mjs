@@ -126,7 +126,8 @@ const L2 = 'L2_Operations_with_Radical_Expressions.json';
 const L3 = 'L3_Rational_Exponents.json';
 const CHECK_YOUR_PROGRESS = [
   [L1, ['a2r1-cw-3', 'a2r1-cw-4', 'a2r1-cw-7', 'a2r1-cw-8']],
-  [L2, ['a2r2-cw-6']],
+  // a2r2-cw-12: the Check Your Progress after Examples A and B (L2 pacing).
+  [L2, ['a2r2-cw-6', 'a2r2-cw-12']],
   [L3, ['a2r3-cw-2']],
 ];
 
@@ -161,6 +162,8 @@ const TYPED_HALVES = [
   [L1, 'a2r1-cw-7', 'fourth', '\\left|x\\right|', ['x', '-x']],
   [L1, 'a2r1-cw-8', 'cyp', '2\\left(x+2\\right)^{5}', ['\\sqrt[3]{8\\left(x+2\\right)^{15}}', '\\left|2\\left(x+2\\right)^5\\right|', '3\\left(x+2\\right)^3']],
   [L2, 'a2r2-cw-6', 'first', '\\frac{x\\sqrt{xy}}{y^{4}}', ['\\sqrt{\\frac{x^3}{y^7}}', '\\frac{x\\sqrt{x}}{y^3\\sqrt{y}}']],
+  [L2, 'a2r2-cw-12', 'first', '4x^{2}y^{5}\\sqrt{y}', ['\\sqrt{16x^4y^{11}}', '4x^2y^4\\sqrt{y^3}', '2x^2y^5\\sqrt{y}']],
+  [L2, 'a2r2-cw-12', 'second', '3x^{3}y^{4}\\sqrt[3]{y^{2}}', ['\\sqrt[3]{27x^9y^{14}}', '3x^3y^4\\sqrt[3]{y}', '3x^3y^3\\sqrt[3]{y^5}', '9x^3y^4\\sqrt[3]{y^2}']],
   [L3, 'a2r3-cw-2', 'a', '\\frac{y^{2}z^{2}}{x^{5}}', ['x^{-5}y^2z^2', '\\frac{y^2}{x^5z^2}']],
   [L3, 'a2r3-cw-2', 'b', 'h^{8}', ['\\frac{h^6}{h^{-2}}', 'h^{6+2}', 'h^4']],
 ];
@@ -194,8 +197,10 @@ test('L1 CW 3: ±√(9x⁸) is two typed boxes, the positive root and the negati
 // after Examples A–D and the absolute-value items, so a student met "largest
 // perfect-square factor" only after writing perfect powers of variables.
 const sectionOf = (file, role) => lesson(file).sections.find((section) => section.role === role).questions;
-/** The radicands a prompt writes, \sqrt{…} or \sqrt[n]{…}, one level of braces inside. */
-const radicands = (question) => [...String(question.prompt).matchAll(/\\sqrt(?:\[\d+\])?\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((match) => match[1]);
+/** The radicals a prompt writes, \sqrt{…} or \sqrt[n]{…} (one level of braces inside), as [index, radicand]. */
+const radicals = (question) => [...String(question.prompt).matchAll(/\\sqrt(?:\[(\d+)\])?\{((?:[^{}]|\{[^{}]*\})*)\}/g)]
+  .map(([, index = '2', radicand]) => [index, radicand]);
+const radicands = (question) => radicals(question).map(([, radicand]) => radicand);
 /** The slide number a classwork id carries (a2r1-cw-9 is the slides' ninth). */
 const slideNumber = (question) => Number(question.questionId.split('-').pop());
 
@@ -215,4 +220,107 @@ test('L1 Classwork: the numerical radicals come before the variable work, after 
   // Every other item keeps the slides' order.
   const others = classwork.filter((_, index) => index !== numbers).map(slideNumber);
   assert.deepEqual(others, [...others].sort((a, b) => a - b), `the slides' order: ${others.join(', ')}`);
+});
+
+// L2 pacing (PR #537 walkthrough). The slides' Check Your Progress B for the
+// Product Property, ⁴√(625b²⁸k²³) with b any real number, was the third item:
+// band 4 after band-3 examples, with bars, a radical left over, and k ≥ 0,
+// which only its reason revealed. The Check Your Progress after the examples
+// now repeats them, and the slides' item is an extension later on.
+test('L2 Classwork: the Check Your Progress after Examples A and B repeats them, a cube root with every variable positive', () => {
+  const classwork = sectionOf(L2, 'classwork');
+  const examples = classwork.findIndex((question) => question.prompt.startsWith('Product Property, Examples A and B.'));
+  assert.ok(examples >= 0);
+  const check = classwork[examples + 1];
+  assert.match(check.prompt, /^Check Your Progress A and B\./);
+  assert.deepEqual(radicals(check).map(([index]) => index), radicals(classwork[examples]).map(([index]) => index), 'a square root, then a cube root, as in the examples');
+  assert.match(check.prompt, /Assume every variable is positive\./);
+  assert.ok(check.difficultyBand <= classwork[examples].difficultyBand, `band ${check.difficultyBand} after examples of band ${classwork[examples].difficultyBand}`);
+  // Typed and graded by value and form; with every variable positive, no bars.
+  assert.deepEqual(check.responses.map((response) => response.gradingMode), ['simplestRadicalForm', 'simplestRadicalForm']);
+  assert.equal(check.responses.some((response) => /\|/.test(response.answer)), false);
+  assert.match(check.solutionReview.reasoning.join(' '), /27x⁹y¹⁴ = \(3x³y⁴\)³ · y²/);
+});
+
+test('L2 Classwork: the slides\' Check Your Progress B is an extension after multiplying radicals, with its own supports', () => {
+  const classwork = sectionOf(L2, 'classwork');
+  const multiply = classwork.findIndex((question) => question.prompt.startsWith('Multiply radicals.'));
+  const extension = classwork.findIndex((question) => question.questionId === 'a2r2-cw-3');
+  assert.ok(multiply >= 0);
+  assert.equal(extension, multiply + 1, `the extension (CW ${extension + 1}) comes straight after multiplying radicals (CW ${multiply + 1})`);
+  const item = classwork[extension];
+  assert.match(item.prompt, /^Extension — /);
+  assert.deepEqual(radicals(item), [['4', '625b^{28}k^{23}']]);
+  assert.equal(item.difficultyBand, 4);
+  // Its hints, back-up step and worked solution are about its fourth root, and
+  // nothing in them is left over from √(16x⁴y¹¹), which went to the Check Your Progress.
+  assert.match(item.hints.join(' '), /625 = 5⁴/);
+  assert.match(item.scaffold.prompt, /⁴√\(b²⁸\)/);
+  assert.match(item.solutionReview.reasoning.join(' '), /625b²⁸k²³ = \(5b⁷k⁵\)⁴ · k³/);
+  assert.equal(item.solutionReview.answerSummary, '5|b⁷|k⁵⁴√(k³)');
+  assert.doesNotMatch(JSON.stringify([item.hints, item.scaffold, item.solutionReview, item.directionSteps]), /16x|y¹¹|square root/);
+});
+
+test('L2 Classwork: the four simplest-form rules come before the items that ask for simplest form', () => {
+  const classwork = sectionOf(L2, 'classwork');
+  const rules = classwork.findIndex((question) => question.prompt.startsWith('Simplest form.'));
+  assert.ok(rules >= 0);
+  // A radical of a fraction, or a radical in a denominator, is simplified by
+  // rationalizing: two of the four rules.
+  const asking = classwork.flatMap((question, index) => (
+    radicals(question).some(([, radicand]) => radicand.startsWith('\\dfrac')) || /rationalize/i.test(question.prompt) ? [index] : []
+  ));
+  assert.ok(asking.length >= 4, `${asking.length} items ask for it`);
+  assert.ok(asking.every((index) => rules < index), `the rules (CW ${rules + 1}) come before CW ${asking.map((index) => index + 1).join(', ')}`);
+});
+
+test('L2 Practice: it opens with its easiest item, the simplest rationalization, swapped with PR 1', () => {
+  const practice = sectionOf(L2, 'practice');
+  const bands = practice.map((question) => question.difficultyBand);
+  assert.equal(bands[0], Math.min(...bands), `bands: ${bands.join(', ')}`);
+  assert.ok(bands[0] < bands[1], 'an easier opener than the band-3 items after it');
+  assert.match(practice[0].prompt, /^Rationalize the denominator/);
+  // Only PR 1 and PR 6 traded places: the Honors and CCMR items keep the numbers the teacher note gives.
+  const order = ['a2r2-p-6', 'a2r2-p-2', 'a2r2-p-3', 'a2r2-p-4', 'a2r2-p-5', 'a2r2-p-1', ...Array.from({ length: 9 }, (_, index) => `a2r2-p-${index + 7}`)];
+  assert.deepEqual(practice.map((question) => question.questionId), order);
+});
+
+// The README and each teacher note count the items and name some by place
+// ("Classwork 3", "CW9", "P12"). Items moved, so each count and place is
+// checked against the files. A place the notes name must be in NAMED, with
+// what the item there asks.
+const README = readFileSync(new URL('../../teacher-import-jsons/algebra2-honors-radicals/README.md', import.meta.url), 'utf8');
+const NAMED = {
+  [L1]: { 3: /\\sqrt\{63\}/, 9: /\\sqrt\[3\]\{8\(x\+2\)\^\{15\}\}/, 10: /\\sqrt\{9x\^4y\^\{10\}z\^4\}/ },
+  [L2]: { 3: /\\sqrt\[3\]\{27x\^9y\^\{14\}\}/, 4: /^Simplest form\./, 9: /\\sqrt\[4\]\{625b\^\{28\}k\^\{23\}\}/ },
+  [L3]: { 8: /\\sqrt\[6\]\{16x\^2\}/ },
+};
+const LESSON_NUMBER = { [L1]: '1', [L2]: '2', [L3]: '3' };
+
+test('README and teacher notes: the counts, the CCMR and Honors item numbers, and each Classwork place they name', () => {
+  for (const file of [L1, L2, L3]) {
+    const data = lesson(file);
+    const counts = data.sections.map((section) => section.questions.length).join(' · ');
+    assert.ok(README.includes(`| \`${file}\` | ${data.assignment.title.replace(/^Algebra II Honors — /, '')} | ${counts} |`), `${file}: the README counts ${counts}`);
+    const practice = sectionOf(file, 'practice');
+    const classwork = sectionOf(file, 'classwork');
+    // The CCMR table: each audited item at the place it names.
+    const row = README.match(new RegExp(`^\\| ${LESSON_NUMBER[file]} \\| (.+) \\|$`, 'm'));
+    const ccmr = [...row[1].matchAll(/`([^`]+)` \(P(\d+)\)/g)];
+    assert.equal(ccmr.length, 2);
+    for (const [, documentId, place] of ccmr) assert.equal(practice[place - 1]?.ccmrSource?.documentId, documentId, `${file}: P${place} is ${documentId}`);
+    // The Honors extension items the teacher note names are deep (DOK 3+), and none is a CCMR item.
+    const notes = data.assignment.teacherNotes;
+    const honors = notes.split(/(?<=\.) /).find((sentence) => /Honors extension/.test(sentence));
+    const places = [...honors.matchAll(/P(\d+)(?:–P(\d+))?/g)].flatMap(([, from, to = from]) => Array.from({ length: to - from + 1 }, (_, index) => Number(from) + index));
+    assert.ok(places.length >= 3, `${file}: ${honors}`);
+    for (const place of places) {
+      assert.ok(Number(practice[place - 1].dok) >= 3 && !practice[place - 1].ccmrSource, `${file}: P${place} is an Honors extension item`);
+    }
+    // Each Classwork place named, in the teacher note or the README's lines for this lesson.
+    const readmeLines = README.split('\n').filter((line) => line.startsWith(`- Lesson ${LESSON_NUMBER[file]}:`)).join(' ');
+    const named = new Set([...notes.matchAll(/\bCW(\d+)/g), ...readmeLines.matchAll(/\bClasswork (\d+)/g)].map(([, place]) => Number(place)));
+    assert.deepEqual([...named].sort((a, b) => a - b), Object.keys(NAMED[file]).map(Number), `${file}: the places named`);
+    for (const [place, asks] of Object.entries(NAMED[file])) assert.match(classwork[place - 1].prompt, asks, `${file}: CW ${place}`);
+  }
 });

@@ -224,12 +224,13 @@ test('over every real lesson, every teacher-written hint is shown, and none of t
   // lessons 229 (their Honors versions 272), and the Algebra I Lesson 3 Honors
   // file 58 (the Regular lesson's 56 on the 27 questions it keeps, and one on
   // each of the two audited SAT items), and the Algebra II Honors Radicals and
-  // Rational Exponents Lessons 1–3 224 (83, 72 and 69, with the audited items'
-  // bank hints) and the Algebra I Module 3 Topic 2 Lessons 4 and 5 with their
+  // Rational Exponents Lessons 1–3 227 (83, 75 and 69, with the audited items'
+  // bank hints; three on Lesson 2's Check Your Progress after Examples A and B,
+  // CW 3) and the Algebra I Module 3 Topic 2 Lessons 4 and 5 with their
   // Honors files 370 (87, 95, 88 and 100, with three on Lesson 5's plain first
   // system, CW 17), every one shown (none is in BASE_DROPPED, and nowDropped is
   // unchanged).
-  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 224 + 370);
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370);
   assert.equal(BASE_DROPPED.length, 32);
   // The Lesson 3 Honors file repeats the Regular lesson's questions (and their
   // ids), so each hint that is shown now is listed once, not once per file.

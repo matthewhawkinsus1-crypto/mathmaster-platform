@@ -5,7 +5,7 @@ Three Assignment V5 teacher imports built from the district's lesson decks (TEKS
 | File | Lesson | Questions (Warm-Up · Classwork · Practice · Exit Ticket) |
 |---|---|---|
 | `L1_nth_Roots.json` | nth Roots | 3 · 14 · 15 · 3 |
-| `L2_Operations_with_Radical_Expressions.json` | Operations with Radical Expressions | 3 · 11 · 15 · 3 |
+| `L2_Operations_with_Radical_Expressions.json` | Operations with Radical Expressions | 3 · 12 · 15 · 3 |
 | `L3_Rational_Exponents.json` | Rational Exponents | 3 · 10 · 15 · 3 |
 
 ## Before importing: deploy Hosting
@@ -31,9 +31,12 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 
 **Warm-Up — prior knowledge to the objective.** Each Warm-Up was rebuilt to climb to the lesson: powers → perfect powers → √(x²) = |x| (Lesson 1); a Lesson 1 root, like terms → like radicals, and (x + a)(x − a) → conjugates (Lesson 2); integer exponent laws → negative exponents → why b^(1/n) must be the nth root (Lesson 3).
 
-**Classwork** follows every slide example and Check Your Progress, staged so each step is its own graded box. In Lesson 1 the numerical radicals (√63 and 3√12, Classwork 3) come before the variable examples, so students find the largest perfect-square factor with numbers first. "Simplify" answers are graded by value and form: simplest radical form, with absolute-value bars only where they are needed.
+**Classwork** follows every slide example and Check Your Progress, staged so each step is its own graded box. "Simplify" answers are graded by value and form: simplest radical form, with absolute-value bars only where they are needed. Where the order differs from the slides:
 
-**Practice** has new versions for each student, the Honors extension (DOK 3–4: error analysis, reasoning about the index, tables, comparing without a calculator) and two CCMR items. In Lesson 3 the band-3 index reduction and calculator items come before the extension, so a student who stops early has met them:
+- Lesson 1: the numerical radicals (√63 and 3√12, Classwork 3) come before the variable examples, so students find the largest perfect-square factor with numbers first.
+- Lesson 2: the four simplest-form rules (Classwork 4) come before the Quotient Property items that ask for simplest form, and the slides' hardest Check Your Progress is Classwork 9, an extension (see the slide notes).
+
+**Practice** has new versions for each student, the Honors extension (DOK 3–4: error analysis, reasoning about the index, tables, comparing without a calculator) and two CCMR items. Lesson 2's Practice opens with its easiest item, the simplest rationalization. In Lesson 3 the band-3 index reduction and calculator items come before the extension, so a student who stops early has met them:
 
 | Lesson | Audited CCMR items |
 |---|---|
@@ -49,6 +52,7 @@ Or plan the release with `node scripts/release-firebase.mjs`. Never use a raw `f
 
 - Lesson 1: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z². When y can be negative it is 3x²|y⁵|z². Classwork 10 teaches this.
 - Lesson 1: the odd-index Check Your Progress on the slide, ∛(27(x + 2)⁹), is 3(x + 2)³, the example's own answer, so a student could copy it into the box. Classwork 9 asks for ∛(8(x + 2)¹⁵) = 2(x + 2)⁵ instead.
+- Lesson 2: the Product Property's Check Your Progress B, ⁴√(625b²⁸k²³) with b any real number, is much harder than Example B: it needs absolute value bars, leaves a radical, and needs k ≥ 0, which only the reason reveals. Classwork 3 asks for ∛(27x⁹y¹⁴), a cube root with every variable positive like Example B, and the slide's item is Classwork 9, an extension after multiplying radicals.
 - Lesson 3: the objectives slide is titled "Rational Expressions" instead of Rational Exponents. The Check Your Progress ⁶√(16x²) = ∛(4x) holds only for x ≥ 0; for every real x it is ∛(4|x|). Classwork 8 states the assumption.
 
 ## These are not the Bluebonnet lessons

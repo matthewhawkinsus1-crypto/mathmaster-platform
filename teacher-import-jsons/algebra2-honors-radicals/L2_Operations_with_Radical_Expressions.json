@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "Why can it be useful to simplify expressions?",
     "instructions": "Operations with radical expressions. Each multi-step question has a box for every step — the perfect-power factor, each FOIL product, the conjugate — and each step is checked, so show the work in the boxes. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra II Honors, Radicals Lesson 2 (Operations with Radical Expressions), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: a Lesson 1 root, like terms → like radicals, and (x + a)(x − a) → conjugates. Classwork follows every slide example and Check Your Progress, staged so each step is a graded box. \"Simplify\" answers are graded by value AND form (simplest radical form). Two audited Digital SAT items from the CCMR bank sit in Practice; P7, P8, P10, P11 and P12 are the Honors extension (DOK 3–4), so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery."
+    "teacherNotes": "Algebra II Honors, Radicals Lesson 2 (Operations with Radical Expressions), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: a Lesson 1 root, like terms → like radicals, and (x + a)(x − a) → conjugates. Classwork follows every slide example and Check Your Progress, staged so each step is a graded box. \"Simplify\" answers are graded by value AND form (simplest radical form). Changes from the slides: the four simplest-form rules (CW4) come before the Quotient Property items that ask for simplest form; the slides’ Check Your Progress B, ⁴√(625b²⁸k²³) with b any real number, is CW9, an extension after multiplying radicals, and CW3 checks Example B with a cube root, every variable positive; Practice opens with the simplest rationalization (P1). Two audited Digital SAT items from the CCMR bank sit in Practice; P7, P8, P10, P11 and P12 are the Honors extension (DOK 3–4), so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -570,7 +570,66 @@
           }
         },
         {
-          "questionId": "a2r2-cw-3",
+          "questionId": "a2r2-cw-12",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Check Your Progress A and B. Simplify $\\sqrt{16x^4y^{11}}$ and $\\sqrt[3]{27x^9y^{14}}$. Assume every variable is positive.",
+          "directionSteps": [
+            "Simplify the square root.",
+            "Simplify the cube root."
+          ],
+          "responses": [
+            {
+              "id": "first",
+              "label": "√(16x⁴y¹¹) =",
+              "answer": "4x^2y^5√y",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "second",
+              "label": "∛(27x⁹y¹⁴) =",
+              "answer": "3x^3y^4∛(y^2)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "For a square root, use the largest even exponent; for a cube root, the largest multiple of 3.",
+            "y¹¹ is not a perfect square and y¹⁴ is not a perfect cube, so a power of y stays under each radical.",
+            "Take the root of the perfect-power factor; what is left stays under the radical."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ∛(a⁸) equals…",
+            "options": [
+              "a²∛(a²)",
+              "a²∛a"
+            ],
+            "correct": "a²∛(a²)"
+          },
+          "solutionReview": {
+            "headline": "As in the examples: perfect power out, the rest stays in.",
+            "reasoning": [
+              "16x⁴y¹¹ = (4x²y⁵)² · y, so √(16x⁴y¹¹) = 4x²y⁵√y.",
+              "27x⁹y¹⁴ = (3x³y⁴)³ · y², so ∛(27x⁹y¹⁴) = 3x³y⁴∛(y²)."
+            ],
+            "answerSummary": "4x²y⁵√y; 3x³y⁴∛(y²)",
+            "commonError": "Writing 3x³y⁴∛y: y¹⁴ = y¹² · y², so y², not y, stays under the cube root."
+          }
+        },
+        {
+          "questionId": "a2r2-cw-7",
           "standard": "A2.7G",
           "alignments": [
             {
@@ -583,62 +642,103 @@
             "multipleResponses"
           ],
           "dok": 3,
-          "difficultyBand": 4,
-          "prompt": "Check Your Progress A and B. Simplify $\\sqrt{16x^4y^{11}}$ (assume $y$ is positive) and $\\sqrt[4]{625b^{28}k^{23}}$, where $b$ can be any real number. Explain why only $b^7$ needs absolute value bars.",
+          "difficultyBand": 3,
+          "prompt": "Simplest form. A radical expression is simplified when the index is as small as possible, the radicand has no perfect nth-power factor, the radicand has no fraction, and no radical is in a denominator. Decide whether each expression is in simplest form, and name the rule it breaks if it is not.",
           "directionSteps": [
-            "Simplify the square root.",
-            "Simplify the fourth root.",
-            "Explain why only one factor needs bars."
+            "Check each expression against the four rules.",
+            "Decide whether it is simplified.",
+            "Name the rule it breaks, if any."
           ],
           "responses": [
             {
-              "id": "first",
-              "label": "√(16x⁴y¹¹) =",
-              "answer": "4x^2y^5√y",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            },
-            {
-              "id": "second",
-              "label": "⁴√(625b²⁸k²³) =",
-              "answer": "5|b^7|k^5∜(k^3)",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            },
-            {
-              "id": "why",
-              "label": "Why does b⁷ need bars but k⁵ does not?",
+              "id": "a",
+              "label": "√12",
               "type": "choice",
               "options": [
-                "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already",
-                "b has a larger exponent than k",
-                "k⁵ is always negative",
-                "Only the first variable needs bars"
+                "Not simplified: 12 has a perfect-square factor",
+                "Simplified",
+                "Not simplified: a fraction is under the radical",
+                "Not simplified: the index can be smaller"
               ],
-              "answer": "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already"
+              "answer": "Not simplified: 12 has a perfect-square factor"
+            },
+            {
+              "id": "b",
+              "label": "3/√5",
+              "type": "choice",
+              "options": [
+                "Not simplified: a radical is in the denominator",
+                "Simplified",
+                "Not simplified: 5 has a perfect-square factor",
+                "Not simplified: the index can be smaller"
+              ],
+              "answer": "Not simplified: a radical is in the denominator"
+            },
+            {
+              "id": "c",
+              "label": "⁶√(x²)",
+              "type": "choice",
+              "options": [
+                "Not simplified: the index can be smaller",
+                "Simplified",
+                "Not simplified: a radical is in the denominator",
+                "Not simplified: a fraction is under the radical"
+              ],
+              "answer": "Not simplified: the index can be smaller"
+            },
+            {
+              "id": "d",
+              "label": "√(x/2)",
+              "type": "choice",
+              "options": [
+                "Not simplified: a fraction is under the radical",
+                "Simplified",
+                "Not simplified: the index can be smaller",
+                "Not simplified: x has a perfect-square factor"
+              ],
+              "answer": "Not simplified: a fraction is under the radical"
+            },
+            {
+              "id": "e",
+              "label": "2∛(3x²)",
+              "type": "choice",
+              "options": [
+                "Simplified",
+                "Not simplified: 3x² has a perfect-cube factor",
+                "Not simplified: the index can be smaller",
+                "Not simplified: a radical is in the denominator"
+              ],
+              "answer": "Simplified"
+            },
+            {
+              "id": "fix",
+              "label": "Write ⁶√(x²) in simplest form (x positive)",
+              "answer": "∛(x)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "Use the largest exponent that is a multiple of the index.",
-            "625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³.",
-            "For k²³ to have a real fourth root, k cannot be negative."
+            "Test each rule one at a time.",
+            "⁶√(x²) = x^(2/6) = x^(1/3).",
+            "A radical in a numerator is fine; a radical in a denominator is not."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. ⁴√(b²⁸) equals…",
+            "prompt": "Let’s back up. Is √3/3 in simplest form?",
             "options": [
-              "|b⁷|",
-              "b⁷"
+              "Yes",
+              "No"
             ],
-            "correct": "|b⁷|"
+            "correct": "Yes"
           },
           "solutionReview": {
-            "headline": "Pull out the largest perfect power; bars only where a factor can be negative.",
+            "headline": "Four rules, one at a time.",
             "reasoning": [
-              "16x⁴y¹¹ = (4x²y⁵)² · y, so √(16x⁴y¹¹) = 4x²y⁵√y.",
-              "625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵⁴√(k³): k ≥ 0 for the radicand to be real."
+              "√12 = 2√3 (perfect-square factor). 3/√5 = 3√5/5 (radical in the denominator).",
+              "⁶√(x²) = ∛x (smaller index). √(x/2) = √(2x)/2 (fraction under the radical). 2∛(3x²) breaks no rule."
             ],
-            "answerSummary": "4x²y⁵√y; 5|b⁷|k⁵⁴√(k³)",
-            "commonError": "Writing 125|b⁷|…: the fourth root of 625 is 5, not 625 ÷ 5."
+            "answerSummary": "a, b, c, d not simplified; e simplified; ⁶√(x²) = ∛x",
+            "commonError": "Calling 2∛(3x²) unsimplified: neither 3 nor x² contains a perfect cube."
           }
         },
         {
@@ -858,119 +958,6 @@
           }
         },
         {
-          "questionId": "a2r2-cw-7",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 3,
-          "difficultyBand": 3,
-          "prompt": "Simplest form. A radical expression is simplified when the index is as small as possible, the radicand has no perfect nth-power factor, the radicand has no fraction, and no radical is in a denominator. Decide whether each expression is in simplest form, and name the rule it breaks if it is not.",
-          "directionSteps": [
-            "Check each expression against the four rules.",
-            "Decide whether it is simplified.",
-            "Name the rule it breaks, if any."
-          ],
-          "responses": [
-            {
-              "id": "a",
-              "label": "√12",
-              "type": "choice",
-              "options": [
-                "Not simplified: 12 has a perfect-square factor",
-                "Simplified",
-                "Not simplified: a fraction is under the radical",
-                "Not simplified: the index can be smaller"
-              ],
-              "answer": "Not simplified: 12 has a perfect-square factor"
-            },
-            {
-              "id": "b",
-              "label": "3/√5",
-              "type": "choice",
-              "options": [
-                "Not simplified: a radical is in the denominator",
-                "Simplified",
-                "Not simplified: 5 has a perfect-square factor",
-                "Not simplified: the index can be smaller"
-              ],
-              "answer": "Not simplified: a radical is in the denominator"
-            },
-            {
-              "id": "c",
-              "label": "⁶√(x²)",
-              "type": "choice",
-              "options": [
-                "Not simplified: the index can be smaller",
-                "Simplified",
-                "Not simplified: a radical is in the denominator",
-                "Not simplified: a fraction is under the radical"
-              ],
-              "answer": "Not simplified: the index can be smaller"
-            },
-            {
-              "id": "d",
-              "label": "√(x/2)",
-              "type": "choice",
-              "options": [
-                "Not simplified: a fraction is under the radical",
-                "Simplified",
-                "Not simplified: the index can be smaller",
-                "Not simplified: x has a perfect-square factor"
-              ],
-              "answer": "Not simplified: a fraction is under the radical"
-            },
-            {
-              "id": "e",
-              "label": "2∛(3x²)",
-              "type": "choice",
-              "options": [
-                "Simplified",
-                "Not simplified: 3x² has a perfect-cube factor",
-                "Not simplified: the index can be smaller",
-                "Not simplified: a radical is in the denominator"
-              ],
-              "answer": "Simplified"
-            },
-            {
-              "id": "fix",
-              "label": "Write ⁶√(x²) in simplest form (x positive)",
-              "answer": "∛(x)",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            }
-          ],
-          "hints": [
-            "Test each rule one at a time.",
-            "⁶√(x²) = x^(2/6) = x^(1/3).",
-            "A radical in a numerator is fine; a radical in a denominator is not."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. Is √3/3 in simplest form?",
-            "options": [
-              "Yes",
-              "No"
-            ],
-            "correct": "Yes"
-          },
-          "solutionReview": {
-            "headline": "Four rules, one at a time.",
-            "reasoning": [
-              "√12 = 2√3 (perfect-square factor). 3/√5 = 3√5/5 (radical in the denominator).",
-              "⁶√(x²) = ∛x (smaller index). √(x/2) = √(2x)/2 (fraction under the radical). 2∛(3x²) breaks no rule."
-            ],
-            "answerSummary": "a, b, c, d not simplified; e simplified; ⁶√(x²) = ∛x",
-            "commonError": "Calling 2∛(3x²) unsimplified: neither 3 nor x² contains a perfect cube."
-          }
-        },
-        {
           "questionId": "a2r2-cw-8",
           "standard": "A2.7G",
           "alignments": [
@@ -1039,6 +1026,69 @@
             ],
             "answerSummary": "50a; 24a",
             "commonError": "Forgetting the outside coefficients after taking the cube root."
+          }
+        },
+        {
+          "questionId": "a2r2-cw-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Extension — the Product Property with an even index. Simplify $\\sqrt[4]{625b^{28}k^{23}}$, where $b$ can be any real number. Explain why only $b^7$ needs absolute value bars.",
+          "directionSteps": [
+            "Simplify the fourth root.",
+            "Explain why only one factor needs bars."
+          ],
+          "responses": [
+            {
+              "id": "second",
+              "label": "⁴√(625b²⁸k²³) =",
+              "answer": "5|b^7|k^5∜(k^3)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "why",
+              "label": "Why does b⁷ need bars but k⁵ does not?",
+              "type": "choice",
+              "options": [
+                "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already",
+                "b has a larger exponent than k",
+                "k⁵ is always negative",
+                "Only the first variable needs bars"
+              ],
+              "answer": "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already"
+            }
+          ],
+          "hints": [
+            "Use the largest exponent that is a multiple of the index.",
+            "625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³.",
+            "For k²³ to have a real fourth root, k cannot be negative."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ⁴√(b²⁸) equals…",
+            "options": [
+              "|b⁷|",
+              "b⁷"
+            ],
+            "correct": "|b⁷|"
+          },
+          "solutionReview": {
+            "headline": "Pull out the largest perfect power; bars only where a factor can be negative.",
+            "reasoning": [
+              "625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵⁴√(k³): k ≥ 0 for the radicand to be real."
+            ],
+            "answerSummary": "5|b⁷|k⁵⁴√(k³)",
+            "commonError": "Writing 125|b⁷|…: the fourth root of 625 is 5, not 625 ÷ 5."
           }
         },
         {
@@ -1326,7 +1376,7 @@
       "recommendedMinutes": 45,
       "questions": [
         {
-          "questionId": "a2r2-p-1",
+          "questionId": "a2r2-p-6",
           "standard": "A2.7G",
           "alignments": [
             {
@@ -1339,76 +1389,65 @@
             "multipleResponses"
           ],
           "dok": 2,
-          "difficultyBand": 3,
-          "prompt": "Simplify $\\sqrt{ {{R}}a^{ {{e1}} }b^{ {{e2}} } }$. Assume $a$ and $b$ are positive.",
+          "difficultyBand": 2,
+          "prompt": "Rationalize the denominator: simplify $\\dfrac{ {{a}} }{\\sqrt{ {{m}} }}$.",
           "directionSteps": [
-            "Find the largest perfect-square factor.",
-            "Take its square root outside the radical.",
-            "Keep what is left under the radical."
+            "Multiply the top and bottom by the radical in the denominator.",
+            "Simplify."
           ],
           "responses": [
             {
               "id": "simplified",
               "label": "Simplified",
-              "answer": "{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)",
+              "answer": "({{a}}√{{m}})/{{m}}",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "Split the coefficient into a perfect square times a number with no square factor.",
-            "Use the largest even exponent of b; one b stays inside."
+            "Multiply by a fraction equal to 1 whose top and bottom are the radical.",
+            "A square root times itself is its radicand."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. √(b⁷) equals (b positive)…",
+            "prompt": "Let’s back up. √7 · √7 equals…",
             "options": [
-              "b³√b",
-              "b⁴√b"
+              "7",
+              "49"
             ],
-            "correct": "b³√b"
+            "correct": "7"
           },
           "solutionReview": {
-            "headline": "Perfect square out, the rest in.",
+            "headline": "Multiply by √{{m}}/√{{m}}.",
             "reasoning": [
-              "{{R}}a^{{e1}}b^{{e2}} = ({{s}}a^{{m}}b^{{n}})² · {{k}}b.",
-              "So the root is {{s}}a^{{m}}b^{{n}}√({{k}}b)."
+              "{{a}}/√{{m}} · √{{m}}/√{{m}} = {{a}}√{{m}}/{{m}}."
             ],
-            "answerSummary": "{{s}}a^{{m}}b^{{n}}√({{k}}b)",
-            "commonError": "Leaving a perfect-square factor of {{R}} under the radical."
+            "answerSummary": "{{a}}√{{m}}/{{m}}",
+            "commonError": "Multiplying only the denominator by √{{m}}, which changes the value."
           },
           "generator": {
             "parameters": {
-              "s": {
+              "a": {
                 "type": "int",
                 "min": 2,
-                "max": 9
+                "max": 12
               },
-              "k": {
+              "m": {
                 "type": "choice",
                 "values": [
                   2,
                   3,
                   5,
                   6,
-                  7
+                  7,
+                  10,
+                  11,
+                  13
                 ]
-              },
-              "m": {
-                "type": "int",
-                "min": 1,
-                "max": 4
-              },
-              "n": {
-                "type": "int",
-                "min": 1,
-                "max": 4
               }
             },
-            "derived": {
-              "R": "s*s*k",
-              "e1": "2*m",
-              "e2": "2*n + 1"
-            }
+            "constraints": [
+              "gcd(a, m) == 1"
+            ]
           },
           "questionFamily": {
             "scope": "assignment"
@@ -1835,7 +1874,7 @@
           }
         },
         {
-          "questionId": "a2r2-p-6",
+          "questionId": "a2r2-p-1",
           "standard": "A2.7G",
           "alignments": [
             {
@@ -1848,65 +1887,76 @@
             "multipleResponses"
           ],
           "dok": 2,
-          "difficultyBand": 2,
-          "prompt": "Rationalize the denominator: simplify $\\dfrac{ {{a}} }{\\sqrt{ {{m}} }}$.",
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt{ {{R}}a^{ {{e1}} }b^{ {{e2}} } }$. Assume $a$ and $b$ are positive.",
           "directionSteps": [
-            "Multiply the top and bottom by the radical in the denominator.",
-            "Simplify."
+            "Find the largest perfect-square factor.",
+            "Take its square root outside the radical.",
+            "Keep what is left under the radical."
           ],
           "responses": [
             {
               "id": "simplified",
               "label": "Simplified",
-              "answer": "({{a}}√{{m}})/{{m}}",
+              "answer": "{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "Multiply by a fraction equal to 1 whose top and bottom are the radical.",
-            "A square root times itself is its radicand."
+            "Split the coefficient into a perfect square times a number with no square factor.",
+            "Use the largest even exponent of b; one b stays inside."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. √7 · √7 equals…",
+            "prompt": "Let’s back up. √(b⁷) equals (b positive)…",
             "options": [
-              "7",
-              "49"
+              "b³√b",
+              "b⁴√b"
             ],
-            "correct": "7"
+            "correct": "b³√b"
           },
           "solutionReview": {
-            "headline": "Multiply by √{{m}}/√{{m}}.",
+            "headline": "Perfect square out, the rest in.",
             "reasoning": [
-              "{{a}}/√{{m}} · √{{m}}/√{{m}} = {{a}}√{{m}}/{{m}}."
+              "{{R}}a^{{e1}}b^{{e2}} = ({{s}}a^{{m}}b^{{n}})² · {{k}}b.",
+              "So the root is {{s}}a^{{m}}b^{{n}}√({{k}}b)."
             ],
-            "answerSummary": "{{a}}√{{m}}/{{m}}",
-            "commonError": "Multiplying only the denominator by √{{m}}, which changes the value."
+            "answerSummary": "{{s}}a^{{m}}b^{{n}}√({{k}}b)",
+            "commonError": "Leaving a perfect-square factor of {{R}} under the radical."
           },
           "generator": {
             "parameters": {
-              "a": {
+              "s": {
                 "type": "int",
                 "min": 2,
-                "max": 12
+                "max": 9
               },
-              "m": {
+              "k": {
                 "type": "choice",
                 "values": [
                   2,
                   3,
                   5,
                   6,
-                  7,
-                  10,
-                  11,
-                  13
+                  7
                 ]
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 4
               }
             },
-            "constraints": [
-              "gcd(a, m) == 1"
-            ]
+            "derived": {
+              "R": "s*s*k",
+              "e1": "2*m",
+              "e2": "2*n + 1"
+            }
           },
           "questionFamily": {
             "scope": "assignment"

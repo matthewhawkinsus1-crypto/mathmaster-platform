@@ -98,7 +98,10 @@ const RADICAL_ANSWERS = [
   [L1, 'a2r1-cw-12', 'quotient', 'sqrt(3)'],
   [L1, 'a2r1-cw-12', 'product', '24x^3y^4sqrt(6)'],
   [L2, 'a2r2-cw-2', 'first', '5a^2b^4sqrt(b)'],
-  [L2, 'a2r2-cw-3', 'first', '4x^2y^5 sqrt y'],
+  // The Check Your Progress after Examples A and B (L2 pacing); its
+  // √(16x⁴y¹¹) was a2r2-cw-3's before that item became an extension.
+  [L2, 'a2r2-cw-12', 'first', '4x^2y^5 sqrt y'],
+  [L2, 'a2r2-cw-12', 'second', '3x^3y^4cbrt(y^2)'],
   [L2, 'a2r2-cw-4', 'denominator', 'x^3 sqrt x'],
   [L2, 'a2r2-cw-4', 'denominator', 'x^3sqrt(x)'],
   [L2, 'a2r2-cw-4', 'multiplier', 'sqrt(x)'],
