@@ -677,7 +677,10 @@ if (CHECKS.has('obscured')) {
     const count = entries.reduce((sum, [key]) => sum + (result.counts[key] || 0), 0);
     const covered = entries.flatMap(([, entry]) => entry.examples.map((example) => `${example.target} (${example.summary})`));
     const back = await walkBack(page);
-    focusReport.push({ label, setting: settingId, stops: result.summary.stops, stopNames: result.summary.stopNames, covered, backStops: back.stops, backCovered: back.hidden });
+    // What the walk's other rules find there too, by rule: not judged here (the
+    // certification's business), recorded so a run says what each walk finds.
+    const findings = Object.fromEntries(Object.entries(result.counts).map(([key, found]) => [key.slice(key.lastIndexOf('|') + 1), found]));
+    focusReport.push({ label, setting: settingId, stops: result.summary.stops, stopNames: result.summary.stopNames, covered, findings, backStops: back.stops, backCovered: back.hidden });
     console.log(`${count || back.hidden.length ? 'FAIL' : 'ok  '} obscured ${label.padEnd(40)} ${settingId.padEnd(10)} stops=${result.summary.stops} covered=${count} back=${back.stops} coveredBack=${back.hidden.length}`);
     if (count) failures.push(`${label} ${settingId}: ${count} focused control(s) under something the page drew (WCAG 2.4.11): ${covered.join('; ')}`);
     if (back.hidden.length) failures.push(`${label} ${settingId}: walking back with Shift+Tab, ${back.hidden.length} focused control(s) under something the page drew (WCAG 2.4.11): ${back.hidden.join('; ')}`);

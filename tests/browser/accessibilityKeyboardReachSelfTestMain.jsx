@@ -9,6 +9,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import Dialog from '../../src/ui/Dialog.jsx';
+import CoordinatePlane from '../../src/tools/shared/CoordinatePlane.jsx';
+import '../../src/platform/math/mathliveRuntime.js';
+import { useMathFieldName } from '../../src/platform/math/mathFieldName.js';
 
 const plant = new URLSearchParams(window.location.search).get('plant') || 'clean';
 const noop = () => {};
@@ -40,6 +43,14 @@ function Correct() {
   );
 }
 
+// A math box named the way the app names one: on MathLive's keyboard sink,
+// inside the shadow root, which is where focus really lands (mathFieldName.js).
+function NamedMathBox({ name = 'Slope' }) {
+  const ref = React.useRef(null);
+  useMathFieldName(ref, name);
+  return <math-field ref={ref} aria-label={name} style={{ display: 'block', minWidth: 160, border: '1px solid #888' }} />;
+}
+
 const PLANTS = {
   clean: () => <Correct />,
   // A control with focus styling removed and nothing put in its place.
@@ -52,6 +63,26 @@ const PLANTS = {
   ),
   // A Tab stop that is announced as nothing.
   unnamed: () => (<><Correct /><button type="button" onClick={noop} /></>),
+  // A math box named on its keyboard sink, where focus is: a named stop (the
+  // walk once named the <math-field> host, and called every math box unnamed).
+  mathBox: () => (<><Correct /><NamedMathBox /></>),
+  // Math boxes with a control after them. The walk refocuses each stop to
+  // read its style, and a math box hands focus on to its sink a moment after
+  // that: a Tab pressed before then started from <body>, and the hand-over
+  // pulled focus back into the box (a loop no student meets; about one walk in
+  // three, so there are four boxes). No findings.
+  mathBoxesThenControl: () => (
+    <>
+      <Correct />
+      {['Slope', 'y-intercept', 'x-intercept', 'Rate'].map((name) => <NamedMathBox key={name} name={name} />)}
+      <button type="button">After the boxes</button>
+    </>
+  ),
+  // A math box named nowhere: its sink is announced as nothing, and the walk says so.
+  unnamedMathBox: () => (<><Correct /><math-field style={{ display: 'block', minWidth: 160, border: '1px solid #888' }} /></>),
+  // A plane that only shows a graph: no Tab stop, and nothing a pointer does
+  // there that a key cannot (the walk once counted it as pointer-only).
+  readOnlyPlane: () => (<><Correct /><CoordinatePlane xMin={-5} xMax={5} yMin={-5} yMax={5} points={[[1, 2]]} ariaLabel="Graph of the trip" /></>),
   // Something that answers a click and nothing else.
   pointerOnly: () => (<><Correct /><div onClick={noop} style={{ padding: 8 }}>Open the row</div></>),
   // A Tab stop with a click handler and no key handler (a div that says it is a button).

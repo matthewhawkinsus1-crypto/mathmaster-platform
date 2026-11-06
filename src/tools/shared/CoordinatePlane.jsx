@@ -869,12 +869,18 @@ export default function CoordinatePlane({
         lang={named.lang}
         aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        // A plane that only shows a graph answers no press, slide, lift or
+        // key (each of those returns at once without onPlot), so it carries
+        // none of them: a press handler on a picture says a pointer can do
+        // something there that the keyboard cannot, and the Tab walk counted
+        // every read-only plane as a pointer-only control. Cancel and leave
+        // stay on every plane: leaving puts a hovered point's readout away.
+        onPointerDown={interactive ? handlePointerDown : undefined}
+        onPointerMove={interactive ? handlePointerMove : undefined}
+        onPointerUp={interactive ? handlePointerUp : undefined}
         onPointerCancel={handlePointerCancel}
         onPointerLeave={handlePointerLeave}
-        onKeyDown={handleKeyDown}
+        onKeyDown={interactive ? handleKeyDown : undefined}
         onFocus={(event) => {
           let keyboard = false;
           try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }

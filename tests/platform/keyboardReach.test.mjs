@@ -188,6 +188,28 @@ test('the rules are the ones the walk reports, none of them an axe rule id', () 
   }
 });
 
+// Two of the walk's own false reports (student-a11y-2). A math box's
+// <math-field> is a host: focus is in MathLive's keyboard sink inside its
+// shadow root, which carries the box's name, so the walk names that element,
+// read at the stop before the walk blurs it (named on the host, every math box
+// was "unnamed"). And the walk's refocus of a math box hands focus on to the
+// sink a moment later: the walk waits for it, or its next Tab starts from
+// <body> and comes back to the box (a phone walk saw "Slope" twice and
+// stopped with 12 controls unreached; plain Tab presses never loop there).
+test('the walk names the element focus is really on, and lets a refocused math box take focus back before the next Tab', () => {
+  const walk = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReach.mjs', import.meta.url), 'utf8'));
+  const observe = region(walk, 'const observe = async (previousId) => {', '\n  };', 'observe');
+  const readAt = observe.search(/focusedAtStop = el;\s*while \(focusedAtStop\.shadowRoot\?\.activeElement\) focusedAtStop = focusedAtStop\.shadowRoot\.activeElement;/);
+  assert.ok(readAt >= 0 && readAt < observe.indexOf('el.blur();'), 'the focused element is read through shadow roots, before the blur');
+  const named = region(walk, 'const FOCUSED_ELEMENT = `', '`;', 'the element named');
+  assert.match(named, /let named = window\.__mmReach\?\.focusedAtStop\?\.\(\) \|\| document\.activeElement;/);
+  assert.match(named, /while \(named\?\.shadowRoot\?\.activeElement\) named = named\.shadowRoot\.activeElement;\s*return named;/);
+  assert.match(region(walk, 'const accessibleNameOfFocus = async (cdp) => {', '\n};', 'the naming'), /Runtime\.evaluate', \{ expression: FOCUSED_ELEMENT, awaitPromise: true \}/);
+  const refocus = observe.slice(observe.indexOf('el.focus({ preventScroll: true });'));
+  assert.match(refocus, /for \(let wait = 0; wait < \d+ && el\.localName === 'math-field' && !el\.shadowRoot\?\.activeElement; wait \+= 1\) \{\s*await new Promise/, 'a refocused math box is waited for');
+  assert.ok(refocus.indexOf('wait += 1') < refocus.indexOf('info.refocused = document.activeElement === el;'), 'before the stop is recorded and the walk goes on');
+});
+
 // The browser half is shown finding each defect on a page with only that defect
 // (tests/browser/accessibilityKeyboardReachSelfTest.mjs, run by the accessibility
 // workflow). A rule with no planted page there could stop working unseen.
