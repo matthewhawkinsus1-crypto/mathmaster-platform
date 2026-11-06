@@ -867,7 +867,7 @@
           "responses": [
             {
               "id": "multiplier",
-              "label": "Multiply 9x by ? to get a perfect cube",
+              "label": "The smallest monomial to multiply 9x by to get a perfect cube",
               "answer": "3x^2",
               "inputProfile": "expression"
             },
@@ -955,7 +955,7 @@
             },
             {
               "id": "multiplier",
-              "label": "Multiply 3y² by ? to get a perfect cube",
+              "label": "The smallest monomial to multiply 3y² by to get a perfect cube",
               "answer": "9y",
               "inputProfile": "expression",
               "type": "math"
@@ -2539,7 +2539,7 @@
           "responses": [
             {
               "id": "multiplier1",
-              "label": "Multiply the first fraction by ? over itself",
+              "label": "The smallest cube root to multiply the first fraction by, over itself",
               "answer": "∛(2)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"

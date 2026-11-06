@@ -516,6 +516,26 @@ test('L2 CW 4: one option answers what the multiplier choice asks', () => {
   }
 });
 
+// L2 CW 5, CW 6 and PR 12 asked "Multiply 9x by ? to get a perfect cube" (3y²
+// in CW 6, ∛4 over itself in PR 12) and keyed the smallest factor. The
+// denominator's own square makes a perfect cube too (9x · 81x² = (9x)³), the
+// way many books clear a cube root, and was refused. The labels ask for the
+// smallest, as CW 4's does; keys and grading are unchanged.
+test('L2: a typed multiplier box asks for the smallest, where a larger factor also makes a perfect cube', () => {
+  const perfectCube = (whole) => Math.round(Math.cbrt(whole)) ** 3 === whole;
+  for (const [questionId, fieldId, larger, coefficient, exponent] of [
+    ['a2r2-cw-5', 'multiplier', '81x^2', 9 * 81, 1 + 2],
+    ['a2r2-cw-6', 'multiplier', '9y^4', 3 * 9, 2 + 4],
+    ['a2r2-p-12', 'multiplier1', '∛(16)', 4 * 16, 0],
+  ]) {
+    const question = compiledQuestion(L2, questionId);
+    const field = question.answerFields.find((candidate) => candidate.id === fieldId);
+    assert.ok(perfectCube(coefficient) && exponent % 3 === 0, `${questionId}: ${larger} makes a perfect cube`);
+    assert.equal(takes(question, fieldId, larger), false, `${questionId} takes ${larger}: this test is out of date`);
+    assert.match(field.label, /\bsmallest\b/, `${questionId}: ${larger} also makes a perfect cube, and the label does not ask for the smallest`);
+  }
+});
+
 // What a worked solution writes, in every version (2026-11-06 walkthrough):
 // "(−3a^1b^4)³" and "6a²b¹" where an exponent drew 1, and "the 3th root" or
 // "the 2th root" where an index did. A simplified answer never shows a power of

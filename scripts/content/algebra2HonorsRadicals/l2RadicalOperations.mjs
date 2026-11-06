@@ -308,7 +308,9 @@ const classwork = [
     prompt: tex`Quotient Property, Example B. Simplify $\sqrt[3]{\dfrac{2}{9x}}$. Assume $x$ is positive. Find what to multiply $9x$ by to make a perfect cube, then simplify.`,
     directionSteps: ['Find what makes the denominator a perfect cube.', 'Multiply and simplify the cube root of the new denominator.', 'Write the simplified quotient.'],
     responses: [
-      expression('multiplier', 'Multiply 9x by ? to get a perfect cube', '3x^2'),
+      // The smallest, as CW 4 asks: 9x · 81x² = (9x)³ makes a perfect cube too,
+      // the way many books clear a cube root, and the key is 3x².
+      expression('multiplier', 'The smallest monomial to multiply 9x by to get a perfect cube', '3x^2'),
       expression('perfectCube', 'The new radicand in the denominator', '27x^3'),
       simplest('simplified', '∛(2/(9x)) =', '∛(6x^2)/(3x)'),
     ],
@@ -343,7 +345,8 @@ const classwork = [
       simplest('first', '√(x³/y⁷) =', '(x√(xy))/y^4'),
       // A math box, as its neighbours are: the box chooser reads a key with no
       // sign it knows, such as 9y, as words (the CT04 fix in Algebra I M2 T2 L2).
-      expression('multiplier', 'Multiply 3y² by ? to get a perfect cube', '9y', { type: 'math' }),
+      // The smallest, as CW 5 asks: 3y² · 9y⁴ = (3y²)³ is a perfect cube too.
+      expression('multiplier', 'The smallest monomial to multiply 3y² by to get a perfect cube', '9y', { type: 'math' }),
       simplest('second', '∛(8/(3y²)) =', '(2∛(9y))/(3y)'),
     ],
     hints: [
@@ -868,7 +871,8 @@ const practice = [
     prompt: tex`Honors extension — cube-root denominators. Simplify $\dfrac{6}{\sqrt[3]{4}}$ and $\dfrac{10}{\sqrt[3]{25}}$.`,
     directionSteps: ['Find what makes each denominator a perfect cube.', 'Multiply and simplify.'],
     responses: [
-      simplest('multiplier1', 'Multiply the first fraction by ? over itself', '∛(2)'),
+      // The smallest, as CW 4 asks: ∛16 over itself clears ∛4 too (4 · 16 = 4³).
+      simplest('multiplier1', 'The smallest cube root to multiply the first fraction by, over itself', '∛(2)'),
       simplest('first', '6/∛4 =', '3∛(2)'),
       simplest('second', '10/∛25 =', '2∛(5)'),
     ],
