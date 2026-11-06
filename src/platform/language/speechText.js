@@ -1024,9 +1024,39 @@ const spokenLineForms = (text, w) => text
 // keeps a round pair a point.
 const INTERVAL_CUE = /(?:\b(?:increasing|decreasing|positive|negative|constant)(?:\s+on)?|\bintervals?(?:\s+notation)?\s*:?|\b(?:domain|range)(?:\s+is|\s*[:=])?|\b(?:creciente|decreciente)(?:\s+en)?|\b(?:positiva|positivo|negativa|negativo|constante)\s+en|\bintervalos?\s*:?|\b(?:dominio|rango)(?:\s+es|\s*[:=])?)\s*$/i;
 
+/*
+ * A LINE BREAK THE AUTHOR WROTE IS A PAUSE (platform-polish-3; F-PROMPT-LINES
+ * in the 2026-11-06 Algebra I M3 T2 walkthrough). The task card now draws a
+ * prompt's line breaks (components/common/promptLines.js). A voice runs them
+ * together: "…6x − 2y = a⏎System B: …" was "…equals a System B…". A line that
+ * does not end in a stop gets a full stop, so each listed system or step is
+ * heard as its own sentence. Only where another line follows, and never
+ * inside display mathematics ($$…$$, \[…\], \(…\)), whose breaks are LaTeX
+ * spacing. Text with no line break is returned as it is.
+ */
+const DISPLAY_MATH = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/g;
+const ENDS_LINE = /[.;:!?,…][)\]"'”’]*\s*$/u;
+// A line that ends inside a $…$ span it opened (a broken one: a span never
+// holds a line break) is left as it was. Its LaTeX signs are odd in number
+// (a "$" before a digit is a price's).
+const opensSpan = (line) => (line.match(/(?<!\\)\$(?!\d)/g) || []).length % 2 === 1;
+export const lineBreaksAsPauses = (raw) => {
+  const text = String(raw ?? '');
+  if (!text.includes('\n')) return text;
+  // Display mathematics as one placeholder each, so its own breaks stay.
+  const spans = [];
+  const masked = text.replace(DISPLAY_MATH, (span) => `\uE010${spans.push(span) - 1}\uE010`);
+  const lines = masked.split('\n');
+  const last = lines.reduce((found, line, index) => (line.trim() ? index : found), -1);
+  return lines
+    .map((line, index) => (index < last && line.trim() && !ENDS_LINE.test(line) && !opensSpan(line) ? `${line.trimEnd()}.` : line))
+    .join('\n')
+    .replace(/\uE010(\d+)\uE010/g, (match, index) => spans[Number(index)]);
+};
+
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
-  const text = spokenLineForms(writtenNotationToSpokenForm(raw, w), w);
+  const text = spokenLineForms(writtenNotationToSpokenForm(lineBreaksAsPauses(raw), w), w);
   if (!text.trim()) return '';
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").

@@ -3,6 +3,15 @@ import {
   isMathSegment, normalizePlainMathTypography, splitMathSegments, splitProseFractionRuns, unwrapMathSegment,
 } from './components/common/mathSegments.js';
 import { studentSafePromptText } from './platform/content/studentFacingTextSafety.js';
+import { proseLines, withoutOuterLineBreaks } from './components/common/promptLines.js';
+
+// Prose with the author's line breaks drawn as breaks (promptLines.js): a
+// prompt written as a list keeps its lines. Text with none is returned as is.
+const withLineBreaks = (text, key) => {
+  const lines = proseLines(text);
+  if (lines.length === 1) return text;
+  return lines.flatMap((line, index) => (index ? [<br key={`${key}-br-${index}`} />, line] : [line]));
+};
 
 /**
  * Displays ordinary directions plus optional math delimited with:
@@ -19,7 +28,7 @@ export default function QuestionPrompt({
   // authored. The assignment generator is responsible for replacing every one
   // before student delivery, but this display boundary is deliberately a second
   // line of defense: authoring syntax is never acceptable student-facing prose.
-  const text = studentSafePromptText(children);
+  const text = withoutOuterLineBreaks(studentSafePromptText(children));
   const segments = splitMathSegments(text);
 
   const isPlain = variant === 'plain';
@@ -61,7 +70,7 @@ export default function QuestionPrompt({
             <span key={`${index}-${segment}`}>
               {fractionRuns.map((run, runIndex) => (run.isFraction
                 ? <MathDisplay key={`${index}-f-${runIndex}`} value={run.text} format={mathFormat} inline style={{ margin: '0 0.16em' }} />
-                : <span key={`${index}-p-${runIndex}`}>{normalizePlainMathTypography(run.text)}</span>))}
+                : <span key={`${index}-p-${runIndex}`}>{withLineBreaks(normalizePlainMathTypography(run.text), `${index}-p-${runIndex}`)}</span>))}
             </span>
           );
         }

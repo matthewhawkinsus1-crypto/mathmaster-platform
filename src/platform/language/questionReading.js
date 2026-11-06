@@ -30,7 +30,7 @@ import { choiceOptionsForField, choiceSeed, multiAnswerChoiceSeed, stableShuffle
 import { readDisplayMatrices } from '../math/displayMatrices.js';
 import { sayFigure } from './figureSay.js';
 import { figureName as platformName } from './figureNames.js';
-import { definedFunctionNames } from './speechText.js';
+import { definedFunctionNames, lineBreaksAsPauses } from './speechText.js';
 
 const WORDS = {
   en: {
@@ -213,7 +213,9 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
     add('back-up', 'back-up', w.labels.backUp, [w.backUp, sentence(backUpQuestionText(backUp.prompt)), choicesSentence(backUp.options, { language })].join(' '));
   }
 
-  add('prompt', 'prompt', w.labels.question, sentence(question.prompt));
+  // A prompt written as a list keeps a pause between its lines (the task card
+  // draws them as lines; speechText.js lineBreaksAsPauses).
+  add('prompt', 'prompt', w.labels.question, sentence(lineBreaksAsPauses(question.prompt)));
 
   const statements = (referenceInfo?.statements || []).map((entry) => sentence(entry?.text)).filter(Boolean);
   if (statements.length) add('information', 'information', w.labels.information, [`${clean(referenceInfo.title) || w.information}:`, ...statements].join(' '));
@@ -255,7 +257,7 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
     const current = stage.stage;
     const index = Number.isFinite(Number(stage.index)) ? Number(stage.index) + 1 : null;
     const total = Number(stage.total) || null;
-    const prompt = clean(current.prompt || current.label);
+    const prompt = clean(lineBreaksAsPauses(current.prompt || current.label));
     const choices = stageChoices(current, stage.workflow);
     if (prompt || choices.length) {
       add(`step-${current.id || index || 1}`, 'step', w.labels.step, [`${w.step(index, total)}:`, sentence(prompt), choicesSentence(choices, { language })].filter(Boolean).join(' '));
