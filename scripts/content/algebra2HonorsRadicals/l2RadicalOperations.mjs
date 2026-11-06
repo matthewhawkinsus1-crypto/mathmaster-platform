@@ -248,7 +248,10 @@ const classwork = [
       choice('c', '⁶√(x²)', ['Not simplified: the index can be smaller', 'Simplified: x² has no perfect sixth-power factor', 'Not simplified: a radical is in the denominator', 'Not simplified: a fraction is under the radical'], 'Not simplified: the index can be smaller'),
       choice('d', '√(x/2)', ['Not simplified: a fraction is under the radical', 'Simplified: x and 2 have no perfect-square factor', 'Not simplified: the index can be smaller', 'Not simplified: x has a perfect-square factor'], 'Not simplified: a fraction is under the radical'),
       choice('e', '2∛(3x²)', ['Simplified: 3x² has no perfect-cube factor', 'Not simplified: x² is a perfect square', 'Not simplified: the index can be smaller', 'Not simplified: a radical is in the denominator'], 'Simplified: 3x² has no perfect-cube factor'),
-      simplest('fix', 'Write ⁶√(x²) in simplest form (x positive)', '∛(x)'),
+      // The box takes a radical only (a key in radical notation asks for
+      // one), and the last hint ends at x^(1/3): the label names the form, or
+      // a student who stops there is told only "the other notation".
+      simplest('fix', 'Write ⁶√(x²) as a radical in simplest form (x positive)', '∛(x)'),
     ],
     hints: [
       'For each expression, which of the four rules does it break, if any?',

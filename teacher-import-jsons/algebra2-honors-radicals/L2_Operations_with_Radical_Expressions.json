@@ -730,7 +730,7 @@
             },
             {
               "id": "fix",
-              "label": "Write ⁶√(x²) in simplest form (x positive)",
+              "label": "Write ⁶√(x²) as a radical in simplest form (x positive)",
               "answer": "∛(x)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"

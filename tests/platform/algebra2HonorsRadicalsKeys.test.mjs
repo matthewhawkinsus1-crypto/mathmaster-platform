@@ -7,6 +7,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import '../../functions/shared/formSpecificFieldGrading.mjs';
+import { radicalFormMiss } from '../../functions/shared/simplestRadicalFormEquivalence.mjs';
+import { authoredHintTexts } from '../../src/platform/supports/hints/questionHints.js';
+import { unicodeSuperscriptsToMathMarkup } from '../../src/mathDisplayFormat.js';
 import { versionsOf } from './helpers/lessonFileChecks.mjs';
 
 // The answer keys of the Algebra II Honors radicals lessons, recomputed, and
@@ -351,6 +354,10 @@ test('README and teacher notes: the counts, the CCMR and Honors item numbers, an
 
 /* ------------------------------------------ the 2026-11-06 walkthrough */
 
+const questionsOf = (file) => {
+  if (!compiledLessons.has(file)) compiledLessons.set(file, compileTeacherImport(fileText(file)).questions);
+  return compiledLessons.get(file);
+};
 const keyed = (question) => Object.fromEntries(question.answerFields.map((field) => [field.id, String(field.answer)]));
 const takes = (question, fieldId, typed) => gradeMultiAnswerResponse(question, { ...keyed(question), [fieldId]: typed })
   .parts.find((part) => part.id === fieldId)?.isCorrect === true;
@@ -398,5 +405,37 @@ test('L1 PR 10: the rounding the item asks for is right in every version, and tw
     assert.equal(energy((Number(fromExactRoot) - 0.2).toFixed(1)), false, `d = ${d}: two tenths under`);
   }
   assert.ok(roundingsDiffer > 0, 'some version rounds the two ways differently, so this can fail');
+});
+
+// A last hint that ends in the other notation. L2 CW 7's "⁶√(x²) = x^(2/6) =
+// x^(1/3)", L3 CW 8's "(2x²)^(2/6)" and L3 CW 10's "x^(4/8), and 4/8 can be
+// reduced" end at an exponent, and their boxes take a radical only (a key in
+// one notation asks for that one): a student who stopped where the hint did
+// was told "the other notation" by a label that named none.
+test('a box the last hint takes to the other notation names, in its label, the notation it takes', () => {
+  const fragments = (sentence) => unicodeSuperscriptsToMathMarkup(String(sentence), 'latex')
+    .replace(/[−–]/g, '-')
+    .split(/\s*(?:=|,|;|:|\band\b|\bso\b)\s*/)
+    .map((piece) => piece.trim().replace(/[.?!]+$/, ''))
+    .filter(Boolean);
+  const checked = [];
+  for (const file of [L1, L2, L3]) {
+    questionsOf(file).filter((question) => ['classwork', 'practice'].includes(question.sectionId) && question.type === 'multiAnswer').forEach((question) => {
+      const [version] = versionsOf(question, 1);
+      const hints = authoredHintTexts(version);
+      const pieces = fragments(hints[hints.length - 1] || '');
+      version.answerFields.filter((field) => field.gradingMode === 'simplestRadicalForm').forEach((field) => {
+        const key = String(field.answer);
+        const elsewhere = pieces.filter((piece) => {
+          try { return radicalFormMiss(piece, key) === 'notation'; } catch { return false; }
+        });
+        if (!elsewhere.length) return;
+        checked.push(`${version.questionId} ${field.id}`);
+        const radical = /[√∛∜]|root\(/.test(key);
+        assert.match(field.label, radical ? /\bradical\b/i : /\bexponent|\bpower\b/i, `${version.questionId} ${field.id}: the last hint ends at ${elsewhere.join(', ')}, the box takes ${key}, and "${field.label}" names no form`);
+      });
+    });
+  }
+  assert.deepEqual(checked.sort(), ['a2r2-cw-7 fix', 'a2r3-cw-10 fix', 'a2r3-cw-8 index', 'a2r3-cw-8 power16']);
 });
 

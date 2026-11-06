@@ -1136,7 +1136,7 @@
             },
             {
               "id": "index",
-              "label": "⁶√(4x⁴) =",
+              "label": "⁶√(4x⁴) as a radical with a smaller index",
               "answer": "∛(2x^2)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -1150,7 +1150,7 @@
             },
             {
               "id": "cyp2",
-              "label": "⁶√(16x²) =",
+              "label": "⁶√(16x²) as a radical with a smaller index",
               "answer": "∛(4x)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -1369,7 +1369,7 @@
             },
             {
               "id": "fix",
-              "label": "Write ⁸√(x⁴) in simplest form (x positive)",
+              "label": "Write ⁸√(x⁴) as a radical in simplest form (x positive)",
               "answer": "√x",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"

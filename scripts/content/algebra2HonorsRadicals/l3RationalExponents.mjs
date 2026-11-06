@@ -368,12 +368,14 @@ const classwork = [
     difficultyBand: 4,
     prompt: tex`Simplify radical expressions with rational exponents. Simplify $\dfrac{\sqrt[6]{16}}{\sqrt[3]{2}}$ and $\sqrt[6]{4x^4}$. Then simplify $\dfrac{\sqrt[4]{4}}{\sqrt{2}}$ and $\sqrt[6]{16x^2}$. Assume $x$ is positive.`,
     directionSteps: ['Write each radical as a power of two.', 'Simplify the first quotient.', 'Reduce the index of the second radical.', 'Simplify the last two the same way.'],
+    // The last hint ends at (2x²)^(2/6) and these boxes take a radical only:
+    // the labels name the form, as the power-of-2 box names its own.
     responses: [
       simplest('power16', '⁶√16 as a power of 2', '2^(2/3)'),
       simplest('quotient', '⁶√16 / ∛2 =', '∛2'),
-      simplest('index', '⁶√(4x⁴) =', '∛(2x^2)'),
+      simplest('index', '⁶√(4x⁴) as a radical with a smaller index', '∛(2x^2)'),
       simplest('cyp1', '⁴√4 / √2 =', '1'),
-      simplest('cyp2', '⁶√(16x²) =', '∛(4x)'),
+      simplest('cyp2', '⁶√(16x²) as a radical with a smaller index', '∛(4x)'),
     ],
     hints: [
       'What power of 2 is 16? How do you write the sixth root of a power as a rational exponent?',
@@ -434,7 +436,10 @@ const classwork = [
       choice('b', '1 / y^(2/3)', ['Not simplified: a fractional exponent is in the denominator', 'Simplified: it has no negative exponent, and 2/3 is in lowest terms', 'Not simplified: 1 / y^(2/3) has a negative exponent', 'Not simplified: the exponent 2/3 can be reduced'], 'Not simplified: a fractional exponent is in the denominator'),
       choice('c', '⁸√(x⁴)', ['Not simplified: the index can be smaller', 'Simplified: x⁴ has no perfect eighth-power factor', 'Not simplified: it has a negative exponent', 'Not simplified: it is a complex fraction'], 'Not simplified: the index can be smaller'),
       choice('d', '(x^(1/3))/x', ['Simplified: the denominator’s exponent is a whole number', 'Not simplified: it has a negative exponent', 'Not simplified: a fractional exponent is in the denominator', 'Not simplified: the index can be smaller'], 'Simplified: the denominator’s exponent is a whole number'),
-      simplest('fix', 'Write ⁸√(x⁴) in simplest form (x positive)', '√x'),
+      // The box takes a radical only, and the last hint ends at x^(4/8):
+      // x^(1/2), simplified by this item's own rules, was refused as "the
+      // other notation" while the label named none.
+      simplest('fix', 'Write ⁸√(x⁴) as a radical in simplest form (x positive)', '√x'),
     ],
     hints: [
       'For each expression, which of the four rules does it break, if any?',
