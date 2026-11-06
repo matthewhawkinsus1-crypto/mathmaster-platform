@@ -511,7 +511,7 @@
             {
               "id": "check",
               "label": "Check: the value of 24x + 7 when x = −1/4",
-              "answer": "-1"
+              "answer": "1"
             }
           ],
           "hints": [
