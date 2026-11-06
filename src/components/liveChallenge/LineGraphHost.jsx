@@ -154,9 +154,11 @@ export function LineGraphReport({ report }) {
       {students.length > 0 && (
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 900 }}>By student (game names)</summary>
+          {/* A student's name keeps the width of its longest word: with none, a long line of numbers on a phone
+              took the whole row and ran over the name. */}
           <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none' }}>
             {students.map((player) => (
-              <li key={player.studentId || player.alias} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
+              <li key={player.studentId || player.alias} style={{ display: 'grid', gridTemplateColumns: 'minmax(min-content, 1fr) auto', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
                 <span style={{ fontWeight: 800 }}>{player.alias}</span>
                 <span style={{ color: 'var(--mm-text-muted)' }}>
                   {player.itemsCompleted} right · {pct(player.accuracyPercent)}

@@ -132,6 +132,9 @@ test('a Graph the Line report: headed blocks, real tables, lists for the totals 
   assert.match(byStudent, /^<details><summary [^>]*>By student \(game names\)<\/summary><ul [^>]*>/);
   assert.equal(count(byStudent, /<li /g), 2);
   assert.doesNotMatch(byStudent, /Delta/);
+  // A student's name keeps the width of its longest word: at 320px a long line of numbers ("3 right · 43% · 1 in
+  // extra time") squeezed a name column with no minimum to 5px, and the name ran under the numbers.
+  assert.equal(count(byStudent, /<li style="display:grid;grid-template-columns:minmax\(min-content, 1fr\) auto;/g), 2);
   // What a sighted teacher reads is what the report always showed, in the same order.
   assert.equal(seen(html), [
     '9 of 11 lines right', 'Accuracy 67% of checks', '1 shown or skipped',
