@@ -15,6 +15,14 @@
  * and a sibling that fails any check is not offered (null). Opening one is
  * mathematical help: QuestionEngine records it as workedExampleUsed, so the
  * next attempt is not counted as independent. Withheld wherever hints are.
+ *
+ * `keepCase` (only "Practise one like this", once the item has closed): the
+ * family may work a sibling in the item's own case — "No solution" for a
+ * no-solution item. The words the family names as that case (`caseAnswers`,
+ * words only, never a number) are then the sibling's answer too, so they are
+ * left out of the answers it may not show; every other check is the same.
+ * While the item is open nothing asks for this, so a sibling there never says
+ * which case the item is.
  */
 import { hintRevealsAnswer } from '../../../../functions/shared/pathSolutionSupport.mjs';
 import { familyFor } from '../families/index.js';
@@ -28,14 +36,20 @@ const numeric = (value) => {
   return fraction && Number(fraction[2]) ? Number(fraction[1]) / Number(fraction[2]) : null;
 };
 
-export const similarExampleIsSafe = (question, example) => {
+// Words only: a case's name ("No solution", "∅") never holds a digit or an
+// equals sign, so "x = 3" or "3" named as a case is still this item's answer.
+const caseWordsOf = (example) => (Array.isArray(example?.caseAnswers) ? example.caseAnswers : [])
+  .map(text).filter((value) => value && !/[0-9=]/.test(value)).map((value) => value.toLowerCase());
+
+export const similarExampleIsSafe = (question, example, { keepCase = false } = {}) => {
   if (!example || typeof example !== 'object') return false;
   const prompt = text(example.prompt);
   const answer = text(example.answer);
   const steps = (Array.isArray(example.steps) ? example.steps : []).map(text).filter(Boolean);
   if (!prompt || !answer || !steps.length) return false;
   if (prompt === text(question?.prompt)) return false;
-  const answers = questionAnswerValues(question);
+  const shared = keepCase ? caseWordsOf(example) : [];
+  const answers = questionAnswerValues(question).filter((value) => !shared.includes(value.toLowerCase()));
   if (answers.some((value) => value.toLowerCase() === answer.toLowerCase())) return false;
   const exampleValue = numeric(answer);
   if (exampleValue !== null && answers.some((value) => numeric(value) !== null && Math.abs(numeric(value) - exampleValue) < 1e-9)) return false;
@@ -44,15 +58,15 @@ export const similarExampleIsSafe = (question, example) => {
   return true;
 };
 
-export const buildSimilarWorkedExample = (question, { seed = 0 } = {}) => {
+export const buildSimilarWorkedExample = (question, { seed = 0, keepCase = false } = {}) => {
   try {
     const family = familyFor(question);
     if (!family) return null;
     // A few seeds, so one unlucky draw that happens to share the answer is
     // replaced rather than withheld.
     for (let attempt = 0; attempt < 6; attempt += 1) {
-      const example = family.similarProblem(question, { seed: Number(seed) + attempt });
-      if (similarExampleIsSafe(question, example)) {
+      const example = family.similarProblem(question, { seed: Number(seed) + attempt, keepCase: keepCase === true });
+      if (similarExampleIsSafe(question, example, { keepCase: keepCase === true })) {
         return { prompt: text(example.prompt), steps: example.steps.map(text).filter(Boolean), answer: text(example.answer) };
       }
     }

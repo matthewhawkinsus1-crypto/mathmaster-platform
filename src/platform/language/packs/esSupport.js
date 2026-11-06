@@ -1341,6 +1341,16 @@ const platformFamilySentences = [
   ['{1} and {2} multiply to {3} and add to {4}, so {5}.', '{1} y {2} multiplicados dan {3} y sumados dan {4}, así que {5}.'],
   ['{1} is zero when {2}, and {3} is zero when {4}.', '{1} vale cero cuando {2}, y {3} vale cero cuando {4}.'],
   ['Check: with {1}, both sides of {2} equal {3}.', 'Comprueba: con {1}, los dos lados de {2} valen {3}.'],
+  // A sibling in a relation-workspace item's own case ("Practise one like
+  // this", linearEquations.js specialSibling), and the closed item's review.
+  ['If no value of {1} makes the equation true, or every value does, say so.', 'Si ningún valor de {1} hace verdadera la ecuación, o si todos la hacen verdadera, dilo.'],
+  ['The {1}-terms cancel, leaving {2}, which is never true: no value of {3} makes the equation true, so the equation has no solution.', 'Los términos en {1} se cancelan y queda {2}, que nunca es verdadero: ningún valor de {3} hace verdadera la ecuación, así que la ecuación no tiene solución.'],
+  ['The {1}-terms cancel, leaving {2}, which is always true: every value of {3} makes the equation true, so the solution is all real numbers.', 'Los términos en {1} se cancelan y queda {2}, que siempre es verdadero: todo valor de {3} hace verdadera la ecuación, así que la solución son todos los números reales.'],
+  ['Check: with {1}, the left side of {2} is {3} and the right side is {4}.', 'Comprueba: con {1}, el lado izquierdo de {2} vale {3} y el lado derecho vale {4}.'],
+  ['The two sides always differ by {1}, so they are never equal.', 'Los dos lados siempre difieren en {1}, así que nunca son iguales.'],
+  ['The two sides are the same expression, so they are equal for every value of {1}.', 'Los dos lados son la misma expresión, así que son iguales para todo valor de {1}.'],
+  ['Answer: No solution', 'Respuesta: No tiene solución'],
+  ['Answer: All real numbers', 'Respuesta: Todos los números reales'],
   ['You are given the slope-intercept equation {1}.', 'Te dan la ecuación en forma pendiente-intersección {1}.'],
   ['Find the slope, the y-intercept, the x-intercept, the slope-intercept equation and the standard form of the line.', 'Halla la pendiente, la intersección con el eje y, la intersección con el eje x, la ecuación en forma pendiente-intersección y la forma estándar de la recta.'],
   ['{1} is already in the form {2} mx {3}: {4} and {5}.', '{1} ya está en la forma {2} mx {3}: {4} y {5}.'],

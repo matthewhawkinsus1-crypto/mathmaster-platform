@@ -29,6 +29,9 @@
  *   solutions       "x = -5 or x = -3"                 the same set of numbers, in any order
  *   asymptotes      "g: asymptotes vertical x = -3, horizontal y = 2"   the same set of lines
  *   a shift         "4 units to the right"             the same distance and the same direction
+ *   a case          "No solution", "All real numbers"  the same case ("no solutions", "∅", "every real
+ *                                                       number", "infinitely many"); a single value is
+ *                                                       one solution, so not that case
  * and the graph of a linear function, named by collinear points ("The graph
  * through (0, -12), (1, -8), (2, -4)"), is checked as that line. Whatever the
  * reader cannot take apart completely (a word it does not know, a sign in
@@ -198,6 +201,11 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
   const id = `part-${position + 1}`;
   const prose = { id, label: null, expected: raw, kind: 'words', checkable: false };
   if (!raw) return null;
+
+  // An equation's case, "No solution" or "All real numbers" (a same-case
+  // sibling, linearEquations.js): a closed pair, read in that shape.
+  const special = /^(?:no solution|all real numbers)$/i.test(raw) ? caseOf(raw) : null;
+  if (special) return { id, label: null, expected: raw, kind: 'case', case: special, checkable: true };
 
   // Several solutions, "x = -5 or x = -3": one box, and the set of numbers is the answer (CT13).
   const solutions = orSolutions(raw);
@@ -429,6 +437,23 @@ const typedSolutions = (typed, variable) => {
   return values;
 };
 
+/*
+ * An equation's case, as a student types it: "no solution", "no solutions",
+ * "none", "∅", "{ }" for none; "all real numbers", "every real number",
+ * "infinitely many solutions", "ℝ", "(−∞, ∞)" for every one. Read with the
+ * spaces run together, as a math box sends words. Anything else is null.
+ */
+const CASE_NONE = /^(?:no(?:real)?solutions?|none|novalues?|∅|\{\}|emptyset|varnothing|theemptyset)$/;
+const CASE_ALL = /^(?:allrealnumbers|allreals|everyrealnumber|allnumbers|everynumber|infinitelymany(?:solutions)?|ℝ|mathbbr|\(-∞,∞\)|\(-infty,infty\))$/;
+function caseOf(value) {
+  const squashed = typedPlain(value).toLowerCase().replace(/\\/g, '').replace(/\s+/g, '').replace(/\.$/, '');
+  if (CASE_NONE.test(squashed)) return 'none';
+  if (CASE_ALL.test(squashed)) return 'all';
+  return null;
+}
+// One value ("x = 3", "-2/5"): a complete reading of one solution.
+const ONE_VALUE = /^(?:[a-z]=)?-?(?:\d+(?:\.\d+)?|\.\d+)(?:\/\d+)?$/i;
+
 /* Asymptotes: a vertical one is x = a number, a horizontal one y = a number. */
 const AXIS_OF = Object.freeze({ vertical: 'x', horizontal: 'y' });
 
@@ -540,7 +565,9 @@ export const PRACTICE_SOURCE = Object.freeze({ FAMILY: 'family', NUMERIC_VARIANT
 export const buildPracticeLikeThis = (question, { seed = 0, avoidPrompts = [] } = {}) => {
   const avoid = new Set(list(avoidPrompts).map(text).filter(Boolean));
   for (let offset = 1; offset <= 12; offset += 1) {
-    const example = buildSimilarWorkedExample(question, { seed: Number(seed) + 97 * offset });
+    // In the item's own case (keepCase): the item has closed, so a student who
+    // missed "no solution" practises one with no solution (similarProblem.js).
+    const example = buildSimilarWorkedExample(question, { seed: Number(seed) + 97 * offset, keepCase: true });
     if (!example || avoid.has(example.prompt)) continue;
     return { ...example, source: PRACTICE_SOURCE.FAMILY, ...readPracticeAnswer(example.answer) };
   }
@@ -737,6 +764,14 @@ export const checkPracticePart = (part, response) => {
   }
 
   if (part.kind === 'line') return checkLine(part.through, typed);
+
+  // A case: the other case, or one value, is a complete reading that differs;
+  // words the reader does not know are compared, never marked wrong.
+  if (part.kind === 'case') {
+    const got = caseOf(typed);
+    if (got) return got === part.case ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+    return ONE_VALUE.test(typedPlain(typed).replace(/\s+/g, '')) ? PRACTICE_VERDICT.INCORRECT : PRACTICE_VERDICT.COMPARE;
+  }
 
   // The four answers with a fixed shape (CT13): a complete reading that differs
   // is INCORRECT; anything the reader cannot take apart completely is COMPARE.
