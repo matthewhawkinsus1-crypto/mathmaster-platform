@@ -37,6 +37,11 @@ export function QuestionRow({ question, place, studentName, studentIdText, promp
   const fieldId = `student-question-answer-${question.id}`;
   const words = cleanQuestionText(answer, ANSWER_TEXT_MAX);
   const followUp = hasFollowUp(question);
+  // Who wrote the earlier answer. After a class changes teachers, a follow-up
+  // reaches the teacher who has the class now (dc16bfa9; a waiting one moves
+  // with the handover), and that teacher did not write the answer above it.
+  const earlierAnswerMine = !question.answeredBy
+    || String(question.answeredBy).trim().toLowerCase() === String(teacherEmail || '').trim().toLowerCase();
 
   const send = async (event) => {
     event.preventDefault();
@@ -74,7 +79,7 @@ export function QuestionRow({ question, place, studentName, studentIdText, promp
         <div data-student-follow-up="" style={{ display: 'grid', gap: 4, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-tint, var(--mm-surface))' }}>
           <span className="tw-small tw-muted" style={{ fontWeight: 700 }}>Follow-up to an earlier question</span>
           <p style={{ ...wrap, color: 'var(--mm-text-muted)' }}>Earlier question: {question.earlierText}</p>
-          <p style={{ ...wrap, color: 'var(--mm-text-muted)' }}>Your earlier answer: {question.earlierAnswer}</p>
+          <p style={{ ...wrap, color: 'var(--mm-text-muted)' }}>{earlierAnswerMine ? 'Your earlier answer' : 'Earlier answer from another teacher'}: {question.earlierAnswer}</p>
         </div>
       ) : null}
       <p style={{ ...wrap, color: 'var(--mm-text-strong)' }}>{followUp ? <strong>Follow-up: </strong> : null}{question.text}</p>

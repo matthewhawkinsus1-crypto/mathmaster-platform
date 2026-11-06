@@ -259,6 +259,28 @@ test('the teacher sees what the student was told before reading the follow-up (r
     assert.match(followUp, /data-student-follow-up/);
     inOrder(followUp, [FIRST, FIRST_ANSWER, SECOND]);
     assert.match(followUp, /<textarea/, 'and the same answer box');
+    assert.match(followUp, /Your earlier answer: /, 'the teacher who answered reads it as their own');
+
+    // The class changed teachers: the follow-up is addressed to the new teacher
+    // (buildFollowUp, or the handover of a waiting one), who did not write the
+    // answer above it and must not be told they did.
+    const NEW_TEACHER = 'new.teacher@example.org';
+    const handedOver = { ...answered, ...buildFollowUp({ existing: answered, text: SECOND, timestamp: 3, teacherEmail: NEW_TEACHER, classId: 'C2' }) };
+    const newTeachersRow = renderToStaticMarkup(React.createElement(QuestionRow, {
+      question: handedOver,
+      place: { title: 'Lesson 4: Slope', label: 'Classwork · Question 4' },
+      studentName: 'Sam Student',
+      studentIdText: '',
+      prompt: '',
+      teacherEmail: NEW_TEACHER,
+      onOpenStudent: null,
+      onAnswered: () => {},
+    }));
+    inOrder(newTeachersRow, [FIRST, FIRST_ANSWER, SECOND]);
+    assert.doesNotMatch(newTeachersRow, /Your earlier answer/, 'another teacher wrote it');
+    assert.match(newTeachersRow, /Earlier answer from another teacher: /);
+    // The same teacher, signed in with their address in another case, still wrote it.
+    assert.match(row({ ...reopened, answeredBy: TEACHER.toUpperCase() }), /Your earlier answer: /);
   });
 });
 
