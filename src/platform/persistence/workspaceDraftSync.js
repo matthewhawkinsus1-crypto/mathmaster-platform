@@ -240,13 +240,14 @@ export const createWorkspaceDraftSync = ({
     // student-readable server copy must not. The guard below judges exactly
     // what would be sent.
     const serverValue = projectDraftForServer(key, value);
-    if (!sanitizeWorkspaceDraftValue(serverValue).ok) {
+    // The key says which levels are keyed by answer ids, never read as keys (P-8).
+    if (!sanitizeWorkspaceDraftValue(serverValue, { key }).ok) {
       // Refused by the guard, which stays exactly as strict. What changes is
       // that someone hears about it: the path and reason go to the console
       // once (see draftSyncDiagnostics.js), and the student is told, plainly,
       // that this work is on this device only (draftSaveHealth.js) — never
       // which field, which they could not act on.
-      const explanation = explainWorkspaceDraftRejection(serverValue);
+      const explanation = explainWorkspaceDraftRejection(serverValue, { key });
       stats.skipped += 1;
       stats.rejected[explanation.reason] = (stats.rejected[explanation.reason] || 0) + 1;
       reportDraftSyncRejection({ key, explanation, source: 'sync' });

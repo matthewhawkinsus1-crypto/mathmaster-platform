@@ -101,7 +101,7 @@ export const reportDraftSyncRejection = ({ key, explanation, source = 'sync' } =
 export const auditDraftWrite = (key, value) => {
   if (!developmentBuild()) return null;
   if (!key || !isSyncableDraftKey(key)) return null;
-  const explanation = explainWorkspaceDraftRejection(projectDraftForServer(key, value));
+  const explanation = explainWorkspaceDraftRejection(projectDraftForServer(key, value), { key });
   if (explanation.ok) return null;
   return reportDraftSyncRejection({ key, explanation, source: 'write' });
 };

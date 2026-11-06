@@ -146,11 +146,14 @@ test('the write path and the sync are both wired to the reporter', () => {
   // What the guard judges must be exactly what is queued for the server: the
   // draft's server projection (serverDraftProjection.js, PQ-043), never the
   // device's copy in one place and something else in the other.
-  const guarded = record.match(/if \(!sanitizeWorkspaceDraftValue\((\w+)\)\.ok\) \{/)?.[1];
-  assert.ok(guarded, 'the sync must run the guard over the value it would send');
+  // The guard is told the draft's key, which says the levels keyed by answer
+  // ids (a box named `solution` is an id, not a key: P-8); the explanation
+  // judges with the same key, so it agrees with the guard.
+  const guarded = record.match(/if \(!sanitizeWorkspaceDraftValue\((\w+), \{ key \}\)\.ok\) \{/)?.[1];
+  assert.ok(guarded, 'the sync must run the guard over the value it would send, with its key');
   assert.match(record, new RegExp(`const ${guarded} = projectDraftForServer\\(key, value\\);`),
     'the guarded value is the server projection of the offered draft');
-  assert.match(record, new RegExp(`if \\(!sanitizeWorkspaceDraftValue\\(${guarded}\\)\\.ok\\) \\{[\\s\\S]*explainWorkspaceDraftRejection\\(${guarded}\\)[\\s\\S]*reportDraftSyncRejection\\(\\{ key, explanation`));
+  assert.match(record, new RegExp(`if \\(!sanitizeWorkspaceDraftValue\\(${guarded}, \\{ key \\}\\)\\.ok\\) \\{[\\s\\S]*explainWorkspaceDraftRejection\\(${guarded}, \\{ key \\}\\)[\\s\\S]*reportDraftSyncRejection\\(\\{ key, explanation`));
   assert.match(record, new RegExp(`return false;[\\s\\S]*pending\\.set\\(key, \\{\\s*key,\\s*value: ${guarded},`),
     'a refused value must return before it is queued, and only the guarded value is queued');
 });

@@ -53,13 +53,66 @@ export const FORBIDDEN_DRAFT_KEYS = Object.freeze([
   'partGrades',
 ]);
 
-const containsForbiddenKey = (value, depth = 0) => {
-  if (depth > 8 || !value || typeof value !== 'object') return false;
-  if (Array.isArray(value)) return value.some((entry) => containsForbiddenKey(entry, depth + 1));
-  return Object.entries(value).some(([key, nested]) => (
-    FORBIDDEN_DRAFT_KEYS.includes(key) || containsForbiddenKey(nested, depth + 1)
-  ));
+/*
+ * AN ANSWER BOX'S ID IS NOT A KEY OF ITS ANSWER (P-8).
+ *
+ * Three drafts are records keyed by the ids an author or a family gave the
+ * student's boxes (`fieldRecordDraftKind`, below): a multi-answer draft by
+ * field id, a composed question's by step id, and Step Algebra's typed prompt
+ * answers (`promptAnswers`) by prompt id. Six families (two linear equation,
+ * three systems, the inequality context model) and five hand-written
+ * questions name a box `solution`, which is on the list above, so the guard
+ * refused each such draft whole. The student was told nothing, the work stayed
+ * on the device that typed it, and a swapped Chromebook lost it.
+ *
+ * So at those levels an id is not read as a key. Everything else is read
+ * exactly as before: every key outside them, and every key inside each answer.
+ * An id that is on the list must also hold what an answer holds there: text
+ * (a typed or chosen answer, or none), or a composed step's own record, which
+ * is read in full. A verdict, a score or a list of keys that carried a listed
+ * name at that level (`isCorrect: true`, `score: 0.8`, `acceptedAnswers: [...]`)
+ * is still refused.
+ *
+ * The stored draft keeps its shape: a draft today's builds send and one this
+ * build sends are alike, and every build stores and reads both.
+ */
+const holdsAnswerText = (value) => value === null || typeof value === 'string';
+const ANSWER_TEXT_IDS = Object.freeze({ ids: true, holds: holdsAnswerText });
+const STEP_RECORD_IDS = Object.freeze({ ids: true, holds: (value) => holdsAnswerText(value) || isFieldRecord(value) });
+
+/** Which objects of the draft at `key` are keyed by answer ids, or null for none. */
+const answerIdLevels = (key) => {
+  switch (key ? fieldRecordDraftKind(key) : null) {
+    case 'multi-answer': return ANSWER_TEXT_IDS;
+    case 'workflow-responses': return STEP_RECORD_IDS;
+    case 'step-algebra': return { children: { [STEP_ALGEBRA_PROMPTS]: ANSWER_TEXT_IDS } };
+    default: return null;
+  }
 };
+
+/*
+ * The first key the guard refuses, as the steps to it from the top (keys and
+ * array indexes), or null. `levels` marks the objects keyed by answer ids
+ * (`answerIdLevels`); an id's answer is read with none.
+ */
+const forbiddenKeySteps = (value, levels = null, depth = 0) => {
+  if (depth > 8 || !value || typeof value !== 'object') return null;
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const found = forbiddenKeySteps(value[index], null, depth + 1);
+      if (found) return [index, ...found];
+    }
+    return null;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (FORBIDDEN_DRAFT_KEYS.includes(key) && !(levels?.ids && levels.holds(nested))) return [key];
+    const found = forbiddenKeySteps(nested, levels?.ids ? null : levels?.children?.[key] || null, depth + 1);
+    if (found) return [key, ...found];
+  }
+  return null;
+};
+
+const containsForbiddenKey = (value, levels = null) => forbiddenKeySteps(value, levels) !== null;
 
 /*
  * WHERE, NOT ONLY WHETHER.
@@ -72,22 +125,13 @@ const containsForbiddenKey = (value, depth = 0) => {
  * guessing. It never changes the verdict — it is only ever called after the
  * guard has already said no.
  */
-const firstForbiddenKeyPath = (value, path = '', depth = 0) => {
-  if (depth > 8 || !value || typeof value !== 'object') return null;
-  if (Array.isArray(value)) {
-    for (let index = 0; index < value.length; index += 1) {
-      const found = firstForbiddenKeyPath(value[index], `${path}[${index}]`, depth + 1);
-      if (found) return found;
-    }
-    return null;
-  }
-  for (const [key, nested] of Object.entries(value)) {
-    const here = path ? `${path}.${key}` : key;
-    if (FORBIDDEN_DRAFT_KEYS.includes(key)) return here;
-    const found = firstForbiddenKeyPath(nested, here, depth + 1);
-    if (found) return found;
-  }
-  return null;
+const firstForbiddenKeyPath = (value, levels = null) => {
+  const steps = forbiddenKeySteps(value, levels);
+  if (!steps) return null;
+  return steps.reduce((path, step) => {
+    if (typeof step === 'number') return `${path}[${step}]`;
+    return path ? `${path}.${step}` : step;
+  }, '');
 };
 
 // The biggest top-level fields of an oversized record, so "too-large" names the
@@ -109,13 +153,14 @@ const largestFields = (value, limit = 3) => {
  *
  * Same verdict as `sanitizeWorkspaceDraftValue` — it calls it — plus the path
  * of the first forbidden key, or the largest fields of an oversized record.
- * For diagnostics only: nothing here relaxes the guard.
+ * For diagnostics only: nothing here relaxes the guard. `key` is the draft's
+ * key, as for `sanitizeWorkspaceDraftValue`.
  */
-export const explainWorkspaceDraftRejection = (value) => {
-  const check = sanitizeWorkspaceDraftValue(value);
+export const explainWorkspaceDraftRejection = (value, { key = '' } = {}) => {
+  const check = sanitizeWorkspaceDraftValue(value, { key });
   if (check.ok) return { ok: true, reason: null, path: null, bytes: check.bytes, largest: [] };
   if (check.reason === 'forbidden-key') {
-    return { ok: false, reason: check.reason, path: firstForbiddenKeyPath(value), bytes: null, largest: [] };
+    return { ok: false, reason: check.reason, path: firstForbiddenKeyPath(value, answerIdLevels(key)), bytes: null, largest: [] };
   }
   if (check.reason === 'too-large') {
     let bytes = null;
@@ -130,10 +175,13 @@ export const explainWorkspaceDraftRejection = (value) => {
  *
  * Fails closed and says why, so an excluded tool is visible in the
  * compatibility matrix instead of silently not syncing.
+ *
+ * `key` is the draft's key. It says which levels of the value are keyed by
+ * answer ids (above); without it every key is read, as before.
  */
-export const sanitizeWorkspaceDraftValue = (value) => {
+export const sanitizeWorkspaceDraftValue = (value, { key = '' } = {}) => {
   if (value === undefined) return { ok: false, reason: 'undefined-value' };
-  if (containsForbiddenKey(value)) return { ok: false, reason: 'forbidden-key' };
+  if (containsForbiddenKey(value, answerIdLevels(key))) return { ok: false, reason: 'forbidden-key' };
   let json;
   try {
     json = JSON.stringify(value ?? null);
@@ -780,7 +828,7 @@ const mergeFieldRecordEntries = (kind, current, incoming) => {
   // Too big to store merged: a fresh copy holds only what one device touched
   // before it read this one, so the copy already here is kept whole rather
   // than replaced by it. Any other copy is newer whole, as for tool records.
-  if (!sanitizeWorkspaceDraftValue(merged.value).ok) return incoming.fieldsFresh === true ? current : null;
+  if (!sanitizeWorkspaceDraftValue(merged.value, { key: incoming.key }).ok) return incoming.fieldsFresh === true ? current : null;
   const { fieldEditedAtJson: _stale, fieldsFresh: _fresh, resetAt: _reset, ...rest } = incoming;
   return storableEntry({ ...rest, ...merged, canonicalAt, savedAtIsEdit: merged.savedAtIsEdit });
 };
@@ -813,7 +861,7 @@ export const isSyncableDraftKey = (key) => {
 const storableEntry = (entry) => {
   const key = String(entry?.key || '');
   if (!isSyncableDraftKey(key)) return null;
-  const check = sanitizeWorkspaceDraftValue(entry?.value !== undefined ? entry.value : undefined);
+  const check = sanitizeWorkspaceDraftValue(entry?.value !== undefined ? entry.value : undefined, { key });
   const valueJson = check.ok ? check.json : (typeof entry?.valueJson === 'string' ? entry.valueJson : null);
   if (valueJson === null) return null;
   if (valueJson.length > MAX_WORKSPACE_DRAFT_VALUE_BYTES) return null;
