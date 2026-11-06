@@ -114,6 +114,40 @@ const barGroupIsMath = (inner) => /[\p{L}\p{N}]/u.test(inner)
   && (inner.match(/\p{L}+/gu) || []).every((word) => word.length <= 2 || NAMED_FUNCTIONS.has(word.toLowerCase()))
   && !/[,;:?!]|\.(?!\d)/.test(inner);
 
+/*
+ * A SPAN THAT OPENS WITH A PRICE, READ AS THE SCREEN READS IT (platform-polish-3;
+ * F-READ-PRICES in the 2026-11-06 Algebra I M3 T2 walkthrough). Read aloud
+ * took "$4,890. A main-floor seat costs $" and "$10 a week: y = 10x + 40.
+ * Isabella deposits $" for LaTeX: the word after the price has one letter,
+ * and an "=" anywhere made any span mathematics. The words were read as
+ * mathematics ("A main minus floor seat costs 5 more") and the prices lost
+ * "dollars". The screen keeps these sentences as prose
+ * (components/common/mathSegments.js isCurrencyProseOpening), and Read aloud
+ * now refuses the same spans: a price and then a word of three letters or
+ * more (LaTeX commands and their arguments left out) is prose with prices in
+ * it, and two prices with a short connector between them ("$4 + $6", "$20 or
+ * $30") are two prices. Speech only: Translate's masked lines (the packs)
+ * are keyed to today's split.
+ */
+const SPAN_PRICE = /^\$(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?![A-Za-z0-9_])/;
+const PRICE_CONNECTOR = /^[\s,;:]*(?:(?:or|to|and|vs\.?|versus)|->|[-–—/→+×=<>≤≥])?[\s,;:]*$/i;
+const withoutLatexCommands = (value) => {
+  let text = value;
+  for (let pass = 0; pass < 4; pass += 1) {
+    const next = text.replace(/\\[A-Za-z]+\s*(?:\{[^{}]*\})*/g, '');
+    if (next === text) return text;
+    text = next;
+  }
+  return text;
+};
+const opensPriceProse = (span, after) => {
+  const amount = SPAN_PRICE.exec(span);
+  if (!amount || span.startsWith('$$')) return false;
+  const rest = withoutLatexCommands(span.slice(amount[0].length, -1));
+  if (PRICE_CONNECTOR.test(rest) && SPAN_PRICE.test(`$${after}`)) return true;
+  return /[A-Za-z]{3,}/.test(rest);
+};
+
 /** The matching close for the bracket at `start`, or -1. Same line only. */
 const matchingClose = (text, start) => {
   let depth = 0;
@@ -143,14 +177,14 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   // 1. Protected spans that are unambiguous: delimited LaTeX, placeholders and
   //    bare LaTeX commands.
   const protectedSpans = [];
-  const collect = (pattern, accept = () => true) => {
+  const collect = (pattern, accept = () => true, { delimited = false } = {}) => {
     pattern.lastIndex = 0;
     let match;
     while ((match = pattern.exec(text))) {
       const start = match.index;
       const end = start + match[0].length;
-      if (!accept(match[0])) { pattern.lastIndex = start + 1; continue; }
-      if (!protectedSpans.some((span) => start < span.end && end > span.start)) protectedSpans.push({ start, end });
+      if (!accept(match[0], end)) { pattern.lastIndex = start + 1; continue; }
+      if (!protectedSpans.some((span) => start < span.end && end > span.start)) protectedSpans.push({ start, end, delimited });
     }
   };
   // A pair of prices on one line ("$4 and $5", "$15.75, medium baskets for
@@ -158,10 +192,10 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   // closed by the next price ("$20, $25"): Read aloud dropped every "dollars".
   // A number with nothing between it and the closing sign ("$7$") is a span:
   // it is how a LaTeX author writes the number 7, never a price (PR-4).
-  collect(DELIMITED, (value) => (
+  collect(DELIMITED, (value, end) => !(speech && opensPriceProse(value, text.slice(end))) && ((
     !/^\$\d[\d,]*(?:\.\d+)?[,;:.]?\s+[A-Za-z]{2,}/.test(value)
     && !/^\$\d[\d,]*(?:\.\d+)?[\s,;:]+\$$/.test(value)
-  ) || /[\\{}^=]/.test(value));
+  ) || /[\\{}^=]/.test(value)), { delimited: true });
   collect(LATEX_COMMAND);
   protectedSpans.sort((a, b) => a.start - b.start);
 
@@ -202,7 +236,7 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   };
   protectedSpans.forEach((span) => {
     if (span.start > cursor) tokenize(text.slice(cursor, span.start));
-    atoms.push({ kind: 'math', value: text.slice(span.start, span.end) });
+    atoms.push({ kind: 'math', value: text.slice(span.start, span.end), delimited: span.delimited });
     cursor = span.end;
   });
   if (cursor < text.length) tokenize(text.slice(cursor));
@@ -288,16 +322,19 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   //    A sentence-final period after math stays text; a comma or semicolon
   //    between math atoms ends the run (so "A, B, C" stays three runs and the
   //    prose comma survives).
+  // Read aloud's math runs say whether they hold a $…$ span (`delimited`):
+  // in a run with none, every "$" is a price's ("10(6) + 40 = $100").
   const segments = [];
-  const push = (kind, value) => {
+  const push = (kind, value, delimited = false) => {
     const last = segments[segments.length - 1];
     if (last && last.kind === kind) last.value += value;
     else segments.push({ kind, value });
+    if (speech && delimited) segments[segments.length - 1].delimited = true;
   };
   for (let index = 0; index < atoms.length; index += 1) {
     const atom = atoms[index];
     if (atom.kind === 'math') {
-      push('math', atom.value);
+      push('math', atom.value, atom.delimited);
       continue;
     }
     if (atom.kind === 'space') {

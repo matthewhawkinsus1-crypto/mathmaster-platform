@@ -1054,6 +1054,19 @@ export const lineBreaksAsPauses = (raw) => {
     .replace(/\uE010(\d+)\uE010/g, (match, index) => spans[Number(index)]);
 };
 
+/*
+ * A PRICE IN A RUN OF MATHEMATICS IS MONEY (platform-polish-3; F-READ-PRICES).
+ * "After 6 weeks each has 10(6) + 40 = $100", "450 × $5" and "$4 + $6 = $10 a
+ * week" were said without "dollars": the reader dropped every "$" as a LaTeX
+ * delimiter. In a run the segmenter built from the sentence, one with no $…$
+ * span in it (mathSafeText.js `delimited`), a "$" before a number can only be
+ * a price's, so it is read as one ("10 times the quantity 6 plus 40 equals 100
+ * dollars").
+ */
+const withPriceSigns = (segment) => (segment.delimited || /^\s*\$\d[\d,]*(?:\.\d+)?\s*$/.test(segment.value)
+  ? segment.value
+  : segment.value.replace(/(?<!\\)\$(?=\d)/g, '\\$'));
+
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
   const text = spokenLineForms(writtenNotationToSpokenForm(lineBreaksAsPauses(raw), w), w);
@@ -1074,7 +1087,7 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
       }
       if (segment.kind === 'math') {
         const intervals = segments[index - 1]?.kind === 'text' && INTERVAL_CUE.test(segments[index - 1].value);
-        return ` ${mathToSpeech(segment.value, { language, functionNames: names, intervals })} `;
+        return ` ${mathToSpeech(withPriceSigns(segment), { language, functionNames: names, intervals })} `;
       }
       // "A⁻¹" in prose is "A inverse"; a speech engine cannot say ⁻¹. An
       // escaped price ("\\$4.50" outside a span) loses its backslash.
