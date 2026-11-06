@@ -14,6 +14,7 @@ import { normalizeInterpretationConfig } from './contextInterpretationUtils';
 import { getStage } from './platform/workflow/interactionStages';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
 import { choiceAnswerLine, figureMatchAnswerLines, stageReviewLabel } from './platform/workflow/workflowSolutionLines.js';
+import { withShuffledSortCards } from './platform/workflow/sortCardOrder.js';
 import { buildExpressionFunctionSpec, evaluateModelAt, parseIntervalDomainRestriction } from './platform/workflow/modelExpression';
 import { fractionSolutionRepresentations } from './fractionQuestionDisplay.js';
 import { orderedPairKey } from '../functions/shared/answerUtils.mjs';
@@ -264,7 +265,9 @@ const workflowIncorrectMatch = (entry, incorrectParts = []) => {
 };
 
 const buildWorkflowSolution = (question) => {
-  const composed = readComposedQuestion(question);
+  // A sort's cards in the order the board drew them, so "Card 2" here is the
+  // card the student saw second (sortCardOrder.js, P-2).
+  const composed = readComposedQuestion(withShuffledSortCards(question));
   if (!composed.composed || !composed.workflow.length) return null;
   const grading = composed.grading || {};
   const quantities = Object.fromEntries((question.quantities || composed.content?.quantities || []).map((item) => [item.id, item.label || item.id]));

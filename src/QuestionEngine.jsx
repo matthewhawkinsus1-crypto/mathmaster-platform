@@ -56,6 +56,7 @@ import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
 import { composedReasonsNote } from './platform/workflow/workflowReviewState.js';
+import { withShuffledSortCards } from './platform/workflow/sortCardOrder.js';
 import { buildLiteralWorkspaceQuestion, usesLiteralWorkspace } from './literalWorkspace';
 import GraphScenarioMatch from './GraphScenarioMatch';
 import GraphComparison from './GraphComparison';
@@ -400,8 +401,10 @@ function QuestionEngineBody({
     () => prepareQuestionForRuntimeRouting(stableQuestion, { serverGraded }),
     [stableQuestion, serverGraded],
   );
+  // A sort's cards take a stable shuffled order here, once, so everything that
+  // names a card by its position names the same card (sortCardOrder.js, P-2).
   const processedQuestion = useMemo(
-    () => normalizeContextualQuestion(generateQuestion(runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext)),
+    () => withShuffledSortCards(normalizeContextualQuestion(generateQuestion(runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext))),
     [runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext],
   );
   const familyDelivery = processedQuestion?.familyDelivery || null;
