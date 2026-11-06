@@ -185,7 +185,9 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
           being squeezed into whatever the summary left over. */}
       <header className="mathmaster-tool-shell-header" style={{ padding: '9px 16px', borderBottom: '1px solid var(--mm-border-soft)', background: 'linear-gradient(135deg,var(--mm-surface-tint),var(--mm-primary-subtle))' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0, fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
+          {/* A long word in the name ("Transformations") may break at 200% text
+              on a phone: the shell clips what does not fit (TT27). */}
+          <h2 style={{ margin: 0, minWidth: 0, overflowWrap: 'anywhere', fontSize: 'calc(15 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
           {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '5px 10px', fontWeight: 800, fontSize: 'calc(11 * var(--mm-px))' }}>{badge}</span> : null}
           {/* Withheld on an assessment with the rest of the method (R-10, TaskCard). */}
           {subtitle && !methodWithheld ? (

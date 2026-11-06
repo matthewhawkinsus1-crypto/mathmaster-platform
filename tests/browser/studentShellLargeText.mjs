@@ -31,6 +31,8 @@
  *          each other. Below 22em the buttons wrap onto their own row under the
  *          whole task, each at least 44 px; on a laptop, and on a phone at 100%,
  *          the header is one row, as it was. Not in the default set.
+ * Fonts: CI draws system-ui in DejaVu Sans, wider than Inter. Where system-ui is Inter, run with
+ *          FONTCONFIG_FILE="$PWD/tests/browser/support/ciFonts.conf" (an absolute path) to measure what CI measures.
  * --teacher  (TT27) Run the text and targetsize checks over every TEACHER_SCREENS scene of the accessibility
  *          certification (48 scenes: the real app signed in as the synthetic teacher, on the school's clock)
  *          instead of the student scenes. CI runs it as a job of its own (browser-teacher-large-text).
