@@ -1187,14 +1187,31 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+  // The room this screen has had in front of the student since the last
+  // server copy it compared: visible, and with no cached (offline) copy in
+  // between. Hidden (a sleeping phone, another tab) or offline, it is away.
+  // A game ended while its round was open — the teacher's End Game, or the
+  // server ending a Pace Race round (N73) — ended in front of a student who
+  // was watching, and "closed while you were away" would be false.
+  const watchingRef = useRef(null);
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const leave = () => { if (document.visibilityState === 'hidden') watchingRef.current = null; };
+    document.addEventListener('visibilitychange', leave);
+    return () => document.removeEventListener('visibilitychange', leave);
+  }, []);
+  useEffect(() => { if (!online) watchingRef.current = null; }, [online]);
+  useEffect(() => {
+    if (roomFromCache) watchingRef.current = null;
     if (!roomId || !playerKey || !room || room.roomId !== roomId || roomFromCache || !everInSync) return;
     const now = seenRoundOf(room);
     if (!now) return;
+    const present = watchingRef.current === roomId;
+    watchingRef.current = typeof document !== 'undefined' && document.visibilityState === 'hidden' ? null : roomId;
     const storage = tabStorage();
     const lastSeen = readLastSeenRound(storage, roomId);
     writeLastSeenRound(storage, roomId, now);
-    const rounds = roundsClosedWhileAway({ lastSeen, now, joinedAtRound, finished: room.status === 'finished' });
+    const rounds = roundsClosedWhileAway({ lastSeen, now, joinedAtRound, finished: room.status === 'finished', present });
     if (!rounds.length) return;
     const scheduledRoundCount = Number(room.scheduledRoundCount || room.roundCount) || 0;
     // Not cancelled by the next snapshot: the memory above has already moved

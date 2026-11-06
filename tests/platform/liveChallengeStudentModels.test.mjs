@@ -75,6 +75,13 @@ test('the rounds that may have closed while a device was away', () => {
   assert.deepEqual(roundsClosedWhileAway({ lastSeen: closed(2), now: open(3) }), [], 'a connected device saw every round close');
   // A game that finished while the device was away: its last round too.
   assert.deepEqual(roundsClosedWhileAway({ lastSeen: open(3), now: closed(4), finished: true }), [3, 4]);
+  assert.deepEqual(roundsClosedWhileAway({ lastSeen: open(3), now: closed(3), finished: true }), [3], 'it slept through the end of the round it was on');
+  // A screen that watched the whole time was not away: a game ended while its
+  // round was open (End Game, or the server ending a Pace Race round, N73)
+  // ended in front of the student, and snapshots that arrived together skipped
+  // nothing they did not see.
+  assert.deepEqual(roundsClosedWhileAway({ lastSeen: open(3), now: closed(3), finished: true, present: true }), []);
+  assert.deepEqual(roundsClosedWhileAway({ lastSeen: open(2), now: open(4), present: true }), []);
   // No memory (a first look) or no round now: nothing.
   assert.deepEqual(roundsClosedWhileAway({ lastSeen: null, now: open(4) }), []);
   assert.deepEqual(roundsClosedWhileAway({ lastSeen: open(1), now: null }), []);
