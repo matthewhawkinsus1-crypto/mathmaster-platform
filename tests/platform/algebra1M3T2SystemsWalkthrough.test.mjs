@@ -107,3 +107,30 @@ test('every slope and y-intercept a sort board\'s worked solution names belongs 
   });
   assert.ok(checked >= 4, `${checked} bracketed lists checked`);
 });
+
+// A system written in other letters (the ticket system, s and a) is graphed
+// on s and a axes with s and a boxes; its hints, back-up step and worked
+// solution say s and a too. "Substitute two x-values" asked for a letter the
+// equations 5s + 10a = 3000 and s + a = 450 do not have.
+test('a Systems Workspace item in other letters never asks the student for x-values or y-intercepts', () => {
+  const lettered = Object.entries(LESSONS).flatMap(([lesson, questions]) => questions
+    .filter((question) => question.type === 'systemsWorkspace' && Array.isArray(question.variables)
+      && !question.variables.includes('x') && !question.variables.includes('y'))
+    .map((question) => ({ lesson, question })));
+  assert.ok(lettered.length >= 2, `${lettered.length} lettered systems`);
+  lettered.forEach(({ lesson, question }) => {
+    const texts = [
+      ...(question.hints || []),
+      question.scaffold?.prompt,
+      ...(question.scaffold?.options || []),
+      ...(question.solutionReview?.reasoning || []),
+      question.solutionReview?.commonError,
+    ].filter(Boolean).map((entry) => (typeof entry === 'string' ? entry : entry.text || ''));
+    texts.forEach((text) => {
+      assert.doesNotMatch(text, /\b[xy]-(?:values?|intercepts?|coordinates?|terms?|axis)\b/i, `${lesson} ${question.questionId}: "${text}"`);
+    });
+    // …and a graph's hints still name the letters it does use.
+    if (question.mode !== 'linear') return;
+    assert.ok((question.hints || []).some((hint) => question.variables.some((variable) => new RegExp(`\\b${variable}-intercept|values of ${variable}\\b`).test(typeof hint === 'string' ? hint : hint.text || ''))), `${lesson} ${question.questionId}`);
+  });
+});

@@ -676,9 +676,9 @@
           ],
           "snapStep": 50,
           "hints": [
-            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "Find two points on each line: substitute two values of s into its equation. The a-intercept is often the easiest first point.",
             "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
-            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+            "Lines with the same slope never cross unless they are the same line. Compare the a-intercepts to decide which."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The solution of a system is where the graphs…",
