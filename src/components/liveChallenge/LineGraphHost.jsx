@@ -4,6 +4,7 @@ import { rushPlayingCount, rushRaceRows } from '../../platform/liveChallenge/rus
 import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
 import { roundWaitingOnExtendedTime } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { ChallengeClockText, useLowTime } from './ChallengeShellParts.jsx';
+import { GameReportTable } from './GameReportTable.jsx';
 
 /*
  * GRAPH THE LINE ON THE TEACHER'S SCREENS.
@@ -109,50 +110,53 @@ export function LineGraphHostStatus({ room, players = [], clockOffsetMs = 0, joi
 }
 
 const pct = (value) => (value == null ? '—' : `${value}%`);
+const results = (row) => `${row.completed}/${row.items} right · ${pct(row.accuracyPercent)} of checks right`;
+const wrongLines = (row) => `${row.count} wrong line${row.count === 1 ? '' : 's'}`;
+const TOTALS = { display: 'flex', gap: 18, flexWrap: 'wrap', margin: 0, padding: 0, listStyle: 'none', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' };
 
-/** The after-game breakdown: by form, by item type, by difficulty, the mistakes, by student. */
+/**
+ * The after-game breakdown: by form, by item type, by difficulty, the mistakes, by student.
+ *
+ * Read by a screen reader as the rush report is (teacher features walk, item 11): the totals are
+ * a list, and each breakdown a heading and a table named by it (GameReportTable), a row header for what
+ * the row counts and column names for a screen reader only. The students, inside "By student", are
+ * a list: a student's entry can carry a second line, the mistake they made most, which is no
+ * column. What the teacher sees is unchanged.
+ */
 export function LineGraphReport({ report }) {
   const lines = report?.lineGraph;
   if (!lines) return null;
-  const table = (rows, title, key) => (
-    <div data-mm-line-report={key}>
-      <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>{title}</div>
-      {rows.map((row) => (
-        <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
-          <span>{row.label}</span>
-          <span style={{ color: 'var(--mm-text-muted)' }}>{row.completed}/{row.items} right · {pct(row.accuracyPercent)} of checks right</span>
-        </div>
-      ))}
-    </div>
+  const table = (rows, title, key, column) => (
+    <GameReportTable data-mm-line-report={key} title={title} columns={[column, 'Results']} rows={rows} value={results} />
   );
   const students = Array.isArray(lines.players) ? lines.players.filter((player) => player.joined) : [];
   return (
     <section style={{ display: 'grid', gap: 14 }} data-mm-line-report="summary">
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>
-        <span><strong>{lines.itemsCompleted}</strong> of {lines.itemsAttempted} lines right</span>
-        <span>Accuracy <strong>{pct(lines.accuracyPercent)}</strong> of checks</span>
-        <span><strong>{lines.itemsEnded}</strong> shown or skipped</span>
-      </div>
-      {lines.byForm?.length > 0 && table(lines.byForm, 'By form, hardest first', 'byForm')}
-      {lines.byItemType?.length > 1 && table(lines.byItemType, 'Graph it and Name it', 'byItemType')}
-      {lines.byTier?.length > 1 && table(lines.byTier, 'By difficulty', 'byTier')}
+      <ul style={TOTALS}>
+        <li><strong>{lines.itemsCompleted}</strong> of {lines.itemsAttempted} lines right</li>
+        <li>Accuracy <strong>{pct(lines.accuracyPercent)}</strong> of checks</li>
+        <li><strong>{lines.itemsEnded}</strong> shown or skipped</li>
+      </ul>
+      {lines.byForm?.length > 0 && table(lines.byForm, 'By form, hardest first', 'byForm', 'Form of equation')}
+      {lines.byItemType?.length > 1 && table(lines.byItemType, 'Graph it and Name it', 'byItemType', 'What students do')}
+      {lines.byTier?.length > 1 && table(lines.byTier, 'By difficulty', 'byTier', 'Difficulty')}
       {lines.mistakes?.length > 0 && (
-        <div data-mm-line-report="mistakes">
-          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>The mistakes the class made, most first</div>
-          {lines.mistakes.slice(0, 8).map((row) => (
-            <div key={row.code} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
-              <span>{row.label}</span><span style={{ color: 'var(--mm-text-muted)' }}>{row.count} wrong line{row.count === 1 ? '' : 's'}</span>
-            </div>
-          ))}
+        <GameReportTable
+          data-mm-line-report="mistakes"
+          title="The mistakes the class made, most first"
+          columns={['Mistake', 'Wrong lines']}
+          rows={lines.mistakes.slice(0, 8).map((row) => ({ ...row, key: row.code }))}
+          value={wrongLines}
+        >
           <p style={{ margin: '6px 0 0', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>A mistake is named only when the line could have come from nothing else; the rest are described by what was true of the line.</p>
-        </div>
+        </GameReportTable>
       )}
       {students.length > 0 && (
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 900 }}>By student (game names)</summary>
-          <div style={{ marginTop: 8 }}>
+          <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none' }}>
             {students.map((player) => (
-              <div key={player.studentId || player.alias} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
+              <li key={player.studentId || player.alias} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
                 <span style={{ fontWeight: 800 }}>{player.alias}</span>
                 <span style={{ color: 'var(--mm-text-muted)' }}>
                   {player.itemsCompleted} right · {pct(player.accuracyPercent)}
@@ -160,9 +164,9 @@ export function LineGraphReport({ report }) {
                   {player.itemsCompletedInExtraTime > 0 ? ` · ${player.itemsCompletedInExtraTime} in extra time` : ''}
                 </span>
                 {player.topMistake && <span style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Most often: {player.topMistake}</span>}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </details>
       )}
     </section>

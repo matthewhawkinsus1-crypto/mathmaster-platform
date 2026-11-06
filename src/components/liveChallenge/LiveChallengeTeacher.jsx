@@ -3,6 +3,7 @@ import ChallengeDryRun from './ChallengeDryRun.jsx';
 import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
 import { RushHostStatus, RushRaceBoard, RushReport, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import { LineGraphHostStatus, LineGraphReport, lineSettingsLine } from './LineGraphHost.jsx';
+import { GameReportTable } from './GameReportTable.jsx';
 import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
 import { ChallengeClockText, ChallengeCountdown, ChallengeShellStyles, ConfirmDialog, StandingsBoard, useLowTime } from './ChallengeShellParts.jsx';
 import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, HostSolutionPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
@@ -144,7 +145,13 @@ const closeRoundOnTime = (payload) => closeLiveChallengeRound(payload).catch((er
   throw error;
 });
 
-function ChallengeReport({ report }) {
+/*
+ * "After the game": every game's report, and the classic game's own. Read by a screen reader as the
+ * rush report is (teacher features walk, item 11): the totals are a list, and "By standard, hardest
+ * first" a heading and a table named by it (GameReportTable), a row header for each standard. What the
+ * teacher sees is unchanged.
+ */
+export function ChallengeReport({ report }) {
   const roundSet = useMemo(() => buildChallengeExport(report), [report]);
   if (!report) return null;
   const pct = (value) => (value == null ? '—' : `${value}%`);
@@ -157,26 +164,26 @@ function ChallengeReport({ report }) {
           <strong style={{ display: 'block', marginTop: 4, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{report.weakestStandard.standard} — {pct(report.weakestStandard.accuracyPercent)} correct</strong>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)', marginBottom: 14 }}>
-        <span><strong>{report.playedCount}</strong> of {report.eligibleCount} played</span>
-        <span>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></span>
-        <span>
+      <ul style={{ display: 'flex', gap: 18, flexWrap: 'wrap', margin: '0 0 14px', padding: 0, listStyle: 'none', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>
+        <li><strong>{report.playedCount}</strong> of {report.eligibleCount} played</li>
+        <li>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></li>
+        <li>
           {/* A game ended early says so: "3 of 10 rounds played", never "10 rounds". */}
           {Number.isInteger(report.playedRoundCount) && report.playedRoundCount < report.scheduledRoundCount
             ? <><strong>{report.playedRoundCount}</strong> of {report.scheduledRoundCount} rounds played</>
             : <><strong>{report.scheduledRoundCount}</strong> {report.scheduledRoundCount === 1 ? 'round' : 'rounds'}</>}
           {report.secondChanceRoundCount ? ` + ${report.secondChanceRoundCount} second chance` : ''}
-        </span>
-      </div>
+        </li>
+      </ul>
       {report.standards?.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>By standard, hardest first</div>
-          {report.standards.map((entry) => (
-            <div key={entry.standard} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 'calc(14 * var(--mm-px))' }}>
-              <span>{entry.standard}</span><span style={{ color: 'var(--mm-text-muted)' }}>{entry.correct}/{entry.answered} correct · {pct(entry.accuracyPercent)}</span>
-            </div>
-          ))}
-        </div>
+        <GameReportTable
+          style={{ marginBottom: 14 }}
+          title="By standard, hardest first"
+          columns={['Standard', 'Results']}
+          rows={report.standards.map((entry) => ({ ...entry, key: entry.standard, label: entry.standard }))}
+          value={(entry) => `${entry.correct}/${entry.answered} correct · ${pct(entry.accuracyPercent)}`}
+          rule="var(--mm-border-soft)"
+        />
       )}
       {roundSet && (
         <div style={{ marginBottom: 14 }}>

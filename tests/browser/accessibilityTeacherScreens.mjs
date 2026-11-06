@@ -71,6 +71,9 @@
  *
  * THE FIFTH SLICE (TT27) added the states of those screens that no scene had opened, each reached the way a
  * teacher reaches it: see THE FIFTH SLICE below.
+ *
+ * teacher-live-challenge/line-final  a Graph the Line game's report on the console, after the classic game's: its
+ *                        blocks are headed tables, as the rush report's are (teacher features walk, item 11).
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -636,6 +639,81 @@ const openLiveChallengeFinal = async (page) => {
   await page.waitForTimeout(1200);
 };
 
+// Graph the Line's report, whose blocks are headed tables (teacher features walk, item 11). After the classic game the
+// teacher chooses New Challenge, and the class plays a Graph the Line Sprint, written into the store as the server writes
+// one: the room in its lobby with the teacher's pointer to it (how the console finds a game), then the game over, the
+// pointer gone and the report written (writeLiveChallengeReportFromResult: the classic report's totals and, under
+// `lineGraph`, the mode's own breakdown, built here by the server's buildChallengeReport and buildLineGraphReport). By
+// form, by what students do, the class's mistakes, and "By student", opened as a teacher opens it, so its list is audited.
+const LINE_ROOM_ID = 'a11y-teacher-line-room';
+const LINE_ROOM = { title: 'Period 3 Line Sprint', className: 'Algebra II — Period 3', courseId: 'algebra2', standardCode: 'mixed', roundSeconds: 240 };
+const lineBucket = (questions, completed, attempts, hits) => ({ questions, completed, attempts, hits });
+// Each player's own line work, as the server keeps it (the standing's questionSetSummary).
+const LINE_PLAYERS = [
+  { playerKey: 'p1', alias: 'Swift Otter', studentId: '910001', summary: {
+    questions: 5, completed: 4, skipped: 0, attempts: 6, hits: 4,
+    byTag: { form: { slopeIntercept: lineBucket(3, 3, 3, 3), standard: lineBucket(2, 1, 3, 1) }, itemType: { graph: lineBucket(3, 3, 4, 3), name: lineBucket(2, 1, 2, 1) } },
+    byTier: { standard: lineBucket(5, 4, 6, 4) }, mistakes: { slopeSign: 1, offTrack: 1 },
+  } },
+  { playerKey: 'p2', alias: 'Quick Fox', studentId: '910002', summary: {
+    questions: 5, completed: 3, skipped: 1, attempts: 7, hits: 3, extraTimeCompleted: 1,
+    byTag: { form: { slopeIntercept: lineBucket(3, 2, 4, 2), standard: lineBucket(2, 1, 3, 1) }, itemType: { graph: lineBucket(3, 2, 4, 2), name: lineBucket(2, 1, 3, 1) } },
+    byTier: { standard: lineBucket(5, 3, 7, 3) }, mistakes: { interceptSign: 2, slopeSign: 1, offTrack: 1 },
+  } },
+  { playerKey: 'p3', alias: 'Calm Heron', studentId: '910003', summary: {
+    questions: 5, completed: 2, skipped: 2, attempts: 5, hits: 2,
+    byTag: { form: { slopeIntercept: lineBucket(2, 1, 2, 1), standard: lineBucket(3, 1, 3, 1) }, itemType: { graph: lineBucket(5, 2, 5, 2) } },
+    byTier: { standard: lineBucket(5, 2, 5, 2) }, mistakes: { rightSlope: 2, horizontalVertical: 1 },
+  } },
+];
+const openLineGraphReport = async (page) => {
+  const { normalizeLineGraphConfig } = await import('../../functions/shared/lineGraphConfig.mjs');
+  const { buildLineGraphReport } = await import('../../functions/shared/lineGraphAttempts.mjs');
+  const { buildChallengeReport } = await import('../../functions/shared/liveChallengeReport.mjs');
+  // Programmatic, like the sidebar: on a phone a sticky bar can sit over a real click.
+  await workspaceMain(page).getByRole('button', { name: 'New Challenge', exact: true }).evaluate((button) => button.click());
+  await page.getByRole('heading', { name: 'Create a challenge' }).waitFor({ timeout: 30_000 });
+  // A Sprint of five lines a student, as each player's work below is.
+  const config = normalizeLineGraphConfig({ itemTypes: ['graph', 'name'], forms: ['slopeIntercept', 'standard'], difficulty: 'standard', sprintLength: 5 }, { format: 'sprint' });
+  await page.evaluate(({ roomId, email, room, lineGraphConfig, players }) => {
+    const store = window.__mmHarnessStore;
+    const now = Date.now();
+    store.set(`liveChallengeRooms/${roomId}`, {
+      ...room, schemaVersion: 2, roomId, status: 'lobby', hostEmail: email, teacherEmail: email, classId: 'c-alg2-p3', classPeriod: 'Period 3',
+      challengeMode: 'lineGraphSprint', scoringStrategyId: 'correctCount', questionStyle: 'any', roundCount: 1, timingMode: 'fixed', currentRound: -1,
+      currentQuestion: null, roundStartedAt: null, roundEndsAt: null, createdAt: now, lobbyOpenedAt: now, lineGraph: { config: lineGraphConfig, generatorVersion: 1 },
+    });
+    for (const { playerKey, alias } of players) {
+      store.set(`liveChallengeRooms/${roomId}/players/${playerKey}`, { playerKey, alias, joined: true, score: 0, correctCount: 0, roundsAnswered: 0, streak: 0, answeredRound: -1 });
+    }
+    store.set(`liveChallengeTeacherActive/${email}`, { roomId, status: 'lobby' });
+  }, { roomId: LINE_ROOM_ID, email: TEACHER_EMAIL, room: LINE_ROOM, lineGraphConfig: config, players: LINE_PLAYERS });
+  await hostConsoleStage(page, 'lobby');
+  // A Correct Count game: a player's score is the lines they got right.
+  const final = LINE_PLAYERS.map(({ playerKey, alias, studentId, summary }) => ({ playerKey, alias, studentId, joined: true, score: summary.completed, correctCount: summary.completed, roundsAnswered: 1, answeredRound: 0 }));
+  const lineGraph = buildLineGraphReport({ standings: final.map((player, index) => ({ ...player, rank: index + 1, questionSetSummary: LINE_PLAYERS[index].summary })) });
+  const report = {
+    ...buildChallengeReport({
+      room: LINE_ROOM, scheduledRoundCount: 1, playedRoundCount: 1, finishedAt: Date.now(),
+      players: [...final, { playerKey: 'p4', alias: 'Bright Lark', studentId: '910004', joined: false }],
+    }),
+    lineGraph, classAccuracyPercent: lineGraph.accuracyPercent, rounds: [], standards: [], weakestStandard: null, roomId: LINE_ROOM_ID,
+  };
+  await page.evaluate(({ roomId, email, players, challengeReport }) => {
+    const store = window.__mmHarnessStore;
+    for (const player of players) store.update(`liveChallengeRooms/${roomId}/players/${player.playerKey}`, player);
+    store.set(`liveChallengeReports/${roomId}`, challengeReport);
+    store.update(`liveChallengeRooms/${roomId}`, { status: 'finished', phase: 'finished', finishedAt: Date.now() });
+    store.remove(`liveChallengeTeacherActive/${email}`);
+  }, { roomId: LINE_ROOM_ID, email: TEACHER_EMAIL, players: final, challengeReport: report });
+  await hostConsoleStage(page, 'completed');
+  await page.getByRole('heading', { name: 'By form, hardest first' }).waitFor({ timeout: 30_000 });
+  const breakdown = workspaceMain(page).locator('[data-mm-line-report="summary"]');
+  await breakdown.locator('summary', { hasText: 'By student (game names)' }).evaluate((summary) => summary.click());
+  await breakdown.locator('details[open] li').first().waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(1200);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -687,6 +765,8 @@ export const TEACHER_SCREENS = [
     { id: 'projector', run: openLiveChallengeProjector, include: PROJECTOR },
     { id: 'results', run: openLiveChallengeResults },
     { id: 'final', run: openLiveChallengeFinal },
+    // Then New Challenge, and a Graph the Line game over, with its report (teacher features walk, item 11).
+    { id: 'line-final', run: openLineGraphReport },
   ]),
   teacherScreen('teacher-classes', [
     { id: null, run: openDestination('Classes', /^Classes$/) },

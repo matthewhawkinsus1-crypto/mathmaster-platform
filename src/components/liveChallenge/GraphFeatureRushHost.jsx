@@ -1,4 +1,3 @@
-import { useId } from 'react';
 import { graphFamilyLabel } from '../../../functions/shared/graphFeatureCatalog.mjs';
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { inequalityItemLabel } from '../../../functions/shared/inequalityRush.mjs';
@@ -6,7 +5,7 @@ import { QUESTION_SET_GAME, questionSetGameOf, rushGameWords } from '../../platf
 import { rushPlayingCount, rushRaceRows, rushRoundResultRows, rushScoreUnit } from '../../platform/liveChallenge/rushStandingsModel.js';
 import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
 import { ChallengeClockText, useLowTime } from './ChallengeShellParts.jsx';
-import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import { GameReportTable } from './GameReportTable.jsx';
 
 /*
  * GRAPH FEATURE RUSH ON THE TEACHER'S SCREENS.
@@ -158,38 +157,10 @@ const pct = (value) => (value == null ? '—' : `${value}%`);
 // "of 1 press", never "of 1 presses" (teacher features walk, item 5).
 const presses = (count) => `${count} ${count === 1 ? 'press' : 'presses'}`;
 
-const REPORT_CELL = { padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', verticalAlign: 'top' };
-
-/*
- * One block of the rush report: a heading a screen reader can move to, and
- * its rows as a real table, each row headed by what it counts, so a teacher
- * on a screen reader can go from block to block and along a row (teacher
- * features walk, item 11). It draws as the rows always did: what the row is
- * on the left, its numbers on the right. The column names are for a screen
- * reader only, and the header row they sit in has no height. Every padding is
- * the table's own, and so is its width: not the 640px floor the dashboard
- * gives its wide tables (App.css), which would push two columns off a phone.
- */
-function RushReportTable({ block, title, columns, rows, value, numeric = false }) {
-  const headingId = useId();
-  return (
-    <div data-mm-rush-report={block}>
-      <h4 id={headingId} style={{ margin: '0 0 6px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)' }}>{title}</h4>
-      <table aria-labelledby={headingId} style={{ width: '100%', minWidth: 0, borderCollapse: 'collapse', fontSize: 'calc(14 * var(--mm-px))' }}>
-        <thead>
-          <tr>{columns.map((column) => <th key={column} scope="col" style={{ padding: 0 }}><span style={SR_ONLY_STYLE}>{column}</span></th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.key}>
-              <th scope="row" style={{ ...REPORT_CELL, paddingRight: 12, textAlign: 'left', fontWeight: 'inherit' }}>{row.label}</th>
-              <td style={{ ...REPORT_CELL, textAlign: 'right', color: 'var(--mm-text-muted)', ...(numeric ? { fontVariantNumeric: 'tabular-nums' } : null) }}>{value(row)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+// One block of the rush report: a heading and a real table named by it (GameReportTable, which every
+// game's report shares; teacher features walk, item 11), found by its `data-mm-rush-report`.
+function RushReportTable({ block, ...table }) {
+  return <GameReportTable data-mm-rush-report={block} {...table} />;
 }
 
 /**

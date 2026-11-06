@@ -63,7 +63,8 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
   'teacher-preflight': ['details', 'classes', 'delivery', 'check'],
-  'teacher-live-challenge': ['setup', 'lobby', 'round', 'projector', 'results', 'final'],
+  // After the classic game's report, a Graph the Line game's: its blocks are headed tables (teacher features walk, item 11).
+  'teacher-live-challenge': ['setup', 'lobby', 'round', 'projector', 'results', 'final', 'line-final'],
   // The third slice: the rest of the navigation's destinations, a class's page, a student's drawer, the Find palette,
   // the TEKS screen's views, the Path Simulator's modes, and the administrator's five sections.
   'teacher-classes': [null, 'class'],
