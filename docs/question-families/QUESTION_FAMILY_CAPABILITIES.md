@@ -23,10 +23,12 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `absoluteValue.analyzeTransformed` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | — |
 | `absoluteValue.solveEquation` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 8,588 — every student unique | — |
 | `equations.verifySolution` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 474,764 — every student unique | — |
+| `exponential.sortGrowthDecay` | v1 · what an unpinned reference means | — | — | `figureMatch` (workflow) | yes — shared server grader | yes | about 4,400 — every student unique | — |
 | `functions.composeQuadraticLinear` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 960 — every student unique | — |
 | `functions.compositionFromValues` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 504 — every student unique | — |
 | `functions.conjugateProductQuotient` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 40 — every student unique | — |
 | `functions.domainRangeFromGraph` | v1 · what an unpinned reference means | — | — | `graphAnalysis` (analysis) | yes — shared server grader | yes | 144 — every student unique | — |
+| `functions.familySortFromGraphs` | v1 · what an unpinned reference means | — | — | `figureMatch` (workflow) | yes — shared server grader | yes | about 4,704 — every student unique | — |
 | `functions.fillingTankAttributes` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 123 — every student unique | — |
 | `functions.identifyIntercepts` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 324 — every student unique | — |
 | `functions.identifyZeros` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 162 — every student unique | — |
@@ -80,6 +82,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `polynomials.subtractMissingTerm` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (addSubtract) | yes — shared server grader | yes | about 395,259,243 — every student unique | — |
 | `polynomials.syntheticDivision` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (syntheticDivision) | yes — shared server grader | yes | about 1,101,391 — every student unique | — |
 | `quadratics.identifyVertex` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 884 — every student unique | — |
+| `quadratics.vertexChoiceFromGraph` | v1 · what an unpinned reference means | — | — | `graphChoicePreview` (workflow) | yes — shared server grader | yes | 47 — every student unique | — |
 | `relations.inverseOfSet` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 741,522 — every student unique | — |
 | `relations.mappingDiagram` | v1 · what an unpinned reference means | — | — | `relationMapping` (default) | yes — shared server grader | yes | about 33,366,639 — every student unique | — |
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
@@ -161,6 +164,24 @@ Check a solution by substitution.
 | --- | --- | --- |
 | default | about 474,764 | solution: about 237,382; notSolution: about 1,170,028 |
 
+### `exponential.sortGrowthDecay` v1
+
+Sort exponential graphs by growth or decay.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.9D
+- **Answered in:** `figureMatch` (workflow)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 4,400 | — |
+
 ### `functions.composeQuadraticLinear` v1
 
 Compose a quadratic and a linear function both ways.
@@ -237,6 +258,24 @@ State the domain and range of a graphed parabola or absolute value.
 | default | 144 | — |
 | parent: "absolute" | 144 | — |
 | opens: "down" | 144 | — |
+
+### `functions.familySortFromGraphs` v1
+
+Sort graphs into the linear, quadratic and exponential families.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.3C
+- **Answered in:** `figureMatch` (workflow)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 4,704 | — |
 
 ### `functions.fillingTankAttributes` v1
 
@@ -1376,6 +1415,24 @@ Vertex of a quadratic function.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | 884 | — |
+
+### `quadratics.vertexChoiceFromGraph` v1
+
+Choose the vertex of a graphed parabola.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A.7A
+- **Answered in:** `graphChoicePreview` (workflow)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 47 | — |
 
 ### `relations.inverseOfSet` v1
 

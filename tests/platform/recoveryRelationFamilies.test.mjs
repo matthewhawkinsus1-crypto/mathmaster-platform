@@ -315,7 +315,12 @@ const reproduce = (context, item) => {
   return { ...reproduced, question: deliveredQuestionForGrading(reproduced.question) };
 };
 
-test('the review\'s missed Warm-Up: Practice and the Recovery are fresh relations, never one from the review, graded by the server', () => {
+// Since RC01's next shapes the review's Warm-Up Q2–Q4 recover too
+// (recoveryGraphRecognitionFamilies.test.mjs): the figure sorts and the vertex
+// choice are dealt beside the relations, every one fresh and graded by the server.
+const WARMUP_TYPES = ['relationMapping', 'figureMatch', 'graphChoicePreview'];
+
+test('the review\'s missed Warm-Up: Practice and the Recovery are fresh questions, never one from the review, graded by the server', () => {
   assert.equal(REVIEW_RELATIONS.length, 3, 'the review\'s Warm-Up, Practice and DOL relations');
   assert.deepEqual(getStoredAssignmentQuestions(BEFORE), QUESTIONS);
   assert.equal(contextFor({ assignment: BEFORE }).eligibility.state, RECOVERY_STATE.UNAVAILABLE);
@@ -328,7 +333,7 @@ test('the review\'s missed Warm-Up: Practice and the Recovery are fresh relation
     const item = nextRecoveryPracticeItem(context);
     assert.ok(item);
     const { question, instance } = reproduce(context, item);
-    assert.equal(question.type, 'relationMapping');
+    assert.ok(WARMUP_TYPES.includes(question.type), question.type);
     const outcome = runSectionRecoveryAction({
       context,
       action: RECOVERY_ACTION.PRACTICE,
@@ -343,13 +348,15 @@ test('the review\'s missed Warm-Up: Practice and the Recovery are fresh relation
   dealt.forEach((fingerprint) => assert.ok(!REVIEW_RELATIONS.includes(fingerprint)));
   const started = runSectionRecoveryAction({ context, action: RECOVERY_ACTION.START, at: T1 + 3_600_000 });
   const { plan } = started.record;
-  assert.ok(plan.items.length >= 1 && plan.items.every((item) => item.storageIndex === WARMUP[0]), 'every Recovery question recovers Warm-Up Q1, the one that can');
+  assert.ok(plan.items.length >= 1 && plan.items.every((item) => WARMUP.includes(item.storageIndex)), 'every Recovery question recovers a Warm-Up question');
+  assert.ok(plan.items.some((item) => item.storageIndex !== WARMUP[0]), 'Q2–Q4 recover too, not only the Mapping Diagram');
   const running = contextFor({ records: { warmup: started.record } });
   const responses = {};
   plan.items.forEach((item) => {
     assert.ok(!REVIEW_RELATIONS.includes(item.pin.fingerprint) && !dealt.includes(item.pin.fingerprint));
     const { question, instance } = reproduce(running, item);
-    assert.deepEqual(question.ask, ['mapping', 'isFunction']);
+    if (item.storageIndex === WARMUP[0]) assert.deepEqual(question.ask, ['mapping', 'isFunction']);
+    else assert.ok(WARMUP_TYPES.includes(question.type), question.type);
     responses[item.itemId] = recoveryKeyResponses(question, instance).right;
   });
   const submitted = runSectionRecoveryAction({ context: running, action: RECOVERY_ACTION.SUBMIT, payload: { responses }, at: T1 + 7_200_000 });

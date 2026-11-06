@@ -735,6 +735,36 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 families for the Algebra I District DOL 1 review's Warm-Up
+  // Q2–Q4 (questionFamiliesGraphRecognition.mjs, RC01's next shapes): A.3C,
+  // A.7A and A.9D, Algebra I content.
+  'functions.familySortFromGraphs': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version sorts two lines, a parabola and an exponential growth curve by family in one window; it is a recognition warm-up, and the remaining levers are other curves, which are not rigor.',
+      missingCapability: 'Families told apart from a table or an equation as well as a graph, with curves that look alike near the origin, so the student reasons from rates of change rather than from shape alone.',
+      teacherReason: 'MathMaster\'s graph-sort generator only draws one curve of each kind, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Telling linear, quadratic and exponential graphs apart')),
+  }),
+  'quadratics.vertexChoiceFromGraph': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version chooses the vertex of y = ±(x − h)² + k read off its graph, from the vertex, its sign-flipped point and the two x-intercepts; the remaining levers are other parabolas, which are not rigor.',
+      missingCapability: 'The vertex typed, a stretched parabola, and the vertex form written from the graph, so the student reads the graph rather than recognizing a choice.',
+      teacherReason: 'MathMaster\'s vertex-choice generator only offers the vertex among four points, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Reading the vertex of a graphed parabola')),
+  }),
+  'exponential.sortGrowthDecay': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version sorts three growth and three decay curves a·bˣ by direction in one window; the remaining levers are other starts and bases, which are not rigor.',
+      missingCapability: 'Growth and decay told from a table, an equation or a situation, with the growth or decay rate named, so the student explains the base rather than the curve\'s direction.',
+      teacherReason: 'MathMaster\'s growth-and-decay generator only sorts curves by direction, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Telling exponential growth from decay on a graph')),
+  }),
 });
 
 /**

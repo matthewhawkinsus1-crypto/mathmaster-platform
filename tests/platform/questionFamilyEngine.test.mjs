@@ -41,6 +41,7 @@ import { buildLinearConnectionCards, linearConnectionsCardKinds, representationS
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
 import {
+  composedWorkflowKeyWork,
   domainRangeKeyWork,
   graphIntervalsKeyWork,
   intervalNumberLineKeyWork,
@@ -49,6 +50,7 @@ import {
   relationMappingKeyWork,
   transformationsLabKeyWork,
 } from '../../functions/shared/recoveryCertificationGrading.mjs';
+import { gradeComposedWorkflowCheck } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
 
 const SAMPLE = 160;
 
@@ -268,6 +270,17 @@ test('every family: the answer key is correct for its own question, on the serve
           assert.equal(browser.isCorrect, true, `${family.id}/${toolType}: a complete correct answer is credited`);
           assert.equal(gradeServerResponse({ question, response: browser.toolResponse }).isCorrect, true, `${family.id}/${toolType}: and the server agrees`);
           assert.equal(gradeToolWork({ toolId: question.type, question, work: wrong }).isCorrect, false, `${family.id}/${toolType}: wrong work rejected`);
+          return;
+        }
+        // A composed workflow (figure sorts, a choice read off a graph): the
+        // runner's work from certification's own responder, marked by the
+        // composed-workflow grader in the browser's Check and on the server.
+        const composed = composedWorkflowKeyWork(question, instance.answer);
+        if (composed) {
+          const browser = gradeComposedWorkflowCheck(question, composed.right);
+          assert.equal(browser.isCorrect, true, `${family.id}/${toolType}: a complete correct answer is credited`);
+          assert.equal(gradeServerResponse({ question, response: browser.toolResponse }).isCorrect, true, `${family.id}/${toolType}: and the server agrees`);
+          assert.equal(gradeComposedWorkflowCheck(question, composed.wrong).isCorrect, false, `${family.id}/${toolType}: wrong work rejected`);
           return;
         }
         assert.equal(serverGradingSupport(question).supported, true, `${family.id}/${toolType} is server-gradable`);

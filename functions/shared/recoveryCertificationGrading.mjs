@@ -25,6 +25,9 @@ import {
 } from './toolMath/representationMatch/representationMath.mjs';
 import { gradedContextFields, resolveRequiredCards } from './toolMath/representationBridge/linearMultipleRepresentationsCards.mjs';
 import { correctFunctionChoice } from './relationFunctionChoice.mjs';
+import { gradeComposedWorkflowCheck } from './serverGrading/questionGraders/composedWorkflow.mjs';
+import { composedWorkflowWork } from './toolMath/workflow/composedWorkflowContract.mjs';
+import { buildFigureMatchResponse } from './toolMath/workflow/figureMatch.mjs';
 
 const fieldsResponse = (responses) => ({
   kind: 'fields',
@@ -361,6 +364,37 @@ export const graphIntervalsKeyWork = (question = {}, answer = {}) => {
   };
 };
 
+/**
+ * A composed workflow a family writes (RC01's next shapes: the District DOL 1
+ * review's figure sorts and its vertex read off a graph): the stage responses
+ * the runner sends, from the family's `stages` answer — a sort as the figure
+ * board's assignments, a choice as its id — and the same work with its first
+ * stage wrong: two cards of different categories swapped, or another choice.
+ * Null for any other answer, or a stage the answer does not cover.
+ */
+export const composedWorkflowKeyWork = (question = {}, answer = {}) => {
+  const stages = Array.isArray(question.workflow) ? question.workflow.filter(isObject) : [];
+  if (answer.kind !== 'stages' || !isObject(answer.value) || !stages.length) return null;
+  const responseOf = (stage, value) => (stage.kind === 'figureMatch' ? buildFigureMatchResponse(stage, value) : value);
+  if (stages.some((stage) => answer.value[stage.id] === undefined)) return null;
+  const right = Object.fromEntries(stages.map((stage) => [stage.id, responseOf(stage, answer.value[stage.id])]));
+  const [first] = stages;
+  const key = answer.value[first.id];
+  let wrong;
+  if (first.kind === 'figureMatch' && isObject(key)) {
+    const entries = Object.entries(key);
+    const other = entries.find(([, category]) => category !== entries[0]?.[1]);
+    if (other) wrong = { ...key, [entries[0][0]]: other[1], [other[0]]: entries[0][1] };
+  } else if (Array.isArray(first.choices)) {
+    wrong = first.choices.map((choice) => (isObject(choice) ? choice.id : choice)).find((id) => id !== key);
+  }
+  if (wrong === undefined) return null;
+  return {
+    right: composedWorkflowWork(right),
+    wrong: composedWorkflowWork({ ...right, [first.id]: responseOf(first, wrong) }),
+  };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -454,6 +488,15 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'representationBridge', work: boardWork.right }),
       wrong: buildToolResponse({ question, toolId: 'representationBridge', work: boardWork.wrong }),
+    };
+  }
+  // A composed workflow (RC01's next shapes): the work the runner's Submit sends,
+  // serialized as the browser's Check serializes it.
+  const composedWork = Array.isArray(question.workflow) ? composedWorkflowKeyWork(question, answer) : null;
+  if (composedWork) {
+    return {
+      right: gradeComposedWorkflowCheck(question, composedWork.right).toolResponse,
+      wrong: gradeComposedWorkflowCheck(question, composedWork.wrong).toolResponse,
     };
   }
   return null;

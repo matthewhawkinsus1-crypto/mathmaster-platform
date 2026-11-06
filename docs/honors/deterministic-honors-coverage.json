@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 70,
+  "familyCount": 73,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -53,6 +53,20 @@
           "reason": "It substitutes one given value into each side of a linear equation with the variable on both sides and asks whether the two values agree; the value and the equation are the whole task, so no deeper reasoning can be generated.",
           "missingCapability": "A `solutionCase: \"none\" | \"infinite\"` knob (an equation that no value, or every value, satisfies) with a server-marked part asking what the check shows about every other value.",
           "teacherReason": "MathMaster's solution-check generator only asks whether one given value works, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "exponential.sortGrowthDecay",
+          "familyTitle": "Sort exponential graphs by growth or decay",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version sorts three growth and three decay curves a·bˣ by direction in one window; the remaining levers are other starts and bases, which are not rigor.",
+          "missingCapability": "Growth and decay told from a table, an equation or a situation, with the growth or decay rate named, so the student explains the base rather than the curve's direction.",
+          "teacherReason": "MathMaster's growth-and-decay generator only sorts curves by direction, so it cannot yet build a built-in Honors extension."
         },
         {
           "familyId": "functions.composeQuadraticLinear",
@@ -109,6 +123,20 @@
           "reason": "Writing a graphed domain and range in interval notation is Algebra II content (A2.7I); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7I is the course/TEKS conflict selection already refuses.",
           "missingCapability": null,
           "teacherReason": "Writing a graphed domain and range in interval notation is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.familySortFromGraphs",
+          "familyTitle": "Sort graphs into the linear, quadratic and exponential families",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version sorts two lines, a parabola and an exponential growth curve by family in one window; it is a recognition warm-up, and the remaining levers are other curves, which are not rigor.",
+          "missingCapability": "Families told apart from a table or an equation as well as a graph, with curves that look alike near the origin, so the student reasons from rates of change rather than from shape alone.",
+          "teacherReason": "MathMaster's graph-sort generator only draws one curve of each kind, so it cannot yet build a built-in Honors extension."
         },
         {
           "familyId": "functions.fillingTankAttributes",
@@ -873,6 +901,20 @@
           "teacherReason": "MathMaster's vertex generator only makes whole-number vertices read from a single equation, so it cannot yet ask the fractional-vertex or vertex-from-zeros work an Honors extension needs."
         },
         {
+          "familyId": "quadratics.vertexChoiceFromGraph",
+          "familyTitle": "Choose the vertex of a graphed parabola",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version chooses the vertex of y = ±(x − h)² + k read off its graph, from the vertex, its sign-flipped point and the two x-intercepts; the remaining levers are other parabolas, which are not rigor.",
+          "missingCapability": "The vertex typed, a stretched parabola, and the vertex form written from the graph, so the student reads the graph rather than recognizing a choice.",
+          "teacherReason": "MathMaster's vertex-choice generator only offers the vertex among four points, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "relations.inverseOfSet",
           "familyTitle": "Find the inverse of a relation given as ordered pairs",
           "familyDifficulty": {
@@ -1231,7 +1273,7 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 8,
-        "BLOCKED": 33,
+        "BLOCKED": 36,
         "NOT APPROPRIATE": 25
       }
     },
@@ -1280,6 +1322,20 @@
           "reason": "Checking a solution of a linear equation is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
           "missingCapability": null,
           "teacherReason": "Checking a solution of a linear equation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "exponential.sortGrowthDecay",
+          "familyTitle": "Sort exponential graphs by growth or decay",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Telling exponential growth from decay on a graph is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Telling exponential growth from decay on a graph is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
           "familyId": "functions.composeQuadraticLinear",
@@ -1336,6 +1392,20 @@
           "reason": "Every version is an unrestricted parabola or absolute value with a moved vertex, so the domain is always all real numbers and only the range's end moves; the remaining levers are other vertices, which are not rigor.",
           "missingCapability": "A restricted domain (a closed or half-open interval, as Lesson 1's own restricted line has) and other parents (square root, rational), so the domain and range are both found, not recalled.",
           "teacherReason": "MathMaster's graphed domain-and-range generator only draws unrestricted parabolas and absolute values, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.familySortFromGraphs",
+          "familyTitle": "Sort graphs into the linear, quadratic and exponential families",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Telling linear, quadratic and exponential graphs apart is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Telling linear, quadratic and exponential graphs apart is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
           "familyId": "functions.fillingTankAttributes",
@@ -1968,6 +2038,20 @@
           "teacherReason": "MathMaster has no generator for completing the square or for parabolas from their geometry yet, so it cannot build a no-AI Algebra II Honors extension for vertex work."
         },
         {
+          "familyId": "quadratics.vertexChoiceFromGraph",
+          "familyTitle": "Choose the vertex of a graphed parabola",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Reading the vertex of a graphed parabola is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Reading the vertex of a graphed parabola is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
           "familyId": "relations.inverseOfSet",
           "familyTitle": "Find the inverse of a relation given as ordered pairs",
           "familyDifficulty": {
@@ -2422,7 +2506,7 @@
         "READY": 0,
         "CAPABLE": 1,
         "BLOCKED": 43,
-        "NOT APPROPRIATE": 26
+        "NOT APPROPRIATE": 29
       }
     }
   }

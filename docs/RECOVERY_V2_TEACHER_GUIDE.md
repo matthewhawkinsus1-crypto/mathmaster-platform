@@ -194,6 +194,19 @@ makes the review's Warm-Up ready. The review's DOL Q7 asks the same task as its
 Warm-Up Q1 but is set at DOK 2, difficulty 3, so it is not recovered at the
 Warm-Up's level.
 
+### Functions recognized from their graphs: the District DOL 1 review's Warm-Up
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q2 — sort four graphs: Linear, Quadratic, Exponential | two new lines (one rising, one falling), a new parabola opening up and a new growth curve, in a new order |
+| Warm-Up Q3 — the vertex of the parabola shown | a new parabola (it may open down) crossing the x-axis at two whole numbers |
+| Warm-Up Q4 — sort six exponential graphs: growth or decay | three new growth and three new decay curves, in a new order |
+
+Each version keeps its window and categories. The vertex's wrong choices are the
+lesson's: the vertex with both signs changed and the two x-intercepts. With Q1's
+mapping diagram, every question of the review's Warm-Up now has Recovery. Its
+exit ticket waits on its DOL Q7 (above) and on its graph boards.
+
 ### Domain and range from a graph (Algebra II Honors Lesson 1)
 
 | Question | Recovery versions |

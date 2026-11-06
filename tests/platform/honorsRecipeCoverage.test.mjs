@@ -162,7 +162,10 @@ test('the committed report is generated from the live registry and audit, never 
   // value analysis and match are Algebra II content; the class rule's
   // translations and scales describe what Algebra I also teaches (A.3E,
   // A.7C): BLOCKED in each course. Lesson 4's exit-ticket compositions and
-  // conjugate product and quotient are Algebra II content (A2.2D).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 70 \| 4 \| 8 \| 33 \| 25 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 70 \| 0 \| 1 \| 43 \| 26 \|/);
+  // conjugate product and quotient are Algebra II content (A2.2D). The
+  // District DOL 1 review's graph sorts and vertex choice are Algebra I
+  // content (A.3C, A.7A, A.9D): BLOCKED in Algebra I, NOT APPROPRIATE in
+  // Algebra II.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 73 \| 4 \| 8 \| 36 \| 25 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 73 \| 0 \| 1 \| 43 \| 29 \|/);
 });

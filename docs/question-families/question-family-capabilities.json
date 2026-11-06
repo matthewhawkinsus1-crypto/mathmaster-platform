@@ -213,6 +213,47 @@
       "declared": {}
     },
     {
+      "id": "exponential.sortGrowthDecay",
+      "version": 1,
+      "title": "Sort exponential graphs by growth or decay",
+      "alignments": [
+        "A.9D"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "figureMatch",
+          "default": true,
+          "mode": "workflow",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 4400,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "functions.composeQuadraticLinear",
       "version": 1,
       "title": "Compose a quadratic and a linear function both ways",
@@ -426,6 +467,47 @@
           },
           "capacity": 144,
           "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.familySortFromGraphs",
+      "version": 1,
+      "title": "Sort graphs into the linear, quadratic and exponential families",
+      "alignments": [
+        "A.3C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "figureMatch",
+          "default": true,
+          "mode": "workflow",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 4704,
+          "exact": false
         }
       ],
       "classOf30": "every student unique",
@@ -5684,6 +5766,47 @@
           "label": "default",
           "constraints": {},
           "capacity": 884,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "quadratics.vertexChoiceFromGraph",
+      "version": 1,
+      "title": "Choose the vertex of a graphed parabola",
+      "alignments": [
+        "A.7A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "graphChoicePreview",
+          "default": true,
+          "mode": "workflow",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 47,
           "exact": true
         }
       ],
