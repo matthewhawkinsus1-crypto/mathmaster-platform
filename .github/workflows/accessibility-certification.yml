@@ -300,3 +300,38 @@ jobs:
           name: accessibility-certification-teacher-large-text
           path: tests/browser/artifacts/large-text
           retention-days: 14
+
+  # WCAG 2.2 2.4.11 (Focus Not Obscured) on the student's screens: the teacher screens' Tab walk through every student
+  # scene at 1366×768 and 390×844 (a touch phone), then back with Shift+Tab, Work View with each of its drawers, My Math
+  # Path's session and a DOL Recovery assessment; a stop mostly under something the page drew fails. A job of its own:
+  # the forward walks alone took about eight minutes on a busy four-core machine (2026-11-06).
+  browser-focus-not-obscured:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: No focused control under something the page drew (WCAG 2.4.11)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentShellLargeText.mjs --check=obscured
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification-focus-obscured
+          path: tests/browser/artifacts/large-text
+          retention-days: 14

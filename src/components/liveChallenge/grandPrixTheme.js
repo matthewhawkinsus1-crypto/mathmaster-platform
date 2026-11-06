@@ -258,6 +258,15 @@ export const GRAND_PRIX_CSS = `
 /* The student page (LiveChallengeStudent): the arena over its first screen, as
    its own background — no stacking context (ARENA_PAGE_BACKGROUND). */
 .mm-gp-arena-page { background: ${ARENA_PAGE_BACKGROUND}; }
+/* A question-set game's round (Graph Feature Rush, Graph the Line) is a
+   full-screen surface over this page, and the page's header and notices stay
+   under it while it is open. What it covers is hidden, which also takes it out
+   of Tab's reach and out of a screen reader's: the header's exit button was a
+   Tab stop under the round's own top bar, where a keyboard student could not
+   see it (WCAG 2.4.11), and the round has its own Exit. Nothing on screen
+   changes; it was covered. Keyed to the round's shell being on the page, so
+   the header is back as the shell goes (and while its code still loads). */
+.mm-gp-arena-page:has(.mm-rush-shell, .mm-line-shell) [data-mm-under-round] { visibility: hidden; }
 .mm-gp-title {
   margin: 0; font-style: italic; font-weight: 1000; text-transform: uppercase; letter-spacing: .01em; line-height: .95;
   display: inline-block; transform: skewX(-6deg);

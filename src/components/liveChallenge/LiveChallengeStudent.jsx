@@ -1328,7 +1328,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <ChallengeShellStyles />
       <GrandPrixStyles />
       <div data-mm-student-stage={stage} style={{ maxWidth: 900, margin: '0 auto' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+        {/* data-mm-under-round: hidden while a full-screen round covers it (grandPrixTheme.js). */}
+        <header data-mm-under-round="" style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
             <div style={{ color: '#ffd23f', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '.08em' }}><span className="mm-gp-checker" aria-hidden="true" style={{ marginRight: 8 }} />MathMaster Live Challenge</div>
             <h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', fontStyle: 'italic', color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
@@ -1355,7 +1356,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{error}</div>}
         {missedNotice && (
-          <div role="status" data-mm-missed-rounds="1" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 }}>
+          <div role="status" data-mm-missed-rounds="1" data-mm-under-round="" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 }}>
             <span>{missedNotice}</span>
             <button type="button" onClick={() => setMissedNotice('')} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
           </div>

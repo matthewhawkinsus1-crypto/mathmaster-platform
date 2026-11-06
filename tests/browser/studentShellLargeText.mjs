@@ -6,11 +6,19 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader] [--only=<screen id,…>] [--teacher]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader,obscured] [--only=<screen id,…>] [--teacher]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
  *          the end, no focused control under the sticky action bar (2.4.11).
+ * obscured WCAG 2.2 2.4.11 (Focus Not Obscured, Minimum) on every student
+ *          scene below, at 1366×768 and 390×844 (a touch phone), and in Work
+ *          View with each of its drawers open in turn, My Math Path's session
+ *          and a DOL Recovery assessment (hostAccessibility.html): the Tab walk
+ *          of the teacher screens (accessibilityKeyboardReach.mjs) goes through
+ *          each, then Shift+Tab walks it back, and a stop with 3 or more of its
+ *          5 sample points under something the page drew fails. Its own job in
+ *          CI. Not in the default set.
  * text     WCAG 1.4.4 / 1.4.10 / 1.4.12: every scene at 200% browser text size
  *          (Chromium's default font size 16 → 32, what the text-size setting
  *          changes) at 1366×768 and 390×844, and at 320 CSS px wide: no
@@ -51,6 +59,8 @@ import { SCREENS, sceneLabel, newScreenContext } from './accessibilityCertificat
 import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
+import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
+import { hiddenUnderOverlay } from '../../scripts/lib/keyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/large-text');
@@ -341,8 +351,51 @@ export const LARGE_TEXT_SCREENS = [
   },
 ];
 
-const runScenes = async (setting, callback) => {
-  for (const screen of (TEACHER_SWEEP ? TEACHER_SCREENS : LARGE_TEXT_SCREENS)) {
+// 2.4.11 where the screens above do not go (--check=obscured). Work View on
+// three tools whose work outgrows the view (a plane, a table, Step Algebra):
+// the check walks the view, then each drawer its header offers, one at a time.
+// And the QuestionEngine hosts that are not the assignment screen, as
+// hostAccessibility.mjs opens them: My Math Path's session (a tool question,
+// one with number boxes, and its own renderer) and a DOL Recovery assessment.
+const workViewQuestion = (questionId) => async (page, origins, state) => {
+  // The scenes share a page: the last one's view is closed first.
+  await page.evaluate(() => [...document.querySelectorAll('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button')]
+    .find((button) => button.textContent.trim().startsWith('Close'))?.click());
+  await toolQuestion(questionId)(page, origins, state);
+  await page.locator('button:visible', { hasText: /Open Work View/ }).first().click();
+  await page.waitForSelector('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header', { timeout: 30_000 });
+  await page.waitForTimeout(800);
+};
+const sessionHost = (query) => async (page, origins) => {
+  await page.goto(`${origins.audit}/tests/browser/hostAccessibility.html?${query}`, { waitUntil: 'networkidle', timeout: 180_000 });
+  await page.waitForSelector('[data-host-sentinel="end"]', { timeout: 60_000 });
+  // The harness's own two buttons around the session are not the student's.
+  await page.evaluate(() => document.querySelectorAll('[data-host-sentinel]').forEach((button) => { button.tabIndex = -1; }));
+  await page.waitForTimeout(900);
+};
+export const FOCUS_SCREENS = [
+  {
+    id: 'work-view',
+    workView: true,
+    scenes: [
+      { id: 'graphing', run: workViewQuestion('ux-graph2') },
+      { id: 'table-workbench', run: workViewQuestion('ux-ltw') },
+      { id: 'step-algebra', run: workViewQuestion('ux-step') },
+    ],
+  },
+  {
+    id: 'session-hosts',
+    scenes: [
+      { id: 'path-data-modeling', run: sessionHost('scene=path-tool&tool=dataModelingLab') },
+      { id: 'path-step-algebra', run: sessionHost('scene=path-tool&tool=stepAlgebra2') },
+      { id: 'path-choices', run: sessionHost('scene=path-generic&kind=practice') },
+      { id: 'recovery', run: sessionHost('scene=recovery') },
+    ],
+  },
+];
+
+const runScenes = async (setting, callback, screens = TEACHER_SWEEP ? TEACHER_SCREENS : LARGE_TEXT_SCREENS) => {
+  for (const screen of screens) {
     if (ONLY.size && !ONLY.has(screen.id)) continue;
     const { context, page } = await newPage(setting, screen);
     try {
@@ -582,6 +635,107 @@ if (CHECKS.has('targetsize')) {
     });
   }
   writeFileSync(path.join(artifacts, 'target-size.json'), JSON.stringify(sizeReport, null, 2));
+}
+
+// WCAG 2.2 2.4.11 (Focus Not Obscured, Minimum) on the student's screens: the
+// teacher screens' Tab walk (accessibilityKeyboardReach.mjs, its rule
+// mm-focus-obscured: 3 or more of a stop's 5 sample points under something
+// that is neither the control, inside it nor around it) through every scene
+// at both sizes. Work View is walked as it opens and then with each drawer of
+// its header open in turn. The walk's other rules are the certification's
+// business and are not judged here. The teacher's screens are walked there.
+if (CHECKS.has('obscured')) {
+  const focusReport = [];
+  const walk = async (page, label, settingId, include) => {
+    const result = await auditKeyboardReach(page, { name: label, viewport: settingId, include });
+    const entries = Object.entries(result.details).filter(([key]) => key.endsWith('|mm-focus-obscured'));
+    const count = entries.reduce((sum, [key]) => sum + (result.counts[key] || 0), 0);
+    const covered = entries.flatMap(([, entry]) => entry.examples.map((example) => `${example.target} (${example.summary})`));
+    const back = await walkBack(page);
+    focusReport.push({ label, setting: settingId, stops: result.summary.stops, stopNames: result.summary.stopNames, covered, backStops: back.stops, backCovered: back.hidden });
+    console.log(`${count || back.hidden.length ? 'FAIL' : 'ok  '} obscured ${label.padEnd(40)} ${settingId.padEnd(10)} stops=${result.summary.stops} covered=${count} back=${back.stops} coveredBack=${back.hidden.length}`);
+    if (count) failures.push(`${label} ${settingId}: ${count} focused control(s) under something the page drew (WCAG 2.4.11): ${covered.join('; ')}`);
+    if (back.hidden.length) failures.push(`${label} ${settingId}: walking back with Shift+Tab, ${back.hidden.length} focused control(s) under something the page drew (WCAG 2.4.11): ${back.hidden.join('; ')}`);
+    if (!back.stops) failures.push(`${label} ${settingId}: walking back with Shift+Tab reached no control, so nothing was measured`);
+  };
+  // The walk goes forward only, and a bar at the top of a screen hides what
+  // focus scrolls UP into view: Shift+Tab up Grades left "See results" under
+  // the identity bar. So each scene is walked back too, from its end to its
+  // start (round a dialog, or round an exam that keeps focus in itself, until
+  // a stop comes again), sampled at the walk's five points and judged by its
+  // own rule (scripts/lib/keyboardReach.mjs, hiddenUnderOverlay).
+  const BACK_STOP = () => {
+    const el = document.activeElement;
+    if (!el || el === document.body || el === document.documentElement || 'mmBackSentinel' in el.dataset) return { done: true };
+    if ('mmBackSeen' in el.dataset) return { done: true };
+    el.dataset.mmBackSeen = '';
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { name: el.tagName, sampled: 0, covered: 0 };
+    const inset = Math.min(6, rect.width / 4, rect.height / 4);
+    const round = el instanceof SVGElement && el.localName !== 'svg';
+    const points = (round
+      ? [[rect.left + rect.width / 2, rect.top + rect.height / 2]]
+      : [[rect.left + rect.width / 2, rect.top + rect.height / 2], [rect.left + inset, rect.top + inset], [rect.right - inset, rect.top + inset], [rect.left + inset, rect.bottom - inset], [rect.right - inset, rect.bottom - inset]])
+      .filter(([x, y]) => x >= 0 && y >= 0 && x < innerWidth && y < innerHeight);
+    let covered = 0;
+    let by = null;
+    for (const [x, y] of points) {
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
+      covered += 1;
+      by = by || `${hit.localName}${hit.classList?.[0] ? `.${hit.classList[0]}` : ''}`;
+    }
+    return { name: (el.getAttribute('aria-label') || el.textContent || el.localName).replace(/\s+/g, ' ').trim().slice(0, 40), sampled: points.length, covered, by };
+  };
+  const walkBack = async (page) => {
+    await page.evaluate(() => {
+      document.activeElement?.blur?.();
+      const modal = [...document.querySelectorAll('[aria-modal="true"], dialog[open]')].filter((node) => node.getClientRects().length).pop();
+      const end = document.createElement('button');
+      end.type = 'button';
+      end.dataset.mmBackSentinel = '';
+      end.setAttribute('aria-hidden', 'true');
+      end.style.cssText = 'position:fixed;bottom:0;right:0;width:1px;height:1px;opacity:0.01;pointer-events:none;';
+      (modal || document.body).appendChild(end);
+      end.focus({ preventScroll: true });
+    });
+    const hidden = [];
+    let stops = 0;
+    for (let index = 0; index < 400; index += 1) {
+      await page.keyboard.press('Shift+Tab');
+      // After the app's own reveals, which run a frame after focus moves.
+      await page.evaluate(() => new Promise((resolve) => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
+      const stop = await page.evaluate(BACK_STOP);
+      if (stop.done) break;
+      stops += 1;
+      if (hiddenUnderOverlay(stop)) hidden.push(`${stop.name} (under ${stop.by})`);
+    }
+    await page.evaluate(() => {
+      document.querySelectorAll('[data-mm-back-sentinel]').forEach((node) => node.remove());
+      document.querySelectorAll('[data-mm-back-seen]').forEach((node) => { delete node.dataset.mmBackSeen; });
+      document.activeElement?.blur?.();
+    });
+    return { stops, hidden };
+  };
+  const DRAWER_BUTTONS = '[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button[aria-expanded]';
+  for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
+    await runScenes(setting, async (page, label, screen) => {
+      if (screen.id === 'teacher') return;
+      if (!screen.workView) { await walk(page, label, setting.id, [].concat(screen.include || [])[0] || null); return; }
+      await walk(page, label, setting.id, null);
+      const drawers = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((button) => button.textContent.trim()), DRAWER_BUTTONS);
+      if (!drawers.length) failures.push(`${label} ${setting.id}: Work View's header offers no drawer, so none was walked`);
+      for (const [index, name] of drawers.entries()) {
+        const toggle = (at) => page.evaluate(({ selector, at: which }) => document.querySelectorAll(selector)[which].click(), { selector: DRAWER_BUTTONS, at });
+        await toggle(index);
+        await page.waitForTimeout(600);
+        await walk(page, `${label}/${name}`, setting.id, null);
+        await toggle(index);
+        await page.waitForTimeout(300);
+      }
+    }, [...LARGE_TEXT_SCREENS, ...FOCUS_SCREENS]);
+  }
+  writeFileSync(path.join(artifacts, 'focus-obscured.json'), JSON.stringify(focusReport, null, 2));
 }
 
 // The Work View header's buttons never collide with each other or the task
