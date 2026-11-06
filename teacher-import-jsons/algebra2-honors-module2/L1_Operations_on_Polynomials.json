@@ -57,9 +57,9 @@
             }
           ],
           "hints": [
-            "Multiply the coefficients first, and watch the sign: a positive times a negative is negative.",
-            "For the same letter, add the exponents: x² · x⁵ has 2 + 5 factors of x.",
-            "In the second product, a letter written with no exponent has exponent 1: a³ · a = a⁴."
+            "What are the coefficients of 3x² and −4x⁵, and what sign does their product have?",
+            "For each letter, do you add the exponents or multiply them? What exponent does a letter with no exponent written have, such as the b in −2a³b?",
+            "3 · (−4) = −12 and x² · x⁵ = x⁷. In the second product, a letter with no exponent written has exponent 1: a³ · a = a⁴ and b · b² = b³."
           ],
           "scaffold": {
             "prompt": "Let’s back up. x² · x⁵ is x multiplied by itself…",
@@ -109,9 +109,9 @@
             }
           ],
           "hints": [
-            "The minus sign in front means −1 times every term: −1 · a³, −1 · (−3a), and −1 · 2.",
-            "Only like terms combine: the a² terms with each other, and the a terms with each other.",
-            "Add the coefficients of like terms and keep the letter and exponent: 4a² − a² has coefficient 4 − 1."
+            "What does the minus sign in front of (a³ − 3a + 2) do to each of its three terms?",
+            "What is the opposite of −3a? In 4a² + 3a − a² − 5a, which terms are like terms?",
+            "The minus sign changes every sign: the opposite of −3a is 3a, and the opposite of 2 is −2. Then add the coefficients of like terms: 4a² − a² and 3a − 5a."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The opposite of −3a is…",
@@ -197,9 +197,9 @@
             }
           ],
           "hints": [
-            "Like terms have exactly the same letters, each raised to the same exponent. The coefficients do not matter.",
-            "The order the letters are written in does not matter: yx² is the same as x²y.",
-            "Same coefficient is not enough: check the exponents, then check the letters."
+            "For each pair, are the letters the same, and is each letter raised to the same exponent?",
+            "Does the order the letters are written in change a term? Does the coefficient decide whether two terms are like terms?",
+            "Like terms have the same letters, each with the same exponent: yx² is the same as x²y, and the coefficients do not matter."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Two terms are like terms when they have…",
@@ -322,9 +322,9 @@
             }
           ],
           "hints": [
-            "Count the terms: the parts joined by + or −. One term is a monomial, two a binomial, three a trinomial.",
-            "A product such as 5xy or −4x²y³ is ONE term, however many letters it has.",
-            "Check for a variable under a radical or in a denominator first: then it is not a polynomial at all."
+            "Is there a variable under a radical or in a denominator? If not, how many terms are joined by + or −?",
+            "Are the letters of 5xy joined by + or −, or multiplied? How many terms does that make?",
+            "Check for a radical or a denominator first. Then count the terms joined by + or −: one is a monomial, two a binomial, three a trinomial. A product such as 5xy or −4x²y³ is one term."
           ],
           "guidedNotes": {
             "steps": [
@@ -397,9 +397,9 @@
             }
           ],
           "hints": [
-            "A letter with no exponent written has exponent 1: x means x¹, so in xy each letter has exponent 1.",
-            "For one term, ADD the exponents of all its letters.",
-            "For a polynomial, find each term's degree and take the greatest."
+            "When no exponent is written, what exponent does each letter of xy have?",
+            "For one term, do you add the exponents of its letters or take the largest? For a polynomial, which term's degree do you use?",
+            "A letter with no exponent written has exponent 1, so x means x¹. For one term, add the exponents of all its letters; for a polynomial, find each term's degree and take the greatest."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The degree of the monomial −4x²y³ is…",
@@ -458,9 +458,9 @@
             "secondPolynomial": "a^3-3a+2"
           },
           "hints": [
-            "The minus sign in front of (a³ − 3a + 2) changes the sign of EVERY term inside — not just the first.",
-            "The opposite of −3a is +3a, and the opposite of +2 is −2.",
-            "In each column, add the coefficients: the a column holds 5a and the opposite of −3a."
+            "What does the minus sign in front of (a³ − 3a + 2) do to each term inside, not just the first?",
+            "What is the opposite of a³? Of −3a? Of 2? Which column does each opposite go in?",
+            "The opposites are −a³, 3a and −2. Add down each column: the a column holds 5a and 3a."
           ],
           "guidedNotes": {
             "steps": [
@@ -501,9 +501,9 @@
             "secondPolynomial": "-2x^2-5x-6"
           },
           "hints": [
-            "Each column holds one kind of term: the x² terms, the x terms, and the constants.",
-            "Add the coefficients in each column and keep the letter and exponent.",
-            "Watch the signs: −9x + (−5x) is −14x."
+            "Which terms of the two polynomials go in the same column?",
+            "In each column, do you add the coefficients or the exponents? What sign does −9x + (−5x) have?",
+            "Keep the letter and exponent and add the coefficients, watching the signs: −9x + (−5x) = −14x."
           ]
         },
         {
@@ -537,9 +537,9 @@
             }
           ],
           "hints": [
-            "First rewrite each subtraction as adding the opposite of EVERY term in the second polynomial.",
-            "The opposite of 4x² + x − 5 is −4x² − x + 5.",
-            "Then combine the x² terms, the x terms and the constants."
+            "Both differences subtract 4x² + x − 5. What is its opposite?",
+            "Does every term of 4x² + x − 5 change sign, or only the first? Once the parentheses are gone, which terms are like terms?",
+            "The opposite of 4x² + x − 5 is −4x² − x + 5. Add it to each first polynomial, then combine the x² terms, the x terms and the constants."
           ],
           "scaffold": {
             "prompt": "Let’s back up. −(4x² + x − 5) equals…",
@@ -596,8 +596,8 @@
           ],
           "hints": [
             "Compare Jordan's second step with the second polynomial: which signs changed, and which did not?",
-            "Subtracting (2y² − 6y + 1) adds −2y² + 6y − 1.",
-            "Now combine like terms: 5y² − 2y², −2y + 6y, and 4 − 1."
+            "What is the opposite of each term of 2y² − 6y + 1: of 2y², of −6y, and of 1?",
+            "Subtracting (2y² − 6y + 1) adds −2y² + 6y − 1. Then combine like terms: 5y² − 2y², −2y + 6y, and 4 − 1."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Subtracting (2y² − 6y + 1) means adding…",
@@ -637,9 +637,9 @@
             "rightFactor": "4y^2+2y-3"
           },
           "hints": [
-            "Each cell is −y times the term at the top of its column.",
-            "Multiply the coefficients (watch the signs) and add the exponents of y: −y · 4y² = −4y³.",
-            "No two cells are like terms here, so the product is the three cells added together."
+            "Which two terms does each cell multiply, and what sign does −y bring to each product?",
+            "What is −y · 4y²: what happens to the coefficients, and to the exponents of y? What sign does −y · (−3) have?",
+            "−y · 4y² = −4y³: multiply the coefficients and add the exponents. No two cells are like terms here, so the product is the three cells added together."
           ],
           "guidedNotes": {
             "steps": [
@@ -685,9 +685,9 @@
             }
           ],
           "hints": [
-            "The monomial outside multiplies every term inside, and its sign goes with it.",
-            "Add the exponents of the same letter: 3x² · 2xy = 6x³y.",
-            "Leave unlike terms separate: x³y and x³y² are not like terms."
+            "Which terms inside does the monomial outside multiply, and does its sign go with it?",
+            "What sign does −x · (−2x) have? In 3x² · 2xy, which exponents do you add?",
+            "3x² · 2xy = 6x³y: multiply the coefficients and add the exponents of x. Leave unlike terms separate: x³y and x³y² are not like terms."
           ],
           "scaffold": {
             "prompt": "Let’s back up. −x · 3x³ equals…",
@@ -749,9 +749,9 @@
             }
           ],
           "hints": [
-            "The whole cost is subtracted, so it goes in parentheses: every term of the cost changes sign.",
-            "Combine the x terms: 10x − 5x.",
-            "Substitute x = 1000 into your simplified polynomial: −0.001(1000)² + 5(1000) − 500."
+            "Profit is revenue minus cost. Is the whole cost subtracted, or only its first term?",
+            "What does a minus sign in front of parentheses do to each term inside? Once the parentheses are gone, which terms are like terms?",
+            "Subtracting the whole cost gives 10x − 0.001x² − 5x − 500. Combine the x terms, then substitute x = 1000 into your simplified polynomial."
           ],
           "guidedNotes": {
             "steps": [
@@ -804,9 +804,9 @@
             "rightFactor": "a+2"
           },
           "hints": [
-            "Every term of the first polynomial multiplies every term of the second: 3 rows × 2 columns is 6 products.",
-            "In each cell, multiply the coefficients and add the exponents: a² · a = a³, 3a · 2 = 6a.",
-            "Cells with the same power of a are like terms: 2a² and 3a² combine, and so do 6a and −4a."
+            "How many terms does each factor have, and how many cells does that make?",
+            "In each cell, what happens to the coefficients, and to the exponents of a? Which cells have the same power of a?",
+            "a² · a = a³ and 3a · 2 = 6a. Cells with the same power of a are like terms: 2a² and 3a² combine, and so do 6a and −4a."
           ],
           "guidedNotes": {
             "steps": [
@@ -862,9 +862,9 @@
             }
           ],
           "hints": [
-            "Each of the 3 terms of the first polynomial multiplies each of the 2 terms of the second.",
-            "The products are x³, 4x², 3x², 12x, −2x, −8.",
-            "Combine the x² terms and the x terms."
+            "How many terms does each factor have, and how many products does that make?",
+            "Multiply each term of x² + 3x − 2 by x, then by 4. Which of the products have the same power of x?",
+            "The products are x³, 4x², 3x², 12x, −2x and −8. Combine the x² terms and the x terms."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Multiplying a trinomial by a binomial makes…",
@@ -926,9 +926,9 @@
             }
           ],
           "hints": [
-            "Change the sign of every term of the polynomial you subtract.",
-            "In the second difference there is no b term to subtract: 6b stays as it is.",
-            "Combine the like terms in each difference."
+            "What is the opposite of 3x² + x − 1? Of 4b² − 2?",
+            "Does every term you subtract change sign, the last one too? In the second difference, is there a b term to subtract from 6b?",
+            "−(3x² + x − 1) = −3x² − x + 1 and −(4b² − 2) = −4b² + 2. Then combine the like terms in each difference."
           ],
           "scaffold": {
             "prompt": "Let’s back up. −(3x² + x − 1) equals…",
@@ -972,9 +972,9 @@
             }
           ],
           "hints": [
-            "Distribute 4 to every term of the first polynomial and −3 to every term of the second.",
-            "−3(2a³ + 4a − 5) = −6a³ − 12a + 15.",
-            "Write the like terms together, highest power first, and combine."
+            "What does the 4 multiply, and what does the −3 multiply?",
+            "What sign does −3 · (−5) have? Once both products are written out, which terms are like terms?",
+            "4(a² + 5a − 6) = 4a² + 20a − 24 and −3(2a³ + 4a − 5) = −6a³ − 12a + 15. Combine the like terms, highest power first."
           ],
           "scaffold": {
             "prompt": "Let’s back up. −3(2a³ + 4a − 5) equals…",
@@ -1031,9 +1031,9 @@
             }
           ],
           "hints": [
-            "Multiply every term of one factor by every term of the other.",
-            "In (n − 9)(n + 7) the two n terms are like terms: 7n − 9n.",
-            "3p · np = 3np²: the two factors of p multiply to p²."
+            "Which terms of one factor multiply which terms of the other?",
+            "Which two of the four products of (n − 9)(n + 7) are n terms? What is p · p?",
+            "In (n − 9)(n + 7) the n terms are 7n and −9n. In the last product, 3p · np = 3np², because p · p = p²."
           ],
           "scaffold": {
             "prompt": "Let’s back up. How many products does (n − 9)(n + 7) make before like terms combine?",
@@ -1078,9 +1078,9 @@
             }
           ],
           "hints": [
-            "Distribute 5c to all three terms of the first polynomial, and 2c to both terms of the second.",
-            "5c(2c² − 3c + 4) = 10c³ − 15c² + 20c.",
-            "Combine the c² terms and the c terms."
+            "Which terms does 5c multiply, and which does 2c multiply?",
+            "What is 5c · 2c²: what happens to the coefficients, and to the exponents of c? Which of the products are like terms?",
+            "5c(2c² − 3c + 4) = 10c³ − 15c² + 20c and 2c(7c − 8) = 14c² − 16c. Combine the c² terms and the c terms."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 5c(2c² − 3c + 4) equals…",
@@ -1147,9 +1147,9 @@
             }
           ],
           "hints": [
-            "Change the sign of every term of 4y³ + 11y² − 3y + 5 before you combine.",
-            "Try the mistake: subtract only 4y³ and leave the other terms of the second polynomial as they are. Which choice do you get?",
-            "P − Q and Q − P are opposites, so what is their sum?"
+            "What is the opposite of 4y³ + 11y² − 3y + 5, and which terms does it combine with?",
+            "Try each listed mistake on the problem: which one gives −2y³ + 6y² − 3y + 1? How are P − Q and Q − P related?",
+            "Subtracting every term gives 2y³ − 5y² − 4 − 4y³ − 11y² + 3y − 5. P − Q and Q − P are opposites, so every term of their sum cancels."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To subtract 4y³ + 11y² − 3y + 5, change the sign of…",
@@ -1192,9 +1192,9 @@
             "secondPolynomial": "2+35t-16t^2"
           },
           "hints": [
-            "Write the opposite of every term of Luis's height.",
-            "The t² column and the constant column cancel: type 0 for a column whose terms add to 0.",
-            "What is left tells you how the gap between the balls grows each second."
+            "What is the opposite of each term of Luis's height, 2 + 35t − 16t²?",
+            "In which columns do the two terms add to 0? What do you type for such a column?",
+            "The t² terms cancel, and so do the constants: type 0 in each of those columns. What is left, 40t − 35t, tells you how the gap between the balls grows each second."
           ]
         },
         {
@@ -1218,9 +1218,9 @@
             "rightFactor": "m+1"
           },
           "hints": [
-            "Fill in all six cells: each term of m² − m + 1 times m, then times 1.",
-            "Look for like terms that cancel: m² and −m², −m and m.",
-            "A product can have fewer terms than you expect when like terms cancel."
+            "How many cells does the area model have, and which two terms does each cell multiply?",
+            "Once every cell is filled in, which cells are like terms? What do they add to?",
+            "m² · 1 = m² and −m · m = −m² cancel, and so do −m · 1 = −m and 1 · m = m. A product can have fewer terms than you expect."
           ]
         },
         {
@@ -1254,9 +1254,9 @@
             }
           ],
           "hints": [
-            "If the first painter works x hours, the second works the rest: 15 − x hours.",
-            "Cost = 12x + 11(15 − x). Distribute, then combine like terms.",
-            "For the second answer the second painter works y hours and the first works 15 − y."
+            "If the first painter works x of the 15 hours, how many hours does the second painter work?",
+            "How much does each painter earn for their hours? What is the total cost before you simplify?",
+            "Cost = 12x + 11(15 − x): distribute, then combine like terms. For the second answer, the second painter works y hours and the first works 15 − y."
           ],
           "scaffold": {
             "prompt": "Let’s back up. If the first painter works x of the 15 hours, the second painter works…",
@@ -1305,9 +1305,9 @@
             }
           ],
           "hints": [
-            "The rest of the money is 1300 − x dollars.",
-            "Interest = 0.022x + 0.019(1300 − x). Distribute the 0.019.",
-            "Combine the x terms: 0.022x − 0.019x."
+            "If x dollars go into the bond, how much goes into savings?",
+            "What is 2.2% as a decimal? What does each account earn in one year?",
+            "Interest = 0.022x + 0.019(1300 − x). Distribute the 0.019, combine 0.022x − 0.019x, then substitute x = 800 into your simplified polynomial."
           ],
           "scaffold": {
             "prompt": "Let’s back up. If x dollars go into the bond, the savings account gets…",
@@ -1357,9 +1357,9 @@
             }
           ],
           "hints": [
-            "For the total, add like terms: 0.108x² + 0.047x², and so on.",
-            "For the difference, subtract EVERY term of the women's polynomial.",
-            "−0.876x − 9.694x = −10.57x."
+            "For the total, which terms of the two polynomials are like terms? For the difference, which signs change?",
+            "When you subtract the women's polynomial, does every term change sign, the 9.694x and the 361.7 too?",
+            "Men − women = 0.108x² − 0.876x + 474.1 − 0.047x² − 9.694x − 361.7. Combine the x² terms, the x terms and the constants, watching the signs."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Men minus women subtracts the women’s polynomial…",
@@ -1399,9 +1399,9 @@
             "rightFactor": "x^2+2xy+y^2"
           },
           "hints": [
-            "Each cell multiplies a row term by a column term: x · 2xy = 2x²y.",
-            "Like terms need the same letters with the same exponents: 2x²y and −x²y combine; x²y and xy² do not.",
-            "Two pairs of cells combine. The product has four terms."
+            "Which two terms does each cell multiply, and what letters does each product have?",
+            "What is x · 2xy? Which cells have the same letters, each with the same exponent?",
+            "x · 2xy = 2x²y and −y · x² = −x²y are like terms, but x²y and xy² are not. Two pairs of cells combine, so the product has four terms."
           ]
         },
         {
@@ -1435,9 +1435,9 @@
             }
           ],
           "hints": [
-            "(4n − 5)² = (4n − 5)(4n − 5): four products, and the two middle ones are like terms.",
-            "Now multiply your trinomial by 4n − 5: six products.",
-            "Combine the like terms: two n² terms and two n terms."
+            "What does (4n − 5)² mean: which two factors do you multiply?",
+            "Squaring 4n − 5 makes four products: which two are like terms? For step 2, how many products does your trinomial times 4n − 5 make?",
+            "(4n − 5)(4n − 5) = 16n² − 20n − 20n + 25. For step 2, multiply each term of your trinomial by 4n and by −5, then combine the two n² terms and the two n terms."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (4n − 5)² means…",
@@ -1493,9 +1493,9 @@
             }
           ],
           "hints": [
-            "Multiply all three: 7p(3p − 4)(2p²).",
-            "7p(3p − 4) = 21p² − 28p; then multiply each term by 2p².",
-            "Substitute p = 2 into your product."
+            "How do you find the volume of a box from its length, width and height?",
+            "What is 7p(3p − 4)? What do you multiply each of its terms by next?",
+            "7p(3p − 4) = 21p² − 28p. Multiply each term by 2p², then substitute p = 2 into the product."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The volume of a box is…",
@@ -1556,9 +1556,9 @@
             }
           ],
           "hints": [
-            "Multiply out (2x + k)(x − 3) and match the coefficients of x with 2x² + x − 21.",
-            "The x coefficient of the product is −6 + k.",
-            "Simplify the difference first; then add the three coefficients."
+            "Which two products in (2x + k)(x − 3) give x terms?",
+            "What is the x coefficient of (2x + k)(x − 3), and which coefficient of 2x² + x − 21 must it equal? For the second question, which signs change when you subtract x² − 2x − 4?",
+            "The x terms are 2x · (−3) = −6x and k · x = kx, so the x coefficient is k − 6. For the second, subtract every term of x² − 2x − 4, then add the three coefficients."
           ],
           "scaffold": {
             "prompt": "Let’s back up. In (2x + k)(x − 3), the x terms come from…",
@@ -1652,9 +1652,9 @@
             }
           ],
           "hints": [
-            "Test each statement with examples. One counterexample is enough to rule out \"always\".",
-            "(x + 1)(x² − x + 1) = x³ + 1: like terms can cancel.",
-            "x³ + (−x³ + x) = x: the highest-degree terms can cancel when you add."
+            "For each statement, can you find an example where it is true, and one where it is false?",
+            "When you add or multiply polynomials, can like terms cancel? What would that do to the number of terms, or to the degree?",
+            "(x + 1)(x² − x + 1) = x³ + 1 has only 2 terms, and x³ + (−x³ + x) = x has degree 1: like terms can cancel."
           ],
           "solutionReview": {
             "headline": "Test each statement with examples: one that fails rules out always, and sometimes needs an example each way.",
