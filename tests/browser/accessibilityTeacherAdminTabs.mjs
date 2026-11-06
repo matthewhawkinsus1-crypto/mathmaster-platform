@@ -1,7 +1,7 @@
 /*
  * THE ADMINISTRATOR'S SECTION TABS, BY KEYBOARD (TT27) — the real App.jsx, signed
  * in as the harness's root-admin teacher, on the Administration view, at
- * Chromebook 1366×768 and phone 390×844. Fails (exit 1) unless:
+ * Chromebook 1366×768, phone 390×844 and tablet 768×1024. Fails (exit 1) unless:
  *
  *   A1  five tabs, exactly one in the Tab order, and it is the selected one;
  *   A2  each tab controls a tab panel, and the panel is named by the selected tab;
@@ -9,10 +9,14 @@
  *   A4  Right / Left wrap, Home / End jump, Up / Down do not move focus;
  *   A5  moving does not select (the Pre-production reset must not open on the way past);
  *   A6  Enter and Space select, and the Tab stop and the panel's name follow;
- *   A7  the five tabs are one row, on a phone too (where it scrolls sideways
- *       instead of stacking 246px tall), every tab at least 24px each way, and
+ *   A7  the five tabs are one row, on a phone and a tablet too (where it
+ *       scrolls sideways instead of stacking 246px tall, or wrapping onto two
+ *       rows between 641 and 860px), every tab at least 24px each way, and
  *       End and Home bring the tab they reach into view with room for its
- *       focus ring (teacher features walk, item 1).
+ *       focus ring (teacher features walk, item 1);
+ *   A8  at the edges of that range, 641 and 860px wide, the row scrolls
+ *       sideways, and from 861px it is a laptop's, as it was: it wraps, and
+ *       nothing scrolls.
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   node tests/browser/accessibilityTeacherAdminTabs.mjs
@@ -27,6 +31,10 @@ const launchOptions = {};
 if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
 else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
 const browser = await chromium.launch(launchOptions);
+
+// The certification's two sizes, and a tablet's inside the range (641 to 860px) where the tabs wrapped onto two
+// rows and now scroll sideways as they do on a phone.
+const SIZES = [...VIEWPORTS, { id: 'tablet', width: 768, height: 1024, isMobile: true, hasTouch: true }];
 
 const failures = [];
 const check = (viewport, ok, message) => {
@@ -44,7 +52,7 @@ const selected = async (page) => (await readTabs(page)).find((tab) => tab.select
 const press = async (page, key) => { await page.keyboard.press(key); await page.waitForTimeout(150); };
 
 try {
-  for (const viewport of VIEWPORTS) {
+  for (const viewport of SIZES) {
     const tag = viewport.id;
     const context = await newSchoolContext(browser, { viewport: { width: viewport.width, height: viewport.height }, isMobile: Boolean(viewport.isMobile), hasTouch: Boolean(viewport.hasTouch), colorScheme: 'light', reducedMotion: 'reduce' });
     await context.route('**/*', (route) => {
@@ -116,6 +124,26 @@ try {
       check(tag, (await focused(page)) === NAMES[4] && await shown(), 'A7 End brings the last tab, and its focus ring, into view');
       await press(page, 'Home');
       check(tag, (await focused(page)) === NAMES[0] && await shown(), 'A7 Home brings the first tab back into view');
+      if (tag === 'desktop') {
+        // A8: the row at the edges of the tablet range, and a laptop's from the next pixel.
+        const rowAt = async (width) => {
+          await page.setViewportSize({ width, height: viewport.height });
+          await page.waitForTimeout(300);
+          return page.evaluate((list) => {
+            const row = document.querySelector(list);
+            const style = getComputedStyle(row);
+            const tops = new Set([...row.querySelectorAll('[role="tab"]')].map((tab) => Math.round(tab.getBoundingClientRect().top)));
+            return { rows: tops.size, wrap: style.flexWrap, overflowX: style.overflowX };
+          }, LIST);
+        };
+        for (const width of [641, 860]) {
+          const row = await rowAt(width);
+          check(tag, row.rows === 1 && row.wrap === 'nowrap' && row.overflowX === 'auto', `A8 at ${width}px one row that scrolls sideways (${JSON.stringify(row)})`);
+        }
+        const laptop = await rowAt(861);
+        check(tag, laptop.wrap === 'wrap' && laptop.overflowX === 'visible', `A8 at 861px a laptop's row, as it was (${JSON.stringify(laptop)})`);
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      }
       check(tag, pageErrors.length === 0, `no page errors${pageErrors.length ? `: ${pageErrors.join(' | ')}` : ''}`);
     } catch (error) {
       check(tag, false, `could not drive the tabs: ${error.message.split('\n')[0]}`);
@@ -126,4 +154,4 @@ try {
 } finally {
   await browser.close();
 }
-if (failures.length) { console.error(`\nAdministrator tabs by keyboard FAILED (${failures.length}).`); process.exitCode = 1; } else console.log('\nAdministrator tabs by keyboard passed at both viewports.');
+if (failures.length) { console.error(`\nAdministrator tabs by keyboard FAILED (${failures.length}).`); process.exitCode = 1; } else console.log('\nAdministrator tabs by keyboard passed at every size.');

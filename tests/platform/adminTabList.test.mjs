@@ -43,18 +43,29 @@ test('the five sections sit in one tab panel named by the selected tab, inside t
   assert.equal((workspace.match(/\['(classes|accounts|coverage|ai|reset)', '/g) || []).length, 5, 'five sections');
 });
 
-// Teacher features walk, item 1: on a phone the five tabs wrapped one under another, 246px of an 844px screen.
-// Now they are one row that scrolls sideways there, as the dashboard's own strip does; the keys and the panel
-// are the ones above. The browser driver measures the row, its targets and the arrow keys' scrolling.
-test('on a phone the tabs are one row that scrolls sideways, and stay one tab list', () => {
+// Teacher features walk, item 1: on a phone the five tabs wrapped one under another, 246px of an 844px screen, and
+// between 641 and 860px they wrapped onto two rows. Now they are one row that scrolls sideways up to 860px, the width
+// from which the dashboard's own navigation is such a strip; on a laptop they are as they were. The keys and the panel
+// are the ones above. The browser driver measures the row, its targets and the arrow keys' scrolling at each size.
+test('on a phone and a tablet the tabs are one row that scrolls sideways, and stay one tab list', () => {
   assert.match(list, /^<div role="tablist" aria-label="Administration sections" className="mm-admin-tabs" onKeyDown=\{moveBetweenAdminTabs\}/);
   const css = readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8');
+  const widthOf = (at) => {
+    const media = css.lastIndexOf('@media', at);
+    const query = css.slice(media, css.indexOf('{', media));
+    return { query, width: Number(query.match(/^@media \(max-width: (\d+)px\) $/)?.[1]) };
+  };
   const rule = css.indexOf('.mm-admin-tabs {');
   assert.notEqual(rule, -1, 'App.css lays the tab list out');
+  const { query, width } = widthOf(rule);
   const media = css.lastIndexOf('@media', rule);
-  const query = css.slice(media, css.indexOf('{', media));
-  const width = Number(query.match(/^@media \(max-width: (\d+)px\) $/)?.[1]);
-  assert.ok(width >= 400 && width <= 640, `only at a phone's width: ${query}`);
+  // The dashboard's strip: its navigation laid out as one row that scrolls sideways.
+  const strips = [...css.matchAll(/\.mm-dashboard-nav \{/g)].map((match) => match.index)
+    .filter((at) => /flex-direction: row !important;[\s\S]*overflow-x: auto;/.test(css.slice(at, css.indexOf('}', at))));
+  assert.equal(strips.length, 1, 'App.css lays the dashboard\'s navigation out as a strip once');
+  const strip = widthOf(strips[0]);
+  assert.ok(width >= 860, `every width to 860px, a tablet's too: ${query}`);
+  assert.equal(width, strip.width, `and from where the dashboard's strip scrolls sideways (${strip.query.trim()}), so a laptop's row is as it was: ${query}`);
   const block = css.slice(media, css.indexOf('\n}\n', media));
   const row = block.slice(block.indexOf('.mm-admin-tabs {'), block.indexOf('}', block.indexOf('.mm-admin-tabs {')));
   assert.match(row, /flex-wrap: nowrap !important;/, 'one row (the inline style wraps; this wins over it)');
