@@ -481,7 +481,7 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
  * and the attempt results that come next in the view (the hint offer, and after
  * a Submit the outcome, the worked solution and the way on) were laid out at
  * that height, under the tool's overflow: the workspace is positioned, so it is
- * painted over them. A keyboard student's "Show a hint" was a Tab stop under the
+ * painted over them. A keyboard student's hint button was a Tab stop under the
  * tool's own text at 1366x768 and 390x844 (Graphing, the Linear Table
  * Workbench, Step Algebra with Help open; WCAG 2.4.11). The view scrolls as it
  * did; the results now follow the work. At least the view's height, so a short
