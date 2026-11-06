@@ -135,6 +135,9 @@ export const focusWhereChangeLeftIt = (doc, from = null) => {
  * change, { startedAt, from, said }; this sets `said`.
  */
 export const settleScreenChange = (doc, pending, { now = Date.now(), movesFocus = true, announce = () => {} } = {}) => {
+  // Once the name has been said, look only while focus is where the change
+  // left it: a heading that lands as the student moves on never takes focus.
+  if (pending.said && !focusWhereChangeLeftIt(doc, pending.from)) return null;
   const focused = movesFocus ? focusScreenHeading(doc) : true;
   const waited = now - pending.startedAt;
   if (!focused && waited < SCREEN_NAME_WAIT_MS) return 100;

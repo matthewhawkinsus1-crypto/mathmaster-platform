@@ -216,6 +216,18 @@ test('NAV-3: after 2 s the look ends where the student moved focus, and at 15 s 
   assert.equal(focusWhereChangeLeftIt(screen.doc, screen.link), true);
 });
 
+test('NAV-3: a heading that lands as the student moves on does not take their focus', () => {
+  // After 2 s the name has been said. The student Tabs to a place outside
+  // the screen's main (the navigation) in the same moment the heading lands:
+  // the next look ends there, and focus stays where they put it.
+  const screen = slowScreen();
+  const pending = { startedAt: 0, from: null, said: true };
+  screen.other.focus();
+  screen.land();
+  assert.equal(settleScreenChange(screen.doc, pending, { now: 3000 }), null);
+  assert.equal(screen.doc.activeElement, screen.other);
+});
+
 test('NAV-3: a screen that places its own focus, or only speaks, is named and left alone', () => {
   // Focus the screen put inside its main: named at 2 s, never moved.
   const screen = gradesScreen();
