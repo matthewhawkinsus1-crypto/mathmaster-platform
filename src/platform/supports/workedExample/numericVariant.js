@@ -57,7 +57,7 @@
  *
  * THE SECOND KIND: polynomial arithmetic — a sum or difference, a monomial or
  * polynomial times a polynomial, a square or a cube, distributed and combined —
- * from a Polynomial Workshop item or the typed boxes of one (Algebra II Honors
+ * worked in the Polynomial Workshop or typed in answer boxes (Algebra II Honors
  * Operations on Polynomials). Its rules are in polynomialVariant.js: the same
  * terms, letters, exponents and signs, never easier, never a give-away, and its
  * keys confirmed by the item's own key and grader.
