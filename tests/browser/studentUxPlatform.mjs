@@ -409,7 +409,8 @@ const JOURNEYS = {
     // using a screen reader can do this task now.
     // The names are spoken math (pass 3, A11Y-3: "2x plus 10", "m equals 2"),
     // which is what a screen reader reads and a voice-control student says.
-    const planFacts = /10 a month|2x plus 10|m equals 2\.|values 0, 10;|through the point 0, 10\b/;
+    // A price is said as money ("10 dollars a month": platform-polish-3).
+    const planFacts = /10 (?:dollars )?a month|2x plus 10|m equals 2\.|values 0, 10;|through the point 0, 10\b/;
     for (const slot of [0, 1]) {
       await page.locator('[role="radiogroup"] [role="radio"]').nth(slot).tap();
       const cards = page.locator('.mathmaster-line-card');
