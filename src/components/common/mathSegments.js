@@ -286,7 +286,7 @@ export const removeRedundantPlainFractionParens = (value) => String(value ?? '')
  * `stackDivisions` already protects both (see its own docstring), so this
  * reuses it rather than inventing a second fraction detector.
  */
-export const splitProseFractionRuns = (proseText) => {
+const fractionRunsOf = (proseText) => {
   const text = removeRedundantPlainFractionParens(proseText);
   if (!text.includes('/')) return [{ text, isFraction: false }];
   const stacked = stackDivisions(text, { unicodeMath: true });
@@ -310,6 +310,30 @@ export const splitProseFractionRuns = (proseText) => {
   }
   if (cursor < stacked.length || carried) pushProse(stacked.slice(cursor));
   return chunks.length ? chunks : [{ text, isFraction: false }];
+};
+
+/*
+ * A LOGARITHM'S BASE TYPED AS TEXT: "log_0.5(x)", "log_b(v)", the families'
+ * own spelling of a base that is not 2 or 10. The hint panel and the closed
+ * review showed the underscore (walkthrough 2026-11-06, P-1). It is drawn as
+ * a fraction or a power with a fraction is: its own piece, typeset with its
+ * base as a subscript and its bracket. Only the drawing changes: the text, so
+ * Read aloud ("log base 0.5 of x") and Translate's lines, stay as they were.
+ */
+const TYPED_LOG_BASE = /(?<![A-Za-z\\])log_(?:\{([^{}]+)\}|(\d+(?:\.\d+)?|[A-Za-z](?![A-Za-z])))(\([^()]*\))?/g;
+
+export const splitProseFractionRuns = (proseText) => {
+  const text = String(proseText ?? '');
+  const runs = [];
+  let from = 0;
+  for (const match of text.matchAll(TYPED_LOG_BASE)) {
+    if (match.index > from) runs.push(...fractionRunsOf(text.slice(from, match.index)));
+    runs.push({ text: `\\log_{${match[1] ?? match[2]}}${match[3] ?? ''}`, isFraction: true });
+    from = match.index + match[0].length;
+  }
+  if (!runs.length) return fractionRunsOf(text);
+  if (from < text.length) runs.push(...fractionRunsOf(text.slice(from)));
+  return runs;
 };
 
 /** Whether one already-split segment is mathematics. */

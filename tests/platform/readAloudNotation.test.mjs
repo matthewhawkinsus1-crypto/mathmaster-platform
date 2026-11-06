@@ -285,6 +285,11 @@ test('Translate still finds its Spanish lines, and Read aloud reads them', async
   const pairs = translateWithPack(read, pack).text;
   assert.equal(pairs, 'Lee cada par con la entrada primero y la salida después: -5 → 7, 2 → -6, 9 → 7, 9 → 4.');
   assert.equal(speechTextFor(pairs, es), 'Lee cada par con la entrada primero y la salida después: negativo 5 corresponde a 7, 2 corresponde a negativo 6, 9 corresponde a 7, 9 corresponde a 4.');
+  // The family's log hint keeps its words (its log is drawn, not rewritten),
+  // so its Spanish line still matches.
+  const hint = translateWithPack('In f(x) = log_0.5(x), which values of x can a logarithm accept, and so which x-values can the graph use?', pack).text;
+  assert.equal(hint, 'En f(x) = log_0.5(x), ¿qué valores de x acepta un logaritmo? Entonces, ¿qué valores de x puede usar la gráfica?');
+  assert.equal(speechTextFor(hint, es), 'En f de x es igual a logaritmo en base 0.5 de x, ¿qué valores de x acepta un logaritmo? Entonces, ¿qué valores de x puede usar la gráfica?');
 });
 
 // Every text a student hears in the module's lessons, as the device builds
