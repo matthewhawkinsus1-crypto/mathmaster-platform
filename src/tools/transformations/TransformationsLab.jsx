@@ -22,13 +22,12 @@ import {
 } from './transformationsMath';
 import { SubmitText, useSubmitActionName } from '../shared/ToolRuntimeContext';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
-import { labGuidanceFor } from './transformationsGuidance.js';
+import { labGuidanceFor, labTaskFor, parameterKeysFor, parameterMissMessage } from './transformationsGuidance.js';
 import { START_OVER } from '../../platform/student/studentWords.js';
 
 const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 
-const MODE_TASKS = {'match': 'Change a, b, h and k until your graph sits exactly on the dashed target.', 'identify': 'Read the graph and recover the values of a, b, h and k that produced it.', 'pointMap': 'Send a point from the parent function through the transformation and give where it lands.', 'plotTransform': 'Transform the entire source graph by moving each defining point to its new location.', 'describe': 'Describe every change this graph makes to its parent function.', 'anchor': 'Find the coordinates of the transformed defining feature.'};
 // A step that ends with the final button says "{action}", filled with the
 // button's name as it reads (D9, wave 7): "Submit" where the press spends a
 // try, a secure host's label, or the lab's own "Check …" elsewhere.
@@ -93,7 +92,9 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     family, targetSpec, investigationSpec, anchor, parentPoint, sourcePoints, graphBounds, showB, startingValues,
   } = resolveTransformationsQuestion(questionData);
   // A line has no vertex to find: its steps and hints say what to read instead.
-  const { steps: MODE_STEPS, hints: HINTS } = labGuidanceFor(family);
+  // Without a b box they name only a, h and k (P-4, walkthrough 2026-11-06).
+  const { steps: MODE_STEPS, hints: HINTS } = labGuidanceFor(family, { showB });
+  const modeTask = labTaskFor(mode, { showB });
   // THE POINT MAP WITHOUT THE ANSWER'S GRAPH (CT04, Algebra I M2 T2 L2 PR 10).
   // The point map draws the parent and the transformed graph, the second
   // dashed, so "where does (2, 2) on f(x) land on g(x)?" came down to a point
@@ -182,7 +183,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const familyLabel = mode === 'plotTransform'
     ? (questionData.sourceLabel || 'General graph')
     : (TRANSFORMATION_FAMILY_LABELS[family] || family);
-  const parameterKeys = showB ? ['a', 'b', 'h', 'k'] : ['a', 'h', 'k'];
+  const parameterKeys = parameterKeysFor({ showB });
   const parameterValues = showB ? [a, b, h, k] : [a, h, k];
   const parameterSetters = showB ? [setA, setB, setH, setK] : [setA, setH, setK];
 
@@ -248,7 +249,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
       return `Locate the ${anchor.label} on the graph and count gridlines: across for x first, then up or down for y.`;
     }
     if (mode === 'describe') return 'At least one description is off. Use “x\'s lie, y\'s tell the truth”: a acts directly on y; b acts oppositely/reciprocally on x; h and k give the translations.';
-    return 'Compare one parameter at a time. Change only a, then b, then h, then k, and watch what each one changes.';
+    return parameterMissMessage({ showB });
   };
   const feedbackBlock = feedback ? <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect} message={feedbackMessage()}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill></div> : null;
   const resetFeedback = () => clearFeedback();
@@ -290,10 +291,10 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
       ? { label: 'Transformation descriptions', studentState: true }
       : { label: mode === 'plotTransform' ? 'Plotted point coordinates' : 'Transformation parameters', studentState: true },
     equationInput: ['match', 'identify'].includes(mode)
-      ? { label: 'y = a · f(b(x − h)) + k', studentState: true }
+      ? { label: showB ? 'y = a · f(b(x − h)) + k' : 'y = a · f(x − h) + k', studentState: true }
       : null,
     instruction: methodWithheld ? null : { text: (MODE_STEPS[mode] || MODE_STEPS.match)[0] },
-    task: { text: questionData.prompt || questionData.task || MODE_TASKS[mode] || MODE_TASKS.match },
+    task: { text: questionData.prompt || questionData.task || modeTask },
     help: methodWithheld ? null : {
       content: (
         <>
@@ -309,7 +310,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   };
 
   return <ToolShell title="Transformations Lab" subtitle="Connect parameters, parent points, defining features, and transformed graphs across function families." badge={familyLabel}>
-    <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.match} steps={stepsNamingAction(MODE_STEPS[mode] || MODE_STEPS.match, finishActionName)} />
+    <TaskCard question={questionData} task={modeTask} steps={stepsNamingAction(MODE_STEPS[mode] || MODE_STEPS.match, finishActionName)} />
     <EnlargeableFigure
         label="Transformation workspace"
         taskText={questionData.prompt || questionData.task || ''}

@@ -78,9 +78,12 @@ test('the lab uses it on a plot miss, and its order hint says P1 is S1\'s image'
   assert.match(plotBranch, /const correspondence = plotTransformMissMessage\(\{ plotted: feedback\.response\?\.plottedPoints, images: expectedTransformedPoints/);
   assert.match(plotBranch, /if \(correspondence\) return correspondence;/);
   // The hints the lab shows for this lesson's line (transformationsGuidance.js,
-  // which the lab reads for the family it draws).
-  assert.match(labGuidanceFor('linear').hints.plotTransform.join(' '), /Order matters: P1 is the image of S1/);
-  assert.match(source, /const \{ steps: MODE_STEPS, hints: HINTS \} = labGuidanceFor\(family\);/);
+  // which the lab reads for the family it draws and the boxes it shows; a plot
+  // has no parameter boxes, so with or without b they are the same).
+  for (const showB of [true, false]) {
+    assert.match(labGuidanceFor('linear', { showB }).hints.plotTransform.join(' '), /Order matters: P1 is the image of S1/);
+  }
+  assert.match(source, /const \{ steps: MODE_STEPS, hints: HINTS \} = labGuidanceFor\(family, \{ showB \}\);/);
 });
 
 test('some images already in place: the lab keeps its count sentence, never "not the images of their own points" (review S2)', () => {

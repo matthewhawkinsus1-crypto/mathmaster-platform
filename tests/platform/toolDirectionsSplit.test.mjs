@@ -129,7 +129,8 @@ test('W7-4: the Transformations Lab names its own button in its last step', asyn
     const base = { type: 'transformationsLab', family: 'linear', function: { type: 'linear', a: 1, h: 2, k: -1 }, sourcePoints: [[-2, -2], [0, 0], [2, 2]], graphBounds: { xMin: -8, xMax: 8, yMin: -8, yMax: 8 } };
     for (const [mode, step, own] of [
       ['match', (name) => `When the two graphs overlap, press ${name}.`, 'Check transformation'],
-      ['identify', (name) => `Enter all four, then press ${name}.`, 'Check parameters'],
+      // This line has no b box, so three boxes to fill (P-4, walkthrough 2026-11-06).
+      ['identify', (name) => `Enter all three, then press ${name}.`, 'Check parameters'],
       ['plotTransform', (name) => `Connect them in the same order as the source graph, then press ${name}.`, 'Check graph'],
     ]) {
       const charged = words(await renderTool(load, path, { ...base, mode }, { ...PRACTICE, submitCost: 'uses 1 of 3 tries' }));
