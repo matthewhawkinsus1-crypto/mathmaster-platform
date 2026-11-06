@@ -413,6 +413,50 @@ test('L1 PR 10: the rounding the item asks for is right in every version, and tw
   assert.ok(roundingsDiffer > 0, 'some version rounds the two ways differently, so this can fail');
 });
 
+// L1 Exit Ticket 3, the same thing on the one try (2026-11-06 re-walk): it asks
+// for √(L/32) to the nearest thousandth, then T to the nearest hundredth, and
+// its key multiplies the exact root. 2π times that thousandth lands one
+// hundredth from the key in a version (L = 49: 2π · 1.237 = 7.77 for 7.78), and
+// a tolerance of exactly 0.01 refused that in floating point.
+test('L1 Exit Ticket 3: T worked from the rounded root, as its steps say, is right in every version, and two hundredths off is not', () => {
+  const versions = versionsOf(compiledQuestion(L1, 'a2r1-dol-3'), 200);
+  assert.ok(versions.length >= 50, `${versions.length} versions`);
+  let roundingsDiffer = 0;
+  for (const version of versions) {
+    const length = Number(/pendulum (\d+) feet long/.exec(version.prompt)[1]);
+    const typedRoot = Number(Math.sqrt(length / 32).toFixed(3));
+    const key = keyed(version).period;
+    const period = (typed) => gradeMultiAnswerResponse(version, { ...keyed(version), root: String(typedRoot), period: typed })
+      .parts.find((part) => part.id === 'period')?.isCorrect === true;
+    const fromTypedRoot = (2 * Math.PI * typedRoot).toFixed(2);
+    if (Number(fromTypedRoot) !== Number(key)) roundingsDiffer += 1;
+    assert.equal(period(fromTypedRoot), true, `L = ${length}: ${fromTypedRoot}, 2π times ${typedRoot}, for the key ${key}`);
+    assert.equal(period(key), true, `L = ${length}: the key`);
+    assert.equal(period((Number(key) + 0.02).toFixed(2)), false, `L = ${length}: two hundredths over`);
+    assert.equal(period((Number(key) - 0.02).toFixed(2)), false, `L = ${length}: two hundredths under`);
+  }
+  assert.ok(roundingsDiffer > 0, 'some version rounds the two ways differently, so this can fail');
+});
+
+// L1 Warm-Up 2: "Write px^(2h) as the square of a monomial" keyed bxʰ, and
+// refused −bxʰ, whose square is the same (2026-11-06 re-walk). A cube has one
+// real base: (−cyᵏ)³ is −c³y³ᵏ, so the cube's box still refuses it.
+test('L1 Warm-Up 2: the square takes either base, bxʰ or −bxʰ, in every version, and the cube one', () => {
+  const versions = versionsOf(compiledQuestion(L1, 'a2r1-wu-2'), 400);
+  assert.ok(versions.length >= 100, `${versions.length} versions`);
+  for (const version of versions) {
+    const [, b, h] = /^(\d+)x\^(\d+)$/.exec(keyed(version).squareBase);
+    const [, c, k] = /^(\d+)y\^(\d+)$/.exec(keyed(version).cubeBase);
+    // As MathLive spells them.
+    assert.equal(takes(version, 'squareBase', `${b}x^{${h}}`), true, `${b}x^${h}`);
+    assert.equal(takes(version, 'squareBase', `-${b}x^{${h}}`), true, `-${b}x^${h}: its square is the same`);
+    assert.equal(takes(version, 'squareBase', `${b}x^{${2 * h}}`), false, 'the exponent not halved');
+    assert.equal(takes(version, 'squareBase', `-${b}x^{${2 * h}}`), false, 'the opposite with the exponent not halved');
+    assert.equal(takes(version, 'cubeBase', `${c}y^{${k}}`), true, `${c}y^${k}`);
+    assert.equal(takes(version, 'cubeBase', `-${c}y^{${k}}`), false, `-${c}y^${k}: its cube is negative`);
+  }
+});
+
 // A "radical form" box. CW 5 teaches b^(x/y) = ʸ√(bˣ) = (ʸ√b)ˣ, and the
 // simplest-form grader takes one root with the power under it, worked out when
 // it is a number: (∛V)² and ⁴√(2³) were refused with "take every perfect power
@@ -428,7 +472,7 @@ test('a "radical form" box says the power goes under the root, where the grader 
   };
   const checked = new Set();
   for (const file of [L1, L2, L3]) {
-    questionsOf(file).filter((question) => ['classwork', 'practice'].includes(question.sectionId) && question.type === 'multiAnswer').forEach((question) => {
+    questionsOf(file).filter((question) => question.type === 'multiAnswer').forEach((question) => {
       versionsOf(question, 40).forEach((version) => version.answerFields
         .filter((field) => field.gradingMode === 'simplestRadicalForm' && /radical form/i.test(field.label))
         .forEach((field) => {
@@ -457,7 +501,8 @@ test('a "radical form" box says the power goes under the root, where the grader 
         }));
     });
   }
-  assert.deepEqual([...checked].sort(), ['a2r3-p-15 radical', 'a2r3-p-3 radical', 'a2r3-p-7 radical', 'a2r3-p-9 product']);
+  // The Exit Ticket's one try too (2026-11-06 re-walk: L3 Exit Ticket 3).
+  assert.deepEqual([...checked].sort(), ['a2r3-dol-3 radical', 'a2r3-p-15 radical', 'a2r3-p-3 radical', 'a2r3-p-7 radical', 'a2r3-p-9 product']);
 });
 
 // A last hint that ends in the other notation. L2 CW 7's "⁶√(x²) = x^(2/6) =
@@ -554,44 +599,45 @@ test('L3 CW 9: the prompt asks for the numerator the boxes take, multiplied out'
 // What a worked solution writes, in every version (2026-11-06 walkthrough):
 // "(−3a^1b^4)³" and "6a²b¹" where an exponent drew 1, and "the 3th root" or
 // "the 2th root" where an index did. A simplified answer never shows a power of
-// 1, and these lessons grade simplest form. Classwork and Practice only: the
-// Warm-Up and Exit Ticket are not edited here, because Recovery binds to them
-// (docs/qa/2026-11-06-rewalk-changed-lessons/findings.md lists theirs).
-test('no Classwork or Practice text writes a power of 1 or a wrong ordinal, in any version', () => {
+// 1, and these lessons grade simplest form. Every section: the Warm-Up and Exit
+// Ticket copies the re-walk logged (L1 Exit Tickets 1 and 2, L2 Warm-Up 1 and
+// Exit Ticket 1, L3 Warm-Up 3's "the 3th power") are fixed too. A power of 1
+// that a step works out ("x^1 = x", L3 Warm-Up 3) is the point of the step.
+test('no text writes a power of 1 or a wrong ordinal, in any version of any section', () => {
   const wrongOrdinal = (text) => [...String(text).matchAll(/\b(\d+)th\b/g)].map(([, digits]) => Number(digits))
     .some((value) => [1, 2, 3].includes(value % 10) && ![11, 12, 13].includes(value % 100));
   const problems = new Set();
-  let versionsRead = 0;
+  const versionsRead = { warmup: 0, classwork: 0, practice: 0, dol: 0 };
   for (const file of [L1, L2, L3]) {
-    questionsOf(file).filter((question) => ['classwork', 'practice'].includes(question.sectionId)).forEach((question) => versionsOf(question, 400).forEach((version) => {
-      versionsRead += 1;
+    questionsOf(file).forEach((question) => versionsOf(question, 400).forEach((version) => {
+      versionsRead[question.sectionId] += 1;
       const review = version.solutionReview || {};
       const texts = [version.prompt, ...(version.answerFields || []).map((field) => field.label), ...authoredHintTexts(version),
         review.headline, ...(review.reasoning || []), review.answerSummary, review.commonError].filter(Boolean).map(String);
       texts.forEach((text) => {
-        if (/[A-Za-z]\^1(?![0-9./])|[A-Za-z]¹(?![⁰¹²³⁴⁵⁶⁷⁸⁹])/.test(text)) problems.add(`${version.questionId}: a power of 1 in "${text}"`);
+        if (/([A-Za-z])\^1(?![0-9./])(?!\s*=\s*\1(?![\w^]))|[A-Za-z]¹(?![⁰¹²³⁴⁵⁶⁷⁸⁹])/.test(text)) problems.add(`${version.questionId}: a power of 1 in "${text}"`);
         if (wrongOrdinal(text)) problems.add(`${version.questionId}: a wrong ordinal in "${text}"`);
       });
     }));
   }
   assert.deepEqual([...problems], []);
-  assert.ok(versionsRead >= 1000, `${versionsRead} versions read`);
+  assert.ok(versionsRead.classwork + versionsRead.practice >= 1000, `${JSON.stringify(versionsRead)} versions read`);
+  assert.ok(versionsRead.warmup >= 400 && versionsRead.dol >= 400, `${JSON.stringify(versionsRead)} versions read`);
 });
 
-// Every typed Classwork and Practice answer is a math box. The box chooser
-// reads a key with no sign it knows (27x, 7i, 2T, 48a) as words, and drew a
-// plain text box among math boxes: no math keypad, the phone's letter
-// keyboard, and a tell that the answer has no radical (2026-11-06
-// walkthrough; the CT04 fix, as the Check Your Progress boxes have it). The
-// Warm-Up's 8x is logged, not edited.
-test('every typed Classwork and Practice answer is a math box', async () => {
+// Every typed answer is a math box. The box chooser reads a key with no sign
+// it knows (27x, 7i, 2T, 48a) as words, and drew a plain text box among math
+// boxes: no math keypad, the phone's letter keyboard, and a tell that the
+// answer has no radical (2026-11-06 walkthrough; the CT04 fix, as the Check
+// Your Progress boxes have it). Every section: L2 Warm-Up 2's 8x was the last.
+test('every typed answer, in every section, is a math box', async () => {
   const { createServer } = await import('vite');
   const server = await createServer({ server: { middlewareMode: true, ws: false, hmr: false, watch: null }, appType: 'custom', logLevel: 'silent' });
   try {
     const { default: MultiAnswerGrader } = await server.ssrLoadModule('/src/MultiAnswerGrader.jsx');
     let boxes = 0;
     for (const file of [L1, L2, L3]) {
-      for (const question of questionsOf(file).filter((candidate) => ['classwork', 'practice'].includes(candidate.sectionId) && candidate.type === 'multiAnswer')) {
+      for (const question of questionsOf(file).filter((candidate) => candidate.type === 'multiAnswer')) {
         const [version] = versionsOf(question, 1);
         const typed = version.answerFields.filter((field) => field.type !== 'choice');
         if (!typed.length) continue;

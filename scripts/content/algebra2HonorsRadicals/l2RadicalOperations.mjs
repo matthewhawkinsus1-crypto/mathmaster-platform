@@ -55,8 +55,8 @@ const warmup = [
     guidedNotes: guidedNotes(['Odd index', 'An odd root keeps the sign: ∛(−8) = −2.']),
     solutionReview: review(
       'Write a cube; the odd root keeps the sign.',
-      ['−{{c3}}a^{{e1}}y^{{e2}} = (−{{c}}a^{{j}}y^{{k}})³.', 'So the cube root is −{{c}}a^{{j}}y^{{k}}.'],
-      '−{{c}}a^{{j}}y^{{k}}',
+      ['−{{c3}}a^{{e1}}y^{{e2}} = (−{{c}}a{{j|pow}}y{{k|pow}})³.', 'So the cube root is −{{c}}a{{j|pow}}y{{k|pow}}.'],
+      '−{{c}}a{{j|pow}}y{{k|pow}}',
       'Writing the cube root of the coefficient as a third of it.',
     ),
     generator: {
@@ -75,7 +75,9 @@ const warmup = [
     prompt: tex`Like terms become like radicals. Combine like terms in $ {{a}}x - {{b}}x + {{c}}x $. Then combine $ {{d}}\sqrt{ {{k}} } + {{e}}\sqrt{ {{k}} } $ the same way.`,
     directionSteps: ['Combine the like terms in the first expression.', 'Combine the radicals in the second expression the same way.'],
     responses: [
-      expression('terms', '{{a}}x − {{b}}x + {{c}}x =', '{{t}}x'),
+      // A math box, as its neighbour is: the box chooser reads a key with no
+      // sign it knows (8x) as words, and drew a plain text box.
+      expression('terms', '{{a}}x − {{b}}x + {{c}}x =', '{{t}}x', { type: 'math' }),
       simplest('radicals', '{{d}}√{{k}} + {{e}}√{{k}} =', '{{de}}√{{k}}'),
     ],
     hints: [
@@ -965,8 +967,8 @@ const dol = [
     ],
     solutionReview: review(
       'Perfect square out, the rest in.',
-      ['{{R}}x^{{e1}}y^{{e2}} = {{s2}}x^{{e1}}y^{{f}} · {{k}}y.', 'So the root is {{s}}x^{{m}}y^{{n}}√({{k}}y).'],
-      '{{s}}x^{{m}}y^{{n}}√({{k}}y)',
+      ['{{R}}x^{{e1}}y^{{e2}} = {{s2}}x^{{e1}}y^{{f}} · {{k}}y.', 'So the root is {{s}}x{{m|pow}}y{{n|pow}}√({{k}}y).'],
+      '{{s}}x{{m|pow}}y{{n|pow}}√({{k}}y)',
       'Leaving an even power of y under the radical.',
     ),
     generator: {

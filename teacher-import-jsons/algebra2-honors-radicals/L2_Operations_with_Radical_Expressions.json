@@ -89,10 +89,10 @@
           "solutionReview": {
             "headline": "Write a cube; the odd root keeps the sign.",
             "reasoning": [
-              "−{{c3}}a^{{e1}}y^{{e2}} = (−{{c}}a^{{j}}y^{{k}})³.",
-              "So the cube root is −{{c}}a^{{j}}y^{{k}}."
+              "−{{c3}}a^{{e1}}y^{{e2}} = (−{{c}}a{{j|pow}}y{{k|pow}})³.",
+              "So the cube root is −{{c}}a{{j|pow}}y{{k|pow}}."
             ],
-            "answerSummary": "−{{c}}a^{{j}}y^{{k}}",
+            "answerSummary": "−{{c}}a{{j|pow}}y{{k|pow}}",
             "commonError": "Writing the cube root of the coefficient as a third of it."
           },
           "generator": {
@@ -156,7 +156,8 @@
               "id": "terms",
               "label": "{{a}}x − {{b}}x + {{c}}x =",
               "answer": "{{t}}x",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "radicals",
@@ -2987,9 +2988,9 @@
             "headline": "Perfect square out, the rest in.",
             "reasoning": [
               "{{R}}x^{{e1}}y^{{e2}} = {{s2}}x^{{e1}}y^{{f}} · {{k}}y.",
-              "So the root is {{s}}x^{{m}}y^{{n}}√({{k}}y)."
+              "So the root is {{s}}x{{m|pow}}y{{n|pow}}√({{k}}y)."
             ],
-            "answerSummary": "{{s}}x^{{m}}y^{{n}}√({{k}}y)",
+            "answerSummary": "{{s}}x{{m|pow}}y{{n|pow}}√({{k}}y)",
             "commonError": "Leaving an even power of y under the radical."
           },
           "generator": {

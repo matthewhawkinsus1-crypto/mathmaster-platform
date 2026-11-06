@@ -348,7 +348,7 @@
           "solutionReview": {
             "headline": "A power that undoes the nth power is the nth root.",
             "reasoning": [
-              "(x^(1/{{n}}))^{{n}} = x^1 = x, so x^(1/{{n}}) is a number whose {{n}}th power is x.",
+              "(x^(1/{{n}}))^{{n}} = x^1 = x, so x^(1/{{n}}) is a number that gives x when it is raised to the power {{n}}.",
               "{{c}}^{{n}} = {{p}}, so {{p}}^(1/{{n}}) = {{c}}.",
               "So b^(1/n) = ⁿ√b."
             ],
@@ -3146,7 +3146,7 @@
             },
             {
               "id": "radical",
-              "label": "In radical form",
+              "label": "In radical form, with the power under the root",
               "answer": "root({{n}})(x^{{s}})",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"

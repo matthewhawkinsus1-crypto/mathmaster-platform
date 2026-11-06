@@ -106,7 +106,9 @@ const warmup = [
       'Write the second expression as the cube of a monomial.',
     ],
     responses: [
-      expression('squareBase', '{{p}}x^{{e2}} = ( ? )²', '{{b}}x^{{h}}'),
+      // Its opposite has the same square, (−bxʰ)² = b²x²ʰ, and was refused
+      // (2026-11-06 re-walk). A cube has one real base, so cubeBase keeps one.
+      expression('squareBase', '{{p}}x^{{e2}} = ( ? )²', '{{b}}x^{{h}}', { acceptedAnswers: ['-{{b}}x^{{h}}'] }),
       expression('cubeBase', '{{q}}y^{{e3}} = ( ? )³', '{{c}}y^{{k}}'),
     ],
     hints: [
@@ -1251,9 +1253,9 @@ const dol = [
     misconceptions: [slip('simplified', '{{d}}x{{m|pow}}y^{{k}}', BARS('x'))],
     solutionReview: review(
       'An even index: bars around any factor that can be negative.',
-      ['{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{k}})^{{n}}.', 'The index {{n}} is even, so the root is |{{d}}x^{{m}}y^{{k}}| = {{d}}|x^{{m}}|y^{{k}}.'],
-      '{{d}}|x^{{m}}|y^{{k}}',
-      'Leaving off the bars around x^{{m}}: it is negative when x is.',
+      ['{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x{{m|pow}}y^{{k}})^{{n}}.', 'The index {{n}} is even, so the root is |{{d}}x{{m|pow}}y^{{k}}| = {{d}}|x{{m|pow}}|y^{{k}}.'],
+      '{{d}}|x{{m|pow}}|y^{{k}}',
+      'Leaving off the bars around x{{m|pow}}: it is negative when x is.',
     ),
     // A fourth root, as in the practice item it mirrors (PR 3): a sixth root
     // made the one try range from 16x⁴y⁸ to 4096x³⁰y²⁴ (F-L1-EXIT-SPREAD).
@@ -1278,8 +1280,8 @@ const dol = [
     ],
     solutionReview: review(
       'An odd index keeps the sign.',
-      ['−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{k}})^{{n}}.', 'The index {{n}} is odd, so the root is −{{c}}a^{{m}}b^{{k}}.'],
-      '−{{c}}a^{{m}}b^{{k}}',
+      ['−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a{{m|pow}}b{{k|pow}})^{{n}}.', 'The index {{n}} is odd, so the root is −{{c}}a{{m|pow}}b{{k|pow}}.'],
+      '−{{c}}a{{m|pow}}b{{k|pow}}',
       'Calling an odd root of a negative number not real.',
     ),
     generator: {
@@ -1300,9 +1302,14 @@ const dol = [
     // No mathematics the prompt does not write the same way: the chunker
     // refuses a step with a new expression ("2π" against the prompt's 2\pi).
     directionSteps: ['Substitute the pendulum’s length into the formula.', 'Evaluate the square root with a calculator.', 'Multiply that result by the number in front of the square root.'],
+    // The key multiplies the exact root. T worked from the rounded root, as the
+    // steps say, lands one hundredth away in a version (L = 49: 2π · 1.237 =
+    // 7.77 for 7.78), and a tolerance of exactly 0.01 refused that in floating
+    // point (2026-11-06 re-walk). 0.015 is one hundredth either way, never two,
+    // as PR 10's 0.15 is for tenths.
     responses: [
       number('root', '√(L/32) ≈ (nearest thousandth)', '{{root}}', { numericTolerance: 0.001 }),
-      number('period', 'T ≈ (seconds, nearest hundredth)', '{{T}}', { numericTolerance: 0.01 }),
+      number('period', 'T ≈ (seconds, nearest hundredth)', '{{T}}', { numericTolerance: 0.015 }),
     ],
     solutionReview: review(
       'Evaluate the radical, then multiply.',

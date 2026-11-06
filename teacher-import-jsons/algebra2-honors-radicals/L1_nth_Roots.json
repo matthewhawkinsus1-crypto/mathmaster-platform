@@ -215,7 +215,10 @@
               "id": "squareBase",
               "label": "{{p}}x^{{e2}} = ( ? )²",
               "answer": "{{b}}x^{{h}}",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "acceptedAnswers": [
+                "-{{b}}x^{{h}}"
+              ]
             },
             {
               "id": "cubeBase",
@@ -3386,11 +3389,11 @@
           "solutionReview": {
             "headline": "An even index: bars around any factor that can be negative.",
             "reasoning": [
-              "{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{k}})^{{n}}.",
-              "The index {{n}} is even, so the root is |{{d}}x^{{m}}y^{{k}}| = {{d}}|x^{{m}}|y^{{k}}."
+              "{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x{{m|pow}}y^{{k}})^{{n}}.",
+              "The index {{n}} is even, so the root is |{{d}}x{{m|pow}}y^{{k}}| = {{d}}|x{{m|pow}}|y^{{k}}."
             ],
-            "answerSummary": "{{d}}|x^{{m}}|y^{{k}}",
-            "commonError": "Leaving off the bars around x^{{m}}: it is negative when x is."
+            "answerSummary": "{{d}}|x{{m|pow}}|y^{{k}}",
+            "commonError": "Leaving off the bars around x{{m|pow}}: it is negative when x is."
           },
           "generator": {
             "parameters": {
@@ -3473,10 +3476,10 @@
           "solutionReview": {
             "headline": "An odd index keeps the sign.",
             "reasoning": [
-              "−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{k}})^{{n}}.",
-              "The index {{n}} is odd, so the root is −{{c}}a^{{m}}b^{{k}}."
+              "−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a{{m|pow}}b{{k|pow}})^{{n}}.",
+              "The index {{n}} is odd, so the root is −{{c}}a{{m|pow}}b{{k|pow}}."
             ],
-            "answerSummary": "−{{c}}a^{{m}}b^{{k}}",
+            "answerSummary": "−{{c}}a{{m|pow}}b{{k|pow}}",
             "commonError": "Calling an odd root of a negative number not real."
           },
           "generator": {
@@ -3557,7 +3560,7 @@
               "label": "T ≈ (seconds, nearest hundredth)",
               "answer": "{{T}}",
               "inputProfile": "number",
-              "numericTolerance": 0.01
+              "numericTolerance": 0.015
             }
           ],
           "solutionReview": {

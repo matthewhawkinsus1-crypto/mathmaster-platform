@@ -126,7 +126,7 @@ const warmup = [
     guidedNotes: guidedNotes(['b^(1/n)', 'For any real b and positive integer n, b^(1/n) = ⁿ√b, except when b < 0 and n is even. 27^(1/3) = ∛27 = 3.']),
     solutionReview: review(
       'A power that undoes the nth power is the nth root.',
-      ['(x^(1/{{n}}))^{{n}} = x^1 = x, so x^(1/{{n}}) is a number whose {{n}}th power is x.', '{{c}}^{{n}} = {{p}}, so {{p}}^(1/{{n}}) = {{c}}.', 'So b^(1/n) = ⁿ√b.'],
+      ['(x^(1/{{n}}))^{{n}} = x^1 = x, so x^(1/{{n}}) is a number that gives x when it is raised to the power {{n}}.', '{{c}}^{{n}} = {{p}}, so {{p}}^(1/{{n}}) = {{c}}.', 'So b^(1/n) = ⁿ√b.'],
       '1; {{c}}; b^(1/n) = ⁿ√b',
       'Reading b^(1/n) as b ÷ n.',
     ),
@@ -958,7 +958,8 @@ const dol = [
     directionSteps: ['Add the exponents.', 'Write the power in radical form.'],
     responses: [
       simplest('power', 'As one power of x', 'x^({{s}}/{{n}})'),
-      simplest('radical', 'In radical form', 'root({{n}})(x^{{s}})'),
+      // "In radical form" alone allowed (ⁿ√x)ˢ, which the box refuses (RADICAL_FORM).
+      simplest('radical', `In radical form, ${RADICAL_FORM}`, 'root({{n}})(x^{{s}})'),
     ],
     solutionReview: review(
       'Add the exponents; the denominator is the index.',
