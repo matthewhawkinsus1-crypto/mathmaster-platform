@@ -2030,7 +2030,10 @@ const characteristicsWork = (spec, group, stage) => {
     const parts = group === 'domain' ? domainOf(spec) : rangeOf(spec);
     const notation = text(stage?.notation) || 'inequality';
     const shown = notation === 'interval' ? showIntervals(parts) : showInequality(parts, group === 'domain' ? 'x' : 'y');
-    if (group === 'range') return [rangeStep(spec, shown), `range ${shown}`];
+    // A graph on the whole real line is read from its vertex and its ends, not
+    // from end dots it does not have.
+    if (group === 'range') return [(!isRestricted(spec) && rangeSentence(spec, shown)) || rangeStep(spec, shown), `range ${shown}`];
+    if (!isRestricted(spec)) return [domainSentence(spec, shown), `domain ${shown}`];
     return [`Domain: the graph is drawn from x = ${dec(spec.domain?.min)} to x = ${dec(spec.domain?.max)} with closed dots, so the domain is ${shown}.`, `domain ${shown}`];
   }
   return null;
@@ -2038,11 +2041,22 @@ const characteristicsWork = (spec, group, stage) => {
 
 const CHARACTERISTIC_GROUPS = Object.freeze(['xIntercept', 'yIntercept', 'extreme', 'axis', 'asymptote', 'behavior', 'domain', 'range']);
 
+/* Whether the graph takes every real number as an input: its domain is (−∞, ∞). */
+const wholeLine = (spec) => domainOf(spec).length === 1 && domainOf(spec)[0].lo === -Infinity && domainOf(spec)[0].hi === Infinity;
+
 const characteristicsSibling = (question, model, guard, seed) => {
-  const groups = model.groups.filter((group) => CHARACTERISTIC_GROUPS.includes(group));
-  if (!groups.length || model.groups.some((group) => !CHARACTERISTIC_GROUPS.includes(group))) return null;
+  if (!model.groups.length || model.groups.some((group) => !CHARACTERISTIC_GROUPS.includes(group))) return null;
   const type = specType(model.spec);
-  const restricted = groups.includes('domain') || groups.includes('range');
+  // A domain or range is read on a graph drawn on a closed interval — unless
+  // the item's own graph is on the whole real line: then so is the sibling's.
+  // The DOL #2 review's CW 1 and PR 1 read a V on the whole real line and
+  // practised one on [−2, 7], a harder reading than the item asks for
+  // (2026-11-06 walkthrough). There the domain is (−∞, ∞) for every graph of
+  // the family — the item's own answer — so the sibling leaves that one
+  // question to the item.
+  const restricted = isRestricted(model.spec) && (model.groups.includes('domain') || model.groups.includes('range'));
+  const groups = model.groups.filter((group) => restricted || group !== 'domain' || !wholeLine(model.spec));
+  if (!groups.length) return null;
   // A y-intercept the sibling states must be exact: ∛(-2) + 1 is not
   // "-0.259921", so a candidate whose f(0) is not whole is skipped.
   const candidates = siblingSpecs(type, { restricted, decay: baseOf(model.spec) < 1 })

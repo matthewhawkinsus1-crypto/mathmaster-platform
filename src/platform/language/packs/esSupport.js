@@ -737,6 +737,10 @@ const workedExamplePrompts = [
   ['Describe the x-intercepts, the y-intercept and how the graph behaves from left to right.', 'Describe las intersecciones con el eje x, la intersección con el eje y y cómo se comporta la gráfica de izquierda a derecha.'],
   ['Describe the x-intercepts, the y-intercept, how the graph behaves from left to right, the domain and the range.', 'Describe las intersecciones con el eje x, la intersección con el eje y, cómo se comporta la gráfica de izquierda a derecha, el dominio y el rango.'],
   ['Describe the x-intercepts, the y-intercept, the turning point, the axis of symmetry and how the graph behaves from left to right.', 'Describe las intersecciones con el eje x, la intersección con el eje y, el punto de giro, el eje de simetría y cómo se comporta la gráfica de izquierda a derecha.'],
+  // A graph on the whole real line, as the item's is: its domain is the item's
+  // own answer, so only the range is asked (functionFeatures.js, characteristicsSibling).
+  ['Describe the x-intercepts, the y-intercept, the turning point, the axis of symmetry, how the graph behaves from left to right and the range.', 'Describe las intersecciones con el eje x, la intersección con el eje y, el punto de giro, el eje de simetría, cómo se comporta la gráfica de izquierda a derecha y el rango.'],
+  ['Describe the range.', 'Describe el rango.'],
   ['Describe the x-intercepts, the y-intercept, the asymptote and how the graph behaves from left to right.', 'Describe las intersecciones con el eje x, la intersección con el eje y, la asíntota y cómo se comporta la gráfica de izquierda a derecha.'],
   ['The graph of {1} runs through {2}, {3}, {4}, in that order.', 'La gráfica de {1} pasa por {2}, {3}, {4}, en ese orden.'],
   ['Draw {1} by transforming each defining point.', 'Dibuja {1} transformando cada punto que la define.'],
@@ -846,6 +850,9 @@ const workedExampleAnswers = [
   ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}; rises everywhere; domain {4}; range {5}', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}; sube en todo su recorrido; dominio {4}; rango {5}'],
   ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; highest point {6}; axis {7}; rises, then falls', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más alto {6}; eje {7}; sube y luego baja'],
   ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; lowest point {6}; axis {7}; falls, then rises', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más bajo {6}; eje {7}; baja y luego sube'],
+  ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; highest point {6}; axis {7}; rises, then falls; range {8}', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más alto {6}; eje {7}; sube y luego baja; rango {8}'],
+  ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; lowest point {6}; axis {7}; falls, then rises; range {8}', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más bajo {6}; eje {7}; baja y luego sube; rango {8}'],
+  ['Answer: range {1}', 'Respuesta: rango {1}'],
   ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}; asymptote {4}; falls everywhere', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}; asíntota {4}; baja en todo su recorrido'],
   ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}; asymptote {4}; rises everywhere', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}; asíntota {4}; sube en todo su recorrido'],
   ['Answer: separate points; domain {{1}, {2}, {3}, ..., {4}}; range {{5}, {6}, {7}, ..., {8}}', 'Respuesta: puntos separados; dominio {{1}, {2}, {3}, ..., {4}}; rango {{5}, {6}, {7}, ..., {8}}'],
@@ -934,6 +941,12 @@ const workedExampleSteps = [
   ['Behavior: reading left to right, it rises the whole way.', 'Comportamiento: leyendo de izquierda a derecha, sube en todo su recorrido.'],
   ['{1} is in vertex form {2} with {3}, {4} and {5}: its vertex is {6} and it opens downward.', '{1} está en la forma de vértice {2} con {3}, {4} y {5}: su vértice es {6} y abre hacia abajo.'],
   ['Range: check the ends and the vertex: {1}, {2} at the vertex and {3}.', 'Rango: revisa los extremos y el vértice: {1}, {2} en el vértice y {3}.'],
+  // The range of a graph on the whole real line, read from its vertex or its asymptote.
+  ['Range: the vertex {1} is the highest point and the {2} keeps falling on both sides of it, so the range is {3}.', 'Rango: el vértice {1} es el punto más alto y la {2} sigue bajando a los dos lados, así que el rango es {3}.'],
+  ['Range: the vertex {1} is the lowest point and the {2} keeps rising on both sides of it, so the range is {3}.', 'Rango: el vértice {1} es el punto más bajo y la {2} sigue subiendo a los dos lados, así que el rango es {3}.'],
+  ['Range: the vertex {1} is the highest point and the parabola keeps falling on both sides of it, so the range is {2}.', 'Rango: el vértice {1} es el punto más alto y la parábola sigue bajando a los dos lados, así que el rango es {2}.'],
+  ['Range: the vertex {1} is the lowest point and the parabola keeps rising on both sides of it, so the range is {2}.', 'Rango: el vértice {1} es el punto más bajo y la parábola sigue subiendo a los dos lados, así que el rango es {2}.'],
+  ['Range: the outputs get closer and closer to the asymptote {1} without reaching it, and move away from it without end on the other side, so the range is {2}.', 'Rango: las salidas se acercan cada vez más a la asíntota {1} sin alcanzarla, y se alejan de ella sin fin del otro lado, así que el rango es {2}.'],
   ['{1} is in vertex form {2} with {3}, {4} and {5}: its vertex is {6} and it opens upward.', '{1} está en la forma de vértice {2} con {3}, {4} y {5}: su vértice es {6} y abre hacia arriba.'],
   ['x-intercepts: solving {1} gives {2} or {3}, so the graph meets the x-axis at {4} and {5} and the zeros are {{6}, {7}}.', 'Intersecciones con el eje x: al resolver {1} se obtiene {2} o {3}, así que la gráfica toca el eje x en {4} y {5} y los ceros son {{6}, {7}}.'],
   ['Turning point: the vertex {1} is the highest point of the graph.', 'Punto de giro: el vértice {1} es el punto más alto de la gráfica.'],

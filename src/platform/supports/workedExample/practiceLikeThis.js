@@ -248,6 +248,13 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
   // value ("≥ 3") below, it was words, and a sibling inequality was never
   // checked.
   if (SOLVED_INEQUALITY.test(raw)) return { id, label: null, expected: raw, kind: 'value', checkable: valueCheckable(raw) };
+  // The same after a label, "range y ≥ -12": the label's words, then the
+  // inequality (read as below, the label swallowed the y and it was words).
+  const labelledInequality = /^([A-Za-z][A-Za-z-]*(?:\s+[A-Za-z][A-Za-z-]*)*?)\s*:?\s+([A-Za-z]\s*(?:<=|>=|[<>≤≥]).*)$/.exec(raw);
+  if (labelledInequality && SOLVED_INEQUALITY.test(text(labelledInequality[2]))) {
+    const value = text(labelledInequality[2]);
+    return { id, label: capitalise(labelledInequality[1]), expected: value, kind: 'value', checkable: valueCheckable(value) };
+  }
 
   // A label, then a value: "domain [-1, 4]", "Horizontal: 6 units left".
   const labelled = /^([A-Za-z][A-Za-z-]*(?:\s+[A-Za-z][A-Za-z-]*)*)\s*:?\s+(.+)$/.exec(raw);
@@ -796,6 +803,16 @@ export const checkPracticePart = (part, response) => {
   // the other way. Compared once rewritten; a mismatch is then a real one.
   const rewritten = intervalAsInequality(answer, expected) || inequalityAsInterval(answer, expected);
   if (rewritten) return safely(() => compareMathAnswer(rewritten, expected)) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  // A ray for a one-sided inequality, or the other way round: [-12, ∞) is
+  // y ≥ -12 and (-∞, 6] is y ≤ 6 (a range on the whole real line). The
+  // variable is the key's, else the box's (a range is in y), else the student's.
+  const variable = text(expected).match(/^([A-Za-z])\s*(?:<=|>=|[<>≤≥])/)?.[1]
+    || (/^range\b/i.test(text(part.label)) ? 'y' : /^domain\b/i.test(text(part.label)) ? 'x' : null)
+    || typedPlain(answer).match(/^([A-Za-z])\s*(?:\\[lg]eq?|\\[lg]t|<=|>=|[<>≤≥])/)?.[1];
+  const keyRay = variable && rayAsInequality(expected, variable);
+  if (keyRay) return safely(() => compareMathAnswer(answer, keyRay)) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  const typedRay = variable && SOLVED_INEQUALITY.test(text(expected)) && rayAsInequality(typedPlain(answer), variable);
+  if (typedRay) return safely(() => compareMathAnswer(typedRay, expected)) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
   // A number, pair, set, interval or inequality: the matcher already reads
   // every way of writing one, so a mismatch is a different answer.
   return PRACTICE_VERDICT.INCORRECT;
@@ -812,6 +829,20 @@ const intervalAsInequality = (typed, expected) => {
   if (!key || !interval) return null;
   const [, open, low, high, close] = interval;
   return `${low} ${open === '(' ? '<' : '≤'} ${key[3]} ${close === ')' ? '<' : '≤'} ${high}`;
+};
+
+// One end infinite: "(-∞, 6]", "[-12, ∞)", or as MathLive writes them.
+const INFINITE = '(?:\\\\infty|∞|inf(?:inity)?)';
+const RAY = new RegExp(`^\\s*(?:\\\\left)?\\s*(\\[|\\(|\\\\lbrack)\\s*(?:(-\\s*${INFINITE})|([-−]?[\\d.]+(?:\\/\\d+)?))\\s*,\\s*(?:(\\+?\\s*${INFINITE})|([-−]?[\\d.]+(?:\\/\\d+)?))\\s*(?:\\\\right)?\\s*(\\]|\\)|\\\\rbrack)\\s*$`);
+
+/** A ray as the one-sided inequality in `variable` it is ("(-∞, 6]" → "y ≤ 6"), or null. */
+const rayAsInequality = (value, variable) => {
+  const match = RAY.exec(text(value).replace(/−/g, '-'));
+  if (!match) return null;
+  const [, open, lowInfinite, low, highInfinite, high, close] = match;
+  if (lowInfinite && high !== undefined) return `${variable} ${close === ')' ? '<' : '≤'} ${high}`;
+  if (highInfinite && low !== undefined) return `${variable} ${open === '(' ? '>' : '≥'} ${low}`;
+  return null;
 };
 
 /** A typed compound inequality as the interval the key is written as, or null. */
