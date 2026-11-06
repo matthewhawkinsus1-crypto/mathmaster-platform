@@ -238,3 +238,29 @@ test('on an Exit Ticket nothing is said while its outcome is withheld; its Pract
     assert.equal(relationOf(slip.match[0]) !== relationOf(field(version, slip.field).answer), true, 'a symbol slip');
   });
 });
+
+/*
+ * A slip names a wrong answer. L5 PR 7 asked to "change only the second symbol
+ * so that its boundary is included and (3, 2) becomes a solution": y ≥ 2x − 4
+ * does both, but the key is y ≤ 2x − 4 and a slip called y ≥ 2x − 4 turned
+ * round (2026-11-06 walkthrough). The prompt names the condition the key
+ * keeps, the side the inequality shades, so the symbols that meet the prompt
+ * are exactly the symbols the box takes.
+ */
+test('L5 PR 7: the symbols the prompt allows are the symbols the box takes', () => {
+  const items = allQuestions().filter((question) => /^m3t2l5h?-p-7$/.test(question.questionId));
+  assert.equal(items.length, 2, 'the regular and the Honors item');
+  items.forEach((question) => {
+    const box = field(question, 'fixed');
+    const keepsTheSide = /keeping the side it shades/.test(question.prompt);
+    const point = { x: 3, y: 2 };
+    ['<', '<=', '>', '>='].forEach((relation) => {
+      const candidate = `y ${relation} 2x - 4`;
+      const bound = 2 * point.x - 4;
+      const solves = { '<': point.y < bound, '<=': point.y <= bound, '>': point.y > bound, '>=': point.y >= bound }[relation];
+      // The system's second inequality, y < 2x − 4, shades below its line.
+      const meets = relation.includes('=') && solves && (!keepsTheSide || relation.startsWith('<'));
+      assert.equal(matchesFieldAnswer(candidate, box), meets, `${question.questionId}: ${candidate} ${meets ? 'meets' : 'does not meet'} the prompt`);
+    });
+  });
+});

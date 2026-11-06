@@ -913,8 +913,11 @@ const practiceRegular = (P) => [
     studentActions: ['multipleResponses'],
     dok: 3,
     difficultyBand: 3,
-    prompt: 'Error analysis. For the system y ≥ x − 1 and y < 2x − 4, Jordan says (3, 2) is a solution "because it is where the two boundary lines cross." Decide which inequalities (3, 2) makes true and whether Jordan is right. Then change only the second symbol so that its boundary is included and (3, 2) becomes a solution.',
-    directionSteps: ['Substitute (3, 2) into each inequality.', 'Decide whether Jordan is right.', 'Change the second symbol so its boundary is included.'],
+    // "Keeping the side it shades": y ≥ 2x − 4 also includes the boundary and
+    // makes (3, 2) a solution, so without it the prompt allowed an answer the
+    // key refuses and the slip below calls turned round.
+    prompt: 'Error analysis. For the system y ≥ x − 1 and y < 2x − 4, Jordan says (3, 2) is a solution "because it is where the two boundary lines cross." Decide which inequalities (3, 2) makes true and whether Jordan is right. Then change only the second symbol, keeping the side it shades, so that its boundary is included and (3, 2) becomes a solution.',
+    directionSteps: ['Substitute (3, 2) into each inequality.', 'Decide whether Jordan is right.', 'Change the second symbol so its boundary is included, keeping the side it shades.'],
     responses: [
       choice('which', 'Which inequalities does (3, 2) make true?', ['only y ≥ x − 1', 'only y < 2x − 4', 'both', 'neither'], 'only y ≥ x − 1'),
       choice('jordan', 'Is Jordan right?', [
