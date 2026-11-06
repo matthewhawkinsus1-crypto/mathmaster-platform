@@ -46,6 +46,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AXE_PATH, settleForAudit } from './accessibilityAudit.mjs';
 import { CERTIFIED_SCREENS, VIEWPORTS, newScreenContext, sceneLabel, sceneScope } from './accessibilityCertification.mjs';
+import { backgroundLayersInPage } from './support/backgroundLayers.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -103,7 +104,6 @@ const collectInPage = async ({ include, exclude }) => {
     return stops.filter(Boolean);
   };
   const hasUrlImage = (image) => /url\(/.test(image || '');
-  const over = ([r, g, b, a], [br, bg, bb]) => [r * a + br * (1 - a), g * a + bg * (1 - a), b * a + bb * (1 - a)];
 
   const idOf = (el) => {
     const bits = [];
@@ -158,24 +158,23 @@ const collectInPage = async ({ include, exclude }) => {
       const layers = [];
       const bg = parse(s.backgroundColor);
       if (bg && bg[3] > 0 && !(node === el && gradientText.length)) layers.push([bg]);
-      const stops = node === el && gradientText.length ? [] : gradientStops(s.backgroundImage);
-      if (stops.length) { layers.push(stops); notes.add('gradient'); }
+      // Each background image is a layer of its own, the first painted on top
+      // (support/backgroundLayers.mjs): a transparent stop shows what is under
+      // that image, not the page.
+      const images = node === el && gradientText.length ? [] : window.__crLayers.gradientLayers(s.backgroundImage);
+      for (const stopsOfLayer of [...images].reverse()) {
+        if (!stopsOfLayer.length) continue;
+        layers.push(stopsOfLayer);
+        notes.add('gradient');
+      }
       if (hasUrlImage(s.backgroundImage)) notes.add('image');
       for (const pseudo of ['::before', '::after']) {
         const p = getComputedStyle(node, pseudo);
         if (p.content && p.content !== 'none' && (parse(p.backgroundColor)?.[3] > 0 || gradientStops(p.backgroundImage).length)) notes.add(`pseudo ${pseudo}`);
       }
       if (s.mixBlendMode !== 'normal' || (s.filter && s.filter !== 'none') || (s.backdropFilter && s.backdropFilter !== 'none')) notes.add('blend/filter');
-      for (const stopsOfLayer of layers) {
-        const next = [];
-        for (const beneath of candidates) {
-          for (const stop of stopsOfLayer) next.push(over(stop, beneath));
-        }
-        // Keep the distinct candidates (rounded), bounded.
-        const seen = new Map();
-        for (const c of next) seen.set(c.map((v) => Math.round(v)).join(','), c.map((v) => Math.round(v)));
-        candidates = [...seen.values()].slice(0, 400);
-      }
+      // Keep the distinct candidates (rounded), bounded.
+      candidates = window.__crLayers.compositeLayers(candidates, layers);
       const opacity = Number(s.opacity);
       if (layers.some((l) => l.every((stop) => stop[3] >= 1))) fade = 1;
       if (opacity < 1) { fade *= opacity; notes.add(`opacity ${opacity}`); }
@@ -392,6 +391,7 @@ const main = async () => {
         if (!(await page.evaluate(() => typeof window.axe?.run === 'function'))) await page.addScriptTag({ path: AXE_PATH });
         const asList = (v) => (v == null ? [] : (Array.isArray(v) ? v : [v]));
         const scope = sceneScope(screen, scene);
+        await page.evaluate(backgroundLayersInPage);
         const described = await page.evaluate(collectInPage, { include: asList(scope.include), exclude: asList(scope.exclude) });
         for (const info of described) {
           // eslint-disable-next-line no-await-in-loop

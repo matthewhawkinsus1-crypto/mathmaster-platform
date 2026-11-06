@@ -38,6 +38,7 @@ export const CI_AREAS = {
     'tests/browser/recoveryDiscovery*',
     'scripts/codemods/**',
     'tests/browser/contrastReview*',
+    'tests/browser/support/backgroundLayers*',
     'tests/browser/toolKeyboard*',
     'tests/browser/liveChallengeChoiceKeyboard*',
     'tests/browser/closedVerdictChip*',
