@@ -120,6 +120,25 @@ const swapsTheAxes = (text) => {
 };
 
 /*
+ * A BARE `y = …` IN THE KEY'S OWN INPUT LETTER (F-Y-WITH-T, 2026-11-06
+ * walkthrough, Algebra II Honors L1 Day 2 CW 7). A bare `y = …` is read with x
+ * as its input (modelExpression), so `y = 1.8t` read as no model at all and was
+ * refused against V(t) = 1.8t, where `y = 1.8x`, `V = 1.8t` and `1.8t` were
+ * accepted. y names the output whatever the input is called: when the only
+ * letter on the right is the key's own input letter (never x or y, which name
+ * the axes), the response is read as that rule, `y(t) = …`, and compared like
+ * any other. Another letter, or another rule, is refused as before.
+ */
+const asKeyInputRule = (response, expected) => {
+  const parts = String(response ?? '').split('=');
+  if (parts.length !== 2 || normalizeMathAnswer(parts[0]) !== 'y') return null;
+  const input = String(parseFunctionModel(Array.isArray(expected) ? expected[0] : expected)?.variable || '');
+  if (!input || ['x', 'y'].includes(input.toLowerCase())) return null;
+  const letters = variableLetters(parts[1]);
+  return letters.length === 1 && letters[0] === input ? `y(${input})=${parts[1]}` : null;
+};
+
+/*
  * A bare right side is a model too. The table and graph stages already read
  * `5x+40` as the student's function (modelExpression), so the equation stage
  * has to read it the same way: live QA (Algebra I DOL #2) built a correct
@@ -221,6 +240,8 @@ const matchesAnswer = (stage, response, expected) => {
     if (isAlgebraicallyEquivalent(response, expected)) return true;
     if (stage.kind === 'equationInput' && stage.acceptEquivalentFunctionRule === true) {
       if (swapsTheAxes(response) && !swapsTheAxes(expected)) return false;
+      const rule = asKeyInputRule(response, expected);
+      if (rule) return matchesAnswer(stage, rule, expected);
       if (definesAFunction(response) && definesAFunction(expected)) {
         // A MODELLING prompt asks for the relationship, not a particular choice
         // of letters. Canonicalize the declared input variable before comparing:
