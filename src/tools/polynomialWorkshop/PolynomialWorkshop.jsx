@@ -115,6 +115,10 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'multiplyArea',parts:result.parts});
   };
+  // The expanded box's example shows the format with letters, never numbers.
+  // It was "2, -5, -12": the answer to the default (2x + 3)(x - 4), which
+  // Algebra II Honors L4 CW 3 multiplies, so that item's empty box showed its
+  // own key (student walkthrough 2026-11-06).
   return <ToolShell title="Polynomial Workshop" subtitle="Multiply polynomials and see where every term comes from." badge="Algebra II · Area Model">
     <TaskCard question={questionData} task={'Fill in the area model, then write the expanded polynomial.'} steps={['Multiply each row term by each column term.', 'Each cell already shows the variable part; enter only the signed coefficient for that product.', 'Add the like terms and enter the final coefficients from highest degree down.']} />
     <ToolGrid min={330}>
@@ -125,7 +129,7 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
           <strong style={{padding:8,textAlign:'right'}}>{left[1]}</strong>{[2,3].map(i=><div key={i} style={{display:'flex',alignItems:'center',gap:5}}><input value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={{...inputStyle,minWidth:0}} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
         </div>
       </Panel>
-      <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="2, -5, -12" aria-label="Expanded polynomial: coefficients from the highest degree to the constant"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={['An area model is just organised distribution — every cell is one of the products you would get from FOIL.', 'Cells on the same diagonal usually hold the like terms that combine.', 'Enter coefficients highest degree first, and include a 0 for any missing degree.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
+      <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="a, b, c" aria-label="Expanded polynomial: coefficients from the highest degree to the constant"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={['An area model is just organised distribution — every cell is one of the products you would get from FOIL.', 'Cells on the same diagonal usually hold the like terms that combine.', 'Enter coefficients highest degree first, and include a 0 for any missing degree.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
   </ToolShell>;
 }
