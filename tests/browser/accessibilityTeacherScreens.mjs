@@ -543,6 +543,99 @@ const openTestCyclePreviewScene = async (page) => {
   await openTestCyclePreview(page);
 };
 
+// The Live Challenge console past its lobby, written into the store as the server writes it, on the
+// lobby scene's game: round 1 open (two seconds in, ten minutes left, so the round and never "Time!"),
+// with two of the three players answered; the projector during that round; the round's results (the
+// teacher's whole table, hostRounds/0, and the standings it left); and the game finished, with the report
+// the server writes after it (built here by the server's own buildChallengeReport).
+const LIVE_PLAYERS = [
+  { playerKey: 'p1', alias: 'Swift Otter', studentId: '910001', score: 940, correctCount: 1, roundsAnswered: 1, answeredRound: 0 },
+  { playerKey: 'p2', alias: 'Quick Fox', studentId: '910002', score: 610, correctCount: 1, roundsAnswered: 1, answeredRound: 0 },
+  { playerKey: 'p3', alias: 'Calm Heron', studentId: '910003', score: 0, correctCount: 0, roundsAnswered: 0, answeredRound: -1 },
+];
+const ROUND_QUESTION = {
+  questionInstanceId: `challenge_${LOBBY_ROOM_ID}_r1`, challengeRound: 0, teksCode: 'A.5A',
+  prompt: 'Solve $2x + 5 = 17$. What is the value of $x$?',
+};
+const hostConsoleStage = (page, stage) => page.locator(`[data-mm-host-console="${stage}"]`).waitFor({ timeout: 30_000 });
+const openLiveChallengeRound = async (page) => {
+  await page.evaluate(({ roomId, question, players }) => {
+    const store = window.__mmHarnessStore;
+    const startsAt = Date.now() - 2000;
+    for (const player of players) store.update(`liveChallengeRooms/${roomId}/players/${player.playerKey}`, { ...player, joined: true, streak: player.correctCount });
+    store.update(`liveChallengeRooms/${roomId}`, {
+      status: 'running', currentRound: 0, currentQuestion: question, roundVersion: 1, roundToken: 'a11y-teacher-round-1', roundState: 'open',
+      phase: 'answering', startsAt, endsAt: startsAt + 600_000, roundStartedAt: startsAt, roundEndsAt: startsAt + 600_000,
+    });
+  }, { roomId: LOBBY_ROOM_ID, question: ROUND_QUESTION, players: LIVE_PLAYERS });
+  await hostConsoleStage(page, 'roundActive');
+  await page.getByText('2 of 3 joined students answered').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+// Projector View, which the class sees: a full-screen layer over the console, with the host's controls in
+// a strip at its foot.
+const PROJECTOR = '.mm-arena-shell';
+const openLiveChallengeProjector = async (page) => {
+  await workspaceMain(page).getByRole('button', { name: 'Projector View' }).click();
+  await page.locator(`${PROJECTOR}[data-mm-arena-stage="roundActive"]`).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+// The projector is a modal layer: a keyboard teacher leaves it with Escape, and focus comes back to the console's
+// Projector View, the control that opened it. The results scene starts by leaving it so, and is not reached if
+// either stops working.
+const exitLiveChallengeProjector = async (page) => {
+  const projector = page.locator(PROJECTOR);
+  if (!(await projector.count())) return;
+  await projector.getByRole('button', { name: 'Exit Projector View' }).focus();
+  await page.keyboard.press('Escape');
+  await projector.waitFor({ state: 'detached', timeout: 10_000 });
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Projector View', null, { timeout: 10_000 });
+};
+const openLiveChallengeResults = async (page) => {
+  await exitLiveChallengeProjector(page);
+  const { matchStandingsAfterRound } = await import('../../functions/shared/liveChallengeResults.mjs');
+  const standingsAfterRound = matchStandingsAfterRound({ players: LIVE_PLAYERS.map((player) => ({ ...player, joined: true })) });
+  // The teacher's copy of the round (functions/shared/liveChallengeResults.mjs publicRoundSummary): every player,
+  // by place, with the points the round gave.
+  const summary = {
+    schemaVersion: 1, roundIndex: 0, roundVersion: 1, isSecondChance: false, modeId: 'classic', scoringStrategyId: 'accuracyFirst',
+    closedAtMs: Date.now(), participantCount: 3, completedCount: 2, fieldSize: 2, standingsAfterRound,
+    standings: LIVE_PLAYERS.map((player, index) => ({
+      playerKey: player.playerKey, alias: player.alias, rank: player.roundsAnswered ? index + 1 : null, position: index, tied: false,
+      participated: player.roundsAnswered > 0, finished: player.roundsAnswered > 0, roundPoints: player.score, matchPointsAwarded: 0,
+    })),
+  };
+  await page.evaluate(({ roomId, roundSummary }) => {
+    const store = window.__mmHarnessStore;
+    store.set(`liveChallengeRooms/${roomId}/hostRounds/0`, roundSummary);
+    store.update(`liveChallengeRooms/${roomId}`, { roundState: 'closed', phase: 'results', roundClosedAt: Date.now() });
+  }, { roomId: LOBBY_ROOM_ID, roundSummary: summary });
+  await hostConsoleStage(page, 'roundResults');
+  await page.waitForTimeout(1200);
+};
+const openLiveChallengeFinal = async (page) => {
+  const { buildChallengeReport } = await import('../../functions/shared/liveChallengeReport.mjs');
+  const room = { title: 'Period 3 Warm-Up Challenge', className: 'Algebra II — Period 3', courseId: 'algebra2', standardCode: 'mixed', roundSeconds: 45 };
+  const report = {
+    ...buildChallengeReport({
+      room, scheduledRoundCount: 3, playedRoundCount: 1, roundMisses: { 0: 0 }, roundStandards: { 0: 'A.5A' }, answeredCounts: { 0: 2 },
+      players: [...LIVE_PLAYERS.map((player) => ({ ...player, joined: player.roundsAnswered > 0 })), { playerKey: 'p4', alias: 'Bright Lark', studentId: '910004', joined: false }],
+      finishedAt: Date.now(),
+    }),
+    roomId: LOBBY_ROOM_ID,
+  };
+  await page.evaluate(({ roomId, email, challengeReport }) => {
+    const store = window.__mmHarnessStore;
+    store.set(`liveChallengeReports/${roomId}`, challengeReport);
+    store.update(`liveChallengeRooms/${roomId}`, { status: 'finished', phase: 'finished', finishedAt: Date.now() });
+    // A finished game has no active pointer (the console keeps the room it hosted).
+    store.remove(`liveChallengeTeacherActive/${email}`);
+  }, { roomId: LOBBY_ROOM_ID, email: TEACHER_EMAIL, challengeReport: report });
+  await hostConsoleStage(page, 'completed');
+  await page.getByRole('heading', { name: 'After the game' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -588,6 +681,12 @@ export const TEACHER_SCREENS = [
   teacherScreen('teacher-live-challenge', [
     { id: 'setup', run: openLiveChallenge },
     { id: 'lobby', run: openLiveChallengeLobby },
+    // The fifth slice: the same game played on (a round, the projector during it, the round's results, the game
+    // over with its report). The projector is a layer over the whole page: audited as itself.
+    { id: 'round', run: openLiveChallengeRound },
+    { id: 'projector', run: openLiveChallengeProjector, include: PROJECTOR },
+    { id: 'results', run: openLiveChallengeResults },
+    { id: 'final', run: openLiveChallengeFinal },
   ]),
   teacherScreen('teacher-classes', [
     { id: null, run: openDestination('Classes', /^Classes$/) },

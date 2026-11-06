@@ -63,7 +63,7 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
   'teacher-preflight': ['details', 'classes', 'delivery', 'check'],
-  'teacher-live-challenge': ['setup', 'lobby'],
+  'teacher-live-challenge': ['setup', 'lobby', 'round', 'projector', 'results', 'final'],
   // The third slice: the rest of the navigation's destinations, a class's page, a student's drawer, the Find palette,
   // the TEKS screen's views, the Path Simulator's modes, and the administrator's five sections.
   'teacher-classes': [null, 'class'],
@@ -131,6 +131,33 @@ test('the teacher\'s modals are audited as the dialog, and the Find palette is a
   assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-find').include, '[aria-label="Find a student, class, assignment or standard"]');
   assert.match(read('src/components/teacher/StudentProfileDrawer.jsx'), /data-student-profile-drawer=/, 'the drawer carries the hook');
   assert.match(read('src/components/teacher/TeacherQuickSearch.jsx'), /aria-label="Find a student, class, assignment or standard"/, 'the palette carries the name');
+});
+
+// TT27, fifth slice. Three of the new scenes are a layer over the page: Grade Export's review and the Test Cycle's student
+// preview (modal dialogs), and the Live Challenge projector (a full-screen layer the class sees). Each is audited as
+// itself, as the earlier modals are; every other new scene audits the page whole.
+test('the fifth slice audits each layer as itself, and its other states as the whole page', () => {
+  const scope = (screenId, sceneId) => {
+    const screen = TEACHER_SCREENS.find((entry) => entry.id === screenId);
+    return sceneScope(screen, screen.scenes.find((scene) => scene.id === sceneId));
+  };
+  assert.equal(scope('teacher-grade-export', 'review').include, '[aria-labelledby="grade-export-review-title"]');
+  assert.match(read('src/components/teacher/GradeTransferCenter.jsx'), /<Dialog className="tw-review" [^\n]*aria-labelledby="grade-export-review-title">/, 'the review is the Dialog the scene names');
+  assert.equal(scope('teacher-secure-exams', 'preview').include, '[role="dialog"][aria-label^="Student preview of"]');
+  assert.match(read('src/components/teacher/TestCyclePreview.jsx'), /<Dialog onClose=\{onClose\} aria-label=\{`Student preview of \$\{title\}`\}/, 'the preview is the Dialog the scene names');
+  assert.equal(scope('teacher-live-challenge', 'projector').include, '.mm-arena-shell');
+  assert.match(read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx'), /className="mm-arena-shell"/, 'the projector carries the class the scene names');
+  const whole = [
+    ['teacher-assignments', 'create'], ['teacher-preflight', 'classes'], ['teacher-live-challenge', 'round'], ['teacher-live-challenge', 'results'],
+    ['teacher-live-challenge', 'final'], ['teacher-grade-export', 'selection'], ['teacher-grade-export', 'district-ids'], ['teacher-secure-exams', 'session'],
+    ['teacher-secure-exams', 'delete'], ...TEACHER_SCREENS.find((entry) => entry.id === 'teacher-student-detail').scenes.map((scene) => ['teacher-student-detail', scene.id]),
+  ];
+  for (const [screenId, sceneId] of whole) {
+    const { include, keyboard } = scope(screenId, sceneId);
+    // Pre-Flight's steps are inside its dialog, which the screen names; the others are pages.
+    assert.equal(include, screenId === 'teacher-preflight' ? '[aria-label="Lesson pre-flight review"]' : undefined, `${screenId}/${sceneId}`);
+    assert.equal(keyboard, true, `${screenId}/${sceneId} is walked by Tab`);
+  }
 });
 
 test('every teacher screen opens on the school clock and is walked by Tab; a modal is audited as the dialog, not the page behind its scrim', () => {

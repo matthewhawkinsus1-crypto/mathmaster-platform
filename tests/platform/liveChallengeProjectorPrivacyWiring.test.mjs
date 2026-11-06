@@ -101,8 +101,9 @@ test('with a worked solution ready the projector keeps the round table and the s
   // Each list is drawn for the rows the fitting gave it, and is measured through its own panel.
   assert.match(roundPanel, /panelRef=\{roundRef\}\s*space=\{fit\.round\}/);
   assert.match(standingsPanel, /panelRef=\{standingsRef\}\s*space=\{fit\.standings\}/);
-  // A narrow screen: one column, rows as tall as their content, and it scrolls.
-  const css = region(projector, '@media (max-width: 900px) {', '@media (prefers-reduced-motion', 'the narrow-screen rules');
+  // A narrow screen (or large text: 56.25em is 900px at the default size, TT27): one column, rows as tall as their
+  // content, and it scrolls.
+  const css = region(projector, '@media (max-width: 56.25em) {', '@media (prefers-reduced-motion', 'the narrow-screen rules');
   assert.match(css, /\.mm-arena-running-grid,\s*\.mm-arena-lobby-grid \{\s*grid-template-columns: 1fr !important;\s*overflow-y: auto;/);
   assert.match(css, /\.mm-arena-solution-grid,\s*\.mm-arena-tables-grid \{ grid-auto-rows: max-content; \}/);
   assert.match(css, /\.mm-arena-results-tables \{ grid-template-rows: auto auto !important; \}/);

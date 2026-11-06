@@ -404,6 +404,17 @@ export default function LiveChallengeTeacher({
   // Which destructive action is waiting for the teacher to confirm it.
   const [confirming, setConfirming] = useState(null);
   const [projector, setProjector] = useState(false);
+  // Leaving the projector (Exit Projector View, or Escape) puts focus back on the console's "Projector View", the
+  // control that opened it. The projector takes the console's place, so the button that was pressed is gone by then,
+  // and focus fell to the page: a keyboard teacher started again from the skip link (TT27, fifth slice).
+  const projectorButtonRef = useRef(null);
+  const projectorWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (projector) { projectorWasOpenRef.current = true; return; }
+    if (!projectorWasOpenRef.current) return;
+    projectorWasOpenRef.current = false;
+    projectorButtonRef.current?.focus();
+  }, [projector]);
   const [dryRunOpen, setDryRunOpen] = useState(false);
   const audioDirectorRef = useRef(null);
   if (!audioDirectorRef.current) audioDirectorRef.current = new LiveChallengeAudioDirector();
@@ -1407,7 +1418,7 @@ export default function LiveChallengeTeacher({
           <h2 style={{ margin: '6px 0 0', fontSize: 'calc(26 * var(--mm-px))', lineHeight: 1.15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{room.title}</h2>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {!cancelled && <button type="button" onClick={() => setProjector(true)} style={primary}>Projector View</button>}
+          {!cancelled && <button ref={projectorButtonRef} type="button" onClick={() => setProjector(true)} style={primary}>Projector View</button>}
           {lobby && <button type="button" disabled={controlBusy} onClick={() => (joinedCount > 0 ? setConfirming('cancel') : control('cancel', cancelLiveChallenge))} style={{ ...secondary, color: 'var(--mm-error-text)', opacity: controlBusy ? 0.55 : 1 }}>Cancel Session</button>}
           {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && <button type="button" disabled={controlBusy} onClick={() => setConfirming('finish')} style={{ ...secondary, color: 'var(--mm-error-text)', opacity: controlBusy ? 0.55 : 1 }}>{busy === 'finish' ? 'Ending…' : 'End Game'}</button>}
         </div>
