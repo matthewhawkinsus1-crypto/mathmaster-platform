@@ -16,6 +16,7 @@ import { PublishFigureReading, describedContent, describedIn, useFigureWords } f
 import { itemWords, joinFigureSays, say, sayFigure } from './platform/language/figureSay.js';
 import { namedIn } from './platform/language/figureNames.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
+import { tickLabelWidth, yAxisTitleLayout } from './platform/graph/yAxisTitleLayout.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -344,11 +345,6 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   if (xMin >= xMax) [xMin, xMax] = [-10, 10];
   if (yMin >= yMax) [yMin, yMax] = [-10, 10];
 
-  const innerWidth = DEFAULT_WIDTH - PADDING * 2;
-  const innerHeight = DEFAULT_HEIGHT - PADDING * 2;
-  const toScreenX = (x) => PADDING + ((x - xMin) / (xMax - xMin)) * innerWidth;
-  const toScreenY = (y) => PADDING + ((yMax - y) / (yMax - yMin)) * innerHeight;
-
   // Equal units (R-1): one labelled step on both axes, so the grid's squares
   // read as squares.
   const sharedStep = displayGraph.equalUnits === true ? niceStep(Math.max(xMax - xMin, yMax - yMin)) : null;
@@ -425,6 +421,20 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const showHighlightY = Number.isFinite(highlightY) && highlightY >= yMin && highlightY <= yMax;
   const xAxisActive = interactionHighlight.xAxisActive === true;
   const yAxisActive = interactionHighlight.yAxisActive === true;
+
+  // The y-axis title sits clear of the widest y tick label, and the left
+  // margin widens only where it cannot (yAxisTitleLayout.js, P-3).
+  const { left: plotLeft, titleX: yTitleX } = yAxisTitleLayout({
+    width: DEFAULT_WIDTH,
+    padding: PADDING,
+    axisFraction: xMin <= 0 && xMax >= 0 ? (0 - xMin) / (xMax - xMin) : 0,
+    labelWidth: showYTickLabels ? Math.max(0, ...yTicks.filter((tick) => tick !== 0).map(tickLabelWidth)) : 0,
+    hasTitle: Boolean(yTitle),
+  });
+  const innerWidth = DEFAULT_WIDTH - plotLeft - PADDING;
+  const innerHeight = DEFAULT_HEIGHT - PADDING * 2;
+  const toScreenX = (x) => plotLeft + ((x - xMin) / (xMax - xMin)) * innerWidth;
+  const toScreenY = (y) => PADDING + ((yMax - y) / (yMax - yMin)) * innerHeight;
 
   const axisX = yMin <= 0 && yMax >= 0 ? toScreenY(0) : toScreenY(yMin);
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
@@ -510,7 +520,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
       >
         <title>{named.text}</title>
-        <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="var(--mm-graph-bg)" stroke="#cfd4da" />
+        <rect x={plotLeft} y={PADDING} width={innerWidth} height={innerHeight} fill="var(--mm-graph-bg)" stroke="#cfd4da" />
 
         {xMinorTicks.map((tick) => {
           const x = toScreenX(tick);
@@ -525,7 +535,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const y = toScreenY(tick);
           return (
             <g key={`y-minor-${tick}`}>
-              <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="var(--mm-graph-grid-minor)" />
+              <line x1={plotLeft} y1={y} x2={plotLeft + innerWidth} y2={y} stroke="var(--mm-graph-grid-minor)" />
               <line x1={axisY - 3} y1={y} x2={axisY + 3} y2={y} stroke="var(--mm-graph-axis)" strokeWidth="1" />
             </g>
           );
@@ -549,7 +559,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const y = toScreenY(tick);
           return (
             <g key={`y-${tick}`}>
-              <line x1={PADDING} y1={y} x2={PADDING + innerWidth} y2={y} stroke="var(--mm-graph-grid)" />
+              <line x1={plotLeft} y1={y} x2={plotLeft + innerWidth} y2={y} stroke="var(--mm-graph-grid)" />
               {showYTickLabels && tick !== 0 && (
                 <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="var(--mm-graph-axis)">
                   {tick}
@@ -572,7 +582,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             stroke="none"
           />
         ))}
-        <line x1={PADDING} y1={axisX} x2={PADDING + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : 'var(--mm-graph-axis)'} strokeWidth={xAxisActive ? '4' : '2'} />
+        <line x1={plotLeft} y1={axisX} x2={plotLeft + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : 'var(--mm-graph-axis)'} strokeWidth={xAxisActive ? '4' : '2'} />
         <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke={yAxisActive ? '#9334e6' : 'var(--mm-graph-axis)'} strokeWidth={yAxisActive ? '4' : '2'} />
 
         {showHighlightX && (
@@ -589,9 +599,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         )}
         {showHighlightY && (
           <line
-            x1={PADDING}
+            x1={plotLeft}
             y1={toScreenY(highlightY)}
-            x2={PADDING + innerWidth}
+            x2={plotLeft + innerWidth}
             y2={toScreenY(highlightY)}
             stroke="#f9ab00"
             strokeWidth="3"
@@ -616,18 +626,18 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             return (
               <g key={`asymptote-h-${line.value}`}>
                 <line
-                  x1={PADDING}
+                  x1={plotLeft}
                   y1={y}
-                  x2={PADDING + innerWidth}
+                  x2={plotLeft + innerWidth}
                   y2={y}
                   stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.haloStroke}
                   strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.haloWidth}
                   opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.haloOpacity}
                 />
                 <line
-                  x1={PADDING}
+                  x1={plotLeft}
                   y1={y}
-                  x2={PADDING + innerWidth}
+                  x2={plotLeft + innerWidth}
                   y2={y}
                   stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.stroke}
                   strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.strokeWidth}
@@ -687,7 +697,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         {/* Curves are drawn inside the plot area only, never over the axis
             labels around it (R-1; every static figure since TL14). */}
         <clipPath id={plotClipId}>
-          <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
+          <rect x={plotLeft} y={PADDING} width={innerWidth} height={innerHeight} />
         </clipPath>
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (
@@ -792,25 +802,25 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         )}
 
         {showAxisSymbols && !xTitle && (
-          <text x={PADDING + innerWidth - 4} y={axisX - 9} textAnchor="end" fontSize="14" fontWeight="bold" fill="var(--mm-graph-label)">x</text>
+          <text x={plotLeft + innerWidth - 4} y={axisX - 9} textAnchor="end" fontSize="14" fontWeight="bold" fill="var(--mm-graph-label)">x</text>
         )}
         {showAxisSymbols && !yTitle && (
           <text x={axisY + 9} y={PADDING + 14} fontSize="14" fontWeight="bold" fill="var(--mm-graph-label)">y</text>
         )}
         {xTitle && (
-          <text x={PADDING + innerWidth / 2} y={DEFAULT_HEIGHT - 9} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#174ea6">
+          <text x={plotLeft + innerWidth / 2} y={DEFAULT_HEIGHT - 9} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#174ea6">
             {xTitle}
           </text>
         )}
         {yTitle && (
           <text
-            x="15"
+            x={yTitleX}
             y={PADDING + innerHeight / 2}
             textAnchor="middle"
             fontSize="14"
             fontWeight="bold"
             fill="#174ea6"
-            transform={`rotate(-90 15 ${PADDING + innerHeight / 2})`}
+            transform={`rotate(-90 ${yTitleX} ${PADDING + innerHeight / 2})`}
           >
             {yTitle}
           </text>
