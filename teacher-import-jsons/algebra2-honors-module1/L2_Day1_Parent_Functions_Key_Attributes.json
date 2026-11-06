@@ -103,6 +103,20 @@
             "findVertex",
             "findMinimum"
           ],
+          "analysisRequests": [
+            {
+              "id": "vertex",
+              "kind": "point",
+              "feature": "vertex",
+              "label": "Vertex"
+            },
+            {
+              "id": "minimum",
+              "kind": "point",
+              "feature": "localMinimum",
+              "label": "Minimum point"
+            }
+          ],
           "function": {
             "family": "absolute",
             "a": 1,
@@ -120,6 +134,20 @@
             "analyzeRange",
             "findXIntercepts",
             "findYIntercept"
+          ],
+          "analysisRequests": [
+            {
+              "id": "x-intercepts",
+              "kind": "point",
+              "feature": "xIntercepts",
+              "label": "x-intercept"
+            },
+            {
+              "id": "y-intercept",
+              "kind": "point",
+              "feature": "yIntercept",
+              "label": "y-intercept"
+            }
           ],
           "function": {
             "family": "squareRoot",
@@ -191,6 +219,14 @@
             "findYIntercept",
             "analyzeIncreasing"
           ],
+          "analysisRequests": [
+            {
+              "id": "y-intercept",
+              "kind": "point",
+              "feature": "yIntercept",
+              "label": "y-intercept"
+            }
+          ],
           "function": {
             "family": "exponential",
             "a": 1,
@@ -209,6 +245,14 @@
             "analyzeRange",
             "findXIntercepts",
             "analyzeIncreasing"
+          ],
+          "analysisRequests": [
+            {
+              "id": "x-intercepts",
+              "kind": "point",
+              "feature": "xIntercepts",
+              "label": "x-intercept"
+            }
           ],
           "function": {
             "family": "logarithmic",
