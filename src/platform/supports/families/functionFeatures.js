@@ -1357,6 +1357,21 @@ const GROUP_WORDS = Object.freeze({
 
 const sortedQuantityLabels = (model) => model.quantities.map((quantity) => text(quantity.label)).sort((p, q) => p.localeCompare(q));
 
+/*
+ * A RULE OVER A LISTED SET OF INPUTS, WITH NO SITUATION (F-CONTINUITY-HINT,
+ * 2026-11-06 walkthrough: L1 Day 2 CW 5, "f(x) = 0.5x + 1 over x ∈ {−2, 0, 2,
+ * 4}", and PR 4). What decides how its graph is drawn is that only the listed
+ * inputs belong to the relation, as its worked steps say (tableGraphWorked).
+ * "Does one and a half of the input make sense?" was written for a count of
+ * things; 0.5x + 1 takes 1.5 happily, so it led a student to "continuous".
+ * The same reading as the worked steps: a table-then-graph question that
+ * models no situation.
+ */
+const listsItsInputs = (model) => model.recipe !== 'functionModeling'
+  && model.recipe !== 'relationRepresentations'
+  && !model.scenario
+  && model.groups.includes('table');
+
 const composedGroupHint = (model, group, guard) => {
   const firstStage = model.stages.find((stage) => stageGroup(stage) === group) || {};
   const equation = model.equation;
@@ -1400,6 +1415,9 @@ const composedGroupHint = (model, group, guard) => {
       if (firstStage.source || model.groups.includes('table')) return 'The range is every y-value your graph uses; for separate points, list those y-values once each.';
       return 'For the range, scan the graph from bottom to top: what is the lowest y-value it reaches, and the highest? A turning point, a dot or an asymptote can limit it.';
     case 'continuity':
+      if (listsItsInputs(model)) {
+        return 'Which inputs belong to this relation: every number between the listed values, or only the listed ones? If only the listed inputs belong, the graph is separate points; if every value between them belongs too, it is one connected piece.';
+      }
       return 'Decide whether an input in between makes sense here, for example one and a half of the input. If only whole-number inputs make sense, the graph is separate points; if every value in between makes sense, it is one connected piece.';
     case 'quantities': {
       const labels = sortedQuantityLabels(model);
@@ -1417,6 +1435,7 @@ const composedGroupHint = (model, group, guard) => {
         'Substitute each x-value into the rule, one row at a time, and keep the order of operations: multiply before you add.');
     }
     case 'graph':
+      if (listsItsInputs(model)) return 'Plot each (x, y) pair from your table; connect the points only if the inputs between them belong to the relation too.';
       return 'Plot each (x, y) pair from your table; connect the points only if every input in between makes sense.';
     case 'mapping':
       return 'Draw one arrow for each ordered pair, from its first number (the input) to its second number (the output).';
