@@ -415,8 +415,12 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const interactionHighlight = graph.interactionHighlight && typeof graph.interactionHighlight === 'object'
     ? graph.interactionHighlight
     : {};
-  const highlightX = Number(interactionHighlight.xValue);
-  const highlightY = Number(interactionHighlight.yValue);
+  // A value the student has not typed is null, never 0: Number(null) is 0,
+  // which drew a guide on the axis before anything was typed
+  // (contextInterpretationUtils buildInterpretationGraph).
+  const highlightValue = (value) => (value === null || value === undefined || String(value).trim() === '' ? Number.NaN : Number(value));
+  const highlightX = highlightValue(interactionHighlight.xValue);
+  const highlightY = highlightValue(interactionHighlight.yValue);
   const showHighlightX = Number.isFinite(highlightX) && highlightX >= xMin && highlightX <= xMax;
   const showHighlightY = Number.isFinite(highlightY) && highlightY >= yMin && highlightY <= yMax;
   const xAxisActive = interactionHighlight.xAxisActive === true;
