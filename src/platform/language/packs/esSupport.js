@@ -1444,6 +1444,12 @@ const platformFamilySentences = [
   // Where a graphed parabola rises, falls, and is positive and negative
   // (functions.intervalsFromGraph): the worked example's answer.
   ['Answer: increasing {1}; decreasing {2}; positive {3}; negative {4} ∪ {5}', 'Respuesta: creciente {1}; decreciente {2}; positiva {3}; negativa {4} ∪ {5}'],
+  // The translations of g(x) = f(x − C) + D (transformations.describeTranslations):
+  // the singular and plural forms the lesson's own sentences do not reach.
+  ['Outside, y’s tell the truth: {1} moves the graph {2} unit down.', 'Afuera, lo vertical dice la verdad: {1} mueve la gráfica {2} unidad hacia abajo.'],
+  ['Answer: Horizontal: {1} units to the right; vertical: {2} unit down', 'Respuesta: horizontal: {1} unidades a la derecha; vertical: {2} unidad hacia abajo'],
+  ['Answer: Horizontal: {1} unit to the left; vertical: {2} units up', 'Respuesta: horizontal: {1} unidad a la izquierda; vertical: {2} unidades hacia arriba'],
+  ['Answer: Horizontal: {1} units to the left; vertical: {2} units up', 'Respuesta: horizontal: {1} unidades a la izquierda; vertical: {2} unidades hacia arriba'],
 ];
 
 // Their back-up choices.

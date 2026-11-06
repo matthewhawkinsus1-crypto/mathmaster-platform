@@ -244,6 +244,20 @@ ready from Q1. Its Warm-Up Q2 and Q3 (the slope of y = x and its role, and the
 domain and range of a line) have the same answers in every fresh version, so
 they need your decision first.
 
+### The ALEKS bridge lesson: absolute value (Algebra II Honors)
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q1 — the translations in g(x) = f(x − 4) + 3 | two new translations |
+| Warm-Up Q2 — g(x) = f(−2x) by the class rule | a new factor inside f, a whole number or its reciprocal |
+| Warm-Up Q3 — g(x) = −(1/2)f(x) + 2 by the class rule | a new factor outside f and a new translation |
+| DOL Q1 — analyze y = −2\|x + 3\| + 1 | a new V opening down: vertex, reflection, stretch, translations, range |
+| DOL Q2 — match y = (1/2)\|x − 4\| − 2 in the Transformations Lab | a new compressed, translated V, in the same window |
+
+Each wrong choice is the same mistake as the lesson's, with the new numbers: a
+change inside f read at face value, a change outside f reversed. Prepare
+Recovery makes both the Warm-Up and the exit ticket ready.
+
 ### Solving Systems with Matrices (Algebra II Honors): Warm-Up Q1's choices
 
 Warm-Up Q1 asks whether Ms. Tanaka's arrays give the same information as Mr.

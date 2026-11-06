@@ -568,6 +568,44 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 families for the Algebra II Honors ALEKS bridge lesson
+  // (questionFamiliesTransformationLanguage.mjs, RC01's next shapes), A2.6C.
+  'transformations.describeTranslations': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Describing the translations of a function', 'A.3E, A.7C', 'translations', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version names the two translations of g(x) = f(x − C) + D, chosen from three words each; it is the class rule\'s readiness check, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task anchors on one that graphs or writes the transformed function (transformations.describeEveryChange, extended).',
+      teacherReason: 'MathMaster\'s translation generator only names two shifts, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
+  'transformations.describeScaleChange': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Describing a reflection and a stretch or compression of a function', 'A.3E, A.7C', 'reflections and stretches', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version names one reflection, one stretch or compression by a whole number or its reciprocal, and (outside f) one translation, chosen from three words each; the remaining levers are other factors, which are not rigor.',
+      missingCapability: 'A factor inside and outside f together, and the graph drawn or the equation written from a description, so the student applies the rule rather than naming it.',
+      teacherReason: 'MathMaster\'s class-rule generator only names one change of each kind, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'absoluteValue.analyzeTransformed': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Analyzing a transformed absolute value function', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is y = −a|x − h| + k with a whole-number a, analyzed from six sets of three choices; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'A fractional or positive a, a horizontal factor, and the vertex, range and intercepts typed, so the student works the analysis rather than choosing it.',
+      teacherReason: 'MathMaster\'s absolute-value generator only offers its analysis as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'transformations.matchAbsoluteValue': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Transforming the absolute value parent function', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version matches y = (1/n)|x − h| + k in the Transformations Lab from y = |x|; the remaining levers are other targets, which are not rigor.',
+      missingCapability: 'Targets with a reflection or a horizontal factor, matched from another starting graph, so the student plans the order of the changes.',
+      teacherReason: 'MathMaster\'s match generator only draws compressed, translated absolute values, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
   // The Recovery V2 families for Algebra II Honors Module 1 Lesson 1 Day 2's
   // exit ticket (questionFamiliesGraphReading.mjs and
   // questionFamiliesFunctionContexts.mjs, RC01's next shapes), A2.7I.

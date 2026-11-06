@@ -39,7 +39,8 @@ import { recoveryCandidateFamilies } from '../../functions/shared/recoveryConten
 // functions.domainRangeFromGraph (RC01: Lesson 1's graphed domain and range)
 // and the function-values families (RC01: Lesson 4's numeric Warm-Up), and on
 // 2026-11-06 with the inverse families (RC01's next shapes: Lessons 3 and 4's
-// inverse boards) and Lesson 1 Day 2's graphed intervals and filling tank. The Algebra I
+// inverse boards), Lesson 1 Day 2's graphed intervals and filling tank, and the
+// ALEKS bridge lesson's transformation families. The Algebra I
 // Module 3 Topic 2 Lesson 4 and 5 files and the Algebra II Honors radicals
 // lessons (added 2026-11-03) generate every Warm-Up and DOL question from an
 // assignment Question Family, so each section is 3/3/3 ready with nothing
@@ -72,7 +73,7 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra2-honors-radicals/L1_nth_Roots.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-radicals/L2_Operations_with_Radical_Expressions.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-radicals/L3_Rational_Exponents.json': ['3/3/3 ready', '3/3/3 ready'],
-  'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': ['0/0/3 unavailable', '0/0/2 unavailable'],
+  'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': ['0/3/3 ready', '0/2/2 ready'],
   'teacher-import-jsons/algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json': ['0/0/3 unavailable', '0/0/3 unavailable'],
@@ -95,14 +96,14 @@ const PINNED = Object.freeze({
 });
 
 const TOTALS = Object.freeze({
-  warmup: { questions: 132, now: 81, prepared: 112, lessonsWithSection: 45, lessonsReady: 39 },
-  dol: { questions: 123, now: 70, prepared: 101, lessonsWithSection: 45, lessonsReady: 38 },
+  warmup: { questions: 132, now: 81, prepared: 115, lessonsWithSection: 45, lessonsReady: 40 },
+  dol: { questions: 123, now: 70, prepared: 103, lessonsWithSection: 45, lessonsReady: 39 },
 });
 
 // What is left: [shape, questions, lessons], most first. A typed-and-chosen
 // board (multiAnswer) holds a different hand-written task in each question.
 const WITHOUT_RECOVERY_BY_SHAPE = Object.freeze([
-  ['multiAnswer', 22, 8],
+  ['multiAnswer', 18, 7],
   ['systemsWorkspace/spatial', 3, 3],
   ['functionCharacteristics · domain + range', 3, 1],
   ['systemsWorkspace/algebraic', 3, 1],
@@ -115,7 +116,6 @@ const WITHOUT_RECOVERY_BY_SHAPE = Object.freeze([
   ['graphAnalysis · increasing + decreasing', 1, 1],
   ['graphChoicePreview', 1, 1],
   ['relationMapping · mapping + isFunction', 1, 1],
-  ['transformationsLab/match', 1, 1],
 ]);
 
 const DAY_ONE = 'teacher-import-jsons/algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json';
@@ -178,9 +178,9 @@ test('the interval family is what changed: without it the five number-line quest
   // Before it, the number line was the most common shape outside the
   // typed-and-chosen boards: the reason it was built first. (31 such boards
   // then; eight are now the transformation description board, Lesson 4's
-  // two numeric Warm-Up questions, the five inverse boards and Day 2's
-  // filling tank, below.)
-  assert.deepEqual(before.withoutRecoveryByShape.slice(0, 2).map((entry) => [entry.shape, entry.questions, entry.lessons]), [['multiAnswer', 22, 8], [intervalShape, 5, 2]]);
+  // two numeric Warm-Up questions, the five inverse boards, Day 2's filling
+  // tank and the ALEKS bridge lesson's four boards, below.)
+  assert.deepEqual(before.withoutRecoveryByShape.slice(0, 2).map((entry) => [entry.shape, entry.questions, entry.lessons]), [['multiAnswer', 18, 7], [intervalShape, 5, 2]]);
   assert.ok(!REPORT.withoutRecoveryByShape.some((entry) => entry.shape === intervalShape), 'none is left');
   // (78, 26 and 67 before the 2026-11-03 lessons, whose 21 + 21 questions and
   // 7 lessons never needed the interval family, and before the families
@@ -189,8 +189,9 @@ test('the interval family is what changed: without it the five number-line quest
   // 2 + 2 questions and 2 Warm-Ups — Day 2's and the review's — the graphed
   // domain and range's 1 + 1, Lesson 4's 2 Warm-Up questions and Warm-Up, and
   // the inverse boards' 2 + 3 questions and Lesson 3's Warm-Up and exit ticket,
-  // and Day 2's graphed intervals and filling tank, 2 exit-ticket questions.)
-  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 2 + 2 + 1 + 2 + 2, 26 + 7 + 1 + 2 + 1 + 1, 67 + 21 + 1 + 3 + 2 + 1 + 3 + 2]);
+  // Day 2's graphed intervals and filling tank, 2 exit-ticket questions, and
+  // the ALEKS bridge lesson's 3 + 2 questions and Warm-Up.)
+  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 2 + 2 + 1 + 2 + 2 + 3, 26 + 7 + 1 + 2 + 1 + 1 + 1, 67 + 21 + 1 + 3 + 2 + 1 + 3 + 2 + 2]);
 });
 
 const BASELINE_LMR = 'docs/assignments/algebra1-linear-multiple-representations-final-v5.json';
@@ -365,8 +366,27 @@ test('the graphed-intervals and filling-tank families are what changed next: wit
   assert.deepEqual(before.totals.warmup, TOTALS.warmup, 'the Warm-Ups did not move');
 });
 
+const ALEKS_BRIDGE = 'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json';
+
+test('the ALEKS bridge lesson\'s transformation families are what changed next: without them the lesson has no Recovery, and nothing else moves', () => {
+  const ids = new Set(['transformations.describeTranslations', 'transformations.describeScaleChange', 'absoluteValue.analyzeTransformed', 'transformations.matchAbsoluteValue']);
+  const families = recoveryCandidateFamilies();
+  const without = families.filter((family) => !ids.has(family.id));
+  assert.equal(without.length, families.length - 4, 'all four are Recovery candidates');
+  const before = measureRecoveryCoverage({ families: without });
+  const beforeRows = rowsOf(before);
+  const afterRows = rowsOf(REPORT);
+  assert.deepEqual(Object.keys(afterRows).filter((file) => JSON.stringify(afterRows[file]) !== JSON.stringify(beforeRows[file])), [ALEKS_BRIDGE]);
+  assert.deepEqual([beforeRows[ALEKS_BRIDGE], afterRows[ALEKS_BRIDGE]], [['0/0/3 unavailable', '0/0/2 unavailable'], ['0/3/3 ready', '0/2/2 ready']]);
+  assert.deepEqual(REPORT.lessons.find((lesson) => lesson.file === ALEKS_BRIDGE).withoutRecovery, [], 'every Warm-Up and exit-ticket question has Recovery');
+  assert.deepEqual(
+    [before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared, before.totals.dol.lessonsReady],
+    [TOTALS.warmup.prepared - 3, TOTALS.warmup.lessonsReady - 1, TOTALS.dol.prepared - 2, TOTALS.dol.lessonsReady - 1],
+  );
+});
+
 test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'s model does for the lessons this changed', () => {
-  [DAY_ONE, DAY_TWO, BASELINE_LMR, TRANSFORMATIONS_DAY_TWO, DOL_ONE_REVIEW, COMPOSITION_LESSON, INVERSE_LESSON].forEach((file) => {
+  [DAY_ONE, DAY_TWO, BASELINE_LMR, TRANSFORMATIONS_DAY_TWO, DOL_ONE_REVIEW, COMPOSITION_LESSON, INVERSE_LESSON, ALEKS_BRIDGE].forEach((file) => {
     const text = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
     const parsed = measureLessonRecovery({ file, assignment: lessonAssignmentForCoverage(text) });
     const preflight = measureLessonRecovery({ file, assignment: lessonAssignmentForCoverage(text, { preflight: true }) });
@@ -377,9 +397,9 @@ test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'
 test('the printed report says the same', () => {
   const text = renderRecoveryCoverageText(REPORT);
   assert.match(text, /^teacher-import-jsons\/algebra2-honors-module1\/L1_Day1_Interval_Domain_Range\.json +Warm-Up 3\/3 ready +DOL 3\/3 ready$/m);
-  assert.match(text, /^Warm-Up: 112 of 132 questions have Recovery once prepared \(81 with nothing prepared\); 39 of 45 lessons ready\.$/m);
-  assert.match(text, /^DOL: 101 of 123 questions have Recovery once prepared \(70 with nothing prepared\); 38 of 45 lessons ready\.$/m);
+  assert.match(text, /^Warm-Up: 115 of 132 questions have Recovery once prepared \(81 with nothing prepared\); 40 of 45 lessons ready\.$/m);
+  assert.match(text, /^DOL: 103 of 123 questions have Recovery once prepared \(70 with nothing prepared\); 39 of 45 lessons ready\.$/m);
   assert.match(text, /^docs\/assignments\/algebra1-linear-multiple-representations-final-v5\.json +Warm-Up 2\/2 ready +DOL 1\/1 ready$/m);
-  assert.match(text, /^ +22 {2}multiAnswer {2}\(8 lessons\)$/m);
+  assert.match(text, /^ +18 {2}multiAnswer {2}\(7 lessons\)$/m);
   assert.match(text, /L2_Day1_Parent_Functions_Key_Attributes\.json {2}Warm-Up Q2 {2}graphAnalysis · increasing \+ decreasing {2}no-certified-family/);
 });

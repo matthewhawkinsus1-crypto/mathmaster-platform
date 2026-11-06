@@ -158,7 +158,10 @@ test('the committed report is generated from the live registry and audit, never 
   // Algebra I also teaches (A.12B): BLOCKED in each course. Lesson 1 Day 2's
   // graphed intervals are Algebra II content (A2.7I); its filling tank is a
   // situation's domain and range, which Algebra I also teaches (A.2A): BLOCKED
-  // in each course.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 64 \| 4 \| 8 \| 31 \| 21 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 64 \| 0 \| 1 \| 37 \| 26 \|/);
+  // in each course. Of the ALEKS bridge lesson's four (A2.6C), the absolute
+  // value analysis and match are Algebra II content; the class rule's
+  // translations and scales describe what Algebra I also teaches (A.3E,
+  // A.7C): BLOCKED in each course.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 68 \| 4 \| 8 \| 33 \| 23 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 68 \| 0 \| 1 \| 41 \| 26 \|/);
 });

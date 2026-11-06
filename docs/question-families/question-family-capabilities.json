@@ -4,6 +4,47 @@
   "referenceClass": 30,
   "families": [
     {
+      "id": "absoluteValue.analyzeTransformed",
+      "version": 1,
+      "title": "Analyze a reflected, stretched and translated absolute value",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 576,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "absoluteValue.solveEquation",
       "version": 1,
       "title": "Absolute value equation",
@@ -7205,6 +7246,110 @@
       "declared": {}
     },
     {
+      "id": "transformations.describeScaleChange",
+      "version": 1,
+      "title": "Describe a reflection and a scale by the class rule, g(x) = f(−bx) or −a·f(x) + D",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "side",
+          "label": "The factor inside f (horizontal) or outside f (vertical)",
+          "kind": "choice",
+          "default": "outside",
+          "concept": true,
+          "values": [
+            "outside",
+            "inside"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "side"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 288,
+          "exact": true
+        },
+        {
+          "label": "side: \"inside\"",
+          "constraints": {
+            "side": "inside"
+          },
+          "capacity": 16,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.describeTranslations",
+      "version": 1,
+      "title": "Describe the translations in g(x) = f(x − C) + D",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 324,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "transformations.identifyCubeRoot",
       "version": 1,
       "title": "Read a transformed cube-root graph and determine a, h and k",
@@ -7707,6 +7852,47 @@
             "reflected": false
           },
           "capacity": 270,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.matchAbsoluteValue",
+      "version": 1,
+      "title": "Match a compressed, translated absolute value in the Transformations Lab",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "transformationsLab",
+          "default": true,
+          "mode": "match",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 300,
           "exact": true
         }
       ],

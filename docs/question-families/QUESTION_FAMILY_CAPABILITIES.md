@@ -20,6 +20,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 
 | Family | Version | Solution cases | Coefficient forms | Target tool | Server grading | Recovery ready | Class of 30 (default setting) | Reduced complexity |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `absoluteValue.analyzeTransformed` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | — |
 | `absoluteValue.solveEquation` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 8,588 — every student unique | — |
 | `equations.verifySolution` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 474,764 — every student unique | — |
 | `functions.compositionFromValues` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 504 — every student unique | — |
@@ -88,13 +89,34 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `systems.substitution` | v1 · what an unpinned reference means | — | — | `system` default, `multiAnswer` | yes — shared server grader | yes | about 212,550 — every student unique | — |
 | `systems.substitution` | v2 · only when pinned (`"version": 2`) | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 193,855 — every student unique | reduce-complexity: solutionRange [-6, 6], slopeRange [-3, 3], coefficientRange [-4, 4]; keeps solutionCase, form |
 | `transformations.describeEveryChange` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | — |
+| `transformations.describeScaleChange` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 288 — every student unique | — |
+| `transformations.describeTranslations` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 324 — every student unique | — |
 | `transformations.identifyCubeRoot` | v1 · what an unpinned reference means | — | — | `transformationsLab` (identify) | yes — shared server grader | yes | 120 — every student unique | — |
 | `transformations.linearCompareEffects` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 1,152 — every student unique | — |
 | `transformations.linearHorizontalShiftAlgebra` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 576 — every student unique | reduce-complexity: slopeRange [2, 3], shiftRange [1, 3] |
 | `transformations.linearPlotImages` | v1 · what an unpinned reference means | — | — | `transformationsLab` (plotTransform) | yes — shared server grader | yes | 49 — every student unique | reduce-complexity: shiftRange [1, 5]; keeps transformation |
 | `transformations.mapExponentialPoint` | v1 · what an unpinned reference means | — | — | `transformationsLab` (pointMap) | yes — shared server grader | yes | 270 — every student unique | — |
+| `transformations.matchAbsoluteValue` | v1 · what an unpinned reference means | — | — | `transformationsLab` (match) | yes — shared server grader | yes | 300 — every student unique | — |
 
 ## Families
+
+### `absoluteValue.analyzeTransformed` v1
+
+Analyze a reflected, stretched and translated absolute value.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.6C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 576 | — |
 
 ### `absoluteValue.solveEquation` v1
 
@@ -1575,6 +1597,44 @@ Describe every change in g(x) = ±f(±B(x − C)) + D.
 | reflections: "both" | 576 | — |
 | reflections: "none" | 576 | — |
 
+### `transformations.describeScaleChange` v1
+
+Describe a reflection and a scale by the class rule, g(x) = f(−bx) or −a·f(x) + D.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.6C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `side` | choice | `"outside"` | `"outside"`, `"inside"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 288 | — |
+| side: "inside" | 16 | — |
+
+### `transformations.describeTranslations` v1
+
+Describe the translations in g(x) = f(x − C) + D.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.6C
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 324 | — |
+
 ### `transformations.identifyCubeRoot` v1
 
 Read a transformed cube-root graph and determine a, h and k.
@@ -1690,3 +1750,21 @@ Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k.
 | --- | --- | --- |
 | default | 270 | — |
 | reflected: false | 270 | — |
+
+### `transformations.matchAbsoluteValue` v1
+
+Match a compressed, translated absolute value in the Transformations Lab.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.6C
+- **Answered in:** `transformationsLab` (match)
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 300 | — |

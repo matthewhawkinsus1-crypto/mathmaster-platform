@@ -38,6 +38,7 @@ import { GRAPH_READING_FAMILIES } from './questionFamiliesGraphReading.mjs';
 import { FUNCTION_VALUE_FAMILIES } from './questionFamiliesFunctionValues.mjs';
 import { INVERSE_FAMILIES } from './questionFamiliesInverses.mjs';
 import { FUNCTION_CONTEXT_FAMILIES } from './questionFamiliesFunctionContexts.mjs';
+import { TRANSFORMATION_LANGUAGE_FAMILIES } from './questionFamiliesTransformationLanguage.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
@@ -54,7 +55,8 @@ import { FUNCTION_CONTEXT_FAMILIES } from './questionFamiliesFunctionContexts.mj
 // Module 1 Lesson 2 Day 2's exit ticket), the Mapping Diagram family, the
 // graphed domain-and-range family and the function-values families (RC01),
 // and the inverse families, the graphed-intervals family and the filling-tank
-// family (RC01's next shapes: Lessons 1 Day 2, 3 and 4).
+// family (RC01's next shapes: Lessons 1 Day 2, 3 and 4), and the
+// transformation-language families (the ALEKS bridge lesson).
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...LINEAR_CASE_FAMILIES,
@@ -81,6 +83,7 @@ const REGISTERED = Object.freeze([
   ...FUNCTION_VALUE_FAMILIES,
   ...INVERSE_FAMILIES,
   ...FUNCTION_CONTEXT_FAMILIES,
+  ...TRANSFORMATION_LANGUAGE_FAMILIES,
 ]);
 
 const byKey = new Map();
