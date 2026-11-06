@@ -743,6 +743,54 @@ test('each figure marks the English words it shows: axis titles, point labels, o
   ]);
 });
 
+/*
+ * A SECURE TEST FIELD ITEM'S FIGURES (slice 3). They are drawn outside
+ * QuestionEngine (RichQuestionRuntime's field item → PathQuestionStimulus),
+ * so their descriptions were English only. Where the item offers the
+ * student its authored Spanish translation (secureItemAccess.js
+ * secureFigureLanguage, wired in secureAccessWiring.test.mjs) they are
+ * handed the Spanish words. What they say is the same description in
+ * Spanish: no position while the item can be answered, the read-out only by
+ * the plan, and nothing else on the item changes.
+ */
+test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es", and gives away nothing the English does not', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: PathQuestionStimulus } = await capture.load('/src/components/student/PathQuestionStimulus.jsx');
+  const { GraphReadOutProvider } = await capture.load('/src/platform/supports/graphReadOut.js');
+  const PLANE = /<p id="(mm-plane-desc-[^"]+)"([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/;
+  const withoutDescription = (markup) => markup.replace(PLANE, '');
+  const seed = JSON.parse(readFileSync(new URL('functions/seeds/secureAssessments/algebra1_district_dol2.json', ROOT), 'utf8'));
+  const stimuli = seed.documents.flatMap((doc) => (doc.variants || []).filter((variant) => variant.stimulus?.graph).map((variant, index) => [`${doc.id} v${index}`, variant.stimulus]));
+  assert.ok(stimuli.length >= 300, `${stimuli.length} secure stimulus graphs`);
+  let withheld = 0;
+  stimuli.forEach(([where, stimulus]) => {
+    const render = (readOut, words) => capture.render(React.createElement(GraphReadOutProvider, { enabled: readOut },
+      React.createElement(FigureWordsProvider, { pack: words }, React.createElement(PathQuestionStimulus, { stimulus }))));
+    const english = render(false, null);
+    const spanish = render(false, esFigures);
+    const plain = descriptionIn(english.markup, PLANE, `${where} (English)`);
+    const described = descriptionIn(spanish.markup, PLANE, `${where} (Spanish)`);
+    assert.deepEqual([plain.lang, described.lang], [null, 'es'], where);
+    sameNumbers(plain.text, described.text, where);
+    // While it can be answered: no position, in either language, and the
+    // positions held back where the English holds them back.
+    assert.doesNotMatch(described.text, POSITIONS_ES, `${where}: ${described.text}`);
+    assert.equal(/Las posiciones no se leen mientras se pueda responder esta pregunta\./.test(described.text), /Positions are not read out while this question can be answered\./.test(plain.text), where);
+    withheld += /Las posiciones no se leen/.test(described.text) ? 1 : 0;
+    // Nothing else on the item changes: the same markup but for the description.
+    assert.equal(withoutDescription(spanish.markup), withoutDescription(english.markup), `${where}: only the description is in Spanish`);
+    // The graph read-out (a student whose plan gives it): the full reading, in
+    // Spanish, with positions wherever the English reading has them.
+    const englishReadOut = descriptionIn(render(true, null).markup, PLANE, `${where} (read-out, English)`).text;
+    const readOut = descriptionIn(render(true, esFigures).markup, PLANE, `${where} (read-out)`).text;
+    sameNumbers(englishReadOut, readOut, `${where} read-out`);
+    assert.equal(POSITIONS_ES.test(readOut), /\bcrosses\b|\bthrough\b|\bbetween\b|\(\s*[−-]?\d/.test(englishReadOut), `${where}: ${readOut}`);
+  });
+  // Measured: 320 of 384; the others draw only a curve, as marks the plane
+  // does not read, and say no position in either language.
+  assert.ok(withheld >= 300, `${withheld} of ${stimuli.length} hold their positions back`);
+});
+
 test('a description the Spanish words cannot say all of stays English, with no lang', async () => {
   const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
   const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');

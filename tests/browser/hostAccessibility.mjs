@@ -14,6 +14,11 @@
  * session, none in a retention check or exam-framework practice.
  * Graph descriptions: the session recap reads features; the answerable Path
  * question does not.
+ * Secure figures (AX05, slice 3): a secure Test field item's graph, for a
+ * student whose plan gives Translate in Spanish on an item with an authored
+ * Spanish prompt, describes itself in Spanish, marked lang="es", with no
+ * position while it can be answered (in full only with the graph read-out);
+ * the prompt on screen stays as authored; anyone else hears it in English.
  */
 import assert from 'node:assert/strict';
 
@@ -27,6 +32,20 @@ const VIEWPORTS = [[1366, 768], [390, 844]];
 const ONLY = process.argv.find((arg) => arg.startsWith('--only='))?.slice(7) || null;
 const failures = [];
 const check = (condition, message) => { if (!condition) failures.push(message); };
+
+// The accessible description Chromium computes for an element: what a screen reader reads.
+const axDescription = async (page, selector) => {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+    if (!nodeId) return null;
+    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+    return nodes[0]?.description?.value || '';
+  } finally {
+    await cdp.detach();
+  }
+};
 
 const open = async (query, [width, height]) => {
   const page = await browser.newPage({ viewport: { width, height } });
@@ -201,6 +220,43 @@ for (const viewport of VIEWPORTS) {
     check(!/crosses the y-axis/.test(liveAll), `${at}: the answerable question's description names no crossing`);
     console.log(`graphs ${at}: recap features=${/crosses the y-axis/.test(recapAll)} live features=${/crosses the y-axis/.test(liveAll)} (${recapText.length})`);
     await live.page.close();
+  }
+  if (!ONLY || ONLY === 'secureFigures') {
+    const POSITION = /\(\s*[−-]?\d|\bcruza\b|\bpasa por\b|\bentre\b|\besquinas?\b|\bcrosses\b|\bthrough\b|\bbetween\b/;
+    // The graph's hidden description ({ text, lang }) and the svg's accessible description.
+    const described = async (page) => {
+      const hidden = page.locator('p[id^="mm-plane-desc-"]').first();
+      const id = await hidden.getAttribute('id');
+      return { text: (await hidden.textContent()) || '', lang: await hidden.getAttribute('lang'), ax: await axDescription(page, `svg[aria-describedby~="${id}"]`) };
+    };
+    for (const [query, expected] of [
+      ['profile=spanish', 'es'],
+      ['profile=readout', 'es-full'],
+      ['profile=spanish&translated=0', 'en'],
+      ['profile=english', 'en'],
+      ['', 'en'],
+    ]) {
+      const { page, errors } = await open(`scene=secure-field&${query}`, viewport);
+      if (expected !== 'en') await page.locator('p[id^="mm-plane-desc-"][lang="es"]').first().waitFor({ timeout: 8000 }).catch(() => {});
+      const said = await described(page);
+      const where = `${at} secure field ${query || 'no profile'}`;
+      console.log(`secureFigures ${where}: ${JSON.stringify(said)}`);
+      check(said.ax === said.text, `${where}: the graph's accessible description is its description (${said.ax})`);
+      if (expected === 'en') {
+        check(said.lang === null && said.text.startsWith('x from −10 to 10, y from −10 to 10.') && !POSITION.test(said.text), `${where}: English, unmarked, no position (${JSON.stringify(said)})`);
+      } else if (expected === 'es') {
+        check(said.lang === 'es' && said.text === 'El eje x va de −10 a 10 y el eje y, de −10 a 10. 1 recta. También muestra marcas que dibuja la actividad y que no se describen aquí. Las posiciones no se leen mientras se pueda responder esta pregunta.', `${where}: Spanish, marked lang="es", no position (${JSON.stringify(said)})`);
+      } else {
+        check(said.lang === 'es' && said.text.startsWith('El eje x va de −10 a 10 y el eje y, de −10 a 10. 1 recta. La recta 1 baja de izquierda a derecha, cruza el eje y ') && !/no se leen/.test(said.text), `${where}: the read-out reads it in full, in Spanish (${JSON.stringify(said)})`);
+      }
+      const prompt = (await page.locator('h1').first().textContent()) || '';
+      check(prompt.includes('Identify the x-intercept and y-intercept'), `${where}: the prompt on screen stays as authored (${prompt.slice(0, 80)})`);
+      if (query === 'profile=spanish') check(await page.locator('[data-support-tool="translate"]').count() === 1, `${where}: the item offers Translate, which shows the authored Spanish`);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      check(overflow <= 1, `${where}: nothing scrolls sideways (${overflow}px)`);
+      check(errors.length === 0, `${where}: page errors ${errors.join(' | ')}`);
+      await page.close();
+    }
   }
 }
 
