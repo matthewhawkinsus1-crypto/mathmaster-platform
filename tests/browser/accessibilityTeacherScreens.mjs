@@ -472,6 +472,16 @@ export const openStudentDetailView = (label) => async (page) => {
   await page.waitForTimeout(1500);
 };
 
+// Assignments -> Create and Assign, opened: the assignment creator's form (steps 1 to 3) and the paste
+// and upload of step 4. Closed, as the screen opens once a teacher has assignments, it is a summary line.
+const openCreateAndAssign = async (page) => {
+  await closePopups(page);
+  const creator = page.locator('summary', { hasText: 'Create and Assign' }).first();
+  if (!(await creator.evaluate((summary) => summary.parentElement.open))) await creator.evaluate((summary) => summary.click());
+  await page.getByRole('heading', { name: '1. Lesson and purpose' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -491,6 +501,8 @@ export const TEACHER_SCREENS = [
     // pop-ups are driven by accessibilityTeacherMenus.mjs.
     { id: 'class-list', run: openClassList, include: '[role="listbox"][aria-label="Class"]', keyboard: false },
     { id: 'card-menu', run: openCardMenu, include: '[data-assignment-menu]', keyboard: false },
+    // The fifth slice: Create and Assign opened, the page audited and walked whole.
+    { id: 'create', run: openCreateAndAssign },
   ]),
   // A modal drawer: the page behind its scrim is not what a person is reading,
   // so the audit is of the drawer (the page is teacher-assignments, above).

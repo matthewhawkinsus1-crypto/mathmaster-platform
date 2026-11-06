@@ -59,7 +59,7 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-live-class': ['walkthrough', 'attention'],
   // The fifth slice added, here and below, states of these screens that no scene had opened (accessibilityTeacherScreens
   // .mjs, THE FIFTH SLICE).
-  'teacher-assignments': [null, 'class-list', 'card-menu'],
+  'teacher-assignments': [null, 'class-list', 'card-menu', 'create'],
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
   'teacher-preflight': ['details', 'delivery', 'check'],
