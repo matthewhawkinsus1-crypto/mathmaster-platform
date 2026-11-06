@@ -16,14 +16,25 @@
  *     ASVAB, Digital SAT, TSIA2), drawn on fixed seeds through the production
  *     generator, plus every static key in docs/assignments, drafts and seed;
  *   - responses that should be RIGHT: the key, every accepted form, and student
- *     spellings of them (the spellings Job P's changes accept, among others);
+ *     spellings of them (the spellings Job P's changes accept, among others),
+ *     and the ways a student plausibly types them into a typed field
+ *     (scripts/lib/typedAnswerSpellings.mjs: spaces, a leading +,
+ *     superscripts, ×, · and *, implicit products, redundant brackets, \frac
+ *     and \dfrac, ≤ typed as <=, a generated zero term left out, and — only
+ *     where nothing the student reads asks for a form, or for a fraction —
+ *     reordered sums and products and a decimal equal to the key);
  *   - responses that should be WRONG: every other choice label of the same
  *     field, and near misses of the key (a number moved by one, a sign
- *     flipped, a bracket or relation changed), each also in those spellings.
+ *     flipped, a bracket or relation changed, and the near misses each typed
+ *     spelling class needs), each also in those spellings.
  *
  * Graders compared: the Path field grader (functions/lib/mathPath.js
- * valuesEquivalent, mirrored per `equivalence`), the assignment field matcher
- * (functions/shared/answerUtils.mjs matchesFieldAnswer) and sameValue.
+ * valuesEquivalent, mirrored per `equivalence`, an interval field read as
+ * interval notation as privateGradingDefinition stores it), the assignment
+ * field matcher (functions/shared/answerUtils.mjs matchesFieldAnswer) and
+ * sameValue. The typed spellings are reported by class: how many each built,
+ * how many the base and this tree refuse, and any still refused (a class can
+ * be left on purpose; it does not fail the run).
  *
  * OUTPUT. Every pair whose verdict differs, as JSON, and a summary. Exit 1 if
  * any verdict went from right to wrong. Wrong-to-right changes are listed for
@@ -52,6 +63,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { extraBankDocuments, extraBankPaths } from './lib/extraPathBanks.mjs';
 import { editorTypedSpellings } from './lib/editorTypedSpelling.mjs';
+import { typedNearMissesOf, typedSpellingsOf } from './lib/typedAnswerSpellings.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argOf = (name, fallback) => {
@@ -70,6 +82,11 @@ if (!BASE) {
 const require = createRequire(import.meta.url);
 const generation = await import(pathToFileURL(path.join(ROOT, 'functions/shared/pathQuestionGeneration.mjs')).href);
 const { compilePathRecordForStorage } = require(path.join(ROOT, 'functions/lib/pathFirestoreShape.js'));
+// What the student reads, for the typed spellings below: whether the field or
+// its question asks for a form, or for a fraction (lineFormPolicy's own reading).
+const { fieldTexts, questionTexts } = await import(pathToFileURL(path.join(ROOT, 'functions/shared/lineFormPolicy.mjs')).href);
+const { formRequestIn } = await import(pathToFileURL(path.join(ROOT, 'functions/shared/linearEquationForm.mjs')).href);
+const FRACTION_REQUEST = /\bfractions?\b|lowest terms|simplest form|improper|mixed numbers?/i;
 
 // --- the corpus ----------------------------------------------------------------
 
@@ -77,8 +94,8 @@ const scalar = (value) => typeof value === 'string' || (typeof value === 'number
 const hasTemplate = (value) => /\{\{/.test(String(value));
 
 const fields = [];
-const seenFields = new Set();
-const addField = (source, raw, questionChoices) => {
+const seenFields = new Map();
+const addField = (source, raw, questionChoices, question = null) => {
   const key = raw.expected ?? raw.answer;
   if (!scalar(key) || hasTemplate(key) || String(key).trim() === '') return;
   const accepted = [...(Array.isArray(raw.accepted) ? raw.accepted : []), ...(Array.isArray(raw.acceptedAnswers) ? raw.acceptedAnswers : [])]
@@ -108,23 +125,39 @@ const addField = (source, raw, questionChoices) => {
     // A number box takes the value, not a calculation, unless it says so
     // (GR01, answerEquivalence.mjs fieldAllowsArithmetic).
     allowArithmetic: raw.allowArithmetic === true,
+    // Whether what the student reads asks for a form (a rule of the field's
+    // own, or the words lineFormPolicy reads) or for a fraction: the typed
+    // spellings build a reordered sum or product, or a decimal, only where
+    // nothing asks (typedAnswerSpellings.mjs).
+    formAsked: ['equivalence', 'gradingMode', 'answerForm', 'lineForm'].some((name) => raw[name])
+      || formRequestIn([...fieldTexts(raw), ...(question ? questionTexts(question) : [])]) !== null,
+    fractionAsked: [...fieldTexts(raw), ...(question ? questionTexts(question) : []), raw.answerFormat, raw.inputContract?.format]
+      .some((text) => FRACTION_REQUEST.test(String(text ?? ''))),
   };
   // The profile is part of a field's identity: a number box and an
-  // expression field with one key are graded differently (wave 7).
+  // expression field with one key are graded differently (wave 7). Two
+  // copies that read differently keep the stricter reading.
   const id = JSON.stringify([field.key, field.accepted, field.options, field.equivalence, field.numericTolerance, field.answerFormat, field.inputProfile, field.allowArithmetic]);
-  if (seenFields.has(id)) return;
-  seenFields.add(id);
+  const known = seenFields.get(id);
+  if (known) {
+    known.formAsked ||= field.formAsked;
+    known.fractionAsked ||= field.fractionAsked;
+    return;
+  }
+  seenFields.set(id, field);
   fields.push(field);
 };
 
-const visit = (node, source, questionChoices = null) => {
+const visit = (node, source, questionChoices = null, question = null) => {
   if (!node || typeof node !== 'object') return;
-  if (Array.isArray(node)) { node.forEach((entry) => visit(entry, source, questionChoices)); return; }
+  if (Array.isArray(node)) { node.forEach((entry) => visit(entry, source, questionChoices, question)); return; }
   const choices = Array.isArray(node.choices) && node.choices.length ? node.choices : questionChoices;
+  // The nearest object with a prompt is the question a field belongs to.
+  const asked = typeof node.prompt === 'string' || typeof node.stem === 'string' ? node : question;
   if (('expected' in node || 'answer' in node) && (node.id !== undefined || node.inputProfile || node.label || node.accepted || node.acceptedAnswers)) {
-    addField(source, node, choices);
+    addField(source, node, choices, asked);
   }
-  for (const value of Object.values(node)) if (value && typeof value === 'object') visit(value, source, choices);
+  for (const value of Object.values(node)) if (value && typeof value === 'object') visit(value, source, choices, asked);
 };
 
 const documentsIn = (parsed) => (Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || null));
@@ -758,10 +791,13 @@ const gradersFrom = async (root) => {
   const valueOptions = (field) => (equivalence.fieldValueOptions
     ? equivalence.fieldValueOptions(fieldShape(field))
     : { thousandsSeparators: equivalence.fieldAcceptsThousandsSeparators(fieldShape(field)) });
-  // functions/lib/mathPath.js valuesEquivalent, without the async import.
+  // functions/lib/mathPath.js valuesEquivalent, without the async import. A
+  // field declared interval is stored with `equivalence: 'interval'`
+  // (privateGradingDefinition), so it is read so here too.
   const pathField = (actual, field) => [field.key, ...field.accepted].some((expected) => {
     const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
-    switch (field.equivalence) {
+    const declaredInterval = [field.inputProfile, field.answerFormat].some((value) => String(value || '').toLowerCase() === 'interval');
+    switch (field.equivalence || (declaredInterval ? 'interval' : null)) {
       case 'interval': return equivalence.sameIntervalNotation(actual, expected, tolerance);
       case 'polynomialRelation': return equivalence.samePolynomialEquationRelation(actual, expected, tolerance);
       case 'absoluteLinearRelation': return equivalence.sameAbsoluteValueLinearEquation(actual, expected, tolerance);
@@ -868,10 +904,28 @@ for (const field of fields) {
 }
 Object.assign(counts, oldKeyCounts, { oldKeySpellingsRefused: oldKeysRefused.length });
 
+// The typed spellings (typedAnswerSpellings.mjs), class by class: how many
+// right answers each built, how many the base and this tree refuse (by the
+// Path or the assignment grader), and its near misses and how many this tree
+// accepts.
+const typedClasses = new Map();
+const typedClass = (name) => {
+  if (!typedClasses.has(name)) typedClasses.set(name, { built: 0, refusedOnBase: 0, refused: 0, nearMisses: 0, nearMissesAccepted: 0 });
+  return typedClasses.get(name);
+};
+const typedRefused = [];
+const typedMissesAccepted = [];
+
 for (const field of fields) {
   const right = new Set([field.key, ...field.accepted]);
   // An old key's spelling is a right answer to today's key (above).
   (oldKeyChecks.get(`${field.inputProfile || null}|${field.key}`) || []).forEach(({ spelling }) => right.add(spelling));
+  // What a student types for each of these, by class (typedSpellingsOf),
+  // added after the TS05 snapshot below so the editor does not spell them again.
+  const typedRight = new Map();
+  for (const value of right) {
+    typedSpellingsOf(value, field).forEach(({ spelling, spellingClass }) => { if (!typedRight.has(spelling)) typedRight.set(spelling, spellingClass); });
+  }
   [...right].forEach((value) => spellingsOf(value).forEach((spelling) => right.add(spelling)));
   // TS05: what the editor holds for each right answer is right too, and
   // wherever this tree accepts the typed spelling it accepts the editor's.
@@ -886,26 +940,45 @@ for (const field of fields) {
       spellings.forEach((spelling) => right.add(spelling));
     }
   }
+  // The class a response was built by, when only a typed spelling built it.
+  const classOf = new Map();
+  typedRight.forEach((spellingClass, spelling) => {
+    if (right.has(spelling)) return;
+    right.add(spelling);
+    classOf.set(spelling, spellingClass);
+  });
   // Each wrong response remembers the answer it spells. A spelling of a near
   // miss that the field's own tolerance already accepts (154 vs 155 with a
   // tolerance of 1) is not a wrong answer let through.
   const wrong = new Map();
   field.options.forEach((label) => wrong.set(label, label));
-  nearMissesOf(field.key).forEach((miss) => {
-    wrong.set(miss, miss);
+  // The near misses the typed classes need (typedNearMissesOf), beside the
+  // sweep's own; every near miss is also spelled each typed way.
+  const misses = [...nearMissesOf(field.key).map((miss) => [miss, null]), ...typedNearMissesOf(field.key, field).map(({ miss, spellingClass }) => [miss, spellingClass])];
+  const missClassOf = new Map();
+  misses.forEach(([miss, spellingClass]) => {
+    if (!wrong.has(miss)) wrong.set(miss, miss);
+    if (spellingClass && !missClassOf.has(miss)) missClassOf.set(miss, spellingClass);
     spellingsOf(miss).forEach((spelling) => { if (!wrong.has(spelling)) wrong.set(spelling, miss); });
     // …and the editor's spelling of a near miss is the same wrong answer (TS05).
     if (typedEditorField(field)) editorTypedSpellings(miss).forEach((spelling) => { if (!wrong.has(spelling)) wrong.set(spelling, miss); });
+    typedSpellingsOf(miss, field, { nearMiss: true }).forEach(({ spelling, spellingClass: typedClassName }) => {
+      if (wrong.has(spelling)) return;
+      wrong.set(spelling, miss);
+      missClassOf.set(spelling, typedClassName);
+    });
   });
   for (const value of right) wrong.delete(value);
   const responses = [...[...right].map((value) => [value, 'right', value]), ...[...wrong].map(([value, root]) => [value, 'wrong', root])];
   counts.rightResponses += right.size;
   counts.wrongResponses += wrong.size;
   for (const [response, built, root] of responses) {
+    const verdicts = {};
     for (const grader of ['path', 'assignment', 'sameValue']) {
       counts.graded += 1;
       const before = base[grader](response, field);
       const after = current[grader](response, field);
+      verdicts[grader] = { before, after };
       if (built === 'wrong' && after === true && stackedWrongSpellings.has(response)) {
         counts.stackedWrongAccepted += 1;
         stackedWrongAccepted.push({ grader, response, key: field.key });
@@ -914,7 +987,8 @@ for (const field of fields) {
       // A wrong response whose root answer the field already accepts is the
       // root's own spelling, not a near miss let through.
       const effectivelyRight = built === 'wrong' && root !== response && base[grader](root, field) === true;
-      const change = { grader, built: effectivelyRight ? 'right' : built, root, response, key: field.key, accepted: field.accepted, equivalence: field.equivalence, numericTolerance: field.numericTolerance, source: field.source, before, after };
+      const spellingClass = (built === 'right' ? classOf : missClassOf).get(response) || null;
+      const change = { grader, built: effectivelyRight ? 'right' : built, root, response, key: field.key, accepted: field.accepted, equivalence: field.equivalence, numericTolerance: field.numericTolerance, source: field.source, before, after, ...(spellingClass ? { spellingClass } : {}) };
       changes.push(change);
       // A near miss (or a spelling of one) the base accepted and this tree
       // refuses is a wrong answer no longer let through, never a right answer
@@ -926,11 +1000,34 @@ for (const field of fields) {
         if (change.built === 'wrong') counts.nearMissNowRight += 1;
       }
     }
+    // The field graders' verdicts on a typed spelling, for its class.
+    const fieldGraders = [verdicts.path, verdicts.assignment];
+    if (built === 'right' && classOf.has(response)) {
+      const entry = typedClass(classOf.get(response));
+      entry.built += 1;
+      if (fieldGraders.some(({ before }) => before !== true)) entry.refusedOnBase += 1;
+      if (fieldGraders.some(({ after }) => after !== true)) {
+        entry.refused += 1;
+        typedRefused.push({ spellingClass: classOf.get(response), response, key: field.key, inputProfile: field.inputProfile, equivalence: field.equivalence, source: field.source });
+      }
+    } else if (built === 'wrong' && missClassOf.has(response)) {
+      const entry = typedClass(missClassOf.get(response));
+      entry.nearMisses += 1;
+      if (fieldGraders.some(({ after }) => after === true)) {
+        entry.nearMissesAccepted += 1;
+        // Listed for review: accepted by the base too, or it would be a
+        // change above. Its root may be one the field's tolerance takes.
+        typedMissesAccepted.push({ spellingClass: missClassOf.get(response), response, root, rootAcceptedOnBase: base.path(root, field) === true, key: field.key, inputProfile: field.inputProfile, numericTolerance: field.numericTolerance, source: field.source });
+      }
+    }
   }
 }
+counts.typedSpellings = [...typedClasses.values()].reduce((total, entry) => total + entry.built, 0);
+counts.typedSpellingsRefusedOnBase = [...typedClasses.values()].reduce((total, entry) => total + entry.refusedOnBase, 0);
+counts.typedSpellingsRefused = typedRefused.length;
 
 counts.editorParityRefused = editorParityRefused.length;
-if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, changes, editorRefused, editorTypedRefused, editorParityRefused, oldKeysRefused, oldKeyNotes, oldKeyReasked }, null, 2)}\n`);
+if (OUT) writeFileSync(OUT, `${JSON.stringify({ counts, typedSpellingClasses: Object.fromEntries(typedClasses), changes, typedRefused, typedMissesAccepted, editorRefused, editorTypedRefused, editorParityRefused, oldKeysRefused, oldKeyNotes, oldKeyReasked }, null, 2)}\n`);
 console.log(JSON.stringify({ ...counts, stackedPiOrRootSpellings: stackedSpellings.size, editorSpelledKeys: editorSpellingKeys.size }));
 const show = (title, list) => {
   if (!list.length) return;
@@ -948,6 +1045,22 @@ show('RIGHT → WRONG (must be empty)', changes.filter((change) => change.before
 show('A NEAR MISS THE BASE ACCEPTED, NOW REFUSED (a fix; review each)', changes.filter((change) => change.before === true && change.built === 'wrong'));
 show('WRONG → RIGHT, built as a near miss or another option (review each)', changes.filter((change) => change.before !== true && change.built === 'wrong'));
 show('WRONG → RIGHT, built as a right spelling', changes.filter((change) => change.before !== true && change.built === 'right'));
+if (typedClasses.size) {
+  console.log('\nTYPED SPELLINGS BY CLASS (right: built, refused on the base, refused now; near misses: built, accepted now)');
+  for (const [name, entry] of typedClasses) {
+    console.log(`  ${name.padEnd(20)} ${String(entry.built).padStart(6)} ${String(entry.refusedOnBase).padStart(6)} ${String(entry.refused).padStart(6)}   ${String(entry.nearMisses).padStart(6)} ${String(entry.nearMissesAccepted).padStart(6)}`);
+  }
+}
+if (typedRefused.length) {
+  // Not a failure: a class can be left on purpose (the report says which and why).
+  console.log(`\nA TYPED SPELLING OF A RIGHT ANSWER, STILL REFUSED (${typedRefused.length}; review each class)`);
+  const perClass = new Map();
+  typedRefused.forEach((entry) => perClass.set(entry.spellingClass, [...(perClass.get(entry.spellingClass) || []), entry]));
+  for (const [name, list] of perClass) {
+    console.log(`  ${name} (${list.length})`);
+    list.slice(0, 12).forEach((entry) => console.log(`    ${JSON.stringify(entry.response)}  key ${JSON.stringify(entry.key)} [${entry.inputProfile}${entry.equivalence ? `/${entry.equivalence}` : ''}]  ${entry.source}`));
+  }
+}
 if (editorRefused.length) {
   console.log(`\nTHE EDITOR'S SPELLING OF A KEY, REFUSED (${editorRefused.length}; must be empty)`);
   editorRefused.slice(0, 40).forEach((entry) => console.log(`  ${JSON.stringify(entry.spelling)}  key ${JSON.stringify(entry.key)} [${entry.inputProfile}]`));
