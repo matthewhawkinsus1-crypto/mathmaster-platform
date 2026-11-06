@@ -175,7 +175,7 @@
                 "3x³−14x²+9x−4": "Multiply each term of f by x and by −4, then combine: −12x² − 2x² = −14x² and 8x + x = 9x.",
                 "3x³−10x²−7x−4": "This has sign slips with −2x: a negative times a positive is negative, and a negative times a negative is positive.",
                 "3x²−6x−3": "Multiplying by x − 4 raises the degree of f, but this result stayed at degree 2.",
-                "3x³−14x²−9x+4": "This flips the signs of the last two products; check −2x · (−4) and 1 · (−4)."
+                "3x³−14x²−9x+4": "This flips the signs of the last three products: −2x · (−4) is +8x, 1 · x is +x and 1 · (−4) is −4."
               }
             },
             {
@@ -302,14 +302,14 @@
                 "12x²−14x+8",
                 "6x²−2x+7",
                 "12x²−8x+6",
-                "3x²+3x+4"
+                "3x²−2x+5"
               ],
               "answer": "12x²−14x+8",
               "optionRationales": {
                 "12x²−14x+8": "Put g(x) = 2x − 1 into f: 3(2x − 1)² − (2x − 1) + 4 = 12x² − 14x + 8.",
                 "6x²−2x+7": "This is (g∘f)(x), which puts f into g; f∘g puts g into f.",
                 "12x²−8x+6": "Check two steps: the middle term of (2x − 1)², and the sign of each term of −(2x − 1).",
-                "3x²+3x+4": "This keeps 3x² unchanged; every x in f, including the squared one, becomes 2x − 1."
+                "3x²−2x+5": "This keeps 3x² as it is and puts 2x − 1 only into −x: 3x² − (2x − 1) + 4. Every x in f, the squared one too, becomes 2x − 1."
               }
             },
             {
@@ -320,14 +320,14 @@
                 "6x²−2x+7",
                 "12x²−14x+8",
                 "6x²−x+3",
-                "3x²+x+7"
+                "3x²−2x+7"
               ],
               "answer": "6x²−2x+7",
               "optionRationales": {
                 "6x²−2x+7": "Put f(x) into g: 2(3x² − x + 4) − 1 = 6x² − 2x + 7.",
                 "12x²−14x+8": "This is (f∘g)(x), which puts g into f; g∘f puts f into g.",
                 "6x²−x+3": "This doubles only the first term of f; the 2 multiplies all of 3x² − x + 4.",
-                "3x²+x+7": "This leaves 3x² as it is; g doubles everything it is given, then subtracts 1."
+                "3x²−2x+7": "This doubles −x + 4 but leaves 3x² as it is: 3x² + 2(−x + 4) − 1. g doubles all of f(x), then subtracts 1."
               }
             }
           ],
@@ -583,14 +583,14 @@
                 "x²+12x+38",
                 "x²+2x+8",
                 "x²+10x+28",
-                "x²+7x+8"
+                "x²+2x+13"
               ],
               "answer": "x²+12x+38",
               "optionRationales": {
                 "x²+12x+38": "Put x + 5 into f: (x + 5)² + 2(x + 5) + 3 = x² + 12x + 38.",
                 "x²+2x+8": "This is (g∘f)(x), which puts f into g; f∘g puts g into f.",
                 "x²+10x+28": "This leaves out the 2x term of f; every term of f stays, and each x in it becomes x + 5.",
-                "x²+7x+8": "This keeps x² as it is; every x in f, including the squared one, becomes x + 5."
+                "x²+2x+13": "This keeps x² as it is and puts x + 5 only into 2x: x² + 2(x + 5) + 3. Every x in f, the squared one too, becomes x + 5."
               }
             },
             {
@@ -629,14 +629,14 @@
               "options": [
                 "x",
                 "x+4",
-                "0.5x−4",
+                "0.5x",
                 "2x"
               ],
               "answer": "x",
               "optionRationales": {
                 "x": "0.5(2x − 8) + 4 = x − 4 + 4 = x.",
                 "x+4": "This drops the −8 from g; the 0.5 multiplies all of 2x − 8.",
-                "0.5x−4": "This loses the factor of 2 from g: f takes all of 2x − 8 as its input.",
+                "0.5x": "This puts x − 8 into f instead of 2x − 8, losing the factor of 2 from g: 0.5(x − 8) + 4 = 0.5x.",
                 "2x": "The 0.5 in f halves the 2x from g, so no factor of 2 is left."
               }
             },
