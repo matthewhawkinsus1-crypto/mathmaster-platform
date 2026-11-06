@@ -46,6 +46,73 @@
 }
 
 /*
+ * The two-by-two area model with a coefficient box in each cell
+ * (PolynomialWorkshop.jsx MultiplyArea). Each box stands beside its variable
+ * part ("x²") in a grid whose first column is 90px. On a 390px phone a box had
+ * about 85px and its placeholder, "coefficient", showed as "coefficie"
+ * (walkthrough 2026-11-06, P-5); at 200% text two boxes never fit side by
+ * side. So where the panel is narrower than two boxes need at the student's
+ * text size (the container query is in em, which grows with it), the cells
+ * become a list, as the larger area model's do above: one product a line,
+ * named beside its box, and a box with no room beside its name goes under it.
+ * A laptop at the default text size keeps the grid as it was.
+ */
+.mm-coefficient-area {
+  container-type: inline-size;
+}
+
+.mm-coefficient-area-grid {
+  display: grid;
+  grid-template-columns: 90px 1fr 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.mm-coefficient-area-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* One class more than a phone container's `* { min-width: 0 }`
+   (MathToolMobileLayout.css), so the width below holds wherever it loads. */
+.mm-coefficient-area .mm-coefficient-area-input {
+  min-width: 0;
+}
+
+.mm-coefficient-area-label {
+  display: none;
+}
+
+@container (max-width: 24em) {
+  .mm-coefficient-area-grid {
+    display: block;
+  }
+
+  .mm-coefficient-area-head {
+    display: none;
+  }
+
+  .mm-coefficient-area-cell {
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .mm-coefficient-area-label {
+    display: inline-block;
+    min-width: 5em;
+    font-weight: 800;
+  }
+
+  /* Room for "coefficient" and the box's padding, in em of the box's own
+     text, so it holds at any text size and in a wider system font. */
+  .mm-coefficient-area .mm-coefficient-area-input {
+    flex: 1 1 8em;
+    min-width: 8em;
+  }
+}
+
+/*
  * Long division and synthetic division (PolynomialWorkshop.jsx LongDivision,
  * SyntheticDivision).
  *

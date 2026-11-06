@@ -97,6 +97,11 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
   </ToolShell>;
 }
 
+// A cell's product as the narrow-panel list names it beside its box: "2x · x",
+// "3 · (−4)". The box's own name says the same to a screen reader, so this is
+// hidden from it.
+const areaProductText = (rowTerm, columnTerm) => `${rowTerm} · ${/^[−-]/.test(columnTerm) ? `(${columnTerm})` : columnTerm}`;
+
 // The expanded polynomial is this mode's graded ANSWER (a coefficient list the
 // shared grader reads), not a step in an algebra workspace, so it does not use
 // the shared Simplify control (student push Q): that would change what is
@@ -125,10 +130,15 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Fill in the area model, then write the expanded polynomial.'} steps={['Multiply each row term by each column term.', 'Each cell already shows the variable part; enter only the signed coefficient for that product.', 'Add the like terms and enter the final coefficients from highest degree down.']} />
     <ToolGrid min={330}>
       <Panel title={binomialProductText(left, right)}>
-        <div style={{display:'grid',gridTemplateColumns:'90px 1fr 1fr',gap:6,alignItems:'stretch'}}>
-          <div/><strong style={{padding:8,textAlign:'center'}}>{rightTerms[0]}</strong><strong style={{padding:8,textAlign:'center'}}>{rightTerms[1]}</strong>
-          <strong style={{padding:8,textAlign:'right'}}>{leftTerms[0]}</strong>{[0,1].map(i=><div key={i} style={{display:'flex',alignItems:'center',gap:5}}><input value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={{...inputStyle,minWidth:0}} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
-          <strong style={{padding:8,textAlign:'right'}}>{leftTerms[1]}</strong>{[2,3].map(i=><div key={i} style={{display:'flex',alignItems:'center',gap:5}}><input value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={{...inputStyle,minWidth:0}} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
+        {/* The grid and its narrow-panel list are PolynomialWorkshop.css's
+            .mm-coefficient-area rules (P-5: on a phone the boxes cut their
+            "coefficient" to "coefficie"). */}
+        <div className="mm-coefficient-area">
+        <div className="mm-coefficient-area-grid">
+          <div className="mm-coefficient-area-head"/><strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'center'}}>{rightTerms[0]}</strong><strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'center'}}>{rightTerms[1]}</strong>
+          <strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'right'}}>{leftTerms[0]}</strong>{[0,1].map(i=><div key={i} className="mm-coefficient-area-cell"><span className="mm-coefficient-area-label" aria-hidden="true">{areaProductText(leftTerms[0], rightTerms[i])}</span><input className="mm-coefficient-area-input" value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={inputStyle} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
+          <strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'right'}}>{leftTerms[1]}</strong>{[2,3].map(i=><div key={i} className="mm-coefficient-area-cell"><span className="mm-coefficient-area-label" aria-hidden="true">{areaProductText(leftTerms[1], rightTerms[i - 2])}</span><input className="mm-coefficient-area-input" value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={inputStyle} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
+        </div>
         </div>
       </Panel>
       <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="a, b, c" aria-label="Expanded polynomial: coefficients from the highest degree to the constant"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={['An area model is just organised distribution — every cell is one of the products you would get from FOIL.', 'Cells on the same diagonal usually hold the like terms that combine.', 'Enter coefficients highest degree first, and include a 0 for any missing degree.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
