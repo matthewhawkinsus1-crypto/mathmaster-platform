@@ -61,6 +61,10 @@ test('NAV-13: Assignments folds the search and period behind one button, and a s
   assert.match(toggle, /aria-expanded=\{filtersOpen \|\| Boolean\(search\)\}/);
   assert.match(toggle, /aria-controls="assignments-filters"/);
   assert.match(toggle, /if \(search\) return;/);
+  // Opening moves focus to the search a frame later, and only while the
+  // student is still on the toggle: a late frame never takes focus they moved.
+  assert.match(toggle, /const toggleButton = event\.currentTarget;/);
+  assert.match(toggle, /requestAnimationFrame\(\(\) => \{\s*const active = document\.activeElement;\s*if \(active && active !== toggleButton && active !== document\.body\) return;\s*document\.getElementById\('assignments-search'\)\?\.focus\(\);/);
 });
 
 test('NAV-21: Assignments keeps its search, tab and marking period in its own history entry', async () => {
