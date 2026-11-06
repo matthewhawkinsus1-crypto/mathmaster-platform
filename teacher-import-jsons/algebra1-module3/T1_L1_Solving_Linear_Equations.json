@@ -177,7 +177,7 @@
               "Evaluate each side with the order of operations.",
               "Equal sides mean the value is a solution; different sides mean it is not."
             ],
-            "commonError": "Forgetting the parentheses when substituting a negative value, so −3² is computed instead of (−3)²."
+            "commonError": "Forgetting the parentheses when substituting a negative value, so 2x with x = −3 becomes 2 − 3 = −1 instead of 2(−3) = −6."
           }
         }
       ]

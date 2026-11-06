@@ -17,6 +17,8 @@
  *   W3  L3 CW 4 asks for "an inequality for the number of boxes, b, in this
  *       region" of a graph drawn from b = 0, and its box's example is the
  *       compound "a ≤ x ≤ b". 0 ≤ b ≤ 420, the region exactly, was marked wrong.
+ *   W4  L1 Warm-Up 3 checks a value in a linear equation, and its review named
+ *       the slip "−3² is computed instead of (−3)²": nothing in it is squared.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,6 +31,8 @@ import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryRespons
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { answerCandidatesForField } from '../../functions/shared/answerUtils.mjs';
 import { inferRequiredAnswerSymbols } from '../../src/platform/interaction/answerEntryTools.js';
+import { resolveQuestionFamilyDefinition } from '../../functions/shared/questionFamilyInstance.mjs';
+import { buildFamilyQuestion, createFamilyInstanceSequence } from '../../functions/shared/questionFamilyEngine.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(here, '../../teacher-import-jsons/algebra1-module3');
@@ -193,4 +197,21 @@ test('T1 L3 CW 4: the region below y = 1600 is graded as b ≤ 420 or, bounded b
   // On a phone the "Needed for this answer" keys are read from every accepted
   // answer: the bounded form needs no key the key itself did not.
   assert.deepEqual(inferRequiredAnswerSymbols(answerCandidatesForField(field)).sort(), inferRequiredAnswerSymbols([field.answer]).sort());
+});
+
+test('T1 L1 Warm-Up 3, regular and Honors: the review names a slip a check by substitution in a linear equation can make', () => {
+  const POWER = /[²³⁴ⁿ^]|squared|cubed|power/i;
+  ['T1 L1', 'T1 L1 Honors'].forEach((key) => {
+    const slot = LESSONS[key].sections.find((section) => section.role === 'warmup').questions
+      .find((question) => question.questionFamily?.id === 'equations.verifySolution');
+    assert.ok(slot, `${key}: Warm-Up 3 checks a solution by substitution`);
+    // What the students are dealt: linear equations, so nothing is ever raised to a power.
+    const resolved = resolveQuestionFamilyDefinition(slot, { slotKey: slot.questionId });
+    const sequence = createFamilyInstanceSequence(resolved.family, resolved.constraintValues, `review|${slot.questionId}`);
+    for (let index = 0; index < 60; index += 1) {
+      const dealt = buildFamilyQuestion({ family: resolved.family, instance: sequence.instanceAt(index), constraintValues: resolved.constraintValues, authored: slot, tool: resolved.tool });
+      assert.doesNotMatch(dealt.prompt, POWER, `${key} version ${index}: ${dealt.prompt}`);
+    }
+    assert.doesNotMatch(slot.solutionReview.commonError, POWER, `${key}: ${slot.solutionReview.commonError}`);
+  });
 });
