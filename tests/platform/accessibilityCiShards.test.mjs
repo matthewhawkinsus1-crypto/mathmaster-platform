@@ -1,9 +1,10 @@
 // THE ACCESSIBILITY WORKFLOW'S TWO LONG JOBS, IN SHARDS AND PARTS (2026-11-06).
 //
-// Two jobs of .github/workflows/accessibility-certification.yml ran far longer than the rest. The teacher large-text
-// sweep took 36 minutes on CI for 48 scenes, and the fifth slice made it 66: every push waited on it, and a newer push
-// cancelled it before it finished. It now runs as three shards (studentShellLargeText.mjs --shard=i/3, cut by
-// tests/browser/support/sceneShards.mjs). These pin that no scene is dropped or run twice on the way.
+// Two jobs of .github/workflows/accessibility-certification.yml ran far longer than the rest: the teacher large-text
+// sweep (36 minutes on CI for 48 scenes, and the fifth slice made it 66) and the certification with the drivers after
+// it (about forty). Every push waited on them, and a newer push cancelled them before they finished. The teacher sweep
+// now runs as three shards (studentShellLargeText.mjs --shard=i/3, cut by tests/browser/support/sceneShards.mjs) and
+// the certification's steps as three jobs. These pin that no scene or step was dropped or doubled on the way.
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -98,6 +99,14 @@ test('a pull request that changes the shard module runs the accessibility workfl
 
 const workflow = readWorkflow('accessibility-certification.yml');
 const jobs = jobsOf(workflow);
+const PARTS = ['browser-accessibility-ratchet', 'browser-accessibility-contrast-and-targets', 'browser-accessibility-keyboard-and-names'];
+// A test step runs one command on one line; the servers start in `run: |` blocks.
+const commandOf = (step) => step.match(/^ {8}run: (?!\|)(.+)$/m)?.[1] ?? null;
+const SERVERS = {
+  'http://127.0.0.1:5199': /npx vite --config tests\/browser\/emulator\/vite\.config\.mjs --host 127\.0\.0\.1 --port 5199 --strictPort/,
+  'http://127.0.0.1:5188': /TEACHER_HARNESS_PORT=5188 npx vite --config tests\/browser\/accessibilityAppHarness\.vite\.config\.mjs/,
+};
+
 test('the teacher sweep runs as one job per shard, each named for its shard, and together they run every slice', () => {
   const job = jobs['browser-teacher-large-text'];
   assert.ok(job, 'the job');
@@ -109,4 +118,43 @@ test('the teacher sweep runs as one job per shard, each named for its shard, and
   assert.deepEqual(shards, Array.from({ length: count }, (_, at) => at + 1), 'the matrix runs shards 1 to n of the n the command cuts: no slice left out');
   assert.match(job, new RegExp(`^ {4}name: browser-teacher-large-text \\(\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\)$`, 'm'), 'a failed shard says which it is');
   assert.match(job, /^ {10}name: accessibility-certification-teacher-large-text-\$\{\{ matrix\.shard \}\}$/m, 'each shard keeps its own report');
+});
+
+test("the certification's steps are three jobs, and no step of the workflow runs twice", () => {
+  for (const part of PARTS) assert.ok(jobs[part], part);
+  const commands = Object.values(jobs).flatMap((text) => stepsOf(text).map(commandOf).filter(Boolean));
+  assert.ok(commands.length >= 30, `${commands.length} test steps`);
+  assert.deepEqual(commands.filter((command, at) => commands.indexOf(command) !== at), [], 'a step in two jobs');
+  for (const command of ['npm run certify:accessibility', 'npm run review:contrast']) assert.ok(commands.includes(command), command);
+});
+
+test('every job starts the servers its steps call before it calls them', () => {
+  for (const [job, text] of Object.entries(jobs)) {
+    const steps = stepsOf(text);
+    steps.forEach((step, at) => {
+      for (const [origin, server] of Object.entries(SERVERS)) {
+        if (!step.includes(`"${origin}"`)) continue;
+        assert.ok(steps.slice(0, at).some((earlier) => server.test(earlier)), `${job}: "${(step.match(/name: (.+)/) || [])[1]}" calls ${origin}, which no step before it starts`);
+      }
+    });
+  }
+});
+
+test("after a job's first test step, each one runs whatever happened to the one before it", () => {
+  for (const [job, text] of Object.entries(jobs)) {
+    const tests = stepsOf(text).filter(commandOf);
+    tests.slice(1).forEach((step) => assert.match(step, /^ {8}if: \$\{\{ !cancelled\(\) \}\}$/m, `${job}: ${commandOf(step)}`));
+  }
+});
+
+test('the reports are kept by the jobs that write them, each under a name of its own', () => {
+  const uploads = Object.entries(jobs).flatMap(([job, text]) => stepsOf(text)
+    .filter((step) => /uses: actions\/upload-artifact@/.test(step)).map((step) => ({ job, step })));
+  for (const { job, step } of uploads) assert.match(step, /^ {8}if: always\(\)$/m, `${job} keeps its report when a step failed or ran out of time`);
+  const names = uploads.map(({ step }) => step.match(/^ {10}name: (.+)$/m)?.[1]);
+  assert.deepEqual(names.filter((name, at) => names.indexOf(name) !== at), [], 'two uploads under one name fail the run');
+  // The certification writes report.json and its screenshots there, and the contrast review contrast-review.json.
+  for (const [job] of Object.entries(jobs).filter(([, body]) => /run: npm run (certify:accessibility|review:contrast)$/m.test(body))) {
+    assert.ok(uploads.some((upload) => upload.job === job && /path: tests\/browser\/artifacts\/accessibility$/m.test(upload.step)), `${job} keeps tests/browser/artifacts/accessibility`);
+  }
 });
