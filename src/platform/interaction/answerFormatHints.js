@@ -32,6 +32,19 @@
  * (inequalityExample.test.mjs reads every bank and grades every version of
  * every lesson), and the hints already use them ("For y ≥ mx + b, shade
  * above").
+ *
+ * A NUMBER BOX'S EXAMPLE IS NEVER ITS ANSWER (2026-11-06 re-walk). "-4" was
+ * the example in every number box, and some versions are keyed -4 (Algebra I
+ * M3 T2 L4 Warm-Up 3, the radicals Warm-Ups): the box showed its own answer,
+ * and a student cannot know that was chance. A number has no letters to hide
+ * in, so the example comes from a set (NUMBER_EXAMPLES), and a member the box
+ * would mark right is passed over. The box's grader is asked only that
+ * (`isAnswer`), never for the key. Passing over must say nothing either: a box
+ * that showed "-4" everywhere but "-7" where the answer is -4 would point at
+ * its answer. So where a box starts in the set is read from what its student
+ * reads (the prompt, the label, the box's id), each box starts somewhere of its
+ * own, and a member passed over looks like any other start
+ * (numberBoxExample.test.mjs grades every version of every lesson).
  */
 
 import { isMathSegment, splitMathSegments } from '../../components/common/mathSegments.js';
@@ -176,6 +189,47 @@ export const exampleFor = (formatId, { twoVariables = false } = {}) => {
   return (twoVariables && spec?.twoVariableExample) || spec?.example || '';
 };
 
+/*
+ * The examples a number box shows: each a single number with the minus sign
+ * the keypad types, short enough for the narrowest box. "-4", the format's own
+ * example, comes first, for a box with nothing to read.
+ */
+export const NUMBER_EXAMPLES = Object.freeze(['-4', '-7', '-3', '-8', '-6', '-9', '-2', '-5']);
+
+// FNV-1a, as the choice shuffle seeds itself (choiceOptions.js).
+const readingHash = (text) => {
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+/**
+ * A number box's example: from NUMBER_EXAMPLES, starting where what the
+ * student reads points (the prompt, the box's label and id), and passing over
+ * any member `isAnswer` says the box would mark right. '' when it would mark
+ * them all right. Without `isAnswer` nothing is passed over.
+ */
+export const numberExampleFor = (field = {}, { prompt = '', isAnswer = null } = {}) => {
+  const read = [prompt, field?.label, field?.id].map((part) => String(part ?? '').trim()).filter(Boolean).join('|');
+  const start = read ? readingHash(read) % NUMBER_EXAMPLES.length : 0;
+  const right = (candidate) => {
+    if (typeof isAnswer !== 'function') return false;
+    try {
+      return isAnswer(candidate) === true;
+    } catch {
+      return false;
+    }
+  };
+  for (let step = 0; step < NUMBER_EXAMPLES.length; step += 1) {
+    const candidate = NUMBER_EXAMPLES[(start + step) % NUMBER_EXAMPLES.length];
+    if (!right(candidate)) return candidate;
+  }
+  return '';
+};
+
 /**
  * Placeholder text for an empty box.
  *
@@ -200,12 +254,15 @@ export const placeholderForField = (field = {}) => {
  * `inferredFormat` is the format the field's input kind implies when it
  * declares none (a set box, an inequality box). `prompt` is the question's,
  * which with the field's label says whether an inequality is in x and y.
+ * `isAnswer(text)` is the box's own grader: whether the box would mark that
+ * text right. A number box never shows an example it would (numberExampleFor).
  */
-export const describeBoxPlaceholder = (field = {}, { inferredFormat = '', prompt = '' } = {}) => {
+export const describeBoxPlaceholder = (field = {}, { inferredFormat = '', prompt = '', isAnswer = null } = {}) => {
   const authored = String(field?.placeholder ?? '').trim();
   if (authored) return { placeholder: authored, example: '' };
   const shape = { twoVariables: readsXAndY({ prompt, label: field?.label }) };
-  const example = exampleFor(answerFormatOf(field), shape) || exampleFor(inferredFormat, shape);
+  const format = [answerFormatOf(field), normalizeAnswerFormatId(inferredFormat)].find((id) => exampleFor(id, shape)) || '';
+  const example = format === 'number' ? numberExampleFor(field, { prompt, isAnswer }) : exampleFor(format, shape);
   return { placeholder: example || 'Type your answer', example };
 };
 

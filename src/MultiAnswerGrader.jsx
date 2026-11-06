@@ -265,10 +265,14 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           // The box keeps the example alone and the words sit above it, where
           // they wrap ("for exampl…" was all a 127px box could show). An
           // inequality's example is in x and y when the prompt and the label
-          // name both (answerFormatHints.js readsXAndY).
+          // name both (answerFormatHints.js readsXAndY). A number box's example
+          // is never one this box's grader would mark right (the 2026-11-06
+          // re-walk: "-4" was the answer in some versions).
           const box = describeBoxPlaceholder(field, {
             inferredFormat: shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : '',
             prompt,
+            isAnswer: (typed) => gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, { [field.id]: typed })
+              .parts.find((part) => part.id === field.id)?.isCorrect === true,
           });
           // The keypad: the box's shape, the pad its field names (a number,
           // an ordered pair), else the general one. Where the verdict is
