@@ -1,5 +1,7 @@
 # Algebra I — DOL #3 Review (claude/trusting-edison-g8e7m1 @ 51da4f81) — student walkthrough
 
+**Fix status, 2026-11-06:** each finding below has a row in the main log's [table of findings](../2026-10-22-student-walkthroughs.md#every-p1p3-finding-in-the-detail-files): fixed in which commit, kept by which decision, or still open.
+
 Environment: harness tests/browser/lessonWalkthrough.html (teacher-import chain → real QuestionEngine, App's props incl. activityPolicy, record via recordQuestionAttempt). Chrome headless (new), 1366×768. Emoji show as boxes (no emoji font in this Linux) — artifact, not logged.
 Baseline: check-teacher-import valid, 0 errors, 0 warnings; algebra1Dol3Review.test.mjs 20/20.
 

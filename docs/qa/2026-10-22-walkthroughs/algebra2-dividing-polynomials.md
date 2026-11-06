@@ -1,5 +1,7 @@
 # Algebra II Honors — Dividing Polynomials (claude/determined-hawking-m81z7h @ 0ef8b7f0)
 
+**Fix status, 2026-11-06:** each finding below has a row in the main log's [table of findings](../2026-10-22-student-walkthroughs.md#every-p1p3-finding-in-the-detail-files): fixed in which commit, kept by which decision, or still open.
+
 Environment: same harness, 1366×768 and 390×844. 33 questions: WU 3 · CW 11 · PR 16 · DOL 3. Branch sits on top of Operations on Polynomials.
 Baseline: check-teacher-import valid, 0 errors, 0 warnings; algebra2DividingPolynomialsLesson.test.mjs 15/15. Screen of all 33: clean (no unresolved templates, raw LaTeX, bad values or page errors). F-WEIGHT-BANNER / F-FIRST-SCREEN apply.
 
