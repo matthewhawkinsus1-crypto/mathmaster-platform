@@ -16,6 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PRINT_ONLY, runCodemod, scaleFluidClamps } from '../../scripts/codemods/px-to-rem.mjs';
 import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
+import { region } from './helpers/sourceContract.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -165,16 +166,14 @@ test('the registry tools the large-text run measures are real tools, listed once
   const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
   const listOf = (name) => [...(new RegExp(`const ${name} = \\[([^\\]]*)\\]`).exec(harness)?.[1] || '').matchAll(/'(\w+)'/g)].map((match) => match[1]);
   const everyTool = listOf('ALL_REGISTRY_TOOLS');
-  const inCi = listOf('CI_REGISTRY_TOOLS');
-  // Measured green on 2026-10-25: all 21 by hand, eight of them in CI.
+  // Measured green on 2026-10-25: all 21 by hand, eight of them in CI. Since
+  // student-a11y-2 CI measures every one: its list is the full list itself.
   assert.ok(everyTool.length >= 21, `the full list names ${everyTool.length} registry tools; 21 were measured, so a tool taken out needs its reason here`);
-  assert.ok(inCi.length >= 8, `CI measures ${inCi.length} registry tools; it was given 8, so one taken out needs its reason here`);
-  for (const [name, list] of [['ALL_REGISTRY_TOOLS', everyTool], ['CI_REGISTRY_TOOLS', inCi]]) {
-    assert.equal(new Set(list).size, list.length, `${name}: a tool is listed once`);
-    for (const id of list) assert.ok(TOOL_CATALOG_IDS.includes(id), `${name}: ${id} is not a registered tool (renamed or removed?): the large-text run would stop at it`);
-  }
-  for (const id of inCi) assert.ok(everyTool.includes(id), `${id} is run in CI but missing from the full list`);
-  assert.match(harness, /process\.env\.LARGE_TEXT_REGISTRY_TOOLS/, 'a person can still measure the others by hand');
+  assert.match(harness, /^const CI_REGISTRY_TOOLS = ALL_REGISTRY_TOOLS;$/m, 'CI measures every registry tool of the full list; a tool left out of CI needs its reason here');
+  assert.match(region(harness, 'const REGISTRY_TOOLS = (() => {', '})();', 'the tools a run measures'), /return asked \? asked\.split\(','\)\.filter\(Boolean\) : CI_REGISTRY_TOOLS;/, 'with no list asked for, a run measures CI\'s');
+  assert.equal(new Set(everyTool).size, everyTool.length, 'ALL_REGISTRY_TOOLS: a tool is listed once');
+  for (const id of everyTool) assert.ok(TOOL_CATALOG_IDS.includes(id), `ALL_REGISTRY_TOOLS: ${id} is not a registered tool (renamed or removed?): the large-text run would stop at it`);
+  assert.match(harness, /process\.env\.LARGE_TEXT_REGISTRY_TOOLS/, 'a person can still measure some of them by hand');
   // A tool sits under Work View's `display: contents` body, which reads 0x0: without
   // this skip all of the tool's text counted as visually hidden and was never
   // measured (browser proof: a tool title cut to 24 px passed before, fails now).

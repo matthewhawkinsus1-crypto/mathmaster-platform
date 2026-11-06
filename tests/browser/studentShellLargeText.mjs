@@ -28,8 +28,8 @@
  *          Scenes: the certification's student screens, plus (job N, the
  *          px→rem sweep) more assignment tools, Recovery on Home and in the
  *          Assignments Center, and the teacher workspace (Home, a class), plus
- *          (CI01, VH-29) the registry-tools screen: eight registry tools in CI,
- *          every one with LARGE_TEXT_REGISTRY_TOOLS=all (or a list of ids).
+ *          (CI01, VH-29) the registry-tools screen: all 21 registry tools
+ *          (LARGE_TEXT_REGISTRY_TOOLS=<a list of ids> for some of them).
  * default  The sweep must not change the default size: every scene at 100%
  *          text, both viewports, screenshotted to --shots=<dir>; with
  *          --compare=<dir> (shots taken before the change) each pair is
@@ -297,19 +297,17 @@ const rushRound = async (page, origins, context) => {
 // the Work View certification mounts them). All 21 below pass 200% text, 320 px,
 // text spacing and target size (measured 2026-10-25 with the sr-only fix above:
 // 12.6 minutes for the 21 on a loaded machine, so about 0.6 per tool). CI
-// carries the eight with the most layout to lose (a table and plot, a plane, a
-// grid, cards, a number line, a mapping, a multi-representation board).
-// LARGE_TEXT_REGISTRY_TOOLS=all, or a comma list of ids, measures others by hand.
+// carried only the eight with the most layout to lose until student-a11y-2; it
+// carries all 21 now (about 9 minutes by hand), in the text job, the target
+// size step and the 2.4.11 walk. LARGE_TEXT_REGISTRY_TOOLS, a comma list of
+// ids, measures some of them by hand ('all' is every one, as in CI).
 const ALL_REGISTRY_TOOLS = [
   'dataModelingLab', 'regressionCalculator', 'inverseCompositionLab', 'functionOperationsLab', 'systemsWorkspace',
   'parabolaGeometryLab', 'polynomialWorkshop', 'signSolutionAnalyzer', 'sequenceExplorer', 'complexPlaneLab',
   'exponentialLogBridge', 'transformationsLab', 'functionInvestigation2', 'solutionReview2', 'intervalNumberLine',
   'relationMapping', 'openSortBoard', 'constraintFunctionBuilder', 'expressionMeaning', 'representationBridge', 'matrixLab',
 ];
-const CI_REGISTRY_TOOLS = [
-  'dataModelingLab', 'regressionCalculator', 'systemsWorkspace', 'intervalNumberLine',
-  'relationMapping', 'openSortBoard', 'representationBridge', 'matrixLab',
-];
+const CI_REGISTRY_TOOLS = ALL_REGISTRY_TOOLS;
 const REGISTRY_TOOLS = (() => {
   const asked = process.env.LARGE_TEXT_REGISTRY_TOOLS;
   if (asked === 'all') return ALL_REGISTRY_TOOLS;
