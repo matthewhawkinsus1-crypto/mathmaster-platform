@@ -263,7 +263,8 @@ const DAY_ONE_INTERVALS = Object.freeze([
   'intervals.graphAndWrite:segment|[-3,5)',
   'intervals.graphAndWrite:twoRays|(-inf,-2)U[4,inf)',
   'intervals.graphAndWrite:segment|(-1,6]',
-  'intervals.graphAndWrite:twoRays|(-inf,-4]U[3,inf)',
+  // Practice 2 has a bounded piece since the 2026-11-06 walkthrough (x ≤ −4 or 1 ≤ x < 6).
+  'intervals.graphAndWrite:rayAndSegment|(-inf,-4]U[1,6)',
   'intervals.graphAndWrite:rayAndSegment|(-inf,-1)U[2,5]',
 ]);
 
