@@ -9,8 +9,9 @@
 // `y=-2/3x+4` used to become −2/(3x + 4); F-RADICAL-TYPING: `y^4sqrt(x)/x^4`
 // became y⁴√(x/x⁴). The unit tests drive the state machines with what MathLive
 // reports; this proves the real MathLive 0.110 agrees, through the real
-// MathInput and the real calculator, and grades typed radicals with the shared
-// grader. Exits non-zero on any mismatch.
+// MathInput and the real calculator, and grades typed radicals — and the
+// spellings the graders used to refuse (grader spellings, 2026-11) — with the
+// shared grader. Exits non-zero on any mismatch.
 
 import { readFileSync } from 'node:fs';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
@@ -135,6 +136,35 @@ const radicalQuestion = (file, questionId) => {
   return lessonQuestions.get(file).get(questionId);
 };
 
+// GRADER SPELLINGS (2026-11): right answers the graders refused when typed a
+// plausible way, read from the real box and graded by the shared grader as an
+// assignment field keyed so — each with a near miss beside it that stays wrong.
+// [key, inputProfile, typed, right?]
+const SPELLING_ANSWERS = [
+  ['7x^2-3x-6', 'expression', '(7x^2-3x-6)', true],
+  ['7x^2-3x-6', 'expression', '(7x^2-3x)-6+1', false],
+  ['y=3(x-3)^2+1', 'equation', 'y=(3(x-3)^2+1)', true],
+  ['x-(2)', 'expression', '(x-2)', true],
+  ['x-(2)', 'expression', '(x+2)', false],
+  ['1/x^6', 'expression', '+1/x^6', true],
+  ['(x+2)(x+3)', 'expression', '(x+3)(x+2)', true],
+  ['(x+2)(x-3)', 'expression', '(x-2)(x+3)', false],
+  ['2sqrt(3)+5', 'expression', '5+2sqrt(3)', true],
+  ['2sqrt(3)+5', 'expression', '5-2sqrt(3)', false],
+  ['x^2+ 0x- 1=0', 'equation', 'x^2-1=0', true],
+  ['x^2+ 0x- 1=0', 'equation', 'x^2+1=0', false],
+  ['y=-1(x- 3)^2+ 0', 'equation', 'y=-(x-3)^2', true],
+  ['y=-1(x- 3)^2+ 0', 'equation', 'y=(x-3)^2', false],
+  ['x^2+ 2x- 8=0', 'equation', '2x-8+x^2=0', true],
+  ['x^2+ 2x- 8=0', 'equation', '8-2x+x^2=0', false],
+];
+const spellingQuestion = (key, inputProfile) => ({
+  questionId: 'grader-spellings',
+  type: 'multiAnswer',
+  prompt: 'Write the answer.',
+  answerFields: [{ id: 'answer', label: 'Answer', answer: key, inputProfile }],
+});
+
 // [typed then Enter, displayed result]
 const CALCULATOR_CASES = [
   ['6/3+1', '3'],
@@ -198,6 +228,14 @@ for (const [file, questionId, fieldId, typed] of RADICAL_ANSWERS) {
   const right = gradeMultiAnswerResponse(question, { ...key, [fieldId]: held }).parts.find((part) => part.id === fieldId)?.isCorrect === true;
   if (!right) failures.push(`radicals ${questionId} ${fieldId}: "${typed}" for the key ${field.answer} is held as ${held} and graded wrong`);
   console.log(`${right ? 'ok  ' : 'FAIL'} graded      ${typed.padEnd(14)} -> ${held}  (key ${field.answer})`);
+}
+
+for (const [key, inputProfile, typed, expected] of SPELLING_ANSWERS) {
+  await typeInto('[data-entry="answer"] math-field', typed);
+  const held = await page.evaluate(() => document.querySelector('[data-entry="answer"] math-field').value);
+  const verdict = gradeMultiAnswerResponse(spellingQuestion(key, inputProfile), { answer: held }).parts[0].isCorrect === true;
+  if (verdict !== expected) failures.push(`spelling "${typed}" for the key ${key} is held as ${held} and graded ${verdict ? 'right' : 'wrong'}`);
+  console.log(`${verdict === expected ? 'ok  ' : 'FAIL'} spelling    ${typed.padEnd(14)} -> ${held}  (key ${key}: ${verdict ? 'right' : 'wrong'})`);
 }
 
 // The parent receives what the field holds (the value a grader reads).

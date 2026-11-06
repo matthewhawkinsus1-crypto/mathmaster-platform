@@ -279,9 +279,11 @@ export const formSpecificComparatorLoaded = (mode) => FORM_SPECIFIC_COMPARATORS.
 
 // The key exactly as written, up to spelling (MathLive braces, `\\cdot`):
 // what a form-specific mode falls back to, never a looser reading — the
-// ordinary grader would accept 5·10a for 50a, which no "simplify" key means.
+// ordinary grader would accept 5·10a for 50a, which no "simplify" key means,
+// and its terms and factors in another order are the comparator's to take
+// (grader spellings, 2026-11), not this fallback's.
 const sameWrittenForm = (studentAnswer, acceptedAnswer) => (
-  sameFormPreservingExpression(studentAnswer, acceptedAnswer)
+  sameFormPreservingExpression(studentAnswer, acceptedAnswer, { reorder: false })
   || (normalizeMathAnswer(studentAnswer) !== '' && normalizeMathAnswer(studentAnswer) === normalizeMathAnswer(acceptedAnswer))
 );
 

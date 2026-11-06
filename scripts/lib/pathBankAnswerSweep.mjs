@@ -1133,36 +1133,9 @@ export const KNOWN_OPEN_FALSE_NEGATIVES = Object.freeze({
     ],
     reason: 'vertex form with the constant written first (policy)',
   },
-  // What the math editor sends: 3\sqrt{3}, 2(4)^{n-1}, \left|5x-3\right|=-3.
-  keypad: {
-    families: [
-      'mm_A_11A_v2_add-like-radicals', 'mm_A_11A_v2_coefficient-times-radical',
-      'mm_A_11A_v2_difference-like-radicals', 'mm_A_11A_v2_error-partial-extraction',
-      'mm_A_11A_v2_extract-square-factor', 'mm_A_12D_v2_geometric-decay-terms-to-formula',
-      'mm_A_12D_v2_geometric-table-to-formula', 'mm_A2_4F_v2_exact-quadratic-formula',
-      'mm_A2_5B_v2_decay-explicit-and-recursive', 'mm_A2_5C_v2_common-natural-log-pair',
-      'mm_A2_6E_v2_negative-isolated-error',
-    ],
-    reason: 'normalizeFormPreservingSide: sqrt(3) loses its parentheses, ^{n-1} is not ^(n-1), |u| is not abs(u)',
-  },
-  // 5x\\sqrt{x} for 5*x^1*sqrt(x), 1/x for 1/x^1, 3|x|y^{2} for 3*|x|*y^2: the
-  // key's x^1 is not read as x, and a product the student never typed × into
-  // is not read as one before \\sqrt[n]{ or |x|.
-  'keypad implicit product': {
-    families: [
-      'mm_A_11B_v2_quotient-negative-to-positive', 'mm_A2_7G_v2_square-root-variable-power',
-      'mm_A2_7G_v2_cube-root-variable-power', 'mm_A2_7G_v2_rational-exponent-to-indexed-radical',
-      'mm_A2_7G_v2_absolute-value-error-full-repair',
-    ],
-    reason: 'x^1 is not x, and an implicit product before \\sqrt[n]{ or |x| is not read',
-  },
-  'keypad relation': {
-    families: [
-      'mm_A2_6F_v2_context-linear-tolerance', 'mm_A2_6F_v2_negative-outside-and-interval',
-      'mm_A2_6F_v2_strict-or-two-rays', 'mm_A2_7I_v2_reciprocal-domain-range-exclusions-all-notations',
-    ],
-    reason: '|u|<=c is not abs(u)<=c; x\\ne -5 is not x!=(-5)',
-  },
+  // The keypad's spellings (3\sqrt{3}, (-6-\sqrt{8})/2, x\sqrt[3]{x} for
+  // x^1*\sqrt[3]{x^1}, x\ne -5 for x!=(-5)) are accepted since the grader
+  // spellings batch (2026-11): no family is listed for them any more.
   // (\frac{1}{2},1) for (0.5,1): an ordered pair is compared as text.
   'fraction coordinates': {
     families: [

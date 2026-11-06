@@ -140,13 +140,13 @@ test('an expression and an equation are still typed text: the keypad is ready fo
  */
 const STILL_UNTYPEABLE = Object.freeze({
   // Letters the item names only in the prompt's words ("Let v be…",
-  // "intensity I"), which the keypad does not read; a product the grader
-  // reads only with its multiplication sign, which no pad types.
+  // "intensity I"), which the keypad does not read. (The two 7G families
+  // whose keys the grader read only with their multiplication sign,
+  // `x^1*\sqrt[3]{x^1}` and `3*|x|*y^2`, are read without it since the
+  // grader spellings batch, 2026-11: a power of one is no power.)
   expression: {
     'mm_A2_5B_v2_logarithmic-ratio-scale-model': ['letter I'],
     'mm_A2_6H_v2_round-trip-current-equation': ['letter v'],
-    'mm_A2_7G_v2_absolute-value-error-full-repair': ['multiplication sign'],
-    'mm_A2_7G_v2_rational-exponent-to-indexed-radical': ['multiplication sign'],
   },
   // …and letters the field's prompt and label never name (a, b, c of
   // y = ax² + bx + c; P₀ beside "Explicit model P(t)"), a subscript, and a
