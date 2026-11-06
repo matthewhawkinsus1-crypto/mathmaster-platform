@@ -257,11 +257,13 @@ test('the console reads the chosen class\'s memory and the setup shows the card 
   assert.match(teacher, /<GraphFeatureRushSetup [^\n]*memory=\{classMemory\?\.game === 'graphFeatureRush' \? classMemory : null\}/);
   assert.match(teacher, /<InequalityRushSetup [^\n]*memory=\{classMemory\?\.game === 'inequalityRush' \? classMemory : null\}/);
   for (const setup of ['GraphFeatureRushSetup', 'InequalityRushSetup']) {
-    assert.match(read(`src/components/liveChallenge/${setup}.jsx`), /\{memory && <ClassMemoryCard memory=\{memory\} onUse=\{onChange\} \/>\}/, setup);
+    assert.match(read(`src/components/liveChallenge/${setup}.jsx`), /\{memory && <ClassMemoryCard memory=\{memory\} onUse=\{onChange\}[^>]*\/>\}/, setup);
   }
   const card = read('src/components/liveChallenge/ClassMemoryCard.jsx');
   assert.match(card, />Use last settings<\/button>/);
-  assert.match(card, /\{offerSuggestion && <button [^>]*onClick=\{\(\) => onUse\(setupFromMemory\(memory\.game, next\.settings\)\)\}>Use suggestion<\/button>\}/);
+  // Each button fills in its game, whole (pressed in liveChallengeConsoleAnnouncements.test.mjs).
+  assert.match(card, /\{offerSuggestion && <button [^>]*onClick=\{\(\) => use\(next\.settings, [^)]*\)\}>Use suggestion<\/button>\}/);
+  assert.match(card, /const setup = setupFromMemory\(memory\.game, settings\);\s*onUse\(setup\);/);
   assert.match(read('src/platform/liveChallenge/liveChallengeService.js'), /getDoc\(doc\(db, CLASS_MEMORY_COLLECTION, id\)\)/);
 });
 
@@ -503,8 +505,8 @@ test('the console follows the memory of Graph the Line and Solver Race too, and 
   assert.match(games, /else if \(challengeMode === 'solverRace'\) memoryGame = 'solverRace';/);
   assert.doesNotMatch(games, /'standard'/, 'Standard Challenge has no memory to follow');
   assert.match(teacher, /<LineGraphSetup [^\n]*memory=\{classMemory\?\.game === LINE_GRAPH_GAME \? classMemory : null\}/);
-  assert.match(read('src/components/liveChallenge/LineGraphSetup.jsx'), /\{memory && <ClassMemoryCard memory=\{memory\} onUse=\{onChange\} \/>\}/);
-  assert.match(teacher, /\{challengeMode === 'solverRace' && classMemory\?\.game === 'solverRace' && \(\s*<Suspense fallback=\{null\}>\s*<ClassMemoryCard memory=\{classMemory\} onUse=\{takeSolverRaceSetup\} \/>/);
+  assert.match(read('src/components/liveChallenge/LineGraphSetup.jsx'), /\{memory && <ClassMemoryCard memory=\{memory\} onUse=\{onChange\}[^>]*\/>\}/);
+  assert.match(teacher, /\{challengeMode === 'solverRace' && classMemory\?\.game === 'solverRace' && \(\s*<Suspense fallback=\{null\}>\s*<ClassMemoryCard memory=\{classMemory\} onUse=\{takeSolverRaceSetup\}[^>]*\/>/);
   const take = region(teacher, 'const takeSolverRaceSetup = (setup) => {', '\n  };', 'a Solver Race card\'s buttons');
   for (const call of ['setSolverRaceFocus(setup.focus)', 'setSolverRaceDifficulty(setup.difficulty)', 'setRoundCount(setup.roundCount)', 'setRoundSeconds(setup.roundSeconds)', 'setTimingMode(setup.timingMode)', 'setClassicScoringId(setup.scoringStrategyId)']) {
     assert.ok(take.includes(call), call);

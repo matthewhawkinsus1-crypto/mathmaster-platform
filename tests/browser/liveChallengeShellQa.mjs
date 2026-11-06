@@ -24,7 +24,8 @@
 //                  answered), results that agree with the server everywhere,
 //                  a double-clicked Next Round, refreshes, End Game with its
 //                  confirmation, the game's report on the console without a
-//                  refresh, the podium, rewards delivered once, Play Again
+//                  refresh (and its arrival said once in the console's live
+//                  region), the podium, rewards delivered once, Play Again
 //                  moving every screen into the new lobby
 //   B scoring      Grand Prix and Correct Count read as what they are; ties
 //   C rush         Graph Feature Rush inside the shell: countdown, no graph on
@@ -872,6 +873,12 @@ await run('classic', async (S) => {
   check(S, (await roomOf(roomId)).status === 'running', '"Keep playing" ended the game anyway');
   await teacher.page.getByRole('button', { name: 'End Game' }).click();
   await shot(teacher, 'A09-console-end-game-confirm');
+  // Everything the console's live region says from here on (teacher features walk, item 8).
+  await teacher.page.evaluate(() => {
+    window.__mmConsoleSaid = [];
+    const region = document.querySelector('[data-mm-console-announcer]');
+    if (region) new MutationObserver(() => { const text = region.textContent.trim(); if (text) window.__mmConsoleSaid.push(text); }).observe(region, { childList: true, characterData: true, subtree: true });
+  });
   await confirmDialog(teacher, 'End Game');
   const finished = await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
   check(S, finished, 'End Game did not finish the game');
@@ -879,6 +886,10 @@ await run('classic', async (S) => {
   // (released below, when Play Again leaves the room). That a report written
   // after the console asked still shows is the reconnect scenario's.
   check(S, await waitForText(teacher, 'After the game', 15_000), 'the finished console did not show the game\'s report without a refresh');
+  // ...and a screen reader is told it came, once.
+  await wait(400);
+  const said = await teacher.page.evaluate(() => window.__mmConsoleSaid || null);
+  check(S, JSON.stringify(said) === JSON.stringify(['The report is ready, under After the game.']), `the report's arrival was not said once in the console's live region: ${JSON.stringify(said)}`);
   const reportWatch = () => teacher.page.evaluate(() => window.__mmWatchers?.open?.report || 0);
   check(S, await reportWatch() === 1, `the finished room's report is followed by one listener (${await reportWatch()})`);
 
