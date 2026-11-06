@@ -235,7 +235,9 @@ test('AX32: the plane names the keyboard route before it has focus: after the ge
 // A control Tab reaches and Enter or Space works: a real button, input or select
 // the page has not disabled or taken out of the tab order.
 const tabReachable = (attrs) => !/\sdisabled(?:=|\s|$)/.test(attrs) && !/tabindex="-1"/.test(attrs);
-const controlsLabelled = (markup, pattern) => [...markup.matchAll(/<(button|input|select|textarea)\b([^>]*)>/g)]
+// A math box (MathLive's math-field) is a control too: the number line's typed
+// endpoint is one (2026-11-06 re-walk).
+const controlsLabelled = (markup, pattern) => [...markup.matchAll(/<(button|input|select|textarea|math-field)\b([^>]*)>/g)]
   .map((match) => ({ attrs: match[2], label: /aria-label="([^"]*)"/.exec(match[2])?.[1] ?? '' }))
   .filter(({ label }) => pattern.test(label));
 const buttonsNamed = (markup, pattern) => buttonsOf(markup).filter((button) => pattern.test(button.name));

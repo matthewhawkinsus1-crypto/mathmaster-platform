@@ -362,8 +362,10 @@ const currentItem = async (examSessionId) => {
  */
 const RECIPES = {
   // −5x − 8 ≥ −38 has the answer x ≤ 6: a closed endpoint at 6, shaded left.
-  intervalNumberLine: async (root) => {
-    await root.getByPlaceholder(/Exact endpoint/).fill('6');
+  intervalNumberLine: async (root, page) => {
+    // The typed endpoint is a math box (2026-11-06 re-walk): typed into as a student types.
+    await root.locator('math-field[aria-label="Exact endpoint value"]').first().focus();
+    await page.keyboard.type('6');
     await root.getByRole('button', { name: 'Place endpoint' }).click();
     await root.getByRole('button', { name: /Shade left/ }).click();
     return 'placed an endpoint by value and shaded a ray';

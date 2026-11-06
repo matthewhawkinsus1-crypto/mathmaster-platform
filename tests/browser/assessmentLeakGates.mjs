@@ -596,7 +596,8 @@ const NUMBER_LINE_VERDICT = /Not yet|\bCorrect\b|The graph is not right yet|Your
 const graphRay = async (page, endpoint) => {
   // Not "⤢ Open Work View", which also has "Open" in it.
   await page.locator('button:visible', { hasText: endpoint === 'open' ? 'Open' : 'Closed' }).filter({ hasNotText: 'Work View' }).first().click();
-  await page.getByLabel('Exact endpoint value').fill('4');
+  // The typed endpoint is a math box (2026-11-06 re-walk).
+  await setMathField(page, page.locator('math-field[aria-label="Exact endpoint value"]:visible').first(), '4');
   await page.locator('button:visible', { hasText: 'Place endpoint' }).first().click();
   await settle(page, 250);
   await page.locator('button:visible', { hasText: 'Shade right' }).first().click();

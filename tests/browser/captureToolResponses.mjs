@@ -86,11 +86,11 @@ const simplifySide = async (page, side, value) => {
   await page.waitForTimeout(600);
 };
 
-// The number line takes an endpoint typed exactly, beside the line: choose
-// closed or open, type the value, place it.
+// The number line takes an endpoint typed exactly, beside the line, in its
+// math box: choose closed or open, type the value, place it.
 const placeEndpoint = async (page, value, closed) => {
   await btn(page, closed ? '● Closed' : '○ Open').click();
-  await page.getByRole('textbox', { name: 'Exact endpoint value' }).fill(String(value));
+  await setMathField(page.locator('math-field[aria-label="Exact endpoint value"]'), String(value));
   await btn(page, 'Place endpoint').click();
   await page.waitForTimeout(100);
 };

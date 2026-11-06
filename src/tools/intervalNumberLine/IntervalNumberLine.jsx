@@ -5,6 +5,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import MathInput from '../../MathInput';
+import { keysForConstants, useKeypadConstants } from '../../platform/interaction/keypadConstants.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -73,6 +74,14 @@ const secondaryButton = {
   color: 'var(--mm-primary-text)',
   border: '1px solid var(--mm-primary-border)',
 };
+
+// A typed endpoint is a number, a root or π (parseExactNumberLineValue, and
+// the words under the box), so its number pad has √, and π where the item's
+// mathematics uses it, as every pad does (TL23).
+const ENDPOINT_KEYS = Object.freeze([
+  { label: '√', command: '\\sqrt{#0}', ariaLabel: 'Insert square root' },
+  { label: 'π', command: '\\pi', ariaLabel: 'Insert pi', constant: 'pi' },
+]);
 
 const tidyNumber = (value) => Number(Number(value).toFixed(10));
 
@@ -241,6 +250,14 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const [inequality, setInequality] = usePersistentToolState('inequality', '');
   const [exactEndpoint, setExactEndpoint] = usePersistentToolState('exactEndpoint', '');
   const [endpointError, setEndpointError] = useState('');
+  const keypadConstants = useKeypadConstants();
+  const endpointKeys = useMemo(() => keysForConstants(ENDPOINT_KEYS, keypadConstants), [keypadConstants]);
+  // What the endpoint box holds, as last rendered. MathLive reports a key a
+  // beat after it shows it, and Enter reports the box at once (MathInput), so
+  // after "13/8x" and Enter the last key is reported again: that report
+  // changes nothing, and must not clear the error Enter has just shown.
+  const shownEndpointRef = useRef(exactEndpoint);
+  shownEndpointRef.current = exactEndpoint;
   const endpointHelpId = useId();
   const lineDescriptionId = useId();
   const lineInstructionsId = useId();
@@ -646,46 +663,44 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </span>
             </div>
 
+            {/* The box takes the row it needs, so its keypad opens full width
+                under it; "Place endpoint" stays beside the box's top, and on a
+                phone goes under the box (in a 120px column the pad stood two
+                keys wide, with the button halfway down it). */}
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(120px, 1fr) auto',
+                display: 'flex',
+                flexWrap: 'wrap',
                 gap: 8,
-                alignItems: 'center',
+                alignItems: 'flex-start',
               }}
             >
-              <input
-                type="text"
-                value={exactEndpoint}
-                onChange={(event) => {
-                  setExactEndpoint(event.target.value);
-                  setEndpointError('');
-                  clearFeedback();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    placeTypedEndpoint();
-                  }
-                }}
-                placeholder="Exact endpoint, e.g. -13/8"
-                aria-label="Exact endpoint value"
-                // The error (or the hint) under the box is its description, and
-                // a typed value it cannot read marks the box invalid (A11Y-8).
-                aria-invalid={endpointError ? 'true' : undefined}
-                aria-describedby={endpointHelpId}
-                style={{
-                  width: '100%',
-                  minHeight: 40,
-                  padding: '7px 10px',
-                  boxSizing: 'border-box',
-                  border: `2px solid ${endpointError ? '#d93025' : 'var(--mm-primary-border)'}`,
-                  borderRadius: 8,
-                  background: 'var(--mm-surface)',
-                  color: 'var(--mm-text-strong)',
-                  fontSize: 'calc(16 * var(--mm-px))',
-                                }}
-              />
+              {/* A math box, as the tool's notation boxes are: it was a plain
+                  text box, with the phone's letter keyboard and no math keys
+                  (2026-11-06 re-walk). Enter places the endpoint. */}
+              <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                <MathInput
+                  value={exactEndpoint}
+                  onChange={(value) => {
+                    if (value === shownEndpointRef.current) return;
+                    setExactEndpoint(value);
+                    setEndpointError('');
+                    clearFeedback();
+                  }}
+                  onSubmit={placeTypedEndpoint}
+                  placeholder="Exact endpoint, e.g. -13/8"
+                  ariaLabel="Exact endpoint value"
+                  // The error (or the hint) under the box is its description, and
+                  // a typed value it cannot read marks the box invalid (A11Y-8).
+                  ariaInvalid={Boolean(endpointError)}
+                  ariaDescribedBy={endpointHelpId}
+                  inputStatus={endpointError ? 'incorrect' : 'neutral'}
+                  toolProfile="number"
+                  extraKeys={endpointKeys}
+                  compact
+                  showToolsInitially={false}
+                />
+              </div>
 
               <button
                 type="button"
