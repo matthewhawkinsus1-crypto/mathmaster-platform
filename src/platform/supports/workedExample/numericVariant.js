@@ -55,6 +55,13 @@
  * equation when the item requires it): the variant's solution must be graded
  * right, and a solution off by one graded wrong.
  *
+ * THE SECOND KIND: polynomial arithmetic — a sum or difference, a monomial or
+ * polynomial times a polynomial, a square or a cube, distributed and combined —
+ * from a Polynomial Workshop item or the typed boxes of one (Algebra II Honors
+ * Operations on Polynomials). Its rules are in polynomialVariant.js: the same
+ * terms, letters, exponents and signs, never easier, never a give-away, and its
+ * keys confirmed by the item's own key and grader.
+ *
  * NOTHING HERE IS RECORDED. It returns values, like practiceLikeThis.js.
  */
 import algebraicGraders from '../../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
@@ -67,9 +74,10 @@ import {
 } from '../../../../functions/shared/toolMath/systemsWorkspace/algebraicSystemsEngine.mjs';
 import { resolveSystemsWorkspaceMode } from '../../../../functions/shared/toolMath/systemsWorkspace/systemsWorkspaceMode.mjs';
 import { similarExampleIsSafe } from './similarProblem.js';
+import { POLYNOMIAL_VARIANT_KIND, buildPolynomialVariant } from './polynomialVariant.js';
 
 export const NUMERIC_VARIANT_SOURCE = 'numericVariant';
-export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3' });
+export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND });
 
 const text = (value) => String(value ?? '').trim();
 const gcd = (left, right) => {
@@ -499,7 +507,9 @@ const system3x3Variant = (question, item, seed) => {
 export const buildNumericVariant = (question, { seed = 0 } = {}) => {
   try {
     const system = readSystem3x3(question);
-    return system ? system3x3Variant(question, system, seed) : null;
+    if (system) return system3x3Variant(question, system, seed);
+    const polynomial = buildPolynomialVariant(question, { seed });
+    return polynomial ? { ...polynomial, source: NUMERIC_VARIANT_SOURCE } : null;
   } catch {
     return null;
   }

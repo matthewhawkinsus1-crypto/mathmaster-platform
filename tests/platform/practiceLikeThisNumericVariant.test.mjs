@@ -30,7 +30,7 @@ import {
   buildPracticeLikeThis,
   checkPracticeAnswers,
 } from '../../src/platform/supports/workedExample/practiceLikeThis.js';
-import { buildNumericVariant } from '../../src/platform/supports/workedExample/numericVariant.js';
+import { NUMERIC_VARIANT_KIND, buildNumericVariant } from '../../src/platform/supports/workedExample/numericVariant.js';
 import { buildSimilarWorkedExample, questionHasSimilarExample } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { classifyLinearSystem, linearEquationForm } from '../../functions/shared/toolMath/systemsWorkspace/algebraicSystemsEngine.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
@@ -146,14 +146,15 @@ const workFor = (rows, variables, values) => ({
 
 /* ------------------------------------------------------------------- tests */
 
-test('FB19: exactly the static 3×3 systems solved by hand get a variant — no other real Classwork/Practice item, and none of the 3×3 items that must not', () => {
+test('FB19: exactly the static 3×3 systems solved by hand get a 3×3 variant — no other real Classwork/Practice item, and none of the 3×3 items that must not', () => {
   const varied = [];
   let classworkAndPractice = 0;
   lessonFiles().forEach((file) => itemsOf(file).forEach(({ role, question }) => {
     if (!PRACTICE_LIKE_THIS_ROLES.includes(role)) return;
     classworkAndPractice += 1;
     const practice = buildPracticeLikeThis(question, { seed: 0 });
-    if (practice?.source === PRACTICE_SOURCE.NUMERIC_VARIANT) varied.push(`${file}::${question.questionId}`);
+    // The polynomial kind has its own list (practiceLikeThisPolynomials.test.mjs).
+    if (practice?.source === PRACTICE_SOURCE.NUMERIC_VARIANT && practice.kind === NUMERIC_VARIANT_KIND.SYSTEM_3X3) varied.push(`${file}::${question.questionId}`);
   }));
   assert.ok(classworkAndPractice >= 859, `the real lessons are read (${classworkAndPractice})`);
   assert.deepEqual(varied.sort(), VARIED.map(([file, id]) => `${file}::${id}`).sort());

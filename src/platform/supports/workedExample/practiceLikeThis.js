@@ -175,13 +175,17 @@ const equalsIndex = (value) => {
 
 const capitalise = (value) => (value ? value[0].toUpperCase() + value.slice(1) : value);
 
-/** Can a verdict on this value be trusted at all? */
-const valueCheckable = (value) => {
+/**
+ * Can a verdict on this value be trusted at all? `math`: the value was written
+ * as mathematics ($…$), so a run of letters in it ("8ab", "3np²") is a product
+ * of variables, never a word.
+ */
+const valueCheckable = (value, { math = false } = {}) => {
   if (!value) return false;
   if (/→|->|\.\.\.|…/.test(value)) return false; // a mapping, a roster with an ellipsis
   if (NONE_WORDS.test(value)) return true;
   // Prose with a number in it ("6 units to the left"): words, not a value.
-  if (words(value).length) return false;
+  if (!math && words(value).length) return false;
   try {
     return compareMathAnswer(value, value);
   } catch {
@@ -210,6 +214,14 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
     if (!rhs) return prose;
     if (/:/.test(lhs)) return prose;
     if (nameLike(lhs)) {
+      // "First product = $8ab + 10a$" (a polynomial variant): a value written
+      // whole as mathematics is mathematics. Its letters are variables, so it
+      // is checked by value like any expression; read as text, "ab" was a word
+      // and the box could not be checked.
+      if (/^\$[^$]+\$$/.test(rhs)) {
+        const value = text(rhs.slice(1, -1));
+        return { id, label: `${lhs} =`, expected: value, kind: 'value', math: true, checkable: valueCheckable(value, { math: true }) || expressionKind(value, { math: true }) };
+      }
       return { id, label: `${lhs} =`, expected: rhs, kind: 'value', checkable: valueCheckable(rhs) || expressionKind(rhs) };
     }
     return { id, label: 'Equation', expected: raw, kind: 'equation', checkable: valueCheckable(raw) };
@@ -267,8 +279,8 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
 };
 
 /* An expression or equation in letters (checked by value), not a number, pair, set or interval. */
-function expressionKind(value) {
-  if (words(value).length) return false; // "1 unit to the left" parses in mathjs (units): words are not an expression
+function expressionKind(value, { math = false } = {}) {
+  if (!math && words(value).length) return false; // "1 unit to the left" parses in mathjs (units): words are not an expression
   if (/[[{]/.test(value) || /^\(.*\)$/.test(value) && pointList(value)) return false;
   if (!/[a-z]/i.test(value.replace(/inf|∞/gi, ''))) return false;
   return sampleable(value);
@@ -776,7 +788,7 @@ export const checkPracticePart = (part, response) => {
   if (boxName && safely(() => compareMathAnswer(typed, `${part.label} ${expected}`))) return PRACTICE_VERDICT.CORRECT;
   // 8,050 for 8050, as on every number box (student pass 3, Batch 2).
   if (NUMBER.test(text(expected).replace(/[−]/g, '-')) && safely(() => sameNumberWithThousandsSeparators(answer, expected))) return PRACTICE_VERDICT.CORRECT;
-  if (expressionKind(expected)) {
+  if (expressionKind(expected, { math: part.math === true })) {
     if (safely(() => sameEquivalentExpression(answer, expected))) return PRACTICE_VERDICT.CORRECT;
     return compareBySampling(answer, expected);
   }

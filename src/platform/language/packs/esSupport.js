@@ -816,6 +816,23 @@ const workedExamplePrompts = [
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ {3} for {4}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ {3} para {4}.'],
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ for {3}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ para {3}.'],
   ['Use the recursive rule to find the first five terms.', 'Usa la regla recursiva para hallar los primeros cinco términos.'],
+  // A polynomial item with new numbers (polynomialVariant.js). "Simplify {1}."
+  // and "Multiply {1}." are es.js's own direction sentences.
+  ['Write the answer in simplest form.', 'Escribe la respuesta en su forma más simple.'],
+  ['Write the product in simplest form.', 'Escribe el producto en su forma más simple.'],
+  ['Write each answer in simplest form.', 'Escribe cada respuesta en su forma más simple.'],
+  ['Write each product in simplest form.', 'Escribe cada producto en su forma más simple.'],
+  ['Simplify each difference.', 'Simplifica cada diferencia.'],
+  ['Simplify each expression.', 'Simplifica cada expresión.'],
+  ['Multiply.', 'Multiplica.'],
+  ['First difference: {1}.', 'Primera diferencia: {1}.'],
+  ['Second difference: {1}.', 'Segunda diferencia: {1}.'],
+  ['Third difference: {1}.', 'Tercera diferencia: {1}.'],
+  ['First product: {1}.', 'Primer producto: {1}.'],
+  ['Second product: {1}.', 'Segundo producto: {1}.'],
+  ['Third product: {1}.', 'Tercer producto: {1}.'],
+  ['Square: {1}.', 'Cuadrado: {1}.'],
+  ['Cube: {1}.', 'Cubo: {1}.'],
 ];
 
 const workedExampleAnswers = [
@@ -887,6 +904,15 @@ const workedExampleAnswers = [
   ['Answer: input tickets sold, output money collected in dollars; {1}; table {2}, {3}, {4}, {5}, {6}; separate points; domain {{7}, {8}, {9}, ..., {10}}; range {{11}, {12}, {13}, ..., {14}}', 'Respuesta: entrada boletos vendidos, salida dinero recaudado en dólares; {1}; tabla {2}, {3}, {4}, {5}, {6}; puntos separados; dominio {{7}, {8}, {9}, ..., {10}}; rango {{11}, {12}, {13}, ..., {14}}'],
   ['Answer: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} at {8}', 'Respuesta: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} en {8}'],
   ['Answer: {1}, {2}, {3}, {4}, {5}', 'Respuesta: {1}, {2}, {3}, {4}, {5}'],
+  // A polynomial item with new numbers: each box's name, then "= " and its answer.
+  ['Answer: Difference {1}', 'Respuesta: diferencia {1}'],
+  ['Answer: Sum {1}', 'Respuesta: suma {1}'],
+  ['Answer: Product {1}', 'Respuesta: producto {1}'],
+  ['Answer: Simplified expression {1}', 'Respuesta: expresión simplificada {1}'],
+  ['Answer: First difference {1}; Second difference {2}', 'Respuesta: primera diferencia {1}; segunda diferencia {2}'],
+  ['Answer: First product {1}; Second product {2}', 'Respuesta: primer producto {1}; segundo producto {2}'],
+  ['Answer: First product {1}; Second product {2}; Third product {3}', 'Respuesta: primer producto {1}; segundo producto {2}; tercer producto {3}'],
+  ['Answer: Square {1}; Cube {2}', 'Respuesta: cuadrado {1}; cubo {2}'],
 ];
 
 const workedExampleSteps = [
@@ -1117,6 +1143,17 @@ const workedExampleSteps = [
   ['Apply the rule to each term to get the next one: {1}, {2}, {3}, {4}.', 'Aplica la regla a cada término para obtener el siguiente: {1}, {2}, {3}, {4}.'],
   ['Each term comes from the one before it the same way, so the terms have a common difference of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una diferencia común de {1}.'],
   ['Each term comes from the one before it the same way, so the terms have a common ratio of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una razón común de {1}.'],
+  // A polynomial item with new numbers (polynomialVariant.js).
+  ['Subtracting a polynomial means adding its opposite: the opposite of {1} is {2}.', 'Restar un polinomio es sumar su opuesto: el opuesto de {1} es {2}.'],
+  ['Add the opposite to the first polynomial: {1}.', 'Suma el opuesto al primer polinomio: {1}.'],
+  ['Group like terms and combine them: {1}.', 'Agrupa los términos semejantes y combínalos: {1}.'],
+  ['Multiply {1} by each term of {2}: {3}.', 'Multiplica {1} por cada término de {2}: {3}.'],
+  ['Multiply each term of {1} by each term of {2}: {3}.', 'Multiplica cada término de {1} por cada término de {2}: {3}.'],
+  ['No two of the products are like terms, so {1}.', 'Ninguno de los productos es semejante a otro, así que {1}.'],
+  ['Add the products and combine like terms: {1}.', 'Suma los productos y combina los términos semejantes: {1}.'],
+  ['Distribute {1}: {2}.', 'Distribuye {1}: {2}.'],
+  ['Write the square as a product: {1}.', 'Escribe el cuadrado como un producto: {1}.'],
+  ['Write the cube as the square times {1}: {2}.', 'Escribe el cubo como el cuadrado por {1}: {2}.'],
 ];
 
 // --- The platform's question families (functions/shared/questionFamily*):
