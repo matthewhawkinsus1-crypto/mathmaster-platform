@@ -1807,7 +1807,8 @@
               "label": "Simplified",
               "answer": "{{r}}a",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             }
           ],
           "hints": [

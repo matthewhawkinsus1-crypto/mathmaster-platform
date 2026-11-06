@@ -625,7 +625,9 @@ const practice = [
     directionSteps: ['Multiply the radicands.', 'Take the cube root.', 'Multiply by the coefficients.'],
     responses: [
       expression('radicand', '{{u}}a² · {{w}}a =', '{{w3}}a^3'),
-      simplest('product', 'Simplified', '{{r}}a'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (48a) as words, and drew a plain text box.
+      simplest('product', 'Simplified', '{{r}}a', { type: 'math' }),
     ],
     hints: [
       'How can you write the product of the two cube roots as one cube root?',

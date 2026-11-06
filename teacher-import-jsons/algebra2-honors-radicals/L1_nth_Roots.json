@@ -1608,7 +1608,8 @@
               "label": "(3√(3x))² =",
               "answer": "27x",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             },
             {
               "id": "radicand",
@@ -2308,7 +2309,8 @@
               "label": "Product",
               "answer": "{{r}}x",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             }
           ],
           "hints": [
@@ -2416,13 +2418,15 @@
               "id": "rootPlus",
               "label": "√(−{{p}}) =",
               "answer": "{{n}}i",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "rootMinus",
               "label": "The other square root of −{{p}} is",
               "answer": "-{{n}}i",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "cube",
@@ -3044,7 +3048,8 @@
               "id": "newPeriod",
               "label": "A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is",
               "answer": "2T",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "why",

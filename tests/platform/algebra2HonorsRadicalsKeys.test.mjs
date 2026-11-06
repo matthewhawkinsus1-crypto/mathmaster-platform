@@ -542,3 +542,32 @@ test('no Classwork or Practice text writes a power of 1 or a wrong ordinal, in a
   assert.deepEqual([...problems], []);
   assert.ok(versionsRead >= 1000, `${versionsRead} versions read`);
 });
+
+// Every typed Classwork and Practice answer is a math box. The box chooser
+// reads a key with no sign it knows (27x, 7i, 2T, 48a) as words, and drew a
+// plain text box among math boxes: no math keypad, the phone's letter
+// keyboard, and a tell that the answer has no radical (2026-11-06
+// walkthrough; the CT04 fix, as the Check Your Progress boxes have it). The
+// Warm-Up's 8x is logged, not edited.
+test('every typed Classwork and Practice answer is a math box', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, ws: false, hmr: false, watch: null }, appType: 'custom', logLevel: 'silent' });
+  try {
+    const { default: MultiAnswerGrader } = await server.ssrLoadModule('/src/MultiAnswerGrader.jsx');
+    let boxes = 0;
+    for (const file of [L1, L2, L3]) {
+      for (const question of questionsOf(file).filter((candidate) => ['classwork', 'practice'].includes(candidate.sectionId) && candidate.type === 'multiAnswer')) {
+        const [version] = versionsOf(question, 1);
+        const typed = version.answerFields.filter((field) => field.type !== 'choice');
+        if (!typed.length) continue;
+        boxes += typed.length;
+        const markup = renderToStaticMarkup(React.createElement(MultiAnswerGrader, { question: version, onStateChange() {}, onUndoStateChange() {}, feedback: null, draftKey: null }));
+        assert.doesNotMatch(markup, /<input\b[^>]*type="text"/, `${question.questionId}: a typed answer is a plain text box`);
+        assert.equal((markup.match(/<math-field\b/g) || []).length, typed.length, `${question.questionId}: every typed answer is a math box`);
+      }
+    }
+    assert.ok(boxes >= 100, `${boxes} typed boxes`);
+  } finally {
+    await server.close();
+  }
+});

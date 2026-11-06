@@ -675,7 +675,9 @@ const classwork = [
     responses: [
       number('afterDividing', '3√2 / √6 = 3 / √( ? )', '3'),
       simplest('quotient', '3√2 / √6 =', '√3'),
-      simplest('square', '(3√(3x))² =', '27x'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (27x) as words, and drew a plain text box.
+      simplest('square', '(3√(3x))² =', '27x', { type: 'math' }),
       expression('radicand', '2x³y⁵ · 12x³y³ =', '24x^6y^8'),
       simplest('product', '3√(2x³y⁵) · 4√(12x³y³) =', '24x^3y^4√6'),
     ],
@@ -932,7 +934,9 @@ const practice = [
     responses: [
       number('coefficients', 'Coefficients: {{a}} · {{b}} =', '{{ab}}'),
       expression('radicand', 'Radicands: {{k}}x · {{v}}x =', '{{w}}x^2'),
-      simplest('product', 'Product', '{{r}}x'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (72x) as words, and drew a plain text box.
+      simplest('product', 'Product', '{{r}}x', { type: 'math' }),
     ],
     hints: [
       'How can you write the product of the two square roots as one square root?',
@@ -965,8 +969,10 @@ const practice = [
     // but the keys held one, so −5i then 5i was marked wrong twice.
     responses: [
       choice('real', '√(−{{p}}) is…', ['not a real number', 'equal to −{{n}}', 'equal to {{n}}', 'equal to ±{{n}}'], 'not a real number'),
-      expression('rootPlus', '√(−{{p}}) =', '{{n}}i'),
-      expression('rootMinus', 'The other square root of −{{p}} is', '-{{n}}i'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (7i) as words, and drew a plain text box.
+      expression('rootPlus', '√(−{{p}}) =', '{{n}}i', { type: 'math' }),
+      expression('rootMinus', 'The other square root of −{{p}} is', '-{{n}}i', { type: 'math' }),
       number('cube', '∛(−{{q}}) =', '{{nm}}'),
     ],
     hints: [
@@ -1181,7 +1187,9 @@ const practice = [
       number('t32', 'T for L = 32 (nearest hundredth)', '6.28'),
       number('factor', 'When the length is multiplied by 4, the period is multiplied by', '2'),
       number('doubleLength', 'To double the period, multiply the length by', '4'),
-      expression('newPeriod', 'A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is', '2T'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (2T) as words, and drew a plain text box.
+      expression('newPeriod', 'A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is', '2T', { type: 'math' }),
       choice('why', 'Why?', [
         'T depends on √L, and √(4L) = 2√L',
         'T depends on √L, and √(4L) = 4√L',
