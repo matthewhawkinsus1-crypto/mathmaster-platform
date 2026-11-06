@@ -1223,6 +1223,17 @@ export default function InteractiveGraphWorkspace({
     : (question.showEquation === true || promptNamesEquation)
       ? String(question.equationLatex || '').trim() || formatGraphEquationLatex(functionSpec)
       : '';
+  /*
+   * AN INTERVAL BOX FITS THE INTERVAL TYPED IN IT (walkthrough 2026-11-06,
+   * P-2). At 1366×768 the rail was 220px and each interval box 120px beside its
+   * keypad button, so a typed (−∞, ∞) showed as "−∞, ∞", both brackets cut off,
+   * and (−∞, 0) ∪ (0, ∞) scrolled inside its box. In an interval the brackets
+   * are the answer. A question that asks for one gets a 270px rail, for every
+   * stage so the plane does not change size between them, and each interval
+   * box takes its card's whole width in the compact type, its keypad button
+   * under it.
+   */
+  const intervalAnswers = analysisParts.some((part) => analysisKeypadProfile(part) === 'interval');
   const domainRangeOnly = stage === 'analysis'
     && analysisParts.length === 2
     && analysisParts.some((part) => part.kind === 'domain')
@@ -1373,7 +1384,7 @@ export default function InteractiveGraphWorkspace({
           <MathDisplay value={graphEquationLatex} format="latex" inline />
         </div>
       )}
-      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 180px), 220px) minmax(0, 1fr)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
+      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}`} style={{ display: 'grid', gridTemplateColumns: `minmax(min(100%, 180px), ${intervalAnswers ? 270 : 220}px) minmax(0, 1fr)`, gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
         <aside className="mathmaster-function-workspace-sidebar" style={{ border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface-tint)', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
@@ -1515,7 +1526,7 @@ export default function InteractiveGraphWorkspace({
                     {/* Named by its part, as the point cards are. Without a name of
                         its own the field was called by its placeholder — the
                         format example "[2, ∞)" — or, with none, "Math answer". */}
-                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially ariaLabel={toPlainMath(part.label)} placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially compact={analysisKeypadProfile(part) === 'interval'} fieldOwnRow={analysisKeypadProfile(part) === 'interval'} ariaLabel={toPlainMath(part.label)} placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
                   </div>}
                 </div>;
               })}

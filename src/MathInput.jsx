@@ -274,6 +274,11 @@ export default function MathInput({
   // keyboard types everything these fields take. On a phone the tools ARE the
   // keypad (the native keyboard is suppressed), so they are never hidden there.
   hideToolsToggle = false,
+  // The field takes its row, and the tools button goes under it at its end.
+  // For an answer that is wide by nature in a narrow card: an interval box in
+  // the graph workspace's 220px rail had 120px beside the button, and a typed
+  // (−∞, ∞) lost both brackets (walkthrough 2026-11-06, P-2).
+  fieldOwnRow = false,
   // Keys a caller adds to the keypad itself, uncaptioned (a secure test item:
   // secureAnswerEntry.js). Unlike `requiredSymbols`, nothing here appears in
   // the "Needed for this answer" row, which on a test would hint at the answer.
@@ -800,7 +805,7 @@ export default function MathInput({
           seven fields on the representation board, seven rows of the same
           button. It is now a compact √x button beside the field — same
           accessible name, same keypad, no extra row. */}
-      <div className="mathmaster-math-input-row" style={{ display: 'flex', alignItems: 'stretch', gap: 6, width: '100%', minWidth: 0 }}>
+      <div className="mathmaster-math-input-row" style={{ display: 'flex', alignItems: 'stretch', gap: 6, width: '100%', minWidth: 0, ...(fieldOwnRow ? { flexWrap: 'wrap' } : {}) }}>
       <math-field
         ref={mfRef}
         // A field with its own Enter action says so, so the question-level
@@ -819,7 +824,7 @@ export default function MathInput({
         }}
         style={{
           display: 'block',
-          flex: '1 1 auto',
+          flex: fieldOwnRow ? '1 1 100%' : '1 1 auto',
           width: '100%',
           maxWidth: '100%',
           minWidth: 0,
@@ -856,6 +861,7 @@ export default function MathInput({
           title={toolsVisible ? 'Hide math tools' : 'Show math tools (fractions, powers, roots…)'}
           style={{
             flex: '0 0 auto',
+            marginLeft: fieldOwnRow ? 'auto' : undefined,
             minWidth: 44,
             minHeight: 44,
             padding: '0 8px',
