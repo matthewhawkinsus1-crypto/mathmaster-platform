@@ -73,6 +73,7 @@ Nothing here has been deployed, and no operator script has been run.
 | The coordinate plane (N60 follow-ups) | Zoomed in, the keyboard crosshair stands only on grid points inside the window, so Enter plots "Point 1 (4, 0)", not (4.571429, 0). Zoomed out, it stops at the authored graph's edge, as a press does. A press picks up a placed point only when it lands on that point's own grid point, so pressing the grid point just above or below places a new point. On a phone's −10 to 10 grid the pick-up area shrinks from three rows to one (12.8 × 8 px), because anything bigger would take presses meant for the neighbouring grid points. | `0b1a41a9`, `7fd67e6c` |
 | The Live Challenge report on the console | The console follows a finished game's report until it is written, so "After the game" appears without a refresh. The watch closes when the report arrives or the teacher leaves the room. A report not written yet now reads as nothing to a teacher (a rules change); before, that read was refused. | `c8b9c11a` |
 | AX05 slice 3 | Under an authored Spanish translation, the tools' own figure sentences are Spanish, without the "in English" note: the student-built inequality graph, a system's region and its corners, the sideways parabola. In a Spanish screen-reader description, English words (axis titles, point labels that are words, the graph workspace's task) are marked `lang="en"`; a lone letter naming a point is said in Spanish. A secure Test field item's figures describe themselves in Spanish (`lang="es"`) where the student's plan gives Translate and the item has an authored Spanish prompt; positions stay withheld. English is unchanged on 20,000 random graphs and 1,811 rendered figures. | `f5121e5c`, `220b4cc0`, `7ee598ba` |
+| Recovery, the next shapes (RC01) | Recovery for Algebra II Honors Lesson 3 (Warm-Up Q1, exit ticket Q1–Q3), Lesson 4's Warm-Up Q1, the L1 Day 2 exit ticket (graphed intervals, the filling tank) and the ALEKS bridge lesson (Warm-Up Q1–Q3, exit ticket Q1–Q2). Each wrong choice in a fresh version is the lesson's own mistake with that version's numbers. Once Prepare Recovery has run: Warm-Up questions with Recovery 110 → 115 of 132 (lessons ready 38 → 40), exit-ticket questions 96 → 103 of 123 (lessons ready 36 → 39). The matrices Warm-Up 1's Recovery moves to version 2 of `matrices.arrayRecordTotals`, which has the lesson's rewritten choices; a version that declares `recovery.replaces: [1]` becomes its family's candidate, and every other question keeps its binding. | `b58fb17a`, `9ceab927`, `f36512f1`, `8a41633b` |
 
 ## 3. Checked, with no change needed
 
@@ -83,7 +84,7 @@ Nothing here has been deployed, and no operator script has been run.
 ## 4. Releasing this work
 
 1. **Firestore rules**: `dc16bfa9` (Ask my teacher) and `c8b9c11a` (the Live Challenge report). Deploy them with Hosting or before it: until they are live, a report written after the game ends shows only after a refresh, as today.
-2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report, its wrong-tap list and the class memory: N42, N80), and so did Corrections' slip names (TC05), the bundled SAT seed (N54) and the Recovery families and their certification (RC01). The new Recovery reaches a class when its teacher approves Prepare Recovery. Deploy outside class hours and outside Sunday 6 pm to midnight Central.
+2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report, its wrong-tap list and the class memory: N42, N80), and so did Corrections' slip names (TC05), the bundled SAT seed (N54) and the Recovery families, their certification and the planner (RC01; the matrices family's version 2). A new family or version must be gradable on the server before a client can deal one, so Functions go before Hosting. The new Recovery reaches a class when its teacher approves Prepare Recovery (Lessons 1, 3 and 4, L1 Day 2 and the ALEKS bridge lesson). Deploy outside class hours and outside Sunday 6 pm to midnight Central.
 3. **Hosting.**
 4. **Then the re-imports.** A changed lesson reaches a class only when its teacher imports it again:
    - Algebra II Honors module 2: Operations on Polynomials, Dividing Polynomials.
@@ -91,7 +92,7 @@ Nothing here has been deployed, and no operator script has been run.
    - **Algebra I M3 T2: L4 and L5, regular and Honors, only after Hosting is live**, for the same reason.
    - Algebra I M2 T2: L2 and L3 (regular).
    - **After Functions:** Administration → My Math Path content coverage → **Refresh SAT / ACT / TSIA2 release**, so the retired SAT item (N54) leaves the Path. It validates everything read-only before it writes.
-   - The 21 lesson files with rewritten choices, at any time: the options are plain text. Their order on screen changes, because the shuffle is seeded by the option text.
+   - The 21 lesson files with rewritten choices, at any time: the options are plain text. Their order on screen changes, because the shuffle is seeded by the option text. **The Algebra II matrices lesson only after Functions and Hosting:** Pre-Flight on the current release binds its Warm-Up 1's Recovery to version 1, which shows the old choices. After the re-import, Prepare Recovery binds version 2.
    - Any lesson imported again also takes the keypad fix: 35 keys in 13 lesson files lose the stray letters m, p, o and w. Until then, an assignment already imported keeps them in practice.
 
 ## 5. Waiting on the owner
@@ -111,6 +112,7 @@ Nothing here has been deployed, and no operator script has been run.
   - "La línea poligonal 1 pasa por…"; "punta de flecha … que apunta hacia arriba y a la izquierda"; "Modelo 3D con los ejes x, y, z"; "oculto";
   - "Colocaste", "Dibujaste", "Seleccionaste"; "Tu curva está dibujada a través de tus puntos";
   - "Elige dos filas: primero la fila 1 y luego la fila 2"; "elegida como fila 2"; "Filas para elegir"; "Tabla para continuar".
+  - Recovery's support sentences: 11 new ones in `esSupport.js` (RC01's next shapes).
   - Slice 3: "Recta frontera 1: continua / discontinua / todavía no se ha elegido su estilo"; "Un lado de la recta frontera 1 está sombreado"; "La zona donde se superponen los lados sombreados está rayada"; "El lado sombreado está rayado"; "Todavía no hay ninguna recta frontera dibujada";
   - "con esquinas en", "con una esquina en", "sin ninguna esquina dentro de la gráfica"; "Continúa más allá del borde de la gráfica"; "1 curva, que abre hacia la derecha" (or "izquierda").
   - The reader says "entre negativo 4 y menos 2": a sign after "y" or "o" is read as a subtraction. Choose "negativo" or "menos" for a sign, and the reader can follow.
@@ -120,6 +122,8 @@ Nothing here has been deployed, and no operator script has been run.
   - A1 M3 T2 L2 CW 7's key says "$10.50 behind", the answer to its own `ninety` box; CW 1's key gives 6.25 and 5 chickens, from which the goat and pig answers follow.
   - The DOL #3 Honors review's audited TSIA2 item (`mm_tsia2_psr_analysis_8_v21`) has the longest choice as its key. Its fix belongs in the bank.
 - **Opening the graph zoomed on a phone (N60).** A unit of 24 px allows at most a 10 × 6 window on a phone. Only 15 of the 26 fixed-number build items could open that way with every point in view, templated items would differ by student, and a window framed around the key shows where the boundary is, so it would have to stay off on exit tickets, quizzes and tests. Not built.
+- **A matrices Warm-Up 1 whose Recovery was already prepared** keeps the old choices until the rewritten lesson is imported again (that makes its binding stale, and Prepare Recovery then binds version 2). Moving a current binding without a re-import would need a new "refresh" row in Prepare Recovery, a change teachers see.
+- **Recovery for the ALEKS bridge Warm-Ups.** These questions carry `purpose: prerequisite` and an evidence weight of 0.25. Their Recovery versions, like every Recovery version, keep only the identity fields, so a Recovery answer counts at full weight. Keep it so, or carry the weight over?
 - **Fixed-answer questions without Recovery (RC01).** Every fresh version of these would have the same answer, so no family was built: Algebra II Honors L2 Day 2 Warm-Up Q1–Q3, all six L2 Day 1 questions, L3 Warm-Up Q2 and Q3, and L4 exit ticket Q3 ("are these inverses?" is always yes). Keep them without Recovery, or rewrite them so their answers vary. The District DOL 1 review's DOL Q7 is the same task as its Warm-Up Q1 at DOK 2 and difficulty 3 instead of 1 and 1; its authored rigor may need aligning.
 - **Only the owner can:**
   - **SI01 (N04).** Turn on the class-scoped assignment reads (Administration → Classes), then run `node scripts/report-assignment-key-exposure.mjs --project <id>`. Until then the answer-key split runs in shadow, and a student's device can read each item's key and worked steps.
@@ -131,11 +135,10 @@ Nothing here has been deployed, and no operator script has been run.
 ## 6. What remains
 
 - **Content:**
-  - The matrices Warm-Up 1's Recovery versions come from version 1 of `matrices.arrayRecordTotals` and still show the old wrong options. A family change ships as a new version, and Recovery binds only a family's version 1 unless a caller pins another, so the new options need a version 2 and a way for Recovery to bind it (half a day, with the Recovery binding rules).
   - Personal Check Your Progress per student, N34 (1 day).
 - **Live Challenge:**
   - Remove a student from a running game, N53 (3–5 days).
-- **Recovery (RC01's next shapes):** L1 Day 2 exit ticket Q1 (intervals) and Q3 (the filling tank), L3 Warm-Up Q1 and exit ticket Q1–Q3, L4 Warm-Up Q1 and exit ticket Q1–Q2, the rest of the District DOL 1 review (figure sorts, the vertex choice, five function-characteristics boards, the sequence question) and the ALEKS bridge lesson (2–3 days).
+- **Recovery (RC01's next shapes):** L4 exit ticket Q1 (compositions) and Q2 (product and quotient), and the District DOL 1 review's figure sorts (Warm-Up Q2, Q4), vertex choice (Q3), six function-characteristics boards (DOL Q1–Q6) and sequence question (DOL Q8). Building them changes nothing a student sees until the owner's items on the same exit tickets are settled (L4 DOL Q3, the review's DOL Q7): an exit ticket is ready only when every question is.
 - **Accessibility:**
   - AX05: under a Spanish translation, figure names (`aria-label`, and the name Read aloud says first) and an author's own description stay English, the latter with the note. Read aloud speaks in one voice, so the `lang="en"` marks help screen readers only.
   - Every stimulus graph's description says "It also shows marks drawn by the activity…", even with no curve: PathQuestionStimulus always passes a drawing function.
