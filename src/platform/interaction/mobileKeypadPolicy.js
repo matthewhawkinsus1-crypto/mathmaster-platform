@@ -49,6 +49,20 @@ const isRequiredTool = (tool, requiredTools = []) => {
   return requiredTools.some((required) => semanticKey(required) === key);
 };
 
+/*
+ * ⁿ√ ON AN EQUATION PAD ONLY WHERE THE ANSWER NEEDS IT (F-KEYPAD-GENERIC).
+ * The generic equation pad is crowded and an nth root is rarely part of an
+ * equation's answer, so its key is left off unless the field requires it (a
+ * declared symbol, or one read from its accepted answers). A phone's pad has
+ * always done this; a laptop's does it on practice (MathInput). A required key
+ * is still served: the phone's "Needed for this answer" row, the laptop's pad.
+ */
+export const nthRootOnlyWhereNeeded = (keys = [], { toolProfile = '', requiredTools = [] } = {}) => (
+  String(toolProfile) === 'equation'
+    ? (keys || []).filter((tool) => !isNthRoot(tool) || isRequiredTool(tool, requiredTools))
+    : (keys || [])
+);
+
 export const buildMobileMathTools = ({
   toolProfile = '',
   entryKeys = [],
@@ -76,9 +90,7 @@ export const buildMobileMathTools = ({
     profile = [OPEN_PAREN, CLOSE_PAREN, ...profile];
   }
 
-  if (String(toolProfile) === 'equation') {
-    profile = profile.filter((tool) => !isNthRoot(tool) || isRequiredTool(tool, requiredTools));
-  }
+  profile = nthRootOnlyWhereNeeded(profile, { toolProfile, requiredTools });
 
   // The shared entry row carries `=`, `+` and `,` for algebra. None of them can
   // appear in a bare number, so a numeric pad drops them and keeps the digits,

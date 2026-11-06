@@ -68,7 +68,9 @@ test('MathInput leaves them off the profile keys before extra and needed keys ar
   assert.match(basic, /label: 'logₐ', [^\n]*constant: 'log'/);
   assert.equal((basic.match(/constant:/g) || []).length, 3, 'no other basic key is a constant');
   const tools = region(input, 'const tools = useMemo(() => {', '}, [toolProfile', 'the keypad');
-  assert.match(tools, /mergeToolKeys\(\s*withExtraKeys\(keysForConstants\(getToolKeys\(toolProfile, \{ contextSymbols, functionNotationKeys \}\), keypadConstants\), extraKeys\),\s*requiredTools,/, 'desktop');
+  // A laptop's profile keys lose them first (and, on practice, an unneeded ⁿ√:
+  // mobileEquationKeypadPolicy.test.mjs); the extra and needed keys come after.
+  assert.match(tools, /const profileKeys = keysForConstants\(getToolKeys\(toolProfile, \{ contextSymbols, functionNotationKeys \}\), keypadConstants\);\s*return mergeToolKeys\(\s*withExtraKeys\([^\n]*profileKeys[^\n]*, extraKeys\),\s*requiredTools,/, 'desktop');
   assert.match(tools, /profileKeys: withExtraKeys\(keysForConstants\(getToolKeys\(toolProfile, \{ isMobile: true, contextSymbols, functionNotationKeys \}\), keypadConstants\), extraKeys\),/, 'phone');
   assert.match(input, /const keypadConstants = useKeypadConstants\(\);/);
 });

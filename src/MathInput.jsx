@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { createFieldEchoGuard } from './platform/interaction/fieldEchoGuard.js';
 import './platform/math/mathliveRuntime.js';
 import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
-import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
+import { buildMobileMathTools, nthRootOnlyWhereNeeded } from './platform/interaction/mobileKeypadPolicy.js';
 import { keysForConstants, useKeypadConstants } from './platform/interaction/keypadConstants.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
@@ -406,10 +406,16 @@ export default function MathInput({
   // needs are added, so neither can ever be removed (TL23, keypadConstants.js).
   const keypadConstants = useKeypadConstants();
   const tools = useMemo(() => {
-    if (!isMobile) return mergeToolKeys(
-      withExtraKeys(keysForConstants(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), keypadConstants), extraKeys),
-      requiredTools,
-    );
+    if (!isMobile) {
+      // On practice (QuestionEngine answers for its item) a laptop's equation
+      // pad also leaves ⁿ√ off unless the answer needs it, as a phone's always
+      // has (F-KEYPAD-GENERIC). An assessment, or a host with no item, keeps it.
+      const profileKeys = keysForConstants(getToolKeys(toolProfile, { contextSymbols, functionNotationKeys }), keypadConstants);
+      return mergeToolKeys(
+        withExtraKeys(keypadConstants ? nthRootOnlyWhereNeeded(profileKeys, { toolProfile, requiredTools }) : profileKeys, extraKeys),
+        requiredTools,
+      );
+    }
 
     // Mobile equation pads are intentionally opinionated:
     // - parentheses are ALWAYS directly reachable;

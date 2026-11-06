@@ -80,6 +80,10 @@ const QUESTIONS = {
   literal: { id: 'attempt-outcome-literal', type: 'literal', prompt: 'What is 3 + 4?', correctAnswer: '7' },
   // TL23: a typed question whose math uses π (its keypad keeps π, not e or logₐ).
   literalPi: { id: 'attempt-outcome-literal-pi', type: 'literal', prompt: 'A circle has radius 3. What is its area? Leave your answer in terms of π.', correctAnswer: '9π' },
+  // F-KEYPAD-GENERIC: answers on the equation pad. One needs no root; the
+  // other's answer is a cube root, spelled as the ⁿ√ key spells it.
+  equation: { id: 'attempt-outcome-equation', type: 'multiAnswer', prompt: 'A line has slope 2 and y-intercept 1. Write its equation.', answerFields: [{ id: 'line', label: 'Equation', toolProfile: 'equation', answer: 'y=2x+1' }] },
+  equationRoot: { id: 'attempt-outcome-equation-root', type: 'multiAnswer', prompt: 'Solve x³ = 20. Write the exact solution as an equation.', answerFields: [{ id: 'root', label: 'Solution', toolProfile: 'equation', answer: 'x=\\sqrt[3]{20}' }] },
 };
 const question = QUESTIONS[tool];
 

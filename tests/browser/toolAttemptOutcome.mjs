@@ -33,6 +33,10 @@
 //             ("…other one is not…") is said with the outcome.
 //   keypad    (TL23) a typed question's keypad offers π, e and logₐ only where
 //             the item's math uses them, on practice; on a DOL every key stays.
+//             (F-KEYPAD-GENERIC) an equation pad offers ⁿ√ on practice only
+//             where the answer needs it, on a Chromebook as on a phone (a
+//             Chromebook's DOL keeps it); an answer made with the key is spelled
+//             as the answer key is, and grades correct on both.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -60,7 +64,7 @@ const open = async (device, role, tool, prior = 0) => {
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${device}/${role}/${tool}: page error ${error.message}`));
   await page.goto(`${ORIGIN}/tests/browser/toolAttemptOutcome.html?role=${role}&tool=${tool}&prior=${prior}&run=${run}-${device}-${role}-${tool}-${prior}`, { waitUntil: 'networkidle' });
-  await page.locator(tool.startsWith('literal') ? '.mathmaster-question-tool-workspace' : '.mathmaster-tool-shell').first().waitFor({ timeout: 60000 });
+  await page.locator(/^(?:literal|equation)/.test(tool) ? '.mathmaster-question-tool-workspace' : '.mathmaster-tool-shell').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(600);
   return { context, page };
 };
@@ -421,6 +425,44 @@ for (const device of ['chromebook', 'phone']) {
     const shown = CONSTANT_KEYS.filter((key) => keys.includes(key));
     check(JSON.stringify(shown) === JSON.stringify(expected) && keys.includes('√') && keys.includes('a⁄b'),
       `${device} ${role} ${tool}: the keypad offers ${expected.length ? expected.join(', ') : 'none of π, e, logₐ'} (and keeps √ and a⁄b)`, keys.join(' '));
+    await context.close();
+  }
+}
+
+// ------------------------------------------------- ⁿ√ (F-KEYPAD-GENERIC)
+// On practice an equation pad offers ⁿ√ only where the answer needs it — on a
+// Chromebook now as on a phone; an assessment keeps a Chromebook's. Where it is
+// offered (the pad, or the phone's "Needed for this answer" row), an answer
+// made with it is spelled as the key spells it, and grades the same on both.
+const offeredKeys = async (page) => [
+  ...await keypadKeys(page),
+  ...await page.locator('.mathmaster-required-answer-keys button').evaluateAll((buttons) => buttons.map((button) => button.textContent.trim())),
+];
+for (const device of ['chromebook', 'phone']) {
+  const scenes = [['practice', 'equation', false], ['practice', 'equationRoot', true], ...(device === 'chromebook' ? [['dol', 'equation', true]] : [])];
+  for (const [role, tool, offered] of scenes) {
+    const { context, page } = await open(device, role, tool);
+    const keys = await offeredKeys(page);
+    check(keys.includes('ⁿ√') === offered, `${device} ${role} ${tool}: ⁿ√ is ${offered ? '' : 'not '}offered`, keys.join(' '));
+    if (tool === 'equationRoot') {
+      const field = page.locator('.mathmaster-question-tool-workspace math-field').first();
+      await field.click();
+      await page.keyboard.type('x=');
+      // The key each device offers: a Chromebook's own pad key, a phone's in its "Needed for this answer" row.
+      const key = device === 'phone'
+        ? page.locator('.mathmaster-required-answer-keys button', { hasText: 'ⁿ√' })
+        : page.locator('[role="toolbar"][aria-label="Math tools"] button', { hasText: 'ⁿ√' });
+      await key.first().click();
+      await page.keyboard.type('3');
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('20');
+      const value = await field.evaluate((element) => element.value);
+      check(value === 'x=\\sqrt[3]{20}', `${device}: the ⁿ√ key spells the root as the answer key does`, value);
+      await page.locator('button.mathmaster-bar-submit').click();
+      await page.waitForFunction(() => window.__mmGrades.length > 0, null, { timeout: 8000 }).catch(() => {});
+      const grades = await page.evaluate(() => window.__mmGrades);
+      check(grades.length === 1 && grades[0].isCorrect === true, `${device}: the answer made with the ⁿ√ key grades correct`, JSON.stringify(grades));
+    }
     await context.close();
   }
 }
