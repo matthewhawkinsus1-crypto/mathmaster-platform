@@ -1410,16 +1410,21 @@ dol = [
         'questionWeight': 1,
         'prompt': 'Write the system as a matrix equation and solve it using technology with matrices.',
         'studentActions': ['solveMatrixEquation'],
-        'solutionReview': review(
-            'Standard form first, then A · X = B, then X = A⁻¹ · B.',
-            [
+        # No summary (2026-11-06), as PR 17 has none. The system is the platform
+        # family's, so this text cannot hold a version's numbers, and its
+        # summary, "The ordered triple (x, y, z) read from A⁻¹ · B.", sat in the
+        # answer's place stating none. The Matrix Lab's own steps follow this
+        # text with the version's A, B and X = A⁻¹ · B, and end with its
+        # (x, y, z) and the check.
+        'solutionReview': {
+            'headline': 'Standard form first, then A · X = B, then X = A⁻¹ · B.',
+            'reasoning': [
                 'Rewrite every equation as ax + by + cz = d: move each variable term to the left side and each constant to the right, changing the sign of anything that crosses the equal sign.',
                 'Row i of A holds the x-, y-, and z-coefficients of equation i (0 for a missing variable); X is the column (x, y, z); B holds the constants in the same order.',
                 'With technology, X = A⁻¹ · B. Read x, y, and z from the column, top to bottom, and check them in the original equations.',
             ],
-            'The ordered triple (x, y, z) read from A⁻¹ · B.',
-            'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
-        ),
+            'commonError': 'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
+        },
         'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
     },
 ]

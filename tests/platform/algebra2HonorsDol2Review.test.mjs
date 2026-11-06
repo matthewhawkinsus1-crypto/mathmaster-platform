@@ -832,3 +832,31 @@ test('Recovery: the Warm-Up and DOL run from their own families, fully ready on 
     assert.equal(plan.sections.dol.status, 'ready');
   }
 });
+
+/*
+ * THE EXIT TICKET'S DOL 7 ENDS WITH THE VERSION'S OWN SOLUTION (2026-11-06).
+ * Its worked solution's summary, "The ordered triple (x, y, z) read from
+ * A⁻¹ · B.", stood in the answer's place stating none: the system is the
+ * platform family's, so the review's text cannot hold a version's numbers. It
+ * has no summary now, as Practice 17 has none, and the Matrix Lab's own steps
+ * follow the review's text with the version's A, B and X = A⁻¹ · B. Read as the
+ * closed card builds it for a tool question, in every sampled version.
+ */
+test('DOL 7: the worked solution ends with each version\'s own (x, y, z), and nothing stands in the answer\'s place', async () => {
+  const { buildClosedQuestionReview } = await import('../../src/platform/supports/review/closedQuestionReview.js');
+  const versions = dealt().filter(({ id }) => id === 'dol2r-dol-7');
+  assert.ok(versions.length >= 100, `${versions.length} versions read`);
+  const plain = (text) => String(text ?? '').replace(/−/g, '-');
+  const problems = [];
+  versions.forEach(({ values, question }) => {
+    const [x, y, z] = values.solution;
+    const review = buildClosedQuestionReview({ question, isToolQuestion: true });
+    const summary = review?.authored?.answerSummary;
+    if (summary && !plain(summary).includes(`(${x}, ${y}, ${z})`)) problems.push(`${JSON.stringify(values)}: the answer's place says "${summary}"`);
+    const solution = (review?.tool?.items || []).find((item) => item.label === 'Solution');
+    if (plain(solution?.value) !== `(${x}, ${y}, ${z})`) problems.push(`${JSON.stringify(values)}: the Matrix Lab's solution is ${solution?.value}`);
+    const last = plain(review?.speechParts?.at(-1)?.text);
+    if (!last.includes(`x = ${x}, y = ${y}, z = ${z}`)) problems.push(`${JSON.stringify(values)}: the worked solution ends "${last}"`);
+  });
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
+});

@@ -3582,7 +3582,6 @@
               "Row i of A holds the x-, y-, and z-coefficients of equation i (0 for a missing variable); X is the column (x, y, z); B holds the constants in the same order.",
               "With technology, X = A⁻¹ · B. Read x, y, and z from the column, top to bottom, and check them in the original equations."
             ],
-            "answerSummary": "The ordered triple (x, y, z) read from A⁻¹ · B.",
             "commonError": "Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign."
           },
           "questionFamily": {
