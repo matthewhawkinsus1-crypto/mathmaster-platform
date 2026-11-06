@@ -29,6 +29,8 @@
  */
 import { buildPrivateSupport } from '../../../../functions/shared/pathSolutionSupport.mjs';
 import { answerCandidatesForField, matchesFieldAnswer } from '../../../../functions/shared/answerUtils.mjs';
+import { resolveComposedWorkflow } from '../../../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
+import { gradeStage } from '../../../../functions/shared/toolMath/workflow/workflowGrading.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
@@ -152,16 +154,49 @@ const isSlip = (field, typed, slip) => {
     return false;
   }
 };
-const slipMade = (question, entry, missed) => {
+/*
+ * A SLIP IN ONE STEP OF A COMPOSED QUESTION (walkthrough 2026-10-22,
+ * F-GENERIC-FEEDBACK: Algebra I DOL #3 Review PR 2 and PR 8).
+ *
+ * A composed question's steps are not answer fields, so an entry naming a step
+ * was never read, and those items' common errors ("Leaving 0 out of the
+ * domain", "Mixing up the zero and the y-intercept") name no value FB04 can
+ * match. An entry whose `field` names a step is read in that step only, by the
+ * step's own grader with the slip as its key: a set in any order, with an
+ * ellipsis, or in the braces MathLive writes (\{1,2,3,4,5\}) is the slip
+ * {1, 2, 3, 4, 5} wherever the step would mark it so, and the step's right
+ * answer never is. As for a box, only a step marked wrong is read.
+ */
+const composedSteps = (question) => {
+  try {
+    const { composed, support } = resolveComposedWorkflow(question || {});
+    return support?.supported && Array.isArray(composed?.workflow) ? composed.workflow : [];
+  } catch {
+    return [];
+  }
+};
+const isStepSlip = (step, steps, responses, slip) => {
+  try {
+    return gradeStage({ stage: step, rule: slip, responses, stages: steps }).isCorrect === true;
+  } catch {
+    return false;
+  }
+};
+
+const slipMade = (question, entry, missed, work) => {
   const squash = (value) => text(value).toLowerCase().replace(/\s+/g, '');
   if (!entry.field) {
     const given = submittedValues(missed).map(squash);
     return entry.match.some((candidate) => given.includes(squash(candidate)));
   }
-  const field = answerField(question, entry.field);
   const part = missed.find((candidate) => text(candidate.id) === entry.field);
   const response = part && typeof part.response === 'string' ? part.response : '';
-  return Boolean(field && response.trim()) && entry.match.some((slip) => isSlip(field, response, slip));
+  if (!response.trim()) return false;
+  const field = answerField(question, entry.field);
+  if (field) return entry.match.some((slip) => isSlip(field, response, slip));
+  const steps = work.steps();
+  const step = steps.find((candidate) => text(candidate?.id) === entry.field);
+  return Boolean(step) && entry.match.some((slip) => isStepSlip(step, steps, work.responses, slip));
 };
 
 export const missFeedback = ({ question = null, attemptNumber = 1, diagnosis = null, parts = [] } = {}) => {
@@ -172,7 +207,18 @@ export const missFeedback = ({ question = null, attemptNumber = 1, diagnosis = n
     support = null;
   }
   const missed = list(parts).filter((part) => part && part.graded !== false && part.isCorrect !== true);
-  const authoredMatch = list(support?.misconceptions).find((entry) => slipMade(question, entry, missed));
+  // A step's slip is read beside the other steps' work (a domain is read with
+  // the letter the student's own equation uses); the steps are built once, and
+  // only when an entry names one.
+  let steps = null;
+  const work = {
+    steps: () => {
+      if (steps === null) steps = composedSteps(question);
+      return steps;
+    },
+    responses: Object.fromEntries(list(parts).filter((part) => part?.id).map((part) => [text(part.id), part.response])),
+  };
+  const authoredMatch = list(support?.misconceptions).find((entry) => slipMade(question, entry, missed, work));
   if (authoredMatch) return { message: authoredMatch.message, source: 'authored-misconception' };
   const commonError = commonErrorMiss({ question, parts });
   if (commonError) return commonError;
