@@ -17,8 +17,21 @@
 
 export const uniqueSorted = (values) => [...new Set(values.map(Number))].sort((a, b) => a - b);
 
-/** A typed comma- (or semicolon-) separated list; tokens that are not finite numbers are dropped. */
+/*
+ * A typed comma- (or semicolon-) separated list; tokens that are not finite
+ * numbers are dropped.
+ *
+ * The braces of a set and the true minus sign are notation, as the composed
+ * stages' own set reader has it (workflowGrading.mjs parseSetAnswer). A student
+ * who wrote the domain the way the lesson's worked steps write it,
+ * "{-3, 0, 2, 5}", lost "{-3" and "5}" here: they are not numbers, so the set
+ * read as {0, 2} and a right answer was marked wrong, with "The domain is not
+ * right". A minus pasted from the prompt ("(−2, 5)") or typed as a dash was
+ * dropped the same way (walkthrough 2026-11-06, Algebra II Honors Lesson 1).
+ */
 export const parseList = (input) => String(input || '')
+  .replace(/[{}]/g, ' ')
+  .replace(/[−–—]/g, '-')
   .split(/[,;]/)
   .map((part) => part.trim())
   .filter(Boolean)
