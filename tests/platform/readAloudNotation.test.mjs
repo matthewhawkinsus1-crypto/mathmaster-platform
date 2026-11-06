@@ -19,6 +19,7 @@ import { maskMath } from '../../src/platform/language/mathSafeText.js';
 import { questionReadingParts } from '../../src/platform/language/questionReading.js';
 import { loadLanguagePack, translateWithPack } from '../../src/platform/language/translationProviders.js';
 import { buildQuestionHints } from '../../src/platform/supports/hints/questionHints.js';
+import { familyFor } from '../../src/platform/supports/families/index.js';
 import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 
 const es = { language: 'es' };
@@ -163,6 +164,62 @@ test('∈ is "is in", as LaTeX\'s \\in is, and what follows it is a set or an in
   assert.equal(mathToSpeech('x \\in \\{1, 2\\}', es), 'x pertenece al conjunto 1, 2 fin de conjunto');
 });
 
+// math-speech-2: what P-1 left. An arrow reached the voice as a symbol ("x
+// equals 2 → x plus 7 equals 9") and LaTeX's \to was dropped ("the point x, y
+// the point 3x, 3y"). One arrow means different things, so it is read by
+// what stands on each side of it.
+test('an arrow is read by what it means where it stands', () => {
+  // A limit: "approaches".
+  assert.equal(speechTextFor('As x → ∞, f(x) → 0.'), 'As x approaches infinity, f of x approaches 0.');
+  assert.equal(speechTextFor('as x → −∞, f(x) → 0'), 'as x approaches negative infinity, f of x approaches 0');
+  assert.equal(mathToSpeech('x \\to \\infty'), 'x approaches infinity', 'LaTeX\'s \\to was not said at all');
+  // A mapping or a relation: "maps to".
+  assert.equal(speechTextFor('2 → 5'), '2 maps to 5');
+  assert.equal(
+    speechTextFor('Read each pair as input first, output second: -5 → 7, 2 → -6, 9 → 7.'),
+    'Read each pair as input first, output second: negative 5 maps to 7, 2 maps to negative 6, 9 maps to 7.',
+  );
+  assert.equal(speechTextFor('(−4, 4) → (−6, 1); (−2, 2) → (−4, 2)'), 'the point negative 4, 4 maps to the point negative 6, 1; the point negative 2, 2 maps to the point negative 4, 2');
+  assert.equal(speechTextFor('Under $(x,y)\\to(3x,3y)$, what is the image of $(3,3)$?'), 'Under the point x, y maps to the point 3x, 3y, what is the image of the point 3, 3?');
+  assert.equal(speechTextFor('Use the first coordinate rule $x\\to3x$.'), 'Use the first coordinate rule x maps to 3x.');
+  assert.equal(speechTextFor('Use the three-role map: base → base, result → argument, exponent → log value.'), 'Use the three-role map: base maps to base, result maps to argument, exponent maps to log value.');
+  // A rule whose image the segmenter leaves as prose (its "½") is a mapping too.
+  assert.match(speechTextFor('Move every defining point with (x, y) → (x − 2, −½·y + 3).'), /^Move every defining point with the point x, y maps to \(/);
+  // A path, a pair of rows, a function machine.
+  assert.equal(speechTextFor('if the vertices $A \\to B \\to C$ run clockwise'), 'if the vertices A to B to C run clockwise');
+  assert.equal(speechTextFor('Apply 2 quarter-turns: (3, 1) → (−1, 3) → (−3, −1).'), 'Apply 2 quarter-turns: the point 3, 1 to the point negative 1, 3 to the point negative 3, negative 1.');
+  assert.equal(speechTextFor('Row 1 → Row 3'), 'Row 1 to Row 3');
+  assert.equal(speechTextFor('5 → g → 1 → f → 5'), '5 goes into g gives 1, goes into f gives 5');
+  // A step of work: "gives".
+  assert.equal(speechTextFor('Step 1: x = 2 → x + 7 = 9'), 'Step 1: x equals 2 gives x plus 7 equals 9');
+  assert.equal(speechTextFor('6x + 4 = 4x + 12 → 2x = 8 → x = 4.'), '6x plus 4 equals 4x plus 12 gives 2x equals 8 gives x equals 4.');
+  assert.equal(speechTextFor('a = 0: 5s = 3000, so s = 600 → (600, 0).'), 'a equals 0: 5s equals 3000, so s equals 600 gives the point 600, 0.');
+  // A lone letter beside an arrow is a variable, even where the segmenter
+  // keeps it as the word "a".
+  assert.equal(speechTextFor('System A: 6x − 2(3x − 2) = a → 4 = a.'), 'System A: 6x minus 2 times the quantity 3x minus 2 equals a gives 4 equals a.');
+  // In words: steps are "then", a rule is "means".
+  assert.equal(
+    speechTextFor('Gaussian elimination: eliminate the same variable from two pairs → solve the 2×2 system → back-substitute → check all three equations.'),
+    'Gaussian elimination: eliminate the same variable from two pairs then solve the 2 times 2 system then back-substitute then check all three equations.',
+  );
+  assert.equal(speechTextFor('Outside negative → x-axis reflection. Inside negative → horizontal reflection.'), 'Outside negative means x-axis reflection. Inside negative means horizontal reflection.');
+  assert.equal(speechTextFor('a: dashed and above → y > (1/2)x − 3.'), 'a: dashed and above means y is greater than the quantity 1 over 2 x minus 3.');
+  // The other arrows.
+  assert.equal(speechTextFor('$R_2\\leftarrow R_2-2R_1$'), 'R sub 2 is replaced by R sub 2 minus 2R sub 1');
+  assert.equal(speechTextFor('Index ↔ denominator, power ↔ numerator.'), 'Index corresponds to denominator, power corresponds to numerator.');
+  assert.equal(speechTextFor('c is a zero of P ⇔ x − c is a factor'), 'c is a zero of P if and only if x minus c is a factor');
+  assert.equal(mathToSpeech('\\log_{3}(9)=2\\iff 3^2=9'), 'log base 3 of 9 equals 2 if and only if 3 squared equals 9');
+  // No arrow is left for the voice to name, whatever stands beside it.
+  for (const text of ['x → ∞', 'S1 → P1', '→ g →', 'Translate each condition: at least $\\to\\ge$.']) {
+    assert.doesNotMatch(speechTextFor(text), /[→←↔⇔⇒]|\\to/, text);
+  }
+  // Spanish, in the pack's own words: "se acerca a", "corresponde a".
+  assert.equal(speechTextFor('As x → ∞, f(x) → 0.', es), 'As x se acerca a infinito, f de x se acerca a 0.');
+  assert.equal(speechTextFor('(−4, 4) → (−6, 1)', es), 'el punto negativo 4, 4 corresponde al punto negativo 6, 1');
+  assert.equal(speechTextFor('6x + 4 = 4x + 12 → 2x = 8', es), '6x más 4 es igual a 4x más 12 da 2x es igual a 8');
+  assert.equal(speechTextFor('5 → g → 1 → f → 5', es), '5 entra en g da 1, entra en f da 5');
+});
+
 // Translate's lines are written with ∘ and ∪ between the masked mathematics
 // ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so only Read aloud reads them as part of
 // it: a Spanish sentence still translates, and is then read in Spanish words.
@@ -176,6 +233,13 @@ test('Translate still finds its Spanish lines, and Read aloud reads them', async
   const union = translateWithPack('Answer: (−∞, 0) ∪ (0, ∞)', pack).text;
   assert.equal(union, 'Respuesta: (−∞, 0) ∪ (0, ∞)');
   assert.equal(speechTextFor(union, es), 'Respuesta: el intervalo de negativo infinito a 0, que no incluye 0, unión el intervalo de 0 a infinito, que no incluye 0');
+  // math-speech-2: an arrow is still prose to Translate, so the pack's line
+  // keeps it, and Read aloud says it in Spanish.
+  const read = 'Read each pair as input first, output second: -5 → 7, 2 → -6, 9 → 7, 9 → 4.';
+  assert.equal(maskMath(read).masked, 'Read each pair as input first, output second: ⟦0⟧ → ⟦1⟧, ⟦2⟧ → ⟦3⟧, ⟦4⟧ → ⟦5⟧, ⟦6⟧ → ⟦7⟧.');
+  const pairs = translateWithPack(read, pack).text;
+  assert.equal(pairs, 'Lee cada par con la entrada primero y la salida después: -5 → 7, 2 → -6, 9 → 7, 9 → 4.');
+  assert.equal(speechTextFor(pairs, es), 'Lee cada par con la entrada primero y la salida después: negativo 5 corresponde a 7, 2 corresponde a negativo 6, 9 corresponde a 7, 9 corresponde a 4.');
 });
 
 // Every text a student hears in the module's lessons, as the device builds
@@ -183,8 +247,15 @@ test('Translate still finds its Spanish lines, and Read aloud reads them', async
 // the closed review. None may reach the voice as raw notation, and every
 // pair that can only be an interval must be said as one.
 const MODULE = new URL('../../teacher-import-jsons/algebra2-honors-module1/', import.meta.url);
-const RAW = /[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ∘∪∈{}]|log sub|log_|(?:the point|el punto) [^,.;]*infinit/u;
+// math-speech-2 adds arrows.
+const RAW = /[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ∘∪∈{}→←↔⇔⇒]|log sub|log_|(?:the point|el punto) [^,.;]*infinit/u;
 const ONLY_AN_INTERVAL = /\[[^()[\],;]+,[^()[\],;]+[\])]|\([^()[\],;]*∞[^()[\],;]*,[^()[\],;]+[\])]|\([^()[\],;]+,[^()[\],;]*∞[^()[\],;]*[\])]/gu;
+// math-speech-2: and the worked sibling the hint panel reads ("Read each pair
+// as input first, output second: -6 → 9, …").
+const workedSibling = (question) => {
+  const similar = familyFor(question)?.similarProblem?.(question, { seed: 1 });
+  return similar ? [similar.prompt, ...(similar.steps || []), similar.answer] : [];
+};
 const moduleTexts = () => readdirSync(MODULE).filter((name) => name.endsWith('.json')).flatMap((name) => {
   const { questions } = parseAssignmentBlueprintText(readFileSync(new URL(name, MODULE), 'utf8'));
   return questions.flatMap((question) => [
@@ -192,7 +263,8 @@ const moduleTexts = () => readdirSync(MODULE).filter((name) => name.endsWith('.j
     ...buildQuestionHints(question).map((hint) => hint.text),
     ...(question.answerFields || []).flatMap((field) => Object.values(field.optionRationales || {})),
     ...(buildClosedQuestionReview({ question })?.speechParts || []).map((part) => part.text),
-  ].map((text) => ({ name, text: String(text) })));
+    ...workedSibling(question),
+  ].filter((text) => text != null).map((text) => ({ name, text: String(text) })));
 });
 
 test('Algebra II Honors module 1 reaches the voice in words, in English and in Spanish', () => {

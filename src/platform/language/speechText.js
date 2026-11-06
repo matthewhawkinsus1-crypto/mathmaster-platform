@@ -19,6 +19,11 @@
  */
 import { segmentMathText } from './mathSafeText.js';
 
+// Marks the "a" an arrow is said with in Spanish ("corresponde a"), so that
+// "a" joins any "el" after it ("corresponde al punto"), while elsewhere only
+// "el conjunto" and "el intervalo" do, as before. Removed by `contract`.
+const ARROW_A = '';
+
 const WORDS = {
   en: {
     over: 'over', cubeRoot: 'the cube root of', squareRoot: 'the square root of', logBase: 'log base', of: 'of',
@@ -41,6 +46,12 @@ const WORDS = {
       both: (a, b) => `including ${a} and ${b}`, neither: (a, b) => `not including ${a} or ${b}`,
       only: (a, b) => `including ${a} but not ${b}`, one: (a) => `including ${a}`, none: (a) => `not including ${a}`,
     },
+    // What an arrow means where it stands (arrowWords below). Nested, so a
+    // short word here ("to") is never taken for a word in a denominator.
+    arrows: {
+      approaches: 'approaches', mapsTo: 'maps to', to: 'to', gives: 'gives', next: 'then', means: 'means',
+      goesInto: 'goes into', replacedBy: 'is replaced by', correspondsTo: 'corresponds to', iff: 'if and only if', implies: 'implies',
+    },
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -60,11 +71,22 @@ const WORDS = {
     // (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). "incluye" is the
     // pack's verb for an endpoint ("{2} incluye {3}").
     union: 'unión', interval: (from, to) => `el intervalo de ${from} a ${to}`,
-    // "pertenece al conjunto", "del intervalo": a and de join the article.
-    contract: (text) => text.replace(/\b(a|de) el (conjunto|intervalo)\b/g, (match, word, noun) => `${word === 'a' ? 'al' : 'del'} ${noun}`),
+    // "pertenece al conjunto", "del intervalo": a and de join the article. An
+    // arrow's "a" (ARROW_A) joins any "el" after it: "corresponde al punto".
+    contract: (text) => text
+      .replace(new RegExp(`\\ba${ARROW_A} el\\b`, 'g'), 'al')
+      .replace(new RegExp(ARROW_A, 'g'), '')
+      .replace(/\b(a|de) el (conjunto|intervalo)\b/g, (match, word, noun) => `${word === 'a' ? 'al' : 'del'} ${noun}`),
     ends: {
       both: (a, b) => `que incluye ${a} y ${b}`, neither: (a, b) => `que no incluye ${a} ni ${b}`,
       only: (a, b) => `que incluye ${a} pero no ${b}`, one: (a) => `que incluye ${a}`, none: (a) => `que no incluye ${a}`,
+    },
+    // New with math-speech-2, for the Spanish review (NOVEMBER_BUILD section
+    // 5). "se acerca a" and "corresponde a" are the pack's own words for
+    // "approaches" and "maps to" (esSupport.js).
+    arrows: {
+      approaches: `se acerca a${ARROW_A}`, mapsTo: `corresponde a${ARROW_A}`, to: `a${ARROW_A}`, gives: 'da', next: 'luego', means: 'significa',
+      goesInto: 'entra en', replacedBy: 'se reemplaza por', correspondsTo: `corresponde a${ARROW_A}`, iff: 'si y solo si', implies: 'implica',
     },
   },
 };
@@ -594,9 +616,188 @@ const unicodeMathToSpokenForm = (raw, w) => {
   });
 };
 
-// What is written as text but said in words: a logarithm's base and a set in
-// braces, then the powers and roots above.
-const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(plainSetsToWords(logBasesToWords(String(raw ?? ''), w), w), w);
+/*
+ * ARROWS, SAID BY WHAT THEY MEAN WHERE THEY STAND (math-speech-2). → and ←
+ * reached the voice as symbols ("x equals 2 → x plus 7 equals 9"), and
+ * LaTeX's \to was dropped ("the point x, y the point 3x, 3y"). One arrow means
+ * different things, so the words come from what stands on each side:
+ *   - a limit, "x → ∞", "as x → −∞, f(x) → 0": "approaches";
+ *   - a mapping, "2 → 5", "(x, y) → (3x, 3y)", "S1 → P1", "x → 3x", and a list
+ *     of pairs in words ("base → base, result → argument"): "maps to";
+ *   - a path of points or names, "A → B → C", and "Row 1 → Row 2": "to";
+ *   - a function machine, "5 → g → 1 → f → 5": "goes into", "gives";
+ *   - a step of work, "x = 2 → x + 7 = 9", "s = 600 → (600, 0)": "gives";
+ *   - steps in words, "eliminate … → solve … → back-substitute": "then";
+ *   - a rule in words, "Outside negative → x-axis reflection": "means".
+ * ← is "is replaced by" (a row operation, R₂ ← R₂ − 2R₁), ↔ "corresponds to",
+ * ⇔ "if and only if" and ⇒ "implies". Translate is unchanged: an arrow in
+ * prose stays prose to the segmenter, and the Spanish pack keeps its arrows.
+ */
+const LATEX_ARROWS = Object.freeze({
+  to: '→', rightarrow: '→', longrightarrow: '→', mapsto: '→', longmapsto: '→',
+  leftarrow: '←', longleftarrow: '←', gets: '←', leftrightarrow: '↔', longleftrightarrow: '↔',
+  Leftrightarrow: '⇔', Longleftrightarrow: '⇔', iff: '⇔', Rightarrow: '⇒', Longrightarrow: '⇒', implies: '⇒',
+});
+const LATEX_ARROW = new RegExp(`\\\\(${Object.keys(LATEX_ARROWS).join('|')})(?![A-Za-z])`, 'g');
+const ARROW = /[→←↔⇔⇒]/;
+const arrowsAsCharacters = (text) => text
+  .replace(LATEX_ARROW, (match, name) => ` ${LATEX_ARROWS[name]} `)
+  .replace(/[⟶↦⟼]/g, '→').replace(/⟵/g, '←').replace(/⟷/g, '↔').replace(/⟺/g, '⇔').replace(/⟹/g, '⇒');
+
+// One side of an arrow: nothing, prose, or mathematics of a kind. A value is
+// a number, a point or ordered pair, or one name ("x", "S1", "R_2", "A′").
+const ARROW_VALUE = /^(?:[-−+]?\s*\d[\d,]*(?:\.\d+)?|\([^()]*,[^()]*\)|[A-Za-z](?:_\{?[A-Za-z0-9]+\}?|[₀-₉]+|\d+)?['′’]*)$/;
+const mathSide = (raw, letters) => {
+  const text = String(raw).replace(/(?<!\\)\$\$?|\\[()[\]]|\\(?:left|right)(?![A-Za-z])/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return { kind: 'none' };
+  const type = /^[-−+]?\s*(?:∞|\\infty)$/.test(text) ? 'infinite'
+    : /[=<>≤≥≠]|\\(?:le|ge|ne|lt|gt)(?:q|qslant)?(?![A-Za-z])/.test(text) ? 'relation'
+      : new RegExp(`^[${letters}]$`).test(text) ? 'function'
+        // f(x), g(t): a function of a variable, which can approach a value.
+        : /^[A-Za-z]\s*\(\s*[A-Za-z]\s*\)$/.test(text) ? 'functionValue'
+          : ARROW_VALUE.test(text) ? 'value' : 'expression';
+  return { kind: 'math', type, text };
+};
+
+/**
+ * The words for one run of arrows: sides[i] → sides[i + 1] for each arrow.
+ * `limit`: the sentence is about a limit ("as x → …", or an arrow to ∞).
+ * `pairs`: the sentence lists several arrows, each its own pair. `labels[i]`:
+ * the arrow joins two names of the same kind ("Row 1 → Row 2").
+ */
+const arrowWords = (arrows, sides, w, { limit = false, pairs = false, labels = [] } = {}) => {
+  const say = w.arrows;
+  const valueLike = (side) => side.kind === 'math' && (side.type === 'value' || side.type === 'function');
+  // A function machine: a value, a function's name, a value, … ("5 → g → 1").
+  const machine = arrows.length > 1 && sides.length % 2 === 1 && arrows.every((arrow) => arrow === '→')
+    && sides.every((side, index) => side.kind === 'math'
+      && (index % 2 ? side.type === 'function' : side.type !== 'function' && side.type !== 'relation' && !/^[A-Za-z]/.test(side.text)));
+  return arrows.map((arrow, index) => {
+    const [left, right] = [sides[index], sides[index + 1]];
+    if (arrow === '←') return say.replacedBy;
+    if (arrow === '↔') return say.correspondsTo;
+    if (arrow === '⇔') return say.iff;
+    if (arrow === '⇒') return say.implies;
+    // Nothing after it: an arrow drawn as decoration, not said.
+    if (right.kind === 'none') return '';
+    const toward = right.kind === 'math' && right.type !== 'relation';
+    if (right.type === 'infinite' || (left.type === 'functionValue' && toward && right.type !== 'expression')
+      || (limit && left.kind === 'math' && ['value', 'function', 'functionValue'].includes(left.type) && toward)) return say.approaches;
+    if (machine) return index % 2 ? say.gives : `${index ? ',' : ''} ${say.goesInto}`;
+    // "Row 1 → Row 3", and a heading's "Transformations → Absolute Value
+    // Functions": from one named thing to the next.
+    const named = (side) => side.kind === 'prose' && /^(?:[A-Z][\p{L}'’-]*\s*)+$/u.test(side.text);
+    if (labels[index] || (named(left) && named(right))) return say.to;
+    // A coordinate rule whose image the segmenter left as prose ("−½·y").
+    if (left.kind === 'math' && /,/.test(left.text) && left.type === 'value' && right.kind === 'prose' && right.text.startsWith('(')) return say.mapsTo;
+    if (arrows.length > 1) {
+      if (sides.every(valueLike)) return say.to;
+      return sides.some((side) => side.kind !== 'math') ? say.next : say.gives;
+    }
+    if (valueLike(left) && toward) return say.mapsTo;
+    if (left.kind === 'math') return say.gives;
+    return pairs && right.kind === 'prose' ? say.mapsTo : say.means;
+  });
+};
+
+// An arrow inside one piece of mathematics ("$(x,y)\to(3x,3y)$"): each side
+// is read on its own and the arrow's words go between them. Null when there
+// is no arrow.
+const mathArrowSpeech = (raw, options, w, letters) => {
+  if (!ARROW.test(raw)) return null;
+  const parts = String(raw).replace(/(?<!\\)\$\$?|\\[()[\]]/g, ' ').split(/([→←↔⇔⇒])/);
+  const operands = parts.filter((part, index) => index % 2 === 0);
+  const arrows = parts.filter((part, index) => index % 2 === 1);
+  const words = arrowWords(arrows, operands.map((part) => mathSide(part, letters)), w);
+  return operands.map((part, index) => `${part.trim() ? mathToSpeech(part, options) : ''}${index < arrows.length ? ` ${words[index]} ` : ''}`)
+    .join('').replace(/\s+/g, ' ').trim();
+};
+
+/*
+ * Arrows in prose, between the pieces of a sentence ("x = 2 → x + 7 = 9",
+ * "Vertical axis → square x."): each arrow's words, from the piece next to it
+ * on each side (the mathematics or the words up to the comma, colon or
+ * stop). Arrows with nothing but one side between them are one run, a chain.
+ * Returns the segments with every arrow in prose said in words.
+ */
+const STOP = /^(?:[.;:!?\n]|,)$/;
+const SENTENCE_STOP = /^[.;!?\n]$/;
+const proseArrowsToWords = (segments, w, letters) => {
+  if (!segments.some((segment) => segment.kind !== 'math' && ARROW.test(segment.value))) return segments;
+  const pieces = [];
+  segments.forEach((segment, at) => {
+    if (segment.kind === 'math') { pieces.push({ type: 'math', value: segment.value, at }); return; }
+    segment.value.split(/([→←↔⇔⇒]|[.;:!?\n]|,)/).filter(Boolean).forEach((value) => pieces.push({
+      type: ARROW.test(value) ? 'arrow' : STOP.test(value) ? 'stop' : 'prose', value, at,
+    }));
+  });
+  const blank = (piece) => piece.type === 'prose' && !piece.value.trim();
+  const sideAt = (index, step) => {
+    let cursor = index + step;
+    while (pieces[cursor] && blank(pieces[cursor])) cursor += step;
+    const piece = pieces[cursor];
+    if (!piece || piece.type === 'stop' || piece.type === 'arrow') return { side: { kind: 'none' }, cursor };
+    // A lone letter beside an arrow is a variable, even where the segmenter
+    // kept it as the word "a" ("6x − 2(3x − 2) = a → 4 = a").
+    const math = piece.type === 'math' || /^[A-Za-z]$/.test(piece.value.trim());
+    return { side: math ? mathSide(piece.value, letters) : { kind: 'prose', text: piece.value.trim() }, cursor };
+  };
+  const wholeAt = (index, step) => {
+    let cursor = index + step;
+    const out = [];
+    while (pieces[cursor] && pieces[cursor].type !== 'stop' && pieces[cursor].type !== 'arrow') { out.push(pieces[cursor].value); cursor += step; }
+    return (step < 0 ? out.reverse() : out).join('').replace(/\s+/g, ' ').trim();
+  };
+  // Runs of arrows, and the sentences they stand in.
+  const runs = [];
+  let sentence = 0;
+  let linked = false;
+  pieces.forEach((piece, index) => {
+    if (piece.type === 'stop') { linked = false; if (SENTENCE_STOP.test(piece.value)) sentence += 1; return; }
+    if (piece.type !== 'arrow') return;
+    const run = linked ? runs[runs.length - 1] : { arrows: [], sentence };
+    if (!linked) runs.push(run);
+    run.arrows.push(index);
+    linked = true;
+  });
+  const words = new Map();
+  for (const run of runs) {
+    const lefts = run.arrows.map((index) => sideAt(index, -1));
+    const rights = run.arrows.map((index) => sideAt(index, 1));
+    // What stands between two arrows of a chain is one side: prose if any of
+    // it is ("→ solve the 2×2 system →").
+    const sides = [lefts[0].side, ...rights.map((right, position) => {
+      const next = lefts[position + 1];
+      if (!next || next.cursor === right.cursor) return right.side;
+      return right.side.kind === 'math' && next.side.kind === 'math' ? { kind: 'math', type: 'expression', text: '' } : { kind: 'prose', text: '' };
+    })];
+    const inSentence = runs.filter((other) => other.sentence === run.sentence);
+    const limit = inSentence.some((other) => other.arrows.some((index) => {
+      const { side: left, cursor } = sideAt(index, -1);
+      return sideAt(index, 1).side.type === 'infinite'
+        || (left.kind === 'math' && pieces[cursor - 1]?.type === 'prose' && /\b(?:as|when|cuando)\s*$/i.test(pieces[cursor - 1].value));
+    }));
+    // "Row 1 → Row 2": two names of one kind, each with its number.
+    const labels = run.arrows.map((index) => {
+      const before = /\b([A-Z][a-z]+) [-−]?\d+\b(?!.*\b[A-Z][a-z]+ \d)/.exec(wholeAt(index, -1));
+      return Boolean(before) && new RegExp(`^${before[1]} [-−]?\\d+\\b`).test(wholeAt(index, 1));
+    });
+    const said = arrowWords(run.arrows.map((index) => pieces[index].value), sides, w, { limit, pairs: inSentence.length > 1, labels });
+    run.arrows.forEach((index, position) => words.set(index, said[position]));
+  }
+  const rebuilt = segments.map((segment) => ({ ...segment, value: segment.kind === 'math' ? segment.value : '' }));
+  pieces.forEach((piece, index) => {
+    if (piece.type === 'math') return;
+    rebuilt[piece.at].value += piece.type === 'arrow' ? ` ${words.get(index)} ` : piece.value;
+  });
+  return rebuilt;
+};
+
+// What is written as text but said in words: an arrow written in LaTeX, a
+// logarithm's base and a set in braces, then the powers and roots above.
+const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
+  plainSetsToWords(logBasesToWords(arrowsAsCharacters(String(raw ?? '')), w), w), w,
+);
 
 /**
  * Speech for one math segment. `intervals`: the sentence says a pair in round
@@ -608,6 +809,8 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '', interva
   const price = String(raw).trim().match(/^\$(\d[\d,]*(?:\.\d+)?)$/);
   if (price) return priceSpeech(price[1], w);
   const names = `${functionNames || ''}${definedFunctionNames(raw)}`;
+  const arrowed = mathArrowSpeech(arrowsAsCharacters(String(raw)), { language, functionNames: names, intervals }, w, functionLettersFor(names));
+  if (arrowed !== null) return w.contract(arrowed);
   const reduced = latexToSpeech(writtenNotationToSpokenForm(raw, w), w);
   // A union's pieces are intervals, (−3, 1) ∪ (2, 5) too; a union of sets is not.
   const union = reduced.includes('∪') && !reduced.includes(w.setOpen);
@@ -662,7 +865,7 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
   const names = `${functionNames || ''}${definedFunctionNames(text)}`;
-  const segments = segmentMathText(text, { speech: true });
+  const segments = proseArrowsToWords(segmentMathText(text, { speech: true }), w, functionLettersFor(names));
   const dimensionsText = /dimension|matri|dimensi/i.test(text);
   return segments
     .map((segment, index) => {
