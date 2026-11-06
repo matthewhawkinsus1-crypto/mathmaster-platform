@@ -20,6 +20,9 @@
  *   reordered products  `(x+3)(x+2)`, `6\sqrt{x}x^3`, `2rπ`
  *   decimals            `0.75` for 3/4, `.75`, `5.0`
  *   zero terms          `x^2 - 1 = 0` for a generated `x^2 + 0x - 1 = 0`
+ *   mixed coordinates   `(1 1/3, 1 2/3)` and `(1\frac{1}{3},1\frac{2}{3})` for
+ *                       (4/3, 5/3): a pair box's coordinate as a mixed number
+ *                       (platform-polish-3), only where the field is a pair
  *
  * A reordered sum or product is built only where nothing the student reads asks
  * for a form, and a decimal only where nothing asks for a fraction (the field's
@@ -31,7 +34,9 @@
  * by one (`x³`), brackets that are not redundant (`-(2x+3)` for -2x + 3,
  * `(2x)^2` for 2x²), a fraction turned over or its digits read as a decimal
  * (`3.4` for 3/4), a relation turned round, terms moved without their signs
- * (`3 - 2x` for 2x - 3), a power moved to another factor (`xy²` for x²y).
+ * (`3 - 2x` for 2x - 3), a power moved to another factor (`xy²` for x²y), a
+ * coordinate's numerator taken for its whole part (`(4 1/3, 2)` for (4/3, 2))
+ * or its sign for the whole part's alone (`(-4 2/3, 2)` for (−16/3, 2)).
  * The sweep spells each near miss the same ways — every class, whatever the
  * field asks, since a wrong answer is wrong in any spelling — so every class
  * has wrong answers in its own spelling.
@@ -432,6 +437,46 @@ const withoutZeroTerms = (text) => {
     .replace(/\(\+/g, '(')];
 };
 
+// A coordinate as [sign, numerator, denominator]: a fraction (3/4, \frac{3}{4})
+// or a decimal with a short denominator (1.4 is 7/5). Null for anything else.
+const coordinateFraction = (coordinate) => {
+  const text = String(coordinate).trim().replace(/−/g, '-');
+  const fraction = /^(-?)(\d+)\s*\/\s*(\d+)$/.exec(text) || /^(-?)\\d?frac\{(\d+)\}\{(\d+)\}$/.exec(text);
+  if (fraction) return [fraction[1], Number(fraction[2]), Number(fraction[3])];
+  if (!/^-?\d+\.\d+$/.test(text)) return null;
+  const value = Math.abs(Number(text));
+  const denominator = [2, 4, 5, 8, 10, 20, 25, 100].find((candidate) => Math.abs(value * candidate - Math.round(value * candidate)) < 1e-9);
+  return denominator ? [text.startsWith('-') ? '-' : '', Math.round(value * denominator), denominator] : null;
+};
+// A pair's two coordinate texts, or null.
+const pairCoordinates = (text) => {
+  const pair = /^\s*\(([^(),]+),([^(),]+)\)\s*$/.exec(String(text));
+  return pair ? [pair[1].trim(), pair[2].trim()] : null;
+};
+const asMixedNumber = ([sign, numerator, denominator], template) => {
+  if (!denominator || numerator <= denominator || numerator % denominator === 0) return null;
+  const whole = Math.floor(numerator / denominator);
+  const rest = numerator - whole * denominator;
+  return template ? `${sign}${whole}\\frac{${rest}}{${denominator}}` : `${sign}${whole} ${rest}/${denominator}`;
+};
+/** A pair's improper coordinates as mixed numbers, typed (`1 1/3`) and with the fraction template (`1\frac{1}{3}`). */
+const mixedCoordinateSpellings = (text) => {
+  const coordinates = pairCoordinates(text);
+  if (!coordinates) return [];
+  return [false, true].flatMap((template) => {
+    const mixed = coordinates.map((coordinate) => {
+      const fraction = coordinateFraction(coordinate);
+      return (fraction && asMixedNumber(fraction, template)) || coordinate;
+    });
+    return mixed.every((coordinate, index) => coordinate === coordinates[index]) ? [] : [template ? `(${mixed.join(',')})` : `(${mixed.join(', ')})`];
+  });
+};
+// A pair field (answerEquivalence fieldIsOrderedPairBox's kinds): the only
+// place a mixed number in a coordinate is read.
+const PAIR_KINDS = new Set(['orderedpair', 'pair', 'point', 'coordinate', 'coordinates']);
+const isPairField = (field = {}) => [field.inputProfile, field.answerFormat]
+  .some((kind) => PAIR_KINDS.has(String(kind ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')));
+
 /** The spelling classes, each a function from a text to its spellings. */
 export const TYPED_SPELLING_CLASSES = Object.freeze({
   spaces: spacedOut,
@@ -446,6 +491,7 @@ export const TYPED_SPELLING_CLASSES = Object.freeze({
   'reordered products': reorderedProducts,
   decimals: decimalSpellings,
   'zero terms': withoutZeroTerms,
+  'mixed coordinates': mixedCoordinateSpellings,
 });
 
 // Comparisons that read their field's numbers as written: a decimal is not
@@ -469,6 +515,7 @@ export const typedSpellingsOf = (text, field = {}, { nearMiss = false } = {}) =>
   for (const [spellingClass, spell] of Object.entries(TYPED_SPELLING_CLASSES)) {
     if (!nearMiss && (spellingClass === 'reordered sums' || spellingClass === 'reordered products') && field.formAsked) continue;
     if (!nearMiss && spellingClass === 'decimals' && (field.fractionAsked || WRITTEN_NUMBER_EQUIVALENCES.has(field.equivalence))) continue;
+    if (spellingClass === 'mixed coordinates' && !isPairField(field)) continue;
     for (const spelling of spell(source)) {
       if (spelling && spelling !== source && !out.has(spelling)) out.set(spelling, spellingClass);
     }
@@ -546,5 +593,19 @@ export const typedNearMissesOf = (text, field = {}) => {
   // reordered products: a power moved to another factor (xy² for x²y).
   const monomial = /^(-?\d*)([a-z])\^(\d+)([a-z])$/.exec(source);
   if (monomial && monomial[2] !== monomial[4] && monomial[3] !== '1') add('reordered products', `${monomial[1]}${monomial[2]}${monomial[4]}^${monomial[3]}`);
+  // mixed coordinates: in a pair, an improper coordinate's numerator taken for
+  // its whole part ((4 1/3, 2) for (4/3, 2)), or a negative one's sign taken
+  // for its whole part alone: −5 + 1/3 is −4 2/3, not −16/3.
+  const coordinates = isPairField(field) ? pairCoordinates(source) : null;
+  coordinates?.forEach((coordinate, index) => {
+    const fraction = coordinateFraction(coordinate);
+    if (!fraction || !asMixedNumber(fraction)) return;
+    const [sign, numerator, denominator] = fraction;
+    const whole = Math.floor(numerator / denominator);
+    const rest = numerator - whole * denominator;
+    const at = (value) => `(${coordinates.map((other, position) => (position === index ? value : other)).join(', ')})`;
+    add('mixed coordinates', at(`${sign}${numerator} ${rest}/${denominator}`));
+    if (sign && whole > 1) add('mixed coordinates', at(`-${whole - 1} ${denominator - rest}/${denominator}`));
+  });
   return [...out].map(([miss, spellingClass]) => ({ miss, spellingClass }));
 };

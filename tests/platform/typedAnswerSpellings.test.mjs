@@ -151,3 +151,36 @@ test('each class has near misses of its own', () => {
   assert.equal(missed('2x-3')['reordered sums'], '3-2x');
   assert.equal(missed('3x^2y')['reordered products'], '3xy^2');
 });
+
+test('mixed coordinates: a pair\'s improper coordinate as the mixed number a student writes, only in a pair field', () => {
+  // (platform-polish-3: a pair box reads a mixed number in a coordinate.)
+  const PAIR = { inputProfile: 'orderedPair' };
+  const spelled = (field, text) => typedSpellingsOf(text, field).filter(({ spellingClass }) => spellingClass === 'mixed coordinates').map(({ spelling }) => spelling);
+  assert.deepEqual(spelled(PAIR, '(4/3,5/3)'), ['(1 1/3, 1 2/3)', '(1\\frac{1}{3},1\\frac{2}{3})']);
+  assert.deepEqual(spelled(PAIR, '(-16/3, 7/3)'), ['(-5 1/3, 2 1/3)', '(-5\\frac{1}{3},2\\frac{1}{3})'], 'the sign in front of the whole part');
+  assert.deepEqual(spelled(PAIR, '(1.4,0.4)'), ['(1 2/5, 0.4)', '(1\\frac{2}{5},0.4)'], 'a decimal with a short denominator; a proper one stays');
+  assert.deepEqual(spelled(PAIR, '(2,3)'), [], 'whole numbers have none');
+  assert.deepEqual(spelled({ answerFormat: 'orderedPair' }, '(4/3,5/3)').length, 2, 'a lesson field declares it with answerFormat');
+  assert.deepEqual(spelled({ inputProfile: 'interval' }, '(4/3,5/3)'), [], 'an interval is not a pair');
+  assert.deepEqual(spelled(FREE, '(4/3,5/3)'), []);
+  // Every spelling is the key's point, coordinate by coordinate.
+  const value = (coordinate) => {
+    const mixed = /^(-?)(\d+)(?: |\\frac\{)(\d+)(?:\/|\}\{)(\d+)\}?$/.exec(coordinate.trim());
+    if (mixed) return (mixed[1] ? -1 : 1) * (Number(mixed[2]) + Number(mixed[3]) / Number(mixed[4]));
+    const fraction = /^(-?\d+)\/(\d+)$/.exec(coordinate.trim());
+    return fraction ? Number(fraction[1]) / Number(fraction[2]) : Number(coordinate);
+  };
+  const point = (text) => text.slice(1, -1).split(',').map(value);
+  for (const key of ['(4/3,5/3)', '(-16/3, 7/3)', '(1.4,0.4)', '(-2.5,9/4)']) {
+    for (const spelling of spelled(PAIR, key)) {
+      point(spelling).forEach((coordinate, index) => assert.ok(Math.abs(coordinate - point(key)[index]) < 1e-12, `${spelling} is ${key}`));
+    }
+    // …and every near miss of the class is another point.
+    for (const { miss } of typedNearMissesOf(key, PAIR).filter(({ spellingClass }) => spellingClass === 'mixed coordinates')) {
+      assert.ok(point(miss).some((coordinate, index) => Math.abs(coordinate - point(key)[index]) > 1e-9), `${miss} is not ${key}`);
+    }
+  }
+  const misses = typedNearMissesOf('(-16/3, 7/3)', PAIR).filter(({ spellingClass }) => spellingClass === 'mixed coordinates').map(({ miss }) => miss);
+  assert.deepEqual(misses, ['(-16 1/3, 7/3)', '(-4 2/3, 7/3)', '(-16/3, 7 1/3)'], 'the numerator for the whole part; the sign for the whole part only');
+  assert.deepEqual(typedNearMissesOf('(4/3,5/3)', { inputProfile: 'interval' }).filter(({ spellingClass }) => spellingClass === 'mixed coordinates'), []);
+});

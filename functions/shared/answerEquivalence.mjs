@@ -1603,14 +1603,42 @@ export const sameSetBuilderNotation = (left, right, tolerance = 1e-6) => {
  * round brackets with exactly two numeric coordinates. Read as an open
  * interval instead, the same two numbers name the same interval, so the
  * verdict is the same either way.
+ *
+ * A MIXED NUMBER IN A COORDINATE (platform-polish-3; F-PAIR-MIXED in the
+ * 2026-11-06 Algebra I M3 T2 walkthrough). A number box takes 1⅓ written
+ * `1 1/3` for 4/3 (sameMixedNumber, GR13), but `(1 1/3, 1 2/3)` was refused
+ * for (4/3, 5/3) on every surface: each coordinate was read with asNumber,
+ * which reads no mixed number. Where the caller knows the field is a pair
+ * (`mixedNumbers`: fieldValueOptions' `orderedPair`, and the pair graders in
+ * answerUtils), a coordinate is read as a lone number is: a proper mixed
+ * number is whole + fraction, the sign covering both (−5⅓ is −16/3), and a
+ * key coordinate written as a mixed number asks for one (GR13). Never the
+ * product reading: `(1\frac{1}{2},4)` is still not `(\frac{1}{2},4)` (review
+ * B2). Never for an interval either: an open interval is written as a pair
+ * is, and `(1\frac{1}{2},3)` there keeps the reading `[1\frac{1}{2},3)` has
+ * (wave 7's decision 4 left mixed numbers in intervals refused).
  */
-const numericPair = (value) => {
+const pairCoordinate = (part, mixedNumbers = false) => {
+  const number = asNumber(part);
+  if (number !== null) return { value: number, mixed: false };
+  const mixed = mixedNumbers ? mixedNumberShape(part)?.value : null;
+  return typeof mixed === 'number' ? { value: mixed, mixed: true } : null;
+};
+// The student's coordinate against the key's (GR13: a key written as a mixed
+// number takes only a mixed number).
+const sameCoordinateNumber = (student, key, tolerance) => (
+  !(key.mixed && !student.mixed) && Math.abs(student.value - key.value) <= tolerance
+);
+/** One coordinate of a pair as a number, a proper mixed number read as one (null when it is neither). */
+export const pairCoordinateValue = (part) => pairCoordinate(part, true)?.value ?? null;
+
+const numericPair = (value, { mixedNumbers = false } = {}) => {
   const text = normalizeAnswer(value);
   if (!/^\(.*\)$/.test(text)) return null;
   const parts = splitTopLevelCommaList(text.slice(1, -1));
   if (parts.length !== 2) return null;
   if (parts.some((part) => /[%$]/.test(part))) return null;
-  const coordinates = parts.map((part) => asNumber(part));
+  const coordinates = parts.map((part) => pairCoordinate(part, mixedNumbers));
   return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
 };
 
@@ -1627,19 +1655,21 @@ const numericPair = (value) => {
  * many places, is refused. Taking rounded decimals would be a new rule for
  * one family, not a reading of this one.
  */
-const exactCoordinate = (part) => {
+const exactCoordinate = (part, mixedNumbers = false) => {
   const exact = exactConstantValue(part);
   if (exact) return exact;
-  const number = asNumber(part);
-  return number === null ? null : { value: number, radical: false };
+  // (exactConstantValue refuses a \frac after a number, so a mixed number
+  // beside a root is read here, as numericPair reads it.)
+  const number = pairCoordinate(part, mixedNumbers);
+  return number === null ? null : { value: number.value, radical: false, mixed: number.mixed };
 };
 
-const exactPair = (value) => {
+const exactPair = (value, { mixedNumbers = false } = {}) => {
   const text = normalizeAnswer(value);
   if (!/^\(.*\)$/.test(text)) return null;
   const parts = splitTopLevelCommaList(text.slice(1, -1));
   if (parts.length !== 2 || parts.some((part) => /[%$]/.test(part))) return null;
-  const coordinates = parts.map(exactCoordinate);
+  const coordinates = parts.map((part) => exactCoordinate(part, mixedNumbers));
   return coordinates.every(Boolean) ? coordinates : null;
 };
 
@@ -1650,15 +1680,19 @@ const sameExactCoordinate = (a, b, tolerance) => {
     if (!(a.radical && b.radical)) return false;
     return Math.abs(a.value - b.value) <= 1e-9 * Math.max(1, Math.abs(a.value), Math.abs(b.value));
   }
-  return Math.abs(a.value - b.value) <= tolerance;
+  return sameCoordinateNumber(a, b, tolerance);
 };
 
-export const sameNumericPair = (left, right, tolerance = 1e-6) => {
-  const a = numericPair(left);
-  const b = numericPair(right);
-  if (a && b) return a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
-  const exactA = exactPair(left);
-  const exactB = exactPair(right);
+/**
+ * `mixedNumbers`: the caller knows both are ordered pairs, so a coordinate
+ * may be a mixed number (above). The left side is the student's.
+ */
+export const sameNumericPair = (left, right, tolerance = 1e-6, { mixedNumbers = false } = {}) => {
+  const a = numericPair(left, { mixedNumbers });
+  const b = numericPair(right, { mixedNumbers });
+  if (a && b) return a.every((coordinate, index) => sameCoordinateNumber(coordinate, b[index], tolerance));
+  const exactA = exactPair(left, { mixedNumbers });
+  const exactB = exactPair(right, { mixedNumbers });
   if (!exactA?.some((coordinate) => coordinate.radical) || !exactB?.some((coordinate) => coordinate.radical)) return false;
   return exactA.every((coordinate, index) => sameExactCoordinate(coordinate, exactB[index], tolerance));
 };
@@ -1692,8 +1726,10 @@ const sameNumberWithVariableName = (student, key, tolerance) => {
  * Returns null — today's reading, unchanged — when neither side has that
  * shape or the other side is not a number: an expression key (`3\frac{x}{2}`,
  * `2\frac{1}{2}x`) keeps every rule it had. An ordered pair never comes here
- * with a mixed number (sameNumericPair reads each coordinate with asNumber,
- * and exactConstantValue refuses a \frac after a number, wave 6 review B2).
+ * with a mixed number: in a pair field each coordinate is read by the same
+ * rules in sameNumericPair (pairCoordinate, platform-polish-3), and nowhere
+ * as a product (exactConstantValue refuses a \frac after a number, wave 6
+ * review B2).
  */
 const MIXED_NUMBER = /^(-?)(\d+)\\frac\{(\d+)\}\{(\d+)\}$/;
 const exactDecimalOrFraction = (sign, numerator, denominator) => {
@@ -1854,11 +1890,16 @@ const NUMBER_FIELD_KINDS = new Set(['number', 'numeric', 'value', 'scalar']);
 // kind, inputProfile first: a stray `answerFormat: 'number'` does not turn an
 // expression field into a number box.
 const STORED_KIND_KEYS = ['inputProfile', 'answerFormat', 'notation', 'toolProfile'];
+const declaredKindOf = (field = {}) => String(STORED_KIND_KEYS.map((key) => field?.[key])
+  .find((value) => typeof value === 'string' && value.trim()) ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 /** Is this field declared a box for one number? */
-export const fieldIsNumberBox = (field = {}) => {
-  const declared = STORED_KIND_KEYS.map((key) => field?.[key]).find((value) => typeof value === 'string' && value.trim());
-  return NUMBER_FIELD_KINDS.has(String(declared ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ''));
-};
+export const fieldIsNumberBox = (field = {}) => NUMBER_FIELD_KINDS.has(declaredKindOf(field));
+
+// The declared kinds of a pair box (answerFormatHints' `orderedPair`), read
+// the same way: where a coordinate may be a mixed number (sameNumericPair).
+const ORDERED_PAIR_FIELD_KINDS = new Set(['orderedpair', 'pair', 'point', 'coordinate', 'coordinates']);
+/** Is this field declared a box for an ordered pair? */
+export const fieldIsOrderedPairBox = (field = {}) => ORDERED_PAIR_FIELD_KINDS.has(declaredKindOf(field));
 
 /*
  * A CALCULATION IN A NUMBER BOX (the owner, 2026-10-23; GR01). A number box
@@ -1942,6 +1983,8 @@ export const fieldValueOptions = (field = {}) => ({
   // A typed answer's ², · and × are read as the editor writes them
   // (typedAsEditorSpelling); a choice's option never is.
   ...(fieldIsChoice(field) ? {} : { typed: true }),
+  // A pair box reads a mixed number in a coordinate (sameNumericPair).
+  ...(fieldIsOrderedPairBox(field) ? { orderedPair: true } : {}),
 });
 
 // A relation command is a whole word: the editor's `\left(` is not `\le`.
@@ -2128,7 +2171,7 @@ const sameEquationSideBySide = (left, right, tolerance) => (
  * equation, a point-slope answer or standard-form multiple written the other
  * way round, and the any-form reading (GR03) are not taken.
  */
-export const sameValue = (studentValue, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false, sidesAsKeyed = false, typed = false } = {}) => {
+export const sameValue = (studentValue, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false, sidesAsKeyed = false, typed = false, orderedPair = false } = {}) => {
   // A typed field's answer, read as the editor writes it (fieldValueOptions
   // `typed`): `(x-2)²` is `(x-2)^{2}`, `4·y` is `4\cdot y`.
   const left = typed ? typedAsEditorSpelling(studentValue) : studentValue;
@@ -2150,11 +2193,12 @@ export const sameValue = (studentValue, right, tolerance = 1e-6, { thousandsSepa
   const leftSides = mixedSidesAsFractions(left);
   const rightSides = mixedSidesAsFractions(right);
   if (leftSides !== String(left ?? '') || rightSides !== String(right ?? '')) {
-    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm, sidesAsKeyed, typed });
+    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm, sidesAsKeyed, typed, orderedPair });
   }
   if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
-  if (sameNumericPair(left, right, tolerance)) return true;
+  // A pair box (fieldValueOptions `orderedPair`) reads a mixed number in a coordinate.
+  if (sameNumericPair(left, right, tolerance, { mixedNumbers: orderedPair })) return true;
   if (sameNumberWithVariableName(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;
   if (sameLinearInequality(left, right, tolerance)) return true;
