@@ -15,6 +15,8 @@ import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { describeNumberLinePiece, numberLineReading } from '../../platform/language/numberLineDescription.js';
 import { isAlgebraOneQuestion } from '../../platform/curriculum/inequalityRepresentationPolicy.js';
 import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
+import { FIGURE_NAME_WORDS, nameFrom, namedIn } from '../../platform/language/figureNames.js';
+import { say } from '../../platform/language/figureSay.js';
 import { intervalTickSteps, niceTickStep } from './intervalTicks.js';
 import { intervalGraphMissMessage } from './intervalFeedback.js';
 import {
@@ -565,6 +567,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
   const figureWords = useFigureWords();
   const described = describedIn(figureWords, lineDescription, lineSay);
+  // The line's name, from end to end, in the same language and marked with it
+  // (AX05, slice 4). Its endpoint buttons keep their English names, marked so.
+  const lineName = namedIn(figureWords, nameFrom(say('numberLineFromToName', lineEndLabel(min), lineEndLabel(max)), FIGURE_NAME_WORDS));
+  const englishInside = lineName.lang ? 'en' : undefined;
 
   return (
     <ToolShell
@@ -701,8 +707,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="application"
             tabIndex={0}
-            aria-label={`Number line from ${lineEndLabel(min)} to ${lineEndLabel(max)}`}
+            aria-label={lineName.text}
             aria-describedby={`${lineDescriptionId} ${lineInstructionsId}`}
+            lang={lineName.lang}
             onFocus={handleLineFocus}
             onBlur={handleLineBlur}
             onKeyDown={handleLineKeyDown}
@@ -815,6 +822,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     <g
                       role="button"
                       tabIndex="0"
+                      lang={englishInside}
                       aria-label={`${interval.minClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.min)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
                       onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
@@ -852,6 +860,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     <g
                       role="button"
                       tabIndex="0"
+                      lang={englishInside}
                       aria-label={`${interval.maxClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.max)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
                       onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
@@ -892,6 +901,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               <g
                 role="button"
                 tabIndex="0"
+                lang={englishInside}
                 aria-label={`${pending.closed ? 'Closed' : 'Open'} pending endpoint at ${rationalLabel(pending.value)}. Click to switch it. Drag to move it. ${endpointKeyHelp}`}
                 onPointerDown={(event) => beginDrag({ kind: 'pending' }, event)}
                 onKeyDown={(event) => handleEndpointKeyDown({ kind: 'pending' }, event)}

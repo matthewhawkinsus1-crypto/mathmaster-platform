@@ -222,7 +222,10 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   // same description, in Spanish under a translation (slice 2).
   assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{describedContent\(described\)\}<\/p>/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{describedContent\(described\)\}<\/p>/);
+  // The plane's name travels as its English and as a message (AX05, slice 4:
+  // a tool may build it from its own words, figureNames.js).
+  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: nameText, labelSay: name\.say, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{describedContent\(described\)\}<\/p>/);
+  assert.match(plane, /const name = figureName\(ariaLabel\);\s*const nameText = name\.text;/, 'the name it publishes is the one it is given');
   const visual = code('src/QuestionVisual.jsx');
   assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
   assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);

@@ -14,12 +14,15 @@
  * platform/language/packs/esFigures.js in Spanish under an authored Spanish
  * translation, with the same numbers. A reading is { text, say }: the English
  * is said from the messages, and the plane is handed both (`toolMarks`).
+ * The graph's name is a message too (slice 4, inequalityGraphName): whose
+ * graph it is, then what a tap on it does next.
  *
  * Pure: the same rules as InequalityBuildPanels.jsx's InequalityGraphLayers.
  */
 import { boundaryWithChosenSide, feasibleRegionPolygon, sideOfBoundaryLine } from './inequalityBuilderAdapter.js';
 import { formatNumber } from '../../platform/language/graphDescription.js';
 import { say, sayFigure } from '../../platform/language/figureSay.js';
+import { nameFrom } from '../../platform/language/figureNames.js';
 import { wordsFor } from './inequalitySystemWords.js';
 
 // "1, 2 and 3": how the sentences have always listed lines and corners.
@@ -44,6 +47,17 @@ export const INEQUALITY_GRAPH_WORDS = Object.freeze({
   cornerAt: (pair) => `a corner at ${pair}`,
   cornersAt: (pairs) => `corners at ${andList(pairs)}`,
   regionGoesOn: () => 'It goes on past the edge of the graph.',
+  // The graph's name (slice 4): after a fixed prefix the browser gates find
+  // the plane by, what a tap will do (StudentBuildInequalityMode.jsx).
+  builtSystemGraphName: () => 'Student-constructed graph of the inequality system',
+  builtInequalityGraphName: () => `Student-constructed graph of ${wordsFor(1)('the inequality system')}`,
+  graphTaskName: (name, task) => `${name}. ${task}`,
+  plotYInterceptTask: (constraint) => `Plot the y-intercept for constraint ${constraint}`,
+  plotBoundaryPointTask: (which, constraint) => `Plot boundary point ${which} for constraint ${constraint}`,
+  boundaryPointsPlacedTask: (constraint) => `Both boundary points of constraint ${constraint} are placed`,
+  chooseShadedSideTask: (constraint) => `Choose the side to shade for constraint ${constraint}`,
+  placeTestPointTask: () => 'Place your own test point',
+  markVertexTask: () => 'Mark a vertex of the solution region',
 });
 
 const STYLE_SAYS = Object.freeze({ solid: 'boundarySolid', dashed: 'boundaryDashed' });
@@ -78,6 +92,32 @@ export const inequalityGraphMarksReading = ({
 
 /** The same, as its English sentence. */
 export const inequalityGraphMarksText = (input) => inequalityGraphMarksReading(input).text;
+
+// What a tap on the graph does next (graphTapAction): the task its name ends with.
+const tapTaskSay = (tapAction = {}) => {
+  const constraint = Number(tapAction?.index) + 1;
+  switch (tapAction?.kind) {
+    case 'boundaryPoint': return tapAction.method === 'slopeIntercept' && tapAction.which === 1
+      ? say('plotYInterceptTask', constraint)
+      : say('plotBoundaryPointTask', tapAction.which, constraint);
+    case 'boundaryFull': return say('boundaryPointsPlacedTask', constraint);
+    case 'shade': return say('chooseShadedSideTask', constraint);
+    case 'testPoint': return say('placeTestPointTask');
+    case 'vertex': return say('markVertexTask');
+    default: return null;
+  }
+};
+
+/**
+ * The student's graph's name, as { text, say } (the plane's `ariaLabel`):
+ * the graph of the inequality, or of the system, then what a tap on it will
+ * do. Its English is said from the same messages.
+ */
+export const inequalityGraphName = ({ constraintCount = 0, tapAction = null } = {}) => {
+  const graph = say(Number(constraintCount) === 1 ? 'builtInequalityGraphName' : 'builtSystemGraphName');
+  const task = tapTaskSay(tapAction);
+  return nameFrom(task ? say('graphTaskName', graph, task) : graph, INEQUALITY_GRAPH_WORDS);
+};
 
 /*
  * THE REGION'S CORNERS, ONCE POSITIONS MAY BE SAID (AX12).

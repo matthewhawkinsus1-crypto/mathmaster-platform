@@ -10,9 +10,11 @@
  * AXIS_TITLE_WORDS (../../../tools/shared/planeAxisTitles.js), and in slice 2
  * THREE_PLANE_WORDS (../../../tools/systemsWorkspace/threePlaneDescription.js),
  * GRAPH_WORKSPACE_WORDS (../graphWorkspaceDescription.js) and
- * ROW_CHOOSER_WORDS (../../../tools/shared/toolTableReading.js), and in slice
- * 3 the Systems Workspace's own sentences, INEQUALITY_GRAPH_WORDS
- * (../../../tools/systemsWorkspace/inequalityGraphMarks.js). The pieces
+ * ROW_CHOOSER_WORDS (../../../tools/shared/toolTableReading.js), in slice 3
+ * the Systems Workspace's own sentences, INEQUALITY_GRAPH_WORDS
+ * (../../../tools/systemsWorkspace/inequalityGraphMarks.js), and in slice 4
+ * the figures' names, FIGURE_NAME_WORDS (../figureNames.js), with the
+ * student-built inequality graph's in INEQUALITY_GRAPH_WORDS. The pieces
  * are the figure's own: a number, a coordinate, a count or a label is placed
  * exactly as it comes, so "−6", "(2, 1)" and "13/8" are the same in both
  * languages, and a label or an axis quantity is said as the screen shows it.
@@ -221,6 +223,61 @@ export const words = Object.freeze({
   youSelected: (pairs) => `Seleccionaste ${count(pairs.length, 'punto', 'puntos')}: ${pairs.join('; ')}.`,
   nothingPlacedYet: () => 'Todavía no hay nada colocado.',
 
+  /* ------------------------------------------- a figure's name (slice 4) */
+  // The names a static graph is given (GraphDisplay's title), as Read aloud
+  // already said them.
+  questionGraphName: () => 'Gráfica de la pregunta',
+  coordinateGraphName: () => 'Gráfica de coordenadas',
+  graphName: () => 'Gráfica',
+  graphChoiceName: () => 'Opción de gráfica',
+  graphToInterpretName: () => 'Gráfica para interpretar',
+  relationshipGraphName: () => 'Gráfica de la relación',
+  systemOfEquationsGraphName: () => 'Gráfica del sistema de ecuaciones',
+  graphingQuestionName: () => 'Pregunta para graficar',
+  pointInterpretationGraphName: () => 'Gráfica para interpretar el punto',
+  correctGraphName: () => 'Gráfica correcta',
+  graphForQuestionName: () => 'Gráfica de esta pregunta',
+  // "Tu gráfica", as the number line says the student's own ("Tu gráfica: …").
+  yourGraphName: () => 'Tu gráfica',
+  yourCheckedGraphName: () => 'Tu gráfica revisada',
+  numberedGraphName: (mark) => `Gráfica ${mark}`,
+  // The axis titles are the item's own words, said as the axes show them.
+  axesGraphName: (x, y) => `Gráfica con el eje horizontal ${x} y el eje vertical ${y}`,
+  coordinatePlaneName: () => 'Plano de coordenadas',
+  scatterPlotName: () => 'Diagrama de dispersión de los datos y tu modelo',
+  residualPlotName: () => 'Gráfica de residuos',
+  sequenceGraphName: () => 'Gráfica discreta de la sucesión',
+  givenLineGraphName: () => 'Gráfica dada de la recta',
+  // The Systems Workspace's planes. "Las dos ecuaciones", as ./esSupport.js
+  // says "both equations"; the student's own graph is "Tu gráfica".
+  bothEquationsGraphName: () => 'Gráfica de las dos ecuaciones del sistema',
+  yourBothEquationsGraphName: () => 'Tu gráfica de las dos ecuaciones del sistema',
+  builtRegionGraphName: () => 'Tu gráfica de la región solución de las desigualdades',
+  feasibleRegionGraphName: () => 'Gráfica del sistema de desigualdades con su región factible sombreada',
+  lineAndParabolaGraphName: () => 'Gráfica de una recta y una parábola',
+  // A plane the student plots on: "marcar", as ./esSupport.js says "plot"
+  // ("Marca primero la intersección con el eje y"); "la cruz", the crosshair.
+  plotByKeysName: (name) => `${name}. Haz clic para marcar un punto, o mueve la cruz con las teclas de flecha y pulsa Enter para marcarlo.`,
+  plotAndMoveByKeysName: (name) => `${name}. Haz clic para marcar un punto, o mueve la cruz con las teclas de flecha y pulsa Enter para marcarlo. Pulsa Enter sobre un punto marcado para tomarlo y moverlo.`,
+  numberLineName: () => 'Recta numérica',
+  numberLineFromToName: (min, max) => `Recta numérica de ${min} a ${max}`,
+  threePlanesName: () => 'Tres planos en 3D',
+  threePlanesViewName: () => 'Vista 3D de los tres planos',
+  modelName: () => 'Modelo 3D',
+  rowChooserName: () => 'Filas para elegir',
+  // The student-built inequality graph, and what a tap on it does next.
+  // "Restricción" for each constraint; "punto frontera", as "recta frontera"
+  // and ./esSupport.js's "número frontera".
+  builtSystemGraphName: () => 'Tu gráfica del sistema de desigualdades',
+  builtInequalityGraphName: () => 'Tu gráfica de la desigualdad',
+  graphTaskName: (name, task) => `${name}. ${task}`,
+  plotYInterceptTask: (constraint) => `Marca la intersección con el eje y de la restricción ${constraint}`,
+  plotBoundaryPointTask: (which, constraint) => `Marca el punto frontera ${which} de la restricción ${constraint}`,
+  boundaryPointsPlacedTask: (constraint) => `Los dos puntos frontera de la restricción ${constraint} están colocados`,
+  chooseShadedSideTask: (constraint) => `Elige qué lado sombrear para la restricción ${constraint}`,
+  placeTestPointTask: () => 'Coloca tu propio punto de prueba',
+  markVertexTask: () => 'Marca un vértice de la región solución',
+
   /* ------------------- a table the student chooses rows from (process mode) */
   // "Toca el eje", as ./esSupport.js says "meets the axis".
   chooseTwoRows: () => 'Elige dos filas: primero la fila 1 y luego la fila 2.',
@@ -258,44 +315,23 @@ export const words = Object.freeze({
 });
 
 /*
- * The platform's own names for a figure or a table (an aria label or a title
- * a screen gives it when the author gave none). A name the author wrote is
- * the item's own words and is said as written.
+ * The platform's own names for a table a tool draws (AX10), by its English.
+ * A figure's name is a message (FIGURE_NAME_WORDS, above: slice 4). A name
+ * the author wrote is the item's own words and is said as written.
  */
-const LABELS = Object.freeze({
-  'Question graph': 'Gráfica de la pregunta',
-  'Coordinate graph': 'Gráfica de coordenadas',
-  'Coordinate plane': 'Plano de coordenadas',
-  Graph: 'Gráfica',
-  'Graph choice': 'Opción de gráfica',
-  'Graph to interpret': 'Gráfica para interpretar',
-  'Relationship graph': 'Gráfica de la relación',
-  'System of equations graph': 'Gráfica del sistema de ecuaciones',
-  'Graphing question': 'Pregunta para graficar',
-  'Point interpretation graph': 'Gráfica para interpretar el punto',
-  'Number line': 'Recta numérica',
-  '3D model': 'Modelo 3D',
-  'Scatter plot of the data and your model': 'Diagrama de dispersión de los datos y tu modelo',
-  'Residual plot': 'Gráfica de residuos',
-  'Discrete sequence graph': 'Gráfica discreta de la sucesión',
-  'Given graph of the line': 'Gráfica dada de la recta',
-  // Tables a tool draws itself (AX10).
+const TABLE_LABELS = Object.freeze({
   'Given table of values': 'Tabla de valores dada',
   'Table of values': 'Tabla de valores',
   'Residual table': 'Tabla de residuos',
   'Sequence table': 'Tabla de la sucesión',
-  // Process mode's tables (AX10, slice 2).
+  // Process mode's table (AX10, slice 2).
   'Table to extend': 'Tabla para continuar',
-  'Rows to choose from': 'Filas para elegir',
 });
 
-/** The Spanish for a platform name, or null for a name the pack does not know. */
+/** The Spanish for a platform table name, or null for a name the pack does not know. */
 export const label = (english) => {
   const name = String(english ?? '').trim();
-  if (Object.hasOwn(LABELS, name)) return LABELS[name];
-  // "Graph 2", "Graph B": the cards of a comparison or a choice.
-  const numbered = name.match(/^Graph ([A-Z]|\d+)$/);
-  return numbered ? `Gráfica ${numbered[1]}` : null;
+  return Object.hasOwn(TABLE_LABELS, name) ? TABLE_LABELS[name] : null;
 };
 
 export default { language: 'es', words, label };

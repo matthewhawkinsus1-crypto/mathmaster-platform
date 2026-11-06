@@ -6,6 +6,7 @@ import { revealInNearestScroller } from './platform/workView/workViewReveal.js';
 import { majorTicks } from './platform/graph/graphScaleService.js';
 import { graphWorkspaceReading } from './platform/language/graphWorkspaceDescription.js';
 import { PublishFigureReading, describedContent, describedIn, useFigureWords } from './platform/language/figureReadings.js';
+import { namedIn } from './platform/language/figureNames.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import MathText from './components/common/MathText.jsx';
@@ -1201,6 +1202,8 @@ export default function InteractiveGraphWorkspace({
   // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
   const figureWords = useFigureWords();
   const described = describedIn(figureWords, workspaceDescription, workspaceSay);
+  // The plane's name in the same language, marked with it (AX05, slice 4).
+  const planeName = namedIn(figureWords, 'Coordinate plane');
   const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
   const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !pointsLocked);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
@@ -1537,8 +1540,9 @@ export default function InteractiveGraphWorkspace({
             the embedded page does not move. */}
         <figure className="mathmaster-function-workspace-graph" data-work-view-reveal="true" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
-            aria-label="Coordinate plane"
+            aria-label={planeName.text}
             aria-describedby={`${workspaceDescriptionId} ${workspaceDescriptionId}-keys`}
+            lang={planeName.lang}
             tabIndex={0}
             onKeyDown={handleGridKeyDown}
             onFocus={() => { if (!keyboardCursor) { const start = defaultCursor(); setKeyboardCursor(start); setKeyboardAnnouncement(`Cursor at ${pointLabel(start)}. Arrow keys move, Enter places.`); } }}

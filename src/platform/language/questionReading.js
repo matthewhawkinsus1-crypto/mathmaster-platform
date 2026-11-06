@@ -29,6 +29,7 @@
 import { choiceOptionsForField, choiceSeed, multiAnswerChoiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { readDisplayMatrices } from '../math/displayMatrices.js';
 import { sayFigure } from './figureSay.js';
+import { figureName as platformName } from './figureNames.js';
 import { definedFunctionNames } from './speechText.js';
 
 const WORDS = {
@@ -174,7 +175,7 @@ const stageChoices = (stage, workflow = []) => {
  *                  authored translation is shown)
  *   figures        what the tables, graphs and tool drawings on the screen
  *                  already say (figureReadings.js: { kind: 'table', label, table }
- *                  or { kind: 'figure', label, text, say }), in screen order. A
+ *                  or { kind: 'figure', label, labelSay, text, say }), in screen order. A
  *                  figure's text is its own description, under its own rule:
  *                  while the question can be answered, no positions.
  *   figurePack     the reading language's figure words ({ words, label },
@@ -183,15 +184,21 @@ const stageChoices = (stage, workflow = []) => {
  *                  language; one with none, or with a sentence the pack has no
  *                  words for, is read in English after a sentence that says so.
  *                  A name the platform gave a figure or a table is said in the
- *                  pack's words; a name the author wrote, as written.
+ *                  pack's words; a name the author wrote, as written. A
+ *                  figure's name is a message (slice 4): the one it gives
+ *                  (`labelSay`, a name it builds from its own words), or the
+ *                  platform name it is (figureNames.js).
  */
 export const questionReadingParts = (question, { referenceInfo = null, backUp = null, stage = null, language = 'en', figures = [], figurePack = null } = {}) => {
   if (!question || typeof question !== 'object') return [];
   const w = wordsFor(language);
   const englishFrame = w === WORDS.en;
-  const figureName = (label) => {
-    const own = clean(label);
-    return englishFrame ? own : clean(figurePack?.label?.(own)) || own;
+  const figureName = (entry) => {
+    const own = clean(entry?.label);
+    if (englishFrame) return own;
+    if (entry?.kind === 'table') return clean(figurePack?.label?.(own)) || own;
+    const message = entry?.labelSay || platformName(own).say;
+    return clean(message ? sayFigure([message], figurePack?.words) : '') || own;
   };
   const parts = [];
   const add = (id, kind, label, text) => {
@@ -227,11 +234,11 @@ export const questionReadingParts = (question, { referenceInfo = null, backUp = 
   (Array.isArray(figures) ? figures : []).forEach((entry) => {
     if (entry?.kind === 'table') {
       tableCount += 1;
-      const name = figureName(entry.label);
+      const name = figureName(entry);
       add(`table-${tableCount}`, 'table', name || w.labels.table, tableReading(entry.table, { label: figureWords(name), language }));
     } else if (entry?.kind === 'figure' && clean(entry.text)) {
       figureCount += 1;
-      const name = figureName(entry.label);
+      const name = figureName(entry);
       // In the reading's language when the figure can say it; else its
       // English, and the student is told so (never translated here).
       const translated = englishFrame ? null : clean(sayFigure(entry.say, figurePack?.words));

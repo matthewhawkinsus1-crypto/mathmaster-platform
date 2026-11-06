@@ -56,7 +56,7 @@ import { diagnoseModelRows, modelRowMessage, modelRowVerdicts } from './inequali
 import { pointSubstitution, valueEntered, valueWorkedOut } from './testPointSubstitution.js';
 import { wordsFor } from './inequalitySystemWords.js';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
-import { inequalityGraphMarksReading } from './inequalityGraphMarks.js';
+import { inequalityGraphMarksReading, inequalityGraphName } from './inequalityGraphMarks.js';
 import {
   BoundaryStepFields,
   CLASSIFICATION_OPTIONS,
@@ -736,15 +736,10 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const emphasised = (index) => flow.activeIndex == null || flow.activeIndex === index;
   const hatchId = `mm-ineq-overlap-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   // Named for what a tap will do, after a fixed prefix the browser gates find
-  // the plane by ("Student-constructed graph of the inequality", one or more).
-  const graphLabel = `Student-constructed graph of ${said('the inequality system')}${(() => {
-    if (tapAction.kind === 'boundaryPoint') return `. Plot ${tapAction.method === 'slopeIntercept' && tapAction.which === 1 ? 'the y-intercept' : `boundary point ${tapAction.which}`} for constraint ${tapAction.index + 1}`;
-    if (tapAction.kind === 'boundaryFull') return `. Both boundary points of constraint ${tapAction.index + 1} are placed`;
-    if (tapAction.kind === 'shade') return `. Choose the side to shade for constraint ${tapAction.index + 1}`;
-    if (tapAction.kind === 'testPoint') return '. Place your own test point';
-    if (tapAction.kind === 'vertex') return '. Mark a vertex of the solution region';
-    return '';
-  })()}`;
+  // the plane by ("Student-constructed graph of the inequality", one or more),
+  // as messages a Spanish reading says too (inequalityGraphMarks.js; AX05,
+  // slice 4).
+  const graphLabel = inequalityGraphName({ constraintCount, tapAction });
 
   // ------------------------------------------------------------ rendering
   const stepCount = plan.constraintSteps.length;

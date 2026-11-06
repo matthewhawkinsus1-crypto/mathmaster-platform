@@ -14,6 +14,7 @@ import { describeCoordinatePlane, GRAPH_WORDS, joinSegmentPaths } from './platfo
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { PublishFigureReading, describedContent, describedIn, useFigureWords } from './platform/language/figureReadings.js';
 import { itemWords, joinFigureSays, say, sayFigure } from './platform/language/figureSay.js';
+import { namedIn } from './platform/language/figureNames.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
 
 const DEFAULT_WIDTH = 620;
@@ -454,6 +455,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   // What a screen reader hears: the same description, in Spanish (lang="es")
   // where the figure's messages can say it all (AX05, slice 2).
   const described = describedIn(figureWords, spokenDescription, authoredDescription ? null : generated.say);
+  // Its name in the same language, marked with it, where the name is one of
+  // the platform's (AX05, slice 4); an author's name stays as written.
+  const named = namedIn(figureWords, graph.ariaLabel || title);
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
@@ -496,11 +500,12 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         viewBox={`0 0 ${DEFAULT_WIDTH} ${DEFAULT_HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={graph.ariaLabel || title}
+        aria-label={named.text}
         aria-describedby={descriptionId}
+        lang={named.lang}
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
       >
-        <title>{graph.ariaLabel || title}</title>
+        <title>{named.text}</title>
         <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="var(--mm-graph-bg)" stroke="#cfd4da" />
 
         {xMinorTicks.map((tick) => {

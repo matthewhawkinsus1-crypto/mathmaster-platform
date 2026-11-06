@@ -29,6 +29,7 @@ import './ThreePlaneWorkspace.css';
 import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
 import { threePlaneModelReading } from './threePlaneDescription.js';
 import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
+import { namedIn } from '../../platform/language/figureNames.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
@@ -312,6 +313,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
   const figureWords = useFigureWords();
   const described = useMemo(() => describedIn(figureWords, modelDescription, modelSay), [figureWords, modelDescription, modelSay]);
+  // The model's names in the same language, marked with it (AX05, slice 4):
+  // the control's, and the drawing's inside it, which takes the control's lang.
+  const modelName = namedIn(figureWords, 'Three planes in 3D');
+  const viewName = namedIn(figureWords, '3D view of the three planes');
 
   // Painter's algorithm: farthest (most negative screen depth toward the
   // viewer's back) first, nearest last, so overlapping translucent planes
@@ -404,8 +409,9 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="application"
             tabIndex={0}
-            aria-label="Three planes in 3D"
+            aria-label={modelName.text}
             aria-describedby={`${modelDescriptionId} ${instructionId}`}
+            lang={modelName.lang}
             onKeyDown={handleModelKeyDown}
             style={{ touchAction: 'none', background: 'var(--mm-surface-sunken)', borderRadius: 12, border: '1px solid var(--mm-border)', cursor: 'grab', width: '100%', height: 'auto', maxWidth: 560, aspectRatio: '1 / 1' }}
             onPointerDown={handlePointerDown}
@@ -415,7 +421,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
           >
             {/* The drawing itself, named as the image it is and described by
                 what it shows; the svg around it is the focusable control. */}
-            <g role="img" aria-label="3D view of the three planes" aria-describedby={modelDescriptionId}>
+            <g role="img" aria-label={viewName.text} aria-describedby={modelDescriptionId}>
             <defs>
               <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
                 <path d="M0,0 L7,3.5 L0,7 z" style={{ fill: 'var(--mm-graph-axis)' }} />

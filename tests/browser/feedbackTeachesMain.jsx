@@ -40,6 +40,10 @@
 //   ?q=inequalityes         Algebra I M3 T2 L4 CW 9 (graph y > x + 3, built by the
 //                           student) with an authored Spanish prompt: the Systems
 //                           Workspace's own sentences are read in Spanish (AX05, slice 3)
+//   ?q=numberlinees         the pick-a-point number line and the interval number
+//   ?q=intervales           line, each with an authored Spanish prompt: their
+//                           names are Spanish, marked lang="es", and the English
+//                           buttons inside them stay English (AX05, slice 4)
 //   ?q=explog               an Exponential ↔ Log Bridge item (2^(2x − 1) = 16) the
 //                           dataAndModels family claims: its hints, its worked
 //                           sibling and its "Let's back up" step (CI02, A1-69)
@@ -160,6 +164,14 @@ const QUESTIONS = {
   lmrtable: lessonItem(linearRepresentationsLesson, 'lmr-pr-1'),
   lmrtablees: withSpanishPrompt(lessonItem(linearRepresentationsLesson, 'lmr-pr-1'), 'Tienes una tabla de valores de una relación lineal. Construye todas las demás representaciones de esta misma recta, en el orden que quieras.'),
   inequalityes: withSpanishPrompt(lessonItem(inequalitiesLesson, 'm3t2l4-cw-9'), 'Grafica $y > x + 3$.'),
+  numberlinees: withSpanishPrompt({
+    questionId: 'feedback-numberline', type: 'numberLine', prompt: 'Select 5 on the number line.', target: 5, choices: [-10, -5, 0, 5, 10],
+  }, 'Selecciona el 5 en la recta numérica.'),
+  intervales: withSpanishPrompt({
+    questionId: 'feedback-interval', type: 'intervalNumberLine', toolId: 'intervalNumberLine',
+    prompt: 'Graph x ≥ −3 and x < 5 together.', min: -8, max: 8, step: 1, variable: 'x', ask: ['graph'],
+    intervals: [{ min: -3, max: 5, minClosed: true, maxClosed: false }],
+  }, 'Grafica x ≥ −3 y x < 5 juntas.'),
   // The dataAndModels family's: 2^(2x − 1) = 16, so 2x − 1 = 4 and x = 5/2 (CI02).
   explog: {
     questionId: 'feedback-explog',

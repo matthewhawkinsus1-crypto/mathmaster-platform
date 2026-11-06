@@ -23,7 +23,10 @@
  *           rule: Spanish, marked lang="es", where its messages say it all;
  *           English and unmarked otherwise (slice 2). In slice 3 the tools'
  *           own sentences are messages too: the Systems Workspace's graph and
- *           region corners and the sideways parabola are said in Spanish.
+ *           region corners and the sideways parabola are said in Spanish. In
+ *           slice 4 a figure's name is a message too: its aria-label and the
+ *           name Read aloud says first are Spanish, the element marked
+ *           lang="es"; an author's own name stays as written.
  *
  * The browser half: tests/browser/readAloudTranslate.mjs (the real DOL graph,
  * the 3D model and the graph workspace, with an authored Spanish prompt).
@@ -48,10 +51,11 @@ import { AXIS_TITLE_WORDS } from '../../src/tools/shared/planeAxisTitles.js';
 import { THREE_PLANE_WORDS, threePlaneModelReading } from '../../src/tools/systemsWorkspace/threePlaneDescription.js';
 import { GRAPH_WORKSPACE_WORDS, graphWorkspaceReading } from '../../src/platform/language/graphWorkspaceDescription.js';
 import { ROW_CHOOSER_WORDS } from '../../src/tools/shared/toolTableReading.js';
-import { INEQUALITY_GRAPH_WORDS, inequalityGraphMarksReading, regionCornersReading } from '../../src/tools/systemsWorkspace/inequalityGraphMarks.js';
+import { INEQUALITY_GRAPH_WORDS, inequalityGraphMarksReading, inequalityGraphName, regionCornersReading } from '../../src/tools/systemsWorkspace/inequalityGraphMarks.js';
 import { boundaryFromSlopeIntercept, boundaryWithChosenSide, feasibleRegionPolygon } from '../../src/tools/systemsWorkspace/inequalityBuilderAdapter.js';
 import { englishOnly, itemWords, loadFigureWords, say, sayFigure, sayFigureParts } from '../../src/platform/language/figureSay.js';
 import { describedIn } from '../../src/platform/language/figureReadings.js';
+import { FIGURE_NAME_WORDS, figureName, nameFrom, namedIn, plotName } from '../../src/platform/language/figureNames.js';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import esFigures from '../../src/platform/language/packs/esFigures.js';
@@ -87,13 +91,17 @@ after(async () => { await capture?.close(); });
 /* --------------------------------------------------------- the pack's words */
 
 test('the Spanish pack says every sentence the figure generators say, and no other', () => {
-  const english = { ...GRAPH_WORDS, ...NUMBER_LINE_WORDS, ...AXIS_TITLE_WORDS, ...THREE_PLANE_WORDS, ...GRAPH_WORKSPACE_WORDS, ...ROW_CHOOSER_WORDS, ...INEQUALITY_GRAPH_WORDS };
+  const vocabularies = [GRAPH_WORDS, NUMBER_LINE_WORDS, AXIS_TITLE_WORDS, THREE_PLANE_WORDS, GRAPH_WORKSPACE_WORDS, ROW_CHOOSER_WORDS, INEQUALITY_GRAPH_WORDS, FIGURE_NAME_WORDS];
+  const english = Object.assign({}, ...vocabularies);
   const ids = Object.keys(english);
-  // Measured: every message the generators have (181 today: 74 in slice 1;
+  // One id, one message: no vocabulary takes another's id.
+  assert.equal(ids.length, vocabularies.reduce((total, words) => total + Object.keys(words).length, 0), 'no id is in two vocabularies');
+  // Measured: every message the generators have (223 today: 74 in slice 1;
   // 61 for the full reading, 12 for the 3D model, 8 for the graph workspace
   // and 9 for process mode's row chooser in slice 2; in slice 3, 15 for the
-  // Systems Workspace's own sentences and 2 for the sideways parabola).
-  assert.ok(ids.length >= 181, `${ids.length} figure messages`);
+  // Systems Workspace's own sentences and 2 for the sideways parabola; in
+  // slice 4, 33 for the figures' names and 9 for the student-built graph's).
+  assert.ok(ids.length >= 223, `${ids.length} figure messages`);
   ids.forEach((id) => assert.equal(typeof esFigures.words[id], 'function', `Spanish for "${id}"`));
   Object.keys(esFigures.words).forEach((id) => assert.ok(Object.hasOwn(english, id), `"${id}" is a message a generator says`));
   // Built from the same pieces, a sentence keeps the English's numbers.
@@ -525,6 +533,13 @@ test('the Systems Workspace\'s own sentences are said in Spanish over many graph
     check(marks, `graph ${n}`);
     const corners = regionCornersReading({ polygon: feasibleRegionPolygon(inequalities, bounds), lines: inequalities, everyInequalityTrue: rand() < 0.5 });
     if (corners) check(corners, `region ${n}`);
+    // The graph's name (slice 4): whose graph, then what a tap on it does.
+    const tapAction = pick([
+      { kind: 'none' }, { kind: 'boundaryPoint', index: int(0, count - 1), which: int(1, 2), method: pick(['twoPoints', 'slopeIntercept']) },
+      { kind: 'boundaryFull', index: int(0, count - 1) }, { kind: 'shade', index: int(0, count - 1) }, { kind: 'testPoint' }, { kind: 'vertex' },
+    ]);
+    const name = inequalityGraphName({ constraintCount: count, tapAction });
+    check({ text: name.text, say: [name.say] }, `name ${n}`);
   }
   // The graphs above reach every sentence the Systems Workspace says.
   Object.keys(INEQUALITY_GRAPH_WORDS).forEach((id) => assert.ok(said.has(id), `a graph says ${id}`));
@@ -758,7 +773,10 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
   const { default: PathQuestionStimulus } = await capture.load('/src/components/student/PathQuestionStimulus.jsx');
   const { GraphReadOutProvider } = await capture.load('/src/platform/supports/graphReadOut.js');
   const PLANE = /<p id="(mm-plane-desc-[^"]+)"([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/;
-  const withoutDescription = (markup) => markup.replace(PLANE, '');
+  // The plane's name and the language it is marked with (slice 4).
+  const NAME = /(<svg\b[^>]*?) aria-label="([^"]*)"(?: lang="([^"]*)")?/;
+  const withoutDescription = (markup) => markup.replace(PLANE, '').replace(NAME, '$1');
+  const nameIn = (markup) => { const [, , label, lang] = NAME.exec(markup) || []; return { label: label && decode(label), lang: lang ?? null }; };
   const seed = JSON.parse(readFileSync(new URL('functions/seeds/secureAssessments/algebra1_district_dol2.json', ROOT), 'utf8'));
   const stimuli = seed.documents.flatMap((doc) => (doc.variants || []).filter((variant) => variant.stimulus?.graph).map((variant, index) => [`${doc.id} v${index}`, variant.stimulus]));
   assert.ok(stimuli.length >= 300, `${stimuli.length} secure stimulus graphs`);
@@ -777,8 +795,16 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
     assert.doesNotMatch(described.text, POSITIONS_ES, `${where}: ${described.text}`);
     assert.equal(/Las posiciones no se leen mientras se pueda responder esta pregunta\./.test(described.text), /Positions are not read out while this question can be answered\./.test(plain.text), where);
     withheld += /Las posiciones no se leen/.test(described.text) ? 1 : 0;
-    // Nothing else on the item changes: the same markup but for the description.
-    assert.equal(withoutDescription(spanish.markup), withoutDescription(english.markup), `${where}: only the description is in Spanish`);
+    // Nothing else on the item changes: the same markup but for the description
+    // and the name (slice 4).
+    assert.equal(withoutDescription(spanish.markup), withoutDescription(english.markup), `${where}: only the description and the name are in Spanish`);
+    // Its name, the item's own, made from its axis titles: the English as
+    // authored; in Spanish the same axis titles, as the axes show them, inside
+    // a Spanish name marked lang="es" (an attribute cannot mark them lang="en").
+    const [, x, y] = /^Graph with horizontal axis (.+) and vertical axis (.+)$/.exec(stimulus.graph.ariaLabel) || [];
+    assert.ok(x && y, `${where}: ${stimulus.graph.ariaLabel}`);
+    assert.deepEqual(nameIn(english.markup), { label: stimulus.graph.ariaLabel, lang: null }, `${where}: the English name, unmarked`);
+    assert.deepEqual(nameIn(spanish.markup), { label: `Gráfica con el eje horizontal ${x} y el eje vertical ${y}`, lang: 'es' }, `${where}: the Spanish name`);
     // The graph read-out (a student whose plan gives it): the full reading, in
     // Spanish, with positions wherever the English reading has them.
     const englishReadOut = descriptionIn(render(true, null).markup, PLANE, `${where} (read-out, English)`).text;
@@ -803,6 +829,174 @@ test('a description the Spanish words cannot say all of stays English, with no l
   const tool = descriptionIn(inSpanish(React.createElement(CoordinatePlane, { xMin: -6, xMax: 6, yMin: -6, yMax: 6, enlargeable: false, ariaLabel: 'Coordinate plane', toolMarks: { kinds: 'Boundary line 1: solid.' } }, () => null)), /<p id="(mm-plane-desc-[^"]+)"([^>]*)>([^<]*)<\/p>/, 'tool');
   assert.equal(tool.lang, null);
   assert.match(tool.text, /^x from −6 to 6, y from −6 to 6\. Boundary line 1: solid\./);
+});
+
+/* ------------------------------------------------- a figure's name (slice 4) */
+
+/*
+ * A FIGURE'S NAME IN SPANISH (slice 4). Under an authored Spanish translation
+ * a figure described itself in Spanish but kept its English name: the
+ * aria-label a screen reader says first, and the name Read aloud says before
+ * the description ("Student-constructed graph of the inequality. Plot
+ * boundary point 1 for constraint 1." inside the Spanish reading). Each name
+ * is a message now (figureNames.js), its English said from the same words,
+ * and the pack says each in Spanish. The element that holds a Spanish name is
+ * marked lang="es"; a control inside it that keeps its English name is marked
+ * lang="en". An author's own name is said as written, and nothing is marked.
+ */
+const KEYS_ES = 'Haz clic para marcar un punto, o mueve la cruz con las teclas de flecha y pulsa Enter para marcarlo.';
+const MOVE_ES = 'Pulsa Enter sobre un punto marcado para tomarlo y moverlo.';
+
+test('a figure\'s name is a message: its English as it always was, its Spanish from the pack, an author\'s name as written', () => {
+  // Each of the platform's names, said from its message in both languages.
+  Object.entries(FIGURE_NAME_WORDS).filter(([, words]) => words.length === 0).forEach(([id, words]) => {
+    const english = words();
+    assert.deepEqual(figureName(english), { text: english, say: say(id) }, id);
+    const spanish = namedIn(esFigures, english);
+    assert.equal(spanish.lang, 'es', id);
+    assert.ok(spanish.text && spanish.text !== english && !/[A-Z][a-z]+ (?:graph|plane|line)\b/.test(spanish.text), `${id}: ${spanish.text}`);
+    assert.deepEqual(namedIn(null, english), { text: english, lang: undefined }, `${id}: English while no words are loaded`);
+  });
+  // The cards of a comparison or a choice, and a DOL 2 graph named by its axes:
+  // the axis titles are the item's own words, said as the axes show them.
+  assert.deepEqual(namedIn(esFigures, 'Graph 2'), { text: 'Gráfica 2', lang: 'es' });
+  assert.deepEqual(namedIn(esFigures, 'Graph B'), { text: 'Gráfica B', lang: 'es' });
+  assert.deepEqual(namedIn(esFigures, 'Graph with horizontal axis Reading time, x (hours) and vertical axis Pages remaining, y'),
+    { text: 'Gráfica con el eje horizontal Reading time, x (hours) y el eje vertical Pages remaining, y', lang: 'es' });
+  // An author's own name is the item's words: as written, its element unmarked.
+  for (const own of ['Graph of y=x', 'A line and an upward-opening parabola', 'Graph popcorn', 'Gráfica del viaje']) {
+    assert.deepEqual(figureName(own), { text: own, say: null }, own);
+    assert.deepEqual(namedIn(esFigures, own), { text: own, lang: undefined }, own);
+  }
+  assert.equal(figureName(' Question graph ').text, ' Question graph ', 'the English is kept exactly as given');
+  assert.deepEqual([figureName(null), namedIn(esFigures, undefined)], [{ text: null, say: null }, { text: undefined, lang: undefined }], 'no name stays none: no aria-label is drawn');
+  // A plane the student plots on also says how; with an author's name all of it stays English.
+  const keys = 'Click to plot, or use the arrow keys to move the crosshair and Enter to plot.';
+  assert.equal(plotName('Coordinate plane').text, `Coordinate plane. ${keys}`);
+  assert.equal(plotName('Coordinate plane', { movable: true }).text, `Coordinate plane. ${keys} Enter on a plotted point picks it up to move it.`);
+  assert.deepEqual(namedIn(esFigures, plotName('Coordinate plane', { movable: true })), { text: `Plano de coordenadas. ${KEYS_ES} ${MOVE_ES}`, lang: 'es' });
+  assert.deepEqual(namedIn(esFigures, plotName('Graph of your line')), { text: `Graph of your line. ${keys}`, lang: undefined });
+  // The plane hands its own name over (figureName(ariaLabel)): given none, it says its keys as it always has.
+  assert.equal(plotName(figureName(null)).text, `null. ${keys}`, 'a plane given no name says its keys as it always has');
+  // A tool's own name, from its own words: the student-built graph and the task a tap does.
+  const built = inequalityGraphName({ constraintCount: 1, tapAction: { kind: 'boundaryPoint', index: 0, which: 1, method: 'twoPoints' } });
+  assert.equal(built.text, 'Student-constructed graph of the inequality. Plot boundary point 1 for constraint 1');
+  assert.deepEqual(namedIn(esFigures, built), { text: 'Tu gráfica de la desigualdad. Marca el punto frontera 1 de la restricción 1', lang: 'es' });
+  assert.deepEqual(namedIn(esFigures, inequalityGraphName({ constraintCount: 2 })), { text: 'Tu gráfica del sistema de desigualdades', lang: 'es' });
+  assert.equal(namedIn(esFigures, nameFrom(say('numberLineFromToName', '−7.5', '7.5'), FIGURE_NAME_WORDS)).text, 'Recta numérica de −7.5 a 7.5');
+});
+
+// An element's own name and language ({ label, lang, title }), the first that `pattern` finds.
+const namedElement = (markup, pattern, where) => {
+  const match = pattern.exec(markup);
+  assert.ok(match, `${where}: its named element is drawn`);
+  const [tag] = match;
+  const title = /^<svg\b/.test(tag) ? /<title>([^<]*)<\/title>/.exec(markup.slice(match.index))?.[1] : undefined;
+  return {
+    label: decode(/\baria-label="([^"]*)"/.exec(tag)?.[1] ?? ''),
+    lang: /\blang="([^"]*)"/.exec(tag)?.[1] ?? null,
+    ...(title === undefined ? {} : { title: decode(title) }),
+  };
+};
+
+test('each figure is named in Spanish, marked lang="es", under a translation; in English as before, unmarked', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');
+  const { default: CoordinatePlane } = await capture.load('/src/tools/shared/CoordinatePlane.jsx');
+  const { default: NumberLine } = await capture.load('/src/NumberLine.jsx');
+  const { default: IntervalNumberLine } = await capture.load('/src/tools/intervalNumberLine/IntervalNumberLine.jsx');
+  const { default: ThreePlaneWorkspace } = await capture.load('/src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx');
+  const { default: InteractiveGraphWorkspace } = await capture.load('/src/InteractiveGraphWorkspace.jsx');
+  const lesson = JSON.parse(readFileSync(new URL('docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json', ROOT), 'utf8'));
+  const planes = normalizeContextualQuestion(generateQuestion(prepareQuestionForRuntimeRouting(compileAuthoringIntentV5(lesson).package.sections.flatMap((section) => section.questions).find((entry) => entry.questionId === '3x3-d1-cw-1'), {}), 0, null, null, null));
+  const graph = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'linear', m: 1, b: 0 }] };
+  const SVG_IMG = /<svg\b[^>]*\brole="img"[^>]*>/;
+  const SVG_APP = /<svg\b[^>]*\brole="application"[^>]*>/;
+  const figures = [
+    ['the question graph', React.createElement(GraphDisplay, { graph, title: 'Question graph', enlargeable: false }), SVG_IMG,
+      { label: 'Question graph', title: 'Question graph' }, { label: 'Gráfica de la pregunta', title: 'Gráfica de la pregunta' }],
+    ['a composed question\'s graph', React.createElement(GraphDisplay, { graph: { ...graph, ariaLabel: 'Graph' }, title: 'Graph', enlargeable: false }), SVG_IMG,
+      { label: 'Graph', title: 'Graph' }, { label: 'Gráfica', title: 'Gráfica' }],
+    ['a read-only plane', React.createElement(CoordinatePlane, { xMin: -1, xMax: 7, yMin: -20, yMax: 100, points: [{ x: 1, y: 60 }], enlargeable: false, ariaLabel: 'Coordinate plane' }), SVG_IMG,
+      { label: 'Coordinate plane' }, { label: 'Plano de coordenadas' }],
+    ['a plane the student plots on', React.createElement(CoordinatePlane, { xMin: -5, xMax: 5, yMin: -5, yMax: 5, enlargeable: false, onPlot: () => {}, onMovePoint: () => {} }), SVG_APP,
+      { label: 'Coordinate plane. Click to plot, or use the arrow keys to move the crosshair and Enter to plot. Enter on a plotted point picks it up to move it.' },
+      { label: `Plano de coordenadas. ${KEYS_ES} ${MOVE_ES}` }],
+    ['the pick-a-point line', React.createElement(NumberLine, { question: { target: 5, choices: [-10, -5, 0, 5, 10] }, onStateChange: () => {}, feedback: null }), /<div\b[^>]*\brole="group"[^>]*\bdata-number-line-choices=""[^>]*>/,
+      { label: 'Number line' }, { label: 'Recta numérica' }],
+    ['the interval number line', React.createElement(IntervalNumberLine, { questionData: { type: 'intervalNumberLine', toolId: 'intervalNumberLine', prompt: 'Graph x ≥ −3.', min: -8, max: 8, step: 1, variable: 'x', ask: ['graph'], intervals: [{ min: -3, max: Infinity, minClosed: true, maxClosed: false }] }, onAction: () => {} }), SVG_APP,
+      { label: 'Number line from −8 to 2' }, { label: 'Recta numérica de −8 a 2' }],
+    ['the 3D model', React.createElement(ThreePlaneWorkspace, { questionData: planes, onAction: () => {} }), SVG_APP,
+      { label: 'Three planes in 3D' }, { label: 'Tres planos en 3D' }],
+    ['the 3D model\'s drawing', React.createElement(ThreePlaneWorkspace, { questionData: planes, onAction: () => {} }), /<g\b[^>]*\brole="img"[^>]*>/,
+      { label: '3D view of the three planes' }, { label: 'Vista 3D de los tres planos' }],
+    ['the graph workspace', React.createElement(InteractiveGraphWorkspace, { question: { type: 'graphAnalysis', prompt: 'Read the graph.', functionSpec: { type: 'linear', m: 2, b: 1 }, graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 }, analysisRequests: [{ id: 'at-two', kind: 'value', label: 'f(2)', expected: 5 }] }, mode: 'analysis', onStateChange: () => {} }), SVG_APP,
+      { label: 'Coordinate plane' }, { label: 'Plano de coordenadas' }],
+  ];
+  for (const [where, figure, pattern, english, spanish] of figures) {
+    const inEnglish = await withWindow(() => capture.render(figure));
+    const inSpanish = await withWindow(() => capture.render(React.createElement(FigureWordsProvider, { pack: esFigures }, figure)));
+    assert.deepEqual(namedElement(inEnglish.markup, pattern, `${where} (English)`), { ...english, lang: null }, `${where}: named in English as before, unmarked`);
+    // The drawing inside the 3D model takes its language from the control around it.
+    const marked = where === 'the 3D model\'s drawing' ? null : 'es';
+    assert.deepEqual(namedElement(inSpanish.markup, pattern, `${where} (Spanish)`), { ...spanish, lang: marked }, `${where}: named in Spanish, marked lang="es"`);
+    if (!marked) assert.match(inSpanish.markup, /<svg\b[^>]*\blang="es"[^>]*>[\s\S]*?<g\b[^>]*\brole="img"/, `${where}: inside the Spanish control`);
+    // Nothing in English is marked; in Spanish only the name's element and
+    // its description are, and the buttons inside the number line keep English.
+    assert.doesNotMatch(inEnglish.markup, /\blang="/, `${where}: an English page marks nothing`);
+    const langs = [...inSpanish.markup.matchAll(/<(\w+)\b[^>]*\blang="([^"]*)"/g)].map(([, tag, lang]) => `${tag}:${lang}`);
+    if (where === 'the pick-a-point line') {
+      assert.deepEqual(langs, ['div:es', 'button:en', 'button:en', 'button:en', 'button:en', 'button:en', 'span:es'], `${where}: ${langs}`);
+    } else {
+      assert.ok(langs.every((entry) => entry.endsWith(':es')), `${where}: ${langs}`);
+    }
+  }
+});
+
+test('the Systems Workspace\'s planes are named in Spanish, and Read aloud says the student\'s graph\'s name first in Spanish', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: SystemsWorkspace } = await capture.load('/src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+  const sw = (fields) => ({ type: 'systemsWorkspace', prompt: 'Graph it.', ...fields });
+  const PLANE_SVG = /<svg\b[^>]*\baria-describedby="mm-plane-desc-[^"]*"[^>]*>/;
+  const render = (questionData, pack) => withWindow(() => capture.render(pack
+    ? React.createElement(FigureWordsProvider, { pack }, React.createElement(SystemsWorkspace, { questionData, onAction: () => {} }))
+    : React.createElement(SystemsWorkspace, { questionData, onAction: () => {} })));
+  const cases = [
+    // Algebra I M3 T2 L4: one inequality the student builds, the first tap a boundary point.
+    ['one inequality, built', sw({ questionId: 'name-one', mode: 'inequalities', inequalities: [{ m: 1, b: 3, relation: '>' }], studentBuild: { boundary: true, lineStyle: true, shading: true }, graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 } }),
+      'Student-constructed graph of the inequality. Plot boundary point 1 for constraint 1. Click to plot, or use the arrow keys to move the crosshair and Enter to plot. Enter on a plotted point picks it up to move it.',
+      `Tu gráfica de la desigualdad. Marca el punto frontera 1 de la restricción 1. ${KEYS_ES} ${MOVE_ES}`],
+    ['a system, built', sw({ questionId: 'name-two', mode: 'inequalities', inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<' }], studentBuild: { boundary: true, lineStyle: true, shading: true }, graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 } }),
+      'Student-constructed graph of the inequality system. Plot boundary point 1 for constraint 1. Click to plot, or use the arrow keys to move the crosshair and Enter to plot. Enter on a plotted point picks it up to move it.',
+      `Tu gráfica del sistema de desigualdades. Marca el punto frontera 1 de la restricción 1. ${KEYS_ES} ${MOVE_ES}`],
+    ['a given system\'s feasible region', sw({ questionId: 'name-feasible', mode: 'inequalities' }),
+      'Graph of the system of inequalities with its shaded feasible region', 'Gráfica del sistema de desigualdades con su región factible sombreada'],
+    ['a system of inequalities to construct', sw({ questionId: 'name-construct', mode: 'inequalities', interaction: 'construct', ask: ['construction'], inequalities: [{ m: 2, b: -3, relation: '>=' }, { m: -1, b: 6, relation: '<=' }], graph: { xMin: -6, xMax: 6, yMin: -10, yMax: 12 } }),
+      'Student-constructed graph of the inequality solution region. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.',
+      `Tu gráfica de la región solución de las desigualdades. ${KEYS_ES}`],
+    ['a linear system', sw({ questionId: 'name-linear', mode: 'linear', system: { m1: 2, b1: -1, m2: -1, b2: 5 } }),
+      'Graph of both equations in the system', 'Gráfica de las dos ecuaciones del sistema'],
+    ['a linear system to graph', sw({ questionId: 'name-linear-build', mode: 'linear', interaction: 'construct', system: { m1: 2, b1: -1, m2: -1, b2: 5 } }),
+      'Your graph of both equations in the system. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.',
+      `Tu gráfica de las dos ecuaciones del sistema. ${KEYS_ES}`],
+  ];
+  for (const [where, questionData, english, spanish] of cases) {
+    const inEnglish = await render(questionData, null);
+    const inSpanish = await render(questionData, esFigures);
+    assert.deepEqual(namedElement(inEnglish.markup, PLANE_SVG, where), { label: english, lang: null }, `${where}: in English as before`);
+    assert.deepEqual(namedElement(inSpanish.markup, PLANE_SVG, where), { label: spanish, lang: 'es' }, `${where}: in Spanish, marked lang="es"`);
+    // Read aloud: the name first, in Spanish, then the description, with no English and no note.
+    const entry = inSpanish.entries.find((candidate) => candidate.kind === 'figure');
+    assert.deepEqual(inSpanish.entries, inEnglish.entries, `${where}: Read aloud gets the same entry`);
+    const part = questionReadingParts({ prompt: 'Grafica la desigualdad.' }, { figures: [entry], language: 'es', figurePack: esFigures }).find((candidate) => candidate.kind === 'figure');
+    const name = spanish.replace(/\. Haz clic[\s\S]*$/, '');
+    assert.equal(part.label, name, `${where}: the part is named in Spanish`);
+    assert.ok(part.text.startsWith(`${name}. El eje x va de `) && !part.text.includes(NOTE), `${where}: ${part.text.slice(0, 160)}`);
+    assert.doesNotMatch(part.text, /Student|constructed|Graph|Plot|constraint|Click/, `${where}: no English in the Spanish reading`);
+    // In English, Read aloud says the name as the plane always gave it.
+    const englishPart = questionReadingParts({ prompt: 'Graph it.' }, { figures: [entry] }).find((candidate) => candidate.kind === 'figure');
+    assert.equal(englishPart.label, english.replace(/\. Click to plot[\s\S]*$/, ''), `${where}: the English name`);
+  }
 });
 
 /* ---------------------------------------------------- loaded only for Spanish */

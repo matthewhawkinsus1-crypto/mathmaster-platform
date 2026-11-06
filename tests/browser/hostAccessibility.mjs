@@ -19,6 +19,8 @@
  * Spanish prompt, describes itself in Spanish, marked lang="es", with no
  * position while it can be answered (in full only with the graph read-out);
  * the prompt on screen stays as authored; anyone else hears it in English.
+ * Its name is Spanish too, on the same element, marked lang="es", with the
+ * item's axis titles as the axes show them (slice 4); in English, as before.
  */
 import assert from 'node:assert/strict';
 
@@ -229,6 +231,12 @@ for (const viewport of VIEWPORTS) {
       const id = await hidden.getAttribute('id');
       return { text: (await hidden.textContent()) || '', lang: await hidden.getAttribute('lang'), ax: await axDescription(page, `svg[aria-describedby~="${id}"]`) };
     };
+    // The graph's name ({ label, lang }): its aria-label and the language marked on it.
+    const named = async (page) => {
+      const id = await page.locator('p[id^="mm-plane-desc-"]').first().getAttribute('id');
+      const svg = page.locator(`svg[aria-describedby~="${id}"]`).first();
+      return { label: await svg.getAttribute('aria-label'), lang: await svg.getAttribute('lang') };
+    };
     for (const [query, expected] of [
       ['profile=spanish', 'es'],
       ['profile=readout', 'es-full'],
@@ -242,6 +250,10 @@ for (const viewport of VIEWPORTS) {
       const where = `${at} secure field ${query || 'no profile'}`;
       console.log(`secureFigures ${where}: ${JSON.stringify(said)}`);
       check(said.ax === said.text, `${where}: the graph's accessible description is its description (${said.ax})`);
+      const name = await named(page);
+      check(expected === 'en'
+        ? name.label === 'Graph with horizontal axis x and vertical axis y' && name.lang === null
+        : name.label === 'Gráfica con el eje horizontal x y el eje vertical y' && name.lang === 'es', `${where}: the graph's name (${JSON.stringify(name)})`);
       if (expected === 'en') {
         check(said.lang === null && said.text.startsWith('x from −10 to 10, y from −10 to 10.') && !POSITION.test(said.text), `${where}: English, unmarked, no position (${JSON.stringify(said)})`);
       } else if (expected === 'es') {

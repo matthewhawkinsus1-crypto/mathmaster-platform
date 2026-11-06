@@ -20,12 +20,16 @@
  *   <FigureReadingScope shown={bool}>           a part kept mounted while hidden
  *   <PublishFigureReading entry={…} />         a figure, inside its render
  *
- * An entry is { kind: 'figure', label, text, say } or { kind: 'table', label,
- * table } (displayTable.js; the reader words it in the screen's language).
- * `say` is the same reading as messages (figureSay.js), when the figure's
- * generator gives them: under an authored Spanish translation it is read in
- * Spanish (AX05). Without it the figure is read in English, and the reader
- * says so. Outside a host (a teacher screen, a review) nothing is published.
+ * An entry is { kind: 'figure', label, labelSay, text, say } or { kind:
+ * 'table', label, table } (displayTable.js; the reader words it in the
+ * screen's language). `say` is the same reading as messages (figureSay.js),
+ * when the figure's generator gives them: under an authored Spanish
+ * translation it is read in Spanish (AX05). Without it the figure is read in
+ * English, and the reader says so. `labelSay` is the figure's name as a
+ * message (figureNames.js, slice 4), which a name a tool builds from its own
+ * words needs; without it, a name that is one of the platform's is known by
+ * its English. Outside a host (a teacher screen, a review) nothing is
+ * published.
  *
  * A TABLE A TOOL DRAWS ITSELF (AX10) is published the same way, from the rows
  * the tool draws and only while it draws them: a cell the student fills in is
@@ -47,6 +51,11 @@
  * (describedContent), so a screen reader says it in English. A lone letter
  * naming a point is no English word, and is said in the description's
  * language, as the mathematics is.
+ *
+ * THE FIGURE'S NAME (slice 4). Its aria-label is said the same way, from its
+ * name's message (figureNames.js namedIn), and the element that holds it is
+ * marked lang="es": an attribute cannot mark a part of itself. A control
+ * inside it that keeps its English name is marked lang="en".
  */
 import React, { createContext, useContext, useEffect, useId } from 'react';
 import { ITEM_LANGUAGE, sayFigure, sayFigureParts } from './figureSay.js';
@@ -86,9 +95,10 @@ const normalizeEntry = (entry) => {
   }
   const text = clean(entry.text);
   if (!text) return null;
+  const named = entry.labelSay && typeof entry.labelSay === 'object' ? { labelSay: entry.labelSay } : {};
   return Array.isArray(entry.say)
-    ? { kind: 'figure', label: clean(entry.label), text, say: entry.say }
-    : { kind: 'figure', label: clean(entry.label), text };
+    ? { kind: 'figure', label: clean(entry.label), ...named, text, say: entry.say }
+    : { kind: 'figure', label: clean(entry.label), ...named, text };
 };
 
 /**

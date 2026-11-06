@@ -18,6 +18,7 @@ import { FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot,
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
+import { figureName, namedIn, plotName } from '../../platform/language/figureNames.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from '../../platform/supports/graphReadOut.js';
 import { axisTitleSay, axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
 
@@ -180,6 +181,9 @@ export default function CoordinatePlane({
   // and no accidental coordinate reveal. Default remains true for every
   // existing plane.
   pointHoverEnabled = true,
+  // The plane's name: text, or { text, say } where a tool builds it from its
+  // own messages (figureNames.js). A Spanish reading says it in Spanish (AX05,
+  // slice 4); the platform's own names are messages already.
   ariaLabel = 'Coordinate plane',
   // EVERY PLANE CAN BE OPENED FULL WINDOW.
   //
@@ -275,6 +279,9 @@ export default function CoordinatePlane({
   const height = equalUnits ? equalUnitPlaneHeight({ width, pad, xMin: domainXMin, xMax: domainXMax, yMin: domainYMin, yMax: domainYMax, fallback: authoredHeight }) : authoredHeight;
   const innerH = height - pad * 2;
   const interactive = typeof onPlot === 'function';
+  // The plane's name and its English (figureNames.js, AX05 slice 4).
+  const name = figureName(ariaLabel);
+  const nameText = name.text;
 
   const domain = { xMin: domainXMin, xMax: domainXMax, yMin: domainYMin, yMax: domainYMax };
   const [view, setView] = useState(null);
@@ -652,14 +659,14 @@ export default function CoordinatePlane({
     regions: describedRegions,
     verticalLines: describedVerticals,
     horizontalLines: describedHorizontals,
-    label: ariaLabel,
+    label: nameText,
     hasUndescribedMarks: hasToolMarks,
     toolMarks: hasToolMarks ? toolMarks : null,
     emptyText: interactive ? 'Nothing is plotted yet.' : 'Nothing is plotted.',
   }), [
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
-    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarksKey,
+    nameText, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarksKey,
   ]);
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const axisTitles = { x: cleanAxisLabel(xAxisTitle), y: cleanAxisLabel(yAxisTitle) };
@@ -678,6 +685,9 @@ export default function CoordinatePlane({
   // where those messages can say it all (AX05, slice 2).
   const figureWords = useFigureWords();
   const described = describedIn(figureWords, spokenDescription, spokenSay);
+  // Its name, in the same language and marked with it where its messages say
+  // it all (AX05, slice 4): a plane the student plots on also says how.
+  const named = namedIn(figureWords, interactive ? plotName(name, { movable: canMovePoints }) : name);
   useReportGraphReadOut(Boolean(readOutReading));
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
@@ -831,7 +841,7 @@ export default function CoordinatePlane({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [enlargeable, Boolean(view), zoomable, interactive, canMovePoints],
   );
-  usePublishWorkViewCapabilities(`coordinate-plane:${ariaLabel}`, publishedCapabilities);
+  usePublishWorkViewCapabilities(`coordinate-plane:${nameText}`, publishedCapabilities);
 
   const plane = (
     <div ref={planeRef} style={{ position: 'relative', width: '100%' }}>
@@ -845,7 +855,8 @@ export default function CoordinatePlane({
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role={interactive ? 'application' : 'img'}
-        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.${canMovePoints ? ' Enter on a plotted point picks it up to move it.' : ''}` : ariaLabel}
+        aria-label={named.text}
+        lang={named.lang}
         aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
         onPointerDown={handlePointerDown}
@@ -1093,7 +1104,7 @@ export default function CoordinatePlane({
           show the description as a visible paragraph (it pushed a staged
           question's first step off a phone screen, PR #454). */}
       {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
-      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay }} />
+      <PublishFigureReading entry={{ kind: 'figure', label: nameText, labelSay: name.say, text: spokenDescription, say: spokenSay }} />
       <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'} lang={described.lang}>{describedContent(described)}</p>
 
       {showDataTable ? (
@@ -1206,7 +1217,7 @@ export default function CoordinatePlane({
    */
   return (
     <EnlargeableFigure
-      label={ariaLabel}
+      label={nameText}
       style={{ width: '100%' }}
       capabilities={{
         fitView: zoomable ? { label:'Fit View', onAction:resetView, disabled:!view, cameraOnly:true } : null,

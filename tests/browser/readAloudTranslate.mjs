@@ -40,6 +40,13 @@
 //   lang="en"    inside a Spanish description the item's own English words
 //                (the workspace's task) are marked lang="en", and nothing else
 //                is (AX05, slice 3).
+//   names, es    under that Spanish prompt each figure's name (its aria-label,
+//                and the name Read aloud says first) is Spanish too, and the
+//                element that holds it is marked lang="es": the DOL graph, the
+//                3D model, the graph workspace, the student's inequality graph
+//                as its task changes, and both number lines, whose English
+//                buttons stay marked lang="en"; in English every name is as
+//                before (AX05, slice 4).
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
@@ -112,6 +119,26 @@ const axDescription = async (page, selector) => {
     await cdp.detach();
   }
 };
+// The accessible name Chromium computes for an element: what a screen reader says first.
+const axName = async (page, selector) => {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+    if (!nodeId) return null;
+    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+    return nodes[0]?.name?.value || '';
+  } finally {
+    await cdp.detach();
+  }
+};
+// An element's name ({ label, lang, ax }): its aria-label, the language marked on it, and its accessible name.
+const nameOf = async (page, selector) => {
+  const element = page.locator(selector).first();
+  return { label: await element.getAttribute('aria-label'), lang: await element.getAttribute('lang'), ax: await axName(page, selector) };
+};
+// The name of what a figure's hidden description describes.
+const describedName = async (page, hidden, described) => nameOf(page, `${described}[aria-describedby~="${await page.locator(hidden).first().getAttribute('id')}"]`);
 // A figure's hidden description ({ text, lang }) and the accessible description of what it describes.
 const screenReaderDescription = async (page, hidden, described) => {
   const element = page.locator(hidden).first();
@@ -195,6 +222,8 @@ for (const device of DEVICES) {
     check(said.includes(description.replace(/−/g, 'negative ').split('. ')[1] || '\u0000'), `${device.name}: what is read is the figure's own description`, description);
     const english = await screenReaderDescription(page, '[data-graph-description]', 'svg');
     check(english.lang === null && english.ax === english.text && english.text.startsWith('x from −4 to 7'), `${device.name}: in English the screen-reader description is English, unmarked`, JSON.stringify(english));
+    const named = await describedName(page, '[data-graph-description]', 'svg');
+    check(named.label === 'Graph' && named.lang === null && named.ax === 'Graph', `${device.name}: in English the graph's name is as before, unmarked`, JSON.stringify(named));
     await context.close();
   }
 
@@ -218,6 +247,9 @@ for (const device of DEVICES) {
     check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 7 y el eje y, de −6 a 16. 1 curva. 1 círculo abierto y 1 círculo cerrado. Las posiciones no se leen mientras se pueda responder esta pregunta.', `${device.name}: the graph's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden));
     check(hidden.ax === hidden.text, `${device.name}: and it is the graph's accessible description`, hidden.ax);
     check(await page.locator('[data-graph-description] [lang]').count() === 0, `${device.name}: a description with no English words marks none`);
+    // Its name too, as Read aloud says it first (AX05, slice 4).
+    const named = await describedName(page, '[data-graph-description]', 'svg');
+    check(named.label === 'Gráfica' && named.lang === 'es' && named.ax === 'Gráfica', `${device.name}: the graph is named in Spanish, marked lang="es"`, JSON.stringify(named));
     await context.close();
   }
   {
@@ -246,6 +278,10 @@ for (const device of DEVICES) {
     check(!/inglés|3D model with|planos \d y \d/.test(said), `${device.name}: no English, no note, and no pair of planes named`, said.slice(0, 400));
     const hidden = await screenReaderDescription(page, '[data-threeplane-description]', 'svg[role="application"]');
     check(hidden.lang === 'es' && hidden.text.startsWith('Modelo 3D con los ejes x, y, z. Plano 1, azul: 2x menos y más 2z es igual a 15.') && (hidden.ax || '').startsWith(hidden.text), `${device.name}: the model's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden).slice(0, 400));
+    // The model's names, the control's and the drawing's (AX05, slice 4).
+    const model = await describedName(page, '[data-threeplane-description]', 'svg[role="application"]');
+    const drawing = await nameOf(page, 'svg[role="application"] g[role="img"]');
+    check(model.label === 'Tres planos en 3D' && model.lang === 'es' && model.ax === model.label && drawing.ax === 'Vista 3D de los tres planos', `${device.name}: the model and its drawing are named in Spanish, marked lang="es"`, JSON.stringify([model, drawing]));
     await context.close();
   }
   {
@@ -276,6 +312,8 @@ for (const device of DEVICES) {
     // (AX05, slice 3). Nothing else in it is marked.
     const marked = await page.locator('[data-graph-workspace-description] [lang]').evaluateAll((spans) => spans.map((span) => [span.getAttribute('lang'), span.textContent]));
     check(JSON.stringify(marked) === JSON.stringify([['en', 'Plot the point where x = 0']]), `${device.name}: the task's English words are marked lang="en", and nothing else`, JSON.stringify(marked));
+    const named = await describedName(page, '[data-graph-workspace-description]', 'svg[role="application"]');
+    check(named.label === 'Plano de coordenadas' && named.lang === 'es' && named.ax === named.label, `${device.name}: the workspace's plane is named in Spanish, marked lang="es" (AX05, slice 4)`, JSON.stringify(named));
     await context.close();
   }
   {
@@ -285,11 +323,18 @@ for (const device of DEVICES) {
     // work in Spanish as they build the boundary.
     const { page, context } = await open(device, 'q=inequalityes&role=classwork&support=translate');
     const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
-    const plane = 'svg[aria-label^="Student-constructed graph of the inequality"]';
+    // Named in Spanish (AX05, slice 4): whose graph, then what a tap does.
+    const plane = 'svg[aria-label^="Tu gráfica de la desigualdad"]';
+    const KEYS = 'Haz clic para marcar un punto, o mueve la cruz con las teclas de flecha y pulsa Enter para marcarlo. Pulsa Enter sobre un punto marcado para tomarlo y moverlo.';
     await read.click();
     const before = await lastSpoken(page);
     check(before?.lang === 'es' && (before?.text || '').includes('El eje x va de negativo 10 a 10 y el eje y, de negativo 10 a 10. Todavía no hay ninguna recta frontera dibujada. Las posiciones no se leen mientras se pueda responder esta pregunta.') && !/inglés|boundary line|Positions are not/.test(before?.text || ''),
       `${device.name}: the student's inequality graph is read in Spanish, with no note`, (before?.text || '').slice(0, 400));
+    check((before?.text || '').includes('Tu gráfica de la desigualdad. Marca el punto frontera 1 de la restricción 1. El eje x va de negativo 10 a 10') && !/Student|constructed|Plot |constraint/.test(before?.text || ''),
+      `${device.name}: Read aloud says the graph's name first, in Spanish`, (before?.text || '').slice(0, 400));
+    const named = await nameOf(page, plane);
+    check(named.label === `Tu gráfica de la desigualdad. Marca el punto frontera 1 de la restricción 1. ${KEYS}` && named.lang === 'es' && named.ax === named.label,
+      `${device.name}: the graph is named in Spanish, its keys too, marked lang="es"`, JSON.stringify(named));
     const empty = await screenReaderDescription(page, 'p[id^="mm-plane-desc-"]', plane);
     check(empty.lang === 'es' && empty.text === 'El eje x va de −10 a 10 y el eje y, de −10 a 10. Todavía no hay ninguna recta frontera dibujada. Las posiciones no se leen mientras se pueda responder esta pregunta.' && empty.ax === empty.text,
       `${device.name}: the graph's screen-reader description is the same Spanish, marked lang="es"`, JSON.stringify(empty));
@@ -314,7 +359,53 @@ for (const device of DEVICES) {
     await read.click();
     const after = (await lastSpoken(page))?.text || '';
     check(after.includes('Recta frontera 1: todavía no se ha elegido su estilo.') && !/inglés|Boundary line/.test(after), `${device.name}: and Read aloud says it in Spanish`, after.slice(0, 400));
+    // The name follows the next task, in Spanish.
+    const renamed = await nameOf(page, plane);
+    const renamedName = (renamed.label || '').replace(/\. Haz clic[\s\S]*$/, '');
+    check(renamed.lang === 'es' && renamed.label !== named.label && renamedName.startsWith('Tu gráfica de la desigualdad') && !/Student|Plot |constraint|Click/.test(renamed.label || '') && after.includes(`${renamedName}. El eje x`),
+      `${device.name}: once both points are placed the name follows the next step, in Spanish, and Read aloud says it`, JSON.stringify(renamed));
     await noSidewaysScroll(page, `${device.name} Spanish inequality graph`);
+    await context.close();
+  }
+
+  {
+    // The pick-a-point number line (AX05, slice 4): its name is Spanish,
+    // marked lang="es", and its buttons keep their English names, marked
+    // lang="en", as the tool's own words are English.
+    const { page, context } = await open(device, 'q=numberlinees&role=practice&support=translate');
+    const group = '[data-number-line-choices]';
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    // The marks are the item's (the engine draws them around the target).
+    check(/Recta numérica\. Recta numérica con puntos en [^.]+\. Todavía no hay ningún punto seleccionado\./.test(said) && !/Number line/.test(said), `${device.name}: the number line is named and read in Spanish`, said.slice(0, 300));
+    const named = await nameOf(page, group);
+    check(named.label === 'Recta numérica' && named.lang === 'es' && named.ax === named.label, `${device.name}: the number line is named in Spanish, marked lang="es"`, JSON.stringify(named));
+    const buttons = await page.locator(`${group} button`).evaluateAll((list) => list.map((button) => [button.getAttribute('lang'), button.getAttribute('aria-label')]));
+    check(buttons.length === 5 && buttons.every(([lang, label]) => lang === 'en' && /^Select -?\d+$/.test(label)), `${device.name}: its buttons keep their English names, marked lang="en"`, JSON.stringify(buttons));
+    const hidden = await screenReaderDescription(page, `${group} span[aria-hidden="true"][id]`, group);
+    check(hidden.lang === 'es' && hidden.text.startsWith('Recta numérica con puntos en') && hidden.ax === hidden.text, `${device.name}: its description is Spanish, marked lang="es"`, JSON.stringify(hidden));
+    await noSidewaysScroll(page, `${device.name} Spanish number line`);
+    await context.close();
+  }
+  {
+    // The interval number line (AX05, slice 4): its name from end to end, in
+    // Spanish; an endpoint the student places keeps its English name.
+    const { page, context } = await open(device, 'q=intervales&role=practice&support=translate');
+    // Its window is the tool's own (it fits the key): read, not assumed.
+    const line = 'svg[role="application"][aria-label^="Recta numérica de "]';
+    await page.locator(line).waitFor();
+    const named = await nameOf(page, line);
+    check(/^Recta numérica de −?[\d.]+ a −?[\d.]+$/.test(named.label || '') && named.lang === 'es' && named.ax === named.label, `${device.name}: the interval line is named in Spanish, marked lang="es"`, JSON.stringify(named));
+    // An endpoint placed from the keyboard (before any press, so the focus is the keyboard's).
+    await page.locator(line).focus();
+    await page.keyboard.press('Enter');
+    await page.locator(`${line} g[role="button"]`).first().waitFor({ timeout: 4000 }).catch(() => {});
+    const endpoints = await page.locator(`${line} g[role="button"]`).evaluateAll((list) => list.map((button) => [button.getAttribute('lang'), button.getAttribute('aria-label')]));
+    check(endpoints.length === 1 && endpoints[0][0] === 'en' && /^(?:Closed|Open) pending endpoint at /.test(endpoints[0][1] || ''), `${device.name}: an endpoint keeps its English name, marked lang="en"`, JSON.stringify(endpoints));
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(said.includes('Recta numérica. Recta numérica de ') && !/Number line/.test(said), `${device.name}: Read aloud says its name in Spanish`, said.slice(0, 300));
+    await noSidewaysScroll(page, `${device.name} Spanish interval line`);
     await context.close();
   }
 

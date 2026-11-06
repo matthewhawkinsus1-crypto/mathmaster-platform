@@ -16,7 +16,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { ONE_CONSTRAINT_WORDS, wordsFor } from '../../src/tools/systemsWorkspace/inequalitySystemWords.js';
-import { inequalityGraphMarksText } from '../../src/tools/systemsWorkspace/inequalityGraphMarks.js';
+import { inequalityGraphMarksText, inequalityGraphName } from '../../src/tools/systemsWorkspace/inequalityGraphMarks.js';
 import { buildSystemsWorkspaceReview } from '../../src/tools/shared/reviews/systemsWorkspaceReview.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { closeEngine, loadEngine } from './helpers/actionBarRender.mjs';
@@ -89,7 +89,11 @@ test('every sentence with a one-constraint wording is one the screen says, throu
   assert.match(sources.flow, /\n\s*model: 'Write the constraints',/);
   assert.match(sources.mode, /onClick=\{sendModel\} disabled=\{!modelingEntriesReady\}>\{said\('Graph these constraints'\)\}<\/button>/);
   assert.match(sources.mode, /onClick=\{reopenModeling\}>\{said\('Edit constraints'\)\}<\/button>/);
-  assert.match(sources.mode, /const graphLabel = `Student-constructed graph of \$\{said\('the inequality system'\)\}/);
+  // The graph's name is built from messages (AX05, slice 4), its one-constraint
+  // wording through the same table; the screen's name for each count is held
+  // below (graphName).
+  assert.equal(inequalityGraphName({ constraintCount: 1 }).text, `Student-constructed graph of ${wordsFor(1)('the inequality system')}`);
+  assert.equal(inequalityGraphName({ constraintCount: 2 }).text, 'Student-constructed graph of the inequality system');
   // Both reviews are told how many constraints there are.
   assert.match(region(sources.review, 'const studentBuildReview = ', 'const inequalitiesReview = '), /const said = wordsFor\(constraintCount\);[\s\S]*title: said\('Inequality-system solution'\),/);
   assert.match(region(sources.review, 'const legacyInequalitiesReview = ', 'const studentBuildReview = '), /const said = wordsFor\(lines\.length\);[\s\S]*title: said\('Inequality-system solution'\),/);
