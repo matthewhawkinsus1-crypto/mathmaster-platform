@@ -33,13 +33,14 @@
  */
 
 const OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|]/;
-// Read aloud (speechText.js) also takes composition and union as mathematics,
-// so (f∘g)(x) and (−∞, 0) ∪ (0, ∞) reach the reader whole: "f composed with g
-// of x", and a union's pieces heard as intervals (walkthrough 2026-11-06,
-// P-1: "( f ∘ g ) the quantity x"). Translation keeps them as text: the
-// Spanish pack's lines hold them between the masked mathematics
-// ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so its segments must not move.
-const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪]/;
+// Read aloud (speechText.js) also takes composition, union and membership as
+// mathematics, so (f∘g)(x) and (−∞, 0) ∪ (0, ∞) reach the reader whole: "f
+// composed with g of x", and a union's pieces heard as intervals (walkthrough
+// 2026-11-06, P-1: "( f ∘ g ) the quantity x"; "x ∈ {…}" reached the voice
+// raw). Translation keeps them as text: the Spanish pack's lines hold them
+// between the masked mathematics ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so its
+// segments must not move.
+const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪∈]/;
 const NAMED_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs', 'exp']);
 // Letters that are common one-letter WORDS in a language. Alone in prose they
 // are text: English "a" and "I"; Spanish "y" (and), "o" (or), "a" (to), "e",
@@ -125,7 +126,7 @@ const matchingClose = (text, start) => {
 /**
  * Split text into ordered segments `{ kind: 'text' | 'math', value }`.
  * Joining the values always reproduces the input exactly. `speech` is Read
- * aloud's split: ∘ and ∪ are mathematics too (SPEECH_OPERATOR).
+ * aloud's split: ∘, ∪ and ∈ are mathematics too (SPEECH_OPERATOR).
  */
 export const segmentMathText = (input, { language = 'en', speech = false } = {}) => {
   const words = oneLetterWordsFor(language);

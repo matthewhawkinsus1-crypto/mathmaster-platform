@@ -147,6 +147,22 @@ test('a set in plain braces is read as LaTeX\'s \\{…\\} is: its members, from 
   assert.equal(speechTextFor('{(−3, 26), (2, 11)}', es), 'el conjunto el punto negativo 3, 26, el punto 2, 11 fin de conjunto');
 });
 
+// The set's neighbour in L1 Day 2 (walkthrough part 1, F-READ-INTERVALS):
+// "x ∈ {−2, 0, 2, 4}" reached the voice as "x ∈ { negative 2, … }".
+test('∈ is "is in", as LaTeX\'s \\in is, and what follows it is a set or an interval', () => {
+  assert.equal(
+    speechTextFor('Complete the table for f(x) = 0.5x + 1 over x ∈ {−2, 0, 2, 4}, plot only those points.'),
+    'Complete the table for f of x equals 0.5x plus 1 over x is in the set negative 2, 0, 2, 4 end set, plot only those points.',
+  );
+  assert.equal(speechTextFor('x ∈ {1, 2}'), speechTextFor('$x \\in \\{1, 2\\}$'), 'as the LaTeX');
+  assert.equal(speechTextFor('x ∈ (2, 5)'), 'x is in the interval from 2 to 5, not including 2 or 5');
+  assert.equal(speechTextFor('(x, y) ∈ S'), 'the point x, y is in S', 'the pair before it is still a point');
+  // Spanish joins "a" and "de" with the article: "pertenece al conjunto".
+  assert.equal(speechTextFor('x ∈ {−2, 0, 2, 4}', es), 'x pertenece al conjunto negativo 2, 0, 2, 4 fin de conjunto');
+  assert.equal(speechTextFor('x ∈ [0, 5)', es), 'x pertenece al intervalo de 0 a 5, que incluye 0 pero no 5');
+  assert.equal(mathToSpeech('x \\in \\{1, 2\\}', es), 'x pertenece al conjunto 1, 2 fin de conjunto');
+});
+
 // Translate's lines are written with ∘ and ∪ between the masked mathematics
 // ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so only Read aloud reads them as part of
 // it: a Spanish sentence still translates, and is then read in Spanish words.
@@ -167,7 +183,7 @@ test('Translate still finds its Spanish lines, and Read aloud reads them', async
 // the closed review. None may reach the voice as raw notation, and every
 // pair that can only be an interval must be said as one.
 const MODULE = new URL('../../teacher-import-jsons/algebra2-honors-module1/', import.meta.url);
-const RAW = /[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ∘∪{}]|log sub|log_|(?:the point|el punto) [^,.;]*infinit/u;
+const RAW = /[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ∘∪∈{}]|log sub|log_|(?:the point|el punto) [^,.;]*infinit/u;
 const ONLY_AN_INTERVAL = /\[[^()[\],;]+,[^()[\],;]+[\])]|\([^()[\],;]*∞[^()[\],;]*,[^()[\],;]+[\])]|\([^()[\],;]+,[^()[\],;]*∞[^()[\],;]*[\])]/gu;
 const moduleTexts = () => readdirSync(MODULE).filter((name) => name.endsWith('.json')).flatMap((name) => {
   const { questions } = parseAssignmentBlueprintText(readFileSync(new URL(name, MODULE), 'utf8'));

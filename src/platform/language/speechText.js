@@ -34,7 +34,7 @@ const WORDS = {
     approx: 'is approximately equal to', cong: 'is congruent to', sim: 'is similar to', parallel: 'is parallel to',
     perp: 'is perpendicular to', angle: 'angle', triangle: 'triangle', in: 'is in', theta: 'theta',
     setOpen: 'the set', setClose: 'end set', squareRootFn: 'the square root of', not: 'not', hat: 'hat',
-    union: 'union', interval: (from, to) => `the interval from ${from} to ${to}`,
+    union: 'union', interval: (from, to) => `the interval from ${from} to ${to}`, contract: (text) => text,
     // Which ends an interval holds ("[2, 5)" includes 2 but not 5, as the
     // glossary says it). `only(a, b)`: a is included and b is not.
     ends: {
@@ -60,6 +60,8 @@ const WORDS = {
     // (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). "incluye" is the
     // pack's verb for an endpoint ("{2} incluye {3}").
     union: 'unión', interval: (from, to) => `el intervalo de ${from} a ${to}`,
+    // "pertenece al conjunto", "del intervalo": a and de join the article.
+    contract: (text) => text.replace(/\b(a|de) el (conjunto|intervalo)\b/g, (match, word, noun) => `${word === 'a' ? 'al' : 'del'} ${noun}`),
     ends: {
       both: (a, b) => `que incluye ${a} y ${b}`, neither: (a, b) => `que no incluye ${a} ni ${b}`,
       only: (a, b) => `que incluye ${a} pero no ${b}`, one: (a) => `que incluye ${a}`, none: (a) => `que no incluye ${a}`,
@@ -348,9 +350,11 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
   // A bracket holding only the symbol names the symbol: "a union (∪)".
   text = text.replace(/\(\s*([∘∪])\s*\)/g, ' $1 ');
   const matrixRows = /\[\s*\[|\]\s*\]/.test(text);
-  text = text.replace(INTERVAL_PAIR, (match, open, left, right, close) => {
+  text = text.replace(INTERVAL_PAIR, (match, open, left, right, close, offset, whole) => {
     const square = open === '[' || close === ']';
-    const interval = square ? !matrixRows : (intervals || /∞/.test(`${left}${right}`));
+    // What follows "x ∈" is a set or an interval, never a point.
+    const afterIn = /∈\s*$/.test(whole.slice(0, offset));
+    const interval = square ? !matrixRows : (intervals || afterIn || /∞/.test(`${left}${right}`));
     return interval ? intervalSpeech(open, left, right, close, w) : match;
   });
   // Coordinates: a bracket group of two or three comma-separated values.
@@ -378,7 +382,9 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     .replace(new RegExp(`\\(\\s*([${letters}])\\s*∘\\s*([${letters}])\\s*\\)(?!\\s*\\()`, 'g'), ' $1 ∘ $2 ')
     .replace(/∘/g, ` ${w.composed} `)
     // A pause before "union", so a piece's "not including 0" is heard as its own.
-    .replace(/∪/g, (match, offset, whole) => `${/\S/.test(whole.slice(0, offset)) ? PAUSE : ''} ${w.union} `);
+    .replace(/∪/g, (match, offset, whole) => `${/\S/.test(whole.slice(0, offset)) ? PAUSE : ''} ${w.union} `)
+    // "x ∈ {−2, 0, 2}" is "x is in the set …", as LaTeX's \in is.
+    .replace(/∈/g, ` ${w.in} `);
   // f(g(2)) is applied from the inside out: each pass reads one level.
   const application = new RegExp(`(^|[^A-Za-z])([${letters}])\\(([^()]+)\\)`, 'g');
   for (let pass = 0; pass < 4; pass += 1) {
@@ -605,7 +611,7 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '', interva
   const reduced = latexToSpeech(writtenNotationToSpokenForm(raw, w), w);
   // A union's pieces are intervals, (−3, 1) ∪ (2, 5) too; a union of sets is not.
   const union = reduced.includes('∪') && !reduced.includes(w.setOpen);
-  return plainMathToSpeech(reduced, w, names, { intervals: intervals || union }).replace(/\s+/g, ' ').trim();
+  return w.contract(plainMathToSpeech(reduced, w, names, { intervals: intervals || union }).replace(/\s+/g, ' ').trim());
 };
 
 /**
@@ -684,6 +690,7 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
     // "name the point (0, 7)" — the prose already said "the point"; so for
     // "the set {1, 2}", "on the interval [0, 5)" and "a union (∪)".
     .replace(/\b(the point|el punto|the set|el conjunto|the interval|el intervalo|union|unión) \1\b/gi, '$1')
+    .replace(/[\s\S]*/, w.contract)
     .trim();
 };
 
