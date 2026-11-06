@@ -537,6 +537,9 @@
               "id": "ineq",
               "label": "An inequality for the number of boxes, b, in this region",
               "answer": "b<=420",
+              "acceptedAnswers": [
+                "0<=b<=420"
+              ],
               "inputProfile": "inequality"
             },
             {

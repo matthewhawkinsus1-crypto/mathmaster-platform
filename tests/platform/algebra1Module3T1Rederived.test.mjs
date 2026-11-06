@@ -14,6 +14,9 @@
  *   W2  L3 Honors CW 14's worked steps read "4800 − 20m > 2000 → −20m < −2800
  *       → m < 140": the symbol turned at the subtraction, in the lesson whose
  *       point is that only multiplying or dividing by a negative turns it.
+ *   W3  L3 CW 4 asks for "an inequality for the number of boxes, b, in this
+ *       region" of a graph drawn from b = 0, and its box's example is the
+ *       compound "a ≤ x ≤ b". 0 ≤ b ≤ 420, the region exactly, was marked wrong.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,6 +27,8 @@ import { all, create } from 'mathjs';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
+import { answerCandidatesForField } from '../../functions/shared/answerUtils.mjs';
+import { inferRequiredAnswerSymbols } from '../../src/platform/interaction/answerEntryTools.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIR = path.resolve(here, '../../teacher-import-jsons/algebra1-module3');
@@ -159,4 +164,33 @@ test('T1 L1 and L3, regular and Honors: every statement in a worked chain (a →
       assert.equal(solved.set, first.solved.set, `${key} ${question}: "${first.statement}" is ${first.solved.set}, but the step "${statement}" is ${solved.set}`);
     });
   });
+});
+
+test('T1 L3 CW 4: the region below y = 1600 is graded as b ≤ 420 or, bounded by the graph, 0 ≤ b ≤ 420, and a near miss is not', () => {
+  const question = compileTeacherImport(RAW['T1 L3']).questions.find((candidate) => candidate.questionId === 'm3l3-cw-4');
+  assert.ok(question, 'm3l3-cw-4 survives the import');
+  // The region, from the graph the student reads: f(b) = 3.75b + 25 drawn from
+  // its domain's start, up to where it meets the horizontal line y = 1600.
+  const [sales, goal] = question.graph.functions;
+  assert.deepEqual([goal.m, goal.b], [0, 1600]);
+  const meets = exact.divide(exact.fraction(goal.b - sales.b), exact.fraction(sales.m));
+  assert.equal(shown(meets), '420');
+  const start = sales.domain.min;
+  assert.equal(start, 0, 'the graph starts at 0 boxes');
+  const field = question.answerFields.find((candidate) => candidate.id === 'ineq');
+  const right = Object.fromEntries(question.answerFields.map((candidate) => [candidate.id, String(candidate.answer)]));
+  const verdict = (ineq) => {
+    const answers = { ...right, ineq };
+    const browser = gradeMultiAnswerResponse(question, answers).isCorrect;
+    const server = gradeServerResponse({ question, response: { kind: 'fields', fields: Object.entries(answers).map(([id, value]) => ({ id, value })) } }).isCorrect;
+    assert.equal(server, browser, `${ineq}: browser and server agree`);
+    return browser;
+  };
+  [`b <= ${shown(meets)}`, `${start} <= b <= ${shown(meets)}`, `${start}\\le b\\le ${shown(meets)}`, `${start} ≤ b ≤ ${shown(meets)}`, `${shown(meets)} >= b >= ${start}`]
+    .forEach((ineq) => assert.equal(verdict(ineq), true, `${ineq} is the region`));
+  ['0 < b <= 420', '0 <= b < 420', '0 <= b <= 421', '1 <= b <= 420', 'b >= 0', 'b < 420']
+    .forEach((ineq) => assert.equal(verdict(ineq), false, `${ineq} is not the region`));
+  // On a phone the "Needed for this answer" keys are read from every accepted
+  // answer: the bounded form needs no key the key itself did not.
+  assert.deepEqual(inferRequiredAnswerSymbols(answerCandidatesForField(field)).sort(), inferRequiredAnswerSymbols([field.answer]).sort());
 });
