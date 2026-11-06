@@ -134,3 +134,19 @@ test('a Systems Workspace item in other letters never asks the student for x-val
     assert.ok((question.hints || []).some((hint) => question.variables.some((variable) => new RegExp(`\\b${variable}-intercept|values of ${variable}\\b`).test(typeof hint === 'string' ? hint : hint.text || ''))), `${lesson} ${question.questionId}`);
   });
 });
+
+// The task card shows a prompt as one paragraph: its line breaks become
+// spaces (QuestionPrompt). A prompt that lists systems or steps on lines of
+// their own therefore ends each line as a sentence, or the card reads
+// "6x − 2y = a System B: kx + 2y = 7" and Ana's steps run into each other.
+test('a prompt written on several lines still separates them on the task card: every line ends a sentence', () => {
+  const multiLine = Object.entries(LESSONS).flatMap(([lesson, questions]) => questions
+    .filter((question) => typeof question.prompt === 'string' && question.prompt.includes('\n'))
+    .map((question) => ({ lesson, question })));
+  assert.ok(multiLine.length >= 4, `${multiLine.length} multi-line prompts`);
+  multiLine.forEach(({ lesson, question }) => {
+    question.prompt.split('\n').map((line) => line.trim()).filter(Boolean).forEach((line) => {
+      assert.match(line, /[.:?!]$/, `${lesson} ${question.questionId}: "${line}" runs into the next line on the card`);
+    });
+  });
+});

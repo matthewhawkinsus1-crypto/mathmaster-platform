@@ -896,7 +896,7 @@
           ],
           "dok": 3,
           "difficultyBand": 4,
-          "prompt": "Honors — Parameters decide the case. Use substitution with a letter in place of a number, and justify each answer with the statement the substitution leaves.\nSystem A:  y = 3x − 2  and  6x − 2y = a\nSystem B:  kx + 2y = 7  and  y = −2x + 1",
+          "prompt": "Honors — Parameters decide the case. Use substitution with a letter in place of a number, and justify each answer with the statement the substitution leaves.\nSystem A:  y = 3x − 2  and  6x − 2y = a.\nSystem B:  kx + 2y = 7  and  y = −2x + 1.",
           "responses": [
             {
               "id": "a",
@@ -1981,7 +1981,7 @@
           ],
           "dok": 3,
           "difficultyBand": 4,
-          "prompt": "Parameters. Use substitution with the letter left in, and decide each value from the statement that is left.\nSystem C:  y = 4x + 1  and  8x − 2y = b\nSystem D:  3x + my = 5  and  y = x − 1",
+          "prompt": "Parameters. Use substitution with the letter left in, and decide each value from the statement that is left.\nSystem C:  y = 4x + 1  and  8x − 2y = b.\nSystem D:  3x + my = 5  and  y = x − 1.",
           "responses": [
             {
               "id": "b",
@@ -2137,7 +2137,7 @@
           ],
           "dok": 3,
           "difficultyBand": 4,
-          "prompt": "Error analysis. Ana solved 3x + 2y = 4 and 5x − 4y = 14 by substitution:\nStep 1:  y = (4 − 3x)/2\nStep 2:  5x − 4 · (4 − 3x)/2 = 14, so 5x − 2(4 − 3x) = 14\nStep 3:  5x − 8 − 6x = 14\nStep 4:  −x = 22, so x = −22\nFind her first error, explain it, and correct the solution.",
+          "prompt": "Error analysis. Ana solved 3x + 2y = 4 and 5x − 4y = 14 by substitution:\nStep 1:  y = (4 − 3x)/2.\nStep 2:  5x − 4 · (4 − 3x)/2 = 14, so 5x − 2(4 − 3x) = 14.\nStep 3:  5x − 8 − 6x = 14.\nStep 4:  −x = 22, so x = −22.\nFind her first error, explain it, and correct the solution.",
           "responses": [
             {
               "id": "step",
@@ -2211,7 +2211,7 @@
           ],
           "dok": 3,
           "difficultyBand": 4,
-          "prompt": "Strategy. For each system, choose the most efficient first move for substitution, and justify it. Then solve System E.\nSystem E:  3x − y = 7  and  2x + 5y = 16\nSystem F:  4x + 6y = 2  and  x − 3y = 5\nSystem G:  2x + 3y = 12  and  5x − 2y = 11",
+          "prompt": "Strategy. For each system, choose the most efficient first move for substitution, and justify it. Then solve System E.\nSystem E:  3x − y = 7  and  2x + 5y = 16.\nSystem F:  4x + 6y = 2  and  x − 3y = 5.\nSystem G:  2x + 3y = 12  and  5x − 2y = 11.",
           "responses": [
             {
               "id": "e",
