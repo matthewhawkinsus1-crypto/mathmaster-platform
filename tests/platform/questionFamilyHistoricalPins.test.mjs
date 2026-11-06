@@ -13,7 +13,10 @@
  * linear.twoStepEquation@2 and systems.algebraic2x2@1 existed — by
  * scripts/capture-question-family-golden.mjs. Those three were appended when
  * they shipped (`recordedLater`), with every concept setting a slot can ask
- * for (solutionCase "none", distribute: true, …). This suite recomputes the
+ * for (solutionCase "none", distribute: true, …). So were both versions of
+ * matrices.arrayRecordTotals, when its version 2 shipped (the matrices
+ * Warm-Up's rewritten choices): version 1, as shipped at 32cb440e, is the
+ * version stored Recovery bindings keep. This suite recomputes the
  * record from the current build and requires byte equality, then replays
  * every recorded pin through the three code paths that replay pins in
  * production.
@@ -61,14 +64,18 @@ const SHIPPED_AT_9396A77 = Object.freeze([
 
 test('the record covers every family version that shipped before the special-case work, and the versions that work added', () => {
   const later = (golden.recordedLater || []).flatMap((entry) => entry.versions);
-  assert.deepEqual(later, ['linear.multiStepEquation@2', 'linear.twoStepEquation@2', 'systems.algebraic2x2@1']);
+  assert.deepEqual(later, [
+    'linear.multiStepEquation@2', 'linear.twoStepEquation@2', 'systems.algebraic2x2@1',
+    'matrices.arrayRecordTotals@1', 'matrices.arrayRecordTotals@2',
+  ]);
   assert.deepEqual([...recordedKeys].sort(), [...SHIPPED_AT_9396A77, ...later].sort());
   recordedKeys.forEach((key) => assert.ok(familyFor(key), `${key} is still registered`));
   // A version 1 record carries no concept settings: it is exactly what was captured.
   SHIPPED_AT_9396A77.forEach((key) => assert.equal(golden.families[key].profiles, undefined, key));
-  // The added versions record every concept setting a slot can ask for.
+  // The added versions record every concept setting a slot can ask for (the
+  // matrices family has none).
   later.forEach((key) => {
-    assert.deepEqual(Object.keys(golden.families[key].profiles).sort(), goldenConceptProfiles(familyFor(key)).map((profile) => profile.label).sort(), key);
+    assert.deepEqual(Object.keys(golden.families[key].profiles || {}).sort(), goldenConceptProfiles(familyFor(key)).map((profile) => profile.label).sort(), key);
   });
   assert.ok(golden.families['linear.multiStepEquation@2'].profiles['solutionCase="mixed"'], 'the mixed case is pinned');
   assert.ok(golden.families['systems.algebraic2x2@1'].profiles['solutionCase="infinite"'], 'and the systems cases');

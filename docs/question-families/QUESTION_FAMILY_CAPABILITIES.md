@@ -52,6 +52,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `lines.rotationSlopes` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 288 — every student unique | — |
 | `matrices.addition` | v1 · what an unpinned reference means | — | — | `matrixLab` (operate) | yes — shared server grader | yes | about 956,718 — every student unique | — |
 | `matrices.arrayRecordTotals` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 907,031 — every student unique | — |
+| `matrices.arrayRecordTotals` | v2 · only when pinned (`"version": 2`) | — | — | `multiAnswer` | yes — shared server grader | yes | about 906,562 — every student unique | — |
 | `matrices.multiplication` | v1 · what an unpinned reference means | — | — | `matrixLab` (operate) | yes — shared server grader | yes | about 140,390 — every student unique | — |
 | `matrices.singularSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 91,328 — every student unique | — |
 | `matrices.solveSystem3x3` | v1 · what an unpinned reference means | — | — | `matrixLab` (solve) | yes — shared server grader | yes | about 60,390 — every student unique | — |
@@ -849,6 +850,25 @@ Read two arrays of data: totals over both and the smallest.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | about 907,031 | — |
+
+### `matrices.arrayRecordTotals` v2
+
+Read two arrays of data: totals over both and the smallest.
+
+- **Pinning:** used only by a slot that says `"version": 2`; an unpinned reference still means v1, so no existing question changes.
+- **Recovery binding:** a new Recovery binding of a static question takes this version in place of v1; a stored binding keeps the version it was certified with.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.3B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 906,562 | — |
 
 ### `matrices.multiplication` v1
 

@@ -136,18 +136,24 @@ export const flattenAssignmentQuestions = (assignment = {}) => list(assignment?.
  * only a prepared migration or an author may pin one. A family whose first
  * versions wrote only what their slot told them, and so could not recognize
  * (linear.representationSort and linear.multipleRepresentations, recognizing
- * from version 2, RC01), is a candidate at the version that first could. A
- * binding always stores the version it was certified with, so this never
- * moves a question or a pin.
+ * from version 2, RC01), is a candidate at the version that first could.
+ * The one exception is a later version that declares it REPLACES that one
+ * (`recovery.replaces`): written because the earlier version shows students
+ * something they must not be shown again (matrices.arrayRecordTotals v2, the
+ * matrices Warm-Up's rewritten choices). It is then the candidate, and the
+ * question it recognizes is bound to it. A binding always stores the version
+ * it was certified with, so this never moves a stored binding, a question or
+ * a pin.
  */
 export const recoveryCandidateFamilies = () => {
   const recognizing = allRegisteredQuestionFamilies()
     .filter((family) => typeof family.recognize === 'function' && family.recovery?.eligible);
-  const first = new Map();
-  recognizing.forEach((family) => {
-    if (!first.has(family.id) || family.version < first.get(family.id).version) first.set(family.id, family);
+  const chosen = new Map();
+  [...recognizing].sort((a, b) => a.version - b.version).forEach((family) => {
+    const current = chosen.get(family.id);
+    if (!current || list(family.recovery.replaces).includes(current.version)) chosen.set(family.id, family);
   });
-  return recognizing.filter((family) => first.get(family.id) === family);
+  return recognizing.filter((family) => chosen.get(family.id) === family);
 };
 
 /*

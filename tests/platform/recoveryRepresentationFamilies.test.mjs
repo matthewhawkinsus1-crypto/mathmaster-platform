@@ -189,13 +189,18 @@ test('under the slot\'s own task ("authored"), version 2 writes exactly what ver
   }
 });
 
+// The one exception is a version that declares it replaces an earlier one for
+// Recovery (`recovery.replaces`): matrices.arrayRecordTotals v2, the matrices
+// Warm-Up's rewritten choices (matricesArrayRecordTotalsVersions.test.mjs).
 test('the Recovery planner\'s candidates: each family at the first version that recognizes — version 1 for every family that always did, version 2 for these two', () => {
   const candidates = recoveryCandidateFamilies();
   const keys = candidates.map((family) => `${family.id}@${family.version}`);
   assert.ok(keys.includes('linear.representationSort@2') && keys.includes('linear.multipleRepresentations@2'));
   assert.equal(new Set(candidates.map((family) => family.id)).size, candidates.length, 'one version per family');
   const recognizing = allRegisteredQuestionFamilies().filter((family) => typeof family.recognize === 'function' && family.recovery.eligible);
-  for (const family of candidates) {
+  const replacing = candidates.filter((family) => family.recovery.replaces.length);
+  assert.deepEqual(replacing.map((family) => `${family.id}@${family.version}`), ['matrices.arrayRecordTotals@2'], 'only a version that says it replaces one is chosen over it');
+  for (const family of candidates.filter((candidate) => !replacing.includes(candidate))) {
     const versions = recognizing.filter((other) => other.id === family.id).map((other) => other.version);
     assert.equal(family.version, Math.min(...versions), `${family.id}: the first version that recognizes`);
     if (family.id !== SORT.id && family.id !== BOARD.id) assert.equal(family.version, 1, `${family.id} is still a candidate at version 1`);

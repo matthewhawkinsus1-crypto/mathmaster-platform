@@ -4432,6 +4432,50 @@
       "declared": {}
     },
     {
+      "id": "matrices.arrayRecordTotals",
+      "version": 2,
+      "title": "Read two arrays of data: totals over both and the smallest",
+      "alignments": [
+        "A2.3B"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": [],
+        "replaces": [
+          1
+        ]
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 906562,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "matrices.multiplication",
       "version": 1,
       "title": "Is a matrix product defined? Its size and its entries",

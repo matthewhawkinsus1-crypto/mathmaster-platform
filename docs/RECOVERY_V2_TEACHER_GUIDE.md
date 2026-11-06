@@ -219,6 +219,22 @@ ticket (inverses and compositions chosen from written-out choices) have no
 Recovery family yet; the exit ticket's Q3 ("are these inverses?") always has the
 answer "yes" in fresh versions of the same pair, so it needs your decision first.
 
+### Solving Systems with Matrices (Algebra II Honors): Warm-Up Q1's choices
+
+Warm-Up Q1 asks whether Ms. Tanaka's arrays give the same information as Mr.
+Lopez's sentences. Its two wrong choices were rewritten, so the right one is no
+longer the longest: "No — the arrays lose the card values, so 230 could be any
+card" and "No — the arrays show only December, so November is missing". Its
+Recovery versions now have the same kind of choices, with each version's own
+numbers.
+
+- A new assignment of this lesson gets them when you create it.
+- An assignment whose Recovery you already prepared keeps its earlier versions,
+  with the old choices, until you import the rewritten lesson again. Warm-Up
+  Q1 then reads "not ready — the question changed after its Recovery was
+  prepared": press **Prepare Recovery…** and approve. The other five questions
+  keep the Recovery they have.
+
 ## Seeing who can recover
 
 In the assignment details, **Show who can recover in (class)** lists, for the
