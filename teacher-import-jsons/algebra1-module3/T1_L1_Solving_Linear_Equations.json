@@ -693,7 +693,8 @@
             {
               "id": "chk",
               "label": "Check x = −1: the value of 4(3x + 2) — and of 8x + 4 — when x = −1",
-              "answer": "-4"
+              "answer": "-4",
+              "placeholder": "a number"
             }
           ],
           "hints": [

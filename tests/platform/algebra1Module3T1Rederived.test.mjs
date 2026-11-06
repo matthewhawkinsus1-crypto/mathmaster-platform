@@ -19,6 +19,8 @@
  *       compound "a ≤ x ≤ b". 0 ≤ b ≤ 420, the region exactly, was marked wrong.
  *   W4  L1 Warm-Up 3 checks a value in a linear equation, and its review named
  *       the slip "−3² is computed instead of (−3)²": nothing in it is squared.
+ *   W5  L1 CW 8's check box (regular and Honors) is keyed −4, and an empty
+ *       number box shows "For example -4." with -4 in the box: the answer.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,6 +33,8 @@ import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryRespons
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { answerCandidatesForField } from '../../functions/shared/answerUtils.mjs';
 import { inferRequiredAnswerSymbols } from '../../src/platform/interaction/answerEntryTools.js';
+import { describeBoxPlaceholder } from '../../src/platform/interaction/answerFormatHints.js';
+import { matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 import { resolveQuestionFamilyDefinition } from '../../functions/shared/questionFamilyInstance.mjs';
 import { buildFamilyQuestion, createFamilyInstanceSequence } from '../../functions/shared/questionFamilyEngine.mjs';
 
@@ -214,4 +218,23 @@ test('T1 L1 Warm-Up 3, regular and Honors: the review names a slip a check by su
     }
     assert.doesNotMatch(slot.solutionReview.commonError, POWER, `${key}: ${slot.solutionReview.commonError}`);
   });
+});
+
+test('T1 L1 and L3, regular and Honors: no hand-written answer box shows its own answer as its example', () => {
+  let boxes = 0;
+  const showsAnswer = [];
+  Object.entries(RAW).forEach(([key, text]) => {
+    compileTeacherImport(text).questions
+      .filter((question) => question.type === 'multiAnswer' && !question.questionFamily)
+      .forEach((question) => (question.answerFields || [])
+        .filter((field) => !(field.options?.length || field.type === 'choice' || field.inputProfile === 'choice'))
+        .forEach((field) => {
+          boxes += 1;
+          // What the empty box shows: its author's placeholder, or the format's example.
+          const { placeholder } = describeBoxPlaceholder(field, { prompt: question.prompt });
+          if (placeholder && matchesFieldAnswer(placeholder, field)) showsAnswer.push(`${key} ${question.questionId}.${field.id}: "${placeholder}"`);
+        }));
+  });
+  assert.ok(boxes >= 80, `${boxes} typed boxes`);
+  assert.deepEqual(showsAnswer, [], 'an empty box never shows a value its own grader accepts');
 });
