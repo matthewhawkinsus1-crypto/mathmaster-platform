@@ -92,6 +92,7 @@ import {
 import { displayRelation, formatInequality, prettifyInequalityText } from '../../systemsWorkspace/inequalityFormat.js';
 // One inequality is not a system: the review speaks of it as the screen does.
 import { wordsFor } from '../../systemsWorkspace/inequalitySystemWords.js';
+import { DEFAULT_AXIS_NAMES, systemAxisNames } from '../../systemsWorkspace/systemAxisNames.js';
 
 export const implemented = true;
 
@@ -483,7 +484,31 @@ const checkSentence = (label, text, sides) => (
 
 /* ------------------------------------------------------------------ linear */
 
-const lineText = (m, b) => `y = ${expressionText([[m, 'x']], b)}`;
+/*
+ * IN THE ITEM'S OWN LETTERS (platform-polish-3; F-SW-REVIEW-LETTERS in the
+ * 2026-11-06 Algebra I M3 T2 walkthrough). An item that names its variables
+ * (`variables: ['s', 'a']`: 5s + 10a = 3000 and s + a = 450) is drawn in them,
+ * on the axes, in every box and in the hints (systemAxisNames.js). Its worked
+ * solution said "y = −0.5x + 300 … substitute two x-values … Collect the
+ * x-terms … x = 300", in letters the student never saw. It now says
+ * "a = −0.5s + 300 … two s-values … the a-intercept … s = 300". An item that
+ * names none keeps x and y. And each equation is named as the item writes it
+ * (`equationLabels`, the labels on the student's graph) when that is another
+ * form of the line: "Equation 1, 5s + 10a = 3000, is a = −0.5s + 300". A
+ * label is named only when it is the graded line (Pre-Flight's check,
+ * toolSchemas.js linearConstructErrors, done again here).
+ */
+const lineText = (m, b, { x, y } = DEFAULT_AXIS_NAMES) => `${y} = ${expressionText([[m, x]], b)}`;
+const equationIntro = (question, index, m, b, names) => {
+  const text = lineText(m, b, names);
+  const label = Array.isArray(question.equationLabels) ? String(question.equationLabels[index] ?? '').trim() : '';
+  const form = label ? linearEquationForm(label.replace(/[−–]/g, '-'), [names.x, names.y]) : null;
+  const vertical = form ? coefficientOf(form, names.y) : 0;
+  const sameLine = vertical !== 0 && near(-coefficientOf(form, names.x) / vertical, m) && near(form.constant / vertical, b);
+  return sameLine && squash(label.replace(/[−–]/g, '-')) !== squash(text.replace(/−/g, '-'))
+    ? `Equation ${index + 1}, ${prettyEquation(label)}, is ${text}`
+    : `Equation ${index + 1} is ${text}`;
+};
 
 const linearReview = (question) => {
   const system = question.system;
@@ -491,12 +516,12 @@ const linearReview = (question) => {
   const [m1, b1, m2, b2] = ['m1', 'b1', 'm2', 'b2'].map((key) => Number(system[key]));
   if (![m1, b1, m2, b2].every(Number.isFinite)) return null;
   const solution = solveTwoLines(system);
-  const first = lineText(m1, b1);
-  const second = lineText(m2, b2);
-  const intro = `Equation 1 is ${first} (slope ${exact(m1)}, y-intercept ${exact(b1)}) and Equation 2 is ${second} (slope ${exact(m2)}, y-intercept ${exact(b2)}).`;
+  const names = systemAxisNames(question);
+  const { x: h, y: v } = names;
+  const intro = `${equationIntro(question, 0, m1, b1, names)} (slope ${exact(m1)}, ${v}-intercept ${exact(b1)}) and ${equationIntro(question, 1, m2, b2, names)} (slope ${exact(m2)}, ${v}-intercept ${exact(b2)}).`;
   // The construct form has the student graph both lines first.
   const graphSteps = question.interaction === 'construct'
-    ? ['Graph each line from two of its own points: substitute two x-values into its equation (the y-intercept is one easy point) and draw the line through them.']
+    ? [`Graph each line from two of its own points: substitute two ${h}-values into its equation (the ${v}-intercept is one easy point) and draw the line through them.`]
     : [];
   if (solution.type === 'none' || solution.type === 'infinite') {
     const none = solution.type === 'none';
@@ -509,15 +534,15 @@ const linearReview = (question) => {
         intro,
         ...graphSteps,
         none
-          ? `The slopes are equal (${exact(m1)}) but the y-intercepts are different (${exact(b1)} and ${exact(b2)}), so the lines are parallel and never meet.`
-          : `The slopes are equal (${exact(m1)}) and so are the y-intercepts (${exact(b1)}), so both equations describe the same line.`,
+          ? `The slopes are equal (${exact(m1)}) but the ${v}-intercepts are different (${exact(b1)} and ${exact(b2)}), so the lines are parallel and never meet.`
+          : `The slopes are equal (${exact(m1)}) and so are the ${v}-intercepts (${exact(b1)}), so both equations describe the same line.`,
         none
           ? 'No point lies on both lines, so the system has no solution.'
           : 'Every point on that line satisfies both equations, so the system has infinitely many solutions.',
       ],
       why: none
-        ? `Setting the right sides equal gives ${expressionText([[m1, 'x']], b1)} = ${expressionText([[m2, 'x']], b2)}; the x-terms cancel and leave ${exact(b1)} = ${exact(b2)}, which is false for every x.`
-        : `Setting the right sides equal gives ${expressionText([[m1, 'x']], b1)} = ${expressionText([[m2, 'x']], b2)}, which is true for every x.`,
+        ? `Setting the right sides equal gives ${expressionText([[m1, h]], b1)} = ${expressionText([[m2, h]], b2)}; the ${h}-terms cancel and leave ${exact(b1)} = ${exact(b2)}, which is false for every ${h}.`
+        : `Setting the right sides equal gives ${expressionText([[m1, h]], b1)} = ${expressionText([[m2, h]], b2)}, which is true for every ${h}.`,
       note: null,
     };
   }
@@ -537,12 +562,12 @@ const linearReview = (question) => {
       intro,
       ...graphSteps,
       `The slopes are different, so the lines cross exactly once: the system has exactly one solution.`,
-      `At the crossing point both right sides are equal: ${expressionText([[m1, 'x']], b1)} = ${expressionText([[m2, 'x']], b2)}.`,
-      `Collect the x-terms on one side: ${solvedFor(slopeDifference, 'x', constantDifference).text}.`,
-      `Substitute x = ${exact(x)} into Equation 1: y = ${expressionText([[m1, 'x']], b1, { x })} = ${exact(y)}.`,
+      `At the crossing point both right sides are equal: ${expressionText([[m1, h]], b1)} = ${expressionText([[m2, h]], b2)}.`,
+      `Collect the ${h}-terms on one side: ${solvedFor(slopeDifference, h, constantDifference).text}.`,
+      `Substitute ${h} = ${exact(x)} into Equation 1: ${v} = ${expressionText([[m1, h]], b1, { [h]: x })} = ${exact(y)}.`,
       `Choose "Exactly one solution" and enter the point ${answer.entry}.`,
     ],
-    why: `${point} is on both lines: Equation 2 gives ${expressionText([[m2, 'x']], b2, { x })} = ${exact(m2 * x + b2)}, the same y.`,
+    why: `${point} is on both lines: Equation 2 gives ${expressionText([[m2, h]], b2, { [h]: x })} = ${exact(m2 * x + b2)}, the same ${v}.`,
     note: null,
   };
 };

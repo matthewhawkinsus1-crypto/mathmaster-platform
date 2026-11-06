@@ -154,6 +154,34 @@ test('linear: the classification and the crossing point the review states are wh
   assert.match(itemValue(reviewOf(LINEAR['fraction crossing'], 'fraction'), 'Intersection point'), /^\(13\/7, 33\/7\) ≈ \(1\.86, 4\.71\)$/);
 });
 
+test('linear: an item written in its own letters is worked in them, and each equation is named as the item writes it', () => {
+  // (platform-polish-3; F-SW-REVIEW-LETTERS: the ticket system 5s + 10a = 3000
+  // and s + a = 450 was worked in x and y.)
+  const tickets = sw({
+    mode: 'linear', interaction: 'construct', variables: ['s', 'a'],
+    equationLabels: ['5s + 10a = 3000', 's + a = 450'], system: { m1: -0.5, b1: 300, m2: -1, b2: 450 },
+  });
+  const model = reviewOf(tickets, 'tickets');
+  assert.equal(model.steps[0], 'Equation 1, 5s + 10a = 3000, is a = −0.5s + 300 (slope −0.5, a-intercept 300) and Equation 2, s + a = 450, is a = −s + 450 (slope −1, a-intercept 450).');
+  assert.ok(model.steps.includes('Collect the s-terms on one side: 0.5s = 150, so s = 300.'), model.steps.join(' | '));
+  assert.ok(model.steps.includes('Substitute s = 300 into Equation 1: a = −0.5(300) + 300 = 150.'), model.steps.join(' | '));
+  // No x or y anywhere: not as a letter, not in "x-values" or "y-intercept".
+  textOf(model).forEach((text) => assert.doesNotMatch(text, /(?<![A-Za-z])[xy](?![A-Za-z])/, text));
+  // (Graded without the construct step: the stated point and classification.)
+  assertAccepted({ ...tickets, interaction: undefined }, { classification: 'one', x: '300', y: '150' }, 'tickets');
+  // The same lines, parallel: the sentences about intercepts use a as well.
+  const parallel = reviewOf(sw({ ...tickets, equationLabels: undefined, system: { m1: -0.5, b1: 300, m2: -0.5, b2: 450 } }), 'parallel tickets');
+  textOf(parallel).forEach((text) => assert.doesNotMatch(text, /(?<![A-Za-z])[xy](?![A-Za-z])/, text));
+  assert.match(parallel.why, /the s-terms cancel and leave 300 = 450, which is false for every s\./);
+  // An equation already written as the line is not named twice, and a label
+  // that is not the graded line is never stated.
+  assert.match(reviewOf(sw({ mode: 'linear', equationLabels: ['y = 2x + 1', 'y = -x + 7'], system: { m1: 2, b1: 1, m2: -1, b2: 7 } }), 'labels').steps[0], /^Equation 1 is y = 2x \+ 1 .* and Equation 2 is y = −x \+ 7 /);
+  assert.match(reviewOf(sw({ mode: 'linear', equationLabels: ['2x + 3y = 12', 'x + y = 9'], system: { m1: -2 / 3, b1: 4, m2: 1, b2: -1 } }), 'wrong label').steps[0],
+    /^Equation 1, 2x \+ 3y = 12, is y = −\(2\/3\)x \+ 4 .* and Equation 2 is y = x − 1 /);
+  // An item in x and y reads as it did.
+  assert.match(reviewOf(LINEAR['integer crossing'], 'x and y').steps[0], /^Equation 1 is y = 2x \+ 1 \(slope 2, y-intercept 1\)/);
+});
+
 /* =============================================================== matrix */
 
 const MATRIX = {
