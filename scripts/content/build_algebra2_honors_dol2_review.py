@@ -787,7 +787,9 @@ practice = [
             'The vertex of the V is (h, k).',
             'From the vertex, move 1 unit right and count how far the graph rises or falls: that change is a.',
         ],
-        'attemptFeedback': ['Check the sign of a: a V that opens downward has a negative a.'],
+        # Read on every miss the lab names no slip for, so it speaks to each value it marks (a, h, k),
+        # not to a's sign alone: with a right and h wrong it said "Check the sign of a… Focus on: h."
+        'attemptFeedback': ['Check each value against the graph: the vertex is (h, k), and a is how far the graph rises or falls one unit right of the vertex, negative when the V opens downward.'],
         'scaffold': scaffold('Which point on the graph gives you h and k?', 'The vertex — the corner of the V', 'The y-intercept'),
         'solutionReview': review(
             'Read h and k at the vertex, then a from the steepness.',

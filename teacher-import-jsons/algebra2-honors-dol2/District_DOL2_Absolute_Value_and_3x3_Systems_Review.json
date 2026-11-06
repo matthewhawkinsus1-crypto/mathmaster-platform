@@ -1605,7 +1605,7 @@
             "From the vertex, move 1 unit right and count how far the graph rises or falls: that change is a."
           ],
           "attemptFeedback": [
-            "Check the sign of a: a V that opens downward has a negative a."
+            "Check each value against the graph: the vertex is (h, k), and a is how far the graph rises or falls one unit right of the vertex, negative when the V opens downward."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Which point on the graph gives you h and k?",

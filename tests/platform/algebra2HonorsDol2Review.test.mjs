@@ -58,6 +58,7 @@ import transformationsLab from '../../functions/shared/serverGrading/tools/trans
 import matrixLab from '../../functions/shared/serverGrading/tools/matrixLab.mjs';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
+import { missFeedback } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
 
 const require = createRequire(import.meta.url);
 const bank = require('../../functions/lib/ccmrAssignmentBank.js');
@@ -613,6 +614,35 @@ test('Practice 16: what the worked step says about eliminating z is true of ever
       if (!near(zOf[into - 1] + Number(multiple) * zOf[from - 1], 0)) wrong(claim);
     }
     if (!claims) problems.push(`${JSON.stringify(values)}: the step names no coefficient or combination to check`);
+  });
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
+});
+
+/*
+ * PRACTICE 3'S MISS MESSAGE FITS THE MISS (student walkthrough, 2026-11-06).
+ * The Transformations Lab names no slip for this item, so on a miss the student
+ * reads its authored attempt feedback, then "Focus on" the box. It said "Check
+ * the sign of a: a V that opens downward has a negative a." on every miss: with
+ * a right and h wrong, a student read "Check the sign of a… Focus on: h.", on an
+ * item whose own common error is h's sign. A miss on a, h or k alone, graded by
+ * the lab and told by the same missFeedback the screen uses, must be told about
+ * the value it missed.
+ */
+test('Practice 3: a miss on a, h or k alone is told about the value missed', () => {
+  const versions = dealt().filter(({ id }) => id === 'dol2r-pr-3');
+  assert.ok(versions.length >= 100, `${versions.length} versions read`);
+  // "a" is also a word: the value is named as "a is", "a =" or "of a".
+  const NAMED = { a: /\ba (?:is|=)|\bof a\b/, h: /\bh\b/, k: /\bk\b/ };
+  const problems = [];
+  versions.forEach(({ values, question }) => {
+    const right = { a: String(question.function.a), b: '1', h: String(question.function.h), k: String(question.function.k) };
+    Object.keys(NAMED).forEach((name) => {
+      const graded = transformationsLab.grade(question, { ...right, [name]: String(Number(right[name]) + 1) });
+      if (graded?.isCorrect !== false) return problems.push(`${JSON.stringify(values)}: ${name} + 1 was not a miss`);
+      const told = missFeedback({ question, attemptNumber: 1, parts: graded.parts })?.message || '';
+      if (!NAMED[name].test(told)) problems.push(`${JSON.stringify(values)}: a miss on ${name} is told "${told}"`);
+      return undefined;
+    });
   });
   assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
 });
