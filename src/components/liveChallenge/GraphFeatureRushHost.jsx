@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { graphFamilyLabel } from '../../../functions/shared/graphFeatureCatalog.mjs';
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { inequalityItemLabel } from '../../../functions/shared/inequalityRush.mjs';
@@ -5,6 +6,7 @@ import { QUESTION_SET_GAME, questionSetGameOf, rushGameWords } from '../../platf
 import { rushPlayingCount, rushRaceRows, rushRoundResultRows, rushScoreUnit } from '../../platform/liveChallenge/rushStandingsModel.js';
 import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
 import { ChallengeClockText, useLowTime } from './ChallengeShellParts.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 
 /*
  * GRAPH FEATURE RUSH ON THE TEACHER'S SCREENS.
@@ -153,6 +155,42 @@ export function RushHostStatus({ room, players = [], clockOffsetMs = 0, joinedCo
 }
 
 const pct = (value) => (value == null ? '—' : `${value}%`);
+// "of 1 press", never "of 1 presses" (teacher features walk, item 5).
+const presses = (count) => `${count} ${count === 1 ? 'press' : 'presses'}`;
+
+const REPORT_CELL = { padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', verticalAlign: 'top' };
+
+/*
+ * One block of the rush report: a heading a screen reader can move to, and
+ * its rows as a real table, each row headed by what it counts, so a teacher
+ * on a screen reader can go from block to block and along a row (teacher
+ * features walk, item 11). It draws as the rows always did: what the row is
+ * on the left, its numbers on the right. The column names are for a screen
+ * reader only, and the header row they sit in has no height. Every padding is
+ * the table's own, and so is its width: not the 640px floor the dashboard
+ * gives its wide tables (App.css), which would push two columns off a phone.
+ */
+function RushReportTable({ block, title, columns, rows, value, numeric = false }) {
+  const headingId = useId();
+  return (
+    <div data-mm-rush-report={block}>
+      <h4 id={headingId} style={{ margin: '0 0 6px', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)' }}>{title}</h4>
+      <table aria-labelledby={headingId} style={{ width: '100%', minWidth: 0, borderCollapse: 'collapse', fontSize: 'calc(14 * var(--mm-px))' }}>
+        <thead>
+          <tr>{columns.map((column) => <th key={column} scope="col" style={{ padding: 0 }}><span style={SR_ONLY_STYLE}>{column}</span></th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <th scope="row" style={{ ...REPORT_CELL, paddingRight: 12, textAlign: 'left', fontWeight: 'inherit' }}>{row.label}</th>
+              <td style={{ ...REPORT_CELL, textAlign: 'right', color: 'var(--mm-text-muted)', ...(numeric ? { fontVariantNumeric: 'tabular-nums' } : null) }}>{value(row)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /**
  * The after-game breakdown for a rush: by feature, by family, what wrong
@@ -161,58 +199,41 @@ const pct = (value) => (value == null ? '—' : `${value}%`);
  * class counts, never on the projector. An Inequality Graphing Rush report
  * (`inequalityRush`) has the same shape, its rows named by kind of
  * inequality, and one feature and no taps, so no feature or tap table.
+ * The totals are a list and each breakdown a headed table (RushReportTable).
  */
 export function RushReport({ report }) {
   const inequality = Boolean(report?.inequalityRush);
   const rush = report?.graphFeatureRush || report?.inequalityRush;
   if (!rush) return null;
   const answers = inequality ? 'answers' : 'taps';
-  const table = (rows, title) => (
-    <div>
-      <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>{title}</div>
-      {rows.map((row) => (
-        <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
-          <span>{row.label}</span>
-          <span style={{ color: 'var(--mm-text-muted)' }}>{row.completed}/{row.questions} completed · {pct(row.accuracyPercent)} of {answers} right</span>
-        </div>
-      ))}
-    </div>
-  );
+  const progress = (row) => `${row.completed}/${row.questions} completed · ${pct(row.accuracyPercent)} of ${answers} right`;
+  const count = (row) => row.count;
   return (
     <section style={{ display: 'grid', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>
-        <span><strong>{rush.graphsCompleted}</strong> {inequality ? 'inequalities' : 'graphs'} completed</span>
-        <span>{inequality ? 'Accuracy' : 'Tap accuracy'} <strong>{pct(rush.accuracyPercent)}</strong></span>
-        <span><strong>{rush.skipped}</strong> skipped</span>
-        <span>{inequality ? '"No Solution"' : '"Does Not Exist"'} right <strong>{pct(rush.doesNotExist?.accuracyPercent)}</strong> of {rush.doesNotExist?.presses || 0} presses</span>
-        {!inequality && rush.offScreen?.presses > 0 && <span>"Off screen" right <strong>{pct(rush.offScreen.accuracyPercent)}</strong> of {rush.offScreen.presses} presses</span>}
-      </div>
-      {!inequality && rush.byFeature?.length > 0 && table(rush.byFeature, 'By feature, hardest first')}
-      {rush.byFamily?.length > 0 && table(
-        inequality ? rush.byFamily : rush.byFamily.map((row) => ({ ...row, label: graphFamilyLabel(row.key) || row.label })),
-        inequality ? 'By kind of inequality, hardest first' : 'By kind of graph, hardest first',
+      <ul style={{ display: 'flex', gap: 18, flexWrap: 'wrap', margin: 0, padding: 0, listStyle: 'none', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>
+        <li><strong>{rush.graphsCompleted}</strong> {inequality ? 'inequalities' : 'graphs'} completed</li>
+        <li>{inequality ? 'Accuracy' : 'Tap accuracy'} <strong>{pct(rush.accuracyPercent)}</strong></li>
+        <li><strong>{rush.skipped}</strong> skipped</li>
+        <li>{inequality ? '"No Solution"' : '"Does Not Exist"'} right <strong>{pct(rush.doesNotExist?.accuracyPercent)}</strong> of {presses(rush.doesNotExist?.presses || 0)}</li>
+        {!inequality && rush.offScreen?.presses > 0 && <li>"Off screen" right <strong>{pct(rush.offScreen.accuracyPercent)}</strong> of {presses(rush.offScreen.presses)}</li>}
+      </ul>
+      {!inequality && rush.byFeature?.length > 0 && (
+        <RushReportTable block="byFeature" title="By feature, hardest first" columns={['Feature', 'Results']} rows={rush.byFeature} value={progress} />
+      )}
+      {rush.byFamily?.length > 0 && (
+        <RushReportTable
+          block="byFamily"
+          title={inequality ? 'By kind of inequality, hardest first' : 'By kind of graph, hardest first'}
+          columns={[inequality ? 'Kind of inequality' : 'Kind of graph', 'Results']}
+          rows={inequality ? rush.byFamily : rush.byFamily.map((row) => ({ ...row, label: graphFamilyLabel(row.key) || row.label }))}
+          value={progress}
+        />
       )}
       {rush.mistakes?.length > 0 && (
-        <div>
-          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>What wrong checks got wrong, most common first</div>
-          {rush.mistakes.map((row) => (
-            <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
-              <span>{row.label}</span>
-              <span style={{ color: 'var(--mm-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{row.count}</span>
-            </div>
-          ))}
-        </div>
+        <RushReportTable block="mistakes" title="What wrong checks got wrong, most common first" columns={['Mistake', 'Wrong checks']} rows={rush.mistakes} value={count} numeric />
       )}
       {!inequality && rush.wrongTaps?.length > 0 && (
-        <div data-mm-rush-report="wrongTaps">
-          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>Where wrong taps landed, most common first</div>
-          {rush.wrongTaps.map((row) => (
-            <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-divider)', fontSize: 'calc(14 * var(--mm-px))' }}>
-              <span>{row.label}</span>
-              <span style={{ color: 'var(--mm-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{row.count}</span>
-            </div>
-          ))}
-        </div>
+        <RushReportTable block="wrongTaps" title="Where wrong taps landed, most common first" columns={['Wrong tap', 'Taps']} rows={rush.wrongTaps} value={count} numeric />
       )}
     </section>
   );

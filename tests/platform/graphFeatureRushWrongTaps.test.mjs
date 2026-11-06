@@ -473,8 +473,12 @@ test('every feature a student taps has words as tapped and as asked', () => {
 test('the teacher\'s report shows them; no screen a student or the class sees reads them', () => {
   const host = executableSource(read('src/components/liveChallenge/GraphFeatureRushHost.jsx'));
   const report = region(host, 'export function RushReport', '\n}\n', 'the rush report');
-  const rows = region(report, 'rush.wrongTaps.map((row) => (', '))}', 'one row for each place wrong taps landed');
-  assert.match(rows, /\{row\.label\}[\s\S]*\{row\.count\}/, 'what was tapped for what was asked, and how often');
+  // One table row for each place wrong taps landed: what was tapped for what
+  // was asked, then how often (rendered row by row in rushReportAccessibility.test.mjs).
+  const block = region(report, '<RushReportTable block="wrongTaps"', '/>', 'the block of wrong taps');
+  assert.match(block, /rows=\{rush\.wrongTaps\}/, 'one row for each place wrong taps landed');
+  assert.match(block, /value=\{count\}/, 'and how often');
+  assert.match(report, /const count = \(row\) => row\.count;/);
   assert.match(report, /!inequality && rush\.wrongTaps\?\.length > 0/, 'a rush with taps; an inequality game has none');
   // The report is the console's (ChallengeReport) and never the projector's or a student's.
   const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');

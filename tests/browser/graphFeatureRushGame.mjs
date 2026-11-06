@@ -667,6 +667,14 @@ await run('two-player-grand-prix', async () => {
   await shot(teacher, 'gp-final-projector');
   await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click().catch(() => {});
   check(S, await waitForText(teacher, 'By feature, hardest first', 20_000), 'the teacher report has no feature breakdown');
+  // A heading, and a table named by it with a row header for each feature (teacher features walk, item 11).
+  const featureTable = teacher.page.getByRole('table', { name: 'By feature, hardest first', exact: true });
+  check(
+    S,
+    (await teacher.page.getByRole('heading', { level: 4, name: 'By feature, hardest first', exact: true }).count()) === 1
+      && (await featureTable.count()) === 1 && (await featureTable.getByRole('rowheader').count()) > 0,
+    'the feature breakdown is not a heading and a table of rows',
+  );
   await shot(teacher, 'gp-final-teacher-report');
   for (const handle of [teacher, a, b]) check(S, handle.errors.length === 0, `console errors on ${handle.device}: ${handle.errors.slice(0, 3).join(' | ')}`);
   await Promise.all([teacher, a, b].map((handle) => handle.context.close()));
