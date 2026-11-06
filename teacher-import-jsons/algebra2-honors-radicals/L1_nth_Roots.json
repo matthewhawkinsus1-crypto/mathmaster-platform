@@ -2414,13 +2414,13 @@
             },
             {
               "id": "rootPlus",
-              "label": "Its two imaginary square roots are",
+              "label": "√(−{{p}}) =",
               "answer": "{{n}}i",
               "inputProfile": "expression"
             },
             {
               "id": "rootMinus",
-              "label": "and",
+              "label": "The other square root of −{{p}} is",
               "answer": "-{{n}}i",
               "inputProfile": "expression"
             },

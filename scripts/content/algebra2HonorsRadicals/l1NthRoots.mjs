@@ -960,10 +960,13 @@ const practice = [
     difficultyBand: 3,
     prompt: tex`Compare an even and an odd root of a negative number. Simplify $\sqrt{ -{{p}} }$ and $\sqrt[3]{ -{{q}} }$.`,
     directionSteps: ['Decide whether the square root is real and name its square roots.', 'Find the cube root.'],
+    // Each root has its own box, named as Example D's are (CW 6): "Its two
+    // imaginary square roots are [ ] and [ ]" read the roots in either order,
+    // but the keys held one, so −5i then 5i was marked wrong twice.
     responses: [
       choice('real', '√(−{{p}}) is…', ['not a real number', 'equal to −{{n}}', 'equal to {{n}}', 'equal to ±{{n}}'], 'not a real number'),
-      expression('rootPlus', 'Its two imaginary square roots are', '{{n}}i'),
-      expression('rootMinus', 'and', '-{{n}}i'),
+      expression('rootPlus', '√(−{{p}}) =', '{{n}}i'),
+      expression('rootMinus', 'The other square root of −{{p}} is', '-{{n}}i'),
       number('cube', '∛(−{{q}}) =', '{{nm}}'),
     ],
     hints: [

@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import '../../functions/shared/formSpecificFieldGrading.mjs';
+import { versionsOf } from './helpers/lessonFileChecks.mjs';
 
 // The answer keys of the Algebra II Honors radicals lessons, recomputed, and
 // the pacing and scaffolding rules from the same review. The lesson test
@@ -347,3 +348,30 @@ test('README and teacher notes: the counts, the CCMR and Honors item numbers, an
     for (const [place, asks] of Object.entries(NAMED[file])) assert.match(classwork[place - 1].prompt, asks, `${file}: CW ${place}`);
   }
 });
+
+/* ------------------------------------------ the 2026-11-06 walkthrough */
+
+const keyed = (question) => Object.fromEntries(question.answerFields.map((field) => [field.id, String(field.answer)]));
+const takes = (question, fieldId, typed) => gradeMultiAnswerResponse(question, { ...keyed(question), [fieldId]: typed })
+  .parts.find((part) => part.id === fieldId)?.isCorrect === true;
+
+// L1 PR 7: "Its two imaginary square roots are [ ] and [ ]" reads the roots in
+// either order, but each box held one, so −5i then 5i was marked wrong twice.
+// Each root has its own box now, named as Example D's are (CW 6): the radical
+// names the principal root, and the other box its opposite.
+test('L1 PR 7: each imaginary root has its own box, named by the root it holds, in every version', () => {
+  const versions = versionsOf(compiledQuestion(L1, 'a2r1-p-7'), 200);
+  assert.ok(versions.length >= 60, `${versions.length} versions`);
+  for (const version of versions) {
+    const field = (id) => version.answerFields.find((candidate) => candidate.id === id);
+    const radicand = Number(/\\sqrt\{ -(\d+) \}/.exec(version.prompt)[1]);
+    const root = Math.sqrt(radicand);
+    assert.ok(Number.isInteger(root), version.prompt);
+    assert.ok(field('rootPlus').label.includes(`√(−${radicand})`), `the first box names the radical: "${field('rootPlus').label}"`);
+    assert.match(field('rootMinus').label, new RegExp(`\\bother\\b.*−${radicand}\\b`), `the second box names the other root: "${field('rootMinus').label}"`);
+    assert.equal(takes(version, 'rootPlus', `${root}i`), true);
+    assert.equal(takes(version, 'rootMinus', `-${root}i`), true);
+    assert.equal(takes(version, 'rootPlus', `-${root}i`), false, 'the principal root is not the negative one');
+  }
+});
+
