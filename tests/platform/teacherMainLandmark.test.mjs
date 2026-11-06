@@ -91,7 +91,7 @@ test('the administrator\'s workspace has the link and the target on its own main
   const admin = region(workspace, "if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {", '<header style={{', 'the administrator workspace');
   assert.match(admin, /<SkipToContent \/>/, 'its link');
   const main = region(workspace, '<div role="tablist" aria-label="Administration sections"', '</main>', 'the administrator screen');
-  assert.match(main, /<main id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\} style=\{\{ padding: 28 \}\}>/, 'its main, with its screen inside');
+  assert.match(main, /<main id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\} style=\{\{ padding: [^}]+ \}\}>/, 'its main, with its screen inside');
 });
 
 // The mains that were drawn by components that render inside the workspace.

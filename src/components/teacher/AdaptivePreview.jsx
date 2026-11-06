@@ -63,7 +63,7 @@ export default function AdaptivePreview({
         </div>
       </header>
 
-      <div style={{ overflowX: 'auto' }}>
+      <div role="region" aria-label="Adaptive preview by question" tabIndex={0} style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12.5 * var(--mm-px))', minWidth: 620 }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>

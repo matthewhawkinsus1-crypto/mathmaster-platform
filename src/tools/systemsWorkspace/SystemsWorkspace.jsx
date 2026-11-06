@@ -14,7 +14,8 @@ import {
   solve3x3System,
   solveLinearQuadratic,
 } from './systemsMath';
-import { studentBuildInequalityEnabled } from './inequalityBuilderAdapter';
+import { studentBuildInequalityEnabled, studentBuildInequalityTask } from './inequalityBuilderAdapter';
+import { wordsFor } from './inequalitySystemWords.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import { UNANSWERED, isAnswered } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -26,7 +27,7 @@ import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import StudentBuildInequalityMode from './StudentBuildInequalityMode.jsx';
 import { ChoiceGroup, InequalityLayout, LineStyleIcon, PLANE_KEYS, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
-import { regionCornersText } from './inequalityGraphMarks.js';
+import { regionCornersReading } from './inequalityGraphMarks.js';
 import { formatInequality, formatLine, formatPoint, formatQuadratic } from './inequalityFormat.js';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 import { systemAxisNames } from './systemAxisNames.js';
@@ -357,10 +358,11 @@ function ClassicInequalityMode({ questionData, onAction }) {
             ariaLabel={requiresConstruction ? 'Student-constructed graph of the inequality solution region' : 'Graph of the system of inequalities with its shaded feasible region'}
             // The region it shades below, said by the plane: its kind while the
             // question is open (no corners: they are positions), its corners
-            // once positions may be said (AX12).
+            // once positions may be said (AX12), as messages a Spanish reading
+            // says too (AX05, slice 3).
             toolMarks={{
               kinds: shownPolygon.length >= 3 ? `${regionIntro}.` : 'No region is shaded yet.',
-              features: regionCornersText({ polygon: shownPolygon, lines: requiresConstruction ? studentInequalities : inequalities, intro: regionIntro }) || undefined,
+              features: regionCornersReading({ polygon: shownPolygon, lines: requiresConstruction ? studentInequalities : inequalities, everyInequalityTrue: !requiresConstruction }) || undefined,
             }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
@@ -942,6 +944,8 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
   // step says what to do where it is done, so a folded "How to do this" above
   // it would only repeat it (and it used to repeat the ANALYZE steps).
   const inequalityBuild = mode === 'inequalities' && studentBuildInequalityEnabled(questionData);
+  // A one-inequality lesson is not a system (F-SW-SYSTEM-WORDS): its badge says so.
+  const said = wordsFor(inequalityBuild ? studentBuildInequalityTask(questionData).constraintCount : 0);
   // Graph mode (the linear fallback) with the student constructing both lines.
   const linearConstruct = questionData.interaction === 'construct'
     && !['inequalities', 'linearQuadratic', 'matrix', 'matrix3', 'spatial', 'algebraic'].includes(mode);
@@ -951,7 +955,7 @@ export default function SystemsWorkspace({ questionData = {}, onAction, draftKey
       : mode;
   const modeLabel = algebraic3 ? 'Algebraic Systems (3×3 Substitution / Elimination)'
     : mode === 'spatial' ? 'Three-Plane Systems'
-    : mode === 'inequalities' ? 'Systems of Inequalities'
+    : mode === 'inequalities' ? said('Systems of Inequalities')
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
       : mode === 'matrix3' ? '3×3 Matrix Technology / RREF'
         : mode === 'matrix' ? 'Matrix / Row Reduction'

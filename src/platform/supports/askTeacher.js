@@ -208,16 +208,58 @@ export const canAskFollowUp = (question) => (
 );
 
 /** The student's follow-up, exactly the fields firestore.rules allows them to change after an answer. */
-export const buildFollowUp = ({ existing, text: words, timestamp } = {}) => {
+export const buildFollowUp = ({
+  existing, text: words, timestamp, teacherEmail = null, classId = null,
+} = {}) => {
   const body = cleanQuestionText(words);
   if (!body || !canAskFollowUp(existing)) return null;
-  return {
+  const followUp = {
     status: QUESTION_STATUS.OPEN,
     text: body,
     earlierText: existing.text,
     earlierAnswer: existing.answer,
     updatedAt: timestamp,
   };
+  // If the class changed teachers since the answer, the follow-up goes to
+  // today's teacher of record, as a new question would. Teacher Home lists
+  // questions by the teacher they are addressed to, so one left on the former
+  // teacher would never reach anyone who teaches the student now. Only a
+  // change is written; firestore.rules allows it only to the roster's values.
+  const moved = text(teacherEmail) && (
+    text(teacherEmail) !== text(existing.teacherEmail)
+    || (text(classId) || null) !== (text(existing.classId) || null)
+  );
+  if (moved) {
+    followUp.teacherEmail = text(teacherEmail);
+    followUp.classId = text(classId) || null;
+  }
+  return followUp;
+};
+
+/*
+ * THE CLASS'S TEACHER, FOLLOWED WHILE THE STUDENT STAYS SIGNED IN.
+ *
+ * Sign-in copies the teacher of record from the student's roster row
+ * (grades/{studentId}, `assignedTeacherEmail`), and firestore.rules checks a
+ * new question, a follow-up that moves (above) and support evidence against
+ * that row's teacher and class. A class handed to another teacher restamps its
+ * members' rows while they may be working (functions/index.js, the class
+ * update; reassigning one student does the same), so App.jsx passes each
+ * snapshot of the row here and the next question or follow-up goes to the new
+ * teacher, as after a fresh load. Before, it went to the former teacher until
+ * the student reloaded (teacher features walk, item 10).
+ *
+ * Only while the row keeps the class this session shows. A row that names
+ * another class is a move, not a handover: the screen is still the class the
+ * student signed in with, and a new teacher beside the old class is a pair no
+ * rule accepts, so nothing changes until a reload, as before. The same user
+ * comes back when nothing changes, so React keeps its render.
+ */
+export const followRosterTeacher = (user, rosterRow) => {
+  if (!user || !rosterRow) return user;
+  if ((rosterRow.classId || null) !== (user.classId || null)) return user;
+  const teacherEmail = rosterRow.assignedTeacherEmail || null;
+  return teacherEmail === (user.assignedTeacherEmail || null) ? user : { ...user, assignedTeacherEmail: teacherEmail };
 };
 
 /** The teacher's answer: the only fields a teacher may change. */

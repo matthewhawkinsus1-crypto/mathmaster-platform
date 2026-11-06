@@ -54,6 +54,25 @@ test("a secure field item offers prompt-only supports from the student's own pla
   assert.match(fieldProps, /studentSupportProfile=\{supportProfile\}/);
 });
 
+// AX05, slice 3: where the item offers its authored translation (the pure
+// rule: secureItemAccess.test.mjs), the stimulus's figures describe
+// themselves in that language (the rendered figures, positions withheld:
+// figureReadingSpanish.test.mjs; in Chromium: tests/browser/hostAccessibility.mjs).
+test("a secure field item's figures are handed the student's figure words where the item offers its authored translation", () => {
+  assert.match(runtime, /^import \{[^}]*\bsecureFigureLanguage\b[^}]*\} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
+  assert.match(runtime, /^import \{ FigureWordsProvider \} from '\.\.\/\.\.\/platform\/language\/figureReadings\.js';$/m);
+  assert.match(runtime, /^import \{ loadFigureWords \} from '\.\.\/\.\.\/platform\/language\/figureSay\.js';$/m);
+  const field = region(runtime, 'const FieldItem = (', '\n};\n', 'FieldItem');
+  // Decided only on a secure item, from the student's own plan and the item's prompt.
+  assert.match(field, /\(\) => \(policy\.secure \? secureFigureLanguage\(question, rawStudentSupportProfile\) : null\),/);
+  // That language's words, loaded once it is known, and never another language's.
+  const load = region(field, 'useEffect(() => {\n    if (!figureLanguage) return undefined;', '}, [figureLanguage]);', 'the load');
+  assert.match(load, /loadFigureWords\(figureLanguage\)\s*\.then\(\(pack\) => \{ if \(current\) setLoadedFigureWords\(\{ language: figureLanguage, pack \}\); \}\)/);
+  assert.match(field, /const figurePack = loadedFigureWords\?\.language === figureLanguage \? loadedFigureWords\.pack : null;/);
+  // Handed to the stimulus's figures, inside the graph read-out.
+  assert.match(field, /<GraphReadOutProvider enabled=\{graphReadOut\}>\s*<FigureWordsProvider pack=\{figurePack\}>\s*<PathQuestionStimulus stimulus=\{question\.stimulus\} \/>\s*<\/FigureWordsProvider>\s*<\/GraphReadOutProvider>/);
+});
+
 test("a secure Rich Tool item's own tray offers the student's secure supports, Vocabulary without worked examples (H-16)", () => {
   assert.match(runtime, /^import \{[^}]*\bsecureAccessEntitlement\b[^}]*\} from '\.\.\/\.\.\/platform\/assessment\/secureItemAccess\.js';$/m);
   const entitlement = region(runtime, 'const secureToolTrayEntitlement = (rawStudentSupportProfile) => {', '\n};\n', 'tray entitlement');

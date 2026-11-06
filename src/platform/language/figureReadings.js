@@ -20,19 +20,45 @@
  *   <FigureReadingScope shown={bool}>           a part kept mounted while hidden
  *   <PublishFigureReading entry={…} />         a figure, inside its render
  *
- * An entry is { kind: 'figure', label, text, say } or { kind: 'table', label,
- * table } (displayTable.js; the reader words it in the screen's language).
- * `say` is the same reading as messages (figureSay.js), when the figure's
- * generator gives them: under an authored Spanish translation it is read in
- * Spanish (AX05). Without it the figure is read in English, and the reader
- * says so. Outside a host (a teacher screen, a review) nothing is published.
+ * An entry is { kind: 'figure', label, labelSay, text, say } or { kind:
+ * 'table', label, table } (displayTable.js; the reader words it in the
+ * screen's language). `say` is the same reading as messages (figureSay.js),
+ * when the figure's generator gives them: under an authored Spanish
+ * translation it is read in Spanish (AX05). Without it the figure is read in
+ * English, and the reader says so. `labelSay` is the figure's name as a
+ * message (figureNames.js, slice 4), which a name a tool builds from its own
+ * words needs; without it, a name that is one of the platform's is known by
+ * its English. Outside a host (a teacher screen, a review) nothing is
+ * published.
  *
  * A TABLE A TOOL DRAWS ITSELF (AX10) is published the same way, from the rows
  * the tool draws and only while it draws them: a cell the student fills in is
  * what they typed ({ entered }) or blank, never its answer, and a table that
  * would state an answer is not drawn — or published — before it may be shown.
+ *
+ * WHAT A SCREEN READER HEARS (AX05, slice 2). Each figure also keeps its
+ * description in the page, for a screen reader (aria-describedby). Under an
+ * authored Spanish translation the host passes the reading language's figure
+ * words (<FigureWordsProvider>); a figure then writes that description from
+ * the same messages in that language and marks it lang="es", so a screen
+ * reader speaks it in Spanish. One its messages cannot say completely (an
+ * author's description, or a tool's own sentence given without its messages)
+ * stays English and unmarked: the page is English.
+ *
+ * ENGLISH WORDS INSIDE A SPANISH DESCRIPTION (slice 3). The item's own words
+ * in it — an axis title, a point's label, a task's words — are English, as
+ * the screen shows them; each is marked lang="en" where it appears
+ * (describedContent), so a screen reader says it in English. A lone letter
+ * naming a point is no English word, and is said in the description's
+ * language, as the mathematics is.
+ *
+ * THE FIGURE'S NAME (slice 4). Its aria-label is said the same way, from its
+ * name's message (figureNames.js namedIn), and the element that holds it is
+ * marked lang="es": an attribute cannot mark a part of itself. A control
+ * inside it that keeps its English name is marked lang="en".
  */
 import React, { createContext, useContext, useEffect, useId } from 'react';
+import { ITEM_LANGUAGE, sayFigure, sayFigureParts } from './figureSay.js';
 
 const FigureReadingPortContext = createContext(null);
 
@@ -69,9 +95,10 @@ const normalizeEntry = (entry) => {
   }
   const text = clean(entry.text);
   if (!text) return null;
+  const named = entry.labelSay && typeof entry.labelSay === 'object' ? { labelSay: entry.labelSay } : {};
   return Array.isArray(entry.say)
-    ? { kind: 'figure', label: clean(entry.label), text, say: entry.say }
-    : { kind: 'figure', label: clean(entry.label), text };
+    ? { kind: 'figure', label: clean(entry.label), ...named, text, say: entry.say }
+    : { kind: 'figure', label: clean(entry.label), ...named, text };
 };
 
 /**
@@ -97,6 +124,53 @@ export function PublishFigureReading({ entry }) {
   usePublishFigureReading(entry);
   return null;
 }
+
+const FigureWordsContext = createContext(null);
+
+/** The host: the reading language's figure words (figureSay.js loadFigureWords), or none for English. */
+export function FigureWordsProvider({ pack = null, children }) {
+  return React.createElement(FigureWordsContext.Provider, { value: pack?.words ? pack : null }, children);
+}
+
+/** The figure words a figure here describes itself in: null outside a host, or in English. */
+export const useFigureWords = () => useContext(FigureWordsContext);
+
+// clean(), for a text in parts: one space for any run of spaces, none at the ends.
+const cleanParts = (parts) => {
+  const out = [];
+  (Array.isArray(parts) ? parts : []).forEach((part) => {
+    let text = String(part.text).replace(/\s+/g, ' ');
+    if ((!out.length || out[out.length - 1].text.endsWith(' ')) && text.startsWith(' ')) text = text.slice(1);
+    if (text) out.push({ ...part, text });
+  });
+  if (out.length) out[out.length - 1].text = out[out.length - 1].text.replace(/ $/, '');
+  return out.filter((part) => part.text);
+};
+
+/**
+ * A figure's own description as a screen reader gets it: { text, lang }. In
+ * the host's language, marked with it, when the figure's messages (`say`)
+ * can say it all there; otherwise its English, with no lang. In another
+ * language than the item's, its English words come as `parts` too, each
+ * { text, lang } where it is marked (slice 3), together exactly the text.
+ * Pure.
+ */
+export const describedIn = (pack, english, say) => {
+  const text = pack?.words && Array.isArray(say) ? clean(sayFigure(say, pack.words)) : '';
+  if (!text) return { text: english, lang: undefined };
+  const parts = pack.language === ITEM_LANGUAGE ? [] : cleanParts(sayFigureParts(say, pack.words));
+  const marked = parts.some((part) => part.lang) && parts.map((part) => part.text).join('') === text;
+  return marked ? { text, lang: pack.language, parts } : { text, lang: pack.language };
+};
+
+/**
+ * What a figure's description element holds: its text, with each part in
+ * another language (describedIn's `parts`) in a <span lang>, so a screen
+ * reader says it in that language.
+ */
+export const describedContent = (described) => (Array.isArray(described?.parts)
+  ? described.parts.map((part, index) => (part.lang ? React.createElement('span', { key: index, lang: part.lang }, part.text) : part.text))
+  : described?.text ?? '');
 
 /**
  * The host's state update: returns `published` itself when nothing changed,

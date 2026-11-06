@@ -13,7 +13,11 @@
  * Workbench, Matrix Lab, Expression Meaning, the Interval Number Line, the
  * Representation Bridge and the Sign & Solution Analyzer. Slice 3 is the Systems
  * Workspace: the inequality build's steps, the two construct forms, the 3D
- * model's cue and the lines beside a token to drag.
+ * model's cue and the lines beside a token to drag. Slice 4 is the rest a search
+ * of the student screens found: Step Algebra's cancellation cue, its placement
+ * hints and its structure tools, the relation workspace, the graph workspace's
+ * placement hints, the Graph Axis Editor, Graph Scenario Match, Sequence Explorer
+ * and Live Challenge's graph rounds.
  *
  * Each tool is rendered whole (Vite SSR), practice and a DOL, in each of its
  * views, and every line a student reads — a paragraph, a list item, a button's
@@ -36,12 +40,13 @@
  */
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import React from 'react';
 
-import { closeEngine, loadEngine } from './helpers/actionBarRender.mjs';
+import { closeEngine, loadEngine, renderEngine } from './helpers/actionBarRender.mjs';
 import { buttonsOf, render, text, withBrowser } from './helpers/studentToolRender.mjs';
 import { buildSystemsWorkspaceReview } from '../../src/tools/shared/reviews/systemsWorkspaceReview.js';
+import { executableSource } from './helpers/sourceContract.mjs';
 
 after(closeEngine);
 
@@ -673,4 +678,368 @@ test('AX32: Enter or Space on a variable puts the picked-up 0 on it, as a tap do
   const leaving = target({});
   assert.equal(leaving.press('Tab'), false);
   assert.deepEqual(leaving.placed, []);
+});
+
+/* ============ slice 4: Step Algebra, the graph tools and Live Challenge's graph rounds ============ */
+
+test('AX32 (slice 4): the detector flags the directions as they were, and passes the way they are said now', () => {
+  for (const old of [
+    // Step Algebra: the cancellation cue and its message, the phone's placement hints, the structure tools.
+    'Tap or slash either opposite term once. MathMaster crosses out the matching term with it.',
+    'Cancel 2 matching factor pairs. Tap or slash one factor from each pair; its matching factor is crossed out with it.',
+    'Tap or slash one member of a valid cancellation pair. MathMaster will cross out its matching partner with it.',
+    'Subtract 6 on both sides is ready. Tap the side where the subtracted term belongs.',
+    'Arm this operation, then tap the equation where it belongs',
+    'Tap the terms you are factoring',
+    'Tap a factor, then an equal factor across the bar',
+    '3, tap to swap with the selected term',
+    'Tap another term to swap',
+    // The relation workspace.
+    'Click two items, or press and drag from one item into its matching partner.',
+    'Click this term to choose Before, Under, or After',
+    // The graph workspace, the Graph Axis Editor, Graph Scenario Match.
+    'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.',
+    'Tap a marker, then tap the end of your curve.',
+    'Drag a card to the matching axis box. You can also click a card and then click the destination.',
+    'Tap a card, then tap the matching axis box.',
+    'Tap here for quantity',
+    'Select a graph, or drag it directly onto a scenario.',
+    // Sequence Explorer, Graphing 2's notice, the regression review, the steppers.
+    'Choose a sequence, then click each ordered pair on the graph. Switching sequences changes which model receives the next point.',
+    'Those two clicks landed on the same spot. Two different points are needed to determine a line.',
+    'Run a linear regression on that table: tap Add Regression (or type y₁ ~ mx₁ + b) so the calculator fits the line.',
+    'Each tap changes the value by 0.1.',
+    // Live Challenge.
+    'Tap each feature you are asked for.',
+    'Tap it on the graph. Not there? Choose Does Not Exist.',
+    'Tap the number line to place a dot.',
+    'Tap the graph: an arrow for "keeps going", a point for its x-value — twice for an open dot.',
+    'Your answer is locked in but was not sent. Tap Retry locked answer to send it.',
+    'Tap the features on your graphs to earn points.',
+    'Open MathMaster and tap Live Challenge on your dashboard.',
+  ]) assert.equal(pointerOnly([old]).length, 1, `not flagged: ${old}`);
+  for (const fixed of [
+    'Click, tap or slash either opposite term once, or Tab to one and press Enter. MathMaster crosses out the matching term with it.',
+    'Cancel 2 matching factor pairs. Click, tap or slash one factor from each pair, or Tab to one and press Enter; its matching factor is crossed out with it.',
+    'Click, tap or slash one member of a valid cancellation pair, or Tab to one and press Enter. MathMaster will cross out its matching partner with it.',
+    'Subtract 6 on both sides is ready. Click or tap the side where the subtracted term belongs, or Shift+Tab back to a side and press Enter.',
+    'Arm this operation, then click or tap the equation where it belongs, or Shift+Tab back to a side and press Enter',
+    'Select the terms you are factoring (click or tap, or Tab to each and press Enter)',
+    'Select a factor, then an equal factor across the bar (click or tap, or Tab to each and press Enter)',
+    '3, select to swap with the selected term',
+    'Select another term to swap (click or tap, or Tab to it and press Enter)',
+    'Select two items (click or tap, or Tab to each and press Enter), or press and drag from one item into its matching partner.',
+    'Select this term to choose Before, Under, or After (click or tap, or press Enter)',
+    'Drag a point, or select it and click the coordinate plane. From the keyboard, select a point card, then focus the plane and use the arrow keys and Enter. Colored guides show the exact location.',
+    'Tap a marker, then tap the end of your curve. From the keyboard, select a marker, then focus the plane and use the arrow keys and Enter.',
+    'Drag a card to the matching axis box. You can also click or tap a card and then the box, or Tab to a card and press Enter, then Shift+Tab back to the matching axis box and press Enter.',
+    'Tap a card, then tap the matching axis box, or Tab to a card and press Enter, then Shift+Tab back to the matching axis box and press Enter.',
+    'Place quantity here',
+    'Select a graph (click or tap, or Tab to it and press Enter), or drag it directly onto a scenario.',
+    'Choose a sequence, then plot each ordered pair on the graph (click or tap it, or focus the grid and use the arrow keys and Enter).',
+    'Those two points landed on the same spot. Two different points are needed to determine a line.',
+    'Run a linear regression on that table: press Add Regression (or type y₁ ~ mx₁ + b) so the calculator fits the line.',
+    'Each press changes the value by 0.1.',
+    'Tap each feature you are asked for, or use the arrow keys and Enter.',
+    'Tap it on the graph, or use the arrow keys and Enter. Not there? Choose Does Not Exist.',
+    'Tap the number line, or use the arrow keys and Enter, to place a dot.',
+    'Tap the graph, or use Page Up, Page Down and Enter: an arrow for "keeps going", a point for its x-value — twice for an open dot.',
+    'Your answer is locked in but was not sent. Press Retry locked answer to send it.',
+    'Find the features on your graphs to earn points.',
+    'Open MathMaster and choose Live Challenge on your dashboard.',
+  ]) assert.equal(pointerOnly([fixed]).length, 0, `flagged: ${fixed}`);
+});
+
+// A tree of React elements, flattened: a function component called as a function (no hooks)
+// returns one, and a key press is the handler its element carries, called as the browser would.
+const elementsOf = (node, found = []) => {
+  if (Array.isArray(node)) node.forEach((child) => elementsOf(child, found));
+  else if (node && typeof node === 'object' && node.props) {
+    found.push(node);
+    elementsOf(node.props.children, found);
+  }
+  return found;
+};
+const pressKey = (element, key) => {
+  const event = { key, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+  element.props.onKeyDown(event);
+  return event.defaultPrevented;
+};
+
+/* ------------------------------------------------------- Step Algebra */
+
+// What each file carries that a student can read, scanned as the earlier slices scan theirs.
+// `known` is a direction that has no keyboard route to name (said why where it is listed); the
+// list is held exactly, so a fix, or a second one, is noticed.
+const CARRIED_SLICE_4 = [
+  ['Step Algebra: the balance, its cancellation cue, the phone placement hints and the structure tools', ['src/StepByStepAlgebraCore.jsx', 'src/StepAlgebraStructureTools.jsx', 'src/platform/mobile/mobileInteractionFoundation.js'], 40, []],
+  // A branch's background is not a control (its own handler is a click on a <div>), so "click to
+  // work here" names no key. A keyboard acts on a term inside the branch, which makes it the active
+  // one (cancellationTokenPressed, onPlacement and chooseSimplifyFromTerm all set it); reported, not promised.
+  ['the relation workspace', ['src/MultiRelationAlgebraCore.jsx'], 40, ['· click to work here']],
+  ['the graph workspace', ['src/InteractiveGraphWorkspace.jsx'], 60, []],
+  ['the Graph Axis Editor and the relationship model', ['src/GraphAxisEditor.jsx', 'src/RelationshipModel.jsx'], 10, []],
+  ['Graph Scenario Match', ['src/GraphScenarioMatch.jsx'], 10, []],
+  ['Sequence Explorer, Graphing 2, Data Modeling Lab and the regression calculator\'s worked solution', ['src/tools/sequenceExplorer', 'src/tools/graphing2', 'src/tools/dataModeling', 'src/tools/shared/reviews/regressionCalculatorReview.js'], 100, []],
+  ['Live Challenge: the Rush round, the student screens and the projector', ['src/components/liveChallenge/GraphFeatureRushRound.jsx', 'src/components/liveChallenge/ChallengeStudentShell.jsx', 'src/components/liveChallenge/LiveChallengeStudent.jsx', 'src/components/liveChallenge/LiveChallengeArenaProjector.jsx'], 50, []],
+];
+
+test('AX32 (slice 4): nothing these files carry tells a student to click, tap or drag without naming a key', async () => {
+  for (const [what, paths, minimum, known] of CARRIED_SLICE_4) {
+    const strings = await carried(paths.flatMap(filesUnder));
+    assert.ok(strings.length > minimum, `${what}: the scan reads the strings (${strings.length})`);
+    assert.deepEqual(pointerOnly(strings.map(({ text: line }) => line)), known, what);
+  }
+});
+
+const carriedLines = async (paths, pattern) => {
+  const found = (await carried(paths.flatMap(filesUnder))).map(({ text: line }) => line).filter((line) => pattern.test(line));
+  assert.ok(found.length >= 1, `${paths.join(', ')}: no string matches ${pattern}`);
+  return found;
+};
+const bothRoutesIn = (lines) => lines.forEach((line) => {
+  assert.ok(/\b(?:click|tap|slash)\b/i.test(line) && KEYBOARD_ROUTE.test(line), `says one route only: ${line}`);
+});
+
+test('AX32 (slice 4): Step Algebra\'s cancellation lines name Tab and Enter beside the click, the tap and the slash', async () => {
+  const core = ['src/StepByStepAlgebraCore.jsx'];
+  for (const pattern of [
+    // The message after an operation is balanced (what a screen reader hears), then each form of the cue.
+    /^The operation is balanced\. Draw directly through the \$\{[^}]*\} in the equation itself, or Tab to one and press Enter\.$/,
+    /^Click, tap or slash one member of a valid cancellation pair, or Tab to one and press Enter\. MathMaster will cross out its matching partner with it\.$/,
+    /^Cancel \$\{[^}]*\} opposite-term pairs\. Click, tap or slash one term from each pair, or Tab to one and press Enter; its matching opposite is crossed out with it\.$/,
+    /^Click, tap or slash either opposite term once, or Tab to one and press Enter\. MathMaster crosses out the matching term with it\.$/,
+    /^Cancel \$\{[^}]*\} matching factor pairs\. Click, tap or slash one factor from each pair, or Tab to one and press Enter; its matching factor is crossed out with it\.$/,
+    /^Click, tap or slash either matching factor once, or Tab to one and press Enter\. MathMaster crosses out its partner with it\.$/,
+  ]) {
+    const found = await carriedLines(core, pattern);
+    assert.equal(found.length, 1, `one line for ${pattern}`);
+    assert.ok(/\bTab\b/.test(found[0]) && /\bEnter\b/.test(found[0]), found[0]);
+  }
+});
+
+test('AX32 (slice 4): the phone placement hints name the keyboard\'s way to a side, and the order of the page is what they say', async () => {
+  const { server } = await loadEngine();
+  const { KEYBOARD_PLACEMENT_ROUTE, placementInstructionForOperation } = await server.ssrLoadModule('/src/platform/mobile/mobileInteractionFoundation.js');
+  assert.equal(KEYBOARD_PLACEMENT_ROUTE, 'Shift+Tab back to a side and press Enter');
+  for (const operation of ['add', 'subtract', 'multiply', 'divide', 'power']) {
+    const line = placementInstructionForOperation(operation);
+    assert.ok(line.startsWith('Click or tap ') && line.endsWith(`, or ${KEYBOARD_PLACEMENT_ROUTE}.`), line);
+    assert.deepEqual(pointerOnly([line]), [], line);
+  }
+  // The same words are on the Pick up button of a phone, which a screen reader reads as its description.
+  const titles = await carriedLines(['src/StepByStepAlgebraCore.jsx'], /^Arm this operation, then click or tap the equation where it belongs, or /);
+  assert.deepEqual(titles, [`Arm this operation, then click or tap the equation where it belongs, or ${KEYBOARD_PLACEMENT_ROUTE}`]);
+  // "Shift+Tab" is right only while the two sides come before the Pick up button in the page (Tab would
+  // carry a keyboard on, away from them). tests/browser/stepAlgebraStructureTools.mjs presses the keys.
+  const core = executableSource(readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8'));
+  const sides = core.indexOf('algebra-equation-box algebra-connected-side');
+  const pickUp = core.indexOf('algebra-pickup-button');
+  assert.ok(sides >= 0 && pickUp > sides, 'the sides are drawn before the Pick up button');
+});
+
+test('AX32 (slice 4): Enter or Space on a term, in the row the cancellation and every structure tool select from, takes it as a tap does', async () => {
+  const { server } = await loadEngine();
+  const AlgebraTermRow = (await server.ssrLoadModule('/src/AlgebraTermRow.jsx')).default;
+  const { buildCancellationModel } = await server.ssrLoadModule('/src/algebraCancellationModel.js');
+  const model = buildCancellationModel('3*x + 6 - 6', null, 'x', []);
+  const chosen = [];
+  const row = (props) => elementsOf(AlgebraTermRow({ terms: model.terms, side: 'left', onTermClick: (index) => chosen.push(index), ...props })).filter((element) => element.props.role === 'button');
+  const terms = row({});
+  assert.equal(terms.length, 3, 'each term of the side is a button');
+  terms.forEach((term) => assert.equal(term.props.tabIndex, 0, 'a button Tab reaches'));
+  assert.deepEqual(terms.map((term) => term.props['aria-label'].replace(/^.*, /, '')), ['select to cancel', 'select to cancel', 'select to cancel'], 'named for what pressing it does');
+  for (const key of ['Enter', ' ']) {
+    chosen.length = 0;
+    terms.forEach((term) => assert.equal(pressKey(term, key), true, `${JSON.stringify(key)} is taken by the term`));
+    assert.deepEqual(chosen, [0, 1, 2], `${JSON.stringify(key)} chooses each term, as a tap does`);
+  }
+  chosen.length = 0;
+  terms.forEach((term) => assert.equal(pressKey(term, 'Tab'), false, 'Tab is not taken: the keyboard can leave the term'));
+  assert.deepEqual(chosen, []);
+  // A row that makes only some terms choosable (Simplify's highlighted parts) gives the rest no button.
+  assert.equal(row({ interactiveIndices: [1] }).length, 1);
+});
+
+test('AX32 (slice 4): Enter or Space on a factor of a pair takes it as a tap does, and a factor with no partner is not a button', async () => {
+  const { server } = await loadEngine();
+  const { CancellationFactorRow } = await server.ssrLoadModule('/src/StepByStepAlgebraCore.jsx');
+  const { buildCancellationModel } = await server.ssrLoadModule('/src/algebraCancellationModel.js');
+  const model = buildCancellationModel('(-2*x)/(-2)', null, 'x', []);
+  assert.equal(model.kind, 'fraction');
+  const pressed = [];
+  const factors = (row, offset) => elementsOf(CancellationFactorRow({ factors: row, offset, model, selectedIndices: [], crossedIndices: [], onTokenClick: (index) => pressed.push(index) }))
+    .filter((element) => element.props['data-cancel-index'] !== undefined);
+  const numerator = factors(model.numerator, 0);
+  const denominator = factors(model.denominator, model.numerator.length);
+  const buttons = [...numerator, ...denominator].filter((token) => token.props.role === 'button');
+  assert.deepEqual(buttons.map((token) => token.props['data-cancel-index']), [0, 2], 'the two -2 factors are the pair; x has no partner');
+  buttons.forEach((token) => {
+    assert.equal(token.props.tabIndex, 0);
+    assert.match(token.props['aria-label'], /mark this factor for cancellation$/);
+  });
+  assert.equal(numerator.find((token) => token.props['data-cancel-index'] === 1).props.role, undefined, 'x is plain mathematics');
+  for (const key of ['Enter', ' ']) {
+    pressed.length = 0;
+    buttons.forEach((token) => assert.equal(pressKey(token, key), true, `${JSON.stringify(key)} is taken by the factor`));
+    assert.deepEqual(pressed, [0, 2], `${JSON.stringify(key)} presses each factor of the pair, as a tap does`);
+  }
+  pressed.length = 0;
+  buttons.forEach((token) => assert.equal(pressKey(token, 'Tab'), false));
+  assert.deepEqual(pressed, []);
+});
+
+test('AX32 (slice 4): the structure tools say what a tap does and what the keys do, and name their swap by "select"', async () => {
+  const tools = ['src/StepAlgebraStructureTools.jsx'];
+  for (const pattern of [
+    /^Select the terms you are factoring \(click or tap, or Tab to each and press Enter\)$/,
+    /^Select the factors every selected term shares \(click or tap, or Tab to each and press Enter\)$/,
+    /^Select the fraction to split \(click or tap, or Tab to it and press Enter\)$/,
+    /^Select a highlighted fraction to write it as primes \(click or tap, or Tab to it and press Enter\)$/,
+    /^Select a factor, then an equal factor across the bar \(click or tap, or Tab to each and press Enter\)$/,
+    /^Select another term to swap \(click or tap, or Tab to it and press Enter\)$/,
+    /^Select two terms to swap them \(click or tap, or Tab to each and press Enter\)$/,
+  ]) bothRoutesIn(await carriedLines(tools, pattern));
+  // The chip to drag out front: the Pull out button, by Tab and Enter, is the other way.
+  const drag = await carriedLines(tools, /^Drag out front, /);
+  assert.deepEqual(drag, ['Drag out front, or Tab to Pull out and press Enter']);
+  assert.deepEqual(pointerOnly(drag), []);
+  // A term's spoken label names what pressing it does, and no device (the driver selects by it).
+  assert.deepEqual([...new Set(await carriedLines(tools, /^select to (?:swap with the selected term|move)$/))].sort(), ['select to move', 'select to swap with the selected term']);
+});
+
+for (const [role, engineRole] of [['practice', 'classwork'], ['a DOL', 'test']]) {
+  test(`AX32 (slice 4): the relation workspace (${role}) says select two items with Tab and Enter, and its terms are buttons`, async () => {
+    const { html } = await renderEngine({ role: engineRole, question: { id: 'ax32-relation', questionId: 'ax32-relation', type: 'stepAlgebra', prompt: 'Solve the inequality.', equationLatex: '3x + 6 < 21' } });
+    const lines = linesOf(html);
+    assert.deepEqual(pointerOnly(lines), []);
+    both(lines, /^Cancellation works directly on visible matching opposite terms and common numerator\/denominator factors\. Select two items \(click or tap, or Tab to each and press Enter\), or press and drag from one item into its matching partner\./);
+    // The two terms of the side, each a button Tab reaches (it is what the line sends a student to).
+    allReachable(buttonsOf(html).filter((button) => /data-cancel-index=/.test(button.attrs)), 2, 'the terms');
+  });
+}
+
+/* ------------------- the graph workspace, the Graph Axis Editor, Graph Scenario Match, Sequence Explorer */
+
+const catalogExample = async (type) => {
+  const { server } = await loadEngine();
+  const { QUESTION_TYPE_CATALOG } = await server.ssrLoadModule('/src/platform/contract/questionTypeCatalog.js');
+  return { id: `ax32-${type}`, questionId: `ax32-${type}`, ...QUESTION_TYPE_CATALOG[type].example };
+};
+
+for (const [role, engineRole] of [['practice', 'classwork'], ['a DOL', 'test']]) {
+  test(`AX32 (slice 4): the graph workspace's placement hint (${role}) names the keys beside the pointer, to a card and a plane Tab reaches`, async () => {
+    const { html } = await renderEngine({ role: engineRole, question: await catalogExample('functionGraph') });
+    const lines = linesOf(html);
+    assert.deepEqual(pointerOnly(lines), []);
+    both(lines, /^Drag a point, or select it and click the coordinate plane\. From the keyboard, select a point card, then focus the plane and use the arrow keys and Enter\. Colored guides show the exact location\.$/);
+    // The point cards are buttons (Enter selects one) and the plane is a tab stop (the arrow keys and Enter place it).
+    const cards = buttonsOf(html).filter((button) => /draggable="true" aria-pressed="false"/.test(button.attrs));
+    allReachable(cards, 5, 'the point cards');
+    assert.match(html, /<svg\b(?=[^>]*\brole="application")(?=[^>]*\btabindex="0")(?=[^>]*\baria-label="Coordinate plane)/, 'the plane takes Tab');
+  });
+
+  test(`AX32 (slice 4): Graph Scenario Match (${role}) says select a graph with Tab and Enter, and its graphs and scenarios are buttons`, async () => {
+    const { html } = await renderEngine({ role: engineRole, question: await catalogExample('graphScenarioMatch') });
+    const lines = linesOf(html);
+    assert.deepEqual(pointerOnly(lines), []);
+    both(lines, /^1\. Select a graph Select a graph \(click or tap, or Tab to it and press Enter\), or drag it directly onto a scenario\.$/);
+    // What the line sends a student to: a graph button, then the scenario that tells its story.
+    allReachable(buttonsOf(html).filter((button) => /class="graph-scenario-graph-select"/.test(button.attrs)), 2, 'the graphs');
+    allReachable(buttonsOf(html).filter((button) => /class="graph-scenario-story-select"/.test(button.attrs)), 2, 'the scenarios');
+  });
+}
+
+const AXIS_EDITOR = {
+  graph: { xMin: 0, xMax: 8, yMin: 0, yMax: 40, xStep: 1, yStep: 5 },
+  quantities: [{ id: 'time', label: 'Time', unit: 'minutes' }, { id: 'volume', label: 'Water in the pool', unit: 'litres' }],
+};
+const axisEditorMarkup = async (phone) => {
+  const { server } = await loadEngine();
+  const GraphAxisEditor = (await server.ssrLoadModule('/src/GraphAxisEditor.jsx')).default;
+  return withBrowser(() => {
+    if (phone) {
+      window.innerWidth = 390;
+      window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+    }
+    return render(React.createElement(GraphAxisEditor, { ...AXIS_EDITOR, values: {}, onFieldChange() {}, feedback: null }));
+  });
+};
+
+for (const [device, phone, direction] of [
+  ['a computer', false, /^Drag a card to the matching axis box\. You can also click or tap a card and then the box, or Tab to a card and press Enter, then Shift\+Tab back to the matching axis box and press Enter\.$/],
+  ['a phone', true, /^Tap a card, then tap the matching axis box, or Tab to a card and press Enter, then Shift\+Tab back to the matching axis box and press Enter\.$/],
+]) {
+  test(`AX32 (slice 4): the Graph Axis Editor on ${device} names the keys, and its cards and axis boxes are buttons Tab reaches`, async () => {
+    const markup = await axisEditorMarkup(phone);
+    const lines = linesOf(markup);
+    assert.deepEqual(pointerOnly(lines.filter((line) => !/^(?:Y|X)-axis /.test(line))), [], 'no direction for a pointer alone');
+    both(lines, direction);
+    // The heading and the empty boxes say what to do, not how: the line under the heading says how.
+    assert.ok(lines.includes('Place the labels and units on the graph'));
+    assert.deepEqual(lines.filter((line) => /^(?:X|Y)-axis (?:quantity|unit) /.test(line)), ['Y-axis quantity Place quantity here', 'Y-axis unit Place unit here', 'X-axis quantity Place quantity here', 'X-axis unit Place unit here']);
+    allReachable(buttonsOf(markup).filter((button) => /^(?:X|Y)-axis (?:quantity|unit) /.test(button.name)), 4, 'the axis boxes');
+    // Each card is a toggle: Enter selects it, and a screen reader hears that it is.
+    const cards = buttonsOf(markup).filter((button) => /aria-pressed="false"/.test(button.attrs));
+    assert.deepEqual(cards.map((card) => card.name), ['Time', 'Water in the pool', 'minutes', 'litres']);
+    allReachable(cards, 4, 'the cards');
+  });
+}
+
+test('AX32 (slice 4): the relationship model says what to do with its axis cards, and the Graph Axis Editor says how', async () => {
+  const { html } = await renderEngine({ role: 'classwork', question: {
+    ...(await catalogExample('relationshipModel')), recipe: null, workflow: null,
+    axisSetup: { required: true, inputMode: 'drag', applyToGraph: true },
+    quantities: AXIS_EDITOR.quantities,
+  } });
+  const lines = linesOf(html);
+  assert.deepEqual(pointerOnly(lines.filter((line) => !/^(?:Y|X)-axis /.test(line))), []);
+  assert.ok(lines.includes('Axis setup: Place the quantity and unit cards on the graph. Your choices appear on the graph immediately.'), 'what to do');
+  both(lines, /^Drag a card to the matching axis box\. You can also click or tap a card and then the box, or Tab to a card and press Enter,/);
+});
+
+for (const [role, runtime] of ROLES) {
+  test(`AX32 (slice 4): Sequence Explorer's plot step (${role}) names the keys, in the words of the plane under it`, async () => {
+    const markup = await toolMarkup('sequenceExplorer', await sampleOf('sequenceExplorer'), runtime);
+    const lines = linesOf(markup);
+    assert.deepEqual(pointerOnly(lines), []);
+    const step = both(lines, /^Choose a sequence, then plot each ordered pair on the graph \(click or tap it, or focus the grid and use the arrow keys and Enter\)\. Switching sequences changes which model receives the next point\.$/);
+    // The plane draws its own keyboard sentence before it has focus; the step says the same tail.
+    const tail = /\(click or tap it, or (.*)\)\./.exec(step)[1];
+    assert.deepEqual(await planeHelp({ showPlotHelp: 'keyboard' }), [`From the keyboard, ${tail}.`], 'the plane says the same route');
+    assert.match(markup, APPLICATION_SVG, 'and the plane takes Tab');
+  });
+}
+
+/* ------------------------------------------------------------------- Live Challenge */
+
+test('AX32 (slice 4): the Rush round names the arrow keys and Enter beside the tap, before play starts and while it goes on', async () => {
+  const round = ['src/components/liveChallenge/GraphFeatureRushRound.jsx'];
+  for (const pattern of [
+    /^Tap each feature you are asked for, or use the arrow keys and Enter\.$/,
+    /^Tap it on the graph, or use the arrow keys and Enter\. Not there\? Choose Does Not Exist\.$/,
+    // The graph's own name already said it; the lines beside it now say the same.
+    /^\$\{[^}]*\}\. Tap the graph, or use the arrow keys and Enter\.$/,
+    // The other hints of the round: Off Screen, a number line, a set question (Page Up and Page Down step to
+    // each arrow and point), and the line under the set that shows what is drawn so far.
+    /^Tap it on the graph, or use the arrow keys and Enter\. Past the edge\? Off Screen\. Not there at all\? Does Not Exist\.$/,
+    /^Tap the number line, or use the arrow keys and Enter: once for a closed dot, twice for open, three times to take it away\. Tap an end arrow, or arrow past the last number onto it, for \\?"keeps going\\?"\. Nothing works\? No Solution\.$/,
+    /^Tap the graph, or use Page Up, Page Down and Enter: an arrow for \\?"keeps going\\?", a point for its \$\{[^}]*\}-value — twice for an open dot\.\$\{[^}]*\}$/,
+    /^Tap the number line, or use the arrow keys and Enter, to place a dot\.$/,
+    /^Tap the graph, or use the arrow keys and Enter, to place a dot\.$/,
+  ]) {
+    const found = await carriedLines(round, pattern);
+    assert.equal(found.length, 1, `one line for ${pattern}`);
+    assert.ok(/\btap\b/i.test(found[0]) && /(?:arrow keys|Page Up, Page Down) and Enter/.test(found[0]), found[0]);
+  }
+  // …and the game's other lines say what to do, not how (the round's hint says how).
+  const { server } = await loadEngine();
+  const { lobbyGameWords } = await server.ssrLoadModule('/src/components/liveChallenge/ChallengeStudentShell.jsx');
+  const { rushGameWords } = await server.ssrLoadModule('/src/platform/liveChallenge/challengeShellModel.js');
+  const rush = rushGameWords({ challengeMode: 'graphFeatureRush' });
+  assert.equal(lobbyGameWords({ challengeMode: 'graphFeatureRush' }), 'Graph Feature Rush — find the features on your own graphs');
+  assert.equal(rush.earn, 'Find the features on your graphs to earn points.');
+  assert.equal(rush.go, 'Everyone has their own graphs. Find the features. Go!');
+  [rush.lobby, rush.earn, rush.go].forEach((line) => assert.equal(pointerOnly([line]).length, 0, line));
+  assert.ok((await carriedLines(['src/components/liveChallenge/LiveChallengeStudent.jsx'], /^Your answer is locked in but was not sent\. Press Retry locked answer to send it\.$/)).length === 1);
 });

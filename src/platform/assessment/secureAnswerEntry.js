@@ -25,14 +25,15 @@
  *       \$; a stacked fraction around π or a root is read since H-13 too).
  *
  *   expression, equation
- *       PLAIN TEXT, deliberately, for the reasons that are left
- *       (SECURE_TEXT_PROFILE_REASONS). The grader reads what the editor writes
- *       for every expression and equation key a secure Test can issue (TS05:
+ *       PLAIN TEXT, deliberately, for the reason that is left
+ *       (SECURE_TEXT_PROFILE_REASONS): a phone's keypad for these profiles
+ *       cannot type every key (secureExpressionEquationKeypad.test.mjs lists
+ *       them, family by family). The grader reads what the editor writes for
+ *       every expression and equation key a secure Test can issue (TS05:
  *       tests/browser/editorKeyRoundTrip.mjs typed each into the real editor,
- *       editorKeySpellings.test.mjs grades them all). It still reads a product
- *       over a letter apart from the same characters typed, and a phone's
- *       keypad for these profiles cannot type every key. The round-trip test
- *       pins the grader's half, so it fails and says so when that changes.
+ *       editorKeySpellings.test.mjs grades them all), and reads the editor's
+ *       stacked product inside a sum or as an equation's side as the same
+ *       keys typed (\frac{2A}{h}-b_2 is 2A/h-b_2; the owner's decision).
  *
  *   text, and anything unrecognised
  *       plain text — words are the answer, or the field did not say.
@@ -43,9 +44,9 @@
  * fraction. So a secure field hands MathInput no such symbols: what it needs
  * goes into the keypad itself (`keys`), uncaptioned, and every key a profile
  * adds is the same on every item of that profile. The one item-specific set
- * is an inequality's letters, which come from what the student is reading —
- * the PROMPT and the field's own label — beside x and y on every inequality
- * (inequalityLetters), never from the key.
+ * is the letters of an inequality, an expression or an equation, which come
+ * from what the student is reading — the PROMPT and the field's own label —
+ * beside x and y on every one (secureFieldLetters), never from the key.
  *
  * Nothing here decides correctness or rewrites an answer. It picks a keyboard.
  */
@@ -61,17 +62,23 @@ export const SECURE_ANSWER_EDITORS = Object.freeze({
 /** Profiles whose math-editor output the server field grader accepts. */
 export const SECURE_MATH_EDITOR_PROFILES = Object.freeze(['number', 'set', 'interval', 'orderedPair', 'inequality']);
 
-/** Profiles kept on typed text, with the reasons that are left (the round-trip test pins the grader's). */
+/** Profiles kept on typed text, with the reasons that are left (the round-trip test pins the grader's half: none). */
 export const SECURE_TEXT_PROFILE_REASONS = Object.freeze({
   // TS05: the editor's set-builder bar, typed log base, cube root and the
-  // brackets it keeps inside a root or a numerator are read; no key a secure
-  // Test can issue has the division binding below. Reading it as typed would
-  // undo GR35a for a monomial quotient (\frac{3b^2}{a^3} is not 3\frac{b^2}{a^3}),
-  // an owner decision.
-  expression: 'the grader does not read the editor\'s division binding the way it reads typed text (\\frac{2A}{h}-b_2 vs 2A/h-b_2), and a phone\'s expression keypad has no letter, set-notation or ln key',
+  // brackets it keeps inside a root or a numerator are read, and so is its
+  // stacked product inside a sum (\frac{2A}{h}-b_2 as 2A/h-b_2), the owner's
+  // decision; a lone \frac{3b^2}{a^3} still keeps GR35a's reading.
+  // The keypad has the letters the student reads, set notation and ln since
+  // TS05 (secureKeypadKeys). What a phone still cannot type, over every
+  // family a secure Test can issue, is pinned family by family in
+  // secureExpressionEquationKeypad.test.mjs (STILL_UNTYPEABLE): 4 expression
+  // families and 14 equation families.
+  expression: 'a phone\'s keypad cannot type every expression key a secure Test can issue: no key types a multiplication sign the grader needs (3·|x|·y², x·ⁿ√x), or a letter the item names only in the prompt\'s words (v, I)',
   // The named-function backslash (\log_2\left(32\right)=5) is read since
-  // GR34, and the editor's typed log base (\log_{_{}2}) since TS05.
-  equation: 'the grader does not read the editor\'s division binding the way it reads typed text (h=\\frac{2A}{b} vs h=2A/b), and a phone\'s equation keypad types no letter but x, y and f',
+  // GR34, the editor's typed log base (\log_{_{}2}) since TS05, and its
+  // stacked product as an equation's side (h=\frac{2A}{b} as h=2A/b) since
+  // the owner's TS05 decision.
+  equation: 'a phone\'s keypad cannot type every equation key a secure Test can issue: no key types a subscript (P₀, aₙ), the phone equation pad drops ⁿ√ (∛), and some letters are named only in the prompt\'s words (t, v, w, l, L, I) or nowhere the field shows them (a, b, c, n, P, V)',
 });
 
 /*
@@ -109,6 +116,15 @@ const formatWords = (format) => clean(format).replace(/([a-z])([A-Z])/g, '$1 $2'
  *                \operatorname{or}: math atoms drawn as words, so the caret
  *                stays in math (a \text{} key left it typing text), and the
  *                grader reads them as it reads typed and / or.
+ *   expression, equation
+ *                set notation, { } | ≠ < > ≤ ≥ ∅, and ln (TS05; the owner's
+ *                decision): a set-builder or roster answer, an inequality an
+ *                equation field asks for, and ln, which these pads lacked
+ *                beside logₐ. A relation is one character, as on the
+ *                inequality pad (MathLive read `\le` and a typed t after it
+ *                as \let), and the bar a plain |, which every grader reads (a
+ *                \mid is read only in set-builder notation). Their letters
+ *                are an inequality's (secureFieldLetters, below).
  */
 export const SECURE_AND = '\\operatorname{and}';
 export const SECURE_OR = '\\operatorname{or}';
@@ -123,6 +139,18 @@ export const SECURE_INLINE_SHORTCUTS = Object.freeze({ and: SECURE_AND, or: SECU
 const tool = (label, command, ariaLabel) => Object.freeze({ label, command, ariaLabel });
 const ROOT_KEY = tool('√', '\\sqrt{#0}', 'Insert square root');
 const PI_KEY = tool('π', '\\pi', 'Insert pi');
+const SET_NOTATION_AND_LN_KEYS = Object.freeze([
+  tool('{', '\\lbrace', 'Insert opening set brace'),
+  tool('}', '\\rbrace', 'Insert closing set brace'),
+  tool('|', '|', 'Insert vertical bar'),
+  tool('≠', '≠', 'Insert not equal to'),
+  tool('<', '<', 'Insert less than'),
+  tool('>', '>', 'Insert greater than'),
+  tool('≤', '≤', 'Insert less than or equal to'),
+  tool('≥', '≥', 'Insert greater than or equal to'),
+  tool('∅', '\\varnothing', 'Insert empty set'),
+  tool('ln', '\\ln\\left(#0\\right)', 'Insert natural logarithm'),
+]);
 export const SECURE_PROFILE_KEYS = Object.freeze({
   number: Object.freeze([ROOT_KEY, PI_KEY]),
   orderedPair: Object.freeze([ROOT_KEY, PI_KEY]),
@@ -135,6 +163,8 @@ export const SECURE_PROFILE_KEYS = Object.freeze({
     tool('and', SECURE_AND, 'Insert and'),
     tool('or', SECURE_OR, 'Insert or'),
   ]),
+  expression: SET_NOTATION_AND_LN_KEYS,
+  equation: SET_NOTATION_AND_LN_KEYS,
 });
 
 /*
@@ -183,8 +213,15 @@ export const variablesInPrompt = (prompt = '') => {
  *   letter standing alone, but not "a", "A" or "I", which are words.
  *
  * Still never the key's letters.
+ *
+ * AN EXPRESSION'S AND AN EQUATION'S KEYPAD OFFER THE SAME LETTERS (TS05; the
+ * owner's decision): a phone's expression pad had no letter key, and its
+ * equation pad typed no letter but x, y and f. The same rule, so the same
+ * two keys on every one of them, and the letters the student reads.
  */
 export const EVERY_INEQUALITY_LETTER = Object.freeze(['x', 'y']);
+/** The profiles whose keypad offers the letters the student reads, beside x and y. */
+export const SECURE_LETTER_PROFILES = Object.freeze(['inequality', 'expression', 'equation']);
 const NOT_LETTER_WORDS = new Set(['a', 'A', 'I']);
 const lettersInWords = (text = '') => {
   const words = splitMathSegments(String(text ?? '')).filter((segment) => !isMathSegment(segment)).join(' ');
@@ -192,12 +229,13 @@ const lettersInWords = (text = '') => {
     .map(([letter]) => letter)
     .filter((letter) => !NOT_LETTER_WORDS.has(letter));
 };
-export const inequalityLetters = ({ prompt = '', label = '' } = {}) => [...new Set([
+export const secureFieldLetters = ({ prompt = '', label = '' } = {}) => [...new Set([
   ...lettersInMath(prompt).slice(0, MAX_PROMPT_VARIABLES),
   ...lettersInMath(label),
   ...lettersInWords(label),
   ...EVERY_INEQUALITY_LETTER,
 ])];
+export const inequalityLetters = secureFieldLetters;
 
 const variableKey = (letter) => tool(letter, letter, `Insert ${/[A-Z]/.test(letter) ? 'capital ' : ''}${letter}`);
 
@@ -257,14 +295,37 @@ export const namedEntrySymbols = (field = {}) => {
 const keyId = (key) => key.command;
 
 /**
+ * The keys a secure field's keypad adds for its profile, whatever editor the
+ * profile has today: the profile's own (the same on every item), the letters
+ * the student reads where the profile takes letters, and a key for each
+ * symbol the field's public metadata names. Never anything from the key.
+ *
+ * @param {object} field a sanitized response field from the server
+ * @param {object} [context]
+ * @param {string} [context.prompt] the item's public prompt
+ */
+export const secureKeypadKeys = (field = {}, { prompt = '' } = {}) => {
+  const safe = isObject(field) ? field : {};
+  const profile = normalizeInteractionInputProfile(safe.inputProfile) || 'text';
+  const named = namedEntrySymbols(safe).filter((symbol) => !KEYLESS_SYMBOLS.has(symbol));
+  const keys = [];
+  const add = (key) => { if (key && !keys.some((existing) => keyId(existing) === keyId(key))) keys.push(key); };
+  (SECURE_PROFILE_KEYS[profile] || []).forEach(add);
+  if (SECURE_LETTER_PROFILES.includes(profile)) secureFieldLetters({ prompt, label: safe.label }).forEach((letter) => add(variableKey(letter)));
+  named.forEach((symbol) => add(requiredAnswerToolForSymbol(symbol)));
+  return Object.freeze(keys);
+};
+
+/**
  * The editor, keypad and hint one secure response field gets.
  *
  * @param {object} field a sanitized response field from the server
  *   (mathPath.normalizeResponseFields: id, label, inputProfile, answerFormat,
  *   requiredSymbols, responseHint, placeholder, unit)
  * @param {object} [context]
- * @param {string} [context.prompt] the item's public prompt (an inequality's
- *   letters come from it and from the field's label)
+ * @param {string} [context.prompt] the item's public prompt (the letters of
+ *   an inequality, an expression or an equation come from it and from the
+ *   field's label)
  * @param {string} [context.examType] the session's exam type: a practice exam
  *   keeps its test's own number line (SECURE_PRACTICE_EXAM_HINTS)
  */
@@ -274,17 +335,12 @@ export const secureAnswerEntryFor = (field = {}, { prompt = '', examType = null 
   const serverHint = clean(safe.responseHint);
   if (SECURE_MATH_EDITOR_PROFILES.includes(profile)) {
     const named = namedEntrySymbols(safe).filter((symbol) => !KEYLESS_SYMBOLS.has(symbol));
-    const keys = [];
-    const add = (key) => { if (key && !keys.some((existing) => keyId(existing) === keyId(key))) keys.push(key); };
-    (SECURE_PROFILE_KEYS[profile] || []).forEach(add);
-    if (profile === 'inequality') inequalityLetters({ prompt, label: safe.label }).forEach((letter) => add(variableKey(letter)));
-    named.forEach((symbol) => add(requiredAnswerToolForSymbol(symbol)));
     return {
       editor: SECURE_ANSWER_EDITORS.MATH,
       profile,
       toolProfile: toolProfileForInputProfile(profile),
       answerFormat: clean(safe.answerFormat || safe.inputContract?.format) || profile,
-      keys: Object.freeze(keys),
+      keys: secureKeypadKeys(safe, { prompt }),
       // A named symbol no key can type keeps the phone's own keyboard open
       // (MathInput leaves it for an unserved symbol); it shows no key, so
       // nothing is captioned "Needed for this answer".

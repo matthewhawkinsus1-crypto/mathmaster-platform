@@ -231,8 +231,12 @@ for (const viewport of VIEWPORTS) {
     await page.getByRole('tab', { selected: true }).focus();
     await page.keyboard.press('ArrowRight');
     chosenTab = await page.getByRole('tab', { selected: true }).innerText();
-    const focusedTab = await page.evaluate(() => document.activeElement?.getAttribute('role') === 'tab' && document.activeElement.getAttribute('aria-selected') === 'true');
-    expect(`S6 ${tag}`, focusedTab, 'ArrowRight did not select and focus the next tab');
+    const focusedTab = await page.evaluate(() => {
+      const active = document.activeElement;
+      const where = `${active?.tagName || 'nothing'}${active?.id ? `#${active.id}` : ''}${active?.getAttribute?.('role') ? ` [${active.getAttribute('role')}]` : ''}`;
+      return { ok: active?.getAttribute('role') === 'tab' && active.getAttribute('aria-selected') === 'true', where };
+    });
+    expect(`S6 ${tag}`, focusedTab.ok, `ArrowRight did not select and focus the next tab (focus is on ${focusedTab.where})`);
     const panel = await page.evaluate(() => {
       const tab = document.querySelector('[role="tab"][aria-selected="true"]');
       const panelNode = tab && document.getElementById(tab.getAttribute('aria-controls'));

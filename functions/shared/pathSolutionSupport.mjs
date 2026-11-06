@@ -57,6 +57,9 @@ export const buildPrivateSupport = (question = {}) => {
       .map((entry) => ({
         match: list(entry?.match).length ? list(entry.match).map((value) => text(value)) : [text(entry?.match)].filter(Boolean),
         message: clampText(entry?.message),
+        // The answer box the slip is typed in, when the author names one: a
+        // classroom question reads it there only (attemptFeedbackPlan.js).
+        ...(text(entry?.field) ? { field: text(entry.field) } : {}),
       }))
       .filter((entry) => entry.match.length && entry.message)
       .slice(0, 6),

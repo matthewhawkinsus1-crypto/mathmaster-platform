@@ -57,20 +57,26 @@ test('an empty math box with its placeholder showing is among the audited scenes
 const REQUIRED_TEACHER_SCREENS = {
   'teacher-home': [null],
   'teacher-live-class': ['walkthrough', 'attention'],
-  'teacher-assignments': [null, 'class-list', 'card-menu'],
+  // The fifth slice added, here and below, states of these screens that no scene had opened (accessibilityTeacherScreens
+  // .mjs, THE FIFTH SLICE).
+  'teacher-assignments': [null, 'class-list', 'card-menu', 'create'],
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
-  'teacher-preflight': ['details', 'delivery', 'check'],
-  'teacher-live-challenge': ['setup', 'lobby'],
+  'teacher-preflight': ['details', 'classes', 'delivery', 'check'],
+  // After the classic game's report, a Graph the Line game's: its blocks are headed tables (teacher features walk, item 11).
+  'teacher-live-challenge': ['setup', 'lobby', 'round', 'projector', 'results', 'final', 'line-final'],
   // The third slice: the rest of the navigation's destinations, a class's page, a student's drawer, the Find palette,
   // the TEKS screen's views, the Path Simulator's modes, and the administrator's five sections.
   'teacher-classes': [null, 'class'],
   'teacher-students': [null, 'drawer'],
+  // Not 'path' (the student's own My Math Path, read-only): its mastery wheel's targets are the student's; see
+  // accessibilityTeacherScreens.mjs.
+  'teacher-student-detail': ['overview', 'profile', 'progress', 'assignments', 'supports', 'account'],
   'teacher-library': [null],
   'teacher-weekly-path': [null],
   'teacher-action-center': [null],
-  'teacher-grade-export': [null],
-  'teacher-secure-exams': [null],
+  'teacher-grade-export': [null, 'review', 'selection', 'district-ids'],
+  'teacher-secure-exams': [null, 'session', 'delete', 'preview'],
   'teacher-pacing': [null],
   'teacher-attendance': [null],
   'teacher-parent-contacts': [null],
@@ -83,7 +89,8 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-find': [null, 'results'],
   'teacher-demo': [null],
   'teacher-schedule': [null],
-  'teacher-classroom': [null],
+  // Google Classroom as a teacher who has not connected it meets it, and once connected (its courses: listGoogleCourses).
+  'teacher-classroom': [null, 'connected'],
   'teacher-access': [null],
   'teacher-admin': ['classes', 'accounts', 'coverage', 'ai', 'reset'],
 };
@@ -126,6 +133,33 @@ test('the teacher\'s modals are audited as the dialog, and the Find palette is a
   assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-find').include, '[aria-label="Find a student, class, assignment or standard"]');
   assert.match(read('src/components/teacher/StudentProfileDrawer.jsx'), /data-student-profile-drawer=/, 'the drawer carries the hook');
   assert.match(read('src/components/teacher/TeacherQuickSearch.jsx'), /aria-label="Find a student, class, assignment or standard"/, 'the palette carries the name');
+});
+
+// TT27, fifth slice. Three of the new scenes are a layer over the page: Grade Export's review and the Test Cycle's student
+// preview (modal dialogs), and the Live Challenge projector (a full-screen layer the class sees). Each is audited as
+// itself, as the earlier modals are; every other new scene audits the page whole.
+test('the fifth slice audits each layer as itself, and its other states as the whole page', () => {
+  const scope = (screenId, sceneId) => {
+    const screen = TEACHER_SCREENS.find((entry) => entry.id === screenId);
+    return sceneScope(screen, screen.scenes.find((scene) => scene.id === sceneId));
+  };
+  assert.equal(scope('teacher-grade-export', 'review').include, '[aria-labelledby="grade-export-review-title"]');
+  assert.match(read('src/components/teacher/GradeTransferCenter.jsx'), /<Dialog className="tw-review" [^\n]*aria-labelledby="grade-export-review-title">/, 'the review is the Dialog the scene names');
+  assert.equal(scope('teacher-secure-exams', 'preview').include, '[role="dialog"][aria-label^="Student preview of"]');
+  assert.match(read('src/components/teacher/TestCyclePreview.jsx'), /<Dialog onClose=\{onClose\} aria-label=\{`Student preview of \$\{title\}`\}/, 'the preview is the Dialog the scene names');
+  assert.equal(scope('teacher-live-challenge', 'projector').include, '.mm-arena-shell');
+  assert.match(read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx'), /className="mm-arena-shell"/, 'the projector carries the class the scene names');
+  const whole = [
+    ['teacher-assignments', 'create'], ['teacher-preflight', 'classes'], ['teacher-live-challenge', 'round'], ['teacher-live-challenge', 'results'],
+    ['teacher-live-challenge', 'final'], ['teacher-grade-export', 'selection'], ['teacher-grade-export', 'district-ids'], ['teacher-secure-exams', 'session'],
+    ['teacher-secure-exams', 'delete'], ...TEACHER_SCREENS.find((entry) => entry.id === 'teacher-student-detail').scenes.map((scene) => ['teacher-student-detail', scene.id]),
+  ];
+  for (const [screenId, sceneId] of whole) {
+    const { include, keyboard } = scope(screenId, sceneId);
+    // Pre-Flight's steps are inside its dialog, which the screen names; the others are pages.
+    assert.equal(include, screenId === 'teacher-preflight' ? '[aria-label="Lesson pre-flight review"]' : undefined, `${screenId}/${sceneId}`);
+    assert.equal(keyboard, true, `${screenId}/${sceneId} is walked by Tab`);
+  }
 });
 
 test('every teacher screen opens on the school clock and is walked by Tab; a modal is audited as the dialog, not the page behind its scrim', () => {
@@ -294,7 +328,9 @@ test('the Math Tools Lab scene closes the Work View and leaves out only the plan
 // fakeFunctions.js implements itself.
 test('the Classroom and administrator callables are registered after the harness\'s own, and never over them', () => {
   const fakes = readFileSync(new URL('../browser/teacherWorkflow/fakeFunctions.js', import.meta.url), 'utf8');
-  assert.match(fakes, /import \{ adminScreenHandlers \} from '\.\/fakeAdminScreens\.js';/);
+  // (The same import also brings the connected Classroom teacher's course mappings, which the harness's own
+  // listClassroomCourseMappings reads.)
+  assert.match(fakes, /import \{ (?:[\w, ]+, )?adminScreenHandlers(?:, [\w, ]+)? \} from '\.\/fakeAdminScreens\.js';/);
   assert.match(fakes, /Object\.entries\(adminScreenHandlers\)\.forEach\(\(\[name, handler\]\) => \{ if \(!handlers\[name\]\) handlers\[name\] = handler; \}\);/);
 });
 

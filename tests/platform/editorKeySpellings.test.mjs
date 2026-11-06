@@ -162,21 +162,71 @@ test('the other graders read the same spellings the same way (assignment matcher
   assert.deepEqual(refused, []);
 });
 
-test('a product over a letter inside a sum is still read apart from the same characters typed (the reason left, GR35a)', async () => {
-  // The editor puts the whole product before a typed slash over the bar
-  // (\frac{2A}{h}); typed text puts the one factor before it (2·A/h). No key a
-  // secure Test can issue has this shape. A product alone is no trouble: the
-  // editor's \frac{3b^2}{a^3} for a typed 3b^2/a^3 is the same monomial
-  // quotient factor for factor (GR35a). Reading every stacked product as
-  // typed would read a stacked key's \frac{3b^2}{a^3} as 3\frac{b^2}{a^3},
-  // which GR35a keeps wrong (a coefficient moved across the bar).
+/*
+ * THE EDITOR'S DIVISION BINDING (TS05; the owner's decision). A typed slash
+ * takes the one factor before it: 2A/h-b_2 is 2·(A/h) − b₂. The editor
+ * stacks the whole product typed before the slash: the same keys give
+ * \frac{2A}{h}-b_2. Inside a sum, or as an equation's side, the grader now
+ * reads the editor's fraction as the typed text binds it. Everywhere else a
+ * stacked fraction keeps its reading, so GR35a stands: a lone
+ * \frac{3b^2}{a^3} is not 3\frac{b^2}{a^3}, a coefficient moved out of the
+ * key's fraction.
+ */
+test('inside a sum, or as an equation\'s side, the editor\'s stacked product grades as the same keys typed; wrong answers stay wrong', async () => {
+  const wrongVerdicts = [];
+  for (const [sent, key, misses, options = {}] of [
+    ['\\frac{2A}{h}-b_2', '2A/h-b_2', ['\\frac{2A}{h}+b_2', '\\frac{A}{2h}-b_2', '\\frac{2h}{A}-b_2', '\\frac{2A}{h-b_2}', '\\frac{2A}{h}-b_1']],
+    ['b_1=\\frac{2A}{h}-b_2', 'b_1=2A/h-b_2', ['b_1=\\frac{A}{2h}-b_2', 'b_1=\\frac{2A}{h-b_2}', 'b_2=\\frac{2A}{h}-b_1'], { profile: 'equation' }],
+    ['h=\\frac{2A}{b}', 'h=2A/b', ['h=\\frac{A}{2b}', 'h=\\frac{2b}{A}', 'h=\\frac{2A}{h}', 'b=\\frac{2A}{h}'], { profile: 'equation' }],
+    // Its sides swapped, as typed text may be (Job P).
+    ['\\frac{2A}{b}=h', 'h=2A/b', ['\\frac{A}{2b}=h'], { profile: 'equation' }],
+    ['h=-\\frac{2A}{b}', 'h=-2A/b', ['h=\\frac{2A}{b}', 'h=-\\frac{A}{2b}'], { profile: 'equation' }],
+    // A product of two letters, read as typed (Bh/3 is B·(h/3)).
+    ['V=\\frac{Bh}{3}', 'V=Bh/3', ['V=\\frac{Bh}{2}', 'V=\\frac{B}{3h}'], { profile: 'equation' }],
+    ['t=\\frac{xy}{z}+1', 't=xy/z+1', ['t=\\frac{xz}{y}+1', 't=\\frac{xy}{z}-1'], { profile: 'equation' }],
+    // Brackets the editor keeps round the denominator.
+    ['y=\\frac{2A}{\\left(h+1\\right)}', 'y=2A/(h+1)', ['y=\\frac{2A}{h}+1', 'y=\\frac{2A}{\\left(h-1\\right)}'], { profile: 'equation' }],
+    // The comparisons that split an equation read each side as a side: the
+    // form-preserving one (a generator's bracket round the 2), a model
+    // equation's, and the defined side of a polynomial equation.
+    ['h=\\frac{2A}{b}', 'h=(2)A/b', ['h=\\frac{2b}{A}'], { profile: 'equation' }],
+    ['t=\\frac{2A}{b}', 't=2A/b', ['t=\\frac{2b}{A}'], { profile: 'equation', equivalence: 'modelEquation' }],
+    ['\\frac{2A}{h}=2x+x^2', '2A/h=x^2+2x', ['\\frac{2A}{h}=2x+x^3', '\\frac{A}{2h}=2x+x^2'], { profile: 'equation' }],
+  ]) {
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await grades(sent, key, options))) wrongVerdicts.push(`refused: ${sent} for ${key}`);
+    for (const miss of misses) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await grades(miss, key, options)) wrongVerdicts.push(`accepted: ${miss} for ${key}`);
+    }
+  }
+  assert.deepEqual(wrongVerdicts, []);
+  // …by every grader, not only the secure one.
+  const refused = [];
+  for (const [sent, key, inputProfile] of [['\\frac{2A}{h}-b_2', '2A/h-b_2', 'expression'], ['h=\\frac{2A}{b}', 'h=2A/b', 'equation'], ['V=\\frac{Bh}{3}', 'V=Bh/3', 'equation']]) {
+    if (sameValue(sent, key) !== true) refused.push(`sameValue: ${sent} for ${key}`);
+    if (matchesFieldAnswer(sent, { answer: key, inputProfile }) !== true) refused.push(`assignment matcher: ${sent} for ${key}`);
+  }
+  assert.deepEqual(refused, []);
+});
+
+test('everywhere else a stacked fraction keeps its reading: a lone \\frac{3b^2}{a^3} is not 3\\frac{b^2}{a^3} (GR35a)', async () => {
   assert.deepEqual({
-    'the editor\'s \\frac{2A}{h}-b_2 for a typed 2A/h-b_2': await grades('\\frac{2A}{h}-b_2', '2A/h-b_2'),
     'the editor\'s \\frac{3b^2}{a^3} for a typed 3b^2/a^3': await grades('\\frac{3b^2}{a^3}', '3b^2/a^3'),
     '3\\frac{b^2}{a^3} for a stacked \\frac{3b^2}{a^3}': await grades('3\\frac{b^2}{a^3}', '\\frac{3b^2}{a^3}'),
+    '-3\\frac{b^2}{a^3} for a stacked -\\frac{3b^2}{a^3}': await grades('-3\\frac{b^2}{a^3}', '-\\frac{3b^2}{a^3}'),
+    'the editor\'s \\frac{2A}{h} for a typed 2A/h': await grades('\\frac{2A}{h}', '2A/h'),
+    '2\\frac{A}{h} for a stacked \\frac{2A}{h}': await grades('2\\frac{A}{h}', '\\frac{2A}{h}'),
   }, {
-    'the editor\'s \\frac{2A}{h}-b_2 for a typed 2A/h-b_2': false,
+    // The editor's own spelling of a lone quotient was right, and is (GR35a: factor for factor).
     'the editor\'s \\frac{3b^2}{a^3} for a typed 3b^2/a^3': true,
+    // A coefficient moved out of a stacked key's fraction is still not the key.
     '3\\frac{b^2}{a^3} for a stacked \\frac{3b^2}{a^3}': false,
+    '-3\\frac{b^2}{a^3} for a stacked -\\frac{3b^2}{a^3}': false,
+    'the editor\'s \\frac{2A}{h} for a typed 2A/h': true,
+    '2\\frac{A}{h} for a stacked \\frac{2A}{h}': false,
   });
+  // A power on the whole fraction is the fraction's: (2A/h)² + 1 is not 2·(A/h)² + 1.
+  assert.equal(await grades('\\frac{2A}{h}^2+1', '2\\frac{A}{h}^2+1'), false);
+  assert.equal(await grades('\\frac{2A}{h}^2+1', '2A/h^2+1'), false);
 });

@@ -415,6 +415,10 @@ const familyHints = [
   ['Start by naming the input and the output quantities; every later step (rule, table, graph, domain, range) builds on that choice.', 'Empieza por nombrar la cantidad de entrada y la de salida; cada paso siguiente (regla, tabla, gráfica, dominio, rango) se basa en esa elección.'],
   ['Decide whether an input in between makes sense here, for example one and a half of the input.', 'Decide si aquí tiene sentido una entrada intermedia, por ejemplo una y media de la entrada.'],
   ['If only whole-number inputs make sense, the graph is separate points; if every value in between makes sense, it is one connected piece.', 'Si solo tienen sentido las entradas que son números enteros, la gráfica son puntos separados; si tiene sentido cada valor intermedio, es un solo trazo continuo.'],
+  // A rule over a listed set of inputs, with no situation (F-CONTINUITY-HINT).
+  ['Which inputs belong to this relation: every number between the listed values, or only the listed ones?', '¿Qué entradas pertenecen a esta relación: todos los números entre los valores de la lista, o solo los de la lista?'],
+  ['If only the listed inputs belong, the graph is separate points; if every value between them belongs too, it is one connected piece.', 'Si solo pertenecen las entradas de la lista, la gráfica son puntos separados; si también pertenece cada valor intermedio, es un solo trazo continuo.'],
+  ['Plot each {1} pair from your table; connect the points only if the inputs between them belong to the relation too.', 'Marca cada par {1} de tu tabla; une los puntos solo si las entradas intermedias también pertenecen a la relación.'],
   ['This question asks about the x-intercepts, the y-intercept and how the graph behaves from left to right.', 'Esta pregunta trata de las intersecciones con el eje x, la intersección con el eje y y cómo se comporta la gráfica de izquierda a derecha.'],
   ['An x-intercept is a point on the x-axis, so its y-coordinate is zero: look for every place the graph meets that axis and write each as an ordered pair.', 'Una intersección con el eje x es un punto del eje x, así que su coordenada y es cero: busca cada lugar donde la gráfica toca ese eje y escribe cada uno como un par ordenado.'],
   ['The zeros are just the x-values of those points.', 'Los ceros son simplemente los valores de x de esos puntos.'],
@@ -1119,6 +1123,8 @@ const workedExampleSteps = [
 // hints, back-up steps and worked examples of every generated instance — the
 // families Recovery practice and "Try a similar one" use, beyond the lessons.
 const platformFamilySentences = [
+  // The excluded input of a quotient (functions.conjugateProductQuotient, RC01's next shapes).
+  ['For {1}, the excluded x-values make the denominator zero: solve {2}.', 'Para {1}, los valores de x excluidos son los que hacen cero el denominador: resuelve {2}.'],
   // hints
   ['Get {1} alone first: in {2}, subtract {3} from both sides, then divide both sides by {4}.', 'Primero deja sola {1}: en {2}, resta {3} en los dos lados y luego divide los dos lados entre {4}.'],
   ['An absolute value measures a distance, so it is never negative.', 'Un valor absoluto mide una distancia, así que nunca es negativo.'],
@@ -1428,6 +1434,28 @@ const platformFamilySentences = [
   ['Solve the first equation for {1}: {2}.', 'Despeja {1} en la primera ecuación: {2}.'],
   ['Solve the second equation for {1}: {2}.', 'Despeja {1} en la segunda ecuación: {2}.'],
   ['Both equations give {1}, so set the right sides equal: {2}.', 'Las dos ecuaciones dan {1}, así que iguala los lados derechos: {2}.'],
+  // A transformed cube root read off its graph (transformations.identifyCubeRoot, RC01):
+  // the worked example's last step when a is 1.
+  ['So the graph is {1} ∛{2}.', 'Así que la gráfica es {1} ∛{2}.'],
+  // A relation's mapping, domain and range (relations.mappingDiagram, RC01).
+  ['Answer: arrows {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; domain {{9}, {10}, {11}, {12}}; range {{13}, {14}, {15}}', 'Respuesta: flechas {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; dominio {{9}, {10}, {11}, {12}}; rango {{13}, {14}, {15}}'],
+  // The inverse boards (questionFamiliesInverses.mjs, RC01's next shapes): the
+  // hints and back-up question the inverse support writes for a version.
+  ['In {1}, the first number of each pair is an input and the second is an output.', 'En {1}, el primer número de cada par es una entrada y el segundo es una salida.'],
+  ['Let {1} stand for the output of {2}, and solve the rule for {3}.', 'Sea {1} la salida de {2}, y despeja {3} en la regla.'],
+  ['To get {1} alone: undo the added number first, then the multiplication.', 'Para dejar sola {1}: deshaz primero el número sumado y luego la multiplicación.'],
+  ['For months represented by a total cost of {1}, use {2} as the input of your inverse rule, or solve {3} for {4}.', 'Para los meses que representa un costo total de {1}, usa {2} como la entrada de tu regla inversa, o despeja {4} en {3}.'],
+  ['For the value in the last part, put the given total into your inverse rule.', 'Para el valor de la última parte, pon el total dado en tu regla inversa.'],
+  ['To solve for {1} after the swap, which do you undo first?', 'Para despejar {1} después del intercambio, ¿qué deshaces primero?'],
+  // Where a graphed parabola rises, falls, and is positive and negative
+  // (functions.intervalsFromGraph): the worked example's answer.
+  ['Answer: increasing {1}; decreasing {2}; positive {3}; negative {4} ∪ {5}', 'Respuesta: creciente {1}; decreciente {2}; positiva {3}; negativa {4} ∪ {5}'],
+  // The translations of g(x) = f(x − C) + D (transformations.describeTranslations):
+  // the singular and plural forms the lesson's own sentences do not reach.
+  ['Outside, y’s tell the truth: {1} moves the graph {2} unit down.', 'Afuera, lo vertical dice la verdad: {1} mueve la gráfica {2} unidad hacia abajo.'],
+  ['Answer: Horizontal: {1} units to the right; vertical: {2} unit down', 'Respuesta: horizontal: {1} unidades a la derecha; vertical: {2} unidad hacia abajo'],
+  ['Answer: Horizontal: {1} unit to the left; vertical: {2} units up', 'Respuesta: horizontal: {1} unidad a la izquierda; vertical: {2} unidades hacia arriba'],
+  ['Answer: Horizontal: {1} units to the left; vertical: {2} units up', 'Respuesta: horizontal: {1} unidades a la izquierda; vertical: {2} unidades hacia arriba'],
 ];
 
 // Their back-up choices.
@@ -1458,6 +1486,9 @@ const platformFamilyChoices = [
   ['It stays the same', 'Se queda igual'],
   ['Yes, both equations', 'Sí, las dos ecuaciones'],
   ['Only one of them', 'Solo una de ellas'],
+  // The inverse in context (functions.inverseInContext): what to undo first.
+  ['The multiplication', 'La multiplicación'],
+  ['The added number', 'El número sumado'],
 ];
 
 // --- Matrix Lab: one list of what to fix ----------------------------------

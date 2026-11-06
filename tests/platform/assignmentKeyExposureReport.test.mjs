@@ -187,9 +187,13 @@ test('on the 16 lesson files it reproduces the design\'s count (§1.2): question
   // bridge's own template, q_practice-absolute-value-focus_3_8: ingestion
   // grades it from its delivery pin, so the report counts a family slot.
   assert.deepEqual(byRole, {
-    warmup: { questions: 44, withStoredKey: 27, serverGradable: 42, familySlots: 2, deviceOnly: 0, withHints: 8 },
-    classwork: { questions: 108, withStoredKey: 51, serverGradable: 105, familySlots: 3, deviceOnly: 0, withHints: 27 },
-    practice: { questions: 110, withStoredKey: 55, serverGradable: 107, familySlots: 3, deviceOnly: 0, withHints: 37 },
+    // withHints counts authored hints. Module 1's follow-ups (2026-11-06) gave
+    // seven items hints of their own instead of the generic ones: the District
+    // DOL 1 review's Warm-Up 2-4, CW 12, PR 7 and PR 8, and the ALEKS bridge's
+    // PR 3 (8 -> 11, 27 -> 28, 37 -> 40). The design's other counts are unchanged.
+    warmup: { questions: 44, withStoredKey: 27, serverGradable: 42, familySlots: 2, deviceOnly: 0, withHints: 11 },
+    classwork: { questions: 108, withStoredKey: 51, serverGradable: 105, familySlots: 3, deviceOnly: 0, withHints: 28 },
+    practice: { questions: 110, withStoredKey: 55, serverGradable: 107, familySlots: 3, deviceOnly: 0, withHints: 40 },
     dol: { questions: 45, withStoredKey: 30, serverGradable: 44, familySlots: 1, deviceOnly: 0, withHints: 0 },
   });
 });

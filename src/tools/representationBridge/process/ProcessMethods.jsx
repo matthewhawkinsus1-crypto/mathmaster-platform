@@ -4,6 +4,8 @@ import MathDisplay from '../../../MathDisplay.jsx';
 import MathText from '../../../components/common/MathText.jsx';
 import { ChoiceChips, Latex, ProcessField, muted, pointLatex, touchButton } from './processUi.jsx';
 import { establishedPoints, factDisplay, readExactNumber } from '../lmrProcessMath.js';
+import { chosenRowNote, extendedXyTable, rowChooserAsk, rowChooserEntry } from '../../shared/toolTableReading.js';
+import { PublishFigureReading } from '../../../platform/language/figureReadings.js';
 
 /*
  * HOW A STUDENT DOES EACH PROCESS — the methods that need no algebra engine.
@@ -197,9 +199,16 @@ export function TwoPointFormulaMethod({ option, env, process, ev, setEv, fieldSt
 
 /* ---------------------------------------------------------------- tables */
 
-function GivenTableChooser({ description, selected = [], onChoose, disabled, captionText }) {
+// `ask`: what the chooser asks, by its message id (toolTableReading.js), so its
+// caption and Read aloud say the same words (in Spanish too, AX05).
+function GivenTableChooser({ description, selected = [], onChoose, disabled, ask }) {
   const captionId = useId();
+  const captionText = rowChooserAsk(ask);
   return (
+    <>
+    {/* Read aloud reads what this chooser asks, the rows as drawn and the rows
+        the student has chosen — their picks, never which row is right (AX10). */}
+    <PublishFigureReading entry={rowChooserEntry({ ask, rows: (description?.rows || []).map((row) => [row.xLatex, row.yLatex]), chosen: selected })} />
     <table aria-describedby={captionId} style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 320, fontSize: 'calc(17 * var(--mm-px))' }}>
       <caption id={captionId} style={{ ...muted, textAlign: 'left', captionSide: 'top', paddingBottom: 6 }}>{captionText}</caption>
       <thead>
@@ -225,7 +234,7 @@ function GivenTableChooser({ description, selected = [], onChoose, disabled, cap
                   disabled={disabled}
                   onClick={() => onChoose(index)}
                   style={{ ...touchButton, minWidth: 92, padding: '6px 10px', fontSize: 'calc(13 * var(--mm-px))' }}
-                  aria-label={`Row ${index + 1}${position >= 0 ? `, chosen${selected.length > 1 ? ` as row ${position + 1}` : ''}` : ''}`}
+                  aria-label={`Row ${index + 1}${position >= 0 ? `, ${chosenRowNote(position, selected.length)}` : ''}`}
                 >
                   {position >= 0 ? (selected.length > 1 || position > 0 ? `Row ${position + 1} ✓` : 'Chosen ✓') : 'Choose'}
                 </button>
@@ -235,6 +244,7 @@ function GivenTableChooser({ description, selected = [], onChoose, disabled, cap
         })}
       </tbody>
     </table>
+    </>
   );
 }
 
@@ -249,7 +259,7 @@ export function TableDeltaMethod({ description, ev, setEv, fieldStatus, disabled
   });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <GivenTableChooser description={description} selected={selected} onChoose={choose} disabled={disabled} captionText="Choose two rows: row 1, then row 2." />
+      <GivenTableChooser description={description} selected={selected} onChoose={choose} disabled={disabled} ask="chooseTwoRows" />
       {selected.length === 2 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 18px' }}>
           <ProcessField field="dy" label="Change in y" labelLatex="\Delta y =" value={ev?.dy ?? ''} status={fieldStatus('dy')} disabled={disabled} onChange={(next) => setEv((current) => ({ ...current, dy: next }))} width={90} />
@@ -263,16 +273,16 @@ export function TableDeltaMethod({ description, ev, setEv, fieldStatus, disabled
 
 /** One row of the GIVEN table: read an intercept, or take it as a point. */
 export function TableRowMethod({ option, target, description, ev, setEv, disabled }) {
-  const caption = option.strategy === 'tableRead'
-    ? (target === 'xIntercept' ? 'Choose the row where the line meets the x-axis.' : 'Choose the row where the line meets the y-axis.')
-    : 'Choose a row to use as a point on the line.';
+  const ask = option.strategy === 'tableRead'
+    ? (target === 'xIntercept' ? 'chooseXInterceptRow' : 'chooseYInterceptRow')
+    : 'chooseRowAsPoint';
   return (
     <GivenTableChooser
       description={description}
       selected={Number.isInteger(ev?.row) ? [ev.row] : []}
       onChoose={(index) => setEv((current) => ({ ...current, row: current?.row === index ? null : index }))}
       disabled={disabled}
-      captionText={caption}
+      ask={ask}
     />
   );
 }
@@ -292,6 +302,9 @@ export function ExtendTableMethod({ target, description, ev, setEv, fieldStatus,
           ? 'Continue the table\'s pattern — the same change in y for each equal change in x — until y = 0.'
           : 'Continue the table\'s pattern — the same change in y for each equal change in x — until x = 0.'}
       </p>
+      {/* Read aloud reads the given rows as drawn, then each new row as the
+          student typed it, or blank — never the row they are to find (AX10). */}
+      <PublishFigureReading entry={{ kind: 'table', label: 'Table to extend', table: extendedXyTable((description?.rows || []).map((row) => [row.xLatex, row.yLatex]), rows) }} />
       <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 360, fontSize: 'calc(17 * var(--mm-px))' }}>
         <thead>
           <tr>

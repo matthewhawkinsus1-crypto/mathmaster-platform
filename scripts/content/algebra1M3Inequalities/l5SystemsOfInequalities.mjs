@@ -9,7 +9,11 @@
  * the parallel and vertical systems), Activity 5.3 Applying Systems of Linear
  * Inequalities (Emma's workout), Activity 5.4 Identifying Systems of Linear
  * Inequalities (systems A–D, Isabella's error) and Talk the Talk (Get to Know
- * the Region).
+ * the Region). The order changes once: Classwork opens with a plain system,
+ * y > x − 2 and y ≤ −x + 4 (CW 17, not on the slides), then Activity 5.2's
+ * x + y > 1 and −x + y ≤ 3, then Noah's raft (Getting Started and Activity
+ * 5.1), so the first system a student builds is not a word problem in
+ * standard form.
  *
  * The Warm-Up climbs from Lesson 4 to this lesson: one inequality graphed in
  * the tool, then a point checked against two inequalities at once, then two
@@ -29,7 +33,9 @@
  * and two audited Digital SAT items from MathMaster's CCMR bank in Practice.
  */
 import { auditedCcmrQuestion, backUp, choice, guidedNotes, inequality, number, review, sortBoard, teks } from '../lib/lessonKit.mjs';
-import { A3D, A3H, A3H_MODEL, computedChoice, inequalityBuild, tex } from './shared.mjs';
+import {
+  A3D, A3H, A3H_MODEL, FIGURE_WINDOW, computedChoice, graphSlips, inequalityBuild, inequalityFigure, restyled, slip, tex, turned, withOwnHint, Y_ALONE_EXAMPLE,
+} from './shared.mjs';
 
 const FOLDER = 'Algebra I/Module 3/Topic 2/Lesson 5';
 // Writing the constraints of a situation (A.2H) for the system it makes (A.3H).
@@ -52,9 +58,11 @@ const oneInequalityWarmup = (id, honors) => inequalityBuild({
   testPoint: { x: 0, y: 0 },
   directionSteps: ['Build the boundary line.', 'Choose solid or dashed.', 'Shade the half-plane of solutions.', 'Test the point.'],
   hints: [
-    'Plot the y-intercept first, then use the slope.',
-    honors ? '≥ includes the boundary; solved for y, it shades above.' : '≤ includes the boundary; solved for y, it shades below.',
-    'Substitute (0, 0) to check the side you shaded.',
+    'Where does the boundary cross the y-axis, and which way does the slope take you from there?',
+    honors ? 'Does ≥ include the line? With y alone, does ≥ shade above or below?' : 'Does ≤ include the line? With y alone, does ≤ shade above or below?',
+    honors
+      ? 'Plot the y-intercept, then use the slope. ≥ includes the line, so it is solid, and it shades above; substitute (0, 0) to check.'
+      : 'Plot the y-intercept, then use the slope. ≤ includes the line, so it is solid, and it shades below; substitute (0, 0) to check.',
   ],
   scaffold: backUp('For ≤ or ≥, the boundary line is…', ['solid', 'dashed'], 'solid'),
   guidedNotes: guidedNotes(
@@ -84,8 +92,8 @@ const twoConditionsWarmup = (id) => ({
     computedChoice('which', 'Which point is a solution of the system?', ['({{p1x}}, {{p1y}})', '({{p2x}}, {{p2y}})', 'Both points', 'Neither point'], '({{x1}}, {{yA}})'),
   ],
   hints: [
-    'Substitute the point’s x-coordinate into each right side, then compare the result with its y-coordinate.',
-    'A point that makes only one of the inequalities true is not a solution of the system.',
+    'What is each right side at the point’s x-coordinate? How does the point’s y-coordinate compare with it?',
+    'Substitute the x-coordinate into each right side and compare the result with the y-coordinate. A point that makes only one inequality true is not a solution of the system.',
   ],
   scaffold: backUp('A solution of a system must make…', ['every inequality true', 'at least one inequality true'], 'every inequality true'),
   guidedNotes: guidedNotes(['Solution of a system', 'A point solves a system of inequalities only when it makes every inequality in the system true.']),
@@ -139,7 +147,13 @@ const twoConstraintsWarmup = (id) => ({
     inequality('money', 'Money for the trip', '{{p}}x + {{q}}y >= {{M}}'),
     number('paid', 'Money paid by {{x0}} adults and {{y0}} students ($)', '{{R}}'),
   ],
-  hints: ['People: adults plus students is at most the number of seats.', 'Money: each group’s price times its count, added, is at least the goal.', '"At most" is ≤; "at least" is ≥.'],
+  hints: ['What does each constraint count: people or dollars? Which phrase is a ceiling, and which is a floor?', 'Adults plus students can be at most the seats. Each group’s price times its count, added, must be at least the goal. Which symbol fits each?', '"At most" is ≤ and "at least" is ≥. For the money paid, multiply each count by its price and add.'],
+  misconceptions: [
+    slip('seats', turned('x + y <= {{n}}'), '"At most" means as many people as there are seats, or fewer.'),
+    slip('seats', restyled('x + y <= {{n}}'), '"At most" includes filling every seat.'),
+    slip('money', turned('{{p}}x + {{q}}y >= {{M}}'), '"At least" means the trip collects the goal or more.'),
+    slip('money', restyled('{{p}}x + {{q}}y >= {{M}}'), '"At least" includes collecting exactly the goal.'),
+  ],
   scaffold: backUp('"At most" means…', ['≤', '≥'], '≤'),
   solutionReview: review(
     'One inequality for each constraint.',
@@ -159,14 +173,147 @@ const twoConstraintsWarmup = (id) => ({
 
 const noahStory = 'Noah guides groups of adults and children down a river. His raft holds 800 pounds; more weight can make it sink, hit more rocks or maneuver more slowly. Each adult weighs about 200 pounds and each child about 100 pounds. Noah charges adults $75 and children $50, and his goal is to earn at least $150 each trip. Let x be the number of adults and y the number of children.';
 
-const SYSTEM_A = 'System A: y < (3/5)x + 3 and y > −(3/5)x + 3.';
-const SYSTEM_B = 'System B: y > (3/5)x + 3 and y > −(3/5)x + 3.';
-const SYSTEM_C = 'System C: y > (3/5)x + 3 and y < −(3/5)x + 3.';
-const SYSTEM_D = 'System D: y < (3/5)x + 3 and y < −(3/5)x + 3.';
+/*
+ * Activity 5.4's four systems, and what each one is matched with. The graphs
+ * and the solution sets are drawn from these tables (N38), the same ones the
+ * keys are written from, so a figure cannot show another system than its key.
+ */
+const SYSTEM_KEYS = Object.freeze({
+  A: ['y < (3/5)x + 3', 'y > −(3/5)x + 3'],
+  B: ['y > (3/5)x + 3', 'y > −(3/5)x + 3'],
+  C: ['y > (3/5)x + 3', 'y < −(3/5)x + 3'],
+  D: ['y < (3/5)x + 3', 'y < −(3/5)x + 3'],
+});
+const systemText = (name) => `System ${name}: ${SYSTEM_KEYS[name][0]} and ${SYSTEM_KEYS[name][1]}.`;
+const SYSTEM_A = systemText('A');
+const SYSTEM_B = systemText('B');
+const SYSTEM_C = systemText('C');
+const SYSTEM_D = systemText('D');
 const FOUR_SYSTEMS = `The four systems use the same two dashed boundary lines, the rising line y = (3/5)x + 3 and the falling line y = −(3/5)x + 3, which cross at (0, 3). ${SYSTEM_A} ${SYSTEM_B} ${SYSTEM_C} ${SYSTEM_D}`;
+// CW 12: the graph each system shades. Graph D is blank: CW 14 graphs System B on it.
+const GRAPH_OF_SYSTEM = Object.freeze({ A: 'C', B: 'D', C: 'B', D: 'A' });
+const GRAPH_OPTIONS = ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'];
+const graphOption = (graph) => GRAPH_OPTIONS.find((option) => option.startsWith(`Graph ${graph}`));
+const systemOfGraph = (graph) => Object.keys(GRAPH_OF_SYSTEM).find((system) => GRAPH_OF_SYSTEM[system] === graph);
+const SYSTEM_GRAPHS = Object.freeze({
+  candidateGraphs: ['A', 'B', 'C', 'D'].map((graph) => ({
+    id: graph,
+    label: `Graph ${graph}`,
+    graph: graph === 'D' ? { ...FIGURE_WINDOW } : inequalityFigure(SYSTEM_KEYS[systemOfGraph(graph)], { shade: 'overlap' }),
+  })),
+  candidateGraphsInOrder: true,
+});
+// CW 13: Possible Solutions A–C, each plotted with the systems' two boundary
+// lines, and the system each set solves. D is blank: the student completes it.
+const POSSIBLE_SOLUTIONS = Object.freeze({ A: [[0, -6], [4, -4]], B: [[0, 7.5], [-4, 10]], C: [[-6, 4], [-10, 8]], D: [] });
+const SOLUTIONS_OF_SYSTEM = Object.freeze({ A: 'D', B: 'B', C: 'C', D: 'A' });
+const SOLUTION_OPTIONS = ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'];
+const solutionOption = (set) => SOLUTION_OPTIONS.find((option) => option.startsWith(`Possible Solutions ${set}`));
+const pairText = ([x, y]) => `(${x}, ${y})`.replace(/-/g, '−');
+const SOLUTION_GRAPHS = Object.freeze({
+  candidateGraphs: ['A', 'B', 'C', 'D'].map((set) => ({
+    id: set,
+    label: `Possible Solutions ${set}`,
+    graph: inequalityFigure(SYSTEM_KEYS[Object.keys(SOLUTIONS_OF_SYSTEM).find((system) => SOLUTIONS_OF_SYSTEM[system] === set)], {
+      shade: 'none',
+      points: POSSIBLE_SOLUTIONS[set].map(([x, y]) => ({ x, y, label: pairText([x, y]) })),
+    }),
+  })),
+  candidateGraphsInOrder: true,
+});
 const REGIONS = ['A region above both lines', 'A region below both lines', 'A region between the lines', 'No solution'];
+// PR 10: the system its graph shows, one box per boundary.
+const SYSTEM_FROM_GRAPH_KEYS = Object.freeze({ solid: 'y >= x + 2', dashed: 'y < -x + 5' });
 
 const classwork = (P) => [
+  // The plainest system first (F-L5-HARDEST-FIRST in
+  // docs/qa/2026-11-03-pr537-walkthrough/findings.md): two slope-intercept
+  // boundaries with whole-number slopes and an overlap, the case Practice 1 and
+  // Exit Ticket 1 test. Activity 5.2's system follows (each inequality rewritten
+  // first), then Noah's raft, a word problem in standard form, with his four
+  // items together and in order. Every other id keeps its number.
+  inequalityBuild({
+    questionId: `${P}-cw-17`,
+    alignment: A3H,
+    dok: 2,
+    difficultyBand: 2,
+    prompt: tex`Graph a system of two inequalities: $y > x - 2$ and $y \le -x + 4$. Build each boundary line, choose solid or dashed for each, and shade each half-plane — the overlap is the solution set. Then test the point (0, 0), and choose a point of your own in the overlap.`,
+    source: ['y > x - 2', 'y <= -x + 4'],
+    constraints: [{ m: 1, b: -2, relation: '>' }, { m: -1, b: 4, relation: '<=' }],
+    testPoint: { x: 0, y: 0 },
+    studentTestPoint: true,
+    directionSteps: ['Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point.', 'Choose a point of your own in the overlap.'],
+    hints: ['What are the y-intercept and the slope of each boundary line?', 'Which symbol leaves its line out, so that boundary is dashed? Which side does each inequality shade?', 'Plot each y-intercept and use each slope. y > x − 2 is dashed and shades above; y ≤ −x + 4 is solid and shades below. The solutions are where both shadings overlap.'],
+    scaffold: backUp('A point is a solution of a system when it is…', ['in both shaded half-planes', 'in at least one shaded half-plane'], 'in both shaded half-planes'),
+    guidedNotes: guidedNotes(
+      ['Solution set of a system', 'The solution set of a system of linear inequalities is the intersection of the solutions of its inequalities: every point in the overlap satisfies every inequality.'],
+      ['Shade each one', 'Shade each half-plane in its own way; the region shaded twice is the solution set.'],
+    ),
+    solutionReview: review(
+      'Two half-planes, one overlap.',
+      ['y > x − 2: a dashed boundary through (0, −2) and (2, 0), shaded above. y ≤ −x + 4: a solid boundary through (0, 4) and (4, 0), shaded below.', '(0, 0) is in the overlap: 0 > −2 and 0 ≤ 4. The boundaries meet at (3, 1), on the dashed line, so that corner is not a solution.'],
+      'above the dashed line and on or below the solid line',
+      'Shading only one inequality: the solution set is where both shadings overlap.',
+    ),
+  }),
+  inequalityBuild({
+    questionId: `${P}-cw-5`,
+    alignment: A3H,
+    dok: 3,
+    difficultyBand: 3,
+    prompt: tex`Activity 5.2 — Analyzing Graphs of Systems of Linear Inequalities. Graph the system $x + y > 1$ and $-x + y \le 3$. Rewrite each inequality with y alone in the tool (notice the symbols), build both boundaries and shade. Then test the point (−8, 2), choose a point of your own, classify the solution region and find its corner.`,
+    source: ['x + y > 1', '-x + y <= 3'],
+    constraints: [{ A: 1, B: 1, C: -1, relation: '>' }, { A: -1, B: 1, C: -3, relation: '<=' }],
+    rewrite: true,
+    testPoint: { x: -8, y: 2 },
+    studentTestPoint: true,
+    classify: true,
+    vertices: true,
+    directionSteps: ['Rewrite each inequality with y alone.', 'Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point and a point of your own.', 'Classify the region and find its corner.'],
+    // Hint 1 used to give both rewrites, the step the tool asks the student to
+    // do (F-HINT-GIVES-STEP); only the last hint shows them now.
+    hints: ['What do you add or subtract on each side to get y alone in each inequality?', 'Subtract x from both sides of the first and add x to both sides of the second. Which boundary is dashed, and which is solid?', 'x + y > 1 becomes y > −x + 1, and −x + y ≤ 3 becomes y ≤ x + 3. The corner is where the lines meet: is it on the dashed line?'],
+    scaffold: backUp('For x + y > 1, the boundary is…', ['dashed', 'solid'], 'dashed'),
+    solutionReview: review(
+      'Rewrite, build, shade, reason.',
+      ['y > −x + 1 (dashed, above) and y ≤ x + 3 (solid, below).', '(−8, 2) satisfies neither inequality. The region is unbounded, and its corner (−1, 2) is on the dashed line, so it is not a solution.'],
+      null,
+      'Including the corner (−1, 2): it fails x + y > 1, because 1 is not greater than 1.',
+    ),
+  }),
+  {
+    questionId: `${P}-cw-6`,
+    ...A3H,
+    studentActions: ['multipleResponses'],
+    dok: 3,
+    difficultyBand: 3,
+    prompt: 'Use the system x + y > 1 and −x + y ≤ 3. The two boundary lines cut the plane into four regions, and each point below lies in a different one: decide which inequalities it makes true. Then evaluate Ava’s claim: "The intersection point is always a solution to a system of inequalities because that is where the two lines meet."',
+    directionSteps: ['Substitute each point into both inequalities.', 'Decide which inequalities each point makes true.', 'Check the point where the two boundary lines meet.', 'Explain why Ava is wrong.'],
+    responses: [
+      choice('p1', '(2, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'both inequalities — it is in the overlap'),
+      choice('p2', '(0, 5)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only x + y > 1'),
+      choice('p3', '(0, −2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only −x + y ≤ 3'),
+      choice('p4', '(−8, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'neither inequality'),
+      number('s1', 'At the intersection (−1, 2): x + y =', '1'),
+      number('s2', 'At (−1, 2): −x + y =', '3'),
+      // Every option is a claim with a reason, each wrong one wrong in one
+      // way, so the key is not the longest (F-LONGEST-IS-RIGHT).
+      choice('ava', 'Why is Ava wrong?', [
+        'At (−1, 2), x + y is not greater than 1: the point is on the dashed boundary, so it is not a solution',
+        'Ava is right: (−1, 2) is on both boundary lines, and a point on a boundary always makes its inequality true',
+        'At (−1, 2), −x + y is not at most 3: the point is on the solid boundary, so it is not a solution',
+        'An intersection point is never a solution of a system, because it sits on both boundary lines',
+      ], 'At (−1, 2), x + y is not greater than 1: the point is on the dashed boundary, so it is not a solution'),
+    ],
+    hints: ['At each point, what are x + y and −x + y? How does each compare with its right side?', 'A point is in the overlap only when it makes both inequalities true. At the intersection, is x + y greater than its right side, or equal to it?', 'Substitute each point into both inequalities. At the intersection, x + y equals its right side, and on a dashed boundary the inequality is false.'],
+    scaffold: backUp('Is 1 > 1 true?', ['no', 'yes'], 'no'),
+    solutionReview: review(
+      'Each region, then the corner.',
+      ['(2, 2): 4 > 1 and 0 ≤ 3, both. (0, 5): 5 > 1 but 5 ≤ 3 is false. (0, −2): −2 > 1 is false, −2 ≤ 3 true. (−8, 2): neither.', '(−1, 2): x + y = 1, and 1 > 1 is false, so the intersection point is not a solution, even though both lines pass through it.'],
+      'both; only the first; only the second; neither; Ava is wrong',
+      'Treating the intersection as a solution because the lines meet there: check it in every inequality.',
+    ),
+  },
   {
     questionId: `${P}-cw-1`,
     ...A2H_SYSTEM,
@@ -180,15 +327,21 @@ const classwork = (P) => [
       inequality('money', 'Money Noah collects', '75x + 50y >= 150'),
       choice('same', 'Why must x and y mean the same thing in both inequalities?', [
         'A solution must meet both constraints at once, so x and y must count the same people in each',
-        'Each inequality can use its own meaning for x and y',
-        'Only the weight inequality needs x and y',
-        'The money inequality should use different letters',
+        'Each inequality is about a different trip, so x and y can count different people in each of them',
+        'Only the weight inequality needs x and y, because the money depends on the prices alone',
+        'The money inequality should use other letters, because it counts dollars, not people',
       ], 'A solution must meet both constraints at once, so x and y must count the same people in each'),
     ],
     hints: [
-      'Weight: (pounds per adult)(adults) + (pounds per child)(children) is at most the raft’s limit.',
-      'Money: (price per adult)(adults) + (price per child)(children) is at least Noah’s goal.',
-      '"Holds" a limit means at most (≤); a goal of "at least" means ≥.',
+      'How much do x adults weigh in all? And y children? How much do they pay in all?',
+      'The total weight can be at most the raft’s limit, and the total money must be at least Noah’s goal. Which symbol fits each?',
+      'Weight: (pounds per adult)(adults) + (pounds per child)(children) ≤ the raft’s limit. Money: (price per adult)(adults) + (price per child)(children) ≥ Noah’s goal.',
+    ],
+    misconceptions: [
+      slip('weight', turned('200x + 100y <= 800'), 'The raft holds at most 800 pounds: the weight can be 800 pounds or less.'),
+      slip('weight', restyled('200x + 100y <= 800'), 'Exactly 800 pounds is allowed: the raft holds that much.'),
+      slip('money', turned('75x + 50y >= 150'), 'Noah wants at least $150: the money can be $150 or more.'),
+      slip('money', restyled('75x + 50y >= 150'), 'Exactly $150 meets Noah’s goal.'),
     ],
     scaffold: backUp('The weight of x adults at about 200 pounds each is…', ['200x', 'x + 200'], '200x'),
     guidedNotes: guidedNotes(
@@ -218,13 +371,13 @@ const classwork = (P) => [
       number('m2', 'Second trip: money ($)', '375'),
       choice('trip2', 'Is the second trip a solution of the system?', BOTH_OR_NOT, 'No — it fails only the first constraint'),
       choice('meaning', 'What do the results mean for Noah?', [
-        'The first trip is safe and meets his goal; the second earns more than enough but is too heavy for the raft',
-        'Both trips are safe',
-        'The second trip is the better trip because it earns more',
-        'Neither trip meets his money goal',
-      ], 'The first trip is safe and meets his goal; the second earns more than enough but is too heavy for the raft'),
+        'The first trip is safe and meets his goal; the second earns enough but is too heavy for the raft',
+        'The first trip is safe and meets his goal; the second is safe too, because it earns even more',
+        'The first trip is too heavy for the raft; the second is safe and earns more than enough',
+        'The first trip is safe but misses his goal; the second earns enough but is too heavy for the raft',
+      ], 'The first trip is safe and meets his goal; the second earns enough but is too heavy for the raft'),
     ],
-    hints: ['Weight: multiply each count by its weight and add.', 'Money: multiply each count by its price and add.', 'A trip solves the system only when it meets every constraint.'],
+    hints: ['How much do 2 adults and 2 children weigh in all? How much do they pay?', 'Multiply each count by its weight, and by its price, and add. Is each trip within the raft’s limit, and does it reach Noah’s goal?', 'A trip solves the system only when it meets every constraint: the weight at most the raft’s limit, and the money at least Noah’s goal.'],
     scaffold: backUp('A combination is a solution of a system when it meets…', ['every constraint', 'one constraint'], 'every constraint'),
     solutionReview: review(
       'Substitute each trip into both constraints.',
@@ -245,12 +398,17 @@ const classwork = (P) => [
     studentTestPoint: true,
     graph: { xMin: 0, xMax: 10, yMin: 0, yMax: 10 },
     directionSteps: ['Enter both constraints.', 'Build each boundary line.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point.', 'Choose a point of your own in the overlap.'],
-    hints: ['The weight boundary passes through (4, 0) and (0, 8); the money boundary through (2, 0) and (0, 3).', 'Both symbols include equality.', 'The solutions are the points shaded by BOTH inequalities.'],
+    // Hint 1 asks for the intercepts and says how to find them; it used to give
+    // all four, which is the whole boundary step (F-HINT-GIVES-STEP). Hint 2
+    // said "Both symbols include equality.", which answered the model's two
+    // symbols (≤ or ≥, never < or >) and both line styles before the last
+    // hint: it asks now, and the last hint says it.
+    hints: [
+      'Where does each boundary line cross the axes? Find y when x = 0, and x when y = 0.',
+      'Can the raft carry exactly 800 pounds? Does exactly $150 meet Noah’s goal? So is each boundary solid or dashed?',
+      'Both constraints include their boundary (≤ and ≥), so both lines are solid. The solutions are the points shaded by BOTH inequalities.',
+    ],
     scaffold: backUp('The solution set of a system is…', ['where the shaded half-planes overlap', 'everything either inequality shades'], 'where the shaded half-planes overlap'),
-    guidedNotes: guidedNotes(
-      ['Solution set of a system', 'The solution set of a system of linear inequalities is the intersection of the solutions of its inequalities: every point in the overlap satisfies every inequality.'],
-      ['Shade each one', 'Shade each half-plane in its own way; the region shaded twice is the solution set.'],
-    ),
     solutionReview: review(
       'Two constraints, one overlap.',
       ['Weight: solid boundary through (4, 0) and (0, 8), shaded below. Money: solid boundary through (2, 0) and (0, 3), shaded above.', 'The overlap lies between the two lines; (2, 2) is in it: 600 ≤ 800 and 250 ≥ 150.'],
@@ -271,80 +429,26 @@ const classwork = (P) => [
       number('mInt', 'At (10, −12): 75x + 50y =', '150'),
       choice('intSol', 'Is (10, −12) a solution of the system?', [
         'Yes — it makes both inequalities true, because each one includes its boundary',
-        'No — the lines only cross there',
-        'Yes — every intersection point is a solution of every system',
-        'No — it is above both lines',
+        'No — the lines only cross there, and a crossing point is never a solution',
+        'Yes — every intersection point is a solution of every system of two inequalities',
+        'No — it makes the weight inequality false, because 800 is not less than 800',
       ], 'Yes — it makes both inequalities true, because each one includes its boundary'),
       choice('context', 'Does (10, −12) make sense for Noah?', [
-        'No — there cannot be −12 children, so only whole-number points in the first quadrant make sense',
-        'Yes — it is a solution of the system',
-        'No — 10 adults is too many people to count',
-        'Yes — the raft holds exactly its limit',
-      ], 'No — there cannot be −12 children, so only whole-number points in the first quadrant make sense'),
+        'No — there cannot be −12 children: only whole numbers, 0 or more, make sense',
+        'Yes — it is a solution of the system, so it is a trip Noah can take with his raft',
+        'No — 10 adults would weigh 2,000 pounds, more than the raft holds',
+        'Yes — the raft holds exactly its 800-pound limit, so the trip is safe',
+      ], 'No — there cannot be −12 children: only whole numbers, 0 or more, make sense'),
       choice('count', 'How many solutions can a system of two linear inequalities have?', ['none, or infinitely many', 'exactly one', 'exactly two', 'always infinitely many'], 'none, or infinitely many'),
       choice('notSol', 'Which combination is NOT a solution for Noah?', ['1 adult and 2 children', '3 adults and 3 children', '0 adults and 4 children', '2 adults and 1 child'], '3 adults and 3 children'),
     ],
-    hints: ['Substitute the point into each expression and compare with the raft’s limit and Noah’s goal.', 'A solid boundary (≤ or ≥) includes its points.', 'Check each combination of rafters in both constraints.'],
+    hints: ['What are 200x + 100y and 75x + 50y at (10, −12)? How do they compare with the raft’s limit and Noah’s goal?', 'Is each boundary solid or dashed, and does it include its points? Can a trip have a negative number of children?', 'A solid boundary (≤ or ≥) includes its points. Check each combination of rafters in both constraints: the weight limit and the money goal.'],
     scaffold: backUp('A point on a solid boundary line makes that inequality…', ['true', 'false'], 'true'),
     solutionReview: review(
       'On both solid lines: a solution, but not a sensible one.',
       ['200(10) + 100(−12) = 800 ≤ 800 and 75(10) + 50(−12) = 150 ≥ 150, so (10, −12) solves the system — but −12 children is impossible.', 'Two inequalities either share no points or share a whole region, so a system has no solution or infinitely many.', '3 adults and 3 children weigh 900 pounds, more than 800.'],
       'yes, but not for Noah; none or infinitely many; 3 adults and 3 children',
       'Assuming an intersection point is never a solution: it is when both boundaries are solid.',
-    ),
-  },
-  inequalityBuild({
-    questionId: `${P}-cw-5`,
-    alignment: A3H,
-    dok: 3,
-    difficultyBand: 3,
-    prompt: tex`Activity 5.2 — Analyzing Graphs of Systems of Linear Inequalities. Graph the system $x + y > 1$ and $-x + y \le 3$. Rewrite each inequality with y alone in the tool (notice the symbols), build both boundaries and shade. Then test the point (−8, 2), choose a point of your own, classify the solution region and find its corner.`,
-    source: ['x + y > 1', '-x + y <= 3'],
-    constraints: [{ A: 1, B: 1, C: -1, relation: '>' }, { A: -1, B: 1, C: -3, relation: '<=' }],
-    rewrite: true,
-    testPoint: { x: -8, y: 2 },
-    studentTestPoint: true,
-    classify: true,
-    vertices: true,
-    directionSteps: ['Rewrite each inequality with y alone.', 'Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point and a point of your own.', 'Classify the region and find its corner.'],
-    hints: ['x + y > 1 becomes y > −x + 1; −x + y ≤ 3 becomes y ≤ x + 3.', 'One boundary is dashed and one is solid: which is which?', 'The corner is where the boundary lines meet. Is it on a dashed line?'],
-    scaffold: backUp('For x + y > 1, the boundary is…', ['dashed', 'solid'], 'dashed'),
-    solutionReview: review(
-      'Rewrite, build, shade, reason.',
-      ['y > −x + 1 (dashed, above) and y ≤ x + 3 (solid, below).', '(−8, 2) satisfies neither inequality. The region is unbounded, and its corner (−1, 2) is on the dashed line, so it is not a solution.'],
-      null,
-      'Including the corner (−1, 2): it fails x + y > 1, because 1 is not greater than 1.',
-    ),
-  }),
-  {
-    questionId: `${P}-cw-6`,
-    ...A3H,
-    studentActions: ['multipleResponses'],
-    dok: 3,
-    difficultyBand: 3,
-    prompt: 'Use the system x + y > 1 and −x + y ≤ 3. The two boundary lines cut the plane into four regions, and each point below lies in a different one: decide which inequalities it makes true. Then evaluate Ava’s claim: "The intersection point is always a solution to a system of inequalities because that is where the two lines meet."',
-    directionSteps: ['Substitute each point into both inequalities.', 'Decide which inequalities each point makes true.', 'Check the point where the two boundary lines meet.', 'Explain why Ava is wrong.'],
-    responses: [
-      choice('p1', '(2, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'both inequalities — it is in the overlap'),
-      choice('p2', '(0, 5)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only x + y > 1'),
-      choice('p3', '(0, −2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'only −x + y ≤ 3'),
-      choice('p4', '(−8, 2)', ['both inequalities — it is in the overlap', 'only x + y > 1', 'only −x + y ≤ 3', 'neither inequality'], 'neither inequality'),
-      number('s1', 'At the intersection (−1, 2): x + y =', '1'),
-      number('s2', 'At (−1, 2): −x + y =', '3'),
-      choice('ava', 'Why is Ava wrong?', [
-        'At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system',
-        'Ava is right — the lines meet there',
-        'An intersection point is never a solution of any system',
-        'The intersection point is not on either line',
-      ], 'At (−1, 2), x + y is not greater than 1: that boundary is dashed, so the intersection point is not a solution of this system'),
-    ],
-    hints: ['Substitute each point into x + y and into −x + y, then compare with each right side.', 'Only the region shaded by both inequalities holds solutions of the system.', 'On a dashed boundary, the inequality is false.'],
-    scaffold: backUp('Is 1 > 1 true?', ['no', 'yes'], 'no'),
-    solutionReview: review(
-      'Each region, then the corner.',
-      ['(2, 2): 4 > 1 and 0 ≤ 3, both. (0, 5): 5 > 1 but 5 ≤ 3 is false. (0, −2): −2 > 1 is false, −2 ≤ 3 true. (−8, 2): neither.', '(−1, 2): x + y = 1, and 1 > 1 is false, so the intersection point is not a solution, even though both lines pass through it.'],
-      'both; only the first; only the second; neither; Ava is wrong',
-      'Treating the intersection as a solution because the lines meet there: check it in every inequality.',
     ),
   },
   inequalityBuild({
@@ -357,7 +461,7 @@ const classwork = (P) => [
     constraints: [{ m: 5, b: 3, relation: '>' }, { m: 5, b: -3, relation: '<' }],
     classify: true,
     directionSteps: ['Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane.', 'Classify the solution region.'],
-    hints: ['Compare the slopes of the two boundaries.', 'One inequality shades above the higher line; the other shades below the lower line.', 'Do the shaded half-planes overlap anywhere?'],
+    hints: ['How do the slopes of the two boundaries compare? What does that tell you about the lines?', 'Which line is higher? Does each inequality shade above or below its line?', 'Both lines have slope 5, so they are parallel. One inequality shades above the higher line and the other below the lower line: do the shadings ever overlap?'],
     scaffold: backUp('Two boundary lines with the same slope are…', ['parallel', 'perpendicular'], 'parallel'),
     solutionReview: review(
       'Parallel boundaries, shading away from each other.',
@@ -377,7 +481,7 @@ const classwork = (P) => [
     classify: true,
     studentTestPoint: true,
     directionSteps: ['Build both vertical boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane.', 'Classify the region and choose a solution of your own.'],
-    hints: ['x = c is a vertical line: use the vertical-line method.', 'x ≥ c shades to the right of the line.', 'Which shading lies inside the other?'],
+    hints: ['What kind of line is x = −5? And x = 1?', 'Does x ≥ c shade to the left or to the right of its line? Which shading lies inside the other?', 'Both boundaries are vertical lines: use the vertical-line method. x ≥ c shades to the right, so every point with x ≥ 1 also has x ≥ −5.'],
     scaffold: backUp('The graph of x ≥ 1 is the half-plane…', ['to the right of x = 1', 'above y = 1'], 'to the right of x = 1'),
     solutionReview: review(
       'One half-plane inside the other.',
@@ -410,7 +514,15 @@ const classwork = (P) => [
       inequality('calories', 'Calories burned', '6.9x + 10.4y >= 400'),
       number('allVigorous', 'Calories burned in 45 minutes, all at vigorous effort', '468'),
     ],
-    hints: ['Only the stair stepper rows matter for Emma.', 'Minutes: light plus vigorous is at most her time.', 'Calories: calories per minute times minutes, for each effort, added.'],
+    hints: ['Which rows of the table are about the stair stepper? What does each constraint count: minutes or calories?', 'Light minutes plus vigorous minutes can be at most her time. Calories per minute times minutes, for each effort, added, must be at least her goal.', 'Use the stair stepper rows, 6.9 for light and 10.4 for vigorous. "At most" is ≤ and "at least" is ≥; for 45 minutes at vigorous effort, multiply 45 by 10.4.'],
+    misconceptions: [
+      slip('time', turned('x + y <= 45'), 'She has at most 45 minutes: her time can be 45 minutes or less.'),
+      slip('time', restyled('x + y <= 45'), 'Exercising for exactly 45 minutes is allowed.'),
+      slip('calories', turned('6.9x + 10.4y >= 400'), 'She wants at least 400 calories: 400 or more.'),
+      slip('calories', restyled('6.9x + 10.4y >= 400'), 'Burning exactly 400 calories meets her goal.'),
+      // The item's own common error: the treadmill's rates.
+      slip('calories', '7.6x + 12.4y >= 400', 'Emma uses the stair stepper: use its two rows of the table.'),
+    ],
     scaffold: backUp('Calories burned in y minutes at 10.4 calories per minute are…', ['10.4y', 'y + 10.4'], '10.4y'),
     solutionReview: review(
       'Time is a ceiling, calories a floor.',
@@ -432,7 +544,7 @@ const classwork = (P) => [
     studentTestPoint: true,
     graph: { xMin: 0, xMax: 60, yMin: 0, yMax: 50 },
     directionSteps: ['Show where the two shaded regions overlap.', 'Check the marked point in both inequalities.', 'Choose a point of your own in the overlap and check it.'],
-    hints: ['Substitute the marked point into both inequalities.', 'A point solves the system only if it makes both inequalities true.', 'The overlap is below the time line and above the calorie line.'],
+    hints: ['Does the marked point make x + y ≤ 45 true? Does it make 6.9x + 10.4y ≥ 400 true?', 'A point solves the system only if it makes both inequalities true. Which line does the overlap lie below, and which above?', 'Substitute (10, 30) into both inequalities. The overlap is below the time line and above the calorie line: choose a point there and check it in both.'],
     scaffold: backUp('Emma’s calories for x minutes light and y minutes vigorous are…', ['6.9x + 10.4y', 'x + y'], '6.9x + 10.4y'),
     solutionReview: review(
       'Check the point in both inequalities.',
@@ -457,13 +569,13 @@ const classwork = (P) => [
       number('cal3', 'Workout 3 calories', '415'),
       choice('ok3', 'Workout 3', BOTH_OR_NOT, 'No — it fails only the first constraint'),
       choice('meaning', 'What does the solution (10, 35) mean?', [
-        'Emma can exercise 10 minutes at light effort and 35 minutes at vigorous effort, 45 minutes in all, and burn more than 400 calories',
-        'Emma burns 10 calories at light effort and 35 at vigorous effort',
-        'Emma exercises for 10 minutes in all',
-        'Emma burns exactly 400 calories',
-      ], 'Emma can exercise 10 minutes at light effort and 35 minutes at vigorous effort, 45 minutes in all, and burn more than 400 calories'),
+        'Emma can do 10 minutes light and 35 minutes vigorous, 45 minutes in all, and burn more than 400 calories',
+        'Emma burns 10 calories at light effort and 35 at vigorous effort, 45 calories in all',
+        'Emma can do 10 minutes light and 35 minutes vigorous, but that is more than her 45 minutes',
+        'Emma can do 10 minutes light and 35 minutes vigorous, 45 minutes in all, and burn fewer than 400 calories',
+      ], 'Emma can do 10 minutes light and 35 minutes vigorous, 45 minutes in all, and burn more than 400 calories'),
     ],
-    hints: ['Calories: 6.9 times the light minutes plus 10.4 times the vigorous minutes.', 'Minutes: add the two times and compare with the time she has.', 'A workout solves the system only if it meets both constraints.'],
+    hints: ['For each workout, how many calories does 6.9x + 10.4y give? How many minutes is it in all?', 'Substitute the light minutes for x and the vigorous minutes for y. Is the total time at most 45 minutes? Are the calories at least 400?', 'Calories: 6.9 times the light minutes plus 10.4 times the vigorous minutes. A workout solves the system only if it meets both constraints.'],
     scaffold: backUp('The first constraint, x + y ≤ 45, is about…', ['minutes', 'calories'], 'minutes'),
     solutionReview: review(
       'Substitute each workout into both inequalities.',
@@ -478,24 +590,25 @@ const classwork = (P) => [
     studentActions: ['multipleResponses'],
     dok: 3,
     difficultyBand: 3,
-    prompt: `Activity 5.4 — Identifying Systems of Linear Inequalities. ${FOUR_SYSTEMS} Graph A shades the region below both lines. Graph B shades the region above the rising line and below the falling line, to the left of (0, 3). Graph C shades the region below the rising line and above the falling line, to the right of (0, 3). Graph D is blank. Match each system to its graph, check a point, and evaluate Isabella’s claim.`,
+    prompt: `Activity 5.4 — Identifying Systems of Linear Inequalities. ${FOUR_SYSTEMS} Graphs A, B and C each shade the solutions of one system, and Graph D is blank. Match each system to its graph, check a point, and evaluate Isabella’s claim.`,
+    ...SYSTEM_GRAPHS,
     directionSteps: ['Use each system’s symbols to decide above or below each line.', 'Match each system to its graph.', 'Check the given point against both lines.', 'Explain why Isabella is wrong.'],
     responses: [
-      choice('sysA', 'System A', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph C'),
-      choice('sysB', 'System B', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph D (the blank one)'),
-      choice('sysC', 'System C', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph B'),
-      choice('sysD', 'System D', ['Graph A', 'Graph B', 'Graph C', 'Graph D (the blank one)'], 'Graph A'),
+      choice('sysA', 'System A', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.A)),
+      choice('sysB', 'System B', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.B)),
+      choice('sysC', 'System C', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.C)),
+      choice('sysD', 'System D', GRAPH_OPTIONS, graphOption(GRAPH_OF_SYSTEM.D)),
       number('rise4', 'At x = 4, the rising line’s y-value, (3/5)(4) + 3, is', '5.4'),
       number('fall4', 'At x = 4, the falling line’s y-value is', '0.6'),
       choice('check', 'So the point (4, −4) is…', ['below both lines: a solution of System D', 'between the lines: a solution of System A', 'above both lines: a solution of System B', 'on a boundary line'], 'below both lines: a solution of System D'),
       choice('isabella', 'Isabella says: "Since the equations in each system are the same, the graphs and solutions should all be identical." Why is she wrong?', [
-        'The boundary lines are the same, but the inequality symbols differ, so each system shades a different region',
-        'The systems use different boundary lines',
-        'She is right: all four graphs are the same',
-        'Only the solutions differ; the graphs are identical',
-      ], 'The boundary lines are the same, but the inequality symbols differ, so each system shades a different region'),
+        'The boundary lines are the same, but the symbols differ, so each system shades a different region',
+        'The boundary lines differ from system to system, so each system shades a different region',
+        'She is right: the boundary lines in each system are the same, so the graphs and solutions are identical',
+        'The boundary lines are the same, so the graphs are identical, but the solutions differ',
+      ], 'The boundary lines are the same, but the symbols differ, so each system shades a different region'),
     ],
-    hints: ['> shades above a line and < shades below it.', 'Read each system one inequality at a time: above or below the rising line, then above or below the falling line.', 'Compare the point’s y-coordinate with each line’s value at its x-coordinate.'],
+    hints: ['For each inequality, is the shading above or below its line? Which line rises, and which falls?', 'Read each system one inequality at a time: above or below the rising line, then above or below the falling line. What is each line’s y-value at x = 4?', '> shades above a line and < shades below it. Substitute x = 4 into each line, then compare −4 with both values.'],
     scaffold: backUp('y > (3/5)x + 3 shades…', ['above the rising line', 'below the rising line'], 'above the rising line'),
     solutionReview: review(
       'The symbols, not the lines, tell the systems apart.',
@@ -510,23 +623,24 @@ const classwork = (P) => [
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 3,
-    prompt: `Match a possible solution set to each system. ${SYSTEM_A} ${SYSTEM_B} ${SYSTEM_C} ${SYSTEM_D} Possible Solutions A: (0, −6) and (4, −4). Possible Solutions B: (0, 7.5) and (−4, 10). Possible Solutions C: (−6, 4) and (−10, 8). Possible Solutions D is blank: complete it for the system with no solution set yet. Check the point (5, 3) for System A.`,
+    prompt: `Match a possible solution set to each system. ${SYSTEM_A} ${SYSTEM_B} ${SYSTEM_C} ${SYSTEM_D} Possible Solutions A, B and C are plotted with the systems’ two dashed boundary lines. Possible Solutions D is blank: complete it for the system with no solution set yet. Check the point (5, 3) for System A.`,
+    ...SOLUTION_GRAPHS,
     directionSteps: ['Test a point from each solution set in the systems.', 'Match each system to its solution set.', 'Check (5, 3) for System A.'],
     responses: [
-      choice('solA', 'System A', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions D (to complete)'),
-      choice('solB', 'System B', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions B'),
-      choice('solC', 'System C', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions C'),
-      choice('solD', 'System D', ['Possible Solutions A', 'Possible Solutions B', 'Possible Solutions C', 'Possible Solutions D (to complete)'], 'Possible Solutions A'),
+      choice('solA', 'System A', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.A)),
+      choice('solB', 'System B', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.B)),
+      choice('solC', 'System C', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.C)),
+      choice('solD', 'System D', SOLUTION_OPTIONS, solutionOption(SOLUTIONS_OF_SYSTEM.D)),
       number('rise5', 'At x = 5, (3/5)x + 3 =', '6'),
       number('fall5', 'At x = 5, −(3/5)x + 3 =', '0'),
       choice('check', '(5, 3) for System A:', [
         'a solution — it is below the rising line and above the falling line, so it can complete Possible Solutions D',
-        'not a solution — it is above both lines',
-        'not a solution — it is below both lines',
-        'not a solution — it is on a boundary line',
+        'not a solution — it is above the rising line and above the falling line, like the points in Possible Solutions B',
+        'not a solution — it is below the rising line and below the falling line, like the points in Possible Solutions A',
+        'not a solution — it is on the falling line, so it is on a boundary of Possible Solutions D',
       ], 'a solution — it is below the rising line and above the falling line, so it can complete Possible Solutions D'),
     ],
-    hints: ['Substitute a point from a solution set into both inequalities of a system.', 'Each solution set fits exactly one system.', 'Compare y = 3 with each line’s value at x = 5.'],
+    hints: ['Which system does a point from each solution set make true in both of its inequalities?', 'Test one point from each set in both inequalities of each system. Each set fits exactly one system: which system is left for D?', 'Substitute x = 5 into each line, and compare y = 3 with both values.'],
     scaffold: backUp('A point is in a system’s solution set when it makes…', ['both inequalities true', 'one inequality true'], 'both inequalities true'),
     solutionReview: review(
       'Test the points.',
@@ -547,7 +661,7 @@ const classwork = (P) => [
     studentTestPoint: true,
     classify: true,
     directionSteps: ['Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point and a point of your own.', 'Classify the region.'],
-    hints: ['Both lines pass through (0, 3): one rises 3 for every 5 to the right, the other falls 3.', 'Both symbols are >.', 'The overlap is above both lines.'],
+    hints: ['Where does each line cross the y-axis? What do the slopes 3/5 and −3/5 tell you to do from there?', 'Both symbols are >. Are the lines solid or dashed, and is each shading above or below?', 'Both lines cross the y-axis at 3: one rises 3 for every 5 to the right, and the other falls 3. Both are dashed, and the overlap is above both lines.'],
     scaffold: backUp('A slope of 3/5 means…', ['up 3, right 5', 'up 5, right 3'], 'up 3, right 5'),
     solutionReview: review(
       'Above both dashed lines.',
@@ -565,20 +679,27 @@ const classwork = (P) => [
     prompt: 'Talk the Talk — Get to Know the Region. The solution set of a system of two linear inequalities can be a region above both lines, a region below both lines, a region between the lines, or no solution. Rewrite each system with y alone to decide which. a. y < 8 + 2x and 3 + 2x > y. b. 5 + x < y and y > 7 + x. c. y > 12 − 3x and 10 − 3x > y. d. 6 − x < y and y < 9 − x.',
     directionSteps: ['Rewrite system c with y alone in each inequality.', 'Compare the slopes and the y-intercepts in each system.', 'Decide which region each system has.', 'Compare with systems of equations.'],
     responses: [
-      inequality('c1', 'System c, first inequality with y alone', 'y > -3x + 12'),
-      inequality('c2', 'System c, second inequality with y alone', 'y < -3x + 10'),
+      inequality('c1', 'System c, first inequality with y alone', 'y > -3x + 12', { placeholder: Y_ALONE_EXAMPLE }),
+      inequality('c2', 'System c, second inequality with y alone', 'y < -3x + 10', { placeholder: Y_ALONE_EXAMPLE }),
       choice('a', 'System a', REGIONS, 'A region below both lines'),
       choice('b', 'System b', REGIONS, 'A region above both lines'),
       choice('c', 'System c', REGIONS, 'No solution'),
       choice('d', 'System d', REGIONS, 'A region between the lines'),
       choice('compare', 'How is the solution of a system of linear inequalities different from the solution of a system of linear equations?', [
-        'A system of equations usually has one solution, the intersection point; a system of inequalities has a whole region of solutions or none, and the intersection point may not be one of them',
-        'They are always the same point',
-        'A system of inequalities always has exactly one solution',
-        'A system of equations always has a region of solutions',
-      ], 'A system of equations usually has one solution, the intersection point; a system of inequalities has a whole region of solutions or none, and the intersection point may not be one of them'),
+        'Equations: usually one solution, the intersection point. Inequalities: a whole region or none, which may not include that point',
+        'Equations: usually one solution, the intersection point. Inequalities: that same point, where the boundaries cross',
+        'Equations: a whole region of solutions or none. Inequalities: usually one solution, the intersection point',
+        'Equations: usually one solution, the intersection point. Inequalities: a whole region, which always includes the intersection point',
+      ], 'Equations: usually one solution, the intersection point. Inequalities: a whole region or none, which may not include that point'),
     ],
-    hints: ['Each system’s boundary lines are parallel: they have the same slope.', 'Decide above or below each line, then whether the shadings overlap.', '"10 − 3x > y" is the same as "y < 10 − 3x".'],
+    hints: ['In each system, how do the slopes of the two boundaries compare? Which side of each line is shaded?', 'With y alone, is each inequality above or below its line? Then do the two shadings overlap, and where?', 'Each system’s boundaries are parallel, so compare their y-intercepts. "10 − 3x > y" is the same as "y < 10 − 3x".'],
+    misconceptions: [
+      slip('c1', turned('y > -3x + 12'), 'Reordering the terms on one side does not change the symbol.'),
+      slip('c1', restyled('y > -3x + 12'), 'The symbol in the system is strict, so the line is left out: your symbol should be strict too.'),
+      // The item's own common error: reading "10 − 3x > y" as y > 10 − 3x.
+      slip('c2', turned('y < -3x + 10'), 'Read "10 − 3x > y" from y’s side: which side is greater?'),
+      slip('c2', restyled('y < -3x + 10'), 'The symbol in the system is strict, so the line is left out: your symbol should be strict too.'),
+    ],
     scaffold: backUp('"3 + 2x > y" with y alone is…', ['y < 2x + 3', 'y > 2x + 3'], 'y < 2x + 3'),
     solutionReview: review(
       'Parallel boundaries: compare the intercepts.',
@@ -599,7 +720,7 @@ const classwork = (P) => [
     classify: true,
     studentTestPoint: true,
     directionSteps: ['Rewrite each inequality with y alone.', 'Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Classify the region and choose a solution of your own.'],
-    hints: ['6 − x < y is the same as y > −x + 6.', 'Both boundaries are parallel and dashed.', 'The overlap lies between the lines.'],
+    hints: ['Which side of 6 − x < y is y on? How would you write it with y on the left?', 'Read 6 − x < y from right to left: is y greater or less than 6 − x? Are the two boundaries parallel, and solid or dashed?', '6 − x < y is the same as y > −x + 6, and y < 9 − x is y < −x + 9. Both boundaries are parallel and dashed, and the overlap lies between them.'],
     scaffold: backUp('6 − x < y with y alone is…', ['y > −x + 6', 'y < −x + 6'], 'y > −x + 6'),
     solutionReview: review(
       'Between two parallel dashed lines.',
@@ -656,7 +777,7 @@ const practiceRegular = (P) => [
       vertices: true,
       prompt: tex`Graph the system $y > {{m1|coef}}x {{b1|signed}}$ and $y \le {{m2|coef}}x {{b2|signed}}$. Test the point (0, 0), then find the corner of the solution region and decide whether it is a solution.`,
     }),
-    hints: ['Build each boundary from its y-intercept and slope.', '> is dashed and ≤ is solid.', 'The corner is where the lines meet. Is it on the dashed line?'],
+    hints: ['What are the y-intercept and the slope of each boundary?', 'Which symbol leaves its line out, and which includes it? Which side does each inequality shade?', 'Build each boundary from its y-intercept and slope: > is dashed and ≤ is solid. The corner is where the lines meet: is it on the dashed line?'],
     scaffold: backUp('A corner on a dashed boundary is…', ['not a solution', 'a solution'], 'not a solution'),
   },
   inequalityBuild({
@@ -671,7 +792,7 @@ const practiceRegular = (P) => [
     testPoint: { x: '{{h}}', y: '{{k}}' },
     probe: true,
     directionSteps: ['Rewrite each inequality with y alone.', 'Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point on the boundaries.'],
-    hints: ['Subtract the x-term from both sides of each inequality.', 'The marked point is on both lines: is each boundary solid or dashed there?', 'A point on a dashed boundary fails that inequality.'],
+    hints: ['To get y alone in each inequality, what do you subtract or add on both sides?', 'Subtract the x-term from both sides of the first, and add x to both sides of the second. The marked point is on both lines: which boundary is dashed?', 'Rewrite each inequality with y alone, then build and shade. A point on a dashed boundary fails that inequality, so check the marked point in both.'],
     scaffold: backUp('A point on the dashed boundary of y > −x + 1 makes the inequality…', ['false', 'true'], 'false'),
     solutionReview: review(
       'Rewrite, build, then the corner.',
@@ -697,7 +818,7 @@ const practiceRegular = (P) => [
     constraints: [{ m: '{{m}}', b: '{{b1}}', relation: '>' }, { m: '{{m}}', b: '{{b2}}', relation: '<' }],
     classify: true,
     directionSteps: ['Build both boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane.', 'Classify the solution region.'],
-    hints: ['The two boundaries have the same slope: they are parallel.', 'Is the line you shade above lower than the line you shade below?', 'If the shadings never meet, the system has no solution.'],
+    hints: ['How do the slopes of the two boundaries compare? What does that make the lines?', 'The lines are parallel. Is the line you shade above lower than the line you shade below?', 'Compare the y-intercepts. The shadings overlap in a strip only when the line you shade above is the lower one; otherwise there is no solution.'],
     scaffold: backUp('Two lines with the same slope and different y-intercepts…', ['never meet', 'meet once'], 'never meet'),
     solutionReview: review(
       'Parallel boundaries: compare the y-intercepts.',
@@ -727,7 +848,13 @@ const practiceRegular = (P) => [
       number('raised', 'Money the plan raises ($)', '{{R}}'),
       number('met', 'How many of the two constraints does the plan meet?', '{{cnt}}'),
     ],
-    hints: ['Prints: small plus large is at most the number the club can make.', 'Money: price times count for each size, added, is at least the goal.', 'The plan is a solution only if it meets both constraints.'],
+    hints: ['What does each constraint count: prints or dollars? Which one is a ceiling, and which a floor?', 'Small plus large can be at most the prints the club can make; price times count for each size, added, must be at least the goal. Which symbol fits each?', '"At most" is ≤ and "at least" is ≥. For the plan, add its prints and find its money, then check each constraint.'],
+    misconceptions: [
+      slip('count', turned('x + y <= {{n}}'), '"At most" means the club makes that many prints or fewer.'),
+      slip('count', restyled('x + y <= {{n}}'), '"At most" includes making exactly that many prints.'),
+      slip('money', turned('{{p}}x + {{q}}y >= {{M}}'), '"At least" means the club raises the goal or more.'),
+      slip('money', restyled('{{p}}x + {{q}}y >= {{M}}'), '"At least" includes raising exactly the goal.'),
+    ],
     scaffold: backUp('"At least" means…', ['≥', '≤'], '≥'),
     solutionReview: review(
       'Write both constraints, then test the plan in each.',
@@ -758,7 +885,7 @@ const practiceRegular = (P) => [
       number('v2', 'At (4, 2): −x + 5 =', '1'),
       choice('far', '(4, 2)', ['both — a solution of the system', 'only y ≥ 2x − 1', 'only y < −x + 5', 'neither'], 'neither'),
     ],
-    hints: ['Substitute x into each right side, then compare with y.', 'The point where the lines meet is on both boundaries: which boundary is dashed?'],
+    hints: ['At each point, what is each right side? How does the point’s y compare with it?', 'Substitute x into each right side, then compare with y. The point where the lines meet is on both boundaries: which boundary is dashed?'],
     scaffold: backUp('At (2, 3), is 3 < −2 + 5 true?', ['no', 'yes'], 'no'),
     solutionReview: review(
       'Substitute and compare.',
@@ -778,7 +905,7 @@ const practiceRegular = (P) => [
     classify: true,
     vertices: true,
     directionSteps: ['Build all three boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Classify the region and find its corners.'],
-    hints: ['y ≥ 0 is the x-axis and above; x ≥ 0 is the y-axis and to its right.', 'All three boundaries are solid.', 'The corners are where two boundaries meet.'],
+    hints: ['Which line is the boundary of y ≥ 0? Of x ≥ 0? Which side does each shade?', 'Are the three boundaries solid or dashed? Where do two of them meet?', 'y ≥ 0 is the x-axis and above it; x ≥ 0 is the y-axis and to its right. Every boundary is solid, and the corners are where two boundaries meet.'],
     scaffold: backUp('The boundary of y ≥ 0 is…', ['the x-axis', 'the y-axis'], 'the x-axis'),
     solutionReview: review(
       'Three half-planes make a triangle.',
@@ -793,19 +920,27 @@ const practiceRegular = (P) => [
     studentActions: ['multipleResponses'],
     dok: 3,
     difficultyBand: 3,
-    prompt: 'Error analysis. For the system y ≥ x − 1 and y < 2x − 4, Jordan says (3, 2) is a solution "because it is where the two boundary lines cross." Decide which inequalities (3, 2) makes true and whether Jordan is right. Then change only the second symbol so that its boundary is included and (3, 2) becomes a solution.',
-    directionSteps: ['Substitute (3, 2) into each inequality.', 'Decide whether Jordan is right.', 'Change the second symbol so its boundary is included.'],
+    // "Keeping the side it shades": y ≥ 2x − 4 also includes the boundary and
+    // makes (3, 2) a solution, so without it the prompt allowed an answer the
+    // key refuses and the slip below calls turned round.
+    prompt: 'Error analysis. For the system y ≥ x − 1 and y < 2x − 4, Jordan says (3, 2) is a solution "because it is where the two boundary lines cross." Decide which inequalities (3, 2) makes true and whether Jordan is right. Then change only the second symbol, keeping the side it shades, so that its boundary is included and (3, 2) becomes a solution.',
+    directionSteps: ['Substitute (3, 2) into each inequality.', 'Decide whether Jordan is right.', 'Change the second symbol so its boundary is included, keeping the side it shades.'],
     responses: [
       choice('which', 'Which inequalities does (3, 2) make true?', ['only y ≥ x − 1', 'only y < 2x − 4', 'both', 'neither'], 'only y ≥ x − 1'),
       choice('jordan', 'Is Jordan right?', [
         'No — (3, 2) is on the dashed boundary of y < 2x − 4, so it fails that inequality',
-        'Yes — boundary lines always cross at a solution',
-        'No — (3, 2) is not on either line',
-        'Yes — it makes both inequalities true',
+        'Yes — (3, 2) is on both boundary lines, so it makes both inequalities true',
+        'No — (3, 2) is on the solid boundary of y ≥ x − 1, so it does not satisfy that inequality',
+        'No — (3, 2) is not on either line, so the two lines do not cross there',
       ], 'No — (3, 2) is on the dashed boundary of y < 2x − 4, so it fails that inequality'),
       inequality('fixed', 'The second inequality with its boundary included', 'y <= 2x - 4'),
     ],
-    hints: ['At (3, 2), compare 2 with 3 − 1 and with 2(3) − 4.', 'A point on a dashed boundary fails that inequality.', 'Including the boundary turns < into ≤.'],
+    hints: ['At (3, 2), what are x − 1 and 2x − 4? Is 2 at least the first, and less than the second?', 'Is (3, 2) on a dashed boundary? A point on a dashed boundary fails that inequality. Which symbol includes the boundary?', 'At (3, 2), 2 ≥ 3 − 1 is true, but 2 < 2(3) − 4 is false. Including the boundary turns < into ≤.'],
+    misconceptions: [
+      // The item's own common error: changing < to >, which flips the shading.
+      slip('fixed', turned('y <= 2x - 4'), 'Turning the symbol around moves the shading to the other side. Keep its direction, and include the boundary.'),
+      slip('fixed', restyled('y <= 2x - 4'), 'That is the inequality as it was: its boundary is dashed, so (3, 2) is still left out.'),
+    ],
     scaffold: backUp('Is 2 < 2 true?', ['no', 'yes'], 'no'),
     solutionReview: review(
       'Check the crossing point in both inequalities.',
@@ -826,7 +961,14 @@ const practiceRegular = (P) => [
     studentTestPoint: true,
     graph: { xMin: 0, xMax: 25, yMin: 0, yMax: 25 },
     directionSteps: ['Enter both constraints.', 'Build each boundary line.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point and choose a solution of your own.'],
-    hints: ['Hours: tutoring plus lifeguarding is at most her limit.', 'Money: each job’s pay times its hours, added, is at least her goal.', 'The earnings boundary passes through (16, 0) and (0, 24).'],
+    // The last hint used to give the earnings boundary's points, (16, 0) and
+    // (0, 24): the whole boundary step (F-HINT-GIVES-STEP). It now says how to
+    // find them.
+    hints: [
+      'What two limits does Kim have, one on her hours and one on her money? Which symbol fits "at most", and which fits "at least"?',
+      'Hours: tutoring hours plus lifeguarding hours. Money: each job’s pay per hour times its hours, added. Which side of each boundary do you shade?',
+      'For each boundary, set x = 0 and solve for y, then set y = 0 and solve for x: those two points are on the line. Then test (6, 12) in both inequalities.',
+    ],
     scaffold: backUp('Kim’s earnings for x hours of tutoring at $15 an hour are…', ['15x', 'x + 15'], '15x'),
     solutionReview: review(
       'Model, graph, test.',
@@ -850,7 +992,7 @@ const practiceRegular = (P) => [
       choice('ok2', '4 hours tutoring and 15 hours lifeguarding', BOTH_OR_NOT, 'No — it fails only the second constraint'),
       number('least', 'If Kim lifeguards 12 hours, the only number of tutoring hours that meets both constraints', '8'),
     ],
-    hints: ['Earnings: 15 times the tutoring hours plus 10 times the lifeguarding hours.', 'With 12 hours of lifeguarding, find the most tutoring hours the hours constraint allows.', 'Then find the fewest tutoring hours the earnings constraint needs.'],
+    hints: ['How much does Kim earn for each schedule: what is 15x + 10y?', 'Compare each schedule’s hours with her limit and its earnings with her goal. With 12 hours of lifeguarding, what is the most tutoring the hours allow?', 'With 12 hours of lifeguarding, find the most tutoring hours the hours constraint allows and the fewest the earnings constraint needs.'],
     scaffold: backUp('With 12 hours lifeguarding, Kim earns from lifeguarding…', ['$120', '$12'], '$120'),
     solutionReview: review(
       'Both constraints, every time.',
@@ -865,19 +1007,22 @@ const practiceRegular = (P) => [
     studentActions: ['multipleResponses'],
     dok: 3,
     difficultyBand: 3,
-    prompt: 'Write a system from the description of its graph. One boundary line is solid, with slope 1 and y-intercept 2, and the half-plane above it is shaded. The other boundary line is dashed, with slope −1 and y-intercept 5, and the half-plane below it is shaded. Then decide whether the corner where the lines meet, (1.5, 3.5), is a solution.',
+    prompt: 'Write the system the graph shows. Then decide whether the corner where the lines meet, (1.5, 3.5), is a solution.',
+    // The second boundary in the Systems Workspace's second colour, its shading with it.
+    graph: inequalityFigure([SYSTEM_FROM_GRAPH_KEYS.solid, SYSTEM_FROM_GRAPH_KEYS.dashed], { strokes: [null, '#d93025'] }),
     directionSteps: ['Write the inequality for the solid boundary.', 'Write the inequality for the dashed boundary.', 'Decide whether the corner is a solution.'],
     responses: [
-      inequality('solid', 'Inequality for the solid boundary', 'y >= x + 2'),
-      inequality('dashed', 'Inequality for the dashed boundary', 'y < -x + 5'),
+      inequality('solid', 'Inequality for the solid boundary', SYSTEM_FROM_GRAPH_KEYS.solid, { placeholder: Y_ALONE_EXAMPLE }),
+      inequality('dashed', 'Inequality for the dashed boundary', SYSTEM_FROM_GRAPH_KEYS.dashed, { placeholder: Y_ALONE_EXAMPLE }),
       choice('corner', 'Is the corner (1.5, 3.5) a solution?', [
         'No — it is on the dashed boundary, which is not included',
-        'Yes — it is on the solid boundary',
-        'Yes — corners are always solutions',
-        'No — it is above both lines',
+        'Yes — it is on the solid boundary, which is included',
+        'Yes — corners are always solutions, since both lines meet there',
+        'No — it is above both lines, so it is outside the overlap',
       ], 'No — it is on the dashed boundary, which is not included'),
     ],
-    hints: ['Write each boundary’s equation from its slope and y-intercept.', 'Solid: ≤ or ≥. Dashed: < or >.', 'Above: y is greater. Below: y is less.'],
+    hints: ['Where does each line cross the y-axis, and what is its rise over run?', 'Which boundary is solid, and which dashed? Which side of each is shaded?', 'Write y = mx + b for each line. Solid is ≤ or ≥ and dashed is < or >; above means y is greater, and below means y is less.'],
+    misconceptions: [...graphSlips('solid', SYSTEM_FROM_GRAPH_KEYS.solid), ...graphSlips('dashed', SYSTEM_FROM_GRAPH_KEYS.dashed)],
     scaffold: backUp('A dashed boundary with the half-plane below it shaded uses…', ['<', '≤'], '<'),
     solutionReview: review(
       'Each boundary, its style and its side.',
@@ -901,9 +1046,19 @@ const practiceHonors = (P) => [
     responses: [
       inequality('k', 'Values of k that give solutions', 'k <= 3'),
       choice('k3', 'When k = 3, the solution set is…', ['only the points on the line y = 2x + 3', 'the whole plane', 'empty', 'the region above the line'], 'only the points on the line y = 2x + 3'),
-      choice('k5', 'When k = 5, the solution set is…', ['empty — above y = 2x + 5 and below y = 2x + 3 never meet', 'the strip between the lines', 'only the line y = 2x + 5', 'the region below both lines'], 'empty — above y = 2x + 5 and below y = 2x + 3 never meet'),
+      choice('k5', 'When k = 5, the solution set is…', [
+        'empty — above y = 2x + 5 and below y = 2x + 3 never meet',
+        'the strip between y = 2x + 3 and y = 2x + 5, where both hold',
+        'only the line y = 2x + 5, where the two boundaries meet',
+        'empty — parallel boundaries always give a system no solutions',
+      ], 'empty — above y = 2x + 5 and below y = 2x + 3 never meet'),
     ],
-    hints: ['Both boundaries have slope 2, so they are parallel.', 'The system shades above y = 2x + k and below y = 2x + 3.', 'The shadings overlap only when the lower line is the one shaded above.'],
+    hints: ['What do the slopes of the two boundaries tell you about the lines?', 'The system shades above y = 2x + k and below y = 2x + 3. When do those two shadings overlap?', 'The lines are parallel. The shadings overlap only when the line shaded above is not higher than the line shaded below.'],
+    misconceptions: [
+      slip('k', turned('k <= 3'), 'The symbol points the wrong way: a smaller k lowers the line y = 2x + k. Does that help the shadings meet?'),
+      // The item's own common error: k < 3.
+      slip('k', restyled('k <= 3'), 'At k = 3 the two boundaries are the same solid line, and its points solve the system.'),
+    ],
     scaffold: backUp('y ≥ 2x + k and y ≤ 2x + 3 can both be true only if 2x + k is…', ['at most 2x + 3', 'more than 2x + 3'], 'at most 2x + 3'),
     solutionReview: review(
       'A strip between parallel lines, if the order is right.',
@@ -923,7 +1078,7 @@ const practiceHonors = (P) => [
     classify: true,
     vertices: true,
     directionSteps: ['Build all three boundary lines.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Classify the region and find its corners.'],
-    hints: ['x + 2y = 8 passes through (8, 0) and (0, 4).', 'All three boundaries are solid.', 'The corners are where two boundaries meet.'],
+    hints: ['Where does x + 2y = 8 cross the x-axis? Where does it cross the y-axis?', 'Set y = 0, then x = 0, in x + 2y = 8. Are all three boundaries solid?', 'The corners are where two boundaries meet: the axes meet at the origin, and x + 2y = 8 meets each axis at the intercepts you found. Every boundary is solid.'],
     scaffold: backUp('The boundary x + 2y = 8 crosses the y-axis where y is…', ['4', '8'], '4'),
     solutionReview: review(
       'A triangle in the first quadrant.',
@@ -945,7 +1100,7 @@ const practiceHonors = (P) => [
       number('most', 'Greatest value of x + y in the region', '8'),
       choice('point', 'Is (3, 3) in the region?', ['No — 3 + 2(3) = 9 is more than 8', 'Yes — both coordinates are positive', 'Yes — it is below the line', 'No — it is on the line'], 'No — 3 + 2(3) = 9 is more than 8'),
     ],
-    hints: ['The legs lie along the axes, from the origin to each intercept.', 'A greatest value of x + y over a triangle occurs at a corner.', 'Substitute (3, 3) into x + 2y.'],
+    hints: ['How long are the triangle’s two legs along the axes? What is the area of a right triangle?', 'Where over a triangle does x + y take its greatest value? Is (3, 3) on the shaded side of the slanted boundary?', 'The area is half the product of the legs. Compare x + y at the three corners, and substitute (3, 3) into x + 2y.'],
     scaffold: backUp('The area of a right triangle is…', ['half the product of its legs', 'the product of its legs'], 'half the product of its legs'),
     solutionReview: review(
       'Corners carry the extremes.',
@@ -968,7 +1123,7 @@ const practiceHonors = (P) => [
       { id: 'between', label: 'A region between the lines', cards: [['s4', 'y > x − 2 and y < x + 6'], ['s6', 'x + y ≥ 3 and x + y ≤ 7']] },
       { id: 'none', label: 'No solution', cards: [['s3', 'y > 3x + 5 and y < 3x − 1'], ['s5', '2x − y > 4 and 2x − y < −1']] },
     ], ['s5', 's1', 's6', 's2', 's7', 's3', 's8', 's4']),
-    hints: ['−4x + 2y > 6 becomes y > 2x + 3; 6x + 3y ≤ 9 becomes y ≤ −2x + 3.', '2x − y > 4 becomes y < 2x − 4 (dividing by −1 reverses the symbol).', 'Shading above a higher line and below a lower line never overlaps.'],
+    hints: ['Which cards are not written with y alone? What do they become when you rewrite them?', 'Get y alone in each card that needs it. When you divide by a negative number, what happens to the symbol? Which cards need that?', '−4x + 2y > 6 becomes y > 2x + 3, and 2x − y > 4 becomes y < 2x − 4. Then compare the y-intercepts: shading above a higher line and below a lower line never overlaps.'],
     scaffold: backUp('2x − y < −1 with y alone is…', ['y > 2x + 1', 'y < 2x + 1'], 'y > 2x + 1'),
     solutionReview: review(
       'Rewrite, then compare the intercepts.',
@@ -991,7 +1146,7 @@ const practiceHonors = (P) => [
       number('yMeet', '…and y =', '25.57', { numericTolerance: 0.01 }),
       number('least', 'Least whole number of vigorous minutes with no light minutes', '39'),
     ],
-    hints: ['On the y-axis, x = 0: solve 10.4y = 400.', 'Substitute y = 45 − x into 6.9x + 10.4y = 400 and solve for x.', 'With x = 0 she needs 10.4y to be at least 400, in whole minutes.'],
+    hints: ['Where the calorie boundary crosses the y-axis, what is x? What equation does that leave?', 'On the time line, y = 45 − x. What equation in x do you get when you substitute that into 6.9x + 10.4y = 400?', 'Solve 10.4y = 400 for the y-axis corner, and 6.9x + 10.4(45 − x) = 400 for x. With no light minutes she needs 10.4y to be at least 400, in whole minutes.'],
     scaffold: backUp('On the y-axis, the value of x is…', ['0', '45'], '0'),
     solutionReview: review(
       'Corners by substitution.',
@@ -1000,7 +1155,7 @@ const practiceHonors = (P) => [
       'Rounding 38.46 down to 38: 38 minutes burns only 395.2 calories.',
     ),
   },
-  auditedCcmrQuestion({
+  withOwnHint('Substitute the point into the first inequality and solve for k. Which values of k does the point allow, and which is the greatest integer?', auditedCcmrQuestion({
     documentId: 'mm_sat_A_3H_challenge_1_parameter-feasible-point_v21',
     questionId: `${P}-p-16`,
     scaffold: backUp('Solving y ≥ 2x + k for k gives…', ['k ≤ y − 2x', 'k ≥ y − 2x'], 'k ≤ y − 2x'),
@@ -1014,8 +1169,8 @@ const practiceHonors = (P) => [
         'This swaps the coordinates: in ({{x}}, {{y}}), x is {{x}} and y is {{y}}.',
       ],
     },
-  }),
-  auditedCcmrQuestion({
+  })),
+  withOwnHint('At this x, what are the least and the greatest values of y the two inequalities allow? Are both of them included?', auditedCcmrQuestion({
     documentId: 'mm_sat_A_3H_challenge_2_integer-points-vertical-slice_v21',
     questionId: `${P}-p-17`,
     scaffold: backUp('How many integers are there from 2 to 5, including both?', ['4', '3'], '4'),
@@ -1029,7 +1184,7 @@ const practiceHonors = (P) => [
         'This adds 2: the difference already counts one end, so adding 1 includes the other.',
       ],
     },
-  }),
+  })),
 ];
 
 /* ------------------------------------------------------ Exit Ticket */
@@ -1104,6 +1259,13 @@ const dolRegular = (P) => [
       inequality('seats', 'Seats', 'x + y <= {{n}}'),
       inequality('money', 'Money collected', '{{p}}x + {{q}}y >= {{M}}'),
       number('met', 'How many of the two constraints does the sale meet?', '{{cnt}}'),
+    ],
+    // Said on a miss only once the teacher releases feedback (feedbackOpenForItem).
+    misconceptions: [
+      slip('seats', turned('x + y <= {{n}}'), '"At most" means as many tickets as there are seats, or fewer.'),
+      slip('seats', restyled('x + y <= {{n}}'), '"At most" includes selling every seat.'),
+      slip('money', turned('{{p}}x + {{q}}y >= {{M}}'), '"At least" means the show collects the goal or more.'),
+      slip('money', restyled('{{p}}x + {{q}}y >= {{M}}'), '"At least" includes collecting exactly the goal.'),
     ],
     solutionReview: review(
       'Write both constraints, then test the sale in each.',
@@ -1184,6 +1346,13 @@ const dolHonors = (P) => [
       inequality('budget', 'Supply cost', '{{p}}x + {{q}}y <= {{B}}'),
       number('most', 'Greatest number of large prints', '{{G}}'),
     ],
+    // Said on a miss only once the teacher releases feedback (feedbackOpenForItem).
+    misconceptions: [
+      slip('count', turned('x + y <= {{n}}'), '"At most" means the club makes that many prints or fewer.'),
+      slip('count', restyled('x + y <= {{n}}'), '"At most" includes making exactly that many prints.'),
+      slip('budget', turned('{{p}}x + {{q}}y <= {{B}}'), '"At most" means the supplies cost the budget or less.'),
+      slip('budget', restyled('{{p}}x + {{q}}y <= {{B}}'), '"At most" includes spending exactly the budget.'),
+    ],
     solutionReview: review(
       'Each constraint gives a limit; the smaller limit wins.',
       ['x + y ≤ {{n}} and {{p}}x + {{q}}y ≤ {{B}}.', 'With x = {{x0}}: the count allows y ≤ {{cnt}}; the budget allows {{q}}y ≤ {{bud}}, so y ≤ {{bf}} whole prints.', 'Both must hold, so the greatest is {{G}}.'],
@@ -1209,7 +1378,7 @@ const assignment = (honors) => ({
   gradingPurpose: 'classwork',
   essentialQuestion: 'What does the graph of a system of linear inequalities look like, and how can you describe the solution set?',
   instructions: 'Systems of linear inequalities. Every system is graphed in the graphing workspace: each boundary line, solid or dashed, each half-plane, and the overlap where the solutions are — then you test points and describe the region. For a word problem, write the constraints in the tool before you graph them. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.',
-  teacherNotes: `Algebra I Module 3 Topic 2 Lesson 5, from the district slides (three 45-minute days), TEKS A.3H with A.2H for writing the constraints.${honors ? ' Honors version: the same lesson with standard-form systems to rewrite in the Warm-Up, Practice and Exit Ticket, a parameter (P11), a bounded region with its corners and area (P12, P13), a sort of systems by their solution sets (P14), Emma’s corners found algebraically (P15), and two audited Digital SAT items from the CCMR bank (P16, P17), so the Honors version is ready as written.' : ''} Warm-Up rebuilt as readiness: one inequality graphed (Lesson 4), a point checked against two inequalities, and two constraints written for one situation. Every system is built in the Systems Workspace except Emma’s: her calorie line, 6.9x + 10.4y = 400, has no whole-number points to plot, so the tool draws her system and students test a point and choose their own (the slide says to use technology). Warm-Up and Exit Ticket are generated per student and back Recovery. Slide notes: the Getting Started "Think about…" box names Chase; the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap; this file uses B: y > (3/5)x + 3 and y > −(3/5)x + 3, C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C.`,
+  teacherNotes: `Algebra I Module 3 Topic 2 Lesson 5, from the district slides (three 45-minute days), TEKS A.3H with A.2H for writing the constraints.${honors ? ' Honors version: the same lesson with standard-form systems to rewrite in the Warm-Up, Practice and Exit Ticket, a parameter (P11), a bounded region with its corners and area (P12, P13), a sort of systems by their solution sets (P14), Emma’s corners found algebraically (P15), and two audited Digital SAT items from the CCMR bank (P16, P17), so the Honors version is ready as written.' : ''} Classwork order: a plain system, y > x − 2 and y ≤ −x + 4 (CW 17, added), comes first, then Activity 5.2's x + y > 1 and −x + y ≤ 3 (CW 5–6), then Noah's raft (Getting Started and Activity 5.1, CW 1–4), so students build the plain case before the word problem. Warm-Up rebuilt as readiness: one inequality graphed (Lesson 4), a point checked against two inequalities, and two constraints written for one situation. Every system is built in the Systems Workspace except Emma’s: her calorie line, 6.9x + 10.4y = 400, has no whole-number points to plot, so the tool draws her system and students test a point and choose their own (the slide says to use technology). Warm-Up and Exit Ticket are generated per student and back Recovery. Slide notes: the Getting Started "Think about…" box names Chase; the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap; this file uses B: y > (3/5)x + 3 and y > −(3/5)x + 3, C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C.`,
 });
 
 const P = 'm3t2l5';
@@ -1223,7 +1392,7 @@ export const L5_REGULAR = {
     variantPolicy: { mode: 'personalized', sectionModes: { warmup: 'shared', classwork: 'shared', practice: 'personalized', dol: 'personalized' } },
     sections: [
       { id: 'warmup', role: 'warmup', title: 'Warm-Up — From One Inequality to Two', recommendedMinutes: 10, questions: [oneInequalityWarmup(`${P}-wu-1`, false), twoConditionsWarmup(`${P}-wu-2`), twoConstraintsWarmup(`${P}-wu-3`)] },
-      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 95, questions: classwork(P) },
+      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 100, questions: classwork(P) },
       { id: 'practice', role: 'practice', title: 'Practice — Graphing and Interpreting Systems of Inequalities', recommendedMinutes: 45, questions: practiceRegular(P) },
       { id: 'dol', role: 'dol', title: 'Exit Ticket (DOL) — Systems of Linear Inequalities', recommendedMinutes: 10, questions: dolRegular(P) },
     ],
@@ -1238,7 +1407,7 @@ export const L5_HONORS = {
     variantPolicy: { mode: 'personalized', sectionModes: { warmup: 'shared', classwork: 'shared', practice: 'personalized', dol: 'personalized' } },
     sections: [
       { id: 'warmup', role: 'warmup', title: 'Warm-Up — From One Inequality to Two', recommendedMinutes: 10, questions: [oneInequalityWarmup(`${H}-wu-1`, true), twoConditionsWarmup(`${H}-wu-2`), twoConstraintsWarmup(`${H}-wu-3`)] },
-      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 95, questions: classwork(H) },
+      { id: 'classwork', role: 'classwork', title: 'Classwork — Systems of Linear Inequalities', recommendedMinutes: 100, questions: classwork(H) },
       { id: 'practice', role: 'practice', title: 'Practice — Graphing, Interpreting and Reasoning with Systems of Inequalities', recommendedMinutes: 50, questions: practiceHonors(H) },
       { id: 'dol', role: 'dol', title: 'Exit Ticket (DOL) — Systems of Linear Inequalities', recommendedMinutes: 10, questions: dolHonors(H) },
     ],

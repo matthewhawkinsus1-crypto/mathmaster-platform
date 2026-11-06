@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "Why can it be useful to simplify expressions?",
     "instructions": "Operations with radical expressions. Each multi-step question has a box for every step — the perfect-power factor, each FOIL product, the conjugate — and each step is checked, so show the work in the boxes. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra II Honors, Radicals Lesson 2 (Operations with Radical Expressions), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: a Lesson 1 root, like terms → like radicals, and (x + a)(x − a) → conjugates. Classwork follows every slide example and Check Your Progress, staged so each step is a graded box. \"Simplify\" answers are graded by value AND form (simplest radical form). Two audited Digital SAT items from the CCMR bank sit in Practice; P7, P8, P10, P11 and P12 are the Honors extension (DOK 3–4), so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery."
+    "teacherNotes": "Algebra II Honors, Radicals Lesson 2 (Operations with Radical Expressions), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: a Lesson 1 root, like terms → like radicals, and (x + a)(x − a) → conjugates. Classwork follows every slide example and Check Your Progress, staged so each step is a graded box. \"Simplify\" answers are graded by value AND form (simplest radical form). Changes from the slides: the four simplest-form rules (CW4) come before the Quotient Property items that ask for simplest form; the slides’ Check Your Progress B, ⁴√(625b²⁸k²³) with b any real number, is CW9, an extension after multiplying radicals, and CW3 checks Example B with a cube root, every variable positive; Practice opens with the simplest rationalization (P1). Two audited Digital SAT items from the CCMR bank sit in Practice; P7, P8, P10, P11 and P12 are the Honors extension (DOK 3–4), so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -58,8 +58,17 @@
             }
           ],
           "hints": [
-            "Find the number whose cube is the coefficient, and divide each exponent by 3.",
-            "An odd root of a negative number is negative."
+            "Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?",
+            "{{c3}} = {{c}}³ and each exponent divides by 3. An odd root of a negative number is negative."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{c}}a{{j|pow}}y{{k|pow}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the cube root of a negative number is negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(a⁶) equals…",
@@ -158,8 +167,8 @@
             }
           ],
           "hints": [
-            "Like terms have the same variable part; add or subtract their coefficients.",
-            "Radicals with the same index and the same radicand are like terms: add their coefficients and keep the radical."
+            "What do the three terms have in common? What do the two radicals have in common?",
+            "Like terms keep their common part and add their coefficients. Radicals with the same index and radicand are like terms too."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 3√2 + 5√2 is like…",
@@ -283,17 +292,17 @@
               "type": "choice",
               "options": [
                 "the middle terms cancel, and √{{k}} · √{{k}} = {{k}}",
-                "radicals always cancel when you multiply",
-                "the square root of {{a}} is a whole number",
-                "you can add the radicands"
+                "radicals always cancel when you multiply two binomials",
+                "the middle terms cancel, and √{{k}} + √{{k}} = {{k}}",
+                "the square root of {{a}} is a whole number, so no radical is left"
               ],
               "answer": "the middle terms cancel, and √{{k}} · √{{k}} = {{k}}"
             }
           ],
           "hints": [
-            "Multiply each term of the first binomial by each term of the second.",
-            "The two middle products are opposites, so they add to zero.",
-            "A square root times itself is its radicand."
+            "What are the four products when you multiply the two binomials?",
+            "The two middle products are opposites. What do they add to?",
+            "A square root times itself is its radicand, so no radical is left."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (a + b)(a − b) equals…",
@@ -371,6 +380,7 @@
           "studentActions": [
             "sortIntoCategories"
           ],
+          "requireRationale": true,
           "dok": 2,
           "difficultyBand": 3,
           "prompt": "Like radical expressions. Sort each expression: after you simplify it, can it be combined with √5, or not? Give a reason for each group.",
@@ -454,9 +464,9 @@
             }
           ],
           "hints": [
-            "Like radicals have the same index and the same radicand once each is simplified.",
-            "Simplify √20, √45, √50 and √80 first: pull out the largest perfect square.",
-            "A cube root is never a like radical with a square root."
+            "Once each card is simplified, does it have the same index and the same radicand as √5?",
+            "Which perfect square can you pull out of √20, √45, √50 and √80?",
+            "A cube root is never a like radical with a square root, and √(5x) has a different radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Simplified, √12 is…",
@@ -538,9 +548,9 @@
             }
           ],
           "hints": [
-            "For a square root, use the largest even exponent; for a cube root, the largest multiple of 3.",
-            "b⁹ = b⁸ · b and p²⁰ = p¹⁸ · p².",
-            "Take the root of the perfect-power factor; what is left stays under the radical."
+            "Which exponents in 25a⁴b⁹ are even? Which in 125m³⁰p²⁰ are multiples of 3?",
+            "For a square root, use the largest even exponent of each letter; for a cube root, the largest multiple of 3.",
+            "b⁹ = b⁸ · b and p²⁰ = p¹⁸ · p². Take the root of the perfect-power factor; what is left stays under the radical."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁿ√(ab) equals…",
@@ -569,7 +579,75 @@
           }
         },
         {
-          "questionId": "a2r2-cw-3",
+          "questionId": "a2r2-cw-12",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Check Your Progress A and B. Simplify $\\sqrt{16x^4y^{11}}$ and $\\sqrt[3]{27x^9y^{14}}$. Assume every variable is positive.",
+          "directionSteps": [
+            "Simplify the square root.",
+            "Simplify the cube root."
+          ],
+          "responses": [
+            {
+              "id": "first",
+              "label": "√(16x⁴y¹¹) =",
+              "answer": "4x^2y^5√y",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "second",
+              "label": "∛(27x⁹y¹⁴) =",
+              "answer": "3x^3y^4∛(y^2)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "What is the largest even exponent of y up to 11? The largest multiple of 3 up to 14?",
+            "y¹¹ is not a perfect square and y¹⁴ is not a perfect cube, so a power of y stays under each radical.",
+            "Take the root of the perfect-power factor; what is left stays under the radical."
+          ],
+          "misconceptions": [
+            {
+              "field": "second",
+              "match": [
+                "3x^3y^4∛(y)"
+              ],
+              "message": "Check what stays under the cube root: y¹⁴ is y¹² times what?"
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ∛(a⁸) equals…",
+            "options": [
+              "a²∛(a²)",
+              "a²∛a"
+            ],
+            "correct": "a²∛(a²)"
+          },
+          "solutionReview": {
+            "headline": "As in the examples: perfect power out, the rest stays in.",
+            "reasoning": [
+              "16x⁴y¹¹ = (4x²y⁵)² · y, so √(16x⁴y¹¹) = 4x²y⁵√y.",
+              "27x⁹y¹⁴ = (3x³y⁴)³ · y², so ∛(27x⁹y¹⁴) = 3x³y⁴∛(y²)."
+            ],
+            "answerSummary": "4x²y⁵√y; 3x³y⁴∛(y²)",
+            "commonError": "Writing 3x³y⁴∛y: y¹⁴ = y¹² · y², so y², not y, stays under the cube root."
+          }
+        },
+        {
+          "questionId": "a2r2-cw-7",
           "standard": "A2.7G",
           "alignments": [
             {
@@ -582,62 +660,103 @@
             "multipleResponses"
           ],
           "dok": 3,
-          "difficultyBand": 4,
-          "prompt": "Check Your Progress A and B. Simplify $\\sqrt{16x^4y^{11}}$ (assume $y$ is positive) and $\\sqrt[4]{625b^{28}k^{23}}$, where $b$ can be any real number. Explain why only $b^7$ needs absolute value bars.",
+          "difficultyBand": 3,
+          "prompt": "Simplest form. A radical expression is simplified when the index is as small as possible, the radicand has no perfect nth-power factor, the radicand has no fraction, and no radical is in a denominator. Decide whether each expression is in simplest form, and name the rule it breaks if it is not.",
           "directionSteps": [
-            "Simplify the square root.",
-            "Simplify the fourth root.",
-            "Explain why only one factor needs bars."
+            "Check each expression against the four rules.",
+            "Decide whether it is simplified.",
+            "Name the rule it breaks, if any."
           ],
           "responses": [
             {
-              "id": "first",
-              "label": "√(16x⁴y¹¹) =",
-              "answer": "4x^2y^5√y",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            },
-            {
-              "id": "second",
-              "label": "⁴√(625b²⁸k²³) =",
-              "answer": "5|b^7|k^5∜(k^3)",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            },
-            {
-              "id": "why",
-              "label": "Why does b⁷ need bars but k⁵ does not?",
+              "id": "a",
+              "label": "√12",
               "type": "choice",
               "options": [
-                "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already",
-                "b has a larger exponent than k",
-                "k⁵ is always negative",
-                "Only the first variable needs bars"
+                "Not simplified: 12 has a perfect-square factor",
+                "Simplified: 12 is not a perfect square",
+                "Not simplified: a fraction is under the radical",
+                "Not simplified: the index can be smaller"
               ],
-              "answer": "b⁷ is negative when b is; k is under an even root, so k ≥ 0 already"
+              "answer": "Not simplified: 12 has a perfect-square factor"
+            },
+            {
+              "id": "b",
+              "label": "3/√5",
+              "type": "choice",
+              "options": [
+                "Not simplified: a radical is in the denominator",
+                "Simplified: 5 has no perfect-square factor",
+                "Not simplified: 5 has a perfect-square factor",
+                "Not simplified: the index of √5 can be smaller"
+              ],
+              "answer": "Not simplified: a radical is in the denominator"
+            },
+            {
+              "id": "c",
+              "label": "⁶√(x²)",
+              "type": "choice",
+              "options": [
+                "Not simplified: the index can be smaller",
+                "Simplified: x² has no perfect sixth-power factor",
+                "Not simplified: a radical is in the denominator",
+                "Not simplified: a fraction is under the radical"
+              ],
+              "answer": "Not simplified: the index can be smaller"
+            },
+            {
+              "id": "d",
+              "label": "√(x/2)",
+              "type": "choice",
+              "options": [
+                "Not simplified: a fraction is under the radical",
+                "Simplified: x and 2 have no perfect-square factor",
+                "Not simplified: the index can be smaller",
+                "Not simplified: x has a perfect-square factor"
+              ],
+              "answer": "Not simplified: a fraction is under the radical"
+            },
+            {
+              "id": "e",
+              "label": "2∛(3x²)",
+              "type": "choice",
+              "options": [
+                "Simplified: 3x² has no perfect-cube factor",
+                "Not simplified: x² is a perfect square",
+                "Not simplified: the index can be smaller",
+                "Not simplified: a radical is in the denominator"
+              ],
+              "answer": "Simplified: 3x² has no perfect-cube factor"
+            },
+            {
+              "id": "fix",
+              "label": "Write ⁶√(x²) as a radical in simplest form (x positive)",
+              "answer": "∛(x)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "Use the largest exponent that is a multiple of the index.",
-            "625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³.",
-            "For k²³ to have a real fourth root, k cannot be negative."
+            "For each expression, which of the four rules does it break, if any?",
+            "A radical in a numerator is fine; a radical in a denominator is not. Can ⁶√(x²) be written with a smaller index?",
+            "⁶√(x²) = x^(2/6) = x^(1/3)."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. ⁴√(b²⁸) equals…",
+            "prompt": "Let’s back up. Is √3/3 in simplest form?",
             "options": [
-              "|b⁷|",
-              "b⁷"
+              "Yes",
+              "No"
             ],
-            "correct": "|b⁷|"
+            "correct": "Yes"
           },
           "solutionReview": {
-            "headline": "Pull out the largest perfect power; bars only where a factor can be negative.",
+            "headline": "Four rules, one at a time.",
             "reasoning": [
-              "16x⁴y¹¹ = (4x²y⁵)² · y, so √(16x⁴y¹¹) = 4x²y⁵√y.",
-              "625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵⁴√(k³): k ≥ 0 for the radicand to be real."
+              "√12 = 2√3 (perfect-square factor). 3/√5 = 3√5/5 (radical in the denominator).",
+              "⁶√(x²) = ∛x (smaller index). √(x/2) = √(2x)/2 (fraction under the radical). 2∛(3x²) breaks no rule."
             ],
-            "answerSummary": "4x²y⁵√y; 5|b⁷|k⁵⁴√(k³)",
-            "commonError": "Writing 125|b⁷|…: the fourth root of 625 is 5, not 625 ÷ 5."
+            "answerSummary": "a, b, c, d not simplified; e simplified; ⁶√(x²) = ∛x",
+            "commonError": "Calling 2∛(3x²) unsimplified: neither 3 nor x² contains a perfect cube."
           }
         },
         {
@@ -671,7 +790,7 @@
             },
             {
               "id": "multiplier",
-              "label": "To clear the radical from x³√x, multiply the top and bottom by",
+              "label": "To clear the radical from x³√x, the smallest radical to multiply the top and bottom by is",
               "type": "choice",
               "options": [
                 "√x",
@@ -690,9 +809,9 @@
             }
           ],
           "hints": [
-            "Use the Quotient Property: the root of a quotient is the quotient of the roots.",
-            "x⁷ = (x³)² · x.",
-            "A square root times itself equals its radicand."
+            "What is the largest even exponent of x up to 7?",
+            "Split the root over the top and the bottom. What can you multiply by so no radical is left in the denominator?",
+            "x⁷ = (x³)² · x, and a square root times itself equals its radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁿ√(a/b) equals…",
@@ -748,7 +867,7 @@
           "responses": [
             {
               "id": "multiplier",
-              "label": "Multiply 9x by ? to get a perfect cube",
+              "label": "The smallest monomial to multiply 9x by to get a perfect cube",
               "answer": "3x^2",
               "inputProfile": "expression"
             },
@@ -767,9 +886,25 @@
             }
           ],
           "hints": [
-            "A perfect cube has every exponent a multiple of 3, and a coefficient that is a cube.",
-            "9x · ? should be 3³ · x³.",
-            "Multiply the numerator by the same cube root."
+            "What do you multiply 9 by to get a perfect cube? And x?",
+            "A perfect cube has a coefficient that is a cube and every exponent a multiple of 3. Multiply the numerator by the same cube root.",
+            "9x · 3x² = 27x³ = (3x)³, so multiply the top and bottom by ∛(3x²)."
+          ],
+          "misconceptions": [
+            {
+              "field": "multiplier",
+              "match": [
+                "9x"
+              ],
+              "message": "9x · 9x = 81x², which is not a perfect cube."
+            },
+            {
+              "field": "perfectCube",
+              "match": [
+                "81x^2"
+              ],
+              "message": "9x · 9x = 81x², which is not a perfect cube."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Which is a perfect cube?",
@@ -806,7 +941,7 @@
           "difficultyBand": 4,
           "prompt": "Check Your Progress A and B. Simplify $\\sqrt{\\dfrac{x^3}{y^7}}$ and $\\sqrt[3]{\\dfrac{8}{3y^2}}$. Assume $x$ and $y$ are positive.",
           "directionSteps": [
-            "Choose the simplified form of the first quotient.",
+            "Simplify the first quotient.",
             "Find the multiplier for the second denominator.",
             "Simplify the second quotient."
           ],
@@ -814,20 +949,16 @@
             {
               "id": "first",
               "label": "√(x³/y⁷) =",
-              "type": "choice",
-              "options": [
-                "x²√(xy)/y⁸",
-                "x√x/y⁴",
-                "x√(xy)/y⁴",
-                "x√x/(y³√y)"
-              ],
-              "answer": "x√(xy)/y⁴"
+              "answer": "(x√(xy))/y^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             },
             {
               "id": "multiplier",
-              "label": "Multiply 3y² by ? to get a perfect cube",
+              "label": "The smallest monomial to multiply 3y² by to get a perfect cube",
               "answer": "9y",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "second",
@@ -838,9 +969,9 @@
             }
           ],
           "hints": [
-            "For the first: √(x³) = x√x and √(y⁷) = y³√y, then rationalize.",
-            "For the second: 3y² times what gives (3y)³?",
-            "∛8 is a whole number."
+            "For the first, what are √(x³) and √(y⁷) with the perfect squares taken out?",
+            "Clear the √y left in the denominator. For the second: 3y² times what gives (3y)³?",
+            "√(x³) = x√x and √(y⁷) = y³√y; multiply the top and bottom by √y. ∛8 is a whole number."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To rationalize 1/(y³√y), multiply by…",
@@ -857,120 +988,7 @@
               "3y² · 9y = 27y³, so ∛(8/(3y²)) = ∛8 · ∛(9y)/∛(27y³) = 2∛(9y)/(3y)."
             ],
             "answerSummary": "x√(xy)/y⁴; 2∛(9y)/(3y)",
-            "commonError": "Choosing x√x/(y³√y): it still has a radical in the denominator."
-          }
-        },
-        {
-          "questionId": "a2r2-cw-7",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 3,
-          "difficultyBand": 3,
-          "prompt": "Simplest form. A radical expression is simplified when the index is as small as possible, the radicand has no perfect nth-power factor, the radicand has no fraction, and no radical is in a denominator. Decide whether each expression is in simplest form, and name the rule it breaks if it is not.",
-          "directionSteps": [
-            "Check each expression against the four rules.",
-            "Decide whether it is simplified.",
-            "Name the rule it breaks, if any."
-          ],
-          "responses": [
-            {
-              "id": "a",
-              "label": "√12",
-              "type": "choice",
-              "options": [
-                "Not simplified: 12 has a perfect-square factor",
-                "Simplified",
-                "Not simplified: a fraction is under the radical",
-                "Not simplified: the index can be smaller"
-              ],
-              "answer": "Not simplified: 12 has a perfect-square factor"
-            },
-            {
-              "id": "b",
-              "label": "3/√5",
-              "type": "choice",
-              "options": [
-                "Not simplified: a radical is in the denominator",
-                "Simplified",
-                "Not simplified: 5 has a perfect-square factor",
-                "Not simplified: the index can be smaller"
-              ],
-              "answer": "Not simplified: a radical is in the denominator"
-            },
-            {
-              "id": "c",
-              "label": "⁶√(x²)",
-              "type": "choice",
-              "options": [
-                "Not simplified: the index can be smaller",
-                "Simplified",
-                "Not simplified: a radical is in the denominator",
-                "Not simplified: a fraction is under the radical"
-              ],
-              "answer": "Not simplified: the index can be smaller"
-            },
-            {
-              "id": "d",
-              "label": "√(x/2)",
-              "type": "choice",
-              "options": [
-                "Not simplified: a fraction is under the radical",
-                "Simplified",
-                "Not simplified: the index can be smaller",
-                "Not simplified: x has a perfect-square factor"
-              ],
-              "answer": "Not simplified: a fraction is under the radical"
-            },
-            {
-              "id": "e",
-              "label": "2∛(3x²)",
-              "type": "choice",
-              "options": [
-                "Simplified",
-                "Not simplified: 3x² has a perfect-cube factor",
-                "Not simplified: the index can be smaller",
-                "Not simplified: a radical is in the denominator"
-              ],
-              "answer": "Simplified"
-            },
-            {
-              "id": "fix",
-              "label": "Write ⁶√(x²) in simplest form (x positive)",
-              "answer": "∛(x)",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            }
-          ],
-          "hints": [
-            "Test each rule one at a time.",
-            "⁶√(x²) = x^(2/6) = x^(1/3).",
-            "A radical in a numerator is fine; a radical in a denominator is not."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. Is √3/3 in simplest form?",
-            "options": [
-              "Yes",
-              "No"
-            ],
-            "correct": "Yes"
-          },
-          "solutionReview": {
-            "headline": "Four rules, one at a time.",
-            "reasoning": [
-              "√12 = 2√3 (perfect-square factor). 3/√5 = 3√5/5 (radical in the denominator).",
-              "⁶√(x²) = ∛x (smaller index). √(x/2) = √(2x)/2 (fraction under the radical). 2∛(3x²) breaks no rule."
-            ],
-            "answerSummary": "a, b, c, d not simplified; e simplified; ⁶√(x²) = ∛x",
-            "commonError": "Calling 2∛(3x²) unsimplified: neither 3 nor x² contains a perfect cube."
+            "commonError": "Stopping at x√x/(y³√y): it still has a radical in the denominator."
           }
         },
         {
@@ -1006,25 +1024,40 @@
               "label": "5∛(100a²) · ∛(10a) =",
               "answer": "50a",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             },
             {
               "id": "second",
               "label": "3∛(16a²) · 2∛(4a) =",
-              "type": "choice",
-              "options": [
-                "12a",
-                "24a",
-                "4a",
-                "6a"
-              ],
-              "answer": "24a"
+              "answer": "24a",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             }
           ],
           "hints": [
-            "Use the Product Property: ∛m · ∛n = ∛(mn).",
-            "Look for a perfect cube: a number times a³.",
-            "For the second, multiply the coefficients 3 and 2 too."
+            "How can you write a product of two cube roots as one cube root?",
+            "Multiply the radicands. Is the product a perfect cube: a cube number times a³?",
+            "∛m · ∛n = ∛(mn). Keep the coefficients: for the second, multiply 3 and 2 too."
+          ],
+          "misconceptions": [
+            {
+              "field": "first",
+              "match": [
+                "10a"
+              ],
+              "message": "That is the cube root alone: keep the coefficient 5 in front."
+            },
+            {
+              "field": "second",
+              "match": [
+                "4a",
+                "12a",
+                "8a"
+              ],
+              "message": "The coefficients multiply too: keep both 3 and 2 in front."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(1000) equals…",
@@ -1042,6 +1075,85 @@
             ],
             "answerSummary": "50a; 24a",
             "commonError": "Forgetting the outside coefficients after taking the cube root."
+          }
+        },
+        {
+          "questionId": "a2r2-cw-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 4,
+          "prompt": "Extension — the Product Property with an even index. Simplify $\\sqrt[4]{625b^{28}k^{23}}$, where $b$ can be any real number. Explain why only $b^7$ needs absolute value bars.",
+          "directionSteps": [
+            "Simplify the fourth root.",
+            "Explain why only one factor needs bars."
+          ],
+          "responses": [
+            {
+              "id": "second",
+              "label": "⁴√(625b²⁸k²³) =",
+              "answer": "5|b^7|k^5∜(k^3)",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "why",
+              "label": "Why does b⁷ need bars but k⁵ does not?",
+              "type": "choice",
+              "options": [
+                "b⁷ is negative when b is; k is under an even root, so k ≥ 0",
+                "b has the larger exponent, so b⁷ is the factor that can be negative",
+                "b⁷ is negative when b is; k⁵ needs bars too, but they are not written",
+                "Only the first variable outside an even root ever needs bars"
+              ],
+              "answer": "b⁷ is negative when b is; k is under an even root, so k ≥ 0"
+            }
+          ],
+          "hints": [
+            "Which number to the fourth power is 625? What is the largest multiple of 4 up to 28? Up to 23?",
+            "b can be negative, so which factor needs bars? For k²³ to have a real fourth root, can k be negative?",
+            "625 = 5⁴, b²⁸ = (b⁷)⁴ and k²³ = (k⁵)⁴ · k³. Only b⁷ can be negative."
+          ],
+          "misconceptions": [
+            {
+              "field": "second",
+              "match": [
+                "5b^7k^5∜(k^3)"
+              ],
+              "message": "Your answer is right when b ≥ 0. Try b = −1."
+            },
+            {
+              "field": "second",
+              "match": [
+                "125|b^7|k^5∜(k^3)"
+              ],
+              "message": "The fourth root of 625 is not 625 ÷ 5."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. ⁴√(b²⁸) equals…",
+            "options": [
+              "|b⁷|",
+              "b⁷"
+            ],
+            "correct": "|b⁷|"
+          },
+          "solutionReview": {
+            "headline": "Pull out the largest perfect power; bars only where a factor can be negative.",
+            "reasoning": [
+              "625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵ · ⁴√(k³): k ≥ 0 for the radicand to be real."
+            ],
+            "answerSummary": "5|b⁷|k⁵ · ⁴√(k³)",
+            "commonError": "Writing 125|b⁷|…: the fourth root of 625 is 5, not 625 ÷ 5."
           }
         },
         {
@@ -1097,20 +1209,31 @@
             {
               "id": "cyp",
               "label": "3√75 − 2√48 + √3 =",
-              "type": "choice",
-              "options": [
-                "12√3",
-                "3√3",
-                "24√3",
-                "8√3"
-              ],
-              "answer": "8√3"
+              "answer": "8√3",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "Factor each radicand using a perfect square.",
-            "Once every term is a multiple of the same radical, add and subtract the coefficients.",
-            "Keep the subtraction signs with their terms."
+            "What is the largest perfect square that divides 45? 80? 20?",
+            "Once every term is a multiple of √5, add and subtract the coefficients, keeping each sign with its term.",
+            "45 = 9 · 5, 80 = 16 · 5 and 20 = 4 · 5. Do the same for 75 and 48."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "24√3"
+              ],
+              "message": "Keep each sign with its term: the middle term is subtracted."
+            },
+            {
+              "field": "cyp",
+              "match": [
+                "2√30"
+              ],
+              "message": "Only like radicals combine: simplify each radical first, then combine the coefficients."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. 9√5 − 20√5 + 8√5 equals…",
@@ -1158,7 +1281,7 @@
           "directionSteps": [
             "Find the first, outer, inner and last products.",
             "Write the sum.",
-            "Choose the product for the second pair."
+            "Multiply the second pair the same way."
           ],
           "responses": [
             {
@@ -1198,20 +1321,25 @@
             {
               "id": "cyp",
               "label": "(2√5 + 4√6)(5 − √7) =",
-              "type": "choice",
-              "options": [
-                "10√5 − 2√35 − 4√42",
-                "24√66",
-                "10√5 − 4√42",
-                "10√5 − 2√35 + 20√6 − 4√42"
-              ],
-              "answer": "10√5 − 2√35 + 20√6 − 4√42"
+              "answer": "10√5-2√35+20√6-4√42",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "FOIL: first, outer, inner, last.",
-            "√3 · √3 = 3, and √5 · √3 = √15.",
-            "Unlike radicals stay as separate terms."
+            "Which four products does FOIL give? Name the first, outer, inner and last pairs.",
+            "What is √3 · √3? What is √5 · √3?",
+            "√3 · √3 = 3 and √5 · √3 = √15. Unlike radicals stay as separate terms."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "10√5-2√35-4√42",
+                "10√5-4√42"
+              ],
+              "message": "FOIL gives four products: first, outer, inner and last. Check that your answer has all four."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √3 · √3 equals…",
@@ -1290,9 +1418,9 @@
             }
           ],
           "hints": [
-            "A conjugate changes the sign between the two terms.",
-            "(a√2)² − a² = 2a² − a².",
-            "Factor out the common factor a (or x) and cancel it."
+            "What do you change in a√2 − a to get its conjugate?",
+            "A conjugate pair multiplies to a difference of squares. What is (a√2)²?",
+            "(a√2)² − a² = 2a² − a². Factor out the common factor a (or x) and cancel it."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The conjugate of √3 + 1 is…",
@@ -1329,7 +1457,7 @@
       "recommendedMinutes": 45,
       "questions": [
         {
-          "questionId": "a2r2-p-1",
+          "questionId": "a2r2-p-6",
           "standard": "A2.7G",
           "alignments": [
             {
@@ -1342,76 +1470,74 @@
             "multipleResponses"
           ],
           "dok": 2,
-          "difficultyBand": 3,
-          "prompt": "Simplify $\\sqrt{ {{R}}a^{ {{e1}} }b^{ {{e2}} } }$. Assume $a$ and $b$ are positive.",
+          "difficultyBand": 2,
+          "prompt": "Rationalize the denominator: simplify $\\dfrac{ {{a}} }{\\sqrt{ {{m}} }}$.",
           "directionSteps": [
-            "Find the largest perfect-square factor.",
-            "Take its square root outside the radical.",
-            "Keep what is left under the radical."
+            "Multiply the top and bottom by the radical in the denominator.",
+            "Simplify."
           ],
           "responses": [
             {
               "id": "simplified",
               "label": "Simplified",
-              "answer": "{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)",
+              "answer": "({{a}}√{{m}})/{{m}}",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "Split the coefficient into a perfect square times a number with no square factor.",
-            "Use the largest even exponent of b; one b stays inside."
+            "What can you multiply √{{m}} by to get a whole number?",
+            "Multiply the top and the bottom by √{{m}}: a square root times itself is its radicand."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{a}}/{{m}}"
+              ],
+              "message": "Multiplying only the bottom by √{{m}} changes the value: multiply the top by √{{m}} too."
+            }
           ],
           "scaffold": {
-            "prompt": "Let’s back up. √(b⁷) equals (b positive)…",
+            "prompt": "Let’s back up. √7 · √7 equals…",
             "options": [
-              "b³√b",
-              "b⁴√b"
+              "7",
+              "49"
             ],
-            "correct": "b³√b"
+            "correct": "7"
           },
           "solutionReview": {
-            "headline": "Perfect square out, the rest in.",
+            "headline": "Multiply by √{{m}}/√{{m}}.",
             "reasoning": [
-              "{{R}}a^{{e1}}b^{{e2}} = ({{s}}a^{{m}}b^{{n}})² · {{k}}b.",
-              "So the root is {{s}}a^{{m}}b^{{n}}√({{k}}b)."
+              "{{a}}/√{{m}} · √{{m}}/√{{m}} = {{a}}√{{m}}/{{m}}."
             ],
-            "answerSummary": "{{s}}a^{{m}}b^{{n}}√({{k}}b)",
-            "commonError": "Leaving a perfect-square factor of {{R}} under the radical."
+            "answerSummary": "{{a}}√{{m}}/{{m}}",
+            "commonError": "Multiplying only the denominator by √{{m}}, which changes the value."
           },
           "generator": {
             "parameters": {
-              "s": {
+              "a": {
                 "type": "int",
                 "min": 2,
-                "max": 9
+                "max": 12
               },
-              "k": {
+              "m": {
                 "type": "choice",
                 "values": [
                   2,
                   3,
                   5,
                   6,
-                  7
+                  7,
+                  10,
+                  11,
+                  13
                 ]
-              },
-              "m": {
-                "type": "int",
-                "min": 1,
-                "max": 4
-              },
-              "n": {
-                "type": "int",
-                "min": 1,
-                "max": 4
               }
             },
-            "derived": {
-              "R": "s*s*k",
-              "e1": "2*m",
-              "e2": "2*n + 1"
-            }
+            "constraints": [
+              "gcd(a, m) == 1"
+            ]
           },
           "questionFamily": {
             "scope": "assignment"
@@ -1448,8 +1574,8 @@
             }
           ],
           "hints": [
-            "Split the coefficient into a perfect cube times a number with no cube factor.",
-            "Use the largest exponent of m that is a multiple of 3."
+            "Which perfect cube divides {{R}}? What is the largest multiple of 3 up to {{e}}?",
+            "{{R}} = {{c}}³ · {{k}}: take the cube root of the perfect cube, and use the largest exponent of m that is a multiple of 3."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(m⁷) equals…",
@@ -1462,10 +1588,10 @@
           "solutionReview": {
             "headline": "Perfect cube out, the rest in.",
             "reasoning": [
-              "{{R}}m^{{e}} = ({{c}}m^{{q}})³ · {{k}}m^{{r}}.",
-              "So the cube root is {{c}}m^{{q}}∛({{k}}m^{{r}})."
+              "{{R}}m^{{e}} = ({{c}}m{{q|pow}})³ · {{k}}m{{r|pow}}.",
+              "So the cube root is {{c}}m{{q|pow}}∛({{k}}m{{r|pow}})."
             ],
-            "answerSummary": "{{c}}m^{{q}}∛({{k}}m^{{r}})",
+            "answerSummary": "{{c}}m{{q|pow}}∛({{k}}m{{r|pow}})",
             "commonError": "Taking a square root of the powers instead of a cube root."
           },
           "generator": {
@@ -1559,8 +1685,8 @@
             }
           ],
           "hints": [
-            "Factor each radicand as a perfect square times the same number.",
-            "Combine the coefficients of the like radicals, keeping each sign."
+            "What is the largest perfect square that divides each radicand?",
+            "Each radicand is a perfect square times {{k}}. Simplify each term, then combine the coefficients, keeping each sign."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 5√3 − 7√3 equals…",
@@ -1681,12 +1807,22 @@
               "label": "Simplified",
               "answer": "{{r}}a",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             }
           ],
           "hints": [
-            "∛m · ∛n = ∛(mn).",
-            "Look for a perfect cube in the product."
+            "How can you write the product of the two cube roots as one cube root?",
+            "Multiply the radicands: the product is a perfect cube. Then multiply by the coefficients {{c1}} and {{c2}}."
+          ],
+          "misconceptions": [
+            {
+              "field": "product",
+              "match": [
+                "{{w}}a"
+              ],
+              "message": "That is the cube root alone: multiply it by the coefficients {{c1}} and {{c2}} too."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(8a³) equals…",
@@ -1769,9 +1905,9 @@
             }
           ],
           "hints": [
-            "Use FOIL.",
-            "A radical times itself is its radicand.",
-            "The two middle products are like radicals."
+            "Which four products does FOIL give?",
+            "What is a radical times itself? Which two products are like radicals?",
+            "A radical times itself is its radicand, and the two middle products combine into one radical term."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √5 · √5 equals…",
@@ -1838,7 +1974,7 @@
           }
         },
         {
-          "questionId": "a2r2-p-6",
+          "questionId": "a2r2-p-1",
           "standard": "A2.7G",
           "alignments": [
             {
@@ -1851,65 +1987,76 @@
             "multipleResponses"
           ],
           "dok": 2,
-          "difficultyBand": 2,
-          "prompt": "Rationalize the denominator: simplify $\\dfrac{ {{a}} }{\\sqrt{ {{m}} }}$.",
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\sqrt{ {{R}}a^{ {{e1}} }b^{ {{e2}} } }$. Assume $a$ and $b$ are positive.",
           "directionSteps": [
-            "Multiply the top and bottom by the radical in the denominator.",
-            "Simplify."
+            "Find the largest perfect-square factor.",
+            "Take its square root outside the radical.",
+            "Keep what is left under the radical."
           ],
           "responses": [
             {
               "id": "simplified",
               "label": "Simplified",
-              "answer": "({{a}}√{{m}})/{{m}}",
+              "answer": "{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
             }
           ],
           "hints": [
-            "Multiply by a fraction equal to 1 whose top and bottom are the radical.",
-            "A square root times itself is its radicand."
+            "Which perfect square divides {{R}}? What is the largest even exponent of b up to {{e2}}?",
+            "{{R}} = {{s}}² · {{k}}: take the square root of the perfect square, and use the largest even exponent of b; one b stays inside."
           ],
           "scaffold": {
-            "prompt": "Let’s back up. √7 · √7 equals…",
+            "prompt": "Let’s back up. √(b⁷) equals (b positive)…",
             "options": [
-              "7",
-              "49"
+              "b³√b",
+              "b⁴√b"
             ],
-            "correct": "7"
+            "correct": "b³√b"
           },
           "solutionReview": {
-            "headline": "Multiply by √{{m}}/√{{m}}.",
+            "headline": "Perfect square out, the rest in.",
             "reasoning": [
-              "{{a}}/√{{m}} · √{{m}}/√{{m}} = {{a}}√{{m}}/{{m}}."
+              "{{R}}a^{{e1}}b^{{e2}} = ({{s}}a{{m|pow}}b{{n|pow}})² · {{k}}b.",
+              "So the root is {{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)."
             ],
-            "answerSummary": "{{a}}√{{m}}/{{m}}",
-            "commonError": "Multiplying only the denominator by √{{m}}, which changes the value."
+            "answerSummary": "{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)",
+            "commonError": "Leaving a perfect-square factor of {{R}} under the radical."
           },
           "generator": {
             "parameters": {
-              "a": {
+              "s": {
                 "type": "int",
                 "min": 2,
-                "max": 12
+                "max": 9
               },
-              "m": {
+              "k": {
                 "type": "choice",
                 "values": [
                   2,
                   3,
                   5,
                   6,
-                  7,
-                  10,
-                  11,
-                  13
+                  7
                 ]
+              },
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 4
               }
             },
-            "constraints": [
-              "gcd(a, m) == 1"
-            ]
+            "derived": {
+              "R": "s*s*k",
+              "e1": "2*m",
+              "e2": "2*n + 1"
+            }
           },
           "questionFamily": {
             "scope": "assignment"
@@ -1952,8 +2099,8 @@
             }
           ],
           "hints": [
-            "The conjugate of a sum with a square root changes the sign between the terms.",
-            "The denominator becomes a difference of squares with no radical."
+            "What is the conjugate of the denominator?",
+            "Multiply the top and the bottom by the conjugate: the denominator becomes a difference of squares with no radical."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The conjugate of 4 + √3 is…",
@@ -2049,9 +2196,9 @@
             }
           ],
           "hints": [
-            "Every term has a factor of a.",
-            "Multiply the top and bottom by √2 − 1.",
-            "(√2 + 1)(√2 − 1) has no radical."
+            "What factor do all three terms share?",
+            "Cancel that factor. What do you multiply the top and bottom by to clear the radical from the denominator?",
+            "Multiply the top and bottom by √2 − 1: (√2 + 1)(√2 − 1) has no radical."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (√2 + 1)(√2 − 1) equals…",
@@ -2111,12 +2258,12 @@
               "label": "Maya’s error:",
               "type": "choice",
               "options": [
-                "She added the radicands; only like radicals combine, by adding coefficients",
-                "She should have multiplied the coefficients",
-                "Her answer is right",
-                "She forgot absolute value bars"
+                "She added the radicands; like radicals add by their coefficients",
+                "Her answer is right: radicals add by adding their radicands",
+                "She forgot bars: √x needs |x|, because x could be negative",
+                "She should have multiplied the coefficients: 4 · 3√x = 12√x"
               ],
-              "answer": "She added the radicands; only like radicals combine, by adding coefficients"
+              "answer": "She added the radicands; like radicals add by their coefficients"
             },
             {
               "id": "correct",
@@ -2127,8 +2274,17 @@
             }
           ],
           "hints": [
-            "Evaluate both sides of the rule with the given numbers.",
-            "Simplify each radical first: each one is a multiple of √x."
+            "Does √(a + b) = √a + √b hold for a = 9 and b = 16? Work out each side.",
+            "Simplify each radical first: each one is a whole number times √x."
+          ],
+          "misconceptions": [
+            {
+              "field": "correct",
+              "match": [
+                "5√x"
+              ],
+              "message": "That is Maya’s answer: √(16x) + √(9x) is not √(25x)."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(16x) equals (x positive)…",
@@ -2206,16 +2362,16 @@
               "type": "choice",
               "options": [
                 "For positive numbers, the larger number has the larger square",
-                "Squaring reverses the order of positive numbers",
-                "All three numbers are equal",
-                "Only the coefficients matter"
+                "For any numbers, the larger number has the larger square",
+                "Only the coefficients matter, and squaring keeps them in order",
+                "Squaring reverses the order of positive numbers, so read it backward"
               ],
               "answer": "For positive numbers, the larger number has the larger square"
             }
           ],
           "hints": [
-            "(a√b)² = a² · b.",
-            "Squaring keeps the order of positive numbers."
+            "How do you square a number like 3√5: what happens to the 3, and to the √5?",
+            "(a√b)² = a² · b, and squaring keeps the order of positive numbers."
           ],
           "scaffold": {
             "prompt": "Let’s back up. (3√5)² equals…",
@@ -2320,18 +2476,27 @@
               "label": "Every area is a whole number because…",
               "type": "choice",
               "options": [
-                "each length and width are conjugates, so the product is a difference of squares with no radical",
-                "radicals always multiply to whole numbers",
-                "the widths are whole numbers",
-                "the areas were rounded"
+                "length and width are conjugates, so their product has no radical",
+                "radicals always multiply to whole numbers, so any length times width does",
+                "the widths are whole numbers, and a whole number times a radical is whole",
+                "length and width are conjugates, so their sum has no radical"
               ],
-              "answer": "each length and width are conjugates, so the product is a difference of squares with no radical"
+              "answer": "length and width are conjugates, so their product has no radical"
             }
           ],
           "hints": [
-            "(a + b)(a − b) = a² − b².",
-            "(2√3)² = 4 · 3.",
-            "Perimeter = 2 · length + 2 · width; the radicals add, the ones cancel."
+            "Each length and width are a + b and a − b. What is their product?",
+            "How do you square 2√3? Square the 2 and the √3 separately.",
+            "(a + b)(a − b) = a² − b², and (2√3)² = 4 · 3. Perimeter = 2 · length + 2 · width."
+          ],
+          "misconceptions": [
+            {
+              "field": "areaC",
+              "match": [
+                "5"
+              ],
+              "message": "(2√3)² is not 2 · 3: square the 2 as well."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. (4 + √3)(4 − √3) equals…",
@@ -2374,7 +2539,7 @@
           "responses": [
             {
               "id": "multiplier1",
-              "label": "Multiply the first fraction by ? over itself",
+              "label": "The smallest cube root to multiply the first fraction by, over itself",
               "answer": "∛(2)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -2395,9 +2560,18 @@
             }
           ],
           "hints": [
-            "4 · 2 = 8 is a perfect cube; 25 · 5 = 125 is too.",
-            "Multiply the top and bottom by the same cube root.",
-            "Reduce the fraction at the end."
+            "What do you multiply 4 by to get a perfect cube? And 25?",
+            "Multiply the top and the bottom by the same cube root, so the denominator is the cube root of a perfect cube.",
+            "4 · 2 = 8 and 25 · 5 = 125 are perfect cubes. Reduce the fraction at the end."
+          ],
+          "misconceptions": [
+            {
+              "field": "multiplier1",
+              "match": [
+                "∛(4)"
+              ],
+              "message": "4 · 4 = 16 is not a perfect cube."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛4 · ∛2 equals…",
@@ -2527,7 +2701,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "What is √({{a2}}x) as a whole number times √x? And √({{b2}}x)?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -2662,7 +2836,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "Can you write the quotient as one square root? What is x⁵ ÷ x?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -2735,8 +2909,17 @@
             }
           ],
           "hints": [
-            "Evaluate the cube root first, then multiply by 0.46.",
-            "Undo the multiplication, then undo the cube root by cubing."
+            "In L = 0.46∛M, what do you work out first when you know M?",
+            "Evaluate ∛30, then multiply by 0.46. For the second part, divide by 0.46, then cube."
+          ],
+          "misconceptions": [
+            {
+              "field": "mass",
+              "match": [
+                "17.4"
+              ],
+              "message": "Undo the steps in reverse order: divide by 0.46 first, then cube."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. To undo ∛M, you…",

@@ -13,10 +13,17 @@
  *           residual table, the Linear Multiple Representations board's given
  *           table and the student's table of values, and the Sequence
  *           Explorer's terms (its evidence table, the student's table, the
- *           sequence with a gap).
+ *           sequence with a gap); and, in a second slice, the Regression
+ *           Calculator's table (what the student typed, and its source data
+ *           where the screen lists it) and the board's process-mode row
+ *           choosers (the rows, and which the student chose) and extended
+ *           table. Under an authored Spanish translation those two are read in
+ *           Spanish too (AX05, slice 2): the table under its Spanish name, the
+ *           chooser from its own messages, with the rows' values as drawn.
  *   not yet Representation Match's card tables (inside the cards' buttons,
- *           already named by them), the Regression Calculator's data table
- *           (no real item uses it), the board's process-mode row choosers.
+ *           already named by them; how to read a button is the owner's
+ *           decision), and the process mode's point choosers and method chips
+ *           (the same decision).
  *
  * Each case renders the real tool (Vite SSR) and reads what it publishes
  * beside the table it draws (helpers/figureCapture.mjs). The browser half:
@@ -35,7 +42,9 @@ import { questionReadingParts, tableReading } from '../../src/platform/language/
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import { generateSequence } from '../../src/tools/sequenceExplorer/sequenceMath.js';
 import esFigures from '../../src/platform/language/packs/esFigures.js';
+import { sayFigure } from '../../src/platform/language/figureSay.js';
 import { figureCaptureServer } from './helpers/figureCapture.mjs';
+import { withBrowser } from './helpers/studentToolRender.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const lesson = (path) => JSON.parse(readFileSync(new URL(path, ROOT), 'utf8'));
@@ -61,6 +70,21 @@ after(async () => { await capture?.close(); });
 const renderTool = async (path, questionData) => {
   const { default: Tool } = await capture.load(path);
   return capture.render(React.createElement(Tool, { questionData, onAction: () => {} }));
+};
+// A tool as it draws once the student has done some work: the draft-backed
+// fields it restores from are written to a browser's storage first, as a real
+// student's keystrokes would have written them.
+let readers = 0;
+const renderSeeded = async (path, questionData, fields) => {
+  const { buildQuestionDraftKey, writeQuestionDraft } = await capture.load('/src/questionDraftStorage.js');
+  const { ToolDraftScopeProvider, toolDraftKey } = await capture.load('/src/tools/shared/usePersistentToolState.js');
+  const { default: Tool } = await capture.load(path);
+  readers += 1;
+  const draftKey = buildQuestionDraftKey({ studentId: `reader-${readers}`, assignmentId: 'tool-tables', questionIndex: 0 });
+  return withBrowser(() => {
+    writeQuestionDraft(toolDraftKey(draftKey), fields, { edit: true });
+    return capture.render(React.createElement(ToolDraftScopeProvider, { draftKey }, React.createElement(Tool, { questionData, onAction: () => {} })));
+  });
 };
 
 /* ------------------------------------------------- Linear Table Workbench */
@@ -166,6 +190,221 @@ test('the board\'s given table is read as drawn; the student\'s table of values,
   assert.equal(student.table.rows.length * 2, inputs, 'one row per drawn row');
   assert.ok(student.table.rows.flat().every((cell) => cell?.entered === ''), 'what the student typed: nothing yet');
   assert.match(tableReading({ ...student.table, rows: [[{ entered: '0' }, { entered: '6' }], [{ entered: '' }, { entered: '' }]] }), /Row 1: x, you wrote 0; y, you wrote 6\. Row 2: x, blank; y, blank\./);
+});
+
+
+/* ---------------------------------------------- Regression Calculator (AX10, slice 2) */
+
+const REGRESSION = '/src/tools/regressionCalculator/RegressionCalculator.jsx';
+const regressionItem = (extra = {}) => ({
+  type: 'regressionCalculator',
+  prompt: 'Enter the data, run linear regression, and say what the correlation means.',
+  sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+  ...extra,
+});
+// What the calculator's table draws in its boxes, in reading order: "x row 1", "y row 1", "x row 2", …
+const drawnBoxes = (markup) => [...markup.matchAll(/aria-label="[xy] row \d+"[^>]*?value="([^"]*)"/g)].map((match) => match[1]);
+
+test('the Regression Calculator\'s table is read as the student typed it, under the headings it draws', async () => {
+  // No table until the student adds one: nothing of theirs to read.
+  const before = await renderTool(REGRESSION, regressionItem({ sourceMode: 'data' }));
+  assert.ok(!tablesOf(before.entries).some((entry) => entry.label === 'Table of values'), 'no table drawn, none read');
+
+  const rows = [['1', '2'], ['2', ''], ['', '']];
+  const { markup, entries } = await renderSeeded(REGRESSION, regressionItem({ sourceMode: 'data' }), {
+    rows: [{ id: 'table', type: 'table', rows }, { id: 'expression', type: 'expression', value: '' }],
+  });
+  const table = tablesOf(entries).find((entry) => entry.label === 'Table of values');
+  assert.ok(table, 'published beside the table it draws');
+  assert.deepEqual(table.table.columns.map((column) => column.label), ['x₁', 'y₁'], 'the headings the table draws');
+  const boxes = drawnBoxes(markup);
+  assert.equal(boxes.length, 6, 'three rows of two boxes');
+  assert.deepEqual(table.table.rows.flat().map((cell) => cell.entered), boxes, 'every box, as the student typed it');
+  assert.equal(
+    speechTextFor(tableReading(table.table, { label: table.label })),
+    'Table of values, 3 rows. Columns: x sub 1; y sub 1. Row 1: x sub 1, you wrote 1; y sub 1, you wrote 2. Row 2: x sub 1, you wrote 2; y sub 1, blank. Row 3: x sub 1, blank; y sub 1, blank.',
+  );
+  // The source data is the question's, not the student's: it never fills a box.
+  assert.ok(table.table.rows.flat().every((cell) => cell && typeof cell === 'object'), 'every cell is the student\'s own');
+});
+
+test('the Regression Calculator\'s source data is read only where the screen lists it — never beside the scatterplot the student reads it from', async () => {
+  const data = await renderTool(REGRESSION, regressionItem({ sourceMode: 'data' }));
+  const listed = [...data.markup.matchAll(/<span>\(([^,]+), ([^)]+)\)<\/span>/g)].map((match) => [match[1], match[2]]);
+  assert.equal(listed.length, 4);
+  const given = tablesOf(data.entries).find((entry) => entry.label === 'Given table of values');
+  assert.ok(given, 'the listed pairs are published');
+  assert.deepEqual(given.table.rows.map((row) => row.map(String)), listed, 'every pair, as listed');
+  assert.equal(speechTextFor(tableReading(given.table, { label: given.label })), 'Given table of values, 4 rows. Columns: x; y. Row 1: x, 1; y, 2. Row 2: x, 2; y, 4. Row 3: x, 3; y, 5. Row 4: x, 4; y, 8.');
+
+  // A source scatterplot IS the data: the student reads each point off the graph and types it in.
+  const plot = await renderTool(REGRESSION, regressionItem({ sourceMode: 'scatterplot', sourceGraphBounds: { xMin: 0, xMax: 5, yMin: 0, yMax: 9 } }));
+  assert.doesNotMatch(plot.markup, /Source data/, 'the screen lists no pairs');
+  assert.equal(tablesOf(plot.entries).length, 0, 'so none is read');
+  // The source plane says where it withholds the positions; the student's own plane has nothing plotted yet.
+  const plane = plot.entries.filter((entry) => entry.kind === 'figure');
+  assert.ok(plane.some((entry) => /Positions are not read out/.test(entry.text)), `the plane says where it withholds: ${plane.map((entry) => entry.text)}`);
+  assert.ok(plane.every((entry) => !/\(\s*[0-9.-]+\s*,\s*[0-9.-]+\s*\)/.test(entry.text)), 'no point of the source data is spoken');
+  // …and what they type from it is theirs, so it is read back.
+  const typed = await renderSeeded(REGRESSION, regressionItem({ sourceMode: 'scatterplot', sourceGraphBounds: { xMin: 0, xMax: 5, yMin: 0, yMax: 9 } }), {
+    rows: [{ id: 'table', type: 'table', rows: [['1', '2'], ['', '']] }],
+  });
+  assert.deepEqual(tablesOf(typed.entries).map((entry) => entry.label), ['Table of values']);
+});
+
+/* ------------------------------ the board's process-mode choosers (AX10, slice 2) */
+
+const BOARD = '/src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx';
+// The board with a process workspace open on one method, and the work the student has in it.
+const processBoard = async (question, { target, strategy, work = {} }) => {
+  const { deriveLinearMultipleRepresentations } = await capture.load('/src/tools/representationBridge/linearMultipleRepresentationsMath.js');
+  const { lmrProcessEnvironment } = await capture.load('/src/tools/representationBridge/lmrProcessMath.js');
+  const environment = lmrProcessEnvironment(question, deriveLinearMultipleRepresentations(question));
+  const option = `${strategy}@given`;
+  return renderSeeded(BOARD, question, {
+    processDraft: { bind: environment.binding, open: target, method: { [target]: option }, work: { [`${target}|${option}`]: work }, tries: {} },
+  });
+};
+// What each row's Choose button says, by row: "Row 2, chosen as row 1".
+const drawnChoices = (markup) => [...markup.matchAll(/<button\b[^>]*>/g)]
+  .map((match) => match[0])
+  .filter((tag) => /data-process-row="\d+"/.test(tag))
+  .map((tag) => /aria-label="([^"]*)"/.exec(tag)[1]);
+const chooserOf = (entries) => entries.find((entry) => entry.kind === 'figure' && entry.label === 'Rows to choose from');
+const READING_OF = (entries) => entries.map((entry) => (entry.kind === 'figure' ? entry.text : ''));
+// A table with a row on each axis, so "read it from the table" is offered too.
+const withAxisRows = (item) => ({ ...item, source: { kind: 'table', rows: [{ x: -1, y: 1 }, { x: 0, y: 3 }, { x: 1, y: 5 }, { x: 2, y: 7 }] } });
+
+test('the board\'s row chooser is read as it is drawn: what it asks, every row, and the rows the student has chosen', async () => {
+  const item = realItem(LMR, 'lmr-pr-1');
+  const none = await processBoard(item, { target: 'slope', strategy: 'tableDelta' });
+  assert.ok(chooserOf(none.entries), 'published beside the chooser it draws');
+  assert.deepEqual(drawnChoices(none.markup), ['Row 1', 'Row 2', 'Row 3', 'Row 4'], 'four rows, none chosen');
+  assert.match(chooserOf(none.entries).text, /^Choose two rows: row 1, then row 2\. Row 1: x, -1; y, 9\. Row 2: x, 1; y, 7\. Row 3: x, 3; y, 5\. Row 4: x, 5; y, 3\. None is chosen yet\.$/);
+
+  // Rows 2 and 4, in that order: each button says so, and so does the reading.
+  const { markup, entries } = await processBoard(item, { target: 'slope', strategy: 'tableDelta', work: { r1: 1, r2: 3 } });
+  const drawn = drawnChoices(markup);
+  assert.deepEqual(drawn, ['Row 1', 'Row 2, chosen as row 1', 'Row 3', 'Row 4, chosen as row 2']);
+  const said = chooserOf(entries).text;
+  drawn.forEach((label, index) => {
+    const [x, y] = [item.source.rows[index].x, item.source.rows[index].y];
+    const note = /, (chosen.*)$/.exec(label)?.[1];
+    assert.ok(said.includes(`Row ${index + 1}: x, ${x}; y, ${y}${note ? `; ${note}` : ''}.`), `row ${index + 1} is read as its button names it: ${said}`);
+  });
+  assert.ok(!/None is chosen yet/.test(said));
+  // Said in words, as Read aloud says it.
+  const part = questionReadingParts({ prompt: 'Build the line.' }, { figures: [chooserOf(entries)] }).find((entry) => entry.kind === 'figure');
+  assert.equal(part.label, 'Rows to choose from');
+  assert.equal(speechTextFor(part.text), 'Rows to choose from. Choose two rows: row 1, then row 2. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7; chosen as row 1. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3; chosen as row 2.');
+
+  // One row to choose (a row as a point): "chosen", and no number to say.
+  const single = await processBoard(item, { target: 'point', strategy: 'tableRow', work: { row: 2 } });
+  assert.deepEqual(drawnChoices(single.markup), ['Row 1', 'Row 2', 'Row 3, chosen', 'Row 4']);
+  assert.match(chooserOf(single.entries).text, /^Choose a row to use as a point on the line\. Row 1: x, -1; y, 9\. Row 2: x, 1; y, 7\. Row 3: x, 3; y, 5; chosen\. Row 4: x, 5; y, 3\.$/);
+});
+
+test('the row chooser never says which row is right: the same words whatever the question asks, and a pick only as a pick', async () => {
+  const item = withAxisRows(realItem(LMR, 'lmr-pr-1'));
+  // Where does the line meet the y-axis? Row 2 (x = 0) is the answer. Nothing says so.
+  const asked = await processBoard(item, { target: 'yIntercept', strategy: 'tableRead' });
+  const unpicked = chooserOf(asked.entries).text;
+  assert.equal(unpicked, 'Choose the row where the line meets the y-axis. Row 1: x, -1; y, 1. Row 2: x, 0; y, 3. Row 3: x, 1; y, 5. Row 4: x, 2; y, 7. None is chosen yet.');
+  const wrong = chooserOf((await processBoard(item, { target: 'yIntercept', strategy: 'tableRead', work: { row: 0 } })).entries).text;
+  const right = chooserOf((await processBoard(item, { target: 'yIntercept', strategy: 'tableRead', work: { row: 1 } })).entries).text;
+  // A pick changes only its own row's line, the same way for the right row as for the wrong one.
+  assert.equal(wrong, unpicked.replace('Row 1: x, -1; y, 1.', 'Row 1: x, -1; y, 1; chosen.').replace(' None is chosen yet.', ''));
+  assert.equal(right, unpicked.replace('Row 2: x, 0; y, 3.', 'Row 2: x, 0; y, 3; chosen.').replace(' None is chosen yet.', ''));
+  [unpicked, wrong, right].forEach((said) => assert.doesNotMatch(said, /right|correct|wrong|answer|intercept is|✓|✗/i, 'no verdict, no answer'));
+});
+
+test('a table the student extends is read as the given rows, then what they typed — never the row they are to find', async () => {
+  const item = realItem(LMR, 'lmr-pr-1');
+  const none = await processBoard(item, { target: 'yIntercept', strategy: 'extendTable' });
+  assert.equal(tablesOf(none.entries).filter((entry) => entry.label === 'Table to extend').length, 1);
+  const { markup, entries } = await processBoard(item, { target: 'yIntercept', strategy: 'extendTable', work: { rows: [{ x: '0', y: '' }, { x: '', y: '' }] } });
+  const table = tablesOf(entries).find((entry) => entry.label === 'Table to extend');
+  const inputs = [...markup.matchAll(/data-process-extend="(\d+):([xy])"[^>]*?value="([^"]*)"|value="([^"]*)"[^>]*?data-process-extend="(\d+):([xy])"/g)];
+  assert.equal(inputs.length, 4, 'two new rows of two boxes');
+  assert.deepEqual(drawnTables(markup)[0].slice(1, 5).map((row) => row.map((cell) => cell)).length, 4, 'the given rows are drawn above the new ones');
+  assert.equal(table.table.rows.length, 6, 'the four given rows, then the two new ones');
+  assert.deepEqual(table.table.rows.slice(0, 4), item.source.rows.map((row) => [String(row.x), String(row.y)]), 'the given rows, as drawn');
+  assert.deepEqual(table.table.rows.slice(4), [[{ entered: '0' }, { entered: '' }], [{ entered: '' }, { entered: '' }]], 'a new row is what the student typed, or blank');
+  assert.equal(
+    speechTextFor(tableReading(table.table, { label: table.label })),
+    'Table to extend, 6 rows. Columns: x; y. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3. Row 5: x, you wrote 0; y, blank. Row 6: x, blank; y, blank.',
+  );
+});
+
+test('a chooser is read only while its workspace is open, and in the reading\'s language when it is not English', async () => {
+  const item = realItem(LMR, 'lmr-pr-1');
+  const closed = await renderTool(BOARD, item);
+  assert.ok(!chooserOf(closed.entries), 'no workspace open, no chooser drawn, none read');
+  assert.ok(!tablesOf(closed.entries).some((entry) => entry.label === 'Table to extend'));
+
+  const picked = await processBoard(item, { target: 'slope', strategy: 'tableDelta', work: { r1: 1, r2: 3 } });
+  const extending = await processBoard(item, { target: 'yIntercept', strategy: 'extendTable', work: { rows: [{ x: '0', y: '' }] } });
+  const figures = [chooserOf(picked.entries), tablesOf(extending.entries).find((entry) => entry.label === 'Table to extend')];
+  const spanish = questionReadingParts({ prompt: 'Construye la recta.' }, { figures, language: 'es', figurePack: esFigures });
+  // In Spanish (AX05, slice 2): what it asks, every row as drawn and the
+  // student's picks, with no note that it is in English.
+  const chooser = spanish.find((entry) => entry.kind === 'figure');
+  assert.equal(chooser.label, 'Filas para elegir');
+  assert.equal(
+    speechTextFor(chooser.text, { language: 'es' }),
+    'Filas para elegir. Elige dos filas: primero la fila 1 y luego la fila 2. Fila 1: x, negativo 1; y, 9. Fila 2: x, 1; y, 7; elegida como fila 1. Fila 3: x, 3; y, 5. Fila 4: x, 5; y, 3; elegida como fila 2.',
+  );
+  // A table is read in the reading's own words for rows, boxes and blanks, under its Spanish name.
+  const table = spanish.find((entry) => entry.kind === 'table');
+  assert.equal(table.label, 'Tabla para continuar');
+  assert.equal(speechTextFor(table.text, { language: 'es' }), 'Tabla para continuar, de 5 filas. Columnas: x; y. Fila 1: x, negativo 1; y, 9. Fila 2: x, 1; y, 7. Fila 3: x, 3; y, 5. Fila 4: x, 5; y, 3. Fila 5: x, escribiste 0; y, en blanco.');
+  // In English, unchanged.
+  const english = questionReadingParts({ prompt: 'Build the line.' }, { figures, figurePack: esFigures });
+  assert.deepEqual(english.filter((entry) => entry.kind !== 'prompt').map((entry) => entry.label), ['Rows to choose from', 'Table to extend']);
+  assert.match(english.find((entry) => entry.kind === 'figure').text, /^Rows to choose from\. Choose two rows: row 1, then row 2\. Row 1: x, -1; y, 9\./);
+  // The pack's own names for the two Regression Calculator tables are reused.
+  const named = questionReadingParts({ prompt: 'Ajusta una recta.' }, {
+    figures: [
+      { kind: 'table', label: 'Given table of values', table: { columns: [{ key: 'x', label: 'x' }, { key: 'y', label: 'y' }], rows: [[1, 2]] } },
+      { kind: 'table', label: 'Table of values', table: { columns: [{ key: 'x', label: 'x₁' }, { key: 'y', label: 'y₁' }], rows: [[{ entered: '1' }, { entered: '' }]] } },
+    ],
+    language: 'es',
+    figurePack: esFigures,
+  }).filter((entry) => entry.kind === 'table');
+  assert.deepEqual(named.map((entry) => entry.label), ['Tabla de valores dada', 'Tabla de valores']);
+});
+
+test('every question a row chooser asks is said in Spanish as the screen asks it, with the rows as drawn and never which is right', async () => {
+  // y = x + 1, with a row on each axis, so every question is offered.
+  const item = { ...realItem(LMR, 'lmr-pr-1'), source: { kind: 'table', rows: [{ x: -1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 3 }] } };
+  const cases = [
+    [{ target: 'slope', strategy: 'tableDelta', work: { r1: 3, r2: 0 } }, 'Elige dos filas: primero la fila 1 y luego la fila 2.'],
+    [{ target: 'xIntercept', strategy: 'tableRead' }, 'Elige la fila donde la recta toca el eje x.'],
+    [{ target: 'yIntercept', strategy: 'tableRead', work: { row: 1 } }, 'Elige la fila donde la recta toca el eje y.'],
+    [{ target: 'point', strategy: 'tableRow', work: { row: 2 } }, 'Elige una fila para usarla como un punto de la recta.'],
+  ];
+  for (const [workspace, asks] of cases) {
+    const { markup, entries } = await processBoard(item, workspace);
+    const chooser = chooserOf(entries);
+    assert.ok(chooser, `${workspace.strategy}: a chooser is read`);
+    // The caption the screen draws is the English the reading opens with.
+    const caption = text(/<caption[^>]*>([\s\S]*?)<\/caption>/.exec(markup)?.[1] || '');
+    assert.ok(caption && chooser.text.startsWith(`${caption} `), `${workspace.strategy}: "${caption}" opens "${chooser.text}"`);
+    const spanish = sayFigure(chooser.say, esFigures.words);
+    assert.ok(spanish?.startsWith(`${asks} `), `${workspace.strategy}: ${spanish}`);
+    // Every row's values as drawn, in the same order; each pick as the button says it.
+    const values = (said) => (said.match(/-?\d+/g) || []).join(' ');
+    assert.equal(values(spanish), values(chooser.text), `${workspace.strategy}: the same numbers`);
+    drawnChoices(markup).forEach((label, index) => {
+      const note = /, chosen(?: as row (\d))?$/.exec(label);
+      const row = new RegExp(`Fila ${index + 1}: x, -?\\d+; y, -?\\d+(; elegida(?: como fila (\\d))?)?\\.`).exec(spanish);
+      assert.ok(row, `row ${index + 1} is read: ${spanish}`);
+      assert.equal(Boolean(row[1]), Boolean(note), `row ${index + 1}: chosen in Spanish exactly when its button says so`);
+      assert.equal(row[2], note?.[1], `row ${index + 1}: chosen as the same row`);
+    });
+    assert.equal(spanish.endsWith('Todavía no hay ninguna fila elegida.'), !workspace.work, `${workspace.strategy}: "none yet" only before a pick`);
+    assert.doesNotMatch(spanish, /correct|incorrect|bien|mal\b|respuesta|intersección es/i, 'no verdict, no answer');
+  }
 });
 
 /* ------------------------------------------------------- in the reading */

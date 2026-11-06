@@ -39,6 +39,12 @@ export const viewBoxRenderScale = ({ rect, viewBoxWidth, viewBoxHeight }) => {
   return Math.min(width / viewBoxWidth, height / viewBoxHeight);
 };
 
+/*
+ * `reach` (viewBox units, 0 by default): how far outside the plotted region a
+ * press still counts, moved onto the region's edge. A finger aimed at a point
+ * on the grid's edge lands about as often just outside it as just inside
+ * (CoordinatePlane, N60). Without it, outside the region is outside.
+ */
 export const clientPointToGraphCoordinate = ({
   clientX,
   clientY,
@@ -50,14 +56,18 @@ export const clientPointToGraphCoordinate = ({
   xMax,
   yMin,
   yMax,
+  reach = 0,
 }) => {
   const viewPoint = clientPointToViewBox({ clientX, clientY, rect, viewBoxWidth, viewBoxHeight });
   if (!viewPoint) return null;
   const innerWidth = viewBoxWidth - padding * 2;
   const innerHeight = viewBoxHeight - padding * 2;
-  if (viewPoint.x < padding || viewPoint.x > viewBoxWidth - padding || viewPoint.y < padding || viewPoint.y > viewBoxHeight - padding) return null;
+  const slack = Number(reach) > 0 ? Number(reach) : 0;
+  if (viewPoint.x < padding - slack || viewPoint.x > viewBoxWidth - padding + slack || viewPoint.y < padding - slack || viewPoint.y > viewBoxHeight - padding + slack) return null;
+  const x = Math.min(viewBoxWidth - padding, Math.max(padding, viewPoint.x));
+  const y = Math.min(viewBoxHeight - padding, Math.max(padding, viewPoint.y));
   return {
-    x: xMin + ((viewPoint.x - padding) / innerWidth) * (xMax - xMin),
-    y: yMin + ((viewBoxHeight - padding - viewPoint.y) / innerHeight) * (yMax - yMin),
+    x: xMin + ((x - padding) / innerWidth) * (xMax - xMin),
+    y: yMin + ((viewBoxHeight - padding - y) / innerHeight) * (yMax - yMin),
   };
 };

@@ -515,6 +515,10 @@ test('the number line: every whole number a tick, labels that fit, taps and keys
   assert.equal(moveLineCursor(line, 0, 'ArrowLeft', { large: true }), -5);
   assert.equal(moveLineCursor(line, 9, 'ArrowRight', { large: true }), 10);
   assert.equal(moveLineCursor(line, 3, 'Home'), -10);
+  // The round's hint says to arrow past the last number onto an end arrow (AX32): one more key reaches it, and back.
+  assert.equal(moveLineCursor(line, 10, 'ArrowRight'), Number.POSITIVE_INFINITY);
+  assert.equal(moveLineCursor(line, -10, 'ArrowLeft'), Number.NEGATIVE_INFINITY);
+  assert.equal(moveLineCursor(line, Number.POSITIVE_INFINITY, 'ArrowLeft'), 10);
   const drawing = N.tapNumber(N.tapNumber(N.EMPTY_DRAWING, -2), -2);
   assert.equal(describeLineCursor(drawing, -2), '−2, open dot');
   assert.equal(describeLineCursor(drawing, 4), '4');

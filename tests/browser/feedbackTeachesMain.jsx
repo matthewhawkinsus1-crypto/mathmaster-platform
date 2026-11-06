@@ -4,6 +4,7 @@
 //   ?role=practice|dol      the activity policy
 //   ?q=multi|family|system  the fixture
 //   ?support=translate      give the student Read aloud + Translate (Spanish)
+//   ?support=translatereadout  the same, and the graph read-out (AX03)
 //   ?support=read           give the student Read aloud only (a plan's text-to-speech)
 //   ?q=plain                an item with no step written for it (HELP-19)
 //   ?support=inclusion      an inclusion student, with Read aloud (the "Let's back up" step)
@@ -23,10 +24,29 @@
 //                           the same way: with ?support=translate Read aloud reads
 //                           in Spanish, a figure in its own Spanish words or in
 //                           English with a sentence saying so (AX05)
+//   ?q=workspacees          the legacy graph workspace (plot two points of
+//                           y = 2x + 1) with an authored Spanish prompt: the
+//                           student's own points are read in Spanish (AX05, slice 2)
 //   ?q=ltw|dml|sequence     the real DOL #3 review's tools that draw their own
 //                           tables (dol3-review-q03, q11, q13), and the Linear
 //   ?q=lmrtable             Multiple Representations board's given table (lmr-pr-1):
 //                           Read aloud reads each table as drawn (AX10)
+//   ?q=regression           a Regression Calculator item that lists its source data;
+//                           its table and the board's process-mode choosers are read
+//                           as drawn (AX10, slice 2)
+//   ?q=lmrtablees           lmr-pr-1 with an authored Spanish prompt: process mode's
+//                           row chooser and the table to extend are read in Spanish
+//                           (AX05, slice 2)
+//   ?q=inequalityes         Algebra I M3 T2 L4 CW 9 (graph y > x + 3, built by the
+//                           student) with an authored Spanish prompt: the Systems
+//                           Workspace's own sentences are read in Spanish (AX05, slice 3)
+//   ?q=numberlinees         the pick-a-point number line and the interval number
+//   ?q=intervales           line, each with an authored Spanish prompt: their
+//                           names are Spanish, marked lang="es", and the English
+//                           buttons inside them stay English (AX05, slice 4)
+//   ?q=explog               an Exponential ↔ Log Bridge item (2^(2x − 1) = 16) the
+//                           dataAndModels family claims: its hints, its worked
+//                           sibling and its "Let's back up" step (CI02, A1-69)
 //   ?run=<id>               a fresh draft namespace
 //   ?secure=1               mount it the way a secure Test item is mounted:
 //                           server-graded (RichQuestionRuntime), and still
@@ -50,6 +70,7 @@ import transformationsLesson from '../../teacher-import-jsons/algebra1-module2-t
 import threeByThreeDay1 from '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json';
 import dol3Review from '../../teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json';
 import linearRepresentationsLesson from '../../docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json';
+import inequalitiesLesson from '../../teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json';
 import '../../src/index.css';
 import '../../src/App.css';
 
@@ -126,10 +147,46 @@ const QUESTIONS = {
     .find((entry) => entry.questionId === '3x3-d1-cw-1'),
   dolgraphes: withSpanishPrompt(lessonItem(dolGraphLesson, 'q_section-4_4_1'), 'La gráfica muestra una función con un conjunto restringido de entradas. Determina su dominio y su rango con desigualdades.'),
   planeses: withSpanishPrompt(lessonItem(threeByThreeDay1, '3x3-d1-cw-1'), 'Con tu maestro, gira el modelo 3D y muestra u oculta los tres planos. Antes de que se revelen las coordenadas, decide qué debe representar una solución de las tres ecuaciones.'),
+  workspacees: withSpanishPrompt({
+    questionId: 'feedback-workspace',
+    type: 'functionGraph',
+    prompt: 'Graph y = 2x + 1.',
+    functionSpec: { type: 'linear', m: 2, b: 1 },
+    graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 },
+    pointTasks: [
+      { id: 'p1', label: 'Plot the point where x = 0', x: 0, expected: [0, 1] },
+      { id: 'p2', label: 'Plot the point where x = 2', x: 2, expected: [2, 5] },
+    ],
+  }, 'Grafica y = 2x + 1.'),
   ltw: lessonItem(dol3Review, 'dol3-review-q03'),
   dml: lessonItem(dol3Review, 'dol3-review-q11'),
   sequence: lessonItem(dol3Review, 'dol3-review-q13'),
   lmrtable: lessonItem(linearRepresentationsLesson, 'lmr-pr-1'),
+  lmrtablees: withSpanishPrompt(lessonItem(linearRepresentationsLesson, 'lmr-pr-1'), 'Tienes una tabla de valores de una relación lineal. Construye todas las demás representaciones de esta misma recta, en el orden que quieras.'),
+  inequalityes: withSpanishPrompt(lessonItem(inequalitiesLesson, 'm3t2l4-cw-9'), 'Grafica $y > x + 3$.'),
+  numberlinees: withSpanishPrompt({
+    questionId: 'feedback-numberline', type: 'numberLine', prompt: 'Select 5 on the number line.', target: 5, choices: [-10, -5, 0, 5, 10],
+  }, 'Selecciona el 5 en la recta numérica.'),
+  intervales: withSpanishPrompt({
+    questionId: 'feedback-interval', type: 'intervalNumberLine', toolId: 'intervalNumberLine',
+    prompt: 'Graph x ≥ −3 and x < 5 together.', min: -8, max: 8, step: 1, variable: 'x', ask: ['graph'],
+    intervals: [{ min: -3, max: 5, minClosed: true, maxClosed: false }],
+  }, 'Grafica x ≥ −3 y x < 5 juntas.'),
+  // The dataAndModels family's: 2^(2x − 1) = 16, so 2x − 1 = 4 and x = 5/2 (CI02).
+  explog: {
+    questionId: 'feedback-explog',
+    type: 'exponentialLogBridge',
+    mode: 'solveExponential',
+    prompt: 'Solve 2^(2x − 1) = 16 for x.',
+    equation: { base: 2, m: 2, c: -1, rhs: 16 },
+  },
+  regression: {
+    questionId: 'feedback-regression',
+    type: 'regressionCalculator',
+    prompt: 'Enter the data, run linear regression, and say what the correlation means.',
+    sourceData: [[1, 2], [2, 4], [3, 5], [4, 8]],
+    sourceMode: 'data',
+  },
   // No question family claims it and it has no authored scaffold: no step is
   // written for it (HELP-19, readAloudTranslate.mjs).
   plain: {
@@ -150,9 +207,12 @@ const question = QUESTIONS[which];
 const FAMILY_INSTANCES = new Set(['family', 'vertex', 'absval']);
 // The question's own answers, for the driver's leak check (never rendered).
 window.__mmAnswers = which === 'transform' ? (question?.answerFields || []).map((field) => String(field.answer ?? ''))
-  : which === 'table' ? Object.values(question?.table?.answers || {}).map(String) : [];
+  : which === 'table' ? Object.values(question?.table?.answers || {}).map(String)
+    : which === 'explog' ? ['5/2', '2.5', '4'] : [];
 const SUPPORT_PROFILES = {
   translate: { accommodations: ['text-to-speech', 'translation'], translationLanguage: 'es' },
+  // The same, with the graph read-out (AX03): a graph is read in full while it can be answered.
+  translatereadout: { accommodations: ['text-to-speech', 'translation', 'graph-read-out'], translationLanguage: 'es' },
   read: { accommodations: ['text-to-speech'] },
   // An inclusion student with a plan's Read aloud: the "Let's back up" step (HELP-19).
   inclusion: { inclusionStatus: true, accommodations: ['text-to-speech'] },

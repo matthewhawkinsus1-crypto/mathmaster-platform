@@ -75,7 +75,8 @@ test('read aloud says mathematics as mathematics, and never reads vocabulary as 
   assert.equal(speechTextFor('If 3 < x ≤ 7, what is |x - 5|?'), 'If 3 is less than x is less than or equal to 7, what is the absolute value of x minus 5?');
   assert.equal(speechTextFor('A line passes through (2, 3).'), 'A line passes through the point 2, 3.');
   assert.equal(speechTextFor('Find the y-intercept of f(x) = 3x - 2.'), 'Find the y-intercept of f of x equals 3x minus 2.');
-  assert.equal(speechTextFor('Factor to get (x + 2)(x + 3).'), 'Factor to get the quantity x plus 2 times the quantity x plus 3.');
+  // Where the first quantity closes is said (math-speech-2, item 10).
+  assert.equal(speechTextFor('Factor to get (x + 2)(x + 3).'), 'Factor to get the quantity x plus 2 end quantity times the quantity x plus 3.');
   assert.equal(speechTextFor('It costs $4.50, about 25% off.'), 'It costs 4 dollars and 50 cents, about 25 percent off.');
   assert.equal(mathToSpeech('y = -2/3x + 7', { language: 'es' }), 'y es igual a negativo 2 sobre 3 x más 7');
   assert.equal(speechTextFor(''), '');

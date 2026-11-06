@@ -459,6 +459,29 @@
   }
 }
 
+/* The administrator's five section tabs (TT27) on a phone and a tablet: one
+   row that scrolls sideways, as the dashboard's strip above does from the same
+   width, instead of five stacked rows 246px tall on a phone (teacher features
+   walk, item 1) and two rows between 641 and 860px. Still one tab list: the
+   arrow keys move between the tabs and focus scrolls the one it reaches into
+   view. The room under the row and at its ends keeps a tab's focus ring inside
+   the scrolling box. A laptop's row is as it was. */
+@media (max-width: 860px) {
+  .mm-admin-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 12px;
+    scrollbar-width: thin;
+    padding-bottom: 6px !important;
+  }
+
+  .mm-admin-tabs > [role="tab"] {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 560px) {
   .mm-bulkbar {
     position: static;
@@ -607,6 +630,14 @@
     grid-template-columns: minmax(min(100%, 190px), 230px) minmax(0, 1fr) minmax(min(100%, 190px), 230px) !important;
     gap: 14px !important;
     align-items: start;
+  }
+
+  /* An interval's box fits the interval typed in it, as on the embedded rail
+     (InteractiveGraphWorkspace.jsx). A 230px column left 174px for a typed
+     (−∞, −1) ∪ (−1, ∞), which is 182px of math at the default text size and
+     twice that at 200%. 270 of the text's own px, so it grows with the text. */
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only.mathmaster-interval-answers {
+    grid-template-columns: minmax(min(100%, 190px), calc(270 * var(--mm-px))) minmax(0, 1fr) minmax(min(100%, 190px), calc(270 * var(--mm-px))) !important;
   }
 
   [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only > .mathmaster-function-workspace-sidebar {

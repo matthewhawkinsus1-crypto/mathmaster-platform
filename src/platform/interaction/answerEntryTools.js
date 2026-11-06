@@ -96,8 +96,10 @@ const normalizedMathText = (value) => String(value ?? '')
 // are template syntax, so a Digital SAT number box keyed `{{a}}` asked for the
 // `{`, `}` and `a` keys. A placeholder is read as a plain number here, which
 // keeps every symbol the surrounding key really needs (`{{a}}/{{b}}` still
-// needs a⁄b, `{{m}}x+{{b}}` still needs x).
-const TEMPLATE_PLACEHOLDER = /\{\{\s*[A-Za-z_][\w.]*\s*\}\}/g;
+// needs a⁄b, `{{m}}x+{{b}}` still needs x). So is one with a filter, which
+// the generator writes as a power, a sign or a coefficient: the radicals exit
+// ticket's `{{d}}|x{{m|pow}}|y^{{k}}` asked for the keys m, p, o and w (N56).
+const TEMPLATE_PLACEHOLDER = /\{\{\s*[A-Za-z_][\w.]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
 
 export const inferRequiredAnswerSymbols = (values = []) => {
   const text = flattenAnswerValues(values).join(' ').replace(TEMPLATE_PLACEHOLDER, '1');
@@ -117,12 +119,14 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   if (/∞|\\infty|\b(?:infinity|inf)\b/i.test(text)) add('∞');
   if (/∪|\\cup/.test(text)) add('∪');
   if (/∅|\\varnothing|\\emptyset/.test(text)) add('∅');
-  if (/≤|\\leq?\b/.test(text)) add('≤');
-  if (/≥|\\geq?\b/.test(text)) add('≥');
-  if (/≠|\\neq?\b/.test(text)) add('≠');
+  // A key may spell a relation as typed: <= is ≤, >= is ≥ and != is ≠. Their
+  // "=" is not an equals sign: "y >= x + 2" asked for = and never for ≥.
+  if (/≤|<=|\\leq?\b/.test(text)) add('≤');
+  if (/≥|>=|\\geq?\b/.test(text)) add('≥');
+  if (/≠|!=|\\neq?\b/.test(text)) add('≠');
   if (/(^|[^<])<([^=]|$)/.test(text)) add('<');
   if (/(^|[^>])>([^=]|$)/.test(text)) add('>');
-  if (/=/.test(text)) add('=');
+  if (/(^|[^<>!])=/.test(text)) add('=');
   if (/π|\\pi\b|\bpi\b/i.test(text)) add('π');
   if (/√|\\sqrt|(?<![A-Za-z])sqrt\b/i.test(text)) add('√');
   if (/\\sqrt\s*\[|[∛∜]|(?<![A-Za-z])(?:cbrt|root)\s*\(/.test(text)) add('ⁿ√');

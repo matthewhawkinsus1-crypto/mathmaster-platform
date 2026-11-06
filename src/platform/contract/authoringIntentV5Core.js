@@ -1643,6 +1643,11 @@ const compileOne = (q, index, repairs) => {
         asymptote: q.asymptote,
         behavior: q.behavior,
         behaviorChoices: q.behaviorChoices,
+        // The step's question, when its choices are not the recipe's
+        // intervals: "Exponential growth / Exponential decay" were offered
+        // under "Where is this function increasing and where is it
+        // decreasing?" (District DOL 1 review, 2026-11-06 walkthrough).
+        behaviorPrompt: q.behaviorPrompt,
         familyChoices: q.familyChoices,
         functionSpec: functionSpecFromIntentQuestion(q),
         // DERIVED FROM THE FUNCTION WHEN THE AUTHOR DID NOT WRITE IT.
@@ -1750,6 +1755,8 @@ const compileOne = (q, index, repairs) => {
         sequence: q.sequence,
         graph: graphFromIntent(q),
         candidateGraphs: candidateGraphs.length ? candidateGraphs : undefined,
+        // Labelled graphs the prompt names in order, kept in that order (N38).
+        candidateGraphsInOrder: candidateGraphs.length && q.candidateGraphsInOrder === true ? true : undefined,
         visual: q.visual,
         mathDisplay: q.mathDisplay,
         // Named matrices to show beside the fields (QuestionVisual).
@@ -2183,6 +2190,8 @@ const compileOne = (q, index, repairs) => {
         graphBounds: q.graphBounds || t.graphBounds,
         snapStep: q.snapStep ?? t.snapStep,
         initial: q.initial || t.initial,
+        // A point map that keeps the transformed graph off its figure (CT04).
+        showTransformedGraph: (q.showTransformedGraph ?? t.showTransformedGraph) === false ? false : undefined,
       });
       break;
     }
@@ -2202,7 +2211,9 @@ const compileOne = (q, index, repairs) => {
         validSchemes: q.validSchemes || board.validSchemes,
         minGroups: q.minGroups ?? board.minGroups,
         maxGroups: q.maxGroups ?? board.maxGroups,
-        requireRationale: controlled ? false : (q.requireRationale ?? board.requireRationale),
+        // A fixed-category sort asks for a reason per category only when the
+        // author says so (F-SORT-NO-REASON); unauthored, it never did.
+        requireRationale: controlled ? (q.requireRationale ?? board.requireRationale) === true : (q.requireRationale ?? board.requireRationale),
         requireGroupNames: controlled ? false : (q.requireGroupNames ?? board.requireGroupNames),
         rationaleMinLength: q.rationaleMinLength ?? board.rationaleMinLength,
         hints: q.hints || board.hints,

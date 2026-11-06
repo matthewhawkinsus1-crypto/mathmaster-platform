@@ -33,6 +33,14 @@
  */
 
 const OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|]/;
+// Read aloud (speechText.js) also takes composition, union and membership as
+// mathematics, so (f∘g)(x) and (−∞, 0) ∪ (0, ∞) reach the reader whole: "f
+// composed with g of x", and a union's pieces heard as intervals (walkthrough
+// 2026-11-06, P-1: "( f ∘ g ) the quantity x"; "x ∈ {…}" reached the voice
+// raw). Translation keeps them as text: the Spanish pack's lines hold them
+// between the masked mathematics ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so its
+// segments must not move.
+const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪∈]/;
 const NAMED_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs', 'exp']);
 // Letters that are common one-letter WORDS in a language. Alone in prose they
 // are text: English "a" and "I"; Spanish "y" (and), "o" (or), "a" (to), "e",
@@ -63,10 +71,10 @@ const TOKEN = /[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’-][A-Za-zÀ-ÖØ-öø-ÿ]+)*|\$?(
 
 const isSpace = (value) => /^\s+$/.test(value);
 
-const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en) => {
+const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en, operator = OPERATOR) => {
   if (isSpace(token)) return 'space';
   if (/^\$?\d|^\.\d/.test(token)) return 'math';
-  if (OPERATOR.test(token) && token.length === 1) return 'math';
+  if (operator.test(token) && token.length === 1) return 'math';
   if (/^[A-Za-zÀ-ÖØ-öø-ÿ]$/.test(token)) {
     if (!words.has(token)) return 'math';
     // "a", "A" or "I" is math only when it is pressed against mathematics
@@ -80,13 +88,13 @@ const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en) => {
 };
 
 /** Is everything inside a bracket pair mathematics (no prose words)? */
-const groupIsMath = (inner) => {
+const groupIsMath = (inner, operator = OPERATOR) => {
   const tokens = inner.match(TOKEN) || [];
   if (!tokens.length) return false;
   let sawMath = false;
   for (const token of tokens) {
     if (isSpace(token) || token === ',' || token === ';') continue;
-    const kind = classifyToken(token, 'math-adjacent', 'math-adjacent');
+    const kind = classifyToken(token, 'math-adjacent', 'math-adjacent', ONE_LETTER_WORDS.en, operator);
     if (kind === 'word') {
       if (NAMED_FUNCTIONS.has(token.toLowerCase())) { sawMath = true; continue; }
       return false;
@@ -98,6 +106,71 @@ const groupIsMath = (inner) => {
 };
 
 const OPENERS = new Set(['(', '[']);
+
+// Read aloud: what a pair of bars holds is mathematics when it has a letter or
+// a digit, no word (a run of three letters or more that is not a function's
+// name) and no punctuation but a decimal point: |bx|, |½(x − 4)|, |5b⁷k⁵|.
+const barGroupIsMath = (inner) => /[\p{L}\p{N}]/u.test(inner)
+  && (inner.match(/\p{L}+/gu) || []).every((word) => word.length <= 2 || NAMED_FUNCTIONS.has(word.toLowerCase()))
+  && !/[,;:?!]|\.(?!\d)/.test(inner);
+
+/*
+ * A SPAN THAT OPENS WITH A PRICE, READ AS THE SCREEN READS IT (platform-polish-3;
+ * F-READ-PRICES in the 2026-11-06 Algebra I M3 T2 walkthrough). Read aloud
+ * took "$4,890. A main-floor seat costs $" and "$10 a week: y = 10x + 40.
+ * Isabella deposits $" for LaTeX: the word after the price has one letter,
+ * and an "=" anywhere made any span mathematics. The words were read as
+ * mathematics ("A main minus floor seat costs 5 more") and the prices lost
+ * "dollars". The screen keeps these sentences as prose
+ * (components/common/mathSegments.js isCurrencyProseOpening), and Read aloud
+ * now refuses the same spans: a price and then a word of three letters or
+ * more (LaTeX commands and their arguments left out) is prose with prices in
+ * it, and two prices with a short connector between them ("$4 + $6", "$20 or
+ * $30") are two prices. Speech only: Translate's masked lines (the packs)
+ * are keyed to today's split.
+ */
+const SPAN_PRICE = /^\$(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?![A-Za-z0-9_])/;
+const PRICE_CONNECTOR = /^[\s,;:]*(?:(?:or|to|and|vs\.?|versus)|->|[-–—/→+×=<>≤≥])?[\s,;:]*$/i;
+const withoutLatexCommands = (value) => {
+  let text = value;
+  for (let pass = 0; pass < 4; pass += 1) {
+    const next = text.replace(/\\[A-Za-z]+\s*(?:\{[^{}]*\})*/g, '');
+    if (next === text) return text;
+    text = next;
+  }
+  return text;
+};
+const opensPriceProse = (span, after) => {
+  const amount = SPAN_PRICE.exec(span);
+  if (!amount || span.startsWith('$$')) return false;
+  const rest = withoutLatexCommands(span.slice(amount[0].length, -1));
+  if (PRICE_CONNECTOR.test(rest) && SPAN_PRICE.test(`$${after}`)) return true;
+  return /[A-Za-z]{3,}/.test(rest);
+};
+
+/*
+ * READ ALOUD'S OWN TOKENS (platform-polish-3; F-READ-SYMBOLS in the
+ * 2026-11-06 Algebra I M3 T2 walkthrough). Speech only, like ∘ and ∪ above:
+ *   - a fraction written as one character (½, ⅔) is a number, so its sign
+ *     and what it multiplies stay with it ("−½x", "½(x − 4)"); it was prose,
+ *     handed to the voice raw;
+ *   - two lowercase letters beside an operator are two variables, not a
+ *     word: "my" in "3x + my = 5" and "by" in "ax + by = c" were said as the
+ *     words. A word on the other side keeps them a word ("2 + my age").
+ */
+const VULGAR_FRACTION = /^[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒]$/;
+const PRODUCT_OPERATOR = /^[=≠<>≤≥+−\-×·*±÷]$/;
+// Two letters that are a word, a unit or a name the reader says, never two
+// variables, even beside a symbol: "a closed dot for ≤ or ≥", "+ or −",
+// "Reverse ≤ to ≥", '"At most" is ≤', Spanish "es", "de", "en". (my and by
+// are not here: "3x + my = 5" and "ax + by = c" are the cases; beside a word
+// they stay words, "my answer", "multiply by 2".)
+export const NOT_TWO_VARIABLES = new Set([
+  'ah', 'am', 'an', 'as', 'at', 'be', 'do', 'eh', 'ex', 'go', 'ha', 'he', 'hi', 'id', 'if', 'in', 'is', 'it',
+  'me', 'no', 'of', 'oh', 'ok', 'on', 'or', 'so', 'to', 'up', 'us', 'we',
+  'al', 'da', 'de', 'el', 'en', 'es', 'la', 'le', 'lo', 'mi', 'ni', 'os', 'se', 'si', 'su', 'te', 'tu', 'un', 'va', 've', 'ya', 'yo',
+  'ln', 'pi', 'cm', 'mm', 'km', 'kg', 'mg', 'ml', 'ft', 'yd', 'oz', 'lb', 'hr',
+]);
 
 /** The matching close for the bracket at `start`, or -1. Same line only. */
 const matchingClose = (text, start) => {
@@ -117,23 +190,25 @@ const matchingClose = (text, start) => {
 
 /**
  * Split text into ordered segments `{ kind: 'text' | 'math', value }`.
- * Joining the values always reproduces the input exactly.
+ * Joining the values always reproduces the input exactly. `speech` is Read
+ * aloud's split: ∘, ∪ and ∈ are mathematics too (SPEECH_OPERATOR).
  */
-export const segmentMathText = (input, { language = 'en' } = {}) => {
+export const segmentMathText = (input, { language = 'en', speech = false } = {}) => {
   const words = oneLetterWordsFor(language);
+  const operator = speech ? SPEECH_OPERATOR : OPERATOR;
   const text = String(input ?? '');
   if (!text) return [];
   // 1. Protected spans that are unambiguous: delimited LaTeX, placeholders and
   //    bare LaTeX commands.
   const protectedSpans = [];
-  const collect = (pattern, accept = () => true) => {
+  const collect = (pattern, accept = () => true, { delimited = false } = {}) => {
     pattern.lastIndex = 0;
     let match;
     while ((match = pattern.exec(text))) {
       const start = match.index;
       const end = start + match[0].length;
-      if (!accept(match[0])) { pattern.lastIndex = start + 1; continue; }
-      if (!protectedSpans.some((span) => start < span.end && end > span.start)) protectedSpans.push({ start, end });
+      if (!accept(match[0], end)) { pattern.lastIndex = start + 1; continue; }
+      if (!protectedSpans.some((span) => start < span.end && end > span.start)) protectedSpans.push({ start, end, delimited });
     }
   };
   // A pair of prices on one line ("$4 and $5", "$15.75, medium baskets for
@@ -141,10 +216,10 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
   // closed by the next price ("$20, $25"): Read aloud dropped every "dollars".
   // A number with nothing between it and the closing sign ("$7$") is a span:
   // it is how a LaTeX author writes the number 7, never a price (PR-4).
-  collect(DELIMITED, (value) => (
+  collect(DELIMITED, (value, end) => !(speech && opensPriceProse(value, text.slice(end))) && ((
     !/^\$\d[\d,]*(?:\.\d+)?[,;:.]?\s+[A-Za-z]{2,}/.test(value)
     && !/^\$\d[\d,]*(?:\.\d+)?[\s,;:]+\$$/.test(value)
-  ) || /[\\{}^=]/.test(value));
+  ) || /[\\{}^=]/.test(value)), { delimited: true });
   collect(LATEX_COMMAND);
   protectedSpans.sort((a, b) => a.start - b.start);
 
@@ -157,7 +232,20 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
       const char = chunk[index];
       if (OPENERS.has(char)) {
         const close = matchingClose(chunk, index);
-        if (close > index && groupIsMath(chunk.slice(index + 1, close))) {
+        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator)) {
+          atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
+          index = close + 1;
+          continue;
+        }
+      }
+      // Read aloud only: a pair of bars is one piece, as a bracket group is. A
+      // two-letter product or a "½" inside split the run, and the reader then
+      // paired the wrong bars: "|bx| = |b|·|x|" was "| bx the absolute value
+      // of equals b times …" (math-speech-2, item 11).
+      if (speech && char === '|') {
+        const close = chunk.indexOf('|', index + 1);
+        const inner = close > index ? chunk.slice(index + 1, close) : '';
+        if (inner && !inner.includes('\n') && barGroupIsMath(inner)) {
           atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
           index = close + 1;
           continue;
@@ -172,7 +260,7 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
   };
   protectedSpans.forEach((span) => {
     if (span.start > cursor) tokenize(text.slice(cursor, span.start));
-    atoms.push({ kind: 'math', value: text.slice(span.start, span.end) });
+    atoms.push({ kind: 'math', value: text.slice(span.start, span.end), delimited: span.delimited });
     cursor = span.end;
   });
   if (cursor < text.length) tokenize(text.slice(cursor));
@@ -180,7 +268,7 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
   // 3. Classify raw tokens, with "pressed against math" for one-letter words:
   //    touching a number, bracket or math span ("2a", "f(a)"), or facing a
   //    relation/operator symbol across spaces ("a = 3", "y + 2").
-  const isOperatorAtom = (atom) => atom?.kind === 'raw' && atom.value.length === 1 && OPERATOR.test(atom.value);
+  const isOperatorAtom = (atom) => atom?.kind === 'raw' && atom.value.length === 1 && operator.test(atom.value);
   const isMathish = (atom) => Boolean(atom) && (atom.kind === 'math'
     || isOperatorAtom(atom) || (atom.kind === 'raw' && (/^\$?\d/.test(atom.value) || atom.value === '(')));
   const neighbour = (index, step) => {
@@ -194,18 +282,44 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
   };
   const adjacent = ({ atom, spaced }) => (spaced ? isOperatorAtom(atom) : isMathish(atom));
   const endsLabel = (atom) => !atom || (atom.kind === 'raw' && /^[,.;:)\]?!]$/.test(atom.value));
+  const isWordAtom = (atom) => Boolean(atom) && atom.kind !== 'math' && /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,}/.test(atom.value);
+  const isProductOperator = (atom) => Boolean(atom) && PRODUCT_OPERATOR.test(atom.value);
+  // Where the nearest atom that is not a space stands, classified yet or not.
+  const nearest = (index, step) => {
+    let cursor = index + step;
+    while (atoms[cursor] && isSpace(atoms[cursor].value)) cursor += step;
+    return cursor;
+  };
+  // A sign pressed against what follows it ("de −5", "to −5") joins no terms.
+  const isSign = (at) => /^[+\-−]$/.test(atoms[at]?.value || '') && Boolean(atoms[at + 1]) && !isSpace(atoms[at + 1].value);
+  const twoLetterProduct = (index) => {
+    const before = nearest(index, -1);
+    const after = nearest(index, 1);
+    return (isProductOperator(atoms[before]) && !isWordAtom(atoms[after]))
+      || (isProductOperator(atoms[after]) && !isSign(after) && !isWordAtom(atoms[before]));
+  };
   atoms.forEach((atom, index) => {
     if (atom.kind !== 'raw') return;
     const after = atoms[index + 1];
+    if (speech && VULGAR_FRACTION.test(atom.value)) {
+      atom.kind = 'math';
+      return;
+    }
     const kind = classifyToken(
       atom.value,
       adjacent(neighbour(index, -1)) ? 'math-adjacent' : 'text',
       adjacent(neighbour(index, 1)) ? 'math-adjacent' : endsLabel(after) ? 'label-end' : 'text',
       words,
+      operator,
     );
     // Function notation: a one-letter or named function directly followed by a
-    // math group or "(" is math ("f(x)", "log(100)").
-    if (kind === 'word' && NAMED_FUNCTIONS.has(atom.value.toLowerCase()) && after && (after.kind === 'math' || after.value === '(')) {
+    // math group or "(" is math ("f(x)", "log(100)"). For Read aloud, a name
+    // with a power on it too: sin²(x) is sin^(2)(x) by the time it is split.
+    if (kind === 'word' && NAMED_FUNCTIONS.has(atom.value.toLowerCase()) && after && (after.kind === 'math' || after.value === '(' || (speech && after.value === '^'))) {
+      atom.kind = 'math';
+      return;
+    }
+    if (speech && kind === 'word' && /^[a-z]{2}$/.test(atom.value) && !NOT_TWO_VARIABLES.has(atom.value) && twoLetterProduct(index)) {
       atom.kind = 'math';
       return;
     }
@@ -257,16 +371,19 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
   //    A sentence-final period after math stays text; a comma or semicolon
   //    between math atoms ends the run (so "A, B, C" stays three runs and the
   //    prose comma survives).
+  // Read aloud's math runs say whether they hold a $…$ span (`delimited`):
+  // in a run with none, every "$" is a price's ("10(6) + 40 = $100").
   const segments = [];
-  const push = (kind, value) => {
+  const push = (kind, value, delimited = false) => {
     const last = segments[segments.length - 1];
     if (last && last.kind === kind) last.value += value;
     else segments.push({ kind, value });
+    if (speech && delimited) segments[segments.length - 1].delimited = true;
   };
   for (let index = 0; index < atoms.length; index += 1) {
     const atom = atoms[index];
     if (atom.kind === 'math') {
-      push('math', atom.value);
+      push('math', atom.value, atom.delimited);
       continue;
     }
     if (atom.kind === 'space') {
@@ -276,8 +393,8 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
       while (atoms[lookahead]?.kind === 'space') lookahead += 1;
       const nextMath = atoms[lookahead]?.kind === 'math';
       const touchesOperator = previousMath && nextMath && (
-        OPERATOR.test(segments[segments.length - 1].value.trim().slice(-1))
-        || OPERATOR.test(atoms[lookahead].value.trim().charAt(0))
+        operator.test(segments[segments.length - 1].value.trim().slice(-1))
+        || operator.test(atoms[lookahead].value.trim().charAt(0))
       );
       if (touchesOperator) push('math', atom.value);
       else push('text', atom.value);

@@ -14,9 +14,15 @@
 //   dataModeling        direction and strength right, causation wrong
 //   bridge              a wrong factored form: stage names, never "Recheck: <id>"
 //   composed            a wrong mapping and domain: each red step says why
-//   transformations     the finishing step names the Submit button (Rewrite
-//                       Linear Form's is rendered in toolDirectionsSplit: a
-//                       student's stepAlgebra2 rewrite opens the Step Algebra engine)
+//   transformations     the finishing step names the Submit button
+//   rewriteFactored     Rewrite Linear Form's finishing step names the Submit
+//                       button, not "Check equation" (CI02: a factored linear
+//                       rewrite is the one that stays on that tool under
+//                       QuestionEngine)
+//   systemsParse        the substitution board, reopened on an older draft whose
+//                       isolated expression it cannot read, says so and keeps the
+//                       work, never "That variable does not match" (CI02); a
+//                       process note, so a DOL shows it too, with no verdict
 // Exits non-zero on any failure.
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
@@ -150,6 +156,35 @@ const CASES = [
     selector: '[data-stage-reason]',
   },
   {
+    name: 'rewriteFactored',
+    act: async (page) => {
+      const fold = page.getByRole('button', { name: /How to do this/ });
+      if (await fold.count()) { await fold.first().click(); await page.waitForTimeout(300); }
+    },
+    expect: ['press Submit. Undo takes back the last step.'],
+    never: [/press Check equation/],
+    steps: true,
+  },
+  {
+    name: 'systemsParse',
+    act: async (page) => {
+      // An isolated expression an older build saved with a bracket left open.
+      await page.evaluate(() => window.__mmSeedToolDraft({
+        selection: { equationIndex: 0, variable: 'x' },
+        isolation: { expression: '(2y - 3', tokenExpression: '(2y - 3', simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false },
+      }));
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.locator('.mathmaster-algebraic-system-workflow').first().waitFor({ timeout: 60000 });
+      await page.waitForTimeout(500);
+      await page.locator('.mathmaster-systems-substitution-token').first().click();
+      await page.locator('[aria-label^="Equation 2: choose where the isolated expression belongs"] [data-variable="x"]').first().click();
+      await page.waitForTimeout(500);
+    },
+    expect: ['MathMaster could not open the next solving step from that form of the expression. Your work is still here.'],
+    never: [/That variable does not match/],
+    process: true,
+  },
+  {
     name: 'transformations',
     // On a DOL the steps are method, so there is no fold to open.
     act: async (page) => {
@@ -187,7 +222,12 @@ for (const item of CASES) {
     const { context, page } = await open(item.name, 'dol');
     await item.act(page);
     const text = await bodyText(page);
-    if (item.steps) {
+    if (item.process) {
+      // What the tool could not do, not whether anything is right: an exit
+      // ticket shows it too, and no verdict.
+      check(text.includes(item.expect[0]), `dol ${item.name}: the process note is shown`);
+      check(!/Correct!|Not quite/.test(text), `dol ${item.name}: no verdict`);
+    } else if (item.steps) {
       // The finishing step is how to work the button, so the DOL keeps it —
       // in the DOL's own word for that button.
       if (item.methodOnly) check(!text.includes(item.expect[0]), `dol ${item.name}: the method steps are withheld`);

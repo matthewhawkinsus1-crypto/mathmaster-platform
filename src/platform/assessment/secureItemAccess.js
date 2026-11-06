@@ -29,6 +29,7 @@
  * Pure: no DOM, no clock beyond the optional `nowValue`.
  */
 import { SUPPORT_TOOL, toolsEntitlementFromProfile } from '../language/supportToolsEntitlement.js';
+import { authoredTranslationEntry, authoredTranslationKeepsMath } from '../language/authoredTranslation.js';
 
 export const SECURE_ACCESS_TOOLS = Object.freeze([
   SUPPORT_TOOL.TRANSLATE,
@@ -87,4 +88,30 @@ export const securePromptOnly = (question) => {
       .map(([language, entry]) => [language, { prompt: entry.prompt }]))
     : {};
   return Object.keys(translations).length ? { prompt, translations } : { prompt };
+};
+
+/*
+ * THE LANGUAGE A SECURE ITEM'S FIGURES DESCRIBE THEMSELVES IN (AX05, slice 3).
+ *
+ * On an assignment, an authored translation of the prompt puts the item in
+ * the student's language, and its figures' screen-reader descriptions follow
+ * it (QuestionEngine, figureReadings.js). A secure field item draws its
+ * figures outside QuestionEngine, so they stayed English. Its prompt is
+ * never replaced, but the item offers the same authored translation through
+ * Translate (secureSupportPanels.js). Where it does — Translate on the
+ * student's plan, and an authored translation of this prompt that carries
+ * its mathematics exactly, the rule the panel's provider applies — the
+ * figures describe themselves in that language too. Their description is the
+ * figure's own, under its own rule (no position while the item can be
+ * answered), in the curated words; nothing more of the item is read.
+ *
+ * The student's language, or null for English.
+ */
+export const secureFigureLanguage = (question, studentSupportProfile, { nowValue = Date.now() } = {}) => {
+  const { tools, language } = secureAccessEntitlement(studentSupportProfile, { nowValue });
+  if (!language || !tools.includes(SUPPORT_TOOL.TRANSLATE)) return null;
+  const promptOnly = securePromptOnly(question);
+  const translated = authoredTranslationEntry(promptOnly, language)?.prompt;
+  if (typeof translated !== 'string' || !translated.trim()) return null;
+  return authoredTranslationKeepsMath(promptOnly.prompt, translated, language) ? language : null;
 };

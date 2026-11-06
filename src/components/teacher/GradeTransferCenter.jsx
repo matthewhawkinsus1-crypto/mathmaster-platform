@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   authoritativeSisStudentId,
   createExportSnapshot,
@@ -43,6 +43,7 @@ import {
   pendingUploadIds,
 } from '../../platform/gradeTransfer/gradeTransferHistory.js';
 import { resolveAssignmentGradingPeriod } from '../../platform/student/gradingPeriods.js';
+import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
 import './teacherWorkspace.css';
 
 /*
@@ -100,6 +101,12 @@ export default function GradeTransferCenter({
   // exactly those classes (platform/teacher/teacherClassControls.js).
   onClassScopeChange = null,
 }) {
+  // The selection bar ("N selected · Review export…") is sticky at the foot of the screen, and Tab parked the rows,
+  // chips and buttons under it as it went down the page (1 control at 1366×768, 9 on a phone: TT27, fifth slice). A
+  // Tab-focused control it covers is scrolled just clear of it, as the student screens keep theirs clear of the
+  // action bar; a control in view, and a click, move nothing.
+  const screenRef = useRef(null);
+  useActionBarFocusReveal(screenRef, { selector: '.tw-selection-bar' });
   const [snapshots, setSnapshots] = useState([]);
   const [stateLoaded, setStateLoaded] = useState(false);
   const [selected, setSelected] = useState(new Set());
@@ -451,7 +458,7 @@ export default function GradeTransferCenter({
   const assignmentScopeTitle = assignmentFilter ? (assignmentsById.get(assignmentFilter)?.title || 'This assignment') : null;
   const selectedGradeCount = selectedUnits.reduce((sum, unit) => sum + (summaries.get(unit.key)?.fullRowCount || 0), 0);
 
-  return <section aria-labelledby="grade-transfer-heading" className="tw-stack" style={{ textAlign: 'left' }}>
+  return <section ref={screenRef} aria-labelledby="grade-transfer-heading" className="tw-stack" style={{ textAlign: 'left' }}>
     <div>
       <h2 id="grade-transfer-heading" style={{ margin: 0 }}>Grade Export</h2>
       <p className="tw-muted" style={{ margin: '4px 0 0', fontSize: 'calc(14 * var(--mm-px))' }}>
@@ -471,7 +478,7 @@ export default function GradeTransferCenter({
         ))}
       </div>
       <div className="tw-row">
-        <label className="tw-row tw-small tw-strong" style={{ gap: 6 }}>
+        <label className="tw-row tw-small tw-strong" style={{ gap: 6, maxWidth: '100%' }}>
           Marking period
           <select className="tw-select" value={periodFilter} onChange={(event) => { setSelected(new Set()); setPeriodFilter(event.target.value); }}>
             <option value="current">Current marking period</option>

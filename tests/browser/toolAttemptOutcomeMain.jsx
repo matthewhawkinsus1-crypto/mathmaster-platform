@@ -13,6 +13,8 @@
 //   ?tool=regression      Regression Calculator, whose verdict is its own live region
 //   ?tool=board           the Linear Multiple Representations board, whose
 //                         Submit verdict is its own live region
+//   ?tool=sort            a fixed-category sort of four cards (F-SORT-WHICH-CARD)
+//   ?tool=sortReasons     the same sort, whose author asks for a reason per category
 //   ?tool=server          Inverse & Composition, server-graded (Path): the tool
 //                         shows no verdict of its own, so the engine's box stays
 //   ?tool=literal         an ordinary typed question, not a tool: the engine's box
@@ -55,10 +57,33 @@ const QUESTIONS = {
     source: { kind: 'slopeIntercept', m: -0.75, b: 2 },
     feedbackTiming: 'guided',
   },
+  sort: {
+    id: 'attempt-outcome-sort',
+    type: 'openSortBoard',
+    mode: 'controlled',
+    prompt: 'Sort each card into its category.',
+    categories: [{ id: 'even', label: 'Even' }, { id: 'odd', label: 'Odd' }],
+    items: [{ id: 'a', label: 'Card A', text: 'The number 2' }, { id: 'b', label: 'Card B', text: 'The number 3' }, { id: 'c', label: 'Card C', text: 'The number 4' }, { id: 'd', label: 'Card D', text: 'The number 5' }],
+    validSchemes: [{ id: 'answer', groups: [{ id: 'even', itemIds: ['a', 'c'] }, { id: 'odd', itemIds: ['b', 'd'] }] }],
+  },
+  sortReasons: {
+    id: 'attempt-outcome-sort-reasons',
+    type: 'openSortBoard',
+    mode: 'controlled',
+    requireRationale: true,
+    prompt: 'Sort each card into its category. Give a reason for each group.',
+    categories: [{ id: 'even', label: 'Even' }, { id: 'odd', label: 'Odd' }],
+    items: [{ id: 'a', label: 'Card A', text: 'The number 2' }, { id: 'b', label: 'Card B', text: 'The number 3' }, { id: 'c', label: 'Card C', text: 'The number 4' }, { id: 'd', label: 'Card D', text: 'The number 5' }],
+    validSchemes: [{ id: 'answer', groups: [{ id: 'even', itemIds: ['a', 'c'] }, { id: 'odd', itemIds: ['b', 'd'] }] }],
+  },
   server: { id: 'attempt-outcome-server', type: 'inverseCompositionLab', prompt: 'Restrict the domain so f has an inverse, then undo it.', ...SAMPLE_SPECS.inverseCompositionLab },
   literal: { id: 'attempt-outcome-literal', type: 'literal', prompt: 'What is 3 + 4?', correctAnswer: '7' },
   // TL23: a typed question whose math uses π (its keypad keeps π, not e or logₐ).
   literalPi: { id: 'attempt-outcome-literal-pi', type: 'literal', prompt: 'A circle has radius 3. What is its area? Leave your answer in terms of π.', correctAnswer: '9π' },
+  // F-KEYPAD-GENERIC: answers on the equation pad. One needs no root; the
+  // other's answer is a cube root, spelled as the ⁿ√ key spells it.
+  equation: { id: 'attempt-outcome-equation', type: 'multiAnswer', prompt: 'A line has slope 2 and y-intercept 1. Write its equation.', answerFields: [{ id: 'line', label: 'Equation', toolProfile: 'equation', answer: 'y=2x+1' }] },
+  equationRoot: { id: 'attempt-outcome-equation-root', type: 'multiAnswer', prompt: 'Solve x³ = 20. Write the exact solution as an equation.', answerFields: [{ id: 'root', label: 'Solution', toolProfile: 'equation', answer: 'x=\\sqrt[3]{20}' }] },
 };
 const question = QUESTIONS[tool];
 

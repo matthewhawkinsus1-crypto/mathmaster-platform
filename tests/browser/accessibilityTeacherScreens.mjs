@@ -68,6 +68,15 @@
  *   teacher-find           the Find palette, empty and with results (a modal: audited as the dialog).
  *   teacher-admin          the administrator's workspace (the harness's `rootAdmin=1` teacher), each
  *                          of its five sections.
+ *
+ * THE FIFTH SLICE (TT27) added the states of those screens that no scene had opened, each reached the way a
+ * teacher reaches it: see THE FIFTH SLICE below.
+ *
+ * teacher-live-challenge/line-final  a Graph the Line game's report on the console, after the classic game's: its
+ *                        blocks are headed tables, as the rush report's are (teacher features walk, item 11).
+ *
+ * teacher-classroom/connected  Google Classroom once it is connected: the courses the account teaches, which the
+ *                        harness's stand-in for listGoogleCourses answers (teacherWorkflow/fakeAdminScreens.js).
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -429,6 +438,299 @@ const openSimulatorMode = (label) => async (page) => {
   await page.waitForTimeout(1500);
 };
 
+// ----------------------------------------------------------------------------------------------
+// THE FIFTH SLICE (TT27): the states of these screens that no scene opened, which the VPAT's Notes
+// row listed as not evaluated. Each is reached the way a teacher reaches it, from the screen's own
+// first scene, and audited like the 48.
+// ----------------------------------------------------------------------------------------------
+
+// The workspace's main landmark holds the screen, and not the navigation (whose buttons share names
+// with some of a screen's own, "Assignments" among them).
+const workspaceMain = (page) => page.getByRole('main');
+
+// A student's detail page: Students -> "Open" on a row (the student's name opens the drawer, a scene of
+// teacher-students). The page has seven views, chosen from a tab list above them; six are scenes. The student is
+// the harness's first in Period 3, the class in session, who has work on four of its lessons.
+//
+// Left out: My Math Path, which shows the student's own My Math Path read-only. Its Mastery Overview's wheel draws
+// each skill as a segment 10 to 22 px across (16 with no room around them at 1366×768, 32 on a phone, WCAG 2.5.8),
+// and at 320 px a "0%" in it is cut by its box. Both are the student's own screen: whether the skills listed under the
+// wheel count as the equivalent control 2.5.8 allows, or the wheel changes, is a decision for its owner.
+const DETAIL_STUDENT_ROW = /ID 910001(?!\d)/;
+const STUDENT_DETAIL_VIEWS = [
+  ['overview', 'Overview'],
+  ['profile', 'Learning Profile'],
+  ['progress', 'Progress'],
+  ['assignments', 'Assignments'],
+  ['supports', 'Supports'],
+  ['account', 'Account'],
+];
+const allStudentsButton = (page) => workspaceMain(page).getByRole('button', { name: '← All students' });
+export const openStudentDetailView = (label) => async (page) => {
+  if (!(await allStudentsButton(page).count())) {
+    await openDestination('Students', /^Students$/)(page);
+    await page.locator('table tbody tr').filter({ hasText: DETAIL_STUDENT_ROW }).getByRole('button', { name: 'Open', exact: true }).evaluate((button) => button.click());
+    await allStudentsButton(page).waitFor({ timeout: 30_000 });
+  }
+  await workspaceMain(page).getByRole('tab', { name: label, exact: true }).evaluate((tab) => tab.click());
+  await workspaceMain(page).getByRole('tab', { name: label, exact: true, selected: true }).waitFor({ timeout: 10_000 });
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+};
+
+// Assignments -> Create and Assign, opened: the assignment creator's form (steps 1 to 3) and the paste
+// and upload of step 4. Closed, as the screen opens once a teacher has assignments, it is a summary line.
+const openCreateAndAssign = async (page) => {
+  await closePopups(page);
+  const creator = page.locator('summary', { hasText: 'Create and Assign' }).first();
+  if (!(await creator.evaluate((summary) => summary.parentElement.open))) await creator.evaluate((summary) => summary.click());
+  await page.getByRole('heading', { name: '1. Lesson and purpose' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
+// Grade Export after its first screen. The harness's school has two lessons ready to export in Period 1,
+// one exported and changed since in Period 3, a student with no district ID and a roster of them.
+const GRADE_EXPORT_REVIEW = '[aria-labelledby="grade-export-review-title"]';
+// A row's Export: the review that comes before the download, a modal (audited as the dialog).
+const openGradeExportReview = async (page) => {
+  await workspaceMain(page).locator('.tw-export-row__actions').getByRole('button', { name: 'Export', exact: true }).first().click();
+  await page.locator(GRADE_EXPORT_REVIEW).getByRole('button', { name: 'Download ZIP' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+// Back on the page, a class's "Select all": the bar that says what is selected stays at the foot of the screen.
+const selectGradeExports = async (page) => {
+  const review = page.locator(GRADE_EXPORT_REVIEW);
+  if (await review.count()) {
+    await review.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await review.waitFor({ state: 'detached', timeout: 10_000 });
+  }
+  await workspaceMain(page).getByRole('button', { name: /^Select all \d+ exportable$/ }).last().click();
+  await page.getByRole('region', { name: 'Selected exports' }).waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(900);
+};
+// The district IDs: the student who has none (the field that adds one), and the roster's, one of them open
+// for correction.
+const openDistrictIds = async (page) => {
+  const bar = page.getByRole('region', { name: 'Selected exports' });
+  if (await bar.count()) await bar.getByRole('button', { name: 'Clear', exact: true }).click();
+  for (const summary of await workspaceMain(page).locator('details.tw-disclosure > summary').all()) {
+    if (!(await summary.evaluate((node) => node.parentElement.open))) await summary.evaluate((node) => node.click());
+  }
+  await workspaceMain(page).locator('[data-district-id-row] button[aria-expanded]').first().click();
+  await workspaceMain(page).locator('[data-district-id-row] button[aria-expanded="true"]').waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(900);
+};
+
+// Secure Exams after its first screen (the `innerScreens=1` school): a practice test created for a
+// student, which the live proctor monitor then lists with its actions; a Test Cycle's "Archive or delete"
+// with the typed confirmation of Delete permanently open; and "Preview as student" (a modal: audited as
+// the dialog, its student screen inside it).
+const createPracticeTestSession = async (page) => {
+  const main = workspaceMain(page);
+  const student = main.locator('label', { hasText: /^Student/ }).locator('select').first();
+  const first = await student.locator('option').evaluateAll((options) => options.map((option) => option.value).find(Boolean));
+  await student.selectOption(first);
+  await main.getByRole('button', { name: 'Create session' }).click();
+  await main.getByRole('status').filter({ hasText: 'Secure session created' }).waitFor({ timeout: 30_000 });
+  await main.getByRole('region', { name: 'Live proctor monitor sessions' }).getByRole('button', { name: 'Pause' }).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+const openTestCycleDelete = async (page) => {
+  const main = workspaceMain(page);
+  await main.getByRole('button', { name: 'Archive or delete' }).first().click();
+  await main.getByRole('button', { name: /^Delete permanently/ }).first().click();
+  await main.getByRole('alertdialog').waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(900);
+};
+const TEST_CYCLE_PREVIEW = '[role="dialog"][aria-label^="Student preview of"]';
+const openTestCyclePreviewScene = async (page) => {
+  const confirm = workspaceMain(page).getByRole('alertdialog');
+  if (await confirm.count()) await confirm.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await openTestCyclePreview(page);
+};
+
+// The Live Challenge console past its lobby, written into the store as the server writes it, on the
+// lobby scene's game: round 1 open (two seconds in, ten minutes left, so the round and never "Time!"),
+// with two of the three players answered; the projector during that round; the round's results (the
+// teacher's whole table, hostRounds/0, and the standings it left); and the game finished, with the report
+// the server writes after it (built here by the server's own buildChallengeReport).
+const LIVE_PLAYERS = [
+  { playerKey: 'p1', alias: 'Swift Otter', studentId: '910001', score: 940, correctCount: 1, roundsAnswered: 1, answeredRound: 0 },
+  { playerKey: 'p2', alias: 'Quick Fox', studentId: '910002', score: 610, correctCount: 1, roundsAnswered: 1, answeredRound: 0 },
+  { playerKey: 'p3', alias: 'Calm Heron', studentId: '910003', score: 0, correctCount: 0, roundsAnswered: 0, answeredRound: -1 },
+];
+const ROUND_QUESTION = {
+  questionInstanceId: `challenge_${LOBBY_ROOM_ID}_r1`, challengeRound: 0, teksCode: 'A.5A',
+  prompt: 'Solve $2x + 5 = 17$. What is the value of $x$?',
+};
+const hostConsoleStage = (page, stage) => page.locator(`[data-mm-host-console="${stage}"]`).waitFor({ timeout: 30_000 });
+const openLiveChallengeRound = async (page) => {
+  await page.evaluate(({ roomId, question, players }) => {
+    const store = window.__mmHarnessStore;
+    const startsAt = Date.now() - 2000;
+    for (const player of players) store.update(`liveChallengeRooms/${roomId}/players/${player.playerKey}`, { ...player, joined: true, streak: player.correctCount });
+    store.update(`liveChallengeRooms/${roomId}`, {
+      status: 'running', currentRound: 0, currentQuestion: question, roundVersion: 1, roundToken: 'a11y-teacher-round-1', roundState: 'open',
+      phase: 'answering', startsAt, endsAt: startsAt + 600_000, roundStartedAt: startsAt, roundEndsAt: startsAt + 600_000,
+    });
+  }, { roomId: LOBBY_ROOM_ID, question: ROUND_QUESTION, players: LIVE_PLAYERS });
+  await hostConsoleStage(page, 'roundActive');
+  await page.getByText('2 of 3 joined students answered').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+// Projector View, which the class sees: a full-screen layer over the console, with the host's controls in
+// a strip at its foot.
+const PROJECTOR = '.mm-arena-shell';
+const openLiveChallengeProjector = async (page) => {
+  await workspaceMain(page).getByRole('button', { name: 'Projector View' }).click();
+  await page.locator(`${PROJECTOR}[data-mm-arena-stage="roundActive"]`).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+// The projector is a modal layer: a keyboard teacher leaves it with Escape, and focus comes back to the console's
+// Projector View, the control that opened it. The results scene starts by leaving it so, and is not reached if
+// either stops working.
+const exitLiveChallengeProjector = async (page) => {
+  const projector = page.locator(PROJECTOR);
+  if (!(await projector.count())) return;
+  await projector.getByRole('button', { name: 'Exit Projector View' }).focus();
+  await page.keyboard.press('Escape');
+  await projector.waitFor({ state: 'detached', timeout: 10_000 });
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Projector View', null, { timeout: 10_000 });
+};
+const openLiveChallengeResults = async (page) => {
+  await exitLiveChallengeProjector(page);
+  const { matchStandingsAfterRound } = await import('../../functions/shared/liveChallengeResults.mjs');
+  const standingsAfterRound = matchStandingsAfterRound({ players: LIVE_PLAYERS.map((player) => ({ ...player, joined: true })) });
+  // The teacher's copy of the round (functions/shared/liveChallengeResults.mjs publicRoundSummary): every player,
+  // by place, with the points the round gave.
+  const summary = {
+    schemaVersion: 1, roundIndex: 0, roundVersion: 1, isSecondChance: false, modeId: 'classic', scoringStrategyId: 'accuracyFirst',
+    closedAtMs: Date.now(), participantCount: 3, completedCount: 2, fieldSize: 2, standingsAfterRound,
+    standings: LIVE_PLAYERS.map((player, index) => ({
+      playerKey: player.playerKey, alias: player.alias, rank: player.roundsAnswered ? index + 1 : null, position: index, tied: false,
+      participated: player.roundsAnswered > 0, finished: player.roundsAnswered > 0, roundPoints: player.score, matchPointsAwarded: 0,
+    })),
+  };
+  await page.evaluate(({ roomId, roundSummary }) => {
+    const store = window.__mmHarnessStore;
+    store.set(`liveChallengeRooms/${roomId}/hostRounds/0`, roundSummary);
+    store.update(`liveChallengeRooms/${roomId}`, { roundState: 'closed', phase: 'results', roundClosedAt: Date.now() });
+  }, { roomId: LOBBY_ROOM_ID, roundSummary: summary });
+  await hostConsoleStage(page, 'roundResults');
+  await page.waitForTimeout(1200);
+};
+const openLiveChallengeFinal = async (page) => {
+  const { buildChallengeReport } = await import('../../functions/shared/liveChallengeReport.mjs');
+  const room = { title: 'Period 3 Warm-Up Challenge', className: 'Algebra II — Period 3', courseId: 'algebra2', standardCode: 'mixed', roundSeconds: 45 };
+  const report = {
+    ...buildChallengeReport({
+      room, scheduledRoundCount: 3, playedRoundCount: 1, roundMisses: { 0: 0 }, roundStandards: { 0: 'A.5A' }, answeredCounts: { 0: 2 },
+      players: [...LIVE_PLAYERS.map((player) => ({ ...player, joined: player.roundsAnswered > 0 })), { playerKey: 'p4', alias: 'Bright Lark', studentId: '910004', joined: false }],
+      finishedAt: Date.now(),
+    }),
+    roomId: LOBBY_ROOM_ID,
+  };
+  await page.evaluate(({ roomId, email, challengeReport }) => {
+    const store = window.__mmHarnessStore;
+    store.set(`liveChallengeReports/${roomId}`, challengeReport);
+    store.update(`liveChallengeRooms/${roomId}`, { status: 'finished', phase: 'finished', finishedAt: Date.now() });
+    // A finished game has no active pointer (the console keeps the room it hosted).
+    store.remove(`liveChallengeTeacherActive/${email}`);
+  }, { roomId: LOBBY_ROOM_ID, email: TEACHER_EMAIL, challengeReport: report });
+  await hostConsoleStage(page, 'completed');
+  await page.getByRole('heading', { name: 'After the game' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+
+// Graph the Line's report, whose blocks are headed tables (teacher features walk, item 11). After the classic game the
+// teacher chooses New Challenge, and the class plays a Graph the Line Sprint, written into the store as the server writes
+// one: the room in its lobby with the teacher's pointer to it (how the console finds a game), then the game over, the
+// pointer gone and the report written (writeLiveChallengeReportFromResult: the classic report's totals and, under
+// `lineGraph`, the mode's own breakdown, built here by the server's buildChallengeReport and buildLineGraphReport). By
+// form, by what students do, the class's mistakes, and "By student", opened as a teacher opens it, so its list is audited.
+const LINE_ROOM_ID = 'a11y-teacher-line-room';
+const LINE_ROOM = { title: 'Period 3 Line Sprint', className: 'Algebra II — Period 3', courseId: 'algebra2', standardCode: 'mixed', roundSeconds: 240 };
+const lineBucket = (questions, completed, attempts, hits) => ({ questions, completed, attempts, hits });
+// Each player's own line work, as the server keeps it (the standing's questionSetSummary).
+const LINE_PLAYERS = [
+  { playerKey: 'p1', alias: 'Swift Otter', studentId: '910001', summary: {
+    questions: 5, completed: 4, skipped: 0, attempts: 6, hits: 4,
+    byTag: { form: { slopeIntercept: lineBucket(3, 3, 3, 3), standard: lineBucket(2, 1, 3, 1) }, itemType: { graph: lineBucket(3, 3, 4, 3), name: lineBucket(2, 1, 2, 1) } },
+    byTier: { standard: lineBucket(5, 4, 6, 4) }, mistakes: { slopeSign: 1, offTrack: 1 },
+  } },
+  { playerKey: 'p2', alias: 'Quick Fox', studentId: '910002', summary: {
+    questions: 5, completed: 3, skipped: 1, attempts: 7, hits: 3, extraTimeCompleted: 1,
+    byTag: { form: { slopeIntercept: lineBucket(3, 2, 4, 2), standard: lineBucket(2, 1, 3, 1) }, itemType: { graph: lineBucket(3, 2, 4, 2), name: lineBucket(2, 1, 3, 1) } },
+    byTier: { standard: lineBucket(5, 3, 7, 3) }, mistakes: { interceptSign: 2, slopeSign: 1, offTrack: 1 },
+  } },
+  { playerKey: 'p3', alias: 'Calm Heron', studentId: '910003', summary: {
+    questions: 5, completed: 2, skipped: 2, attempts: 5, hits: 2,
+    byTag: { form: { slopeIntercept: lineBucket(2, 1, 2, 1), standard: lineBucket(3, 1, 3, 1) }, itemType: { graph: lineBucket(5, 2, 5, 2) } },
+    byTier: { standard: lineBucket(5, 2, 5, 2) }, mistakes: { rightSlope: 2, horizontalVertical: 1 },
+  } },
+];
+const openLineGraphReport = async (page) => {
+  const { normalizeLineGraphConfig } = await import('../../functions/shared/lineGraphConfig.mjs');
+  const { buildLineGraphReport } = await import('../../functions/shared/lineGraphAttempts.mjs');
+  const { buildChallengeReport } = await import('../../functions/shared/liveChallengeReport.mjs');
+  // Programmatic, like the sidebar: on a phone a sticky bar can sit over a real click.
+  await workspaceMain(page).getByRole('button', { name: 'New Challenge', exact: true }).evaluate((button) => button.click());
+  await page.getByRole('heading', { name: 'Create a challenge' }).waitFor({ timeout: 30_000 });
+  // A Sprint of five lines a student, as each player's work below is.
+  const config = normalizeLineGraphConfig({ itemTypes: ['graph', 'name'], forms: ['slopeIntercept', 'standard'], difficulty: 'standard', sprintLength: 5 }, { format: 'sprint' });
+  await page.evaluate(({ roomId, email, room, lineGraphConfig, players }) => {
+    const store = window.__mmHarnessStore;
+    const now = Date.now();
+    store.set(`liveChallengeRooms/${roomId}`, {
+      ...room, schemaVersion: 2, roomId, status: 'lobby', hostEmail: email, teacherEmail: email, classId: 'c-alg2-p3', classPeriod: 'Period 3',
+      challengeMode: 'lineGraphSprint', scoringStrategyId: 'correctCount', questionStyle: 'any', roundCount: 1, timingMode: 'fixed', currentRound: -1,
+      currentQuestion: null, roundStartedAt: null, roundEndsAt: null, createdAt: now, lobbyOpenedAt: now, lineGraph: { config: lineGraphConfig, generatorVersion: 1 },
+    });
+    for (const { playerKey, alias } of players) {
+      store.set(`liveChallengeRooms/${roomId}/players/${playerKey}`, { playerKey, alias, joined: true, score: 0, correctCount: 0, roundsAnswered: 0, streak: 0, answeredRound: -1 });
+    }
+    store.set(`liveChallengeTeacherActive/${email}`, { roomId, status: 'lobby' });
+  }, { roomId: LINE_ROOM_ID, email: TEACHER_EMAIL, room: LINE_ROOM, lineGraphConfig: config, players: LINE_PLAYERS });
+  await hostConsoleStage(page, 'lobby');
+  // A Correct Count game: a player's score is the lines they got right.
+  const final = LINE_PLAYERS.map(({ playerKey, alias, studentId, summary }) => ({ playerKey, alias, studentId, joined: true, score: summary.completed, correctCount: summary.completed, roundsAnswered: 1, answeredRound: 0 }));
+  const lineGraph = buildLineGraphReport({ standings: final.map((player, index) => ({ ...player, rank: index + 1, questionSetSummary: LINE_PLAYERS[index].summary })) });
+  const report = {
+    ...buildChallengeReport({
+      room: LINE_ROOM, scheduledRoundCount: 1, playedRoundCount: 1, finishedAt: Date.now(),
+      players: [...final, { playerKey: 'p4', alias: 'Bright Lark', studentId: '910004', joined: false }],
+    }),
+    lineGraph, classAccuracyPercent: lineGraph.accuracyPercent, rounds: [], standards: [], weakestStandard: null, roomId: LINE_ROOM_ID,
+  };
+  await page.evaluate(({ roomId, email, players, challengeReport }) => {
+    const store = window.__mmHarnessStore;
+    for (const player of players) store.update(`liveChallengeRooms/${roomId}/players/${player.playerKey}`, player);
+    store.set(`liveChallengeReports/${roomId}`, challengeReport);
+    store.update(`liveChallengeRooms/${roomId}`, { status: 'finished', phase: 'finished', finishedAt: Date.now() });
+    store.remove(`liveChallengeTeacherActive/${email}`);
+  }, { roomId: LINE_ROOM_ID, email: TEACHER_EMAIL, players: final, challengeReport: report });
+  await hostConsoleStage(page, 'completed');
+  await page.getByRole('heading', { name: 'By form, hardest first' }).waitFor({ timeout: 30_000 });
+  const breakdown = workspaceMain(page).locator('[data-mm-line-report="summary"]');
+  await breakdown.locator('summary', { hasText: 'By student (game names)' }).evaluate((summary) => summary.click());
+  await breakdown.locator('details[open] li').first().waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(1200);
+};
+
+// Google Classroom once it is connected (the November build's section 6). The harness's teacher has not connected it,
+// which the screen's first scene audits; here the harness is told the account is connected (teacherWorkflow/
+// fakeAdminScreens.js, GOOGLE CLASSROOM, CONNECTED: three active courses, the first mapped to Algebra II — Period 3), and
+// the screen is opened again, as a teacher comes back to it once connected. It loads the courses itself
+// (listGoogleCourses) and takes the first for the roster, and is read once the courses' sections have drawn.
+const openClassroomConnected = async (page) => {
+  await page.evaluate(() => { window.__mmHarness.classroomConnected = true; });
+  await goHome(page);
+  await openDestination('Google Classroom', /^Google Classroom Manager$/)(page);
+  await workspaceMain(page).getByText('2. Map Google Classroom courses to MathMaster classes').waitFor({ timeout: 30_000 });
+  await workspaceMain(page).getByText('ID-only students: paste an identity list (optional)').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -448,6 +750,8 @@ export const TEACHER_SCREENS = [
     // pop-ups are driven by accessibilityTeacherMenus.mjs.
     { id: 'class-list', run: openClassList, include: '[role="listbox"][aria-label="Class"]', keyboard: false },
     { id: 'card-menu', run: openCardMenu, include: '[data-assignment-menu]', keyboard: false },
+    // The fifth slice: Create and Assign opened, the page audited and walked whole.
+    { id: 'create', run: openCreateAndAssign },
   ]),
   // A modal drawer: the page behind its scrim is not what a person is reading,
   // so the audit is of the drawer (the page is teacher-assignments, above).
@@ -464,12 +768,22 @@ export const TEACHER_SCREENS = [
   ]),
   teacherScreen('teacher-preflight', [
     { id: 'details', run: openPreflight },
+    // The fifth slice: the step that says which classes receive the lesson.
+    { id: 'classes', run: preflightStep('Classes') },
     { id: 'delivery', run: preflightStep('Delivery') },
     { id: 'check', run: preflightStep('Check') },
   ], { include: '[aria-label="Lesson pre-flight review"]' }),
   teacherScreen('teacher-live-challenge', [
     { id: 'setup', run: openLiveChallenge },
     { id: 'lobby', run: openLiveChallengeLobby },
+    // The fifth slice: the same game played on (a round, the projector during it, the round's results, the game
+    // over with its report). The projector is a layer over the whole page: audited as itself.
+    { id: 'round', run: openLiveChallengeRound },
+    { id: 'projector', run: openLiveChallengeProjector, include: PROJECTOR },
+    { id: 'results', run: openLiveChallengeResults },
+    { id: 'final', run: openLiveChallengeFinal },
+    // Then New Challenge, and a Graph the Line game over, with its report (teacher features walk, item 11).
+    { id: 'line-final', run: openLineGraphReport },
   ]),
   teacherScreen('teacher-classes', [
     { id: null, run: openDestination('Classes', /^Classes$/) },
@@ -480,11 +794,25 @@ export const TEACHER_SCREENS = [
     // A modal drawer: audited as the drawer, as the Assignment Hub is, and not the page behind its scrim.
     { id: 'drawer', run: openStudentDrawer, include: '[data-student-profile-drawer]' },
   ]),
+  // The fifth slice: a student's detail page (the Students screen's "Open"), six of its seven views.
+  teacherScreen('teacher-student-detail', STUDENT_DETAIL_VIEWS.map(([id, label]) => ({ id, run: openStudentDetailView(label) }))),
   teacherScreen('teacher-library', [{ id: null, run: openDestination('Library', /Library/) }]),
   teacherScreen('teacher-weekly-path', [{ id: null, run: openDestination('Weekly Path', /^Weekly Path/) }], { open: (page, origins) => openTeacherApp(page, origins, '&weeklyPath=ok') }),
   teacherScreen('teacher-action-center', [{ id: null, run: openDestination('Action Center', /^Action Center$/) }]),
-  teacherScreen('teacher-grade-export', [{ id: null, run: openDestination('Grade Export', /^Grade Export$/) }]),
-  teacherScreen('teacher-secure-exams', [{ id: null, run: openDestination('Secure Exams', /^My Course Tests$/) }], { open: openTeacherAppWithTestCycle }),
+  teacherScreen('teacher-grade-export', [
+    { id: null, run: openDestination('Grade Export', /^Grade Export$/) },
+    // The fifth slice: the flow after the first screen.
+    { id: 'review', run: openGradeExportReview, include: GRADE_EXPORT_REVIEW },
+    { id: 'selection', run: selectGradeExports },
+    { id: 'district-ids', run: openDistrictIds },
+  ]),
+  teacherScreen('teacher-secure-exams', [
+    { id: null, run: openDestination('Secure Exams', /^My Course Tests$/) },
+    // The fifth slice: the flow after the first screen.
+    { id: 'session', run: createPracticeTestSession },
+    { id: 'delete', run: openTestCycleDelete },
+    { id: 'preview', run: openTestCyclePreviewScene, include: TEST_CYCLE_PREVIEW },
+  ], { open: openTeacherAppWithTestCycle }),
   teacherScreen('teacher-pacing', [{ id: null, run: openDestination('Curriculum Pacing', /^Curriculum pacing/i) }]),
   teacherScreen('teacher-attendance', [{ id: null, run: openDestination('Attendance History', /^Attendance History$/) }]),
   teacherScreen('teacher-parent-contacts', [{ id: null, run: openDestination('Parent Contacts', /^Parent Contact Center$/) }]),
@@ -514,7 +842,11 @@ export const TEACHER_SCREENS = [
   ], { include: FIND_DIALOG }),
   teacherScreen('teacher-demo', [{ id: null, run: openDestination('Demo Experience', /^Avery Daniels$/) }]),
   teacherScreen('teacher-schedule', [{ id: null, run: openDestination('Class & Bell Schedule', /A\/B Bell Schedule/) }]),
-  teacherScreen('teacher-classroom', [{ id: null, run: openDestination('Google Classroom', /^Google Classroom Manager$/) }]),
+  teacherScreen('teacher-classroom', [
+    { id: null, run: openDestination('Google Classroom', /^Google Classroom Manager$/) },
+    // Once connected: the courses (listGoogleCourses, which the harness now answers) and what they open.
+    { id: 'connected', run: openClassroomConnected },
+  ]),
   teacherScreen('teacher-access', [{ id: null, run: openDestination('Student Access', /^Student Access$/) }]),
   // The administrator's workspace: the harness's root-admin teacher, its Administration view, and each of its five sections.
   teacherScreen('teacher-admin', ADMIN_SECTIONS.map(([id, label]) => ({ id, run: openAdministration(label) })), { open: (page, origins) => openTeacherApp(page, origins, '&rootAdmin=1') }),

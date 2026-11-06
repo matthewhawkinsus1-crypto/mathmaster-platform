@@ -357,7 +357,7 @@ export function ChallengeRound({
     if (delayMs === null) {
       // Still locked and kept; the Retry button sends it.
       setWaitingForGo(false);
-      setSubmitError('Your answer is locked in but was not sent. Tap Retry locked answer to send it.');
+      setSubmitError('Your answer is locked in but was not sent. Press Retry locked answer to send it.');
       return;
     }
     resendsAtGoRef.current += 1;
@@ -1187,14 +1187,31 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+  // The room this screen has had in front of the student since the last
+  // server copy it compared: visible, and with no cached (offline) copy in
+  // between. Hidden (a sleeping phone, another tab) or offline, it is away.
+  // A game ended while its round was open — the teacher's End Game, or the
+  // server ending a Pace Race round (N73) — ended in front of a student who
+  // was watching, and "closed while you were away" would be false.
+  const watchingRef = useRef(null);
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const leave = () => { if (document.visibilityState === 'hidden') watchingRef.current = null; };
+    document.addEventListener('visibilitychange', leave);
+    return () => document.removeEventListener('visibilitychange', leave);
+  }, []);
+  useEffect(() => { if (!online) watchingRef.current = null; }, [online]);
+  useEffect(() => {
+    if (roomFromCache) watchingRef.current = null;
     if (!roomId || !playerKey || !room || room.roomId !== roomId || roomFromCache || !everInSync) return;
     const now = seenRoundOf(room);
     if (!now) return;
+    const present = watchingRef.current === roomId;
+    watchingRef.current = typeof document !== 'undefined' && document.visibilityState === 'hidden' ? null : roomId;
     const storage = tabStorage();
     const lastSeen = readLastSeenRound(storage, roomId);
     writeLastSeenRound(storage, roomId, now);
-    const rounds = roundsClosedWhileAway({ lastSeen, now, joinedAtRound, finished: room.status === 'finished' });
+    const rounds = roundsClosedWhileAway({ lastSeen, now, joinedAtRound, finished: room.status === 'finished', present });
     if (!rounds.length) return;
     const scheduledRoundCount = Number(room.scheduledRoundCount || room.roundCount) || 0;
     // Not cancelled by the next snapshot: the memory above has already moved
@@ -1311,7 +1328,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <ChallengeShellStyles />
       <GrandPrixStyles />
       <div data-mm-student-stage={stage} style={{ maxWidth: 900, margin: '0 auto' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+        {/* data-mm-under-round: hidden while a full-screen round covers it (grandPrixTheme.js). */}
+        <header data-mm-under-round="" style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
             <div style={{ color: '#ffd23f', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '.08em' }}><span className="mm-gp-checker" aria-hidden="true" style={{ marginRight: 8 }} />MathMaster Live Challenge</div>
             <h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', fontStyle: 'italic', color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
@@ -1338,7 +1356,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{error}</div>}
         {missedNotice && (
-          <div role="status" data-mm-missed-rounds="1" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 }}>
+          <div role="status" data-mm-missed-rounds="1" data-mm-under-round="" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 }}>
             <span>{missedNotice}</span>
             <button type="button" onClick={() => setMissedNotice('')} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
           </div>

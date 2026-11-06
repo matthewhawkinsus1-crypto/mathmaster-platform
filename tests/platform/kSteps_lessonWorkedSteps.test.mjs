@@ -33,8 +33,12 @@
  *             sorts, by number of terms (opp-cw-1) and always, sometimes or
  *             never (opp-pr-15). Each card is read from its own expression, and
  *             each example's result is checked for what the step says it is.
- *             Its DOL (opp-dol-3; dp-dol-1 in Dividing Polynomials) is an exit
- *             ticket its lessons give no worked solution, and is left as it is.
+ *             Its exit ticket's profit item (opp-dol-3), and the term-by-term
+ *             division of Dividing Polynomials' (dp-dol-1): each typed part
+ *             stated in its step and marked right by its own grader, every "="
+ *             checked. An exit ticket shows its steps only once it closes
+ *             (afterAssignmentSubmit), and names its mistake with no ";", so
+ *             nothing is said while it is open.
  *   Models    The seven-step relationship models (input and output, function,
  *             table, discrete or continuous, graph, domain, range) of Algebra II
  *             Honors Module 1 Lesson 1 Day 2 (chocolate bars, a shower head) and
@@ -187,6 +191,9 @@ const MATRICES = 'teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Sys
 // A matrix's rows as numbers. (A stored copy holds each row as { cells }: Firestore holds no array of arrays.)
 const matrixRows = (matrix) => matrix.rows.map((row) => (Array.isArray(row) ? row : row.cells));
 const POLY_OPS = 'teacher-import-jsons/algebra2-honors-module2/L1_Operations_on_Polynomials.json';
+const POLY_DIV = 'teacher-import-jsons/algebra2-honors-module2/L2_Dividing_Polynomials.json';
+// A quotient's letters are never 0: x and y as the samples draw them, but not x = 0.
+const NONZERO = Object.freeze([{ x: '-3', y: '-2' }, { x: '1/2', y: '1/3' }, { x: '2', y: '4' }, { x: '7', y: '-2' }]);
 // An expression's terms as printed: the parts joined by " + " or " − " outside parentheses.
 const termsOf = (expression) => {
   let depth = 0;
@@ -887,6 +894,47 @@ const ITEMS = Object.freeze([
     },
   },
   {
+    files: [POLY_OPS],
+    questionId: 'opp-dol-3',
+    commonError: true,
+    // Only the first term of the cost taken away, carried through: the slip its common error names.
+    slips: { profit: ['−0.002x² + 16x + 350'], value: ['7850'] },
+    parts: { setup: [0, '12x − (0.002x² + 4x + 350)'], profit: [2, '−0.002x² + 8x − 350'], value: [3, '3150'] },
+    define: ['C(x) = 0.002x^2 + 4x + 350', 'R(x) = 12x', 'P(x) = R(x) - C(x)'],
+    claims: [
+      [0, 'P(x) = R(x) − C(x) = 12x − (0.002x² + 4x + 350)'],
+      [2, 'P(x) = −0.002x² + 8x − 350'],
+      [3, 'P(500) = −0.002(500)² + 8(500) − 350 = −500 + 4000 − 350 = 3150'],
+      ['summary', 'P(x) = 12x − (0.002x² + 4x + 350) = −0.002x² + 8x − 350'], ['summary', 'P(500) = 3150'],
+    ],
+    summary: [['12x − (0.002x² + 4x + 350)', ['setup']], ['−0.002x² + 8x − 350', ['profit']], ['P(500) = 3150', ['value']]],
+    // The cost and the revenue are the prompt's; the distributed line is the bracket taken away.
+    check: ({ question, review }) => {
+      assert.ok(question.prompt.includes('C(x) = 0.002x² + 4x + 350') && question.prompt.includes('R(x) = 12x'), question.prompt);
+      const distributed = /: (12x − 0\.002x² − 4x − 350)\.$/.exec(review.reasoning[1]);
+      assert.ok(distributed && claimHolds(`${distributed[1]} = 12x − (0.002x² + 4x + 350)`), review.reasoning[1]);
+    },
+  },
+  {
+    files: [POLY_DIV],
+    questionId: 'dp-dol-1',
+    commonError: true,
+    // The last term dropped: the slip its common error names.
+    slips: { t3: ['0'], quotient: ['2x²y − 3x'] },
+    parts: { t1: [1, '2x²y'], t2: [2, '−3x'], t3: [2, '1'], quotient: [3, '2x²y − 3x + 1'] },
+    claims: [
+      [1, '12x⁴y² ÷ (6x²y) = 2x²y', NONZERO], [1, '12 ÷ 6 = 2'], [1, 'x⁴ ÷ x² = x²', NONZERO], [1, 'y² ÷ y = y', NONZERO],
+      [2, '−18x³y ÷ (6x²y) = −3x', NONZERO], [2, '6x²y ÷ (6x²y) = 1', NONZERO],
+    ],
+    summary: [['divide to 2x²y, −3x and 1', ['t1', 't2', 't3']], ['the quotient is 2x²y − 3x + 1', ['quotient']]],
+    // The three quotients are the prompt's terms, each over the monomial, and they add to the quotient.
+    check: ({ question, review }) => {
+      assert.ok(question.prompt.includes('\\frac{12x^4y^2 - 18x^3y + 6x^2y}{6x^2y}'), question.prompt);
+      assert.ok(claimHolds('(12x⁴y² − 18x³y + 6x²y) ÷ (6x²y) = 2x²y − 3x + 1', { at: NONZERO }));
+      assert.ok(review.reasoning[3].endsWith('the quotient is 2x²y − 3x + 1.'), review.reasoning[3]);
+    },
+  },
+  {
     files: [ALEKS],
     questionId: 'q_practice-absolute-value-focus_3_3',
     raw: { sectionId: 'practice-absolute-value-focus', prompt: 'For the absolute value parent function f(x)=|x|, identify its vertex, domain, and range.' },
@@ -980,7 +1028,8 @@ test('the closed review shows each item\'s own worked steps, in every copy, whol
   assert.equal(ITEMS.filter((item) => item.files.includes(L2)).length, 14, 'the 14 Lesson 2 items');
   assert.equal(ITEMS.filter((item) => item.files.includes(DOL1)).length, 10, 'ten of the DOL #1 review');
   assert.equal(ITEMS.filter((item) => item.files.includes(MATRICES)).length, 4, 'four of the matrices lesson');
-  assert.equal(ITEMS.filter((item) => item.files.includes(POLY_OPS)).length, 2, 'the two sorts of Operations on Polynomials');
+  assert.equal(ITEMS.filter((item) => item.files.includes(POLY_OPS)).length, 3, 'the two sorts of Operations on Polynomials and its exit ticket\'s profit');
+  assert.equal(ITEMS.filter((item) => item.files.includes(POLY_DIV)).length, 1, 'the term-by-term division of Dividing Polynomials\' exit ticket');
   assert.equal(ITEMS.filter((item) => item.files.includes(ALEKS) || item.files.includes(L2_DAY2)).length, 2, 'the two |x| items');
   assert.equal(ITEMS.filter((item) => item.kind === 'model').length, 6, 'six relationship models: three of DOL #1, two of L1 Day 2, DOL #3\'s in both files');
   for (const { item, path, source, question } of everyCopy) {
@@ -1166,6 +1215,9 @@ test('every "=" the review writes is a checked claim or a given the item shows, 
       const givens = (item.givens || []).filter(([where]) => where === at);
       claims.forEach(([, claim, values]) => {
         assert.ok(line.includes(claim), `${source}: ${at} writes ${claim}`);
+        // The claim is the whole of what the line writes there: "= 2x²y" is not
+        // the start of "= 2x²y²", "= 31" of "= 315", nor "= 2x" of "= 2x + 1".
+        assert.ok(line.split(claim).slice(1).every((after) => !/^([\w⁰¹²³⁴⁵⁶⁷⁸⁹^(/]|\.\d| [+−×·÷] )/u.test(after)), `${source}: ${at} writes ${claim} and no more`);
         assert.ok(claimHolds(claim, { define: item.define || [], at: values || null }), `${source}: ${claim}`);
         checked += 1;
       });
@@ -1194,15 +1246,18 @@ test('the words are plain and short, and nothing changes while the item is open'
     }
     // A common error's mistake half, the part before a ";", is said on a miss
     // (FB04, attemptFeedbackPlan.js). Most of these reviews name none; the
-    // Operations on Polynomials sorts name one, as every review of that lesson
-    // does, with no ";", so FB04 says nothing whatever the student sends: each
-    // card, each category; and the DOL #3 model keeps the one it had. An open
-    // item's feedback is what it was.
+    // Operations on Polynomials sorts and the two polynomial exit tickets name
+    // one, as every review of those lessons does, with no ";", so FB04 says
+    // nothing whatever the student sends: each card, each category, each
+    // choice, the slip the error names; and the DOL #3 model keeps the one it
+    // had. An open item's feedback is what it was.
     if (item.commonError) {
       assert.ok(text(authored.commonError) && !authored.commonError.includes(';'), `${source}: a common error FB04 never says`);
-      const stage = figureStage(question);
-      [...stage.items.map((card) => card.text), ...stage.categories.flatMap((category) => [category.id, category.label])].forEach((response) => {
-        assert.equal(commonErrorMiss({ question, parts: [{ id: stage.id, isCorrect: false, response }] }), null, `${source}: nothing said for ${response}`);
+      const sent = item.kind === 'figureMatch'
+        ? (({ id, items, categories }) => [...items.map((card) => card.text), ...categories.flatMap((category) => [category.id, category.label])].map((response) => [id, response]))(figureStage(question))
+        : question.answerFields.flatMap((field) => [...(field.options || []).map(text), ...(item.slips?.[field.id] || []).map(typed)].map((response) => [field.id, response]));
+      sent.forEach(([id, response]) => {
+        assert.equal(commonErrorMiss({ question, parts: [{ id, isCorrect: false, response }] }), null, `${source}: nothing said for ${response}`);
       });
     } else if (item.before) {
       // A review written around a common error the item already had keeps it, word for word.

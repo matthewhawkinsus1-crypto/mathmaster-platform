@@ -17,6 +17,11 @@
  *   Q6  the same case one Distribute later, as a draft saved before job Q
  *       still holds it: 2x + (1)(-4x) + (1)(12) = 2
  *   Q7  a subtracted variable: 3x - y = 4 after y = -4x + 12
+ *   Q8  -2x = -10 (÷ −2 shows (−10)/(−2); pass 3, Q-13 / Q-31)
+ *   Q9  AX32: two fractions to choose between for Split fraction
+ *   Q10 AX32: a fraction with common factors, for Cancel factors
+ *   Q11 AX32: two terms to put in another order, for Arrange terms
+ *   Q12 AX32: an inequality, which opens the relation workspace
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -38,6 +43,11 @@ const QUESTIONS = [
   Object.freeze({ questionId: 'st-q7-subtracted', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '3 * x - 1 * (-4 * x + 12) = 4', solveFor: 'x' }),
   // Pass 3 Q-13 / Q-31: ÷ −2 shows (−10)/(−2), and −2x has no gap.
   Object.freeze({ questionId: 'st-q8-divide-negative', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '-2x = -10', solveFor: 'x' }),
+  // AX32: each Rewrite tool's directions, and the keys they name, driven by keyboard alone.
+  Object.freeze({ questionId: 'st-q9-split', type: 'stepAlgebra', prompt: 'Rewrite y = (6 − 5x)/2 + (4 − x)/3 in slope-intercept form.', equation: 'y = (6 - 5x)/2 + (4 - x)/3', solveFor: 'y', targetForm: 'slopeIntercept' }),
+  Object.freeze({ questionId: 'st-q10-reduce', type: 'stepAlgebra', prompt: 'Rewrite y = 6x/4 + 3 in slope-intercept form.', equation: 'y = 6x/4 + 3', solveFor: 'y', targetForm: 'slopeIntercept' }),
+  Object.freeze({ questionId: 'st-q11-arrange', type: 'stepAlgebra', prompt: 'Rewrite y = 3 − 5x in slope-intercept form.', equation: 'y = 3 - 5x', solveFor: 'y', targetForm: 'slopeIntercept' }),
+  Object.freeze({ questionId: 'st-q12-relation', type: 'stepAlgebra', prompt: 'Solve the inequality.', equationLatex: '3x + 6 < 21' }),
 ];
 
 const params = new URLSearchParams(window.location.search);

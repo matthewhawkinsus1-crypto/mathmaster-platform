@@ -57,7 +57,9 @@ export const screenChangeMovesFocus = (nextKey = '') => !String(nextKey || '').s
 /**
  * The new screen's top heading: the first visible h1 inside the main landmark,
  * else the first visible h1 anywhere, else the main landmark itself. Null
- * while the screen is still loading (a lazy screen draws its heading later).
+ * while the screen is still loading (a lazy screen draws its heading later):
+ * also inside the shell's own main, where a student screen whose code is on
+ * its way says so with aria-busy (app/lazyScreens.js, PF01).
  */
 export const screenHeadingTarget = (doc) => {
   if (!doc) return null;
@@ -68,6 +70,7 @@ export const screenHeadingTarget = (doc) => {
   }
   const heading = [...doc.querySelectorAll('h1')].find(visible);
   if (heading) return heading;
+  if ([...doc.querySelectorAll('[aria-busy="true"]')].some(visible)) return null;
   return mains[0] || null;
 };
 
@@ -95,4 +98,53 @@ export const focusScreenHeading = (doc) => {
   if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
   target.focus({ preventScroll: true });
   return target;
+};
+
+/*
+ * HOW LONG A SCREEN CHANGE LOOKS FOR ITS HEADING.
+ *
+ * A lazy screen draws its heading a moment after the change. One that waits
+ * for its data first (My Math Path's "Loading My Math Path…") can take
+ * longer on a slow connection, and the shell stopped looking at 2 s: the
+ * name was said, and focus stayed on the page. The name is still said once
+ * the heading has focus, or at SCREEN_NAME_WAIT_MS at the latest. The
+ * heading is still focused when it lands, up to SCREEN_HEADING_WAIT_MS,
+ * while focus is where the change left it: never away from where the
+ * student put it in the meantime.
+ */
+export const SCREEN_NAME_WAIT_MS = 2000;
+export const SCREEN_HEADING_WAIT_MS = 15000;
+
+/**
+ * Focus is where a screen change left it: on the page itself, on a node that
+ * unmounted, or still on what had it when the change began (the place the
+ * student pressed, which the shell keeps).
+ */
+export const focusWhereChangeLeftIt = (doc, from = null) => {
+  const active = doc?.activeElement;
+  if (!active || active === doc.body || active === doc.documentElement) return true;
+  if (active.isConnected === false) return true;
+  return Boolean(from) && active === from;
+};
+
+/**
+ * One look while a student screen change settles (App.jsx). Focuses the new
+ * screen's heading once it is drawn, and says the screen's name once: when
+ * the heading has focus, or at SCREEN_NAME_WAIT_MS. Returns the milliseconds
+ * until the next look, or null when the change is settled. `pending` is the
+ * change, { startedAt, from, said }; this sets `said`.
+ */
+export const settleScreenChange = (doc, pending, { now = Date.now(), movesFocus = true, announce = () => {} } = {}) => {
+  // Once the name has been said, look only while focus is where the change
+  // left it: a heading that lands as the student moves on never takes focus.
+  if (pending.said && !focusWhereChangeLeftIt(doc, pending.from)) return null;
+  const focused = movesFocus ? focusScreenHeading(doc) : true;
+  const waited = now - pending.startedAt;
+  if (!focused && waited < SCREEN_NAME_WAIT_MS) return 100;
+  if (!pending.said) {
+    pending.said = true;
+    announce();
+  }
+  if (!focused && waited < SCREEN_HEADING_WAIT_MS && focusWhereChangeLeftIt(doc, pending.from)) return 250;
+  return null;
 };

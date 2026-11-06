@@ -4,8 +4,9 @@ import { zoomedWindow } from './graphWorkspaceViewport.js';
 import { clientPointToViewBox, viewBoxRenderScale } from './utils/responsiveCoordinates.js';
 import { revealInNearestScroller } from './platform/workView/workViewReveal.js';
 import { majorTicks } from './platform/graph/graphScaleService.js';
-import { describeGraphWorkspace } from './platform/language/graphWorkspaceDescription.js';
-import { PublishFigureReading } from './platform/language/figureReadings.js';
+import { graphWorkspaceReading } from './platform/language/graphWorkspaceDescription.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from './platform/language/figureReadings.js';
+import { namedIn } from './platform/language/figureNames.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import MathText from './components/common/MathText.jsx';
@@ -102,6 +103,13 @@ const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined
 const markerLabels = { arrow: 'Arrow', open: 'Open Circle', closed: 'Closed Circle' };
 // Said for the arrow-key cursor and the typed entry alike, so it names neither.
 const CHOOSE_A_POINT_FIRST = 'Choose which point you are placing first.';
+// How the plane is worked without a pointer, for the end of a placement hint (AX32). The
+// point cards and the end markers are buttons (Enter selects one) and the plane is a tab
+// stop: its arrow keys move a crosshair and its Enter places the selected point or marker
+// there (tests/browser/graphKeyboardRoute.mjs). The plane's own sentence, "From the
+// keyboard, focus the grid and use the arrow keys and Enter", with the selecting first.
+const POINT_CARD_KEYS = 'From the keyboard, select a point card, then focus the plane and use the arrow keys and Enter.';
+const MARKER_KEYS = 'From the keyboard, select a marker, then focus the plane and use the arrow keys and Enter.';
 const markerExplanations = { arrow: 'Function continues', open: 'Endpoint excluded', closed: 'Endpoint included' };
 const markerSymbols = { arrow: '➤', open: '○', closed: '●' };
 const markerValue = (placement) => typeof placement === 'string' ? placement : placement?.marker || '';
@@ -1169,7 +1177,8 @@ export default function InteractiveGraphWorkspace({
   // What the plane shows, in words (student pass 3, Q-8): the student's own
   // points, strokes, graph ends and selections; a given graph only as drawn.
   // Never whether any of it is right (graphWorkspaceDescription.js).
-  const workspaceDescription = describeGraphWorkspace({
+  // `workspaceSay`: the same reading as messages, for Read aloud in Spanish (AX05).
+  const { text: workspaceDescription, say: workspaceSay } = graphWorkspaceReading({
     window: renderWindow,
     givenGraph: mode === 'analysis' && !pointOnly,
     placedPoints: constructionEnabled
@@ -1190,6 +1199,11 @@ export default function InteractiveGraphWorkspace({
       ? analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => analysis.selections[part.id] || [])
       : [],
   });
+  // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = describedIn(figureWords, workspaceDescription, workspaceSay);
+  // The plane's name in the same language, marked with it (AX05, slice 4).
+  const planeName = namedIn(figureWords, 'Coordinate plane');
   const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
   const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !pointsLocked);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
@@ -1209,6 +1223,22 @@ export default function InteractiveGraphWorkspace({
     : (question.showEquation === true || promptNamesEquation)
       ? String(question.equationLatex || '').trim() || formatGraphEquationLatex(functionSpec)
       : '';
+  /*
+   * AN INTERVAL BOX FITS THE INTERVAL TYPED IN IT (walkthrough 2026-11-06,
+   * P-2). At 1366×768 the rail was 220px and each interval box 120px beside its
+   * keypad button, so a typed (−∞, ∞) showed as "−∞, ∞", both brackets cut off,
+   * and (−∞, 0) ∪ (0, ∞) scrolled inside its box. In an interval the brackets
+   * are the answer. A question that asks for one gets a 270px rail, for every
+   * stage so the plane does not change size between them, and each interval
+   * box takes its card's whole width in the compact type, its keypad button
+   * under it.
+   *
+   * The rail is 270 of the text's own px (--mm-px), so it grows with the
+   * student's text size as the box's math does: at 200% text it stayed 270px
+   * and a typed (−∞, −1) ∪ (−1, ∞), 361px of math, showed 188px of it
+   * (math-speech-2, item 6). At the default size it is 270px, as before.
+   */
+  const intervalAnswers = analysisParts.some((part) => analysisKeypadProfile(part) === 'interval');
   const domainRangeOnly = stage === 'analysis'
     && analysisParts.length === 2
     && analysisParts.some((part) => part.kind === 'domain')
@@ -1359,7 +1389,7 @@ export default function InteractiveGraphWorkspace({
           <MathDisplay value={graphEquationLatex} format="latex" inline />
         </div>
       )}
-      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 180px), 220px) minmax(0, 1fr)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
+      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}${intervalAnswers ? ' mathmaster-interval-answers' : ''}`} style={{ display: 'grid', gridTemplateColumns: `minmax(min(100%, 180px), ${intervalAnswers ? 'calc(270 * var(--mm-px))' : '220px'}) minmax(0, 1fr)`, gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
         <aside className="mathmaster-function-workspace-sidebar" style={{ border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface-tint)', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
@@ -1368,7 +1398,7 @@ export default function InteractiveGraphWorkspace({
               </h3>
               {!construction.snapped && (
                 <>
-                  <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
+                  <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{mobileInteraction.isMobile ? `Tap a point card, then tap its location on the coordinate plane. ${POINT_CARD_KEYS}` : `Drag a point, or select it and click the coordinate plane. ${POINT_CARD_KEYS} Colored guides show the exact location.`}</p>
                   {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
                   <div style={{ display: 'grid', gap: '8px' }}>
                 {tasks.map((task) => {
@@ -1442,8 +1472,8 @@ export default function InteractiveGraphWorkspace({
               )}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
                 <p style={{ margin: '0 0 8px', fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{endpointInstruction} {outcomesWithheld
-                  ? (mobileInteraction.isMobile ? 'Tap a marker, then tap the end of your curve.' : 'Drag or select a marker, then place it at the end of your curve.')
-                  : (mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.')}</p>
+                  ? (mobileInteraction.isMobile ? `Tap a marker, then tap the end of your curve. ${MARKER_KEYS}` : `Drag or select a marker, then place it at the end of your curve. ${MARKER_KEYS}`)
+                  : (mobileInteraction.isMobile ? `Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place. ${MARKER_KEYS}` : `Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place. ${MARKER_KEYS}`)}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
                   onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter${typedRouteOffer(' below')}.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: 'calc(23 * var(--mm-px))', color: 'var(--mm-primary)' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
                 <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: 'calc(12 * var(--mm-px))', color: placement ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)' }}>{boundaryOnly && endsDescribedForStudent ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
@@ -1501,7 +1531,7 @@ export default function InteractiveGraphWorkspace({
                     {/* Named by its part, as the point cards are. Without a name of
                         its own the field was called by its placeholder — the
                         format example "[2, ∞)" — or, with none, "Math answer". */}
-                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially ariaLabel={toPlainMath(part.label)} placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially compact={analysisKeypadProfile(part) === 'interval'} fieldOwnRow={analysisKeypadProfile(part) === 'interval'} ariaLabel={toPlainMath(part.label)} placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
                   </div>}
                 </div>;
               })}
@@ -1526,8 +1556,9 @@ export default function InteractiveGraphWorkspace({
             the embedded page does not move. */}
         <figure className="mathmaster-function-workspace-graph" data-work-view-reveal="true" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
-            aria-label="Coordinate plane"
+            aria-label={planeName.text}
             aria-describedby={`${workspaceDescriptionId} ${workspaceDescriptionId}-keys`}
+            lang={planeName.lang}
             tabIndex={0}
             onKeyDown={handleGridKeyDown}
             onFocus={() => { if (!keyboardCursor) { const start = defaultCursor(); setKeyboardCursor(start); setKeyboardAnnouncement(`Cursor at ${pointLabel(start)}. Arrow keys move, Enter places.`); } }}
@@ -1609,8 +1640,8 @@ export default function InteractiveGraphWorkspace({
             </g>
           </svg>
           {/* Read through the plane's aria-describedby: what is on it, then its keys. */}
-          <PublishFigureReading entry={{ kind: 'figure', label: 'Graph', text: workspaceDescription }} />
-          <span id={workspaceDescriptionId} data-graph-workspace-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{workspaceDescription}</span>
+          <PublishFigureReading entry={{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay }} />
+          <span id={workspaceDescriptionId} data-graph-workspace-description="" aria-hidden="true" lang={described.lang} style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{describedContent(described)}</span>
           <span id={`${workspaceDescriptionId}-keys`} aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor.</span>
           <figcaption style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : !endsDescribedForStudent ? 'Arrows show continuation; open and closed circles show finite-domain boundaries.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>

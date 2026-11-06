@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 /*
  * App.jsx WIRING FOR THE ONE "TODAY" RULE.
@@ -121,9 +122,11 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
 
 test('Review My Work shows only for closed, released, non-Test-Cycle work — with imports', () => {
   // Lazy, so MathLive (pulled by the solution renderers) stays out of the first load.
-  // Declared in app/lazyScreens.js since the App split; App imports it from there.
-  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const ReviewMyWork = lazy\(\(\) => import\('\.\.\/components\/student\/ReviewMyWork\.jsx'\)\)/);
+  // Declared in app/lazyScreens.js since the App split, as a panel with its own
+  // boundary (lazyStudentScreens.test.mjs); App imports it from there.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /^export const ReviewMyWork = studentPanel\(\(\) => import\('\.\.\/components\/student\/ReviewMyWork\.jsx'\), \{/m);
   assert.match(app, /\bReviewMyWork,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
+  assert.equal(importsComponent('src/App.jsx', 'ReviewMyWork', 'src/components/student/ReviewMyWork.jsx'), 'onDemand');
   assert.match(app, /import \{ loadMyReviewWork \} from '\.\/services\/reviewMyWorkService\.js'/);
   const panel = region(app, 'const resultReviewPanel =', ': null;', 'review panel');
   assert.match(app, /reviewPanel=\{resultReviewPanel\}/);
@@ -133,7 +136,8 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
   // The panel is THIS assignment's review, loaded through the server callable
   // (prop order and any further props — the student's questions for their
   // teacher, D6 — are not the contract).
-  const mount = region(panel, '<ReviewMyWork', '</Suspense>', 'the Review My Work mount');
+  // (To the mount's own closing "/>": the one inside teacherAnswers is followed by "}".)
+  const mount = region(panel, '<ReviewMyWork', '/>\n', 'the Review My Work mount');
   assert.match(mount, /\bassignment=\{recoveryAssignment\}/);
   assert.match(mount, /\bload=\{loadMyReviewWork\}/);
   // The student's own profile rides along for Read aloud and Translate beside

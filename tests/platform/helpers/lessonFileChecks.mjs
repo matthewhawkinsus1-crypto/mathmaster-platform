@@ -123,7 +123,7 @@ export const keyFindings = (questions) => {
 };
 
 const relationText = (relation) => ({ '≤': '<=', '≥': '>=' }[relation] || relation);
-const constraintText = (constraint = {}) => {
+export const constraintText = (constraint = {}) => {
   if (constraint.orientation === 'vertical') return `x ${relationText(constraint.relation)} ${constraint.x}`;
   if (constraint.orientation === 'horizontal') return `y ${relationText(constraint.relation)} ${constraint.y}`;
   if ('m' in constraint) return `y ${relationText(constraint.relation)} (${constraint.m})*x + (${constraint.b})`;

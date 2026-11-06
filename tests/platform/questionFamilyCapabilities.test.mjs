@@ -78,6 +78,18 @@ test('the new versions: pinned only, strict, server-graded, Recovery-ready, and 
   assert.equal(mixed.capacity, smallest * mixed.strata.length);
 });
 
+// matrices.arrayRecordTotals v2 is used by no slot that pins it, yet a new
+// Recovery binding takes it in place of v1 (`recovery.replaces`): the report
+// says so, and says it of no other version.
+test('a version a new Recovery binding takes in place of an earlier one says so, and only that one', () => {
+  assert.deepEqual(
+    report.families.filter((family) => family.recovery.replaces).map((family) => [`${family.id}@${family.version}`, family.recovery.replaces]),
+    [['matrices.arrayRecordTotals@2', [1]]],
+  );
+  assert.match(read(CAPABILITY_MARKDOWN_PATH), /### `matrices\.arrayRecordTotals` v2\n\n[^\n]+\n\n- \*\*Pinning:\*\* used only by a slot that says `"version": 2`[^\n]+\n- \*\*Recovery binding:\*\* a new Recovery binding of a static question takes this version in place of v1;/);
+  assert.doesNotMatch(read(CAPABILITY_MARKDOWN_PATH).replace(/### `matrices\.arrayRecordTotals` v2[\s\S]*?\n### /, ''), /Recovery binding:/);
+});
+
 test('the summary rows a reader sees for the new versions', () => {
   const markdown = read(CAPABILITY_MARKDOWN_PATH);
   assert.match(markdown, /\| `linear\.multiStepEquation` \| v2 · only when pinned \(`"version": 2`\) \| one, none, infinite, mixed \| integer, fraction \| `stepAlgebra` \(equation\) \| yes — shared server grader \| yes \|/);

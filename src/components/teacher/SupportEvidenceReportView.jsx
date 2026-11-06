@@ -100,7 +100,7 @@ function AssignmentCard({ row, expanded }) {
       {row.condition.note && <p className="se-report__note">{row.condition.note}</p>}
       {row.workload?.varianceText?.length > 0 && <p className="se-report__note">{row.workload.varianceText.join(' ')}</p>}
       {row.engagement.note && <p className="se-report__note">{row.engagement.note}</p>}
-      <div className="se-scroll-x" style={{ marginTop: 8 }}>
+      <div className="se-scroll-x" role="region" aria-label="Grade contribution" tabIndex={0} style={{ marginTop: 8 }}>
         <table className="se-table">
           <thead><tr><th>MathMaster grade contribution</th><th>Grade</th><th>Export status</th></tr></thead>
           <tbody>
@@ -112,7 +112,7 @@ function AssignmentCard({ row, expanded }) {
         <p className="se-report__note">{row.gradeImpact.weightNote}</p>
       </div>
       {row.supports.length > 0 && (
-        <div className="se-scroll-x">
+        <div className="se-scroll-x" role="region" aria-label="Supports and their records" tabIndex={0}>
           <table className="se-table">
             <thead><tr><th>Support</th><th>Type</th><th>Record in MathMaster</th></tr></thead>
             <tbody>
@@ -313,7 +313,7 @@ export default function SupportEvidenceReportView({
                 {' '}{report.summary.performance.note}
               </p>
               {report.summary.supports.length > 0 && (
-                <div className="se-scroll-x">
+                <div className="se-scroll-x" role="region" aria-label="Configured supports" tabIndex={0}>
                   <table className="se-table">
                     <thead><tr><th>Support</th><th>Type</th><th>Configured</th><th>Made available / provided</th><th>Used (optional)</th><th>Not applicable · could not be provided</th><th>Staff records</th></tr></thead>
                     <tbody>
@@ -354,7 +354,7 @@ export default function SupportEvidenceReportView({
             <section aria-labelledby="report-timeline">
               <h2 id="report-timeline">4. Support timeline</h2>
               {report.timeline.length ? (
-                <div className="se-scroll-x">
+                <div className="se-scroll-x" role="region" aria-label="Support timeline" tabIndex={0}>
                   <table className="se-table">
                     <thead><tr><th>When</th><th>What</th><th>Details</th><th>How known</th></tr></thead>
                     <tbody>
@@ -377,7 +377,7 @@ export default function SupportEvidenceReportView({
               <h2 id="report-service">5. Service / support summary</h2>
               <p className="se-report__note">{report.service.disclaimer}</p>
               {report.service.weeks.length ? (
-                <div className="se-scroll-x">
+                <div className="se-scroll-x" role="region" aria-label="Weekly service minutes" tabIndex={0}>
                   <table className="se-table">
                     <thead><tr><th>Week of</th><th>Recorded minutes</th><th>Entries</th>{report.service.expectations.map((row) => <th key={row.serviceType}>{supportLabel(row.serviceType)} · plan: {row.minutesPerWeek} min/week</th>)}</tr></thead>
                     <tbody>

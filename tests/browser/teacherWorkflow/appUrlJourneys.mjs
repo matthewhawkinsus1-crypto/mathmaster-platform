@@ -92,6 +92,44 @@ const ready = async (page, marker) => {
   await page.waitForTimeout(700);
 };
 
+// ONE PAGE AT A TIME, AND THE LAST ONE GONE (N63).
+//
+// From the dev server a page of this app is about a thousand module requests,
+// and Home asks for a few hundred more once it is drawn (the screens it
+// prefetches). Chromium refuses a renderer's requests past a fixed number
+// outstanding (net::ERR_INSUFFICIENT_RESOURCES). On a loaded 4-core machine the
+// server and the renderer are slow, and a reload or a new address opened while
+// the last page was still loading stacked its requests on top: a module of the
+// new page was refused and its screen never came, or the navigation itself
+// was. And each load left the old documents in the tab's renderer until it
+// next collected garbage (four a reload, about 35 MB): over this journey's
+// dozens of loads in one tab it passed a gigabyte, and a loaded machine
+// killed it ("Target crashed"). So every navigation here first waits until
+// nothing has been in flight for half a second, then has the renderer collect
+// the last page. What each journey checks is unchanged.
+const quietBeforeNavigating = async (page) => {
+  const cdp = await page.context().newCDPSession(page);
+  const inFlight = new Set();
+  page.on('request', (request) => inFlight.add(request));
+  page.on('requestfinished', (request) => inFlight.delete(request));
+  page.on('requestfailed', (request) => inFlight.delete(request));
+  const quiet = async () => {
+    const end = Date.now() + 60_000;
+    let since = Date.now();
+    while (Date.now() < end) {
+      if (inFlight.size) since = Date.now();
+      else if (Date.now() - since >= 500) break;
+      await new Promise((resolve) => { setTimeout(resolve, 50); });
+    }
+    await cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+  };
+  for (const method of ['goto', 'reload', 'goBack', 'goForward']) {
+    const navigate = page[method].bind(page);
+    page[method] = async (...args) => { await quiet(); return navigate(...args); };
+  }
+  return page;
+};
+
 // What each student screen shows, read from the page — never from the URL.
 const SCREENS = [
   { path: '/', marker: /Welcome, /, label: 'Home' },
@@ -114,7 +152,7 @@ const workspaceQuestion = async (page) => {
 const runStudentJourneys = async (viewport) => {
   const tag = `${viewport.width}x${viewport.height}`;
   const context = await newSchoolContext(browser, { viewport });
-  const page = await context.newPage();
+  const page = await quietBeforeNavigating(await context.newPage());
   const unimplemented = watchUnimplementedCallables(page);
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -217,12 +255,15 @@ const runStudentJourneys = async (viewport) => {
     expect(`U4 ${tag}`, !/Instructor Dashboard|Gradebook/.test(shown), `${probe.path} showed a teacher screen to a student`);
   }
 
-  // U5 — unknown and stale addresses.
+  // U5 — unknown and stale addresses. The message is waited for, not a fixed
+  // 2.5 s: under load the app had not decided where the address leads by then
+  // (N63). A message that never comes still fails, with what the page said.
+  const STALE_MESSAGE = /not in MathMaster|not available|has moved/;
   for (const probe of ['/nope', '/assignments/deleted-lesson', `/assignments/${TODAY}/classwork/9`]) {
     await page.goto(`${ORIGIN}${probe}?${asStudent}`);
-    await page.waitForTimeout(2500);
+    await page.waitForFunction((pattern) => new RegExp(pattern).test([...document.querySelectorAll('[aria-live] > *')].map((node) => node.textContent).join(' / ')), STALE_MESSAGE.source, { timeout: 60_000 }).catch(() => {});
     const message = await toasts(page);
-    expect(`U5 ${tag}`, /not in MathMaster|not available|has moved/.test(message), `${probe}: no message (${message})`);
+    expect(`U5 ${tag}`, STALE_MESSAGE.test(message), `${probe}: no message (${message})`);
     expect(`U5 ${tag}`, (await bodyText(page)).length > 40, `${probe}: blank screen`);
   }
 
@@ -283,7 +324,7 @@ const runStudentJourneys = async (viewport) => {
 const runSignInJourney = async (viewport) => {
   const tag = `${viewport.width}x${viewport.height}`;
   const context = await newSchoolContext(browser, { viewport });
-  const page = await context.newPage();
+  const page = await quietBeforeNavigating(await context.newPage());
   // U3 — a deep link opened while signed out waits through sign-in.
   await page.goto(`${ORIGIN}/assignments/${TODAY}/classwork/2?reset=1&signedOut=1&${asStudent}`, { timeout: 180_000 });
   await page.getByRole('button', { name: /I'm a student/ }).waitFor({ timeout: 60_000 });
@@ -304,7 +345,7 @@ const runSignInJourney = async (viewport) => {
 const runSharedChromebookJourney = async (viewport) => {
   const tag = `${viewport.width}x${viewport.height}`;
   const context = await newSchoolContext(browser, { viewport });
-  const page = await context.newPage();
+  const page = await quietBeforeNavigating(await context.newPage());
   // U9 — the next student on this Chromebook, in the same tab: Back never
   // walks into the previous student's screens (entries carry their account).
   // One document throughout: every step is a click.
@@ -337,7 +378,7 @@ const runSharedChromebookJourney = async (viewport) => {
 const runSharedChromebookReloadJourney = async (viewport) => {
   const tag = `${viewport.width}x${viewport.height}`;
   const context = await newSchoolContext(browser, { viewport });
-  const page = await context.newPage();
+  const page = await quietBeforeNavigating(await context.newPage());
   // U9 across a RELOAD: A logs out, Back on the sign-in screen (the bar now
   // names A's screen, with A's entry), the page reloads, and B signs in. B
   // lands on their own Home, never A's address. (The page starts signed out
@@ -372,7 +413,7 @@ const runSharedChromebookReloadJourney = async (viewport) => {
 const runExcusedJourney = async (viewport) => {
   const tag = `${viewport.width}x${viewport.height}`;
   const context = await newSchoolContext(browser, { viewport });
-  const page = await context.newPage();
+  const page = await quietBeforeNavigating(await context.newPage());
   // U10 — an excused lesson's address opens its result page, never graded work.
   await page.goto(`${ORIGIN}/?reset=1&controls=retired&as=student&studentId=${EXCUSED_STUDENT}`, { timeout: 180_000 });
   await ready(page, /Welcome, /);
@@ -391,7 +432,7 @@ const runExcusedJourney = async (viewport) => {
 const runTeacherJourney = async (viewport) => {
   const tag = `${viewport.width}x${viewport.height}`;
   const context = await newSchoolContext(browser, { viewport });
-  const page = await context.newPage();
+  const page = await quietBeforeNavigating(await context.newPage());
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   // U7 — a tab survives a reload.

@@ -14,7 +14,9 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { describeNumberLinePiece, numberLineReading } from '../../platform/language/numberLineDescription.js';
 import { isAlgebraOneQuestion } from '../../platform/curriculum/inequalityRepresentationPolicy.js';
-import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
+import { FIGURE_NAME_WORDS, nameFrom, namedIn } from '../../platform/language/figureNames.js';
+import { say } from '../../platform/language/figureSay.js';
 import { intervalTickSteps, niceTickStep } from './intervalTicks.js';
 import { intervalGraphMissMessage } from './intervalFeedback.js';
 import {
@@ -562,6 +564,13 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   // `lineSay` is the same reading as messages: Read aloud says it in Spanish
   // under an authored Spanish translation (AX05).
   const { text: lineDescription, say: lineSay } = numberLineReading({ min, max, labelStep: majorStep, pieces: drawn, pending });
+  // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = describedIn(figureWords, lineDescription, lineSay);
+  // The line's name, from end to end, in the same language and marked with it
+  // (AX05, slice 4). Its endpoint buttons keep their English names, marked so.
+  const lineName = namedIn(figureWords, nameFrom(say('numberLineFromToName', lineEndLabel(min), lineEndLabel(max)), FIGURE_NAME_WORDS));
+  const englishInside = lineName.lang ? 'en' : undefined;
 
   return (
     <ToolShell
@@ -698,8 +707,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="application"
             tabIndex={0}
-            aria-label={`Number line from ${lineEndLabel(min)} to ${lineEndLabel(max)}`}
+            aria-label={lineName.text}
             aria-describedby={`${lineDescriptionId} ${lineInstructionsId}`}
+            lang={lineName.lang}
             onFocus={handleLineFocus}
             onBlur={handleLineBlur}
             onKeyDown={handleLineKeyDown}
@@ -812,6 +822,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     <g
                       role="button"
                       tabIndex="0"
+                      lang={englishInside}
                       aria-label={`${interval.minClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.min)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
                       onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
@@ -849,6 +860,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     <g
                       role="button"
                       tabIndex="0"
+                      lang={englishInside}
                       aria-label={`${interval.maxClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.max)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
                       onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
@@ -889,6 +901,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               <g
                 role="button"
                 tabIndex="0"
+                lang={englishInside}
                 aria-label={`${pending.closed ? 'Closed' : 'Open'} pending endpoint at ${rationalLabel(pending.value)}. Click to switch it. Drag to move it. ${endpointKeyHelp}`}
                 onPointerDown={(event) => beginDrag({ kind: 'pending' }, event)}
                 onKeyDown={(event) => handleEndpointKeyDown({ kind: 'pending' }, event)}
@@ -955,7 +968,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           {/* Read through the line's aria-describedby, and hidden from browse
               mode so it is not heard a second time as a loose paragraph. */}
           <PublishFigureReading entry={{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay }} />
-          <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly}>{lineDescription}</p>
+          <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly} lang={described.lang}>{describedContent(described)}</p>
           <p id={lineInstructionsId} aria-hidden="true" style={srOnly}>
             {`Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
           </p>

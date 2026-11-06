@@ -245,7 +245,7 @@ export default function WeeklyPathExplainer({
           title="Everything that was considered"
           detail={`${plan.considered.length} candidates came out of the curriculum engine. These are the rows the week was chosen from.`}
         />
-        <div style={{ overflowX: 'auto' }}>
+        <div role="region" aria-label="Candidates considered for the week" tabIndex={0} style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12.5 * var(--mm-px))' }}>
             <thead>
               <tr style={{ background: 'var(--mm-surface-sunken)' }}>

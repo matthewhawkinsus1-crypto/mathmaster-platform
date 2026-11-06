@@ -58,6 +58,13 @@ import { spokenMathValue } from './tools/shared/spokenMathValue.js';
 const COMMON_FACTOR_DRAG = 'mathmaster-common-factor';
 const SPLIT_DENOMINATOR_DRAG = 'mathmaster-split-denominator';
 
+// What each tool's status line says about choosing a term or factor, and how (AX32).
+// Every term is a button (AlgebraTermRow) and so is every factor, so Tab reaches each
+// one and Enter or Space presses it as a tap does; the line that names the tap names
+// that in the same sentence.
+const SELECT_KEYS = 'click or tap, or Tab to each and press Enter';
+const SELECT_ONE_KEYS = 'click or tap, or Tab to it and press Enter';
+
 const safeLatex = (text) => {
   try { return expressionToLatex(text); } catch { return String(text ?? ''); }
 };
@@ -229,7 +236,7 @@ function FactorControls({ tool, equation, side, update, notify, onCommit, disabl
     const ready = tool.selected.length >= 2;
     return (
       <div className="algebra-inline-mode-controls algebra-structure-controls" aria-live="polite">
-        <span className="algebra-inline-mode-status">{ready ? `${tool.selected.length} terms selected` : 'Tap the terms you are factoring'}</span>
+        <span className="algebra-inline-mode-status">{ready ? `${tool.selected.length} terms selected` : `Select the terms you are factoring (${SELECT_KEYS})`}</span>
         <button
           type="button"
           className="algebra-inline-commit"
@@ -283,7 +290,7 @@ function FactorControls({ tool, equation, side, update, notify, onCommit, disabl
                 event.dataTransfer?.setData('text/plain', COMMON_FACTOR_DRAG);
                 if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
               }}
-              title="Drag out front, or press Pull out"
+              title="Drag out front, or Tab to Pull out and press Enter"
             >
               <MathDisplay
                 value={choice.productLatex === choice.factorLatex || !choice.factorLatex ? choice.productLatex : `${choice.productLatex} = ${choice.factorLatex}`}
@@ -291,7 +298,7 @@ function FactorControls({ tool, equation, side, update, notify, onCommit, disabl
                 inline
               />
             </span>
-          ) : <span className="algebra-inline-mode-feedback">Tap the factors every selected term shares</span>}
+          ) : <span className="algebra-inline-mode-feedback">{`Select the factors every selected term shares (${SELECT_KEYS})`}</span>}
           <span className="algebra-structure-outside-slot" aria-hidden="true">
             <span className="algebra-structure-outside-box" />(…)
           </span>
@@ -467,7 +474,7 @@ function SplitControls({ tool, equation, side, onCommit, disabled, busy }) {
   const candidates = detectSplittableFractions(equation);
   if (!active) {
     return candidates[0]?.side === side ? (
-      <div className="algebra-inline-mode-controls algebra-structure-controls"><span className="algebra-inline-mode-status">Tap the fraction to split</span></div>
+      <div className="algebra-inline-mode-controls algebra-structure-controls"><span className="algebra-inline-mode-status">{`Select the fraction to split (${SELECT_ONE_KEYS})`}</span></div>
     ) : null;
   }
   if (active.side !== side) return null;
@@ -576,7 +583,7 @@ function ReduceControls({ tool, equation, side, onCommit, disabled, busy }) {
   const candidates = detectReducibleFractions(equation);
   if (!active) {
     return candidates[0]?.side === side ? (
-      <div className="algebra-inline-mode-controls algebra-structure-controls"><span className="algebra-inline-mode-status">Tap a highlighted fraction to write it as primes</span></div>
+      <div className="algebra-inline-mode-controls algebra-structure-controls"><span className="algebra-inline-mode-status">{`Select a highlighted fraction to write it as primes (${SELECT_ONE_KEYS})`}</span></div>
     ) : null;
   }
   if (active.side !== side) return null;
@@ -584,7 +591,7 @@ function ReduceControls({ tool, equation, side, onCommit, disabled, busy }) {
   return (
     <div className="algebra-inline-mode-controls algebra-structure-controls" aria-live="polite">
       <span className="algebra-inline-mode-status">
-        {pairs ? `${pairs} pair${pairs === 1 ? '' : 's'} cancelled` : 'Tap a factor, then an equal factor across the bar'}
+        {pairs ? `${pairs} pair${pairs === 1 ? '' : 's'} cancelled` : `Select a factor, then an equal factor across the bar (${SELECT_KEYS})`}
       </span>
       <button type="button" className="algebra-inline-commit" onClick={() => onCommit()} disabled={disabled || busy || !pairs}>Apply cancellation</button>
     </div>
@@ -608,7 +615,7 @@ function ArrangeSide({ tool, equation, side, update }) {
       side={side}
       selectedIndices={tool.side === side && tool.selected != null ? [tool.selected] : []}
       onTermClick={(position) => update((current) => tapArrangeTerm(current, equation, side, position))}
-      interactionLabel={tool.selected != null ? 'tap to swap with the selected term' : 'select to move'}
+      interactionLabel={tool.selected != null ? 'select to swap with the selected term' : 'select to move'}
     />
   );
 }
@@ -618,7 +625,7 @@ function ArrangeControls({ tool, side, onCommit, disabled, busy }) {
   const changed = arrangementChanged(tool);
   return (
     <div className="algebra-inline-mode-controls algebra-structure-controls" aria-live="polite">
-      <span className="algebra-inline-mode-status">{tool.selected != null ? 'Tap another term to swap' : 'Tap two terms to swap them'}</span>
+      <span className="algebra-inline-mode-status">{tool.selected != null ? `Select another term to swap (${SELECT_ONE_KEYS})` : `Select two terms to swap them (${SELECT_KEYS})`}</span>
       <button type="button" className="algebra-inline-commit" onClick={() => onCommit()} disabled={disabled || busy || !changed}>Keep this order</button>
     </div>
   );

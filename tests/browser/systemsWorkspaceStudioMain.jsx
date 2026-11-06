@@ -65,6 +65,17 @@ export const FIXTURES = {
     reasoning: { classifyRegion: true },
     graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
   }),
+  // The same system on the -10 to 10 grid Algebra I M3 T2 L4 and L5 use, where
+  // a row is closer than the old pick-up reach (the plane's pick-up, N60).
+  wide: () => sw({
+    questionId: 'studio-wide',
+    mode: 'inequalities',
+    prompt: 'Graph the system y ≥ x + 1 and y < −0.5x + 6. Then classify the solution region.',
+    inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<' }],
+    studentBuild: { boundary: true, lineStyle: true, shading: true },
+    reasoning: { classifyRegion: true },
+    graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+  }),
   // Three sloped boundaries, every one plotted from two grid points, around a
   // triangle whose corners are grid points too: the whole journey, test point
   // and corners included, can be worked from the keyboard (AX32).
@@ -111,6 +122,22 @@ export const FIXTURES = {
     },
     studentBuild: { boundary: true, lineStyle: true, shading: true },
     graph: { xMin: -2, xMax: 12, yMin: -2, yMax: 12 },
+  }),
+  // Algebra I M3 T2 L4 CW 2 as the lesson authors it: one constraint the
+  // student writes from words ("AT LEAST 20 points"), graphs and tests
+  // (F-SW-CHECKS-OWN-MODEL).
+  kai: () => sw({
+    questionId: 'studio-kai',
+    mode: 'inequalities',
+    prompt: 'Coach Garcia is analyzing the scoring patterns of players on his basketball team. Kai averages 20 points per game from two-point and three-point shots. Let x be the number of two-point shots and y the number of three-point shots. Coach Garcia believes the team can win the district playoffs if Kai scores AT LEAST 20 points per game. Write the inequality in the tool, then graph it: build the boundary line, choose solid or dashed, and shade the half-plane of combinations that meet the goal. Then test the point (6, 4).',
+    modeling: {
+      variables: [{ symbol: 'x', label: 'two-point shots' }, { symbol: 'y', label: 'three-point shots' }],
+      expectedConstraints: [{ A: 2, B: 3, C: -20, relation: '>=' }],
+    },
+    studentBuild: { rewrite: false, boundary: true, lineStyle: true, shading: true },
+    reasoning: { testPoint: true, classifyRegion: false, vertices: false },
+    testPoint: { x: 6, y: 4 },
+    graph: { xMin: 0, xMax: 12, yMin: 0, yMax: 10 },
   }),
   // My Math Path's construct form (A2.3F): typed boundary points, chosen style
   // and side. The most common inequality question in the Path bank.

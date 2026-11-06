@@ -341,7 +341,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
 
       {view === 'matrix' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 280px), 370px)', gap: '14px', alignItems: 'start' }}>
-          <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
+          <div role="region" aria-label="Student mastery matrix" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${650 + visibleCodes.length * 90}px`, fontSize: 'calc(12 * var(--mm-px))' }}>
               <thead>
                 <tr style={{ background: 'var(--mm-surface-sunken)' }}>
@@ -384,7 +384,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                 <h3 style={{ margin: 0 }}>{formatStudentName(selectedStudent)}</h3>
                 <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', margin: '4px 0 10px' }}>{studentIdLabel(selectedStudent)} · {selectedStudent.classPeriod || 'Unassigned'} · {selectedCourse?.label}</div>
                 <PerformanceBadge performance={selectedCourseProfile?.overall?.performance} />
-                <div style={{ marginTop: '11px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', fontSize: 'calc(12 * var(--mm-px))' }}>
+                <div style={{ marginTop: '11px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', overflowWrap: 'anywhere', gap: '7px', fontSize: 'calc(12 * var(--mm-px))' }}>
                   <div><strong>{pct(selectedCourseProfile?.overall?.score)}</strong><br />weighted score</div>
                   <div><strong>{selectedCourseProfile?.overall?.confidence || 'Low'}</strong><br />confidence</div>
                   <div><strong>Band {selectedCourseProfile?.overall?.recommendedGeneratorBand || 3}</strong><br />next recommendation</div>
@@ -467,7 +467,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
       )}
 
       {view === 'pathway' && (
-        <div style={{ display: 'grid', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '14px' }}>
           <section style={{ padding: '13px', border: '1px solid var(--mm-border-soft)', borderRadius: '10px', background: 'var(--mm-surface-sunken)' }}>
             <div style={{ fontWeight: 900, marginBottom: '3px' }}>Texas mathematics course / grade navigator</div><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', marginBottom: '9px' }}>Navigation order is not a prerequisite chain. Course prerequisites are shown on each card.</div>
             <div style={{ display: 'flex', gap: '7px', alignItems: 'stretch', overflowX: 'auto', paddingBottom: '4px' }}>

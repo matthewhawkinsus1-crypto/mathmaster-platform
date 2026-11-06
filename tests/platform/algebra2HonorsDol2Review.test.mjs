@@ -58,6 +58,8 @@ import transformationsLab from '../../functions/shared/serverGrading/tools/trans
 import matrixLab from '../../functions/shared/serverGrading/tools/matrixLab.mjs';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
+import { missFeedback } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
+import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 
 const require = createRequire(import.meta.url);
 const bank = require('../../functions/lib/ccmrAssignmentBank.js');
@@ -582,6 +584,121 @@ test('versions: sampled versions of every item are mathematically right, and rea
   });
   assert.deepEqual(problems, []);
   assert.equal(familyIds.size, Object.keys(CHECKS).length, 'every family item was sampled and checked');
+});
+
+/*
+ * PRACTICE 16'S WORKED STEP IS TRUE OF EVERY VERSION (student walkthrough,
+ * 2026-11-06). It said "z has coefficient ±1 in every equation", but equation
+ * 2 is `a2·x − y + c2·z = d2` with c2 = −2, 2 or 3: false in every version a
+ * student could open. Each claim the step makes about a coefficient of z, or
+ * about a combination that eliminates z, is checked against the version's own
+ * equations, and the step must make at least one.
+ */
+test('Practice 16: what the worked step says about eliminating z is true of every version\'s equations', () => {
+  const versions = dealt().filter(({ id }) => id === 'dol2r-pr-16');
+  assert.ok(versions.length >= 100, `${versions.length} versions read`);
+  const problems = [];
+  versions.forEach(({ values, question }) => {
+    const zOf = question.equations.map((equation) => linearRow(equation).row[2]);
+    const said = (question.solutionReview?.reasoning || []).join(' ').replace(/−/g, '-');
+    const holdsFor = (coefficient, claimed) => (claimed === '±1' ? Math.abs(coefficient) === 1 : near(coefficient, Number(claimed)));
+    const wrong = (claim) => problems.push(`${JSON.stringify(values)}: "${claim}" is false of ${question.equations.join('; ')}`);
+    let claims = 0;
+    for (const [claim, coefficient, where, first, other, second] of said.matchAll(/z has coefficient (±1|-?\d+) in (every equation|equation (\d))(?: and (-?\d+) in equation (\d))?/g)) {
+      claims += 1;
+      if (where === 'every equation' ? !zOf.every((z) => holdsFor(z, coefficient)) : !holdsFor(zOf[first - 1], coefficient)) wrong(claim);
+      if (other !== undefined && !holdsFor(zOf[second - 1], other)) wrong(claim);
+      if (other !== undefined && /^,? so adding those two equations eliminates z/.test(said.slice(said.indexOf(claim) + claim.length)) && !near(zOf[first - 1] + zOf[second - 1], 0)) wrong(`${claim}, so adding those two equations eliminates z`);
+    }
+    for (const [claim, multiple, from, into] of said.matchAll(/[Aa]dding (-?\d+) times equation (\d) to equation (\d) eliminates/g)) {
+      claims += 1;
+      if (!near(zOf[into - 1] + Number(multiple) * zOf[from - 1], 0)) wrong(claim);
+    }
+    if (!claims) problems.push(`${JSON.stringify(values)}: the step names no coefficient or combination to check`);
+  });
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
+});
+
+/*
+ * PRACTICE 17'S WORKED SOLUTION ENDS WITH THE VERSION'S OWN SOLUTION (module 2
+ * walkthrough, 2026-11-06). The system is the platform family's, so the
+ * review's text cannot hold a version's numbers, and its summary, "The ordered
+ * triple (x, y, z) read from A⁻¹ · B.", stood in the answer's place stating
+ * none. The Matrix Lab's own steps follow the review's text with the version's
+ * A, B and X = A⁻¹ · B. Read as the closed card builds it for a tool question:
+ * nothing in the answer's place but the version's solution, and the worked
+ * solution ends with that solution.
+ */
+test('Practice 17: the worked solution ends with each version\'s own (x, y, z)', () => {
+  const versions = dealt().filter(({ id }) => id === 'dol2r-pr-17');
+  assert.ok(versions.length >= 100, `${versions.length} versions read`);
+  const plain = (text) => String(text ?? '').replace(/−/g, '-');
+  const problems = [];
+  versions.forEach(({ values, question }) => {
+    const [x, y, z] = values.solution;
+    const review = buildClosedQuestionReview({ question, isToolQuestion: true });
+    const summary = review?.authored?.answerSummary;
+    if (summary && !plain(summary).includes(`(${x}, ${y}, ${z})`)) problems.push(`${JSON.stringify(values)}: the answer's place says "${summary}"`);
+    const solution = (review?.tool?.items || []).find((item) => item.label === 'Solution');
+    if (plain(solution?.value) !== `(${x}, ${y}, ${z})`) problems.push(`${JSON.stringify(values)}: the Matrix Lab's solution is ${solution?.value}`);
+    const last = plain(review?.speechParts?.at(-1)?.text);
+    if (!last.includes(`x = ${x}, y = ${y}, z = ${z}`)) problems.push(`${JSON.stringify(values)}: the worked solution ends "${last}"`);
+  });
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
+});
+
+/*
+ * PRACTICE 3'S MISS MESSAGE FITS THE MISS (student walkthrough, 2026-11-06).
+ * The Transformations Lab names no slip for this item, so on a miss the student
+ * reads its authored attempt feedback, then "Focus on" the box. It said "Check
+ * the sign of a: a V that opens downward has a negative a." on every miss: with
+ * a right and h wrong, a student read "Check the sign of a… Focus on: h.", on an
+ * item whose own common error is h's sign. A miss on a, h or k alone, graded by
+ * the lab and told by the same missFeedback the screen uses, must be told about
+ * the value it missed.
+ */
+test('Practice 3: a miss on a, h or k alone is told about the value missed', () => {
+  const versions = dealt().filter(({ id }) => id === 'dol2r-pr-3');
+  assert.ok(versions.length >= 100, `${versions.length} versions read`);
+  // "a" is also a word: the value is named as "a is", "a =" or "of a".
+  const NAMED = { a: /\ba (?:is|=)|\bof a\b/, h: /\bh\b/, k: /\bk\b/ };
+  const problems = [];
+  versions.forEach(({ values, question }) => {
+    const right = { a: String(question.function.a), b: '1', h: String(question.function.h), k: String(question.function.k) };
+    Object.keys(NAMED).forEach((name) => {
+      const graded = transformationsLab.grade(question, { ...right, [name]: String(Number(right[name]) + 1) });
+      if (graded?.isCorrect !== false) return problems.push(`${JSON.stringify(values)}: ${name} + 1 was not a miss`);
+      const told = missFeedback({ question, attemptNumber: 1, parts: graded.parts })?.message || '';
+      if (!NAMED[name].test(told)) problems.push(`${JSON.stringify(values)}: a miss on ${name} is told "${told}"`);
+      return undefined;
+    });
+  });
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
+});
+
+/*
+ * A COUNT OF ONE TAKES THE SINGULAR (student walkthrough, 2026-11-06).
+ * Practice 1's worked step said the x-intercepts were "each 1 units from the
+ * axis" in every version with d = 1 (22 of its 93). The exit ticket's
+ * transformation item still writes "shifted 1 units right" (or down) where h
+ * or K is 1. Those sentences are its choices, one of them its key: renaming an
+ * exit ticket's key waits on the owner (docs/qa/2026-11-06-a2h-module2-
+ * matrices-walkthrough/findings.md), so they are the one exception, and the
+ * exception must still be needed.
+ */
+test('versions: no text a student reads puts a count of one before a plural noun', () => {
+  const COUNT_OF_ONE = /(?<![\d.,])[-−]?1 (?:units|grams|millimeters|milliliters|centimeters|degrees|tickets|drinks|items|points|solutions|times)\b/;
+  const ownerPending = (id, question, text) => id === 'dol2r-dol-2'
+    && (question.answerFields || []).some((field) => field.id === 'describe' && (field.options || []).includes(text));
+  const problems = [];
+  let pendingSeen = 0;
+  dealt().forEach(({ id, values, question }) => studentText(question).forEach((text) => {
+    if (!COUNT_OF_ONE.test(text)) return;
+    if (ownerPending(id, question, text)) { pendingSeen += 1; return; }
+    problems.push(`${id} ${JSON.stringify(values)}: ${JSON.stringify(text)}`);
+  }));
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} text(s)`);
+  assert.ok(pendingSeen > 0, 'the exit ticket\'s choices no longer say "1 units": drop the exception');
 });
 
 /*

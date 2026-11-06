@@ -139,6 +139,19 @@ function AssignmentRecoverySection({
   const [rosterBusy, setRosterBusy] = useState(false);
   const [rosterError, setRosterError] = useState('');
   const [openKey, setOpenKey] = useState(null);
+  // A Prepare Recovery that added everything it could takes its own button
+  // away (nothing is preparable any more), so its dialog closes with no opener
+  // to hand focus back to, and focus fell to the page. It lands on this
+  // section's heading instead, where the readiness it just changed is read.
+  const headingRef = useRef(null);
+  const upgradeWasOpen = useRef(false);
+  useEffect(() => {
+    const closed = upgradeWasOpen.current && !upgradeOpen;
+    upgradeWasOpen.current = upgradeOpen;
+    if (!closed || typeof document === 'undefined') return;
+    const active = document.activeElement;
+    if (!active || active === document.body) headingRef.current?.focus();
+  }, [upgradeOpen]);
   // What the plan depends on, in a key that survives live refreshes (which
   // hand this drawer a new assignment object every few seconds) and moves when
   // a question is edited (recoveryPlanKey.js, TT02).
@@ -211,7 +224,7 @@ function AssignmentRecoverySection({
 
   return (
     <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-recovery" data-assignment-hub-recovery={assignment.id}>
-      <h3 id="assignment-hub-recovery" className="tw-card__title">
+      <h3 id="assignment-hub-recovery" ref={headingRef} tabIndex={-1} className="tw-card__title">
         Warm-Up &amp; DOL Recovery
         <span className="tw-small tw-muted" style={{ fontWeight: 600 }}> · {recoveryReadinessSummary(sections)}</span>
       </h3>

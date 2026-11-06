@@ -16,6 +16,12 @@ const targetStyle = (status, active) => ({
   boxSizing: 'border-box',
 });
 
+// How a card gets to its axis box without a pointer (AX32). The cards and the boxes are
+// buttons: Enter selects a card, and Enter on a box puts the selected card there. The
+// boxes sit above the cards, so the keyboard goes back up to them with Shift+Tab. A line
+// that names the click, the tap or the drag names this in the same sentence.
+const AXIS_KEYS = 'Tab to a card and press Enter, then Shift+Tab back to the matching axis box and press Enter';
+
 const chipStyle = (selected) => ({
   border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-border)'}`,
   background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
@@ -93,7 +99,7 @@ export default function GraphAxisEditor({
       >
         <span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)', fontWeight: 800 }}>{definition.label}</span>
         <span style={{ fontSize: 'calc(15 * var(--mm-px))', color: values[field] ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)', fontWeight: 800 }}>
-          {values[field] || (mobileInteraction.isMobile ? `Tap here for ${definition.kind}` : `Drop ${definition.kind} here`)}
+          {values[field] || `Place ${definition.kind} here`}
         </span>
       </button>
     );
@@ -124,9 +130,9 @@ export default function GraphAxisEditor({
       </div>
 
       <div style={{ marginTop: '14px', padding: '14px', borderRadius: '12px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
-        <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: '8px' }}>{mobileInteraction.isMobile ? 'Tap labels and units into place' : 'Drag labels and units to the graph'}</div>
+        <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: '8px' }}>Place the labels and units on the graph</div>
         <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: '10px' }}>
-          {mobileInteraction.isMobile ? 'Tap a card, then tap the matching axis box.' : 'Drag a card to the matching axis box. You can also click a card and then click the destination.'}
+          {mobileInteraction.isMobile ? `Tap a card, then tap the matching axis box, or ${AXIS_KEYS}.` : `Drag a card to the matching axis box. You can also click or tap a card and then the box, or ${AXIS_KEYS}.`}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {cards.map((card) => {
@@ -136,6 +142,9 @@ export default function GraphAxisEditor({
               <button
                 key={key}
                 type="button"
+                // A selected card is the state "select a card, then the box" depends on, so it
+                // is said to a screen reader, not only drawn as a border (AX32).
+                aria-pressed={selected}
                 draggable={!mobileInteraction.isMobile}
                 onDragStart={(event) => {
                   event.dataTransfer.setData('application/x-mathmaster-axis-card', JSON.stringify(card));

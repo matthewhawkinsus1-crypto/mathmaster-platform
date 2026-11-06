@@ -95,10 +95,10 @@ const RUSH_WORDS = Object.freeze({
     many: 'graphs',
     task: 'Find the features',
     working: 'Students are finding features on their own graphs.',
-    go: 'Everyone has their own graphs. Tap the features. Go!',
+    go: 'Everyone has their own graphs. Find the features. Go!',
     countdown: 'Everyone gets their own graphs',
-    lobby: 'Graph Feature Rush — tap the features on your own graphs',
-    earn: 'Tap the features on your graphs to earn points.',
+    lobby: 'Graph Feature Rush — find the features on your own graphs',
+    earn: 'Find the features on your graphs to earn points.',
   }),
   [QUESTION_SET_GAME.INEQUALITY_RUSH]: Object.freeze({
     game: 'Inequality Graphing Rush',
@@ -400,19 +400,22 @@ export const hostPrimaryAction = ({
 };
 
 /*
- * WHY A FINISHED GAME ENDED, FOR THE TEACHER WHO COMES BACK TO IT (LC05).
+ * WHY A GAME ENDED, FOR THE TEACHER WHO COMES BACK TO IT (LC05, N73).
  *
- * The server ends a game whose results stood HOST_AWAY_FINISH_MS with no
- * teacher screen open (liveChallengeServerSweep.mjs; never a Warm-Up, whose
- * result is a grade). The console reopens the last game it hosted, so the
- * teacher reads why it is over instead of finding it finished with no reason.
- * Null for a game the teacher ended.
+ * The server ends a game waiting on its teacher — results, or a Pace Race
+ * round — after HOST_AWAY_FINISH_MS with no teacher screen open, and cancels
+ * a lobby nobody started after as long (liveChallengeServerSweep.mjs; never a
+ * Warm-Up, whose result is a grade). The console reopens the last game it
+ * hosted, so the teacher reads why it is over instead of finding it finished,
+ * or cancelled, with no reason. Null for a game the teacher ended.
  */
-export const hostEndedNote = (room = {}) => (
-  room?.endedBy === HOST_AWAY_ENDED_BY
-    ? `MathMaster ended this game because no teacher screen was open for ${Math.round(HOST_AWAY_FINISH_MS / 60_000)} minutes after the last results. Answers students gave still count.`
-    : null
-);
+export const hostEndedNote = (room = {}) => {
+  if (room?.endedBy !== HOST_AWAY_ENDED_BY) return null;
+  const minutes = Math.round(HOST_AWAY_FINISH_MS / 60_000);
+  return room.status === 'cancelled'
+    ? `MathMaster cancelled this lobby because no teacher screen was open for ${minutes} minutes before the game started.`
+    : `MathMaster ended this game because no teacher screen was open for ${minutes} minutes. Answers students gave still count.`;
+};
 
 /*
  * WHAT A STUDENT SHOULD DO NOW. Every stage answers it in words — never a

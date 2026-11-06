@@ -87,7 +87,7 @@ export default function RepresentationAudit({ questions = [], warnings = [] }) {
 
       {warnings.length > 0 && (
         <details>
-          <summary style={{ cursor: 'pointer', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: palette.text }}>
+          <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700, color: palette.text }}>
             {warnings.length} authoring note{warnings.length === 1 ? '' : 's'}
           </summary>
           <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)', lineHeight: 1.6 }}>

@@ -826,7 +826,10 @@ test('what it cannot explain is not worked: l3-wu-2, a key the reading contradic
   const wrongTurn = real('l3-wu-1');
   wrongTurn.answerFields[0].answer = '(5, -8)';
   const wrongVerdict = real('l3-pr-11');
-  wrongVerdict.answerFields[4].answer = 'No — the opposite sides are not parallel.';
+  // One of its own "No" options, so the key it plants is a real choice.
+  const notParallel = wrongVerdict.answerFields[4].options.find((option) => /^No\b.*\bnot parallel\b/.test(option));
+  assert.ok(notParallel, 'l3-pr-11 offers "No — … not parallel"');
+  wrongVerdict.answerFields[4].answer = notParallel;
   for (const question of [wrongNumber, wrongLine, wrongTurn, wrongVerdict]) {
     assert.equal(perpendicularLines.matches(question), false, question.questionId);
     assert.equal(perpendicularLines.workedSolution(question), null, question.questionId);

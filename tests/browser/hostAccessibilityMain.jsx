@@ -16,6 +16,12 @@
  *   ?scene=rich-tool&tool=<id>      RichQuestionRuntime (the secure exam and
  *                                   Test Cycle host) in secureTest mode, a
  *                                   registry tool from its public payload
+ *   ?scene=secure-field&profile=<p> RichQuestionRuntime's secure FIELD item: the
+ *                                   district DOL 2 graph item (q03) as a Test
+ *                                   issues it, with an authored Spanish prompt
+ *                                   (&translated=0: none); p = spanish (Translate
+ *                                   in Spanish), readout (the same and the graph
+ *                                   read-out) or english (AX05, slice 3)
  *
  * Driven by tests/browser/hostAccessibility.mjs.
  */
@@ -31,6 +37,7 @@ import RichQuestionRuntime from '../../src/components/question/RichQuestionRunti
 import { SAMPLE_SPECS } from '../../src/dev/MathToolsLab.jsx';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../../functions/shared/questionGenerationIdentity.mjs';
+import districtDol2 from '../../functions/seeds/secureAssessments/algebra1_district_dol2.json';
 
 MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
 
@@ -156,7 +163,31 @@ function RichTool() {
   );
 }
 
-const SCENES = { 'path-tool': PathTool, 'path-generic': PathGeneric, recap: Recap, recovery: Recovery, 'rich-tool': RichTool };
+function SecureField() {
+  const variant = districtDol2.documents.find((doc) => doc.id === 'mm_district_dol2_q03').variants[0];
+  const question = {
+    questionInstanceId: 'secure-field-q03', runtimeMode: 'secureTest', prompt: variant.prompt, stimulus: variant.stimulus,
+    // What a student's browser is given: no expected answers.
+    responseFields: variant.responseFields.map((field) => Object.fromEntries(Object.entries(field).filter(([key]) => key !== 'expected'))),
+    ...(params.get('translated') === '0' ? {} : { translations: { es: { prompt: 'Identifica la intersección con el eje x y la intersección con el eje y. Escribe cada coordenada como (x, y).' } } }),
+  };
+  const PROFILES = {
+    spanish: { accommodations: [], translationLanguage: 'es' },
+    readout: { accommodations: ['graph-read-out'], translationLanguage: 'es' },
+    english: { accommodations: ['text-to-speech'] },
+  };
+  return (
+    <RichQuestionRuntime
+      question={question}
+      mode="secureTest"
+      studentSupportProfile={PROFILES[params.get('profile')] || null}
+      onSubmit={async () => null}
+      onDraftChange={() => {}}
+    />
+  );
+}
+
+const SCENES = { 'path-tool': PathTool, 'path-generic': PathGeneric, recap: Recap, recovery: Recovery, 'rich-tool': RichTool, 'secure-field': SecureField };
 const Scene = SCENES[SCENE] || PathTool;
 createRoot(document.getElementById('root')).render(
   <div data-host-scene={SCENE}>

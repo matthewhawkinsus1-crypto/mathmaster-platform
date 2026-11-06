@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePlotHelpSlot } from './plotHelpScope.js';
-import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
+import { clientPointToGraphCoordinate, viewBoxRenderScale } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
@@ -14,9 +14,11 @@ import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
+import { FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
-import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
+import { figureName, namedIn, plotName } from '../../platform/language/figureNames.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from '../../platform/supports/graphReadOut.js';
 import { axisTitleSay, axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
 
@@ -179,6 +181,9 @@ export default function CoordinatePlane({
   // and no accidental coordinate reveal. Default remains true for every
   // existing plane.
   pointHoverEnabled = true,
+  // The plane's name: text, or { text, say } where a tool builds it from its
+  // own messages (figureNames.js). A Spanish reading says it in Spanish (AX05,
+  // slice 4); the platform's own names are messages already.
   ariaLabel = 'Coordinate plane',
   // EVERY PLANE CAN BE OPENED FULL WINDOW.
   //
@@ -274,6 +279,9 @@ export default function CoordinatePlane({
   const height = equalUnits ? equalUnitPlaneHeight({ width, pad, xMin: domainXMin, xMax: domainXMax, yMin: domainYMin, yMax: domainYMax, fallback: authoredHeight }) : authoredHeight;
   const innerH = height - pad * 2;
   const interactive = typeof onPlot === 'function';
+  // The plane's name and its English (figureNames.js, AX05 slice 4).
+  const name = figureName(ariaLabel);
+  const nameText = name.text;
 
   const domain = { xMin: domainXMin, xMax: domainXMax, yMin: domainYMin, yMax: domainYMax };
   const [view, setView] = useState(null);
@@ -309,6 +317,11 @@ export default function CoordinatePlane({
   // has been dragged to. Null when the gesture is placing a new point instead.
   const [dragIndex, setDragIndex] = useState(null);
   const [gestureActive, setGestureActive] = useState(false);
+  // UNDER A FINGER (N60, planeTouch.js). Whether the preview is a finger's,
+  // so its chip goes above the fingertip; and the point it showed last, which
+  // is the point a finger's lift lands (a ref, so the lift reads the latest).
+  const [previewByTouch, setPreviewByTouch] = useState(false);
+  const shownPointRef = useRef(null);
   // CONTENT ON HOVER (WCAG 1.4.13). The pointer's crosshair, its coordinate
   // chip and a hovered point's coordinates are drawn over the plot, so Escape
   // puts them away without the pointer or focus moving. They come back when
@@ -390,6 +403,10 @@ export default function CoordinatePlane({
 
   const graphPointFromEvent = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
+    // A finger reaches a little past the grid's edge and is given a point
+    // inside the window drawn (planeTouch.js, N60). A mouse, a pen and the
+    // keyboard keep plain rounding.
+    const finger = event.pointerType === 'touch';
     const point = clientPointToGraphCoordinate({
       clientX: event.clientX,
       clientY: event.clientY,
@@ -401,10 +418,11 @@ export default function CoordinatePlane({
       xMax,
       yMin,
       yMax,
+      reach: finger ? FINGER_REACH_PX / viewBoxRenderScale({ rect, viewBoxWidth: width, viewBoxHeight: height }) : 0,
     });
     if (!point) return null;
-    const x = snapValue(point.x, snapStep);
-    const y = snapValue(point.y, snapStep);
+    const x = finger ? snapInsideWindow(point.x, snapStep, xMin, xMax) : snapValue(point.x, snapStep);
+    const y = finger ? snapInsideWindow(point.y, snapStep, yMin, yMax) : snapValue(point.y, snapStep);
     if (x == null || y == null) return null;
     // CLAMPED TO THE AUTHORED DOMAIN, not to the current view. Intentional
     // button zoom must not become a way to answer outside the authored graph.
@@ -458,8 +476,12 @@ export default function CoordinatePlane({
   // instead of dropping it to the page (A11Y-2).
   const resetViewAvailability = useFocusSafeDisabled(Boolean(view));
 
-  const HIT_RADIUS = 18;
-
+  // WHICH POINT A PRESS PICKS UP (planeTouch.js). `graphPoint` is already on
+  // the grid, and it picks up only a point whose own grid point it is (the
+  // nearest one, for a point between grid lines); a press on another grid
+  // point places a new point. A fixed 18 drawing units reached the rows above
+  // and below on a −10 to 10 grid (14.8 apart), so a press there moved the
+  // point instead. Two points on one grid point: the nearer.
   const pointIndexNear = (graphPoint) => {
     if (!canMovePoints || !graphPoint) return null;
     let best = null;
@@ -468,10 +490,11 @@ export default function CoordinatePlane({
       if (point?.movable === false || point?.marker) return;
       const [px, py] = pointXY(point);
       if (!Number.isFinite(px) || !Number.isFinite(py)) return;
+      if (!pressPicksUpPoint(graphPoint, [px, py], minorStep)) return;
       const distance = Math.hypot(sx(px) - sx(graphPoint[0]), sy(py) - sy(graphPoint[1]));
       if (distance < bestDistance) { bestDistance = distance; best = index; }
     });
-    return bestDistance <= HIT_RADIUS ? best : null;
+    return best;
   };
 
   const handlePointerDown = (event) => {
@@ -484,6 +507,8 @@ export default function CoordinatePlane({
     setReadoutDismissed(false);
     setGestureActive(true);
     setDragIndex(pointIndexNear(point));
+    setPreviewByTouch(event.pointerType === 'touch');
+    shownPointRef.current = point;
     setPointerPreview(point);
     // Capture so the gesture survives the finger leaving the plane's bounds —
     // without it a drag toward the edge silently stops updating. If the browser
@@ -494,12 +519,18 @@ export default function CoordinatePlane({
   const handlePointerMove = (event) => {
     if (!interactive) return;
     setKeyboardActive(false);
-    setPointerPreview(graphPointFromEvent(event));
+    const point = graphPointFromEvent(event);
+    setPreviewByTouch(event.pointerType === 'touch');
+    shownPointRef.current = point;
+    setPointerPreview(point);
   };
 
   const handlePointerUp = (event) => {
     if (!interactive || !gestureActive) return;
-    const point = graphPointFromEvent(event) || pointerPreview;
+    // A finger lands the point its chip showed: lifting rolls the fingertip,
+    // and on a phone a unit is 8 px high, so the lift's own position can be a
+    // row off the point the student saw (N60). A mouse lands where it is let go.
+    const point = event.pointerType === 'touch' ? shownPointRef.current : (graphPointFromEvent(event) || pointerPreview);
     const movedIndex = dragIndex;
     setGestureActive(false);
     setDragIndex(null);
@@ -515,6 +546,7 @@ export default function CoordinatePlane({
   const handlePointerCancel = () => {
     setGestureActive(false);
     setDragIndex(null);
+    shownPointRef.current = null;
     setPointerPreview(null);
   };
 
@@ -525,6 +557,14 @@ export default function CoordinatePlane({
     setReadoutDismissed(false);
   };
 
+  // THE KEYBOARD'S CROSSHAIR STANDS ON THE GRID (planeTouch.js). It starts at
+  // the grid point nearest the origin and moves a grid step a key. At an edge
+  // it stops at the last grid line inside the window, which once zoomed in
+  // can end between two: it stopped at the edge itself, and Enter plotted
+  // (4.571429, 0). Zoomed out, it stops at the authored graph's edge, where a
+  // press lands. A crosshair a zoom has left outside comes back to the grid.
+  const keyboardSpot = (point) => keyboardGridPoint(point, minorStep, { xMin, xMax, yMin, yMax }, domain);
+
   const moveKeyboardCursor = (dx, dy) => {
     plotCommitRef.current = null;
     setPlotAnnouncement('');
@@ -532,11 +572,8 @@ export default function CoordinatePlane({
     setReadoutDismissed(false);
     setPointerPreview(null);
     setKeyboardCursor((current) => {
-      const base = current || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
-      return [
-        clamp(tidy(base[0] + dx * minorStep), xMin, xMax),
-        clamp(tidy(base[1] + dy * minorStep), yMin, yMax),
-      ];
+      const base = keyboardSpot(current || [0, 0]);
+      return keyboardSpot([base[0] + dx * minorStep, base[1] + dy * minorStep]);
     });
   };
 
@@ -551,7 +588,9 @@ export default function CoordinatePlane({
       case 'Enter':
       case ' ': {
         event.preventDefault();
-        const target = keyboardCursor || [snapValue(clamp(0, xMin, xMax), snapStep), snapValue(clamp(0, yMin, yMax), snapStep)];
+        // Never a point off the grid: where the crosshair stands, or its
+        // nearest grid point inside the window when a zoom has left it outside.
+        const target = keyboardSpot(keyboardCursor || [0, 0]);
         setKeyboardCursor(target);
         setKeyboardActive(true);
         setReadoutDismissed(false);
@@ -589,8 +628,18 @@ export default function CoordinatePlane({
    * interactive plane does not resample every curve. Marks a tool draws itself
    * as `children` cannot be read from data, and the text says so rather than
    * pretending the list is complete.
+   *
+   * ONLY MARKS THAT ARE DRAWN (AX05, slice 4). A drawing that draws nothing is
+   * no marks: a Path stimulus hands over its curves' drawing function whether
+   * it has a curve or not, and every stimulus graph said "It also shows marks
+   * drawn by the activity that are not listed here." The drawing is made once,
+   * here, and the svg below draws the same. A tool that says in its own words
+   * what it draws (`toolMarks`) is heard whenever it hands over a drawing, an
+   * empty one too: "No region is shaded yet." is what it shows.
    */
-  const hasToolMarks = typeof children === 'function' || React.Children.toArray(children).length > 0;
+  const toolDrawing = typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children;
+  const toolDraws = React.Children.toArray(toolDrawing).length > 0;
+  const hasToolMarks = toolDraws || (Boolean(toolMarks) && typeof children === 'function');
   const describedPoints = orNone(points);
   const describedLines = orNone(lines);
   const describedFunctions = useStableFunctions(orNone(functions), xMin, xMax);
@@ -605,6 +654,9 @@ export default function CoordinatePlane({
   const graphReadOut = useGraphReadOut();
   const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed, explicit: describeFeatures });
   const descriptionDetail = (describeFeatures == null ? questionClosed || readOut : describeFeatures === true) ? 'features' : 'kinds';
+  // A tool's words may be a reading ({ text, say }, AX05 slice 3) built on
+  // every render: the description follows what they say, not the object.
+  const toolMarksKey = JSON.stringify([toolMarks?.kinds ?? null, toolMarks?.features ?? null]);
   const generatedDescription = useMemo(() => describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     detail: descriptionDetail,
@@ -617,14 +669,14 @@ export default function CoordinatePlane({
     regions: describedRegions,
     verticalLines: describedVerticals,
     horizontalLines: describedHorizontals,
-    label: ariaLabel,
+    label: nameText,
     hasUndescribedMarks: hasToolMarks,
     toolMarks: hasToolMarks ? toolMarks : null,
     emptyText: interactive ? 'Nothing is plotted yet.' : 'Nothing is plotted.',
   }), [
     xMin, xMax, yMin, yMax, xTickStep, yTickStep, snapStep,
     describedPoints, describedLines, describedFunctions, describedPolylines, describedRegions, describedVerticals, describedHorizontals,
-    ariaLabel, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarks?.kinds, toolMarks?.features,
+    nameText, hasToolMarks, interactive, descriptionDetail, showMinorGrid, toolMarksKey,
   ]);
   const authoredDescription = typeof description === 'string' ? description.trim() : '';
   const axisTitles = { x: cleanAxisLabel(xAxisTitle), y: cleanAxisLabel(yAxisTitle) };
@@ -636,9 +688,16 @@ export default function CoordinatePlane({
   const spokenDescription = [axisTitleSentence(axisTitles), authoredDescription || generatedDescription.description, authoredDescription ? readOutReading : '']
     .filter(Boolean).join(' ');
   // The same reading as messages, for Read aloud in the reader's language
-  // (AX05). An author's description and the full reading have none yet: they
-  // are read in English, and the reader says so.
+  // (AX05), the full reading included. An author's description has none: it
+  // is read in English, and the reader says so.
   const spokenSay = authoredDescription ? null : joinFigureSays(axisTitleSay(axisTitles), generatedDescription.say);
+  // What a screen reader hears: the same description, in Spanish (lang="es")
+  // where those messages can say it all (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = describedIn(figureWords, spokenDescription, spokenSay);
+  // Its name, in the same language and marked with it where its messages say
+  // it all (AX05, slice 4): a plane the student plots on also says how.
+  const named = namedIn(figureWords, interactive ? plotName(name, { movable: canMovePoints }) : name);
   useReportGraphReadOut(Boolean(readOutReading));
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
@@ -746,19 +805,23 @@ export default function CoordinatePlane({
     : cursorAt ? `${cursorLabel} ${formatCoordinate(cursorAt)}` : '';
 
   // The readout chip flips to the other side of the cursor near the edges so it
-  // never gets clipped by the plot border.
+  // never gets clipped by the plot border. Under a finger it sits above the
+  // fingertip instead, sized to the coordinates it shows (planeTouch.js, N60).
+  const chipByTouch = previewByTouch && !keyboardActive;
   const chip = useMemo(() => {
     if (!preview) return null;
     const cx = sx(preview[0]);
     const cy = sy(preview[1]);
     // Grows with the plane's text on a narrow plane (planeTextScale.js).
     const grow = planeFontSize(12, width, renderedWidth) / 12;
-    const chipWidth = revealCoordinates ? Math.max(58, previewText.length * 7.2) * grow : 0;
+    const characters = chipByTouch ? formatCoordinate(preview).length + 2 : previewText.length;
+    const chipWidth = revealCoordinates ? Math.max(58, characters * 7.2) * grow : 0;
     const chipHeight = 22 * grow;
-    const left = cx + 12 + chipWidth > width - 4 ? cx - 12 - chipWidth : cx + 12;
-    const top = cy - 8 - chipHeight < 4 ? cy + 14 : cy - 8 - chipHeight;
+    const { left, top } = readoutChipSpot({
+      cx, cy, chipWidth, chipHeight, planeWidth: width, planeHeight: height, touch: chipByTouch, scale: renderedWidth ? renderedWidth / width : 1,
+    });
     return { cx, cy, left, top, chipWidth, chipHeight, fontSize: 12 * grow };
-  }, [preview, previewText, revealCoordinates, width, renderedWidth, xMin, xMax, yMin, yMax]);
+  }, [preview, previewText, revealCoordinates, width, height, renderedWidth, chipByTouch, xMin, xMax, yMin, yMax]);
 
   /*
    * WHAT THIS PLANE CAN DO, TOLD TO WHOEVER IS HOLDING IT.
@@ -788,7 +851,7 @@ export default function CoordinatePlane({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [enlargeable, Boolean(view), zoomable, interactive, canMovePoints],
   );
-  usePublishWorkViewCapabilities(`coordinate-plane:${ariaLabel}`, publishedCapabilities);
+  usePublishWorkViewCapabilities(`coordinate-plane:${nameText}`, publishedCapabilities);
 
   const plane = (
     <div ref={planeRef} style={{ position: 'relative', width: '100%' }}>
@@ -802,7 +865,8 @@ export default function CoordinatePlane({
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role={interactive ? 'application' : 'img'}
-        aria-label={interactive ? `${ariaLabel}. Click to plot, or use the arrow keys to move the crosshair and Enter to plot.${canMovePoints ? ' Enter on a plotted point picks it up to move it.' : ''}` : ariaLabel}
+        aria-label={named.text}
+        lang={named.lang}
         aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
         onPointerDown={handlePointerDown}
@@ -1033,8 +1097,9 @@ export default function CoordinatePlane({
         })}
 
         {/* A tool drawing its own lines or curves passes `plotClip` as their
-            clipPath so they stop at the plotting rectangle too. */}
-        {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children}
+            clipPath so they stop at the plotting rectangle too. Drawn above,
+            once, where the description learns whether it holds a mark. */}
+        {toolDrawing}
       </svg>
       {axisTitles.x ? (
         <span className="mathmaster-plane-axis-title" data-plane-axis-title="x" aria-hidden="true" style={{ ...AXIS_TITLE, margin: '4px 0 0', textAlign: 'right' }}>
@@ -1050,8 +1115,8 @@ export default function CoordinatePlane({
           show the description as a visible paragraph (it pushed a staged
           question's first step off a phone screen, PR #454). */}
       {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
-      <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay }} />
-      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'}>{spokenDescription}</p>
+      <PublishFigureReading entry={{ kind: 'figure', label: nameText, labelSay: name.say, text: spokenDescription, say: spokenSay }} />
+      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'} lang={described.lang}>{describedContent(described)}</p>
 
       {showDataTable ? (
         <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>
@@ -1163,7 +1228,7 @@ export default function CoordinatePlane({
    */
   return (
     <EnlargeableFigure
-      label={ariaLabel}
+      label={nameText}
       style={{ width: '100%' }}
       capabilities={{
         fitView: zoomable ? { label:'Fit View', onAction:resetView, disabled:!view, cameraOnly:true } : null,

@@ -117,6 +117,8 @@ const recoveryRecord = (family) => {
     eligible: family.recovery.eligible === true,
     ready: slot.ready === true,
     issues: slot.issues.map((issue) => issue.code),
+    // The earlier versions a new Recovery binding takes this one in place of.
+    ...(family.recovery.replaces?.length ? { replaces: [...family.recovery.replaces] } : {}),
   };
 };
 

@@ -16,7 +16,20 @@
 //              out and keep the student on that step; a right one moves on by
 //              itself; the whole graph is on screen for every tap; graded right
 //   phone      the same journey on a 390×844 touch screen
-//   reload     work, the open step and what was checked survive a reload; a
+//   phonePrecision  on that phone, while a finger is down, the chip names the
+//              point a lift gives, above the fingertip, and the lift gives it;
+//              a finger just outside the grid lands on its edge, and zoomed in
+//              it is never given a point off the window; a mouse keeps the
+//              chip beside the cursor and a click outside the grid does
+//              nothing (N60)
+//   pickUp     on the -10 to 10 grid, a press on the grid point just above or
+//              below a placed point places a new point; a press on the point
+//              itself still picks it up (Chromebook by mouse, phone by touch)
+//   zoomedKeyboard  zoomed in, the keyboard's crosshair stops at the last grid
+//              line inside the window and Enter plots it there, not at the
+//              window's edge between grid lines; zoomed out it stops at the
+//              authored graph's edge (Chromebook and phone)
+//   reload    work, the open step and what was checked survive a reload; a
 //              changed answer counts only once it is checked again
 //   keyboard   the graph plots from the arrow keys and Enter, a plotted point is
 //              moved and a side is shaded the same way, the lines say so before
@@ -31,8 +44,16 @@
 //              graph does nothing until y is alone, then the boundary opens;
 //              the solver teaches no cancelling there (TL34), at 1366x768 and
 //              on a 390x844 touch screen (rewritePhone)
+//   rewritePlacement  once an operation and its value are chosen, the line
+//              under the operations says how to place it, with the keys, and
+//              the keys place it (F-SW-PLACEMENT-HOW)
 //   workview   the enlarged Work View says what the graph is waiting for, and a
 //              tap there is the same work as a tap on the page
+//   modeling   a context item's model is checked when it is graphed: ≤ for
+//              "at least 20 points" is held and told why, the right model (and
+//              an equivalent one) is graphed; on a DOL nothing says whether
+//              the model is right and Submit grades it as before
+//              (F-SW-CHECKS-OWN-MODEL)
 //   contrast   every line of the steps is readable, light and dark
 //
 // Nothing here weakens the mathematics: every step is still the student's to
@@ -44,6 +65,7 @@ import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { balanced, cancelPair } from './relationWorkspaceDriver.mjs';
+import { setMathField } from './stepAlgebraDriver.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
@@ -113,11 +135,17 @@ const choose = async (page, value) => {
   await settle(page, 200);
 };
 const cursor = (page) => page.locator('[data-cursor]').first().getAttribute('data-cursor');
+// A test point's value for each inequality, typed before it is judged ("2(6) + 3(4) = [ ]").
+const workOut = async (page, values) => {
+  for (const [index, value] of values.entries()) await page.locator(`[data-substitution="${index + 1}"] input`).fill(value);
+  await settle(page, 150);
+};
 const lastGrade = async (page) => (await page.evaluate(() => window.__mmGraded)).at(-1) || null;
 const chips = (page) => page.locator('[data-boundary-point]:visible').allInnerTexts().then((texts) => texts.map((text) => text.replace('×', '').trim()));
 const status = (page, index) => page.locator(`[data-constraint-index="${index}"] .mm-ineq-card-status-text`).innerText();
 
-const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality system"]';
+// "…of the inequality system", or with one constraint "…of the inequality" (inequalitySystemWords.js).
+const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality"]';
 const BUILD = { xMin: -6, xMax: 8, yMin: -4, yMax: 10 };
 
 /**
@@ -398,6 +426,10 @@ const keyboardReasoning = async () => {
   check((await bodyText(page)).includes('Your point: (2, 2). Click or tap the graph again to move it, or focus the grid and use the arrow keys and Enter.'), 'keyboard: Enter places the point, and the line says how to move it');
   await plane.plot([3, 2]);
   check((await bodyText(page)).includes('Your point: (3, 2). Click or tap the graph again to move it'), 'keyboard: the same keys move it');
+  // Each inequality is worked out at the point before it is judged (F-SW-TEST-POINT-YESNO).
+  const asked = await page.locator('[data-substitution]').allInnerTexts();
+  check(asked.map((text) => text.trim()).join(' | ') === '0.5(3) = | −3 + 6 = | 2(3) =', 'keyboard: each inequality asks for its value at the point', asked.join(' | '));
+  await workOut(page, ['1.5', '3', '6']);
   for (const question of ['inequality-1', 'inequality-2', 'inequality-3', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="yes"]`).click();
   await press(page, 'Check this point');
   check(await cursor(page) === 'vertices', 'keyboard: the point is judged right, and the corners are next', await cursor(page));
@@ -486,6 +518,37 @@ const rewrite = async ({ viewport = CHROMEBOOK, touch = false } = {}) => {
   check(/Plot boundary point 1 for constraint 1/.test(await label()), `${where}: and the graph takes the first boundary point`, await label());
 };
 
+// F-SW-PLACEMENT-HOW: after choosing Subtract and typing its value, Commit step
+// stays disabled until the operation is placed on both sides. How to place it
+// was only in a hover tooltip; the line under the operations says it now, with
+// the keyboard route — and the keys it names do it, leaving focus on the term.
+const rewritePlacement = async () => {
+  const page = await open('rewrite');
+  await page.locator('.mm-ineq-rewrite button:visible').filter({ hasText: /^.Subtract$/ }).first().click();
+  await settle(page, 250);
+  await setMathField(page, page.locator('math-field[aria-label="subtract value"]:visible').first(), 'x');
+  const line = page.locator('.mm-ineq-rewrite [data-placement-how="true"]');
+  const said = (await line.innerText()).trim();
+  check(said === 'Click or tap a term on each side (or Tab to it and press Enter), then choose where the operation goes.', 'rewritePlacement: with Subtract and its value chosen, the line says how to place it, with the keys', said);
+  const size = await line.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+  check(size >= 12, 'rewritePlacement: at a size a student reads', `${size}px`);
+  const commit = page.locator('.mm-ineq-rewrite button:visible', { hasText: 'Commit step' }).first();
+  check(await commit.isDisabled(), 'rewritePlacement: Commit step waits for the placement');
+  const focusedTerm = () => page.evaluate(() => document.activeElement?.getAttribute('data-cancel-key') || document.activeElement?.tagName);
+  for (const [side, key] of [['left', '0:0'], ['right', '0:1']]) {
+    const terms = page.locator(`.mm-ineq-rewrite button[data-cancel-key="${key}"]:visible`);
+    await terms.nth((await terms.count()) - 1).focus();
+    await page.keyboard.press('Enter');
+    await settle(page, 200);
+    // The menu follows the term: Before, Under, After.
+    for (let tab = 0; tab < 3; tab += 1) await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await settle(page, 250);
+    check(await focusedTerm() === key, `rewritePlacement: Enter on "After" places it on the ${side} side and leaves focus on the term`, await focusedTerm());
+  }
+  check(!(await commit.isDisabled()) && !(await line.count()), 'rewritePlacement: placed on both sides by keys, Commit step opens and the how-to line goes');
+};
+
 /* -------------------------------------------------------------- workview */
 
 const workview = async () => {
@@ -546,18 +609,340 @@ const contrast = async (theme) => {
   for (const [state, low] of states) check(low.length === 0, `contrast (${theme}): ${state} reads at 4.5:1 or better`, low.join('; '));
 };
 
+/* -------------------------------------------------------------- modeling */
+
+// F-SW-CHECKS-OWN-MODEL (PR #537 walkthrough, L4 CW 2): "AT LEAST 20 points"
+// written with ≤. The model was graphed as written and every step after it said
+// ✓ about the wrong half-plane, until Submit said "Not yet" without a reason.
+const KAI = { xMin: 0, xMax: 12, yMin: 0, yMax: 10 };
+const writeModel = async (page, [a, b, relation, c]) => {
+  await page.getByLabel('Constraint 1: coefficient of x', { exact: true }).fill(String(a));
+  await page.getByLabel('Constraint 1: coefficient of y', { exact: true }).fill(String(b));
+  await page.getByLabel('Constraint 1: relation', { exact: true }).selectOption(relation);
+  await page.getByLabel('Constraint 1: constant', { exact: true }).fill(String(c));
+  await settle(page, 200);
+};
+// Anything that would say whether the model, a step or a worked-out value is right.
+const MODEL_VERDICT = /means 20 points or more|match the situation|fit the situation|Check the coefficients|Check each coefficient|checks out|Correct|Recheck the value|Work out 2\(6\)/;
+const buildKai = async (page, shadeAt) => {
+  await tapAt(page, [10, 0], KAI);
+  await tapAt(page, [4, 4], KAI);
+  await press(page, 'Check boundary');
+  await choose(page, 'solid');
+  await press(page, 'Check line style');
+  await tapAt(page, shadeAt, KAI);
+  await press(page, 'Check shading');
+};
+const testKaiPoint = async (page, answer, value = '24') => {
+  await workOut(page, [value]);
+  for (const question of ['inequality-1', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="${answer}"]`).click();
+  await press(page, 'Check this point');
+};
+
+const modeling = async () => {
+  const page = await open('kai');
+  check(await cursor(page) === 'model', 'modeling: the question opens on writing the model');
+  await writeModel(page, [2, 3, '<=', 20]);
+  await press(page, 'Graph this inequality');
+  const said = await bodyText(page);
+  check(said.includes('“At least 20 points” means 20 points or more: ≥.') && await cursor(page) === 'model',
+    'modeling: ≤ for "at least 20" is called out in the situation\'s words, and the student stays on the model', await cursor(page));
+  check(!(await page.locator('[data-constraint-index]').count()) && !said.includes('✓'), 'modeling: nothing is graphed from the wrong model, and nothing ticks');
+  await page.getByLabel('Constraint 1: relation', { exact: true }).selectOption('>=');
+  await settle(page, 200);
+  check(!(await bodyText(page)).includes('means 20 points or more'), 'modeling: the line goes with the row it was about');
+  await press(page, 'Graph this inequality');
+  check(await cursor(page) === 'c0:boundary', 'modeling: the right model is graphed, and the boundary step opens', await cursor(page));
+  await buildKai(page, [8, 8]);
+  check(await cursor(page) === 'combine', 'modeling: the graph of the right model is built step by step', await cursor(page));
+  // F-SW-SYSTEM-WORDS: one inequality is not a system.
+  check((await bodyText(page)).includes('Your inequality checks out. Check your region to see it on the graph.'), 'modeling: one inequality is checked as a region, not combined');
+  await press(page, 'Check your region');
+  const side = await page.locator('.mm-ineq-side').innerText();
+  check(side.includes('Is the point a solution?') && !/overlap|system|combine/i.test(side), 'modeling: and its words are one inequality\'s — no overlap, no system', (side.match(/[^\n]*(overlap|system|combine)[^\n]*/i) || [''])[0]);
+  check(await page.getByText('Inequality in Two Variables', { exact: true }).count() === 1, 'modeling: the tool\'s badge says so too');
+  // F-SW-TEST-POINT-YESNO: the point is worked out before it is judged, so a guessed Yes passes nothing.
+  check((await page.locator('[data-substitution="1"]').innerText()).trim() === '2(6) + 3(4) =', 'modeling: the test point asks for 2(6) + 3(4) first');
+  for (const question of ['inequality-1', 'system']) await page.locator(`[data-question="${question}"] button[data-choice="yes"]`).click();
+  await press(page, 'Check this point');
+  check((await bodyText(page)).includes('Work out 2(6) + 3(4) first.') && await cursor(page) === 'teacherPoint', 'modeling: Yes alone does not pass the test point', await cursor(page));
+  await testKaiPoint(page, 'yes', '25');
+  check((await bodyText(page)).includes('Recheck the value of 2(6) + 3(4).') && await cursor(page) === 'teacherPoint', 'modeling: a wrong value is named, and the student stays on the point', await cursor(page));
+  await testKaiPoint(page, 'yes');
+  check(await page.locator('[data-phase="teacherPoint"]').getAttribute('data-state') === 'done', 'modeling: the right value and the right answers pass it');
+  await press(page, 'Check my work');
+  await settle(page, 600);
+  const grade = await lastGrade(page);
+  check(grade?.isCorrect === true && grade.partialCreditPercent === 100, 'modeling: graded right', JSON.stringify(grade && { isCorrect: grade.isCorrect, partial: grade.partialCreditPercent }));
+};
+
+const modelingEquivalent = async () => {
+  // −2x − 3y ≤ −20 is 2x + 3y ≥ 20 with every sign switched: the grader accepts it, so the step does.
+  const page = await open('kai');
+  await writeModel(page, [-2, -3, '<=', -20]);
+  await press(page, 'Graph this inequality');
+  check(await cursor(page) === 'c0:boundary' && !MODEL_VERDICT.test(await bodyText(page)), 'modeling: an equivalent model passes, with nothing said against it', await cursor(page));
+};
+
+const modelingDol = async () => {
+  // On a DOL nothing before Submit says whether the model is right: the wrong
+  // model is graphed as written, every step is recorded, and Submit grades it.
+  const page = await open('kai', { role: 'dol' });
+  await writeModel(page, [2, 3, '<=', 20]);
+  await press(page, 'Graph this inequality');
+  check(await cursor(page) === 'c0:boundary', 'modeling (DOL): the model is graphed as written', await cursor(page));
+  await buildKai(page, [1, 1]);
+  check((await bodyText(page)).includes('Your inequality is built. Check your region to see it on the graph.'), 'modeling (DOL): the region opens on finished work, in one inequality\'s words');
+  await press(page, 'Check your region');
+  // (6, 4) does not satisfy the student's own 2x + 3y ≤ 20. A wrong value is
+  // recorded like a right one: nothing is judged before Submit.
+  await testKaiPoint(page, 'no', '25');
+  check(await page.locator('[data-phase="teacherPoint"]').getAttribute('data-state') === 'done', 'modeling (DOL): the worked-out point is recorded, the value not judged');
+  const said = await bodyText(page);
+  check(!MODEL_VERDICT.test(said) && !said.includes('✓'), 'modeling (DOL): nothing says whether the model or any step is right', (said.match(MODEL_VERDICT) || [''])[0]);
+  await press(page, 'Check my work');
+  await settle(page, 800);
+  const grade = await lastGrade(page);
+  const parts = Object.fromEntries((grade?.parts || []).map((part) => [part.id, part.isCorrect]));
+  check(grade?.isCorrect === false && parts['model-1'] === false && parts['constraint-1'] === true && grade.partialCreditPercent === 75,
+    'modeling (DOL): Submit grades the model wrong and the graph of it right, as before', JSON.stringify({ parts, partial: grade?.partialCreditPercent }));
+};
+
+/* ------------------------------------------------------- phone precision */
+
+// N60 (PR #537 walkthrough): on a 390x844 phone a unit of a −10 to 10 grid is
+// 12.8 px across and 8 px up, so a fingertip covers several points. While a
+// finger is down the chip names the point a lift will give, above the
+// fingertip, and the lift gives that point; a finger reaches the grid's edge
+// from just outside it, and is never given a point off the window
+// (planeTouch.js). A mouse keeps what it had. The finger is the DevTools touch input, which runs
+// the page's touch-action; the lift a row off is dispatched, since a touch
+// input cannot end anywhere but where it last moved.
+const svgPoint = (page, [x, y], bounds) => page.evaluate(([gx, gy, b, selector]) => {
+  const svg = document.querySelector(selector);
+  const point = svg.createSVGPoint();
+  point.x = 42 + ((gx - b.xMin) / (b.xMax - b.xMin)) * (560 - 84);
+  point.y = 380 - 42 - ((gy - b.yMin) / (b.yMax - b.yMin)) * (380 - 84);
+  const screen = point.matrixTransform(svg.getScreenCTM());
+  return [screen.x, screen.y];
+}, [x, y, bounds, GRAPH]);
+const readout = (page) => page.evaluate((selector) => {
+  const group = document.querySelector(`${selector} [data-plane-readout]`);
+  const box = group?.querySelector('rect')?.getBoundingClientRect();
+  return group ? { text: group.querySelector('text')?.textContent || '', box: box && { left: box.left, right: box.right, top: box.top, bottom: box.bottom } } : null;
+}, GRAPH);
+const clearOf = ([x, y], box) => Math.hypot(Math.max(box.left - x, 0, x - box.right), Math.max(box.top - y, 0, y - box.bottom));
+const pointerAt = (page, type, [x, y], pointerType) => page.evaluate(([selector, kind, cx, cy, by]) => {
+  document.querySelector(selector).dispatchEvent(new PointerEvent(kind, {
+    bubbles: true, cancelable: true, composed: true, pointerId: 7, pointerType: by, isPrimary: true, clientX: cx, clientY: cy, buttons: kind === 'pointerup' ? 0 : 1,
+  }));
+}, [GRAPH, type, x, y, pointerType]);
+// A press at one point, a slide to `shown`, and a lift `liftOff` units above it.
+const liftOffBy = async (page, shown, liftOff, pointerType) => {
+  const at = await svgPoint(page, shown, BUILD);
+  const lift = await svgPoint(page, [shown[0], shown[1] + liftOff], BUILD);
+  await pointerAt(page, 'pointerdown', at, pointerType);
+  await settle(page, 60);
+  await pointerAt(page, 'pointermove', at, pointerType);
+  await settle(page, 60);
+  await pointerAt(page, 'pointerup', lift, pointerType);
+  await settle(page, 250);
+};
+
+const phonePrecision = async () => {
+  const page = await open('build', { viewport: PHONE, touch: true });
+  const cdp = await page.context().newCDPSession(page);
+  const finger = (type, at) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: at[0], y: at[1], id: 1 }] });
+  const start = await svgPoint(page, [0, 1], BUILD);
+  await finger('touchStart', start);
+  await settle(page, 200);
+  let shown = await readout(page);
+  check(shown?.text === '(0, 1)', 'phonePrecision: while a finger is down the chip names the point a lift gives', shown?.text);
+  check(Boolean(shown?.box) && shown.box.bottom < start[1] && clearOf(start, shown.box) >= 30,
+    'phonePrecision: the chip is above the fingertip, clear of it', shown?.box ? `${Math.round(clearOf(start, shown.box))} px from the finger` : 'no chip');
+  const end = await svgPoint(page, [2, 3], BUILD);
+  for (let step = 1; step <= 6; step += 1) {
+    await finger('touchMove', [start[0] + ((end[0] - start[0]) * step) / 6, start[1] + ((end[1] - start[1]) * step) / 6]);
+    await settle(page, 40);
+  }
+  await settle(page, 150);
+  shown = await readout(page);
+  check(shown?.text === '(2, 3)' && shown.box.bottom < end[1] && clearOf(end, shown.box) >= 30, 'phonePrecision: sliding, the chip follows the point and stays above the fingertip', shown?.text);
+  await finger('touchEnd');
+  await settle(page, 250);
+  check((await chips(page)).join(' | ') === 'Point 1 (2, 3) | Point 2: plot it on the graph', 'phonePrecision: the lift gives the point the chip showed', (await chips(page)).join(' | '));
+  // The fingertip rolls as it lifts: a lift most of a row above (4, 4) still gives (4, 4).
+  await liftOffBy(page, [4, 4], 0.8, 'touch');
+  check((await chips(page))[1] === 'Point 2 (4, 4)', 'phonePrecision: a lift a row off still gives the point the finger was shown', (await chips(page)).join(' | '));
+  // A finger 10 px outside the grid's edge lands on the edge (it did nothing).
+  const tapWithFinger = async (at) => {
+    await finger('touchStart', at);
+    await settle(page, 120);
+    const said = await readout(page);
+    await finger('touchEnd');
+    await settle(page, 250);
+    return said?.text || null;
+  };
+  await page.getByRole('button', { name: /^Remove point 2 / }).click();
+  await settle(page, 200);
+  const edge = await svgPoint(page, [BUILD.xMin, 3], BUILD);
+  await tapWithFinger([edge[0] - 10, edge[1]]);
+  check((await chips(page))[1] === 'Point 2 (−6, 3)', 'phonePrecision: a finger just outside the grid\'s edge lands on the edge', (await chips(page)).join(' | '));
+  // Zoomed in three times the window ends between grid lines (x to 3.55, y to
+  // 5.55): a finger just past its corner is given the last point inside, not
+  // (4, 6), which plain rounding gives and which is drawn off the grid.
+  for (let zoom = 0; zoom < 3; zoom += 1) await page.locator('button[aria-label="Zoom in"]').first().click();
+  await settle(page, 250);
+  await page.getByRole('button', { name: /^Remove point 2 / }).click();
+  await settle(page, 200);
+  const corner = await page.evaluate((selector) => {
+    const svg = document.querySelector(selector);
+    const point = svg.createSVGPoint();
+    point.x = 560 - 42;
+    point.y = 42;
+    const screen = point.matrixTransform(svg.getScreenCTM());
+    return [screen.x, screen.y];
+  }, GRAPH);
+  const atCorner = await tapWithFinger([corner[0] + 3, corner[1] - 3]);
+  check(atCorner === '(3, 5)' && (await chips(page))[1] === 'Point 2 (3, 5)', 'phonePrecision: zoomed in, a finger at the window\'s corner is given the last point inside it',
+    `chip ${atCorner}; ${(await chips(page)).join(' | ')}`);
+  await cdp.detach().catch(() => {});
+
+  // A mouse: the chip beside the cursor, and the point where the button is let go, as before.
+  const laptop = await open('build');
+  const aim = await svgPoint(laptop, [2, 3], BUILD);
+  await laptop.mouse.move(aim[0], aim[1]);
+  await settle(laptop, 200);
+  shown = await readout(laptop);
+  check(Boolean(shown?.box) && shown.box.left > aim[0] && shown.box.left - aim[0] < 20 && shown.box.bottom < aim[1] && aim[1] - shown.box.bottom < 14,
+    'phonePrecision (mouse): the chip stays beside the cursor, up and to the right', shown?.box ? `left +${Math.round(shown.box.left - aim[0])}, bottom −${Math.round(aim[1] - shown.box.bottom)}` : 'no chip');
+  await liftOffBy(laptop, [4, 4], 0.8, 'mouse');
+  check((await chips(laptop))[0] === 'Point 1 (4, 5)', 'phonePrecision (mouse): the point lands where the button is let go', (await chips(laptop)).join(' | '));
+  const outside = await svgPoint(laptop, [BUILD.xMin, 3], BUILD);
+  await laptop.mouse.move(outside[0] - 10, outside[1]);
+  await laptop.mouse.down();
+  await laptop.mouse.up();
+  await settle(laptop, 250);
+  check((await chips(laptop)).join(' | ') === 'Point 1 (4, 5) | Point 2: plot it on the graph', 'phonePrecision (mouse): a click outside the grid does nothing, as before', (await chips(laptop)).join(' | '));
+};
+
+/* ------------------------------------------------- what a press picks up */
+
+// Found by N60, on laptops too: on a -10 to 10 grid a row is 14.8 drawing
+// units, closer than the old 18-unit pick-up, so a press on the grid point
+// just above or below a placed point picked that point up and moved it there.
+// A press on another grid point places a new point; only the point's own grid
+// point picks it up (planeTouch.js, pressPicksUpPoint).
+const WIDE = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+const pickUp = async (viewport, touch) => {
+  const where = touch ? 'phone' : 'Chromebook';
+  const page = await open('wide', { viewport, touch });
+  const cdp = touch ? await page.context().newCDPSession(page) : null;
+  // A press by finger or mouse, `nudge` CSS px off a grid point, lifted there or slid to another.
+  const pressAt = async (point, { nudge = [0, 0], slideTo = null } = {}) => {
+    const [x, y] = await svgPoint(page, point, WIDE);
+    const from = [x + nudge[0], y + nudge[1]];
+    const to = slideTo ? await svgPoint(page, slideTo, WIDE) : from;
+    const path = [1, 2, 3, 4].map((step) => [from[0] + ((to[0] - from[0]) * step) / 4, from[1] + ((to[1] - from[1]) * step) / 4]);
+    if (touch) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from[0], y: from[1], id: 1 }] });
+      await settle(page, 80);
+      for (const at of path) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: at[0], y: at[1], id: 1 }] });
+        await settle(page, 40);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else {
+      await page.mouse.move(from[0], from[1]);
+      await page.mouse.down();
+      for (const at of path) await page.mouse.move(at[0], at[1]);
+      await page.mouse.up();
+    }
+    await settle(page, 250);
+  };
+  const said = async () => (await chips(page)).join(' | ');
+  await pressAt([2, 3]);
+  check(await said() === 'Point 1 (2, 3) | Point 2: plot it on the graph', `pickUp (${where}): the first point`, await said());
+  await pressAt([2, 4]);
+  check(await said() === 'Point 1 (2, 3) | Point 2 (2, 4)', `pickUp (${where}): a press on the grid point just above a placed point places a new point`, await said());
+  await page.getByRole('button', { name: /^Remove point 2 / }).click();
+  await settle(page, 200);
+  await pressAt([2, 2]);
+  check(await said() === 'Point 1 (2, 3) | Point 2 (2, 2)', `pickUp (${where}): and so does the one just below`, await said());
+  // A press on the point, a little off its centre (inside its grid cell), still picks it up.
+  await pressAt([2, 3], { nudge: [2, -2], slideTo: [-1, 0] });
+  check(await said() === 'Point 1 (−1, 0) | Point 2 (2, 2)', `pickUp (${where}): a press on the point itself picks it up, and the slide moves it`, await said());
+  await cdp?.detach().catch(() => {});
+};
+
+/* ------------------------------------------------- the keyboard, zoomed */
+
+// Found by N60, on laptops too: two presses of Zoom in end the build grid's
+// window at x = 4.571429, between grid lines, and the keyboard's crosshair
+// stopped there; Enter plotted "Point 1 (4.571429, 0)". It stops at the last
+// grid line inside the window, and zoomed out it stays on the authored graph,
+// as a press does (planeTouch.js, keyboardGridPoint).
+const zoomedKeyboard = async (viewport, touch) => {
+  const where = touch ? 'phone' : 'Chromebook';
+  const page = await open('build', { viewport, touch });
+  const plane = keyboardPlane(page);
+  const zoom = async (name, times) => {
+    for (let index = 0; index < times; index += 1) await page.getByRole('button', { name, exact: true }).first().click();
+    await settle(page, 250);
+  };
+  const arrows = async (key, times) => {
+    for (let index = 0; index < times; index += 1) await page.keyboard.press(key);
+    await settle(page, 150);
+  };
+  await zoom('Zoom in', 2);
+  const shownWindow = (await bodyText(page)).match(/Showing x [^\n]*/)?.[0] || '';
+  check(shownWindow.startsWith('Showing x -2.571429 to 4.571429'), `zoomedKeyboard (${where}): two presses of Zoom in end the window between grid lines`, shownWindow);
+  check(await plane.focus(), `zoomedKeyboard (${where}): the graph is reached with Tab`);
+  await arrows('ArrowRight', 6);
+  check((await readout(page))?.text === '(4, 0)', `zoomedKeyboard (${where}): the crosshair stops at the last grid line inside the window`, (await readout(page))?.text);
+  await page.keyboard.press('Enter');
+  await settle(page, 250);
+  check((await chips(page))[0] === 'Point 1 (4, 0)', `zoomedKeyboard (${where}): Enter plots it on the grid`, (await chips(page)).join(' | '));
+  await arrows('ArrowUp', 9);
+  check((await readout(page))?.text === '(4, 6)', `zoomedKeyboard (${where}): and up, at the top edge's last grid line`, (await readout(page))?.text);
+  // Zoomed out the window runs to x = 10.8; the authored graph, and a press, stop at 8.
+  await zoom('Reset view', 1);
+  await zoom('Zoom out', 1);
+  check(await plane.focus(), `zoomedKeyboard (${where}): back to the graph with Tab`);
+  await arrows('ArrowRight', 8);
+  check((await readout(page))?.text === '(8, 6)', `zoomedKeyboard (${where}): zoomed out, the crosshair stops at the authored graph's edge`, (await readout(page))?.text);
+  await page.keyboard.press('Enter');
+  await settle(page, 250);
+  check((await chips(page)).join(' | ') === 'Point 1 (4, 0) | Point 2 (8, 6)', `zoomedKeyboard (${where}): and Enter plots no point the question never allowed`, (await chips(page)).join(' | '));
+};
+
 /* ------------------------------------------------------------------- run */
 
 const SCENARIOS = {
   journey: () => scenario('journey', () => fullJourney('journey', { viewport: CHROMEBOOK, touch: false })),
   phone: () => scenario('phone', () => fullJourney('phone', { viewport: PHONE, touch: true })),
+  phonePrecision: () => scenario('phonePrecision', phonePrecision),
+  pickUp: async () => {
+    await scenario('pickUp', () => pickUp(CHROMEBOOK, false));
+    await scenario('pickUp phone', () => pickUp(PHONE, true));
+  },
+  zoomedKeyboard: async () => {
+    await scenario('zoomedKeyboard', () => zoomedKeyboard(CHROMEBOOK, false));
+    await scenario('zoomedKeyboard phone', () => zoomedKeyboard(PHONE, true));
+  },
   reload: () => scenario('reload', reload),
   keyboard: () => scenario('keyboard', keyboard),
   keyboardReasoning: () => scenario('keyboardReasoning', keyboardReasoning),
   keyboardConstruct: () => scenario('keyboardConstruct', keyboardConstruct),
   rewrite: () => scenario('rewrite', () => rewrite()),
   rewritePhone: () => scenario('rewritePhone', () => rewrite({ viewport: PHONE, touch: true })),
+  rewritePlacement: () => scenario('rewritePlacement', rewritePlacement),
   workview: () => scenario('workview', workview),
+  modeling: async () => {
+    await scenario('modeling', modeling);
+    await scenario('modeling equivalent', modelingEquivalent);
+    await scenario('modeling dol', modelingDol);
+  },
   contrast: async () => {
     await scenario('contrast light', () => contrast('light'));
     await scenario('contrast dark', () => contrast('dark'));

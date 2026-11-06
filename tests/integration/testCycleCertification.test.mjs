@@ -1115,8 +1115,9 @@ test('J: a Test day is never scheduled into a meeting that has ended, and an unr
   const { zonedDateKey, zonedInstant } = await import('../../functions/shared/instructionalCalendar.mjs');
   const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
   const { withClassTestDay } = await import('../../functions/shared/testCycleAvailability.mjs');
-  const DAY = 86400000;
-  const dayKey = (offset) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
+  const { shiftDateKey } = await import('../../src/platform/attendance/classMeetings.js');
+  // Whole calendar days: adding 24 hours to now lands on the wrong day across a clock change.
+  const dayKey = (offset) => shiftDateKey(zonedDateKey(Date.now(), SCHOOL_TIME_ZONE), offset);
   const today = dayKey(0);
   const [year, month, day] = today.split('-').map(Number);
   // Today's meeting is 00:00–00:01 school time, so it has ended — unless this
@@ -1243,8 +1244,9 @@ test('K: a preview of a Test whose session is not open describes it and opens no
   const { SCHOOL_TIME_ZONE } = await import('../../functions/shared/sectionDeadline.mjs');
   const { withClassTestDay } = await import('../../functions/shared/testCycleAvailability.mjs');
   const { teacherActionsForRow } = await import('../../src/platform/teacher/testCycleTeacherRows.js');
-  const DAY = 86400000;
-  const dayKey = (offset) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
+  const { shiftDateKey } = await import('../../src/platform/attendance/classMeetings.js');
+  // Whole calendar days: adding 24 hours to now lands on the wrong day across a clock change.
+  const dayKey = (offset) => shiftDateKey(zonedDateKey(Date.now(), SCHOOL_TIME_ZONE), offset);
   const ASSIGNMENT = `${CERT_PREFIX}pr20`;
   const CLASS = 'cert-pr20-class';
   const PERIOD = 'CERT PR20 Period';

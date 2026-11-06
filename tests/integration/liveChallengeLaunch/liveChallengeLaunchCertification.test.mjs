@@ -108,6 +108,18 @@ const closeScenario = async ({ host = null, farm, label }) => {
     await farm.close();
   }
 };
+// The screens a wait is still waiting for, in words: each one's student, the
+// room its view holds, its stage, whether its invite listener is attached, the
+// invite it last heard, and its last errors. A timed-out wait used to say only
+// "not every screen followed its invite" (CI run 64), not which or why.
+const describeScreens = (views) => views.map((view) => [
+  `${view.studentId}: view room ${view.roomId || 'none'}`,
+  `stage ${view.stage || 'none'}`,
+  `invite listener ${view.inviteListener ? 'attached' : 'NOT attached'}`,
+  `last invite ${view.invite?.roomId || 'none'}`,
+  ...(view.online === false ? ['offline'] : []),
+  ...(view.errors?.length ? [`errors: ${view.errors.join(' | ')}`] : []),
+].join(', ')).join('; ') || 'none';
 
 /* ------------------------- classes, roster, bank ------------------------- */
 
@@ -707,6 +719,10 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
   const heap = [];
   const listenerSamples = [];
   const answerMs = [];
+  // The match in play's host console. A match that failed before closing it
+  // left its listeners and its quarter-second tick running: the farm closed,
+  // but the process stayed open until the CI step's limit (CI run 64).
+  let host = null;
   try {
     await Promise.all(entry.students.map((studentId, index) => farm.add(studentId, {
       deliveryJitterMs: 400, rttMs: Math.round(random() * 60), answer: index % 3 === 2 ? 'wrong' : 'correct', answerJitterMs: 1_500,
@@ -723,12 +739,25 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
       // eslint-disable-next-line no-await-in-loop
       const roomId = await createGame(entry, { scoringStrategyId });
       // eslint-disable-next-line no-await-in-loop
-      const host = await openHost(entry, roomId);
+      host = await openHost(entry, roomId);
       // eslint-disable-next-line no-await-in-loop
-      await waitUntil(`${label}: not every screen followed its invite into the new lobby`, async () => [...(await farm.views()).values()].every((view) => view.roomId === roomId), 20_000);
+      await waitUntil(
+        async () => `${label}: not every screen followed its invite into the new lobby ${roomId}. Not there: ${describeScreens([...(await farm.views()).values()].filter((view) => view.roomId !== roomId))}`,
+        async () => [...(await farm.views()).values()].every((view) => view.roomId === roomId),
+        20_000,
+      );
       // eslint-disable-next-line no-await-in-loop
-      await waitUntil(`${label}: lobby`, async () => (await publicPlayers(roomId)).filter((row) => row.joined).length === ENDURANCE_CLASS
-        && [...(await farm.views()).values()].every((view) => view.clockReady), 30_000, 250);
+      await waitUntil(
+        async () => {
+          const joined = new Set((await publicPlayers(roomId)).filter((row) => row.joined).map((row) => row.playerKey));
+          const views = [...(await farm.views()).values()];
+          return `${label}: lobby: ${joined.size} of ${ENDURANCE_CLASS} joined. Not joined: ${describeScreens(views.filter((view) => !joined.has(view.invite?.playerKey)))}. Clock not ready: ${describeScreens(views.filter((view) => !view.clockReady))}`;
+        },
+        async () => (await publicPlayers(roomId)).filter((row) => row.joined).length === ENDURANCE_CLASS
+          && [...(await farm.views()).values()].every((view) => view.clockReady),
+        30_000,
+        250,
+      );
       // eslint-disable-next-line no-await-in-loop
       await teacherCall(entry, 'startLiveChallenge', { roomId });
       // eslint-disable-next-line no-await-in-loop
@@ -753,6 +782,7 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
       }, 20_000, 250);
       // eslint-disable-next-line no-await-in-loop
       await host.close();
+      host = null;
       assertEveryDevicePlayed(views, roomId, label);
       // eslint-disable-next-line no-await-in-loop
       const totals = await assertMatchIntegrity(farm, roomId, entry, views, label, privateAtLastClose);
@@ -785,7 +815,7 @@ test(`endurance: ${ENDURANCE_MATCHES} matches in a row for ${ENDURANCE_CLASS} st
     assert.ok(growth < 48, `heap grew ${growth} MB from match 2 to match ${ENDURANCE_MATCHES}: ${heap.join(' → ')}`);
   } finally {
     try {
-      await closeScenario({ farm, label: 'endurance' });
+      await closeScenario({ host, farm, label: 'endurance' });
     } finally {
       const active = (await db.collection('liveChallengeTeacherActive').doc(entry.teacher).get()).data()?.roomId;
       if (active) await teacherCall(entry, 'cancelLiveChallenge', { roomId: active }).catch(() => {});

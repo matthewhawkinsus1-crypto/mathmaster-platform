@@ -8,7 +8,9 @@ import SolutionReviewPanel from '../../SolutionReviewPanel.jsx';
 import LinearRegressionPanel from '../assessment/LinearRegressionPanel.jsx';
 import SecureItemAccessSupports from '../assessment/SecureItemAccessSupports.jsx';
 import SecureMathAnswerField from '../assessment/SecureMathAnswerField.jsx';
-import { SECURE_ACTIVITY_ROLE, secureAccessEntitlement } from '../../platform/assessment/secureItemAccess.js';
+import { SECURE_ACTIVITY_ROLE, secureAccessEntitlement, secureFigureLanguage } from '../../platform/assessment/secureItemAccess.js';
+import { FigureWordsProvider } from '../../platform/language/figureReadings.js';
+import { loadFigureWords } from '../../platform/language/figureSay.js';
 import { GraphReadOutProvider, graphReadOutEntitled } from '../../platform/supports/graphReadOut.js';
 import { toolsEntitlementFromProfile } from '../../platform/language/supportToolsEntitlement.js';
 import { workedSolutionSupports } from '../../platform/supports/workedSolutionSupports.js';
@@ -158,6 +160,27 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
     const saved = initialResponsePayload?.toolState?.linearRegression;
     return saved ? { ...saved, rows: saved.rows.map((row) => (Array.isArray(row) ? row : row.cells)) } : null;
   });
+  // FIGURES IN THE STUDENT'S LANGUAGE (AX05, slice 3). Where a secure item
+  // offers the student an authored translation of its prompt (Translate on
+  // their plan: secureItemAccess.js secureFigureLanguage), its figures write
+  // their screen-reader descriptions in that language, marked lang="es", from
+  // the words QuestionEngine loads the same way for an assignment, under the
+  // figure's own rule: no position while the item can be answered. Until the
+  // words arrive, or in a language without them, the figures stay English.
+  const figureLanguage = useMemo(
+    () => (policy.secure ? secureFigureLanguage(question, rawStudentSupportProfile) : null),
+    [policy.secure, question, rawStudentSupportProfile],
+  );
+  const [loadedFigureWords, setLoadedFigureWords] = useState(null);
+  useEffect(() => {
+    if (!figureLanguage) return undefined;
+    let current = true;
+    loadFigureWords(figureLanguage)
+      .then((pack) => { if (current) setLoadedFigureWords({ language: figureLanguage, pack }); })
+      .catch(() => { /* not loaded: the figures describe themselves in English */ });
+    return () => { current = false; };
+  }, [figureLanguage]);
+  const figurePack = loadedFigureWords?.language === figureLanguage ? loadedFigureWords.pack : null;
   const fields = question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
   const choices = Array.isArray(question?.choices) ? question.choices : [];
   const complete = fields.every((field) => String(responses[field.id] ?? '').trim());
@@ -206,7 +229,9 @@ const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, 
             student whose plan gives it. Recorded with the item's
             accommodations (supportUsage), as every secure accommodation is. */}
         <GraphReadOutProvider enabled={graphReadOut}>
-          <PathQuestionStimulus stimulus={question.stimulus} />
+          <FigureWordsProvider pack={figurePack}>
+            <PathQuestionStimulus stimulus={question.stimulus} />
+          </FigureWordsProvider>
         </GraphReadOutProvider>
         {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel value={regressionState} onUsed={() => setCalculatorUsed(true)} onChange={(next) => {
           setRegressionState(next);

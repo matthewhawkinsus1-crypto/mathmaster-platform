@@ -401,7 +401,10 @@ exists past the edge; a check only when its drawing means the answer's set):
   race, retry or replay;
 - an attempt id seen before is a **replay** of its receipt;
 - each recorded attempt is a `targetAttempt` receipt with what was asked
-  (feature, family, tier) and where a tap landed;
+  (feature, family, tier) and where a tap landed — and, for a wrong tap
+  within the round's tolerance of ANOTHER feature of the same graph, which
+  one (`diagnosis`: the y-intercept tapped for the zeros, the minimum for the
+  maximum; below);
 - claimed times are bounded: never after arrival, never before the previous
   attempt, never more than 8 s before arrival.
 
@@ -435,6 +438,20 @@ graph lets a lucky sweep pass an unlucky reader there, in about a quarter of
 rooms), so the test measures eight rooms. A sweep
 can still outscore a student who reads very slowly; the cooldown is not
 allowed to punish honest mistakes harder than that.
+
+**Where a wrong tap landed (N42).** The server's own copy of each question
+carries every point and line feature of its graph (`graphFeatures`, from the
+family's exact analysis; a zero or y-intercept that is not a rational number
+is found on the drawn curve), never the device's copy. A miss that would have
+found one of them had the question asked for it — by the hit test's own
+distance, in the round's tolerance — records it on its receipt
+(`rushTapDiagnosis`): never the feature asked, only features the catalog asks
+of that family (a cubic's turning point is never "the maximum") and in view,
+the nearest first, the vertex before the extreme it also is, except that a
+question asking for one extreme names the other. It is decided after the
+verdict and read by nothing but the report: no verdict, point, time or
+cooldown moves, the reply to the device never carries it, and no screen a
+student or the class sees reads it.
 
 What a modified client could still do: skip the cooldown (the miss penalty and
 the eighth-miss skip still apply), or read a question's targets from the
@@ -592,8 +609,8 @@ and dark; reduced motion turns the pops and fades off.
 | `liveChallengeRooms/{room}` | `challengeMode: 'graphFeatureRush'`, `graphFeatureRush: { config, generatorVersion }` (no seed) |
 | `…/players/{key}` | `score`, `rawScore`, `correctCount`, `roundsAnswered`, `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, and after a close `lastRound: { roundIndex, rank, fieldSize, completed, accuracyPercent, workScore, matchPointsAwarded, participated }` |
 | `liveChallengePrivate/{room}` | `graphFeatureRush: { seed, config, generatorVersion }` |
-| `…/players/{studentId}` | receipts (`targetAttempt`, with feature, family, tier, tap position, pointer; a check's `drawing` — its dots as `{ value, closed }` objects, never `[value, closed]` pairs, which Firestore refuses inside an array — and `diagnosis`), totals |
-| `liveChallengeReports/{room}` | `graphFeatureRush`: graphs completed, tap accuracy, skips, "Does Not Exist" accuracy, by feature and by family (hardest first), per student |
+| `…/players/{studentId}` | receipts (`targetAttempt`, with feature, family, tier, tap position, pointer; a check's `drawing` — its dots as `{ value, closed }` objects, never `[value, closed]` pairs, which Firestore refuses inside an array — and `diagnosis`: what a wrong check got wrong, or the other feature a wrong tap landed on), totals |
+| `liveChallengeReports/{room}` | `graphFeatureRush`: graphs completed, tap accuracy, skips, "Does Not Exist" accuracy and, in a game with off-screen features, "Off screen" accuracy (`offScreen`, from receipts with `attemptKind: 'offScreen'`), by feature and by family (hardest first), what wrong checks got wrong (`mistakes`) and, beside them, where wrong taps landed (`wrongTaps`: "Tapped the y-intercept when asked for zeros (x-intercepts)", class counts, most common first, from each standing's `questionSetSummary.wrongTaps`), per student |
 
 ---
 
@@ -669,6 +686,12 @@ and dark; reduced motion turns the pops and fades off.
   random taps.
 - `graphFeatureRushScreens.test.mjs` — the setup and results models, the
   shared Rewards choice, and source contracts for every screen's wiring.
+- `graphFeatureRushWrongTaps.test.mjs` — where wrong taps land: every
+  question's own features checked on the curve, the rule (tolerance, the
+  catalog, the view, the nearest, coinciding features), the receipt and never
+  the reply, the same verdicts, points and pace with and without it, device
+  and server agreeing on taps aimed at other features, the report's grouping
+  and its screen.
 - `tests/integration/graphFeatureRush.test.mjs` (emulator) — full games
   through the callables: replays, refresh, stale tokens, deadlines, the
   eighth-miss skip, closes and results, finish, the next game, 10 and 35
@@ -684,16 +707,18 @@ and dark; reduced motion turns the pops and fades off.
 
 ## 12. Deferred
 
-- **A server-side close** for an expired round when no host screen is open
-  (today the console or projector closes it; students wait on "Time!"). This
-  now applies to every mode (`live-challenge-shell.md` §14).
-- **Misconception analytics**: receipts already record where wrong taps land
-  (e.g. the y-intercept tapped for "zeros"); the report does not yet group them.
+- ~~A server-side close for an expired round when no host screen is open.~~
+  Built: the server's one-minute sweep (`closeOverdueLiveChallengeRounds`,
+  `functions/shared/liveChallengeServerSweep.mjs`) closes it through the
+  console's own close transaction, for every mode (`live-challenge-shell.md`
+  §4).
+- ~~**Misconception analytics**: receipts already record where wrong taps land
+  (e.g. the y-intercept tapped for "zeros"); the report does not yet group them.~~
+  Built (N42, §5): a wrong tap on another feature of the graph is recorded as
+  it, and the report groups them beside the mistakes for sets.
 - **More features** (axis of symmetry, holes, relative extrema, inflection
   points) and families (logarithmic, trigonometric, higher-degree
   polynomials) through the registry and family contracts.
-- **Off-screen presses in the report**: receipts record them (`attemptKind:
-  'offScreen'`), the report does not yet count them beside "Does Not Exist".
 
 ---
 

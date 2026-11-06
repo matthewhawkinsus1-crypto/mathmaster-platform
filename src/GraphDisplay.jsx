@@ -7,10 +7,14 @@ import MathDisplay from './MathDisplay.jsx';
 import { formatGraphEquationLatex } from './functionGraphUtils.js';
 import { majorTicks, niceStep } from './platform/graph/graphScaleService.js';
 import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
+import { BOUNDARY_DASH } from './platform/graph/verticalLineStyle.js';
+import { boundaryIsLine, boundaryIsVertical, SHADE_OPACITY, shadingPolygon, shadingRegions } from './platform/graph/halfPlaneShading.js';
+import { constraintColor } from './tools/systemsWorkspace/constraintPalette.js';
 import { describeCoordinatePlane, GRAPH_WORDS, joinSegmentPaths } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
-import { PublishFigureReading } from './platform/language/figureReadings.js';
-import { joinFigureSays, say, sayFigure } from './platform/language/figureSay.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from './platform/language/figureReadings.js';
+import { itemWords, joinFigureSays, say, sayFigure } from './platform/language/figureSay.js';
+import { namedIn } from './platform/language/figureNames.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from './platform/supports/graphReadOut.js';
 
 const DEFAULT_WIDTH = 620;
@@ -129,6 +133,7 @@ const restrictedFunctionEndpoints = (functions = []) => functions.flatMap((spec,
       id: `function-${functionIndex}-${boundary.side}-boundary`,
       point: [boundary.value, y],
       marker: boundary.closed ? 'closed' : 'open',
+      ...(spec.stroke ? { color: spec.stroke } : {}),
     }];
   });
 });
@@ -187,12 +192,30 @@ const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax) =
     delete unrestricted.domain;
     delete unrestricted.restrictedDomain;
 
+    // An arrowhead is drawn in its own curve's colour.
     return [
       ...(!hasFiniteMin ? visibleArrow(unrestricted, functionIndex, 'left', xMin, xMin + probe) : []),
       ...(!hasFiniteMax ? visibleArrow(unrestricted, functionIndex, 'right', xMax, xMax - probe) : []),
-    ];
+    ].map((arrow) => (spec.stroke ? { ...arrow, color: spec.stroke } : arrow));
   });
 };
+
+/*
+ * A VERTICAL LINE ON THE FIGURE (N38): the boundary x = c of an inequality
+ * such as x < 3, which no function y = f(x) can draw. `graph.verticalLines`:
+ * [{ x, dashed?, stroke? }]. It crosses the whole window, so like every other
+ * line it gets an arrowhead where it leaves, at the top and at the bottom.
+ */
+const readVerticalLines = (graph) => (Array.isArray(graph.verticalLines) ? graph.verticalLines : [])
+  .filter((entry) => entry && typeof entry === 'object' && Number.isFinite(Number(entry.x)))
+  .map((entry) => ({ x: Number(entry.x), dashed: entry.dashed === true, stroke: typeof entry.stroke === 'string' && entry.stroke ? entry.stroke : null }));
+
+const verticalLineEndpoints = (verticalLines, xMin, xMax, yMin, yMax) => verticalLines
+  .filter((line) => line.x >= xMin && line.x <= xMax)
+  .flatMap((line, index) => [
+    { id: `vertical-${index}-top`, point: [line.x, yMax], marker: 'arrow', vector: [0, 1], ...(line.stroke ? { color: line.stroke } : {}) },
+    { id: `vertical-${index}-bottom`, point: [line.x, yMin], marker: 'arrow', vector: [0, -1], ...(line.stroke ? { color: line.stroke } : {}) },
+  ]);
 
 const axisTitle = (label, unit) => {
   const cleanLabel = String(label || '').trim();
@@ -217,9 +240,29 @@ const axisTitle = (label, unit) => {
  * marks are said, never where they are; a closed question gets the full
  * reading. An authored `graph.accessibleDescription` always wins.
  */
-const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, detail, axisNumbersHidden, positionsWithheldText }) => {
+const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, functions, points, segments, endpointRequirements, asymptotes, verticalBoundaries = [], shaded = [], detail, axisNumbersHidden, positionsWithheldText }) => {
   const isLine = (spec) => (spec?.type === 'line' || spec?.type === 'linear') && !spec.domain && !spec.restrictedDomain
     && Number.isFinite(Number(spec.m ?? spec.slope)) && Number.isFinite(Number(spec.b ?? spec.intercept ?? 0));
+  // Said as drawn (N38): a dashed line or curve is dashed, and each shaded
+  // side is said with the line it is beside.
+  const lines = functions.filter(isLine).map((spec) => ({
+    m: Number(spec.m ?? spec.slope), b: Number(spec.b ?? spec.intercept ?? 0), ...(spec.dashed === true ? { dash: BOUNDARY_DASH } : {}),
+  }));
+  const curves = functions.filter((spec) => !isLine(spec));
+  const guides = asymptotes.filter((line) => line.axis !== 'horizontal').map((line) => line.value);
+  const halfPlanes = shaded.map(({ region, polygon }) => ({
+    polygon,
+    sides: region.boundaries.map((boundary) => {
+      const line = lines.findIndex((drawn) => boundaryIsLine(boundary, drawn));
+      if (line >= 0) return { side: boundary.side, line };
+      const vertical = verticalBoundaries.findIndex((drawn) => boundaryIsVertical(boundary, drawn.x));
+      return vertical >= 0 ? { side: boundary.side, vertical: guides.length + vertical } : { side: boundary.side };
+    }),
+  }));
+  const segmentPairs = (dashed) => segments
+    .filter((segment) => (segment.dashed === true) === dashed)
+    .map((segment) => [segment.from || segment.start, segment.to || segment.end])
+    .filter((pair) => pair.every(Array.isArray));
   return describeCoordinatePlane({
     xMin, xMax, yMin, yMax, xTickStep: xStep, yTickStep: yStep, detail,
     // An axis-scale item hides its tick numbers until the student gives the
@@ -232,12 +275,16 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
     // Read no finer than the grid this graph draws: its minor gridlines where
     // both axes draw them at one step, otherwise its labelled ticks.
     snapStep: minorStep || 1, minorGridDrawn: Boolean(minorStep),
-    lines: functions.filter(isLine).map((spec) => ({ m: Number(spec.m ?? spec.slope), b: Number(spec.b ?? spec.intercept ?? 0) })),
-    functions: functions.filter((spec) => !isLine(spec)).map((spec) => (x) => evaluateFunction(spec, x)),
-    // Pieces drawn end to end are one path, not one each (AX27).
-    polylines: joinSegmentPaths(segments
-      .map((segment) => [segment.from || segment.start, segment.to || segment.end])
-      .filter((pair) => pair.every(Array.isArray))),
+    lines,
+    functions: curves.map((spec) => (x) => evaluateFunction(spec, x)),
+    curveDashes: curves.some((spec) => spec.dashed === true) ? curves.map((spec) => spec.dashed === true) : null,
+    // Pieces drawn end to end are one path, not one each (AX27); a dashed
+    // piece is its own path.
+    polylines: [
+      ...joinSegmentPaths(segmentPairs(false)),
+      ...joinSegmentPaths(segmentPairs(true)).map((path) => ({ points: path, dash: BOUNDARY_DASH })),
+    ],
+    halfPlanes,
     points: [
       ...points,
       ...endpointRequirements
@@ -251,7 +298,7 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
           ...(Array.isArray(requirement.vector) ? { vector: requirement.vector } : {}),
         })),
     ],
-    verticalLines: asymptotes.filter((line) => line.axis !== 'horizontal').map((line) => line.value),
+    verticalLines: [...guides, ...verticalBoundaries.map((line) => ({ x: line.x, boundaryStyle: line.dashed ? 'dashed' : 'solid' }))],
     horizontalLines: asymptotes.filter((line) => line.axis === 'horizontal').map((line) => line.value),
     emptyText: 'Nothing is plotted.',
   });
@@ -267,6 +314,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const readOut = graphReadOutApplies({ enabled: graphReadOut.enabled, closed: questionClosed });
   const axesShown = graph?.axisDisplay?.showXTickLabels !== false && graph?.axisDisplay?.showYTickLabels !== false;
   useReportGraphReadOut(Boolean(graph) && readOut && axesShown);
+  // The reading language's figure words, under an authored translation (AX05).
+  const figureWords = useFigureWords();
   const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   // "Fix the scale" (R-9): which of a misleading-scale figure's two drawings is showing.
   const [scaleFixed, setScaleFixed] = useState(false);
@@ -326,13 +375,36 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
       : '');
   const points = Array.isArray(displayGraph.points) ? displayGraph.points : [];
   const segments = Array.isArray(displayGraph.segments) ? displayGraph.segments : [];
+  const verticalLines = readVerticalLines(displayGraph);
   const authoredEndpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
   const endpointRequirements = authoredEndpointRequirements.length
     ? authoredEndpointRequirements
     : [
         ...restrictedFunctionEndpoints(functions),
         ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax),
+        ...verticalLineEndpoints(verticalLines, xMin, xMax, yMin, yMax),
       ];
+  /*
+   * THE SHADED SIDE OF AN INEQUALITY (N38), drawn as the Systems Workspace
+   * draws the side of the boundary being built: in the boundary line's own
+   * colour at SHADE_OPACITY, over the grid and under the lines, so the
+   * gridlines and the line read through it. A region is the window clipped by every inequality it
+   * names (halfPlaneShading.js); one that does not show draws nothing.
+   */
+  const lineColor = (boundary) => {
+    const line = functions.find((spec) => (spec?.type === 'line' || spec?.type === 'linear') && !spec.domain && !spec.restrictedDomain
+      && boundaryIsLine(boundary, { m: Number(spec.m ?? 1), b: Number(spec.b ?? 0) }));
+    if (line) return line.stroke || '#1a73e8';
+    const vertical = verticalLines.find((entry) => boundaryIsVertical(boundary, entry.x));
+    return vertical ? vertical.stroke || '#1a73e8' : null;
+  };
+  const shaded = shadingRegions(displayGraph.shading)
+    .map((region, index) => ({
+      region,
+      polygon: shadingPolygon(region, { xMin, xMax, yMin, yMax }),
+      fill: region.fill || lineColor(region.boundaries[0]) || constraintColor(index),
+    }))
+    .filter((entry) => entry.polygon.length >= 3);
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
   const showYTickLabels = axisDisplay.showYTickLabels !== false;
@@ -343,8 +415,12 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const interactionHighlight = graph.interactionHighlight && typeof graph.interactionHighlight === 'object'
     ? graph.interactionHighlight
     : {};
-  const highlightX = Number(interactionHighlight.xValue);
-  const highlightY = Number(interactionHighlight.yValue);
+  // A value the student has not typed is null, never 0: Number(null) is 0,
+  // which drew a guide on the axis before anything was typed
+  // (contextInterpretationUtils buildInterpretationGraph).
+  const highlightValue = (value) => (value === null || value === undefined || String(value).trim() === '' ? Number.NaN : Number(value));
+  const highlightX = highlightValue(interactionHighlight.xValue);
+  const highlightY = highlightValue(interactionHighlight.yValue);
   const showHighlightX = Number.isFinite(highlightX) && highlightX >= xMin && highlightX <= xMax;
   const showHighlightY = Number.isFinite(highlightY) && highlightY >= yMin && highlightY <= yMax;
   const xAxisActive = interactionHighlight.xAxisActive === true;
@@ -355,7 +431,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
 
   const authoredDescription = String(graph.accessibleDescription || displayGraph.accessibleDescription || '').trim();
   const reading = (detail) => describeStaticGraph({
-    xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements,
+    xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements, verticalBoundaries: verticalLines, shaded,
     minorStep: xMinorTicks.length && yMinorTicks.length && xMinorStep === yMinorStep ? xMinorStep : null,
     asymptotes: graphAsymptoteLines(graph), detail,
     axisNumbersHidden: { x: !showXTickLabels, y: !showYTickLabels },
@@ -379,7 +455,13 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const scaleCaption = sayFigure(scaleSay, GRAPH_WORDS, { english: true });
   // Read aloud's reading as messages (AX05): said in Spanish under an authored
   // Spanish translation. An author's description has none: it is read in English.
-  const readingSay = authoredDescription ? null : joinFigureSays(generated.say, graph.caption ? [String(graph.caption)] : [], scaleSay);
+  const readingSay = authoredDescription ? null : joinFigureSays(generated.say, graph.caption ? [itemWords(graph.caption)] : [], scaleSay);
+  // What a screen reader hears: the same description, in Spanish (lang="es")
+  // where the figure's messages can say it all (AX05, slice 2).
+  const described = describedIn(figureWords, spokenDescription, authoredDescription ? null : generated.say);
+  // Its name in the same language, marked with it, where the name is one of
+  // the platform's (AX05, slice 4); an author's name stays as written.
+  const named = namedIn(figureWords, graph.ariaLabel || title);
 
   const FigureContainer = enlargeable ? EnlargeableFigure : 'div';
   return (
@@ -422,11 +504,12 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         viewBox={`0 0 ${DEFAULT_WIDTH} ${DEFAULT_HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={graph.ariaLabel || title}
+        aria-label={named.text}
         aria-describedby={descriptionId}
+        lang={named.lang}
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
       >
-        <title>{graph.ariaLabel || title}</title>
+        <title>{named.text}</title>
         <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="var(--mm-graph-bg)" stroke="#cfd4da" />
 
         {xMinorTicks.map((tick) => {
@@ -476,6 +559,19 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           );
         })}
 
+        {/* Over the gridlines, so they keep their contrast inside the shading
+            as the Systems Workspace's do (a gridline drawn over a tint all but
+            vanishes in it); under the axes and every line. */}
+        {shaded.map((entry, index) => (
+          <polygon
+            key={`shading-${index}`}
+            data-shaded-region=""
+            points={entry.polygon.map(([x, y]) => `${toScreenX(x).toFixed(2)},${toScreenY(y).toFixed(2)}`).join(' ')}
+            fill={entry.fill}
+            fillOpacity={SHADE_OPACITY}
+            stroke="none"
+          />
+        ))}
         <line x1={PADDING} y1={axisX} x2={PADDING + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : 'var(--mm-graph-axis)'} strokeWidth={xAxisActive ? '4' : '2'} />
         <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke={yAxisActive ? '#9334e6' : 'var(--mm-graph-axis)'} strokeWidth={yAxisActive ? '4' : '2'} />
 
@@ -602,11 +698,26 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
               fill="none"
               stroke={spec.stroke || '#1a73e8'}
               strokeWidth={spec.strokeWidth || 3}
-              strokeLinecap="round"
+              // A dashed curve (N38): butt ends, or round caps close the gaps.
+              strokeDasharray={spec.dashed === true ? BOUNDARY_DASH : undefined}
+              strokeLinecap={spec.dashed === true ? 'butt' : 'round'}
               strokeLinejoin="round"
             />
           )),
         )}
+        {verticalLines.filter((line) => line.x >= xMin && line.x <= xMax).map((line, index) => (
+          <line
+            key={`vertical-${index}`}
+            data-vertical-line=""
+            x1={toScreenX(line.x)}
+            y1={PADDING}
+            x2={toScreenX(line.x)}
+            y2={PADDING + innerHeight}
+            stroke={line.stroke || '#1a73e8'}
+            strokeWidth="3"
+            strokeDasharray={line.dashed ? BOUNDARY_DASH : undefined}
+          />
+        ))}
 
         {segments.map((segment, index) => {
           const from = segment.from || segment.start;
@@ -621,6 +732,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
               y2={toScreenY(Number(to[1]))}
               stroke={segment.stroke || '#9334e6'}
               strokeWidth={segment.strokeWidth || 3}
+              strokeDasharray={segment.dashed === true ? BOUNDARY_DASH : undefined}
             />
           );
         })}
@@ -631,11 +743,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const x = toScreenX(Number(point[0]));
           const y = toScreenY(Number(point[1]));
           if (requirement.marker === 'open' || requirement.marker === 'closed') {
-            return <circle key={`endpoint-${index}`} cx={x} cy={y} r="8" fill={requirement.marker === 'closed' ? '#1a73e8' : 'var(--mm-graph-bg)'} stroke="#1a73e8" strokeWidth="4" />;
+            return <circle key={`endpoint-${index}`} cx={x} cy={y} r="8" fill={requirement.marker === 'closed' ? requirement.color || '#1a73e8' : 'var(--mm-graph-bg)'} stroke={requirement.color || '#1a73e8'} strokeWidth="4" />;
           }
           const vector = Array.isArray(requirement.vector) ? requirement.vector : [1, 0];
           const angle = (Math.atan2(-Number(vector[1] || 0), Number(vector[0] || 0)) * 180) / Math.PI;
-          return <g key={`endpoint-${index}`} transform={`translate(${x} ${y}) rotate(${angle})`}><polygon points="14,0 -7,-9 -7,9" fill="#1a73e8" /></g>;
+          return <g key={`endpoint-${index}`} transform={`translate(${x} ${y}) rotate(${angle})`}><polygon points="14,0 -7,-9 -7,9" fill={requirement.color || '#1a73e8'} /></g>;
         })}
 
         {points.map((point, index) => {
@@ -709,7 +821,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           shows it. */}
       {/* Read aloud says the same description, and the caption the screen shows (figureReadings.js). */}
       <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : '', scaleCaption].join(' '), say: readingSay }} />
-      <p id={descriptionId} data-graph-description="" aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{spokenDescription}</p>
+      <p id={descriptionId} data-graph-description="" aria-hidden="true" lang={described.lang} style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{describedContent(described)}</p>
       {fixedGraph ? (
         <div data-scale-control="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 6px 2px' }}>
           {/* The live region: the button's own name changes with the state, so this line is what says the figure changed. */}

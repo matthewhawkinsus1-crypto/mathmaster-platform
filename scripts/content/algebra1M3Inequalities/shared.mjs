@@ -10,12 +10,22 @@
  * Nothing is drawn, placed or chosen for the student.
  */
 import { teks } from '../lib/lessonKit.mjs';
+import { parsePolynomial } from '../../../functions/shared/algebraicForm.mjs';
 
 // `\${{a}}` writes a math span that opens on a placeholder ($ then {{a}}): in a
 // template literal a bare `${` would interpolate.
 export const tex = (strings, ...values) => String.raw(strings, ...values).replace(/\\\$/g, '$');
 
 export const WINDOW = Object.freeze({ xMin: -10, xMax: 10, yMin: -10, yMax: 10 });
+
+/*
+ * The example in an empty box that asks for an inequality with y alone, or for
+ * the inequality a boundary on a graph shows. The platform reads x and y in
+ * the prompt and the label to choose its own example; these labels name only
+ * y ("With y alone") or neither letter, so it showed the one-variable
+ * "a ≤ x ≤ b". This is the platform's two-variable example, which no key is.
+ */
+export const Y_ALONE_EXAMPLE = 'y ≥ mx + b';
 
 /**
  * One Systems Workspace inequality item. `constraints` are the hidden grading
@@ -75,3 +85,125 @@ export const A3H_MODEL = teks('A.3H', 'A.2H');
  * the numbers exist; the lesson tests grade every version's key instead.
  */
 export const computedChoice = (id, label, options, answer) => ({ id, label, type: 'choice', options, answer });
+
+/*
+ * An audited item keeps the bank's item exactly. Its one hint is the lesson's
+ * own question about the item's move (F-HINT-GIVES-STEP, as the radicals
+ * lessons do it): the bank's hint, "Check boundary conditions and whether the
+ * requested point or feature satisfies every condition.", asks nothing.
+ */
+export const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
+
+/*
+ * THE GRAPH A KEY HOLDS (N38, F-GRAPH-IN-WORDS in
+ * docs/qa/2026-11-03-pr537-walkthrough/findings.md). "Write the inequality for
+ * graphs a, b and c" showed no graph: each was a sentence ("a DASHED boundary
+ * line through (0, 2) and (1, 6); the shaded half-plane contains (0, 0)"). The
+ * figure is now drawn from the inequality the item's own key holds, read with
+ * the platform's polynomial parser: its boundary line, solid for ≤ and ≥ and
+ * dashed for < and >, and the side where the key is true, shaded. The figure
+ * and the key cannot disagree; algebra1Module3InequalityFigures.test.mjs
+ * checks every drawn line and shaded side against the key anyway.
+ */
+const FLIP = Object.freeze({ '<': '>', '<=': '>=', '>': '<', '>=': '<=' });
+const tidy = (value) => Number(Number(value).toFixed(9)) + 0;
+
+/** "y < 4x + 2" → { m: 4, b: 2, relation: '<' }; "x < 3" → a vertical boundary. */
+export const keyInequality = (key) => {
+  const [left, relation, right, ...rest] = String(key).replace(/≤/g, '<=').replace(/≥/g, '>=').split(/(<=|>=|<|>)/);
+  const sides = [parsePolynomial(left), parsePolynomial(right)];
+  if (rest.length || !relation || sides.some((side) => !side)) throw new Error(`Not one linear inequality: ${key}`);
+  const coefficient = (name) => (sides[0].get(name) || 0) - (sides[1].get(name) || 0);
+  const [A, B, C] = [coefficient('x'), coefficient('y'), coefficient('')];
+  if (Math.abs(B) > 1e-12) return { m: tidy(-A / B), b: tidy(-C / B), relation: B < 0 ? FLIP[relation] : relation };
+  if (Math.abs(A) > 1e-12) return { orientation: 'vertical', x: tidy(-C / A), relation: A < 0 ? FLIP[relation] : relation };
+  throw new Error(`No boundary line: ${key}`);
+};
+
+// The window every drawn figure in these lessons shares: the tool's own −10 to
+// 10, drawn with one unit the same length both ways (R-1), so a slope looks
+// its size.
+export const FIGURE_WINDOW = Object.freeze({ ...WINDOW, equalUnits: true });
+
+/**
+ * The figure of the inequalities `keys` hold: each boundary line, dashed when
+ * its relation is strict, and the shading — each half-plane on its own
+ * (`shade: 'each'`), or only the region where all of them hold (`'overlap'`, a
+ * system's solution set). `strokes` colours the lines in the Systems
+ * Workspace's constraint order; a half-plane takes its line's colour.
+ */
+export const inequalityFigure = (keys, { shade = 'each', strokes = [], points = [] } = {}) => {
+  const inequalities = keys.map(keyInequality);
+  const style = (inequality, index) => ({
+    ...(inequality.relation.includes('=') ? {} : { dashed: true }),
+    ...(strokes[index] ? { stroke: strokes[index] } : {}),
+  });
+  const functions = inequalities.flatMap((inequality, index) => (inequality.orientation === 'vertical' ? [] : [{ type: 'line', m: inequality.m, b: inequality.b, ...style(inequality, index) }]));
+  const verticalLines = inequalities.flatMap((inequality, index) => (inequality.orientation === 'vertical' ? [{ x: inequality.x, ...style(inequality, index) }] : []));
+  return {
+    ...FIGURE_WINDOW,
+    ...(functions.length ? { functions } : {}),
+    ...(verticalLines.length ? { verticalLines } : {}),
+    ...(points.length ? { points } : {}),
+    ...(shade === 'none' ? {} : { shading: shade === 'overlap' ? [{ inequalities }] : inequalities }),
+  };
+};
+
+/**
+ * Graphs a prompt names ("graphs a, b and c"), each drawn from the key of the
+ * box that asks about it (`keys[id]`), in the order written: they are figures
+ * to read, not choices to shuffle (MultiAnswerGrader).
+ */
+export const keyedGraphs = (keys, ids, label = (id) => `Graph ${id}`) => ({
+  candidateGraphs: ids.map((id) => ({ id, label: label(id), graph: inequalityFigure([keys[id]]) })),
+  candidateGraphsInOrder: true,
+});
+
+/*
+ * THE PREDICTABLE SLIPS IN A "WRITE THE INEQUALITY" BOX (PR #537 walkthrough,
+ * F-NO-MISCONCEPTION-FEEDBACK, as the radicals lessons name theirs). A wrong
+ * box got "Not quite…" and nothing more, though three slips are predictable:
+ * the symbol turned the wrong way, < for ≤ (a dashed line for a solid one) or
+ * ≤ for <, and a wrong sign on the y-intercept. Each is an authored
+ * misconception tied to its box: missFeedback (attemptFeedbackPlan.js) reads
+ * it in that box only, by that box's own grader, and never when the box is
+ * right, so a slip may be another box's right answer (CW 7's graph c is graph
+ * a with its symbol turned). The support keeps six to an item
+ * (pathSolutionSupport.mjs), so an item with three or four boxes names all of
+ * a box's wrong symbols in one sentence.
+ */
+const TOGGLE = Object.freeze({ '<': '<=', '<=': '<', '>': '>=', '>=': '>' });
+const withRelation = (key, table) => {
+  if ((String(key).match(/<=|>=|<|>/g) || []).length !== 1) throw new Error(`Not one inequality: ${key}`);
+  return String(key).replace(/<=|>=|<|>/, (relation) => table[relation]);
+};
+export const slip = (field, match, message) => ({ field, match: [match].flat(), message });
+/** The symbol turned the wrong way: y > … typed as y < …, or as y ≤ … (the other side and the other line). */
+export const turned = (key) => [withRelation(key, FLIP), withRelation(withRelation(key, FLIP), TOGGLE)];
+/** < for ≤, or ≤ for <: the line style swapped. */
+export const restyled = (key) => withRelation(key, TOGGLE);
+/** Every other symbol on the same boundary. */
+export const otherSymbols = (key) => [...turned(key), restyled(key)];
+/** The sign of the constant changed: y > 4x + 2 as y > 4x − 2, and x < 3 as x < −3. */
+export const otherInterceptSign = (key) => {
+  const [left, relation, right] = String(key).split(/(<=|>=|<|>)/);
+  const term = /^(.*\S)\s*([+-])\s*(\d+(?:\.\d+)?)$/.exec(right.trim());
+  if (term) return `${left}${relation} ${term[1]} ${term[2] === '+' ? '-' : '+'} ${term[3]}`;
+  const alone = /^(-?)(\d+(?:\.\d+)?)$/.exec(right.trim());
+  if (alone) return `${left}${relation} ${alone[1] ? '' : '-'}${alone[2]}`;
+  throw new Error(`No constant to change the sign of: ${key}`);
+};
+export const SLIP = Object.freeze({
+  turned: 'The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true.',
+  solid: 'The line is solid, so the points on it are solutions: your symbol should include them.',
+  dashed: 'The line is dashed, so the points on it are not solutions: your symbol should leave them out.',
+  intercept: 'Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?',
+});
+/** One line read from a graph: its symbol turned, its line style swapped and its y-intercept's sign, each with its sentence. */
+export const graphSlips = (field, key, { turnedMessage = SLIP.turned, lineMessage = (/<=|>=/.test(key) ? SLIP.solid : SLIP.dashed), interceptMessage = SLIP.intercept } = {}) => [
+  slip(field, turned(key), turnedMessage),
+  slip(field, restyled(key), lineMessage),
+  slip(field, otherInterceptSign(key), interceptMessage),
+];
+/** Every wrong symbol of a graph box in one sentence, for an item with too many boxes for one sentence each. */
+export const symbolSlip = (field, key, graph = field) => slip(field, otherSymbols(key), `The line is right, so check the symbol: is graph ${graph}’s line solid or dashed, and which side is shaded?`);

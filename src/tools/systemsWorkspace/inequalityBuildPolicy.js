@@ -100,6 +100,13 @@ export const resolveInequalityBuildGate = ({
         ? { kind: 'verdict', passed: Boolean(correct) }
         : { kind: 'completion', complete: Boolean(complete) };
     },
+    // Whether a written model counts as sent (F-SW-CHECKS-OWN-MODEL). Where
+    // outcomes are shown, "Graph these constraints" is the model's Check: only
+    // a model the shared grader accepts is graphed, as a wrong boundary keeps
+    // its step — it used to graph any model, and every step after it said ✓
+    // about the wrong half-plane. Where they are withheld, once it is sent,
+    // right or wrong: the lock would be the verdict.
+    modelAccepted: ({ sent = false, correct = false } = {}) => Boolean(sent) && (!verdictsShown || Boolean(correct)),
     // May a tapped vertex snap to a TRUE corner of the region?
     snapToExpectedVertices: verdictsShown,
     // The "Does this point lie exactly on one of the boundary lines?" questions

@@ -100,9 +100,16 @@ test('the interval number line is described by the student\'s drawing, then its 
   // Read aloud's in another language: AX05, figureReadingSpanish.test.mjs).
   assert.match(source, /const \{ text: lineDescription, say: lineSay \} = numberLineReading\(\{ min, max, labelStep: majorStep, pieces: drawn, pending \}\);/, 'from the drawn pieces and the waiting endpoint');
   const svg = region(source, '<svg\n            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}\n            role="application"', 'onFocus={handleLineFocus}', 'the line');
-  assert.match(svg, /aria-label=\{`Number line from \$\{lineEndLabel\(min\)\} to \$\{lineEndLabel\(max\)\}`\}/, 'named by the line, not its instructions');
+  // Named by the line, not its instructions: from end to end, as a message
+  // said in the reading's language under a translation (AX05 slice 4,
+  // figureReadingSpanish.test.mjs: "Number line from −8 to 2").
+  assert.match(svg, /aria-label=\{lineName\.text\}/, 'named by the line, not its instructions');
+  assert.match(source, /const lineName = namedIn\(figureWords, nameFrom\(say\('numberLineFromToName', lineEndLabel\(min\), lineEndLabel\(max\)\), FIGURE_NAME_WORDS\)\);/);
   assert.match(svg, /aria-describedby=\{`\$\{lineDescriptionId\} \$\{lineInstructionsId\}`\}/, 'what is drawn first, then the keys');
-  assert.match(source, /<p id=\{lineDescriptionId\}[^>]*>\{lineDescription\}<\/p>/);
+  // The described-by target holds that description (in the reading's language
+  // under a translation, AX05 slice 2: figureReadingSpanish.test.mjs).
+  assert.match(source, /const described = describedIn\(figureWords, lineDescription, lineSay\);/);
+  assert.match(source, /<p id=\{lineDescriptionId\}[^>]*lang=\{described\.lang\}>\{describedContent\(described\)\}<\/p>/);
   assert.match(source, /<p id=\{lineInstructionsId\}[^>]*>\s*\{`Click anywhere on the line/);
 });
 
@@ -110,16 +117,21 @@ test('the legacy pick-a-point line is a described group with pressed marks', () 
   const source = executableSource(read('src/NumberLine.jsx'));
   assert.match(source, /^import \{ pointChoiceLineReading \} from '\.\/platform\/language\/numberLineDescription\.js';$/m);
   assert.match(source, /const \{ text: description, say: descriptionSay \} = pointChoiceLineReading\(\{ choices, selected: selectedPoint \}\);/);
-  assert.match(source, /role="group" aria-label="Number line" aria-describedby=\{descriptionId\}/);
+  // Named "Number line", in the reading's language under a translation (AX05, slice 4).
+  assert.match(source, /role="group" aria-label=\{named\.text\} aria-describedby=\{descriptionId\}/);
+  assert.match(source, /const named = namedIn\(figureWords, 'Number line'\);/);
   assert.match(source, /aria-pressed=\{selectedPoint === Number\(number\)\}/);
-  assert.match(source, /<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/);
+  assert.match(source, /const described = describedIn\(figureWords, description, descriptionSay\);/);
+  assert.match(source, /<span id=\{descriptionId\}[^>]*lang=\{described\.lang \?\? english\}>\{describedContent\(described\)\}<\/span>/);
 });
 
 test('the three-plane model is described by its planes; the detail follows the question\'s lifecycle', () => {
   const source = executableSource(read('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx'));
-  assert.match(source, /^import \{ describeThreePlaneModel \} from '\.\/threePlaneDescription\.js';$/m);
+  assert.match(source, /^import \{ threePlaneModelReading \} from '\.\/threePlaneDescription\.js';$/m);
   assert.match(source, /^import \{ useQuestionLifecycle \} from '\.\.\/\.\.\/platform\/question\/QuestionLifecycleContext\.jsx';$/m);
-  const description = region(source, 'const modelDescription = useMemo(() => describeThreePlaneModel({', '}), [', 'the description');
+  // The reading's English is the description (its messages are Read aloud's
+  // in Spanish: AX05, figureReadingSpanish.test.mjs).
+  const description = region(source, 'const { text: modelDescription, say: modelSay } = useMemo(() => threePlaneModelReading({', '}), [', 'the description');
   assert.match(description, /visible: visiblePlanes,/, 'follows Show plane');
   assert.match(description, /crossings: intersectionLines\.map/, 'the dashed lines actually drawn');
   assert.match(description, /detail: questionClosed \? 'features' : 'kinds',/, 'pairs only once the question is closed');
@@ -141,21 +153,28 @@ test('the static question graph carries the shared plane\'s description, by the 
   assert.match(source, /const spokenDescription = authoredDescription\s*\? \[authoredDescription, readOut \? reading\('features'\)\.description : ''\]\.filter\(Boolean\)\.join\(' '\)\s*: generated\.description;/, 'authored text wins');
   const svg = region(source, '<svg\n        className="mathmaster-responsive-canvas"', '>', 'the graph svg');
   assert.match(svg, /aria-describedby=\{descriptionId\}/);
-  assert.match(source, /<p id=\{descriptionId\}[^>]*>\{spokenDescription\}<\/p>/);
+  // The described-by target holds that description, in the reading's language
+  // under a translation where the figure's messages say it all (AX05, slice 2).
+  assert.match(source, /const described = describedIn\(figureWords, spokenDescription, authoredDescription \? null : generated\.say\);/);
+  assert.match(source, /<p id=\{descriptionId\}[^>]*lang=\{described\.lang\}[^>]*>\{describedContent\(described\)\}<\/p>/);
   // Hooks before the early return (rules of hooks).
   const head = region(source, 'export default function GraphDisplay(', 'if (!graph) return null;', 'the component head');
   assert.match(head, /useId\(\)[\s\S]*useQuestionLifecycle\(\)/);
   assert.match(head, /useGraphReadOut\(\)[\s\S]*useReportGraphReadOut\(/);
+  assert.match(head, /const figureWords = useFigureWords\(\);/);
 });
 
 test('the legacy graph workspace and the Graph Story sketch are described by the student\'s work', () => {
   const workspace = executableSource(read('src/InteractiveGraphWorkspace.jsx'));
-  assert.match(workspace, /^import \{ describeGraphWorkspace \} from '\.\/platform\/language\/graphWorkspaceDescription\.js';$/m);
-  const call = region(workspace, 'const workspaceDescription = describeGraphWorkspace({', '\n  });', 'the description');
+  assert.match(workspace, /^import \{ graphWorkspaceReading \} from '\.\/platform\/language\/graphWorkspaceDescription\.js';$/m);
+  const call = region(workspace, 'const { text: workspaceDescription, say: workspaceSay } = graphWorkspaceReading({', '\n  });', 'the description');
   assert.match(call, /construction\.placements\[task\.id\]/, 'the points the student placed');
   assert.match(call, /givenGraph: mode === 'analysis' && !pointOnly,/);
-  assert.match(workspace, /aria-label="Coordinate plane"\s*aria-describedby=\{`\$\{workspaceDescriptionId\} \$\{workspaceDescriptionId\}-keys`\}/);
-  assert.match(workspace, /<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/);
+  // Named "Coordinate plane", in the reading's language under a translation (AX05, slice 4).
+  assert.match(workspace, /aria-label=\{planeName\.text\}\s*aria-describedby=\{`\$\{workspaceDescriptionId\} \$\{workspaceDescriptionId\}-keys`\}/);
+  assert.match(workspace, /const planeName = namedIn\(figureWords, 'Coordinate plane'\);/);
+  assert.match(workspace, /const described = describedIn\(figureWords, workspaceDescription, workspaceSay\);/);
+  assert.match(workspace, /<span id=\{workspaceDescriptionId\}[^>]*lang=\{described\.lang\}[^>]*>\{describedContent\(described\)\}<\/span>/);
   const story = executableSource(read('src/GraphStory.jsx'));
   assert.match(story, /const strokeCount = Array\.isArray\(values\.strokes\) \? values\.strokes\.length : 0;/);
   // Since AX14 the sketch takes keys (role="application"); its description is

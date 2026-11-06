@@ -660,9 +660,9 @@
               "type": "choice",
               "options": [
                 "the candle graph is above the popcorn graph, because candles earn more for each item sold",
-                "the popcorn graph is above the candle graph",
-                "the two graphs are parallel",
-                "the popcorn credit makes popcorn earn more forever"
+                "the popcorn graph is above the candle graph, because popcorn starts with a $25 credit",
+                "the two graphs are parallel, because each one rises by a fixed amount for each item",
+                "the candle graph is above the popcorn graph, because candle sales start with more money"
               ],
               "answer": "the candle graph is above the popcorn graph, because candles earn more for each item sold"
             }
@@ -1229,9 +1229,9 @@
               "type": "choice",
               "options": [
                 "Solving for m divides both sides by −20, a negative number.",
-                "The elevation starts at 4,800 feet.",
-                "Time can never be negative.",
-                "Subtracting 4800 reverses the symbol."
+                "The hike starts at 4,800 feet, above every elevation listed.",
+                "Time can never be negative, so solving for m flips the symbol.",
+                "Solving for m subtracts 4800 from both sides, a large number."
               ],
               "answer": "Solving for m divides both sides by −20, a negative number."
             }
@@ -1325,7 +1325,7 @@
           "solutionReview": {
             "reasoning": [
               "Below 3,200 feet: 4800 − 20m < 3200 → −20m < −1600 → m > 80.",
-              "Above 2,000 feet: 4800 − 20m > 2000 → −20m < −2800 → m < 140.",
+              "Above 2,000 feet: 4800 − 20m > 2000 → −20m > −2800 → m < 140.",
               "Both: 80 < m < 140 — open dots at 80 and 140, shaded between."
             ],
             "commonError": "Keeping both symbols after dividing by −20, which gives the impossible “m < 80 and m > 140”."
@@ -1465,9 +1465,9 @@
               "type": "choice",
               "options": [
                 "divides both sides by −4 and reverses the symbol",
-                "distributes −4",
-                "adds 6 to both sides",
-                "divides both sides by 4"
+                "distributes −4, and that reverses the symbol",
+                "adds 6 to both sides and keeps the same symbol",
+                "divides both sides by 4 and keeps the same symbol"
               ],
               "answer": "divides both sides by −4 and reverses the symbol"
             },
@@ -1482,9 +1482,9 @@
               "type": "choice",
               "options": [
                 "The steps are the same, but the symbol reverses whenever you multiply or divide by a negative.",
-                "You may never distribute in an inequality.",
-                "You must always divide before you distribute.",
-                "The symbol reverses whenever you distribute."
+                "The steps differ: you may never distribute in an inequality, so divide by −4 first.",
+                "The steps differ: you must always divide before you distribute, or the symbol comes out wrong.",
+                "The steps are the same, but the symbol reverses whenever you distribute a negative number."
               ],
               "answer": "The steps are the same, but the symbol reverses whenever you multiply or divide by a negative."
             }
@@ -2424,9 +2424,9 @@
               "type": "choice",
               "options": [
                 "Jordan divided by −4 without reversing the symbol.",
-                "Jordan distributed −1/2 to only one term.",
-                "Jordan subtracted 2x from only one side.",
-                "Jordan should have added 4x."
+                "Jordan distributed −1/2 to only the first term in Step 1.",
+                "Jordan subtracted 2x from only one side in Step 2.",
+                "Jordan should have added 2x in Step 2, not subtracted it."
               ],
               "answer": "Jordan divided by −4 without reversing the symbol."
             },

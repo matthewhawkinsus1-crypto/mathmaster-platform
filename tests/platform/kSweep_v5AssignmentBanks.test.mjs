@@ -249,7 +249,8 @@ const INTERVAL_LINE = {
   'L1D1#3': ['Graph −3 ≤ x < 5', [[-3, 5, true, false]]],
   'L1D1#4': ['Graph x < −2 or x ≥ 4', [[null, -2, false, false], [4, null, true, false]]],
   'L1D1#9': ['Graph −1 < x ≤ 6', [[-1, 6, false, true]]],
-  'L1D1#10': ['Graph x ≤ −4 or x ≥ 3', [[null, -4, false, true], [3, null, true, false]]],
+  // A bounded second piece since the 2026-11-06 walkthrough, as on the exit ticket.
+  'L1D1#10': ['Graph x ≤ −4 or 1 ≤ x < 6', [[null, -4, false, true], [1, 6, true, false]]],
   'L1D1#14': ['Graph x < −1 or 2 ≤ x ≤ 5', [[null, -1, false, false], [2, 5, true, true]]],
   'L1D2#1': ['Graph −2 ≤ x < 4', [[-2, 4, true, false]]],
 };

@@ -1,5 +1,8 @@
 # What remains after the October 2026 build-out
 
+> **Continued in [NOVEMBER_BUILD_2026-11.md](NOVEMBER_BUILD_2026-11.md)** (2026-11-05): what the November build did with
+> this list, the owner's decisions of 2026-11-04, and what remains now.
+
 Written 2026-10-31, when the build-out paused. Everything built is on `claude/nifty-turing-bv1gqg`, including the
 Codex branch `codex/accommodation-visibility-retroactive-20261029` (#523, merged in). Read this with:
 

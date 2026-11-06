@@ -136,7 +136,7 @@ function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
   );
 }
 
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' };
+const smallButtonStyle = { minHeight: 24, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' };
 // maxWidth: a select is as wide as its longest option; a long lesson title
 // pushed the control past a phone's right edge.
 const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))', maxWidth: '100%', minWidth: 0 };

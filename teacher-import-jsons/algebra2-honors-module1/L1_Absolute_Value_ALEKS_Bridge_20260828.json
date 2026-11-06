@@ -705,6 +705,11 @@
           "evidenceWeight": 0.75,
           "dok": 1,
           "difficultyBand": 2,
+          "hints": [
+            "What is the smallest value |x| can have, and at which x does it happen?",
+            "Can you take the absolute value of any real number, a negative one included? That decides the domain.",
+            "Can |x| ever be negative? The outputs start at the smallest value and go up from there: is that smallest value reached?"
+          ],
           "scaffold": {
             "prompt": "Let’s back up. Can |x| ever be negative?",
             "options": [
@@ -1062,7 +1067,7 @@
               "answer": "stretch by 2",
               "optionRationales": {
                 "stretch by 2": "The 2 in −2 multiplies every output, so the V is twice as steep: a vertical stretch by 2.",
-                "compression by 1/2": "This treats a factor outside f like one inside; y's tell the truth, so only a factor with x works in reverse.",
+                "compression by 1/2": "This treats a factor outside the bars like one inside; y's tell the truth, so only a factor with x works in reverse.",
                 "unchanged": "The −2 multiplies every output, so the steepness does change; its sign adds a reflection."
               }
             },

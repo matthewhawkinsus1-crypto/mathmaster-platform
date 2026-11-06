@@ -5,7 +5,9 @@
  * an nth root, real nth roots by index and sign, principal roots, Examples A–D
  * and their Check Your Progress, simplifying with absolute value, the
  * product and quotient work on the "Simplify" slides, and the two calculator
- * applications (the solar-cell hole and the pendulum).
+ * applications (the solar-cell hole and the pendulum). One change to the
+ * slides' order: the numerical radicals (√63, 3√12) come before Example A, so
+ * the largest perfect-square factor is met with numbers first.
  *
  * The slides' Do Now reviews dividing polynomials (the lesson before). The
  * Warm-Up here instead walks from what students already know to what this
@@ -19,6 +21,20 @@ import { auditedCcmrQuestion, backUp, choice, expression, guidedNotes, number, r
 // template literal a bare `${` would interpolate.
 const tex = (strings, ...values) => String.raw(strings, ...values).replace(/\\\$/g, '$');
 const T = teks('A2.7G');
+// An audited item keeps the bank's item exactly. Its one hint is the lesson's
+// own question about this item's move (F-HINT-GIVES-STEP): the bank's hint
+// ("Combine like terms, distribute, factor, …") names no move for it.
+const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
+// A predictable slip in one answer box, named on a miss
+// (F-NO-MISCONCEPTION-FEEDBACK): missFeedback reads it in that box only, by
+// that box's own grader, and never when the box is right.
+const slip = (field, match, message) => ({ field, match: [match].flat(), message });
+const BARS = (letter) => `Your answer is right when ${letter} ≥ 0. Try ${letter} = −1.`;
+// Example D's roots, one to a box: the opposite root in the wrong box, or a
+// real number for the root of a negative.
+const OTHER_ROOT = 'That is the other square root. The radical sign names the principal one.';
+const PRINCIPAL_ROOT = 'That is the principal root. The other square root is its opposite.';
+const REAL_SQUARE = 'A real number squared is never negative, so a square root of a negative number is imaginary.';
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -43,9 +59,14 @@ const warmup = [
       number('otherFourthRoot', '{{d}} is a fourth root of {{d4}}. The other real fourth root of {{d4}} is', '{{nd}}'),
     ],
     hints: [
-      'A power is repeated multiplication: (−{{c}})³ = (−{{c}})(−{{c}})(−{{c}}).',
+      'How many negative factors does each power have, and is that number odd or even?',
       'An odd number of negative factors gives a negative product; an even number gives a positive one.',
       'A root undoes a power: if r multiplied by itself n times is b, then r is an nth root of b.',
+    ],
+    misconceptions: [
+      slip('negativeCube', '{{c3}}', 'A negative number cubed is negative: three negative factors make a negative product.'),
+      slip('negativeFourth', '-{{d4}}', 'A negative number to the fourth power is positive: four negative factors make a positive product.'),
+      slip('cubeRoot', '{{c}}', 'Check the sign: a positive number cubed is positive, so it is not a cube root of a negative number.'),
     ],
     scaffold: backUp('An even power of a negative number is…', ['negative', 'positive'], 'positive'),
     guidedNotes: guidedNotes(
@@ -135,10 +156,11 @@ const warmup = [
       choice('rule', 'For every real number x, √(x²) =', ['|x|', 'x', '−x', '±x'], '|x|'),
     ],
     hints: [
-      'Square the inside first: the square of a negative number is positive.',
+      'What number is under each radical once you work out the inside? Can it be negative?',
       'The radical sign √ means the principal (nonnegative) square root.',
       'Which rule gives a nonnegative answer for every x, including a negative x?',
     ],
+    misconceptions: [slip('negativeSquared', '-{{r}}', '√ means the principal square root, which is never negative.')],
     scaffold: backUp('√ always gives a value that is…', ['never negative', 'sometimes negative'], 'never negative'),
     guidedNotes: guidedNotes(
       ['Principal square root', 'The radical sign √ means the nonnegative square root: √25 = 5, never −5.'],
@@ -191,10 +213,11 @@ const classwork = [
       number('other', 'The other real fourth root of 81', '-3'),
     ],
     hints: [
-      'The index is the small number tucked into the radical sign; the radicand is under it.',
+      'Which number is written small in the radical sign, and which is under it?',
       'Which number, used as a factor 4 times, gives 81? Its opposite works too.',
       'The principal root is the nonnegative one.',
     ],
+    misconceptions: [slip('principal', '-3', 'The principal root is the one that is not negative.')],
     scaffold: backUp('In ⁿ√b, the number under the radical sign is the…', ['index', 'radicand'], 'radicand'),
     guidedNotes: guidedNotes(
       ['nth root', 'For real numbers a and b and a positive integer n, if aⁿ = b, then a is an nth root of b.'],
@@ -212,6 +235,8 @@ const classwork = [
     questionId: 'a2r1-cw-2',
     ...T,
     studentActions: ['sortIntoCategories'],
+    // The task asks for a reason for each group, so the board does too (F-SORT-NO-REASON).
+    requireRationale: true,
     dok: 2,
     difficultyBand: 2,
     prompt: 'Real nth roots. Sort each set of roots by how many REAL roots it has. Use the index (even or odd) and the sign of the radicand. Then give a reason for each group.',
@@ -227,8 +252,8 @@ const classwork = [
       { id: 'none', label: 'No real roots', cards: [['sqNeg9', 'The square roots of −9'], ['sixthNeg1', 'The sixth roots of −1']] },
     ], ['cubeNeg64', 'sq49', 'sqNeg9', 'fifth32', 'sixth64', 'fourth0', 'sixthNeg1', 'fourth16']),
     hints: [
-      'An even index with a positive radicand gives a positive root and its opposite.',
-      'An odd index always gives exactly one real root, with the same sign as the radicand.',
+      'For each card: is the index even or odd, and is the radicand positive, negative or 0?',
+      'An odd index always gives exactly one real root. An even index gives two when the radicand is positive.',
       'No real number raised to an even power is negative. And 0 has only one root: 0.',
     ],
     scaffold: backUp('A real number raised to an even power is never…', ['negative', 'positive'], 'negative'),
@@ -247,27 +272,77 @@ const classwork = [
       'Putting the cube roots of −64 under "No real roots": an odd index takes a negative radicand to a negative root, −4.',
     ),
   },
+  // Numbers first (PR #537 walkthrough, L1 pacing). The slides simplify √63
+  // and 3√12 after Examples A–D and the absolute-value items, so a student met
+  // "largest perfect-square factor" only after writing perfect powers of
+  // variables. It needs only the definitions before it (CW 1–2: index,
+  // radicand, real roots), so it comes straight after them, before Example A.
+  // It keeps its id; every other item keeps the slides' order.
+  {
+    questionId: 'a2r1-cw-9',
+    ...T,
+    studentActions: ['multipleResponses'],
+    dok: 1,
+    difficultyBand: 2,
+    prompt: tex`Simplify numerical radicals. For $\sqrt{63}$ and $3\sqrt{12}$, find the largest perfect-square factor of the radicand, then write each in simplest radical form.`,
+    directionSteps: [
+      'Find the largest perfect-square factor of each radicand.',
+      'Take its square root outside the radical.',
+      'Write each in simplest radical form.',
+    ],
+    responses: [
+      number('factor63', 'Largest perfect-square factor of 63', '9'),
+      simplest('root63', '√63 =', '3√7'),
+      number('factor12', 'Largest perfect-square factor of 12', '4'),
+      simplest('root12', '3√12 =', '6√3'),
+    ],
+    hints: [
+      'What is the largest perfect square that divides 63? That divides 12?',
+      'Write each radicand as a perfect square times a number with no square factor.',
+      'Take the square root of the perfect square, then multiply it by any coefficient outside.',
+    ],
+    scaffold: backUp('√(ab) equals…', ['√a · √b', '√a + √b'], '√a · √b'),
+    guidedNotes: guidedNotes(
+      ['Product Property', 'ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split off the largest perfect nth-power factor.'],
+    ),
+    solutionReview: review(
+      'Split off the largest perfect square.',
+      ['63 = 9 · 7, so √63 = 3√7.', '12 = 4 · 3, so 3√12 = 3 · 2√3 = 6√3.'],
+      '3√7; 6√3',
+      'Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out.',
+    ),
+  },
   {
     questionId: 'a2r1-cw-3',
     ...T,
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 2,
-    prompt: tex`Example A, then Check Your Progress A. Simplify $\pm\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\pm\sqrt{9x^8}$.`,
+    prompt: tex`Example A, then Check Your Progress A. Simplify $\pm\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\pm\sqrt{9x^8}$: give both square roots.`,
     directionSteps: [
       'Write the radicand as a perfect square.',
       'Name the negative square root too.',
-      'Choose the simplified form of the second expression.',
+      'Give both square roots of the second expression.',
     ],
     responses: [
       expression('square', '16x⁸ = ( ? )². This base is the positive square root.', '4x^4'),
       expression('negative', 'The negative square root of 16x⁸', '-4x^4'),
-      choice('cyp', '±√(9x⁸) =', ['±3x⁶', '±3x⁴', '3x⁴', '±3x²'], '±3x⁴'),
+      // Check Your Progress is typed, one box per root, as PR 1 asks
+      // (F-CYP-AS-CHOICE): a choice of four could be guessed in three tries,
+      // and the student never wrote the simplification the example modeled.
+      simplest('cypPositive', 'The positive square root of 9x⁸', '3x^4'),
+      simplest('cypNegative', 'The negative square root of 9x⁸', '-3x^4'),
     ],
     hints: [
-      '16 = 4² and x⁸ = (x⁴)².',
-      '± asks for both square roots: the positive one and its opposite.',
-      'For 9x⁸, take the square root of 9 and halve the exponent 8.',
+      'Which number, squared, gives 16? Which power of x, squared, gives x⁸?',
+      'Squaring a power doubles its exponent. ± asks for both roots: the positive one and its opposite.',
+      '16 = 4² and x⁸ = (x⁴)². Do the same for 9x⁸.',
+    ],
+    misconceptions: [
+      slip('square', '4x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
+      slip('negative', '-4x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
+      slip('cypPositive', '3x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
+      slip('cypNegative', '-3x^2', 'Check by squaring your answer: squaring a power doubles its exponent.'),
     ],
     scaffold: backUp('√(x⁸) equals…', ['x⁴', 'x⁶'], 'x⁴'),
     guidedNotes: guidedNotes(
@@ -276,8 +351,8 @@ const classwork = [
     ),
     solutionReview: review(
       'Perfect square first, then both roots.',
-      ['16x⁸ = (4x⁴)².', 'The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.', '9x⁸ = (3x⁴)², so ±√(9x⁸) = ±3x⁴.'],
-      '±4x⁴; ±3x⁴',
+      ['16x⁸ = (4x⁴)².', 'The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.', '9x⁸ = (3x⁴)², so the square roots of 9x⁸ are 3x⁴ and −3x⁴: ±√(9x⁸) = ±3x⁴.'],
+      '±4x⁴; 3x⁴ and −3x⁴',
       'Taking the square root of the exponent (x⁸ → x^√8) or dividing it by 4: √(x⁸) halves the exponent, x⁴.',
     ),
   },
@@ -292,23 +367,29 @@ const classwork = [
       'Write the radicand as a perfect square.',
       'Take the principal square root and keep the negative sign in front.',
       'Decide whether absolute value bars are needed.',
-      'Choose the simplified form of the second expression.',
+      'Simplify the second expression the same way.',
     ],
     responses: [
       expression('square', '(q³ + 5)⁴ = [ ? ]²', '(q^3+5)^2'),
       expression('simplified', '−√((q³ + 5)⁴) =', '-(q^3+5)^2'),
       choice('bars', 'Why are absolute value bars not needed?', [
         '(q³ + 5)² is never negative, so it is already the principal root',
-        'q is always positive',
-        'The index is odd',
-        'The radicand is negative',
+        'q is never negative, so q³ + 5 and its square are positive',
+        'The index is odd, so the root keeps the sign of (q³ + 5)²',
+        '(q³ + 5)⁴ is never negative, so its root never needs bars',
       ], '(q³ + 5)² is never negative, so it is already the principal root'),
-      choice('cyp', '−√((a³ + 2)⁸) =', ['−(a³ + 2)⁴', '−(a³ + 2)⁸', '(a³ + 2)⁴', '(a + 2)⁴'], '−(a³ + 2)⁴'),
+      // Typed, as the example's own boxes are (F-CYP-AS-CHOICE); the bars
+      // decision above stays a choice.
+      expression('cyp', '−√((a³ + 2)⁸) =', '-(a^3+2)^4'),
     ],
     hints: [
-      'Treat q³ + 5 as one block: (q³ + 5)⁴ = [(q³ + 5)²]².',
+      'Treat q³ + 5 as one block. What power of that block, squared, gives (q³ + 5)⁴?',
       'The negative sign is outside the radical. Take the principal root first, then make it the opposite.',
-      'A square is never negative, so no bars are needed around (q³ + 5)².',
+      '(q³ + 5)⁴ = [(q³ + 5)²]². A square is never negative, so no bars are needed.',
+    ],
+    misconceptions: [
+      slip('simplified', '(q^3+5)^2', 'The negative sign in front of the radical stays in your answer.'),
+      slip('cyp', '(a^3+2)^4', 'The negative sign in front of the radical stays in your answer.'),
     ],
     scaffold: backUp('The negative sign in −√(…) is…', ['part of the radicand', 'outside the radical'], 'outside the radical'),
     guidedNotes: guidedNotes(
@@ -320,7 +401,7 @@ const classwork = [
       [
         '(q³ + 5)⁴ = [(q³ + 5)²]², so √((q³ + 5)⁴) = (q³ + 5)², which is never negative.',
         'The opposite of the principal root is −(q³ + 5)².',
-        'In the same way, −√((a³ + 2)⁸) = −(a³ + 2)⁴.',
+        'In the same way, (a³ + 2)⁸ = [(a³ + 2)⁴]² and (a³ + 2)⁴ is never negative, so −√((a³ + 2)⁸) = −(a³ + 2)⁴.',
       ],
       '−(q³ + 5)²; −(a³ + 2)⁴',
       'Dropping the negative sign, or halving the 3 inside the base: only the outside exponent is halved.',
@@ -342,18 +423,19 @@ const classwork = [
     responses: [
       expression('fifthPower', '243a¹⁰b¹⁵ = ( ? )⁵', '3a^2b^3'),
       choice('bars', 'Does the answer need absolute value bars?', [
-        'No — the index is odd, so a fifth root keeps the sign of 3a²b³',
-        'Yes — b³ can be negative',
-        'Yes — every variable needs bars',
-        'No — because a and b are always positive',
-      ], 'No — the index is odd, so a fifth root keeps the sign of 3a²b³'),
+        'No — the index is odd, so the root keeps the sign of 3a²b³',
+        'Yes — b³ can be negative, so bars must go around the b³ factor',
+        'Yes — a fifth root is never negative, so 3a²b³ needs bars',
+        'No — a and b are always positive here, so 3a²b³ is too',
+      ], 'No — the index is odd, so the root keeps the sign of 3a²b³'),
       simplest('cyp', '⁵√(32x⁵y¹⁰) =', '2xy^2'),
     ],
     hints: [
-      '243 = 3⁵. Divide each exponent by 5: a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵.',
-      'An odd root of a negative number is negative, so an odd root never needs bars.',
-      '32 = 2⁵; x⁵ = (x)⁵; y¹⁰ = (y²)⁵.',
+      'Which number to the fifth power is 243? Which power of a, to the fifth, gives a¹⁰?',
+      'Divide each exponent by 5. Is the index odd or even, and does an odd root keep the sign?',
+      '243 = 3⁵, a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵, and an odd root needs no bars. Do the same for 32x⁵y¹⁰.',
     ],
+    misconceptions: [slip('cyp', '±2xy^2', 'An odd index gives exactly one real root, so there is no ±.')],
     scaffold: backUp('243 equals…', ['3⁵', '5³'], '3⁵'),
     guidedNotes: guidedNotes(
       ['Odd index', 'ⁿ√(aⁿ) = a when n is odd: the root keeps the sign.'],
@@ -371,27 +453,43 @@ const classwork = [
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 3,
-    prompt: tex`Example D, then Check Your Progress D. Decide whether $\sqrt{-4}$ is a real number, and name its two imaginary square roots. Then simplify $\sqrt{-16}$.`,
+    prompt: tex`Example D, then Check Your Progress D. Decide whether $\sqrt{-4}$ is a real number. Then simplify it using $i$, and name the other square root of $-4$. Do the same for $\sqrt{-16}$.`,
     directionSteps: [
       'Decide whether the first root is a real number.',
-      'Name its two imaginary square roots.',
-      'Choose the simplified form of the second expression.',
+      'Simplify it using i, and name the other square root.',
+      'Do the same for the second root.',
     ],
+    // Each root has its own box, so the order is never a guess: the radical
+    // names the principal root (2i), and "the other" is its opposite. The
+    // Check Your Progress half is typed as the example is (F-CYP-AS-CHOICE).
+    // Math boxes: the box chooser reads a key with no sign it knows, such as
+    // 2i, as words, and drew these as plain text boxes.
     responses: [
       choice('real', '√(−4) is…', [
         'not a real number: the index is even and the radicand is negative',
-        '−2, because (−2)² = −4',
-        '2',
-        '−2',
+        '−2: (−2)² = −4, so −2 is the square root of −4',
+        'a real number: −4 is negative, and an odd root of a negative is real',
+        'not a real number: every root of a negative number is imaginary',
       ], 'not a real number: the index is even and the radicand is negative'),
-      expression('rootPlus', 'The two imaginary square roots of −4 are', '2i'),
-      expression('rootMinus', 'and', '-2i'),
-      choice('cyp', '√(−16) (both roots) =', ['−4', '±4', '−2', '±4i'], '±4i'),
+      expression('rootPlus', '√(−4) =', '2i', { type: 'math' }),
+      expression('rootMinus', 'The other square root of −4 is', '-2i', { type: 'math' }),
+      expression('cypRoot', '√(−16) =', '4i', { type: 'math' }),
+      expression('cypOther', 'The other square root of −16 is', '-4i', { type: 'math' }),
     ],
     hints: [
       'Is (−2)² equal to 4 or −4?',
       'i is the imaginary unit, and i² = −1. Which multiple of i squares to −4?',
-      'Both 4i and −4i square to −16.',
+      // The last hint shows the move, not the four typed roots: a hint that
+      // states a box's answer is dropped by the leak guard.
+      'For b > 0, √(−b) = i√b, and the other square root is its opposite.',
+    ],
+    misconceptions: [
+      slip('rootPlus', '-2i', OTHER_ROOT),
+      slip('rootMinus', '2i', PRINCIPAL_ROOT),
+      slip('cypRoot', '-4i', OTHER_ROOT),
+      slip('cypOther', '4i', PRINCIPAL_ROOT),
+      slip('cypRoot', ['4', '-4'], REAL_SQUARE),
+      slip('cypOther', ['4', '-4'], REAL_SQUARE),
     ],
     scaffold: backUp('A real number raised to an even power is…', ['never negative', 'sometimes negative'], 'never negative'),
     guidedNotes: guidedNotes(
@@ -399,8 +497,8 @@ const classwork = [
     ),
     solutionReview: review(
       'No real root; two imaginary roots.',
-      ['The index is even and −4 < 0, so √(−4) is not a real number.', '(2i)² = 4i² = −4 and (−2i)² = −4, so the square roots are 2i and −2i.', 'Similarly, the square roots of −16 are ±4i.'],
-      '2i and −2i; ±4i',
+      ['The index is even and −4 < 0, so √(−4) is not a real number.', '(2i)² = 4i² = −4 and (−2i)² = −4, so √(−4) = 2i, and the other square root is −2i.', 'In the same way, √(−16) = 4i, and the other square root of −16 is −4i.'],
+      '2i and −2i; 4i and −4i',
       'Writing (−2)² = −4: the square of a negative number is positive.',
     ),
   },
@@ -418,21 +516,26 @@ const classwork = [
       'Explain when absolute value bars are needed.',
     ],
     responses: [
-      choice('sixth', '⁶√(t⁶) =', ['t', '−t', '|t|', 't⁶'], '|t|'),
-      choice('fourth', '⁴√(x⁴) =', ['x', '−x', '|x|', '1'], '|x|'),
+      // Typed (F-CYP-AS-CHOICE): the student writes the bars, or leaves them
+      // off, instead of picking |t| from four. The grader tries a negative t.
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows, such as |t|, as words (the CT04 fix in Algebra I M2 T2 L2).
+      simplest('sixth', '⁶√(t⁶) =', '|t|', { type: 'math' }),
+      simplest('fourth', '⁴√(x⁴) =', '|x|', { type: 'math' }),
       simplest('mixed', '⁴√(16x⁴y⁸) =', '2|x|y^2'),
       choice('why', 'Why does x need bars in the last answer but y² does not?', [
-        'x may be negative, but a fourth root is never negative; y² is never negative',
-        'x is always negative',
-        'Every variable outside an even root needs bars',
-        'y² needs bars too, because y may be negative',
-      ], 'x may be negative, but a fourth root is never negative; y² is never negative'),
+        'x may be negative, but a fourth root is never negative; y² never is',
+        'x is always negative, so it needs bars; y² is never negative',
+        'A fourth root can be negative, so x needs bars; y² is never negative',
+        'Bars go on the variable with the smaller exponent: x has 1, y² has 2',
+      ], 'x may be negative, but a fourth root is never negative; y² never is'),
     ],
     hints: [
-      't is a sixth root of t⁶, but t could be negative. The principal sixth root must be nonnegative.',
-      '16x⁴y⁸ = (2xy²)⁴.',
-      'Bars are needed only around a factor that can be negative.',
+      'If t = −2, what is t⁶, and what is its sixth root? Is that t, or something else?',
+      'What monomial, to the fourth power, gives 16x⁴y⁸? Which of its factors can be negative?',
+      '16x⁴y⁸ = (2xy²)⁴. Bars go only around a factor that can be negative: x can, y² cannot.',
     ],
+    misconceptions: [slip('sixth', 't', BARS('t')), slip('fourth', 'x', BARS('x')), slip('mixed', '2xy^2', BARS('x'))],
     scaffold: backUp('For an even index n, ⁿ√(aⁿ) equals…', ['a', '|a|'], '|a|'),
     guidedNotes: guidedNotes(
       ['Even index', 'ⁿ√(aⁿ) = |a| when n is even, because the principal root is nonnegative and a might not be.'],
@@ -451,67 +554,41 @@ const classwork = [
     studentActions: ['multipleResponses'],
     dok: 2,
     difficultyBand: 3,
-    prompt: tex`Simplify using absolute value (odd index). Simplify $\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\sqrt[3]{27(x+2)^9}$.`,
+    prompt: tex`Simplify using absolute value (odd index). Simplify $\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\sqrt[3]{8(x+2)^{15}}$.`,
     directionSteps: [
       'Write the radicand as a fifth power.',
       'Decide whether absolute value bars are needed.',
-      'Choose the simplified form of the second expression.',
+      'Simplify the second expression the same way.',
     ],
     responses: [
       expression('fifthPower', '243(x + 2)¹⁵ = [ ? ]⁵. This base is the fifth root.', '3(x+2)^3'),
       choice('bars', 'Does ⁵√(243(x + 2)¹⁵) need absolute value bars?', [
         'No — the index is odd, so the root keeps the sign of 3(x + 2)³',
-        'Yes — x + 2 can be negative',
-        'Yes — every binomial root needs bars',
-        'No — because x + 2 is always positive',
+        'Yes — x + 2 can be negative, so the root needs bars around it',
+        'Yes — a root of a power of a binomial always needs bars around it',
+        'No — x + 2 is always positive here, so 3(x + 2)³ never needs them',
       ], 'No — the index is odd, so the root keeps the sign of 3(x + 2)³'),
-      choice('cyp', '∛(27(x + 2)⁹) =', ['|3(x + 2)³|', '3(x + 2)³', '|3(x + 2)⁶|', '3(x + 2)⁶'], '3(x + 2)³'),
+      // Typed (F-CYP-AS-CHOICE). The slide's ∛(27(x + 2)⁹) is 3(x + 2)³, the
+      // example's own answer, so a typed box could be filled by copying it:
+      // the same power of x + 2 under a cube root has an answer of its own.
+      expression('cyp', '∛(8(x + 2)¹⁵) =', '2(x+2)^5'),
     ],
     hints: [
-      '243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵.',
-      'The index is odd, so no absolute value bars are needed.',
-      '27 = 3³ and (x + 2)⁹ = [(x + 2)³]³.',
+      'Which number to the fifth power is 243? Which power of (x + 2), to the fifth, gives (x + 2)¹⁵?',
+      'Treat x + 2 as one block and divide its exponent by the index. Is the index odd or even?',
+      '243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵. An odd root keeps the sign, so no bars. For the cube root, divide 15 by 3.',
     ],
+    misconceptions: [slip('cyp', '|2(x+2)^5|', 'An odd root keeps the sign, so it needs no absolute value bars.')],
     scaffold: backUp('For an odd index n, ⁿ√(aⁿ) equals…', ['a', '|a|'], 'a'),
     solutionReview: review(
       'Write the fifth power; odd roots keep the sign.',
-      ['243(x + 2)¹⁵ = [3(x + 2)³]⁵.', 'The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.', 'In the same way ∛(27(x + 2)⁹) = 3(x + 2)³.'],
-      '3(x + 2)³; 3(x + 2)³',
+      [
+        '243(x + 2)¹⁵ = [3(x + 2)³]⁵.',
+        'The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.',
+        '8(x + 2)¹⁵ = [2(x + 2)⁵]³, and the index is odd again, so ∛(8(x + 2)¹⁵) = 2(x + 2)⁵.',
+      ],
+      '3(x + 2)³; 2(x + 2)⁵',
       'Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2.',
-    ),
-  },
-  {
-    questionId: 'a2r1-cw-9',
-    ...T,
-    studentActions: ['multipleResponses'],
-    dok: 1,
-    difficultyBand: 2,
-    prompt: tex`Simplify numerical radicals. For $\sqrt{63}$ and $3\sqrt{12}$, find the largest perfect-square factor of the radicand, then write each in simplest radical form.`,
-    directionSteps: [
-      'Find the largest perfect-square factor of each radicand.',
-      'Take its square root outside the radical.',
-      'Write each in simplest radical form.',
-    ],
-    responses: [
-      number('factor63', 'Largest perfect-square factor of 63', '9'),
-      simplest('root63', '√63 =', '3√7'),
-      number('factor12', 'Largest perfect-square factor of 12', '4'),
-      simplest('root12', '3√12 =', '6√3'),
-    ],
-    hints: [
-      'List the perfect squares in order and test which ones divide each radicand.',
-      'Split each radicand into a perfect square times what is left.',
-      'Multiply the outside coefficient by the square root of the perfect square.',
-    ],
-    scaffold: backUp('√(ab) equals…', ['√a · √b', '√a + √b'], '√a · √b'),
-    guidedNotes: guidedNotes(
-      ['Product Property', 'ⁿ√(ab) = ⁿ√a · ⁿ√b when the roots are real. Split off the largest perfect nth-power factor.'],
-    ),
-    solutionReview: review(
-      'Split off the largest perfect square.',
-      ['63 = 9 · 7, so √63 = 3√7.', '12 = 4 · 3, so 3√12 = 3 · 2√3 = 6√3.'],
-      '3√7; 6√3',
-      'Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out.',
     ),
   },
   {
@@ -530,17 +607,18 @@ const classwork = [
       expression('square', '9x⁴y¹⁰z⁴ = ( ? )²', '3x^2y^5z^2'),
       simplest('simplified', '√(9x⁴y¹⁰z⁴) =', '3x^2|y^5|z^2'),
       choice('why', 'Why does only y⁵ need bars?', [
-        'y⁵ is negative when y is negative; x² and z² never are',
-        'y has the largest exponent',
+        'y⁵ is negative whenever y is negative; x² and z² never are',
+        'y has the largest exponent, so y⁵ is the largest factor',
         'x² and z² are always positive, and y⁵ is always negative',
-        'Only odd numbers need bars',
-      ], 'y⁵ is negative when y is negative; x² and z² never are'),
+        '5 is odd, and every odd number in an answer needs bars',
+      ], 'y⁵ is negative whenever y is negative; x² and z² never are'),
     ],
     hints: [
-      'Halve every exponent: x⁴ = (x²)², y¹⁰ = (y⁵)², z⁴ = (z²)².',
-      'The square root of a square is the absolute value of its base.',
-      'Which factor of 3x²y⁵z² can be negative?',
+      'Which number squared is 9? What power of each letter, squared, gives x⁴, y¹⁰ and z⁴?',
+      'The square root of a square is the absolute value of its base. Which factors of that base can be negative?',
+      '9x⁴y¹⁰z⁴ = (3x²y⁵z²)². Of 3x², y⁵ and z², only y⁵ can be negative.',
     ],
+    misconceptions: [slip('simplified', '3x^2y^5z^2', BARS('y'))],
     scaffold: backUp('√(y¹⁰) equals…', ['y⁵', '|y⁵|'], '|y⁵|'),
     solutionReview: review(
       'Halve the exponents; bars only where a factor can be negative.',
@@ -569,10 +647,11 @@ const classwork = [
       simplest('product', '2√(8a²) · 4√(18a²) =', '96a^2'),
     ],
     hints: [
-      'Use the Product Property backward: √m · √n = √(mn).',
-      'Multiply the numbers under the radicals, then add the exponents of a.',
-      'a² is never negative, so √(a⁴) = a² with no bars.',
+      'How can you write a product of two square roots as one square root?',
+      'Multiply the coefficients outside and the radicands inside. What happens to the exponents of a?',
+      '√m · √n = √(mn), and a² is never negative, so √(a⁴) = a² with no bars.',
     ],
+    misconceptions: [slip('radicand', '26a^2', 'The Product Property multiplies the radicands; it does not add them.')],
     scaffold: backUp('√m · √n equals…', ['√(mn)', '√(m + n)'], '√(mn)'),
     solutionReview: review(
       'Coefficients times coefficients, radicands times radicands.',
@@ -596,14 +675,16 @@ const classwork = [
     responses: [
       number('afterDividing', '3√2 / √6 = 3 / √( ? )', '3'),
       simplest('quotient', '3√2 / √6 =', '√3'),
-      simplest('square', '(3√(3x))² =', '27x'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (27x) as words, and drew a plain text box.
+      simplest('square', '(3√(3x))² =', '27x', { type: 'math' }),
       expression('radicand', '2x³y⁵ · 12x³y³ =', '24x^6y^8'),
       simplest('product', '3√(2x³y⁵) · 4√(12x³y³) =', '24x^3y^4√6'),
     ],
     hints: [
-      'Write the quotient under one radical and reduce the fraction there.',
-      'A radical left in a denominator is cleared by multiplying the top and the bottom by that radical.',
-      'Square the coefficient and the radical separately. For the product, find the largest perfect-square factor of the new radicand.',
+      'What is √2/√6 as one square root, with its fraction reduced?',
+      'To clear a radical from a denominator, multiply the top and the bottom by that radical. To square a product, square each factor.',
+      'For the product, multiply the coefficients and the radicands, then take the largest perfect square out of the new radicand.',
     ],
     scaffold: backUp('To rationalize 3/√3, multiply by…', ['√3/√3', '3/3'], '√3/√3'),
     solutionReview: review(
@@ -638,9 +719,9 @@ const classwork = [
       number('energy', '(b) Cube each side: k ≈ (joules, nearest tenth)', '23.9', { numericTolerance: 0.1 }),
     ],
     hints: [
-      'On a calculator, ∛3.5 is 3.5^(1/3).',
-      'Order matters: cube root first, then multiply by 0.926, then subtract 0.169.',
-      'Undo the steps in reverse order: add 0.169, divide by 0.926, then cube.',
+      'Which part of 0.926∛k − 0.169 do you work out first when you know k?',
+      'On a calculator, ∛3.5 is 3.5^(1/3). Find the cube root, multiply by 0.926, then subtract 0.169.',
+      'For (b), undo the steps in reverse order: add 0.169, divide by 0.926, then cube.',
     ],
     scaffold: backUp('To undo a cube root, you…', ['cube both sides', 'divide by 3'], 'cube both sides'),
     guidedNotes: guidedNotes(
@@ -677,8 +758,8 @@ const classwork = [
       number('length', '(b) Square, then multiply by 32: L ≈ (feet, nearest tenth)', '20.3', { numericTolerance: 0.1 }),
     ],
     hints: [
-      'Divide the length by g first.',
-      'Take the square root of that quotient, then multiply by 2π.',
+      'In T = 2π√(L/g), which operation comes first when you know L?',
+      'Divide L by g, take the square root, then multiply by 2π. For (b), which of those steps do you undo first?',
       'For (b): 5 = 2π√(L/32). Divide by 2π, square both sides, then multiply by 32.',
     ],
     scaffold: backUp('To undo a square root, you…', ['square both sides', 'divide by 2'], 'square both sides'),
@@ -710,7 +791,10 @@ const practice = [
       expression('positive', 'Positive square root', '{{b}}x^{{h}}'),
       expression('negative', 'Negative square root', '-{{b}}x^{{h}}'),
     ],
-    hints: ['{{p}} = {{b}}², and halve the exponent of x.', '± means the positive root and its opposite.'],
+    hints: [
+      'Which number, squared, gives {{p}}? What power of x, squared, gives x^{{e}}?',
+      '{{p}} = {{b}}² and x^{{e}} = (x^{{h}})². ± means the positive root and its opposite.',
+    ],
     scaffold: backUp('±√(25x⁶) equals…', ['±5x³', '±5x⁴'], '±5x³'),
     solutionReview: review(
       'A perfect square, then both roots.',
@@ -718,9 +802,11 @@ const practice = [
       '±{{b}}x^{{h}}',
       'Halving {{p}} instead of taking its square root.',
     ),
+    // An even power of x only, so the positive root needs no bars (as the lesson
+    // teaches): with h odd and x negative, b·x^h is the negative root.
     generator: {
-      parameters: { b: { type: 'int', min: 2, max: 13 }, h: { type: 'int', min: 2, max: 7 } },
-      derived: { p: 'b*b', e: '2*h' },
+      parameters: { b: { type: 'int', min: 2, max: 13 }, k: { type: 'int', min: 1, max: 3 } },
+      derived: { p: 'b*b', h: '2*k', e: '4*k' },
     },
     questionFamily: { scope: 'assignment' },
   },
@@ -733,12 +819,18 @@ const practice = [
     prompt: tex`Simplify $\sqrt[3]{ -{{c3}}a^{ {{e1}} }b^{ {{e2}} } }$.`,
     directionSteps: ['Write the radicand as a cube.', 'Take the cube root and keep its sign.'],
     responses: [simplest('simplified', 'Simplified', '-{{c}}a{{m|pow}}b{{n|pow}}')],
-    hints: ['{{c3}} = {{c}}³. Divide each exponent by 3.', 'A cube root of a negative number is negative.'],
+    hints: [
+      'Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?',
+      '{{c3}} = {{c}}³; divide each exponent by 3. A cube root of a negative number is negative.',
+    ],
+    misconceptions: [
+      slip('simplified', '{{c}}a{{m|pow}}b{{n|pow}}', 'An odd root keeps the sign of its radicand: the cube root of a negative number is negative.'),
+    ],
     scaffold: backUp('∛(−8) equals…', ['−2', 'not a real number'], '−2'),
     solutionReview: review(
       'Write a cube; an odd root keeps the sign.',
-      ['−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{n}})³.', 'So the cube root is −{{c}}a^{{m}}b^{{n}}.'],
-      '−{{c}}a^{{m}}b^{{n}}',
+      ['−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a{{m|pow}}b{{n|pow}})³.', 'So the cube root is −{{c}}a{{m|pow}}b{{n|pow}}.'],
+      '−{{c}}a{{m|pow}}b{{n|pow}}',
       'Saying a cube root of a negative number is not real: only even roots of negatives are not real.',
     ),
     generator: {
@@ -757,13 +849,17 @@ const practice = [
     prompt: tex`Simplify $\sqrt[4]{ {{d4}}x^{ {{e1}} }y^{ {{e2}} } }$. The variables $x$ and $y$ can be any real numbers, so use absolute value bars where they are needed.`,
     directionSteps: ['Write the radicand as a fourth power.', 'Take the principal fourth root.', 'Put bars only around a factor that can be negative.'],
     responses: [simplest('simplified', 'Simplified', '{{d}}|x{{m|pow}}|y^{{n}}')],
-    hints: ['{{d4}} = {{d}}⁴; divide each exponent by 4.', 'x^{{m}} has an odd exponent, so it can be negative. y^{{n}} has an even exponent.'],
+    hints: [
+      'Which number to the fourth power is {{d4}}? After you take the root, which factor can be negative?',
+      '{{d4}} = {{d}}⁴; divide each exponent by 4. x{{m|pow}} has an odd exponent, so it can be negative; y^{{n}} cannot.',
+    ],
+    misconceptions: [slip('simplified', '{{d}}x{{m|pow}}y^{{n}}', BARS('x'))],
     scaffold: backUp('⁴√(x⁴) equals…', ['x', '|x|'], '|x|'),
     solutionReview: review(
       'A fourth power, then bars where a factor can be negative.',
-      ['{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{n}})⁴.', 'The principal fourth root is |{{d}}x^{{m}}y^{{n}}| = {{d}}|x^{{m}}|y^{{n}}: y^{{n}} is never negative, x^{{m}} can be.'],
-      '{{d}}|x^{{m}}|y^{{n}}',
-      'Leaving off the bars around x^{{m}}, or putting them around y^{{n}} too (harmless but not simplest).',
+      ['{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x{{m|pow}}y^{{n}})⁴.', 'The principal fourth root is |{{d}}x{{m|pow}}y^{{n}}| = {{d}}|x{{m|pow}}|y^{{n}}: y^{{n}} is never negative, x{{m|pow}} can be.'],
+      '{{d}}|x{{m|pow}}|y^{{n}}',
+      'Leaving off the bars around x{{m|pow}}, or putting them around y^{{n}} too (harmless but not simplest).',
     ),
     generator: {
       parameters: { d: { type: 'int', min: 2, max: 6 }, m: { type: 'choice', values: [1, 3, 5] }, n: { type: 'choice', values: [2, 4, 6] } },
@@ -780,7 +876,11 @@ const practice = [
     prompt: tex`Simplify $\sqrt[5]{ {{c5}}(x+{{h}})^{ {{e}} } }$.`,
     directionSteps: ['Treat the binomial as one block.', 'Write the radicand as a fifth power.', 'Take the fifth root.'],
     responses: [expression('simplified', 'Simplified', '{{c}}(x+{{h}})^{{k}}')],
-    hints: ['{{c5}} = {{c}}⁵.', '(x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. Is the index odd or even?'],
+    hints: [
+      'Which number to the fifth power is {{c5}}? What power of (x + {{h}}), to the fifth, gives (x + {{h}})^{{e}}?',
+      '{{c5}} = {{c}}⁵ and (x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. The index is odd, so no bars are needed.',
+    ],
+    misconceptions: [slip('simplified', '|{{c}}(x+{{h}})^{{k}}|', 'An odd root keeps the sign, so it needs no absolute value bars.')],
     scaffold: backUp('An odd root of a negative number is…', ['negative', 'not real'], 'negative'),
     solutionReview: review(
       'One block, a fifth power, no bars for an odd index.',
@@ -806,7 +906,10 @@ const practice = [
       number('factor', 'Largest perfect-square factor of {{R}}', '{{s2}}'),
       simplest('simplified', '√{{R}} =', '{{s}}√{{k}}'),
     ],
-    hints: ['Try the perfect squares 4, 9, 16, 25, 36, 49, 64, 81, … from the largest down.', 'Write the radicand as a perfect square times what is left, then take the square root of the perfect square.'],
+    hints: [
+      'Which perfect squares divide {{R}}? Which is the largest?',
+      'Write the radicand as a perfect square times what is left, then take the square root of the perfect square.',
+    ],
     scaffold: backUp('Which is a perfect square?', ['144', '128'], '144'),
     solutionReview: review(
       'Largest perfect-square factor first.',
@@ -831,9 +934,15 @@ const practice = [
     responses: [
       number('coefficients', 'Coefficients: {{a}} · {{b}} =', '{{ab}}'),
       expression('radicand', 'Radicands: {{k}}x · {{v}}x =', '{{w}}x^2'),
-      simplest('product', 'Product', '{{r}}x'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (72x) as words, and drew a plain text box.
+      simplest('product', 'Product', '{{r}}x', { type: 'math' }),
     ],
-    hints: ['√m · √n = √(mn).', '{{w}} is a perfect square: {{kj}}² = {{w}}.'],
+    hints: [
+      'How can you write the product of the two square roots as one square root?',
+      'Multiply the coefficients, and multiply the radicands. The new radicand is a perfect square: what is its square root?',
+    ],
+    misconceptions: [slip('product', '{{kj}}x', 'That is the square root alone: multiply it by the coefficients {{a}} and {{b}} too.')],
     scaffold: backUp('√(16x²) equals (x positive)…', ['4x', '16x'], '4x'),
     solutionReview: review(
       'Multiply outside and inside, then take the root.',
@@ -855,13 +964,23 @@ const practice = [
     difficultyBand: 3,
     prompt: tex`Compare an even and an odd root of a negative number. Simplify $\sqrt{ -{{p}} }$ and $\sqrt[3]{ -{{q}} }$.`,
     directionSteps: ['Decide whether the square root is real and name its square roots.', 'Find the cube root.'],
+    // Each root has its own box, named as Example D's are (CW 6): "Its two
+    // imaginary square roots are [ ] and [ ]" read the roots in either order,
+    // but the keys held one, so −5i then 5i was marked wrong twice.
     responses: [
       choice('real', '√(−{{p}}) is…', ['not a real number', 'equal to −{{n}}', 'equal to {{n}}', 'equal to ±{{n}}'], 'not a real number'),
-      expression('rootPlus', 'Its two imaginary square roots are', '{{n}}i'),
-      expression('rootMinus', 'and', '-{{n}}i'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (7i) as words, and drew a plain text box.
+      expression('rootPlus', '√(−{{p}}) =', '{{n}}i', { type: 'math' }),
+      expression('rootMinus', 'The other square root of −{{p}} is', '-{{n}}i', { type: 'math' }),
       number('cube', '∛(−{{q}}) =', '{{nm}}'),
     ],
-    hints: ['No real number squared is negative.', 'i² = −1, so a multiple of i can square to a negative number.', 'An odd root keeps the sign of its radicand.'],
+    hints: [
+      'Can a real number, squared, be negative? What about a multiple of i?',
+      'i² = −1, so a multiple of i can square to a negative number. Does an odd root keep the sign of its radicand?',
+      'Find the whole number whose square is {{p}}, then attach i. An odd root keeps the sign of its radicand.',
+    ],
+    misconceptions: [slip('cube', '{{m}}', 'An odd root keeps the sign of its radicand: the cube root of a negative number is negative.')],
     scaffold: backUp('An odd root of a negative number is…', ['negative', 'not real'], 'negative'),
     solutionReview: review(
       'Even root of a negative: not real. Odd root: real and negative.',
@@ -890,7 +1009,15 @@ const practice = [
       number('count3', 'Fifth roots of −243: how many real roots?', '1'),
       number('root3', 'The real fifth root of −243', '-3'),
     ],
-    hints: ['Even index and a negative radicand: no real roots.', 'Which whole number to the sixth power is 64? Its opposite works too, because the power is even.', 'An odd index gives one real root with the radicand’s sign.'],
+    hints: [
+      'For each one, is the index even or odd, and is the radicand positive or negative?',
+      'No real number to an even power is negative. Which whole number to the sixth power is 64?',
+      'An odd index gives one real root with the radicand’s sign; a positive radicand under an even index has two.',
+    ],
+    misconceptions: [
+      slip('count1', ['1', '2'], 'No real number to an even power is negative, so a negative number has no real fourth root.'),
+      slip('root3', '3', 'An odd root keeps the sign of its radicand: the fifth root of a negative number is negative.'),
+    ],
     scaffold: backUp('How many real sixth roots does a positive number have?', ['two', 'one'], 'two'),
     solutionReview: review(
       'Even/odd index and the sign of the radicand decide the count.',
@@ -912,7 +1039,7 @@ const practice = [
       number('inside', '3V/(4π) ≈ (nearest tenth)', '{{inside}}', { numericTolerance: 0.1 }),
       number('radius', 'r ≈ (centimeters, nearest tenth)', '{{r}}', { numericTolerance: 0.1 }),
     ],
-    hints: ['Multiply 3 by the volume, then divide by 4π.', 'Take the cube root: the result raised to the 1/3 power.'],
+    hints: ['What is the value under the radical when V = {{V}}?', 'Multiply 3 by {{V}} and divide by 4π, then take the cube root: raise it to the 1/3 power.'],
     scaffold: backUp('∛125 equals…', ['5', '25'], '5'),
     solutionReview: review(
       'Evaluate inside the radical, then take the cube root.',
@@ -935,11 +1062,15 @@ const practice = [
     prompt: tex`SPACE. The hole a dust particle makes in a solar cell has diameter $d = 0.926\sqrt[3]{k} - 0.169$ millimeters, where $k$ is the particle's energy in joules. A hole has diameter {{d}} millimeters. Estimate the particle's energy. Use a calculator.`,
     calculatorPolicy: 'scientific',
     directionSteps: ['Add 0.169 to each side.', 'Divide by 0.926.', 'Cube each side.'],
+    // The key cubes the exact root. A student who cubes the thousandth the box
+    // above asks for can land one tenth away (d = 2.3: 2.666³ ≈ 18.9 for the
+    // key's 19.0), and a tolerance of exactly 0.1 refused that in floating
+    // point. 0.15 takes one tenth either way, never two.
     responses: [
       number('cubeRoot', '∛k ≈ (nearest thousandth)', '{{cr}}', { numericTolerance: 0.001 }),
-      number('energy', 'k ≈ (joules, nearest tenth)', '{{k}}', { numericTolerance: 0.1 }),
+      number('energy', 'k ≈ (joules, nearest tenth)', '{{k}}', { numericTolerance: 0.15 }),
     ],
-    hints: ['Undo the operations in reverse order.', 'Cubing undoes a cube root.'],
+    hints: ['Which operation in d = 0.926∛k − 0.169 is done last, so you undo it first?', 'Add 0.169, divide by 0.926, then cube: cubing undoes a cube root.'],
     scaffold: backUp('The first step to undo is…', ['subtracting 0.169', 'the cube root'], 'subtracting 0.169'),
     solutionReview: review(
       'Undo each step in reverse.',
@@ -965,19 +1096,27 @@ const practice = [
       number('jamalValue', 'When x = −2, ⁴√(x⁴) =', '2'),
       choice('jamal', 'Jamal’s statement is…', [
         'wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|',
-        'right for every x',
-        'wrong: ⁴√(x⁴) = x²',
-        'wrong: ⁴√(x⁴) = −x',
+        'right: a fourth root undoes the power, so ⁴√(x⁴) = x',
+        'wrong: x⁴ = (x²)², so its fourth root is x²',
+        'wrong: x = −2 gives a root of −2, so ⁴√(x⁴) = −x',
       ], 'wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|'),
       number('priyaValue', 'When x = −2, ∛(x³) =', '-2'),
       choice('priya', 'Priya’s statement is…', [
         'wrong: an odd root keeps the sign, so ∛(x³) = x',
-        'right for every x',
-        'wrong: ∛(x³) = x²',
-        'right, because roots are never negative',
+        'right: a root is never negative, so ∛(x³) = |x|',
+        'wrong: x = −2 gives ∛(−8) = 2, so ∛(x³) = −x',
+        'right: like a fourth root, a cube root is never negative',
       ], 'wrong: an odd root keeps the sign, so ∛(x³) = x'),
     ],
-    hints: ['Evaluate x⁴ at the test value first, then take the fourth root.', 'Evaluate x³ at the test value first, then take the cube root.', 'Compare each result with x itself and with |x|.'],
+    hints: [
+      'What is x⁴ at the test value? What is the fourth root of that number?',
+      'Do the same with x³ and the cube root. Is each result x, or |x|?',
+      'A fourth root is never negative; a cube root keeps the sign. Compare each result with x and with |x|.',
+    ],
+    misconceptions: [
+      slip('jamalValue', '-2', 'x⁴ is positive, and a fourth root is never negative.'),
+      slip('priyaValue', '2', 'A cube root keeps the sign: the cube root of a negative number is negative.'),
+    ],
     scaffold: backUp('∛(−27) equals…', ['−3', '3'], '−3'),
     solutionReview: review(
       'A counterexample decides it.',
@@ -1006,7 +1145,12 @@ const practice = [
       simplest('eighteen', '⁶√(x¹⁸) =', '|x^3|'),
       simplest('twelve', '⁶√(x¹²) =', 'x^2'),
     ],
-    hints: ['Try a = −2 with n = 2 and with n = 3.', '√(x²) = |x|. When is |x| = −x?', 'x¹⁸ = (x³)⁶ and x¹² = (x²)⁶. Can x³ be negative? Can x²?'],
+    hints: [
+      'What is ⁿ√(aⁿ) when a = −2, for n = 2 and for n = 3?',
+      '√(x²) = |x|. When is |x| equal to −x? Which power of x, to the sixth, gives x¹⁸?',
+      'x¹⁸ = (x³)⁶ and x¹² = (x²)⁶. Can x³ be negative? Can x²?',
+    ],
+    misconceptions: [slip('eighteen', 'x^3', BARS('x'))],
     scaffold: backUp('|x| = −x when x is…', ['zero or negative', 'positive'], 'zero or negative'),
     solutionReview: review(
       'Odd index keeps the sign; even index gives the absolute value.',
@@ -1043,15 +1187,22 @@ const practice = [
       number('t32', 'T for L = 32 (nearest hundredth)', '6.28'),
       number('factor', 'When the length is multiplied by 4, the period is multiplied by', '2'),
       number('doubleLength', 'To double the period, multiply the length by', '4'),
-      expression('newPeriod', 'A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is', '2T'),
+      // A math box, as its neighbours are: the box chooser reads a key with no
+      // sign it knows (2T) as words, and drew a plain text box.
+      expression('newPeriod', 'A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is', '2T', { type: 'math' }),
       choice('why', 'Why?', [
         'T depends on √L, and √(4L) = 2√L',
-        'T is proportional to L',
-        'Multiplying L by 4 adds 2 to T',
-        'The period does not depend on the length',
+        'T depends on √L, and √(4L) = 4√L',
+        'T depends on √L, and √(4L) = 2 + √L',
+        'T is proportional to L, so the period doubles',
       ], 'T depends on √L, and √(4L) = 2√L'),
     ],
-    hints: ['√(2/32) = 1/4, √(8/32) = 1/2, √(18/32) = 3/4 and √(32/32) = 1.', 'Compare rows where the length is multiplied by the same factor.', 'Use the Product Property on the square root of a product.'],
+    hints: [
+      'What is L/32 for each length in the table, and what is its square root?',
+      'Compare rows where the length is multiplied by the same factor. How does the period change?',
+      'Use the Product Property: the square root of a product is the product of the square roots.',
+    ],
+    misconceptions: [slip('doubleLength', '2', 'Doubling the length does not double the period: the period depends on √L.')],
     scaffold: backUp('√4 · √L equals…', ['2√L', '4√L'], '2√L'),
     solutionReview: review(
       'The period grows like the square root of the length.',
@@ -1064,7 +1215,7 @@ const practice = [
       'Assuming the period doubles when the length doubles: doubling L multiplies T by √2 ≈ 1.41.',
     ),
   },
-  auditedCcmrQuestion({
+  withOwnHint('Which perfect square is a factor of {{radCoef}}? For x > 0, what is the square root of x²?', auditedCcmrQuestion({
     documentId: 'mm_sat_A2_7G_1_variable-radical-square-factor_v21',
     questionId: 'a2r1-p-14',
     scaffold: backUp('√(9x²) equals, for x > 0…', ['3x', '9x'], '3x'),
@@ -1077,12 +1228,12 @@ const practice = [
         'This takes only x out of the root. {{radCoef}} = {{k2}} · {{m}} has a perfect-square factor that comes out too.',
       ],
     },
-  }),
-  auditedCcmrQuestion({
+  })),
+  withOwnHint('How can you write the product of the two square roots as one square root? What is √(x²) for x ≥ 0?', auditedCcmrQuestion({
     documentId: 'mm_sat_A2_7G_3_radical-product-variable_v21',
     questionId: 'a2r1-p-15',
     scaffold: backUp('√(4x) · √x equals, for x ≥ 0…', ['√(4x²)', '√(4x) + √x'], '√(4x²)'),
-  }),
+  })),
 ];
 
 /* ------------------------------------------------------ Exit Ticket */
@@ -1097,14 +1248,18 @@ const dol = [
     prompt: tex`Simplify $\sqrt[{{n}}]{ {{dn}}x^{ {{e1}} }y^{ {{e2}} } }$. The variables $x$ and $y$ can be any real numbers, so use absolute value bars where they are needed.`,
     directionSteps: ['Write the radicand as a power whose exponent is the index.', 'Take the principal root.', 'Put bars only around a factor that can be negative.'],
     responses: [simplest('simplified', 'Simplified', '{{d}}|x{{m|pow}}|y^{{k}}')],
+    misconceptions: [slip('simplified', '{{d}}x{{m|pow}}y^{{k}}', BARS('x'))],
     solutionReview: review(
       'An even index: bars around any factor that can be negative.',
       ['{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{k}})^{{n}}.', 'The index {{n}} is even, so the root is |{{d}}x^{{m}}y^{{k}}| = {{d}}|x^{{m}}|y^{{k}}.'],
       '{{d}}|x^{{m}}|y^{{k}}',
       'Leaving off the bars around x^{{m}}: it is negative when x is.',
     ),
+    // A fourth root, as in the practice item it mirrors (PR 3): a sixth root
+    // made the one try range from 16x⁴y⁸ to 4096x³⁰y²⁴ (F-L1-EXIT-SPREAD).
+    // Within PR 3's ranges, 36 versions, so a class of 32 each gets its own.
     generator: {
-      parameters: { n: { type: 'choice', values: [4, 6] }, d: { type: 'int', min: 2, max: 4 }, m: { type: 'choice', values: [1, 3, 5] }, k: { type: 'choice', values: [2, 4] } },
+      parameters: { n: { type: 'choice', values: [4] }, d: { type: 'int', min: 2, max: 5 }, m: { type: 'choice', values: [1, 3, 5] }, k: { type: 'choice', values: [2, 4, 6] } },
       derived: { dn: 'pow(d, n)', e1: 'n*m', e2: 'n*k' },
     },
     questionFamily: { scope: 'assignment' },
@@ -1118,6 +1273,9 @@ const dol = [
     prompt: tex`Simplify $\sqrt[{{n}}]{ -{{cn}}a^{ {{e1}} }b^{ {{e2}} } }$.`,
     directionSteps: ['Write the radicand as a power whose exponent is the index.', 'Take the root and keep its sign.'],
     responses: [simplest('simplified', 'Simplified', '-{{c}}a{{m|pow}}b{{k|pow}}')],
+    misconceptions: [
+      slip('simplified', '{{c}}a{{m|pow}}b{{k|pow}}', 'An odd root keeps the sign of its radicand, so the root of a negative number is negative.'),
+    ],
     solutionReview: review(
       'An odd index keeps the sign.',
       ['−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{k}})^{{n}}.', 'The index {{n}} is odd, so the root is −{{c}}a^{{m}}b^{{k}}.'],
@@ -1173,7 +1331,7 @@ export const L1_NTH_ROOTS = {
       gradingPurpose: 'classwork',
       essentialQuestion: 'Why can it be useful to simplify expressions?',
       instructions: 'nth roots. Every answer is entered in a step-by-step tool: write the radicand as a perfect power, take the root, and decide whether absolute value bars are needed — the tool checks each step. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.',
-      teacherNotes: 'Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; "Simplify" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches.',
+      teacherNotes: 'Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; "Simplify" answers are graded by value AND form (simplest radical form, bars only where needed). CW3, the numerical radicals √63 and 3√12, comes before the variable examples so students find the largest perfect-square factor with numbers first; the other items keep the slides’ order. Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the "Simplify" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW9’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy.',
     },
     variantPolicy: {
       mode: 'personalized',

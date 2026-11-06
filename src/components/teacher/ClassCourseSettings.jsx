@@ -12,7 +12,7 @@ export default function ClassCourseSettings({ classPeriods = [], courseProfiles 
         </div>
         <button type="button" onClick={onSave} disabled={saving} style={{ padding: '9px 14px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving…' : 'Save Course Settings'}</button>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div role="region" aria-label="Course for each class period" tabIndex={0} style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ background: 'var(--mm-surface-control)' }}><th style={{ textAlign: 'left', padding: 10 }}>Class period</th><th style={{ textAlign: 'left' }}>Course</th><th style={{ textAlign: 'left' }}>Course level</th><th style={{ textAlign: 'left' }}>Meaning</th></tr></thead>
           <tbody>

@@ -85,8 +85,11 @@ test('one 90-minute lesson in the four sections; the DOL is an exit ticket', () 
   for (const question of dol.questions) {
     assert.equal(question.hints, undefined, `${question.questionId}: no hints on the DOL`);
     assert.equal(question.guidedNotes, undefined, `${question.questionId}: no guided notes on the DOL`);
-    assert.equal(question.solutionReview, undefined, `${question.questionId}: no worked solution on the DOL`);
   }
+  // The term-by-term division writes its own worked steps
+  // (kSteps_lessonWorkedSteps); the long and the synthetic division show their
+  // tools'. The section shows them only once the exit ticket is submitted.
+  assert.deepEqual(dol.questions.filter((question) => question.solutionReview).map((question) => question.questionId), ['dp-dol-1']);
   for (const question of sections.slice(0, 3).flatMap((section) => section.questions)) {
     assert.ok(question.hints?.length >= 2, `${question.questionId} offers hints`);
     assert.doesNotMatch(question.hints.join(' '), /\$|\\[a-z]+/, `${question.questionId}: hints are plain Unicode, not LaTeX`);

@@ -237,12 +237,12 @@
         },
         {
           "standard": "A2.7I",
-          "prompt": "Graph x ≤ −4 or x ≥ 3 and write the interval in interval notation.",
+          "prompt": "Graph x ≤ −4 or 1 ≤ x < 6 and write the compound interval in interval notation.",
           "studentActions": [
             "constructInterval",
             "writeInterval"
           ],
-          "inequalityText": "x ≤ −4 or x ≥ 3",
+          "inequalityText": "x ≤ −4 or 1 ≤ x < 6",
           "intervals": [
             {
               "min": null,
@@ -251,8 +251,8 @@
               "maxClosed": true
             },
             {
-              "min": 3,
-              "max": null,
+              "min": 1,
+              "max": 6,
               "minClosed": true,
               "maxClosed": false
             }
@@ -371,7 +371,7 @@
         },
         {
           "standard": "A2.7I",
-          "prompt": "For the relation {(−1, 3), (2, 0), (4, 3), (7, −2)}, state the domain and range and decide whether it is a function.",
+          "prompt": "Build the mapping for the relation {(−1, 3), (2, 0), (4, 3), (7, −2)}. Then state the domain and range and decide whether the relation is a function.",
           "studentActions": [
             "buildMapping",
             "stateDomain",

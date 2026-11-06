@@ -15,7 +15,7 @@ import AlgebraTermRow from './AlgebraTermRow';
 import './StepByStepAlgebra.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import { workspaceNeedsReveal } from './platform/layout/workspaceReveal.js';
-import { extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
+import { KEYBOARD_PLACEMENT_ROUTE, extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
   applyAdditiveOperationAtPlacement,
   describeOperation,
@@ -101,6 +101,12 @@ const OPERATIONS = [
   { id: 'divide', symbol: '÷', label: 'Divide by' },
 ];
 
+// How a pair is cancelled from the keyboard (AX32). Each term or factor of a pair is
+// a button (Tab reaches it; Enter or Space presses it as a tap does), and one press
+// crosses out its partner too, so a line that names the tap or the slash names this
+// in the same sentence.
+const CANCEL_KEYS = 'Tab to one and press Enter';
+
 /**
  * Returns `{ equation, error }` rather than throwing.
  *
@@ -169,7 +175,9 @@ function FocusSafeButton({ available, onClick, children, ...props }) {
 
 const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
 
-function CancellationFactorRow({
+// Exported so a test can press its tokens: each factor of a pair takes Enter or Space as a
+// tap does, which is what the cancellation cue names (AX32).
+export function CancellationFactorRow({
   factors,
   offset,
   model,
@@ -1461,7 +1469,7 @@ export default function StepByStepAlgebra({
       setMessage({
         tone: cancellationHintsEnabled ? 'success' : 'growth',
         text: cancellationHintsEnabled
-          ? `The operation is balanced. Draw directly through the ${cancelledPieces} in the equation itself.`
+          ? `The operation is balanced. Draw directly through the ${cancelledPieces} in the equation itself, or ${CANCEL_KEYS}.`
           : `The operation is balanced. Find the ${cancelledPieces} in the equation and cancel them directly — hints are off.`,
       });
     }
@@ -1614,7 +1622,7 @@ export default function StepByStepAlgebra({
     } else if (progress.newlyCompletedPairIds.length === 1) {
       setMessage({ tone: 'success', text: `That cancellation pair is complete. ${remainingPairs} pair${remainingPairs === 1 ? '' : 's'} remain.` });
     } else {
-      setMessage({ tone: 'growth', text: 'Tap or slash one member of a valid cancellation pair. MathMaster will cross out its matching partner with it.' });
+      setMessage({ tone: 'growth', text: `Click, tap or slash one member of a valid cancellation pair, or ${CANCEL_KEYS}. MathMaster will cross out its matching partner with it.` });
     }
   };
 
@@ -2811,11 +2819,11 @@ export default function StepByStepAlgebra({
                       {cancellationHintsEnabled
                         ? (cancellationModel.kind === 'additive'
                           ? (cancellationModel.pairs.length > 1
-                            ? `Cancel ${cancellationModel.pairs.length} opposite-term pairs. Tap or slash one term from each pair; its matching opposite is crossed out with it.`
-                            : 'Tap or slash either opposite term once. MathMaster crosses out the matching term with it.')
+                            ? `Cancel ${cancellationModel.pairs.length} opposite-term pairs. Click, tap or slash one term from each pair, or ${CANCEL_KEYS}; its matching opposite is crossed out with it.`
+                            : `Click, tap or slash either opposite term once, or ${CANCEL_KEYS}. MathMaster crosses out the matching term with it.`)
                           : (cancellationModel.pairs.length > 1
-                            ? `Cancel ${cancellationModel.pairs.length} matching factor pairs. Tap or slash one factor from each pair; its matching factor is crossed out with it.`
-                            : 'Tap or slash either matching factor once. MathMaster crosses out its partner with it.'))
+                            ? `Cancel ${cancellationModel.pairs.length} matching factor pairs. Click, tap or slash one factor from each pair, or ${CANCEL_KEYS}; its matching factor is crossed out with it.`
+                            : `Click, tap or slash either matching factor once, or ${CANCEL_KEYS}. MathMaster crosses out its partner with it.`))
                         : 'Cancellation is active directly on the equation.'}
                     </div>
                   </div>
@@ -2895,8 +2903,10 @@ export default function StepByStepAlgebra({
             onPointerUp={mobileInteraction.isMobile ? undefined : onDragPointerUp}
             onPointerCancel={mobileInteraction.isMobile ? undefined : onDragPointerCancel}
             disabled={disabled || savingStep || !String(operand || '').trim()}
+            // The button's description for a screen reader too (its name is the
+            // aria-label below), so the phone line names the keyboard's way to the sides (AX32).
             title={mobileInteraction.isMobile
-              ? 'Arm this operation, then tap the equation where it belongs'
+              ? `Arm this operation, then click or tap the equation where it belongs, or ${KEYBOARD_PLACEMENT_ROUTE}`
               : 'Drag this operation onto one side of the equation, or press Enter and then choose a side'}
             aria-pressed={tapPlacementArmed}
             aria-label={operandLabel

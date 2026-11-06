@@ -39,7 +39,7 @@ import { normalizeRecoveryPolicy } from './recoveryPolicy.mjs';
 import { resolveWarmupDelivery, warmupIsNotAssignmentDelivered } from './warmupDelivery.mjs';
 import { isTestCycleAssignment } from './testCyclePolicy.mjs';
 import { isFamilyBackedQuestion } from './questionFamilyInstance.mjs';
-import { allRegisteredQuestionFamilies, defaultFamilyVersion } from './questionFamilyRegistry.mjs';
+import { allRegisteredQuestionFamilies } from './questionFamilyRegistry.mjs';
 import { assessRecoverySlot } from './sectionRecoveryReadiness.mjs';
 import {
   RECOVERY_BINDING_ORIGIN,
@@ -130,13 +130,31 @@ export const flattenAssignmentQuestions = (assignment = {}) => list(assignment?.
 
 /*
  * The candidate families, in a fixed order: every registered family that can
- * recognize a static question, at the version an unpinned reference means.
- * A newer version is never chosen on its own — only a prepared migration or
- * an author may pin one.
+ * recognize a static question, at the FIRST version that can. For a family
+ * that recognized from its first version that is the version an unpinned
+ * reference means, and a newer version of it is never chosen on its own —
+ * only a prepared migration or an author may pin one. A family whose first
+ * versions wrote only what their slot told them, and so could not recognize
+ * (linear.representationSort and linear.multipleRepresentations, recognizing
+ * from version 2, RC01), is a candidate at the version that first could.
+ * The one exception is a later version that declares it REPLACES that one
+ * (`recovery.replaces`): written because the earlier version shows students
+ * something they must not be shown again (matrices.arrayRecordTotals v2, the
+ * matrices Warm-Up's rewritten choices). It is then the candidate, and the
+ * question it recognizes is bound to it. A binding always stores the version
+ * it was certified with, so this never moves a stored binding, a question or
+ * a pin.
  */
-export const recoveryCandidateFamilies = () => allRegisteredQuestionFamilies()
-  .filter((family) => typeof family.recognize === 'function' && family.recovery?.eligible)
-  .filter((family) => family.version === defaultFamilyVersion(family.id));
+export const recoveryCandidateFamilies = () => {
+  const recognizing = allRegisteredQuestionFamilies()
+    .filter((family) => typeof family.recognize === 'function' && family.recovery?.eligible);
+  const chosen = new Map();
+  [...recognizing].sort((a, b) => a.version - b.version).forEach((family) => {
+    const current = chosen.get(family.id);
+    if (!current || list(family.recovery.replaces).includes(current.version)) chosen.set(family.id, family);
+  });
+  return recognizing.filter((family) => chosen.get(family.id) === family);
+};
 
 /*
  * COULD PREPARE RECOVERY ADD ANYTHING HERE? — cheap enough for every card.

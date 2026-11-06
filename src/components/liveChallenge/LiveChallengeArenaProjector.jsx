@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
+import { useModalDialog } from '../../ui/Dialog.jsx';
 import { RushRaceBoard, rushBadges, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import { lineSettingsLine } from './LineGraphHost.jsx';
 import RevealedLine from './RevealedLine.jsx';
@@ -291,7 +292,7 @@ function ArenaClock({ room, clock, clockOffsetMs, finishing = false }) {
       border: `1px solid ${low || locked ? 'rgba(255,105,135,.5)' : 'rgba(130,165,255,.36)'}`,
     }}>
       <div style={{ ...labelStyle, color: low || locked ? '#ff9bb0' : '#a8c2ff' }}>{label}</div>
-      <div style={{ marginTop: 2, fontSize: 'clamp(calc(54 * var(--mm-px)), calc(11vh * var(--mm-text-scale, 1)), calc(120 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1, letterSpacing: '-.04em', color: '#fff' }}>
+      <div className="mm-arena-clock-digits" style={{ marginTop: 2, fontSize: 'clamp(calc(54 * var(--mm-px)), calc(11vh * var(--mm-text-scale, 1)), calc(120 * var(--mm-px)))', fontWeight: 1000, lineHeight: 1, letterSpacing: '-.04em', color: '#fff' }}>
         {locked ? '0:00' : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
       </div>
     </div>
@@ -502,7 +503,7 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
           <div style={{ marginTop: 10, fontSize: 'clamp(calc(20 * var(--mm-px)), calc(2.2vw * var(--mm-text-scale, 1)), calc(28 * var(--mm-px)))', fontWeight: 900 }}>{joinedCount === 1 ? 'student ready' : 'students ready'}</div>
           {eligible > 0 && <div style={{ marginTop: 4, color: 'rgba(236,241,255,.65)', fontWeight: 700 }}>{joinedCount} of {eligible} invited</div>}
           <div style={{ marginTop: 18, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(calc(15 * var(--mm-px)), calc(1.5vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))', lineHeight: 1.4 }}>
-            Open MathMaster and tap <strong>Live Challenge</strong> on your dashboard.
+            Open MathMaster and choose <strong>Live Challenge</strong> on your dashboard.
           </div>
           {lines.length > 0 && <div style={{ marginTop: 10, color: '#ffd166', fontWeight: 900, fontSize: 'clamp(calc(15 * var(--mm-px)), calc(1.5vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>🏆 {lines.join(' · ')}</div>}
           <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '10px 14px', borderRadius: 999, background: 'rgba(99,226,255,.1)', border: '1px solid rgba(99,226,255,.28)', color: '#c8f6ff', fontWeight: 900 }}>
@@ -578,7 +579,10 @@ function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, jo
           <ArenaBadge accent={accent}>{family}</ArenaBadge>
           {difficulty && <ArenaBadge accent="#b79cff">{difficulty}</ArenaBadge>}
         </div>
-        <div style={{ minHeight: 0, overflow: 'auto' }}>
+        {/* A long question scrolls in this box, and on a phone the column around it scrolls, and neither held anything
+            Tab could reach (TT27, fifth slice; axe scrollable-region-focusable on a phone): a named region the keyboard
+            can reach and scroll from. */}
+        <div role="region" aria-label="Question" tabIndex={0} style={{ minHeight: 0, overflow: 'auto' }}>
           <div style={labelStyle}>{finishing ? 'Finishing up' : locked ? 'Time is up' : 'Solve now'}</div>
           <MathText
             as="div"
@@ -639,7 +643,7 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
         <div style={{ alignSelf: 'center' }}>
           <div style={labelStyle}>{locked ? 'Time is up' : words.task}</div>
           <div style={{ marginTop: 10, fontSize: 'clamp(calc(28 * var(--mm-px)), calc(5vh * var(--mm-text-scale, 1)), calc(48 * var(--mm-px)))', lineHeight: 1.2, fontWeight: 900, color: '#f7f9ff' }}>
-            {locked ? 'Saving the last taps — results next.' : words.go}
+            {locked ? 'Saving the last answers — results next.' : words.go}
           </div>
           <div style={{ marginTop: 10, color: 'rgba(236,241,255,.68)', fontWeight: 800, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(19 * var(--mm-px)))' }}>{rushSettingsLine(room)}</div>
         </div>
@@ -989,6 +993,12 @@ export default function LiveChallengeArenaProjector({
   dialog = null,
 }) {
   const shellRef = useRef(null);
+  // A LAYER OVER THE WHOLE WORKSPACE, AND MODAL (TT27, fifth slice). It was a fixed box and nothing more: the sidebar,
+  // the header and the rest of the workspace stayed in the tab order under it, so Tab passed 25 controls nobody could
+  // see (24 on a phone) before it reached this screen's own, and a screen reader read the page behind it. Focus now
+  // moves in when it opens and stays in; what is behind it is left out (aria-modal); Escape leaves it, as "Exit
+  // Projector View" does. The console's confirmations (End Game, End Round Now) open on top of it, as before.
+  useModalDialog(shellRef, { onClose: onExit });
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const clock = useChallengeClock(room, clockOffsetMs);
   const rows = useViewportRows();
@@ -1021,7 +1031,7 @@ export default function LiveChallengeArenaProjector({
   const solutionOnScreen = projectorShowsSolution({ stage, solutionState });
 
   return (
-    <div ref={shellRef} className="mm-arena-shell" data-mm-arena-stage={loading ? 'loading' : stage || 'none'} style={{
+    <div ref={shellRef} className="mm-arena-shell" role="dialog" aria-modal="true" aria-label={`Projector view: ${title}`} data-mm-arena-stage={loading ? 'loading' : stage || 'none'} style={{
       width: '100vw',
       height: '100dvh',
       position: 'fixed',
@@ -1036,7 +1046,10 @@ export default function LiveChallengeArenaProjector({
       gap: 'clamp(8px, 1.4vh, 16px)',
       color: '#f7f9ff',
       colorScheme: 'dark',
-      background: 'radial-gradient(circle at 12% 12%, rgba(74,103,255,.24), transparent 34%), radial-gradient(circle at 88% 4%, rgba(174,83,255,.2), transparent 31%), radial-gradient(circle at 74% 90%, rgba(0,206,209,.12), transparent 36%), linear-gradient(145deg, #111831 0%, #091128 48%, #12142e 100%)',
+      // The colour under the gradients is the stage's own dark (TT27, fifth slice): the gradients alone left the
+      // background colour transparent, so a reading of what lies behind the text (the contrast review's) went through to
+      // the page under the projector. Nothing on screen changes: the last gradient is opaque.
+      background: 'radial-gradient(circle at 12% 12%, rgba(74,103,255,.24), transparent 34%), radial-gradient(circle at 88% 4%, rgba(174,83,255,.2), transparent 31%), radial-gradient(circle at 74% 90%, rgba(0,206,209,.12), transparent 36%), linear-gradient(145deg, #111831 0%, #091128 48%, #12142e 100%) #091128',
       boxShadow: 'none',
     }}>
       <ChallengeShellStyles />
@@ -1054,7 +1067,7 @@ export default function LiveChallengeArenaProjector({
           mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 85%);
         }
         .mm-arena-shell > * { position: relative; z-index: 1; min-width: 0; }
-        .mm-arena-shell button:focus-visible, .mm-arena-shell select:focus-visible { outline: 3px solid #8ab4f8; outline-offset: 2px; }
+        .mm-arena-shell button:focus-visible, .mm-arena-shell select:focus-visible, .mm-arena-shell [role="region"]:focus-visible { outline: 3px solid #8ab4f8; outline-offset: 2px; }
         .mm-arena-pulse {
           width: 9px;
           height: 9px;
@@ -1091,12 +1104,29 @@ export default function LiveChallengeArenaProjector({
         @keyframes mmArenaPodiumReveal {
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        @media (max-width: 900px) {
+        /* A narrow screen, or large text: 56.25em is 900px at the default text size and 1800px at 200%, so a 1366×768
+           projector whose text is made twice as big gets this layout too, where the wide one ran its header's buttons
+           off the screen and cut the standings (TT27, fifth slice). */
+        @media (max-width: 56.25em) {
           .mm-arena-running-grid,
           .mm-arena-lobby-grid {
             grid-template-columns: 1fr !important;
             overflow-y: auto;
           }
+          /* A round, too (TT27, fifth slice): squeezed to the screen's height, a phone showed one word of the question
+             in a box of its own and scrolled the rest out of sight. Each section is as tall as its content, no wider
+             than the column, and the column scrolls. The header's buttons wrap under the title instead of running past
+             the screen's edge, where Exit Projector View could not be reached by a finger, and the title wraps instead
+             of being cut short. The clock is no wider than the screen at 200% text. And the stage scrolls as one page,
+             its header, round and host controls each as tall as they need: at 200% text on a phone the header and the
+             controls took the whole height, squeezing the round to nothing and cutting the controls' last line. */
+          .mm-arena-shell { overflow-y: auto !important; grid-template-rows: auto auto auto !important; }
+          .mm-arena-running-grid { grid-auto-rows: max-content; }
+          .mm-arena-running-grid > * { min-width: 0; }
+          .mm-arena-header-row { flex-wrap: wrap; min-width: 0; }
+          .mm-arena-header-row h1 { white-space: normal !important; overflow-wrap: anywhere; }
+          .mm-arena-header-actions { flex-wrap: wrap; flex-shrink: 1 !important; min-width: 0; }
+          .mm-arena-clock-digits { font-size: min(clamp(calc(54 * var(--mm-px)), calc(11vh * var(--mm-text-scale, 1)), calc(120 * var(--mm-px))), calc(18vw * var(--mm-text-scale, 1))) !important; }
           /* The results moment (the two tables, or those beside a worked
              solution and the round's table): all in one column, each as tall
              as its content, and the column scrolls (a row squeezed to the
@@ -1120,7 +1150,7 @@ export default function LiveChallengeArenaProjector({
       `}</style>
 
       <header style={{ display: 'grid', gap: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center' }}>
+        <div className="mm-arena-header-row" style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center' }}>
           <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
@@ -1131,7 +1161,7 @@ export default function LiveChallengeArenaProjector({
               <h1 style={{ margin: '4px 0 0', fontSize: 'clamp(calc(22 * var(--mm-px)), calc(3vw * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', lineHeight: 1.05, letterSpacing: '-.02em', color: '#f7f9ff', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h1>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <div className="mm-arena-header-actions" style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             {!audioReady && typeof onEnableAudio === 'function' && <button type="button" onClick={onEnableAudio} style={arenaButton}>Enable Audio</button>}
             {audioReady && typeof onToggleMute === 'function' && <button type="button" aria-pressed={audioMuted} onClick={onToggleMute} style={arenaButton}>{audioMuted ? 'Unmute' : 'Mute'}</button>}
             <button type="button" onClick={nativeFullscreen ? exitFullscreen : enterFullscreen} style={arenaButton}>{nativeFullscreen ? 'Exit Full Screen' : 'Enter Full Screen'}</button>
@@ -1143,7 +1173,7 @@ export default function LiveChallengeArenaProjector({
 
       <div style={{ minHeight: 0, display: 'grid', gridTemplateRows: error ? 'auto minmax(0,1fr)' : 'minmax(0,1fr)', gap: 10 }}>
         {error && <div role="alert" style={{ padding: '10px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
-        <div style={{ minHeight: 0 }}>
+        <div style={{ minHeight: 0, minWidth: 0 }}>
           {loading && <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center', fontSize: 'clamp(calc(24 * var(--mm-px)), calc(4vh * var(--mm-text-scale, 1)), calc(40 * var(--mm-px)))', fontWeight: 900 }} aria-busy="true">Opening the new lobby…</section>}
           {!loading && stage === CHALLENGE_STAGE.LOBBY && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
           {!loading && stage === CHALLENGE_STAGE.COUNTDOWN && <CountdownView room={room} clock={clock} />}

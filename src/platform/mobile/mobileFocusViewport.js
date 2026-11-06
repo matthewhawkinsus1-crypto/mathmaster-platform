@@ -171,6 +171,39 @@ const visibleBand = (windowObject) => {
   return { top, bottom: top + height };
 };
 
+/*
+ * WHAT THE LOCAL SCROLLER CANNOT DO, THE PAGE DOES (WCAG 2.4.11).
+ *
+ * The phone's question frame is a screen tall. Where a page puts something
+ * above it (My Math Path's session, under its own header), the frame's last
+ * rows are below the screen until the page itself scrolls. With the number
+ * keypad up, Tab past the last box reached Submit and "Show a hint" at the end
+ * of the work, and the work was already scrolled to its end: "Show a hint"
+ * stayed under the keys, measured at 390x844 (the button at y 678 to 722, the
+ * keys from 570). So after the local scroll, whatever still sits under the
+ * keypad or below the screen is brought up by scrolling the page, vertically
+ * only and never past the control's own top edge. Nothing moves when the local
+ * scroll was enough, which is every question on the assignment screen (its
+ * frame fits the screen). A control in a fixed layer (Work View, a tool's
+ * drawer) does not move with the page, and the page beneath one must not move
+ * (review of #463), so it is left alone, and so is a pinch-zoomed page (a
+ * magnifying glass).
+ */
+const revealBelowByPage = (target, { screenBottom, screenTop, windowObject }) => {
+  if (typeof windowObject?.scrollBy !== 'function' || pinchZoomed(windowObject)) return false;
+  for (let node = target; node; node = node.parentElement) {
+    if (windowObject.getComputedStyle?.(node)?.position === 'fixed') return false;
+  }
+  const rect = target.getBoundingClientRect?.();
+  if (!rect) return false;
+  const short = numberOrZero(rect.bottom) - screenBottom;
+  if (!(short > 0.5)) return false;
+  const step = Math.min(short, Math.max(0, numberOrZero(rect.top) - screenTop));
+  if (!(step > 0.5)) return false;
+  windowObject.scrollBy({ top: step, left: 0, behavior: 'auto' });
+  return true;
+};
+
 export const scrollFocusedControlVertically = (
   target,
   {
@@ -232,6 +265,14 @@ export const scrollFocusedControlVertically = (
     } catch {
       scroller.scrollTop = numberOrZero(scroller.scrollTop) + deltaY;
       scroller.scrollLeft = originalLeft;
+    }
+    if (deltaY > 0) {
+      const screenBottom = Math.min(
+        keypadCoversColumn ? keypadRect.top : Infinity,
+        band.bottom,
+        numberOrZero(windowObject?.innerHeight) || Infinity,
+      ) - safeMargin;
+      revealBelowByPage(target, { screenBottom, screenTop: Math.max(0, band.top) + safeMargin, windowObject });
     }
   }
 

@@ -1,10 +1,11 @@
 import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   assertFails, assertSucceeds, initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where,
+  collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 
 // The collections only the server touches, and two it lets one reader see,
@@ -25,7 +26,9 @@ import {
 //     root administrator read it; nobody writes it from a browser.
 //   * liveChallengeReports names every student a finished game ranked. Only
 //     the teacher who ran the game and the root administrator read it, and
-//     nobody writes it from a browser.
+//     nobody writes it from a browser. A report not written yet reads as
+//     nothing to a teacher, so the console follows it from the moment the
+//     room finishes (it is written a moment after).
 //
 // A new server-only collection belongs in SERVER_ONLY below (the platform test
 // above says so when it is missing). Synthetic identities only. Own projectId:
@@ -143,4 +146,47 @@ test("a finished game's report, which names its students, is read by the teacher
     await refused(`${who} editing a report`, updateDoc(doc(db, report), { players: [] }));
     await refused(`${who} deleting a report`, deleteDoc(doc(db, report)));
   }
+});
+
+// The room turns finished first and its report is written a moment after it,
+// so the teacher's console follows the report from the moment the room
+// finishes (liveChallengeService.js, watchChallengeReport). Until it is
+// written it reads as nothing to a teacher, as a class's missing memory does,
+// and is refused to everyone else as before.
+test('a report not written yet reads as nothing to a teacher, and is still refused to a student or someone signed out', async () => {
+  const missing = 'liveChallengeReports/room-not-written-yet';
+  await allowed('a teacher asking for a report not written yet', getDoc(doc(teacherA(), missing)));
+  await allowed('another teacher asking for it', getDoc(doc(teacherB(), missing)));
+  await refused('a student asking for one', getDoc(doc(studentA(), missing)));
+  await refused('someone signed out asking for one', getDoc(doc(anonymous(), missing)));
+});
+
+test("the console following a report before it is written is given it when it lands; another teacher's is refused it then", async () => {
+  const later = 'liveChallengeReports/room-written-later';
+  const within = (promise, what) => Promise.race([promise, new Promise((_, reject) => { setTimeout(() => reject(new Error(`${what}: no answer in 10 s`)), 10_000); })]);
+  const follow = (db) => {
+    const seen = [];
+    let first;
+    let end;
+    const firstSnapshot = new Promise((resolve) => { first = resolve; });
+    const settled = new Promise((resolve) => { end = resolve; });
+    const stop = onSnapshot(doc(db, later), (snapshot) => {
+      seen.push(snapshot.exists() ? snapshot.data().roomId : null);
+      first();
+      if (snapshot.exists()) end({ report: snapshot.data() });
+    }, (error) => { first(); end({ error: error.code }); });
+    return { seen, firstSnapshot, settled, stop };
+  };
+  const mine = follow(teacherA());
+  const theirs = follow(teacherB());
+  await within(Promise.all([mine.firstSnapshot, theirs.firstSnapshot]), 'the first snapshots');
+  assert.deepEqual([mine.seen, theirs.seen], [[null], [null]], 'both are told there is no report yet');
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), later), { roomId: 'room-written-later', teacherEmail: TEACHER_A, players: [{ studentId: 'S_A', name: 'Rowan Example', rank: 1 }] });
+  });
+  const [given, other] = await within(Promise.all([mine.settled, theirs.settled]), 'the written report');
+  mine.stop();
+  theirs.stop();
+  assert.equal(given.report?.roomId, 'room-written-later', 'the teacher who ran the game is given the report');
+  assert.equal(other.error, 'permission-denied', "another teacher's listener is refused the report that names the students");
 });

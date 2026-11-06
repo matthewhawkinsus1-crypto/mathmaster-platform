@@ -46,6 +46,19 @@ const CASES = {
   },
   bridge: { id: 'fr2-bridge', type: 'representationBridge', prompt: 'Build every representation of the booth fee.', ...SAMPLE_SPECS.representationBridge, feedbackTiming: 'submitOnly' },
   transformations: { id: 'fr2-transformations', type: 'transformationsLab', ...SAMPLE_SPECS.transformationsLab, mode: 'match', prompt: 'Match the transformed graph.' },
+  // CI02 (C1-90): the two W7-4 messages no student scene reached. A factored
+  // linear rewrite stays on Rewrite Linear Form under QuestionEngine (only the
+  // slope-intercept rewrite opens Step Algebra), so its finishing step is met here.
+  rewriteFactored: {
+    id: 'fr2-rewrite-factored', type: 'stepAlgebra2', mode: 'rewriteLinearForm', targetForm: 'factoredLinear',
+    equation: 'y = 15x - 45', prompt: 'Rewrite y = 15x − 45 in factored linear form.',
+  },
+  // The substitution board, reopened on a draft whose isolated expression an
+  // older build saved in a form the board cannot read (the driver seeds it).
+  systemsParse: {
+    id: 'fr2-systems-parse', type: 'systemsWorkspace', prompt: 'Solve the system by substitution.', method: 'substitution',
+    equations: ['x - 2y = -3', '3x + 5y = 24'], variables: ['x', 'y'], requireVerification: true,
+  },
   composed: {
     id: 'fr2-composed', type: 'relationMapping', prompt: 'The relation {(1, 2), (2, 4), (3, 6)}.',
     recipe: { name: 'relationRepresentations', ask: ['mapping', 'domain'] }, pairs: [[1, 2], [2, 4], [3, 6]],
@@ -53,6 +66,12 @@ const CASES = {
 };
 const question = CASES[which];
 window.__mmGrades = [];
+const draftKey = `fr2-${role}-${which}-${params.get('run') || 'a'}`;
+// Write the tool's saved workspace the way the app stores it, as a draft left by an earlier visit.
+window.__mmSeedToolDraft = (value) => {
+  window.localStorage.setItem(`${draftKey}:work:tool`, JSON.stringify({ version: 2, savedAt: Date.now(), value }));
+  return true;
+};
 
 function Harness() {
   const [record, setRecord] = useState(emptyQuestionRecord());
@@ -79,7 +98,7 @@ function Harness() {
               maximumAttempts={policy.attempts}
               activityRole={role}
               dolMode={role === 'dol'}
-              draftKey={`fr2-${role}-${which}-${params.get('run') || 'a'}`}
+              draftKey={draftKey}
               executionScope="student"
               onGrade={onGrade}
             />

@@ -318,6 +318,42 @@ test('HELP-11: rendered, the wrong part comes first and says what the student wr
   assert.match(html, /aria-label="Read the worked solution aloud"/);
 });
 
+test('a choice part\'s sentence is read as text, and a math answer stays typeset', async () => {
+  const SolutionReviewPanel = (await vite.ssrLoadModule('/src/SolutionReviewPanel.jsx')).default;
+  const SENTENCE = 'He changed the sign of the 3';
+  const question = {
+    type: 'multiAnswer',
+    prompt: 'Solve, then say what went wrong.',
+    answerFields: [
+      { id: 'x', label: 'Solution', answer: '-3' },
+      { id: 'why', label: 'What went wrong', type: 'choice', options: [SENTENCE, 'He divided by 2'], answer: SENTENCE },
+      { id: 'note', label: 'Reason', answer: 'The sign flips when you subtract' },
+    ],
+    solutionReview: { headline: 'Check each step.', reasoning: ['Subtract 3 from both sides.'] },
+  };
+  const html = renderToStaticMarkup(React.createElement(SolutionReviewPanel, {
+    question,
+    yourParts: [
+      { key: 'x', response: '2x+3', isCorrect: false },
+      { key: 'why', response: 'He divided by 2', isCorrect: false },
+      { key: 'note', response: 'The sign flips when you add', isCorrect: false },
+    ],
+  }));
+  const rowOf = (id) => {
+    const at = html.indexOf(`>${id}<`);
+    assert.ok(at > -1, `row ${id}`);
+    return html.slice(at, html.indexOf('Correct: ', at));
+  };
+  // The choice is plain text with its spaces, not letters in math italics.
+  assert.match(rowOf('What went wrong'), /You wrote: <\/span><span[^>]*>He divided by 2<\/span>/);
+  assert.doesNotMatch(rowOf('What went wrong'), /math-span/);
+  // A sentence in a part with no declared type is told by its words.
+  assert.match(rowOf('Reason'), /The sign flips when you add/);
+  assert.doesNotMatch(rowOf('Reason'), /math-span/);
+  // A math answer is still typeset.
+  assert.match(rowOf('Solution'), /math-span/);
+});
+
 test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solutions and a missing common error', async () => {
   const answerOnly = { type: 'multiAnswer', prompt: 'Find m.', answerFields: [{ id: 'm', label: 'Slope', answer: '3' }, { id: 'b', label: 'b', answer: '1' }] };
   const withSteps = { ...answerOnly, solutionReview: { reasoning: ['Rise over run is 3.'], commonError: 'Run over rise gives 1/3.' } };
@@ -372,12 +408,13 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   // (CT02 slice 4; its sort of products was already counted); and the parent
   // function |x| in the ALEKS bridge's practice and the Lesson 2 Day 2 warm-up
   // (CT02 slice 4); and, every one with steps, the Algebra II Honors Radicals
-  // and Rational Exponents Lessons 1–3 (89: 32, 29 and 28) and the Algebra I
-  // Module 3 Topic 2 Lessons 4 and 5 with their Honors files (131: 32, 36, 29
-  // and 34).
+  // and Rational Exponents Lessons 1–3 (90: 32, 30 and 28; Lesson 2's Check
+  // Your Progress after Examples A and B, CW 3, is new) and the Algebra I
+  // Module 3 Topic 2 Lessons 4 and 5 with their Honors files (133: 32, 36, 30
+  // and 35; Lesson 5's plain first system, CW 17, is one more in each file).
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 89 + 131);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 89 + 131);
+  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 90 + 133);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 90 + 133);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real
@@ -408,8 +445,9 @@ test('HELP-12: Review My Work shows the one solution panel, told the outcome, wi
   assert.match(supports, /toolsEntitlementFromProfile\(studentProfile, \{ activityRole: role \|\| null, universalDesignRole: role \|\| null \}\)/);
   assert.match(supports, /speechReady && \(presentation\?\.textToSpeech \|\| toolList\.includes\('read-aloud'\)\)/);
   // The signed-in student's own profile reaches the screen (the prop order,
-  // and the other props the mount carries, are not the contract).
-  const mount = region(code('src/App.jsx'), '<ReviewMyWork', '</Suspense>');
+  // and the other props the mount carries, are not the contract). The mount
+  // runs to its own closing "/>" (the one inside teacherAnswers is followed by "}").
+  const mount = region(code('src/App.jsx'), '<ReviewMyWork', '/>\n');
   assert.match(mount, /\bstudentProfile=\{user\.profile\}/);
 });
 

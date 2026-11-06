@@ -6,14 +6,14 @@ Four Assignment V5 teacher imports built from the district's Lesson 4 and Lesson
 |---|---|---|
 | `T2_L4_Graphing_Inequalities_in_Two_Variables.json` | Algebra I | 3 · 17 · 12 · 3 |
 | `T2_L4_Graphing_Inequalities_in_Two_Variables_Honors.json` | Algebra I Honors | 3 · 17 · 16 · 3 |
-| `T2_L5_Systems_of_Linear_Inequalities.json` | Algebra I | 3 · 16 · 10 · 3 |
-| `T2_L5_Systems_of_Linear_Inequalities_Honors.json` | Algebra I Honors | 3 · 16 · 15 · 3 |
+| `T2_L5_Systems_of_Linear_Inequalities.json` | Algebra I | 3 · 17 · 10 · 3 |
+| `T2_L5_Systems_of_Linear_Inequalities_Honors.json` | Algebra I Honors | 3 · 17 · 15 · 3 |
 
 Lesson 4 teaches TEKS A.2H and A.3D (two 45-minute days). Lesson 5 teaches A.3H, with A.2H for writing constraints (three days).
 
 ## Before importing: deploy Hosting
 
-The "Break it down" steps written for each question reach students only on a build that includes the import-compiler fix shipped with these files (`authoringIntentV5Core.js` used to drop `directionSteps`). On an older build, students whose plans give chunked directions get the automatic split of the prompt instead. Check with `node scripts/release-firebase.mjs --whats-live`, and if Hosting is older, deploy it first:
+The "Break it down" steps written for each question reach students only on a build that includes the import-compiler fix shipped with these files (`authoringIntentV5Core.js` used to drop `directionSteps`). On an older build, students whose plans give chunked directions get the automatic split of the prompt instead. The slips named on a miss need a newer build too: each is read only in its own answer box (`attemptFeedbackPlan.js`), and an older build reads it against every box, right ones included. Check with `node scripts/release-firebase.mjs --whats-live`, and if Hosting is older, deploy it first:
 
 ```bash
 npm run build
@@ -36,22 +36,35 @@ Every graph is built in the Systems Workspace, one checked step at a time: each 
 
 The one exception is Emma's workout in Lesson 5. Her calorie boundary, 6.9x + 10.4y = 400, passes through no whole-number point a student could plot, so the tool draws her system and the student works with the overlap, a marked point and a point of their own. The slides say to graph it with technology. The algebraic check follows in the next question.
 
-Graph descriptions that the slides show as pictures (matching graphs, writing an inequality from a graph) are given in words. The static graph display cannot draw dashed lines or shading.
+The graphs the slides show as pictures are drawn on the question: writing an inequality from a graph (Lesson 4 CW 7, CW 12, CW 13, PR 6, PR 10 and PR 12), and Activity 5.4's graphs and possible solution sets and the system to write from its graph (Lesson 5 CW 12, CW 13 and PR 10). Each boundary line is solid or dashed and the side where the inequality is true is shaded, and each figure is drawn from the inequality the item's own key holds, so the picture and the answer cannot disagree. The prompt no longer describes the graph in words.
 
 ## What is in each lesson
 
-**Lesson 4 — Graphing Inequalities in Two Variables.** The Warm-Up climbs from a one-variable solution on a number line (open or closed circle, the dashed or solid line to come) to graphing the boundary line and testing points. Classwork follows Kai's points per game, half-planes and test points, matching graphs, writing inequalities from graphs, César's phone card, and Talk the Talk. Practice and the Exit Ticket give each student their own inequalities to graph and contexts to model.
+**Lesson 4 — Graphing Inequalities in Two Variables.** The Warm-Up climbs from a one-variable solution on a number line (open or closed circle, the dashed or solid line to come) to graphing the boundary line and testing points. Classwork starts with Kai's points per game, then Activity 4.2's first graph, y > 4x − 6, so that the first graph a student builds has no story. Then Kai's goal is graphed in the tool, followed by half-planes and test points, matching graphs, writing inequalities from graphs, César's phone card, and Talk the Talk. Practice and the Exit Ticket give each student their own inequalities to graph and contexts to model.
 Honors adds fractional slopes and standard forms with y-coefficients other than ±1, a parameter (P14), a boundary from two points (P15), reasoning from a description (P16), and CCMR items `mm_sat_A_3D_challenge_1_parameter-boundary-point_v21` (P17) and `mm_sat_A_3D_challenge_3_minimum-integer-y_v21` (P18).
 
-**Lesson 5 — Systems of Linear Inequalities.** The Warm-Up climbs from one inequality graphed, to a point checked against two inequalities, to two constraints written for one situation. Classwork follows Noah's raft (writing, checking and graphing the constraints, and the intersection point (10, −12)), Activity 5.2's x + y > 1 and −x + y ≤ 3 with Ava's error, the parallel and vertical systems, Emma's workout, Activity 5.4's systems A–D with Isabella's error and the blank Graph D, and Talk the Talk. Practice and the Exit Ticket give each student their own systems.
+**Lesson 5 — Systems of Linear Inequalities.** The Warm-Up climbs from one inequality graphed, to a point checked against two inequalities, to two constraints written for one situation. Classwork opens with a system that is not on the slides, y > x − 2 and y ≤ −x + 4: two boundaries with y alone and whole-number slopes, the case Practice 1 and Exit Ticket 1 test. Then come Activity 5.2's x + y > 1 and −x + y ≤ 3 with Ava's error, Noah's raft (writing, checking and graphing the constraints, and the intersection point (10, −12)), the parallel and vertical systems, Emma's workout, Activity 5.4's systems A–D with Isabella's error and the blank Graph D, and Talk the Talk. Practice and the Exit Ticket give each student their own systems.
 Honors adds standard-form systems to rewrite, a parameter (P11), a bounded region with its corners and area (P12, P13), an Open Sort of systems by their solution sets (P14), Emma's corners found algebraically (P15), and CCMR items `mm_sat_A_3H_challenge_1_parameter-feasible-point_v21` (P16) and `mm_sat_A_3H_challenge_2_integer-points-vertical-slice_v21` (P17).
 
-**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and the key Classwork questions have Guided Coach notes. The Exit Ticket has none of these. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
+**Supports.** Every question except the audited CCMR items has authored "Break it down" steps. Every Warm-Up, Classwork and Practice question has hints, a "Let's back up" step, a worked solution and a common error, and the key Classwork questions have Guided Coach notes. Hint 1 asks a question that points at the next move, and only the last hint shows a step; no hint gives a boundary line's two points. A predictable slip typed in a box that asks for an inequality is named in a sentence on a miss: the symbol turned the wrong way ("The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."), a dashed line for a solid one or the other way round, and a wrong sign on the y-intercept. The Exit Ticket has none of these, and says nothing about a slip until you release feedback. In the reasoning choices every option is a claim with a reason, each wrong one wrong in one specific way, so the right answer is not the longest option. The audited multiple-choice items allow one try, so after it the student sees the reason for the option they chose.
 
 ## Slide notes
 
 - Lesson 4: the worked example is titled "Write a linear equality"; it means inequality.
 - Lesson 5: the Getting Started "Think about…" box says Chase, but the guide is Noah. On the Activity 5.4 slide the pictures of Systems B and C overlap. These files use B: y > (3/5)x + 3 and y > −(3/5)x + 3, and C: y > (3/5)x + 3 and y < −(3/5)x + 3, which match Possible Solutions B and C.
+
+## Changed after the first import (a class that already has a lesson needs a re-import)
+
+A class gets these changes only when its teacher imports the file again. An assignment created from an earlier import keeps its questions and their order.
+
+- **Lesson 4:** Activity 4.2's y > 4x − 6 (CW 6) now comes right after CW 1. Before, the first graph a student built was Kai's word problem (CW 2), and the first graph with no story came sixth.
+- **Lesson 5:** Classwork has 17 questions. The plain system (y > x − 2 and y ≤ −x + 4) is new and comes first, and Noah's four questions now follow Activity 5.2's system. Before, the first system a student built was Noah's, a word problem in standard form, and the plain case first appeared as item 14 of 16. The first hint on Noah's graph now asks for the intercepts instead of listing all four.
+- **Lesson 4:** an empty box that asks for the inequality a graph shows (or a description of one) now shows the example y ≥ 3x + 5, one inequality in x and y that is no question's answer. It used to show 0 ≤ x ≤ 4, a compound inequality in one variable.
+- **Lessons 4 and 5:** the graphs that were described in a sentence are drawn: Lesson 4's CW 7, CW 12, CW 13, PR 6, PR 10 and PR 12, and Lesson 5's CW 12, CW 13 and PR 10 (in both files of each lesson). Keys are unchanged.
+- **Lessons 4 and 5:** the wrong options of the reasoning choices are claims with reasons, each wrong in one specific way ("No — it is below the line, because 6.5 + 5.5 is less than 20"), where they used to be bare claims beside a key that carried the reason. The right option was the single longest in 56 of the 71 reasoning choices; it now is in 4 of 73, by one character. Each right option says what it said before, a few in fewer words.
+- **Lessons 4 and 5:** hint 1 of every Warm-Up, Classwork and Practice question asks a question that points at the next move ("Which symbol says “20 or more”?"), and only the last hint shows the step. Hints that gave a boundary line's points are gone: Lesson 4 CW 2 hint 2 and PR 9 hint 2, Lesson 5 PR 8 hint 3 and Honors PR 12 hint 1. The audited CCMR items ask the lesson's own question in place of the bank's general hint. Every question keeps its number of hints. In the Lesson 4 Honors file, the "Let's back up" steps of PR 14 and PR 15 no longer offer an answer the box takes (4 > 2k for k < 2, and the slope −1).
+- **Lessons 4 and 5:** every box that asks for an inequality names the predictable slips on a miss, while tries are left: the symbol turned the wrong way, < for ≤ (a dashed line for a solid one) or ≤ for <, and, where the line is read from a graph, a table or two points, a wrong sign on the y-intercept. Two items also name their own common error: y − 2x for "twice the first minus the second" (Lesson 4 PR 8), and the treadmill's rates for Emma (Lesson 5 CW 9). The Exit Ticket carries the same slips and says nothing until feedback is released. Deploy Hosting before re-importing (see above).
+- Question ids keep their numbers, so they no longer follow the order: Lesson 4's second Classwork question is `m3t2l4-cw-6`, and Lesson 5's first is the new `m3t2l5-cw-17` (`m3t2l5h-cw-17` in Honors).
 
 ## Changing a lesson
 

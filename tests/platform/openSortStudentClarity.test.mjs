@@ -53,3 +53,35 @@ test('a circle card is drawn with equal units, so it looks like a circle', async
   assert.match(board, /equalUnits=\{item\.graphSpec\?\.type === 'circle'\}/);
   assert.equal(equalUnitPlaneHeight({ width: 300, pad: 42, xMin: -6, xMax: 6, yMin: -6, yMax: 6, fallback: 220 }), 300, 'a square window gets a square plane');
 });
+
+// F-SORT-WHICH-CARD: a fixed-category sort that misses marks the cards that are
+// in the wrong category, where its verdict is shown and nowhere else.
+test('a missed fixed-category sort marks its wrong cards only while the verdict is shown', () => {
+  // The marks are read through the verdict: no feedback (an exit ticket, quiz
+  // or test before release), no mark and no count.
+  assert.match(board, /const wrongShown = feedback && feedback\.isCorrect === false \? wrongCardIds : \[\];/);
+  const placed = region(board, 'const placedCard = (', '\n  };', 'the placed card');
+  assert.match(placed, /const wrongCard = wrongShown\.includes\(String\(id\)\);/);
+  assert.match(placed, /data-sort-card-wrong=\{wrongCard \? '' : undefined\}/);
+  assert.match(placed, /Not in the right category yet/);
+  // Worked out at Check from the placements the grader scores, for a controlled sort only.
+  const check = region(board, 'const check = () => {', '\n  };', 'the check');
+  assert.match(check, /setWrongCardIds\(controlled && !result\.isCorrect \? misplacedCards\(\) : \[\]\);/);
+  assert.match(board, /const misplacedCards = \(\) => controlledSortWrongItems\(/);
+  assert.doesNotMatch(check, /validSchemes/, 'the key never rides with the attempt');
+  // The count replaces "Focus on: Mathematical grouping", which names nothing.
+  assert.match(board, /<ResultPill ok=\{feedback\.isCorrect\} showFocus=\{!wrongShown\.length\}/);
+  assert.match(board, /is not in the right category yet\. It is marked above\./);
+});
+
+// F-SORT-NO-REASON: the fixed-category board shows the reason box for a
+// category that holds cards, and only when the item asks for it.
+test('a fixed-category sort shows a reason box per category with cards, only when the item asks', () => {
+  const controlledBoard = region(board, '<div ref={boardRef}>\n          <Panel title={`Cards to classify', '\n      ) : (', 'the fixed-category board');
+  assert.match(controlledBoard, /\{requireRationale && group\.itemIds\.length > 0 && rationaleField\(group, groupIndex, true\)\}/);
+  assert.match(board, /\{requireRationale && rationaleField\(group, groupIndex, false\)\}/);
+  // The box is for the teacher and says so; it is never part of the verdict shown to the student.
+  const field = region(board, 'const rationaleField = (', '\n  );', 'the reason box');
+  assert.match(field, /data-rationale-audience/);
+  assert.match(field, /It is not marked right or wrong\./);
+});

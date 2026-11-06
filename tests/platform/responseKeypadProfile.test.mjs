@@ -61,10 +61,14 @@ test('the number pad is digits, sign, decimal point and a fraction key — no π
 test('the multi-answer grader asks the shared policy before falling back to the full pad', () => {
   const source = read('src/MultiAnswerGrader.jsx');
   assert.match(source, /import \{ keypadProfileForResponseField \} from '\.\/platform\/interaction\/interactionContract\.js';/);
+  // The pad is decided once per box and handed to MathInput. Where the
+  // verdict is withheld the policy reads only what the field declares
+  // (withheldVerdictKeypad.js declaredKeypadProfile, N56).
   assert.match(
     source,
-    /toolProfile=\{field\.toolProfile \|\| \(shouldUseSetInput\(field\) \? 'set' : shouldUseInequalityInput\(field\) \? 'inequality' : keypadProfileForResponseField\(field\) \|\| 'basic'\)\}/,
+    /const toolProfile = field\.toolProfile \|\| \(shouldUseSetInput\(field\) \? 'set' : shouldUseInequalityInput\(field\) \? 'inequality' : \(verdictsWithheld \? declaredKeypadProfile\(field\) : keypadProfileForResponseField\(field\)\) \|\| 'basic'\);/,
   );
+  assert.match(source, /<MathInput[\s\S]*?toolProfile=\{toolProfile\}/);
 });
 
 // Once -2/3 is a number, the expression shape guard no longer covered it:

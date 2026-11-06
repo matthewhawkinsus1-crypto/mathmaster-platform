@@ -86,7 +86,7 @@ export default function SolutionReviewPanel({
                 {part.isCorrect === false ? <span role="img" aria-label="not correct" style={{ marginLeft: 8, color: 'var(--mm-error-text)' }}>✗</span> : part.isCorrect === true ? <span role="img" aria-label="correct" style={{ marginLeft: 8, color: 'var(--mm-success-text)' }}>✓</span> : null}
               </span>
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'baseline' }}>
-                <span><span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>You wrote: </span>{part.yourAnswer ? <MathDisplay value={part.yourAnswer} format="latex" inline /> : <em>nothing</em>}</span>
+                <span><span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>You wrote: </span>{part.yourAnswer ? (part.yourAnswerIsText ? <MathText>{part.yourAnswer}</MathText> : <MathDisplay value={part.yourAnswer} format="latex" inline />) : <em>nothing</em>}</span>
                 <span><span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>Correct: </span><MathText>{part.correct}</MathText></span>
               </span>
             </div>

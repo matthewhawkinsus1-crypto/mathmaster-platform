@@ -146,7 +146,14 @@ test('CI measures every swept surface at 200% text', () => {
   const screens = harness.slice(harness.indexOf('export const LARGE_TEXT_SCREENS'), harness.indexOf('const runScenes'));
   for (const id of ['more-tools', 'recovery', 'teacher', 'graph-feature-rush', 'registry-tools']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
   assert.match(screens, /^\s*\.\.\.SCREENS,/m, "the certification's student screens are measured too");
-  assert.match(harness, /for \(const screen of LARGE_TEXT_SCREENS\)/, 'runScenes walks the extended list');
+  // The default run walks the extended list; only --teacher (TT27) swaps it for the teacher's scenes.
+  // (runScenes takes another list only when a check passes one: the 2.4.11 walk adds Work View and
+  // the session hosts. The text check passes none.)
+  assert.match(harness, /const runScenes = async \(setting, callback, screens = TEACHER_SWEEP \? TEACHER_SCREENS : LARGE_TEXT_SCREENS\) => \{\s*for \(const screen of screens\)/, 'runScenes walks the extended list unless it is given another');
+  const textCheck = harness.slice(harness.indexOf("if (CHECKS.has('text'))"), harness.indexOf("if (CHECKS.has('targetsize'))"));
+  const textRuns = [...textCheck.matchAll(/await runScenes\(/g)].length;
+  assert.equal(textRuns, 1, 'the text check walks the scenes once per setting');
+  assert.match(textCheck, /\n {4}\}\);\n {2}\}\n {2}writeFileSync\(path\.join\(artifacts, 'report\.json'\)/, 'and gives runScenes no list of its own');
 });
 
 // CI01 (VH-29): the registry tools the large-text run adds to the scenes the

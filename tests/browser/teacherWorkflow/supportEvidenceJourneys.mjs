@@ -181,7 +181,8 @@ const journeys = {
     await page.waitForTimeout(700);
     await page.locator('tbody tr').filter({ hasText: 'Garza, Oakley' }).getByRole('button', { name: 'Open' }).click();
     await page.waitForTimeout(1200);
-    await page.getByRole('button', { name: 'Supports', exact: true }).click();
+    // A student's detail page chooses its view from a tab list (TT27, fifth slice).
+    await page.getByRole('tab', { name: 'Supports', exact: true }).click();
     const editor = page.locator('[data-support-profile-editor]');
     await editor.waitFor({ timeout: 20000 });
     await page.waitForTimeout(1500);

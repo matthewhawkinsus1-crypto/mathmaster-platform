@@ -168,7 +168,8 @@ test('a secure item decides it from the student\'s own plan for a test, field it
   const decided = region(runtime, 'const graphReadOut = useMemo(', ');', 'the decision');
   assert.match(decided, /graphReadOutEntitled\(studentSupportProfile, \{ activityRole: policy\.secure \? SECURE_ACTIVITY_ROLE : policy\.activityRole \|\| null \}\)/, 'the raw profile: the flattened one has lost its limits');
   const field = region(runtime, 'const FieldItem = (', '\nconst ', 'the field item');
-  assert.match(field, /<GraphReadOutProvider enabled=\{graphReadOut\}>\s*<PathQuestionStimulus stimulus=\{question\.stimulus\} \/>\s*<\/GraphReadOutProvider>/);
+  // The stimulus is inside it (with the figure words a translation gives, AX05 slice 3).
+  assert.match(field, /<GraphReadOutProvider enabled=\{graphReadOut\}>\s*(?:<FigureWordsProvider pack=\{figurePack\}>\s*)?<PathQuestionStimulus stimulus=\{question\.stimulus\} \/>\s*(?:<\/FigureWordsProvider>\s*)?<\/GraphReadOutProvider>/);
   assert.match(region(runtime, '<QuestionEngine', '/>', 'the tool item\'s engine'), /graphReadOut=\{graphReadOut\}/);
   for (const item of ['<ToolItem', '<FieldItem']) {
     assert.match(region(runtime, item, '/>', item), /graphReadOut=\{graphReadOut\}/, `${item} is given it`);

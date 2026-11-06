@@ -260,40 +260,65 @@ const subscriptedName = (text, underscore) => {
 };
 
 /*
- * Grading: a logarithm's call is ONE operand (TS05). The math editor stacks a
+ * A call is ONE operand, its name with it (TS05). The math editor stacks a
  * typed ln(3)/ln(2) as ln 3 over ln 2, which is what the key means. This
  * scanner took the bracket alone and then a single letter, so the key itself
  * read as ln·(3/l)·n(2), and the editor's \frac{\ln(3)}{\ln(2)} never met it
- * (mm_A2_5D's exact solutions, typed into the real editor). Only ln and log,
- * any base (log_2, log_{10}) — the two the grader already reads as words
- * (GR34) — and never as the tail of a longer word.
+ * (mm_A2_5D's exact solutions, typed into the real editor); MathDisplay drew
+ * log_2(8)/3 as log base 2 of 8/3, a different number. The names a student
+ * reads as functions: ln, log with any base (log_2, log_{10}), and sin, cos,
+ * tan and their reciprocals, written bare or as the LaTeX command, and never
+ * as the tail of a longer word (kiln, cosine).
+ *
+ * Grading read only ln and log, so a key sin(x)/cos(x) was sin·(x/c)·os(x)
+ * there and met no other spelling of itself. It reads the same names as the
+ * display now (typed-math batch; the verdict sweep against the base moved no
+ * right answer to wrong).
  */
-const CALL_NAME = String.raw`(?:ln|log(?:_(?:\{[^{}]*\}|\d+|[A-Za-z]))?)`;
+const CALL_NAME = String.raw`\\?(?:ln|log(?:_(?:\{[^{}]*\}|\d+|[A-Za-z]))?|sin|cos|tan|sec|csc|cot)`;
 const CALL_NAME_BEFORE = new RegExp(`(?<![A-Za-z\\\\])${CALL_NAME}\\s*$`);
 const CALL_NAME_AFTER = new RegExp(`^${CALL_NAME}\\s*(?=(?:\\\\left)?\\()`);
-/*
- * Display: the same rule, for the names a student reads as functions — ln,
- * log, and sin, cos, tan and their reciprocals — written bare or as the LaTeX
- * command. MathDisplay drew an authored ln(3)/ln(2) (A2.5D's exact answer) as
- * ln·(3/l)·n(2), and log_2(8)/3 as log base 2 of 8/3, a different number.
- * Grading keeps its own two names: it reads these as words (GR34).
- */
-const DISPLAY_CALL_NAME = String.raw`\\?(?:ln|log(?:_(?:\{[^{}]*\}|\d+|[A-Za-z]))?|sin|cos|tan|sec|csc|cot)`;
-const DISPLAY_CALL_NAME_BEFORE = new RegExp(`(?<![A-Za-z\\\\])${DISPLAY_CALL_NAME}\\s*$`);
-const DISPLAY_CALL_NAME_AFTER = new RegExp(`^${DISPLAY_CALL_NAME}\\s*(?=(?:\\\\left)?\\()`);
 /** Where the name of the call whose bracket opens at `open` starts, or null. */
-const callNameBefore = (text, open, options = {}) => {
-  const pattern = options.constantOperands ? CALL_NAME_BEFORE : DISPLAY_CALL_NAME_BEFORE;
-  const match = pattern.exec(text.slice(0, open));
+const callNameBefore = (text, open) => {
+  const match = CALL_NAME_BEFORE.exec(text.slice(0, open));
   return match ? match.index : null;
 };
 
-// Display: where a one-letter function's name (the f of f(x)) starts, for the
-// bracket opening at `open`, or null.
+// Where a one-letter function's name (the f of f(x)) starts, for the bracket
+// opening at `open`, or null.
 const oneLetterNameBefore = (text, open) => {
   const letter = open - 1;
   if (letter < 0 || !/[A-Za-z]/.test(text[letter])) return null;
   return letter > 0 && /[A-Za-z\\_^]/.test(text[letter - 1]) ? null : letter;
+};
+
+/*
+ * Grading: the second letter of a product of two letters is a factor of its
+ * own (TS05), as a letter after a number or a space already was: `xy/z` is
+ * x·(y/z), the reading `x y/z` and `2A/h` had. This read none of `xy/z`,
+ * `2Ah/b` or `Bh/3`, and left the slash as written, so the editor's stacked
+ * \frac{xy}{z} could never be read as the typed text (editorProductsAsTyped,
+ * below). Three letters or more may be a word (`num/den`, `rise/run`) and
+ * are left as written, counted across spaces so `x yz/w` reads as `xyz/w`
+ * does; the letters of a command's name (`\pi/2`) are never a letter.
+ */
+const MAX_PRODUCT_LETTERS = 2;
+const letterOfAProduct = (text, index) => {
+  let begin = index;
+  while (begin > 0 && /[A-Za-z]/.test(text[begin - 1])) begin -= 1;
+  if (text[begin - 1] === '\\') return false;
+  let letters = index - begin + 1;
+  // The letters before a space belong to the same product, unless they name a command.
+  for (let at = begin; letters <= MAX_PRODUCT_LETTERS && at > 0 && /\s/.test(text[at - 1]);) {
+    let end = at - 1;
+    while (end >= 0 && /\s/.test(text[end])) end -= 1;
+    let start = end + 1;
+    while (start > 0 && /[A-Za-z]/.test(text[start - 1])) start -= 1;
+    if (start > end || text[start - 1] === '\\') break;
+    letters += end - start + 1;
+    at = start;
+  }
+  return letters <= MAX_PRODUCT_LETTERS;
 };
 
 // Display: where a power written right after `end` ends (`(x - 2)^2`,
@@ -333,13 +358,14 @@ const operandBefore = (text, end, options = {}) => {
     const open = matchBackwards(text, index);
     if (open < 0) return null;
     const bracket = withLeftPrefix(text, open);
-    // A call comes with its name, ln(3) and log_2(8): in grading (TS05) and
-    // on screen.
-    const named = options.constantOperands || options.unicodeMath ? callNameBefore(text, bracket, options) : null;
+    // A call comes with its name, ln(3), log_2(8) and sin(x): in grading
+    // (TS05) and on screen.
+    const reads = options.constantOperands || options.unicodeMath;
+    const named = reads ? callNameBefore(text, bracket) : null;
     if (named !== null) return { start: named, text: text.slice(named, index + 1) };
-    // Display: so does a one-letter function, f(x)/2 and y(4)/y(1). As a
-    // product the letter changes nothing on this side: a(b)/2 is a·b/2.
-    const letter = options.unicodeMath ? oneLetterNameBefore(text, bracket) : null;
+    // So does a one-letter function, f(x)/2 and y(4)/y(1). As a product the
+    // letter changes nothing on this side: a(b)/2 is a·b/2.
+    const letter = reads ? oneLetterNameBefore(text, bracket) : null;
     if (letter !== null) return { start: letter, text: text.slice(letter, index + 1) };
     const start = withRadicalBefore(text, bracket, options);
     return { start, text: text.slice(start, index + 1) };
@@ -370,8 +396,10 @@ const operandBefore = (text, end, options = {}) => {
   if (/\d/.test(text[index])) {
     while (start > 0 && /[\d.]/.test(text[start - 1])) start -= 1;
   }
-  // A letter that is the tail of a command (`\pi/2`) is not a bare variable.
-  if (start > 0 && /[A-Za-z]/.test(text[index]) && /[A-Za-z\\]/.test(text[start - 1])) return null;
+  // A letter that is the tail of a command (`\pi/2`) is not a bare variable;
+  // in grading, one in a product of letters is (letterOfAProduct).
+  if (start > 0 && /[A-Za-z]/.test(text[index]) && /[A-Za-z\\]/.test(text[start - 1])
+    && !(options.constantOperands && letterOfAProduct(text, index))) return null;
   // `x^2/3` is x-squared over three, so the power comes along as one operand.
   // Taking only the exponent would print `x^\frac{2}{3}` — a different number.
   if (start > 0 && text[start - 1] === '^') {
@@ -395,53 +423,6 @@ const operandAfter = (text, start, options = {}) => {
   let index = start;
   while (index < text.length && /\s/.test(text[index])) index += 1;
   if (index >= text.length) return null;
-
-  if (options.constantOperands) {
-    const constant = constantAfter(text, index);
-    if (constant) return constant;
-    // A call is one operand, its name with it (TS05): `/ln(2)` is over ln 2.
-    // A power on the call (`/ln(2)^2`) is not read: the slash is left.
-    const call = CALL_NAME_AFTER.exec(text.slice(index));
-    if (call) {
-      const callOpen = index + call[0].length;
-      const bracket = text.startsWith('\\left(', callOpen) ? callOpen + 5 : callOpen;
-      const close = matchForwards(text, bracket);
-      if (close < 0) return null;
-      const end = withRightSuffix(text, close);
-      return /[\^_]/.test(text[end] || '') ? null : { end, text: text.slice(index, end) };
-    }
-  }
-
-  if (options.unicodeMath) {
-    const radicalEnd = radicalAfter(text, index);
-    if (radicalEnd !== null) {
-      const end = pastSuperscripts(text, radicalEnd, options);
-      return { end, text: text.slice(index, end) };
-    }
-    // Display: `/ln(2)` is over ln 2, and `/sin(x)^2` over its square.
-    const call = DISPLAY_CALL_NAME_AFTER.exec(text.slice(index));
-    if (call) {
-      const callOpen = index + call[0].length;
-      const bracket = text.startsWith('\\left(', callOpen) ? callOpen + 5 : callOpen;
-      const close = matchForwards(text, bracket);
-      if (close < 0) return null;
-      const end = pastDisplayPower(text, withRightSuffix(text, close), options);
-      return end < 0 ? null : { end, text: text.slice(index, end) };
-    }
-  }
-
-  const openIndex = text.startsWith('\\left(', index) ? index + 5 : index;
-  if (text[openIndex] === '(' || text[openIndex] === '[') {
-    const close = matchForwards(text, openIndex);
-    if (close < 0) return null;
-    const closed = withRightSuffix(text, close);
-    const end = options.unicodeMath ? pastDisplayPower(text, closed, options) : closed;
-    if (end < 0) return null;
-    return { end, text: text.slice(index, end) };
-  }
-  // A command after the slash (`3/\sqrt{2}`, `3/\frac{1}{2}`) needs a parser
-  // this does not have. Left as written.
-  if (text[index] === '\\' || text[index] === '{') return null;
 
   // A power belongs to the denominator: `180/d^2` is 180 over d-squared, not
   // 180 over d, all squared. A subscript is part of a name, so it comes too.
@@ -468,6 +449,58 @@ const operandAfter = (text, start, options = {}) => {
     return { end: exponent.end, text: text.slice(index, exponent.end) };
   };
 
+  if (options.constantOperands) {
+    const constant = constantAfter(text, index);
+    if (constant) return constant;
+    // A call is one operand, its name with it (TS05): `/ln(2)` is over ln 2
+    // and `/sin(x)` over sin x. A power on it is the denominator's, as on any
+    // denominator: `/ln(2)^2` is over (ln 2)².
+    const call = CALL_NAME_AFTER.exec(text.slice(index));
+    if (call) {
+      const callOpen = index + call[0].length;
+      const bracket = text.startsWith('\\left(', callOpen) ? callOpen + 5 : callOpen;
+      const close = matchForwards(text, bracket);
+      if (close < 0) return null;
+      const end = withRightSuffix(text, close);
+      return text[end] === '_' ? null : withTrailingPower(end);
+    }
+  }
+
+  if (options.unicodeMath) {
+    const radicalEnd = radicalAfter(text, index);
+    if (radicalEnd !== null) {
+      const end = pastSuperscripts(text, radicalEnd, options);
+      return { end, text: text.slice(index, end) };
+    }
+    // Display: `/ln(2)` is over ln 2, and `/sin(x)^2` over its square.
+    const call = CALL_NAME_AFTER.exec(text.slice(index));
+    if (call) {
+      const callOpen = index + call[0].length;
+      const bracket = text.startsWith('\\left(', callOpen) ? callOpen + 5 : callOpen;
+      const close = matchForwards(text, bracket);
+      if (close < 0) return null;
+      const end = pastDisplayPower(text, withRightSuffix(text, close), options);
+      return end < 0 ? null : { end, text: text.slice(index, end) };
+    }
+  }
+
+  const openIndex = text.startsWith('\\left(', index) ? index + 5 : index;
+  if (text[openIndex] === '(' || text[openIndex] === '[') {
+    const close = matchForwards(text, openIndex);
+    if (close < 0) return null;
+    const closed = withRightSuffix(text, close);
+    // Grading: a bracketed denominator takes its power, as a letter does:
+    // 3/(x+1)^2 is 3 over (x+1)², the editor's \frac{3}{(x+1)^2}, never the
+    // whole fraction squared.
+    if (options.constantOperands) return withTrailingPower(closed);
+    const end = options.unicodeMath ? pastDisplayPower(text, closed, options) : closed;
+    if (end < 0) return null;
+    return { end, text: text.slice(index, end) };
+  }
+  // A command after the slash (`3/\sqrt{2}`, `3/\frac{1}{2}`) needs a parser
+  // this does not have. Left as written.
+  if (text[index] === '\\' || text[index] === '{') return null;
+
   if (/\d/.test(text[index])) {
     let end = index;
     while (end < text.length && /[\d.]/.test(text[end])) end += 1;
@@ -476,12 +509,16 @@ const operandAfter = (text, start, options = {}) => {
   }
   if (/[A-Za-z]/.test(text[index])) {
     if (text[index + 1] === '_') return null;
-    // Display: 1/f(x) is over f(x), the reciprocal of the function.
-    if (options.unicodeMath && (text[index + 1] === '(' || text.startsWith('\\left(', index + 1))) {
+    // 1/f(x) is over f(x), the reciprocal of the function, on screen and in
+    // grading: the editor builds a typed 1/f(x) the same way. In grading its
+    // power is read as a letter's (1/f(x)^2 is over f(x)²).
+    if ((options.unicodeMath || options.constantOperands) && (text[index + 1] === '(' || text.startsWith('\\left(', index + 1))) {
       const bracket = text[index + 1] === '(' ? index + 1 : index + 6;
       const close = matchForwards(text, bracket);
       if (close < 0) return null;
-      const end = pastDisplayPower(text, withRightSuffix(text, close), options);
+      const closed = withRightSuffix(text, close);
+      if (options.constantOperands) return withTrailingPower(closed);
+      const end = pastDisplayPower(text, closed, options);
       return end < 0 ? null : { end, text: text.slice(index, end) };
     }
     return withTrailingPower(index + 1);
@@ -522,6 +559,199 @@ export const stackDivisions = (value, { skipAsciiCalls = true, constantOperands 
       const denominator = stripOuterParens(right.text.trim());
       if (!numerator || !denominator) continue;
       out = `${out.slice(0, left.start)}\\frac{${numerator}}{${denominator}}${out.slice(right.end)}`;
+      changed = true;
+      break;
+    }
+    if (!changed) break;
+  }
+  return out;
+};
+
+/*
+ * THE EDITOR'S STACKED PRODUCT, READ AS TYPED TEXT BINDS IT (TS05; the
+ * owner's decision). GRADING ONLY.
+ *
+ * A typed slash takes one factor before it (operandBefore): `2A/h-b_2` is
+ * 2·(A/h) − b₂ and `h=2A/b` is h = 2·(A/b). The math editor puts the whole
+ * product typed before the slash over the bar: the same keys give
+ * \frac{2A}{h}-b_2 and h=\frac{2A}{b}. The number is the same, but the
+ * grader compares what is written, so a student's own keystrokes, right in
+ * a text box, were wrong in the editor.
+ *
+ * Inside a sum, or as an equation's side, such a fraction is read as the
+ * typed text binds it: the leading factors in front, the last one over the
+ * bar (\frac{2A}{h}-b_2 is 2\frac{A}{h}-b_2). Everywhere else a stacked
+ * fraction keeps its reading, so GR35a stands: a lone \frac{3b^2}{a^3} is
+ * not 3\frac{b^2}{a^3}, a coefficient moved out of the key's fraction
+ * (monomialQuotientEquivalence.mjs).
+ *
+ * Read only where nothing else can change: the numerator is a product of
+ * factors read as typed text reads them, two or more, with no sign, operation
+ * or sum in it (what the editor stacks for a typed slash); the fraction
+ * starts its term (after a sign, a product mark or nothing, so a number in
+ * front cannot run into it, and never after a slash, a power or a
+ * subscript mark); and nothing binds to the whole fraction after it
+ * (\frac{2A}{h}^2 is the fraction squared). `side`: the text is one side of
+ * an equation, for the comparisons that split an equation first.
+ */
+const RELATION_AT = /^(?:<=|>=|!=|\\(?:leq?|geq?|neq?|lt|gt)(?![A-Za-z])|[<>≤≥≠])/;
+const CONNECTIVE_AT = /^(?:\s(?:and|or)\s|\\(?:land|lor|wedge|vee)(?![A-Za-z])|[∧∨,;])/i;
+const ADDITION_AT = /^(?:[-+±∓]|\\(?:pm|mp)(?![A-Za-z]))/;
+const PRODUCT_MARK_AT = /^(?:\*|\\(?:cdot|times)(?![A-Za-z]))/;
+// A control symbol (\, \; \! \: \ ): spacing, never a comma or a relation.
+const CONTROL_SYMBOL_AT = /^\\[^A-Za-z]/;
+const COMMAND_AT = /^\\[A-Za-z]+/;
+// Commands that join two things (\cup is the u every reading writes for ∪).
+const OPERATION_COMMAND = /^\\(?:cup|cap|div|setminus)$/;
+const SPACE_AFTER = /^(?:\s|\\,)+/;
+
+const isOpener = (char) => char === '(' || char === '[' || char === '{';
+const isCloser = (char) => char === ')' || char === ']' || char === '}';
+
+// The brace group opening at `open`, as [open, close], or null.
+const braceGroupAt = (text, open) => {
+  if (text[open] !== '{') return null;
+  const close = matchForwards(text, open);
+  return close < 0 ? null : [open, close];
+};
+
+/*
+ * The tokens of `text` from `from` to `to` at their own depth, each marked as
+ * an operand, an addition sign, a product mark or another operation; a group
+ * (bracket, brace) is one operand.
+ */
+const tokensBetween = (text, from, to) => {
+  const tokens = [];
+  for (let index = from, depth = 0; index < to; index += 1) {
+    const char = text[index];
+    if (isOpener(char)) {
+      if (depth === 0) tokens.push({ at: index, kind: 'operand' });
+      depth += 1;
+      continue;
+    }
+    if (isCloser(char)) { depth -= 1; continue; }
+    if (depth !== 0 || /\s/.test(char)) continue;
+    const rest = text.slice(index);
+    const control = CONTROL_SYMBOL_AT.exec(rest);
+    if (control) { index += control[0].length - 1; continue; }
+    const addition = ADDITION_AT.exec(rest);
+    if (addition) { tokens.push({ at: index, kind: 'addition' }); index += addition[0].length - 1; continue; }
+    const mark = PRODUCT_MARK_AT.exec(rest);
+    if (mark) { tokens.push({ at: index, kind: 'product' }); index += mark[0].length - 1; continue; }
+    const command = COMMAND_AT.exec(rest);
+    if (command) { tokens.push({ at: index, kind: OPERATION_COMMAND.test(command[0]) ? 'operation' : 'operand' }); index += command[0].length - 1; continue; }
+    tokens.push({ at: index, kind: /[\w.!%'π∞|]/.test(char) ? 'operand' : 'operation' });
+  }
+  return tokens;
+};
+
+/*
+ * Where the fraction from `start` to `end` stands: the group around it (a
+ * bracket, a brace, or the whole text), cut at that group's own relations,
+ * commas and connectives into spans. Whether its span is a sum (an addition
+ * with a term before it; a leading sign alone is not one), whether it is an
+ * equation's side, and whether the fraction starts its term there.
+ */
+const placeOf = (text, start, end, { side }) => {
+  let groupStart = 0;
+  for (let index = start - 1, depth = 0; index >= 0; index -= 1) {
+    if (isCloser(text[index])) depth += 1;
+    else if (isOpener(text[index])) {
+      if (depth === 0) { groupStart = index + 1; break; }
+      depth -= 1;
+    }
+  }
+  let groupEnd = text.length;
+  for (let index = end, depth = 0; index < text.length; index += 1) {
+    if (isOpener(text[index])) depth += 1;
+    else if (isCloser(text[index])) {
+      if (depth === 0) { groupEnd = index; break; }
+      depth -= 1;
+    }
+  }
+  const cuts = [];
+  for (let index = groupStart, depth = 0; index < groupEnd; index += 1) {
+    const char = text[index];
+    if (isOpener(char)) { depth += 1; continue; }
+    if (isCloser(char)) { depth -= 1; continue; }
+    if (depth !== 0) continue;
+    const rest = text.slice(index);
+    const control = CONTROL_SYMBOL_AT.exec(rest);
+    if (control) { index += control[0].length - 1; continue; }
+    const relation = RELATION_AT.exec(rest);
+    if (relation) { cuts.push({ at: index, length: relation[0].length, equation: false }); index += relation[0].length - 1; continue; }
+    if (char === '=') { cuts.push({ at: index, length: 1, equation: true }); continue; }
+    const connective = CONNECTIVE_AT.exec(rest);
+    if (connective) { cuts.push({ at: index, length: connective[0].length, equation: false }); index += connective[0].length - 1; }
+  }
+  const before = cuts.filter((cut) => cut.at + cut.length <= start).pop() || null;
+  const after = cuts.find((cut) => cut.at >= end) || null;
+  const spanStart = before ? before.at + before.length : groupStart;
+  const spanEnd = after ? after.at : groupEnd;
+  const wholeSide = side && groupStart === 0 && groupEnd === text.length;
+  const equationSide = Boolean(before?.equation || after?.equation || (wholeSide && !before && !after));
+  const tokens = tokensBetween(text, spanStart, spanEnd);
+  const sum = tokens.some((token, index) => token.kind === 'addition' && tokens[index - 1]?.kind === 'operand');
+  // Before the fraction: nothing, or a sign or product mark that is itself
+  // the term's (after nothing, an operand or another such mark; never after
+  // a slash, a power or a subscript mark, which would carry it off).
+  const own = tokens.findIndex((token) => token.at === start);
+  const previous = tokens[own - 1];
+  const startsTerm = own >= 0 && (!previous || (['addition', 'product'].includes(previous.kind)
+    && ['operand', 'addition', 'product', undefined].includes(tokens[own - 2]?.kind)));
+  return { sum, equationSide, startsTerm };
+};
+
+// The start of each factor of a numerator read as typed text reads the run
+// before a slash, or null when it is not two or more such factors alone.
+const productFactorStarts = (numerator) => {
+  const starts = [];
+  let end = numerator.length - 1;
+  while (end >= 0) {
+    while (end >= 0 && /\s/.test(numerator[end])) end -= 1;
+    if (end < 0) break;
+    const operand = operandBefore(numerator, end, { constantOperands: true });
+    if (!operand) return null;
+    starts.unshift(operand.start);
+    end = operand.start - 1;
+  }
+  return starts.length >= 2 ? starts : null;
+};
+
+const asTypedAt = (text, at, { side }) => {
+  const numerator = braceGroupAt(text, at + 5);
+  if (!numerator) return null;
+  let denominatorOpen = numerator[1] + 1;
+  while (/\s/.test(text[denominatorOpen] || '')) denominatorOpen += 1;
+  const denominator = braceGroupAt(text, denominatorOpen);
+  if (!denominator) return null;
+  const end = denominator[1] + 1;
+  // Nothing may bind to the whole fraction: a power, a subscript, a factorial or a prime.
+  if (/^[\^_!']/.test(text.slice(end).replace(SPACE_AFTER, ''))) return null;
+  const top = text.slice(numerator[0] + 1, numerator[1]);
+  const starts = productFactorStarts(top);
+  if (!starts) return null;
+  const { sum, equationSide, startsTerm } = placeOf(text, at, end, { side });
+  if ((!sum && !equationSide) || !startsTerm) return null;
+  const front = top.slice(0, starts[starts.length - 1]).trimEnd();
+  const last = top.slice(starts[starts.length - 1]);
+  // Two numbers side by side would read as one, or as a mixed number.
+  if (/[\d.]$/.test(front) && /^[\d.]/.test(last)) return null;
+  const below = text.slice(denominator[0] + 1, denominator[1]);
+  return { end, text: `${front}\\frac{${stripOuterParens(last)}}{${stripOuterParens(below)}}` };
+};
+
+export const editorProductsAsTyped = (value, { side = false } = {}) => {
+  let out = String(value ?? '');
+  if (!out.includes('\\frac')) return out;
+  for (let guard = 0; guard < 24; guard += 1) {
+    const skip = verbatimRanges(out);
+    let changed = false;
+    for (let at = out.indexOf('\\frac{'); at >= 0; at = out.indexOf('\\frac{', at + 1)) {
+      if (insideAny(skip, at)) continue;
+      const rewritten = asTypedAt(out, at, { side });
+      if (!rewritten) continue;
+      out = `${out.slice(0, at)}${rewritten.text}${out.slice(rewritten.end)}`;
       changed = true;
       break;
     }

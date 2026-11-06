@@ -115,6 +115,11 @@
               "label": "Exponential"
             }
           ],
+          "hints": [
+            "Look at one graph at a time: is it a straight line, a U-shaped curve, or a curve that gets steeper and steeper on one side?",
+            "A straight line is linear. A U-shaped curve that turns at one point is quadratic.",
+            "An exponential curve flattens out toward a horizontal line on one side. To check one, read two points one step apart: is the height multiplied by the same number each time?"
+          ],
           "solutionReview": {
             "headline": "A straight line is linear, a U-shaped curve is quadratic, and a curve whose height multiplies by the same number with each step is exponential.",
             "reasoning": [
@@ -166,6 +171,11 @@
             }
           ],
           "answer": "w3a",
+          "hints": [
+            "Does this parabola open up or down? So is its vertex its highest point or its lowest point?",
+            "The vertex lies on the axis of symmetry, halfway between the two points where the graph crosses the x-axis. Where are those points?",
+            "Read the vertex’s x-coordinate first, then move up or down to the curve and read its y-coordinate. Check the sign of each one."
+          ],
           "solutionReview": {
             "headline": "The vertex of a parabola is the point where it turns: here its lowest point.",
             "reasoning": [
@@ -255,6 +265,11 @@
               "id": "decay",
               "label": "Exponential decay"
             }
+          ],
+          "hints": [
+            "Read each graph from left to right: does it rise or fall?",
+            "Pick two points one step apart, such as where x = 0 and x = 1. Is the height multiplied by a number greater than 1, or by a number between 0 and 1?",
+            "A height multiplied by more than 1 at each step is growth; a height multiplied by a number between 0 and 1 is decay."
           ],
           "solutionReview": {
             "headline": "Read two points one step apart: if the height is multiplied by more than 1 the graph rises (growth); by less than 1, it falls (decay).",
@@ -616,7 +631,8 @@
           "behaviorChoices": [
             "Exponential growth",
             "Exponential decay"
-          ]
+          ],
+          "behaviorPrompt": "Reading the graph from left to right, does this function show exponential growth or exponential decay?"
         },
         {
           "standard": "A.9D",
@@ -652,7 +668,8 @@
           "behaviorChoices": [
             "Exponential growth",
             "Exponential decay"
-          ]
+          ],
+          "behaviorPrompt": "Reading the graph from left to right, does this function show exponential growth or exponential decay?"
         },
         {
           "standard": "A.9A",
@@ -709,6 +726,11 @@
               "label": "a(5)",
               "answer": "23"
             }
+          ],
+          "hints": [
+            "How do you get from one term of this sequence to the next?",
+            "Begin with the first term, 7, and add 4 once for each step. How many steps are there from the first term to the fifth?",
+            "List the terms in order, one step at a time: the second term is the first plus 4, the third is the second plus 4, and so on up to the fifth."
           ],
           "scaffold": {
             "prompt": "Let’s back up. In this sequence, how do you get from one term to the next?",
@@ -957,7 +979,8 @@
           "behaviorChoices": [
             "Exponential growth",
             "Exponential decay"
-          ]
+          ],
+          "behaviorPrompt": "Reading the graph from left to right, does this function show exponential growth or exponential decay?"
         },
         {
           "standard": "A.9A",
@@ -1099,6 +1122,11 @@
               "label": "Not a function"
             }
           ],
+          "hints": [
+            "In each figure, read the x-coordinate of every point. Does any x-value appear twice?",
+            "Two points with the same x-value lie on one vertical line. If their y-values are different, that input has two outputs.",
+            "A relation is a function when no input has two different outputs. Two inputs may share an output."
+          ],
           "solutionReview": {
             "headline": "A relation is a function when no input is paired with two different outputs. Two inputs may share an output.",
             "reasoning": [
@@ -1139,6 +1167,11 @@
               "label": "g(5)",
               "answer": "48"
             }
+          ],
+          "hints": [
+            "How do you get from one term of this sequence to the next: add the same number each time, or multiply by the same number?",
+            "Begin with the first term, 3, and multiply by 2 once for each step. How many steps are there from the first term to the fifth?",
+            "List the terms in order, one step at a time: each term is twice the one before it. Doubling is not the same as adding 2."
           ],
           "scaffold": {
             "prompt": "Let’s back up. In this sequence, how do you get from one term to the next?",
@@ -1409,7 +1442,8 @@
           "behaviorChoices": [
             "Exponential growth",
             "Exponential decay"
-          ]
+          ],
+          "behaviorPrompt": "Reading the graph from left to right, does this function show exponential growth or exponential decay?"
         },
         {
           "standard": "A.9A",

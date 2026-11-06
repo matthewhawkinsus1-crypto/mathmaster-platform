@@ -145,8 +145,11 @@ test('the marks reach the legacy graders only where outcome feedback is shown', 
   assert.match(engine, /const showOutcomeFeedback = resolvedActivityPolicy\?\.feedback === 'immediate' \|\| feedbackReleased === true;/);
   assert.match(engine, /return <GraphLine \{\.\.\.commonModuleProps\} \/>;/);
   assert.match(engine, /return <TableGrader \{\.\.\.commonModuleProps\} \/>;/);
-  // The multi-answer grader (VH-13) is handed the same held-or-shown feedback.
-  assert.match(engine, /return <MultiAnswerGrader \{\.\.\.commonModuleProps\} \/>;/);
+  // The multi-answer grader (VH-13) is handed the same held-or-shown feedback
+  // (and whether verdicts are withheld, for its keypad: N56), never its own.
+  const multiAnswer = region(engine, 'return <MultiAnswerGrader', '/>;', 'the multi-answer mount');
+  assert.match(multiAnswer, /^return <MultiAnswerGrader \{\.\.\.commonModuleProps\}/);
+  assert.doesNotMatch(multiAnswer, /\bfeedback=/);
   const workflow = executableSource(readFileSync(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8'));
   const table = region(workflow, '<TableGrader', '/>', 'workflow table');
   assert.doesNotMatch(table, /\bfeedback=/, 'a workflow table shows no marks');

@@ -198,6 +198,18 @@ const typeIntoFirst = async (page, text) => {
   await page.keyboard.type(text, { delay: 25 });
   await page.keyboard.press('Tab');
 };
+// The save the student just made, finished: "Draft saved." is the line only
+// once the device queue has drained (App.jsx drainStudentOutbox, durable). A
+// fixed wait was not this under load: the queue could still be writing that
+// save when failASave switched the device's storage off, and the line then
+// measured belonged to it, caught mid-update, not to the next save.
+const savedAndSettled = (page) => page.waitForFunction(() => {
+  const line = document.querySelector('[data-save-line]');
+  return Boolean(line) && line.hasAttribute('data-save-line-routine') && line.textContent.trim() === 'Draft saved.';
+}, null, { timeout: 30000 }).catch(async () => {
+  const now = await page.locator('[data-save-line]').first().textContent({ timeout: 1000 }).catch(() => null);
+  throw new Error(`the save never settled on "Draft saved." (the line reads ${JSON.stringify(now && now.trim())})`);
+});
 // The device refuses what the student types next (deviceStorageFault.mjs), and
 // the app's own line for it is waited for: the first save line that needs the
 // student. The switch stays on until the page is reloaded, so nothing later
@@ -253,7 +265,7 @@ for (const setting of CHOSEN) {
     await openAssignment(page, setting);
     await typeIntoFirst(page, '7');
     await page.locator('[data-save-line]').first().waitFor({ state: 'attached', timeout: 15000 });
-    await page.waitForTimeout(2500);
+    await savedAndSettled(page);
     const barWhole = async (what) => {
       if (!setting.mobile || setting.width > setting.height) return;
       report(`B  the action bar is whole beside the ${what} (${setting.id})`, await seen(page, '.portrait-action-bar', setting));

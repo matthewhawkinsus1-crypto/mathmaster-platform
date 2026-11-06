@@ -16,6 +16,7 @@ import {
   SWEEP_ACTION,
   SWEEP_SETTINGS_COLLECTION,
   SWEEP_SETTINGS_FLAG,
+  WAITING_ON_HOST,
   finishAllowed,
   hostAway,
   hostHeartbeatDue,
@@ -23,7 +24,9 @@ import {
   stillAbandoned,
   sweepDueAfterCloseMs,
   sweepDueAfterOpeningMs,
+  sweepDueForLobbyMs,
   sweepSettingsFrom,
+  waitingOnHost,
 } from '../../functions/shared/liveChallengeServerSweep.mjs';
 import { ROUND_CLOSE_AFTER_DEADLINE_MS, hostEndedNote } from '../../src/platform/liveChallenge/challengeShellModel.js';
 import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
@@ -31,6 +34,10 @@ import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChalleng
 const NOW = Date.UTC(2026, 9, 16, 15, 0, 0);
 const open = (endsAtMs, extra = {}) => ({ status: 'running', roundState: 'open', currentRound: 2, roundVersion: 3, endsAt: endsAtMs, ...extra });
 const closed = (closedAtMs, extra = {}) => ({ status: 'running', roundState: 'closed', currentRound: 2, roundVersion: 3, roundClosedAt: closedAtMs, ...extra });
+// A lobby as createLiveChallenge writes it: no round yet (-1, version 0).
+const lobby = (createdAtMs, extra = {}) => ({ status: 'lobby', roundState: null, currentRound: -1, roundVersion: 0, createdAt: createdAtMs, ...extra });
+// A Pace Race round: open, started, and no deadline.
+const paceRound = (startsAtMs, extra = {}) => open(null, { timingMode: 'pace', startsAt: startsAtMs, roundStartedAt: startsAtMs, roundEndsAt: null, ...extra });
 // Ending abandoned games written on explicitly; the host was heard, long ago.
 const FINISH_ON = sweepSettingsFrom({ finishAbandonedGames: true });
 // The rollback: the switch turns ending abandoned games off.
@@ -116,7 +123,8 @@ test('an open console always closes the round before the server would', () => {
   assert.ok(SERVER_CLOSE_GRACE_MS > ROUND_CLOSE_AFTER_DEADLINE_MS);
   assert.ok(SERVER_CLOSE_GRACE_MS > SUBMISSION_ARRIVAL_GRACE_MS);
   assert.equal(sweepDueAfterOpeningMs({ endsAtMs: NOW }), NOW + SERVER_CLOSE_GRACE_MS);
-  assert.equal(sweepDueAfterOpeningMs({ endsAtMs: null }), null, 'a Pace Race round has no deadline to close on');
+  assert.equal(sweepDueAfterOpeningMs({ endsAtMs: NOW, startsAtMs: NOW - 30_000 }), NOW + SERVER_CLOSE_GRACE_MS, 'a deadline wins over the start');
+  assert.equal(sweepDueAfterOpeningMs({ endsAtMs: null }), null, 'nothing to look at without a deadline or a start');
 });
 
 test('an open round is closed only once its deadline and the grace have passed', () => {
@@ -131,13 +139,117 @@ test('an open round is closed only once its deadline and the grace have passed',
   assert.deepEqual(planServerSweep({ room: open(NOW - 60_000, { currentRound: 4, roundVersion: 9 }), nowMs: NOW }).expected, { roundIndex: 4, roundVersion: 9 });
 });
 
-test("a paused round, a Pace Race round and a game that is not running are the host's", () => {
-  assert.equal(planServerSweep({ room: open(NOW - 60_000, { pausedAt: NOW - 5_000 }), nowMs: NOW }).action, SWEEP_ACTION.CLEAR);
-  assert.equal(planServerSweep({ room: open(null), nowMs: NOW }).action, SWEEP_ACTION.CLEAR);
-  for (const status of ['lobby', 'finished', 'cancelled']) {
-    assert.equal(planServerSweep({ room: open(NOW - 60_000, { status }), nowMs: NOW }).action, SWEEP_ACTION.CLEAR, status);
+test("a paused round is the host's, and a game that is over is nobody's", () => {
+  // Even with a heartbeat long gone and a deadline long past: a paused clock
+  // never expires, and the server never closes or ends it.
+  assert.equal(planServerSweep({ room: open(NOW - 60 * 60_000, { pausedAt: NOW - 50 * 60_000 }), privateState: HEARD_LONG_AGO, nowMs: NOW }).action, SWEEP_ACTION.CLEAR);
+  assert.equal(planServerSweep({ room: paceRound(NOW - 60 * 60_000, { pausedAt: NOW - 50 * 60_000 }), privateState: HEARD_LONG_AGO, nowMs: NOW }).action, SWEEP_ACTION.CLEAR);
+  for (const status of ['finished', 'cancelled']) {
+    assert.equal(planServerSweep({ room: open(NOW - 60_000, { status }), privateState: HEARD_LONG_AGO, nowMs: NOW }).action, SWEEP_ACTION.CLEAR, status);
+    assert.equal(planServerSweep({ room: closed(NOW - 60 * 60_000, { status }), privateState: HEARD_LONG_AGO, nowMs: NOW }).action, SWEEP_ACTION.CLEAR, status);
   }
   assert.equal(planServerSweep({ room: null, nowMs: NOW }).action, SWEEP_ACTION.CLEAR, 'a room that no longer exists');
+  // What each kind of game waits on its teacher for (and a timed round, which
+  // runs on its own clock, does not).
+  assert.deepEqual(waitingOnHost(lobby(NOW - 1)), { kind: WAITING_ON_HOST.LOBBY, sinceMs: NOW - 1 });
+  assert.deepEqual(waitingOnHost(closed(NOW - 2)), { kind: WAITING_ON_HOST.RESULTS, sinceMs: NOW - 2 });
+  assert.deepEqual(waitingOnHost(paceRound(NOW - 3)), { kind: WAITING_ON_HOST.OPEN_ROUND, sinceMs: NOW - 3 });
+  for (const room of [open(NOW + 60_000), paceRound(NOW - 3, { pausedAt: NOW - 1 }), closed(NOW, { status: 'finished' }), lobby(NOW, { status: 'cancelled' }), null]) {
+    assert.equal(waitingOnHost(room), null, JSON.stringify(room));
+  }
+});
+
+/* ---------- N73: a lobby, or a Pace Race round, nobody comes back to ---------- */
+
+test('N73: a lobby nobody starts is cancelled at 30 minutes with no host heard, not a moment before; a graded game never', () => {
+  const DEFAULT = sweepSettingsFrom(null);
+  const thirtyAgo = NOW - HOST_AWAY_FINISH_MS;
+  // A lobby is no round: the cancel names the lobby's identity, so a Start
+  // that lands first changes it.
+  const expected = { roundIndex: -1, roundVersion: 0 };
+  const plan = (room, privateState) => planServerSweep({ room, privateState, nowMs: NOW, settings: DEFAULT });
+  const recheck = (room, privateState) => stillAbandoned({ room, privateState, expected, nowMs: NOW, settings: DEFAULT });
+  // At the line: opened 30 minutes ago, the host last heard 30 minutes ago.
+  // Cancelled, never finished: nothing was played.
+  const atLine = { hostHeardAt: thirtyAgo };
+  assert.deepEqual(plan(lobby(thirtyAgo), atLine), { action: SWEEP_ACTION.CANCEL, expected });
+  assert.equal(recheck(lobby(thirtyAgo), atLine), true, 'and the cancel transaction agrees');
+  // One millisecond short on the lobby's clock: looked at again a recheck later.
+  assert.deepEqual(plan(lobby(thirtyAgo + 1), atLine), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW + SERVER_RECHECK_MS });
+  assert.equal(recheck(lobby(thirtyAgo + 1), atLine), false);
+  // A TEACHER STILL THERE: their console calibrates in the lobby, so a host
+  // heard 29:59.999 ago keeps a lobby opened hours ago.
+  const heardJustInside = { hostHeardAt: thirtyAgo + 1 };
+  assert.deepEqual(plan(lobby(NOW - 10 * HOST_AWAY_FINISH_MS), heardJustInside), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW + SERVER_RECHECK_MS });
+  assert.equal(recheck(lobby(NOW - 10 * HOST_AWAY_FINISH_MS), heardJustInside), false);
+  const heardAMinuteAgo = { hostHeardAt: NOW - 60_000 };
+  assert.deepEqual(plan(lobby(NOW - 10 * HOST_AWAY_FINISH_MS), heardAMinuteAgo), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW - 60_000 + HOST_AWAY_FINISH_MS });
+  // A lobby with no opening time (it cannot be measured) is never cancelled.
+  assert.equal(plan(lobby(null), HEARD_LONG_AGO).action, SWEEP_ACTION.RESCHEDULE);
+  assert.equal(recheck(lobby(null), HEARD_LONG_AGO), false);
+  // The same guards as results: a Warm-Up lobby, a lobby whose host was never
+  // heard, and a switch turned off leave the lobby to the teacher.
+  for (const [room, privateState, settings] of [
+    [lobby(NOW - 10 * HOST_AWAY_FINISH_MS, { assignmentId: 'warmup-a1' }), HEARD_LONG_AGO, DEFAULT],
+    [lobby(NOW - 10 * HOST_AWAY_FINISH_MS), {}, DEFAULT],
+    [lobby(NOW - 10 * HOST_AWAY_FINISH_MS), HEARD_LONG_AGO, FINISH_OFF],
+  ]) {
+    assert.deepEqual(planServerSweep({ room, privateState, nowMs: NOW, settings }), { action: SWEEP_ACTION.CLEAR }, JSON.stringify({ room, privateState, settings }));
+    assert.equal(stillAbandoned({ room, privateState, expected, nowMs: NOW, settings }), false);
+  }
+  // A lobby is first looked at a whole window after it opens.
+  assert.equal(sweepDueForLobbyMs({ nowMs: NOW }), NOW + HOST_AWAY_FINISH_MS);
+});
+
+test('N73: a Pace Race round nobody comes back to is finished at 30 minutes from its start with no host heard; a timed round never', () => {
+  const DEFAULT = sweepSettingsFrom(null);
+  const thirtyAgo = NOW - HOST_AWAY_FINISH_MS;
+  const expected = { roundIndex: 2, roundVersion: 3 };
+  const plan = (room, privateState) => planServerSweep({ room, privateState, nowMs: NOW, settings: DEFAULT });
+  const recheck = (room, privateState) => stillAbandoned({ room, privateState, expected, nowMs: NOW, settings: DEFAULT });
+  const atLine = { hostHeardAt: thirtyAgo };
+  // Finished as End Game finishes it (the answers given count), not closed:
+  // there is no deadline to close on.
+  assert.deepEqual(plan(paceRound(thirtyAgo), atLine), { action: SWEEP_ACTION.FINISH, expected });
+  assert.equal(recheck(paceRound(thirtyAgo), atLine), true);
+  assert.deepEqual(plan(paceRound(thirtyAgo + 1), atLine), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW + SERVER_RECHECK_MS });
+  assert.equal(recheck(paceRound(thirtyAgo + 1), atLine), false);
+  // A teacher still there keeps a round that has run for hours.
+  const heardJustInside = { hostHeardAt: thirtyAgo + 1 };
+  assert.deepEqual(plan(paceRound(NOW - 10 * HOST_AWAY_FINISH_MS), heardJustInside), { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: NOW + SERVER_RECHECK_MS });
+  assert.equal(recheck(paceRound(NOW - 10 * HOST_AWAY_FINISH_MS), heardJustInside), false);
+  // A Pace Race round its closing threshold gave a deadline is closed on it,
+  // like any timed round: never finished.
+  const compressed = paceRound(NOW - 10 * HOST_AWAY_FINISH_MS, { endsAt: NOW - SERVER_CLOSE_GRACE_MS, roundEndsAt: NOW - SERVER_CLOSE_GRACE_MS });
+  assert.deepEqual(plan(compressed, HEARD_LONG_AGO), { action: SWEEP_ACTION.CLOSE, expected });
+  assert.equal(recheck(compressed, HEARD_LONG_AGO), false, 'the finish never ends a round that has a deadline');
+  // The same guards.
+  for (const [room, privateState, settings] of [
+    [paceRound(NOW - 10 * HOST_AWAY_FINISH_MS, { assignmentId: 'warmup-a1' }), HEARD_LONG_AGO, DEFAULT],
+    [paceRound(NOW - 10 * HOST_AWAY_FINISH_MS), {}, DEFAULT],
+    [paceRound(NOW - 10 * HOST_AWAY_FINISH_MS), HEARD_LONG_AGO, FINISH_OFF],
+  ]) {
+    assert.deepEqual(planServerSweep({ room, privateState, nowMs: NOW, settings }), { action: SWEEP_ACTION.CLEAR }, JSON.stringify({ room, privateState, settings }));
+  }
+  // A Pace Race round is first looked at a whole window after it starts.
+  assert.equal(sweepDueAfterOpeningMs({ endsAtMs: null, startsAtMs: NOW }), NOW + HOST_AWAY_FINISH_MS);
+});
+
+test('N73: the re-check stands down when the teacher moved the game on between the decision and the transaction', () => {
+  const longAgo = NOW - 2 * HOST_AWAY_FINISH_MS;
+  const check = (room, expected) => stillAbandoned({ room, privateState: HEARD_LONG_AGO, expected, nowMs: NOW, settings: FINISH_ON });
+  const lobbyDecision = { roundIndex: -1, roundVersion: 0 };
+  assert.equal(check(lobby(longAgo), lobbyDecision), true);
+  // Start landed first: the game is played, not cancelled.
+  assert.equal(check(paceRound(longAgo, { currentRound: 0, roundVersion: 1 }), lobbyDecision), false, 'started');
+  assert.equal(check(lobby(longAgo, { status: 'cancelled' }), lobbyDecision), false, 'the teacher cancelled it');
+  const roundDecision = { roundIndex: 2, roundVersion: 3 };
+  assert.equal(check(paceRound(longAgo), roundDecision), true);
+  // End Round Now landed first: results that have just begun.
+  assert.equal(check(closed(NOW - 5_000), roundDecision), false, 'the teacher closed the round');
+  assert.equal(check(paceRound(longAgo, { pausedAt: NOW - 5_000 }), roundDecision), false, 'paused');
+  assert.equal(check(paceRound(longAgo, { currentRound: 3, roundVersion: 4 }), roundDecision), false, 'a later round');
+  assert.equal(check(lobby(longAgo), roundDecision), false, 'a lobby is never what a round decision was about');
 });
 
 test('results are ended only after the host-away window with no host heard', () => {
@@ -198,7 +310,12 @@ test("the scheduled sweep is private, runs every minute, and uses the console's 
   assert.match(scheduler, /sweepOverdueLiveChallengeRooms\(/);
   const room = executableSource(region(index, 'async function sweepLiveChallengeRoom(', 'async function sweepOverdueLiveChallengeRooms(', 'one room'));
   assert.match(room, /closeLiveChallengeRoundForRoom\(db, \{ roomRef, expected: plan\.expected \}\)/, 'the close, never forced');
-  assert.match(room, /finalizeLiveChallengeMatch\(db, \{[\s\S]*command: lifecycle\.LIFECYCLE_COMMAND\.FINISH[\s\S]*stillWanted:[\s\S]*serverSweep\.stillAbandoned\(/, 'the finish, re-checked in its transaction');
+  // The end is the console's own: Cancel Session for a lobby the sweep chose
+  // to cancel (N73), End Game for anything else, through the one finalizer,
+  // re-checked in its transaction.
+  assert.match(room, /const cancelling = plan\.action === serverSweep\.SWEEP_ACTION\.CANCEL;/);
+  assert.match(room, /const ending = cancelling\s*\? \{ command: lifecycle\.LIFECYCLE_COMMAND\.CANCEL, status: lifecycle\.SESSION_STATUS\.CANCELLED \}\s*: \{ command: lifecycle\.LIFECYCLE_COMMAND\.FINISH, status: lifecycle\.SESSION_STATUS\.FINISHED \};/, 'a lobby is cancelled, anything else finished');
+  assert.match(room, /finalizeLiveChallengeMatch\(db, \{\s*roomRef,\s*room,\s*\.\.\.ending,\s*stillWanted:[\s\S]*serverSweep\.stillAbandoned\(/, 'the finish, re-checked in its transaction');
   assert.match(scheduler, /maxInstances: 1,/, 'one run at a time');
   assert.match(scheduler, /timeoutSeconds: 300,/);
   const query = region(index, 'async function sweepOverdueLiveChallengeRooms(', 'exports.closeOverdueLiveChallengeRounds', 'the query');
@@ -223,9 +340,17 @@ test("the scheduled sweep is private, runs every minute, and uses the console's 
   assert.ok(recheck !== -1 && recheck < finalize.indexOf('applyLiveChallengeMatchFinalization(transaction'), 'checked before the finish is applied');
 });
 
-test('every round opening and close sets when the server looks next, and the finish clears it', () => {
+test('every lobby, round opening and close sets when the server looks next, and the finish clears it', () => {
   const opening = region(index, 'function applyLiveChallengeRoundOpening(', '\n}\n', 'the opening');
-  assert.match(opening, /serverSweepDueAt: liveChallengeSweepDate\(engine\.serverSweep\.sweepDueAfterOpeningMs\(\{ endsAtMs: timer\.endsAtMs \}\)\)/);
+  // With the round's start: a Pace Race round has no deadline, and is looked
+  // at a host-away window after it starts (N73).
+  assert.match(opening, /serverSweepDueAt: liveChallengeSweepDate\(engine\.serverSweep\.sweepDueAfterOpeningMs\(\{ endsAtMs: timer\.endsAtMs, startsAtMs: timer\.startsAtMs \}\)\)/);
+  // A lobby is due a host-away window after it opens (N73), on the private
+  // state the create writes (the room is what students listen to).
+  const create = region(index, 'exports.createLiveChallenge = onCall(', 'await rootBatch.commit();', 'the create');
+  const privateWrite = region(create, 'rootBatch.set(privateRef, {', '\n  });', 'the private state');
+  assert.match(privateWrite, /serverSweepDueAt: liveChallengeSweepDate\(engine\.serverSweep\.sweepDueForLobbyMs\(\{ nowMs: Date\.now\(\) \}\)\),/);
+  assert.doesNotMatch(region(create, 'rootBatch.set(roomRef, {', 'rootBatch.set(privateRef, {', 'the room'), /serverSweepDueAt/, 'never on the room the class listens to');
   const close = region(index, 'async function closeLiveChallengeRoundForRoom(', '\n}\n', 'the close');
   assert.match(close, /serverSweepDueAt: liveChallengeSweepDate\(engine\.serverSweep\.sweepDueAfterCloseMs\(\{ nowMs \}\)\)/);
   const finalization = region(index, 'function applyLiveChallengeMatchFinalization(', '\n}\n', 'the finalization');
@@ -245,19 +370,25 @@ test("the console's calibration is the host heartbeat, and a student added mid-g
   }
 });
 
-test('LC05: a teacher who comes back to a game the server ended reads why it is over', () => {
+test('LC05, N73: a teacher who comes back to a game the server ended, or a lobby it cancelled, reads why', () => {
   const note = hostEndedNote({ status: 'finished', endedBy: HOST_AWAY_ENDED_BY });
   assert.match(note, /no teacher screen was open for 30 minutes/);
   assert.match(note, /Answers students gave still count/);
-  // A game the teacher ended (or one from before the field) says nothing more.
-  for (const room of [{ status: 'finished' }, { status: 'finished', endedBy: 'teacher' }, {}, null]) {
+  // A lobby the server cancelled says so, and claims no answers.
+  const lobbyNote = hostEndedNote({ status: 'cancelled', endedBy: HOST_AWAY_ENDED_BY });
+  assert.match(lobbyNote, /cancelled this lobby because no teacher screen was open for 30 minutes before the game started/);
+  assert.doesNotMatch(lobbyNote, /Answers/);
+  // A game the teacher ended or cancelled (or one from before the field) says nothing more.
+  for (const room of [{ status: 'finished' }, { status: 'finished', endedBy: 'teacher' }, { status: 'cancelled' }, {}, null]) {
     assert.equal(hostEndedNote(room), null, JSON.stringify(room));
   }
-  // The finish records exactly the value the console reads.
+  // The finish and the cancel record exactly the value the console reads.
   const room = executableSource(region(index, 'async function sweepLiveChallengeRoom(', 'async function sweepOverdueLiveChallengeRooms(', 'one room'));
   assert.match(room, /endedBy: serverSweep\.HOST_AWAY_ENDED_BY,/);
-  // And the console prints it in the finished game's panel.
+  // And the console prints it in the finished game's panel and the cancelled one's.
   const teacher = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeTeacher.jsx', import.meta.url), 'utf8');
   const finished = region(teacher, '{finished && (', '{cancelled && (', 'the finished panel');
   assert.match(finished, /\{hostEndedNote\(room\) && <p[^>]*>\{hostEndedNote\(room\)\}<\/p>\}/);
+  const cancelledPanel = region(teacher, '{cancelled && (', '<details', 'the cancelled panel');
+  assert.match(cancelledPanel, /\{hostEndedNote\(room\) && <p[^>]*>\{hostEndedNote\(room\)\}<\/p>\}/);
 });

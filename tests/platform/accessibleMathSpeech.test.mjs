@@ -78,13 +78,18 @@ test('a division whose denominator carries a sign is "over negative"', () => {
 // of 3". Signed or not, the whole word is the denominator.
 test('a word denominator is read whole, with or without a sign', () => {
   const cases = [
-    ['1/-sin(x)', '1 over negative sin times the quantity x', '1 sobre negativo sin por la cantidad x'],
+    // sin(x) is "sine of x" (platform-polish-3, readAloudSlips.test.mjs);
+    // the word denominator is still read whole.
+    ['1/-sin(x)', '1 over negative sine of x', '1 sobre negativo seno de x'],
     ['3 / -sqrt(2)', '3 over negative the square root of 2', '3 sobre negativo la raíz cuadrada de 2'],
     ['x/-√2', 'x over negative the square root of 2', 'x sobre negativo la raíz cuadrada de 2'],
     ['2/-pi', '2 over negative pi', '2 sobre negativo pi'],
-    ['1/-ln(x)', '1 over negative ln times the quantity x', '1 sobre negativo ln por la cantidad x'],
+    // ln(x) was "ln times the quantity x", a product. It is "natural log of
+    // x" (math-speech-2, readAloudNotation.test.mjs); the word denominator
+    // is still read whole, which is what this case is here for.
+    ['1/-ln(x)', '1 over negative natural log of x', '1 sobre negativo logaritmo natural de x'],
     ['4/-abs(x)', '4 over negative abs times the quantity x', '4 sobre negativo abs por la cantidad x'],
-    ['1/sin(x)', '1 over sin times the quantity x', '1 sobre sin por la cantidad x'],
+    ['1/sin(x)', '1 over sine of x', '1 sobre seno de x'],
     ['2/sqrt(3)', '2 over the square root of 3', '2 sobre la raíz cuadrada de 3'],
     ['1/|b|', '1 over the absolute value of b', '1 sobre el valor absoluto de b'],
   ];
@@ -94,7 +99,8 @@ test('a word denominator is read whole, with or without a sign', () => {
   }
   // Prose the platform really shows (a lesson's hint and step).
   assert.equal(speechTextFor('Multiply a radian measure by $180/\\pi$ to express it in degrees.'), 'Multiply a radian measure by 180 over pi to express it in degrees.');
-  assert.equal(speechTextFor('Then use logarithms: $x=\\ln3/\\ln2$.'), 'Then use logarithms: x equals ln 3 over ln 2.');
+  // \ln is "natural log of", as ln(x) is (math-speech-2).
+  assert.equal(speechTextFor('Then use logarithms: $x=\\ln3/\\ln2$.'), 'Then use logarithms: x equals natural log of 3 over natural log of 2.');
   // A one-letter denominator is still one letter.
   assert.equal(mathToSpeech('x/y'), 'x over y');
   assert.equal(mathToSpeech('3/-x'), '3 over negative x');
@@ -188,7 +194,8 @@ test('cancellable algebra terms are named in words and keep the keyboard focus r
 // substitution-browser CI (PR #454): "x equals 2~ y" and "the quantity minus 3".
 test('LaTeX spacing is silent and a sign that opens a bracket is a negative', () => {
   assert.equal(mathToSpeech('x = 2~y - 3'), 'x equals 2 y minus 3');
-  assert.equal(mathToSpeech('3(-3 + 2y) + 5y = 24'), '3 times the quantity negative 3 plus 2y plus 5y equals 24');
+  // Where the quantity closes is said when more follows (math-speech-2, item 10).
+  assert.equal(mathToSpeech('3(-3 + 2y) + 5y = 24'), '3 times the quantity negative 3 plus 2y end quantity plus 5y equals 24');
 });
 
 // A bracket after an operator word opens a quantity; only a number, a letter
@@ -197,7 +204,8 @@ test('a bracket after an operator is a quantity, not a product', () => {
   assert.equal(mathToSpeech('x = (2 + 1)'), 'x equals the quantity 2 plus 1');
   assert.equal(mathToSpeech('3 * (x + 1)'), '3 times the quantity x plus 1');
   assert.equal(mathToSpeech('3 ÷ (x + 1)'), '3 divided by the quantity x plus 1');
-  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x plus the quantity 2');
+  // The bars' end is said when more follows, one term too (math-speech-2, item 11).
+  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x end absolute value plus the quantity 2');
   assert.equal(mathToSpeech('2(x + 1)'), '2 times the quantity x plus 1');
   assert.equal(mathToSpeech('x^2(x+1)'), 'x squared times the quantity x plus 1');
   assert.equal(mathToSpeech('x + (2 - x)', { language: 'es' }), 'x más la cantidad 2 menos x');

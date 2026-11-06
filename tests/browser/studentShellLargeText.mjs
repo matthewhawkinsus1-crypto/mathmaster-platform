@@ -6,11 +6,19 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize] [--only=<screen id,…>]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader,obscured] [--only=<screen id,…>] [--teacher] [--shard=<i>/<n>]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
  *          the end, no focused control under the sticky action bar (2.4.11).
+ * obscured WCAG 2.2 2.4.11 (Focus Not Obscured, Minimum) on every student
+ *          scene below, at 1366×768 and 390×844 (a touch phone), and in Work
+ *          View with each of its drawers open in turn, My Math Path's session
+ *          and a DOL Recovery assessment (hostAccessibility.html): the Tab walk
+ *          of the teacher screens (accessibilityKeyboardReach.mjs) goes through
+ *          each, then Shift+Tab walks it back, and a stop with 3 or more of its
+ *          5 sample points under something the page drew fails. Its own job in
+ *          CI. Not in the default set.
  * text     WCAG 1.4.4 / 1.4.10 / 1.4.12: every scene at 200% browser text size
  *          (Chromium's default font size 16 → 32, what the text-size setting
  *          changes) at 1366×768 and 390×844, and at 320 CSS px wide: no
@@ -26,6 +34,20 @@
  *          text, both viewports, screenshotted to --shots=<dir>; with
  *          --compare=<dir> (shots taken before the change) each pair is
  *          diffed pixel by pixel and any difference fails.
+ * workviewheader  The Work View header at large text on a phone (task text, Task, Help,
+ *          Close): at 150-200% text on 360 and 390 px the buttons no longer sit on
+ *          each other. Below 22em the buttons wrap onto their own row under the
+ *          whole task, each at least 44 px; on a laptop, and on a phone at 100%,
+ *          the header is one row, as it was. Not in the default set.
+ * Fonts: CI draws system-ui in DejaVu Sans, wider than Inter. Where system-ui is Inter, run with
+ *          FONTCONFIG_FILE="$PWD/tests/browser/support/ciFonts.conf" (an absolute path) to measure what CI measures.
+ * --teacher  (TT27) Run the text and targetsize checks over every TEACHER_SCREENS scene of the accessibility
+ *          certification (48 scenes: the real app signed in as the synthetic teacher, on the school's clock)
+ *          instead of the student scenes. CI runs it in jobs of its own (browser-teacher-large-text (1/3) to (3/3)).
+ * --shard=i/n  Only the i-th of n slices of the screens a check walks (after --only): whole screens, since a screen's
+ *          scenes share a page and each starts where the last one left it, cut so the slices are about even
+ *          (support/sceneShards.mjs). The checks that walk no list (targets, s5, workviewheader) run in the first
+ *          slice, so the n slices together run what one run does. Not with --compare.
  * targetsize  WCAG 2.2 2.5.8 (Target Size, Minimum): every pointer target on
  *          every student scene (not the teacher's), at 1366×768 and 390×844,
  *          is 24×24 CSS px or more, or has the room the spacing exception asks
@@ -37,16 +59,28 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync } from 'node:fs';
-import { SCREENS, sceneLabel } from './accessibilityCertification.mjs';
+import { SCREENS, sceneLabel, newScreenContext } from './accessibilityCertification.mjs';
+import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
+import { parseShard, shardOf } from './support/sceneShards.mjs';
+import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
+import { hiddenUnderOverlay } from '../../scripts/lib/keyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/large-text');
 mkdirSync(artifacts, { recursive: true });
 const arg = (name) => process.argv.find((entry) => entry.startsWith(`--${name}=`))?.slice(name.length + 3) || null;
 const CHECKS = new Set((arg('check') || 'targets,s5,text').split(','));
+// --teacher: run the sweep over every teacher screen of the accessibility certification (TT27) instead of the
+// student scenes. The text and targetsize checks both honour it.
+const TEACHER_SWEEP = process.argv.includes('--teacher');
 const ONLY = new Set((arg('only') || '').split(',').filter(Boolean));
+// --shard=i/n: CI's teacher sweep runs in three jobs, each a third of the screens (runScenes, below).
+const SHARD = parseShard(arg('shard'));
+if (SHARD && SHARD.index > 1) ['targets', 's5', 'workviewheader'].forEach((check) => CHECKS.delete(check));
+// --compare reads every shot of the list, and a slice takes only its own.
+if (SHARD && arg('compare')) throw new Error('--compare needs the shots of the whole list: run it without --shard');
 const origins = {
   app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
   audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -63,11 +97,12 @@ const report = [];
 
 const applyTextScale = async (page) => {
   if (!page.__cdp || page.__textScale === 1) return;
-  await page.__cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * page.__textScale, fixed: 13 * page.__textScale } });
+  await page.__cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * page.__textScale, fixed: Math.round(13 * page.__textScale) } });
 };
 
-const newPage = async ({ width, height, mobile = false, textScale = 1, fixedTime = null }) => {
-  const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, colorScheme: 'light', reducedMotion: 'reduce' });
+const newPage = async ({ width, height, mobile = false, textScale = 1, fixedTime = null }, screen = null) => {
+  const contextOptions = { viewport: { width, height }, isMobile: mobile, hasTouch: mobile, colorScheme: 'light', reducedMotion: 'reduce' };
+  const context = await (screen ? newScreenContext(browser, screen, contextOptions) : browser.newContext(contextOptions));
   await context.route('**/*', (route) => {
     const url = route.request().url();
     if (/^(https?|wss?):\/\/(localhost|127\.0\.0\.1)[:/]/.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
@@ -97,6 +132,12 @@ const MEASURE = (rootSelector) => {
   const visible = (element) => {
     const style = getComputedStyle(element);
     if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0) return false;
+    // What a closed <details> holds is not on screen, though Chromium still reports a box for it
+    // (the schedule's "Special bell schedule" read as text cut by its card). Its summary is.
+    for (let node = element; node && node !== document.body; node = node.parentElement) {
+      if (node.tagName === 'SUMMARY') break;
+      if (node.parentElement?.tagName === 'DETAILS' && !node.parentElement.open) return false;
+    }
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   };
@@ -320,10 +361,68 @@ export const LARGE_TEXT_SCREENS = [
   },
 ];
 
-const runScenes = async (setting, callback) => {
-  for (const screen of LARGE_TEXT_SCREENS) {
+// 2.4.11 where the screens above do not go (--check=obscured). Work View on
+// three tools whose work outgrows the view (a plane, a table, Step Algebra):
+// the check walks the view, then each drawer its header offers, one at a time.
+// And the QuestionEngine hosts that are not the assignment screen, as
+// hostAccessibility.mjs opens them: My Math Path's session (a tool question,
+// one with number boxes, and its own renderer) and a DOL Recovery assessment.
+const workViewQuestion = (questionId) => async (page, origins, state) => {
+  // The scenes share a page: the last one's view is closed first.
+  await page.evaluate(() => [...document.querySelectorAll('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button')]
+    .find((button) => button.textContent.trim().startsWith('Close'))?.click());
+  await toolQuestion(questionId)(page, origins, state);
+  await page.locator('button:visible', { hasText: /Open Work View/ }).first().click();
+  await page.waitForSelector('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header', { timeout: 30_000 });
+  await page.waitForTimeout(800);
+};
+const sessionHost = (query) => async (page, origins) => {
+  await page.goto(`${origins.audit}/tests/browser/hostAccessibility.html?${query}`, { waitUntil: 'networkidle', timeout: 180_000 });
+  await page.waitForSelector('[data-host-sentinel="end"]', { timeout: 60_000 });
+  // The harness's own two buttons around the session are not the student's.
+  await page.evaluate(() => document.querySelectorAll('[data-host-sentinel]').forEach((button) => { button.tabIndex = -1; }));
+  await page.waitForTimeout(900);
+};
+export const FOCUS_SCREENS = [
+  {
+    id: 'work-view',
+    workView: true,
+    scenes: [
+      { id: 'graphing', run: workViewQuestion('ux-graph2') },
+      { id: 'table-workbench', run: workViewQuestion('ux-ltw') },
+      { id: 'step-algebra', run: workViewQuestion('ux-step') },
+    ],
+  },
+  {
+    id: 'session-hosts',
+    scenes: [
+      { id: 'path-data-modeling', run: sessionHost('scene=path-tool&tool=dataModelingLab') },
+      { id: 'path-step-algebra', run: sessionHost('scene=path-tool&tool=stepAlgebra2') },
+      { id: 'path-choices', run: sessionHost('scene=path-generic&kind=practice') },
+      { id: 'recovery', run: sessionHost('scene=recovery') },
+    ],
+  },
+];
+
+// With --shard, the screens of this run's slice of whichever list a check walks, said once per list.
+const slices = new Map();
+const inShard = (screens, screen) => {
+  const listed = screens.filter((entry) => !ONLY.size || ONLY.has(entry.id));
+  const key = listed.map((entry) => entry.id).join(',');
+  if (!slices.has(key)) {
+    const slice = shardOf(listed, SHARD);
+    const scenes = (list) => list.reduce((sum, entry) => sum + entry.scenes.length, 0);
+    console.log(`shard ${SHARD.index}/${SHARD.count}: ${slice.length} of ${listed.length} screens, ${scenes(slice)} of ${scenes(listed)} scenes (${slice.map((entry) => entry.id).join(', ') || 'none'})`);
+    slices.set(key, new Set(slice));
+  }
+  return slices.get(key).has(screen);
+};
+
+const runScenes = async (setting, callback, screens = TEACHER_SWEEP ? TEACHER_SCREENS : LARGE_TEXT_SCREENS) => {
+  for (const screen of screens) {
     if (ONLY.size && !ONLY.has(screen.id)) continue;
-    const { context, page } = await newPage(setting);
+    if (SHARD && !inShard(screens, screen)) continue;
+    const { context, page } = await newPage(setting, screen);
     try {
       if (screen.open) await screen.open(page, origins);
       let first = true;
@@ -549,7 +648,7 @@ if (CHECKS.has('targetsize')) {
   const sizeReport = [];
   for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
     await runScenes(setting, async (page, label, screen) => {
-      if (screen.id === 'teacher') return;
+      if (screen.id === 'teacher') return; // the two older teacher scenes; the --teacher sweep measures all of them
       const result = smallTargetsOf(await page.evaluate(collectTargetBoxes, { rootSelector: 'body' }));
       sizeReport.push({ label, setting: setting.id, ...result });
       console.log(`${result.failing.length || !result.measured ? 'FAIL' : 'ok  '} targets ${label.padEnd(30)} ${setting.id.padEnd(10)} measured=${result.measured} under24=${result.undersized} bySpacing=${result.bySpacing} crowded=${result.failing.length}`);
@@ -561,6 +660,189 @@ if (CHECKS.has('targetsize')) {
     });
   }
   writeFileSync(path.join(artifacts, 'target-size.json'), JSON.stringify(sizeReport, null, 2));
+}
+
+// WCAG 2.2 2.4.11 (Focus Not Obscured, Minimum) on the student's screens: the
+// teacher screens' Tab walk (accessibilityKeyboardReach.mjs, its rule
+// mm-focus-obscured: 3 or more of a stop's 5 sample points under something
+// that is neither the control, inside it nor around it) through every scene
+// at both sizes. Work View is walked as it opens and then with each drawer of
+// its header open in turn. The walk's other rules are the certification's
+// business and are not judged here. The teacher's screens are walked there.
+if (CHECKS.has('obscured')) {
+  const focusReport = [];
+  const walk = async (page, label, settingId, include) => {
+    const result = await auditKeyboardReach(page, { name: label, viewport: settingId, include });
+    const entries = Object.entries(result.details).filter(([key]) => key.endsWith('|mm-focus-obscured'));
+    const count = entries.reduce((sum, [key]) => sum + (result.counts[key] || 0), 0);
+    const covered = entries.flatMap(([, entry]) => entry.examples.map((example) => `${example.target} (${example.summary})`));
+    const back = await walkBack(page);
+    focusReport.push({ label, setting: settingId, stops: result.summary.stops, stopNames: result.summary.stopNames, covered, backStops: back.stops, backCovered: back.hidden });
+    console.log(`${count || back.hidden.length ? 'FAIL' : 'ok  '} obscured ${label.padEnd(40)} ${settingId.padEnd(10)} stops=${result.summary.stops} covered=${count} back=${back.stops} coveredBack=${back.hidden.length}`);
+    if (count) failures.push(`${label} ${settingId}: ${count} focused control(s) under something the page drew (WCAG 2.4.11): ${covered.join('; ')}`);
+    if (back.hidden.length) failures.push(`${label} ${settingId}: walking back with Shift+Tab, ${back.hidden.length} focused control(s) under something the page drew (WCAG 2.4.11): ${back.hidden.join('; ')}`);
+    if (!back.stops) failures.push(`${label} ${settingId}: walking back with Shift+Tab reached no control, so nothing was measured`);
+  };
+  // The walk goes forward only, and a bar at the top of a screen hides what
+  // focus scrolls UP into view: Shift+Tab up Grades left "See results" under
+  // the identity bar. So each scene is walked back too, from its end to its
+  // start (round a dialog, or round an exam that keeps focus in itself, until
+  // a stop comes again), sampled at the walk's five points and judged by its
+  // own rule (scripts/lib/keyboardReach.mjs, hiddenUnderOverlay).
+  const BACK_STOP = () => {
+    const el = document.activeElement;
+    if (!el || el === document.body || el === document.documentElement || 'mmBackSentinel' in el.dataset) return { done: true };
+    if ('mmBackSeen' in el.dataset) return { done: true };
+    el.dataset.mmBackSeen = '';
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { name: el.tagName, sampled: 0, covered: 0 };
+    const inset = Math.min(6, rect.width / 4, rect.height / 4);
+    const round = el instanceof SVGElement && el.localName !== 'svg';
+    const points = (round
+      ? [[rect.left + rect.width / 2, rect.top + rect.height / 2]]
+      : [[rect.left + rect.width / 2, rect.top + rect.height / 2], [rect.left + inset, rect.top + inset], [rect.right - inset, rect.top + inset], [rect.left + inset, rect.bottom - inset], [rect.right - inset, rect.bottom - inset]])
+      .filter(([x, y]) => x >= 0 && y >= 0 && x < innerWidth && y < innerHeight);
+    let covered = 0;
+    let by = null;
+    for (const [x, y] of points) {
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
+      covered += 1;
+      by = by || `${hit.localName}${hit.classList?.[0] ? `.${hit.classList[0]}` : ''}`;
+    }
+    return { name: (el.getAttribute('aria-label') || el.textContent || el.localName).replace(/\s+/g, ' ').trim().slice(0, 40), sampled: points.length, covered, by };
+  };
+  const walkBack = async (page) => {
+    await page.evaluate(() => {
+      document.activeElement?.blur?.();
+      const modal = [...document.querySelectorAll('[aria-modal="true"], dialog[open]')].filter((node) => node.getClientRects().length).pop();
+      const end = document.createElement('button');
+      end.type = 'button';
+      end.dataset.mmBackSentinel = '';
+      end.setAttribute('aria-hidden', 'true');
+      end.style.cssText = 'position:fixed;bottom:0;right:0;width:1px;height:1px;opacity:0.01;pointer-events:none;';
+      (modal || document.body).appendChild(end);
+      end.focus({ preventScroll: true });
+    });
+    const hidden = [];
+    let stops = 0;
+    for (let index = 0; index < 400; index += 1) {
+      await page.keyboard.press('Shift+Tab');
+      // After the app's own reveals, which run a frame after focus moves.
+      await page.evaluate(() => new Promise((resolve) => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
+      const stop = await page.evaluate(BACK_STOP);
+      if (stop.done) break;
+      stops += 1;
+      if (hiddenUnderOverlay(stop)) hidden.push(`${stop.name} (under ${stop.by})`);
+    }
+    await page.evaluate(() => {
+      document.querySelectorAll('[data-mm-back-sentinel]').forEach((node) => node.remove());
+      document.querySelectorAll('[data-mm-back-seen]').forEach((node) => { delete node.dataset.mmBackSeen; });
+      document.activeElement?.blur?.();
+    });
+    return { stops, hidden };
+  };
+  const DRAWER_BUTTONS = '[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button[aria-expanded]';
+  for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
+    await runScenes(setting, async (page, label, screen) => {
+      if (screen.id === 'teacher') return;
+      if (!screen.workView) { await walk(page, label, setting.id, [].concat(screen.include || [])[0] || null); return; }
+      await walk(page, label, setting.id, null);
+      const drawers = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((button) => button.textContent.trim()), DRAWER_BUTTONS);
+      if (!drawers.length) failures.push(`${label} ${setting.id}: Work View's header offers no drawer, so none was walked`);
+      for (const [index, name] of drawers.entries()) {
+        const toggle = (at) => page.evaluate(({ selector, at: which }) => document.querySelectorAll(selector)[which].click(), { selector: DRAWER_BUTTONS, at });
+        await toggle(index);
+        await page.waitForTimeout(600);
+        await walk(page, `${label}/${name}`, setting.id, null);
+        await toggle(index);
+        await page.waitForTimeout(300);
+      }
+    }, [...LARGE_TEXT_SCREENS, ...FOCUS_SCREENS]);
+  }
+  writeFileSync(path.join(artifacts, 'focus-obscured.json'), JSON.stringify(focusReport, null, 2));
+}
+
+// The Work View header's buttons never collide with each other or the task
+// (student walkthrough, large text on a phone). Measured in the Work View
+// harness's real QuestionEngine, with a task long enough to want the room.
+if (CHECKS.has('workviewheader')) {
+  const sortTask = {
+    id: 'wv-header-sort', type: 'openSortBoard', mode: 'controlled',
+    prompt: 'Real nth roots. Sort each set of roots by how many REAL roots it has. Use the index (even or odd) and the sign of the radicand. Then give a reason for each group.',
+    categories: [{ id: 'even', label: 'Even' }, { id: 'odd', label: 'Odd' }],
+    items: [{ id: 'a', label: 'Card A', text: 'The number 2' }, { id: 'b', label: 'Card B', text: 'The number 3' }, { id: 'c', label: 'Card C', text: 'The number 4' }],
+    validSchemes: [{ id: 'answer', groups: [{ id: 'even', itemIds: ['a', 'c'] }, { id: 'odd', itemIds: ['b'] }] }],
+  };
+  const measureHeader = () => {
+    const header = document.querySelector('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header');
+    if (!header) return null;
+    const box = (element) => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, w: rect.width, h: rect.height }; };
+    const heading = header.querySelector('.mathmaster-work-view-heading');
+    return {
+      viewport: window.innerWidth,
+      emPx: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      header: box(header),
+      heading: box(heading),
+      buttons: [...header.querySelectorAll(':scope > button')].map((button) => ({ name: button.textContent.trim(), ...box(button), clippedX: button.scrollWidth - button.clientWidth })),
+    };
+  };
+  const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+  for (const setting of [
+    { id: 'laptop-100%', width: 1366, height: 768, textScale: 1, expect: 'row' },
+    { id: 'laptop-200%', width: 1366, height: 768, textScale: 2, expect: 'row' },
+    { id: 'phone-360-100%', width: 360, height: 640, mobile: true, textScale: 1, expect: 'row' },
+    { id: 'phone-390-100%', width: 390, height: 844, mobile: true, textScale: 1, expect: 'row' },
+    { id: 'phone-360-150%', width: 360, height: 640, mobile: true, textScale: 1.5, expect: 'wrapped' },
+    { id: 'phone-360-200%', width: 360, height: 640, mobile: true, textScale: 2, expect: 'wrapped' },
+    { id: 'phone-390-150%', width: 390, height: 844, mobile: true, textScale: 1.5, expect: 'wrapped' },
+    { id: 'phone-390-200%', width: 390, height: 844, mobile: true, textScale: 2, expect: 'wrapped' },
+  ]) {
+    if (ONLY.size && !ONLY.has('workviewheader')) continue;
+    const { context, page } = await newPage(setting);
+    const label = `work view header ${setting.id}`;
+    try {
+      await page.goto(`${origins.audit}/tests/browser/workViewMatrix.html`, { waitUntil: 'load', timeout: 180_000 });
+      await page.waitForFunction(() => typeof window.__mmWorkView === 'function', null, { timeout: 180_000 });
+      await page.evaluate((question) => window.__mmWorkView({ id: question.id, question }), sortTask);
+      await page.waitForSelector(`[data-scene-id="${sortTask.id}"]`, { timeout: 60_000 });
+      await page.waitForTimeout(800);
+      await applyTextScale(page);
+      await page.evaluate(() => {
+        if (document.querySelector('.mathmaster-work-view-host[data-open="true"]')) return;
+        [...document.querySelectorAll('button')].filter((button) => button.getBoundingClientRect().width > 0).find((button) => /enlarge|work view/i.test(button.textContent || ''))?.click();
+      });
+      await page.waitForSelector('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header', { timeout: 30_000 });
+      await page.waitForTimeout(800);
+      const view = await page.evaluate(measureHeader);
+      const problems = [];
+      if (!view.buttons.some((button) => /^Task$/.test(button.name)) || !view.buttons.some((button) => /^Help$/.test(button.name)) || !view.buttons.some((button) => /^Close/.test(button.name))) {
+        problems.push(`the header lacks Task, Help or Close (${view.buttons.map((button) => button.name).join(', ')})`);
+      }
+      if (setting.textScale > 1 && view.emPx < 16 * setting.textScale - 1) problems.push(`the text-size setting did not apply (root ${view.emPx}px); the measurement is void`);
+      const parts = [{ name: 'task', ...view.heading }, ...view.buttons];
+      parts.forEach((a, i) => parts.slice(i + 1).forEach((b) => { if (overlaps(a, b)) problems.push(`"${a.name}" and "${b.name}" overlap`); }));
+      view.buttons.forEach((button) => {
+        if (button.h < 43.5 || button.w < 43.5) problems.push(`"${button.name}" is ${Math.round(button.w)}x${Math.round(button.h)}, under 44`);
+        // Only where the buttons have their own row. Beside the task, as on a
+        // laptop and a 100% phone, they keep the squeeze they always had (a
+        // label can run a few px past its box at 200% on a laptop): that row is
+        // held to "nothing overlaps and nothing moved", not made roomier.
+        if (setting.expect === 'wrapped' && button.clippedX > 1) problems.push(`"${button.name}" label runs ${Math.round(button.clippedX)}px past its button`);
+        if (button.right > view.viewport + 0.5 || button.left < -0.5) problems.push(`"${button.name}" is past the screen edge`);
+      });
+      const under = view.buttons.every((button) => button.top >= view.heading.bottom - 1);
+      const beside = view.buttons.every((button) => button.left >= view.heading.right - 1);
+      if (setting.expect === 'wrapped' && !under) problems.push('the buttons are not on their own row under the task');
+      if (setting.expect === 'wrapped' && view.heading.w < view.viewport * 0.85) problems.push(`the task has ${Math.round(view.heading.w)}px of ${view.viewport}px: it should have the whole row`);
+      if (setting.expect === 'row' && !beside) problems.push('the buttons left the task\'s row, where they have always been');
+      console.log(`${problems.length ? 'FAIL' : 'ok  '} ${label.padEnd(36)} ${setting.expect.padEnd(8)} task ${Math.round(view.heading.w)}px wide, header ${Math.round(view.header.h)}px tall, buttons ${view.buttons.map((button) => `${button.name.replace(/ ✕/, '')} ${Math.round(button.w)}x${Math.round(button.h)}`).join(', ')}`);
+      problems.forEach((problem) => failures.push(`${label}: ${problem}`));
+    } catch (error) {
+      failures.push(`${label}: could not measure — ${error.message.split('\n')[0]}`);
+    }
+    await context.close();
+  }
 }
 
 await browser.close();

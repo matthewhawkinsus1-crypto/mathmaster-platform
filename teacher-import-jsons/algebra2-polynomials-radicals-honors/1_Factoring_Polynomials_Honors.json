@@ -786,9 +786,9 @@
               "type": "choice",
               "options": [
                 "a⁴ + 4a² + 16 is not prime: it is the product of the two quadratic factors from the squares-first method, so both methods agree",
-                "a⁴ + 4a² + 16 is prime, so the two methods give different complete factorizations",
-                "Cubes first is not allowed because 64 is not a perfect cube",
-                "A polynomial can have two different complete factorizations, so both are right"
+                "a⁴ + 4a² + 16 is prime: no two integers multiply to 16 and add to 4, so the two methods give different complete factorizations",
+                "a⁴ + 4a² + 16 is the perfect square (a² + 4)², so cubes first gives (a − 2)(a + 2)(a² + 4)²",
+                "A polynomial can have two different complete factorizations: both answers start with (a − 2)(a + 2), so both are right"
               ],
               "answer": "a⁴ + 4a² + 16 is not prime: it is the product of the two quadratic factors from the squares-first method, so both methods agree"
             },
@@ -872,9 +872,9 @@
               "type": "choice",
               "options": [
                 "Jordan’s trinomial is (2x + 3)², but a sum of cubes needs a² − ab + b²",
-                "The binomial should be 2x − 3",
-                "27 is not a perfect cube, so 8x³ + 27 is prime",
-                "Nothing: different values at x = 1 are allowed"
+                "The binomial should be 2x − 3: a sum of cubes is (a − b)(a² + ab + b²)",
+                "27 is not a perfect cube, so 8x³ + 27 cannot be factored at all",
+                "Nothing: both forms give 27 at x = 0, so the factorization checks out"
               ],
               "answer": "Jordan’s trinomial is (2x + 3)², but a sum of cubes needs a² − ab + b²"
             },
@@ -2126,9 +2126,9 @@
               "type": "choice",
               "options": [
                 "n − 1, n and n + 1 are three consecutive integers: one is a multiple of 3 and at least one is even",
-                "n³ − n is always even, and every even number is divisible by 6",
-                "6 divides n³ for every integer n",
-                "n − 1 and n + 1 are always both even"
+                "n³ and n are both odd or both even, so n³ − n is even, and every even number is divisible by 6",
+                "n − 1, n and n + 1 are three consecutive integers, so one of them is a multiple of 6",
+                "6 divides n³ and n for every integer n, so it divides their difference n³ − n"
               ],
               "answer": "n − 1, n and n + 1 are three consecutive integers: one is a multiple of 3 and at least one is even"
             },

@@ -803,7 +803,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
 
           {/* 8px into the card's own padding on each side: the columns need the
               room, and the cells' padding keeps the text clear of the border. */}
-          <div ref={scrollerRef} style={{ overflowX: 'auto', margin: '12px -8px 0' }}>
+          <div ref={scrollerRef} role="region" aria-label="Test cycle progress by student" tabIndex={0} style={{ overflowX: 'auto', margin: '12px -8px 0' }}>
             {/* On a teacher's laptop the page is 1126px wide whatever the
                 screen, and with the sidebar open this box is 790px. The ten
                 columns are kept to that: a wider table hides Recorded, the
@@ -818,7 +818,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                   {columns.map((heading) => (
                     <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                       {heading === 'Student' && !external ? (
-                        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        // 24 CSS px tall, as a pointer target needs (WCAG 2.5.8; TT27, fifth slice): it was 23.2.
+                        <label style={{ display: 'flex', gap: 6, alignItems: 'center', minHeight: 24 }}>
                           <input
                             type="checkbox"
                             aria-label="Select every student shown"

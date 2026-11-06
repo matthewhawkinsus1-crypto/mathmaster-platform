@@ -6,12 +6,26 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 51,
+  "familyCount": 73,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
       "label": "Algebra I",
       "families": [
+        {
+          "familyId": "absoluteValue.analyzeTransformed",
+          "familyTitle": "Analyze a reflected, stretched and translated absolute value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Analyzing a transformed absolute value function is Algebra II content (A2.6C); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.6C is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Analyzing a transformed absolute value function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
         {
           "familyId": "absoluteValue.solveEquation",
           "familyTitle": "Absolute value equation",
@@ -39,6 +53,104 @@
           "reason": "It substitutes one given value into each side of a linear equation with the variable on both sides and asks whether the two values agree; the value and the equation are the whole task, so no deeper reasoning can be generated.",
           "missingCapability": "A `solutionCase: \"none\" | \"infinite\"` knob (an equation that no value, or every value, satisfies) with a server-marked part asking what the check shows about every other value.",
           "teacherReason": "MathMaster's solution-check generator only asks whether one given value works, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "exponential.sortGrowthDecay",
+          "familyTitle": "Sort exponential graphs by growth or decay",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version sorts three growth and three decay curves a·bˣ by direction in one window; the remaining levers are other starts and bases, which are not rigor.",
+          "missingCapability": "Growth and decay told from a table, an equation or a situation, with the growth or decay rate named, so the student explains the base rather than the curve's direction.",
+          "teacherReason": "MathMaster's growth-and-decay generator only sorts curves by direction, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.composeQuadraticLinear",
+          "familyTitle": "Compose a quadratic and a linear function both ways",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Composing functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Composing functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.compositionFromValues",
+          "familyTitle": "Evaluate a composition f(g(a)) from function values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Composing functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Composing functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.conjugateProductQuotient",
+          "familyTitle": "The product of x + p and x − p, and the input their quotient excludes",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Operations on functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Operations on functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.domainRangeFromGraph",
+          "familyTitle": "State the domain and range of a graphed parabola or absolute value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing a graphed domain and range in interval notation is Algebra II content (A2.7I); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7I is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Writing a graphed domain and range in interval notation is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.familySortFromGraphs",
+          "familyTitle": "Sort graphs into the linear, quadratic and exponential families",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version sorts two lines, a parabola and an exponential growth curve by family in one window; it is a recognition warm-up, and the remaining levers are other curves, which are not rigor.",
+          "missingCapability": "Families told apart from a table or an equation as well as a graph, with curves that look alike near the origin, so the student reasons from rates of change rather than from shape alone.",
+          "teacherReason": "MathMaster's graph-sort generator only draws one curve of each kind, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.fillingTankAttributes",
+          "familyTitle": "The attributes of a tank filled at a steady rate",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "A situation's domain and range is taught in Algebra I too (A.2A), but this family is aligned to Algebra II's A2.7I, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.2A) — a sibling family within Algebra I's limits — so an Algebra I Honors task on domain and range in context can anchor on it.",
+          "teacherReason": "MathMaster's generator for domain and range in context is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
         },
         {
           "familyId": "functions.identifyIntercepts",
@@ -99,6 +211,76 @@
           "reason": "Zeros are always two distinct integers of a quadratic with leading coefficient ±1 or ±2, entered as two numbers; \"small\" leading coefficients only add a common factor of 2.",
           "missingCapability": "`zeroForm: \"rational\"` (zeros p/q from a non-unit leading coefficient, factored as (ax + p)(x + q)) and `zeroForm: \"irrational\"` (quadratic formula) with fraction and radical answer fields; or a Question Family for polynomialWorkshop mode \"factorQuadratic\" (the workshop and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the rational or irrational zeros an Honors extension needs."
+        },
+        {
+          "familyId": "functions.intervalsFromGraph",
+          "familyTitle": "State where a graphed parabola increases, decreases, and is positive and negative",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing where a graphed parabola increases, decreases, and is positive or negative in interval notation is Algebra II content (A2.7I); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7I is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Writing where a graphed parabola increases, decreases, and is positive or negative in interval notation is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.inverseInContext",
+          "familyTitle": "Use the inverse of a linear cost function to find the input for a total",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Inverse functions in context is Algebra II content (A2.2B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2B is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Inverse functions in context is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.inverseOfLinear",
+          "familyTitle": "Find the inverse of a linear function and check it with one value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Inverse functions is Algebra II content (A2.2B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2B is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Inverse functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.pointwiseFromValues",
+          "familyTitle": "Add and subtract two functions at one input, from their values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Operations on functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Operations on functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.swapPairAndEvaluate",
+          "familyTitle": "Swap an ordered pair and evaluate a linear function",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Swapping an ordered pair and evaluating a function is taught in Algebra I too (A.12B), but this family is aligned to Algebra II's A2.7I, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.12B) — a sibling family within Algebra I's limits — so an Algebra I Honors task on ordered pairs and function notation can anchor on it.",
+          "teacherReason": "MathMaster's generator for ordered pairs and function notation is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
         },
         {
           "familyId": "inequalities.contextModel",
@@ -719,6 +901,48 @@
           "teacherReason": "MathMaster's vertex generator only makes whole-number vertices read from a single equation, so it cannot yet ask the fractional-vertex or vertex-from-zeros work an Honors extension needs."
         },
         {
+          "familyId": "quadratics.vertexChoiceFromGraph",
+          "familyTitle": "Choose the vertex of a graphed parabola",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version chooses the vertex of y = ±(x − h)² + k read off its graph, from the vertex, its sign-flipped point and the two x-intercepts; the remaining levers are other parabolas, which are not rigor.",
+          "missingCapability": "The vertex typed, a stretched parabola, and the vertex form written from the graph, so the student reads the graph rather than recognizing a choice.",
+          "teacherReason": "MathMaster's vertex-choice generator only offers the vertex among four points, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "relations.inverseOfSet",
+          "familyTitle": "Find the inverse of a relation given as ordered pairs",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Inverse relations is Algebra II content (A2.2B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2B is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Inverse relations is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "relations.mappingDiagram",
+          "familyTitle": "Map a relation, state its domain and range, and decide whether it is a function",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.",
+          "missingCapability": "A relation given as a graph, a table or a rule to map first (the Mapping Diagram's plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.",
+          "teacherReason": "MathMaster's mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "systems.algebraic2x2",
           "familyTitle": "System of two linear equations (algebraic: one, none or infinitely many)",
           "familyDifficulty": {
@@ -817,6 +1041,62 @@
           "teacherReason": "MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added."
         },
         {
+          "familyId": "transformations.describeEveryChange",
+          "familyTitle": "Describe every change in g(x) = ±f(±B(x − C)) + D",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Describing the transformations of a parent function is Algebra II content (A2.2A); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2A is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Describing the transformations of a parent function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "transformations.describeScaleChange",
+          "familyTitle": "Describe a reflection and a scale by the class rule, g(x) = f(−bx) or −a·f(x) + D",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Describing a reflection and a stretch or compression of a function is taught in Algebra I too (A.3E, A.7C), but this family is aligned to Algebra II's A2.6C, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.3E, A.7C) — a sibling family within Algebra I's limits — so an Algebra I Honors task on reflections and stretches can anchor on it.",
+          "teacherReason": "MathMaster's generator for reflections and stretches is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "transformations.describeTranslations",
+          "familyTitle": "Describe the translations in g(x) = f(x − C) + D",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Describing the translations of a function is taught in Algebra I too (A.3E, A.7C), but this family is aligned to Algebra II's A2.6C, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.3E, A.7C) — a sibling family within Algebra I's limits — so an Algebra I Honors task on translations can anchor on it.",
+          "teacherReason": "MathMaster's generator for translations is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
+          "familyId": "transformations.identifyCubeRoot",
+          "familyTitle": "Read a transformed cube-root graph and determine a, h and k",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Transforming the cube-root parent function is Algebra II content (A2.2A); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2A is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Transforming the cube-root parent function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
           "familyId": "transformations.linearCompareEffects",
           "familyTitle": "Compare horizontal and vertical transformations of f(x) = x",
           "familyDifficulty": {
@@ -857,6 +1137,34 @@
           "reason": "It plots the images of three points under one transformation of f(x) = x at a time; Honors depth combines a shift with a stretch, where the order of the moves matters.",
           "missingCapability": "A `moves: 2` knob that composes a shift with a vertical or horizontal scale (g(x) = a·f(b(x − h)) + k), answered with the same plotted images in the Transformations Lab.",
           "teacherReason": "MathMaster's transformations generator plots one transformation at a time, so it cannot yet build the combined-transformation work a built-in Honors extension needs."
+        },
+        {
+          "familyId": "transformations.mapExponentialPoint",
+          "familyTitle": "Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Mapping a point through a transformed exponential function is Algebra II content (A2.2A); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2A is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Mapping a point through a transformed exponential function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "transformations.matchAbsoluteValue",
+          "familyTitle": "Match a compressed, translated absolute value in the Transformations Lab",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Transforming the absolute value parent function is Algebra II content (A2.6C); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.6C is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Transforming the absolute value parent function is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         }
       ],
       "concepts": [
@@ -965,14 +1273,28 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 8,
-        "BLOCKED": 28,
-        "NOT APPROPRIATE": 11
+        "BLOCKED": 36,
+        "NOT APPROPRIATE": 25
       }
     },
     "algebra2": {
       "courseId": "algebra2",
       "label": "Algebra II",
       "families": [
+        {
+          "familyId": "absoluteValue.analyzeTransformed",
+          "familyTitle": "Analyze a reflected, stretched and translated absolute value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is y = −a|x − h| + k with a whole-number a, analyzed from six sets of three choices; the remaining levers are other whole numbers, which are not rigor.",
+          "missingCapability": "A fractional or positive a, a horizontal factor, and the vertex, range and intercepts typed, so the student works the analysis rather than choosing it.",
+          "teacherReason": "MathMaster's absolute-value generator only offers its analysis as choices, so it cannot yet build a built-in Honors extension."
+        },
         {
           "familyId": "absoluteValue.solveEquation",
           "familyTitle": "Absolute value equation",
@@ -1002,6 +1324,104 @@
           "teacherReason": "Checking a solution of a linear equation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
+          "familyId": "exponential.sortGrowthDecay",
+          "familyTitle": "Sort exponential graphs by growth or decay",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Telling exponential growth from decay on a graph is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Telling exponential growth from decay on a graph is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "functions.composeQuadraticLinear",
+          "familyTitle": "Compose a quadratic and a linear function both ways",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version composes x² + bx + c with mx + n both ways, chosen from four polynomials each; the remaining levers are other coefficients, which are not rigor.",
+          "missingCapability": "The compositions typed, a leading coefficient on f, and the domain of a composition with a root or a quotient, so the student writes the composition rather than choosing it.",
+          "teacherReason": "MathMaster's composition generator only offers its compositions as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.compositionFromValues",
+          "familyTitle": "Evaluate a composition f(g(a)) from function values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version reads f(g(a)) from two given values; it is the readiness check before composition, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task on composition anchors on a family that composes the functions themselves (f∘g and g∘f, and whether they are inverses).",
+          "teacherReason": "MathMaster's function-values generator only chains two given values, so it cannot carry a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.conjugateProductQuotient",
+          "familyTitle": "The product of x + p and x − p, and the input their quotient excludes",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version multiplies x + p by x − p and names the input one of their quotients excludes, chosen from four each; the remaining levers are other values of p, which are not rigor.",
+          "missingCapability": "Products and quotients of other functions, typed, with every excluded input of a quotient whose denominator has two zeros.",
+          "teacherReason": "MathMaster's operations generator only offers one pair of linear functions as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.domainRangeFromGraph",
+          "familyTitle": "State the domain and range of a graphed parabola or absolute value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is an unrestricted parabola or absolute value with a moved vertex, so the domain is always all real numbers and only the range's end moves; the remaining levers are other vertices, which are not rigor.",
+          "missingCapability": "A restricted domain (a closed or half-open interval, as Lesson 1's own restricted line has) and other parents (square root, rational), so the domain and range are both found, not recalled.",
+          "teacherReason": "MathMaster's graphed domain-and-range generator only draws unrestricted parabolas and absolute values, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.familySortFromGraphs",
+          "familyTitle": "Sort graphs into the linear, quadratic and exponential families",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Telling linear, quadratic and exponential graphs apart is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Telling linear, quadratic and exponential graphs apart is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "functions.fillingTankAttributes",
+          "familyTitle": "The attributes of a tank filled at a steady rate",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is the same filling tank with a new rate and time, its domain and range chosen from written-out sets; the remaining levers are other numbers, which are not rigor.",
+          "missingCapability": "Situations whose domain is discrete or open at one end, with the domain and range typed, so the student decides them from the situation rather than choosing a bracket form.",
+          "teacherReason": "MathMaster's situation generator only writes the filling tank, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "functions.identifyIntercepts",
           "familyTitle": "Intercepts of a line in standard form",
           "familyDifficulty": {
@@ -1028,6 +1448,76 @@
           "reason": "Algebra II solves quadratics with irrational and complex solutions (A2.4F, A2.7A); this family only produces two integer zeros.",
           "missingCapability": "`zeroForm: \"irrational\" | \"complex\"` with radical and complex answer fields, or a Question Family for complexPlaneLab mode \"quadraticRoots\" (the lab and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the irrational or complex solutions an Algebra II Honors extension needs."
+        },
+        {
+          "familyId": "functions.intervalsFromGraph",
+          "familyTitle": "State where a graphed parabola increases, decreases, and is positive and negative",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is a parabola opening down with whole-number zeros, so the four intervals always follow one pattern from the vertex and the zeros; the remaining levers are other vertices, which are not rigor.",
+          "missingCapability": "Other parents (cubic, square root, absolute value) and parabolas with irrational zeros or opening up, so the student reads each interval from the graph rather than recalling the pattern.",
+          "teacherReason": "MathMaster's interval-reading generator only draws parabolas opening down with whole-number zeros, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.inverseInContext",
+          "familyTitle": "Use the inverse of a linear cost function to find the input for a total",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is a subscription cost C(m) = rm + f whose inverse is chosen from four written-out expressions and evaluated once; the remaining levers are other rates and fees, which are not rigor.",
+          "missingCapability": "A typed inverse marked by expression equivalence, with the meaning of the inverse's input and output and a domain the context restricts, so the student interprets the inverse rather than recognizing it.",
+          "teacherReason": "MathMaster's inverse-in-context generator only offers the inverse of one kind of cost as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.inverseOfLinear",
+          "familyTitle": "Find the inverse of a linear function and check it with one value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version inverts f(x) = ax + b with whole numbers, chosen from four written-out expressions, and checks one value; the remaining levers are other whole numbers, which are not rigor.",
+          "missingCapability": "A typed inverse marked by expression equivalence, and inverses of quadratic and square root functions on a restricted domain (A2.2C), so the student writes and restricts the inverse rather than recognizing it.",
+          "teacherReason": "MathMaster's inverse generator only offers inverses of whole-number lines as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.pointwiseFromValues",
+          "familyTitle": "Add and subtract two functions at one input, from their values",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version adds and subtracts two given function values at one input; it is the readiness check before operations on functions, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task on operations anchors on a family that writes the functions themselves (sum, difference, product, quotient and the quotient's excluded inputs).",
+          "teacherReason": "MathMaster's function-values generator only combines two given numbers, so it cannot carry a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.swapPairAndEvaluate",
+          "familyTitle": "Swap an ordered pair and evaluate a linear function",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version swaps one ordered pair and evaluates one linear function at one input; it is the readiness check before inverses, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task on inverses anchors on a family that writes the inverse itself (functions.inverseOfLinear, extended).",
+          "teacherReason": "MathMaster's ordered-pair review generator only swaps one pair and evaluates one line, so it cannot carry a built-in Honors extension."
         },
         {
           "familyId": "inequalities.contextModel",
@@ -1548,6 +2038,48 @@
           "teacherReason": "MathMaster has no generator for completing the square or for parabolas from their geometry yet, so it cannot build a no-AI Algebra II Honors extension for vertex work."
         },
         {
+          "familyId": "quadratics.vertexChoiceFromGraph",
+          "familyTitle": "Choose the vertex of a graphed parabola",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Reading the vertex of a graphed parabola is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
+          "missingCapability": null,
+          "teacherReason": "Reading the vertex of a graphed parabola is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "relations.inverseOfSet",
+          "familyTitle": "Find the inverse of a relation given as ordered pairs",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version swaps the coordinates of three listed ordered pairs, chosen from three written-out sets; the remaining levers are other pairs, which are not rigor.",
+          "missingCapability": "A relation given as a graph or a table, or a set whose inverse is not a function, so the student also decides whether the inverse is a function.",
+          "teacherReason": "MathMaster's inverse-relation generator only swaps short lists of ordered pairs, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "relations.mappingDiagram",
+          "familyTitle": "Map a relation, state its domain and range, and decide whether it is a function",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.",
+          "missingCapability": "A relation given as a graph, a table or a rule to map first (the Mapping Diagram's plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.",
+          "teacherReason": "MathMaster's mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "systems.algebraic2x2",
           "familyTitle": "System of two linear equations (algebraic: one, none or infinitely many)",
           "familyDifficulty": {
@@ -1646,6 +2178,62 @@
           "teacherReason": "MathMaster has no generator for linear-quadratic systems yet, so it cannot build a no-AI Algebra II Honors extension for systems by substitution."
         },
         {
+          "familyId": "transformations.describeEveryChange",
+          "familyTitle": "Describe every change in g(x) = ±f(±B(x − C)) + D",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is g(x) = ±f(±B(x − C)) + D described in five fixed choices (each reflection, the horizontal compression by 1/B, both translations); the choices fix the reasoning.",
+          "missingCapability": "A vertical stretch A and a typed description of the combined effect on a named point or feature, graded by the server, so the student composes the changes rather than naming each one.",
+          "teacherReason": "MathMaster's transformation-description generator only asks fixed-choice questions, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "transformations.describeScaleChange",
+          "familyTitle": "Describe a reflection and a scale by the class rule, g(x) = f(−bx) or −a·f(x) + D",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version names one reflection, one stretch or compression by a whole number or its reciprocal, and (outside f) one translation, chosen from three words each; the remaining levers are other factors, which are not rigor.",
+          "missingCapability": "A factor inside and outside f together, and the graph drawn or the equation written from a description, so the student applies the rule rather than naming it.",
+          "teacherReason": "MathMaster's class-rule generator only names one change of each kind, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "transformations.describeTranslations",
+          "familyTitle": "Describe the translations in g(x) = f(x − C) + D",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version names the two translations of g(x) = f(x − C) + D, chosen from three words each; it is the class rule's readiness check, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task anchors on one that graphs or writes the transformed function (transformations.describeEveryChange, extended).",
+          "teacherReason": "MathMaster's translation generator only names two shifts, so it cannot carry a built-in Honors extension."
+        },
+        {
+          "familyId": "transformations.identifyCubeRoot",
+          "familyTitle": "Read a transformed cube-root graph and determine a, h and k",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is one reflected, stretched and shifted cube root drawn on the lab's grid, whose a, h and k the student reads back; the remaining levers are other whole numbers, which are not rigor.",
+          "missingCapability": "A `parent` knob over the other parent functions, or a horizontal factor b read from the graph, so the student identifies a transformation they have not been shown the family of.",
+          "teacherReason": "MathMaster's cube-root generator only asks for a, h and k of one graph, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "transformations.linearCompareEffects",
           "familyTitle": "Compare horizontal and vertical transformations of f(x) = x",
           "familyDifficulty": {
@@ -1686,6 +2274,34 @@
           "reason": "Plotting a transformation of f(x) = x is Algebra I content. A built-in Algebra II Honors extension anchored on it would teach Algebra I mathematics under an Algebra II label, so an Algebra II lesson that reviews it is given none.",
           "missingCapability": null,
           "teacherReason": "Plotting a transformation of f(x) = x is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
+        },
+        {
+          "familyId": "transformations.mapExponentialPoint",
+          "familyTitle": "Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version maps the reference point (0, 1) of 2^x through y = a·2^(x − h) + k with whole-number a, h and k; the remaining levers are other whole numbers, which are not rigor.",
+          "missingCapability": "Other parent points and a horizontal factor b (x/b + h), or a mapped asymptote, so the student carries a whole transformation rather than one point.",
+          "teacherReason": "MathMaster's point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "transformations.matchAbsoluteValue",
+          "familyTitle": "Match a compressed, translated absolute value in the Transformations Lab",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version matches y = (1/n)|x − h| + k in the Transformations Lab from y = |x|; the remaining levers are other targets, which are not rigor.",
+          "missingCapability": "Targets with a reflection or a horizontal factor, matched from another starting graph, so the student plans the order of the changes.",
+          "teacherReason": "MathMaster's match generator only draws compressed, translated absolute values, so it cannot yet build a built-in Honors extension."
         }
       ],
       "concepts": [
@@ -1889,8 +2505,8 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 24,
-        "NOT APPROPRIATE": 26
+        "BLOCKED": 43,
+        "NOT APPROPRIATE": 29
       }
     }
   }

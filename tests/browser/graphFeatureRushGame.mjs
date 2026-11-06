@@ -501,7 +501,10 @@ await run('two-player-grand-prix', async () => {
   if (!afterCooldown.targets.length) await a.page.getByRole('button', { name: 'Does Not Exist' }).click();
   check(S, await waitForQuestionChange(a, afterCooldown.questionIndex), 'A: the first graph did not complete');
 
-  // Keyboard play on the Chromebook: arrows to the target, Enter.
+  // Keyboard play on the Chromebook: arrows to the target, Enter. The hint under the prompt
+  // names these keys beside the tap (AX32), so a student who reads it plays the way it says.
+  const rushHint = (await a.page.locator('.mm-rush-hint').first().innerText().catch(() => '')).trim();
+  check(S, rushHint === 'Tap it on the graph, or use the arrow keys and Enter. Not there? Choose Does Not Exist.', `A: the hint does not name the arrow keys and Enter (${JSON.stringify(rushHint)})`);
   const keyed = await questionOnScreen(a, roomId);
   if (keyed?.targets.length) {
     await a.page.locator('svg.mm-rush-graph').focus();
@@ -664,6 +667,14 @@ await run('two-player-grand-prix', async () => {
   await shot(teacher, 'gp-final-projector');
   await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click().catch(() => {});
   check(S, await waitForText(teacher, 'By feature, hardest first', 20_000), 'the teacher report has no feature breakdown');
+  // A heading, and a table named by it with a row header for each feature (teacher features walk, item 11).
+  const featureTable = teacher.page.getByRole('table', { name: 'By feature, hardest first', exact: true });
+  check(
+    S,
+    (await teacher.page.getByRole('heading', { level: 4, name: 'By feature, hardest first', exact: true }).count()) === 1
+      && (await featureTable.count()) === 1 && (await featureTable.getByRole('rowheader').count()) > 0,
+    'the feature breakdown is not a heading and a table of rows',
+  );
   await shot(teacher, 'gp-final-teacher-report');
   for (const handle of [teacher, a, b]) check(S, handle.errors.length === 0, `console errors on ${handle.device}: ${handle.errors.slice(0, 3).join(' | ')}`);
   await Promise.all([teacher, a, b].map((handle) => handle.context.close()));

@@ -283,9 +283,9 @@ const FIXTURES = {
     await fill(page, 'spinbutton', 'Constraint 1: coefficient of x', 1);
     await fill(page, 'spinbutton', 'Constraint 1: coefficient of y', 1);
     await fill(page, 'spinbutton', 'Constraint 1: constant', 10);
-    check(await button(page, 'Graph these constraints').isDisabled(), `${fixture}: a constraint with no relation chosen is not a constraint yet`);
+    check(await button(page, 'Graph this inequality').isDisabled(), `${fixture}: a constraint with no relation chosen is not a constraint yet`);
     await choose(page, 'Constraint 1: relation', '≤');
-    check(!(await button(page, 'Graph these constraints').isDisabled()), `${fixture}: with the relation chosen it can be sent`);
+    check(!(await button(page, 'Graph this inequality').isDisabled()), `${fixture}: with the relation chosen it can be sent`);
     await page.close();
   },
 

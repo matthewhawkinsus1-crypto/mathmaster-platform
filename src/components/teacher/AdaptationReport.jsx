@@ -92,7 +92,7 @@ export default function AdaptationReport({
           : `${adaptedCount} of ${rows.length} deliveries were pitched differently from the assigned version. The standard was the same in every case.`}
       </p>
 
-      <div style={{ overflowX: 'auto' }}>
+      <div role="region" aria-label="Adapted deliveries by standard" tabIndex={0} style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13.5 * var(--mm-px))' }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)' }}>

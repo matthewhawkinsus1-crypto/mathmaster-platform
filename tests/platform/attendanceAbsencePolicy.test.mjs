@@ -145,6 +145,9 @@ test('a due date at 8pm Central still counts from the right calendar day', () =>
   assert.equal(localDateKeyOf(new Date(2026, 7, 31, 23, 59, 59)), '2026-08-31');
   assert.equal(shiftDateKey('2026-08-31', 1), '2026-09-01');
   assert.equal(shiftDateKey('2026-12-31', 1), '2027-01-01');
+  // Across a clock change: whole calendar days, never 24 hours from now.
+  assert.equal(shiftDateKey('2026-11-01', 1), '2026-11-02');
+  assert.equal(shiftDateKey('2027-03-13', 1), '2027-03-14');
 });
 
 test('only marked absences on days this class met bear on an assignment', () => {

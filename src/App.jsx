@@ -169,7 +169,7 @@ import {
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
 import { useAskMyTeacher, useTeacherQuestionsOn } from './platform/supports/useAskMyTeacher.js';
-import { questionFor } from './platform/supports/askTeacher.js';
+import { followRosterTeacher, questionFor } from './platform/supports/askTeacher.js';
 import TeacherAnswers from './components/student/TeacherAnswers.jsx';
 import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
 import {
@@ -350,19 +350,26 @@ import {
   TEACHER_SUPPORT_STREAM_TABS,
 } from './app/screenScopes.js';
 // Every screen loaded on demand (one chunk each), and the teacher-only
-// panels, each with its own Suspense boundary (lazyScreens.js).
+// panels, each with its own Suspense boundary (lazyScreens.js). The student's
+// Grades, Assignments, Rewards and result screens also carry their own way
+// through code that cannot load, and are fetched while Home is idle (PF01).
 import {
   LiveChallengeStudent,
   MyMathPathApp,
   QuestionEngine,
   ReviewMyWork,
   SectionRecoveryRunner,
+  StudentAssignmentResult,
+  StudentAssignmentsCenter,
+  StudentGradeCenter,
+  StudentRewardsCenter,
   StudentSecureExamDashboard,
   TeacherQuestionReviewPanel,
   TeacherWorkspace,
   TestCycleCard,
   WarmupChallengeGate,
 } from './app/lazyScreens.js';
+import { prefetchStudentScreens } from './app/student/studentScreenPrefetch.js';
 import {
   TEACHER_HISTORY_DOCUMENT_ID,
   planTeacherHistoryWrite,
@@ -393,13 +400,10 @@ import { buildStudentLearningProfile } from './platform/profile/studentLearningP
 import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignmentAdaptation.js';
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
-import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
-import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
 import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
-import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 // Showing and announcing a Recovery list is light; DECIDING one runs the
 // server's own rules and loads after Home (app/student/studentRecoveryKit.js).
@@ -431,7 +435,6 @@ import {
 import { buildRewardWallet } from './platform/rewards/rewardWallet.js';
 import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.js';
 import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
-import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
 import { useGrowthRewardSync } from './platform/rewards/useGrowthRewardSync.js';
 
@@ -489,7 +492,7 @@ import {
   normalizeCourseProfiles,
 } from './platform/rigor/courseRigor.js';
 import SessionGate from './app/shell/SessionGate.jsx';
-import { focusScreenHeading, screenAnnouncement, screenChangeMovesFocus, studentScreenKey } from './app/shell/screenChange.js';
+import { screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -3593,7 +3596,8 @@ function App() {
           classPeriod: courseContext.classPeriod,
           teacherOfRecord: courseContext.teacherOfRecord,
           // Verbatim from the roster row: support evidence the student's client
-          // records must name exactly this teacher (firestore.rules).
+          // records must name exactly this teacher (firestore.rules). The grade
+          // document's listener keeps it current through a class handover.
           assignedTeacherEmail: studentData.assignedTeacherEmail || null,
           profile: {
             ...studentProfile,
@@ -5291,6 +5295,11 @@ function App() {
         // field, updated on its own so nothing else about the user changes.
         const liveTimingProfile = snapshot.data()?.profile || null;
         setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
+        // The class's teacher, as a fresh load reads it: a class handed to
+        // another teacher while this student works sends their next question
+        // or follow-up to that teacher, not the former one (askTeacher.js
+        // followRosterTeacher; teacher features walk, item 10).
+        setUser((current) => followRosterTeacher(current, snapshot.data()));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -5686,6 +5695,16 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [user?.role, activeView]);
 
+  // THE STUDENT'S OTHER SCREENS (PF01). Grades, Assignments, Rewards and an
+  // assignment's result load on demand (app/lazyScreens.js). Once Home has
+  // rendered, their code is fetched while the browser is idle: once per page,
+  // never when the device asks to save data, and not while it is offline
+  // (app/student/studentScreenPrefetch.js). Opening one is then instant.
+  useEffect(() => {
+    if (user?.role !== 'student' || activeView !== 'dashboard' || studentDashboardMode !== 'assignments') return undefined;
+    return prefetchStudentScreens([StudentGradeCenter, StudentAssignmentsCenter, StudentRewardsCenter, StudentAssignmentResult]);
+  }, [user?.role, activeView, studentDashboardMode]);
+
   // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
   const documentTitle = pageTitleFor({
     signedIn: Boolean(user),
@@ -5723,7 +5742,14 @@ function App() {
     lastStudentScreenKeyRef.current = currentStudentScreenKey;
     if (!currentStudentScreenKey) { pendingStudentScreenRef.current = null; return undefined; }
     if (previous && previous !== currentStudentScreenKey) {
-      pendingStudentScreenRef.current = { key: currentStudentScreenKey, startedAt: Date.now() };
+      pendingStudentScreenRef.current = {
+        key: currentStudentScreenKey,
+        startedAt: Date.now(),
+        // What has focus as the change begins: the place the student pressed,
+        // while the shell keeps it. Focus still there later is not the student's.
+        from: typeof document === 'undefined' ? null : document.activeElement,
+        said: false,
+      };
       // Cleared first, so the same name said twice in a row is still spoken.
       setStudentScreenAnnouncement('');
     }
@@ -5734,14 +5760,17 @@ function App() {
     let timer = null;
     const settle = () => {
       if (cancelled) return;
-      // A lazy screen draws its heading a moment later: look for up to 2 s.
-      const focused = screenChangeMovesFocus(pending.key) ? focusScreenHeading(document) : true;
-      if (!focused && Date.now() - pending.startedAt < 2000) {
-        timer = window.setTimeout(settle, 100);
+      // A lazy screen draws its heading a moment later, and one that loads its
+      // data first later still (shell/screenChange.js).
+      const next = settleScreenChange(document, pending, {
+        movesFocus: screenChangeMovesFocus(pending.key),
+        announce: () => setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current)),
+      });
+      if (next != null) {
+        timer = window.setTimeout(settle, next);
         return;
       }
       if (pendingStudentScreenRef.current === pending) pendingStudentScreenRef.current = null;
-      setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current));
     };
     timer = window.setTimeout(settle, 50);
     return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
@@ -12203,19 +12232,20 @@ function App() {
     const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
     // Decision 3: once the work is closed for this student and feedback is
     // released, their own answers beside the worked solutions. The callable
-    // re-checks every gate; this only decides whether to show the panel.
+    // re-checks every gate; this only decides whether to show the panel. The
+    // panel carries its own loading line and its own boundary: code that
+    // cannot arrive (offline) leaves the rest of the result page on screen
+    // (app/lazyScreens.js studentPanel).
     const resultReviewPanel = resultEntry && recoveryAssignment && resultEntry.frozen
       && !resultEntry.isTestCycle
       && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
       ? (
-        <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
-          <ReviewMyWork
-            assignment={recoveryAssignment}
-            load={loadMyReviewWork}
-            studentProfile={user.profile}
-            teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
-          />
-        </Suspense>
+        <ReviewMyWork
+          assignment={recoveryAssignment}
+          load={loadMyReviewWork}
+          studentProfile={user.profile}
+          teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
+        />
       )
       : null;
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'

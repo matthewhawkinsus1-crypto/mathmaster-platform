@@ -61,7 +61,7 @@ import {
 import { buildRecoveryReplacementItems } from '../../../functions/shared/sectionRecoveryPlan.mjs';
 import { recoveryContextFor } from './recoveryFixture.js';
 import { ingestStudentSubmissions as ingestLikeTheServer } from './fakeServer.js';
-import { adminScreenHandlers } from './fakeAdminScreens.js';
+import { adminScreenHandlers, classroomCourseMappings } from './fakeAdminScreens.js';
 
 const iso = (value) => (value instanceof Timestamp ? value.toDate().toISOString() : value || null);
 const harness = (typeof window !== 'undefined' && (window.__mmHarness = window.__mmHarness || {})) || {};
@@ -235,8 +235,10 @@ const handlers = {
     return answer;
   },
   // The harness school has no Google Classroom course linked, so a created
-  // assignment's automatic Classroom post reports that it needs a mapping.
-  listClassroomCourseMappings: () => ({ mappings: [] }),
+  // assignment's automatic Classroom post reports that it needs a mapping;
+  // only a teacher the harness is told has connected Google Classroom has one
+  // (fakeAdminScreens.js, GOOGLE CLASSROOM, CONNECTED).
+  listClassroomCourseMappings: () => ({ mappings: classroomCourseMappings() }),
   advanceSectionRecovery: ({ assignmentId, section, action = 'status', payload = {} } = {}) => {
     const studentId = requireStudent();
     const context = harnessRecoveryContext({ studentId, assignmentId, section, action });

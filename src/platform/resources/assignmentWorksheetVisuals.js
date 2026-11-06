@@ -4,6 +4,10 @@ import {
 } from '../../graphSpecUtils.js';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { normalizeIntervals } from '../../tools/intervalNumberLine/intervalMath.js';
+import { SHADE_OPACITY, shadingPolygon, shadingRegions } from '../graph/halfPlaneShading.js';
+
+// A dashed line on paper (N38): the screen's 10 6, at the printed plot's scale.
+const PRINT_DASH = '7 4';
 
 const make = (tag, styles = {}, text = null) => {
   const node = document.createElement(tag);
@@ -166,6 +170,17 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
   }
 
   if (!blank) {
+    // The shaded side of an inequality, under the curves, as on screen (N38):
+    // a printed "dashed line, shaded below" must not lose either half.
+    shadingRegions(graph.shading).forEach((region) => {
+      const polygon = shadingPolygon(region, { xMin, xMax, yMin, yMax });
+      if (!polygon.length) return;
+      addSvg(svg, 'polygon', {
+        points: polygon.map(([x, y]) => `${xTo(x).toFixed(2)},${yTo(y).toFixed(2)}`).join(' '),
+        fill: region.fill || '#1a73e8', 'fill-opacity': SHADE_OPACITY + 0.04, stroke: 'none', 'data-shaded-region': '',
+      });
+    });
+
     (graph.functions || []).forEach((spec) => {
       const sampleCount = compact ? 120 : 220;
       let path = '';
@@ -186,7 +201,13 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
         drawing = true;
         previousY = y;
       }
-      if (path) addSvg(svg, 'path', { d: path.trim(), fill: 'none', stroke: '#1a73e8', 'stroke-width': compact ? 2 : 2.5, 'clip-path': plotClip ? `url(#${plotClip})` : null });
+      if (path) addSvg(svg, 'path', { d: path.trim(), fill: 'none', stroke: '#1a73e8', 'stroke-width': compact ? 2 : 2.5, 'stroke-dasharray': spec?.dashed === true ? PRINT_DASH : null, 'clip-path': plotClip ? `url(#${plotClip})` : null });
+    });
+
+    (Array.isArray(graph.verticalLines) ? graph.verticalLines : []).forEach((line) => {
+      const x = Number(line?.x);
+      if (!Number.isFinite(x) || x < xMin || x > xMax) return;
+      addSvg(svg, 'line', { x1: xTo(x), y1: pad, x2: xTo(x), y2: pad + plotH, stroke: '#1a73e8', 'stroke-width': compact ? 2 : 2.5, 'stroke-dasharray': line.dashed === true ? PRINT_DASH : null });
     });
 
     (graph.segments || []).forEach((segment) => {
@@ -196,7 +217,7 @@ const graphVisual = (visual = {}, { blank = false, compact = false } = {}) => {
       addSvg(svg, 'line', {
         x1: xTo(Number(from[0])), y1: yTo(Number(from[1])),
         x2: xTo(Number(to[0])), y2: yTo(Number(to[1])),
-        stroke: '#6f42c1', 'stroke-width': 2.5,
+        stroke: '#6f42c1', 'stroke-width': 2.5, 'stroke-dasharray': segment.dashed === true ? PRINT_DASH : null,
       });
     });
 

@@ -162,6 +162,9 @@ export const MyMathPathExperience = ({
   // history entry recorded, restored exactly as browser Forward restores it.
   initialSessionConfig = null,
   loading = false,
+  // Still this student's first load. A later one (the end of a session, new
+  // assignments, a profile update) refreshes the Path in place.
+  firstLoad = true,
   error = null,
   historyError = null,
   onReload = null,
@@ -729,8 +732,11 @@ export const MyMathPathExperience = ({
   // Path's state, and on a first session (no profile written yet) this gate
   // used to unmount the session container mid-recap; its remount started a
   // NEW session instead of showing the end screen (QA round 2, R2-m1).
+  // Never on a reload either: for a student with no profile yet it swapped
+  // the whole screen for "Loading …" and back, and the heading a screen
+  // change had just focused went with it, leaving focus on the page (NAV-3).
   const sessionOnScreen = activeTab === 'session' && Boolean(sessionConfig);
-  if (loading && !sessionOnScreen && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
+  if (loading && firstLoad && !sessionOnScreen && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
 
   const embeddedInTeacherPage = Boolean(readOnly || sessionProvider);
   const ScreenBody = pathContentIsMain({ activeTab, embedded: embeddedInTeacherPage }) ? 'main' : React.Fragment;
@@ -896,6 +902,8 @@ export const MyMathPathApp = (props) => {
   const [evidenceEvents, setEvidenceEvents] = useState([]);
   const [skillProgressByTEKS, setSkillProgressByTEKS] = useState({});
   const [loading, setLoading] = useState(true);
+  // The student whose Path has loaded: only their first load says "Loading …".
+  const [loadedStudentId, setLoadedStudentId] = useState(null);
   const [error, setError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
 
@@ -920,6 +928,7 @@ export const MyMathPathApp = (props) => {
       console.warn('Could not load Path pass progress:', passProgressResult.reason);
     }
     setLoading(false);
+    setLoadedStudentId(studentId);
   }, [studentId, assignments]);
 
   useEffect(() => { loadState(); }, [loadState]);
@@ -1023,6 +1032,7 @@ export const MyMathPathApp = (props) => {
       evidenceEvents={evidenceEvents}
       skillProgressByTEKS={skillProgressByTEKS}
       loading={loading}
+      firstLoad={loadedStudentId !== studentId}
       error={error}
       historyError={historyError}
       onReload={loadState}

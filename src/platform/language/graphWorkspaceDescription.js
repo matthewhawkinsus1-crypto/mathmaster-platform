@@ -17,21 +17,55 @@
  *     what the questions beside it ask about, the same rule the shared plane
  *     keeps while a question can be answered (graphDescription.js, 'kinds').
  *   - Never whether anything is right.
+ *
+ * IN THE READER'S LANGUAGE (AX05): each sentence is a message (./figureSay.js)
+ * said from GRAPH_WORKSPACE_WORDS in English, and from ./packs/esFigures.js in
+ * Spanish under an authored Spanish translation, with the same numbers. The
+ * window, a labelled point and a graph end are the sentences the shared plane
+ * and the number line already say (the same messages), and a point's label is
+ * the item's own words, said as written.
  */
-import { formatNumber } from './graphDescription.js';
+import { formatNumber, GRAPH_WORDS } from './graphDescription.js';
+import { NUMBER_LINE_WORDS } from './numberLineDescription.js';
+import { itemWords, say, sayFigure } from './figureSay.js';
 
 const pair = (point) => `(${formatNumber(point[0])}, ${formatNumber(point[1])})`;
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
-const MARKER_WORDS = { open: 'an open dot', closed: 'a closed dot', arrow: 'an arrow' };
+// A graph end the student marked, by the message the number line says it with.
+const MARKER_SAYS = { open: 'openDot', closed: 'closedDot', arrow: 'arrowAt' };
+
+/** The workspace's own sentences, by message id, in English (./packs/esFigures.js: Spanish). */
+export const GRAPH_WORKSPACE_WORDS = Object.freeze({
+  givenGraphDrawn: () => 'A graph is drawn. Positions on it are not read out while this question can be answered.',
+  youPlaced: (marks) => `You placed ${plural(marks.length, 'point')}: ${marks.join('; ')}.`,
+  curveThroughYourPoints: () => 'Your curve is drawn through your points.',
+  youDrewStrokes: (count) => `You drew ${plural(count, 'stroke')}.`,
+  graphEndsMarked: (marks) => `Graph ends you marked: ${marks.join('; ')}.`,
+  arrowAt: (at) => `an arrow at ${at}`,
+  youSelected: (pairs) => `You selected ${plural(pairs.length, 'point')}: ${pairs.join('; ')}.`,
+  nothingPlacedYet: () => 'Nothing is placed yet.',
+});
+
+// The English of every message the reading says: its own, and the plane's and
+// the number line's it shares.
+const ENGLISH = Object.freeze({
+  window: GRAPH_WORDS.window,
+  pointAt: GRAPH_WORDS.pointAt,
+  openDot: NUMBER_LINE_WORDS.openDot,
+  closedDot: NUMBER_LINE_WORDS.closedDot,
+  ...GRAPH_WORKSPACE_WORDS,
+});
 
 /**
- * describeGraphWorkspace({ window, givenGraph, placedPoints, strokeCount, curveDrawn, markers, selectedPoints })
+ * graphWorkspaceReading({ window, givenGraph, placedPoints, strokeCount, curveDrawn, markers, selectedPoints }) → { text, say }
  *
  *   placedPoints    [{ label, point: [x, y] }]
  *   markers         [{ type: 'open' | 'closed' | 'arrow', point: [x, y] }]
  *   selectedPoints  [[x, y]]
+ *
+ * `text` is the English; `say` the same sentences as messages (AX05).
  */
-export const describeGraphWorkspace = ({
+export const graphWorkspaceReading = ({
   window = {},
   givenGraph = false,
   placedPoints = [],
@@ -40,18 +74,18 @@ export const describeGraphWorkspace = ({
   markers = [],
   selectedPoints = [],
 } = {}) => {
-  const sentences = [`x from ${formatNumber(window.xMin ?? -10)} to ${formatNumber(window.xMax ?? 10)}, y from ${formatNumber(window.yMin ?? -10)} to ${formatNumber(window.yMax ?? 10)}.`];
-  if (givenGraph) sentences.push('A graph is drawn. Positions on it are not read out while this question can be answered.');
+  const says = [say('window', formatNumber(window.xMin ?? -10), formatNumber(window.xMax ?? 10), formatNumber(window.yMin ?? -10), formatNumber(window.yMax ?? 10))];
+  if (givenGraph) says.push(say('givenGraphDrawn'));
   const placed = placedPoints.filter((entry) => Array.isArray(entry?.point));
-  if (placed.length) {
-    sentences.push(`You placed ${plural(placed.length, 'point')}: ${placed.map((entry) => `${entry.label ? `${entry.label} at ` : ''}${pair(entry.point)}`).join('; ')}.`);
-  }
-  if (curveDrawn) sentences.push('Your curve is drawn through your points.');
-  else if (strokeCount > 0) sentences.push(`You drew ${plural(strokeCount, 'stroke')}.`);
-  const ends = markers.filter((entry) => entry && Array.isArray(entry.point) && MARKER_WORDS[entry.type]);
-  if (ends.length) sentences.push(`Graph ends you marked: ${ends.map((entry) => `${MARKER_WORDS[entry.type]} at ${pair(entry.point)}`).join('; ')}.`);
+  if (placed.length) says.push(say('youPlaced', placed.map((entry) => (entry.label ? say('pointAt', itemWords(entry.label), pair(entry.point)) : pair(entry.point)))));
+  if (curveDrawn) says.push(say('curveThroughYourPoints'));
+  else if (strokeCount > 0) says.push(say('youDrewStrokes', strokeCount));
+  const ends = markers.filter((entry) => entry && Array.isArray(entry.point) && MARKER_SAYS[entry.type]);
+  if (ends.length) says.push(say('graphEndsMarked', ends.map((entry) => say(MARKER_SAYS[entry.type], pair(entry.point)))));
   const selected = selectedPoints.filter(Array.isArray);
-  if (selected.length) sentences.push(`You selected ${plural(selected.length, 'point')}: ${selected.map(pair).join('; ')}.`);
-  if (sentences.length === 1) sentences.push('Nothing is placed yet.');
-  return sentences.join(' ');
+  if (selected.length) says.push(say('youSelected', selected.map(pair)));
+  if (says.length === 1) says.push(say('nothingPlacedYet'));
+  return { text: sayFigure(says, ENGLISH, { english: true }), say: says };
 };
+
+export const describeGraphWorkspace = (input) => graphWorkspaceReading(input).text;

@@ -23,7 +23,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { parseCss, declared } from './helpers/cssRules.mjs';
+import { parseCss, declared, rulesFor } from './helpers/cssRules.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const css = parseCss(read('src/tools/polynomialWorkshop/PolynomialWorkshop.css'));
@@ -101,4 +101,35 @@ test('an add & subtract column box shows its whole placeholder on a phone (TL31)
   // What a box takes is said above it: the 0 for a column that cancels is in
   // the Combined label, on screen at every width.
   assert.match(addSubtract, />Combined <span[^>]*>\(0 if they cancel\)<\/span>/);
+});
+
+// P-5's second half (walkthrough 2026-11-06): the two-by-two area model's
+// boxes cut their placeholder, "coefficient", to "coefficie" on a 390px phone,
+// and at 200% text two boxes never fit side by side. Where the panel is
+// narrower than two boxes need at the student's text size, the cells become a
+// list, each box wide enough for its placeholder. Measured in the browser at
+// 1366x768 and 390x844, 100% and 200% text, with CI's fonts (see the PR).
+test('the coefficient area model becomes a list where two boxes do not fit, and keeps its grid on a laptop', () => {
+  const NARROW = { media: '(max-width: 24em)' };
+  // A container query in em: the panel's own width, against its own text size.
+  assert.equal(declared(css, '.mm-coefficient-area', 'container-type', { media: null })?.value, 'inline-size');
+  assert.ok(rulesFor(css, '.mm-coefficient-area-grid', NARROW).every((rule) => rule.atRules.some((at) => at.startsWith('@container'))), 'the narrow rules are a container query');
+  // The laptop grid, as it was drawn inline before.
+  assert.equal(declared(css, '.mm-coefficient-area-grid', 'grid-template-columns', { media: null })?.value, '90px 1fr 1fr');
+  assert.equal(declared(css, '.mm-coefficient-area .mm-coefficient-area-input', 'min-width', { media: null })?.value, '0');
+  assert.equal(declared(css, '.mm-coefficient-area-label', 'display', { media: null })?.value, 'none', 'no product names beside a grid');
+  // The list: no heads, each product named beside a box that holds "coefficient".
+  assert.equal(declared(css, '.mm-coefficient-area-grid', 'display', NARROW)?.value, 'block');
+  assert.equal(declared(css, '.mm-coefficient-area-head', 'display', NARROW)?.value, 'none');
+  assert.equal(declared(css, '.mm-coefficient-area-label', 'display', NARROW)?.value, 'inline-block');
+  assert.equal(declared(css, '.mm-coefficient-area-cell', 'flex-wrap', NARROW)?.value, 'wrap', 'a box with no room beside its name goes under it');
+  assert.equal(declared(css, '.mm-coefficient-area .mm-coefficient-area-input', 'min-width', NARROW)?.value, '8em');
+  // The view wires them: four boxes, each in a cell with its product's name.
+  const view = region(jsx, 'function MultiplyArea(', 'function MissingProblem(', 'the multiply-area view');
+  assert.ok(view.indexOf('className="mm-coefficient-area"') !== -1 && view.indexOf('className="mm-coefficient-area"') < view.indexOf('className="mm-coefficient-area-grid"'), 'the grid sits in its container');
+  // Each <input … /> tag (its props hold arrows, so not [^>]*).
+  const boxes = [...view.matchAll(/<input className="mm-coefficient-area-input"[\s\S]*?\/>/g)].map((match) => match[0]);
+  assert.equal(boxes.length, 2, 'both rows of boxes (two cells each)');
+  boxes.forEach((box) => assert.match(box, /placeholder="coefficient"/));
+  assert.equal((view.match(/className="mm-coefficient-area-label" aria-hidden="true">\{areaProductText\(leftTerms\[[01]\], rightTerms\[/g) || []).length, 2);
 });

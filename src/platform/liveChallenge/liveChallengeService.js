@@ -222,17 +222,42 @@ export const watchLiveChallengeDiagnostics = (roomId, onValue, onError = console
 // One server-owned pointer per teacher recovers an active lobby/game after a
 // refresh without scanning completed challenge history.
 /**
- * The report a finished game leaves behind, for the teacher who ran it.
- *
- * A one-shot read rather than a subscription: it is written once when the room
- * closes and never changes, so watching it would keep a listener open on a
- * document that will not move again.
+ * The report a finished game leaves behind, for the teacher who ran it,
+ * followed until it is written. The room turns finished first and the report
+ * is written a moment after it, so a single read when the room finished found
+ * nothing until a refresh (challengeReportWatch.js). The listener closes at
+ * the written report (it is written once), and the returned function closes
+ * it if the room is left first. A report not written yet reads as nothing to
+ * a teacher (firestore.rules). The module loads with the first watch, off the
+ * student first load (see readClassGameMemory).
  */
-export const readChallengeReport = async (roomId) => {
+export const watchChallengeReport = (roomId, onValue, onError = console.warn) => {
   const id = String(roomId || '').trim();
-  if (!id) return null;
-  const snapshot = await getDoc(doc(db, 'liveChallengeReports', id));
-  return snapshot.exists() ? snapshot.data() : null;
+  if (!id) {
+    onValue?.(null);
+    return () => {};
+  }
+  let stop = null;
+  let cancelled = false;
+  import('./challengeReportWatch.js').then(({ watchReportUntilWritten }) => {
+    if (cancelled) return;
+    stop = watchReportUntilWritten({
+      onValue,
+      onError,
+      // watchReportUntilWritten returns this unsubscribe; the cleanup below calls it.
+      listen: (next, fail) => {
+        return onSnapshot(
+          doc(db, 'liveChallengeReports', id),
+          (snapshot) => next(snapshot.exists() ? snapshot.data() : null),
+          fail,
+        );
+      },
+    });
+  }).catch(onError);
+  return () => {
+    cancelled = true;
+    stop?.();
+  };
 };
 
 /**
@@ -248,6 +273,39 @@ export const readClassGameMemory = async (classId, game) => {
   const id = classMemoryId(classId, game);
   const snapshot = await getDoc(doc(db, CLASS_MEMORY_COLLECTION, id));
   return snapshot.exists() ? snapshot.data() : null;
+};
+
+/**
+ * The same memory, followed while the setup is open: choosing New Challenge
+ * right after a game can come before the game's finalization has written the
+ * memory (the room closes first), so a single read showed the game before it,
+ * or none. Returns the unsubscribe function straight away; the module loads
+ * with the first subscription (see readClassGameMemory).
+ */
+export const watchClassGameMemory = (classId, game, onValue, onError = console.warn) => {
+  let stop = null;
+  let cancelled = false;
+  import('../../../functions/shared/liveChallengeClassMemory.mjs').then(({ watchClassMemory }) => {
+    if (cancelled) return;
+    stop = watchClassMemory({
+      classId,
+      game,
+      onValue,
+      onError,
+      // watchClassMemory returns this unsubscribe; the cleanup below calls it.
+      listen: (collectionName, id, next, fail) => {
+        return onSnapshot(
+          doc(db, collectionName, id),
+          (snapshot) => next(snapshot.exists() ? snapshot.data() : null),
+          fail,
+        );
+      },
+    });
+  }).catch(onError);
+  return () => {
+    cancelled = true;
+    stop?.();
+  };
 };
 
 export const watchTeacherActiveChallenge = (teacherEmail, onValue, onError = console.error) => {

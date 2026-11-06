@@ -12,7 +12,7 @@
  * column headings. Pure, so the tool validator, the tools and their tests read
  * one rule.
  */
-import { say, sayFigure } from '../../platform/language/figureSay.js';
+import { itemWords, say, sayFigure } from '../../platform/language/figureSay.js';
 
 export const AXIS_LABEL_MAX_LENGTH = 60;
 
@@ -40,11 +40,12 @@ export const AXIS_TITLE_WORDS = Object.freeze({
 
 /**
  * The same sentences as messages (AX05): Read aloud says them in the reader's
- * language. The quantity is the item's own words, said as the axis shows it.
+ * language. The quantity is the item's own words, said as the axis shows it,
+ * and marked lang="en" inside a Spanish description (slice 3).
  */
 export const axisTitleSay = ({ x = '', y = '' } = {}) => [
-  x ? say('xAxisShows', x) : null,
-  y ? say('yAxisShows', y) : null,
+  x ? say('xAxisShows', itemWords(x)) : null,
+  y ? say('yAxisShows', itemWords(y)) : null,
 ].filter(Boolean);
 
 /**

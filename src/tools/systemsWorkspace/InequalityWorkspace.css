@@ -593,6 +593,34 @@
   flex-wrap: nowrap;
 }
 
+/* With work to do first (a test point's value): the question on its own row,
+   then the work and the answers on one line where they fit. */
+.mm-ineq-question[data-with-work='true'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mm-ineq-question-work {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.mm-ineq-question-work .mm-ineq-input {
+  width: 4.2em;
+}
+
+.mm-ineq-substitution {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--mm-text-strong);
+  font-size: calc(15 * var(--mm-px));
+  font-weight: 700;
+}
+
 @media (max-width: 480px) {
   .mm-ineq-question {
     grid-template-columns: minmax(0, 1fr);

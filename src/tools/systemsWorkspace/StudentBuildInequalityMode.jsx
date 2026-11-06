@@ -52,8 +52,11 @@ import {
   stepPosition,
 } from './inequalityBuildFlow.js';
 import { ChoiceGroup, InequalityLayout, PLANE_KEYS, StepFeedback, revealStep } from './InequalityControls.jsx';
+import { diagnoseModelRows, modelRowMessage, modelRowVerdicts } from './inequalityModelCheck.js';
+import { pointSubstitution, valueEntered, valueWorkedOut } from './testPointSubstitution.js';
+import { wordsFor } from './inequalitySystemWords.js';
 import { POINT_COLORS, constraintColor } from './constraintPalette.js';
-import { inequalityGraphMarksText } from './inequalityGraphMarks.js';
+import { inequalityGraphMarksReading, inequalityGraphName } from './inequalityGraphMarks.js';
 import {
   BoundaryStepFields,
   CLASSIFICATION_OPTIONS,
@@ -92,6 +95,11 @@ import {
 // entry also carries what its last Check was about, which the grader does not
 // read); and on a DOL, quiz or test every check still says only whether a step
 // is finished (resolveInequalityBuildGate).
+//
+// A CONTEXT ITEM'S MODEL HAS ITS CHECK TOO (F-SW-CHECKS-OWN-MODEL): where
+// outcomes are shown, "Graph these constraints" graphs only a model the shared
+// grader accepts and says why a row is not (inequalityModelCheck.js). It used
+// to graph any model, and every step after it said ✓ about the wrong half-plane.
 // ============================================================================
 
 const emptyBuildEntry = () => ({
@@ -106,8 +114,10 @@ const emptyRewriteEntry = (source = '') => ({ source, steps: [], committedText:s
 // opened on ≥, which was already right for every "at least" constraint.
 const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: UNANSWERED, constant: '' });
 
+// `values`: what the student worked out for each inequality at the point
+// before judging it (F-SW-TEST-POINT-YESNO). Step work: the grader reads none.
 const emptyTestPointResponse = (count) => ({
-  overall: '', perInequality: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
+  overall: '', perInequality: Array.from({ length: count }, () => ''), values: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
 });
 
 // First miss stays neutral — a nudge to re-examine the work, not the rule
@@ -133,11 +143,18 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     boundaryProbeEnabled, teacherTestPoint, allowStudentTestPoint,
   } = task;
   const plan = useMemo(() => buildFlowPlan(task), [task]);
+  // One inequality is not a system: its words, where the screen would say
+  // "overlap", "combine" or "the entire system" (F-SW-SYSTEM-WORDS).
+  const said = wordsFor(constraintCount);
 
   const [modelingEntries, setModelingEntries] = usePersistentToolState('modelingEntries', () => (
     modeling ? Array.from({ length: constraintCount }, emptyModelingEntry) : []
   ));
   const [modelingSent, setModelingSent] = usePersistentToolState('modelingSent', !modeling);
+  // The model's last Check where outcomes are shown: the rows it was about and
+  // how many times each was sent wrong (F-SW-CHECKS-OWN-MODEL). Its lines go
+  // when the rows change, until the next press.
+  const [modelCheck, setModelCheck] = usePersistentToolState('modelCheck', null);
   const [build, setBuild] = usePersistentToolState('build', () => Array.from({ length: constraintCount }, emptyBuildEntry));
   const [rewriteEntries, setRewriteEntries] = usePersistentToolState('rewriteEntries', () => (
     sourceConstraints.map((constraint) => emptyRewriteEntry(typeof constraint === 'string' ? constraint : formatInequality(constraint)))
@@ -282,6 +299,35 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const allConstraintsComplete = buildGate.allConstraintsDone;
   const completionLine = (report, text) => (report?.kind === 'completion' ? (report.complete ? text.complete : text.incomplete) : null);
 
+  // THE WRITTEN MODEL, CHECKED AGAINST THE SITUATION (F-SW-CHECKS-OWN-MODEL;
+  // inequalityModelCheck.js). Each row's verdict is the shared grader's own
+  // "Modeled constraint N" part, so an equivalent model passes exactly where
+  // Submit would accept it — and it is asked only where outcomes are shown.
+  const modelVerdicts = useMemo(() => (
+    modeling && buildGate.verdictsShown
+      ? modelRowVerdicts(gradeToolCheck(systemsWorkspaceGrader, questionData, { build: [], modelingEntries, modelingSent: true }).parts, constraintCount)
+      : []
+  ), [modeling, buildGate.verdictsShown, questionData, modelingEntries, constraintCount]);
+  // Graphed only once accepted where outcomes are shown; a draft sent before
+  // this Check existed may hold a model it does not accept, and is held on the
+  // model step like a wrong one.
+  const modelAccepted = !modeling || buildGate.modelAccepted({ sent: modelingSent, correct: modelVerdicts.every((verdict) => verdict !== false) });
+  const modelSignature = reasoningSignature(modelingEntries);
+  const modelLines = (() => {
+    if (!modeling || !buildGate.verdictsShown) return [];
+    const checked = modelCheck?.signature === modelSignature || (modelingSent && !modelAccepted);
+    if (!checked) return [];
+    const diagnoses = diagnoseModelRows({ entries: modelingEntries, expectedConstraints, rowCorrect: modelVerdicts });
+    return diagnoses.map((diagnosis, index) => modelRowMessage({
+      diagnosis,
+      row: modelingEntries[index],
+      question: questionData,
+      expected: expectedConstraints[diagnosis?.kind === 'relation' ? diagnosis.expectedIndex : index],
+      misses: Math.max(1, Number(modelCheck?.misses?.[index]) || 0),
+      label: constraintCount > 1 ? `Constraint ${index + 1}: ` : '',
+    })).filter(Boolean);
+  })();
+
   const studentBoundaries = build.map((entry, index) => {
     const line = effectiveLines[index];
     if (!line) return null;
@@ -338,19 +384,41 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const stepMessage = (index, step) => (step === 'boundary' ? boundaryMessage(index) : step === 'lineStyle' ? styleMessage(index) : shadeMessage(index));
   const stepTone = (index, step) => (!buildGate.verdictsShown ? 'recorded' : stepCorrect(index, step) ? 'correct' : 'revise');
 
+  // What each inequality asks the student to work out at a point before
+  // judging it: "2(6) + 3(4) = [ ]" (testPointSubstitution.js), read from the
+  // inequality as it is written on screen. Null where there is nothing to do.
+  const substitutionsFor = (point) => {
+    if (!point) return [];
+    const satisfied = membership(point);
+    return Array.from({ length: constraintCount }, (_, index) => pointSubstitution(inequalityLabel(index), point, {
+      satisfied: satisfied[index],
+      symbols: variables.map((variable) => variable.symbol),
+    }));
+  };
+
   // What the student said about a point, judged only once they check it.
   // `probeIndex`: the boundary the point's boundary questions were shown for
   // (the student's own point: studentProbeIndex).
   const pointReport = (point, response, probeIndex = onBoundaryIndex(point)) => {
     if (!point) return null;
     const boundaryIndex = onBoundaryIndex(point);
+    const substitutions = substitutionsFor(point);
     if (!buildGate.verdictsShown) {
       // Recorded, not judged: every question about the point answered or not —
-      // the boundary questions exactly when they are on screen.
-      const complete = response.perInequality.every((value) => value === 'yes' || value === 'no')
+      // its values, and the boundary questions exactly when they are on screen.
+      const complete = substitutions.every((substitution, index) => !substitution || valueEntered(response.values?.[index]))
+        && response.perInequality.every((value) => value === 'yes' || value === 'no')
         && (response.overall === 'yes' || response.overall === 'no')
         && (!boundaryProbeEnabled || probeIndex < 0 || (Boolean(response.onBoundary) && Boolean(response.boundaryIncluded)));
       return { done: complete, tone: 'recorded', text: completionLine(buildGate.reasoningReport({ pressed: true, complete }), REASONING_COMPLETION_TEXT) };
+    }
+    // The working out comes first: a value that is missing or off is named
+    // before any judgement about the point.
+    const worked = substitutions.map((substitution, index) => (substitution ? valueWorkedOut(response.values?.[index], substitution) : 'right'));
+    const valueMiss = worked.findIndex((state) => state !== 'right');
+    if (valueMiss >= 0) {
+      const { text } = substitutions[valueMiss];
+      return { done: false, tone: 'revise', text: worked[valueMiss] === 'off' ? `Recheck the value of ${text}.` : `Work out ${text} first.` };
     }
     const expectedMembership = membership(point);
     const perInequalityCorrect = response.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, expectedMembership[index]));
@@ -359,8 +427,8 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       (response.onBoundary === 'yes') && explicitBooleanAnswerMatches(response.boundaryIncluded, expectedMembership.every(Boolean))
     );
     if (perInequalityCorrect && overallCorrect && boundaryProbeCorrect) return { done: true, tone: 'correct', text: 'Correct — every part of your reasoning about this point checks out.' };
-    if (!perInequalityCorrect) return { done: false, tone: 'revise', text: 'At least one individual inequality is misjudged. Substitute the point into that inequality by itself and see whether the statement is true.' };
-    if (!overallCorrect) return { done: false, tone: 'revise', text: 'Your individual inequality answers are right, but the system verdict is not. A point solves the system only when it satisfies every inequality at once.' };
+    if (!perInequalityCorrect) return { done: false, tone: 'revise', text: said('At least one individual inequality is misjudged. Substitute the point into that inequality by itself and see whether the statement is true.') };
+    if (!overallCorrect) return { done: false, tone: 'revise', text: said('Your individual inequality answers are right, but the system verdict is not. A point solves the system only when it satisfies every inequality at once.') };
     return {
       done: false,
       tone: 'revise',
@@ -397,9 +465,9 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       : {
         done: false,
         tone: 'revise',
-        text: staged(regionClassificationAttempts,
+        text: said(staged(regionClassificationAttempts,
           'Look at whether the shaded overlap keeps going forever in some direction, closes into a polygon, or never forms at all.',
-          'A region is unbounded when the constraints leave a direction open forever. If no point satisfies every inequality at once, there is no solution.'),
+          'A region is unbounded when the constraints leave a direction open forever. If no point satisfies every inequality at once, there is no solution.')),
       };
   };
   const teacherPointSignature = reasoningSignature(teacherPointResponse);
@@ -451,7 +519,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   // ------------------------------------------------------------ the steps
   const flowContext = {
     plan,
-    modelingSent,
+    modelingSent: modelAccepted,
     stepDone: (index, step) => (step === 'rewrite' ? rewriteVerified(index) : buildGate.stepDone(index, step)),
     combined,
     reasoningDone,
@@ -511,7 +579,19 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     moveCursor(cursorAfterCheck(flowContext, 'combine', true), { focus: true });
   };
 
+  // "Graph these constraints". Where outcomes are shown it is the model's
+  // Check: a row the grader turns down keeps the student here with a line
+  // that says why, as a wrong boundary keeps its step. Where they are
+  // withheld the model is sent as written, right or wrong.
   const sendModel = () => {
+    if (buildGate.verdictsShown && modelVerdicts.some((verdict) => verdict === false)) {
+      setModelCheck((current) => ({
+        signature: modelSignature,
+        misses: modelVerdicts.map((verdict, index) => (Number(current?.misses?.[index]) || 0) + (verdict === false ? 1 : 0)),
+      }));
+      return;
+    }
+    setModelCheck(null);
     setModelingSent(true);
     moveCursor(cursorAfterCheck(flowContext, 'model', true), { focus: true });
   };
@@ -656,15 +736,10 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const emphasised = (index) => flow.activeIndex == null || flow.activeIndex === index;
   const hatchId = `mm-ineq-overlap-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   // Named for what a tap will do, after a fixed prefix the browser gates find
-  // the plane by.
-  const graphLabel = `Student-constructed graph of the inequality system${(() => {
-    if (tapAction.kind === 'boundaryPoint') return `. Plot ${tapAction.method === 'slopeIntercept' && tapAction.which === 1 ? 'the y-intercept' : `boundary point ${tapAction.which}`} for constraint ${tapAction.index + 1}`;
-    if (tapAction.kind === 'boundaryFull') return `. Both boundary points of constraint ${tapAction.index + 1} are placed`;
-    if (tapAction.kind === 'shade') return `. Choose the side to shade for constraint ${tapAction.index + 1}`;
-    if (tapAction.kind === 'testPoint') return '. Place your own test point';
-    if (tapAction.kind === 'vertex') return '. Mark a vertex of the solution region';
-    return '';
-  })()}`;
+  // the plane by ("Student-constructed graph of the inequality", one or more),
+  // as messages a Spanish reading says too (inequalityGraphMarks.js; AX05,
+  // slice 4).
+  const graphLabel = inequalityGraphName({ constraintCount, tapAction });
 
   // ------------------------------------------------------------ rendering
   const stepCount = plan.constraintSteps.length;
@@ -821,15 +896,15 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
       if (parsedCursor.step === 'boundary') return `${prefix}${lowerFirst(boundaryInstruction(build[parsedCursor.index]?.method))}`;
       return `${prefix}${lowerFirst(STEP_INSTRUCTIONS[parsedCursor.step])}`;
     }
-    if (cursor === 'model') return 'Write each constraint, then graph them.';
-    if (cursor === 'combine') return 'Show where the shaded regions overlap.';
-    if (cursor === 'classify') return 'Classify the combined solution region.';
-    if (cursor === 'teacherPoint') return 'Test the marked point against each inequality.';
+    if (cursor === 'model') return said('Write each constraint, then graph them.');
+    if (cursor === 'combine') return said('Show where the shaded regions overlap.');
+    if (cursor === 'classify') return said('Classify the combined solution region.');
+    if (cursor === 'teacherPoint') return said('Test the marked point against each inequality.');
     if (cursor === 'studentPoint') return `Click or tap the graph to place a test point of your own (or ${PLANE_KEYS}), then test it.`;
     if (cursor === 'vertices') return `Click or tap each corner of the solution region (or ${PLANE_KEYS}) and say whether it is included.`;
-    return hasBuildSteps
+    return said(hasBuildSteps
       ? 'Build each constraint, combine them, and reason about the result.'
-      : 'Use the provided system to combine regions and complete the requested reasoning.';
+      : 'Use the provided system to combine regions and complete the requested reasoning.');
   })();
 
   return (
@@ -867,8 +942,9 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
             cursorLabel={tapAction.kind === 'boundaryPoint' ? `Point ${tapAction.which}` : 'Point'}
             points={graphPoints}
             ariaLabel={graphLabel}
-            // What InequalityGraphLayers draws, said by the plane (inequalityGraphMarks.js).
-            toolMarks={{ kinds: inequalityGraphMarksText({ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon }) }}
+            // What InequalityGraphLayers draws, said by the plane, as messages a
+            // Spanish reading says too (inequalityGraphMarks.js; AX05, slice 3).
+            toolMarks={{ kinds: inequalityGraphMarksReading({ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon }) }}
             viewResetKey={questionData?.questionId ?? null}
             enlargeable={false}
           >
@@ -893,42 +969,45 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
           </CoordinatePlane>
         )}
       >
-          {modeling ? phaseCard('model', STEP_LABELS.model, (
+          {modeling ? phaseCard('model', said(STEP_LABELS.model), (
             <>
               <p className="mm-ineq-instruction">
-                Using {variables.map((v) => `${v.symbol} = ${v.label || v.symbol}`).join(' and ')}, write each constraint.
+                Using {variables.map((v) => `${v.symbol} = ${v.label || v.symbol}`).join(' and ')}, {said('write each constraint.')}
               </p>
               <ModelingFields entries={modelingEntries} variables={variables} onChange={updateModelingEntry} />
               <div className="mm-ineq-actions">
-                <button type="button" className="mm-ineq-action" onClick={sendModel} disabled={!modelingEntriesReady}>Graph these constraints</button>
+                <button type="button" className="mm-ineq-action" onClick={sendModel} disabled={!modelingEntriesReady}>{said('Graph these constraints')}</button>
               </div>
-              {!modelingEntriesReady ? <p className="mm-ineq-note">Every constraint needs both coefficients, a relation and a constant.</p> : null}
+              {!modelingEntriesReady ? <p className="mm-ineq-note">{said('Every constraint needs both coefficients, a relation and a constant.')}</p> : null}
+              <StepFeedback tone="revise">
+                {modelLines.length ? modelLines.map((line, index) => <span key={index} style={{ display: 'block' }}>{line}</span>) : null}
+              </StepFeedback>
             </>
           ), modelingSent ? modelingEntries.map((entry) => formatModelingConstraint(entry, variables)).join(';  ') : '') : null}
-          {modeling && modelingSent ? (
+          {modeling && modelAccepted ? (
             <div className="mm-ineq-actions" style={{ justifyContent: 'flex-end', marginTop: -4 }}>
-              <button type="button" className="mm-ineq-link" onClick={reopenModeling}>Edit constraints</button>
+              <button type="button" className="mm-ineq-link" onClick={reopenModeling}>{said('Edit constraints')}</button>
             </div>
           ) : null}
 
           {flow.modelReady ? Array.from({ length: constraintCount }, (_, index) => renderConstraintCard(index)) : null}
 
           <div data-combine-ready={allConstraintsComplete ? 'true' : 'false'}>
-            {phaseCard('combine', 'Combine the regions', (
+            {phaseCard('combine', said('Combine the regions'), (
               <>
                 <p className="mm-ineq-instruction">
-                  {buildGate.verdictsShown
+                  {said(buildGate.verdictsShown
                     ? (allConstraintsComplete ? 'Every constraint checks out. Combine them to see your overlap region.' : 'Locked until every constraint above is correct.')
                     // Opens on finished work, right or wrong: the lock would be the verdict.
-                    : (allConstraintsComplete ? 'Every constraint is built. Combine them to see your overlap region.' : 'Finish every constraint above first.')}
+                    : (allConstraintsComplete ? 'Every constraint is built. Combine them to see your overlap region.' : 'Finish every constraint above first.'))}
                 </p>
                 <div className="mm-ineq-actions">
-                  <button type="button" className="mm-ineq-action" onClick={combineRegions} disabled={!allConstraintsComplete}>Find overlap / Combine regions</button>
+                  <button type="button" className="mm-ineq-action" onClick={combineRegions} disabled={!allConstraintsComplete}>{said('Find overlap / Combine regions')}</button>
                 </div>
               </>
             ), combined
-              ? 'Your overlap is hatched on the graph.'
-              : `${buildGate.verdictsShown ? 'Locked until every constraint above is correct.' : 'Finish every constraint above first.'}${reasoningPreview ? ` Then: ${reasoningPreview}.` : ''}`)}
+              ? said('Your overlap is hatched on the graph.')
+              : `${said(buildGate.verdictsShown ? 'Locked until every constraint above is correct.' : 'Finish every constraint above first.')}${reasoningPreview ? ` Then: ${reasoningPreview}.` : ''}`)}
           </div>
 
           {combined && plan.reasoningSteps.includes('classify') ? phaseCard('classify', STEP_LABELS.classify, (
@@ -949,13 +1028,14 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
 
           {combined && plan.reasoningSteps.includes('teacherPoint') ? phaseCard('teacherPoint', `Test the point ${formatPoint(teacherTestPoint.x, teacherTestPoint.y)}`, (
             <>
-              <p className="mm-ineq-instruction">Substitute the point into each inequality.</p>
+              <p className="mm-ineq-instruction">{said('Substitute the point into each inequality.')}</p>
               <TestPointQuestions
                 point={[teacherTestPoint.x, teacherTestPoint.y]}
                 response={teacherPointResponse}
                 setResponse={setTeacherPointResponse}
                 count={constraintCount}
                 inequalityLabels={inequalityLabels}
+                substitutions={substitutionsFor([teacherTestPoint.x, teacherTestPoint.y])}
                 showBoundaryProbe={boundaryProbeEnabled && onBoundaryIndex([teacherTestPoint.x, teacherTestPoint.y]) >= 0}
               />
               <div className="mm-ineq-actions">
@@ -976,6 +1056,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
                     setResponse={setStudentPointResponse}
                     count={constraintCount}
                     inequalityLabels={inequalityLabels}
+                    substitutions={substitutionsFor(studentTestPoint)}
                     showBoundaryProbe={boundaryProbeEnabled && studentProbeIndex(studentTestPoint) >= 0}
                   />
                   <div className="mm-ineq-actions">
@@ -1013,7 +1094,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
           <HintPanel
             hints={[
               'Replace the inequality symbol with = to find the boundary line. Any two points that satisfy that equation determine it — you do not need the exact points a teacher would pick.',
-              'Solid means the boundary is included (≤ or ≥). Dashed means it is not (< or >). Shade the side where a point makes the original inequality true, then check a point in that shaded region against every inequality to find the system solution.',
+              said('Solid means the boundary is included (≤ or ≥). Dashed means it is not (< or >). Shade the side where a point makes the original inequality true, then check a point in that shaded region against every inequality to find the system solution.'),
               'A region that never closes up in some direction is unbounded. A vertex is only part of the solution when every boundary meeting there is solid — a dashed boundary at that exact corner excludes it, even though the lines still cross there.',
             ]}
             onHintUsed={() => onAction?.('HINT_USED')}

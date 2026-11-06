@@ -140,11 +140,12 @@ test('the Warm-Up gate passes the rewards slot and the student\'s profile throug
 /* ------------------------- coming back, and the recap ------------------------- */
 
 test('a device that comes back is told which rounds closed without its answer', () => {
-  const effect = region(main, '  useEffect(() => {\n    if (!roomId || !playerKey || !room', '}, [roomId, playerKey,', 'missed rounds effect');
+  // The effect starts by forgetting that the room was watched when a cached copy arrives (the test below).
+  const effect = region(main, '  useEffect(() => {\n    if (roomFromCache) watchingRef.current = null;', '}, [roomId, playerKey,', 'missed rounds effect');
   // Only the server's copy of the room counts; a cached one is not a return.
   assert.match(effect, /roomFromCache \|\| !everInSync\) return;/);
   assert.match(effect, /const lastSeen = readLastSeenRound\(storage, roomId\);\s*writeLastSeenRound\(storage, roomId, now\);/);
-  assert.match(effect, /roundsClosedWhileAway\(\{ lastSeen, now, joinedAtRound, finished: room\.status === 'finished' \}\)/);
+  assert.match(effect, /roundsClosedWhileAway\(\{ lastSeen, now, joinedAtRound, finished: room\.status === 'finished', present \}\)/);
   // From the student's OWN summary: the class's copy of a round lists only
   // its top rows, so it cannot say whether this student answered.
   assert.match(effect, /readLiveChallengePlayerSummary\(roomId, studentId\)/);
@@ -154,6 +155,22 @@ test('a device that comes back is told which rounds closed without its answer', 
   const notice = region(main, '{missedNotice && (', '\n        )}', 'missed notice');
   assert.match(notice, /onClick=\{\(\) => setMissedNotice\(''\)\}/);
   assert.match(student, /try \{ return window\.sessionStorage; \} catch \{ return null; \}/);
+});
+
+test('a student who watched the round end is not told it closed while they were away', () => {
+  // End Game during an open round, or the server ending a Pace Race round
+  // nobody came back to (N73), takes the room from that round straight to
+  // finished: a device that compared only its stored last round said "Round 1
+  // closed while you were away" to a student looking at it.
+  const effect = region(main, '  useEffect(() => {\n    if (roomFromCache) watchingRef.current = null;', '}, [roomId, playerKey,', 'missed rounds effect');
+  // Present: this screen compared the previous server copy, and has stayed visible and connected since.
+  assert.match(effect, /const present = watchingRef\.current === roomId;\s*watchingRef\.current = typeof document !== 'undefined' && document\.visibilityState === 'hidden' \? null : roomId;/);
+  assert.ok(effect.indexOf('const present') < effect.indexOf('roundsClosedWhileAway('), 'decided from before this copy');
+  // Away: hidden (a sleeping phone, another tab), offline, or a cached copy.
+  const leave = region(main, 'const watchingRef = useRef(null);', '}, []);', 'the visibility listener');
+  assert.match(leave, /if \(document\.visibilityState === 'hidden'\) watchingRef\.current = null;/);
+  assert.match(leave, /document\.addEventListener\('visibilitychange', leave\);\s*return \(\) => document\.removeEventListener\('visibilitychange', leave\);/);
+  assert.match(main, /useEffect\(\(\) => \{ if \(!online\) watchingRef\.current = null; \}, \[online\]\);/);
 });
 
 test('a finished game asks once for the student\'s own recap, and a failure shows nothing', () => {

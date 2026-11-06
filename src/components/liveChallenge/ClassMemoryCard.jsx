@@ -6,10 +6,12 @@ import {
   setupFromMemory,
   suggestNextSettings,
 } from '../../../functions/shared/liveChallengeClassMemory.mjs';
+import { CONSOLE_ANNOUNCEMENT } from '../../platform/liveChallenge/consoleAnnouncements.js';
 
 /*
- * LAST TIME, AND WHAT TO TRY NEXT — the card at the top of a rush's setup
- * when this class has played the game before (liveChallengeClassMemory.mjs):
+ * LAST TIME, AND WHAT TO TRY NEXT — the card at the top of a game's setup
+ * (a rush, Graph the Line, Solver Race) when this class has played the game
+ * before (liveChallengeClassMemory.mjs):
  *
  *   Period 5 last played this on Oct 28 at Standard, 3 × 60 s, 86% accuracy → try Challenge.
  *   4.2 graphs per student · weakest: vertex (41% completed)
@@ -17,15 +19,22 @@ import {
  *
  * Either button fills in the whole setup — question settings, rounds, time,
  * scoring — and every choice stays editable after. "Use suggestion" is left
- * out when the suggestion is to run the same game again.
+ * out when the suggestion is to run the same game again. Nothing on the card
+ * changes and focus stays on the button, so the console's live region says
+ * what was filled in (`onAnnounce`; teacher features walk, item 6).
  */
 
-export default function ClassMemoryCard({ memory, onUse }) {
+export default function ClassMemoryCard({ memory, onUse, onAnnounce = null }) {
   const next = useMemo(() => suggestNextSettings(memory), [memory]);
   if (!memory?.settings || typeof onUse !== 'function') return null;
   const sentence = classMemorySentence(memory, next);
   const detail = classMemoryDetail(memory);
   const offerSuggestion = Boolean(next) && !sameSettings(next.settings, memory.settings);
+  const use = (settings, words) => {
+    const setup = setupFromMemory(memory.game, settings);
+    onUse(setup);
+    if (setup) onAnnounce?.(words);
+  };
   const button = (primary) => ({
     minHeight: 40,
     padding: '8px 14px',
@@ -41,8 +50,8 @@ export default function ClassMemoryCard({ memory, onUse }) {
       <div style={{ fontWeight: 900, fontSize: 'calc(15 * var(--mm-px))' }}>{sentence}</div>
       {detail && <div style={{ fontSize: 'calc(13 * var(--mm-px))' }}>{detail}</div>}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" style={button(!offerSuggestion)} onClick={() => onUse(setupFromMemory(memory.game, memory.settings))}>Use last settings</button>
-        {offerSuggestion && <button type="button" style={button(true)} onClick={() => onUse(setupFromMemory(memory.game, next.settings))}>Use suggestion</button>}
+        <button type="button" style={button(!offerSuggestion)} onClick={() => use(memory.settings, CONSOLE_ANNOUNCEMENT.lastSettings)}>Use last settings</button>
+        {offerSuggestion && <button type="button" style={button(true)} onClick={() => use(next.settings, CONSOLE_ANNOUNCEMENT.suggestion)}>Use suggestion</button>}
       </div>
     </section>
   );

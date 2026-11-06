@@ -422,7 +422,7 @@ test('the round shows the set as drawn, its notation and ✓ Check — "keeps go
   // the session), with a prompt to start while nothing is drawn.
   assert.match(round, /const notation = setQuestion \? lineNotation\(question, studentDrawing, \{ revealing \}\) : null;/);
   assert.match(round, /\{notation\s*\? notation\.map\(\(form, index\) => \(/);
-  assert.match(round, /: \(inequalityItem \? 'Tap the number line to place a dot\.' : 'Tap the graph to place a dot\.'\)\}/);
+  assert.match(round, /: \(inequalityItem \? 'Tap the number line, or use the arrow keys and Enter, to place a dot\.' : 'Tap the graph, or use the arrow keys and Enter, to place a dot\.'\)\}/);
   const graph = read('src/components/liveChallenge/GraphFeatureRushGraph.jsx');
   assert.match(graph, /\{revealSet\s*\? <AxisSet shape=\{revealSet\} side=\{side\} tone="var\(--mm-rush-found\)" \/>\s*: <AxisSet shape=\{axisSet\} side=\{side\} tone="var\(--mm-rush-curve\)" \/>\}/);
 });

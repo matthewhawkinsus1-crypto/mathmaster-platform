@@ -538,6 +538,233 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s interval generator only writes a stated inequality in interval notation, so it cannot yet build the move-between-notations work a built-in Honors extension needs.',
     }),
   }),
+  // The Recovery V2 families for the exit ticket of Algebra II Honors Module 1,
+  // Lesson 2 Day 2 (questionFamiliesParentTransformations.mjs, RC01). Each asks
+  // exactly its original's skill at its rigor, aligned to A2.2A.
+  'transformations.identifyCubeRoot': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Transforming the cube-root parent function', 'A2.2A')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is one reflected, stretched and shifted cube root drawn on the lab\'s grid, whose a, h and k the student reads back; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'A `parent` knob over the other parent functions, or a horizontal factor b read from the graph, so the student identifies a transformation they have not been shown the family of.',
+      teacherReason: 'MathMaster\'s cube-root generator only asks for a, h and k of one graph, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'transformations.describeEveryChange': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Describing the transformations of a parent function', 'A2.2A')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is g(x) = ±f(±B(x − C)) + D described in five fixed choices (each reflection, the horizontal compression by 1/B, both translations); the choices fix the reasoning.',
+      missingCapability: 'A vertical stretch A and a typed description of the combined effect on a named point or feature, graded by the server, so the student composes the changes rather than naming each one.',
+      teacherReason: 'MathMaster\'s transformation-description generator only asks fixed-choice questions, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'transformations.mapExponentialPoint': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Mapping a point through a transformed exponential function', 'A2.2A')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version maps the reference point (0, 1) of 2^x through y = a·2^(x − h) + k with whole-number a, h and k; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'Other parent points and a horizontal factor b (x/b + h), or a mapped asymptote, so the student carries a whole transformation rather than one point.',
+      teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 families for the Algebra II Honors ALEKS bridge lesson
+  // (questionFamiliesTransformationLanguage.mjs, RC01's next shapes), A2.6C.
+  'transformations.describeTranslations': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Describing the translations of a function', 'A.3E, A.7C', 'translations', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version names the two translations of g(x) = f(x − C) + D, chosen from three words each; it is the class rule\'s readiness check, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task anchors on one that graphs or writes the transformed function (transformations.describeEveryChange, extended).',
+      teacherReason: 'MathMaster\'s translation generator only names two shifts, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
+  'transformations.describeScaleChange': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Describing a reflection and a stretch or compression of a function', 'A.3E, A.7C', 'reflections and stretches', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version names one reflection, one stretch or compression by a whole number or its reciprocal, and (outside f) one translation, chosen from three words each; the remaining levers are other factors, which are not rigor.',
+      missingCapability: 'A factor inside and outside f together, and the graph drawn or the equation written from a description, so the student applies the rule rather than naming it.',
+      teacherReason: 'MathMaster\'s class-rule generator only names one change of each kind, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'absoluteValue.analyzeTransformed': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Analyzing a transformed absolute value function', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is y = −a|x − h| + k with a whole-number a, analyzed from six sets of three choices; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'A fractional or positive a, a horizontal factor, and the vertex, range and intercepts typed, so the student works the analysis rather than choosing it.',
+      teacherReason: 'MathMaster\'s absolute-value generator only offers its analysis as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'transformations.matchAbsoluteValue': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Transforming the absolute value parent function', 'A2.6C')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version matches y = (1/n)|x − h| + k in the Transformations Lab from y = |x|; the remaining levers are other targets, which are not rigor.',
+      missingCapability: 'Targets with a reflection or a horizontal factor, matched from another starting graph, so the student plans the order of the changes.',
+      teacherReason: 'MathMaster\'s match generator only draws compressed, translated absolute values, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 families for Algebra II Honors Module 1 Lesson 1 Day 2's
+  // exit ticket (questionFamiliesGraphReading.mjs and
+  // questionFamiliesFunctionContexts.mjs, RC01's next shapes), A2.7I.
+  'functions.intervalsFromGraph': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Writing where a graphed parabola increases, decreases, and is positive or negative in interval notation', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is a parabola opening down with whole-number zeros, so the four intervals always follow one pattern from the vertex and the zeros; the remaining levers are other vertices, which are not rigor.',
+      missingCapability: 'Other parents (cubic, square root, absolute value) and parabolas with irrational zeros or opening up, so the student reads each interval from the graph rather than recalling the pattern.',
+      teacherReason: 'MathMaster\'s interval-reading generator only draws parabolas opening down with whole-number zeros, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.fillingTankAttributes': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('A situation\'s domain and range', 'A.2A', 'domain and range in context', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is the same filling tank with a new rate and time, its domain and range chosen from written-out sets; the remaining levers are other numbers, which are not rigor.',
+      missingCapability: 'Situations whose domain is discrete or open at one end, with the domain and range typed, so the student decides them from the situation rather than choosing a bracket form.',
+      teacherReason: 'MathMaster\'s situation generator only writes the filling tank, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 families for the inverse boards of Algebra II Honors
+  // Module 1 Lessons 3 and 4 (questionFamiliesInverses.mjs, RC01's next
+  // shapes), A2.2B and A2.7I.
+  'functions.swapPairAndEvaluate': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Swapping an ordered pair and evaluating a function', 'A.12B', 'ordered pairs and function notation', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version swaps one ordered pair and evaluates one linear function at one input; it is the readiness check before inverses, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task on inverses anchors on a family that writes the inverse itself (functions.inverseOfLinear, extended).',
+      teacherReason: 'MathMaster\'s ordered-pair review generator only swaps one pair and evaluates one line, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
+  'relations.inverseOfSet': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Inverse relations', 'A2.2B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version swaps the coordinates of three listed ordered pairs, chosen from three written-out sets; the remaining levers are other pairs, which are not rigor.',
+      missingCapability: 'A relation given as a graph or a table, or a set whose inverse is not a function, so the student also decides whether the inverse is a function.',
+      teacherReason: 'MathMaster\'s inverse-relation generator only swaps short lists of ordered pairs, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.inverseOfLinear': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Inverse functions', 'A2.2B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version inverts f(x) = ax + b with whole numbers, chosen from four written-out expressions, and checks one value; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'A typed inverse marked by expression equivalence, and inverses of quadratic and square root functions on a restricted domain (A2.2C), so the student writes and restricts the inverse rather than recognizing it.',
+      teacherReason: 'MathMaster\'s inverse generator only offers inverses of whole-number lines as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.inverseInContext': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Inverse functions in context', 'A2.2B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is a subscription cost C(m) = rm + f whose inverse is chosen from four written-out expressions and evaluated once; the remaining levers are other rates and fees, which are not rigor.',
+      missingCapability: 'A typed inverse marked by expression equivalence, with the meaning of the inverse\'s input and output and a domain the context restricts, so the student interprets the inverse rather than recognizing it.',
+      teacherReason: 'MathMaster\'s inverse-in-context generator only offers the inverse of one kind of cost as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 families for the numeric Warm-Up of Algebra II Honors
+  // Module 1 Lesson 4 (questionFamiliesFunctionValues.mjs, RC01), A2.2D.
+  'functions.pointwiseFromValues': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Operations on functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version adds and subtracts two given function values at one input; it is the readiness check before operations on functions, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task on operations anchors on a family that writes the functions themselves (sum, difference, product, quotient and the quotient\'s excluded inputs).',
+      teacherReason: 'MathMaster\'s function-values generator only combines two given numbers, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
+  'functions.compositionFromValues': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Composing functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version reads f(g(a)) from two given values; it is the readiness check before composition, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task on composition anchors on a family that composes the functions themselves (f∘g and g∘f, and whether they are inverses).',
+      teacherReason: 'MathMaster\'s function-values generator only chains two given values, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 families for Algebra II Honors Module 1 Lesson 4's exit
+  // ticket Q1 and Q2 (questionFamiliesFunctionOperations.mjs, RC01's next
+  // shapes), A2.2D.
+  'functions.composeQuadraticLinear': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Composing functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version composes x² + bx + c with mx + n both ways, chosen from four polynomials each; the remaining levers are other coefficients, which are not rigor.',
+      missingCapability: 'The compositions typed, a leading coefficient on f, and the domain of a composition with a root or a quotient, so the student writes the composition rather than choosing it.',
+      teacherReason: 'MathMaster\'s composition generator only offers its compositions as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.conjugateProductQuotient': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Operations on functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version multiplies x + p by x − p and names the input one of their quotients excludes, chosen from four each; the remaining levers are other values of p, which are not rigor.',
+      missingCapability: 'Products and quotients of other functions, typed, with every excluded input of a quotient whose denominator has two zeros.',
+      teacherReason: 'MathMaster\'s operations generator only offers one pair of linear functions as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 family for the graphed domain and range of Algebra II
+  // Honors Module 1 Lesson 1 (questionFamiliesGraphReading.mjs, RC01), A2.7I.
+  'functions.domainRangeFromGraph': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Writing a graphed domain and range in interval notation', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is an unrestricted parabola or absolute value with a moved vertex, so the domain is always all real numbers and only the range\'s end moves; the remaining levers are other vertices, which are not rigor.',
+      missingCapability: 'A restricted domain (a closed or half-open interval, as Lesson 1\'s own restricted line has) and other parents (square root, rational), so the domain and range are both found, not recalled.',
+      teacherReason: 'MathMaster\'s graphed domain-and-range generator only draws unrestricted parabolas and absolute values, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 family for the static Mapping Diagram Warm-Up and DOL
+  // questions (questionFamiliesRelations.mjs, RC01): Algebra II Honors Module 1
+  // Lesson 1 (A2.7I) and the Algebra I District DOL 1 review (A.12A).
+  'relations.mappingDiagram': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.',
+      missingCapability: 'A relation given as a graph, a table or a rule to map first (the Mapping Diagram\'s plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.',
+      teacherReason: 'MathMaster\'s mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is three or four ordered pairs of whole numbers whose arrows, domain and range the student reads off, and whose function verdict follows from one repeated input or output; the remaining levers are other pairs, which are not rigor.',
+      missingCapability: 'A relation given as a graph, a table or a rule to map first (the Mapping Diagram\'s plot stage), or a pair to add or remove so it becomes a function, so the student reasons about the definition rather than spotting a repeat.',
+      teacherReason: 'MathMaster\'s mapping-diagram generator only writes short lists of ordered pairs, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  // The Recovery V2 families for the Algebra I District DOL 1 review's Warm-Up
+  // Q2–Q4 (questionFamiliesGraphRecognition.mjs, RC01's next shapes): A.3C,
+  // A.7A and A.9D, Algebra I content.
+  'functions.familySortFromGraphs': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version sorts two lines, a parabola and an exponential growth curve by family in one window; it is a recognition warm-up, and the remaining levers are other curves, which are not rigor.',
+      missingCapability: 'Families told apart from a table or an equation as well as a graph, with curves that look alike near the origin, so the student reasons from rates of change rather than from shape alone.',
+      teacherReason: 'MathMaster\'s graph-sort generator only draws one curve of each kind, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Telling linear, quadratic and exponential graphs apart')),
+  }),
+  'quadratics.vertexChoiceFromGraph': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version chooses the vertex of y = ±(x − h)² + k read off its graph, from the vertex, its sign-flipped point and the two x-intercepts; the remaining levers are other parabolas, which are not rigor.',
+      missingCapability: 'The vertex typed, a stretched parabola, and the vertex form written from the graph, so the student reads the graph rather than recognizing a choice.',
+      teacherReason: 'MathMaster\'s vertex-choice generator only offers the vertex among four points, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Reading the vertex of a graphed parabola')),
+  }),
+  'exponential.sortGrowthDecay': Object.freeze({
+    algebra1: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version sorts three growth and three decay curves a·bˣ by direction in one window; the remaining levers are other starts and bases, which are not rigor.',
+      missingCapability: 'Growth and decay told from a table, an equation or a situation, with the growth or decay rate named, so the student explains the base rather than the curve\'s direction.',
+      teacherReason: 'MathMaster\'s growth-and-decay generator only sorts curves by direction, so it cannot yet build a built-in Honors extension.',
+    }),
+    algebra2: Object.freeze(ALGEBRA_I_ONLY('Telling exponential growth from decay on a graph')),
+  }),
 });
 
 /**

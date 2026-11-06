@@ -150,6 +150,23 @@ const fieldAnswerText = (field) => {
   return Array.isArray(first) ? `(${first.join(', ')})` : clean(first);
 };
 
+/*
+ * A choice part's answer is a sentence ("He changed the sign of the 3"), and
+ * any other part may hold prose too. Drawn as LaTeX, its letters come out as
+ * italic variables with no spaces between them, so it is shown as text
+ * instead (MathText, so a $…$ inside a sentence is still typeset). A part is
+ * prose when its field is a choice, or when the response has two words of
+ * three or more letters in a row; "2x + 3", "-1/2" and "\\frac{1}{2}" are
+ * not, and stay typeset.
+ */
+const PROSE_FIELD_TYPES = new Set(['choice', 'select', 'multiplechoice', 'multiple-choice', 'dropdown', 'radio', 'text', 'shorttext', 'explanation']);
+export const responseIsProse = (response, field = null) => {
+  const text = clean(response);
+  if (!text) return false;
+  if (PROSE_FIELD_TYPES.has(clean(field?.type ?? field?.inputType).toLowerCase())) return true;
+  return /(?<![\\\w])[A-Za-z][a-z']{2,}\s+[A-Za-z][a-z']{2,}/.test(text.replace(/\$[^$]*\$/g, ' '));
+};
+
 export const buildPartReviewRows = ({ question = null, parts = [] } = {}) => {
   const fields = list(question?.answerFields).filter((field) => field && clean(field.id));
   const given = list(parts).filter((part) => part && clean(part.key ?? part.id));
@@ -160,6 +177,7 @@ export const buildPartReviewRows = ({ question = null, parts = [] } = {}) => {
       id: clean(field.id),
       label: clean(field.label || field.prompt) || `Part ${order + 1}`,
       yourAnswer: clean(part?.response),
+      yourAnswerIsText: responseIsProse(part?.response, field),
       correct: fieldAnswerText(field),
       isCorrect: typeof part?.isCorrect === 'boolean' ? part.isCorrect : null,
       order,

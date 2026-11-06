@@ -148,7 +148,24 @@ test('the committed report is generated from the live registry and audit, never 
   // Algebra II); in Algebra I three are CAPABLE (inequalities.solveLinear,
   // inequalities.contextModel, systems.contextModel) and six BLOCKED.
   // The interval Recovery family (RC01, intervals.graphAndWrite) is Algebra II
-  // content (A2.7I): NOT APPROPRIATE in Algebra I, BLOCKED in Algebra II.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 51 \| 4 \| 8 \| 28 \| 11 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 51 \| 0 \| 1 \| 24 \| 26 \|/);
+  // content (A2.7I): NOT APPROPRIATE in Algebra I, BLOCKED in Algebra II. So
+  // are the three parent-function transformation families (RC01, A2.2A). The
+  // Mapping Diagram family (RC01) is aligned to both courses (A.12A, A2.7I):
+  // BLOCKED in each. The graphed domain-and-range family (RC01) is Algebra II
+  // content (A2.7I), as are the two function-values families (RC01, A2.2D).
+  // Of the four inverse families (RC01's next shapes), three are Algebra II
+  // content (A2.2B); the ordered-pair review is aligned to A2.7I, a skill
+  // Algebra I also teaches (A.12B): BLOCKED in each course. Lesson 1 Day 2's
+  // graphed intervals are Algebra II content (A2.7I); its filling tank is a
+  // situation's domain and range, which Algebra I also teaches (A.2A): BLOCKED
+  // in each course. Of the ALEKS bridge lesson's four (A2.6C), the absolute
+  // value analysis and match are Algebra II content; the class rule's
+  // translations and scales describe what Algebra I also teaches (A.3E,
+  // A.7C): BLOCKED in each course. Lesson 4's exit-ticket compositions and
+  // conjugate product and quotient are Algebra II content (A2.2D). The
+  // District DOL 1 review's graph sorts and vertex choice are Algebra I
+  // content (A.3C, A.7A, A.9D): BLOCKED in Algebra I, NOT APPROPRIATE in
+  // Algebra II.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 73 \| 4 \| 8 \| 36 \| 25 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 73 \| 0 \| 1 \| 43 \| 29 \|/);
 });

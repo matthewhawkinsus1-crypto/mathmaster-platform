@@ -167,8 +167,13 @@ export const buildInterpretationGraph = (baseGraph, rawValues, rawConfig) => {
   const config = normalizeInterpretationConfig(rawConfig);
   if (!config.graphFeedback) return baseGraph;
 
-  const xNumber = Number(values.xValue);
-  const yNumber = Number(values.yValue);
+  // An empty box is no value. Number('') is 0, so before anything was typed
+  // the graph drew the student's point "(0, 0)" with its ring and guides
+  // (platform-polish-3; F-MEANING-EMPTY in the 2026-11-06 Algebra I M3 T2
+  // walkthrough). Nothing is drawn for a value until it is typed.
+  const typedNumber = (value) => (String(value ?? '').trim() === '' ? Number.NaN : Number(value));
+  const xNumber = typedNumber(values.xValue);
+  const yNumber = typedNumber(values.yValue);
   const xQuantityChosen = config.responseMode !== 'builder' || Boolean(values.xQuantityId);
   const yQuantityChosen = config.responseMode !== 'builder' || Boolean(values.yQuantityId);
   const xUnit = String(values.xUnit || '').trim();

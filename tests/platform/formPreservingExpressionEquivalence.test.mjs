@@ -39,9 +39,21 @@ test('form-preserving expression comparison does not expand a factored answer', 
   );
 });
 
-test('form-preserving expression comparison does not reorder factors', () => {
+// Grader spellings (2026-11): the same factors in another order are the same
+// factored form, as the factoredForm grading mode has always taken them, and
+// a student who wrote them so was refused. The comparison still expands
+// nothing (above), and nothing moves inside a factor.
+test('form-preserving expression comparison takes the same factors in another order, and nothing else', () => {
   assert.equal(
     sameFormPreservingExpression('(x-5)(x^2+5x+25)', '(x^2+5x+25)(x-5)'),
+    true,
+  );
+  assert.equal(
+    sameFormPreservingExpression('(x-5)(x^2+5x+25)', '(x^2+5x+25)(x+5)'),
+    false,
+  );
+  assert.equal(
+    sameFormPreservingExpression('(x-5)(x^2+5x+25)', '(25+5x+x^2)(x-5)'),
     false,
   );
 });

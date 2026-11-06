@@ -10,6 +10,7 @@ import {
   sameMixedNumber,
   sameNumberWithThousandsSeparators,
   normalizeStructuralMathLive,
+  pairCoordinateValue,
   sameFormPreservingExpression,
   sameNumericPair,
   samePolynomialEquationRelation,
@@ -279,9 +280,11 @@ export const formSpecificComparatorLoaded = (mode) => FORM_SPECIFIC_COMPARATORS.
 
 // The key exactly as written, up to spelling (MathLive braces, `\\cdot`):
 // what a form-specific mode falls back to, never a looser reading — the
-// ordinary grader would accept 5·10a for 50a, which no "simplify" key means.
+// ordinary grader would accept 5·10a for 50a, which no "simplify" key means,
+// and its terms and factors in another order are the comparator's to take
+// (grader spellings, 2026-11), not this fallback's.
 const sameWrittenForm = (studentAnswer, acceptedAnswer) => (
-  sameFormPreservingExpression(studentAnswer, acceptedAnswer)
+  sameFormPreservingExpression(studentAnswer, acceptedAnswer, { reorder: false })
   || (normalizeMathAnswer(studentAnswer) !== '' && normalizeMathAnswer(studentAnswer) === normalizeMathAnswer(acceptedAnswer))
 );
 
@@ -346,7 +349,9 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
 
   if (isOrderedPairField(field)) {
     return acceptedAnswers.some((acceptedAnswer) => {
-      const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer);
+      // The key is read as written: a key coordinate written as a mixed number
+      // asks for one (GR13), so it is compared below, where that is kept.
+      const expectedPair = Array.isArray(acceptedAnswer) ? acceptedAnswer : parseOrderedPair(acceptedAnswer, { mixedNumbers: false });
       if (expectedPair) return compareOrderedPair(studentAnswer, expectedPair, tolerance(fieldToleranceFor(expectedPair)));
       // A key with a root in a coordinate is not a pair of plain numbers:
       // compared by exact value (sameNumericPair, student pass 3), or, for a
@@ -355,7 +360,7 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
       // pair at all ("none") is still not one this box can take.
       if (typeof acceptedAnswer !== 'string') return false;
       const key = normalizeAnswer(acceptedAnswer);
-      return sameNumericPair(studentAnswer, acceptedAnswer, tolerance(1e-6))
+      return sameNumericPair(studentAnswer, acceptedAnswer, tolerance(1e-6), { mixedNumbers: true })
         || (/^\(.*,.*\)$/.test(key) && normalizeAnswer(studentAnswer) === key);
     });
   }
@@ -405,7 +410,13 @@ export const matchesFieldAnswer = (studentAnswer, field = {}) => {
   return acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer, tolerance(fieldToleranceFor(acceptedAnswer)), options));
 };
 
-export const parseOrderedPair = (value) => {
+/*
+ * A student's pair as [x, y]. A coordinate may be a mixed number, read as a
+ * lone number box reads one: `(1 1/3, 1 2/3)` is (4/3, 5/3), `(−5 1/3, 2)` is
+ * (−16/3, 2) (answerEquivalence pairCoordinateValue; F-PAIR-MIXED,
+ * platform-polish-3). `{ mixedNumbers: false }` reads a key as written.
+ */
+export const parseOrderedPair = (value, { mixedNumbers = true } = {}) => {
   const normalized = normalizeMathAnswer(value)
     .replace(/^\\?\(/, '')
     .replace(/\\?\)$/, '')
@@ -415,8 +426,9 @@ export const parseOrderedPair = (value) => {
 
   const parts = normalized.split(',');
   if (parts.length !== 2) return null;
-  const x = asNumber(parts[0]);
-  const y = asNumber(parts[1]);
+  const read = mixedNumbers ? pairCoordinateValue : asNumber;
+  const x = read(parts[0]);
+  const y = read(parts[1]);
   if (x === null || y === null) return null;
   return [x, y];
 };
@@ -484,12 +496,12 @@ export const sameOrderedPairCoordinate = (studentAnswer, expectedPair, index, to
   if (!key || !student) return false;
   const keyNumber = asNumber(key[index]);
   if (keyNumber !== null) {
-    const value = asNumber(student[index]);
+    const value = pairCoordinateValue(student[index]);
     return value !== null && Math.abs(value - keyNumber) <= tolerance;
   }
   const other = key[1 - index];
   const pairOf = (coordinate) => (index === 0 ? `(${coordinate},${other})` : `(${other},${coordinate})`);
-  return sameNumericPair(pairOf(student[index]), pairOf(key[index]));
+  return sameNumericPair(pairOf(student[index]), pairOf(key[index]), undefined, { mixedNumbers: true });
 };
 
 export const compareOrderedPair = (studentAnswer, expectedPair, tolerance = 1e-9) => {
@@ -507,5 +519,5 @@ export const compareOrderedPair = (studentAnswer, expectedPair, tolerance = 1e-9
   // student's pair is read with the brackets a plain key takes, `(x, y)` or
   // `[x, y]`: sameNumericPair alone reads only round ones.
   const student = splitPairText(normalizeMathAnswer(studentAnswer));
-  return Boolean(student) && sameNumericPair(`(${student[0]},${student[1]})`, `(${key[0]},${key[1]})`);
+  return Boolean(student) && sameNumericPair(`(${student[0]},${student[1]})`, `(${key[0]},${key[1]})`, undefined, { mixedNumbers: true });
 };

@@ -39,6 +39,8 @@ import { readComposedQuestion } from '../../src/platform/workflow/questionWorkfl
 import { selectPersistentWorkflowGraph } from '../../src/platform/workflow/workflowPresentation.js';
 import { studentBuildInequalityEnabled } from '../../functions/shared/toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+// A tool that keeps its drafts needs a browser's storage to render.
+import { withBrowser as withWindow } from './helpers/studentToolRender.mjs';
 
 const ROOT = new URL('../../', import.meta.url);
 const ROOT_PATH = fileURLToPath(ROOT);
@@ -216,10 +218,14 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   // that says what each axis counts by (R-9). The hidden description beside it stays
   // the description alone: the visible captions are read in place, not twice.
   // `say` is the same reading as messages, for Read aloud in Spanish (AX05,
-  // figureReadingSpanish.test.mjs).
-  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{spokenDescription\}<\/p>/);
+  // figureReadingSpanish.test.mjs); the hidden description is `described`: the
+  // same description, in Spanish under a translation (slice 2).
+  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{describedContent\(described\)\}<\/p>/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{spokenDescription\}<\/p>/);
+  // The plane's name travels as its English and as a message (AX05, slice 4:
+  // a tool may build it from its own words, figureNames.js).
+  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: nameText, labelSay: name\.say, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{describedContent\(described\)\}<\/p>/);
+  assert.match(plane, /const name = figureName\(ariaLabel\);\s*const nameText = name\.text;/, 'the name it publishes is the one it is given');
   const visual = code('src/QuestionVisual.jsx');
   assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
   assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);
@@ -228,15 +234,17 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
 
   // The other figures that already describe themselves, beside that description.
   [
-    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{lineDescription\}<\/p>/],
-    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{description\}<\/span>/],
-    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{modelDescription\}<\/span>/],
-    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{workspaceDescription\}<\/span>/],
+    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{describedContent\(described\)\}<\/p>/],
+    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{describedContent\(described\)\}<\/span>/],
+    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{describedContent\(described\)\}<\/span>/],
+    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{describedContent\(described\)\}<\/span>/],
   ].forEach(([path, wiring]) => assert.match(code(path), wiring, path));
 
   const engine = code('src/QuestionEngine.jsx');
-  assert.match(engine, /import \{ FigureReadingPortProvider, figureReadingEntries, updateFigureReadings \} from '\.\/platform\/language\/figureReadings\.js';/);
-  assert.match(engine, /<FigureReadingPortProvider publish=\{publishFigureReading\}>\{renderModule\(\)\}<\/FigureReadingPortProvider>/, 'the question\'s own figures, not a practice item or a review beside it');
+  assert.match(engine, /import \{ FigureReadingPortProvider, FigureWordsProvider, figureReadingEntries, updateFigureReadings \} from '\.\/platform\/language\/figureReadings\.js';/);
+  // The question's own figures, not a practice item or a review beside it; they
+  // write their screen-reader descriptions in the reading's words (AX05, slice 2).
+  assert.match(engine, /<FigureReadingPortProvider publish=\{publishFigureReading\}>\s*<FigureWordsProvider pack=\{figurePack\}>\{renderModule\(\)\}<\/FigureWordsProvider>\s*<\/FigureReadingPortProvider>/, 'the question\'s own figures, not a practice item or a review beside it');
   assert.match(engine, /const publishFigureReading = useCallback\(\(id, entry\) => setPublishedFigures\(\(current\) => updateFigureReadings\(current, id, entry\)\), \[\]\);/);
   const reading = region(engine, 'const readingParts = useMemo(', ');', 'the reading');
   assert.match(reading, /figures: figureReadings,/);
@@ -319,18 +327,23 @@ test('the inequality region names its corners once positions may be said, and sa
   // A closed triangle: three corners, nothing past the edge.
   const triangle = [{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: 0, relation: '<=' }];
   assert.equal(
-    regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle, intro: '1 shaded region' }),
+    regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle }),
     '1 shaded region, with corners at (0, 0), (4, 0) and (2, 2).',
+  );
+  // A given system's region is the one where every inequality is true.
+  assert.equal(
+    regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle, everyInequalityTrue: true }),
+    '1 shaded region, where every inequality is true, with corners at (0, 0), (4, 0) and (2, 2).',
   );
   // An open region: only where boundaries meet is a corner; the window's cut is not.
   const open = [{ m: 0, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<=' }, { m: 1, b: -2, relation: '>=' }];
-  const said = regionCornersText({ polygon: feasibleRegionPolygon(open, bounds), lines: open, intro: '1 shaded region' });
+  const said = regionCornersText({ polygon: feasibleRegionPolygon(open, bounds), lines: open });
   assert.equal(said, '1 shaded region, with corners at (2, 0) and (3, 1). It goes on past the edge of the graph.');
   assert.doesNotMatch(said, /−6/, 'a window edge is no corner');
   assert.equal(regionCornersText({ polygon: [[0, 0], [1, 0]], lines: open }), null, 'no region, no sentence');
   // Through the plane: open, the kind only; closed, the corners.
   const base = { xMin: -6, xMax: 8, yMin: -4, yMax: 10, xTickStep: 1, yTickStep: 1, hasUndescribedMarks: true };
-  const toolMarks = { kinds: '1 shaded region.', features: regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle, intro: '1 shaded region' }) };
+  const toolMarks = { kinds: '1 shaded region.', features: regionCornersText({ polygon: feasibleRegionPolygon(triangle, bounds), lines: triangle }) };
   assert.doesNotMatch(describeCoordinatePlane({ ...base, toolMarks }).description, /corner|\(\d/);
   assert.match(describeCoordinatePlane({ ...base, toolMarks, detail: 'features' }).description, /corners at \(0, 0\), \(4, 0\) and \(2, 2\)\.$/);
 });
@@ -339,12 +352,28 @@ test('the Complex Plane, the sideways parabola and the inequality region pass th
   assert.match(code('src/tools/complexPlane/ComplexPlaneLab.jsx'), /toolMarks=\{\{ kinds: 'A segment joins the origin to each point\.' \}\}\s*>\s*\{\(\{ sx, sy \}\) => <>\{items\.map\(\(item\) => <line/);
   const parabola = code('src/tools/parabolaGeometry/ParabolaGeometryLab.jsx');
   assert.match(parabola, /toolMarks=\{\{ kinds: '1 curve\.', features: `1 curve, opening to the \$\{spec\.p>0\?'right':'left'\}\.` \}\}>[^<]*?\{spec\.orientation==='horizontal' \? \(\{sx,sy\}\)=> <path/, 'only a sideways parabola draws (and names) its own curve');
-  const systems = code('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
-  assert.match(systems, /const regionIntro = `1 shaded region\$\{requiresConstruction \? '' : ', where every inequality is true'\}`;/);
-  assert.match(systems, /toolMarks=\{\{\s*kinds: shownPolygon\.length >= 3 \? `\$\{regionIntro\}\.` : 'No region is shaded yet\.',\s*features: regionCornersText\(\{ polygon: shownPolygon, lines: requiresConstruction \? studentInequalities : inequalities, intro: regionIntro \}\) \|\| undefined,\s*\}\}/);
-  assert.match(code('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'), /toolMarks=\{\{ kinds: inequalityGraphMarksText\(\{ build, effectiveLines, buildConfig, workingConstraints, bounds, combined, studentPolygon \}\) \}\}/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
   assert.match(plane, /hasUndescribedMarks: hasToolMarks,\s*toolMarks: hasToolMarks \? toolMarks : null,/);
+
+  // The Systems Workspace's two planes, rendered: the student's own graph in
+  // its words, and a given system's region by its kind while the question is
+  // open and by its corners once it is closed. (Their sentences are messages,
+  // said in Spanish too: figureReadingSpanish.test.mjs, AX05 slice 3.)
+  const { default: SystemsWorkspace } = await vite.ssrLoadModule('/src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+  const { QuestionLifecycleProvider } = await vite.ssrLoadModule('/src/platform/question/QuestionLifecycleContext.jsx');
+  const described = (questionData, closed) => withWindow(() => /<p id="mm-plane-desc-[^"]*"[^>]*>([^<]*)<\/p>/.exec(renderToStaticMarkup(React.createElement(
+    QuestionLifecycleProvider, { terminal: closed, positionsReadable: closed }, React.createElement(SystemsWorkspace, { questionData, onAction() {} }),
+  )))?.[1] || '');
+  const build = { type: 'systemsWorkspace', mode: 'inequalities', questionId: 'words-kai', prompt: 'Write the inequality, then graph it.',
+    modeling: { variables: [{ symbol: 'x', label: 'two-point shots' }, { symbol: 'y', label: 'three-point shots' }], expectedConstraints: [{ A: 2, B: 3, C: -20, relation: '>=' }] },
+    studentBuild: { rewrite: false, boundary: true, lineStyle: true, shading: true }, reasoning: { testPoint: true, classifyRegion: false, vertices: false },
+    testPoint: { x: 6, y: 4 }, graph: { xMin: 0, xMax: 12, yMin: 0, yMax: 10 } };
+  assert.match(await described(build, false), /No boundary line is drawn yet\. Positions are not read out while this question can be answered\.$/);
+  const given = { type: 'systemsWorkspace', mode: 'inequalities', questionId: 'feasible', prompt: 'Test a point.' };
+  const open = await described(given, false);
+  assert.match(open, /1 shaded region, where every inequality is true\. Positions are not read out/, open);
+  assert.doesNotMatch(open, /corner|\(\d/, 'open: no corner');
+  assert.match(await described(given, true), /1 shaded region, where every inequality is true, with a corner at \(3\.333333, 4\.333333\)\. It goes on past the edge of the graph\.$/);
 
   // Rendered: the plane's own description carries the tool's words.
   const { default: CoordinatePlane } = await vite.ssrLoadModule('/src/tools/shared/CoordinatePlane.jsx');

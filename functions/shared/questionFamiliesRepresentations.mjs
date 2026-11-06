@@ -12,6 +12,10 @@
  *                                    linearConnections, task "group"): the cards
  *                                    of two lines, shuffled together.
  *
+ * Version 2 of each (at the end of this file, RC01) also writes a lesson's own
+ * task in full — a deck, a board with its story and meanings — and recognizes
+ * the static questions of exactly that task, for Recovery V2.
+ *
  * WHY A PLATFORM FAMILY AND NOT AN ASSIGNMENT TEMPLATE. Every representation
  * here must describe ONE line, so each family draws only the line itself —
  * slope (as an exact fraction) and y-intercept, or for a story, its rate and
@@ -73,6 +77,7 @@
  */
 
 import {
+  CONSTRAINT_POLICY,
   FAMILY_ISSUE,
   booleanKnob,
   choiceKnob,
@@ -87,6 +92,7 @@ import {
 } from './questionFamilyContract.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const clean = (value) => String(value ?? '').trim();
 const MINUS = '−';
 const display = (text) => String(text).replace(/(^|[\s(=])-/g, `$1${MINUS}`);
 
@@ -180,7 +186,7 @@ const lineFeatures = (values, c) => {
   return features;
 };
 
-export const multipleRepresentationsFamily = defineQuestionFamily({
+const multipleRepresentationsSpec = {
   id: 'linear.multipleRepresentations',
   version: 1,
   title: 'One linear relationship in every representation',
@@ -429,7 +435,9 @@ export const multipleRepresentationsFamily = defineQuestionFamily({
   },
   defaultTool: 'representationBridge',
   recovery: { eligible: true },
-});
+};
+
+export const multipleRepresentationsFamily = defineQuestionFamily(multipleRepresentationsSpec);
 
 /* ---------------------------------------------------------------------------
  * linear.representationSort
@@ -443,6 +451,13 @@ const SORT_CARD_KINDS = Object.freeze(['slopeIntercept', 'factoredLinear', 'poin
 const anchorFor = (m, b, zero) => {
   const candidate = [3, 2, 1, 4, -1, -2, -3, 5].find((x) => x !== 0 && x !== zero && m * x + b !== 0);
   return [candidate, m * candidate + b];
+};
+
+/** A story's own quadrant: time from 0 to 12, amount from 0 to a ten above the higher line. */
+const firstQuadrantWindow = (lines) => {
+  const xMax = 12;
+  const top = Math.max(...lines.map(({ m, b }) => Math.max(b, m * xMax + b)));
+  return { xMin: 0, xMax, yMin: 0, yMax: Math.ceil((top + 1) / 10) * 10 };
 };
 
 // The x-intercept cards (the intercept and the factored form) are dealt only
@@ -473,7 +488,7 @@ const sortSetFor = (line, authoredSet = {}, index = 0, { xInterceptCards = true 
   return set;
 };
 
-export const representationSortFamily = defineQuestionFamily({
+const representationSortSpec = {
   id: 'linear.representationSort',
   version: 1,
   title: 'Sort the representations of two lines',
@@ -520,11 +535,7 @@ export const representationSortFamily = defineQuestionFamily({
       const sets = lines.map((line, index) => sortSetFor(line, authoredSets[index] || {}, index, { xInterceptCards }));
       const firstQuadrant = c.interceptRange[0] > 0;
       const graphBounds = firstQuadrant
-        ? (() => {
-          const xMax = 12;
-          const top = Math.max(...lines.map(({ m, b }) => Math.max(b, m * xMax + b)));
-          return { xMin: 0, xMax, yMin: 0, yMax: Math.ceil((top + 1) / 10) * 10 };
-        })()
+        ? firstQuadrantWindow(lines)
         : squareWindow(lines.flatMap(({ m, b }) => [[0, b], [Number.isInteger(-b / m) ? -b / m : 0, 0]]), 6);
       const tokens = { line1: display(sets[0].slopeIntercept), line2: display(sets[1].slopeIntercept) };
       return {
@@ -549,9 +560,352 @@ export const representationSortFamily = defineQuestionFamily({
   },
   defaultTool: 'representationMatch',
   recovery: { eligible: true },
+};
+
+export const representationSortFamily = defineQuestionFamily(representationSortSpec);
+
+/* ---------------------------------------------------------------------------
+ * VERSION 2 OF BOTH FAMILIES: THE LESSON'S OWN TASKS, WRITTEN IN FULL, AND
+ * RECOGNIZED (RC01).
+ *
+ * Recovery V2 recovers a STATIC Warm-Up or DOL question from a certified
+ * family that recognizes it (recoveryContent.mjs), and generates every
+ * Recovery version from a slot that carries the original's identity and none
+ * of its wording: no prompt, no cards, no story, no meanings. Version 1 of
+ * these families takes all of that from its slot, so from such a slot it
+ * writes a bare board or a deck of every card a line supplies — never the
+ * static question's own task. Neither version 1 recognizes a static question,
+ * and the baseline Multiple Representations lesson
+ * (docs/assignments/algebra1-linear-multiple-representations-final-v5.json)
+ * had no Recovery for its Warm-Up or its DOL.
+ *
+ * Version 2 adds one concept knob to each family, naming a task the family
+ * now writes in full — the lesson's own:
+ *
+ *   linear.representationSort v2, `deck`
+ *     authored        version 1: the slot's own cards, sets and prompt
+ *     equationForms   two lines named in the prompt; each one's slope-intercept,
+ *                     standard and point-slope equation, its graph and its
+ *                     x-intercept (the lesson's Warm-Up Q1)
+ *     situations      a story that grows (savings) and one that shrinks (a tub
+ *                     that drains), each with its equation, graph, rate and
+ *                     starting value (Warm-Up Q2)
+ *
+ *   linear.multipleRepresentations v2, `board`
+ *     authored        version 1: the slot's own required cards and meanings
+ *     drainingTank    the tank story (version 1's own default story) and the
+ *                     DOL's checkpoint: six cards and three meanings, each a
+ *                     choice among four, submitted once (DOL Q1)
+ *
+ * and `recognize`, which reads a static question of exactly one of those
+ * tasks — its cards, story and meanings ARE what version 2 writes for the
+ * question's own numbers, its numbers are in the lesson's ranges, and its
+ * prompt states nothing else (no number but the two lines the equation deck
+ * names) — and nothing else. The ranges are the ones the lesson's
+ * family-backed copy (Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json)
+ * draws the same tasks from.
+ *
+ * Version 1 is unchanged (questionFamilyHistoricalPins holds it byte for byte)
+ * and an unpinned reference still means version 1. Under `authored`, version 2
+ * writes exactly what version 1 writes.
+ * ------------------------------------------------------------------------- */
+
+const normalizedText = (text) => clean(text).replace(/[−–]/g, '-').replace(/\s+/g, ' ');
+
+/** The prompt states each of `statements` once and no other number or relation. */
+const promptStatesOnly = (prompt, statements = []) => {
+  let rest = normalizedText(prompt);
+  if (!rest) return false;
+  for (const statement of [...statements].map(normalizedText).sort((a, b) => b.length - a.length)) {
+    const at = rest.indexOf(statement);
+    if (!statement || at < 0 || rest.indexOf(statement, at + 1) >= 0) return false;
+    rest = `${rest.slice(0, at)} ${rest.slice(at + statement.length)}`;
+  }
+  return !/[0-9=<>≤≥]/.test(rest);
+};
+
+const sameMembers = (left, right) => Array.isArray(left) && Array.isArray(right)
+  && left.length === right.length && [...left].map(String).sort().join('|') === [...right].map(String).sort().join('|');
+
+const canonicalJson = (value) => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (isObject(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value ?? null);
+};
+
+/* --- linear.representationSort v2 ----------------------------------------- */
+
+export const SORT_DECKS = Object.freeze(['authored', 'equationForms', 'situations']);
+
+// What each deck deals, and the lesson's ranges for it (the ranges a
+// recognized static deck is recovered in).
+const SORT_DECK = Object.freeze({
+  equationForms: Object.freeze({
+    cardKinds: Object.freeze(['slopeIntercept', 'standard', 'pointSlope', 'graph', 'xIntercept']),
+    prompt: 'Two different lines are hiding in these cards: {{line1}} and {{line2}}. Sort every card into the line it describes.',
+    sets: Object.freeze([Object.freeze({ id: 'line-a' }), Object.freeze({ id: 'line-b' })]),
+    slopeRange: Object.freeze([1, 3]),
+    interceptRange: Object.freeze([-6, 6]),
+  }),
+  situations: Object.freeze({
+    cardKinds: Object.freeze(['context', 'slopeIntercept', 'graph', 'slope', 'yIntercept']),
+    prompt: 'One situation grows and one shrinks. Sort each card into the situation it describes.',
+    sets: Object.freeze([
+      Object.freeze({ id: 'savings', context: 'Maya has ${{start}} saved and adds ${{rate}} every week.' }),
+      Object.freeze({ id: 'tub', context: 'A tub holds {{start}} gallons of water and drains {{rate}} gallons every minute.' }),
+    ]),
+    slopeRange: Object.freeze([2, 6]),
+    interceptRange: Object.freeze([10, 40]),
+  }),
+});
+
+const sortLines = (values) => [{ m: values.m1, b: values.b1 }, { m: values.m2, b: values.b2 }];
+
+/** A set's story, filled from its line exactly as the deck's set is filled (sortSetFor). */
+const sortStory = (set, { m, b }) => substituteFamilyTokens(set.context, { rate: Math.abs(m), start: b, slope: m });
+
+const buildSortDeck = (values, context) => {
+  const deck = SORT_DECK[context.constraints?.deck];
+  if (!deck) return representationSortSpec.tools.representationMatch(values, context);
+  const authored = {
+    ...(isObject(context.authored) ? context.authored : {}),
+    sets: deck.sets.map((set) => ({ ...set })),
+    cardKinds: [...deck.cardKinds],
+    prompt: clean(context.authored?.prompt) || deck.prompt,
+  };
+  const built = representationSortSpec.tools.representationMatch(values, { ...context, authored });
+  // A story is graphed in its own quadrant, whatever the ranges.
+  if (context.constraints.deck === 'situations') built.graphBounds = firstQuadrantWindow(sortLines(values));
+  return built;
+};
+
+/** The line a static set's graph card draws, or null. */
+const lineOfSortSet = (set) => {
+  const spec = isObject(set?.graphSpec) ? set.graphSpec : null;
+  if (!spec || clean(spec.type) !== 'linear') return null;
+  const [a, h, k] = [spec.a ?? 1, spec.h ?? 0, spec.k ?? 0].map(Number);
+  if (![a, h, k].every(Number.isInteger) || a === 0) return null;
+  return { m: a, b: k - a * h };
+};
+
+/** Does a static set's card of `kind` say exactly what the family's set says? */
+const sameSortCard = (kind, original, written) => {
+  if (kind === 'graph') {
+    const line = lineOfSortSet(original);
+    return Boolean(line) && line.m === written.graphSpec.a && line.b === written.graphSpec.k;
+  }
+  const expected = written[kind];
+  const actual = original?.[kind];
+  if (expected === undefined || expected === null || actual === undefined || actual === null) return false;
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual) && actual.length === expected.length && actual.every((entry, index) => Number(entry) === expected[index]);
+  }
+  if (typeof expected === 'number') return typeof actual !== 'boolean' && clean(actual) !== '' && Number(actual) === expected;
+  return normalizedText(actual) === normalizedText(expected);
+};
+
+const sortDeckRules = (values, c) => {
+  const issues = [...representationSortSpec.rules(values, c)];
+  // The equation deck deals each line's x-intercept card.
+  if (c.deck === 'equationForms' && c.integerXIntercepts !== true) issues.push(FAMILY_ISSUE.INVALID_PARAMETERS);
+  if (c.deck === 'situations') {
+    // A story starts with a positive amount and changes by at least 2 a step,
+    // so no version reads "holds −4 gallons" or "drains 1 gallons".
+    if (values.b1 <= 0 || values.b2 <= 0) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
+    if (values.rise < 2 || values.fall < 2) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
+  }
+  return issues;
+};
+
+const recognizeSortDeck = (question) => {
+  if (clean(question?.type) !== 'representationMatch' || clean(question?.mode) !== 'linearConnections') return null;
+  if (clean(question?.task) && clean(question.task) !== 'group') return null;
+  const sets = Array.isArray(question?.sets) ? question.sets : [];
+  if (sets.length !== 2) return null;
+  const deckName = Object.keys(SORT_DECK).find((name) => sameMembers(question?.cardKinds, SORT_DECK[name].cardKinds));
+  if (!deckName) return null;
+  const deck = SORT_DECK[deckName];
+  // One rising line, then one falling line: the order the family deals them.
+  const lines = sets.map(lineOfSortSet);
+  if (lines.some((line) => !line) || !(lines[0].m > 0 && lines[1].m < 0)) return null;
+  const params = { rise: lines[0].m, fall: -lines[1].m, b1: lines[0].b, b2: lines[1].b };
+  const inRange = (value, [low, high]) => Number.isInteger(value) && value >= low && value <= high && value !== 0;
+  if (![params.rise, params.fall].every((value) => inRange(value, deck.slopeRange))) return null;
+  if (![params.b1, params.b2].every((value) => inRange(value, deck.interceptRange))) return null;
+  const constraints = { deck: deckName, slopeRange: [...deck.slopeRange], interceptRange: [...deck.interceptRange] };
+  // The original is one of this version's own instances…
+  const values = { ...params, ...representationSortSpec.derive(params) };
+  if (sortDeckRules(values, { ...constraints, integerXIntercepts: true }).length) return null;
+  // …and every card it deals says exactly what this version's card says.
+  const written = sortLines(values).map((line, index) => sortSetFor(line, deck.sets[index], index, { xInterceptCards: true }));
+  if (!deck.cardKinds.every((kind) => written.every((set, index) => sameSortCard(kind, sets[index], set)))) return null;
+  // The prompt states nothing a version would not: the two lines, for the
+  // equation deck (whose prompt names them); nothing at all for the stories.
+  const statements = deckName === 'equationForms' ? written.map((set) => display(set.slopeIntercept)) : [];
+  if (!promptStatesOnly(question?.prompt, statements)) return null;
+  return { params, constraints };
+};
+
+export const representationSortFamilyV2 = defineQuestionFamily({
+  ...representationSortSpec,
+  version: 2,
+  constraintPolicy: CONSTRAINT_POLICY.STRICT,
+  constraints: {
+    ...representationSortSpec.constraints,
+    deck: choiceKnob('authored', SORT_DECKS, { label: 'Deck: the slot\'s own cards, or a deck the family writes' }),
+  },
+  conceptConstraints: ['deck'],
+  rules: sortDeckRules,
+  // A deck the family writes stories for names each line's story in its key.
+  answer: (values, c) => {
+    const answer = representationSortSpec.answer(values, c);
+    const deck = SORT_DECK[c?.deck];
+    if (!deck || !deck.sets.every((set) => set.context)) return answer;
+    const [first, second] = sortLines(values);
+    return {
+      ...answer,
+      value: {
+        first: { ...answer.value.first, context: sortStory(deck.sets[0], first) },
+        second: { ...answer.value.second, context: sortStory(deck.sets[1], second) },
+      },
+    };
+  },
+  tools: { representationMatch: buildSortDeck },
+  recognize: recognizeSortDeck,
+});
+
+/* --- linear.multipleRepresentations v2 ------------------------------------ */
+
+export const BOARD_TASKS = Object.freeze(['authored', 'drainingTank']);
+
+const BOARD_TASK = Object.freeze({
+  drainingTank: Object.freeze({
+    story: DEFAULT_STORY,
+    prompt: 'Show what you know about the draining tank. Complete every part on the board, then submit once.',
+    requiredCards: Object.freeze(['slopeIntercept', 'standardForm', 'slope', 'xIntercept', 'yIntercept', 'graphSlopeIntercept']),
+    feedbackTiming: 'submitOnly',
+    // Each meaning's answer and three choices that misread a number of the
+    // story (start, rate and time to empty are always three different numbers).
+    context: Object.freeze({
+      slopeMeaning: Object.freeze({
+        value: 'The tank loses {{rate}} liters of water every minute.',
+        choices: Object.freeze([
+          'The tank loses {{rate}} liters of water every minute.',
+          'The tank gains {{rate}} liters of water every minute.',
+          'The tank is empty after {{rate}} minutes.',
+          'The tank starts with {{rate}} liters of water.',
+        ]),
+      }),
+      yInterceptMeaning: Object.freeze({
+        value: 'The tank holds {{start}} liters when it starts draining.',
+        choices: Object.freeze([
+          'The tank holds {{start}} liters when it starts draining.',
+          'The tank is empty after {{start}} minutes.',
+          'The tank drains {{start}} liters every minute.',
+          'The tank holds 0 liters after {{start}} minutes.',
+        ]),
+      }),
+      domain: Object.freeze({
+        min: 0,
+        max: '{{end}}',
+        value: '0 ≤ x ≤ {{end}}',
+        choices: Object.freeze(['0 ≤ x ≤ {{end}}', '0 ≤ x ≤ {{start}}', 'x ≥ 0', `${MINUS}{{rate}} ≤ x ≤ {{start}}`]),
+      }),
+    }),
+    // The lesson's ranges (version 1's defaults).
+    rateRange: Object.freeze([2, 6]),
+    durationRange: Object.freeze([3, 15]),
+    startRange: Object.freeze([6, 36]),
+  }),
+});
+
+const storyTokens = (values) => ({ start: values.start, rate: values.rate, end: values.duration });
+
+const buildBoardTask = (values, context) => {
+  const task = BOARD_TASK[context.constraints?.board];
+  if (!task) return multipleRepresentationsSpec.tools.representationBridge(values, context);
+  const authored = {
+    ...(isObject(context.authored) ? context.authored : {}),
+    prompt: clean(context.authored?.prompt) || task.prompt,
+    source: { prompt: task.story },
+    context: task.context,
+  };
+  return {
+    ...multipleRepresentationsSpec.tools.representationBridge(values, { ...context, authored }),
+    requiredCards: [...task.requiredCards],
+    feedbackTiming: task.feedbackTiming,
+  };
+};
+
+const recognizeBoardTask = (question) => {
+  if (clean(question?.type) !== 'representationBridge' || clean(question?.mode) !== 'linearMultipleRepresentations') return null;
+  // Process Mode, stage gating, an own tolerance or domain, or meanings on the
+  // source would each be a different task from the one a version writes.
+  if (clean(question?.interactionMode) && clean(question.interactionMode) !== 'worksheet') return null;
+  if (question?.stageGating !== undefined || question?.tolerance !== undefined || question?.domain !== undefined) return null;
+  const source = isObject(question?.source) ? question.source : null;
+  if (clean(source?.kind) !== 'scenario' || source.context !== undefined) return null;
+  const [m, b] = [Number(source.m), Number(source.b)];
+  if (!Number.isInteger(m) || !Number.isInteger(b) || m >= 0 || b <= 0 || b % -m !== 0) return null;
+  const params = { rate: -m, duration: b / -m };
+  const values = { ...params, start: b };
+  const tokens = storyTokens(values);
+  const taskName = Object.keys(BOARD_TASK).find((name) => {
+    const task = BOARD_TASK[name];
+    const inRange = (value, [low, high]) => value >= low && value <= high;
+    return inRange(params.rate, task.rateRange) && inRange(params.duration, task.durationRange) && inRange(b, task.startRange)
+      && new Set([b, params.rate, params.duration]).size === 3
+      && normalizedText(source.prompt) === normalizedText(fillTokens(task.story, tokens))
+      && sameMembers(question?.requiredCards, task.requiredCards)
+      && canonicalJson(question?.context) === canonicalJson(fillTokens(task.context, tokens))
+      && clean(question?.feedbackTiming) === task.feedbackTiming
+      && promptStatesOnly(question?.prompt);
+  });
+  if (!taskName) return null;
+  const task = BOARD_TASK[taskName];
+  return {
+    params,
+    constraints: {
+      given: 'scenario',
+      board: taskName,
+      rateRange: [...task.rateRange],
+      durationRange: [...task.durationRange],
+      startRange: [...task.startRange],
+    },
+  };
+};
+
+export const multipleRepresentationsFamilyV2 = defineQuestionFamily({
+  ...multipleRepresentationsSpec,
+  version: 2,
+  constraintPolicy: CONSTRAINT_POLICY.STRICT,
+  constraints: {
+    ...multipleRepresentationsSpec.constraints,
+    board: choiceKnob('authored', BOARD_TASKS, { label: 'Board: the slot\'s own cards and meanings, or a board the family writes (drainingTank: a story, with given "scenario")' }),
+  },
+  conceptConstraints: ['board'],
+  rules: (values, c) => {
+    const issues = [...multipleRepresentationsSpec.rules(values, c)];
+    // A written board tells its own story: a stated-start story.
+    if (BOARD_TASK[c.board] && (c.given !== 'scenario' || isReadingStory(c))) issues.push(FAMILY_ISSUE.INVALID_PARAMETERS);
+    return issues;
+  },
+  // A board the family writes meanings for names each meaning's answer in its key.
+  answer: (values, c) => {
+    const answer = multipleRepresentationsSpec.answer(values, c);
+    const task = BOARD_TASK[c?.board];
+    if (!task || c.given !== 'scenario' || isReadingStory(c)) return answer;
+    const tokens = storyTokens(values);
+    const meanings = Object.fromEntries(Object.entries(task.context).map(([key, entry]) => [key, substituteFamilyTokens(entry.value, tokens)]));
+    return { ...answer, value: { ...answer.value, meanings } };
+  },
+  tools: { representationBridge: buildBoardTask },
+  recognize: recognizeBoardTask,
 });
 
 export const REPRESENTATION_FAMILIES = Object.freeze([
   multipleRepresentationsFamily,
   representationSortFamily,
+  multipleRepresentationsFamilyV2,
+  representationSortFamilyV2,
 ]);

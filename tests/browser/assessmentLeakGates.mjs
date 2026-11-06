@@ -42,6 +42,13 @@
 //                      breakdown ("still to fix: …") only where feedback is open
 //   graph-reading      a given graph whose intercepts are the answer: no feature
 //                      value in its description and no data table, in any role
+//   keypad             a typed box's keypad, on a laptop (1366×768) and a phone
+//                      (390×844): practice keeps the "Needed for this answer"
+//                      keys read from the key; on a DOL or test no key comes
+//                      from it (no fraction key on only the boxes whose answer
+//                      has a fraction, no letters of a template's filter), the
+//                      letters are the ones the student reads, and right and
+//                      wrong are still graded so (N56)
 //
 // (The modeling lab's result after submission comes from a Cloud Function, so
 // it is held in node by tests/platform/solverRuntimeOutcomePolicy.test.mjs.)
@@ -53,6 +60,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
 import { setMathField, settle } from './stepAlgebraDriver.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { FALLBACK_HINTS } from '../../src/platform/supports/hints/questionHints.js';
@@ -115,7 +123,9 @@ const scenario = async (label, body) => {
     const plain = (text) => text.split(String.fromCharCode(27)).map((piece) => piece.replace(/^\[\d+m/, '')).join('');
     check(false, `${label}: the journey could not be completed`, `${error.message.split('\n')[0]}${waitedFor ? ` (waiting for ${plain(waitedFor)})` : ''}`);
     mkdirSync(ARTIFACTS, { recursive: true });
-    await pages.at(-1)?.screenshot({ path: path.join(ARTIFACTS, `FAILED-${label.replace(/[^a-z0-9]+/gi, '-')}.png`), fullPage: true }).catch(() => {});
+    // Through the helper: the keypad surface's phone context has touch, and a
+    // full-page screenshot would take it away for the scenes after this one.
+    await screenshotKeepingTouch(pages.at(-1), { path: path.join(ARTIFACTS, `FAILED-${label.replace(/[^a-z0-9]+/gi, '-')}.png`), fullPage: true }).catch(() => {});
   } finally {
     while (pages.length) await pages.pop().close().catch(() => {});
   }
@@ -289,10 +299,11 @@ const systems2x2 = async () => {
 
 /* ------------------------------------------------------- inequality-build */
 
-const BUILD_VERDICT = /Correct boundary\.|Correct line style\.|Correct shading\.|Check whether points on the boundary|Check whether the points you used|Use a test point or compare|Every constraint checks out|Locked until every constraint above is correct|Correct classification\.|Look at whether the shaded overlap|Correct —|misjudged|Re-examine|Not quite/;
+const BUILD_VERDICT = /Correct boundary\.|Correct line style\.|Correct shading\.|Check whether points on the boundary|Check whether the points you used|Use a test point or compare|Every constraint checks out|Locked until every constraint above is correct|Correct classification\.|Look at whether the shaded overlap|Correct —|misjudged|Re-examine|Not quite|Recheck the value of|Work out [^.]* first\./;
 // The graph's own mapping (CoordinatePlane: 560×380 viewBox, 42 padding) for
 // this fixture's −6..8 × −4..10 window.
-const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality system"]';
+// "…of the inequality system", or with one constraint "…of the inequality" (inequalitySystemWords.js).
+const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality"]';
 const tapGraph = async (page, x, y) => {
   // A control far down the panel may have scrolled the graph out of view; the
   // sticky chrome above it settles before the tap is aimed.
@@ -488,6 +499,10 @@ const inequalityBuild = async () => {
       check(PROBE.test(await bodyText(page)), `${role} inequality-probe: a point on the student's own line gets them`);
       await answerPoint(page, [[/Does the point satisfy inequality 1\?/, 'yes'], [/Does the point satisfy inequality 2\?/, 'yes'], ['Is the point a solution to the entire system?', 'yes']]);
       check(/Not finished yet — answer every part above\./.test(await bodyText(page)) && await cursor(page) === 'studentPoint', `${role} inequality-probe: the check asks for the boundary answers on screen`);
+      // Each inequality's value at the point comes first (x ≥ 1: x = [ ]; y < 3: y = [ ]);
+      // a wrong one is recorded like a right one (F-SW-TEST-POINT-YESNO).
+      await page.locator('[data-substitution="1"] input').fill('2');
+      await page.locator('[data-substitution="2"] input').fill('5');
       await answerPoint(page, [['Does this point lie exactly on one of the boundary lines?', 'yes'], ['Since it is on that boundary, is it included in the solution region?', 'yes']]);
       const text = await bodyText(page);
       check(!BUILD_VERDICT.test(text) && await page.locator('[data-phase="studentPoint"]').getAttribute('data-state') === 'done', `${role} inequality-probe: then records the point without judging it`, firstMatch(text, BUILD_VERDICT));
@@ -916,6 +931,98 @@ const graphReading = async () => {
   }
 };
 
+/* ---------------------------------------------------------------- keypad */
+
+const KEYPAD_SIZES = [
+  { name: 'laptop', viewport: { width: 1366, height: 768 } },
+  { name: 'phone', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+];
+// A page of its own size (the gate's own pages are a laptop's).
+const openSized = async (size, role, q) => {
+  const sized = await browser.newContext({ viewport: size.viewport, isMobile: Boolean(size.isMobile), hasTouch: Boolean(size.hasTouch), deviceScaleFactor: size.deviceScaleFactor || 1 });
+  pageCount += 1;
+  const page = await sized.newPage();
+  pages.push(page);
+  page.setDefaultTimeout(8000);
+  page.on('pageerror', (error) => check(false, `${size.name} ${role} ${q}: page error`, error.message));
+  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${run}-${pageCount}`, { waitUntil: 'networkidle' });
+  await page.locator('[data-leak-fixture]').waitFor();
+  await settle(page, 900);
+  return { page, close: () => sized.close() };
+};
+// Box `index`'s keypad as the student meets it: in the box (a tap on a
+// phone), its keys opened if a laptop keeps them closed.
+const keypadOfBox = async (page, size, index) => {
+  const box = page.locator('.mathmaster-math-input').nth(index);
+  const field = box.locator('math-field');
+  if (size.hasTouch) await field.tap(); else await field.click();
+  await settle(page, 350);
+  if (!size.hasTouch && !(await box.locator('[role="toolbar"][aria-label="Math tools"]').count())) {
+    await box.getByRole('button', { name: 'Show math tools' }).click();
+    await settle(page, 250);
+  }
+  return box.evaluate((root) => {
+    const keys = (label) => [...root.querySelectorAll(`[role="toolbar"][aria-label="${label}"] button`)].map((button) => button.innerText.trim());
+    return { tools: keys('Math tools'), needed: keys('Keys needed for this answer') };
+  });
+};
+const allKeys = (keypad) => [...new Set([...keypad.tools, ...keypad.needed])].sort();
+const keypadSurface = async () => {
+  for (const size of KEYPAD_SIZES) {
+    for (const role of ['practice', 'dol', 'test']) {
+      await scenario(`${size.name} ${role} keypad-graphs`, async () => {
+        const { page, close } = await openSized(size, role, 'keypad-graphs');
+        try {
+          const keypads = [];
+          for (let index = 0; index < 3; index += 1) keypads.push(await keypadOfBox(page, size, index));
+          const fraction = keypads.map((keypad) => (size.hasTouch ? keypad.needed : keypad.tools).includes('a⁄b'));
+          if (role === 'practice') {
+            check(JSON.stringify(fraction) === '[false,true,true]', `${size.name} practice keypad-graphs: the scaffold names a fraction key where the answer has one`, JSON.stringify(keypads));
+          } else {
+            check(JSON.stringify(keypads.map(allKeys)) === JSON.stringify([allKeys(keypads[0]), allKeys(keypads[0]), allKeys(keypads[0])]), `${size.name} ${role} keypad-graphs: graphs a, b and c have the same keys`, JSON.stringify(keypads.map(allKeys)));
+            check(keypads.every((keypad) => allKeys(keypad).includes('a⁄b')), `${size.name} ${role} keypad-graphs: a fraction key on every box`);
+            check(keypads.every((keypad) => !keypad.needed.includes('a⁄b')), `${size.name} ${role} keypad-graphs: no "Needed for this answer" fraction`, JSON.stringify(keypads.map((keypad) => keypad.needed)));
+          }
+        } finally {
+          await close();
+        }
+      });
+      await scenario(`${size.name} ${role} keypad-letters`, async () => {
+        const { page, close } = await openSized(size, role, 'keypad-letters');
+        try {
+          const keypad = await keypadOfBox(page, size, 0);
+          const keys = allKeys(keypad);
+          if (role === 'practice') {
+            if (size.hasTouch) check(keypad.needed.length > 0, 'phone practice keypad-letters: the "Needed for this answer" row is there', JSON.stringify(keypad));
+          } else {
+            check(!['m', 'p', 'o', 'w'].some((letter) => keys.includes(letter)), `${size.name} ${role} keypad-letters: none of m, p, o, w`, keys.join(' '));
+            check(['x', 'y', 'xⁿ', '|x|'].every((key) => keys.includes(key)), `${size.name} ${role} keypad-letters: x, y, a power and bars, from what the student reads and the pad`, keys.join(' '));
+            check(keypad.needed.length === 0, `${size.name} ${role} keypad-letters: no "Needed for this answer" row`, keypad.needed.join(' '));
+          }
+          // What is graded does not change: right is right, wrong is wrong.
+          if (role === 'dol') {
+            await setMathField(page, page.locator('.mathmaster-math-input math-field').first(), '3\\left|x^{3}\\right|y^{4}');
+            await submitAnswer(page);
+            check((await lastGrade(page))?.isCorrect === true, `${size.name} dol keypad-letters: the right answer is graded right`, brief(await lastGrade(page)));
+          }
+        } finally {
+          await close();
+        }
+      });
+    }
+    await scenario(`${size.name} dol keypad-letters wrong`, async () => {
+      const { page, close } = await openSized(size, 'dol', 'keypad-letters');
+      try {
+        await setMathField(page, page.locator('.mathmaster-math-input math-field').first(), '3x^{3}y^{4}');
+        await submitAnswer(page);
+        check((await lastGrade(page))?.isCorrect === false, `${size.name} dol keypad-letters: a wrong answer is graded wrong`, brief(await lastGrade(page)));
+      } finally {
+        await close();
+      }
+    });
+  }
+};
+
 /* ----------------------------------------------------------------- runner */
 
 const SURFACES = {
@@ -929,6 +1036,7 @@ const SURFACES = {
   'three-plane-reveal': threePlaneReveal,
   'feedback-ladder': feedbackLadder,
   'graph-reading': graphReading,
+  keypad: keypadSurface,
 };
 const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SURFACES);
 for (const name of selected) {

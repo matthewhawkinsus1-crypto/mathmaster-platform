@@ -810,6 +810,8 @@ export function createSimStudent({ studentId, call, responseFor, profile: profil
         studentId,
         roomId: device.roomId,
         invite: device.invite ? { roomId: device.invite.roomId, playerKey: device.invite.playerKey } : null,
+        // Whether this screen follows its invite pointer now (followInvites).
+        inviteListener: Boolean(device.stops.invite),
         room: room ? { roomId: room.roomId, status: room.status, currentRound: room.currentRound, roundState: room.roundState, roundVersion: room.roundVersion, phase: room.phase } : null,
         stage: stage(),
         clockReady: clockReady(),

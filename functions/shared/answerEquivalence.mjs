@@ -14,14 +14,14 @@ import {
   samePolynomial,
   splitEquationSides,
 } from './algebraicForm.mjs';
-import { stackDivisions } from './stackDivisions.mjs';
+import { editorProductsAsTyped, stackDivisions } from './stackDivisions.mjs';
 import { exactConstantValue } from './exactConstantValue.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameMonomialQuotient } from './monomialQuotientEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
 import { LINE_FORMS, LINE_FORM_ANY, pointSlopeParts, sameLine, wholeMultipleOfLine, writtenLineForm } from './linearEquationForm.mjs';
-export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
-export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
+import { sameNonnegativeRadicalExpression as sameNonnegativeRadicalExpressionAsTyped } from './nonnegativeRadicalExpressionEquivalence.mjs';
+import { sameRationalExpression as sameRationalExpressionAsTyped } from './rationalExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
@@ -61,6 +61,21 @@ const asEditorSpelling = (value) => String(value ?? '')
   .replace(/⁻?[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (power) => `^{${[...power].map((character) => (character === '⁻' ? '-' : SUPERSCRIPT_DIGITS.indexOf(character))).join('')}}`)
   .replace(/[·⋅]/g, '\\cdot ')
   .replace(/×/g, '\\times ');
+
+/*
+ * A TYPED ², ·, × IN A TYPED FIELD (grader spellings, 2026-11). The editor
+ * writes `^{2}`, `\cdot` and `\times`; a student typing into a plain-text box
+ * (a secure Test, a phone keyboard) can type the characters themselves. Every
+ * comparison that reads text took them (asEditorSpelling), but the readers
+ * that work the mathematics out — polynomials, rational expressions, roots —
+ * deliberately do not (GR35c), so `(x-2)²=4·(y-4)` was refused where the
+ * editor's `(x-2)^{2}=4\cdot(y-4)` was right. A typed answer is now read as
+ * the editor would have written it: the student's answer only, never the
+ * key, and never a choice's option (there an option of the same value is a
+ * wrong option, GR06; sameValue's `typed` comes from fieldValueOptions).
+ */
+const TYPED_EDITOR_CHARACTERS = /[⁰¹²³⁴⁵⁶⁷⁸⁹·⋅×]/;
+const typedAsEditorSpelling = (value) => (typeof value === 'string' && TYPED_EDITOR_CHARACTERS.test(value) ? asEditorSpelling(value) : value);
 
 /*
  * WHAT THE EDITOR WRITES THAT THE SAME CHARACTERS TYPED DO NOT (TS05).
@@ -144,6 +159,16 @@ const wholeBracketPartsUnwrapped = (value) => {
   return text;
 };
 
+/*
+ * A PLUS THAT IS ONLY A SIGN (grader spellings, 2026-11). `+5`,
+ * `+\frac{1}{x^6}` and `y = +2x + 1` are 5, 1/x⁶ and y = 2x + 1: a plus that
+ * opens the answer, or a side of a relation, is the sign of what follows it.
+ * It was refused wherever the text was compared (`+1/x^6` for `1/x^6`). Only
+ * before something it can be the sign of, so a lone `+` (a sign given as the
+ * answer) is still a `+`.
+ */
+const LEADING_PLUS = /(^|[=<>≤≥≠]|\\(?:leq?|geq?|neq?|lt|gt)(?![A-Za-z]))\s*\+(?=\s*(?:[0-9A-Za-z.(|√π∞]|\\(?:frac|sqrt|pi|infty)(?![A-Za-z])))/g;
+
 export const normalizeStructuralMathLive = (value) => expandLatexShorthand(withoutEditorBookkeeping(asEditorSpelling(value)), { keepNegativeExponentGroups: true })
   .trim()
   // Directional marks and zero-width format characters are not visible math.
@@ -183,7 +208,28 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(witho
   .replace(/\\rbrack/g, ']')
   .replace(/\\\[/g, '[')
   .replace(/\\\]/g, ']')
-  .replace(/\\varnothing|\\emptyset|∅/g, '∅');
+  .replace(/\\varnothing|\\emptyset|∅/g, '∅')
+  .replace(LEADING_PLUS, '$1');
+
+/*
+ * BRACKETS ROUND A WHOLE ANSWER OR A WHOLE SIDE (grader spellings, 2026-11).
+ * `(7x^2 - 3x - 6)` for 7x² − 3x − 6, `y = (2x + 3)`, and a factor given with
+ * its brackets, `(x - 2)` for x − 2: a pair round everything groups nothing.
+ * Each of those was refused, because a bracket holding a letter and a sign
+ * reads as a factored or vertex form's group (hasVariableGrouping). Only a
+ * pair round the whole text, however many: never one with a top-level comma
+ * inside (a point, an interval, a list), and never one followed by anything
+ * (`(x+1)^2`, `(x+1)(x-2)` are not round the whole).
+ */
+const withoutWholeBrackets = (value) => {
+  let text = String(value ?? '').trim();
+  for (let guard = 0; guard < 6; guard += 1) {
+    const body = wholeBracketBody(text);
+    if (body === null || !body.trim() || splitTopLevelCommaList(body).length > 1) break;
+    text = body.trim();
+  }
+  return text;
+};
 
 /**
  * One spelling for a division, whichever way it was written.
@@ -196,7 +242,17 @@ export const normalizeStructuralMathLive = (value) => expandLatexShorthand(witho
  */
 // π and a square root count as numbers here (stackDivisions.mjs, H-13), so
 // the editor's `\frac{\pi}{2}` and the key `pi/2` meet on one spelling.
-const canonicalizeDivisions = (value) => stackDivisions(value, { skipAsciiCalls: false, constantOperands: true });
+//
+// …and inside a sum, or as an equation's side, the editor's stacked product
+// is read as the same keys typed bind it (TS05, the owner's decision):
+// \frac{2A}{h}-b_2 is 2A/h-b_2 and h=\frac{2A}{b} is h=2A/b, while a lone
+// \frac{3b^2}{a^3} keeps GR35a's reading (stackDivisions.mjs
+// editorProductsAsTyped). `side`: the text is one side of an equation, for
+// the comparisons that split an equation before reading it.
+const canonicalizeDivisions = (value, { side = false } = {}) => editorProductsAsTyped(
+  stackDivisions(value, { skipAsciiCalls: false, constantOperands: true }),
+  { side },
+);
 
 /** `abs(...)` as the bars it means, with the call's own parentheses matched. */
 const absCallsAsBars = (value) => {
@@ -303,7 +359,13 @@ const canonicalSymbolSpellings = (value, { asciiPi = true, keepCompoundBraced = 
   text = bracedSubscriptsAsGroups(bracedExponentsAsGroups(text, { keepCompoundBraced }));
   // A negative exponent keeps its brackets: unwrapped, its minus would read as
   // a term's sign to the comparisons that split terms.
-  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1');
+  return text.replace(/\^\(((?:\d+(?:\.\d+)?|[A-Za-z]|π))\)/g, '^$1')
+    // A root over a number with no bracket, `sqrt8`, is the editor's
+    // `\sqrt{8}` (grader spellings, 2026-11): the form reader drops a
+    // generated number's brackets, so a key's `sqrt(8)` reads as `sqrt8`,
+    // and `(-6-\sqrt{8})/2` was refused for the key `(-(6)-sqrt(8))/2`.
+    .replace(/(?<!\\)sqrt\s*(\d+(?:\.\d+)?)/g, '\\sqrt{$1}')
+    .replace(/(?<!\\)cbrt\s*(\d+(?:\.\d+)?)/g, '\\sqrt[3]{$1}');
 };
 
 /*
@@ -332,7 +394,7 @@ const FRACTION_COEFFICIENT_PI = /(?<![\w})\]^_.\\|/])\\frac\{(\d+)\}\{(\d+)\}π(
 const fractionCoefficientPi = (value) => value.replace(FRACTION_COEFFICIENT_PI, (match, numerator, denominator) => (
   `\\frac{${numerator === '1' ? '' : numerator}π}{${denominator}}`));
 
-export const normalizeAnswer = (value) => fractionCoefficientPi(unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true })), { asciiPi: false }))
+export const normalizeAnswer = (value, { side = false } = {}) => fractionCoefficientPi(unitFractionPowers(canonicalSymbolSpellings(canonicalizeDivisions(canonicalSymbolSpellings(normalizeStructuralMathLive(value), { keepCompoundBraced: true }), { side }), { asciiPi: false }))
   .replace(/\\cdot|\\times/g, '*')
   .replace(/\\infty|∞/g, 'inf')
   .replace(/\\cup|∪/g, 'u')
@@ -746,8 +808,13 @@ export const sameInverseFunctionEquation = (left, right, tolerance = 1e-6) => {
  * even though that expands to the same polynomial. Form is part of the skill
  * in many Algebra I/II questions.
  */
+// What an equation's left side names when it defines something: `y`, `f(x)`,
+// `h(t)`, `a_n`, `P_{n-1}` (normalizeAnswer's spelling).
+const NAMED_QUANTITY = /^[a-z](?:_(?:\{[^{}]*\}|\([^()]*\)|[a-z0-9]+))?(?:\([a-z]\))?$/;
+
 const hasVariableGrouping = (value) => {
-  const text = normalizeStructuralMathLive(value).replace(/\s+/g, '');
+  // Brackets round the whole side are no group (withoutWholeBrackets).
+  const text = withoutWholeBrackets(normalizeStructuralMathLive(value).replace(/\s+/g, ''));
   // Parentheses/brackets containing a variable AND an addition/subtraction
   // are structural algebra groups (vertex/factored form), not harmless
   // parentheses around a generated numeric coefficient such as (-6).
@@ -770,7 +837,9 @@ const hasVariableGrouping = (value) => {
  * vertex form into standard form, factor, distribute, reorder terms, or move
  * anything across the equals sign.
  */
-const normalizeFormPreservingSide = (value) => {
+// A plus that opens a bracket or a brace (normalizeFormPreservingSide).
+const OPENING_PLUS = /([({])\+/g;
+const normalizeFormPreservingSide = (value, { side = false } = {}) => {
   // Remove generator bookkeeping around SINGLE numeric parameters BEFORE
   // structural MathLive normalization. This ordering matters for radicals:
   //
@@ -788,6 +857,9 @@ const normalizeFormPreservingSide = (value) => {
     // Read as plain brackets first, or `5\left(4\right)^{n-1}` misses both
     // rules below and ends as 54^{n-1}, while the typed 5(4)^(n-1) is right.
     .replace(/\\(?:left|right)(?![A-Za-z])/g, '')
+    // Brackets round the whole side go before the rules below read its first
+    // term: `(1(x-1)^2-8)` is `1(x-1)^2-8`, whose 1 then goes (withoutWholeBrackets).
+    .replace(/[\s\S]+/, withoutWholeBrackets)
     // A student naturally writes a geometric sequence as 5(4)^(n-1), while
     // generated keys often store 5*(4)^(n-1). Preserve that multiplication
     // BEFORE removing numeric bookkeeping parentheses. Restrict this to a
@@ -812,10 +884,15 @@ const normalizeFormPreservingSide = (value) => {
   radicalReady = radicalReady
     .replace(/([0-9A-Za-z)\]])sqrt\s*\(/g, '$1*sqrt(');
 
-  let text = canonicalizeDivisions(normalizeStructuralMathLive(radicalReady))
+  let text = canonicalizeDivisions(normalizeStructuralMathLive(radicalReady), { side })
     .replace(/\\cdot|\\times/g, '*')
     .replace(/\s+/g, '')
-    .replace(/\^\{(-?\d+)\}/g, '^$1');
+    .replace(/\^\{(-?\d+)\}/g, '^$1')
+    // The editor's relation keys are the typed pairs (grader spellings,
+    // 2026-11): `x\ne -5` was refused for the key `x!=(-5)`.
+    .replace(/\\neq?(?![A-Za-z])|≠/g, '!=')
+    .replace(/\\leq?(?![A-Za-z])|≤/g, '<=')
+    .replace(/\\geq?(?![A-Za-z])|≥/g, '>=');
 
   // Parentheses around generated numeric parameters are bookkeeping:
   //   x-(4) -> x-4
@@ -830,17 +907,30 @@ const normalizeFormPreservingSide = (value) => {
       .replace(/\+\+/g, '+')
       .replace(/\+-/g, '-')
       .replace(/-\+/g, '-')
-      .replace(/--/g, '+');
+      .replace(/--/g, '+')
+      // A plus that opens a bracket is only a sign (grader spellings,
+      // 2026-11): `(-(-6)+…)/2` is `(6+…)/2`. Not in a point or a list, whose
+      // coordinate `-(-2)` is a calculation and stays one (pass 3, review B2).
+      .replace(OPENING_PLUS, (match, open) => (text.includes(',') ? match : open));
     if (next === text) break;
     text = next;
   }
+
+  // A generated zero term is bookkeeping as well (grader spellings, 2026-11),
+  // but not in a point or a list: its coordinate `0+1` is a calculation.
+  if (!text.includes(',')) text = withoutZeroTerms(text);
 
   // An explicit multiplication mark next to a variable/group is just a typing
   // style. Do NOT remove 2*3, because turning it into 23 would change value.
   text = text
     .replace(/([0-9A-Za-z)\]])\*(?=[A-Za-z(])/g, '$1')
-    .replace(/([0-9A-Za-z)\]])\*(?=\\sqrt\{)/g, '$1')
+    .replace(/([0-9A-Za-z)\]])\*(?=\\sqrt[[{])/g, '$1')
     .replace(/([A-Za-z)\]])\*(?=\()/g, '$1');
+
+  // A power of one is no power (grader spellings, 2026-11): a generated
+  // `x^1*\sqrt[3]{x^1}` is the `x\sqrt[3]{x}` the editor writes. Only on a
+  // letter or a group: 10^1 is left as written.
+  text = text.replace(/([A-Za-z)\]}π])\^1(?![\d.])/g, '$1');
 
   // Suppress a coefficient of one only where algebra convention suppresses it.
   // 1x -> x, 1(x+2) -> (x+2), -1x -> -x.
@@ -852,17 +942,260 @@ const normalizeFormPreservingSide = (value) => {
   return text;
 };
 
+/*
+ * THE SAME TERMS AND FACTORS IN ANOTHER ORDER (grader spellings, 2026-11).
+ * `(x+3)(x+2)` for `(x+2)(x+3)`, `5 + 2\sqrt{3}` for `2\sqrt{3} + 5`,
+ * `6\sqrt{x}x^3` for `6x^3\sqrt{x}`, `2x - 8 + x^2 = 0` for
+ * `x^2 + 2x - 8 = 0`: each was refused, because only a constant term moved
+ * (constantTermsLast) and the polynomial readers refuse a bracket, a root or π.
+ * A sum's terms and a product's factors in another order are the same answer
+ * in the same form: each term and each factor keeps its own form, nothing is
+ * expanded, combined, cancelled or moved across the equals sign. So a
+ * factored answer stays factored and an unsimplified one stays unsimplified.
+ * Only whole terms and whole factors move: inside a bracket, a root, a
+ * fraction or bars nothing does (an author lists `|69-c|` and `|-c+69|` as two
+ * spellings, and Pre-Flight would call one of them redundant).
+ *
+ * commutedSum returns the text with every sum and product in one order, or
+ * null when it holds something this does not read (then nothing moves):
+ *   - a comma, a relation, ±, bars inside bars, or a name run into a letter;
+ *   - a number straight after a factor (`x2`, `\sqrt{3}2`): it is no product
+ *     anyone writes, and a mixed number (`3\frac{1}{2}`) is one number;
+ *   - a run of letters that could be a word (`no` is not `on`): letters are
+ *     factors only in a product that also holds a number, a power, a bracket,
+ *     a root or π, and never four or more in a row;
+ *   - two capital letters in one product: AB is not BA when they are matrices.
+ * A number written first stays first. A letter straight before a bracket is a
+ * product only when the bracket holds that letter (`x(x+3)`); otherwise it may
+ * be a call (`f(x)`, `a(x-h)`), and stays one factor with its bracket.
+ * Called once the side is in the form normaliser's spelling (form()), after a
+ * plain-text `/` has already been refused (GR04).
+ */
+const FUNCTION_CALL_NAME = /^(?:sqrt|cbrt|root|abs|log|ln|sin|cos|tan|sec|csc|cot|exp)(?![A-Za-z])/;
+const closingGroupEnd = (text, open) => {
+  const opener = text[open];
+  const closer = { '(': ')', '[': ']', '{': '}' }[opener];
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === opener) depth += 1;
+    else if (text[index] === closer) { depth -= 1; if (depth === 0) return index; }
+  }
+  return -1;
+};
+// Where a factor's powers and subscripts end (`x_1^2`, `(x+1)^{n-1}`), or -1.
+const attachmentsEnd = (text, start) => {
+  let cursor = start;
+  for (let guard = 0; guard < 4 && (text[cursor] === '^' || text[cursor] === '_'); guard += 1) {
+    let next = cursor + 1;
+    if (text[next] === '-') next += 1;
+    if (text[next] === '(' || text[next] === '{') {
+      const close = closingGroupEnd(text, next);
+      if (close < 0) return -1;
+      cursor = close + 1;
+      continue;
+    }
+    const atom = /^(?:\d+(?:\.\d+)?|[A-Za-z]|π|\\sqrt\{[^{}]*\})/.exec(text.slice(next));
+    if (!atom) return -1;
+    cursor = next + atom[0].length;
+  }
+  return cursor;
+};
+
+// One term's factors in one order, or null. A bracket, a root, a fraction or
+// a bar keeps what is inside it as written: only whole factors move.
+const commutedProduct = (term) => {
+  let index = 0;
+  const factors = [];
+  let coefficient = '';
+  const number = /^(?:\d+(?:\.\d+)?|\.\d+)(?:\\frac\{\d+\}\{\d+\})?/.exec(term);
+  if (number && term[number[0].length] !== '^' && term[number[0].length] !== '_') {
+    coefficient = number[0];
+    index = number[0].length;
+  } else if (number) {
+    // A number with a power is a factor like any other (`1.5^t*80`).
+    const end = attachmentsEnd(term, number[0].length);
+    if (end < 0) return null;
+    factors.push(term.slice(0, end));
+    index = end;
+  }
+  let letterRun = 0;
+  let onlyLetters = !coefficient && !factors.length;
+  let capitals = 0;
+  while (index < term.length) {
+    const character = term[index];
+    const rest = term.slice(index);
+    let factor = null;
+    let end = -1;
+    let isLetter = false;
+    if (character === '*') {
+      // A product sign, then any factor: a number is one only here (`x*2`).
+      const numeral = /^\*(\d+(?:\.\d+)?)(?![\d.\\])/.exec(rest);
+      if (numeral) {
+        end = attachmentsEnd(term, index + numeral[0].length);
+        if (end < 0) return null;
+        factors.push(term.slice(index + 1, end));
+        index = end;
+        letterRun = 0;
+        onlyLetters = false;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+    if (/[0-9.]/.test(character)) return null;
+    if (character === '(') {
+      const close = closingGroupEnd(term, index);
+      if (close < 0) return null;
+      end = attachmentsEnd(term, close + 1);
+      if (end < 0) return null;
+      factor = term.slice(index, end);
+    } else if (character === '|') {
+      const close = term.indexOf('|', index + 1);
+      if (close < 0) return null;
+      end = attachmentsEnd(term, close + 1);
+      if (end < 0) return null;
+      factor = term.slice(index, end);
+    } else if (/^\\sqrt(?:\[[^\]{}]*\])?\{/.test(rest) || rest.startsWith('\\frac{')) {
+      const head = /^\\(?:sqrt(?:\[[^\]{}]*\])?|frac)/.exec(rest)[0];
+      let cursor = index + head.length;
+      for (let part = 0; part < (head === '\\frac' ? 2 : 1); part += 1) {
+        if (term[cursor] !== '{') return null;
+        const close = closingGroupEnd(term, cursor);
+        if (close < 0) return null;
+        cursor = close + 1;
+      }
+      end = attachmentsEnd(term, cursor);
+      if (end < 0) return null;
+      factor = term.slice(index, end);
+    } else if (character === 'π') {
+      end = attachmentsEnd(term, index + 1);
+      if (end < 0) return null;
+      factor = term.slice(index, end);
+    } else if (FUNCTION_CALL_NAME.test(rest) && !/[A-Za-z]/.test(term[index - 1] || '')) {
+      // A named call with its argument: sqrt3, sqrt(x), log_{10}(x), ln(x).
+      const name = FUNCTION_CALL_NAME.exec(rest)[0];
+      let cursor = attachmentsEnd(term, index + name.length);
+      if (cursor < 0) return null;
+      if (term[cursor] === '(' || term[cursor] === '{') {
+        const close = closingGroupEnd(term, cursor);
+        if (close < 0) return null;
+        cursor = close + 1;
+      } else {
+        const argument = /^(?:\d+(?:\.\d+)?|[A-Za-z])/.exec(term.slice(cursor));
+        if (!argument) return null;
+        cursor += argument[0].length;
+      }
+      end = attachmentsEnd(term, cursor);
+      if (end < 0) return null;
+      factor = term.slice(index, end).replace(/^sqrt(\d+|[A-Za-z])$/, '\\sqrt{$1}').replace(/^sqrt\(([^()]*)\)$/, '\\sqrt{$1}');
+    } else if (/[A-Za-z]/.test(character)) {
+      isLetter = true;
+      if (term[index + 1] === '(') {
+        const close = closingGroupEnd(term, index + 1);
+        if (close < 0) return null;
+        // x(x+3) is a product: the bracket holds the letter. f(x), a(x-h)
+        // may be a call, so the letter keeps its bracket.
+        if (!new RegExp(`(?<![A-Za-z])${character}(?![A-Za-z])`).test(term.slice(index + 2, close))) {
+          end = attachmentsEnd(term, close + 1);
+          if (end < 0) return null;
+          factor = term.slice(index, end);
+          isLetter = false;
+        }
+      }
+      if (factor === null) {
+        end = attachmentsEnd(term, index + 1);
+        if (end < 0) return null;
+        factor = term.slice(index, end);
+        if (/^[A-Z]/.test(factor)) capitals += 1;
+        // A letter straight after a letter: a run, which could be a word.
+        letterRun = end === index + 1 && /[A-Za-z]/.test(term[end] || '') ? letterRun + 1 : 0;
+        if (letterRun >= 3) return null;
+        if (end > index + 1) onlyLetters = false;
+      }
+    } else {
+      return null;
+    }
+    if (!isLetter) { onlyLetters = false; letterRun = 0; }
+    factors.push(factor);
+    index = end;
+    // A number straight after a factor is no product anyone writes.
+    if (/^[0-9.]/.test(term.slice(index))) return null;
+  }
+  if (capitals >= 2) return null;
+  if (onlyLetters && factors.length > 1) return null;
+  return [coefficient, ...factors.sort()].filter(Boolean).join('·');
+};
+
+const commutedSum = (text) => {
+  const source = String(text ?? '');
+  // (…nor a name run into a letter, `xln(x)`, read as x·l·n(x).)
+  if (!source || /[,;=<>!±]|\\pm|\\(?:text|mathrm|operatorname)|\de[-+]?\d|[A-Za-z](?:sqrt|cbrt|root|abs|log|ln|sin|cos|tan|sec|csc|cot|exp)(?![A-Za-z])/.test(source) || (source.match(/\|/g) || []).length > 2) return null;
+  const terms = [];
+  let level = 0;
+  let insideBars = false;
+  let start = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if ('([{'.includes(character)) level += 1;
+    else if (')]}'.includes(character)) {
+      level -= 1;
+      if (level < 0) return null;
+    } else if (character === '|' && level === 0) insideBars = !insideBars;
+    else if ((character === '+' || character === '-') && level === 0 && !insideBars && index > start && /[0-9A-Za-z)\]}|.π]/.test(source[index - 1])) {
+      terms.push(source.slice(start, index));
+      start = index;
+    }
+  }
+  if (level !== 0 || insideBars) return null;
+  terms.push(source.slice(start));
+  const ordered = [];
+  for (const term of terms) {
+    const sign = term[0] === '-' ? '-' : '+';
+    const body = term.replace(/^[+-]/, '');
+    if (!body) return null;
+    const product = commutedProduct(body);
+    if (product === null) return null;
+    ordered.push(`${sign}${product}`);
+  }
+  return ordered.sort().join('');
+};
+
+/*
+ * A GENERATED ZERO TERM (grader spellings, 2026-11). A key drawn with h = 0
+ * or k = 0 reads `y=-1(x-3)^2+0`, `y=-2(x+0)^2+0` or `3sqrt(4x+0)=12`, and the
+ * `y=-(x-3)^2`, `y=-2x^2` and `3sqrt(4x)=12` every student writes were
+ * refused; so was `y=-2(x-0)^2+0`. A term that is 0, or 0 times a letter, is
+ * no term wherever it stands whole: after an operand (`x+0`, `+0x`), or first
+ * before a sign (`0+(-3)(n-1)`). Never a digit of a number (10, 0.5), a power
+ * (x^0), a factor (2*0) or a subscript (a_0). A bracket left holding one
+ * letter is that letter (`2(x)^2` is 2x²), unless a name stands before it:
+ * `f(x)` keeps its bracket.
+ */
+const ZERO_TERM_AFTER = /([0-9A-Za-z)\]}|π])[+-]0(?:\.0+)?(?:\*?[A-Za-z](?:\^\d+)?)?(?![\w.^{(\\π])/g;
+const ZERO_TERM_FIRST = /(^|[([{=])[+-]?0(?:\.0+)?(?:\*?[A-Za-z](?:\^\d+)?)?(?:\+|(?=-))/g;
+const LONE_LETTER_GROUP = /(^|[^A-Za-z_\\])\(([A-Za-z])\)/g;
+const withoutZeroTerms = (value) => {
+  let text = value;
+  for (let guard = 0; guard < 6; guard += 1) {
+    const next = text.replace(ZERO_TERM_AFTER, '$1').replace(ZERO_TERM_FIRST, '$1');
+    if (next === text) break;
+    text = next;
+  }
+  return text.replace(LONE_LETTER_GROUP, '$1$2');
+};
+
 // The same side, or the same side with its constant term written first:
 // vertex form `-3 + 2(x-4)^2` for `2(x-4)^2 - 3` (Job P). Moving a whole
 // constant term never changes any term's own form.
-const sameFormPreservingSide = (left, right) => {
+const sameFormPreservingSide = (left, right, { side = false, reorder = true } = {}) => {
   // π is read before the form normaliser removes spaces (so `p i` stays p·i);
   // everything else after it, so its own rules (a coefficient of 1 before a
   // root, generator brackets) see what they always saw.
   const piFirst = (value) => String(value ?? '')
     .replace(/\\pi(?!tchfork)/g, 'π')
     .replace(/(?<![A-Za-z\\])pi(?![A-Za-z])/g, 'π');
-  const form = (value) => canonicalSymbolSpellings(normalizeFormPreservingSide(piFirst(value)), { asciiPi: false });
+  // Brackets round the whole side group nothing (withoutWholeBrackets).
+  const form = (value) => canonicalSymbolSpellings(withoutWholeBrackets(normalizeFormPreservingSide(piFirst(value), { side })), { asciiPi: false });
   const a = form(left);
   const b = form(right);
   if (a === b) return true;
@@ -870,7 +1203,14 @@ const sameFormPreservingSide = (left, right) => {
   // (`x-1/x+1`), so its terms are never moved (Job K's 2d rule). The owner
   // confirmed it (GR04): no right answer stored against such a key turns wrong.
   if ([left, right].some((value) => /\//.test(String(value ?? '')))) return false;
-  return constantTermsLast(a) === constantTermsLast(b);
+  // (A lone sign has no term: `-` and `+` both read as none, and are not one answer.)
+  const constantsLast = constantTermsLast(a);
+  if (constantsLast && constantsLast === constantTermsLast(b)) return true;
+  // The same terms and factors in another order (commutedSum), except for a
+  // caller that wants the text as written (answerUtils sameWrittenForm).
+  if (!reorder) return false;
+  const commuted = commutedSum(a);
+  return commuted !== null && commuted === commutedSum(b);
 };
 
 export const sameFormPreservingEquation = (left, right) => {
@@ -878,7 +1218,8 @@ export const sameFormPreservingEquation = (left, right) => {
   const b = splitEquationSides(right);
   if (!a || !b) return false;
 
-  return sameFormPreservingSide(a.left, b.left) && sameFormPreservingSide(a.right, b.right);
+  // Each is an equation's side, read so (canonicalizeDivisions, TS05).
+  return sameFormPreservingSide(a.left, b.left, { side: true }) && sameFormPreservingSide(a.right, b.right, { side: true });
 };
 
 
@@ -898,12 +1239,15 @@ export const sameFormPreservingEquation = (left, right) => {
  * same cosmetic-only normalizer as the equation comparator. It never expands,
  * factors, distributes, reorders factors, or simplifies a different form.
  */
-export const sameFormPreservingExpression = (left, right) => {
+export const sameFormPreservingExpression = (left, right, { reorder = true } = {}) => {
   const a = String(left ?? '').trim();
   const b = String(right ?? '').trim();
   if (!a || !b) return false;
-  if (a.includes('=') || b.includes('=')) return false;
-  return sameFormPreservingSide(a, b);
+  // An equation is the equation comparator's. A `≠`, `\ne` or `!=` is no
+  // equation: `x\ne -5` is the key `x!=(-5)` (grader spellings, 2026-11).
+  const equation = (text) => /(^|[^!<>])=/.test(text) && !/\\neq?(?![A-Za-z])/.test(text);
+  if (equation(a) || equation(b)) return false;
+  return sameFormPreservingSide(a, b, { reorder });
 };
 
 export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) => {
@@ -911,8 +1255,23 @@ export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) =>
   const b = splitEquationSides(right);
   if (!a || !b) return false;
 
-  // Preserve which quantity/function is being defined.
-  if (!sameText(a.left, b.left)) return false;
+  // Preserve which quantity/function is being defined (read as a side, TS05).
+  const leftA = normalizeAnswer(a.left, { side: true });
+  const leftB = normalizeAnswer(b.left, { side: true });
+  if (leftA !== leftB) {
+    // A left side that names no quantity is a polynomial like the right one,
+    // and is read the same way (grader spellings, 2026-11): a generated key
+    // `x^2 + 0x - 1 = 0` refused the `x^2 - 1 = 0` every student writes, and
+    // `2x - 8 + x^2 = 0` its own terms in another order. Still side by side,
+    // still expanded: nothing crosses the equals sign, and a bracket's form
+    // (factored, vertex) keeps its own comparisons.
+    if (NAMED_QUANTITY.test(leftA) || NAMED_QUANTITY.test(leftB)) return false;
+    if (hasVariableGrouping(a.left) || hasVariableGrouping(b.left)) return false;
+    const leftOne = parsePolynomial(a.left);
+    const leftTwo = parsePolynomial(b.left);
+    if (!leftOne || !leftTwo || polynomialDegree(leftOne) > 8 || polynomialDegree(leftTwo) > 8) return false;
+    if (!samePolynomial(leftOne, leftTwo, tolerance)) return false;
+  }
 
   // Do not turn a form-specific question into a generic "same graph" grader.
   if (hasVariableGrouping(a.right) || hasVariableGrouping(b.right)) return false;
@@ -924,6 +1283,11 @@ export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) =>
 
   return samePolynomial(one, two, tolerance);
 };
+
+/** sameRationalExpression and sameNonnegativeRadicalExpression, reading a typed ², · or × as the editor writes it (typedAsEditorSpelling). */
+export const sameRationalExpression = (left, right, tolerance = 1e-6) => sameRationalExpressionAsTyped(typedAsEditorSpelling(left), right, tolerance);
+export const sameNonnegativeRadicalExpression = (left, right, tolerance = 1e-6) => (
+  sameNonnegativeRadicalExpressionAsTyped(typedAsEditorSpelling(left), right, tolerance));
 
 /**
  * Compare polynomial EQUATIONS as relations rather than as a requested form.
@@ -939,6 +1303,8 @@ export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) =>
  * questions that ask for a specific form keep the existing strict comparators.
  */
 export const samePolynomialEquationRelation = (left, right, tolerance = 1e-6) => {
+  // A typed ², · or × is read as the editor writes it (typedAsEditorSpelling).
+  const student = typedAsEditorSpelling(left);
   const relationPolynomial = (value) => {
     const sides = splitEquationSides(value);
     if (!sides) return null;
@@ -957,7 +1323,7 @@ export const samePolynomialEquationRelation = (left, right, tolerance = 1e-6) =>
     return delta.size ? delta : null;
   };
 
-  const a = relationPolynomial(left);
+  const a = relationPolynomial(student);
   const b = relationPolynomial(right);
   if (!a || !b) return false;
 
@@ -1097,7 +1463,9 @@ export const sameFiniteSetNotation = (left, right, tolerance = 1e-6) => {
  */
 export const sameCommutativeModelEquation = (left, right) => {
   const canonicalSide = (value) => {
-    const text = normalizeAnswer(value);
+    // An equation's side, read so (canonicalizeDivisions, TS05); brackets
+    // round the whole side group nothing (withoutWholeBrackets).
+    const text = withoutWholeBrackets(normalizeAnswer(value, { side: true }));
     if (!text) return null;
     const terms = [];
     let token = '';
@@ -1235,14 +1603,42 @@ export const sameSetBuilderNotation = (left, right, tolerance = 1e-6) => {
  * round brackets with exactly two numeric coordinates. Read as an open
  * interval instead, the same two numbers name the same interval, so the
  * verdict is the same either way.
+ *
+ * A MIXED NUMBER IN A COORDINATE (platform-polish-3; F-PAIR-MIXED in the
+ * 2026-11-06 Algebra I M3 T2 walkthrough). A number box takes 1⅓ written
+ * `1 1/3` for 4/3 (sameMixedNumber, GR13), but `(1 1/3, 1 2/3)` was refused
+ * for (4/3, 5/3) on every surface: each coordinate was read with asNumber,
+ * which reads no mixed number. Where the caller knows the field is a pair
+ * (`mixedNumbers`: fieldValueOptions' `orderedPair`, and the pair graders in
+ * answerUtils), a coordinate is read as a lone number is: a proper mixed
+ * number is whole + fraction, the sign covering both (−5⅓ is −16/3), and a
+ * key coordinate written as a mixed number asks for one (GR13). Never the
+ * product reading: `(1\frac{1}{2},4)` is still not `(\frac{1}{2},4)` (review
+ * B2). Never for an interval either: an open interval is written as a pair
+ * is, and `(1\frac{1}{2},3)` there keeps the reading `[1\frac{1}{2},3)` has
+ * (wave 7's decision 4 left mixed numbers in intervals refused).
  */
-const numericPair = (value) => {
+const pairCoordinate = (part, mixedNumbers = false) => {
+  const number = asNumber(part);
+  if (number !== null) return { value: number, mixed: false };
+  const mixed = mixedNumbers ? mixedNumberShape(part)?.value : null;
+  return typeof mixed === 'number' ? { value: mixed, mixed: true } : null;
+};
+// The student's coordinate against the key's (GR13: a key written as a mixed
+// number takes only a mixed number).
+const sameCoordinateNumber = (student, key, tolerance) => (
+  !(key.mixed && !student.mixed) && Math.abs(student.value - key.value) <= tolerance
+);
+/** One coordinate of a pair as a number, a proper mixed number read as one (null when it is neither). */
+export const pairCoordinateValue = (part) => pairCoordinate(part, true)?.value ?? null;
+
+const numericPair = (value, { mixedNumbers = false } = {}) => {
   const text = normalizeAnswer(value);
   if (!/^\(.*\)$/.test(text)) return null;
   const parts = splitTopLevelCommaList(text.slice(1, -1));
   if (parts.length !== 2) return null;
   if (parts.some((part) => /[%$]/.test(part))) return null;
-  const coordinates = parts.map((part) => asNumber(part));
+  const coordinates = parts.map((part) => pairCoordinate(part, mixedNumbers));
   return coordinates.every((coordinate) => coordinate !== null) ? coordinates : null;
 };
 
@@ -1259,19 +1655,21 @@ const numericPair = (value) => {
  * many places, is refused. Taking rounded decimals would be a new rule for
  * one family, not a reading of this one.
  */
-const exactCoordinate = (part) => {
+const exactCoordinate = (part, mixedNumbers = false) => {
   const exact = exactConstantValue(part);
   if (exact) return exact;
-  const number = asNumber(part);
-  return number === null ? null : { value: number, radical: false };
+  // (exactConstantValue refuses a \frac after a number, so a mixed number
+  // beside a root is read here, as numericPair reads it.)
+  const number = pairCoordinate(part, mixedNumbers);
+  return number === null ? null : { value: number.value, radical: false, mixed: number.mixed };
 };
 
-const exactPair = (value) => {
+const exactPair = (value, { mixedNumbers = false } = {}) => {
   const text = normalizeAnswer(value);
   if (!/^\(.*\)$/.test(text)) return null;
   const parts = splitTopLevelCommaList(text.slice(1, -1));
   if (parts.length !== 2 || parts.some((part) => /[%$]/.test(part))) return null;
-  const coordinates = parts.map(exactCoordinate);
+  const coordinates = parts.map((part) => exactCoordinate(part, mixedNumbers));
   return coordinates.every(Boolean) ? coordinates : null;
 };
 
@@ -1282,15 +1680,19 @@ const sameExactCoordinate = (a, b, tolerance) => {
     if (!(a.radical && b.radical)) return false;
     return Math.abs(a.value - b.value) <= 1e-9 * Math.max(1, Math.abs(a.value), Math.abs(b.value));
   }
-  return Math.abs(a.value - b.value) <= tolerance;
+  return sameCoordinateNumber(a, b, tolerance);
 };
 
-export const sameNumericPair = (left, right, tolerance = 1e-6) => {
-  const a = numericPair(left);
-  const b = numericPair(right);
-  if (a && b) return a.every((coordinate, index) => Math.abs(coordinate - b[index]) <= tolerance);
-  const exactA = exactPair(left);
-  const exactB = exactPair(right);
+/**
+ * `mixedNumbers`: the caller knows both are ordered pairs, so a coordinate
+ * may be a mixed number (above). The left side is the student's.
+ */
+export const sameNumericPair = (left, right, tolerance = 1e-6, { mixedNumbers = false } = {}) => {
+  const a = numericPair(left, { mixedNumbers });
+  const b = numericPair(right, { mixedNumbers });
+  if (a && b) return a.every((coordinate, index) => sameCoordinateNumber(coordinate, b[index], tolerance));
+  const exactA = exactPair(left, { mixedNumbers });
+  const exactB = exactPair(right, { mixedNumbers });
   if (!exactA?.some((coordinate) => coordinate.radical) || !exactB?.some((coordinate) => coordinate.radical)) return false;
   return exactA.every((coordinate, index) => sameExactCoordinate(coordinate, exactB[index], tolerance));
 };
@@ -1324,8 +1726,10 @@ const sameNumberWithVariableName = (student, key, tolerance) => {
  * Returns null — today's reading, unchanged — when neither side has that
  * shape or the other side is not a number: an expression key (`3\frac{x}{2}`,
  * `2\frac{1}{2}x`) keeps every rule it had. An ordered pair never comes here
- * with a mixed number (sameNumericPair reads each coordinate with asNumber,
- * and exactConstantValue refuses a \frac after a number, wave 6 review B2).
+ * with a mixed number: in a pair field each coordinate is read by the same
+ * rules in sameNumericPair (pairCoordinate, platform-polish-3), and nowhere
+ * as a product (exactConstantValue refuses a \frac after a number, wave 6
+ * review B2).
  */
 const MIXED_NUMBER = /^(-?)(\d+)\\frac\{(\d+)\}\{(\d+)\}$/;
 const exactDecimalOrFraction = (sign, numerator, denominator) => {
@@ -1486,11 +1890,16 @@ const NUMBER_FIELD_KINDS = new Set(['number', 'numeric', 'value', 'scalar']);
 // kind, inputProfile first: a stray `answerFormat: 'number'` does not turn an
 // expression field into a number box.
 const STORED_KIND_KEYS = ['inputProfile', 'answerFormat', 'notation', 'toolProfile'];
+const declaredKindOf = (field = {}) => String(STORED_KIND_KEYS.map((key) => field?.[key])
+  .find((value) => typeof value === 'string' && value.trim()) ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 /** Is this field declared a box for one number? */
-export const fieldIsNumberBox = (field = {}) => {
-  const declared = STORED_KIND_KEYS.map((key) => field?.[key]).find((value) => typeof value === 'string' && value.trim());
-  return NUMBER_FIELD_KINDS.has(String(declared ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ''));
-};
+export const fieldIsNumberBox = (field = {}) => NUMBER_FIELD_KINDS.has(declaredKindOf(field));
+
+// The declared kinds of a pair box (answerFormatHints' `orderedPair`), read
+// the same way: where a coordinate may be a mixed number (sameNumericPair).
+const ORDERED_PAIR_FIELD_KINDS = new Set(['orderedpair', 'pair', 'point', 'coordinate', 'coordinates']);
+/** Is this field declared a box for an ordered pair? */
+export const fieldIsOrderedPairBox = (field = {}) => ORDERED_PAIR_FIELD_KINDS.has(declaredKindOf(field));
 
 /*
  * A CALCULATION IN A NUMBER BOX (the owner, 2026-10-23; GR01). A number box
@@ -1555,6 +1964,14 @@ export const fieldAllowsArithmetic = (field = {}) => !fieldIsNumberBox(field) ||
  * teacher's Path simulation and the assignment matcher (answerUtils) — passes
  * these, so a field is read the same way on every surface.
  */
+// A field whose answer is an option picked, not typed (answerUtils
+// isChoiceAnswerField; a Path choice field's stored inputProfile).
+const CHOICE_FIELD_KINDS = new Set(['choice', 'multiplechoice', 'select']);
+const fieldIsChoice = (field = {}) => [field?.inputProfile, field?.inputMode, field?.type]
+  .some((value) => CHOICE_FIELD_KINDS.has(String(value ?? '').toLowerCase().replace(/[^a-z]+/g, '')))
+  || (Array.isArray(field?.options) && field.options.length > 0)
+  || (Array.isArray(field?.choices) && field.choices.length > 0);
+
 export const fieldValueOptions = (field = {}) => ({
   thousandsSeparators: fieldAcceptsThousandsSeparators(field),
   exactNumber: fieldIsNumberBox(field),
@@ -1563,6 +1980,11 @@ export const fieldValueOptions = (field = {}) => ({
   // lineFormPolicy.mjs sets `lineForm` from the question's words (on Path, in
   // the private grading at issue), so the decision travels with the field.
   ...(field?.lineForm === LINE_FORM_ANY ? { anyLineForm: true } : {}),
+  // A typed answer's ², · and × are read as the editor writes them
+  // (typedAsEditorSpelling); a choice's option never is.
+  ...(fieldIsChoice(field) ? {} : { typed: true }),
+  // A pair box reads a mixed number in a coordinate (sameNumericPair).
+  ...(fieldIsOrderedPairBox(field) ? { orderedPair: true } : {}),
 });
 
 // A relation command is a whole word: the editor's `\left(` is not `\le`.
@@ -1749,7 +2171,10 @@ const sameEquationSideBySide = (left, right, tolerance) => (
  * equation, a point-slope answer or standard-form multiple written the other
  * way round, and the any-form reading (GR03) are not taken.
  */
-export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false, sidesAsKeyed = false } = {}) => {
+export const sameValue = (studentValue, right, tolerance = 1e-6, { thousandsSeparators = true, exactNumber = false, arithmetic = true, anyLineForm = false, sidesAsKeyed = false, typed = false, orderedPair = false } = {}) => {
+  // A typed field's answer, read as the editor writes it (fieldValueOptions
+  // `typed`): `(x-2)²` is `(x-2)^{2}`, `4·y` is `4\cdot y`.
+  const left = typed ? typedAsEditorSpelling(studentValue) : studentValue;
   // A number box that takes no calculation refuses one before any comparison
   // below can work it out (GR01; fieldValueOptions `arithmetic`).
   if (!arithmetic && looksLikeArithmetic(left)) return false;
@@ -1768,11 +2193,12 @@ export const sameValue = (left, right, tolerance = 1e-6, { thousandsSeparators =
   const leftSides = mixedSidesAsFractions(left);
   const rightSides = mixedSidesAsFractions(right);
   if (leftSides !== String(left ?? '') || rightSides !== String(right ?? '')) {
-    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm, sidesAsKeyed });
+    return sameValue(leftSides, rightSides, tolerance, { thousandsSeparators, exactNumber, arithmetic, anyLineForm, sidesAsKeyed, typed, orderedPair });
   }
   if (exactNumber && sameExactNumber(left, right, tolerance)) return true;
   if (thousandsSeparators && sameThousandsGroupedNumber(left, right, tolerance)) return true;
-  if (sameNumericPair(left, right, tolerance)) return true;
+  // A pair box (fieldValueOptions `orderedPair`) reads a mixed number in a coordinate.
+  if (sameNumericPair(left, right, tolerance, { mixedNumbers: orderedPair })) return true;
   if (sameNumberWithVariableName(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;
   if (sameLinearInequality(left, right, tolerance)) return true;

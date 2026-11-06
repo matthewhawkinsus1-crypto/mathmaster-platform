@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "What does the graph of a linear inequality in two variables look like? How does it compare to the graph of a linear equation?",
     "instructions": "Graphing inequalities in two variables. Every graph is built in the graphing workspace one step at a time — the boundary line, solid or dashed, the side to shade, and a test point — and each step is checked. For a word problem, write the inequality in the tool before you graph it. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra I Module 3 Topic 2 Lesson 4, from the district slides (two 45-minute days), TEKS A.2H and A.3D. Honors version: the same lesson with fractional slopes and y-coefficients other than ±1 in the Warm-Up, Practice and Exit Ticket, parameters (P14), boundaries from two points (P15), reasoning from a description (P16), and two audited Digital SAT items from the CCMR bank (P17, P18), so the Honors version is ready as written. Warm-Up rebuilt as readiness: a number-line solution statement (open/closed circle → dashed/solid), graphing the boundary line, and testing points. Every graph is built in the Systems Workspace's inequality builder (boundary, line style, shading, test point), and context items have students write the model in the tool first. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the worked example's title reads \"Write a linear equality\"; it means inequality."
+    "teacherNotes": "Algebra I Module 3 Topic 2 Lesson 4, from the district slides (two 45-minute days), TEKS A.2H and A.3D. Honors version: the same lesson with fractional slopes and y-coefficients other than ±1 in the Warm-Up, Practice and Exit Ticket, parameters (P14), boundaries from two points (P15), reasoning from a description (P16), and two audited Digital SAT items from the CCMR bank (P17, P18), so the Honors version is ready as written. Classwork order: Activity 4.2's first graph, y > 4x − 6 (CW 6), comes right after CW 1, before Kai's goal is graphed. Warm-Up rebuilt as readiness: a number-line solution statement (open/closed circle → dashed/solid), graphing the boundary line, and testing points. Every graph is built in the Systems Workspace's inequality builder (boundary, line style, shading, test point), and context items have students write the model in the tool first. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the worked example's title reads \"Write a linear equality\"; it means inequality."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -58,8 +58,8 @@
             "graph"
           ],
           "hints": [
-            "An open circle means the number is not a solution; a closed circle means it is.",
-            "x < a is true for every number to the left of a on the number line."
+            "Is a number ever less than itself? So is the circle open or closed?",
+            "An open circle leaves the number out. x < a is true for every number to the left of a, so shade to the left."
           ],
           "scaffold": {
             "prompt": "Let’s back up. For x < 2, the number 2 is…",
@@ -131,9 +131,9 @@
             }
           },
           "hints": [
-            "The constant term is the y-intercept: plot that point on the y-axis first.",
-            "A fraction slope is rise over run: move up or down by the numerator and right by the denominator.",
-            "Check your second point by substituting it into the equation."
+            "Where does the line cross the y-axis? Which number in the equation tells you?",
+            "A fraction slope is rise over run. Which part of the fraction is the rise, and which is the run?",
+            "Plot the y-intercept, the constant term. Then move up or down by the numerator and right by the denominator, and check your second point in the equation."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A slope of 2/3 means…",
@@ -205,8 +205,8 @@
             }
           ],
           "hints": [
-            "Substitute the x-coordinate (and the y-coordinate) of each point.",
-            "A point is a solution when the inequality is a true statement there."
+            "What do you get when you put each point’s coordinates into the inequality: a true statement or a false one?",
+            "Put the x-coordinate in for x and the y-coordinate in for y, then compare the two sides. A point is a solution when the inequality is true there."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A point is a solution of an inequality when, substituted, it makes the inequality…",
@@ -356,9 +356,9 @@
             }
           ],
           "hints": [
-            "A two-point shot is worth 2 points: multiply each count by its value.",
-            "Add the two products to get the total.",
-            "For the equation, set the total of the two kinds of shots equal to Kai’s average."
+            "How many points does each kind of shot score? How many of each did Kai make?",
+            "Multiply each count by its point value, then add. Which expression in x and y gives Kai’s total?",
+            "Two-point shots score 2x points and three-point shots 3y. Set their total equal to Kai’s average."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Points from x two-point shots is…",
@@ -385,6 +385,105 @@
             ],
             "answerSummary": "18; 20; 26; 2x + 3y = 20",
             "commonError": "Switching the point values: the two-point shots are x, so the term is 2x."
+          }
+        },
+        {
+          "questionId": "m3t2l4h-cw-6",
+          "standard": "A.3D",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3D",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2H",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveInequalitySystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "mode": "inequalities",
+          "prompt": "Activity 4.2 — Determining the Graphs of Linear Inequalities. Consider $y > 4x - 6$. Its boundary line is determined by the equation of the line. Build the boundary line, decide whether it is solid or dashed, and shade the correct half-plane. Then test the point (0, 0).",
+          "sourceConstraints": [
+            "y > 4x - 6"
+          ],
+          "expectedConstraints": [
+            {
+              "m": 4,
+              "b": -6,
+              "relation": ">"
+            }
+          ],
+          "studentBuild": {
+            "rewrite": false,
+            "boundary": true,
+            "lineStyle": true,
+            "shading": true
+          },
+          "reasoning": {
+            "testPoint": true,
+            "classifyRegion": false,
+            "vertices": false
+          },
+          "testPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "directionSteps": [
+            "Build the boundary line.",
+            "Choose solid or dashed.",
+            "Shade the half-plane of solutions.",
+            "Test the point."
+          ],
+          "hints": [
+            "What are the slope and the y-intercept of the boundary line y = 4x − 6?",
+            "Does > include the points on the line itself? Which line style shows that?",
+            "Plot (0, −6) and go up 4, right 1. > leaves the line out, so it is dashed. Then substitute (0, 0): is 0 > 4(0) − 6 true?"
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For > or <, the boundary line is…",
+            "options": [
+              "dashed",
+              "solid"
+            ],
+            "correct": "dashed"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Boundary line",
+                "instruction": "The boundary line divides the plane into two half-planes; the symbol says which half-plane holds the solutions."
+              },
+              {
+                "title": "Solid or dashed",
+                "instruction": "≥ or ≤: solid, because points on the line are solutions. > or <: dashed, because no point on the line is."
+              },
+              {
+                "title": "Test point",
+                "instruction": "If (0, 0) is a solution, shade its half-plane; if not, shade the other one. (Use another point if the line passes through the origin.)"
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Boundary, style, shading, test.",
+            "reasoning": [
+              "Boundary y = 4x − 6: plot (0, −6) and (1, −2).",
+              "> is strict, so the line is dashed.",
+              "0 > 4(0) − 6 is true, so shade the half-plane containing (0, 0): above the line."
+            ],
+            "answerSummary": "dashed line y = 4x − 6, shaded above",
+            "commonError": "Shading below because the slope is positive: the symbol decides the side, not the slope."
           }
         },
         {
@@ -458,9 +557,9 @@
             "Test the point."
           ],
           "hints": [
-            "\"At least\" means greater than or equal to.",
-            "Points that make exactly 20 points are on the boundary line, such as (10, 0) and (4, 4).",
-            "A point that meets the goal is on the side you shade."
+            "Does \"at least 20\" include exactly 20 points? Which symbol says \"20 or more\"?",
+            "Combinations worth exactly 20 points lie on the boundary line. How many two-point shots make 20 points with no three-point shots?",
+            "Exactly 20 points means 2x + 3y = 20: draw the line through two whole-number combinations that make it true. Then test (6, 4) to choose the side."
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"At least 20\" means…",
@@ -611,15 +710,15 @@
                 "on or above the line 2x + 3y = 20",
                 "below the line 2x + 3y = 20",
                 "only on the line 2x + 3y = 20",
-                "on the y-axis"
+                "on or below the line 2x + 3y = 20"
               ],
               "answer": "on or above the line 2x + 3y = 20"
             }
           ],
           "hints": [
-            "Total = 2 · (two-point shots) + 3 · (three-point shots).",
-            "Compare each total with 20.",
-            "The points with totals of 20 or more fall on one side of the boundary."
+            "How many points is each two-point shot worth? Each three-point shot?",
+            "Multiply each count by its point value and add. Which totals are 20 or more?",
+            "Total = 2 · (two-point shots) + 3 · (three-point shots). The rows worth 20 or more lie on one side of the line 2x + 3y = 20."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The total for (8, 2) is…",
@@ -673,9 +772,9 @@
               "type": "choice",
               "options": [
                 "The equation’s solutions are only the points on the line; the inequality’s are the line and the half-plane above it",
-                "They are the same points",
-                "The inequality has fewer solutions than the equation",
-                "The equation’s solutions are the half-plane above the line"
+                "The equation’s solutions are only the points on the line; the inequality’s are the half-plane above it, not the line",
+                "The equation’s solutions are the line and the half-plane above it; the inequality’s are only the points on the line",
+                "The equation’s solutions are the points on the line; the inequality’s are the same points, since both use 2x + 3y"
               ],
               "answer": "The equation’s solutions are only the points on the line; the inequality’s are the line and the half-plane above it"
             },
@@ -690,12 +789,12 @@
               "label": "Does (6.5, 5.5) make sense as a solution for Kai?",
               "type": "choice",
               "options": [
-                "No — it satisfies the inequality, but Kai cannot make half of a shot, so only whole numbers make sense",
-                "Yes — every point in the shaded half-plane makes sense",
-                "No — it is below the line",
-                "Yes — Kai can make any number of shots"
+                "No — it satisfies the inequality, but Kai cannot make half of a shot",
+                "Yes — it satisfies the inequality, so it is a combination Kai can make",
+                "No — it is below the line, because 6.5 + 5.5 is less than 20",
+                "Yes — Kai can make any number of shots, so decimals make sense too"
               ],
-              "answer": "No — it satisfies the inequality, but Kai cannot make half of a shot, so only whole numbers make sense"
+              "answer": "No — it satisfies the inequality, but Kai cannot make half of a shot"
             },
             {
               "id": "below",
@@ -715,17 +814,17 @@
               "type": "choice",
               "options": [
                 "(2, 3) is below the line and misses the goal; (1, 6) is on the line and meets it exactly",
-                "(2, 3) is on the line; (1, 6) is below it",
-                "Both points miss the goal",
-                "Both points are above the line"
+                "(2, 3) is on the line and meets the goal exactly; (1, 6) is below the line and misses it",
+                "(2, 3) is below the line and misses the goal; (1, 6) is on the line, so it misses it too",
+                "(2, 3) is above the line and beats the goal; (1, 6) is on the line and meets it exactly"
               ],
               "answer": "(2, 3) is below the line and misses the goal; (1, 6) is on the line and meets it exactly"
             }
           ],
           "hints": [
-            "An equation is true only on its line; an inequality with ≥ is true on the line and on one side of it.",
-            "Substitute each point into 2x + 3y and compare the total with Kai’s goal.",
-            "Think about what x and y count."
+            "Where is the equation true: only on its line, or off it too? Where is the inequality true?",
+            "Substitute each point into 2x + 3y. Is the total below Kai’s goal, equal to it or above it? What do x and y count?",
+            "An equation is true only on its line; an inequality with ≥ is true on the line and on one side of it. x and y count shots, so only whole numbers make sense."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The number of shots Kai makes must be…",
@@ -799,9 +898,47 @@
             }
           ],
           "hints": [
-            "\"At least\" and \"no more than\" include the number itself.",
-            "\"More than\" and \"fewer than\" leave the number out.",
-            "Points come from 2x + 3y; the number of shots is x + y."
+            "Does each statement count points or shots? Does its phrase include the number itself?",
+            "\"At least\" and \"no more than\" include the number; \"more than\" and \"fewer than\" leave it out. Which way does each symbol point?",
+            "Points come from 2x + 3y and the number of shots from x + y. \"Outnumber by more than 4\" compares x − y with 4."
+          ],
+          "misconceptions": [
+            {
+              "field": "atLeast",
+              "match": [
+                "2x + 3y <= 20",
+                "2x + 3y < 20",
+                "2x + 3y > 20"
+              ],
+              "message": "\"At least 20\" means 20 or more, and 20 itself counts."
+            },
+            {
+              "field": "noMore",
+              "match": [
+                "2x + 3y >= 30",
+                "2x + 3y > 30",
+                "2x + 3y < 30"
+              ],
+              "message": "\"No more than 30\" means 30 or less, and 30 itself counts."
+            },
+            {
+              "field": "fewer",
+              "match": [
+                "x + y > 12",
+                "x + y >= 12",
+                "x + y <= 12"
+              ],
+              "message": "\"Fewer than 12\" means less than 12, and 12 itself does not count."
+            },
+            {
+              "field": "more",
+              "match": [
+                "x - y < 4",
+                "x - y <= 4",
+                "x - y >= 4"
+              ],
+              "message": "\"More than 4\" means greater than 4, and 4 itself does not count."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"No more than\" includes the number itself?",
@@ -819,105 +956,6 @@
             ],
             "answerSummary": "2x + 3y ≥ 20; 2x + 3y ≤ 30; x + y < 12; x − y > 4",
             "commonError": "Reading \"no more than\" as <: the number itself is allowed."
-          }
-        },
-        {
-          "questionId": "m3t2l4h-cw-6",
-          "standard": "A.3D",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A.3D",
-              "role": "primary"
-            },
-            {
-              "framework": "teks",
-              "code": "A.2H",
-              "role": "secondary"
-            }
-          ],
-          "studentActions": [
-            "solveInequalitySystem"
-          ],
-          "dok": 2,
-          "difficultyBand": 2,
-          "mode": "inequalities",
-          "prompt": "Activity 4.2 — Determining the Graphs of Linear Inequalities. Consider $y > 4x - 6$. Its boundary line is determined by the equation of the line. Build the boundary line, decide whether it is solid or dashed, and shade the correct half-plane. Then test the point (0, 0).",
-          "sourceConstraints": [
-            "y > 4x - 6"
-          ],
-          "expectedConstraints": [
-            {
-              "m": 4,
-              "b": -6,
-              "relation": ">"
-            }
-          ],
-          "studentBuild": {
-            "rewrite": false,
-            "boundary": true,
-            "lineStyle": true,
-            "shading": true
-          },
-          "reasoning": {
-            "testPoint": true,
-            "classifyRegion": false,
-            "vertices": false
-          },
-          "testPoint": {
-            "x": 0,
-            "y": 0
-          },
-          "graph": {
-            "xMin": -10,
-            "xMax": 10,
-            "yMin": -10,
-            "yMax": 10
-          },
-          "directionSteps": [
-            "Build the boundary line.",
-            "Choose solid or dashed.",
-            "Shade the half-plane of solutions.",
-            "Test the point."
-          ],
-          "hints": [
-            "The boundary of y > 4x − 6 is the line with slope 4 and y-intercept −6.",
-            "> leaves the line itself out of the solutions.",
-            "Substitute (0, 0): is 0 > 4(0) − 6 true?"
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. For > or <, the boundary line is…",
-            "options": [
-              "dashed",
-              "solid"
-            ],
-            "correct": "dashed"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Boundary line",
-                "instruction": "The boundary line divides the plane into two half-planes; the symbol says which half-plane holds the solutions."
-              },
-              {
-                "title": "Solid or dashed",
-                "instruction": "≥ or ≤: solid, because points on the line are solutions. > or <: dashed, because no point on the line is."
-              },
-              {
-                "title": "Test point",
-                "instruction": "If (0, 0) is a solution, shade its half-plane; if not, shade the other one. (Use another point if the line passes through the origin.)"
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "Boundary, style, shading, test.",
-            "reasoning": [
-              "Boundary y = 4x − 6: plot (0, −6) and (1, −2).",
-              "> is strict, so the line is dashed.",
-              "0 > 4(0) − 6 is true, so shade the half-plane containing (0, 0): above the line."
-            ],
-            "answerSummary": "dashed line y = 4x − 6, shaded above",
-            "commonError": "Shading below because the slope is positive: the symbol decides the side, not the slope."
           }
         },
         {
@@ -940,7 +978,87 @@
           ],
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Four graphs share one boundary line, y = (1/2)x − 3, through (0, −3) and (6, 0). Graph a: dashed line, the half-plane above it shaded. Graph b: solid line, the half-plane below it shaded. Graph c: dashed line, the half-plane below it shaded. Write the inequality graphs a, b and c show, and the fourth inequality with this boundary, which none of them shows.",
+          "prompt": "Graphs a, b and c share one boundary line, y = (1/2)x − 3. Write the inequality each graph shows, and the fourth inequality with this boundary, which none of them shows.",
+          "candidateGraphs": [
+            {
+              "id": "a",
+              "label": "Graph a",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": ">"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "b",
+              "label": "Graph b",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": "<="
+                  }
+                ]
+              }
+            },
+            {
+              "id": "c",
+              "label": "Graph c",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": "<"
+                  }
+                ]
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Use solid or dashed to narrow the symbol.",
             "Use the shaded side to finish each inequality.",
@@ -951,30 +1069,72 @@
               "id": "a",
               "label": "Graph a",
               "answer": "y > 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "b",
               "label": "Graph b",
               "answer": "y <= 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "c",
               "label": "Graph c",
               "answer": "y < 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "d",
               "label": "The inequality no graph shows (you graph it next)",
               "answer": "y >= 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
-            "Dashed goes with < or >; solid with ≤ or ≥.",
-            "Solved for y, > and ≥ shade above; < and ≤ shade below."
+            "Which graphs have a dashed line, and which a solid one? Which side of the line is shaded in each?",
+            "Dashed goes with < or >, solid with ≤ or ≥. With y alone, > and ≥ shade above, and < and ≤ shade below."
+          ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "y < 1/2x - 3",
+                "y <= 1/2x - 3",
+                "y >= 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph a’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y >= 1/2x - 3",
+                "y > 1/2x - 3",
+                "y < 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph b’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "c",
+              "match": [
+                "y > 1/2x - 3",
+                "y >= 1/2x - 3",
+                "y <= 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph c’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "d",
+              "match": [
+                "y <= 1/2x - 3",
+                "y < 1/2x - 3",
+                "y > 1/2x - 3"
+              ],
+              "message": "The line is right, but graphs a, b and c already show that inequality. Which symbol is left?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Solved for y, y < mx + b shades…",
@@ -1044,9 +1204,9 @@
             "Shade the half-plane of solutions."
           ],
           "hints": [
-            "Start at the y-intercept and use the slope as rise over run.",
-            "≥ includes the boundary.",
-            "Solved for y, ≥ shades above."
+            "Where does the boundary cross the y-axis, and what is its rise over run?",
+            "Does ≥ include the points on the line? Which side of the line has the greater y-values?",
+            "Plot (0, −3), then go up 1 and right 2. ≥ includes the line, so it is solid, and it shades above."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A slope of 1/2 means…",
@@ -1117,9 +1277,9 @@
             "Shade the half-plane of solutions."
           ],
           "hints": [
-            "The boundary has slope 1 and y-intercept 3.",
-            "Which symbols use a dashed line?",
-            "Test a point that is not on the line."
+            "What are the slope and the y-intercept of y = x + 3?",
+            "Which symbols use a dashed line? Is (0, 0) above or below the boundary?",
+            "Plot (0, 3) and go up 1, right 1: > means a dashed line. Test (0, 0): 0 > 0 + 3 is false, so shade the side without (0, 0)."
           ],
           "scaffold": {
             "prompt": "Let’s back up. For y > x + 3, the point (0, 0) is…",
@@ -1189,9 +1349,9 @@
             "Shade the half-plane of solutions."
           ],
           "hints": [
-            "A slope of −1/3: down 1, right 3 (or up 1, left 3).",
-            "≤ includes the boundary.",
-            "Test (0, 0)."
+            "From the y-intercept, what does a slope of −1/3 tell you to do: up or down, and how far to the right?",
+            "Does ≤ include the line? Is (0, 0) a solution of y ≤ −(1/3)x + 4?",
+            "Plot (0, 4), then go down 1 and right 3. ≤ includes the line, so it is solid; 0 ≤ 4 is true, so shade the side with (0, 0)."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A slope of −1/3 means…",
@@ -1264,9 +1424,9 @@
             "Shade the half-plane of solutions."
           ],
           "hints": [
-            "Subtract 2x from each side first.",
-            "Dividing (or multiplying) both sides by a negative number reverses the symbol.",
-            "Check the side you shade with a test point in the original inequality."
+            "To get y alone, what do you do to each side first?",
+            "Subtract 2x from each side. Then you divide by −1: what happens to the symbol?",
+            "Subtracting 2x gives −y < −2x + 4. Divide each side by −1 and reverse the symbol, then check your side with (0, 0) in 2x − y < 4."
           ],
           "scaffold": {
             "prompt": "Let’s back up. When you divide both sides of an inequality by −1, the symbol…",
@@ -1307,7 +1467,28 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Worked example — write a linear inequality for a graph. A graph has a SOLID boundary line through (0, −5) and (2, −8), and the half-plane ABOVE the line is shaded. Write the boundary’s equation pieces, choose the symbol, and check with a test point.",
+          "prompt": "Worked example — write a linear inequality for the graph. Write the boundary’s equation pieces, choose the symbol, and check with a test point.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "equalUnits": true,
+            "functions": [
+              {
+                "type": "line",
+                "m": -1.5,
+                "b": -5
+              }
+            ],
+            "shading": [
+              {
+                "m": -1.5,
+                "b": -5,
+                "relation": ">="
+              }
+            ]
+          },
           "directionSteps": [
             "Find the slope of the boundary line.",
             "Find its y-intercept.",
@@ -1343,7 +1524,8 @@
               "id": "inequality",
               "label": "The inequality",
               "answer": "y >= -3/2x - 5",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "check",
@@ -1351,17 +1533,41 @@
               "type": "choice",
               "options": [
                 "true, and (0, 0) is in the shaded half-plane",
-                "false, so (0, 0) is not shaded",
-                "true, so the line is dashed",
-                "impossible to test"
+                "false, so (0, 0) is not in the shaded half-plane",
+                "true, but (0, 0) is not in the shaded half-plane",
+                "true, so the boundary line must be dashed"
               ],
               "answer": "true, and (0, 0) is in the shaded half-plane"
             }
           ],
           "hints": [
-            "Slope = change in y ÷ change in x between the two points.",
-            "The point with x = 0 gives the y-intercept.",
-            "Solid means the boundary is included; above means y is greater."
+            "Which two points on the line sit exactly where grid lines cross? How much do y and x change between them?",
+            "The slope is the change in y divided by the change in x. Where does the line cross the y-axis?",
+            "Write y = mx + b with your slope and y-intercept. Solid means the line is included, and shaded above means y is greater."
+          ],
+          "misconceptions": [
+            {
+              "field": "inequality",
+              "match": [
+                "y <= -3/2x - 5",
+                "y < -3/2x - 5"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y > -3/2x - 5"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y >= -3/2x + 5"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. A solid boundary line means the points on the line are…",
@@ -1410,7 +1616,87 @@
           ],
           "dok": 2,
           "difficultyBand": 3,
-          "prompt": "Write a linear inequality for graphs a, b and c. Graph a: a DASHED boundary line through (0, 2) and (1, 6); the shaded half-plane contains (0, 0). Graph b: a SOLID boundary line through (0, −3) and (6, 0); the half-plane above it is shaded. Graph c: a DASHED boundary line through (0, −2) and (4, 1); the half-plane below it is shaded.",
+          "prompt": "Write a linear inequality for graphs a, b and c.",
+          "candidateGraphs": [
+            {
+              "id": "a",
+              "label": "Graph a",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 4,
+                    "b": 2,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 4,
+                    "b": 2,
+                    "relation": "<"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "b",
+              "label": "Graph b",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.5,
+                    "b": -3
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.5,
+                    "b": -3,
+                    "relation": ">="
+                  }
+                ]
+              }
+            },
+            {
+              "id": "c",
+              "label": "Graph c",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0.75,
+                    "b": -2,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0.75,
+                    "b": -2,
+                    "relation": "<"
+                  }
+                ]
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Find each boundary line’s slope and y-intercept.",
             "Choose each symbol from the line style and the shaded side.",
@@ -1421,25 +1707,78 @@
               "id": "a",
               "label": "Graph a",
               "answer": "y < 4x + 2",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "b",
               "label": "Graph b",
               "answer": "y >= 1/2x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "c",
               "label": "Graph c",
               "answer": "y < 3/4x - 2",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
-            "Find each slope from the two points, and read the y-intercept at x = 0.",
-            "Dashed: < or >. Solid: ≤ or ≥.",
-            "For graph a, test (0, 0): which symbol makes 0 ? 4(0) + 2 true?"
+            "Where does each line cross the y-axis? Between two grid points on it, what is the rise over the run?",
+            "Is each line dashed or solid? Is the shaded side above or below the line?",
+            "Write each line as y = mx + b. Dashed is < or >, solid is ≤ or ≥, and a test point such as (0, 0) tells you the side."
+          ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "y > 4x + 2",
+                "y >= 4x + 2",
+                "y <= 4x + 2"
+              ],
+              "message": "The line is right, so check the symbol: is graph a’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "a",
+              "match": [
+                "y < 4x - 2"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y <= 1/2x - 3",
+                "y < 1/2x - 3",
+                "y > 1/2x - 3"
+              ],
+              "message": "The line is right, so check the symbol: is graph b’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y >= 1/2x + 3"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            },
+            {
+              "field": "c",
+              "match": [
+                "y > 3/4x - 2",
+                "y >= 3/4x - 2",
+                "y <= 3/4x - 2"
+              ],
+              "message": "The line is right, so check the symbol: is graph c’s line solid or dashed, and which side is shaded?"
+            },
+            {
+              "field": "c",
+              "match": [
+                "y < 3/4x + 2"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. A dashed boundary uses…",
@@ -1545,18 +1884,42 @@
               "label": "Why that symbol?",
               "type": "choice",
               "options": [
-                "He can use the whole card or less of it, so the combinations are on or below the line",
-                "He must spend more than $50",
-                "He must use exactly $50",
-                "Calls to Mexico cost less"
+                "He can use the whole card or less, so the combinations are on or below the line",
+                "He must use more than the whole card, so the combinations are above the line",
+                "He must use exactly the whole card, so the combinations are only on the line",
+                "He can use less than the card but not all of it, so they are only below the line"
               ],
-              "answer": "He can use the whole card or less of it, so the combinations are on or below the line"
+              "answer": "He can use the whole card or less, so the combinations are on or below the line"
             }
           ],
           "hints": [
-            "Rate of change = change in y ÷ change in x between two rows.",
-            "The row with x = 0 gives the y-intercept.",
-            "He cannot spend more than the card holds."
+            "From one row to the next, how much do the Mexico minutes change? How much do the United States minutes change?",
+            "The rate of change is the change in y divided by the change in x. Which row has x = 0?",
+            "Write y = (rate of change)x + (y-intercept). He cannot spend more than the card holds, so the combinations are on or below the line."
+          ],
+          "misconceptions": [
+            {
+              "field": "inequality",
+              "match": [
+                "y >= -0.4x + 100",
+                "y > -0.4x + 100"
+              ],
+              "message": "The symbol points the wrong way: can César spend more than the card holds?"
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y < -0.4x + 100"
+              ],
+              "message": "Using up the whole card is allowed, so the points on the line count: your symbol should include them."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y <= -0.4x - 100"
+              ],
+              "message": "Check the sign of the y-intercept: with no calls in the United States, how many minutes to Mexico does the card buy?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. The card is worth $50, so he can spend…",
@@ -1647,9 +2010,9 @@
             "Test the point."
           ],
           "hints": [
-            "Cost of calls within the United States plus cost of calls to Mexico is at most 50.",
-            "The intercepts from the table are on the boundary.",
-            "Substitute (100, 80) into the cost."
+            "What do x minutes within the United States cost at $0.20 a minute? And y minutes to Mexico at $0.50?",
+            "Their total cost can be at most $50. Where does the boundary cross each axis? The prompt says how many minutes of each kind use the whole card.",
+            "The boundary crosses the axes where the whole $50 buys one kind of call: 250 minutes, or 100 minutes. Shade the side that costs at most $50, and substitute (100, 80) to check."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The cost of x minutes at $0.20 per minute is…",
@@ -1708,7 +2071,7 @@
               "type": "choice",
               "options": [
                 "No — that costs $60, more than the card",
-                "Yes — it costs $45.50",
+                "Yes — 180 minutes at $0.20 cost only $36",
                 "Yes — 180 minutes is less than 250",
                 "No — calls to Mexico are not allowed"
               ],
@@ -1720,9 +2083,9 @@
               "type": "choice",
               "options": [
                 "Yes — that costs $45.50, which is at most $50",
-                "No — that costs $60",
-                "No — the point is above the line",
-                "Yes — any 145 minutes fit"
+                "No — that costs $56, which is more than $50",
+                "No — (90, 55) is above the line, so it costs too much",
+                "Yes — 145 minutes is fewer than 250, so it fits"
               ],
               "answer": "Yes — that costs $45.50, which is at most $50"
             },
@@ -1732,7 +2095,7 @@
               "type": "choice",
               "options": [
                 "combinations that use exactly the whole $50",
-                "combinations he cannot afford",
+                "combinations that cost more than he can afford",
                 "combinations that leave money on the card",
                 "only calls to Mexico"
               ],
@@ -1756,7 +2119,7 @@
               "type": "choice",
               "options": [
                 "combinations that leave money on the card",
-                "combinations that cost more than $50",
+                "combinations that cost more than the $50 card",
                 "combinations that use exactly $50",
                 "negative minutes"
               ],
@@ -1764,9 +2127,9 @@
             }
           ],
           "hints": [
-            "70 minutes to Mexico costs 0.5 · 70 dollars; what is left pays for minutes at $0.20 each.",
-            "Find the total cost of each pair of calls and compare it with $50.",
-            "On the line the cost is exactly $50."
+            "How much of the $50 do 70 minutes to Mexico use? How many $0.20 minutes does the rest buy?",
+            "Find the total cost of each pair of calls. Is it more than $50, or at most $50?",
+            "70 minutes to Mexico cost $35, which leaves $15 at $0.20 a minute. On the line the cost is exactly $50; above it, more; below it, less."
           ],
           "scaffold": {
             "prompt": "Let’s back up. 70 minutes to Mexico costs…",
@@ -1819,9 +2182,9 @@
               "type": "choice",
               "options": [
                 "dashed line, shade below (test (0, 0): 0 < 12 is true)",
-                "solid line, shade below",
-                "dashed line, shade above",
-                "solid line, shade above"
+                "solid line, shade below (test (0, 0): 0 < 12 is true)",
+                "dashed line, shade above (test (0, 0): 0 < 12 is true)",
+                "dashed line, shade above (test (0, 0): 0 < 12 is false)"
               ],
               "answer": "dashed line, shade below (test (0, 0): 0 < 12 is true)"
             },
@@ -1830,12 +2193,12 @@
               "label": "x + y ≤ 12",
               "type": "choice",
               "options": [
-                "solid line, shade below",
-                "dashed line, shade below",
-                "solid line, shade above",
-                "dashed line, shade above"
+                "solid line, shade below (test (0, 0): 0 ≤ 12 is true)",
+                "dashed line, shade below (test (0, 0): 0 ≤ 12 is true)",
+                "solid line, shade above (test (0, 0): 0 ≤ 12 is true)",
+                "solid line, shade above (test (0, 0): 0 ≤ 12 is false)"
               ],
-              "answer": "solid line, shade below"
+              "answer": "solid line, shade below (test (0, 0): 0 ≤ 12 is true)"
             },
             {
               "id": "gt12",
@@ -1843,9 +2206,9 @@
               "type": "choice",
               "options": [
                 "dashed line, shade above (test (0, 0): 0 > 12 is false)",
-                "solid line, shade above",
-                "dashed line, shade below",
-                "solid line, shade below"
+                "solid line, shade above (test (0, 0): 0 > 12 is false)",
+                "dashed line, shade below (test (0, 0): 0 > 12 is false)",
+                "dashed line, shade below (test (0, 0): 0 > 12 is true)"
               ],
               "answer": "dashed line, shade above (test (0, 0): 0 > 12 is false)"
             },
@@ -1853,25 +2216,75 @@
               "id": "ge0",
               "label": "The line x + y = 0 and the half-plane above it",
               "answer": "x + y >= 0",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "lt0",
               "label": "The half-plane below the line x + y = 0, without the line",
               "answer": "x + y < 0",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "le0",
               "label": "The line x + y = 0 and the half-plane below it",
               "answer": "x + y <= 0",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
-            "The symbol decides solid or dashed.",
-            "The second line passes through the origin, so test a different point, such as (1, 1).",
-            "Solved for y, > and ≥ are above; < and ≤ are below."
+            "Which symbols make the line solid, and which make it dashed? Which side does a test point tell you to shade?",
+            "The line x + y = 0 passes through (0, 0), so (0, 0) cannot tell you a side. Which other point could you test?",
+            "Test (1, 1): x + y = 2, which is greater than 0, so (1, 1) is above the line. Include the line with ≤ or ≥, and leave it out with < or >."
+          ],
+          "misconceptions": [
+            {
+              "field": "ge0",
+              "match": [
+                "x + y <= 0",
+                "x + y < 0"
+              ],
+              "message": "The symbol points the wrong way. Test a point above the line, such as (1, 1): it should make your inequality true."
+            },
+            {
+              "field": "ge0",
+              "match": [
+                "x + y > 0"
+              ],
+              "message": "This set includes the line, so your symbol should include it too."
+            },
+            {
+              "field": "lt0",
+              "match": [
+                "x + y > 0",
+                "x + y >= 0"
+              ],
+              "message": "The symbol points the wrong way. Test a point below the line, such as (−1, −1): it should make your inequality true."
+            },
+            {
+              "field": "lt0",
+              "match": [
+                "x + y <= 0"
+              ],
+              "message": "This set leaves the line out, so your symbol should leave it out too."
+            },
+            {
+              "field": "le0",
+              "match": [
+                "x + y >= 0",
+                "x + y > 0"
+              ],
+              "message": "The symbol points the wrong way. Test a point below the line, such as (−1, −1): it should make your inequality true."
+            },
+            {
+              "field": "le0",
+              "match": [
+                "x + y < 0"
+              ],
+              "message": "This set includes the line, so your symbol should include it too."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. x + y = 0 passes through (0, 0), so to test a side use…",
@@ -1948,9 +2361,9 @@
             "Shade the half-plane of solutions."
           ],
           "hints": [
-            "From the y-intercept, rise by the numerator and run by the denominator.",
-            "≤ includes the boundary.",
-            "Solved for y, ≤ shades below."
+            "In a fraction slope, which number is the rise and which is the run?",
+            "Does ≤ include the line? With y alone, does ≤ shade above or below?",
+            "From the y-intercept, rise by the numerator and run by the denominator. ≤ includes the line, so it is solid, and it shades below."
           ],
           "scaffold": {
             "prompt": "Let’s back up. A slope of p/q means…",
@@ -2062,8 +2475,8 @@
             "Shade the half-plane of solutions."
           ],
           "hints": [
-            "Subtract the x-term from both sides first.",
-            "Dividing by a negative number reverses the symbol."
+            "To get y alone, what do you subtract from both sides first? What is left in front of y?",
+            "Subtract the x-term from both sides, then divide by −1: dividing by a negative number reverses the symbol."
           ],
           "scaffold": {
             "prompt": "Let’s back up. −y < 6 becomes…",
@@ -2153,8 +2566,25 @@
             }
           ],
           "hints": [
-            "Money from muffins plus money from smoothies is at least the goal.",
-            "Multiply each count by its price, then add."
+            "How much money do x muffins bring in? And y smoothies? Does \"at least\" include the goal itself?",
+            "Price times count for each, added, is at least the goal, so the symbol is ≥. For the plan, multiply each count by its price and add."
+          ],
+          "misconceptions": [
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y <= {{T}}",
+                "{{p}}x + {{q}}y < {{T}}"
+              ],
+              "message": "\"At least\" means the club raises the goal or more."
+            },
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y > {{T}}"
+              ],
+              "message": "\"At least\" includes raising exactly the goal."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"At least\" means…",
@@ -2235,7 +2665,59 @@
           ],
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Vertical and horizontal boundaries. Write an inequality for graphs a and b. Graph a: a dashed vertical line x = 3, the half-plane to its left shaded. Graph b: a solid horizontal line y = −2, the half-plane above it shaded.",
+          "prompt": "Vertical and horizontal boundaries. Write an inequality for graphs a and b.",
+          "candidateGraphs": [
+            {
+              "id": "a",
+              "label": "Graph a",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "verticalLines": [
+                  {
+                    "x": 3,
+                    "dashed": true
+                  }
+                ],
+                "shading": [
+                  {
+                    "orientation": "vertical",
+                    "x": 3,
+                    "relation": "<"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "b",
+              "label": "Graph b",
+              "graph": {
+                "xMin": -10,
+                "xMax": 10,
+                "yMin": -10,
+                "yMax": 10,
+                "equalUnits": true,
+                "functions": [
+                  {
+                    "type": "line",
+                    "m": 0,
+                    "b": -2
+                  }
+                ],
+                "shading": [
+                  {
+                    "m": 0,
+                    "b": -2,
+                    "relation": ">="
+                  }
+                ]
+              }
+            }
+          ],
+          "candidateGraphsInOrder": true,
           "directionSteps": [
             "Use the line and its style to choose the symbol.",
             "Write each inequality."
@@ -2245,18 +2727,66 @@
               "id": "a",
               "label": "Graph a",
               "answer": "x < 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "b",
               "label": "Graph b",
               "answer": "y >= -2",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
-            "A vertical line x = c: left means x is less than c.",
-            "A horizontal line y = c: above means y is greater than c."
+            "Which variable does a vertical line fix, x or y? And a horizontal line? Is each line dashed or solid?",
+            "A vertical line is x = c, and to its left x is less than c. A horizontal line is y = c, and above it y is greater than c."
+          ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "x > 3",
+                "x >= 3"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "a",
+              "match": [
+                "x <= 3"
+              ],
+              "message": "The line is dashed, so the points on it are not solutions: your symbol should leave them out."
+            },
+            {
+              "field": "a",
+              "match": [
+                "x < -3"
+              ],
+              "message": "Check the sign: is the line to the left or the right of the y-axis?"
+            },
+            {
+              "field": "b",
+              "match": [
+                "y <= -2",
+                "y < -2"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "b",
+              "match": [
+                "y > -2"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "b",
+              "match": [
+                "y >= 2"
+              ],
+              "message": "Check the sign: is the line above or below the x-axis?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Points to the left of x = 3 have x-coordinates…",
@@ -2326,9 +2856,9 @@
             "Shade the half-plane of solutions."
           ],
           "hints": [
-            "x = −2 is a vertical line: use the vertical-line method.",
-            "≥ includes the line.",
-            "Points to the right have larger x-coordinates."
+            "Which points have x = −2? What kind of line do they make?",
+            "Does ≥ include the line? Which side has x-coordinates greater than −2?",
+            "x = −2 is a vertical line: use the vertical-line method. ≥ includes it, so it is solid; shade to the right, where x is greater."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The graph of x = −2 in the plane is…",
@@ -2388,8 +2918,47 @@
             }
           ],
           "hints": [
-            "\"At most\" means less than or equal to.",
-            "\"Twice the first\" is 2x; \"minus the second\" subtracts y."
+            "Which phrase includes the number itself: \"at most\" or \"more than\"? Which expression is twice the first number minus the second?",
+            "\"At most\" means ≤ and \"more than\" means >. \"Twice the first\" is 2x, and \"minus the second\" subtracts y."
+          ],
+          "misconceptions": [
+            {
+              "field": "a",
+              "match": [
+                "x + y >= 12",
+                "x + y > 12"
+              ],
+              "message": "\"At most 12\" means 12 or less."
+            },
+            {
+              "field": "a",
+              "match": [
+                "x + y < 12"
+              ],
+              "message": "\"At most 12\" includes 12 itself."
+            },
+            {
+              "field": "b",
+              "match": [
+                "2x - y < 4",
+                "2x - y <= 4"
+              ],
+              "message": "\"More than 4\" means greater than 4."
+            },
+            {
+              "field": "b",
+              "match": [
+                "2x - y >= 4"
+              ],
+              "message": "\"More than 4\" leaves 4 itself out."
+            },
+            {
+              "field": "b",
+              "match": [
+                "y - 2x > 4"
+              ],
+              "message": "Check the order: start from twice the first number, then subtract the second."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. \"At most 12\" means…",
@@ -2479,9 +3048,9 @@
             "Test the point."
           ],
           "hints": [
-            "Taco money plus burrito money is at least 240.",
-            "The intercepts (80, 0) and (0, 30) are on the boundary.",
-            "3(40) + 8(20) = ?"
+            "How much money do x tacos bring in at $3 each? And y burritos at $8? Does \"at least\" include $240?",
+            "Taco money plus burrito money is at least $240. How many tacos alone make $240? How many burritos alone?",
+            "Those two numbers give the points where the boundary crosses the axes. Then substitute (40, 20): is 3(40) + 8(20) at least 240?"
           ],
           "scaffold": {
             "prompt": "Let’s back up. Money from x tacos at $3 each is…",
@@ -2521,7 +3090,28 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "Error analysis. Marcus graphed y < −2x + 1 with a SOLID boundary line and shaded the half-plane below it. Write the inequality his graph actually shows, identify his error, and check his shading with the point (0, 0).",
+          "prompt": "Error analysis. Marcus graphed y < −2x + 1, and his graph is shown. Write the inequality his graph actually shows, identify his error, and check his shading with the point (0, 0).",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "equalUnits": true,
+            "functions": [
+              {
+                "type": "line",
+                "m": -2,
+                "b": 1
+              }
+            ],
+            "shading": [
+              {
+                "m": -2,
+                "b": 1,
+                "relation": "<="
+              }
+            ]
+          },
           "directionSteps": [
             "Write the inequality Marcus’s graph shows.",
             "Decide which part of the graph is wrong.",
@@ -2532,7 +3122,8 @@
               "id": "graphed",
               "label": "The inequality Marcus’s graph shows",
               "answer": "y <= -2x + 1",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             },
             {
               "id": "error",
@@ -2540,9 +3131,9 @@
               "type": "choice",
               "options": [
                 "The line should be dashed, because < does not include the boundary",
-                "The shading should be above the line",
-                "The slope should be 2",
-                "There is no error"
+                "The shading should be above the line, because the slope is negative",
+                "The slope should be 2, because the line falls from left to right",
+                "There is no error, because < includes the points on the boundary"
               ],
               "answer": "The line should be dashed, because < does not include the boundary"
             },
@@ -2552,17 +3143,41 @@
               "type": "choice",
               "options": [
                 "true, so the shading below (with the origin) is correct",
-                "false, so the shading is wrong",
-                "true, so the line is solid",
-                "not useful here"
+                "false, so the shading below (with the origin) is wrong",
+                "true, so the solid line and the shading are both correct",
+                "not useful here, because the origin is on the boundary"
               ],
               "answer": "true, so the shading below (with the origin) is correct"
             }
           ],
           "hints": [
-            "A solid line shaded below shows ≤.",
-            "Check the line style against the symbol.",
-            "Check the side with a test point."
+            "Is Marcus’s line solid or dashed? Which side did he shade?",
+            "Which symbols go with a solid line? Is that the < he was graphing?",
+            "A solid line shaded below shows ≤, but < needs a dashed line. Check his shading with (0, 0) in y < −2x + 1."
+          ],
+          "misconceptions": [
+            {
+              "field": "graphed",
+              "match": [
+                "y >= -2x + 1",
+                "y > -2x + 1"
+              ],
+              "message": "The symbol points the wrong way. Pick a point in the shaded region: it should make your inequality true."
+            },
+            {
+              "field": "graphed",
+              "match": [
+                "y < -2x + 1"
+              ],
+              "message": "That is the inequality Marcus meant to graph. His line is solid, so it shows a symbol that includes the line."
+            },
+            {
+              "field": "graphed",
+              "match": [
+                "y <= -2x - 1"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. For <, the boundary is…",
@@ -2660,8 +3275,8 @@
             }
           ],
           "hints": [
-            "Substitute x and y, then compare the value with the right side.",
-            "A point that makes the two sides equal is on the solid boundary — and ≤ includes it."
+            "What is the value of 4x − 2y at each point? How does it compare with the right side?",
+            "Substitute x and y and compare the value with the right side. A point where the two sides are equal is on the solid boundary, and ≤ includes it."
           ],
           "scaffold": {
             "prompt": "Let’s back up. At (1, 1), 4x − 2y equals…",
@@ -2700,10 +3315,31 @@
           ],
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "A boundary line passes through (0, 4) and (2, 0). It is solid, and (0, 0) is NOT in the shaded half-plane. Write the inequality.",
+          "prompt": "Write the inequality the graph shows. Find the slope of its boundary line first.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "equalUnits": true,
+            "functions": [
+              {
+                "type": "line",
+                "m": -2,
+                "b": 4
+              }
+            ],
+            "shading": [
+              {
+                "m": -2,
+                "b": 4,
+                "relation": ">="
+              }
+            ]
+          },
           "directionSteps": [
             "Find the boundary line.",
-            "Use the test point to choose the side.",
+            "Use a test point to choose the side.",
             "Write the inequality."
           ],
           "responses": [
@@ -2717,13 +3353,38 @@
               "id": "inequality",
               "label": "Inequality",
               "answer": "y >= -2x + 4",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
-            "Find the slope from the two points; the y-intercept is where x = 0.",
-            "(0, 0) is not shaded, so the inequality is false at (0, 0).",
-            "Solid: ≤ or ≥."
+            "Which two points on the line sit where grid lines cross? What are the rise and the run between them?",
+            "Where does the line cross the y-axis? Is (0, 0) in the shaded region, and so is the inequality true or false there?",
+            "Write y = mx + b for the line. (0, 0) is not shaded, so choose the symbol that makes the inequality false at (0, 0); solid means ≤ or ≥."
+          ],
+          "misconceptions": [
+            {
+              "field": "inequality",
+              "match": [
+                "y <= -2x + 4",
+                "y < -2x + 4"
+              ],
+              "message": "The symbol points the wrong way: (0, 0) is not shaded, so it should make your inequality false."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y > -2x + 4"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y >= -2x - 4"
+              ],
+              "message": "Check the sign of the y-intercept: does the line cross the y-axis above or below the origin?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is 0 ≤ −2(0) + 4 true?",
@@ -2805,9 +3466,9 @@
             "Test the point."
           ],
           "hints": [
-            "Subtract the x-term from both sides, then divide by the coefficient of y.",
-            "Dividing by a negative number reverses the symbol.",
-            "Use the test point to check your side."
+            "To get y alone, what do you subtract from both sides first, and what do you divide by?",
+            "The coefficient of y is negative. What happens to the symbol when you divide both sides by a negative number?",
+            "Subtract the x-term from both sides, then divide by the coefficient of y and reverse the symbol. Use the test point to check your side."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Dividing both sides of −3y ≥ 6 by −3 gives…",
@@ -2907,17 +3568,34 @@
             }
           ],
           "hints": [
-            "Substitute x = 2 and y = 3 into y > kx − 1.",
-            "Solve 3 > 2k − 1 for k.",
-            "At the boundary value, the two sides are equal."
+            "What do you get when you put x = 2 and y = 3 into y > kx − 1?",
+            "Solve the inequality you get for k, as you would an equation. Do you multiply or divide by a negative number on the way?",
+            "Substituting gives 3 > 2k − 1, so 4 > 2k. At the boundary value the two sides are equal, and > leaves that value out."
+          ],
+          "misconceptions": [
+            {
+              "field": "k",
+              "match": [
+                "k > 2",
+                "k >= 2"
+              ],
+              "message": "The symbol points the wrong way: try k = 0, and check whether (2, 3) is then a solution."
+            },
+            {
+              "field": "k",
+              "match": [
+                "k <= 2"
+              ],
+              "message": "At k = 2 the point is on the boundary, and > leaves the boundary out."
+            }
           ],
           "scaffold": {
-            "prompt": "Let’s back up. 3 > 2k − 1 becomes…",
+            "prompt": "Let’s back up. To find the values of k, substitute the point (2, 3) for…",
             "options": [
-              "4 > 2k",
-              "2 > 2k"
+              "x and y",
+              "k and y"
             ],
-            "correct": "4 > 2k"
+            "correct": "x and y"
           },
           "solutionReview": {
             "headline": "Substitute, then solve for the parameter.",
@@ -2973,21 +3651,46 @@
               "id": "inequality",
               "label": "Inequality",
               "answer": "y <= -x + 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ 3x + 5"
             }
           ],
           "hints": [
-            "Slope = change in y ÷ change in x between the two given points.",
-            "Substitute one point and the slope into y = mx + b and solve for b.",
-            "The line is solid and the origin is shaded: which symbol makes the statement true at (0, 0)?"
+            "How much does y change between the two given points? How much does x change?",
+            "The slope is the change in y over the change in x. Which number b makes y = mx + b true at one of the two points?",
+            "Substitute one point and the slope into y = mx + b and solve for b. The line is solid and the origin is shaded: choose the symbol that is true at (0, 0)."
+          ],
+          "misconceptions": [
+            {
+              "field": "inequality",
+              "match": [
+                "y >= -x + 3",
+                "y > -x + 3"
+              ],
+              "message": "The symbol points the wrong way: the origin is shaded, so it should make your inequality true."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y < -x + 3"
+              ],
+              "message": "The line is solid, so the points on it are solutions: your symbol should include them."
+            },
+            {
+              "field": "inequality",
+              "match": [
+                "y <= -x - 3"
+              ],
+              "message": "Check the sign of b: substitute one of the two points and the slope into y = mx + b again."
+            }
           ],
           "scaffold": {
-            "prompt": "Let’s back up. The slope through (−2, 5) and (4, −1) is…",
+            "prompt": "Let’s back up. From (−2, 5) to (4, −1), the change in y is…",
             "options": [
-              "−1",
-              "1"
+              "−6",
+              "6"
             ],
-            "correct": "−1"
+            "correct": "−6"
           },
           "solutionReview": {
             "headline": "Line from two points, then the origin’s side.",
@@ -3036,7 +3739,8 @@
               "id": "slopeIntercept",
               "label": "With y alone",
               "answer": "y < 3/4x - 3",
-              "inputProfile": "inequality"
+              "inputProfile": "inequality",
+              "placeholder": "y ≥ mx + b"
             },
             {
               "id": "why",
@@ -3044,16 +3748,55 @@
               "type": "choice",
               "options": [
                 "Dividing both sides by −4 reverses the inequality",
-                "Subtracting 3x reverses it",
-                "The slope is positive",
-                "It does not change"
+                "Subtracting 3x from both sides reverses the inequality",
+                "The slope 3/4 is positive, so the inequality reverses",
+                "It does not change: dividing keeps the symbol the same"
               ],
               "answer": "Dividing both sides by −4 reverses the inequality"
             }
           ],
           "hints": [
             "At the origin, 3x − 4y = 0. Which strict symbol makes 0 ? 12 false?",
-            "Subtract 3x from both sides, then divide by −4."
+            "Subtract 3x from both sides, then divide each side by −4: dividing by a negative number reverses the symbol."
+          ],
+          "misconceptions": [
+            {
+              "field": "standard",
+              "match": [
+                "3x - 4y < 12",
+                "3x - 4y <= 12"
+              ],
+              "message": "The symbol points the wrong way: the origin is not in the solution set, so it should make your inequality false."
+            },
+            {
+              "field": "standard",
+              "match": [
+                "3x - 4y >= 12"
+              ],
+              "message": "The boundary is not part of the solution set, so your symbol should leave it out."
+            },
+            {
+              "field": "slopeIntercept",
+              "match": [
+                "y > 3/4x - 3",
+                "y >= 3/4x - 3"
+              ],
+              "message": "Dividing both sides by −4 reverses the symbol."
+            },
+            {
+              "field": "slopeIntercept",
+              "match": [
+                "y <= 3/4x - 3"
+              ],
+              "message": "The boundary is not part of the solution set, so your symbol should leave it out."
+            },
+            {
+              "field": "slopeIntercept",
+              "match": [
+                "y < 3/4x + 3"
+              ],
+              "message": "Check the sign of the y-intercept: what is 12 divided by −4?"
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. Is 0 > 12 true?",
@@ -3170,7 +3913,7 @@
             "Translate each condition into the same representation, then use their relationship to answer the question."
           ],
           "supportHints": [
-            "Check boundary conditions and whether the requested point or feature satisfies every condition."
+            "A point ON the boundary line makes the equation of the line true, not just the inequality. What equation in k do you get when you substitute the point?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -3311,7 +4054,7 @@
             "Translate each condition into the same representation, then use their relationship to answer the question."
           ],
           "supportHints": [
-            "Check boundary conditions and whether the requested point or feature satisfies every condition."
+            "What is the boundary’s y-value at this x? With >, can y equal that value, or must it be greater?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -3582,6 +4325,23 @@
               "label": "Least number of adult tickets",
               "answer": "{{L}}",
               "inputProfile": "number"
+            }
+          ],
+          "misconceptions": [
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y <= {{T}}",
+                "{{p}}x + {{q}}y < {{T}}"
+              ],
+              "message": "\"At least\" means the club takes in the goal or more."
+            },
+            {
+              "field": "model",
+              "match": [
+                "{{p}}x + {{q}}y > {{T}}"
+              ],
+              "message": "\"At least\" includes taking in exactly the goal."
             }
           ],
           "solutionReview": {
