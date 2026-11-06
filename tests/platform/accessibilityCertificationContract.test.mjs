@@ -89,7 +89,8 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-find': [null, 'results'],
   'teacher-demo': [null],
   'teacher-schedule': [null],
-  'teacher-classroom': [null],
+  // Google Classroom as a teacher who has not connected it meets it, and once connected (its courses: listGoogleCourses).
+  'teacher-classroom': [null, 'connected'],
   'teacher-access': [null],
   'teacher-admin': ['classes', 'accounts', 'coverage', 'ai', 'reset'],
 };
@@ -327,7 +328,9 @@ test('the Math Tools Lab scene closes the Work View and leaves out only the plan
 // fakeFunctions.js implements itself.
 test('the Classroom and administrator callables are registered after the harness\'s own, and never over them', () => {
   const fakes = readFileSync(new URL('../browser/teacherWorkflow/fakeFunctions.js', import.meta.url), 'utf8');
-  assert.match(fakes, /import \{ adminScreenHandlers \} from '\.\/fakeAdminScreens\.js';/);
+  // (The same import also brings the connected Classroom teacher's course mappings, which the harness's own
+  // listClassroomCourseMappings reads.)
+  assert.match(fakes, /import \{ (?:[\w, ]+, )?adminScreenHandlers(?:, [\w, ]+)? \} from '\.\/fakeAdminScreens\.js';/);
   assert.match(fakes, /Object\.entries\(adminScreenHandlers\)\.forEach\(\(\[name, handler\]\) => \{ if \(!handlers\[name\]\) handlers\[name\] = handler; \}\);/);
 });
 

@@ -54,6 +54,8 @@ import {
 } from './classroomGradeSyncUi';
 
 const card = { background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 16 };
+// A field's label, tied to its field (htmlFor and id). Untied, the field had no name a screen reader could say: the
+// first audit of the connected screen found six choosers and the instructions box so (the November build's section 6).
 const label = { display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 6 };
 const input = { width: '100%', padding: '10px 12px', fontSize: 'calc(14 * var(--mm-px))', borderRadius: 8, border: '1px solid var(--mm-border)', boxSizing: 'border-box', background: 'var(--mm-surface)' };
 const btn = { padding: '10px 15px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, borderRadius: 8, border: 0, cursor: 'pointer' };
@@ -663,24 +665,32 @@ export default function ClassroomManagerV2({
           </p>
           <div style={{ display: 'grid', gap: 10 }}>
             {mappedCourseCards.map(({ course, mapping }) => (
-              <div key={course.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 220px),1fr) minmax(min(100%, 240px),1fr) auto', gap: 10, alignItems: 'center' }}>
-                <div>
+              // A row that wraps: the course, its class and its pill side by side where they fit, as the two equal
+              // columns they were, and one under another on a phone, where those columns ran 170px and more past the
+              // card and the screen's edge (the connected screen's first audit, the November build's section 6).
+              <div key={course.id} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                <div style={{ flex: '1 1 0', minWidth: 'min(100%, 220px)' }}>
                   <strong>{course.name}</strong>
                   <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{[course.section, course.room].filter(Boolean).join(' · ')}</div>
                 </div>
-                <select
-                  style={input}
-                  value={mapping?.classId || ''}
-                  onChange={(event) => handleSaveMapping(course, event.target.value)}
-                  disabled={busy}
-                >
-                  <option value="">Choose MathMaster class…</option>
-                  {classes.map((record) => (
-                    <option key={classIdOf(record)} value={classIdOf(record)}>
-                      {classNameOf(record)}{classPeriodOf(record) ? ` · ${classPeriodOf(record)}` : ''}
-                    </option>
-                  ))}
-                </select>
+                {/* The chooser in a box of its own, so that the course and it share the row equally (its padding
+                    would count against it). Named by the course it maps: the row's words are the course's. */}
+                <div style={{ flex: '1 1 0', minWidth: 'min(100%, 240px)' }}>
+                  <select
+                    style={{ ...input, display: 'block' }}
+                    aria-label={`MathMaster class for ${courseLabel(course)}`}
+                    value={mapping?.classId || ''}
+                    onChange={(event) => handleSaveMapping(course, event.target.value)}
+                    disabled={busy}
+                  >
+                    <option value="">Choose MathMaster class…</option>
+                    {classes.map((record) => (
+                      <option key={classIdOf(record)} value={classIdOf(record)}>
+                        {classNameOf(record)}{classPeriodOf(record) ? ` · ${classPeriodOf(record)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <span style={mapping ? okPill : warnPill}>{mapping ? 'MAPPED' : 'NOT MAPPED'}</span>
               </div>
             ))}
@@ -693,8 +703,8 @@ export default function ClassroomManagerV2({
           <strong>3. Link the Google roster for grade passback</strong>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginTop: 12 }}>
             <div style={{ flex: '1 1 320px' }}>
-              <label style={label}>Google Classroom course</label>
-              <select style={input} value={rosterCourseId} onChange={(event) => { setRosterCourseId(event.target.value); setRoster([]); setRosterLinks([]); setManualMatches({}); setIdentityRows([]); setIdentityRejected([]); }} disabled={busy}>
+              <label style={label} htmlFor="classroom-roster-course">Google Classroom course</label>
+              <select id="classroom-roster-course" style={input} value={rosterCourseId} onChange={(event) => { setRosterCourseId(event.target.value); setRoster([]); setRosterLinks([]); setManualMatches({}); setIdentityRows([]); setIdentityRejected([]); }} disabled={busy}>
                 <option value="">Choose a course…</option>
                 {courses.map((course) => <option key={course.id} value={course.id}>{courseLabel(course)}</option>)}
               </select>
@@ -807,8 +817,9 @@ export default function ClassroomManagerV2({
             {courses.map((course) => {
               const selected = selectedCourseIds.includes(String(course.id));
               const mapping = mappingByCourse.get(String(course.id));
+              // At least 220px of course, as always, but never wider than the card: at 320px it ran 11px past it.
               return (
-                <label key={course.id} style={{ border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 8, padding: '9px 11px', minWidth: 220 }}>
+                <label key={course.id} style={{ border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 8, padding: '9px 11px', minWidth: 'min(220px, 100% - 26px)' }}>
                   <input type="checkbox" checked={selected} onChange={() => toggleCourse(course.id)} />{' '}
                   <strong>{course.name}</strong>
                   <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: mapping ? 'var(--mm-success-text)' : 'var(--mm-error-text)', marginLeft: 18 }}>{mapping ? `→ ${classNameOf(classById.get(String(mapping.classId)))}` : 'Not mapped'}</div>
@@ -818,8 +829,8 @@ export default function ClassroomManagerV2({
           </div>
           <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
             <div>
-              <label style={label}>Topic names, one per line</label>
-              <textarea style={{ ...input, minHeight: 90 }} value={topicNamesText} onChange={(e) => setTopicNamesText(e.target.value)} placeholder="Module 1 • Functions&#10;Module 2 • Linear Functions" />
+              <label style={label} htmlFor="classroom-topic-names">Topic names, one per line</label>
+              <textarea id="classroom-topic-names" style={{ ...input, minHeight: 90 }} value={topicNamesText} onChange={(e) => setTopicNamesText(e.target.value)} placeholder="Module 1 • Functions&#10;Module 2 • Linear Functions" />
             </div>
             <button style={secondary} disabled={busy} onClick={handleCreateTopics}>Create / ensure topics</button>
           </div>
@@ -841,8 +852,8 @@ export default function ClassroomManagerV2({
         <section style={card}>
           <strong>5. Publish a MathMaster assignment</strong>
           <div style={{ marginTop: 12 }}>
-            <label style={label}>MathMaster assignment</label>
-            <select style={input} value={assignmentId} onChange={(e) => handleAssignmentChange(e.target.value)}>
+            <label style={label} htmlFor="classroom-assignment">MathMaster assignment</label>
+            <select id="classroom-assignment" style={input} value={assignmentId} onChange={(e) => handleAssignmentChange(e.target.value)}>
               <option value="">Choose an assignment…</option>
               {assignments.map((assignment) => (
                 <option key={assignment.id} value={assignment.id}>
@@ -863,7 +874,8 @@ export default function ClassroomManagerV2({
               </div>
             );
           })()}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 220px),1fr) minmax(min(100%, 220px),1fr)', gap: 10, marginTop: 10 }}>
+          {/* Two equal columns where two fit, else one: two fixed ones ran past the card on a phone. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 10, marginTop: 10 }}>
             <div>
               <label style={label} htmlFor="classroom-topic-style">Name Classroom topics</label>
               <select
@@ -888,8 +900,8 @@ export default function ClassroomManagerV2({
               )}
             </div>
             <div>
-              <label style={label}>Notes/material delivery</label>
-              <select style={input} value={resourceMode} onChange={(e) => setResourceMode(e.target.value)}>
+              <label style={label} htmlFor="classroom-resource-mode">Notes/material delivery</label>
+              <select id="classroom-resource-mode" style={input} value={resourceMode} onChange={(e) => setResourceMode(e.target.value)}>
                 <option value="separate">Separate Notes & Resources post (recommended)</option>
                 <option value="attach">Attach links inside the graded assignment post</option>
                 <option value="none">Do not publish a resources post</option>
@@ -897,11 +909,12 @@ export default function ClassroomManagerV2({
             </div>
           </div>
           <div style={{ marginTop: 10 }}>
-            <label style={label}>Student instructions</label>
-            <textarea style={{ ...input, minHeight: 80 }} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+            <label style={label} htmlFor="classroom-instructions">Student instructions</label>
+            <textarea id="classroom-instructions" style={{ ...input, minHeight: 80 }} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
           </div>
-          <div style={{ marginTop: 10 }}>
-            <label style={label}>Links / notes / resources</label>
+          {/* A group named by its heading: the label above the links named nothing, since it is no one field's. */}
+          <div role="group" aria-labelledby="classroom-resource-links" style={{ marginTop: 10 }}>
+            <div id="classroom-resource-links" style={label}>Links / notes / resources</div>
             {materials.map((material, index) => (
               <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 7 }}>
                 <input style={input} placeholder="Title" value={material.title} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, title: e.target.value } : item))} />

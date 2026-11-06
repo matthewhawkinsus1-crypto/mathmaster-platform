@@ -74,6 +74,9 @@
  *
  * teacher-live-challenge/line-final  a Graph the Line game's report on the console, after the classic game's: its
  *                        blocks are headed tables, as the rush report's are (teacher features walk, item 11).
+ *
+ * teacher-classroom/connected  Google Classroom once it is connected: the courses the account teaches, which the
+ *                        harness's stand-in for listGoogleCourses answers (teacherWorkflow/fakeAdminScreens.js).
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -714,6 +717,20 @@ const openLineGraphReport = async (page) => {
   await page.waitForTimeout(1200);
 };
 
+// Google Classroom once it is connected (the November build's section 6). The harness's teacher has not connected it,
+// which the screen's first scene audits; here the harness is told the account is connected (teacherWorkflow/
+// fakeAdminScreens.js, GOOGLE CLASSROOM, CONNECTED: three active courses, the first mapped to Algebra II — Period 3), and
+// the screen is opened again, as a teacher comes back to it once connected. It loads the courses itself
+// (listGoogleCourses) and takes the first for the roster, and is read once the courses' sections have drawn.
+const openClassroomConnected = async (page) => {
+  await page.evaluate(() => { window.__mmHarness.classroomConnected = true; });
+  await goHome(page);
+  await openDestination('Google Classroom', /^Google Classroom Manager$/)(page);
+  await workspaceMain(page).getByText('2. Map Google Classroom courses to MathMaster classes').waitFor({ timeout: 30_000 });
+  await workspaceMain(page).getByText('ID-only students: paste an identity list (optional)').waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -825,7 +842,11 @@ export const TEACHER_SCREENS = [
   ], { include: FIND_DIALOG }),
   teacherScreen('teacher-demo', [{ id: null, run: openDestination('Demo Experience', /^Avery Daniels$/) }]),
   teacherScreen('teacher-schedule', [{ id: null, run: openDestination('Class & Bell Schedule', /A\/B Bell Schedule/) }]),
-  teacherScreen('teacher-classroom', [{ id: null, run: openDestination('Google Classroom', /^Google Classroom Manager$/) }]),
+  teacherScreen('teacher-classroom', [
+    { id: null, run: openDestination('Google Classroom', /^Google Classroom Manager$/) },
+    // Once connected: the courses (listGoogleCourses, which the harness now answers) and what they open.
+    { id: 'connected', run: openClassroomConnected },
+  ]),
   teacherScreen('teacher-access', [{ id: null, run: openDestination('Student Access', /^Student Access$/) }]),
   // The administrator's workspace: the harness's root-admin teacher, its Administration view, and each of its five sections.
   teacherScreen('teacher-admin', ADMIN_SECTIONS.map(([id, label]) => ({ id, run: openAdministration(label) })), { open: (page, origins) => openTeacherApp(page, origins, '&rootAdmin=1') }),

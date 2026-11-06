@@ -268,6 +268,50 @@ test('the Classroom and administrator screens read callables the harness answers
   assert.deepEqual(await call('listClassroomGradeSyncs', {}), { syncs: [], pushQueue: { waiting: 0 } });
 });
 
+// Google Classroom once connected (the November build's section 6): a connected account loads its courses through
+// listGoogleCourses, which the harness could not answer, so no scene audited the screen past "Not connected". The
+// stand-in is off unless asked for, so every other journey meets the teacher it always did; asked for (the flag the
+// accessibility scene sets before it opens the screen again, or `&classroom=connected`), the account is connected and
+// its courses and the first course's mapping come back in the deployed callables' shapes.
+test('Google Classroom, connected: off unless asked for; then the courses and a mapping, in the deployed shapes', async () => {
+  const functions = await loadFake('fakeFunctions.js', '?reset=1', 'classroomConnected');
+  const store = (await import('../browser/teacherWorkflow/fakeFirestore.js')).harnessStore;
+  const call = (name, data) => functions.httpsCallable(functions.getFunctions(), name)(data).then((result) => result.data);
+
+  // Not asked for: the teacher who has never connected, whose courses the server cannot read (a bare "internal").
+  assert.equal((await call('getClassroomConnectionStatus', {})).connected, false);
+  assert.deepEqual(await call('listClassroomCourseMappings', {}), { mappings: [] }, 'and a created assignment\'s Classroom post still needs a mapping');
+  await assert.rejects(call('listGoogleCourses', {}), (error) => error.code === 'functions/internal');
+
+  globalThis.window.__mmHarness.classroomConnected = true;
+  try {
+    assert.deepEqual(await call('getClassroomConnectionStatus', {}), { connected: true, needsReconnect: false, missingScopes: [] });
+    // lib/classroom.js listCourses: each active course's id, name, section, room, state and link.
+    const { courses } = await call('listGoogleCourses', {});
+    assert.ok(courses.length >= 2, 'more than one course, so the screen has a choice to offer');
+    for (const course of courses) {
+      assert.deepEqual(Object.keys(course).sort(), ['alternateLink', 'courseState', 'id', 'name', 'room', 'section']);
+      assert.equal(course.courseState, 'ACTIVE');
+    }
+    // functions/index.js classroomMappingResponse: the first course is mapped to a class the harness holds.
+    const { mappings } = await call('listClassroomCourseMappings', {});
+    assert.equal(mappings.length, 1);
+    assert.deepEqual(Object.keys(mappings[0]).sort(), ['classId', 'className', 'classPeriod', 'courseId', 'courseName', 'courseSection', 'id', 'mappingId', 'updatedAtMillis']);
+    assert.equal(mappings[0].courseId, courses[0].id);
+    assert.equal(store.get(`classes/${mappings[0].classId}`)?.name, mappings[0].className);
+  } finally {
+    delete globalThis.window.__mmHarness.classroomConnected;
+  }
+  assert.equal((await call('getClassroomConnectionStatus', {})).connected, false, 'and off again once the flag is gone');
+  globalThis.window.location.search = '?reset=1&classroom=connected';
+  try {
+    assert.equal((await call('getClassroomConnectionStatus', {})).connected, true, 'the address asks for it too');
+    assert.ok((await call('listGoogleCourses', {})).courses.length >= 2);
+  } finally {
+    globalThis.window.location.search = '?reset=1';
+  }
+});
+
 // Every name the app imports from a Firebase module, from every file under src/.
 const appImports = (moduleName) => {
   const names = new Set();

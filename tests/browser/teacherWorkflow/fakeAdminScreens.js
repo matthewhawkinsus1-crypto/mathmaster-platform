@@ -5,13 +5,15 @@
  *   Administration > Accounts & sign-in    listAdminAuditLog
  *   Administration > Pre-production reset  resetPreproductionTestData (the read-only preview)
  *   Administration > Path content coverage getPathRuntimeStatus, getCoursePathReleaseStatusV2
- *   Google Classroom                       getClassroomConnectionStatus, listPublishedAssignments,
- *                                          listClassroomGradeSyncs
+ *   Google Classroom                       getClassroomConnectionStatus, listGoogleCourses,
+ *                                          listPublishedAssignments, listClassroomGradeSyncs (and the
+ *                                          course mappings fakeFunctions.js's listClassroomCourseMappings reads)
  *
  * Each returns the shape the deployed callable returns (functions/index.js), over invented data: a few
  * audit entries, the counts of what the harness holds, the release this browser bundle was built from,
- * and a teacher who has not connected Google Classroom. Nothing here writes: the destructive half of
- * resetPreproductionTestData is refused, as it is for a school the lock covers.
+ * and a teacher who has not connected Google Classroom, or, when asked, one who has (GOOGLE CLASSROOM,
+ * CONNECTED, below). Nothing here writes: the destructive half of resetPreproductionTestData is refused,
+ * as it is for a school the lock covers.
  *
  * fakeFunctions.js adds these to its table without replacing a callable it already implements.
  */
@@ -30,6 +32,32 @@ const AUDIT_EVENTS = [
   { id: 'audit-2', actorEmail: TEACHER_EMAIL, action: 'student_district_id_changed', target: 'Student 1500101', createdAt: '2026-10-19T16:41:00.000Z' },
   { id: 'audit-1', actorEmail: TEACHER_EMAIL, action: 'teacher_access_granted', target: 'a second teacher', createdAt: '2026-10-14T13:30:00.000Z' },
 ];
+
+/*
+ * GOOGLE CLASSROOM, CONNECTED. A connected account loads its courses through listGoogleCourses, which reads the
+ * teacher's Google account; the harness had no stand-in for it, so no scene had seen the screen past "Not
+ * connected". Off unless asked, so every other journey meets the teacher it always did: `&classroom=connected` on
+ * the address, or `window.__mmHarness.classroomConnected = true` before the screen opens (the accessibility scene
+ * sets it and opens the screen again, as a teacher comes back to it once connected). Then the account is connected
+ * with every permission, and teaches three active courses, invented: Algebra II Period 3, mapped to the harness's
+ * class of that name, and two Algebra I sections not mapped yet.
+ */
+export const classroomConnected = () => {
+  if (typeof window === 'undefined') return false;
+  if (window.__mmHarness?.classroomConnected === true) return true;
+  return new URLSearchParams(window.location.search).get('classroom') === 'connected';
+};
+// The shape lib/classroom.js listCourses gives each course.
+const CLASSROOM_COURSES = [
+  { id: 'course-alg2-p3', name: 'Algebra II', section: 'Period 3', room: 'Room 214', courseState: 'ACTIVE', alternateLink: '' },
+  { id: 'course-alg1-p1', name: 'Algebra I', section: 'Period 1', room: 'Room 214', courseState: 'ACTIVE', alternateLink: '' },
+  { id: 'course-alg1-p5', name: 'Algebra I', section: 'Period 5', room: 'Room 109', courseState: 'ACTIVE', alternateLink: '' },
+];
+// The connected teacher's saved mappings, in the shape listClassroomCourseMappings returns (classroomMappingResponse).
+export const classroomCourseMappings = () => (classroomConnected() ? [{
+  id: 'harness-mapping-alg2-p3', mappingId: 'harness-mapping-alg2-p3', courseId: 'course-alg2-p3', courseName: 'Algebra II',
+  courseSection: 'Period 3', classId: 'c-alg2-p3', className: 'Algebra II — Period 3', classPeriod: 'Period 3', updatedAtMillis: Date.UTC(2026, 8, 2, 14),
+}] : []);
 
 // The names preservedLabel() in PreproductionReset.jsx knows, and a few the preview counts.
 const PRESERVED_COLLECTIONS = [
@@ -91,8 +119,14 @@ export const adminScreenHandlers = {
     job: null,
   }),
 
-  // A teacher who has not connected Google Classroom (lib/classroom.js getConnectionHealth).
-  getClassroomConnectionStatus: () => ({ connected: false, needsReconnect: false, missingScopes: [] }),
+  // A teacher who has not connected Google Classroom, or one who has (lib/classroom.js getConnectionHealth).
+  getClassroomConnectionStatus: () => ({ connected: classroomConnected(), needsReconnect: false, missingScopes: [] }),
+  // The connected account's active courses. Without a connection the server's Classroom client throws a plain
+  // Error, which reaches the browser as a bare "internal" (the screen never asks then: it waits for "Connected").
+  listGoogleCourses: () => {
+    if (!classroomConnected()) throw Object.assign(new Error('internal'), { code: 'functions/internal' });
+    return { courses: CLASSROOM_COURSES.map((course) => ({ ...course })) };
+  },
   listPublishedAssignments: () => ({
     links: harnessStore.paths('classroomLinks/').filter((path) => path.split('/').length === 2).map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) })),
   }),
