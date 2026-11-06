@@ -482,6 +482,67 @@ const openCreateAndAssign = async (page) => {
   await page.waitForTimeout(900);
 };
 
+// Grade Export after its first screen. The harness's school has two lessons ready to export in Period 1,
+// one exported and changed since in Period 3, a student with no district ID and a roster of them.
+const GRADE_EXPORT_REVIEW = '[aria-labelledby="grade-export-review-title"]';
+// A row's Export: the review that comes before the download, a modal (audited as the dialog).
+const openGradeExportReview = async (page) => {
+  await workspaceMain(page).locator('.tw-export-row__actions').getByRole('button', { name: 'Export', exact: true }).first().click();
+  await page.locator(GRADE_EXPORT_REVIEW).getByRole('button', { name: 'Download ZIP' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+// Back on the page, a class's "Select all": the bar that says what is selected stays at the foot of the screen.
+const selectGradeExports = async (page) => {
+  const review = page.locator(GRADE_EXPORT_REVIEW);
+  if (await review.count()) {
+    await review.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await review.waitFor({ state: 'detached', timeout: 10_000 });
+  }
+  await workspaceMain(page).getByRole('button', { name: /^Select all \d+ exportable$/ }).last().click();
+  await page.getByRole('region', { name: 'Selected exports' }).waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(900);
+};
+// The district IDs: the student who has none (the field that adds one), and the roster's, one of them open
+// for correction.
+const openDistrictIds = async (page) => {
+  const bar = page.getByRole('region', { name: 'Selected exports' });
+  if (await bar.count()) await bar.getByRole('button', { name: 'Clear', exact: true }).click();
+  for (const summary of await workspaceMain(page).locator('details.tw-disclosure > summary').all()) {
+    if (!(await summary.evaluate((node) => node.parentElement.open))) await summary.evaluate((node) => node.click());
+  }
+  await workspaceMain(page).locator('[data-district-id-row] button[aria-expanded]').first().click();
+  await workspaceMain(page).locator('[data-district-id-row] button[aria-expanded="true"]').waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(900);
+};
+
+// Secure Exams after its first screen (the `innerScreens=1` school): a practice test created for a
+// student, which the live proctor monitor then lists with its actions; a Test Cycle's "Archive or delete"
+// with the typed confirmation of Delete permanently open; and "Preview as student" (a modal: audited as
+// the dialog, its student screen inside it).
+const createPracticeTestSession = async (page) => {
+  const main = workspaceMain(page);
+  const student = main.locator('label', { hasText: /^Student/ }).locator('select').first();
+  const first = await student.locator('option').evaluateAll((options) => options.map((option) => option.value).find(Boolean));
+  await student.selectOption(first);
+  await main.getByRole('button', { name: 'Create session' }).click();
+  await main.getByRole('status').filter({ hasText: 'Secure session created' }).waitFor({ timeout: 30_000 });
+  await main.getByRole('region', { name: 'Live proctor monitor sessions' }).getByRole('button', { name: 'Pause' }).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+const openTestCycleDelete = async (page) => {
+  const main = workspaceMain(page);
+  await main.getByRole('button', { name: 'Archive or delete' }).first().click();
+  await main.getByRole('button', { name: /^Delete permanently/ }).first().click();
+  await main.getByRole('alertdialog').waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(900);
+};
+const TEST_CYCLE_PREVIEW = '[role="dialog"][aria-label^="Student preview of"]';
+const openTestCyclePreviewScene = async (page) => {
+  const confirm = workspaceMain(page).getByRole('alertdialog');
+  if (await confirm.count()) await confirm.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await openTestCyclePreview(page);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -540,8 +601,20 @@ export const TEACHER_SCREENS = [
   teacherScreen('teacher-library', [{ id: null, run: openDestination('Library', /Library/) }]),
   teacherScreen('teacher-weekly-path', [{ id: null, run: openDestination('Weekly Path', /^Weekly Path/) }], { open: (page, origins) => openTeacherApp(page, origins, '&weeklyPath=ok') }),
   teacherScreen('teacher-action-center', [{ id: null, run: openDestination('Action Center', /^Action Center$/) }]),
-  teacherScreen('teacher-grade-export', [{ id: null, run: openDestination('Grade Export', /^Grade Export$/) }]),
-  teacherScreen('teacher-secure-exams', [{ id: null, run: openDestination('Secure Exams', /^My Course Tests$/) }], { open: openTeacherAppWithTestCycle }),
+  teacherScreen('teacher-grade-export', [
+    { id: null, run: openDestination('Grade Export', /^Grade Export$/) },
+    // The fifth slice: the flow after the first screen.
+    { id: 'review', run: openGradeExportReview, include: GRADE_EXPORT_REVIEW },
+    { id: 'selection', run: selectGradeExports },
+    { id: 'district-ids', run: openDistrictIds },
+  ]),
+  teacherScreen('teacher-secure-exams', [
+    { id: null, run: openDestination('Secure Exams', /^My Course Tests$/) },
+    // The fifth slice: the flow after the first screen.
+    { id: 'session', run: createPracticeTestSession },
+    { id: 'delete', run: openTestCycleDelete },
+    { id: 'preview', run: openTestCyclePreviewScene, include: TEST_CYCLE_PREVIEW },
+  ], { open: openTeacherAppWithTestCycle }),
   teacherScreen('teacher-pacing', [{ id: null, run: openDestination('Curriculum Pacing', /^Curriculum pacing/i) }]),
   teacherScreen('teacher-attendance', [{ id: null, run: openDestination('Attendance History', /^Attendance History$/) }]),
   teacherScreen('teacher-parent-contacts', [{ id: null, run: openDestination('Parent Contacts', /^Parent Contact Center$/) }]),

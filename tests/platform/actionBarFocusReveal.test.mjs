@@ -34,7 +34,11 @@ test('keyboard focus only, never inside the bar, after the browser scrolled', ()
   assert.match(source, /const onPointerDown = \(\) => \{ keyboardLast = false; \};/, 'a pointer press never scrolls');
   assert.match(source, /keyboard = keyboard \|\| target\.matches\(':focus-visible'\);/);
   assert.match(source, /if \(!keyboard\) return;/);
-  assert.match(source, /if \(target\.closest\(ACTION_BAR_SELECTOR\)\) return;/);
+  // The bar is the QuestionEngine's unless a host names another (the teacher's Grade Export selection bar, TT27):
+  // focus inside whichever bar it is never moves the page.
+  assert.match(source, /export const bindActionBarFocusReveal = \(getHost, \{ win = [^,]+, selector = ACTION_BAR_SELECTOR \} = \{\}\) => \{/);
+  assert.match(source, /if \(target\.closest\(selector\)\) return;/);
+  assert.match(source, /const bar = host\.querySelector\(selector\);/);
   assert.match(source, /frame = win\.requestAnimationFrame\(/);
   assert.match(source, /if \(delta <= 0\) return;/);
   // Review of #463: under Work View the bar is laid out but covered; and only

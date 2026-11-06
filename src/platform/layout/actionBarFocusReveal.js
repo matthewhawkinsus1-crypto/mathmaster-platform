@@ -14,6 +14,11 @@
  * control into view, measure. Only if the bar actually covers it is the page
  * scrolled — by exactly the overlap and a small gap. A control already in view
  * never moves anything, and a pointer focus never does either.
+ *
+ * Another sticky bar can name itself with `selector` (TT27, fifth slice: the
+ * teacher's Grade Export keeps "N selected · Review export…" at the foot of the
+ * screen, and Tab parked the rows and chips under it). The default is the
+ * QuestionEngine's bar, so every host above behaves as it did.
  */
 export const ACTION_BAR_SELECTOR = '.mathmaster-desktop-action-bar';
 export const ACTION_BAR_FOCUS_GAP = 12;
@@ -46,7 +51,7 @@ const scrollParentOf = (element, win) => {
  * host that re-renders a different tree is still covered) and scroll a covered
  * control clear of the host's own action bar. Returns the unbind function.
  */
-export const bindActionBarFocusReveal = (getHost, { win = typeof window !== 'undefined' ? window : null } = {}) => {
+export const bindActionBarFocusReveal = (getHost, { win = typeof window !== 'undefined' ? window : null, selector = ACTION_BAR_SELECTOR } = {}) => {
   if (typeof getHost !== 'function' || !win?.document) return () => {};
   let frame = 0;
   // Which input moved focus last. `:focus-visible` alone misses a math field
@@ -63,11 +68,11 @@ export const bindActionBarFocusReveal = (getHost, { win = typeof window !== 'und
     let keyboard = keyboardLast;
     try { keyboard = keyboard || target.matches(':focus-visible'); } catch { /* an engine without :focus-visible */ }
     if (!keyboard) return;
-    if (target.closest(ACTION_BAR_SELECTOR)) return;
+    if (target.closest(selector)) return;
     win.cancelAnimationFrame(frame);
     // After the browser's own scroll-into-view for this focus.
     frame = win.requestAnimationFrame(() => {
-      const bar = host.querySelector(ACTION_BAR_SELECTOR);
+      const bar = host.querySelector(selector);
       if (!bar || win.document.activeElement !== target) return;
       // Under Work View the page's bar is still laid out (display:flex) but
       // covered by the modal: it can hide nothing, so nothing moves (review

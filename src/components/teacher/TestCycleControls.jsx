@@ -818,7 +818,8 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], c
                   {columns.map((heading) => (
                     <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>
                       {heading === 'Student' && !external ? (
-                        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        // 24 CSS px tall, as a pointer target needs (WCAG 2.5.8; TT27, fifth slice): it was 23.2.
+                        <label style={{ display: 'flex', gap: 6, alignItems: 'center', minHeight: 24 }}>
                           <input
                             type="checkbox"
                             aria-label="Select every student shown"
