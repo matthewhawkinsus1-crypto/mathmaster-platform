@@ -492,7 +492,7 @@ import {
   normalizeCourseProfiles,
 } from './platform/rigor/courseRigor.js';
 import SessionGate from './app/shell/SessionGate.jsx';
-import { focusScreenHeading, screenAnnouncement, screenChangeMovesFocus, studentScreenKey } from './app/shell/screenChange.js';
+import { screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -5736,7 +5736,14 @@ function App() {
     lastStudentScreenKeyRef.current = currentStudentScreenKey;
     if (!currentStudentScreenKey) { pendingStudentScreenRef.current = null; return undefined; }
     if (previous && previous !== currentStudentScreenKey) {
-      pendingStudentScreenRef.current = { key: currentStudentScreenKey, startedAt: Date.now() };
+      pendingStudentScreenRef.current = {
+        key: currentStudentScreenKey,
+        startedAt: Date.now(),
+        // What has focus as the change begins: the place the student pressed,
+        // while the shell keeps it. Focus still there later is not the student's.
+        from: typeof document === 'undefined' ? null : document.activeElement,
+        said: false,
+      };
       // Cleared first, so the same name said twice in a row is still spoken.
       setStudentScreenAnnouncement('');
     }
@@ -5747,14 +5754,17 @@ function App() {
     let timer = null;
     const settle = () => {
       if (cancelled) return;
-      // A lazy screen draws its heading a moment later: look for up to 2 s.
-      const focused = screenChangeMovesFocus(pending.key) ? focusScreenHeading(document) : true;
-      if (!focused && Date.now() - pending.startedAt < 2000) {
-        timer = window.setTimeout(settle, 100);
+      // A lazy screen draws its heading a moment later, and one that loads its
+      // data first later still (shell/screenChange.js).
+      const next = settleScreenChange(document, pending, {
+        movesFocus: screenChangeMovesFocus(pending.key),
+        announce: () => setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current)),
+      });
+      if (next != null) {
+        timer = window.setTimeout(settle, next);
         return;
       }
       if (pendingStudentScreenRef.current === pending) pendingStudentScreenRef.current = null;
-      setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current));
     };
     timer = window.setTimeout(settle, 50);
     return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
