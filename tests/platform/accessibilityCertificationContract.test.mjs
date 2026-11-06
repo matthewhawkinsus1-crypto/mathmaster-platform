@@ -57,6 +57,8 @@ test('an empty math box with its placeholder showing is among the audited scenes
 const REQUIRED_TEACHER_SCREENS = {
   'teacher-home': [null],
   'teacher-live-class': ['walkthrough', 'attention'],
+  // The fifth slice added, here and below, states of these screens that no scene had opened (accessibilityTeacherScreens
+  // .mjs, THE FIFTH SLICE).
   'teacher-assignments': [null, 'class-list', 'card-menu'],
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
@@ -66,6 +68,9 @@ const REQUIRED_TEACHER_SCREENS = {
   // the TEKS screen's views, the Path Simulator's modes, and the administrator's five sections.
   'teacher-classes': [null, 'class'],
   'teacher-students': [null, 'drawer'],
+  // Not 'path' (the student's own My Math Path, read-only): its mastery wheel's targets are the student's; see
+  // accessibilityTeacherScreens.mjs.
+  'teacher-student-detail': ['overview', 'profile', 'progress', 'assignments', 'supports', 'account'],
   'teacher-library': [null],
   'teacher-weekly-path': [null],
   'teacher-action-center': [null],

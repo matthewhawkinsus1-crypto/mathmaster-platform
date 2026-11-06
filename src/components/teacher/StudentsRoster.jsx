@@ -18,12 +18,64 @@ import { buildStudentPathOptions } from '../../platform/path/studentPathOptions.
 import { overridesForClassContext, storedPacingForClassContext } from '../../platform/path/pathStore.js';
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
 import StudentAssignmentsList from './StudentAssignmentsList.jsx';
+import { tabKeyTarget } from '../../platform/interaction/tabListKeys.js';
 import './teacherWorkspace.css';
 
 const tabButton = (active) => ({
   padding: '8px 11px', border: active ? '1px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 8,
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, cursor: 'pointer',
 });
+
+// A STUDENT'S DETAIL PAGE CHOOSES ITS VIEW FROM A TAB LIST (TT27, fifth slice). The seven views were plain buttons:
+// which one was showing was said by colour alone, so a screen reader heard seven buttons and never which view it was
+// in, and each was a Tab stop on the way to the view itself. They are tabs now, as Live Class's and the administrator's
+// sections are (platform/interaction/tabListKeys.js): the selected one is the one Tab stop and says it is selected;
+// Left, Right, Home and End move focus between them without choosing; Enter, Space and a click choose; and the view
+// under them is a tab panel named by its tab. The buttons look as they did.
+export const STUDENT_DETAIL_VIEWS = Object.freeze([
+  ['overview', 'Overview'],
+  ['profile', 'Learning Profile'],
+  ['progress', 'Progress'],
+  ['assignments', 'Assignments'],
+  ['path', 'My Math Path'],
+  ['supports', 'Supports'],
+  ['account', 'Account'],
+]);
+export const STUDENT_DETAIL_PANEL_ID = 'student-detail-panel';
+export const studentDetailTabId = (view) => `student-detail-tab-${view}`;
+export const moveBetweenStudentDetailTabs = (event) => {
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+  const from = tabs.indexOf(event.target);
+  if (from < 0) return;
+  const to = tabKeyTarget(event.key, from, tabs.length);
+  if (to === null) return;
+  event.preventDefault();
+  tabs[to].focus();
+};
+
+/** The row of views above a student's detail page, as a tab list. */
+export function StudentDetailTabs({ active, onSelect }) {
+  return (
+    <div role="tablist" aria-label="Student details" onKeyDown={moveBetweenStudentDetailTabs} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+      {STUDENT_DETAIL_VIEWS.map(([view, label]) => (
+        <button
+          type="button"
+          key={view}
+          role="tab"
+          id={studentDetailTabId(view)}
+          aria-selected={active === view}
+          aria-controls={STUDENT_DETAIL_PANEL_ID}
+          tabIndex={active === view ? 0 : -1}
+          onClick={() => onSelect(view)}
+          style={tabButton(active === view)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // `masteryConfidence` is a 0-1 fraction, not a label. Rendering it raw once put
 // "0.62" on a teacher screen under the heading "Confidence", and rounding it
@@ -229,10 +281,9 @@ export default function StudentsRoster({
             <button type="button" onClick={() => onGenerateIEPReport(selected)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Support evidence report</button>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-          {['overview', 'profile', 'progress', 'assignments', 'path', 'supports', 'account'].map((tab) => <button type="button" key={tab} onClick={() => setDetailTab(tab)} style={tabButton(detailTab === tab)}>{tab === 'path' ? 'My Math Path' : tab === 'profile' ? 'Learning Profile' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
-        </div>
+        <StudentDetailTabs active={detailTab} onSelect={setDetailTab} />
 
+        <div id={STUDENT_DETAIL_PANEL_ID} role="tabpanel" aria-labelledby={studentDetailTabId(detailTab)}>
         {detailTab === 'overview' && <section style={{ padding: 18, border: '1px solid var(--mm-border)', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Overview</h3><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10 }}><div><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Academic profile</div><StudentPerformanceBadge profile={learningProfiles[selected.id]} studentName={formatStudentName(selected)} onClick={() => setDetailTab('profile')} /></div><div><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Evidence confidence</div><strong>{confidenceLabel(learningProfiles[selected.id])}</strong></div><div><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Supports</div><strong>{supportStatusLabel(selected.profile)}</strong></div><div><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>Adaptive path</div><strong>{pathLabel(selected)}</strong></div></div></section>}
 
         {detailTab === 'profile' && (
@@ -279,6 +330,7 @@ export default function StudentsRoster({
         {detailTab === 'supports' && <section style={{ padding: 18, border: '1px solid var(--mm-border)', borderRadius: 10 }}><SupportProfileEditor student={selected} teacherEmail={teacherEmail} onSaved={onSupportProfileSaved} /></section>}
 
         {detailTab === 'account' && <section style={{ padding: 18, border: '1px solid var(--mm-border)', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Account</h3><p style={{ color: 'var(--mm-text-muted)' }}>Student PIN and Google-link support is available from Student Access.</p>{isRootAdmin && <div style={{ marginTop: 18, padding: 14, border: '1px solid var(--mm-error-border-soft)', borderRadius: 9, background: 'var(--mm-error-bg)' }}><strong style={{ color: 'var(--mm-error-text)' }}>Danger Zone</strong><p style={{ color: 'var(--mm-text-muted)' }}>Permanent account and data erasure requires the protected Administration workspace and typed confirmation.</p><button type="button" onClick={onOpenAdministration} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#b3261e', color: '#fff', fontWeight: 900 }}>Open Administration</button></div>}</section>}
+        </div>
       </div>
     );
   }

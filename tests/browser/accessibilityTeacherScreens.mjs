@@ -68,6 +68,9 @@
  *   teacher-find           the Find palette, empty and with results (a modal: audited as the dialog).
  *   teacher-admin          the administrator's workspace (the harness's `rootAdmin=1` teacher), each
  *                          of its five sections.
+ *
+ * THE FIFTH SLICE (TT27) added the states of those screens that no scene had opened, each reached the way a
+ * teacher reaches it: see THE FIFTH SLICE below.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -429,6 +432,46 @@ const openSimulatorMode = (label) => async (page) => {
   await page.waitForTimeout(1500);
 };
 
+// ----------------------------------------------------------------------------------------------
+// THE FIFTH SLICE (TT27): the states of these screens that no scene opened, which the VPAT's Notes
+// row listed as not evaluated. Each is reached the way a teacher reaches it, from the screen's own
+// first scene, and audited like the 48.
+// ----------------------------------------------------------------------------------------------
+
+// The workspace's main landmark holds the screen, and not the navigation (whose buttons share names
+// with some of a screen's own, "Assignments" among them).
+const workspaceMain = (page) => page.getByRole('main');
+
+// A student's detail page: Students -> "Open" on a row (the student's name opens the drawer, a scene of
+// teacher-students). The page has seven views, chosen from a tab list above them; six are scenes. The student is
+// the harness's first in Period 3, the class in session, who has work on four of its lessons.
+//
+// Left out: My Math Path, which shows the student's own My Math Path read-only. Its Mastery Overview's wheel draws
+// each skill as a segment 10 to 22 px across (16 with no room around them at 1366×768, 32 on a phone, WCAG 2.5.8),
+// and at 320 px a "0%" in it is cut by its box. Both are the student's own screen: whether the skills listed under the
+// wheel count as the equivalent control 2.5.8 allows, or the wheel changes, is a decision for its owner.
+const DETAIL_STUDENT_ROW = /ID 910001(?!\d)/;
+const STUDENT_DETAIL_VIEWS = [
+  ['overview', 'Overview'],
+  ['profile', 'Learning Profile'],
+  ['progress', 'Progress'],
+  ['assignments', 'Assignments'],
+  ['supports', 'Supports'],
+  ['account', 'Account'],
+];
+const allStudentsButton = (page) => workspaceMain(page).getByRole('button', { name: '← All students' });
+export const openStudentDetailView = (label) => async (page) => {
+  if (!(await allStudentsButton(page).count())) {
+    await openDestination('Students', /^Students$/)(page);
+    await page.locator('table tbody tr').filter({ hasText: DETAIL_STUDENT_ROW }).getByRole('button', { name: 'Open', exact: true }).evaluate((button) => button.click());
+    await allStudentsButton(page).waitFor({ timeout: 30_000 });
+  }
+  await workspaceMain(page).getByRole('tab', { name: label, exact: true }).evaluate((tab) => tab.click());
+  await workspaceMain(page).getByRole('tab', { name: label, exact: true, selected: true }).waitFor({ timeout: 10_000 });
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -480,6 +523,8 @@ export const TEACHER_SCREENS = [
     // A modal drawer: audited as the drawer, as the Assignment Hub is, and not the page behind its scrim.
     { id: 'drawer', run: openStudentDrawer, include: '[data-student-profile-drawer]' },
   ]),
+  // The fifth slice: a student's detail page (the Students screen's "Open"), six of its seven views.
+  teacherScreen('teacher-student-detail', STUDENT_DETAIL_VIEWS.map(([id, label]) => ({ id, run: openStudentDetailView(label) }))),
   teacherScreen('teacher-library', [{ id: null, run: openDestination('Library', /Library/) }]),
   teacherScreen('teacher-weekly-path', [{ id: null, run: openDestination('Weekly Path', /^Weekly Path/) }], { open: (page, origins) => openTeacherApp(page, origins, '&weeklyPath=ok') }),
   teacherScreen('teacher-action-center', [{ id: null, run: openDestination('Action Center', /^Action Center$/) }]),
