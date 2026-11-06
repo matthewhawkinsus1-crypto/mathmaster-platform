@@ -1643,6 +1643,11 @@ const compileOne = (q, index, repairs) => {
         asymptote: q.asymptote,
         behavior: q.behavior,
         behaviorChoices: q.behaviorChoices,
+        // The step's question, when its choices are not the recipe's
+        // intervals: "Exponential growth / Exponential decay" were offered
+        // under "Where is this function increasing and where is it
+        // decreasing?" (District DOL 1 review, 2026-11-06 walkthrough).
+        behaviorPrompt: q.behaviorPrompt,
         familyChoices: q.familyChoices,
         functionSpec: functionSpecFromIntentQuestion(q),
         // DERIVED FROM THE FUNCTION WHEN THE AUTHOR DID NOT WRITE IT.

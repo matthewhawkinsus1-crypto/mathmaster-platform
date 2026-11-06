@@ -237,7 +237,7 @@
         },
         {
           "standard": "A2.7I",
-          "prompt": "Graph x ≤ −4 or x ≥ 3 and write the interval in interval notation.",
+          "prompt": "Graph x ≤ −4 or x ≥ 3 and write the compound interval in interval notation.",
           "studentActions": [
             "constructInterval",
             "writeInterval"

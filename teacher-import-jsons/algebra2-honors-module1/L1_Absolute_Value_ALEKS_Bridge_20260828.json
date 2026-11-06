@@ -705,6 +705,11 @@
           "evidenceWeight": 0.75,
           "dok": 1,
           "difficultyBand": 2,
+          "hints": [
+            "What is the smallest value |x| can have, and at which x does it happen?",
+            "Can you take the absolute value of any real number, a negative one included? That decides the domain.",
+            "Can |x| ever be negative? The outputs start at the smallest value and go up from there: is that smallest value reached?"
+          ],
           "scaffold": {
             "prompt": "Let’s back up. Can |x| ever be negative?",
             "options": [

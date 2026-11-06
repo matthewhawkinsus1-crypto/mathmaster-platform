@@ -228,9 +228,11 @@ test('over every real lesson, every teacher-written hint is shown, and none of t
   // bank hints; three on Lesson 2's Check Your Progress after Examples A and B,
   // CW 3) and the Algebra I Module 3 Topic 2 Lessons 4 and 5 with their
   // Honors files 370 (87, 95, 88 and 100, with three on Lesson 5's plain first
-  // system, CW 17), every one shown (none is in BASE_DROPPED, and nowDropped is
-  // unchanged).
-  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370);
+  // system, CW 17), and the 2026-11-06 walkthrough's 21 (three each on the
+  // District DOL 1 review's WU 2, WU 3, WU 4, CW 12, PR 7 and PR 8, and the
+  // ALEKS bridge's PR 3, which showed only fallbacks), every one shown (none is
+  // in BASE_DROPPED, and nowDropped is unchanged).
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370 + 21);
   assert.equal(BASE_DROPPED.length, 32);
   // The Lesson 3 Honors file repeats the Regular lesson's questions (and their
   // ids), so each hint that is shown now is listed once, not once per file.
@@ -324,7 +326,10 @@ test('the fallback fits the kind of question, and names no method step the item 
     .map(({ question }) => question);
   // 50 when the report counted them; the Algebra I Lesson 3 Honors file repeats
   // the Regular lesson's three graph-choice items with no hint of their own.
-  assert.equal(genericOnly.length, 50 + 3, 'the report counted 50, and the Lesson 3 Honors file repeats 3');
+  // Seven have their own hints since the 2026-11-06 walkthrough: the District
+  // DOL 1 review's three sorts, its vertex choice and its two sequences, and the
+  // ALEKS bridge's |x| item.
+  assert.equal(genericOnly.length, 50 + 3 - 7, 'the report counted 50, the Lesson 3 Honors file repeats 3, and 7 have their own hints now');
   const kinds = {};
   genericOnly.forEach((question) => {
     const kind = fallbackKind(question);
@@ -332,7 +337,9 @@ test('the fallback fits the kind of question, and names no method step the item 
     assert.deepEqual(buildQuestionHints(question).map((hint) => hint.text), [...FALLBACK_HINTS[kind]]);
   });
   // No systems, matrix, sort, graph or build item gets "keep the two sides equal" now.
-  assert.deepEqual(kinds, { sort: 7, graphChoice: 4 + 3, general: 2, choice: 10, graph: 2, build: 5, systems: 20 });
+  // Less the walkthrough's seven: sorts 3, graph choice 1, general 2 (the
+  // sequences), choice 1 (the |x| item).
+  assert.deepEqual(kinds, { sort: 7 - 3, graphChoice: 4 + 3 - 1, choice: 10 - 1, graph: 2, build: 5, systems: 20 });
   const systems = genericOnly.filter((question) => question.type === 'systemsWorkspace');
   assert.equal(systems.length, 20);
   systems.forEach((question) => assert.equal(fallbackKind(question), 'systems'));
