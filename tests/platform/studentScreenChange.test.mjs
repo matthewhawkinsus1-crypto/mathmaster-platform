@@ -167,6 +167,26 @@ test('NAV-3: App imports the module and runs it on every student screen-key chan
   assert.match(shell, /role="status" aria-live="polite"[^>]*data-screen-announcement[^>]*>\s*\{studentScreenAnnouncement\}/);
 });
 
+test('NAV-3: a reload of My Math Path keeps the screen, and the heading a screen change focused', () => {
+  // My Math Path draws its h1 once the student's Path has loaded, and loads
+  // again when its assignments or the student's profile change: just after a
+  // screen change, in a development build, as React runs App's effects again
+  // when the screen's code arrives. For a student with no profile yet each
+  // load swapped the whole screen for "Loading My Math Path…" and back, the
+  // focused h1 with it, and focus fell to the page (CI on #541). Only the
+  // first load of a student's Path says "Loading …".
+  const path = executableSource(readFileSync(new URL('../../src/components/student/MyMathPathApp.jsx', import.meta.url), 'utf8'));
+  const gate = region(path, 'const sessionOnScreen', 'Loading My Math Path…', 'the loading gate');
+  assert.match(gate, /if \(loading && firstLoad && !sessionOnScreen && /);
+  // The view's default keeps the Teacher Path Simulator, which loads nothing, as it was.
+  assert.match(path, /^  firstLoad = true,$/m);
+  // The container records whose Path it loaded; only another student's is a first load.
+  const container = region(path, 'export const MyMathPathApp = (props) => {', 'export default MyMathPathApp;', 'the container');
+  assert.match(container, /const \[loadedStudentId, setLoadedStudentId\] = useState\(null\);/);
+  assert.match(container, /setLoading\(false\);\s*setLoadedStudentId\(studentId\);\s*\}, \[studentId, assignments\]\);/);
+  assert.match(container, /\bloading=\{loading\}\s*firstLoad=\{loadedStudentId !== studentId\}/);
+});
+
 test('NAV-15: the shell gives a screen with no main of its own one main, and never a second to a screen that has one', () => {
   const shell = region(app, 'const renderStudentIdentityShell = (', '\n  };');
   assert.match(shell, /\{main \? \(\s*(?:\/\/[^\n]*\n\s*)?<main id=\{MAIN_CONTENT_ID\} tabIndex=\{-1\}/);
