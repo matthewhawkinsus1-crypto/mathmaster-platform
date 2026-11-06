@@ -413,7 +413,11 @@
   }
 
   .graph-scenario-story-bank { margin-top: 14px; }
-  .graph-scenario-scroll-pane { height: auto; overflow: visible; touch-action: auto; }
+  /* The pane is as tall as what it holds. The laptop rule's flex basis of 0
+     survived here, and in the bank's column, whose height follows its
+     content, it left the pane 24px tall: the bank then cut the scenario
+     cards, at any text size (student-a11y-2). */
+  .graph-scenario-scroll-pane { flex: none; height: auto; overflow: visible; touch-action: auto; }
 
   .graph-scenario-graph-bank .graph-scenario-scroll-pane {
     display: flex;

@@ -5,6 +5,7 @@ import graphScenarioMatchGrader from '../../functions/shared/serverGrading/tools
 import { scenarioMatchWork } from '../../functions/shared/toolMath/scenario/scenarioWork.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { declared, parseCss } from './helpers/cssRules.mjs';
 
 const source = fs.readFileSync(new URL('../../src/GraphScenarioMatch.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../src/GraphScenarioMatch.css', import.meta.url), 'utf8');
@@ -37,6 +38,24 @@ test('mobile swaps connector lines for tap-to-pair cards and a horizontal graph 
   assert.match(css, /graph-scenario-connector-layer,[\s\S]*display:\s*none/);
   assert.match(css, /overflow-x:\s*auto/);
   assert.match(source, /graph-scenario-mobile-match-summary/);
+});
+
+// On a phone (and any coarse pointer) the banks are as tall as their cards (student-a11y-2). The laptop rule
+// gives each scroll pane flex: 1 1 0 inside its bank's column; the phone rule set height: auto but kept that
+// flex basis of 0, so in a bank whose own height follows its content the pane was 24px tall and the bank,
+// overflow hidden, cut the scenario cards at every text size (10 of 12 texts, measured at 390x844).
+test('on a phone each bank\'s pane is as tall as its cards, so the bank cuts none of them', () => {
+  const rules = parseCss(css);
+  const phone = '(max-width: 820px), (pointer: coarse)';
+  // The laptop's panes share the board's fixed height: a flex basis of 0, scrolled inside.
+  assert.deepEqual(declared(rules, '.graph-scenario-scroll-pane', 'flex', { media: null }), { value: '1 1 0', important: false });
+  // The phone's: no flex share, the content's own height, nothing hidden.
+  assert.deepEqual(declared(rules, '.graph-scenario-scroll-pane', 'flex', { media: phone }), { value: 'none', important: false });
+  assert.equal(declared(rules, '.graph-scenario-scroll-pane', 'height', { media: phone })?.value, 'auto');
+  assert.equal(declared(rules, '.graph-scenario-scroll-pane', 'overflow', { media: phone })?.value, 'visible');
+  // The bank that holds it still clips (its rounded border), which is why the pane must not collapse.
+  assert.equal(declared(rules, '.graph-scenario-bank', 'overflow', { media: phone })?.value, 'hidden');
+  assert.equal(declared(rules, '.graph-scenario-bank', 'height', { media: phone })?.value, 'auto');
 });
 
 /*
