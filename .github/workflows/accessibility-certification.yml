@@ -283,12 +283,18 @@ jobs:
           retention-days: 14
 
   # The teacher's 66 scenes at 200% text, at 320px and with text spacing (WCAG 1.4.4 / 1.4.10 / 1.4.12), and every
-  # pointer target at 24px or the room the spacing exception asks for (2.5.8), at both viewports (TT27). A job of its
-  # own: seven settings over 48 scenes took about fifty minutes on a busy two-core machine, and the fifth slice's 18
-  # scenes add nearly forty per cent.
+  # pointer target at 24px or the room the spacing exception asks for (2.5.8), at both viewports (TT27). Jobs of their
+  # own: as one job it took 36 minutes on CI for 48 scenes and about 42 for the 66 (2026-11-06). So the sweep runs in
+  # three shards, each a third of the screens, whole (studentShellLargeText.mjs --shard, tests/browser/support/
+  # sceneShards.mjs): 13 to 16 minutes each.
   browser-teacher-large-text:
+    name: browser-teacher-large-text (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -302,12 +308,12 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
-        run: node tests/browser/studentShellLargeText.mjs --check=text,targetsize --teacher
+        run: node tests/browser/studentShellLargeText.mjs --check=text,targetsize --teacher --shard=${{ matrix.shard }}/3
       - name: Keep the report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: accessibility-certification-teacher-large-text
+          name: accessibility-certification-teacher-large-text-${{ matrix.shard }}
           path: tests/browser/artifacts/large-text
           retention-days: 14
 

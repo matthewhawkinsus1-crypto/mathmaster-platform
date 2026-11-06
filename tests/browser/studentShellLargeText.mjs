@@ -6,7 +6,7 @@
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort &
- *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader,obscured] [--only=<screen id,…>] [--teacher]
+ *   node tests/browser/studentShellLargeText.mjs [--check=targets,s5,text,default,targetsize,workviewheader,obscured] [--only=<screen id,…>] [--teacher] [--shard=<i>/<n>]
  *
  * targets  The identity bar's Log Out is at least 44px tall (WCAG 2.5.5).
  * s5       Live Challenge round (1366×768): Tab from the top of the round to
@@ -43,7 +43,11 @@
  *          FONTCONFIG_FILE="$PWD/tests/browser/support/ciFonts.conf" (an absolute path) to measure what CI measures.
  * --teacher  (TT27) Run the text and targetsize checks over every TEACHER_SCREENS scene of the accessibility
  *          certification (48 scenes: the real app signed in as the synthetic teacher, on the school's clock)
- *          instead of the student scenes. CI runs it as a job of its own (browser-teacher-large-text).
+ *          instead of the student scenes. CI runs it in jobs of its own (browser-teacher-large-text (1/3) to (3/3)).
+ * --shard=i/n  Only the i-th of n slices of the screens a check walks (after --only): whole screens, since a screen's
+ *          scenes share a page and each starts where the last one left it, cut so the slices are about even
+ *          (support/sceneShards.mjs). The checks that walk no list (targets, s5, workviewheader) run in the first
+ *          slice, so the n slices together run what one run does. Not with --compare.
  * targetsize  WCAG 2.2 2.5.8 (Target Size, Minimum): every pointer target on
  *          every student scene (not the teacher's), at 1366×768 and 390×844,
  *          is 24×24 CSS px or more, or has the room the spacing exception asks
@@ -59,6 +63,7 @@ import { SCREENS, sceneLabel, newScreenContext } from './accessibilityCertificat
 import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
+import { parseShard, shardOf } from './support/sceneShards.mjs';
 import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
 import { hiddenUnderOverlay } from '../../scripts/lib/keyboardReach.mjs';
 
@@ -71,6 +76,11 @@ const CHECKS = new Set((arg('check') || 'targets,s5,text').split(','));
 // student scenes. The text and targetsize checks both honour it.
 const TEACHER_SWEEP = process.argv.includes('--teacher');
 const ONLY = new Set((arg('only') || '').split(',').filter(Boolean));
+// --shard=i/n: CI's teacher sweep runs in three jobs, each a third of the screens (runScenes, below).
+const SHARD = parseShard(arg('shard'));
+if (SHARD && SHARD.index > 1) ['targets', 's5', 'workviewheader'].forEach((check) => CHECKS.delete(check));
+// --compare reads every shot of the list, and a slice takes only its own.
+if (SHARD && arg('compare')) throw new Error('--compare needs the shots of the whole list: run it without --shard');
 const origins = {
   app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
   audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -394,9 +404,24 @@ export const FOCUS_SCREENS = [
   },
 ];
 
+// With --shard, the screens of this run's slice of whichever list a check walks, said once per list.
+const slices = new Map();
+const inShard = (screens, screen) => {
+  const listed = screens.filter((entry) => !ONLY.size || ONLY.has(entry.id));
+  const key = listed.map((entry) => entry.id).join(',');
+  if (!slices.has(key)) {
+    const slice = shardOf(listed, SHARD);
+    const scenes = (list) => list.reduce((sum, entry) => sum + entry.scenes.length, 0);
+    console.log(`shard ${SHARD.index}/${SHARD.count}: ${slice.length} of ${listed.length} screens, ${scenes(slice)} of ${scenes(listed)} scenes (${slice.map((entry) => entry.id).join(', ') || 'none'})`);
+    slices.set(key, new Set(slice));
+  }
+  return slices.get(key).has(screen);
+};
+
 const runScenes = async (setting, callback, screens = TEACHER_SWEEP ? TEACHER_SCREENS : LARGE_TEXT_SCREENS) => {
   for (const screen of screens) {
     if (ONLY.size && !ONLY.has(screen.id)) continue;
+    if (SHARD && !inShard(screens, screen)) continue;
     const { context, page } = await newPage(setting, screen);
     try {
       if (screen.open) await screen.open(page, origins);

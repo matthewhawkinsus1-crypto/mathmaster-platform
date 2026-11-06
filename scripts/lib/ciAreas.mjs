@@ -45,6 +45,7 @@ export const CI_AREAS = {
     'tests/browser/myMathPathLandmarks*',
     'tests/browser/studentAccessibleNames*',
     'tests/browser/support/touchEmulation*',
+    'tests/browser/support/sceneShards*',
     'tests/browser/staleTabRecord*',
     'tests/browser/dolCloseCopy*',
     'tests/browser/unchangedConfirmWorkView*',
