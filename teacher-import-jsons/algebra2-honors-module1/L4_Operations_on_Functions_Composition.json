@@ -589,7 +589,7 @@
               "optionRationales": {
                 "x²+12x+38": "Put x + 5 into f: (x + 5)² + 2(x + 5) + 3 = x² + 12x + 38.",
                 "x²+2x+8": "This is (g∘f)(x), which puts f into g; f∘g puts g into f.",
-                "x²+10x+28": "This replaces the x in x² but not the x in 2x; every x in f becomes x + 5.",
+                "x²+10x+28": "This leaves out the 2x term of f; every term of f stays, and each x in it becomes x + 5.",
                 "x²+7x+8": "This keeps x² as it is; every x in f, including the squared one, becomes x + 5."
               }
             },
