@@ -677,14 +677,26 @@ const plainSetsToWords = (text, w) => {
   return out + rewrite(text.slice(from));
 };
 
+// What a superscript straight after it is a power of, as MathDisplay draws it
+// (mathDisplayFormat.js): a letter, a digit, a closing bracket or a bar.
+const POWER_BASE = /[\p{L}\p{N})\]}|]/u;
+// The end of what a root after it multiplies: 5∛2, and x³√x.
+const ROOT_COEFFICIENT = new RegExp(`[A-Za-z0-9)⁾${EXPONENT_CHARACTERS}]$`);
 const unicodeMathToSpokenForm = (raw, w) => {
-  // A blank power, 2^(…), is "2 to the power …".
+  // A blank power, 2^(…), is "2 to the power …", and so is x^?, which kept
+  // its caret ("x^3 · x^4 = x^?", lesson re-walk 2026-11-06, Rational
+  // Exponents Warm-Up 1).
   const text = String(raw ?? '').replace(/\^\s*\(\s*(…|\.\.\.)\s*\)/g, ` ${w.power} $1`)
+    .replace(/\^\s*\?/g, ` ${w.power} …`)
     .replace(SUPERSCRIPT_ORDINAL, (match, digit, suffix) => `${digit}${fromSuperscript(suffix)}`);
   if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]`).test(text)) return text;
   let out = '';
   for (let index = 0; index < text.length;) {
-    const indexRun = /^([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+)√/.exec(text.slice(index));
+    // A superscript straight after its base is a power, as it is drawn, so
+    // x³√x is x³ times √x, never "x times the cube root of x" (lesson re-walk
+    // 2026-11-06, Radical Operations CW 4 and its worked solutions). An index
+    // stands at the start, or after a space or an operator: ³√x, 2 + ⁴√x.
+    const indexRun = POWER_BASE.test(text[index - 1] || '') ? null : /^([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+)√/.exec(text.slice(index));
     const symbol = indexRun ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
     if (indexRun || symbol) {
       const order = indexRun ? fromSuperscript(indexRun[1]) : symbol;
@@ -694,8 +706,8 @@ const unicodeMathToSpokenForm = (raw, w) => {
         // A root inside a root (√(∛x)) is read the same way.
         const simple = SIMPLE_ARGUMENT.test(argument[0].trim());
         const body = unicodeMathToSpokenForm(argument[0].trim(), w).trim();
-        // 5∛2 is "5 times the cube root of 2".
-        const coefficient = /[A-Za-z0-9)]$/.test(out);
+        // 5∛2 is "5 times the cube root of 2", and x³√x "x cubed times …".
+        const coefficient = ROOT_COEFFICIENT.test(out);
         out += ` ${coefficient ? `${w.times} ` : ''}${words} ${simple ? body : `(${body})`} `;
         index = argument[1];
         continue;

@@ -53,6 +53,26 @@ test('powers and roots written as characters are read in words', () => {
   assert.equal(speechTextFor('√(16x⁴y¹¹) =', { language: 'es' }), 'la raíz cuadrada de la cantidad 16x a la potencia 4 y a la potencia 11 es igual a');
 });
 
+// Lesson re-walk 2026-11-06, the radicals lessons again. A superscript right
+// after its base was read as a root's index, though MathDisplay draws it as a
+// power: Radical Operations CW 4's "x³√x" was "x times the cube root of x",
+// and the worked solutions' "5a²b⁴√b" and "y⁴√x/x⁴" the same way. And a blank
+// power, x^? (Rational Exponents Warm-Up 1), kept its caret.
+test('a power before a root and a blank power are read as they are drawn', () => {
+  assert.equal(speechTextFor('x³√x'), 'x cubed times the square root of x');
+  assert.equal(speechTextFor('y⁴√x/x⁴'), 'y to the power 4 times the square root of x over x to the power 4');
+  assert.equal(speechTextFor('5a²b⁴√b'), '5a squared b to the power 4 times the square root of b');
+  assert.equal(speechTextFor('xⁿ√x'), 'x to the power n times the square root of x', 'a letter power too');
+  assert.equal(speechTextFor('(x+1)²√x'), 'the quantity x plus 1, squared times the square root of x', 'after a bracket');
+  // An index at the start, or after a space or an operator, is still an index.
+  assert.equal(speechTextFor('³√x'), 'the cube root of x');
+  assert.equal(speechTextFor('2 + ⁴√x'), '2 plus the 4th root of x');
+  assert.match(speechTextFor('⁶√16 / ∛2 ='), /^the 6th root of 16 /);
+  assert.match(speechTextFor('|5b⁷k⁵| ⁴√(k³)'), /the 4th root of k cubed$/);
+  assert.equal(speechTextFor('x^3 · x^4 = x^?'), 'x cubed times x to the power 4 equals x to the power …');
+  assert.equal(speechTextFor('x³√x', { language: 'es' }), 'x al cubo por la raíz cuadrada de x');
+});
+
 test('a fractional or negative exponent is never "squared", "cubed" or "inverse"', () => {
   assert.equal(mathToSpeech('x^{2/3}'), 'x to the power 2 over 3');
   assert.equal(mathToSpeech('x^{-1/2}'), 'x to the power negative 1 over 2');
