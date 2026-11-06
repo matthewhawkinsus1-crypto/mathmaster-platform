@@ -109,3 +109,27 @@ export const keyboardGridPoint = ([x, y], step, view, domain = view) => [
   snapInsideWindow(x, step, Math.max(view.xMin, domain.xMin), Math.min(view.xMax, domain.xMax)),
   snapInsideWindow(y, step, Math.max(view.yMin, domain.yMin), Math.min(view.yMax, domain.yMax)),
 ];
+
+/*
+ * WHICH PLACED POINT A PRESS PICKS UP (found by N60, on laptops too).
+ *
+ * A press is snapped to the grid before it is asked about (a finger's and a
+ * mouse's alike; the keyboard's crosshair stands on the grid), so this is a
+ * question about grid points. A press picks a placed point up only when it
+ * landed on that point's own grid point, or, for a point between grid lines,
+ * on a grid point nearest it. A press on any other grid point places a new
+ * point there. It used to pick up any point within 18 drawing units, and on a
+ * −10 to 10 grid a row is 14.8, so a press on the grid point just above or
+ * below a placed point picked that point up and moved it there.
+ *
+ * The target that picks a point up is therefore its whole grid cell, every
+ * press the plane shows on that grid point: as large as the grid allows, and
+ * at least the 44 px touch minimum wherever a cell is that large (a zoomed-in
+ * plane). `step` is the plane's grid step (its drawn grid when it does not
+ * snap, where a press is not snapped either).
+ */
+export const pressPicksUpPoint = ([pressX, pressY], [pointX, pointY], step) => {
+  const size = Number(step) > 0 ? Number(step) : 1;
+  const half = size / 2 + size * 1e-6;
+  return Math.abs(pressX - pointX) <= half && Math.abs(pressY - pointY) <= half;
+};

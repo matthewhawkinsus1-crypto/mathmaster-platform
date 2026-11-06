@@ -18,7 +18,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FINGER_CLEARANCE_PX, FINGER_REACH_PX, keyboardGridPoint, readoutChipSpot, snapInsideWindow } from '../../src/tools/shared/planeTouch.js';
+import { FINGER_CLEARANCE_PX, FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot, snapInsideWindow } from '../../src/tools/shared/planeTouch.js';
 import { planeFontSize } from '../../src/tools/shared/planeTextScale.js';
 import { clientPointToGraphCoordinate, viewBoxRenderScale } from '../../src/utils/responsiveCoordinates.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -282,4 +282,106 @@ test('the plane\'s keys go through that rule: the arrows, the first key and Ente
   assert.doesNotMatch(move, /clamp\(tidy\(base/, 'no longer clamped to the window\'s edge');
   const enter = region(region(plane, 'const handleKeyDown = (event) => {', '\n  };', 'the plane\'s keys'), "case 'Enter':", "case 'Escape':", 'Enter');
   assert.match(enter, /const target = keyboardSpot\(keyboardCursor \|\| \[0, 0\]\);\s*setKeyboardCursor\(target\);/, 'Enter plots where the crosshair stands, on the grid');
+});
+
+/* ---------- what a press picks up ---------- */
+
+// The plane's own drawing units, as CoordinatePlane draws a 560x380 plane with 42 of padding.
+const unitsAcross = (view) => (VIEW.width - 2 * VIEW.pad) / (view.xMax - view.xMin);
+const unitsUp = (view) => (VIEW.height - 2 * VIEW.pad) / (view.yMax - view.yMin);
+const AUTHORED = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+
+test('a press on the grid point just above or below a placed point places a new point: why the pick-up is no longer 18 drawing units', () => {
+  // On a -10 to 10 grid a row is 14.8 drawing units and a column 23.8. The
+  // pick-up was any point within 18 units of the (already snapped) press, so
+  // the grid points above and below a point picked it up, and the press moved
+  // the point there instead of placing a second one.
+  assert.equal(Number(unitsUp(AUTHORED).toFixed(6)), 14.8);
+  assert.ok(unitsUp(AUTHORED) <= 18 && unitsAcross(AUTHORED) > 18, 'the old 18 reached the rows above and below, not the columns beside');
+  const placed = [2, 3];
+  for (let dx = -2; dx <= 2; dx += 1) {
+    for (let dy = -2; dy <= 2; dy += 1) {
+      const press = [placed[0] + dx, placed[1] + dy];
+      assert.equal(pressPicksUpPoint(press, placed, 1), dx === 0 && dy === 0, `a press on (${press}) ${dx || dy ? 'places a new point' : 'picks (2, 3) up'}`);
+    }
+  }
+  // Half steps: the same, a half step apart.
+  assert.equal(pressPicksUpPoint([2, 3.5], [2, 3], 0.5), false);
+  assert.equal(pressPicksUpPoint([2, 3], [2, 3], 0.5), true);
+});
+
+test('a point between grid lines is picked up from a grid point nearest it, and from no other', () => {
+  // A tool can hand the plane a movable point off its grid.
+  const lattice = [];
+  for (let x = -1; x <= 5; x += 1) for (let y = 0; y <= 7; y += 1) lattice.push([x, y]);
+  for (const point of [[2.3, 3.6], [2.5, 3], [2.5, 3.5], [1.9, 4.05]]) {
+    const nearest = Math.min(...lattice.map(([x, y]) => Math.max(Math.abs(x - point[0]), Math.abs(y - point[1]))));
+    for (const press of lattice) {
+      const distance = Math.max(Math.abs(press[0] - point[0]), Math.abs(press[1] - point[1]));
+      assert.equal(pressPicksUpPoint(press, point, 1), distance <= nearest + 1e-9, `(${point}) from (${press})`);
+    }
+  }
+  assert.deepEqual(lattice.filter((press) => pressPicksUpPoint(press, [2.5, 3], 1)), [[2, 3], [3, 3]], 'a tie: both nearest grid points');
+});
+
+// A plane drawn `cssWidth` CSS px wide, showing `view`: where a press at an
+// offset from a grid point lands, as graphPointFromEvent gives it (a finger's
+// reach and window snap; a mouse's plain rounding is the same away from the edges).
+const planeDrawn = (cssWidth, view) => {
+  const rect = { left: 0, top: 0, width: cssWidth, height: (cssWidth * VIEW.height) / VIEW.width };
+  const scale = viewBoxRenderScale({ rect, viewBoxWidth: VIEW.width, viewBoxHeight: VIEW.height });
+  const css = ([x, y]) => [(VIEW.pad + (x - view.xMin) * unitsAcross(view)) * scale, (VIEW.height - VIEW.pad - (y - view.yMin) * unitsUp(view)) * scale];
+  const pressAt = ([cx, cy]) => {
+    const at = clientPointToGraphCoordinate({ clientX: cx, clientY: cy, rect, viewBoxWidth: VIEW.width, viewBoxHeight: VIEW.height, padding: VIEW.pad, ...view, reach: FINGER_REACH_PX / scale });
+    return at && [snapInsideWindow(at.x, 1, view.xMin, view.xMax), snapInsideWindow(at.y, 1, view.yMin, view.yMax)];
+  };
+  return { css, pressAt, cell: [unitsAcross(view) * scale, unitsUp(view) * scale] };
+};
+
+test('the pick-up target is the point\'s whole grid cell: the touch minimum wherever a cell is that large, and never another grid point', () => {
+  const touchHalf = 44 / 2;
+  const planes = [
+    ['a 390 px phone', 302, AUTHORED],
+    ['a laptop', 560, AUTHORED],
+    ['a laptop, zoomed in three times', 560, zoomed(AUTHORED, 3)],
+    ['a large screen, zoomed in three times', 900, zoomed(AUTHORED, 3)],
+  ];
+  for (const [name, width, view] of planes) {
+    const plane = planeDrawn(width, view);
+    const placed = [1, 1];
+    const [px, py] = plane.css(placed);
+    const reach = { left: 0, right: 0, up: 0, down: 0 };
+    for (let ox = -70; ox <= 70; ox += 0.5) {
+      for (let oy = -70; oy <= 70; oy += 0.5) {
+        const press = plane.pressAt([px + ox, py + oy]);
+        if (!press) continue;
+        const landedOnIt = press[0] === placed[0] && press[1] === placed[1];
+        // Every press the plane shows on the point's grid point picks it up; no other press does.
+        assert.equal(pressPicksUpPoint(press, placed, 1), landedOnIt, `${name}: a press ${ox}, ${oy} px from the point, on (${press})`);
+        if (landedOnIt && oy === 0) { reach.right = Math.max(reach.right, ox); reach.left = Math.max(reach.left, -ox); }
+        if (landedOnIt && ox === 0) { reach.down = Math.max(reach.down, oy); reach.up = Math.max(reach.up, -oy); }
+      }
+    }
+    // As large as the grid allows: half a cell each way (to the half pixel swept).
+    const [across, up] = plane.cell;
+    for (const side of ['left', 'right']) assert.ok(reach[side] >= Math.min(across / 2, 70) - 0.5, `${name}: ${reach[side]} px to the ${side}, the cell is ${across.toFixed(1)} px`);
+    for (const side of ['up', 'down']) assert.ok(reach[side] >= Math.min(up / 2, 70) - 0.5, `${name}: ${reach[side]} px ${side}, the cell is ${up.toFixed(1)} px`);
+    // And at least the touch minimum wherever the cell is that large.
+    if (across >= 44) for (const side of ['left', 'right']) assert.ok(reach[side] >= touchHalf, `${name}: the touch minimum across`);
+    if (up >= 44) for (const side of ['up', 'down']) assert.ok(reach[side] >= touchHalf, `${name}: the touch minimum up and down`);
+  }
+  // The large screen zoomed in has room for the touch minimum both ways, and gives it.
+  const large = planeDrawn(900, zoomed(AUTHORED, 3));
+  assert.ok(large.cell[0] >= 44 && large.cell[1] >= 44, `cells of ${large.cell.map((n) => n.toFixed(1))} px`);
+});
+
+test('the plane picks a point up by that rule, the nearest of those it allows, and by no fixed radius', () => {
+  const pickUp = region(plane, 'const pointIndexNear = (graphPoint) => {', '\n  };', 'the pick-up');
+  assert.match(pickUp, /if \(point\?\.movable === false \|\| point\?\.marker\) return;/, 'only the student\'s own points');
+  assert.match(pickUp, /if \(!pressPicksUpPoint\(graphPoint, \[px, py\], minorStep\)\) return;/, 'only a point on the press\'s grid point');
+  assert.match(pickUp, /if \(distance < bestDistance\) \{ bestDistance = distance; best = index; \}\s*\}\);\s*return best;/, 'the nearer of two on one grid point');
+  assert.doesNotMatch(plane, /HIT_RADIUS|bestDistance <= /, 'no fixed reach left');
+  // Asked with the press as the plane shows it: snapped first, by a press and by Enter.
+  assert.match(region(plane, 'const handlePointerDown = (event) => {', 'const handlePointerMove', 'a press'), /const point = graphPointFromEvent\(event\);[\s\S]*setDragIndex\(pointIndexNear\(point\)\);/);
+  assert.match(region(plane, "case 'Enter':", "case 'Escape':", 'Enter'), /const target = keyboardSpot\(keyboardCursor \|\| \[0, 0\]\);[\s\S]*pointIndexNear\(target\)/);
 });

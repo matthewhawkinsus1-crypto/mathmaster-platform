@@ -22,6 +22,9 @@
 //              it is never given a point off the window; a mouse keeps the
 //              chip beside the cursor and a click outside the grid does
 //              nothing (N60)
+//   pickUp     on the -10 to 10 grid, a press on the grid point just above or
+//              below a placed point places a new point; a press on the point
+//              itself still picks it up (Chromebook by mouse, phone by touch)
 //   zoomedKeyboard  zoomed in, the keyboard's crosshair stops at the last grid
 //              line inside the window and Enter plots it there, not at the
 //              window's edge between grid lines; zoomed out it stops at the
@@ -823,6 +826,55 @@ const phonePrecision = async () => {
   check((await chips(laptop)).join(' | ') === 'Point 1 (4, 5) | Point 2: plot it on the graph', 'phonePrecision (mouse): a click outside the grid does nothing, as before', (await chips(laptop)).join(' | '));
 };
 
+/* ------------------------------------------------- what a press picks up */
+
+// Found by N60, on laptops too: on a -10 to 10 grid a row is 14.8 drawing
+// units, closer than the old 18-unit pick-up, so a press on the grid point
+// just above or below a placed point picked that point up and moved it there.
+// A press on another grid point places a new point; only the point's own grid
+// point picks it up (planeTouch.js, pressPicksUpPoint).
+const WIDE = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+const pickUp = async (viewport, touch) => {
+  const where = touch ? 'phone' : 'Chromebook';
+  const page = await open('wide', { viewport, touch });
+  const cdp = touch ? await page.context().newCDPSession(page) : null;
+  // A press by finger or mouse, `nudge` CSS px off a grid point, lifted there or slid to another.
+  const pressAt = async (point, { nudge = [0, 0], slideTo = null } = {}) => {
+    const [x, y] = await svgPoint(page, point, WIDE);
+    const from = [x + nudge[0], y + nudge[1]];
+    const to = slideTo ? await svgPoint(page, slideTo, WIDE) : from;
+    const path = [1, 2, 3, 4].map((step) => [from[0] + ((to[0] - from[0]) * step) / 4, from[1] + ((to[1] - from[1]) * step) / 4]);
+    if (touch) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from[0], y: from[1], id: 1 }] });
+      await settle(page, 80);
+      for (const at of path) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: at[0], y: at[1], id: 1 }] });
+        await settle(page, 40);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else {
+      await page.mouse.move(from[0], from[1]);
+      await page.mouse.down();
+      for (const at of path) await page.mouse.move(at[0], at[1]);
+      await page.mouse.up();
+    }
+    await settle(page, 250);
+  };
+  const said = async () => (await chips(page)).join(' | ');
+  await pressAt([2, 3]);
+  check(await said() === 'Point 1 (2, 3) | Point 2: plot it on the graph', `pickUp (${where}): the first point`, await said());
+  await pressAt([2, 4]);
+  check(await said() === 'Point 1 (2, 3) | Point 2 (2, 4)', `pickUp (${where}): a press on the grid point just above a placed point places a new point`, await said());
+  await page.getByRole('button', { name: /^Remove point 2 / }).click();
+  await settle(page, 200);
+  await pressAt([2, 2]);
+  check(await said() === 'Point 1 (2, 3) | Point 2 (2, 2)', `pickUp (${where}): and so does the one just below`, await said());
+  // A press on the point, a little off its centre (inside its grid cell), still picks it up.
+  await pressAt([2, 3], { nudge: [2, -2], slideTo: [-1, 0] });
+  check(await said() === 'Point 1 (−1, 0) | Point 2 (2, 2)', `pickUp (${where}): a press on the point itself picks it up, and the slide moves it`, await said());
+  await cdp?.detach().catch(() => {});
+};
+
 /* ------------------------------------------------- the keyboard, zoomed */
 
 // Found by N60, on laptops too: two presses of Zoom in end the build grid's
@@ -870,6 +922,10 @@ const SCENARIOS = {
   journey: () => scenario('journey', () => fullJourney('journey', { viewport: CHROMEBOOK, touch: false })),
   phone: () => scenario('phone', () => fullJourney('phone', { viewport: PHONE, touch: true })),
   phonePrecision: () => scenario('phonePrecision', phonePrecision),
+  pickUp: async () => {
+    await scenario('pickUp', () => pickUp(CHROMEBOOK, false));
+    await scenario('pickUp phone', () => pickUp(PHONE, true));
+  },
   zoomedKeyboard: async () => {
     await scenario('zoomedKeyboard', () => zoomedKeyboard(CHROMEBOOK, false));
     await scenario('zoomedKeyboard phone', () => zoomedKeyboard(PHONE, true));

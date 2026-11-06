@@ -14,7 +14,7 @@ import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
-import { FINGER_REACH_PX, keyboardGridPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
+import { FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
@@ -469,8 +469,12 @@ export default function CoordinatePlane({
   // instead of dropping it to the page (A11Y-2).
   const resetViewAvailability = useFocusSafeDisabled(Boolean(view));
 
-  const HIT_RADIUS = 18;
-
+  // WHICH POINT A PRESS PICKS UP (planeTouch.js). `graphPoint` is already on
+  // the grid, and it picks up only a point whose own grid point it is (the
+  // nearest one, for a point between grid lines); a press on another grid
+  // point places a new point. A fixed 18 drawing units reached the rows above
+  // and below on a −10 to 10 grid (14.8 apart), so a press there moved the
+  // point instead. Two points on one grid point: the nearer.
   const pointIndexNear = (graphPoint) => {
     if (!canMovePoints || !graphPoint) return null;
     let best = null;
@@ -479,10 +483,11 @@ export default function CoordinatePlane({
       if (point?.movable === false || point?.marker) return;
       const [px, py] = pointXY(point);
       if (!Number.isFinite(px) || !Number.isFinite(py)) return;
+      if (!pressPicksUpPoint(graphPoint, [px, py], minorStep)) return;
       const distance = Math.hypot(sx(px) - sx(graphPoint[0]), sy(py) - sy(graphPoint[1]));
       if (distance < bestDistance) { bestDistance = distance; best = index; }
     });
-    return bestDistance <= HIT_RADIUS ? best : null;
+    return best;
   };
 
   const handlePointerDown = (event) => {

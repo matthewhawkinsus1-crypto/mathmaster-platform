@@ -65,6 +65,17 @@ export const FIXTURES = {
     reasoning: { classifyRegion: true },
     graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
   }),
+  // The same system on the -10 to 10 grid Algebra I M3 T2 L4 and L5 use, where
+  // a row is closer than the old pick-up reach (the plane's pick-up, N60).
+  wide: () => sw({
+    questionId: 'studio-wide',
+    mode: 'inequalities',
+    prompt: 'Graph the system y ≥ x + 1 and y < −0.5x + 6. Then classify the solution region.',
+    inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<' }],
+    studentBuild: { boundary: true, lineStyle: true, shading: true },
+    reasoning: { classifyRegion: true },
+    graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+  }),
   // Three sloped boundaries, every one plotted from two grid points, around a
   // triangle whose corners are grid points too: the whole journey, test point
   // and corners included, can be worked from the keyboard (AX32).
