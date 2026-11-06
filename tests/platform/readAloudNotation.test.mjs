@@ -54,7 +54,7 @@ test('a logarithm\'s base written as text is "log base", as LaTeX\'s \\log_2 is'
   assert.equal(speechTextFor('log₂8 = 3'), 'log base 2 of 8 equals 3', 'it was "log sub 28"');
   // An argument of more than one term is a quantity; with no argument, the
   // next word is not taken for one.
-  assert.equal(speechTextFor('p(x) = log₂(x − 3) − 4'), 'p of x equals log base 2 of the quantity x minus 3 minus 4');
+  assert.equal(speechTextFor('p(x) = log₂(x − 3) − 4'), 'p of x equals log base 2 of the quantity x minus 3 end quantity minus 4', 'its end said (item 10)');
   assert.equal(speechTextFor('log₂ is the inverse of 2ˣ.'), 'log base 2 is the inverse of 2 to the power x.');
   // LaTeX: a decimal base (the graph's own label), a spaced brace, and a bare
   // base followed by its argument.
@@ -249,7 +249,7 @@ test('a log with no base is "log of", and ln is "natural log of"', () => {
   assert.equal(speechTextFor('y = ln x'), 'y equals natural log of x');
   assert.equal(speechTextFor('log 100 = 2'), 'log of 100 equals 2');
   // An argument of more than one term is a quantity, typed or in LaTeX.
-  assert.equal(speechTextFor('g(x) = log(x + 2) − 1'), 'g of x equals log of the quantity x plus 2 minus 1');
+  assert.equal(speechTextFor('g(x) = log(x + 2) − 1'), 'g of x equals log of the quantity x plus 2 end quantity minus 1');
   assert.equal(mathToSpeech('\\log(x+2)'), 'log of the quantity x plus 2', 'it was "log x plus 2"');
   assert.equal(mathToSpeech('y=\\log(x-(-2))+3'), 'y equals log of the quantity x minus the quantity negative 2 plus 3', 'a bracket inside the argument');
   assert.equal(mathToSpeech('\\log_{0.5}(x-3)'), 'log base 0.5 of the quantity x minus 3', 'it was "log base 0.5 of x minus 3"');

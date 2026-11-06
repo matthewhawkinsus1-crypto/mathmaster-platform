@@ -9,14 +9,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
+import { maskMath, segmentMathText } from '../../src/platform/language/mathSafeText.js';
 
 test('absolute value: a coefficient is "times", and a multi-term inside ends where more follows', () => {
   assert.equal(mathToSpeech('g(x) = 2|x - 2| - 4'), 'g of x equals 2 times the absolute value of x minus 2 end absolute value minus 4');
   assert.equal(mathToSpeech('|2x-5|=7'), 'the absolute value of 2x minus 5 end absolute value equals 7');
   assert.equal(mathToSpeech('-2\\left|x+1\\right|+3'), 'negative 2 times the absolute value of x plus 1 end absolute value plus 3');
-  // Nothing to close at the end, and one term needs no end.
+  // Nothing to close at the end. One term ends too where more follows
+  // (math-speech-2, item 11: "|−3| − 3" was heard as |−3 − 3|).
   assert.equal(speechTextFor('If 3 < x ≤ 7, what is |x - 5|?'), 'If 3 is less than x is less than or equal to 7, what is the absolute value of x minus 5?');
-  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x plus the quantity 2');
+  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x end absolute value plus the quantity 2');
   assert.equal(mathToSpeech('2|x-2|-4', { language: 'es' }), '2 por el valor absoluto de x menos 2 fin del valor absoluto menos 4');
 });
 
@@ -28,8 +30,8 @@ test('a function input of more than one term ends at a pause where more follows'
 
 test('no term keeps a hyphen, whatever sign comes after it', () => {
   assert.equal(mathToSpeech('x-7-\\frac{50}{x-5}'), 'x minus 7 minus the fraction 50 over x minus 5 end fraction');
-  assert.equal(mathToSpeech('(3a^2-4a+2)+(a^2+5a-7)'), 'the quantity 3a squared minus 4a plus 2 plus the quantity a squared plus 5a minus 7');
-  assert.equal(mathToSpeech('y = -(x-3) - 2'), 'y equals negative the quantity x minus 3 minus 2');
+  assert.equal(mathToSpeech('(3a^2-4a+2)+(a^2+5a-7)'), 'the quantity 3a squared minus 4a plus 2 end quantity plus the quantity a squared plus 5a minus 7');
+  assert.equal(mathToSpeech('y = -(x-3) - 2'), 'y equals negative the quantity x minus 3 end quantity minus 2');
   assert.equal(mathToSpeech('3 - -2'), '3 minus negative 2');
 });
 
@@ -101,5 +103,40 @@ test('(fg)(x) is the product of two functions, applied: "f times g of x" (AX20)'
   assert.equal(mathToSpeech('(fg)(x)', { language: 'es' }), 'f por g de x');
   // A bracket that is not two function names is still a quantity.
   assert.equal(mathToSpeech('(ab)(c)'), 'the quantity ab times the quantity c');
-  assert.equal(mathToSpeech('(x+1)(x-2)'), 'the quantity x plus 1 times the quantity x minus 2');
+  assert.equal(mathToSpeech('(x+1)(x-2)'), 'the quantity x plus 1 end quantity times the quantity x minus 2', 'where the first closes is said (item 10)');
+});
+
+// Module 2 walkthrough (math-speech-2, item 10): where a bracket closed was
+// never said, so "(0.002x² + 4x + 350) − 12x" sounded like one quantity.
+test('where a quantity of more than one term closes is said when more follows', () => {
+  assert.equal(speechTextFor('P(x) = (0.002x² + 4x + 350) − 12x'), 'P of x equals the quantity 0.002x squared plus 4x plus 350 end quantity minus 12x');
+  assert.notEqual(speechTextFor('(0.002x² + 4x + 350) − 12x'), speechTextFor('(0.002x² + 4x + 350 − 12x)'));
+  assert.equal(speechTextFor('(x − 3)/2 + 1'), 'the quantity x minus 3 end quantity over 2 plus 1');
+  assert.equal(speechTextFor('(x + 2)(x + 3) = 0'), 'the quantity x plus 2 end quantity times the quantity x plus 3 equals 0');
+  // Nothing more, a relation, or the bracket's own power: read as before.
+  assert.equal(speechTextFor('4(3x + 2) = 8x + 4'), '4 times the quantity 3x plus 2 equals 8x plus 4');
+  assert.equal(speechTextFor('(x + 1)² + 3'), 'the quantity x plus 1, squared plus 3');
+  assert.equal(speechTextFor('Simplify (x + 4).'), 'Simplify the quantity x plus 4.');
+  // One term in a bracket is read as before.
+  assert.equal(speechTextFor('y = (1/2)x − 3'), 'y equals the quantity 1 over 2 x minus 3');
+  assert.equal(speechTextFor('6(4) + 4'), '6 times the quantity 4 plus 4');
+  assert.equal(speechTextFor('(−3) + 2'), 'the quantity negative 3 plus 2');
+  assert.equal(speechTextFor('(x − 3)/2 + 1', { language: 'es' }), 'la cantidad x menos 3 fin de la cantidad sobre 2 más 1');
+});
+
+// Module 2 and DOL 2 review walkthrough (item 11): bars were paired wrongly
+// where a two-letter product or a "½" split the mathematics ("|bx| = |b|·|x|"
+// was "| bx the absolute value of equals b times …"), and one term never said
+// where its bars closed ("|−3| − 3" was heard as |−3 − 3|).
+test('absolute-value bars are read as a pair, and their end is said where more follows', () => {
+  assert.equal(speechTextFor('For |x|, |bx| = |b|·|x|.'), 'For the absolute value of x, the absolute value of bx equals the absolute value of b end absolute value times the absolute value of x.');
+  assert.match(speechTextFor('Equivalently, |½(x − 4)| = ½|x − 4|.'), /^Equivalently, the absolute value of ½ the quantity x minus 4 end absolute value equals /);
+  assert.equal(speechTextFor('f(−5) = |−3| − 3 = 0.'), 'f of negative 5 equals the absolute value of negative 3 end absolute value minus 3 equals 0.');
+  assert.equal(mathToSpeech('\\ln|x|'), 'natural log of the absolute value of x', 'no "times" after "of"');
+  // A relation or the end needs no end.
+  assert.equal(speechTextFor('|x| = 3'), 'the absolute value of x equals 3');
+  assert.equal(speechTextFor('f(−5) = |−3| − 3 = 0.', { language: 'es' }), 'f de negativo 5 es igual a el valor absoluto de negativo 3 fin del valor absoluto menos 3 es igual a 0.');
+  // Only Read aloud's split takes the bars whole: Translate's is unchanged.
+  assert.deepEqual(segmentMathText('|bx| = 2', { speech: true }).map((segment) => segment.kind), ['math']);
+  assert.equal(maskMath('For |x|, |bx| = |b|·|x|.').masked, 'For ⟦0⟧, ⟦1⟧bx⟦2⟧.');
 });

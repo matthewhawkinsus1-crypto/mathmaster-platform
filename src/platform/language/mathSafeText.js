@@ -107,6 +107,13 @@ const groupIsMath = (inner, operator = OPERATOR) => {
 
 const OPENERS = new Set(['(', '[']);
 
+// Read aloud: what a pair of bars holds is mathematics when it has a letter or
+// a digit, no word (a run of three letters or more that is not a function's
+// name) and no punctuation but a decimal point: |bx|, |½(x − 4)|, |5b⁷k⁵|.
+const barGroupIsMath = (inner) => /[\p{L}\p{N}]/u.test(inner)
+  && (inner.match(/\p{L}+/gu) || []).every((word) => word.length <= 2 || NAMED_FUNCTIONS.has(word.toLowerCase()))
+  && !/[,;:?!]|\.(?!\d)/.test(inner);
+
 /** The matching close for the bracket at `start`, or -1. Same line only. */
 const matchingClose = (text, start) => {
   let depth = 0;
@@ -168,6 +175,19 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
       if (OPENERS.has(char)) {
         const close = matchingClose(chunk, index);
         if (close > index && groupIsMath(chunk.slice(index + 1, close), operator)) {
+          atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
+          index = close + 1;
+          continue;
+        }
+      }
+      // Read aloud only: a pair of bars is one piece, as a bracket group is. A
+      // two-letter product or a "½" inside split the run, and the reader then
+      // paired the wrong bars: "|bx| = |b|·|x|" was "| bx the absolute value
+      // of equals b times …" (math-speech-2, item 11).
+      if (speech && char === '|') {
+        const close = chunk.indexOf('|', index + 1);
+        const inner = close > index ? chunk.slice(index + 1, close) : '';
+        if (inner && !inner.includes('\n') && barGroupIsMath(inner)) {
           atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
           index = close + 1;
           continue;

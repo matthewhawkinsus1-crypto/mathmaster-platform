@@ -58,6 +58,8 @@ const WORDS = {
     },
     // A bare unit after a quantity: "Cost ($)" is "Cost in dollars".
     units: { dollars: 'in dollars' },
+    // Where a bracket of more than one term closes, when more follows.
+    endQuantity: 'end quantity',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -97,6 +99,7 @@ const WORDS = {
       goesInto: 'entra en', replacedBy: 'se reemplaza por', correspondsTo: `corresponde a${ARROW_A}`, iff: 'si y solo si', implies: 'implica',
     },
     units: { dollars: 'en dólares' },
+    endQuantity: 'fin de la cantidad',
   },
 };
 
@@ -178,6 +181,38 @@ const MATRIX_ENVIRONMENT = /\\begin\{([bpvBV]?matrix|smallmatrix|array)\}(?:\{[^
 const PAUSE = '\uE003';
 const moreMathFollows = (offset, whole, match) => typeof whole === 'string'
   && /[^\s.,;:?!)\]]/.test(whole.slice(offset + match.length));
+
+/*
+ * WHERE A QUANTITY ENDS (math-speech-2, item 10). "(0.002x\u00B2 + 4x + 350) \u2212 12x"
+ * sounded the same as "(0.002x\u00B2 + 4x + 350 \u2212 12x)": where the bracket closed
+ * was never said. A bracket of more than one term that more of the expression
+ * follows (a sign, "times", "over") now ends with "end quantity", as a
+ * fraction, a root and the bars already end. One that ends the expression, or
+ * that a relation ("= 0") or its own power (", squared") follows, is read as
+ * before, so plain speech is no longer than it was. Called just before every
+ * remaining "(" becomes "the quantity"; the mark is said at the very end, so
+ * a "\u2212" after it is still "minus".
+ */
+const QUANTITY_END = '\uE005';
+const markQuantityEnds = (text, w, operatorWords) => {
+  const words = [w.times, w.plus, w.over, w.divided, w.pm].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const continues = new RegExp(`^\\s*(?:[−\\-+×·÷*/]|(?:${words.join('|')})(?=\\s|$))`);
+  // More than one term: a "plus", or a minus between two terms (not a sign after an operator word).
+  const terms = new RegExp(`(?:^|\\s)${words[1]}(?=\\s|$)`);
+  const binaryMinus = (inner) => [...inner.matchAll(/(\S+)\s*[\u2212-]\s*(?=\S)/g)]
+    .some(([, before]) => /[\p{L}\p{N})\]]$/u.test(before) && !operatorWords.includes(before));
+  const ends = [];
+  const open = [];
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') open.push(index);
+    else if (text[index] === ')' && open.length) {
+      const start = open.pop();
+      const inner = text.slice(start + 1, index);
+      if ((terms.test(inner) || binaryMinus(inner)) && continues.test(text.slice(index + 1))) ends.push(index + 1);
+    }
+  }
+  return ends.reverse().reduce((out, at) => `${out.slice(0, at)}${QUANTITY_END}${out.slice(at)}`, text);
+};
 const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
   // An operator after the first character: f(−3) is one term, f(x − 3) is two.
   // An inner application already read ("d of 2" in c(d(2))) is one term.
@@ -433,9 +468,16 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     // |x − 2|: "times" after a coefficient (2|x − 2| was "2 the absolute value
     // of"), and an end where more follows a multi-term inside, so 2|x − 2| − 4
     // is not heard as 2|x − 2 − 4| (walkthrough 2026-10-22).
+    // One term inside ends too where a sign, a product or a power follows:
+    // "|−3| − 3" was heard as |−3 − 3|, "|b|·|x|" as |b·|x|| (math-speech-2,
+    // item 11). A relation or the end needs none ("|x| = 3"). No "times"
+    // after a word already said: "log base 2 of |x|" was "of times …".
     .replace(/\|([^|]+)\|/g, (match, body, offset, whole) => {
-      const coefficient = /[A-Za-z0-9)]$/.test(whole.slice(0, offset).trimEnd());
-      const ends = /.[\s+\-−*/·=<>]/.test(body.trim()) && moreMathFollows(offset, whole, match);
+      const before = whole.slice(0, offset).trimEnd();
+      const coefficient = /[A-Za-z0-9)½⅓⅔¼¾]$/.test(before) && !operatorWords.includes(before.split(/\s+/).pop());
+      const ends = /.[\s+\-−*/·=<>]/.test(body.trim())
+        ? moreMathFollows(offset, whole, match)
+        : /^\s*(?:[+\-−*/·×÷^√∛∜(|]|[\p{L}\p{N}])/u.test(whole.slice(offset + match.length));
       return ` ${coefficient ? `${w.times} ` : ''}${w.abs} ${body} ${ends ? `${w.endAbs} ` : ''}`;
     })
     // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
@@ -504,7 +546,8 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')
     .replace(/([\p{L}0-9]+)\s*\(/gu, (match, token) => (operatorWords.includes(token) ? `${token} (` : `${token}\uE000(`))
-    .replace(/\uE000/g, ` ${w.times} `)
+    .replace(/\uE000/g, ` ${w.times} `);
+  text = markQuantityEnds(text, w, operatorWords)
     .replace(/\(/g, ` ${w.quantity} `);
   // A minus sign is "negative" where it starts a quantity (start, after an
   // operator word or an opening bracket) and "minus" between two quantities.
@@ -516,7 +559,7 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     const unary = !previous || /[(,[;:]$/.test(previous) || operatorWords.includes(previous);
     return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
   });
-  return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',');
+  return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',').replace(new RegExp(QUANTITY_END, 'g'), ` ${w.endQuantity} `);
 };
 
 /*
