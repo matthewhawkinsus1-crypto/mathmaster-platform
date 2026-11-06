@@ -628,8 +628,18 @@ export default function CoordinatePlane({
    * interactive plane does not resample every curve. Marks a tool draws itself
    * as `children` cannot be read from data, and the text says so rather than
    * pretending the list is complete.
+   *
+   * ONLY MARKS THAT ARE DRAWN (AX05, slice 4). A drawing that draws nothing is
+   * no marks: a Path stimulus hands over its curves' drawing function whether
+   * it has a curve or not, and every stimulus graph said "It also shows marks
+   * drawn by the activity that are not listed here." The drawing is made once,
+   * here, and the svg below draws the same. A tool that says in its own words
+   * what it draws (`toolMarks`) is heard whenever it hands over a drawing, an
+   * empty one too: "No region is shaded yet." is what it shows.
    */
-  const hasToolMarks = typeof children === 'function' || React.Children.toArray(children).length > 0;
+  const toolDrawing = typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children;
+  const toolDraws = React.Children.toArray(toolDrawing).length > 0;
+  const hasToolMarks = toolDraws || (Boolean(toolMarks) && typeof children === 'function');
   const describedPoints = orNone(points);
   const describedLines = orNone(lines);
   const describedFunctions = useStableFunctions(orNone(functions), xMin, xMax);
@@ -1087,8 +1097,9 @@ export default function CoordinatePlane({
         })}
 
         {/* A tool drawing its own lines or curves passes `plotClip` as their
-            clipPath so they stop at the plotting rectangle too. */}
-        {typeof children === 'function' ? children({ sx, sy, pad, innerW, innerH, width, height, plotClip }) : children}
+            clipPath so they stop at the plotting rectangle too. Drawn above,
+            once, where the description learns whether it holds a mark. */}
+        {toolDrawing}
       </svg>
       {axisTitles.x ? (
         <span className="mathmaster-plane-axis-title" data-plane-axis-title="x" aria-hidden="true" style={{ ...AXIS_TITLE, margin: '4px 0 0', textAlign: 'right' }}>

@@ -26,7 +26,9 @@
  *           region corners and the sideways parabola are said in Spanish. In
  *           slice 4 a figure's name is a message too: its aria-label and the
  *           name Read aloud says first are Spanish, the element marked
- *           lang="es"; an author's own name stays as written.
+ *           lang="es"; an author's own name stays as written. And a plane
+ *           says it shows marks the activity drew only where it drew some,
+ *           in both languages.
  *
  * The browser half: tests/browser/readAloudTranslate.mjs (the real DOL graph,
  * the 3D model and the graph workspace, with an authored Spanish prompt).
@@ -781,6 +783,7 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
   const stimuli = seed.documents.flatMap((doc) => (doc.variants || []).filter((variant) => variant.stimulus?.graph).map((variant, index) => [`${doc.id} v${index}`, variant.stimulus]));
   assert.ok(stimuli.length >= 300, `${stimuli.length} secure stimulus graphs`);
   let withheld = 0;
+  let drawn = 0;
   stimuli.forEach(([where, stimulus]) => {
     const render = (readOut, words) => capture.render(React.createElement(GraphReadOutProvider, { enabled: readOut },
       React.createElement(FigureWordsProvider, { pack: words }, React.createElement(PathQuestionStimulus, { stimulus }))));
@@ -790,6 +793,12 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
     const described = descriptionIn(spanish.markup, PLANE, `${where} (Spanish)`);
     assert.deepEqual([plain.lang, described.lang], [null, 'es'], where);
     sameNumbers(plain.text, described.text, where);
+    // "Marks drawn by the activity" only where the stimulus drew one, a
+    // curve, in both languages (slice 4: every stimulus said it before).
+    const drawsCurve = (stimulus.graph.curves || []).some((curve) => (curve?.points || []).length >= 2);
+    assert.equal(plain.text.includes('It also shows marks drawn by the activity that are not listed here.'), drawsCurve, `${where}: English (${plain.text})`);
+    assert.equal(described.text.includes('También muestra marcas que dibuja la actividad y que no se describen aquí.'), drawsCurve, `${where}: Spanish (${described.text})`);
+    drawn += drawsCurve ? 1 : 0;
     // While it can be answered: no position, in either language, and the
     // positions held back where the English holds them back.
     assert.doesNotMatch(described.text, POSITIONS_ES, `${where}: ${described.text}`);
@@ -815,6 +824,8 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
   // Measured: 320 of 384; the others draw only a curve, as marks the plane
   // does not read, and say no position in either language.
   assert.ok(withheld >= 300, `${withheld} of ${stimuli.length} hold their positions back`);
+  // Measured: 192 of 384 draw a curve; the other half draw none.
+  assert.ok(drawn >= 150 && stimuli.length - drawn >= 150, `${drawn} of ${stimuli.length} draw a curve`);
 });
 
 test('a description the Spanish words cannot say all of stays English, with no lang', async () => {
@@ -996,6 +1007,61 @@ test('the Systems Workspace\'s planes are named in Spanish, and Read aloud says 
     // In English, Read aloud says the name as the plane always gave it.
     const englishPart = questionReadingParts({ prompt: 'Graph it.' }, { figures: [entry] }).find((candidate) => candidate.kind === 'figure');
     assert.equal(englishPart.label, english.replace(/\. Click to plot[\s\S]*$/, ''), `${where}: the English name`);
+  }
+});
+
+/*
+ * MARKS THE ACTIVITY DREW, ONLY WHERE IT DREW SOME (slice 4). A Path stimulus
+ * hands the plane a drawing function for its curves whether it has a curve or
+ * not, so every stimulus graph said "It also shows marks drawn by the activity
+ * that are not listed here." The plane says it only when the drawing holds a
+ * mark, in English and in Spanish. A tool that says in its own words what it
+ * draws is heard as before, drawn or not ("No region is shaded yet.").
+ */
+test('"marks drawn by the activity" is said only where the activity drew marks, in English and in Spanish', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: PathQuestionStimulus } = await capture.load('/src/components/student/PathQuestionStimulus.jsx');
+  const { default: CoordinatePlane } = await capture.load('/src/tools/shared/CoordinatePlane.jsx');
+  const PLANE = /<p id="(mm-plane-desc-[^"]+)"([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/;
+  const EN = 'It also shows marks drawn by the activity that are not listed here.';
+  const ES = 'También muestra marcas que dibuja la actividad y que no se describen aquí.';
+  const both = (figure, where) => [
+    descriptionIn(capture.render(figure).markup, PLANE, `${where} (English)`).text,
+    descriptionIn(capture.render(React.createElement(FigureWordsProvider, { pack: esFigures }, figure)).markup, PLANE, `${where} (Spanish)`).text,
+  ];
+  // A stimulus line and no curve: nothing else is drawn, and nothing more is said.
+  const line = { xMin: -6, xMax: 6, yMin: -6, yMax: 6, lines: [{ points: [{ x: -4, y: -2 }, { x: 4, y: 2 }] }] };
+  assert.deepEqual(both(React.createElement(PathQuestionStimulus, { stimulus: { graph: line } }), 'a line'), [
+    'x from −6 to 6, y from −6 to 6. 1 line. Positions are not read out while this question can be answered.',
+    'El eje x va de −6 a 6 y el eje y, de −6 a 6. 1 recta. Las posiciones no se leen mientras se pueda responder esta pregunta.',
+  ]);
+  // A curve it draws itself: drawn, and said, in both languages.
+  const curved = { ...line, curves: [{ points: [{ x: -4, y: 0 }, { x: 0, y: 3 }, { x: 4, y: 0 }] }] };
+  assert.equal((capture.render(React.createElement(PathQuestionStimulus, { stimulus: { graph: curved } })).markup.match(/<polyline\b/g) || []).length, 1, 'the curve is drawn');
+  assert.deepEqual(both(React.createElement(PathQuestionStimulus, { stimulus: { graph: curved } }), 'a line and a curve'), [
+    `x from −6 to 6, y from −6 to 6. 1 line. ${EN} Positions are not read out while this question can be answered.`,
+    `El eje x va de −6 a 6 y el eje y, de −6 a 6. 1 recta. ${ES} Las posiciones no se leen mientras se pueda responder esta pregunta.`,
+  ]);
+  // The shared plane: a drawing that holds a mark is marks; one that holds none is not.
+  const plane = (children, props = {}) => React.createElement(CoordinatePlane, { xMin: -6, xMax: 6, yMin: -6, yMax: 6, enlargeable: false, points: [{ x: 1, y: 2 }], ...props }, children);
+  const mark = React.createElement('line', { x1: 0, y1: 0, x2: 10, y2: 10 });
+  for (const [where, children, said] of [
+    ['a function that draws nothing', () => null, false],
+    ['a function that draws an empty list', () => [], false],
+    ['a function that draws a mark', () => [mark], true],
+    ['a mark', mark, true],
+    ['no drawing', undefined, false],
+  ]) {
+    const [english, spanish] = both(plane(children), where);
+    assert.equal(english.includes(EN), said, `${where}: ${english}`);
+    assert.equal(spanish.includes(ES), said, `${where}: ${spanish}`);
+  }
+  // A tool that says what it draws is heard whether it drew it yet or not.
+  for (const children of [() => null, () => [mark]]) {
+    const [english, spanish] = both(plane(children, { toolMarks: { kinds: 'No region is shaded yet.' } }), 'a tool\'s words');
+    assert.match(english, /No region is shaded yet\./);
+    assert.match(spanish, /Todavía no hay ninguna región sombreada\./);
+    assert.ok(!english.includes(EN) && !spanish.includes(ES));
   }
 });
 

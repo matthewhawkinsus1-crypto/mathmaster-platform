@@ -21,6 +21,8 @@
  * the prompt on screen stays as authored; anyone else hears it in English.
  * Its name is Spanish too, on the same element, marked lang="es", with the
  * item's axis titles as the axes show them (slice 4); in English, as before.
+ * It draws no curve, so neither language says it shows marks drawn by the
+ * activity (slice 4).
  */
 import assert from 'node:assert/strict';
 
@@ -256,10 +258,14 @@ for (const viewport of VIEWPORTS) {
         : name.label === 'Gráfica con el eje horizontal x y el eje vertical y' && name.lang === 'es', `${where}: the graph's name (${JSON.stringify(name)})`);
       if (expected === 'en') {
         check(said.lang === null && said.text.startsWith('x from −10 to 10, y from −10 to 10.') && !POSITION.test(said.text), `${where}: English, unmarked, no position (${JSON.stringify(said)})`);
+        // It draws no curve: no "marks drawn by the activity" (AX05, slice 4).
+        check(!/marks drawn by the activity/.test(said.text), `${where}: no marks the activity did not draw (${said.text})`);
       } else if (expected === 'es') {
-        check(said.lang === 'es' && said.text === 'El eje x va de −10 a 10 y el eje y, de −10 a 10. 1 recta. También muestra marcas que dibuja la actividad y que no se describen aquí. Las posiciones no se leen mientras se pueda responder esta pregunta.', `${where}: Spanish, marked lang="es", no position (${JSON.stringify(said)})`);
+        // No curve is drawn, so no "marcas que dibuja la actividad" (slice 4).
+        check(said.lang === 'es' && said.text === 'El eje x va de −10 a 10 y el eje y, de −10 a 10. 1 recta. Las posiciones no se leen mientras se pueda responder esta pregunta.', `${where}: Spanish, marked lang="es", no position (${JSON.stringify(said)})`);
       } else {
         check(said.lang === 'es' && said.text.startsWith('El eje x va de −10 a 10 y el eje y, de −10 a 10. 1 recta. La recta 1 baja de izquierda a derecha, cruza el eje y ') && !/no se leen/.test(said.text), `${where}: the read-out reads it in full, in Spanish (${JSON.stringify(said)})`);
+        check(!/marcas que dibuja la actividad/.test(said.text), `${where}: and says no marks the activity did not draw (${said.text})`);
       }
       const prompt = (await page.locator('h1').first().textContent()) || '';
       check(prompt.includes('Identify the x-intercept and y-intercept'), `${where}: the prompt on screen stays as authored (${prompt.slice(0, 80)})`);
