@@ -12,6 +12,8 @@
  *   - L1 Day 1 exit ticket 1 (x < −1 or 2 ≤ x ≤ 5) was the first union with a
  *     bounded piece. Practice 2 now has one: x ≤ −4 or 1 ≤ x < 6, keyed
  *     (−∞, −4] ∪ [1, 6) by hand and graded here by the shared grader.
+ *   - That exit ticket said "write the interval" for its union; it says "the
+ *     compound interval", as Practice 2 does (2026-11-06 re-walk).
  *
  * Recovery binds to exit-ticket items: their keys do not change, and the family
  * bound to each still recognizes it with the same constraints (its
@@ -92,4 +94,24 @@ test('L1 Day 1 practice 2 has a bounded piece, keyed (−∞, −4] ∪ [1, 6) a
   const bounded = DAY1.filter((question) => /^q_(classwork|practice)/.test(question.questionId))
     .filter((question) => (question.intervals || []).length === 2 && question.intervals.some(({ min, max }) => Number.isFinite(min) && Number.isFinite(max)));
   assert.deepEqual(bounded.map((question) => question.questionId), ['q_practice-3_3_2']);
+});
+
+// L1 Day 1 exit ticket 1 said "write the interval" for a union (2026-11-06
+// re-walk of the changed lessons), where the lesson's Warm-Up, Classwork and
+// Practice unions say "the compound interval". Wording only: its inequality,
+// key and stages are unchanged, and the interval family still recognizes it as
+// the same task (its certification runs in recoveryIntervalFamilies.test.mjs).
+test('L1 Day 1 exit ticket 1 asks for the compound interval; its inequality, key and Recovery are unchanged', () => {
+  const ticket = questionIn(DAY1, 'q_dol-4_4_1');
+  assert.equal(ticket.prompt, 'Graph x < −1 or 2 ≤ x ≤ 5, then write the compound interval in interval notation.');
+  assert.equal(ticket.inequalityText, 'x < −1 or 2 ≤ x ≤ 5');
+  const key = [
+    { min: NEG_INF, max: -1, minClosed: false, maxClosed: false },
+    { min: 2, max: 5, minClosed: true, maxClosed: true },
+  ];
+  assert.deepEqual(ticket.intervals.map(({ min, max, minClosed, maxClosed }) => ({ min: min ?? NEG_INF, max, minClosed, maxClosed })), key);
+  assert.equal(graded(ticket, key).isCorrect, true, notationOf(key));
+  assert.notEqual(graded(ticket, [key[0], { ...key[1], maxClosed: false }]).isCorrect, true, 'an end the other way');
+  const recognized = getPlatformQuestionFamily('intervals.graphAndWrite').recognize(ticket);
+  assert.deepEqual(recognized?.constraints, { shape: 'rayAndSegment' });
 });

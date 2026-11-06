@@ -84,10 +84,12 @@ test('the walkthrough\'s generic-hint items have their own hints, each ladder op
   });
 });
 
-test('L1 Day 1\'s Classwork and Practice unions are asked as compound intervals', () => {
-  const unions = DAY1.sections.filter((section) => ['warmup', 'classwork', 'practice'].includes(section.role))
+// The exit ticket's union too (2026-11-06 re-walk: it still said "write the
+// interval"); its Recovery is checked in module1ExitTicketWording.test.mjs.
+test('L1 Day 1\'s unions, in every section, are asked as compound intervals', () => {
+  const unions = DAY1.sections
     .flatMap((section) => section.questions.map((question, index) => ({ at: `${section.role} ${index + 1}`, question })))
     .filter(({ question }) => (question.intervals || []).length === 2);
-  assert.deepEqual(unions.map(({ at }) => at), ['warmup 3', 'classwork 2', 'practice 2']);
+  assert.deepEqual(unions.map(({ at }) => at), ['warmup 3', 'classwork 2', 'practice 2', 'dol 1']);
   unions.forEach(({ at, question }) => assert.match(question.prompt, /write the compound interval in interval notation\.$/, at));
 });

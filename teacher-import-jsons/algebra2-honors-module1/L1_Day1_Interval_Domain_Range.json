@@ -330,7 +330,7 @@
       "questions": [
         {
           "standard": "A2.7I",
-          "prompt": "Graph x < −1 or 2 ≤ x ≤ 5, then write the interval in interval notation.",
+          "prompt": "Graph x < −1 or 2 ≤ x ≤ 5, then write the compound interval in interval notation.",
           "studentActions": [
             "constructInterval",
             "writeInterval"
