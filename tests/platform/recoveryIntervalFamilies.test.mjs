@@ -320,15 +320,18 @@ test('Prepare Recovery on Day 2: its number-line Warm-Up question makes the Warm
   assert.deepEqual(report.changes.filter((change) => change.family.id === FAMILY_ID).map((change) => `${change.label}:${change.questionId}:${change.family.id}:${change.constraints.shape}`), [
     'Warm-Up Q2:q_warmup-1_1_2:intervals.graphAndWrite:segment',
   ]);
-  // Warm-Up Q1, the graphed absolute value, and Warm-Up Q3 and DOL Q2, the
-  // mapping diagrams, have their own families' Recovery.
+  // Warm-Up Q1, the graphed absolute value, Warm-Up Q3 and DOL Q2, the
+  // mapping diagrams, and DOL Q1 and Q3, the graphed intervals and the filling
+  // tank, have their own families' Recovery.
   assert.deepEqual(report.changes.filter((change) => change.family.id !== FAMILY_ID).map((change) => `${change.label}:${change.family.id}`), [
     'Warm-Up Q1:functions.domainRangeFromGraph',
     'Warm-Up Q3:relations.mappingDiagram',
+    'DOL Q1:functions.intervalsFromGraph',
     'DOL Q2:relations.mappingDiagram',
+    'DOL Q3:functions.fillingTankAttributes',
   ]);
   assert.deepEqual(report.readiness.warmup, { before: 'unavailable', after: 'ready', message: null });
-  assert.equal(report.readiness.dol.after, 'unavailable');
+  assert.equal(report.readiness.dol.after, 'ready');
   assert.deepEqual(report.untouched.questions.map((entry) => entry.signature), flattenAssignmentQuestions(assignment).map(recoverySourceSignature));
 });
 

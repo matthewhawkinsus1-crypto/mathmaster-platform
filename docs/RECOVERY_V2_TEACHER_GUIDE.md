@@ -202,10 +202,17 @@ Warm-Up's level.
 | Lesson 1 Day 2, Warm-Up Q1 — the graph of f(x) = \|x + 1\| − 2 | an absolute value with a new vertex, opening the same way: its domain and range |
 
 With the number-line and mapping-diagram families, Prepare Recovery now makes
-Lesson 1 Day 1's exit ticket ready as well as its Warm-Up. Day 2's exit ticket
-still has two questions no Recovery family writes yet (the increasing,
-decreasing, positive and negative intervals of a parabola, and the filling
-tank's attributes).
+Lesson 1 Day 1's exit ticket ready as well as its Warm-Up.
+
+### Lesson 1 Day 2's exit ticket (Algebra II Honors)
+
+| Question | Recovery versions |
+| --- | --- |
+| DOL Q1 — where f(x) = −(x − 2)² + 9 increases, decreases, and is positive and negative | a new parabola opening down, with whole-number zeros, on the graph |
+| DOL Q3 — a tank filled at 4 gallons per minute for 12 minutes | a new rate and time: discrete or continuous, the domain and the range |
+
+With DOL Q2's mapping diagram, Prepare Recovery now makes Day 2's exit ticket
+ready as well as its Warm-Up.
 
 ### Operations on functions from their values (Algebra II Honors Lesson 4)
 

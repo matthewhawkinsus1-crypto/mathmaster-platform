@@ -155,7 +155,10 @@ test('the committed report is generated from the live registry and audit, never 
   // content (A2.7I), as are the two function-values families (RC01, A2.2D).
   // Of the four inverse families (RC01's next shapes), three are Algebra II
   // content (A2.2B); the ordered-pair review is aligned to A2.7I, a skill
-  // Algebra I also teaches (A.12B): BLOCKED in each course.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 62 \| 4 \| 8 \| 30 \| 20 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 62 \| 0 \| 1 \| 35 \| 26 \|/);
+  // Algebra I also teaches (A.12B): BLOCKED in each course. Lesson 1 Day 2's
+  // graphed intervals are Algebra II content (A2.7I); its filling tank is a
+  // situation's domain and range, which Algebra I also teaches (A.2A): BLOCKED
+  // in each course.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 64 \| 4 \| 8 \| 31 \| 21 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 64 \| 0 \| 1 \| 37 \| 26 \|/);
 });

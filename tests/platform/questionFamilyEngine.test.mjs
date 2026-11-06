@@ -42,6 +42,7 @@ import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpe
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
 import {
   domainRangeKeyWork,
+  graphIntervalsKeyWork,
   intervalNumberLineKeyWork,
   matrixLabKeyWork,
   polynomialWorkshopKeyWork,
@@ -134,8 +135,10 @@ const REGISTRY_TOOL_WORK = {
   // and the function choice — and the other verdict (or an output left out).
   relationMapping: (question, instance) => relationMappingKeyWork(question, instance.answer),
   // Graph Analysis's domain and range (functions.domainRangeFromGraph, RC01),
-  // typed in interval notation, and the range's closed end opened.
-  graphAnalysis: (question, instance) => domainRangeKeyWork(question, instance.answer),
+  // typed in interval notation, and the range's closed end opened; or where a
+  // parabola rises, falls and is positive and negative
+  // (functions.intervalsFromGraph), and the rising and falling traded.
+  graphAnalysis: (question, instance) => domainRangeKeyWork(question, instance.answer) || graphIntervalsKeyWork(question, instance.answer),
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
     const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));

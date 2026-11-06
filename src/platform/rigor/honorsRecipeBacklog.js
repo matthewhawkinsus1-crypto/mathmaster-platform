@@ -568,6 +568,27 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 families for Algebra II Honors Module 1 Lesson 1 Day 2's
+  // exit ticket (questionFamiliesGraphReading.mjs and
+  // questionFamiliesFunctionContexts.mjs, RC01's next shapes), A2.7I.
+  'functions.intervalsFromGraph': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Writing where a graphed parabola increases, decreases, and is positive or negative in interval notation', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is a parabola opening down with whole-number zeros, so the four intervals always follow one pattern from the vertex and the zeros; the remaining levers are other vertices, which are not rigor.',
+      missingCapability: 'Other parents (cubic, square root, absolute value) and parabolas with irrational zeros or opening up, so the student reads each interval from the graph rather than recalling the pattern.',
+      teacherReason: 'MathMaster\'s interval-reading generator only draws parabolas opening down with whole-number zeros, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.fillingTankAttributes': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('A situation\'s domain and range', 'A.2A', 'domain and range in context', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is the same filling tank with a new rate and time, its domain and range chosen from written-out sets; the remaining levers are other numbers, which are not rigor.',
+      missingCapability: 'Situations whose domain is discrete or open at one end, with the domain and range typed, so the student decides them from the situation rather than choosing a bracket form.',
+      teacherReason: 'MathMaster\'s situation generator only writes the filling tank, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
   // The Recovery V2 families for the inverse boards of Algebra II Honors
   // Module 1 Lessons 3 and 4 (questionFamiliesInverses.mjs, RC01's next
   // shapes), A2.2B and A2.7I.

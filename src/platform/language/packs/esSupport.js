@@ -1441,6 +1441,9 @@ const platformFamilySentences = [
   ['For months represented by a total cost of {1}, use {2} as the input of your inverse rule, or solve {3} for {4}.', 'Para los meses que representa un costo total de {1}, usa {2} como la entrada de tu regla inversa, o despeja {4} en {3}.'],
   ['For the value in the last part, put the given total into your inverse rule.', 'Para el valor de la última parte, pon el total dado en tu regla inversa.'],
   ['To solve for {1} after the swap, which do you undo first?', 'Para despejar {1} después del intercambio, ¿qué deshaces primero?'],
+  // Where a graphed parabola rises, falls, and is positive and negative
+  // (functions.intervalsFromGraph): the worked example's answer.
+  ['Answer: increasing {1}; decreasing {2}; positive {3}; negative {4} ∪ {5}', 'Respuesta: creciente {1}; decreciente {2}; positiva {3}; negativa {4} ∪ {5}'],
 ];
 
 // Their back-up choices.

@@ -14,6 +14,10 @@
  *                                    y = ±(x − h)² + k or y = ±|x − h| + k,
  *                                    asking for its domain and its range in
  *                                    interval notation
+ *   functions.intervalsFromGraph     (RC01's next shapes) Graph Analysis
+ *                                    drawing f(x) = −(x − h)² + s², asking
+ *                                    where it increases, decreases, and is
+ *                                    positive and negative (below)
  *
  * WHAT A SLOT CHOOSES — both concepts, a strict policy: `parent` (quadratic or
  * absolute) and `opens` (up or down: which way the range runs from the
@@ -142,4 +146,78 @@ export const domainRangeFromGraphFamily = defineQuestionFamily({
   recovery: { eligible: true },
 });
 
-export const GRAPH_READING_FAMILIES = Object.freeze([domainRangeFromGraphFamily]);
+/* ---------------------------------------------------------------------------
+ * functions.intervalsFromGraph
+ * ------------------------------------------------------------------------- */
+
+/*
+ * WHERE A PARABOLA OPENING DOWN RISES, FALLS, AND IS ABOVE AND BELOW THE
+ * x-AXIS (A2.7I) — Recovery for Lesson 1 Day 2's exit-ticket Q1 (RC01's next
+ * shapes): Graph Analysis drawing f(x) = −(x − h)² + s², asking for the
+ * intervals where it is increasing, decreasing, positive and negative.
+ *
+ * Each version keeps the original's shape: opening down, with whole-number
+ * zeros h ± s (so the positive interval is bounded and the negative one is two
+ * rays), the vertex never on an axis. As above, the graph workspace keys it
+ * from the function it draws (getMonotonicAcceptedAnswers,
+ * getSignAcceptedAnswers), and certification answers it with the family's key.
+ */
+const INTERVAL_REQUESTS = Object.freeze(['increasing', 'decreasing', 'positive', 'negative']);
+const INTERVAL_VERTEX = Object.freeze([1, 7]);
+const INTERVAL_HALF_WIDTH = Object.freeze([1, 3]);
+const intervalsPrompt = ({ h, k }) => `For f(x) = ${functionText({ parent: 'quadratic', a: -1, h, k })}, state the intervals where the function is increasing, decreasing, positive, and negative.`;
+
+export const intervalsFromGraphFamily = defineQuestionFamily({
+  id: 'functions.intervalsFromGraph',
+  version: 1,
+  title: 'State where a graphed parabola increases, decreases, and is positive and negative',
+  skill: {
+    objective: 'Read from the graph of f(x) = −(x − h)² + k the intervals where it is increasing, decreasing, positive and negative, and write each in interval notation.',
+    alignments: ['A2.7I'],
+    strand: 'functions',
+  },
+  difficulty: { band: 4, dok: 3 },
+  constraints: {},
+  parameters: () => ({ h: choiceDomain(signedSizes(INTERVAL_VERTEX)), s: choiceDomain([1, 2, 3]) }),
+  derive: ({ s }) => ({ k: s * s }),
+  rules: () => [],
+  fingerprint: ({ h, s }) => fingerprintOf('functions.intervalsFromGraph', [h, s]),
+  answer: ({ h, s }) => {
+    const value = {
+      increasing: `(-∞, ${h})`,
+      decreasing: `(${h}, ∞)`,
+      positive: `(${h - s}, ${h + s})`,
+      negative: `(-∞, ${h - s}) ∪ (${h + s}, ∞)`,
+    };
+    return { kind: 'graphIntervals', value, display: INTERVAL_REQUESTS.map((kind) => `${kind} ${value[kind]}`).join('; ') };
+  },
+  tools: {
+    graphAnalysis: (values) => ({
+      type: 'graphAnalysis',
+      functionSpec: { type: 'quadratic', a: -1, h: values.h, k: values.k },
+      analysisRequests: INTERVAL_REQUESTS.map((kind) => ({ id: kind, kind, notation: 'interval' })),
+      prompt: intervalsPrompt(values),
+    }),
+  },
+  defaultTool: 'graphAnalysis',
+  instanceFields: ['functionSpec', 'function', 'analysisRequests', 'pointTasks', 'graph'],
+  recognize: (question) => {
+    if (clean(question?.type) !== 'graphAnalysis' || clean(question?.mode)) return null;
+    if (question?.graph !== undefined || question?.pointTasks !== undefined || question?.graphBounds !== undefined) return null;
+    const spec = isObject(question?.functionSpec) ? question.functionSpec : null;
+    if (!spec || clean(spec.type) !== 'quadratic') return null;
+    if (spec.domain !== undefined || spec.restrictedDomain !== undefined || (spec.b !== undefined && Number(spec.b) !== 1)) return null;
+    const [a, h, k] = [spec.a ?? 1, spec.h ?? 0, spec.k ?? 0].map(Number);
+    const s = Math.sqrt(k);
+    if (a !== -1 || !Number.isInteger(h) || Math.abs(h) < INTERVAL_VERTEX[0] || Math.abs(h) > INTERVAL_VERTEX[1]) return null;
+    if (!Number.isInteger(s) || s < INTERVAL_HALF_WIDTH[0] || s > INTERVAL_HALF_WIDTH[1]) return null;
+    const requests = list(question?.analysisRequests);
+    if (requests.length !== INTERVAL_REQUESTS.length) return null;
+    if (!INTERVAL_REQUESTS.every((kind) => requests.some((request) => clean(request?.kind) === kind && clean(request?.notation || 'interval') === 'interval' && request?.acceptedAnswers === undefined))) return null;
+    if (normalizedText(question?.prompt) !== normalizedText(intervalsPrompt({ h, k }))) return null;
+    return { params: { h, s }, constraints: {} };
+  },
+  recovery: { eligible: true },
+});
+
+export const GRAPH_READING_FAMILIES = Object.freeze([domainRangeFromGraphFamily, intervalsFromGraphFamily]);

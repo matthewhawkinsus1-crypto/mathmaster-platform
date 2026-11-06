@@ -310,6 +310,47 @@
       "declared": {}
     },
     {
+      "id": "functions.fillingTankAttributes",
+      "version": 1,
+      "title": "The attributes of a tank filled at a steady rate",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 123,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "functions.identifyIntercepts",
       "version": 1,
       "title": "Intercepts of a line in standard form",
@@ -426,6 +467,47 @@
           "label": "default",
           "constraints": {},
           "capacity": 162,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.intervalsFromGraph",
+      "version": 1,
+      "title": "State where a graphed parabola increases, decreases, and is positive and negative",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "graphAnalysis",
+          "default": true,
+          "mode": "analysis",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 42,
           "exact": true
         }
       ],

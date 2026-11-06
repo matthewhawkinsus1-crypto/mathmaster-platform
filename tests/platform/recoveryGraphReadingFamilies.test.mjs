@@ -214,7 +214,9 @@ test('Prepare Recovery on Day 1: the exit ticket becomes ready (interval, graph 
   assert.deepEqual(report.untouched.questions.map((entry) => entry.signature), flattenAssignmentQuestions(dayOne).map(recoverySourceSignature));
   const dayTwo = buildRecoveryUpgradePreview({ assignment: liveCopy(DAY_TWO, 'live-l1-day-2-ready'), manifest: null, gradeSample: serverRecoveryKeyCheck, trackers: [], at: '2026-11-05T15:00:00.000Z' }).report;
   assert.deepEqual(dayTwo.changes.filter((change) => change.family.id === FAMILY.id).map((change) => change.label), ['Warm-Up Q1']);
-  assert.deepEqual(dayTwo.notReady.map((row) => row.label), ['DOL Q1', 'DOL Q3'], 'Day 2\'s exit ticket still has two questions no family writes');
+  // (Day 2's exit-ticket Q1 and Q3, its graphed intervals and filling tank, have
+  // their own families now: recoveryFunctionAttributeFamilies.test.mjs.)
+  assert.deepEqual(dayTwo.notReady.map((row) => row.label), [], 'every question of Day 2 has Recovery');
 });
 
 const CLASS = 'class-a2h';

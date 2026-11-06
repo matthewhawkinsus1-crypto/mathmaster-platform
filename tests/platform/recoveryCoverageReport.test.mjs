@@ -39,7 +39,7 @@ import { recoveryCandidateFamilies } from '../../functions/shared/recoveryConten
 // functions.domainRangeFromGraph (RC01: Lesson 1's graphed domain and range)
 // and the function-values families (RC01: Lesson 4's numeric Warm-Up), and on
 // 2026-11-06 with the inverse families (RC01's next shapes: Lessons 3 and 4's
-// inverse boards). The Algebra I
+// inverse boards) and Lesson 1 Day 2's graphed intervals and filling tank. The Algebra I
 // Module 3 Topic 2 Lesson 4 and 5 files and the Algebra II Honors radicals
 // lessons (added 2026-11-03) generate every Warm-Up and DOL question from an
 // assignment Question Family, so each section is 3/3/3 ready with nothing
@@ -74,7 +74,7 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra2-honors-radicals/L3_Rational_Exponents.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json': ['0/0/3 unavailable', '0/0/2 unavailable'],
   'teacher-import-jsons/algebra2-honors-module1/L1_Day1_Interval_Domain_Range.json': ['0/3/3 ready', '0/3/3 ready'],
-  'teacher-import-jsons/algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': ['0/3/3 ready', '0/1/3 unavailable'],
+  'teacher-import-jsons/algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-module1/L2_Day1_Parent_Functions_Key_Attributes.json': ['0/0/3 unavailable', '0/0/3 unavailable'],
   'teacher-import-jsons/algebra2-honors-module1/L2_Day2_Transformations.json': ['0/0/3 unavailable', '0/3/3 ready'],
   'teacher-import-jsons/algebra2-honors-module1/L3_Inverse_Linear_Functions.json': ['0/1/3 ready', '0/3/3 ready'],
@@ -96,13 +96,13 @@ const PINNED = Object.freeze({
 
 const TOTALS = Object.freeze({
   warmup: { questions: 132, now: 81, prepared: 112, lessonsWithSection: 45, lessonsReady: 39 },
-  dol: { questions: 123, now: 70, prepared: 99, lessonsWithSection: 45, lessonsReady: 37 },
+  dol: { questions: 123, now: 70, prepared: 101, lessonsWithSection: 45, lessonsReady: 38 },
 });
 
 // What is left: [shape, questions, lessons], most first. A typed-and-chosen
 // board (multiAnswer) holds a different hand-written task in each question.
 const WITHOUT_RECOVERY_BY_SHAPE = Object.freeze([
-  ['multiAnswer', 23, 9],
+  ['multiAnswer', 22, 8],
   ['systemsWorkspace/spatial', 3, 3],
   ['functionCharacteristics · domain + range', 3, 1],
   ['systemsWorkspace/algebraic', 3, 1],
@@ -113,7 +113,6 @@ const WITHOUT_RECOVERY_BY_SHAPE = Object.freeze([
   ['graphAnalysis · domain + range', 1, 1],
   ['graphAnalysis · domain + range + decreasing', 1, 1],
   ['graphAnalysis · increasing + decreasing', 1, 1],
-  ['graphAnalysis · increasing + decreasing + positive + negative', 1, 1],
   ['graphChoicePreview', 1, 1],
   ['relationMapping · mapping + isFunction', 1, 1],
   ['transformationsLab/match', 1, 1],
@@ -164,7 +163,7 @@ test('the interval family is what changed: without it the five number-line quest
   assert.deepEqual(moved, [DAY_ONE, DAY_TWO]);
   // (Each lesson's Mapping Diagram and graph questions have their own families' Recovery, below.)
   assert.deepEqual(beforeRows[DAY_ONE], ['0/0/3 unavailable', '0/2/3 unavailable']);
-  assert.deepEqual(beforeRows[DAY_TWO], ['0/2/3 ready', '0/1/3 unavailable']);
+  assert.deepEqual(beforeRows[DAY_TWO], ['0/2/3 ready', '0/3/3 ready']);
   const intervalShape = 'intervalNumberLine · graph + interval';
   assert.deepEqual(
     before.lessons.flatMap((lesson) => lesson.withoutRecovery.filter((question) => question.shape === intervalShape).map((question) => `${lesson.file.split('/').pop()} ${question.label} ${question.questionId}`)),
@@ -179,8 +178,9 @@ test('the interval family is what changed: without it the five number-line quest
   // Before it, the number line was the most common shape outside the
   // typed-and-chosen boards: the reason it was built first. (31 such boards
   // then; eight are now the transformation description board, Lesson 4's
-  // two numeric Warm-Up questions and the five inverse boards, below.)
-  assert.deepEqual(before.withoutRecoveryByShape.slice(0, 2).map((entry) => [entry.shape, entry.questions, entry.lessons]), [['multiAnswer', 23, 9], [intervalShape, 5, 2]]);
+  // two numeric Warm-Up questions, the five inverse boards and Day 2's
+  // filling tank, below.)
+  assert.deepEqual(before.withoutRecoveryByShape.slice(0, 2).map((entry) => [entry.shape, entry.questions, entry.lessons]), [['multiAnswer', 22, 8], [intervalShape, 5, 2]]);
   assert.ok(!REPORT.withoutRecoveryByShape.some((entry) => entry.shape === intervalShape), 'none is left');
   // (78, 26 and 67 before the 2026-11-03 lessons, whose 21 + 21 questions and
   // 7 lessons never needed the interval family, and before the families
@@ -188,8 +188,9 @@ test('the interval family is what changed: without it the five number-line quest
   // Warm-Up, Lesson 2 Day 2's 3 exit-ticket questions, the Mapping Diagram's
   // 2 + 2 questions and 2 Warm-Ups — Day 2's and the review's — the graphed
   // domain and range's 1 + 1, Lesson 4's 2 Warm-Up questions and Warm-Up, and
-  // the inverse boards' 2 + 3 questions and Lesson 3's Warm-Up and exit ticket.)
-  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 2 + 2 + 1 + 2 + 2, 26 + 7 + 1 + 2 + 1 + 1, 67 + 21 + 1 + 3 + 2 + 1 + 3]);
+  // the inverse boards' 2 + 3 questions and Lesson 3's Warm-Up and exit ticket,
+  // and Day 2's graphed intervals and filling tank, 2 exit-ticket questions.)
+  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 2 + 2 + 1 + 2 + 2, 26 + 7 + 1 + 2 + 1 + 1, 67 + 21 + 1 + 3 + 2 + 1 + 3 + 2]);
 });
 
 const BASELINE_LMR = 'docs/assignments/algebra1-linear-multiple-representations-final-v5.json';
@@ -264,7 +265,7 @@ test('relations.mappingDiagram is what changed next: without it the four Mapping
   assert.deepEqual(moved, [DOL_ONE_REVIEW, DAY_ONE, DAY_TWO]);
   assert.deepEqual([beforeRows[DOL_ONE_REVIEW], afterRows[DOL_ONE_REVIEW]], [['0/0/4 unavailable', '0/0/8 unavailable'], ['0/1/4 ready', '0/0/8 unavailable']]);
   assert.deepEqual([beforeRows[DAY_ONE], afterRows[DAY_ONE]], [['0/3/3 ready', '0/2/3 unavailable'], ['0/3/3 ready', '0/3/3 ready']]);
-  assert.deepEqual([beforeRows[DAY_TWO], afterRows[DAY_TWO]], [['0/2/3 ready', '0/0/3 unavailable'], ['0/3/3 ready', '0/1/3 unavailable']]);
+  assert.deepEqual([beforeRows[DAY_TWO], afterRows[DAY_TWO]], [['0/2/3 ready', '0/2/3 unavailable'], ['0/3/3 ready', '0/3/3 ready']]);
   const relationRows = (report) => report.lessons.flatMap((lesson) => lesson.withoutRecovery
     .filter((question) => question.shape.startsWith('relationMapping'))
     .map((question) => `${lesson.file.split('/').pop()} ${question.label} ${question.reason}`));
@@ -278,7 +279,8 @@ test('relations.mappingDiagram is what changed next: without it the four Mapping
   assert.deepEqual(relationRows(REPORT), ['District_DOL1_Technology_Graph_Analysis_Review.json DOL Q7 rigor-mismatch']);
   assert.deepEqual(
     [before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared, before.totals.dol.lessonsReady],
-    [TOTALS.warmup.prepared - 2, TOTALS.warmup.lessonsReady - 1, TOTALS.dol.prepared - 2, TOTALS.dol.lessonsReady - 1],
+    // (Day 1's and Day 2's exit tickets each need their Mapping Diagram.)
+    [TOTALS.warmup.prepared - 2, TOTALS.warmup.lessonsReady - 1, TOTALS.dol.prepared - 2, TOTALS.dol.lessonsReady - 2],
   );
 });
 
@@ -292,7 +294,7 @@ test('functions.domainRangeFromGraph is what changed next: without it Lesson 1 D
   const moved = Object.keys(afterRows).filter((file) => JSON.stringify(afterRows[file]) !== JSON.stringify(beforeRows[file]));
   assert.deepEqual(moved, [DAY_ONE, DAY_TWO]);
   assert.deepEqual([beforeRows[DAY_ONE], afterRows[DAY_ONE]], [['0/3/3 ready', '0/2/3 unavailable'], ['0/3/3 ready', '0/3/3 ready']]);
-  assert.deepEqual([beforeRows[DAY_TWO], afterRows[DAY_TWO]], [['0/2/3 ready', '0/1/3 unavailable'], ['0/3/3 ready', '0/1/3 unavailable']]);
+  assert.deepEqual([beforeRows[DAY_TWO], afterRows[DAY_TWO]], [['0/2/3 ready', '0/3/3 ready'], ['0/3/3 ready', '0/3/3 ready']]);
   // The parent |x| (Lesson 2 Day 1's review) is not this task: the same answer every time.
   assert.ok(REPORT.lessons.some((lesson) => lesson.withoutRecovery.some((question) => question.prompt === 'Use the graph of f(x) = |x|. State the domain and range.')));
   assert.deepEqual(
@@ -344,6 +346,25 @@ test('the inverse families are what changed next: without them Lesson 3 has no R
   );
 });
 
+test('the graphed-intervals and filling-tank families are what changed next: without them Lesson 1 Day 2\'s exit ticket goes back to its Mapping Diagram alone, and nothing else moves', () => {
+  const ids = new Set(['functions.intervalsFromGraph', 'functions.fillingTankAttributes']);
+  const families = recoveryCandidateFamilies();
+  const without = families.filter((family) => !ids.has(family.id));
+  assert.equal(without.length, families.length - 2, 'both are Recovery candidates');
+  const before = measureRecoveryCoverage({ families: without });
+  const beforeRows = rowsOf(before);
+  const afterRows = rowsOf(REPORT);
+  assert.deepEqual(Object.keys(afterRows).filter((file) => JSON.stringify(afterRows[file]) !== JSON.stringify(beforeRows[file])), [DAY_TWO]);
+  assert.deepEqual([beforeRows[DAY_TWO], afterRows[DAY_TWO]], [['0/3/3 ready', '0/1/3 unavailable'], ['0/3/3 ready', '0/3/3 ready']]);
+  assert.deepEqual(
+    before.lessons.find((lesson) => lesson.file === DAY_TWO).withoutRecovery.map((question) => `${question.label} ${question.shape}`),
+    ['DOL Q1 graphAnalysis · increasing + decreasing + positive + negative', 'DOL Q3 multiAnswer'],
+  );
+  assert.deepEqual(REPORT.lessons.find((lesson) => lesson.file === DAY_TWO).withoutRecovery, [], 'every Warm-Up and exit-ticket question of Day 2 has Recovery');
+  assert.deepEqual([before.totals.dol.prepared, before.totals.dol.lessonsReady], [TOTALS.dol.prepared - 2, TOTALS.dol.lessonsReady - 1]);
+  assert.deepEqual(before.totals.warmup, TOTALS.warmup, 'the Warm-Ups did not move');
+});
+
 test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'s model does for the lessons this changed', () => {
   [DAY_ONE, DAY_TWO, BASELINE_LMR, TRANSFORMATIONS_DAY_TWO, DOL_ONE_REVIEW, COMPOSITION_LESSON, INVERSE_LESSON].forEach((file) => {
     const text = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
@@ -357,8 +378,8 @@ test('the printed report says the same', () => {
   const text = renderRecoveryCoverageText(REPORT);
   assert.match(text, /^teacher-import-jsons\/algebra2-honors-module1\/L1_Day1_Interval_Domain_Range\.json +Warm-Up 3\/3 ready +DOL 3\/3 ready$/m);
   assert.match(text, /^Warm-Up: 112 of 132 questions have Recovery once prepared \(81 with nothing prepared\); 39 of 45 lessons ready\.$/m);
-  assert.match(text, /^DOL: 99 of 123 questions have Recovery once prepared \(70 with nothing prepared\); 37 of 45 lessons ready\.$/m);
+  assert.match(text, /^DOL: 101 of 123 questions have Recovery once prepared \(70 with nothing prepared\); 38 of 45 lessons ready\.$/m);
   assert.match(text, /^docs\/assignments\/algebra1-linear-multiple-representations-final-v5\.json +Warm-Up 2\/2 ready +DOL 1\/1 ready$/m);
-  assert.match(text, /^ +23 {2}multiAnswer {2}\(9 lessons\)$/m);
-  assert.match(text, /L1_Day2_Function_Attributes_Relations\.json {2}DOL Q1 {2}graphAnalysis · increasing \+ decreasing \+ positive \+ negative {2}no-certified-family/);
+  assert.match(text, /^ +22 {2}multiAnswer {2}\(8 lessons\)$/m);
+  assert.match(text, /L2_Day1_Parent_Functions_Key_Attributes\.json {2}Warm-Up Q2 {2}graphAnalysis · increasing \+ decreasing {2}no-certified-family/);
 });

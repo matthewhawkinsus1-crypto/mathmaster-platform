@@ -341,6 +341,26 @@ export const domainRangeKeyWork = (question = {}, answer = {}) => {
   return { right: typed(range), wrong: typed(range.replace('[', '(').replace(']', ')')) };
 };
 
+/**
+ * The Graph Analysis work a student who solved a functions.intervalsFromGraph
+ * version would send (RC01's next shapes): each interval typed from the key,
+ * one per request the question makes. The wrong work trades the increasing
+ * and decreasing intervals. Null for any other answer.
+ */
+export const graphIntervalsKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'graphIntervals' || !isObject(answer.value)) return null;
+  const requests = Array.isArray(question.analysisRequests) ? question.analysisRequests : [];
+  const idOf = (kind) => clean(requests.find((request) => request?.kind === kind)?.id);
+  const kinds = Object.keys(answer.value);
+  if (!kinds.length || kinds.some((kind) => !idOf(kind) || typeof answer.value[kind] !== 'string')) return null;
+  if (!idOf('increasing') || !idOf('decreasing')) return null;
+  const typed = (value) => ({ analysis: { answers: Object.fromEntries(kinds.map((kind) => [idOf(kind), value[kind]])) } });
+  return {
+    right: typed(answer.value),
+    wrong: typed({ ...answer.value, increasing: answer.value.decreasing, decreasing: answer.value.increasing }),
+  };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -409,6 +429,15 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'graphWorkspace', work: domainRangeWork.right }),
       wrong: buildToolResponse({ question, toolId: 'graphWorkspace', work: domainRangeWork.wrong }),
+    };
+  }
+  // Where a graphed parabola rises, falls, and is positive and negative
+  // (functions.intervalsFromGraph, RC01's next shapes): the same workspace.
+  const intervalsWork = question.type === 'graphAnalysis' ? graphIntervalsKeyWork(question, answer) : null;
+  if (intervalsWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'graphWorkspace', work: intervalsWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'graphWorkspace', work: intervalsWork.wrong }),
     };
   }
   // The Mapping Diagram (relations.mappingDiagram, RC01).

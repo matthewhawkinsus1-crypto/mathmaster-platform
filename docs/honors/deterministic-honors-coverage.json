@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 62,
+  "familyCount": 64,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -69,6 +69,20 @@
           "teacherReason": "Writing a graphed domain and range in interval notation is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         },
         {
+          "familyId": "functions.fillingTankAttributes",
+          "familyTitle": "The attributes of a tank filled at a steady rate",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "A situation's domain and range is taught in Algebra I too (A.2A), but this family is aligned to Algebra II's A2.7I, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.2A) — a sibling family within Algebra I's limits — so an Algebra I Honors task on domain and range in context can anchor on it.",
+          "teacherReason": "MathMaster's generator for domain and range in context is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
+        },
+        {
           "familyId": "functions.identifyIntercepts",
           "familyTitle": "Intercepts of a line in standard form",
           "familyDifficulty": {
@@ -127,6 +141,20 @@
           "reason": "Zeros are always two distinct integers of a quadratic with leading coefficient ±1 or ±2, entered as two numbers; \"small\" leading coefficients only add a common factor of 2.",
           "missingCapability": "`zeroForm: \"rational\"` (zeros p/q from a non-unit leading coefficient, factored as (ax + p)(x + q)) and `zeroForm: \"irrational\"` (quadratic formula) with fraction and radical answer fields; or a Question Family for polynomialWorkshop mode \"factorQuadratic\" (the workshop and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the rational or irrational zeros an Honors extension needs."
+        },
+        {
+          "familyId": "functions.intervalsFromGraph",
+          "familyTitle": "State where a graphed parabola increases, decreases, and is positive and negative",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Writing where a graphed parabola increases, decreases, and is positive or negative in interval notation is Algebra II content (A2.7I); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.7I is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Writing where a graphed parabola increases, decreases, and is positive or negative in interval notation is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         },
         {
           "familyId": "functions.inverseInContext",
@@ -1119,8 +1147,8 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 8,
-        "BLOCKED": 30,
-        "NOT APPROPRIATE": 20
+        "BLOCKED": 31,
+        "NOT APPROPRIATE": 21
       }
     },
     "algebra2": {
@@ -1184,6 +1212,20 @@
           "teacherReason": "MathMaster's graphed domain-and-range generator only draws unrestricted parabolas and absolute values, so it cannot yet build a built-in Honors extension."
         },
         {
+          "familyId": "functions.fillingTankAttributes",
+          "familyTitle": "The attributes of a tank filled at a steady rate",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is the same filling tank with a new rate and time, its domain and range chosen from written-out sets; the remaining levers are other numbers, which are not rigor.",
+          "missingCapability": "Situations whose domain is discrete or open at one end, with the domain and range typed, so the student decides them from the situation rather than choosing a bracket form.",
+          "teacherReason": "MathMaster's situation generator only writes the filling tank, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "functions.identifyIntercepts",
           "familyTitle": "Intercepts of a line in standard form",
           "familyDifficulty": {
@@ -1210,6 +1252,20 @@
           "reason": "Algebra II solves quadratics with irrational and complex solutions (A2.4F, A2.7A); this family only produces two integer zeros.",
           "missingCapability": "`zeroForm: \"irrational\" | \"complex\"` with radical and complex answer fields, or a Question Family for complexPlaneLab mode \"quadraticRoots\" (the lab and its server grader exist).",
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the irrational or complex solutions an Algebra II Honors extension needs."
+        },
+        {
+          "familyId": "functions.intervalsFromGraph",
+          "familyTitle": "State where a graphed parabola increases, decreases, and is positive and negative",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is a parabola opening down with whole-number zeros, so the four intervals always follow one pattern from the vertex and the zeros; the remaining levers are other vertices, which are not rigor.",
+          "missingCapability": "Other parents (cubic, square root, absolute value) and parabolas with irrational zeros or opening up, so the student reads each interval from the graph rather than recalling the pattern.",
+          "teacherReason": "MathMaster's interval-reading generator only draws parabolas opening down with whole-number zeros, so it cannot yet build a built-in Honors extension."
         },
         {
           "familyId": "functions.inverseInContext",
@@ -2197,7 +2253,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 35,
+        "BLOCKED": 37,
         "NOT APPROPRIATE": 26
       }
     }
