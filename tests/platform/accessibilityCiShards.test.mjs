@@ -4,16 +4,18 @@
 // sweep (36 minutes on CI for 48 scenes, and the fifth slice made it 66) and the certification with the drivers after
 // it (about forty). Every push waited on them, and a newer push cancelled them before they finished. The teacher sweep
 // now runs as three shards (studentShellLargeText.mjs --shard=i/3, cut by tests/browser/support/sceneShards.mjs) and
-// the certification's steps as three jobs. These pin that no scene or step was dropped or doubled on the way.
+// the certification's steps as three jobs. These pin that no scene or step was dropped or doubled on the way, and that
+// the CI gate still fails when any one shard or part fails or is cancelled.
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { gateVerdict } from '../../scripts/lib/ciGate.mjs';
 import { CERTIFIED_SCREENS, SCREENS, sceneLabel } from '../browser/accessibilityCertification.mjs';
 import { TEACHER_SCREENS } from '../browser/accessibilityTeacherScreens.mjs';
 import { parseShard, shardOf } from '../browser/support/sceneShards.mjs';
-import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
+import { calledWorkflows, jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const sceneLabels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
@@ -156,5 +158,33 @@ test('the reports are kept by the jobs that write them, each under a name of its
   // The certification writes report.json and its screenshots there, and the contrast review contrast-review.json.
   for (const [job] of Object.entries(jobs).filter(([, body]) => /run: npm run (certify:accessibility|review:contrast)$/m.test(body))) {
     assert.ok(uploads.some((upload) => upload.job === job && /path: tests\/browser\/artifacts\/accessibility$/m.test(upload.step)), `${job} keeps tests/browser/artifacts/accessibility`);
+  }
+});
+
+/* --- the gate -------------------------------------------------------------- */
+
+// How the gate decides: ci.yml's "CI gate" runs scripts/ci-gate.mjs over the result of every job of ci.yml
+// (scripts/lib/ciGate.mjs), and passes only when each succeeded or was skipped for an unchanged area. This workflow
+// is the result of one of those jobs: GitHub gives a job that calls a workflow the result of the jobs in it, each
+// shard of a matrix counted, so one of them failed or cancelled makes it failed or cancelled. What could keep a red
+// shard or part out of that result is written in this workflow, and none of it may be: continue-on-error (a failed
+// job or step that lets its workflow pass), a job its own `if:` can skip while the rest pass, and a matrix that stops
+// its other shards at the first failure (still red, but the others then report nothing).
+test('a failed or cancelled shard or part fails the CI gate', () => {
+  assert.doesNotMatch(workflow, /continue-on-error/, 'no job or step whose failure lets the workflow pass');
+  for (const [job, text] of Object.entries(jobs)) {
+    assert.doesNotMatch(text, /^ {4}if:/m, `${job} runs whenever the workflow runs`);
+    if (/^ {4}strategy:/m.test(text)) assert.match(text, /^ {6}fail-fast: false$/m, `${job}: every shard runs and reports`);
+  }
+  const [caller] = Object.entries(calledWorkflows()).find(([, call]) => call.workflow === 'accessibility-certification.yml') || [];
+  assert.ok(caller, 'ci.yml calls the workflow');
+  const gate = jobsOf(readWorkflow('ci.yml')).gate;
+  assert.match(gate.slice(gate.indexOf('needs:')), new RegExp(`^ {6}- ${caller}$`, 'm'), 'and the gate waits on that job');
+  const passing = { changes: { result: 'success' }, 'full-platform-suite': { result: 'success' }, [caller]: { result: 'success' } };
+  assert.equal(gateVerdict(passing).ok, true, gateVerdict(passing).problems.join('; '));
+  for (const result of ['failure', 'cancelled']) {
+    const verdict = gateVerdict({ ...passing, [caller]: { result } });
+    assert.equal(verdict.ok, false, `${caller} ${result}`);
+    assert.ok(verdict.problems.includes(`${caller}: ${result}`), verdict.problems.join('; '));
   }
 });
