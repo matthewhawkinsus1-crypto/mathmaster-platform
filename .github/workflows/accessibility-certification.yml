@@ -3,9 +3,10 @@ name: Accessibility Certification (WCAG 2.1 AA)
 # axe-core over the student screens (Home, Assignments, Grades, an assignment
 # with rich tools open, My Math Path, a secure exam, Live Challenge) and the
 # teacher's (every destination of the navigation, a class's page, a student's
-# drawer, the Find palette, the Assignment Hub, the Pre-Flight review and the
-# administrator's workspace, which are also walked by Tab: TT27) at Chromebook and
-# phone sizes, ratcheted against
+# drawer and detail page, the Find palette, the Assignment Hub, the Pre-Flight
+# review, Create and Assign, Grade Export's and Secure Exams' flows, a Live
+# Challenge game with its projector and the administrator's workspace, which are
+# also walked by Tab: TT27) at Chromebook and phone sizes, ratcheted against
 # scripts/accessibility-baseline.json: a new or increased violation fails; a
 # reduction passes. Read-only: nothing is written back to the repository and
 # nothing reaches Firebase.
@@ -24,10 +25,11 @@ permissions:
 jobs:
   browser-accessibility:
     runs-on: ubuntu-latest
-    # 61 scenes at two sizes, 48 of them the teacher's and walked by Tab as well as audited (TT27), and the
-    # contrast review replays the same scenes: each took about twenty minutes on a busy two-core machine, and
-    # the job runs both and the drivers after them. A hung run is still stopped, later than it was at 35.
-    timeout-minutes: 70
+    # 79 scenes at two sizes, 66 of them the teacher's and walked by Tab as well as audited (TT27), and the
+    # contrast review replays the same scenes: at 61 scenes each took about twenty minutes on a busy two-core
+    # machine, and the fifth slice's 18 add about a third. The job runs both and the drivers after them. A hung
+    # run is still stopped, later than it was at 70.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -280,12 +282,13 @@ jobs:
           path: tests/browser/artifacts/accessibility
           retention-days: 14
 
-  # The teacher's 48 scenes at 200% text, at 320px and with text spacing (WCAG 1.4.4 / 1.4.10 / 1.4.12), and every
+  # The teacher's 66 scenes at 200% text, at 320px and with text spacing (WCAG 1.4.4 / 1.4.10 / 1.4.12), and every
   # pointer target at 24px or the room the spacing exception asks for (2.5.8), at both viewports (TT27). A job of its
-  # own: seven settings over 48 scenes took about fifty minutes on a busy two-core machine.
+  # own: seven settings over 48 scenes took about fifty minutes on a busy two-core machine, and the fifth slice's 18
+  # scenes add nearly forty per cent.
   browser-teacher-large-text:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
