@@ -580,6 +580,8 @@ export const TEACHER_SCREENS = [
   ]),
   teacherScreen('teacher-preflight', [
     { id: 'details', run: openPreflight },
+    // The fifth slice: the step that says which classes receive the lesson.
+    { id: 'classes', run: preflightStep('Classes') },
     { id: 'delivery', run: preflightStep('Delivery') },
     { id: 'check', run: preflightStep('Check') },
   ], { include: '[aria-label="Lesson pre-flight review"]' }),

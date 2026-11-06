@@ -62,7 +62,7 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-assignments': [null, 'class-list', 'card-menu', 'create'],
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
-  'teacher-preflight': ['details', 'delivery', 'check'],
+  'teacher-preflight': ['details', 'classes', 'delivery', 'check'],
   'teacher-live-challenge': ['setup', 'lobby'],
   // The third slice: the rest of the navigation's destinations, a class's page, a student's drawer, the Find palette,
   // the TEKS screen's views, the Path Simulator's modes, and the administrator's five sections.
