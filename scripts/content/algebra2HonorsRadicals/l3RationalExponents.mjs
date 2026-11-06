@@ -403,8 +403,11 @@ const classwork = [
     studentActions: ['multipleResponses'],
     dok: 3,
     difficultyBand: 4,
-    prompt: tex`A conjugate with exponents. Simplify $\dfrac{y^{1/2} + 1}{y^{1/2} - 1}$ by multiplying by the conjugate of the denominator. Then simplify $\dfrac{x^{1/2} - 1}{x^{1/2} + 1}$.`,
-    directionSteps: ['Name the conjugate of the denominator.', 'Multiply the denominator by its conjugate.', 'Simplify the first quotient.', 'Simplify the second quotient the same way.'],
+    // "Multiply out the numerator": the box takes (y + 2y^(1/2) + 1)/(y − 1) and
+    // refuses (y^(1/2) + 1)²/(y − 1), which breaks none of the four rules CW 10
+    // states, with "not in simplest form" (the last hint squares it out too).
+    prompt: tex`A conjugate with exponents. Simplify $\dfrac{y^{1/2} + 1}{y^{1/2} - 1}$ by multiplying by the conjugate of the denominator, and multiply out the numerator. Then simplify $\dfrac{x^{1/2} - 1}{x^{1/2} + 1}$ the same way.`,
+    directionSteps: ['Name the conjugate of the denominator.', 'Multiply the denominator by its conjugate.', 'Simplify the first quotient, with its numerator multiplied out.', 'Simplify the second quotient the same way.'],
     responses: [
       choice('conjugate', 'The conjugate of y^(1/2) − 1 is', ['y^(1/2) + 1', '1 − y^(1/2)', 'y − 1', 'y^(−1/2)'], 'y^(1/2) + 1'),
       // A math box, as its neighbours are: the box chooser drew y-1 as a plain text box.

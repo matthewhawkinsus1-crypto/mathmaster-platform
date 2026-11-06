@@ -536,6 +536,21 @@ test('L2: a typed multiplier box asks for the smallest, where a larger factor al
   }
 });
 
+// L3 CW 9 refused (y^(1/2) + 1)²/(y − 1), which breaks none of the four rules
+// CW 10 states, with "not in simplest form": the key multiplies the numerator
+// out, as the last hint does. The prompt asks for that now; keys and grading
+// are unchanged.
+test('L3 CW 9: the prompt asks for the numerator the boxes take, multiplied out', () => {
+  const question = compiledQuestion(L3, 'a2r3-cw-9');
+  for (const [fieldId, squared] of [
+    ['simplified', '\\frac{\\left(y^{\\frac{1}{2}}+1\\right)^2}{y-1}'],
+    ['cyp', '\\frac{\\left(x^{\\frac{1}{2}}-1\\right)^2}{x-1}'],
+  ]) {
+    assert.equal(takes(question, fieldId, squared), false, `${fieldId} takes ${squared}: this test is out of date`);
+  }
+  assert.match(question.prompt, /multiply out the numerator\. Then simplify .* the same way\.$/);
+});
+
 // What a worked solution writes, in every version (2026-11-06 walkthrough):
 // "(−3a^1b^4)³" and "6a²b¹" where an exponent drew 1, and "the 3th root" or
 // "the 2th root" where an index did. A simplified answer never shows a power of
