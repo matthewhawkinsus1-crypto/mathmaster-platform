@@ -284,7 +284,13 @@ test('L2 Classwork: the slides\' Check Your Progress B is an extension after mul
   assert.match(item.hints.join(' '), /625 = 5⁴/);
   assert.match(item.scaffold.prompt, /⁴√\(b²⁸\)/);
   assert.match(item.solutionReview.reasoning.join(' '), /625b²⁸k²³ = \(5b⁷k⁵\)⁴ · k³/);
-  assert.equal(item.solutionReview.answerSummary, '5|b⁷|k⁵⁴√(k³)');
+  // As drawn: k⁵ times a fourth root. Written "k⁵⁴√(k³)", the run ⁵⁴ after k
+  // was one power, k to the 54th (2026-11-06 walkthrough).
+  [item.solutionReview.answerSummary, item.solutionReview.reasoning.join(' ')].forEach((text) => {
+    const drawn = unicodeSuperscriptsToMathMarkup(text, 'latex');
+    assert.ok(drawn.includes('k^{5}') && drawn.includes('\\sqrt[4]{k^{3}}') && !drawn.includes('k^{54}'), drawn);
+  });
+  assert.match(item.solutionReview.answerSummary, /^5\|b⁷\|k⁵/);
   assert.doesNotMatch(JSON.stringify([item.hints, item.scaffold, item.solutionReview, item.directionSteps]), /16x|y¹¹|square root/);
 });
 

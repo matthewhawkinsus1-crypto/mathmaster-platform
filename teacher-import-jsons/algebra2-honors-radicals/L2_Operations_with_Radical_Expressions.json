@@ -1150,9 +1150,9 @@
           "solutionReview": {
             "headline": "Pull out the largest perfect power; bars only where a factor can be negative.",
             "reasoning": [
-              "625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵⁴√(k³): k ≥ 0 for the radicand to be real."
+              "625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵ · ⁴√(k³): k ≥ 0 for the radicand to be real."
             ],
-            "answerSummary": "5|b⁷|k⁵⁴√(k³)",
+            "answerSummary": "5|b⁷|k⁵ · ⁴√(k³)",
             "commonError": "Writing 125|b⁷|…: the fourth root of 625 is 5, not 625 ÷ 5."
           }
         },

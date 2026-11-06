@@ -420,10 +420,13 @@ const classwork = [
     ],
     misconceptions: [slip('second', '5b^7k^5∜(k^3)', BARS('b')), slip('second', '125|b^7|k^5∜(k^3)', 'The fourth root of 625 is not 625 ÷ 5.')],
     scaffold: backUp('⁴√(b²⁸) equals…', ['|b⁷|', 'b⁷'], '|b⁷|'),
+    // "k⁵⁴√(k³)" was drawn as k to the 54th times √(k³): a superscript right
+    // after its base is a power (mathDisplayFormat.js), so the index stands
+    // apart from k⁵.
     solutionReview: review(
       'Pull out the largest perfect power; bars only where a factor can be negative.',
-      ['625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵⁴√(k³): k ≥ 0 for the radicand to be real.'],
-      '5|b⁷|k⁵⁴√(k³)',
+      ['625b²⁸k²³ = (5b⁷k⁵)⁴ · k³, so the root is |5b⁷k⁵| ⁴√(k³) = 5|b⁷|k⁵ · ⁴√(k³): k ≥ 0 for the radicand to be real.'],
+      '5|b⁷|k⁵ · ⁴√(k³)',
       'Writing 125|b⁷|…: the fourth root of 625 is 5, not 625 ÷ 5.',
     ),
   },
