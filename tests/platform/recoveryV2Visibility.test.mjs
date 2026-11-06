@@ -118,6 +118,19 @@ test('the assignment details show Recovery as students have it now, its version,
   assert.match(hub, /const recoverySection = !isTestCycleAssignment\(assignment\) && \(\s*<AssignmentRecoverySection/);
 });
 
+test('after Prepare Recovery adds everything, closing it leaves focus on the Recovery heading, not the page', () => {
+  // Approving makes nothing preparable, so the "Prepare Recovery…" button that
+  // opened the dialog is gone when it closes and Dialog has no opener to give
+  // focus back to: a keyboard or screen reader teacher was left on the page.
+  const section = executableSource(region(hub, 'function AssignmentRecoverySection({', '\nexport default function AssignmentHub', 'hub Recovery section'));
+  assert.match(section, /<h3 id="assignment-hub-recovery" ref=\{headingRef\} tabIndex=\{-1\}/, 'the heading can take focus');
+  const effect = region(section, 'useEffect(() => {', '}, [upgradeOpen]);', 'the close effect');
+  assert.match(effect, /const closed = upgradeWasOpen\.current && !upgradeOpen;/, 'only when the dialog has just closed');
+  assert.match(effect, /if \(!active \|\| active === document\.body\) headingRef\.current\?\.focus\(\);/, 'only when focus fell to the page (a Cancel returns it to the button)');
+  // Before the early returns, so the hooks run on every render.
+  assert.ok(section.indexOf('}, [upgradeOpen]);') < section.indexOf('if (!plan) return null;'));
+});
+
 test('who can recover is read when the teacher asks, from the class\'s grade records, with the server\'s reasons', () => {
   const section = region(hub, 'function AssignmentRecoverySection({', '\nexport default function AssignmentHub', 'hub Recovery section');
   const read = region(section, 'const readRoster = async () => {', '\n  };', 'read roster');
