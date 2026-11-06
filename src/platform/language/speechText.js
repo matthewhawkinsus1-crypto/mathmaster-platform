@@ -46,6 +46,8 @@ const WORDS = {
       both: (a, b) => `including ${a} and ${b}`, neither: (a, b) => `not including ${a} or ${b}`,
       only: (a, b) => `including ${a} but not ${b}`, one: (a) => `including ${a}`, none: (a) => `not including ${a}`,
     },
+    // {y | y > 3}: "the set of y such that y is greater than 3".
+    setBuilder: { of: 'the set of', suchThat: 'such that' },
     // What an arrow means where it stands (arrowWords below). Nested, so a
     // short word here ("to") is never taken for a word in a denominator.
     arrows: {
@@ -84,6 +86,7 @@ const WORDS = {
     // New with math-speech-2, for the Spanish review (NOVEMBER_BUILD section
     // 5). "se acerca a" and "corresponde a" are the pack's own words for
     // "approaches" and "maps to" (esSupport.js).
+    setBuilder: { of: 'el conjunto de', suchThat: 'tal que' },
     arrows: {
       approaches: `se acerca a${ARROW_A}`, mapsTo: `corresponde a${ARROW_A}`, to: `a${ARROW_A}`, gives: 'da', next: 'luego', means: 'significa',
       goesInto: 'entra en', replacedBy: 'se reemplaza por', correspondsTo: `corresponde a${ARROW_A}`, iff: 'si y solo si', implies: 'implica',
@@ -246,6 +249,10 @@ const latexToSpeech = (raw, w) => {
     .replace(/\\[,;:! ]/g, ' ')
     // `~` is a LaTeX non-breaking space, never a word.
     .replace(/~/g, ' ')
+    // Set-builder notation, \{y \mid y > 3\}: "the set of y such that y is
+    // greater than 3" (math-speech-2). It was "the set y y is greater than 3
+    // end set": \mid was dropped. A colon may stand for the bar.
+    .replace(/\\\{\s*([A-Za-z])\s*(?:\\middle\s*)?(?:\\mid(?![A-Za-z])|\\vert(?![A-Za-z])|\||:)\s*([\s\S]*?)\s*(?:\\middle\s*)?\\\}/g, ` ${w.setBuilder.of} $1 ${w.setBuilder.suchThat} $2 `)
     // A first member's sign is said here: after "the set" the reader's later
     // pass hears a subtraction ("the set minus 2, 0").
     .replace(/\\\{\s*[-−]\s*/g, ` ${w.setOpen} ${w.negative} `)
@@ -565,9 +572,20 @@ const LATEX_SPAN = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\
 const PLAIN_SET = /(?<![\\^_{}\]\p{L}])\{([^{}$\\^_]*)\}(?!\})/gu;
 const isSetMembers = (members) => /[\p{L}\p{N}∞]/u.test(members) && !/\p{L}{2,}/u.test(members)
   && (members.includes(',') || /^\s*(?:[-−+±]?\s*\d+(?:\.\d+)?|\([^()]*\)|\p{L})\s*$/u.test(members));
+// "!=" typed for ≠, as the bank's set-builder examples write it ("{x|x!=3}"):
+// in prose the segmenter split the "!" off, and it was read "x! equals 3".
+const typedNotEqual = (text) => text.replace(/(?<=[\p{L}\p{N})\]}])\s*!=\s*/gu, ' ≠ ');
+
+// Set-builder notation in plain braces, {y | y > 3} or {x : x ≠ 2}, is read
+// as LaTeX's is: "the set of y such that y is greater than 3". It was "{ y |
+// y is greater than 3 }", braces and bar raw (math-speech-2).
+const SET_BUILDER = /^\s*([A-Za-z])\s*[|:]\s*(\S[\s\S]*?)\s*$/;
 const plainSetsToWords = (text, w) => {
-  const rewrite = (plain) => plain.replace(PLAIN_SET, (match, members) => (
-    isSetMembers(members) ? ` ${w.setOpen} ${leadingSignInWords(members, w)} ${w.setClose} ` : match));
+  const rewrite = (plain) => plain.replace(PLAIN_SET, (match, members) => {
+    const builder = SET_BUILDER.exec(members);
+    if (builder) return ` ${w.setBuilder.of} ${builder[1]} ${w.setBuilder.suchThat} ${builder[2]} `;
+    return isSetMembers(members) ? ` ${w.setOpen} ${leadingSignInWords(members, w)} ${w.setClose} ` : match;
+  });
   let out = '';
   let from = 0;
   for (const span of text.matchAll(LATEX_SPAN)) {
@@ -796,7 +814,7 @@ const proseArrowsToWords = (segments, w, letters) => {
 // What is written as text but said in words: an arrow written in LaTeX, a
 // logarithm's base and a set in braces, then the powers and roots above.
 const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(arrowsAsCharacters(String(raw ?? '')), w), w), w,
+  plainSetsToWords(logBasesToWords(typedNotEqual(arrowsAsCharacters(String(raw ?? ''))), w), w), w,
 );
 
 /**

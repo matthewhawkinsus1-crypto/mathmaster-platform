@@ -220,6 +220,25 @@ test('an arrow is read by what it means where it stands', () => {
   assert.equal(speechTextFor('5 → g → 1 → f → 5', es), '5 entra en g da 1, entra en f da 5');
 });
 
+// {y | y > 3}: the bar was read raw ("{ y | y is greater than 3 }") and
+// LaTeX's \mid dropped ("the set y y is greater than 3 end set").
+test('set-builder notation is "the set of … such that …"', () => {
+  assert.equal(
+    speechTextFor('Write a set-builder statement, for example {y | y > 2}.'),
+    'Write a set-builder statement, for example the set of y such that y is greater than 2.',
+  );
+  assert.equal(speechTextFor('{x : x ≠ 2}'), 'the set of x such that x is not equal to 2', 'a colon for the bar');
+  assert.equal(mathToSpeech('\\{y\\mid y>3\\}'), 'the set of y such that y is greater than 3');
+  assert.equal(speechTextFor('{y | y > 3}'), speechTextFor('$\\{y \\mid y > 3\\}$'), 'as the LaTeX');
+  assert.equal(speechTextFor('the range is the set {y | y ≥ 0}'), 'the range is the set of y such that y is greater than or equal to 0', '"the set" said once');
+  // The bank's examples type ≠ as "!=": it was "x! equals 3".
+  assert.equal(speechTextFor('{x|x!=3}'), 'the set of x such that x is not equal to 3');
+  assert.equal(speechTextFor('x!=0'), 'x is not equal to 0');
+  // A list in braces is still its members.
+  assert.equal(speechTextFor('{1, 2, 3}'), 'the set 1, 2, 3 end set');
+  assert.equal(speechTextFor('{y | y > 2}', es), 'el conjunto de y tal que y es mayor que 2');
+});
+
 // Translate's lines are written with ∘ and ∪ between the masked mathematics
 // ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so only Read aloud reads them as part of
 // it: a Spanish sentence still translates, and is then read in Spanish words.
