@@ -239,6 +239,32 @@ test('set-builder notation is "the set of … such that …"', () => {
   assert.equal(speechTextFor('{y | y > 2}', es), 'el conjunto de y tal que y es mayor que 2');
 });
 
+// "log(x)" was "log times the quantity x", a product. A log with no base is
+// the common log, "log of x", as log₂(x) is "log base 2 of x"; ln(x) is
+// "natural log of x" (it was "ln times the quantity x").
+test('a log with no base is "log of", and ln is "natural log of"', () => {
+  assert.equal(speechTextFor('f(x) = log(x)'), 'f of x equals log of x');
+  assert.equal(speechTextFor('f(x) = log(x)'), speechTextFor('$f(x) = \\log(x)$'), 'as the LaTeX');
+  assert.equal(speechTextFor('f(x) = ln(x)'), 'f of x equals natural log of x');
+  assert.equal(speechTextFor('y = ln x'), 'y equals natural log of x');
+  assert.equal(speechTextFor('log 100 = 2'), 'log of 100 equals 2');
+  // An argument of more than one term is a quantity, typed or in LaTeX.
+  assert.equal(speechTextFor('g(x) = log(x + 2) − 1'), 'g of x equals log of the quantity x plus 2 minus 1');
+  assert.equal(mathToSpeech('\\log(x+2)'), 'log of the quantity x plus 2', 'it was "log x plus 2"');
+  assert.equal(mathToSpeech('y=\\log(x-(-2))+3'), 'y equals log of the quantity x minus the quantity negative 2 plus 3', 'a bracket inside the argument');
+  assert.equal(mathToSpeech('\\log_{0.5}(x-3)'), 'log base 0.5 of the quantity x minus 3', 'it was "log base 0.5 of x minus 3"');
+  // Around other mathematics.
+  assert.equal(speechTextFor('y = -ln(x)'), 'y equals negative natural log of x');
+  assert.equal(speechTextFor('e^(ln x)'), 'e to the power natural log of x');
+  assert.equal(speechTextFor('Then use logarithms: $x=\\ln3/\\ln2$.'), 'Then use logarithms: x equals natural log of 3 over natural log of 2.');
+  assert.equal(speechTextFor('Take ln of both sides.'), 'Take natural log of both sides.');
+  // A base is said as before, and "log" in prose is a word.
+  assert.equal(speechTextFor('g(x) = log₂(x)'), 'g of x equals log base 2 of x');
+  assert.equal(speechTextFor('Keep a log of every answer.'), 'Keep a log of every answer.');
+  assert.equal(speechTextFor('f(x) = log(x)', es), 'f de x es igual a logaritmo de x');
+  assert.equal(speechTextFor('f(x) = ln(x)', es), 'f de x es igual a logaritmo natural de x');
+});
+
 // Translate's lines are written with ∘ and ∪ between the masked mathematics
 // ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so only Read aloud reads them as part of
 // it: a Spanish sentence still translates, and is then read in Spanish words.
@@ -266,8 +292,8 @@ test('Translate still finds its Spanish lines, and Read aloud reads them', async
 // the closed review. None may reach the voice as raw notation, and every
 // pair that can only be an interval must be said as one.
 const MODULE = new URL('../../teacher-import-jsons/algebra2-honors-module1/', import.meta.url);
-// math-speech-2 adds arrows.
-const RAW = /[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ∘∪∈{}→←↔⇔⇒]|log sub|log_|(?:the point|el punto) [^,.;]*infinit/u;
+// math-speech-2 adds arrows and a log read as a product.
+const RAW = /[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ∘∪∈{}→←↔⇔⇒]|log sub|log_|\b(?:log|ln) (?:times|por)\b|(?:the point|el punto) [^,.;]*infinit/u;
 const ONLY_AN_INTERVAL = /\[[^()[\],;]+,[^()[\],;]+[\])]|\([^()[\],;]*∞[^()[\],;]*,[^()[\],;]+[\])]|\([^()[\],;]+,[^()[\],;]*∞[^()[\],;]*[\])]/gu;
 // math-speech-2: and the worked sibling the hint panel reads ("Read each pair
 // as input first, output second: -6 → 9, …").

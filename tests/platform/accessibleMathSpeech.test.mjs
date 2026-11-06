@@ -82,7 +82,10 @@ test('a word denominator is read whole, with or without a sign', () => {
     ['3 / -sqrt(2)', '3 over negative the square root of 2', '3 sobre negativo la raíz cuadrada de 2'],
     ['x/-√2', 'x over negative the square root of 2', 'x sobre negativo la raíz cuadrada de 2'],
     ['2/-pi', '2 over negative pi', '2 sobre negativo pi'],
-    ['1/-ln(x)', '1 over negative ln times the quantity x', '1 sobre negativo ln por la cantidad x'],
+    // ln(x) was "ln times the quantity x", a product. It is "natural log of
+    // x" (math-speech-2, readAloudNotation.test.mjs); the word denominator
+    // is still read whole, which is what this case is here for.
+    ['1/-ln(x)', '1 over negative natural log of x', '1 sobre negativo logaritmo natural de x'],
     ['4/-abs(x)', '4 over negative abs times the quantity x', '4 sobre negativo abs por la cantidad x'],
     ['1/sin(x)', '1 over sin times the quantity x', '1 sobre sin por la cantidad x'],
     ['2/sqrt(3)', '2 over the square root of 3', '2 sobre la raíz cuadrada de 3'],
@@ -94,7 +97,8 @@ test('a word denominator is read whole, with or without a sign', () => {
   }
   // Prose the platform really shows (a lesson's hint and step).
   assert.equal(speechTextFor('Multiply a radian measure by $180/\\pi$ to express it in degrees.'), 'Multiply a radian measure by 180 over pi to express it in degrees.');
-  assert.equal(speechTextFor('Then use logarithms: $x=\\ln3/\\ln2$.'), 'Then use logarithms: x equals ln 3 over ln 2.');
+  // \ln is "natural log of", as ln(x) is (math-speech-2).
+  assert.equal(speechTextFor('Then use logarithms: $x=\\ln3/\\ln2$.'), 'Then use logarithms: x equals natural log of 3 over natural log of 2.');
   // A one-letter denominator is still one letter.
   assert.equal(mathToSpeech('x/y'), 'x over y');
   assert.equal(mathToSpeech('3/-x'), '3 over negative x');

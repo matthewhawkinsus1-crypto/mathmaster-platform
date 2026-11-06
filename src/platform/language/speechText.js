@@ -46,6 +46,8 @@ const WORDS = {
       both: (a, b) => `including ${a} and ${b}`, neither: (a, b) => `not including ${a} or ${b}`,
       only: (a, b) => `including ${a} but not ${b}`, one: (a) => `including ${a}`, none: (a) => `not including ${a}`,
     },
+    // A log with no base is the common log, said as ln is said (math-speech-2).
+    commonLog: 'log', naturalLog: 'natural log',
     // {y | y > 3}: "the set of y such that y is greater than 3".
     setBuilder: { of: 'the set of', suchThat: 'such that' },
     // What an arrow means where it stands (arrowWords below). Nested, so a
@@ -86,6 +88,7 @@ const WORDS = {
     // New with math-speech-2, for the Spanish review (NOVEMBER_BUILD section
     // 5). "se acerca a" and "corresponde a" are the pack's own words for
     // "approaches" and "maps to" (esSupport.js).
+    commonLog: 'logaritmo', naturalLog: 'logaritmo natural',
     setBuilder: { of: 'el conjunto de', suchThat: 'tal que' },
     arrows: {
       approaches: `se acerca a${ARROW_A}`, mapsTo: `corresponde a${ARROW_A}`, to: `a${ARROW_A}`, gives: 'da', next: 'luego', means: 'significa',
@@ -234,6 +237,36 @@ const isSimplePart = (part) => /^\s*-?\s*(?:\d+(?:\.\d+)?|[A-Za-z]|\\pi)\s*$/.te
 // \log_{0.5}, \log_2: a braced base, or a bare number or letter.
 const LATEX_LOG_BASE = String.raw`\\log_(?:\{\s*([^{}]+?)\s*\}|(\d+(?:\.\d+)?|[A-Za-z]))`;
 
+/*
+ * \log(x), \ln x, \ln3, with no base: "log of x", "natural log of 3", as the
+ * typed forms are (plainLogsToWords, math-speech-2). A bracket is read whole,
+ * one inside it too ("\log(x-(-2))" was "log times the quantity x minus the
+ * quantity negative 2"), and is said as a quantity when it holds more than one
+ * term: "\log(x+2)" was "log x plus 2", which is also log(x) + 2.
+ */
+const LATEX_PLAIN_LOG = /\\(ln|log)(?![A-Za-z_])\s*/g;
+const latexLogsToWords = (text, w) => {
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(LATEX_PLAIN_LOG)) {
+    if (match.index < from) continue;
+    const at = match.index + match[0].length;
+    const bare = /^(?:\d+(?:\.\d+)?|[A-Za-z](?![A-Za-z])|\|[^|]+\|)/.exec(text.slice(at));
+    const group = text[at] === '(' ? rootArgument(text, at) : text[at] === '{' ? readGroup(text, at) : bare && [bare[0], at + bare[0].length];
+    const name = match[1] === 'ln' ? w.naturalLog : w.commonLog;
+    if (!group) {
+      out += `${text.slice(from, match.index)} ${name} `;
+      from = at;
+      continue;
+    }
+    const argument = group[0].trim();
+    const quantity = text[at] === '(' && !/^[A-Za-z0-9.]+$/.test(argument);
+    out += `${text.slice(from, match.index)} ${name} ${w.of} ${quantity ? `(${argument})` : argument} `;
+    from = group[1];
+  }
+  return out + text.slice(from);
+};
+
 const latexToSpeech = (raw, w) => {
   let text = String(raw)
     // An escaped dollar is a price, not a delimiter.
@@ -278,14 +311,17 @@ const latexToSpeech = (raw, w) => {
   // boundary between a letter and a digit, so `\ge15`, `\pi2` and `\ne4`
   // fell through to the catch-all below and their words were lost (QA M4).
   // The lookahead also keeps a short name off a longer one (`\ln` / `\lnot`).
-  return text
+  return latexLogsToWords(text, w)
     // log base b of (x): the bracket is the argument, not a product. A base
     // is a braced group or, bare, one number or one letter: \log_{0.5}(x) was
     // "log base 0 of .5", \log_{ 3 }3 "log sub 3 3" and \log_3x "log base 3x
     // of" (walkthrough 2026-11-06, P-1; the Path bank).
-    .replace(new RegExp(`${LATEX_LOG_BASE}\\s*\\(([^()]*)\\)`, 'g'), (match, braced, bare, argument) => ` ${w.logBase} ${braced ?? bare} ${w.of} ${argument} `)
+    // An argument of more than one term is a quantity, as in the typed form
+    // (logBasesToWords): "\log_{0.5}(x - 3)" was "log base 0.5 of x minus 3",
+    // which is also log(x) − 3 (math-speech-2).
+    .replace(new RegExp(`${LATEX_LOG_BASE}\\s*\\(([^()]*)\\)`, 'g'), (match, braced, bare, argument) => ` ${w.logBase} ${braced ?? bare} ${w.of} ${/^\s*[A-Za-z0-9.]+\s*$/.test(argument) ? argument : `(${argument})`} `)
     .replace(new RegExp(LATEX_LOG_BASE, 'g'), (match, braced, bare) => ` ${w.logBase} ${braced ?? bare} ${w.of} `)
-    .replace(/\\(sin|cos|tan|ln|log)\s*\(([^()]*)\)/g, ' $1 $2 ')
+    .replace(/\\(sin|cos|tan)\s*\(([^()]*)\)/g, ' $1 $2 ')
     .replace(/\^\s*\{?\s*\\circ\s*\}?/g, ` ${w.degrees} `)
     .replace(/\\circ(?![A-Za-z])/g, ` ${w.degrees} `)
     .replace(/°/g, ` ${w.degrees} `)
@@ -560,6 +596,52 @@ const logBasesToWords = (text, w) => {
 };
 
 /*
+ * A LOG WITH NO BASE, AND LN (math-speech-2). "log(x)" was "log times the
+ * quantity x" and "ln(x)" "ln times the quantity x": the bracket was read as
+ * a product. They are "log of x", the common log, as "log base 2 of x" is
+ * said, and "natural log of x". The argument is found as a base's is
+ * (logArgument), and only mathematics is one: the word "log" in prose ("a log
+ * (record) of every read", "log a question") is left alone.
+ */
+const PLAIN_LOG = /(?<![A-Za-z\\])(log|ln)(?![A-Za-z_₀-₉ₐₑₓₙₖₘ])/g;
+const FUNCTION_WORDS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs', 'exp']);
+const plainLogArgument = (text, from) => {
+  const argument = logArgument(text, from);
+  if (!argument || /^\s*[aAI]\s*$/.test(argument[0])) return null;
+  const words = argument[0].match(/[A-Za-z]{3,}/g) || [];
+  return words.every((word) => FUNCTION_WORDS.has(word.toLowerCase())) ? argument : null;
+};
+const plainLogsToWords = (text, w) => {
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(PLAIN_LOG)) {
+    if (match.index < from) continue;
+    const argument = plainLogArgument(text, match.index + match[0].length);
+    if (!argument) {
+      // ln alone is still the natural log; "log" is a word as it stands.
+      if (match[1] === 'ln') {
+        out += `${text.slice(from, match.index)} ${w.naturalLog} `;
+        from = match.index + match[0].length;
+      }
+      continue;
+    }
+    const body = argument[0].trim();
+    out += `${text.slice(from, match.index)} ${match[1] === 'ln' ? w.naturalLog : w.commonLog} ${w.of} ${SIMPLE_ARGUMENT.test(body) ? body : `(${body})`} `;
+    from = argument[1];
+  }
+  return out + text.slice(from);
+};
+
+// A log or ln in prose before its argument ("ln x", "log 100 = 2"): the
+// segmenter keeps a name followed by a space as a word, so its "of" is said
+// here, before the mathematics that follows. Any other "ln" is the natural
+// log by name ("Take ln of both sides").
+const proseLogNames = (prose, next, w) => prose
+  .replace(/(?<![A-Za-z\\])(?<!\ban? )(log|ln)(\s+)$/, (match, name, space) => (
+    next?.kind === 'math' && /^\s*(?:\d|[A-Za-z](?![A-Za-z])|\()/.test(next.value) ? `${name === 'ln' ? w.naturalLog : w.commonLog} ${w.of}${space}` : match))
+  .replace(/(?<![A-Za-z\\])ln(?![A-Za-z])/g, w.naturalLog);
+
+/*
  * A SET WRITTEN WITH PLAIN BRACES: {(−3, 26), (2, 11)}, {0, 1, 2, …, 48}.
  * LaTeX's \{…\} is read "the set …, end set"; plain braces were left raw ("{
  * the point negative 3, 26, … }", walkthrough 2026-11-06, P-1). They read the
@@ -812,7 +894,9 @@ const proseArrowsToWords = (segments, w, letters) => {
 };
 
 // What is written as text but said in words: an arrow written in LaTeX, a
-// logarithm's base and a set in braces, then the powers and roots above.
+// logarithm's base and a set in braces, then the powers and roots above. (A
+// log with no base is read with the mathematics around it, in mathToSpeech:
+// said here, "1/-ln(x)" lost its fraction to the prose.)
 const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
   plainSetsToWords(logBasesToWords(typedNotEqual(arrowsAsCharacters(String(raw ?? ''))), w), w), w,
 );
@@ -829,7 +913,7 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '', interva
   const names = `${functionNames || ''}${definedFunctionNames(raw)}`;
   const arrowed = mathArrowSpeech(arrowsAsCharacters(String(raw)), { language, functionNames: names, intervals }, w, functionLettersFor(names));
   if (arrowed !== null) return w.contract(arrowed);
-  const reduced = latexToSpeech(writtenNotationToSpokenForm(raw, w), w);
+  const reduced = latexToSpeech(plainLogsToWords(writtenNotationToSpokenForm(raw, w), w), w);
   // A union's pieces are intervals, (−3, 1) ∪ (2, 5) too; a union of sets is not.
   const union = reduced.includes('∪') && !reduced.includes(w.setOpen);
   return w.contract(plainMathToSpeech(reduced, w, names, { intervals: intervals || union }).replace(/\s+/g, ' ').trim());
@@ -903,7 +987,7 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
       const prose = /^\$\d/.test(segments[index + 1]?.value || '') ? segment.value.replace(/\\$/, '') : segment.value;
       // "$x$-terms" is "x terms": the hyphen joins a word to the math.
       const joined = segments[index - 1]?.kind === 'math' ? prose.replace(/^[-‐‑](?=\p{L})/u, ' ') : prose;
-      return joined.replace(/⁻¹/g, ` ${w.inverse}`);
+      return proseLogNames(joined, segments[index + 1], w).replace(/⁻¹/g, ` ${w.inverse}`);
     })
     .join('')
     .replace(/\s+([,.;:?!])/g, '$1')

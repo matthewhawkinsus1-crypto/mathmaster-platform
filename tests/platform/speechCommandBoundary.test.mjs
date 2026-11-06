@@ -33,7 +33,9 @@ const COMMANDS = [
   ['angle', 'angle'], ['triangle', 'triangle'], ['in', 'is in'],
   ['pm', 'plus or minus'], ['infty', 'infinity'], ['cdot', 'times'], ['times', 'times'], ['div', 'divided by'],
   ['pi', 'pi'], ['theta', 'theta'], ['circ', 'degrees'],
-  ['sin', 'sin'], ['cos', 'cos'], ['tan', 'tan'], ['ln', 'ln'], ['log', 'log'],
+  // \ln is said "natural log" (math-speech-2: ln(x) is "natural log of x");
+  // what this list checks is that it is said at all.
+  ['sin', 'sin'], ['cos', 'cos'], ['tan', 'tan'], ['ln', 'natural log'], ['log', 'log'],
 ];
 const said = (speech, words) => new RegExp(`(?:^| )${words}(?: |$)`).test(speech);
 
