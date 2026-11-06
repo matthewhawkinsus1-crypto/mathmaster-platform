@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Dialog from '../../ui/Dialog.jsx';
 import { describeAuthError, teacherAdmin } from '../../auth/authService.js';
 import { recoveryReadinessLabel } from '../../platform/recovery/recoveryReadinessCopy.js';
+import {
+  canApproveRecoveryUpgrade, countOf, recoveryChangeDetail, recoveryUpgradeAlert, studentRecordsSentence,
+} from '../../platform/recovery/recoveryUpgradeCopy.js';
 
 /*
  * PREPARE RECOVERY — THE DRY RUN A TEACHER APPROVES.
@@ -32,30 +35,6 @@ function upgradeError(error, fallback) {
   };
 }
 
-const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
-
-function studentRecordsSentence(records = {}) {
-  const students = Number(records.students) || 0;
-  if (!students) return 'No student has a record for this assignment yet.';
-  const parts = [
-    `${Number(records.withAnyWork) || 0} with saved work`,
-    `${Number(records.withDolWork) || 0} with DOL answers`,
-    `${Number(records.withCompletedDol) || 0} who finished the DOL`,
-  ];
-  if (records.withRecoveryRecords) parts.push(`${records.withRecoveryRecords} with a Recovery already under way`);
-  return `${plural(students, 'student record')} (${parts.join(', ')}). None of them is written.`;
-}
-
-function changeDetail(change) {
-  const facts = [];
-  if (Number.isFinite(change.freshVersions)) facts.push(`${change.freshVersions} fresh versions`);
-  if (change.excludedFromAssignment) facts.push(`never a problem already in this assignment (${change.excludedFromAssignment} set aside)`);
-  if (change.standards?.length) facts.push(`same TEKS (${change.standards.join(', ')})`);
-  if (change.rigor?.dok) facts.push(`same DOK ${change.rigor.dok}`);
-  facts.push('the same tool, graded by MathMaster');
-  return facts.join(' · ');
-}
-
 export default function RecoveryUpgradeModal({ assignment, onClose, onUpgraded }) {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +59,9 @@ export default function RecoveryUpgradeModal({ assignment, onClose, onUpgraded }
   useEffect(() => loadPreview(), [loadPreview]);
 
   const report = preview?.report || null;
-  const canApprove = Boolean(report?.changed && preview?.planHash && !result && !committing && !loading);
+  // Not after "assignment changed": that plan is gone until Check again reloads it.
+  const canApprove = canApproveRecoveryUpgrade({ preview, result, committing, loading, error });
+  const alertWords = recoveryUpgradeAlert(error);
 
   const approve = async () => {
     if (!canApprove) return;
@@ -140,10 +121,10 @@ export default function RecoveryUpgradeModal({ assignment, onClose, onUpgraded }
 
         {loading && <p role="status">Checking the questions, the Recovery versions and the student records…</p>}
 
-        {error && (
+        {alertWords && (
           <div role="alert" style={{ marginTop: 14, padding: 12, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', borderRadius: 8, lineHeight: 1.45 }}>
-            <strong>{error.planChanged ? 'The assignment changed after this preview.' : 'Nothing was changed.'}</strong> {error.message}
-            {error.errorCode && <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))' }}>Error code: {error.errorCode}{error.reason ? ` · ${error.reason}` : ''}</div>}
+            <strong>{alertWords.lead}</strong> {alertWords.detail}
+            {alertWords.code && <div style={{ marginTop: 4, fontSize: 'calc(12 * var(--mm-px))' }}>Error code: {alertWords.code}</div>}
             {(error.planChanged || !preview) && !loading && (
               <div style={{ marginTop: 8 }}>
                 <button type="button" onClick={loadPreview} style={{ minHeight: 40 }}>Check again</button>
@@ -186,7 +167,7 @@ export default function RecoveryUpgradeModal({ assignment, onClose, onUpgraded }
                     <li key={change.questionId} style={{ marginBottom: 6 }}>
                       <strong>{change.label}</strong>
                       {change.describes ? <> ({change.describes})</> : null}: {change.action === 'replace' ? 'its Recovery is refreshed to match the question as it stands' : 'Recovery versions are added'} — {change.family?.title || 'a checked Question Family'}.
-                      <div style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{changeDetail(change)}</div>
+                      <div style={{ fontSize: 'calc(12.5 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{recoveryChangeDetail(change)}</div>
                     </li>
                   ))}
                 </ul>
@@ -227,7 +208,7 @@ export default function RecoveryUpgradeModal({ assignment, onClose, onUpgraded }
               <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
                 {(report.writes || []).map((write) => <li key={write}>Writes {write}</li>)}
                 <li>Recovery version {report.recoveryContent?.versionBefore ?? 0} → {report.recoveryContent?.versionAfter ?? 0}</li>
-                <li>{report.untouched?.questionCount ?? 0} questions, each with an unchanged content signature</li>
+                <li>{countOf(report.untouched?.questionCount ?? 0, 'question')}, each with an unchanged content signature</li>
                 {report.migrationId && <li>Prepared migration: {report.migrationId}</li>}
                 <li>Plan: {preview.planHash}</li>
               </ul>
