@@ -1087,8 +1087,8 @@
           ],
           "hints": [
             "Where does each boundary line cross the axes? Find y when x = 0, and x when y = 0.",
-            "Both symbols include equality.",
-            "The solutions are the points shaded by BOTH inequalities."
+            "Can the raft carry exactly 800 pounds? Does exactly $150 meet Noah’s goal? So is each boundary solid or dashed?",
+            "Both constraints include their boundary (≤ and ≥), so both lines are solid. The solutions are the points shaded by BOTH inequalities."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The solution set of a system is…",

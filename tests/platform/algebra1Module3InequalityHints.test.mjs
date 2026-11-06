@@ -72,6 +72,30 @@ test('no hint, the last included, hands over a boundary: two of its points the p
 });
 
 /*
+ * A boundary's line style is a build step, and a model's symbols are the
+ * student's to choose. L5 CW 3's hint 2, "Both symbols include equality.",
+ * gave both before the last hint (2026-11-06 walkthrough). Before the last
+ * hint, a sentence of a build item that names a line style, or what a symbol
+ * includes or leaves out, asks it.
+ */
+test('no hint but the last tells a build item\'s line style or what its symbols include: it asks', () => {
+  const STYLE = /\b(solid|dashed|includes?|including|leaves? (?:its line|the line|the boundary|it) out)\b/i;
+  const problems = new Set();
+  let sentences = 0;
+  hintedQuestions().filter((question) => question.type === 'systemsWorkspace').forEach((question) => {
+    const [version] = versionsOf(question, 1);
+    authoredHintTexts(version).slice(0, -1).forEach((hint, index) => {
+      hint.split(/(?<=[.?!])\s+/).filter((sentence) => STYLE.test(sentence)).forEach((sentence) => {
+        sentences += 1;
+        if (!sentence.trim().endsWith('?')) problems.add(`${version.questionId} hint ${index + 1}: "${sentence}"`);
+      });
+    });
+  });
+  assert.deepEqual([...problems], []);
+  assert.ok(sentences >= 20, `${sentences} sentences read`);
+});
+
+/*
  * Each item's hint count, in the order the file lists them (Warm-Up,
  * Classwork, Practice): the rewrite changed words, never a count
  * (hintsThatFit.test.mjs holds the 370 in all).

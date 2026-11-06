@@ -399,8 +399,15 @@ const classwork = (P) => [
     graph: { xMin: 0, xMax: 10, yMin: 0, yMax: 10 },
     directionSteps: ['Enter both constraints.', 'Build each boundary line.', 'Choose solid or dashed for each.', 'Shade each half-plane and find the overlap.', 'Test the marked point.', 'Choose a point of your own in the overlap.'],
     // Hint 1 asks for the intercepts and says how to find them; it used to give
-    // all four, which is the whole boundary step (F-HINT-GIVES-STEP).
-    hints: ['Where does each boundary line cross the axes? Find y when x = 0, and x when y = 0.', 'Both symbols include equality.', 'The solutions are the points shaded by BOTH inequalities.'],
+    // all four, which is the whole boundary step (F-HINT-GIVES-STEP). Hint 2
+    // said "Both symbols include equality.", which answered the model's two
+    // symbols (≤ or ≥, never < or >) and both line styles before the last
+    // hint: it asks now, and the last hint says it.
+    hints: [
+      'Where does each boundary line cross the axes? Find y when x = 0, and x when y = 0.',
+      'Can the raft carry exactly 800 pounds? Does exactly $150 meet Noah’s goal? So is each boundary solid or dashed?',
+      'Both constraints include their boundary (≤ and ≥), so both lines are solid. The solutions are the points shaded by BOTH inequalities.',
+    ],
     scaffold: backUp('The solution set of a system is…', ['where the shaded half-planes overlap', 'everything either inequality shades'], 'where the shaded half-planes overlap'),
     solutionReview: review(
       'Two constraints, one overlap.',
