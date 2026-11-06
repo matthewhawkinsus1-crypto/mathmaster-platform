@@ -42,3 +42,25 @@ test('the five sections sit in one tab panel named by the selected tab, inside t
   assert.match(workspace, /const adminTabId = \(id\) => `admin-tab-\$\{id\}`;/);
   assert.equal((workspace.match(/\['(classes|accounts|coverage|ai|reset)', '/g) || []).length, 5, 'five sections');
 });
+
+// Teacher features walk, item 1: on a phone the five tabs wrapped one under another, 246px of an 844px screen.
+// Now they are one row that scrolls sideways there, as the dashboard's own strip does; the keys and the panel
+// are the ones above. The browser driver measures the row, its targets and the arrow keys' scrolling.
+test('on a phone the tabs are one row that scrolls sideways, and stay one tab list', () => {
+  assert.match(list, /^<div role="tablist" aria-label="Administration sections" className="mm-admin-tabs" onKeyDown=\{moveBetweenAdminTabs\}/);
+  const css = readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8');
+  const rule = css.indexOf('.mm-admin-tabs {');
+  assert.notEqual(rule, -1, 'App.css lays the tab list out');
+  const media = css.lastIndexOf('@media', rule);
+  const query = css.slice(media, css.indexOf('{', media));
+  const width = Number(query.match(/^@media \(max-width: (\d+)px\) $/)?.[1]);
+  assert.ok(width >= 400 && width <= 640, `only at a phone's width: ${query}`);
+  const block = css.slice(media, css.indexOf('\n}\n', media));
+  const row = block.slice(block.indexOf('.mm-admin-tabs {'), block.indexOf('}', block.indexOf('.mm-admin-tabs {')));
+  assert.match(row, /flex-wrap: nowrap !important;/, 'one row (the inline style wraps; this wins over it)');
+  assert.match(row, /overflow-x: auto;/, 'which scrolls sideways');
+  assert.match(row, /padding-bottom: \d+px !important;/, 'with room under the tabs for a focus ring the scrolling box would cut');
+  const tab = block.slice(block.indexOf('.mm-admin-tabs > [role="tab"] {'));
+  assert.match(tab, /flex: 0 0 auto;/, 'a tab keeps its size, so its target never shrinks');
+  assert.match(tab, /white-space: nowrap;/);
+});

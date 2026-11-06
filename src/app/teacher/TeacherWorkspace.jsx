@@ -77,8 +77,9 @@ import { tabKeyTarget } from '../../platform/interaction/tabListKeys.js';
 // The administrator's five sections, as a tab list (TT27): the selected tab is
 // the one Tab stop, the arrow keys, Home and End move focus between the tabs
 // (selecting is Enter or Space, a native button's click), and the content under
-// them is a tab panel named by the selected tab. Same keys as Live Class.
-const ADMIN_SECTIONS = [['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['reset', 'Pre-production reset']];
+// them is a tab panel named by the selected tab. Same keys as Live Class. On a
+// phone they are one row that scrolls sideways (App.css, .mm-admin-tabs).
+const ADMIN_SECTIONS =[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['reset', 'Pre-production reset']];
 const ADMIN_PANEL_ID = 'admin-section-panel';
 const adminTabId = (id) => `admin-tab-${id}`;
 const moveBetweenAdminTabs = (event) => {
@@ -1881,7 +1882,7 @@ export default function TeacherWorkspace({
             <div><div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', color: 'inherit' }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 'calc(13 * var(--mm-px))' }}>{user.email}</p></div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', flexWrap: 'wrap', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid var(--mm-error-border-soft)', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
           </header>
-          <div role="tablist" aria-label="Administration sections" onKeyDown={moveBetweenAdminTabs} style={{ display: 'flex', gap: 8, padding: '14px clamp(14px, 4vw, 28px) 0', flexWrap: 'wrap' }}>
+          <div role="tablist" aria-label="Administration sections" className="mm-admin-tabs" onKeyDown={moveBetweenAdminTabs} style={{ display: 'flex', gap: 8, padding: '14px clamp(14px, 4vw, 28px) 0', flexWrap: 'wrap' }}>
             {ADMIN_SECTIONS.map(([id, label]) => (
               <button
                 key={id}

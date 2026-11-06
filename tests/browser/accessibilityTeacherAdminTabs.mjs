@@ -8,7 +8,11 @@
  *   A3  Tab from the selected tab leaves the list (one stop, not five);
  *   A4  Right / Left wrap, Home / End jump, Up / Down do not move focus;
  *   A5  moving does not select (the Pre-production reset must not open on the way past);
- *   A6  Enter and Space select, and the Tab stop and the panel's name follow.
+ *   A6  Enter and Space select, and the Tab stop and the panel's name follow;
+ *   A7  the five tabs are one row, on a phone too (where it scrolls sideways
+ *       instead of stacking 246px tall), every tab at least 24px each way, and
+ *       End and Home bring the tab they reach into view with room for its
+ *       focus ring (teacher features walk, item 1).
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   node tests/browser/accessibilityTeacherAdminTabs.mjs
@@ -92,6 +96,26 @@ try {
       check(tag, (await focused(page)) === NAMES[4], 'A6 focus stays on the tab');
       await press(page, 'Home'); await press(page, ' ');
       check(tag, (await selected(page)) === NAMES[0] && (await page.getByRole('tabpanel', { name: NAMES[0], exact: true }).count()) === 1, 'A6 Space selects');
+
+      const layout = await page.evaluate((list) => {
+        const box = document.querySelector(list).getBoundingClientRect();
+        const tabs = [...document.querySelectorAll(`${list} [role="tab"]`)].map((tab) => tab.getBoundingClientRect());
+        return { height: box.height, tops: [...new Set(tabs.map((tab) => Math.round(tab.top)))], sizes: tabs.map((tab) => [tab.width, tab.height]) };
+      }, LIST);
+      check(tag, layout.tops.length === 1 && layout.height <= 80, `A7 one row (${Math.round(layout.height)}px tall, ${layout.tops.length} row(s))`);
+      check(tag, layout.sizes.every(([width, height]) => width >= 24 && height >= 24), 'A7 every tab is at least 24px each way');
+      // The focused tab is inside the row's box, and where the row clips (a phone's scrolling row), so is its ring.
+      const shown = () => page.evaluate((list) => {
+        const row = document.querySelector(list);
+        const box = row.getBoundingClientRect();
+        const tab = document.activeElement.getBoundingClientRect();
+        const ring = getComputedStyle(row).overflowX === 'visible' ? 0 : 5;
+        return tab.left - ring >= box.left - 0.5 && tab.right + ring <= box.right + 0.5 && tab.bottom + ring <= box.bottom + 0.5;
+      }, LIST);
+      await press(page, 'End');
+      check(tag, (await focused(page)) === NAMES[4] && await shown(), 'A7 End brings the last tab, and its focus ring, into view');
+      await press(page, 'Home');
+      check(tag, (await focused(page)) === NAMES[0] && await shown(), 'A7 Home brings the first tab back into view');
       check(tag, pageErrors.length === 0, `no page errors${pageErrors.length ? `: ${pageErrors.join(' | ')}` : ''}`);
     } catch (error) {
       check(tag, false, `could not drive the tabs: ${error.message.split('\n')[0]}`);

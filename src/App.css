@@ -459,6 +459,28 @@
   }
 }
 
+/* The administrator's five section tabs (TT27) on a phone: one row that
+   scrolls sideways, as the dashboard's strip above does, instead of five
+   stacked rows 246px tall (teacher features walk, item 1). Still one tab list:
+   the arrow keys move between the tabs and focus scrolls the one it reaches
+   into view. The room under the row and at its ends keeps a tab's focus ring
+   inside the scrolling box. */
+@media (max-width: 640px) {
+  .mm-admin-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 12px;
+    scrollbar-width: thin;
+    padding-bottom: 6px !important;
+  }
+
+  .mm-admin-tabs > [role="tab"] {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 560px) {
   .mm-bulkbar {
     position: static;
