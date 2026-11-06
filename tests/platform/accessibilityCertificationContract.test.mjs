@@ -9,7 +9,7 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 
 const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
 import {
-  CERTIFIED_SCREENS, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, servesStubbedServices,
+  CERTIFIED_SCREENS, EXAM_PRACTICE_CHIP_SCREEN, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, servesStubbedServices,
 } from '../browser/accessibilityCertification.mjs';
 import { TEACHER_SCREENS } from '../browser/accessibilityTeacherScreens.mjs';
 
@@ -42,6 +42,26 @@ test('all seven student screens are certified, each with at least one driven sce
 
 // AX17: a math box's placeholder was 1.66:1 and no scene had a box that showed
 // one. The scene must keep waiting for the placeholder it audits.
+// THE EXAM-PRACTICE CHIP (student-a11y-2). On a phone held upright its white text was painted dark blue over
+// its purple fill (1.14:1) and no scene showed the chip. Its screen is audited by axe and replayed by the
+// contrast review (CERTIFIED_SCREENS), in both themes, on an item authored as exam practice; it is not one of
+// SCREENS, which the large-text runs take too, because it sits on the keyboard sweep's stand-in shell.
+test('the exam-practice chip is audited in both themes, on an item that shows it, and kept out of the large-text runs', () => {
+  assert.ok(CERTIFIED_SCREENS.includes(EXAM_PRACTICE_CHIP_SCREEN), 'the ratchet and the contrast review audit it');
+  assert.ok(!SCREENS.includes(EXAM_PRACTICE_CHIP_SCREEN), 'the large-text runs do not take it');
+  assert.deepEqual(EXAM_PRACTICE_CHIP_SCREEN.scenes.map((scene) => scene.id), ['light', 'dark']);
+  for (const scene of EXAM_PRACTICE_CHIP_SCREEN.scenes) assert.equal(typeof scene.run, 'function', `${sceneLabel(EXAM_PRACTICE_CHIP_SCREEN, scene)} has a driver`);
+  assert.equal(sceneScope(EXAM_PRACTICE_CHIP_SCREEN, EXAM_PRACTICE_CHIP_SCREEN.scenes[0]).keyboard, undefined, 'axe only: no Tab walk on the stand-in shell');
+  const source = executableSource(readFileSync(new URL('../browser/accessibilityCertification.mjs', import.meta.url), 'utf8'));
+  const spec = region(source, 'const EXAM_PRACTICE_SPEC = {', '\n};', 'the exam-practice item');
+  // What makes QuestionEngine show the chip (questionAssessmentFramework.js): exam style, and a direct alignment to that exam.
+  assert.match(spec, /assessmentContext: \{ framework: 'digitalSAT', examStyle: true/);
+  assert.match(spec, /\{ framework: 'digitalSAT', domainId: 'algebra', role: 'primary', evidenceMode: 'direct' \}/);
+  const scene = region(source, 'const openExamPracticeChip = (theme) => async', '\n};', 'the chip scene');
+  assert.match(scene, /if \(theme === 'dark'\) await page\.evaluate\(\(\) => \{ document\.documentElement\.dataset\.theme = 'dark'; \}\);/);
+  assert.match(scene, /getByRole\('button', \{ name: \/Digital SAT alignment details\/ \}\)\.first\(\)\.waitFor/, 'the scene waits for the chip itself');
+});
+
 test('an empty math box with its placeholder showing is among the audited scenes', () => {
   const tools = SCREENS.find((screen) => screen.id === 'assignment-tools');
   assert.ok(tools.scenes.some((scene) => scene.id === 'math-box-placeholder'), 'the assignment tools audit an empty math box');
@@ -109,7 +129,9 @@ test('the teacher screens are audited next to the student ones, each scene drive
   assert.deepEqual(TEACHER_SCREENS.map((screen) => screen.id).sort(), Object.keys(REQUIRED_TEACHER_SCREENS).sort(), 'no teacher screen is audited without being named here');
   // The student list is what the other drivers (large text, names, landmarks) import: it stays the student's.
   assert.ok(SCREENS.every((screen) => !screen.id.startsWith('teacher-')), 'SCREENS is the student list');
-  assert.ok(CERTIFIED_SCREENS.length === SCREENS.length + TEACHER_SCREENS.length);
+  // The run audits the student list, the exam-practice chip's screen (audited, but kept out of the large-text
+  // runs: see its own test) and the teacher list, and nothing else.
+  assert.deepEqual(CERTIFIED_SCREENS, [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS]);
 });
 
 // Every destination of the teacher's navigation has a scene (TT27, third slice). The list is read from the navigation itself, so a

@@ -167,6 +167,32 @@ const openMathBoxPlaceholder = async (page, origins, state) => {
   );
 };
 
+// THE EXAM-PRACTICE CHIP IN A QUESTION'S HEADING (student-a11y-2). An item
+// authored as Digital SAT practice shows "Digital SAT practice" beside its
+// learning goal; on a phone held upright both chips sit in the task panel's
+// heading row, where a stylesheet rule painted the chip's white text dark blue
+// over its purple fill (1.14:1) and no scene showed the chip. Opened on the
+// keyboard sweep's page in the assignment shell (an authored item's alignment
+// shape), in the light theme and the dark one.
+const EXAM_PRACTICE_SPEC = {
+  assessmentContext: { framework: 'digitalSAT', examStyle: true, domainId: 'algebra' },
+  alignments: [
+    { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+    { framework: 'digitalSAT', domainId: 'algebra', role: 'primary', evidenceMode: 'direct' },
+  ],
+  standard: 'A.5A',
+};
+const openExamPracticeChip = (theme) => async (page, origins) => {
+  const spec = encodeURIComponent(JSON.stringify(EXAM_PRACTICE_SPEC));
+  await page.goto(`${origins.audit}/tests/browser/keyboardSweep.html?tool=fraction&variant=exam-practice&spec=${spec}&shell=assignment`, { timeout: 180_000 });
+  await page.waitForSelector('[data-kb-sentinel="end"]', { timeout: 180_000 });
+  // The sweep's own two buttons around the page are not the student's.
+  await page.evaluate(() => document.querySelectorAll('[data-kb-sentinel]').forEach((button) => { button.tabIndex = -1; }));
+  if (theme === 'dark') await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  await page.getByRole('button', { name: /Digital SAT alignment details/ }).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+
 // A section the student has finished, as its tab shows it: the fixture's
 // student has last week's Warm-Up right, and the active lesson opens with that
 // tab marked "Complete" (pass 3, A11Y-7: its badge was 9px white on #a66b00,
@@ -267,7 +293,21 @@ export const SCREENS = [
 // The student screens above and the teacher's (accessibilityTeacherScreens.mjs):
 // what the run audits, and what the contrast review decides. SCREENS stays the
 // student list, which the other drivers import for their own checks.
-export const CERTIFIED_SCREENS = [...SCREENS, ...TEACHER_SCREENS];
+// The exam-practice chip's screen is audited by axe and replayed by the contrast review, but it is not one
+// of SCREENS, which the large-text runs (text, target size and the 2.4.11 walk) also take: the keyboard
+// sweep's page is a stand-in for the assignment screen, and on a phone its bottom bar covered five stops
+// that the assignment screen itself keeps clear (the assignment tools' scenes measure that screen).
+export const EXAM_PRACTICE_CHIP_SCREEN = {
+  id: 'exam-practice-chip',
+  harness: 'audit',
+  include: '.mathmaster-question-stage',
+  scenes: [
+    { id: 'light', run: openExamPracticeChip('light') },
+    { id: 'dark', run: openExamPracticeChip('dark') },
+  ],
+};
+
+export const CERTIFIED_SCREENS = [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS];
 
 export const sceneLabel = (screen, scene) => (scene.id ? `${screen.id}/${scene.id}` : screen.id);
 

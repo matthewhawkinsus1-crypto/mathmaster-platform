@@ -66,6 +66,42 @@ test('"Learning goal" is on a phone once, in the row that has room for it, and n
   assert.ok(label !== -1 && label < chip && chip < minimize, 'the chip sits between the label and the Minimize button');
 });
 
+// THE CHIPS IN THE HEADING KEEP THEIR OWN COLOURS (student-a11y-2). On a phone
+// held upright the question's chips sit inside .question-prompt-heading (the
+// test above). index.css painted the text of every button in the heading
+// var(--mm-primary-text), !important, which beats a chip's own inline colour:
+// the exam-practice chip ("Digital SAT practice", white on #5b21b6) read as
+// #174ea6 on #5b21b6, 1.14:1, while its background stayed. Only on that phone
+// layout: on a laptop and in landscape the chips are not in the heading.
+const luminance = (hex) => {
+  const [r, g, b] = (hex.length === 4 ? [...hex.slice(1)].map((digit) => digit + digit) : hex.slice(1).match(/../g)).map((pair) => parseInt(pair, 16) / 255)
+    .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+};
+
+test('on an upright phone the heading repaints only its own control: the exam-practice chip keeps its white text', () => {
+  const indexRules = parseCss(read('src/index.css'));
+  // Nothing forces a text colour onto every button in the heading, chips included.
+  const forced = indexRules.filter((rule) => rule.selectors.some((selector) => /\.question-prompt-heading\s+button\b/.test(selector)) && rule.declarations.color?.important);
+  assert.deepEqual(forced.map((rule) => rule.selectors.join(', ')), [], 'no !important colour on every button in the heading');
+  // The heading's own show-and-hide control keeps the colour it had: it is the heading's direct child.
+  assert.deepEqual(declared(indexRules, '.question-prompt-heading > button', 'color'), { value: 'var(--mm-primary-text)', important: true });
+  const heading = container.slice(container.indexOf('<div className="question-prompt-heading">'), container.indexOf('{!isPromptCollapsed && (\n'));
+  assert.equal([...heading.matchAll(/<button\b/g)].length, 1, 'one button of the heading\'s own');
+  assert.match(heading, /<button className="mm-button-neutral" type="button" onClick=\{\(\) => setIsPromptCollapsed\(/, 'the show-and-hide control');
+  assert.match(heading, /<div className="mathmaster-question-task-meta mathmaster-heading-meta">\{taskMeta\}<\/div>/, 'the chips sit one level down, in the meta row');
+  // The chip's own colours are readable, as are the other chips' colour on their own fills.
+  const badge = read('src/components/common/StandardBadge.jsx');
+  const active = badge.match(/const ACTIVE_CHIP = \{ \.\.\.CHIP, background: '(#[0-9a-fA-F]{3,6})', color: '(#[0-9a-fA-F]{3,6})'/);
+  assert.ok(active, 'the exam-practice chip draws its own colours');
+  assert.ok(contrast(active[1], active[2]) >= 4.5, `the exam-practice chip's text on its fill: ${contrast(active[1], active[2]).toFixed(2)}:1`);
+  assert.ok(contrast('#174ea6', active[1]) < 1.2, 'the colour the heading used to force on it (--mm-primary-text, light) is what read 1.14:1');
+});
+
 test('on a laptop "Learning goal" and the Support tools share one row that stays while either shows', () => {
   const wrapper = condition(container, /\{([^{}]*?)\s*&&\s*\(\s*<div className="mathmaster-desktop-task-extras">/, 'the desktop row for the chip and the tray');
   const chip = condition(container, /\{\s*([^{}?]*?)\s*\?\s*<div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">\{taskMeta\}<\/div>\s*:\s*null\s*\}/, 'the chip in that row');
