@@ -28,6 +28,29 @@ export const resolveWorkflowTaskPrompt = ({ workflow = [], activeStageIndex = 0 
   return String(stages[index]?.prompt || stages[index]?.label || '').trim();
 };
 
+/*
+ * THE KEYPAD AND THE EMPTY BOX OF A TYPED DOMAIN, RANGE OR VALUES STEP.
+ *
+ * A set of specific values is written in braces, so a set step gets the set
+ * keypad, and its empty box shows `{ }`. It used to show its notation's
+ * name: the box read "set", and nothing told the student that a plain list
+ * ("-1, 5") is refused there, which it is: writing a set as a set is part of
+ * what the step assesses (answerUtils.mjs; F-SET-NOTATION-UNSAID, 2026-11-06
+ * walkthrough). `{ }` holds no value, so it says nothing about the answer.
+ * An author's own placeholder still wins. Nothing here reads the key.
+ */
+const NOTATION_PROFILE = Object.freeze({ interval: 'interval', inequality: 'inequality', set: 'set' });
+
+export const typedStageToolProfile = (stage = {}) => (
+  NOTATION_PROFILE[stage?.notation] || (stage?.kind === 'valueSet' ? 'set' : 'interval')
+);
+
+export const typedStagePlaceholder = (stage = {}) => {
+  if (String(stage?.placeholder ?? '').trim()) return stage.placeholder;
+  if (typedStageToolProfile(stage) === 'set') return '{ }';
+  return stage?.notation || 'interval notation';
+};
+
 export const workflowUsesGraphEvidence = (workflow = []) => (
   (Array.isArray(workflow) ? workflow : []).some((stage) => (
     isObject(stage?.graph)

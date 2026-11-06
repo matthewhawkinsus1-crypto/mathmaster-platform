@@ -98,6 +98,11 @@ const BRANCHES = {
   valueSet: [
     [{ id: 's', kind: 'valueSet' }, { set: ['1', '2', '3'] }, '{1, 2}'],
     [{ id: 's', kind: 'valueSet' }, { set: ['1', '2', '3'] }, '{1, 2, 3, 4}'],
+    // Keyed as a braced set (the zeros step): a plain list is told to write a
+    // set, right values or not; a braced miss is red only (F-SET-NOTATION-UNSAID).
+    [{ id: 's', kind: 'valueSet', notation: 'set' }, '{-1, 5}', '-1, 5'],
+    [{ id: 's', kind: 'valueSet', notation: 'set' }, '{-1, 5}', '2, 3'],
+    [{ id: 's', kind: 'valueSet', notation: 'set' }, '{-1, 5}', '{2, 3}'],
   ],
   figureMatch: [
     [FIGURE_STAGE, { match: FIGURE_KEY }, buildFigureMatchResponse(FIGURE_STAGE, { ...FIGURE_KEY, k1: 'exponential' })],
@@ -111,10 +116,19 @@ const BRANCHES = {
     [{ id: 'e', kind: 'equationInput', prompt: 'Write the equation of the axis of symmetry.', placeholder: 'x = ' }, 'x=2', '2'],
     [{ id: 'e', kind: 'equationInput', prompt: 'Write the equation of the axis of symmetry.', placeholder: 'x = ' }, 'x=2', 'x=5'],
   ],
+  // A domain or range step keyed as a braced set says so of a plain list,
+  // and nothing else: an interval's miss is "Not correct yet.", red only.
+  domainInput: [
+    [{ id: 'd', kind: 'domainInput' }, '(-\\infty, \\infty)', '[0, 5]'],
+    [{ id: 'd', kind: 'domainInput', notation: 'set' }, '{−2, 0, 2, 4}', '-2, 0, 2, 4'],
+    [{ id: 'd', kind: 'domainInput', notation: 'set' }, '{−2, 0, 2, 4}', '{-2, 0, 2}'],
+  ],
+  rangeInput: [
+    [{ id: 'd', kind: 'rangeInput' }, '[0, 5]', '[1, 5]'],
+    [{ id: 'd', kind: 'rangeInput', notation: 'set' }, '{0, 1, 2, 3}', '0, 1, 2, 4'],
+  ],
   // Kinds with no reason at all: their miss is "Not correct yet.".
   numberLine: [[{ id: 'n', kind: 'numberLine' }, 'x>2', 'x<2']],
-  domainInput: [[{ id: 'd', kind: 'domainInput' }, '(-\\infty, \\infty)', '[0, 5]']],
-  rangeInput: [[{ id: 'd', kind: 'rangeInput' }, '[0, 5]', '[1, 5]']],
   intervalInput: [[{ id: 'i', kind: 'intervalInput' }, '[0, 5]', '(0, 5)']],
   classification: [[{ id: 'c', kind: 'classification' }, 'Yes', 'No']],
   multipleChoice: [[{ id: 'c', kind: 'multipleChoice' }, 'c1', 'c2']],
@@ -130,7 +144,9 @@ const EXPECTED = {
   coordinatePlot: ['Some points are not where the ordered pairs put them.'],
   functionGraph: ['Some points are not where the table puts them.', 'Revise the graph so it matches the model and table you built.'],
   mappingDiagram: ['The arrows do not match the relation — check which value each one is joined to.'],
-  valueSet: ['That is not the set of values in this relation — list each one once.'],
+  valueSet: ['That is not the set of values in this relation — list each one once.', 'Write this step as a set, with the values inside braces { }.'],
+  domainInput: ['Write this step as a set, with the values inside braces { }.'],
+  rangeInput: ['Write this step as a set, with the values inside braces { }.'],
   figureMatch: ['3 of 4 figures are in the right category.'],
   equationInput: ['Right line, wrong form: write it as y = mx + b.', 'Write this step as an equation, with an = sign.'],
 };
@@ -334,4 +350,82 @@ test('the browser Check and the device marking both carry an equation step\'s re
   const deviceWork = { solution: '3x+y=5' };
   assert.equal(gradeComposedWorkflowCheck(device, composedWorkflowWork(deviceWork)).supported, false, 'declared client-graded');
   assert.deepEqual(runner(device, deviceWork).stageReasons, { solution: SLOPE_SAYS });
+});
+
+/* ------------- a set step says to write a set, never anything about its values (F-SET-NOTATION-UNSAID) */
+
+const SET_SAYS = 'Write this step as a set, with the values inside braces { }.';
+const setStep = (kind = 'valueSet', extra = {}) => ({ id: 's', kind, notation: 'set', ...extra });
+
+test('a plain list in a step keyed as a braced set is told to write a set, whatever its values', () => {
+  [
+    // [the key, what the student wrote]
+    ['{-1, 5}', '-1, 5'],
+    ['{-1, 5}', '5, -1'],
+    ['{-1, 5}', '2, 3'],
+    ['{-1, 5}', '-1, 5, 7'],
+    ['{-1, 5}', '-1,5'],
+    ['{-1, 5}', '(-1, 5)'],
+    ['{3}', '3, 4'],
+    ['{−2, 0, 2, 4}', '−2, 0, 2, 4'],
+    // Written out without the ellipsis, a long list is still only a list.
+    ['{0, 1, 2, ..., 48}', '0, 1, 2, 3'],
+  ].forEach(([key, written]) => assert.equal(shown(setStep(), key, written), SET_SAYS, `${key} | ${written}`));
+  assert.equal(shown(setStep('domainInput'), '{−2, 0, 2, 4}', '-2, 0, 2, 4'), SET_SAYS);
+  assert.equal(shown(setStep('rangeInput'), '{0, 1, 2, 3}', '0, 1, 2, 3'), SET_SAYS);
+  assert.doesNotMatch(SET_SAYS, /\d/, 'it holds no value');
+});
+
+test('a set step says nothing for a braced miss, one value, a list with an ellipsis, a choice or a key that is not a set', () => {
+  assert.equal(shown(setStep(), '{-1, 5}', '{2, 3}'), '', 'a braced miss is about its values: red only');
+  assert.equal(shown(setStep(), '{-1, 5}', '\\left\\lbrace2,3\\right\\rbrace'), '', 'the editor\'s braces are braces');
+  assert.equal(shown(setStep(), '{-1, 5}', '\\{2,3\\}'), '');
+  assert.equal(shown(setStep(), '{3}', '4'), '', 'one value is taken without braces when it is right, so its miss is its value');
+  assert.equal(shown(setStep(), '{0, 1, 2, ..., 48}', '0, 1, 2, ..., 47'), '', 'a list with an ellipsis is taken without braces');
+  assert.equal(shown(setStep(), '{0, 1, 2, ..., 48}', '0,1,2,\\ldots,47'), '');
+  assert.equal(shown(setStep('domainInput', { notation: 'interval' }), '(-\\infty, 3]', '-1, 5'), '', 'an interval key is not a set');
+  assert.equal(shown(setStep('domainInput', { notation: 'inequality' }), '0 \\le x \\le 10', '0, 10'), '');
+  assert.equal(shown(setStep('domainInput', { choices: ['{0, 1, 2}', '0, 1, 2, 3'] }), '{0, 1, 2}', '0, 1, 2, 3'), '', 'a choice is picked, not written');
+  assert.equal(shown(setStep(), { anyOf: ['{-1, 5}', 'none'] }, '-1, 5'), '', 'only when every key is a set');
+  // A blank step is "Not answered.", not a miss of form.
+  assert.deepEqual(failedStageReasons([{ id: 's', graded: true, isCorrect: false, detail: 'Not answered.' }], [setStep()], { s: '{-1, 5}' }, { s: '' }), {});
+});
+
+const DAY2 = compileAuthoringIntentV5(JSON.parse(readFileSync(new URL('../../teacher-import-jsons/algebra2-honors-module1/L1_Day2_Function_Attributes_Relations.json', import.meta.url), 'utf8'))).package;
+
+test('the walkthrough\'s set steps: a plain list misses and says to write a set, right values or not, on the device and in the browser\'s Check', () => {
+  const probed = [];
+  [['Day 2', DAY2], ['DOL1', DOL1]].forEach(([lesson, pkg]) => pkg.sections.forEach((section) => section.questions.forEach((question, index) => {
+    const { composed, workflow, grading } = readComposedQuestion(question);
+    if (!composed) return;
+    workflow.filter((stage) => stage.notation === 'set' && !(Array.isArray(stage.choices) && stage.choices.length)).forEach((stage) => {
+      const key = grading[stage.id];
+      if (typeof key !== 'string' || !/^\{.*\}$/.test(key)) return;
+      const values = key.slice(1, -1).split(',').map((value) => value.trim());
+      const branch = stage.showWhen?.stage ? { [stage.showWhen.stage]: stage.showWhen.is } : {};
+      // [what the student wrote, right?, what the screen says]
+      const cases = [[key, true, undefined], ['{100, 200}', false, undefined]];
+      if (values.some((value) => /\.\.\.|…/.test(value))) {
+        cases.push([values.join(', '), true, undefined], ['0, 1, ..., 7', false, undefined], ['100, 200', false, SET_SAYS]);
+      } else if (values.length === 1) {
+        cases.push([values[0], true, undefined], ['100', false, undefined], ['100, 200', false, SET_SAYS]);
+      } else {
+        cases.push([values.join(', '), false, SET_SAYS], [[...values].reverse().join(', '), false, SET_SAYS], ['100, 200', false, SET_SAYS]);
+      }
+      cases.forEach(([written, right, says]) => {
+        const responses = { ...branch, [stage.id]: written };
+        const label = `${lesson} ${section.role} ${index + 1} ${stage.id} ${key} | ${written}`;
+        const check = gradeComposedWorkflowCheck(question, composedWorkflowWork(responses));
+        assert.equal(check.parts.find((part) => part.id === stage.id)?.isCorrect, right, `${label}: the mark is unchanged`);
+        assert.equal(check.stageReasons[stage.id], says, `${label}: the browser's Check`);
+        assert.equal(runner(question, responses).stageReasons[stage.id], says, `${label}: the device`);
+      });
+      probed.push(`${lesson} ${section.role} ${index + 1} ${stage.id}`);
+    });
+  })));
+  // Day 2 CW 5 (domain and range) and PR 4; the District's zeros (CW 3, 7, 8;
+  // PR 2, 4, 5; DOL 2, 4) and its discrete domains and range (CW 2, CW 13).
+  assert.ok(probed.includes('Day 2 classwork 5 domainDiscrete') && probed.includes('Day 2 classwork 5 rangeDiscrete') && probed.includes('Day 2 practice 4 rangeDiscrete'), probed.join('\n'));
+  assert.equal(probed.filter((entry) => entry.startsWith('DOL1') && entry.endsWith(' zeros')).length, 8, probed.join('\n'));
+  assert.ok(probed.includes('DOL1 classwork 2 domainDiscrete') && probed.includes('DOL1 classwork 13 rangeDiscrete'), probed.join('\n'));
 });

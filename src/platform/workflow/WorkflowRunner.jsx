@@ -37,7 +37,7 @@ import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageRe
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction } from './workflowGraphVisuals.js';
-import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
+import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph, typedStagePlaceholder, typedStageToolProfile } from './workflowPresentation.js';
 import { branchRestartedBy, buildWorkflowReviewState, firstIncorrectWorkflowIndex, stageShowsReason } from './workflowReviewState.js';
 import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
@@ -617,7 +617,6 @@ const DELEGATES = {
   ),
 };
 
-const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
 function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, keyboardAccess = false, onSupportEvidence = null, graphStage = null, wrongItems = [], coachingReplaced = false }) {
@@ -694,11 +693,11 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
           <MathInput
             value={value || ''}
             onChange={onChange}
-            // A set of specific values is written in braces, so a `valueSet`
-            // step defaults to the set keyboard rather than to interval notation.
-            toolProfile={NOTATION_PROFILE[stage.notation] || (stage.kind === 'valueSet' ? 'set' : 'interval')}
+            // A set of specific values is written in braces: a set step gets the
+            // set keyboard, and its empty box shows `{ }` (workflowPresentation.js).
+            toolProfile={typedStageToolProfile(stage)}
             showToolsInitially={openKeypad}
-            placeholder={stage.placeholder || stage.notation || (stage.kind === 'valueSet' ? '{ }' : 'interval notation')}
+            placeholder={typedStagePlaceholder(stage)}
             ariaLabel={stage.prompt || (stage.kind === 'valueSet' ? 'Values' : 'Interval notation')}
           />
           {['domainInput', 'rangeInput'].includes(stage.kind) && stage.notation === 'inequality' ? (
