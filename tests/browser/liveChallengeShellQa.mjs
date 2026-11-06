@@ -928,7 +928,15 @@ await run('classic', async (S) => {
     return null;
   })();
   check(S, replayId, 'Play Again made no new room');
-  check(S, await reportWatch() === 0, 'the finished room\'s report listener stayed open after Play Again left it');
+  // The console leaves the finished room when its own room watch brings the
+  // new lobby, a moment after the write read above, and leaving it closes
+  // the report's listener. A read at the instant of the write raced that.
+  let reportOpen = await reportWatch();
+  for (let tries = 0; reportOpen && tries < 60; tries += 1) {
+    await wait(250);
+    reportOpen = await reportWatch();
+  }
+  check(S, reportOpen === 0, `the finished room's report listener stayed open after Play Again left it (${reportOpen} open 15 s after the new room)`);
   for (const student of [s1, s2, s3]) {
     check(S, await waitForStudentStage(student, 'lobby', 20_000), `${student.studentId}: did not move into the new lobby`);
     check(S, !(await textOf(student)).includes('Challenge complete'), `${student.studentId}: the last game's final screen carried over`);
