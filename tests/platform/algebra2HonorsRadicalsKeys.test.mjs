@@ -486,3 +486,26 @@ test('a box the last hint takes to the other notation names, in its label, the n
   assert.deepEqual(checked.sort(), ['a2r2-cw-7 fix', 'a2r3-cw-10 fix', 'a2r3-cw-8 index', 'a2r3-cw-8 power16']);
 });
 
+// L2 CW 4: "To clear the radical from x³√x, multiply the top and bottom by"
+// offered √x and √(x⁷), and both do it (x³√x · √(x⁷) = x⁷), so multiplying by
+// the denominator's own radical, a sound method, was marked wrong. Where more
+// than one option clears the radical, the label asks for the smallest, and the
+// key is the smallest of them.
+test('L2 CW 4: one option answers what the multiplier choice asks', () => {
+  const field = compiledQuestion(L2, 'a2r2-cw-4').answerFields.find((candidate) => candidate.id === 'multiplier');
+  const SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  // Each option as a power of x: √x is x^(1/2), √(x⁷) is x^(7/2).
+  const power = (option) => {
+    const match = /^(√)?\(?x([⁰¹²³⁴⁵⁶⁷⁸⁹]*)\)?$/.exec(option);
+    assert.ok(match, `an option this test reads: ${option}`);
+    const whole = match[2] ? Number([...match[2]].map((digit) => SUPERSCRIPTS.indexOf(digit)).join('')) : 1;
+    return match[1] ? whole / 2 : whole;
+  };
+  assert.match(field.label, /x³√x/);
+  const clearing = field.options.filter((option) => Number.isInteger(3 + 1 / 2 + power(option)));
+  assert.ok(clearing.includes(field.answer), `the key ${field.answer} clears the radical`);
+  if (clearing.length > 1) {
+    assert.match(field.label, /\bsmallest\b/, `${clearing.join(' and ')} both clear the radical, and the label does not ask for the smallest`);
+    assert.equal(field.answer, clearing.reduce((least, option) => (power(option) < power(least) ? option : least)));
+  }
+});

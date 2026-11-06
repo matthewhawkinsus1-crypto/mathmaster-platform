@@ -790,7 +790,7 @@
             },
             {
               "id": "multiplier",
-              "label": "To clear the radical from x³√x, multiply the top and bottom by",
+              "label": "To clear the radical from x³√x, the smallest radical to multiply the top and bottom by is",
               "type": "choice",
               "options": [
                 "√x",

@@ -276,7 +276,10 @@ const classwork = [
     directionSteps: ['Simplify the root of the denominator.', 'Rationalize the denominator.', 'Write the simplified quotient.'],
     responses: [
       simplest('denominator', '√(x⁷) =', 'x^3√x'),
-      choice('multiplier', 'To clear the radical from x³√x, multiply the top and bottom by', ['√x', 'x³', '√(x⁷)', 'x'], '√x'),
+      // √(x⁷) clears it too (x³√x · √(x⁷) = x⁷), so two options answered
+      // "multiply the top and bottom by" and the sound one was marked wrong.
+      // The label asks for the smallest radical, which only √x is.
+      choice('multiplier', 'To clear the radical from x³√x, the smallest radical to multiply the top and bottom by is', ['√x', 'x³', '√(x⁷)', 'x'], '√x'),
       simplest('simplified', '√(y⁸/x⁷) =', '(y^4√x)/x^4'),
     ],
     hints: [
