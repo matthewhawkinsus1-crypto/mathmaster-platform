@@ -585,6 +585,64 @@ test('versions: sampled versions of every item are mathematically right, and rea
 });
 
 /*
+ * PRACTICE 16'S WORKED STEP IS TRUE OF EVERY VERSION (student walkthrough,
+ * 2026-11-06). It said "z has coefficient ±1 in every equation", but equation
+ * 2 is `a2·x − y + c2·z = d2` with c2 = −2, 2 or 3: false in every version a
+ * student could open. Each claim the step makes about a coefficient of z, or
+ * about a combination that eliminates z, is checked against the version's own
+ * equations, and the step must make at least one.
+ */
+test('Practice 16: what the worked step says about eliminating z is true of every version\'s equations', () => {
+  const versions = dealt().filter(({ id }) => id === 'dol2r-pr-16');
+  assert.ok(versions.length >= 100, `${versions.length} versions read`);
+  const problems = [];
+  versions.forEach(({ values, question }) => {
+    const zOf = question.equations.map((equation) => linearRow(equation).row[2]);
+    const said = (question.solutionReview?.reasoning || []).join(' ').replace(/−/g, '-');
+    const holdsFor = (coefficient, claimed) => (claimed === '±1' ? Math.abs(coefficient) === 1 : near(coefficient, Number(claimed)));
+    const wrong = (claim) => problems.push(`${JSON.stringify(values)}: "${claim}" is false of ${question.equations.join('; ')}`);
+    let claims = 0;
+    for (const [claim, coefficient, where, first, other, second] of said.matchAll(/z has coefficient (±1|-?\d+) in (every equation|equation (\d))(?: and (-?\d+) in equation (\d))?/g)) {
+      claims += 1;
+      if (where === 'every equation' ? !zOf.every((z) => holdsFor(z, coefficient)) : !holdsFor(zOf[first - 1], coefficient)) wrong(claim);
+      if (other !== undefined && !holdsFor(zOf[second - 1], other)) wrong(claim);
+      if (other !== undefined && /^,? so adding those two equations eliminates z/.test(said.slice(said.indexOf(claim) + claim.length)) && !near(zOf[first - 1] + zOf[second - 1], 0)) wrong(`${claim}, so adding those two equations eliminates z`);
+    }
+    for (const [claim, multiple, from, into] of said.matchAll(/[Aa]dding (-?\d+) times equation (\d) to equation (\d) eliminates/g)) {
+      claims += 1;
+      if (!near(zOf[into - 1] + Number(multiple) * zOf[from - 1], 0)) wrong(claim);
+    }
+    if (!claims) problems.push(`${JSON.stringify(values)}: the step names no coefficient or combination to check`);
+  });
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
+});
+
+/*
+ * A COUNT OF ONE TAKES THE SINGULAR (student walkthrough, 2026-11-06).
+ * Practice 1's worked step said the x-intercepts were "each 1 units from the
+ * axis" in every version with d = 1 (22 of its 93). The exit ticket's
+ * transformation item still writes "shifted 1 units right" (or down) where h
+ * or K is 1. Those sentences are its choices, one of them its key: renaming an
+ * exit ticket's key waits on the owner (docs/qa/2026-11-06-a2h-module2-
+ * matrices-walkthrough/findings.md), so they are the one exception, and the
+ * exception must still be needed.
+ */
+test('versions: no text a student reads puts a count of one before a plural noun', () => {
+  const COUNT_OF_ONE = /(?<![\d.,])[-−]?1 (?:units|grams|millimeters|milliliters|centimeters|degrees|tickets|drinks|items|points|solutions|times)\b/;
+  const ownerPending = (id, question, text) => id === 'dol2r-dol-2'
+    && (question.answerFields || []).some((field) => field.id === 'describe' && (field.options || []).includes(text));
+  const problems = [];
+  let pendingSeen = 0;
+  dealt().forEach(({ id, values, question }) => studentText(question).forEach((text) => {
+    if (!COUNT_OF_ONE.test(text)) return;
+    if (ownerPending(id, question, text)) { pendingSeen += 1; return; }
+    problems.push(`${id} ${JSON.stringify(values)}: ${JSON.stringify(text)}`);
+  }));
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} text(s)`);
+  assert.ok(pendingSeen > 0, 'the exit ticket\'s choices no longer say "1 units": drop the exception');
+});
+
+/*
  * READ ALOUD HEARS THE EQUATION (CT21 / D-60). Read aloud says the prompt, the
  * choices and the field labels (questionReading.js); it never says the
  * equation a solving workspace draws for itself. Eight cards used to say only

@@ -717,7 +717,8 @@ practice = [
             'Find the vertex first; every other attribute follows from it.',
             [
                 'The vertex is ({{h}}, {{k}}) and the V opens upward, so f has a minimum value of {{k}} at x = {{h}}; the axis of symmetry is x = {{h}}.',
-                'The x-intercepts ({{x1}}, 0) and ({{x2}}, 0) are each {{d}} units from the axis; the y-intercept is (0, {{yint}}).',
+                # d can be 1: "a distance of 1", never "1 units".
+                'The x-intercepts ({{x1}}, 0) and ({{x2}}, 0) are each a distance of {{d}} from the axis; the y-intercept is (0, {{yint}}).',
                 'f decreases on (−∞, {{h}}) and increases on ({{h}}, ∞).',
                 'Domain (−∞, ∞); range [{{k}}, ∞).',
             ],
@@ -1123,7 +1124,8 @@ practice = [
         'solutionReview': review(
             'Eliminate one variable twice, solve the 2×2 system, back-substitute.',
             [
-                'z has coefficient ±1 in every equation, so eliminating z is efficient: add equations 1 and 3, and add equation 1 to equation 2 after scaling.',
+                # Equation 2's z has coefficient c2 (never ±1), so the step names the multiple that clears it.
+                'z has coefficient −1 in equation 1 and 1 in equation 3, so adding those two equations eliminates z. Adding {{c2}} times equation 1 to equation 2 eliminates it again.',
                 'Solve the resulting 2×2 system for x and y, then back-substitute for z.',
                 'The solution is ({{x0}}, {{y0}}, {{z0}}); it satisfies all three original equations.',
             ],
