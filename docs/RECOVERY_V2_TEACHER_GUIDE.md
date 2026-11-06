@@ -214,10 +214,28 @@ tank's attributes).
 | Warm-Up Q2 — if f(2) = 7 and g(2) = −3, find (f + g)(2) and (f − g)(2) | new values (f's positive, g's negative) at a new input |
 | Warm-Up Q3 — if g(4) = 2 and f(2) = 9, find g(4) and f(g(4)) | three new whole numbers that chain the same way |
 
-Prepare Recovery makes Lesson 4's Warm-Up ready. Its Warm-Up Q1 and its exit
-ticket (inverses and compositions chosen from written-out choices) have no
-Recovery family yet; the exit ticket's Q3 ("are these inverses?") always has the
-answer "yes" in fresh versions of the same pair, so it needs your decision first.
+Prepare Recovery makes Lesson 4's Warm-Up ready (its Q1 is in the next table).
+Its exit ticket (compositions, and a product and quotient, chosen from
+written-out choices) has no Recovery family yet; the exit ticket's Q3 ("are
+these inverses?") always has the answer "yes" in fresh versions of the same
+pair, so it needs your decision first.
+
+### Inverses (Algebra II Honors Lessons 3 and 4)
+
+| Question | Recovery versions |
+| --- | --- |
+| Lesson 3 Warm-Up Q1 — swap (−3, 7); f(4) for f(x) = 2x − 5 | a new pair to swap and a new line to evaluate |
+| Lesson 3 DOL Q1 — the inverse of {(−2, 5), (1, 7), (4, 0)} | three new ordered pairs, with the same three kinds of choices |
+| Lesson 3 DOL Q2 — the inverse of f(x) = 4x − 9, and a check | a new line ax + b, with the same four kinds of choices and a new check |
+| Lesson 4 Warm-Up Q1 — the inverse of f(x) = 2x + 5, and a check | the same, at the Warm-Up's level |
+| Lesson 3 DOL Q3 — the subscription C(m) = 15m + 25 | a new monthly price, fee and total |
+
+Each wrong choice is the same mistake the lesson's choice is, with the new
+numbers: for example, an inverse that undoes the multiplication but repeats the
+constant. Prepare Recovery makes Lesson 3's exit ticket ready, and its Warm-Up
+ready from Q1. Its Warm-Up Q2 and Q3 (the slope of y = x and its role, and the
+domain and range of a line) have the same answers in every fresh version, so
+they need your decision first.
 
 ### Solving Systems with Matrices (Algebra II Honors): Warm-Up Q1's choices
 

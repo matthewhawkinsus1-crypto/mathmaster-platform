@@ -434,6 +434,110 @@
       "declared": {}
     },
     {
+      "id": "functions.inverseInContext",
+      "version": 1,
+      "title": "Use the inverse of a linear cost function to find the input for a total",
+      "alignments": [
+        "A2.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 32948,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.inverseOfLinear",
+      "version": 1,
+      "title": "Find the inverse of a linear function and check it with one value",
+      "alignments": [
+        "A2.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "task",
+          "label": "Find it (an exit ticket) or review it (a Warm-Up)",
+          "kind": "choice",
+          "default": "find",
+          "concept": true,
+          "values": [
+            "find",
+            "review"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "task"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 1219,
+          "exact": true
+        },
+        {
+          "label": "task: \"review\"",
+          "constraints": {
+            "task": "review"
+          },
+          "capacity": 1219,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "functions.pointwiseFromValues",
       "version": 1,
       "title": "Add and subtract two functions at one input, from their values",
@@ -468,6 +572,47 @@
           "constraints": {},
           "capacity": 384,
           "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.swapPairAndEvaluate",
+      "version": 1,
+      "title": "Swap an ordered pair and evaluate a linear function",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 30976,
+          "exact": false
         }
       ],
       "classOf30": "every student unique",
@@ -5335,6 +5480,47 @@
           "constraints": {},
           "capacity": 884,
           "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "relations.inverseOfSet",
+      "version": 1,
+      "title": "Find the inverse of a relation given as ordered pairs",
+      "alignments": [
+        "A2.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 741522,
+          "exact": false
         }
       ],
       "classOf30": "every student unique",

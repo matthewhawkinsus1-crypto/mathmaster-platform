@@ -153,6 +153,9 @@ test('the committed report is generated from the live registry and audit, never 
   // Mapping Diagram family (RC01) is aligned to both courses (A.12A, A2.7I):
   // BLOCKED in each. The graphed domain-and-range family (RC01) is Algebra II
   // content (A2.7I), as are the two function-values families (RC01, A2.2D).
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 58 \| 4 \| 8 \| 29 \| 17 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 58 \| 0 \| 1 \| 31 \| 26 \|/);
+  // Of the four inverse families (RC01's next shapes), three are Algebra II
+  // content (A2.2B); the ordered-pair review is aligned to A2.7I, a skill
+  // Algebra I also teaches (A.12B): BLOCKED in each course.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 62 \| 4 \| 8 \| 30 \| 20 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 62 \| 0 \| 1 \| 35 \| 26 \|/);
 });

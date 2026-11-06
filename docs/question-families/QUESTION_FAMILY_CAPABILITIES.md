@@ -26,7 +26,10 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `functions.domainRangeFromGraph` | v1 · what an unpinned reference means | — | — | `graphAnalysis` (analysis) | yes — shared server grader | yes | 144 — every student unique | — |
 | `functions.identifyIntercepts` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 324 — every student unique | — |
 | `functions.identifyZeros` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 162 — every student unique | — |
+| `functions.inverseInContext` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 32,948 — every student unique | — |
+| `functions.inverseOfLinear` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 1,219 — every student unique | — |
 | `functions.pointwiseFromValues` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 384 — every student unique | — |
+| `functions.swapPairAndEvaluate` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 30,976 — every student unique | — |
 | `inequalities.contextModel` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 290 — every student unique | — |
 | `inequalities.solveLinear` | v1 · what an unpinned reference means | — | — | `stepAlgebra` (relation) | yes — shared server grader | yes | about 66,120 — every student unique | — |
 | `inequalities.translatePhrase` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 2,160 — every student unique | — |
@@ -72,6 +75,7 @@ first seat, seats 1–3, 4–6, … each get one of each case); its capacity is 
 | `polynomials.subtractMissingTerm` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (addSubtract) | yes — shared server grader | yes | about 395,259,243 — every student unique | — |
 | `polynomials.syntheticDivision` | v1 · what an unpinned reference means | — | — | `polynomialWorkshop` (syntheticDivision) | yes — shared server grader | yes | about 1,101,391 — every student unique | — |
 | `quadratics.identifyVertex` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | 884 — every student unique | — |
+| `relations.inverseOfSet` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 741,522 — every student unique | — |
 | `relations.mappingDiagram` | v1 · what an unpinned reference means | — | — | `relationMapping` (default) | yes — shared server grader | yes | about 33,366,639 — every student unique | — |
 | `systems.algebraic2x2` | v1 · what an unpinned reference means | one, none, infinite, mixed | integer | `systemsWorkspace` (algebraic) | yes — shared server grader | yes | about 2,355,530 — every student unique | reduce-complexity: coefficientRange [-4, 4], solutionRange [-6, 6]; keeps solutionCase, solutionForm |
 | `systems.classifyByStructure` | v1 · what an unpinned reference means | — | — | `multiAnswer` | yes — shared server grader | yes | about 1,680 — every student unique | — |
@@ -211,6 +215,44 @@ Zeros of a quadratic function.
 | --- | --- | --- |
 | default | 162 | — |
 
+### `functions.inverseInContext` v1
+
+Use the inverse of a linear cost function to find the input for a total.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.2B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 32,948 | — |
+
+### `functions.inverseOfLinear` v1
+
+Find the inverse of a linear function and check it with one value.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** strict — an unknown constraint, a value it does not list, or a tool it cannot fill stops generation with a message naming what is allowed. Nothing falls back to a default.
+- **Alignments:** A2.2B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+| `task` | choice | `"find"` | `"find"`, `"review"` | yes |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | 1,219 | — |
+| task: "review" | 1,219 | — |
+
 ### `functions.pointwiseFromValues` v1
 
 Add and subtract two functions at one input, from their values.
@@ -228,6 +270,24 @@ Add and subtract two functions at one input, from their values.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | 384 | — |
+
+### `functions.swapPairAndEvaluate` v1
+
+Swap an ordered pair and evaluate a linear function.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.7I
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 30,976 | — |
 
 ### `inequalities.contextModel` v1
 
@@ -1218,6 +1278,24 @@ Vertex of a quadratic function.
 | Setting | Distinct questions | Per case / shape |
 | --- | --- | --- |
 | default | 884 | — |
+
+### `relations.inverseOfSet` v1
+
+Find the inverse of a relation given as ordered pairs.
+
+- **Pinning:** an unpinned reference (`questionFamily` without `version`) means this version.
+- **Constraint policy:** fallback — an invalid or unknown constraint is reported by Pre-Flight and its default is used (the behavior every shipped v1 question was written against).
+- **Alignments:** A2.2B
+- **Answered in:** `multiAnswer`
+- **Server grading:** yes — shared server grader
+- **Recovery:** ready — fresh versions from the same family, marked by the server
+
+| Constraint | Kind | Default | Allowed | Concept (no support may change it) |
+| --- | --- | --- | --- | --- |
+
+| Setting | Distinct questions | Per case / shape |
+| --- | --- | --- |
+| default | about 741,522 | — |
 
 ### `relations.mappingDiagram` v1
 

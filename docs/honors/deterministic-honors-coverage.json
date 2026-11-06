@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 58,
+  "familyCount": 62,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -129,6 +129,34 @@
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the rational or irrational zeros an Honors extension needs."
         },
         {
+          "familyId": "functions.inverseInContext",
+          "familyTitle": "Use the inverse of a linear cost function to find the input for a total",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Inverse functions in context is Algebra II content (A2.2B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2B is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Inverse functions in context is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.inverseOfLinear",
+          "familyTitle": "Find the inverse of a linear function and check it with one value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Inverse functions is Algebra II content (A2.2B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2B is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Inverse functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
           "familyId": "functions.pointwiseFromValues",
           "familyTitle": "Add and subtract two functions at one input, from their values",
           "familyDifficulty": {
@@ -141,6 +169,20 @@
           "reason": "Operations on functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
           "missingCapability": null,
           "teacherReason": "Operations on functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.swapPairAndEvaluate",
+          "familyTitle": "Swap an ordered pair and evaluate a linear function",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra1",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Swapping an ordered pair and evaluating a function is taught in Algebra I too (A.12B), but this family is aligned to Algebra II's A2.7I, so an Algebra I lesson's questions never bind to it and no Algebra I recipe can anchor on it.",
+          "missingCapability": "An Algebra I alignment (A.12B) — a sibling family within Algebra I's limits — so an Algebra I Honors task on ordered pairs and function notation can anchor on it.",
+          "teacherReason": "MathMaster's generator for ordered pairs and function notation is written for Algebra II, so it cannot yet carry a built-in Algebra I Honors extension."
         },
         {
           "familyId": "inequalities.contextModel",
@@ -761,6 +803,20 @@
           "teacherReason": "MathMaster's vertex generator only makes whole-number vertices read from a single equation, so it cannot yet ask the fractional-vertex or vertex-from-zeros work an Honors extension needs."
         },
         {
+          "familyId": "relations.inverseOfSet",
+          "familyTitle": "Find the inverse of a relation given as ordered pairs",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Inverse relations is Algebra II content (A2.2B); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2B is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Inverse relations is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
           "familyId": "relations.mappingDiagram",
           "familyTitle": "Map a relation, state its domain and range, and decide whether it is a function",
           "familyDifficulty": {
@@ -1063,8 +1119,8 @@
       "familySummary": {
         "READY": 4,
         "CAPABLE": 8,
-        "BLOCKED": 29,
-        "NOT APPROPRIATE": 17
+        "BLOCKED": 30,
+        "NOT APPROPRIATE": 20
       }
     },
     "algebra2": {
@@ -1156,6 +1212,34 @@
           "teacherReason": "MathMaster's zeros generator only makes whole-number zeros, so it cannot yet ask the irrational or complex solutions an Algebra II Honors extension needs."
         },
         {
+          "familyId": "functions.inverseInContext",
+          "familyTitle": "Use the inverse of a linear cost function to find the input for a total",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version is a subscription cost C(m) = rm + f whose inverse is chosen from four written-out expressions and evaluated once; the remaining levers are other rates and fees, which are not rigor.",
+          "missingCapability": "A typed inverse marked by expression equivalence, with the meaning of the inverse's input and output and a domain the context restricts, so the student interprets the inverse rather than recognizing it.",
+          "teacherReason": "MathMaster's inverse-in-context generator only offers the inverse of one kind of cost as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.inverseOfLinear",
+          "familyTitle": "Find the inverse of a linear function and check it with one value",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version inverts f(x) = ax + b with whole numbers, chosen from four written-out expressions, and checks one value; the remaining levers are other whole numbers, which are not rigor.",
+          "missingCapability": "A typed inverse marked by expression equivalence, and inverses of quadratic and square root functions on a restricted domain (A2.2C), so the student writes and restricts the inverse rather than recognizing it.",
+          "teacherReason": "MathMaster's inverse generator only offers inverses of whole-number lines as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "functions.pointwiseFromValues",
           "familyTitle": "Add and subtract two functions at one input, from their values",
           "familyDifficulty": {
@@ -1168,6 +1252,20 @@
           "reason": "Every version adds and subtracts two given function values at one input; it is the readiness check before operations on functions, not a task an extension can deepen.",
           "missingCapability": "None on this family: an Honors task on operations anchors on a family that writes the functions themselves (sum, difference, product, quotient and the quotient's excluded inputs).",
           "teacherReason": "MathMaster's function-values generator only combines two given numbers, so it cannot carry a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.swapPairAndEvaluate",
+          "familyTitle": "Swap an ordered pair and evaluate a linear function",
+          "familyDifficulty": {
+            "dok": 1,
+            "difficultyBand": 1
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version swaps one ordered pair and evaluates one linear function at one input; it is the readiness check before inverses, not a task an extension can deepen.",
+          "missingCapability": "None on this family: an Honors task on inverses anchors on a family that writes the inverse itself (functions.inverseOfLinear, extended).",
+          "teacherReason": "MathMaster's ordered-pair review generator only swaps one pair and evaluates one line, so it cannot carry a built-in Honors extension."
         },
         {
           "familyId": "inequalities.contextModel",
@@ -1688,6 +1786,20 @@
           "teacherReason": "MathMaster has no generator for completing the square or for parabolas from their geometry yet, so it cannot build a no-AI Algebra II Honors extension for vertex work."
         },
         {
+          "familyId": "relations.inverseOfSet",
+          "familyTitle": "Find the inverse of a relation given as ordered pairs",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 2
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version swaps the coordinates of three listed ordered pairs, chosen from three written-out sets; the remaining levers are other pairs, which are not rigor.",
+          "missingCapability": "A relation given as a graph or a table, or a set whose inverse is not a function, so the student also decides whether the inverse is a function.",
+          "teacherReason": "MathMaster's inverse-relation generator only swaps short lists of ordered pairs, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "relations.mappingDiagram",
           "familyTitle": "Map a relation, state its domain and range, and decide whether it is a function",
           "familyDifficulty": {
@@ -2085,7 +2197,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 31,
+        "BLOCKED": 35,
         "NOT APPROPRIATE": 26
       }
     }

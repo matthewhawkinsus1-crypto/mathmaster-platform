@@ -492,6 +492,7 @@ it, and the Recovery is generated from that family.
 | `questionFamiliesGraphReading.mjs` | RC01: `functions.domainRangeFromGraph`, Graph Analysis asking for the domain and range, in interval notation, of y = ±(x − h)² + k or y = ±\|x − h\| + k (`parent` and `opens`, strict concepts; each parent at the rigor Lesson 1 teaches it). The graph workspace keys a version from the function it draws, as it does a lesson's own. It recognizes Lesson 1 Day 1's DOL Q2 and Day 2's Warm-Up Q1. |
 | `questionFamiliesMatrices.mjs` (`matrices.arrayRecordTotals` version 2) | The matrices Warm-Up 1 (`l3m-wu-1`) rewrote its two wrong "same information?" choices (F-LONGEST-IS-RIGHT), but version 1, which its Recovery was bound to, still writes the old two. Version 2 is version 1 with only those choices changed (the first names the version's own November count), and declares `recovery.replaces: [1]`: the planner's candidate for this family is version 2, so Pre-Flight, Prepare Recovery and a binding a re-import made stale bind it. Version 1 is frozen and still means an unpinned reference; a stored binding keeps its version, so every other question, and a live copy's current Warm-Up 1 binding, keeps what it has. Both versions are in the golden record (`questionFamilyHistoricalPins`). |
 | `questionFamiliesFunctionValues.mjs` | RC01: `functions.pointwiseFromValues` ((f + g)(a) and (f − g)(a) from f(a) > 0 and g(a) < 0) and `functions.compositionFromValues` (g(a) and f(g(a)) from two given values), typed-and-chosen boards with two number boxes. They recognize Lesson 4's Warm-Up Q2 and Q3. |
+| `questionFamiliesInverses.mjs` | RC01's next shapes: `functions.swapPairAndEvaluate` (a swapped ordered pair, chosen, and f(c) typed), `relations.inverseOfSet` (the inverse of three listed pairs, and how an inverse is made), `functions.inverseOfLinear` (f⁻¹ of f(x) = ax + b and one check, both chosen; `task`, a strict concept: `find` at Lesson 3's exit-ticket rigor, `review` at Lesson 4's Warm-Up rigor) and `functions.inverseInContext` (C⁻¹ for C(m) = rm + f, and the months a total pays for). Each wrong choice is the lesson's own mistake for the version's numbers. They recognize Lesson 3's Warm-Up Q1 and exit ticket Q1–Q3, and Lesson 4's Warm-Up Q1. |
 | `scripts/recovery-coverage-report.mjs` | RC01: the planner over every lesson file in `teacher-import-jsons/` and `docs/assignments/` — per lesson, the Warm-Up and DOL questions with Recovery now and once prepared, and every question still without it, by shape. `tests/platform/recoveryCoverageReport.test.mjs` pins the counts. |
 | `assignmentPracticeEvidence.mjs` | The assignment's own Practice as mastery evidence, only where trustworthy (below). |
 
@@ -574,7 +575,10 @@ version of the graphed domain and range, Lesson 1's Prepare Recovery and a
 missed Day 1 exit ticket end to end), `recoveryFunctionValueFamilies` (every
 version of both, Lesson 4's Prepare Recovery), `matricesArrayRecordTotalsVersions`
 (version 1 frozen, version 2 only the rewritten choices, the planner binding
-it and nothing else, a missed matrices Warm-Up end to end), `recoveryCoverageReport` (the
+it and nothing else, a missed matrices Warm-Up end to end),
+`recoveryInverseFamilies` (every inverse-of-a-line version, sampled versions
+of the other three, the five live boards, both lessons' Prepare Recovery),
+`recoveryCoverageReport` (the
 lesson-by-lesson counts), `recoveryV2StudentJourney`
 (the real lesson end to end: a part-way class, the upgrade, the original
 finished, Practice, the Recovery, the grade on every surface) and

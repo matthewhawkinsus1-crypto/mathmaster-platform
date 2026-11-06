@@ -568,6 +568,45 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s point-mapping generator only maps the point (0, 1) of 2^x, so it cannot yet build a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 families for the inverse boards of Algebra II Honors
+  // Module 1 Lessons 3 and 4 (questionFamiliesInverses.mjs, RC01's next
+  // shapes), A2.2B and A2.7I.
+  'functions.swapPairAndEvaluate': Object.freeze({
+    algebra1: Object.freeze(ALIGNED_TO_ALGEBRA_II('Swapping an ordered pair and evaluating a function', 'A.12B', 'ordered pairs and function notation', 'A2.7I')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version swaps one ordered pair and evaluates one linear function at one input; it is the readiness check before inverses, not a task an extension can deepen.',
+      missingCapability: 'None on this family: an Honors task on inverses anchors on a family that writes the inverse itself (functions.inverseOfLinear, extended).',
+      teacherReason: 'MathMaster\'s ordered-pair review generator only swaps one pair and evaluates one line, so it cannot carry a built-in Honors extension.',
+    }),
+  }),
+  'relations.inverseOfSet': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Inverse relations', 'A2.2B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version swaps the coordinates of three listed ordered pairs, chosen from three written-out sets; the remaining levers are other pairs, which are not rigor.',
+      missingCapability: 'A relation given as a graph or a table, or a set whose inverse is not a function, so the student also decides whether the inverse is a function.',
+      teacherReason: 'MathMaster\'s inverse-relation generator only swaps short lists of ordered pairs, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.inverseOfLinear': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Inverse functions', 'A2.2B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version inverts f(x) = ax + b with whole numbers, chosen from four written-out expressions, and checks one value; the remaining levers are other whole numbers, which are not rigor.',
+      missingCapability: 'A typed inverse marked by expression equivalence, and inverses of quadratic and square root functions on a restricted domain (A2.2C), so the student writes and restricts the inverse rather than recognizing it.',
+      teacherReason: 'MathMaster\'s inverse generator only offers inverses of whole-number lines as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.inverseInContext': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Inverse functions in context', 'A2.2B')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version is a subscription cost C(m) = rm + f whose inverse is chosen from four written-out expressions and evaluated once; the remaining levers are other rates and fees, which are not rigor.',
+      missingCapability: 'A typed inverse marked by expression equivalence, with the meaning of the inverse\'s input and output and a domain the context restricts, so the student interprets the inverse rather than recognizing it.',
+      teacherReason: 'MathMaster\'s inverse-in-context generator only offers the inverse of one kind of cost as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
   // The Recovery V2 families for the numeric Warm-Up of Algebra II Honors
   // Module 1 Lesson 4 (questionFamiliesFunctionValues.mjs, RC01), A2.2D.
   'functions.pointwiseFromValues': Object.freeze({

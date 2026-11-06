@@ -153,12 +153,14 @@ test('recognize refuses a board that is not exactly one of these, and every othe
 test('Prepare Recovery on Lesson 4: the two numeric Warm-Up questions are added and the Warm-Up becomes ready; the rest wait; no question changes', () => {
   const assignment = { ...structuredClone(LESSON.model.assignmentV5), id: 'live-l4', title: LESSON.model.assignmentV5.assignment.title, courseId: 'algebra2', assignedClassIds: ['class-a2h'], assignmentRevision: 2 };
   const { report } = buildRecoveryUpgradePreview({ assignment, manifest: null, gradeSample: serverRecoveryKeyCheck, trackers: [], at: '2026-11-05T15:00:00.000Z' });
+  // (Warm-Up Q1, the inverse review, is the inverse family's: recoveryInverseFamilies.test.mjs.)
   assert.deepEqual(report.changes.map((change) => `${change.label}:${change.family.id}`), [
+    'Warm-Up Q1:functions.inverseOfLinear',
     'Warm-Up Q2:functions.pointwiseFromValues',
     'Warm-Up Q3:functions.compositionFromValues',
   ]);
   assert.deepEqual(report.readiness.warmup, { before: 'unavailable', after: 'ready', message: null });
   assert.equal(report.readiness.dol.after, 'unavailable');
-  assert.deepEqual(report.notReady.map((row) => row.label), ['Warm-Up Q1', 'DOL Q1', 'DOL Q2', 'DOL Q3']);
+  assert.deepEqual(report.notReady.map((row) => row.label), ['DOL Q1', 'DOL Q2', 'DOL Q3']);
   assert.deepEqual(report.untouched.questions.map((entry) => entry.signature), flattenAssignmentQuestions(assignment).map(recoverySourceSignature));
 });

@@ -1433,6 +1433,14 @@ const platformFamilySentences = [
   ['So the graph is {1} ∛{2}.', 'Así que la gráfica es {1} ∛{2}.'],
   // A relation's mapping, domain and range (relations.mappingDiagram, RC01).
   ['Answer: arrows {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; domain {{9}, {10}, {11}, {12}}; range {{13}, {14}, {15}}', 'Respuesta: flechas {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; dominio {{9}, {10}, {11}, {12}}; rango {{13}, {14}, {15}}'],
+  // The inverse boards (questionFamiliesInverses.mjs, RC01's next shapes): the
+  // hints and back-up question the inverse support writes for a version.
+  ['In {1}, the first number of each pair is an input and the second is an output.', 'En {1}, el primer número de cada par es una entrada y el segundo es una salida.'],
+  ['Let {1} stand for the output of {2}, and solve the rule for {3}.', 'Sea {1} la salida de {2}, y despeja {3} en la regla.'],
+  ['To get {1} alone: undo the added number first, then the multiplication.', 'Para dejar sola {1}: deshaz primero el número sumado y luego la multiplicación.'],
+  ['For months represented by a total cost of {1}, use {2} as the input of your inverse rule, or solve {3} for {4}.', 'Para los meses que representa un costo total de {1}, usa {2} como la entrada de tu regla inversa, o despeja {4} en {3}.'],
+  ['For the value in the last part, put the given total into your inverse rule.', 'Para el valor de la última parte, pon el total dado en tu regla inversa.'],
+  ['To solve for {1} after the swap, which do you undo first?', 'Para despejar {1} después del intercambio, ¿qué deshaces primero?'],
 ];
 
 // Their back-up choices.
@@ -1463,6 +1471,9 @@ const platformFamilyChoices = [
   ['It stays the same', 'Se queda igual'],
   ['Yes, both equations', 'Sí, las dos ecuaciones'],
   ['Only one of them', 'Solo una de ellas'],
+  // The inverse in context (functions.inverseInContext): what to undo first.
+  ['The multiplication', 'La multiplicación'],
+  ['The added number', 'El número sumado'],
 ];
 
 // --- Matrix Lab: one list of what to fix ----------------------------------
