@@ -144,5 +144,15 @@ test('CI walks every student scene for 2.4.11, forward and back, in a job of its
   assert.match(check, /if \(hiddenUnderOverlay\(stop\)\) hidden\.push/, 'judged by the walk\'s rule');
   assert.match(check, /\}, \[\.\.\.LARGE_TEXT_SCREENS, \.\.\.FOCUS_SCREENS\]\);/, 'over the student scenes and the extra ones');
   const extra = region(driver, 'export const FOCUS_SCREENS = [', '\n];', 'the extra scenes');
-  for (const id of ['work-view', 'session-hosts']) assert.match(extra, new RegExp(`id: '${id}'`), `the ${id} scenes are walked`);
+  for (const id of ['work-view', 'session-hosts', 'work-bar-tools']) assert.match(extra, new RegExp(`id: '${id}'`), `the ${id} scenes are walked`);
+  // The Scratchpad over a question (student-a11y-2): opened from the work bar, a modal the walk stays in.
+  assert.match(extra, /scenes: \[\{ id: 'scratchpad', run: scratchpadOverQuestion \}\]/);
+  assert.match(region(driver, 'const scratchpadOverQuestion = async', '\n};', 'the Scratchpad scene'), /\[role="dialog"\]\[aria-label="Full-screen scratchpad"\]/);
+  // Both kinds of question-set round, each opened on its own top row (student-a11y-2 added Graph the Line,
+  // which no scene had reached): the large-text scenes are walked, measured and sized.
+  const screens = region(driver, 'export const LARGE_TEXT_SCREENS = [', '\n];', 'the large-text scenes');
+  assert.match(screens, /\{ id: 'graph-feature-rush', open: liveChallenge\.open, scenes: \[\{ id: 'round', run: rushRound \}\] \}/);
+  assert.match(screens, /\{ id: 'graph-the-line', open: liveChallenge\.open, scenes: \[\{ id: 'round', run: lineRound \}\] \}/);
+  assert.match(driver, /const lineRound = questionSetRound\(\{ challengeMode: 'lineGraphClassic', [^\n]*shell: '\.mm-line-shell', bar: '\.mm-line-bar', ready: '\.mm-line-overlay strong'/);
+  assert.match(region(driver, 'const questionSetRound = (', '\n};', 'a round'), /if \(covered\.length\) throw new Error\(/, 'a round whose top row is covered fails the scene');
 });
