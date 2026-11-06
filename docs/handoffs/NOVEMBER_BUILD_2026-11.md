@@ -68,6 +68,10 @@ Nothing here has been deployed, and no operator script has been run.
 | Placing points on a phone (N60) | Under a finger, the plane's coordinate chip sits above the fingertip, and lifting places exactly the point it showed. A tap up to 22 px past the grid's edge lands on the edge, in every tool's plane. On a −10 to 10 grid a phone unit is 12.8 by 8.0 px, so sliding with the chip is the way to aim. Laptops are unchanged. | `e8846679`, `613ac3e1` |
 | TT27 (teacher screens) | The administrator's five sections are one Tab stop with arrow keys and a tab panel, as Live Class has. 45 sideways-scrolling table wrappers on teacher screens are named regions. All 48 teacher scenes pass at 200% text, at 320 px and with text spacing, with every target at least 24 px: stacks and grids shrink to a phone, long words wrap, and student-name buttons, link buttons, summaries, checkboxes and accommodation fields grow. A new CI job runs the teacher sweep (about 50 minutes, in parallel, when a pull request touches the accessibility area). | `2afe045b`, `c390501a`, `3a679a5f` |
 | RC01 (Recovery coverage) | Recovery for questions no family recognized: the baseline Multiple Representations file (Warm-Up 2/2, exit ticket 1/1), the Algebra II Honors L2 Day 2 exit ticket (3/3), Lesson 1's mapping diagrams and graphed domain and range (the L1 Day 1 exit ticket is now 3/3), and Lesson 4's numeric Warm-Up questions. Warm-Up questions with Recovery: 103 → 110 of 132; exit-ticket questions 89 → 96 of 123. Seven new families, each certified on the device and the server. The Recovery planner now takes a family at the first version that can recognize a static question, which is still version 1 for every family that had Recovery. | `562b62be`, `8e6877d8`, `16716f0b`, `9e38cc5e`, `59f9c0a8` |
+| My Math Path on a reload | My Math Path loads again when its assignments or the student's profile change. For a student with no profile yet, every such load swapped the whole screen for "Loading My Math Path…" and back, taking with it the heading a screen change had just focused, so focus fell to the page. CI's screen-change journey found it. Only a student's first load says "Loading …" now; a reload refreshes the Path in place. | `b833ae8d` |
+| The coordinate plane (N60 follow-ups) | Zoomed in, the keyboard crosshair stands only on grid points inside the window, so Enter plots "Point 1 (4, 0)", not (4.571429, 0). Zoomed out, it stops at the authored graph's edge, as a press does. A press picks up a placed point only when it lands on that point's own grid point, so pressing the grid point just above or below places a new point. On a phone's −10 to 10 grid the pick-up area shrinks from three rows to one (12.8 × 8 px), because anything bigger would take presses meant for the neighbouring grid points. | `0b1a41a9`, `7fd67e6c` |
+| The Live Challenge report on the console | The console follows a finished game's report until it is written, so "After the game" appears without a refresh. The watch closes when the report arrives or the teacher leaves the room. A report not written yet now reads as nothing to a teacher (a rules change); before, that read was refused. | `c8b9c11a` |
+| AX05 slice 3 | Under an authored Spanish translation, the tools' own figure sentences are Spanish, without the "in English" note: the student-built inequality graph, a system's region and its corners, the sideways parabola. In a Spanish screen-reader description, English words (axis titles, point labels that are words, the graph workspace's task) are marked `lang="en"`; a lone letter naming a point is said in Spanish. A secure Test field item's figures describe themselves in Spanish (`lang="es"`) where the student's plan gives Translate and the item has an authored Spanish prompt; positions stay withheld. English is unchanged on 20,000 random graphs and 1,811 rendered figures. | `f5121e5c`, `220b4cc0`, `7ee598ba` |
 
 ## 3. Checked, with no change needed
 
@@ -77,7 +81,7 @@ Nothing here has been deployed, and no operator script has been run.
 
 ## 4. Releasing this work
 
-1. **Firestore rules** (`dc16bfa9`, Ask my teacher).
+1. **Firestore rules**: `dc16bfa9` (Ask my teacher) and `c8b9c11a` (the Live Challenge report). Deploy them with Hosting or before it: until they are live, a report written after the game ends shows only after a refresh, as today.
 2. **Cloud Functions**, planned with `node scripts/release-firebase.mjs`. The shared grader changed (`stackDivisions.mjs`, `answerEquivalence.mjs`), so every grading function needs a deploy. Match finalization changed too (the rush report, its wrong-tap list and the class memory: N42, N80), and so did Corrections' slip names (TC05), the bundled SAT seed (N54) and the Recovery families and their certification (RC01). The new Recovery reaches a class when its teacher approves Prepare Recovery. Deploy outside class hours and outside Sunday 6 pm to midnight Central.
 3. **Hosting.**
 4. **Then the re-imports.** A changed lesson reaches a class only when its teacher imports it again:
@@ -100,12 +104,14 @@ Nothing here has been deployed, and no operator script has been run.
 - **Systems Workspace practice credit.** On practice, a wrong model can no longer be graphed, so a student who submits without fixing it loses the follow-through credit for graphing their own model. That credit is still reachable on an exit ticket, quiz or test, where nothing is checked early. Keep the walkthrough's fix, or let the model be graphed as written?
 - **TS05's remaining keys.** Add a multiplication key, subscripts and ⁿ√ to the phone pads, and take letters from the prompt's words. Then the secure fields can move to the editor.
 - **The g(x) line in point maps.** CT04 removed the dashed g(x) from Algebra I M2 T2 L2 PR 10, because students could read y off it. The Algebra II Honors point maps (L2 Day 2, DOL #2 WU 2) still draw it.
-- **The Spanish wording (AX05 slice 2), for a Spanish-speaking teacher to read.** The new phrases:
+- **The Spanish wording (AX05 slices 2 and 3), for a Spanish-speaking teacher to read.** The new phrases:
   - "fuera de la ventana" for off the graph; "esquinas", not "vértices"; "punto alto" and "punto bajo", not "máximo" and "mínimo";
   - "La región por debajo de la recta 1 está sombreada"; "Recta vertical discontinua que pasa por 3 en el eje x"; "recta discontinua" where two planes cross;
   - "La línea poligonal 1 pasa por…"; "punta de flecha … que apunta hacia arriba y a la izquierda"; "Modelo 3D con los ejes x, y, z"; "oculto";
   - "Colocaste", "Dibujaste", "Seleccionaste"; "Tu curva está dibujada a través de tus puntos";
   - "Elige dos filas: primero la fila 1 y luego la fila 2"; "elegida como fila 2"; "Filas para elegir"; "Tabla para continuar".
+  - Slice 3: "Recta frontera 1: continua / discontinua / todavía no se ha elegido su estilo"; "Un lado de la recta frontera 1 está sombreado"; "La zona donde se superponen los lados sombreados está rayada"; "El lado sombreado está rayado"; "Todavía no hay ninguna recta frontera dibujada";
+  - "con esquinas en", "con una esquina en", "sin ninguna esquina dentro de la gráfica"; "Continúa más allá del borde de la gráfica"; "1 curva, que abre hacia la derecha" (or "izquierda").
   - The reader says "entre negativo 4 y menos 2": a sign after "y" or "o" is read as a subtraction. Choose "negativo" or "menos" for a sign, and the reader can follow.
 - **Live Challenge pause (LC17).** In October the decision on pause/resume was "Not now". It is built and tested (N43), but it is not on this branch until you say so: the host's Pause and Resume, honoured by every screen and the server. Answers sent during a pause are kept and sent on resume, and the clock gives back exactly the time that was left.
 - **Keys that give an answer away.** A rewrite of these changes a key, and a re-import that renames a key can mark saved right answers wrong, so they wait on you:
@@ -128,13 +134,13 @@ Nothing here has been deployed, and no operator script has been run.
   - Personal Check Your Progress per student, N34 (1 day).
 - **Live Challenge:**
   - Remove a student from a running game, N53 (3–5 days).
-  - The console reads a game's report once, when the room finishes; a report written a moment later shows only after a refresh (half a day).
 - **Recovery (RC01's next shapes):** L1 Day 2 exit ticket Q1 (intervals) and Q3 (the filling tank), L3 Warm-Up Q1 and exit ticket Q1–Q3, L4 Warm-Up Q1 and exit ticket Q1–Q2, the rest of the District DOL 1 review (figure sorts, the vertex choice, five function-characteristics boards, the sequence question) and the ALEKS bridge lesson (2–3 days).
-- **Coordinate plane** (found by N60, on laptops too):
-  - On a zoomed plane the keyboard crosshair stops at the window's edge, which can fall between grid lines, and Enter plots it there ("Point 1 (4.571429, 0)") (1 hour).
-  - On a −10 to 10 grid, pressing the grid point just above or below a placed point picks that point up instead of placing a new one: the pick-up radius (18 drawing units, pinned by planeOnPhone.test.mjs) is wider than one vertical grid step there (14.8) (1 hour).
 - **Accessibility:**
-  - AX05: under a Spanish translation a tool's own sentences (the Systems Workspace's region corners, the parabola) and an author's description are still English, with the note. Figure names (`aria-label`) stay English, English words inside a Spanish description are not marked `lang="en"`, and a secure Test field's figures are not covered.
+  - AX05: under a Spanish translation, figure names (`aria-label`, and the name Read aloud says first) and an author's own description stay English, the latter with the note. Read aloud speaks in one voice, so the `lang="en"` marks help screen readers only.
+  - A screen change looks for the new screen's heading for 2 s. A screen that draws its heading later (My Math Path's first load on a slow connection) is announced, but focus stays where it was (1 hour).
+  - Every stimulus graph's description says "It also shows marks drawn by the activity…", even with no curve: PathQuestionStimulus always passes a drawing function.
+  - The mathematics check refuses an authored Vietnamese prompt (it reads accented letters as variables). It matters little while Translate offers only Spanish.
+- **Tests:** the listener guard (`listenerLifecycleGuard`) accepts a function when a release call appears anywhere later in its file; the Live Challenge report watch has its own contract test for that.
   - The VPAT's teacher rows still describe TT27's tab list, 200% text and target size as open (30 minutes).
   - The four pointer-only places the VPAT lists.
 - Everything else in REMAINING_WORK_2026-10.md section 3 not named above.
