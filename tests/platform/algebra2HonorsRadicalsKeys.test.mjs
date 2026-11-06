@@ -407,6 +407,53 @@ test('L1 PR 10: the rounding the item asks for is right in every version, and tw
   assert.ok(roundingsDiffer > 0, 'some version rounds the two ways differently, so this can fail');
 });
 
+// A "radical form" box. CW 5 teaches b^(x/y) = ʸ√(bˣ) = (ʸ√b)ˣ, and the
+// simplest-form grader takes one root with the power under it, worked out when
+// it is a number: (∛V)² and ⁴√(2³) were refused with "take every perfect power
+// out of the root", which neither has. Where the grader refuses the root raised
+// to the power, or the number's power left unworked, the label says so.
+test('a "radical form" box says the power goes under the root, where the grader refuses it outside', () => {
+  // A key written as one root: root(n)(…) or ∛(…).
+  const asRoot = (key) => {
+    const general = /^root\((\d+)\)\((.+)\)$/.exec(key);
+    if (general) return { index: general[1], radicand: general[2] };
+    const cube = /^∛\((.+)\)$/.exec(key);
+    return cube ? { index: '3', radicand: cube[1] } : null;
+  };
+  const checked = new Set();
+  for (const file of [L1, L2, L3]) {
+    questionsOf(file).filter((question) => ['classwork', 'practice'].includes(question.sectionId) && question.type === 'multiAnswer').forEach((question) => {
+      versionsOf(question, 40).forEach((version) => version.answerFields
+        .filter((field) => field.gradingMode === 'simplestRadicalForm' && /radical form/i.test(field.label))
+        .forEach((field) => {
+          const key = String(field.answer);
+          const root = asRoot(key);
+          if (!root) return;
+          const { index, radicand } = root;
+          const letterPower = /^([a-z])\^(\d+)$/i.exec(radicand);
+          const number = /^\d+$/.test(radicand) ? Number(radicand) : null;
+          const others = [];
+          if (letterPower) others.push(`\\left(\\sqrt[${index}]{${letterPower[1]}}\\right)^{${letterPower[2]}}`);
+          if (number) {
+            for (let base = 2; base * base <= number; base += 1) {
+              const power = Math.round(Math.log(number) / Math.log(base));
+              if (base ** power === number) {
+                others.push(`\\sqrt[${index}]{${base}^{${power}}}`, `\\left(\\sqrt[${index}]{${base}}\\right)^{${power}}`);
+                break;
+              }
+            }
+          }
+          const refused = others.filter((other) => !takes(version, field.id, other) && radicalFormMiss(other, key) === 'notSimplest');
+          if (!refused.length) return;
+          checked.add(`${version.questionId} ${field.id}`);
+          assert.match(field.label, /power under the root/, `${version.questionId} ${field.id}: the grader refuses ${refused.join(' and ')} for ${key}, and "${field.label}" does not say where the power goes`);
+          if (number) assert.match(field.label, /worked out/, `${version.questionId} ${field.id}: ${refused[0]} is refused, so the label says the power is worked out`);
+        }));
+    });
+  }
+  assert.deepEqual([...checked].sort(), ['a2r3-p-15 radical', 'a2r3-p-3 radical', 'a2r3-p-7 radical', 'a2r3-p-9 product']);
+});
+
 // A last hint that ends in the other notation. L2 CW 7's "⁶√(x²) = x^(2/6) =
 // x^(1/3)", L3 CW 8's "(2x²)^(2/6)" and L3 CW 10's "x^(4/8), and 4/8 can be
 // reduced" end at an exponent, and their boxes take a radical only (a key in

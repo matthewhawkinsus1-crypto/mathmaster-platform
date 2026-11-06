@@ -28,6 +28,12 @@ const withOwnHint = (hint, question) => ({ ...question, supportHints: [hint] });
 // (F-NO-MISCONCEPTION-FEEDBACK): missFeedback reads it in that box only, by
 // that box's own grader, and never when the box is right.
 const slip = (field, match, message) => ({ field, match: [match].flat(), message });
+// What a "radical form" box takes. CW 5 teaches b^(x/y) = ʸ√(bˣ) = (ʸ√b)ˣ,
+// and the simplest-form grader reads one root with the power under it, so
+// (∛V)² was refused as "not in simplest form" (2026-11-06 walkthrough). With a
+// number under the root the power is worked out: ⁴√8, not ⁴√(2³).
+const RADICAL_FORM = 'with the power under the root';
+const RADICAL_FORM_WORKED_OUT = 'with the power under the root worked out';
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -525,9 +531,10 @@ const practice = [
     difficultyBand: 2,
     prompt: tex`Rewrite each form. Write $\sqrt[{{n}}]{x^{ {{m}} }}$ in exponential form, and write $y^{ {{a}}/{{b}} }$ in radical form.`,
     directionSteps: ['Write the radical in exponential form.', 'Write the power in radical form.'],
+    // "Radical form" alone allowed (⁵√y)³, which the box refused (RADICAL_FORM).
     responses: [
       simplest('exponential', 'Exponential form', 'x^({{m}}/{{n}})'),
-      simplest('radical', 'Radical form', 'root({{b}})(y^{{a}})'),
+      simplest('radical', `Radical form, ${RADICAL_FORM}`, 'root({{b}})(y^{{a}})'),
     ],
     hints: [
       'When you write a radical as a power, where does the index go, and where does the power go?',
@@ -668,9 +675,11 @@ const practice = [
     prompt: tex`Use a calculator. Evaluate $ {{b}}^{ {{m}}/{{n}} } $ to the nearest hundredth, and write it in radical form.`,
     calculatorPolicy: 'scientific',
     directionSteps: ['Evaluate the power with a calculator.', 'Write the power in radical form.'],
+    // The back-up step's ∛(7²) shows where the power goes; this box takes the
+    // power worked out (⁴√8), and refused ⁴√(2³) as "not in simplest form".
     responses: [
       number('value', '{{b}}^({{m}}/{{n}}) ≈ (nearest hundredth)', '{{v}}', { numericTolerance: 0.01 }),
-      simplest('radical', '{{b}}^({{m}}/{{n}}) in radical form', 'root({{n}})({{bm}})'),
+      simplest('radical', `{{b}}^({{m}}/{{n}}) in radical form, ${RADICAL_FORM_WORKED_OUT}`, 'root({{n}})({{bm}})'),
     ],
     hints: [
       'How do you enter a fractional exponent on a calculator so the whole fraction is the power?',
@@ -708,7 +717,7 @@ const practice = [
       number('s27', 'S for V = 27', '54'),
       number('s64', 'S for V = 64', '96'),
       number('s125', 'S for V = 125', '150'),
-      simplest('radical', 'V^(2/3) in radical form', '∛(V^2)'),
+      simplest('radical', `V^(2/3) in radical form, ${RADICAL_FORM}`, '∛(V^2)'),
       number('factor', 'When V is multiplied by 8, S is multiplied by', '4'),
       choice('why', 'Why?', [
         '(8V)^(2/3) = 8^(2/3) · V^(2/3), and 8^(2/3) = 4',
@@ -777,7 +786,7 @@ const practice = [
     directionSteps: ['Write each radical as a power of x.', 'Add or subtract the exponents.', 'Write each answer in radical form.'],
     responses: [
       simplest('sumExponent', '√x · ∛x as one power of x', 'x^(5/6)'),
-      simplest('product', '√x · ∛x in radical form', 'root(6)(x^5)'),
+      simplest('product', `√x · ∛x in radical form, ${RADICAL_FORM}`, 'root(6)(x^5)'),
       choice('quotient', '⁴√(x³) / √x in radical form', ['∛x', '√x', '∜x', '⁸√(x³)'], '∜x'),
     ],
     hints: [
