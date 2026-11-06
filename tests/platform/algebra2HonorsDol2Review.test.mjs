@@ -59,6 +59,7 @@ import matrixLab from '../../functions/shared/serverGrading/tools/matrixLab.mjs'
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
 import { missFeedback } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
+import { buildClosedQuestionReview } from '../../src/platform/supports/review/closedQuestionReview.js';
 
 const require = createRequire(import.meta.url);
 const bank = require('../../functions/lib/ccmrAssignmentBank.js');
@@ -614,6 +615,34 @@ test('Practice 16: what the worked step says about eliminating z is true of ever
       if (!near(zOf[into - 1] + Number(multiple) * zOf[from - 1], 0)) wrong(claim);
     }
     if (!claims) problems.push(`${JSON.stringify(values)}: the step names no coefficient or combination to check`);
+  });
+  assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
+});
+
+/*
+ * PRACTICE 17'S WORKED SOLUTION ENDS WITH THE VERSION'S OWN SOLUTION (module 2
+ * walkthrough, 2026-11-06). The system is the platform family's, so the
+ * review's text cannot hold a version's numbers, and its summary, "The ordered
+ * triple (x, y, z) read from A⁻¹ · B.", stood in the answer's place stating
+ * none. The Matrix Lab's own steps follow the review's text with the version's
+ * A, B and X = A⁻¹ · B. Read as the closed card builds it for a tool question:
+ * nothing in the answer's place but the version's solution, and the worked
+ * solution ends with that solution.
+ */
+test('Practice 17: the worked solution ends with each version\'s own (x, y, z)', () => {
+  const versions = dealt().filter(({ id }) => id === 'dol2r-pr-17');
+  assert.ok(versions.length >= 100, `${versions.length} versions read`);
+  const plain = (text) => String(text ?? '').replace(/−/g, '-');
+  const problems = [];
+  versions.forEach(({ values, question }) => {
+    const [x, y, z] = values.solution;
+    const review = buildClosedQuestionReview({ question, isToolQuestion: true });
+    const summary = review?.authored?.answerSummary;
+    if (summary && !plain(summary).includes(`(${x}, ${y}, ${z})`)) problems.push(`${JSON.stringify(values)}: the answer's place says "${summary}"`);
+    const solution = (review?.tool?.items || []).find((item) => item.label === 'Solution');
+    if (plain(solution?.value) !== `(${x}, ${y}, ${z})`) problems.push(`${JSON.stringify(values)}: the Matrix Lab's solution is ${solution?.value}`);
+    const last = plain(review?.speechParts?.at(-1)?.text);
+    if (!last.includes(`x = ${x}, y = ${y}, z = ${z}`)) problems.push(`${JSON.stringify(values)}: the worked solution ends "${last}"`);
   });
   assert.deepEqual(problems.slice(0, 5), [], `${problems.length} problem(s)`);
 });

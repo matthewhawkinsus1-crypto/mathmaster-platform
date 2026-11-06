@@ -86,7 +86,11 @@ def scaffold(prompt, right, wrong):
 
 
 def review(headline, reasoning, summary, common_error):
-    return {'headline': headline, 'reasoning': reasoning, 'answerSummary': summary, 'commonError': common_error}
+    """A worked solution. A summary of None is left out: the item's tool states the answer instead."""
+    out = {'headline': headline, 'reasoning': reasoning, 'answerSummary': summary, 'commonError': common_error}
+    if summary is None:
+        del out['answerSummary']
+    return out
 
 
 def det3(m):
@@ -1161,7 +1165,13 @@ practice = [
                 'Row i of A holds the x-, y-, and z-coefficients of equation i (0 for a missing variable); X is the column (x, y, z); B holds the constants in the same order.',
                 'With technology, X = A⁻¹ · B. Read x, y, and z from the column, top to bottom, and check them in the original equations.',
             ],
-            'The ordered triple (x, y, z) read from A⁻¹ · B.',
+            # No summary (2026-11-06 walkthrough). The system is the platform
+            # family's, so this text cannot hold a version's numbers, and its
+            # summary, "The ordered triple (x, y, z) read from A⁻¹ · B.", sat in
+            # the answer's place stating none. The Matrix Lab's own steps follow
+            # this text with the version's A, B and X = A⁻¹ · B, and end with its
+            # (x, y, z) and the check.
+            None,
             'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
         ),
         'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
