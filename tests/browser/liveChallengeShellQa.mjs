@@ -23,13 +23,16 @@
 //                  student, the round closing itself (deadline and everyone
 //                  answered), results that agree with the server everywhere,
 //                  a double-clicked Next Round, refreshes, End Game with its
-//                  confirmation, the podium, rewards delivered once, Play Again
+//                  confirmation, the game's report on the console without a
+//                  refresh, the podium, rewards delivered once, Play Again
 //                  moving every screen into the new lobby
 //   B scoring      Grand Prix and Correct Count read as what they are; ties
 //   C rush         Graph Feature Rush inside the shell: countdown, no graph on
 //                  the projector, results from the round's own document
 //   D reconnect    offline and back, a second device, a student who goes quiet,
-//                  a late joiner, the teacher refreshing on the finished podium;
+//                  a late joiner, the teacher refreshing on the finished podium
+//                  (and the game's report, written after the console asked,
+//                  showing with no second refresh);
 //                  an answer over a slow link settles before the round is
 //                  force-closed (support/submissionSettled.mjs)
 //   L launch       a class of 40 launching (6 real screens, 34 bots): a 6×
@@ -872,6 +875,12 @@ await run('classic', async (S) => {
   await confirmDialog(teacher, 'End Game');
   const finished = await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
   check(S, finished, 'End Game did not finish the game');
+  // THE REPORT, without a refresh, followed by one listener the console owns
+  // (released below, when Play Again leaves the room). That a report written
+  // after the console asked still shows is the reconnect scenario's.
+  check(S, await waitForText(teacher, 'After the game', 15_000), 'the finished console did not show the game\'s report without a refresh');
+  const reportWatch = () => teacher.page.evaluate(() => window.__mmWatchers?.open?.report || 0);
+  check(S, await reportWatch() === 1, `the finished room's report is followed by one listener (${await reportWatch()})`);
 
   // THE END: the podium, each student's place, rewards once.
   const result = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
@@ -908,6 +917,7 @@ await run('classic', async (S) => {
     return null;
   })();
   check(S, replayId, 'Play Again made no new room');
+  check(S, await reportWatch() === 0, 'the finished room\'s report listener stayed open after Play Again left it');
   for (const student of [s1, s2, s3]) {
     check(S, await waitForStudentStage(student, 'lobby', 20_000), `${student.studentId}: did not move into the new lobby`);
     check(S, !(await textOf(student)).includes('Challenge complete'), `${student.studentId}: the last game's final screen carried over`);
@@ -1106,9 +1116,30 @@ await run('reconnect', async (S) => {
   await confirmDialog(teacher, 'End Game');
   await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
   check(S, await waitForConsole(teacher, 'completed', 10_000), 'the console is not on the finished game');
+  // A REPORT WRITTEN AFTER THE CONSOLE ASKED. The room finishes first and the
+  // report is written a moment after it; here that write is usually done
+  // before the console asks, so the report is taken away while the console is
+  // refreshed onto the finished game, and written back once it is there. The
+  // console read it once and showed it only after another refresh; it follows
+  // it until it is written.
+  const reportRef = db.collection('liveChallengeReports').doc(roomId);
+  let writtenReport = null;
+  for (let tries = 0; tries < 40 && !writtenReport; tries += 1) {
+    writtenReport = (await reportRef.get()).data() || null;
+    if (!writtenReport) await wait(250);
+  }
+  check(S, writtenReport, 'the finished game wrote no report');
+  await reportRef.delete();
   await teacher.page.reload({ waitUntil: 'domcontentloaded' });
   check(S, await waitForConsole(teacher, 'completed', 20_000), 'a refresh lost the finished game\'s results');
   check(S, await waitForText(teacher, 'Challenge complete', 5_000), 'the refreshed console does not show the finished game');
+  await wait(1_500);
+  check(S, !(await textOf(teacher)).includes('After the game'), 'a report not written yet was shown');
+  if (writtenReport) await reportRef.set(writtenReport);
+  check(S, await waitForText(teacher, 'After the game', 10_000), 'a report written after the console asked did not show without another refresh');
+  // A report already written is shown at once.
+  await teacher.page.reload({ waitUntil: 'domcontentloaded' });
+  check(S, await waitForConsole(teacher, 'completed', 20_000) && await waitForText(teacher, 'After the game', 10_000), 'the refreshed console does not show the game\'s report');
   await shot(teacher, 'D05-console-finished-after-refresh');
   // The heartbeat stops once the game is over.
   const callsBefore = bridgeCalls.filter((call) => call.name === 'calibrateLiveChallengeClock' && call.identity?.studentId === ids[0]).length;

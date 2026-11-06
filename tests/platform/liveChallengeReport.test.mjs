@@ -8,6 +8,8 @@ import {
   summarizeRounds,
   summarizeStandards,
 } from '../../functions/shared/liveChallengeReport.mjs';
+import { watchReportUntilWritten } from '../../src/platform/liveChallenge/challengeReportWatch.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const codeOf = (path) => readFileSync(path, 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -221,4 +223,92 @@ test('mastery evidence is deliberately not written by the report', () => {
   // report would decide it by accident.
   const source = codeOf('functions/shared/liveChallengeReport.mjs');
   assert.doesNotMatch(source, /mastery|evidence[A-Z]|masteryEvidence/);
+});
+
+/* ---------- the console follows the report until it is written ---------- */
+
+// The room turns finished first and the report is written a moment after it
+// (the finalization's first effect), so the console's single read on
+// finishing found nothing and the report showed only after a refresh
+// (challengeReportWatch.js). A fake database: one document, its listeners.
+const reportDocument = () => {
+  const listeners = new Set();
+  return {
+    listeners,
+    listen: (next, fail) => {
+      const entry = { next, fail };
+      listeners.add(entry);
+      next(null); // the first snapshot: not written yet
+      return () => listeners.delete(entry);
+    },
+    write: (value) => [...listeners].forEach((entry) => entry.next(value)),
+    fail: (error) => [...listeners].forEach((entry) => entry.fail?.(error)),
+  };
+};
+
+test('a report written after the room finished reaches the console without a refresh, and the watch then closes', () => {
+  const database = reportDocument();
+  const shown = [];
+  const leave = watchReportUntilWritten({ listen: database.listen, onValue: (value) => shown.push(value) });
+  assert.deepEqual(shown, [null], 'the room has finished; no report yet');
+  assert.equal(database.listeners.size, 1, 'and it is followed');
+  const report = buildChallengeReport(base);
+  database.write(report);
+  assert.deepEqual(shown, [null, report], 'the report appears when it is written');
+  assert.equal(database.listeners.size, 0, 'and the listener closes: a report is written once');
+  leave();
+  assert.equal(database.listeners.size, 0, 'leaving the room afterwards closes nothing twice');
+});
+
+test('leaving the room before the report is written closes the watch, and nothing arrives after', () => {
+  const database = reportDocument();
+  const shown = [];
+  const errors = [];
+  const leave = watchReportUntilWritten({ listen: database.listen, onValue: (value) => shown.push(value), onError: (error) => errors.push(error) });
+  const [inFlight] = [...database.listeners];
+  leave();
+  assert.equal(database.listeners.size, 0, 'New Challenge or Play Again closes it');
+  inFlight.next(buildChallengeReport(base));
+  inFlight.fail(new Error('late'));
+  assert.deepEqual(shown, [null], 'a snapshot already on its way is not shown');
+  assert.deepEqual(errors, [], 'nor an error');
+});
+
+test('a report the listener already holds is shown once and the listener closed at once; a refusal is reported', () => {
+  const report = buildChallengeReport(base);
+  let closed = 0;
+  const shown = [];
+  const leave = watchReportUntilWritten({ listen: (next) => { next(report); return () => { closed += 1; }; }, onValue: (value) => shown.push(value) });
+  assert.deepEqual(shown, [report]);
+  assert.equal(closed, 1, 'closed as soon as it answered');
+  leave();
+  assert.equal(closed, 1, 'and only once');
+  const database = reportDocument();
+  const errors = [];
+  watchReportUntilWritten({ listen: database.listen, onValue() {}, onError: (error) => errors.push(error.message) });
+  database.fail(new Error('permission-denied'));
+  assert.deepEqual(errors, ['permission-denied']);
+});
+
+test('the console follows a finished room\'s report from its own effect, and no single read is left', () => {
+  const teacher = executableSource(readFileSync('src/components/liveChallenge/LiveChallengeTeacher.jsx', 'utf8'));
+  const effect = region(teacher, 'const [report, setReport] = useState(null);', '}, [room?.status, room?.roomId, room?.id]);', 'the report effect');
+  assert.match(effect, /setReport\(null\);\s*if \(room\?\.status !== 'finished' \|\| !finishedRoomId\) return undefined;\s*return watchChallengeReport\(\s*finishedRoomId,\s*setReport,/, 'followed from the moment the room finishes, closed by the effect when the room is left');
+  assert.doesNotMatch(teacher, /readChallengeReport/);
+  const service = executableSource(readFileSync('src/platform/liveChallenge/liveChallengeService.js', 'utf8'));
+  const watch = region(service, 'export const watchChallengeReport = (roomId, onValue, onError = console.warn) => {', '\n};', 'the service watch');
+  assert.match(watch, /import\('\.\/challengeReportWatch\.js'\)/, 'loaded with the first watch, off the student first load');
+  assert.match(watch, /stop = watchReportUntilWritten\(\{/);
+  assert.match(watch, /return onSnapshot\(\s*doc\(db, 'liveChallengeReports', id\),\s*\(snapshot\) => next\(snapshot\.exists\(\) \? snapshot\.data\(\) : null\),\s*fail,\s*\);/, 'the report\'s own document, nothing while it is not written');
+  assert.match(watch, /return \(\) => \{\s*cancelled = true;\s*stop\?\.\(\);\s*\};/, 'closed whether the room is left before or after the module loads');
+  assert.doesNotMatch(service, /readChallengeReport/);
+});
+
+test('a report not written yet reads as nothing to a teacher, and to nobody else', () => {
+  const rules = readFileSync('firestore.rules', 'utf8');
+  const start = rules.indexOf('match /liveChallengeReports/{roomId}');
+  const scope = rules.slice(start, rules.indexOf('\n    }', start));
+  // The missing report is allowed only inside teacher(): a student or someone
+  // signed out is refused it as before (tests/rules/serverOnlyCollectionsRules.test.mjs).
+  assert.match(scope, /allow read: if rootAdmin\(\)\s*\|\| \(teacher\(\) && \(resource == null \|\| resource\.data\.teacherEmail == request\.auth\.token\.email\)\);/);
 });

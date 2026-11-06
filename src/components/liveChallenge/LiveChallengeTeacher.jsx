@@ -82,7 +82,7 @@ import {
   finishLiveChallenge,
   getLiveChallengeHostRoster,
   publishLiveChallengeStandings,
-  readChallengeReport,
+  watchChallengeReport,
   watchClassGameMemory,
   setWarmupChallengeDelivery,
   startLiveChallenge,
@@ -687,15 +687,21 @@ export default function LiveChallengeTeacher({
     return () => window.clearInterval(timer);
   }, [room, leaderboard, audioInputs]);
 
+  // THE REPORT is followed until it is written, not read once: the room turns
+  // finished first and the report is written a moment after it, so a read on
+  // finishing showed nothing until a refresh. The watch stops at the written
+  // report, and leaving the room (New Challenge, Play Again) closes it, as
+  // the class memory's does.
   const [report, setReport] = useState(null);
   useEffect(() => {
     const finishedRoomId = room?.roomId || room?.id;
-    if (room?.status !== 'finished' || !finishedRoomId) { setReport(null); return undefined; }
-    let cancelled = false;
-    readChallengeReport(finishedRoomId)
-      .then((value) => { if (!cancelled) setReport(value); })
-      .catch(() => { if (!cancelled) setReport(null); });
-    return () => { cancelled = true; };
+    setReport(null);
+    if (room?.status !== 'finished' || !finishedRoomId) return undefined;
+    return watchChallengeReport(
+      finishedRoomId,
+      setReport,
+      (error) => console.warn('The game report could not be read:', error),
+    );
   }, [room?.status, room?.roomId, room?.id]);
 
   const warmupAssignmentOptions = useMemo(() => (Array.isArray(assignments) ? assignments : [])

@@ -29,7 +29,7 @@ export {
   readLiveChallengeRound,
   readLiveChallengePlayerSummary,
   readLiveChallengeSolution,
-  readChallengeReport,
+  watchChallengeReport,
   timestampMillis,
 } from '../../../src/platform/liveChallenge/liveChallengeService.js';
 
