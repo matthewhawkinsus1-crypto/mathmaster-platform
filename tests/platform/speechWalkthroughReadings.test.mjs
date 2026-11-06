@@ -73,6 +73,16 @@ test('a power before a root and a blank power are read as they are drawn', () =>
   assert.equal(speechTextFor('x³√x', { language: 'es' }), 'x al cubo por la raíz cuadrada de x');
 });
 
+// Lesson re-walk 2026-11-06: a table heading's bare unit reached the voice as
+// "($)".
+test('a bare dollar unit after a quantity is "in dollars"', () => {
+  assert.equal(speechTextFor('Money raised by 39 muffins and 25 smoothies ($)'), 'Money raised by 39 muffins and 25 smoothies in dollars');
+  assert.equal(speechTextFor('First trip: money ($)'), 'First trip: money in dollars');
+  assert.equal(speechTextFor('Cost ($)', { language: 'es' }), 'Cost en dólares');
+  // A price is still a price.
+  assert.equal(speechTextFor('It costs $4.50.'), 'It costs 4 dollars and 50 cents.');
+});
+
 test('a fractional or negative exponent is never "squared", "cubed" or "inverse"', () => {
   assert.equal(mathToSpeech('x^{2/3}'), 'x to the power 2 over 3');
   assert.equal(mathToSpeech('x^{-1/2}'), 'x to the power negative 1 over 2');

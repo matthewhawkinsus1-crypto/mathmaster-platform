@@ -56,6 +56,8 @@ const WORDS = {
       approaches: 'approaches', mapsTo: 'maps to', to: 'to', gives: 'gives', next: 'then', means: 'means',
       goesInto: 'goes into', replacedBy: 'is replaced by', correspondsTo: 'corresponds to', iff: 'if and only if', implies: 'implies',
     },
+    // A bare unit after a quantity: "Cost ($)" is "Cost in dollars".
+    units: { dollars: 'in dollars' },
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -94,6 +96,7 @@ const WORDS = {
       approaches: `se acerca a${ARROW_A}`, mapsTo: `corresponde a${ARROW_A}`, to: `a${ARROW_A}`, gives: 'da', next: 'luego', means: 'significa',
       goesInto: 'entra en', replacedBy: 'se reemplaza por', correspondsTo: `corresponde a${ARROW_A}`, iff: 'si y solo si', implies: 'implica',
     },
+    units: { dollars: 'en dólares' },
   },
 };
 
@@ -654,6 +657,12 @@ const LATEX_SPAN = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\
 const PLAIN_SET = /(?<![\\^_{}\]\p{L}])\{([^{}$\\^_]*)\}(?!\})/gu;
 const isSetMembers = (members) => /[\p{L}\p{N}∞]/u.test(members) && !/\p{L}{2,}/u.test(members)
   && (members.includes(',') || /^\s*(?:[-−+±]?\s*\d+(?:\.\d+)?|\([^()]*\)|\p{L})\s*$/u.test(members));
+// A bare unit after a quantity, "Money raised by 39 muffins and 25 smoothies
+// ($)", is said "in dollars", as a person reads a table's heading; the voice
+// was handed "($)" (lesson re-walk 2026-11-06). Taken out before the text is
+// split, so its "$" never opens a LaTeX span with a later one.
+const dollarUnits = (text, w) => text.replace(/\s*\(\s*\$\s*\)/g, ` ${w.units.dollars}`);
+
 // "!=" typed for ≠, as the bank's set-builder examples write it ("{x|x!=3}"):
 // in prose the segmenter split the "!" off, and it was read "x! equals 3".
 const typedNotEqual = (text) => text.replace(/(?<=[\p{L}\p{N})\]}])\s*!=\s*/gu, ' ≠ ');
@@ -910,7 +919,7 @@ const proseArrowsToWords = (segments, w, letters) => {
 // log with no base is read with the mathematics around it, in mathToSpeech:
 // said here, "1/-ln(x)" lost its fraction to the prose.)
 const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(typedNotEqual(arrowsAsCharacters(String(raw ?? ''))), w), w), w,
+  plainSetsToWords(logBasesToWords(typedNotEqual(dollarUnits(arrowsAsCharacters(String(raw ?? '')), w)), w), w), w,
 );
 
 /**
