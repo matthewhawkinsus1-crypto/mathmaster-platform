@@ -1667,7 +1667,7 @@
             "headline": "Index ↔ denominator, power ↔ numerator.",
             "reasoning": [
               "ⁿ√(x^m) = x^(m/n): here x^({{m}}/{{n}}).",
-              "y^({{a}}/{{b}}) = the {{b}}th root of y^{{a}}."
+              "In y^({{a}}/{{b}}), the denominator {{b}} is the index, and y^{{a}} goes under the root."
             ],
             "answerSummary": "x^({{m}}/{{n}}); ^{{b}}√(y^{{a}})",
             "commonError": "Switching the numerator and the denominator."
@@ -2016,10 +2016,10 @@
           "solutionReview": {
             "headline": "Rational exponents reduce the index.",
             "reasoning": [
-              "{{c2}}x^{{e}} = ({{c}}x^{{k}})².",
-              "So the root is ({{c}}x^{{k}})^(2/{{n}}) = ({{c}}x^{{k}})^(1/{{h}})."
+              "{{c2}}x^{{e}} = ({{c}}x{{k|pow}})².",
+              "So the root is ({{c}}x{{k|pow}})^(2/{{n}}) = ({{c}}x{{k|pow}})^(1/{{h}})."
             ],
-            "answerSummary": "the {{h}}th root of {{c}}x^{{k}}",
+            "answerSummary": "({{c}}x{{k|pow}})^(1/{{h}}): a root of index {{h}}",
             "commonError": "Leaving the index as {{n}}: it is not as small as it can be."
           },
           "generator": {
@@ -2134,7 +2134,7 @@
             "headline": "Root and power; a calculator gives the decimal.",
             "reasoning": [
               "{{b}}^({{m}}/{{n}}) ≈ {{v}}.",
-              "In radical form it is the {{n}}th root of {{b}}^{{m}} = {{bm}}."
+              "In radical form the index is {{n}}, and under the root is {{b}}^{{m}} = {{bm}}."
             ],
             "answerSummary": "≈ {{v}}",
             "commonError": "Typing {{b}}^{{m}}/{{n}} without parentheses."

@@ -1588,10 +1588,10 @@
           "solutionReview": {
             "headline": "Perfect cube out, the rest in.",
             "reasoning": [
-              "{{R}}m^{{e}} = ({{c}}m^{{q}})³ · {{k}}m^{{r}}.",
-              "So the cube root is {{c}}m^{{q}}∛({{k}}m^{{r}})."
+              "{{R}}m^{{e}} = ({{c}}m{{q|pow}})³ · {{k}}m{{r|pow}}.",
+              "So the cube root is {{c}}m{{q|pow}}∛({{k}}m{{r|pow}})."
             ],
-            "answerSummary": "{{c}}m^{{q}}∛({{k}}m^{{r}})",
+            "answerSummary": "{{c}}m{{q|pow}}∛({{k}}m{{r|pow}})",
             "commonError": "Taking a square root of the powers instead of a cube root."
           },
           "generator": {
@@ -2017,10 +2017,10 @@
           "solutionReview": {
             "headline": "Perfect square out, the rest in.",
             "reasoning": [
-              "{{R}}a^{{e1}}b^{{e2}} = ({{s}}a^{{m}}b^{{n}})² · {{k}}b.",
-              "So the root is {{s}}a^{{m}}b^{{n}}√({{k}}b)."
+              "{{R}}a^{{e1}}b^{{e2}} = ({{s}}a{{m|pow}}b{{n|pow}})² · {{k}}b.",
+              "So the root is {{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)."
             ],
-            "answerSummary": "{{s}}a^{{m}}b^{{n}}√({{k}}b)",
+            "answerSummary": "{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)",
             "commonError": "Leaving a perfect-square factor of {{R}} under the radical."
           },
           "generator": {

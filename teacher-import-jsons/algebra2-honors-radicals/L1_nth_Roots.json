@@ -1965,10 +1965,10 @@
           "solutionReview": {
             "headline": "Write a cube; an odd root keeps the sign.",
             "reasoning": [
-              "−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{n}})³.",
-              "So the cube root is −{{c}}a^{{m}}b^{{n}}."
+              "−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a{{m|pow}}b{{n|pow}})³.",
+              "So the cube root is −{{c}}a{{m|pow}}b{{n|pow}}."
             ],
-            "answerSummary": "−{{c}}a^{{m}}b^{{n}}",
+            "answerSummary": "−{{c}}a{{m|pow}}b{{n|pow}}",
             "commonError": "Saying a cube root of a negative number is not real: only even roots of negatives are not real."
           },
           "generator": {
@@ -2056,11 +2056,11 @@
           "solutionReview": {
             "headline": "A fourth power, then bars where a factor can be negative.",
             "reasoning": [
-              "{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{n}})⁴.",
-              "The principal fourth root is |{{d}}x^{{m}}y^{{n}}| = {{d}}|x^{{m}}|y^{{n}}: y^{{n}} is never negative, x^{{m}} can be."
+              "{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x{{m|pow}}y^{{n}})⁴.",
+              "The principal fourth root is |{{d}}x{{m|pow}}y^{{n}}| = {{d}}|x{{m|pow}}|y^{{n}}: y^{{n}} is never negative, x{{m|pow}} can be."
             ],
-            "answerSummary": "{{d}}|x^{{m}}|y^{{n}}",
-            "commonError": "Leaving off the bars around x^{{m}}, or putting them around y^{{n}} too (harmless but not simplest)."
+            "answerSummary": "{{d}}|x{{m|pow}}|y^{{n}}",
+            "commonError": "Leaving off the bars around x{{m|pow}}, or putting them around y^{{n}} too (harmless but not simplest)."
           },
           "generator": {
             "parameters": {

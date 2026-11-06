@@ -827,8 +827,8 @@ const practice = [
     scaffold: backUp('∛(−8) equals…', ['−2', 'not a real number'], '−2'),
     solutionReview: review(
       'Write a cube; an odd root keeps the sign.',
-      ['−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{n}})³.', 'So the cube root is −{{c}}a^{{m}}b^{{n}}.'],
-      '−{{c}}a^{{m}}b^{{n}}',
+      ['−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a{{m|pow}}b{{n|pow}})³.', 'So the cube root is −{{c}}a{{m|pow}}b{{n|pow}}.'],
+      '−{{c}}a{{m|pow}}b{{n|pow}}',
       'Saying a cube root of a negative number is not real: only even roots of negatives are not real.',
     ),
     generator: {
@@ -855,9 +855,9 @@ const practice = [
     scaffold: backUp('⁴√(x⁴) equals…', ['x', '|x|'], '|x|'),
     solutionReview: review(
       'A fourth power, then bars where a factor can be negative.',
-      ['{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{n}})⁴.', 'The principal fourth root is |{{d}}x^{{m}}y^{{n}}| = {{d}}|x^{{m}}|y^{{n}}: y^{{n}} is never negative, x^{{m}} can be.'],
-      '{{d}}|x^{{m}}|y^{{n}}',
-      'Leaving off the bars around x^{{m}}, or putting them around y^{{n}} too (harmless but not simplest).',
+      ['{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x{{m|pow}}y^{{n}})⁴.', 'The principal fourth root is |{{d}}x{{m|pow}}y^{{n}}| = {{d}}|x{{m|pow}}|y^{{n}}: y^{{n}} is never negative, x{{m|pow}} can be.'],
+      '{{d}}|x{{m|pow}}|y^{{n}}',
+      'Leaving off the bars around x{{m|pow}}, or putting them around y^{{n}} too (harmless but not simplest).',
     ),
     generator: {
       parameters: { d: { type: 'int', min: 2, max: 6 }, m: { type: 'choice', values: [1, 3, 5] }, n: { type: 'choice', values: [2, 4, 6] } },

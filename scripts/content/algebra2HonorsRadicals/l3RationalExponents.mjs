@@ -547,7 +547,7 @@ const practice = [
     scaffold: backUp('∛(a²) equals…', ['a^(2/3)', 'a^(3/2)'], 'a^(2/3)'),
     solutionReview: review(
       'Index ↔ denominator, power ↔ numerator.',
-      ['ⁿ√(x^m) = x^(m/n): here x^({{m}}/{{n}}).', 'y^({{a}}/{{b}}) = the {{b}}th root of y^{{a}}.'],
+      ['ⁿ√(x^m) = x^(m/n): here x^({{m}}/{{n}}).', 'In y^({{a}}/{{b}}), the denominator {{b}} is the index, and y^{{a}} goes under the root.'],
       'x^({{m}}/{{n}}); ^{{b}}√(y^{{a}})',
       'Switching the numerator and the denominator.',
     ),
@@ -655,8 +655,8 @@ const practice = [
     scaffold: backUp('⁶√(9x²) equals (x positive)…', ['∛(3x)', '∛(9x²)'], '∛(3x)'),
     solutionReview: review(
       'Rational exponents reduce the index.',
-      ['{{c2}}x^{{e}} = ({{c}}x^{{k}})².', 'So the root is ({{c}}x^{{k}})^(2/{{n}}) = ({{c}}x^{{k}})^(1/{{h}}).'],
-      'the {{h}}th root of {{c}}x^{{k}}',
+      ['{{c2}}x^{{e}} = ({{c}}x{{k|pow}})².', 'So the root is ({{c}}x{{k|pow}})^(2/{{n}}) = ({{c}}x{{k|pow}})^(1/{{h}}).'],
+      '({{c}}x{{k|pow}})^(1/{{h}}): a root of index {{h}}',
       'Leaving the index as {{n}}: it is not as small as it can be.',
     ),
     generator: {
@@ -689,7 +689,7 @@ const practice = [
     scaffold: backUp('7^(2/3) in radical form is…', ['∛(7²)', '√(7³)'], '∛(7²)'),
     solutionReview: review(
       'Root and power; a calculator gives the decimal.',
-      ['{{b}}^({{m}}/{{n}}) ≈ {{v}}.', 'In radical form it is the {{n}}th root of {{b}}^{{m}} = {{bm}}.'],
+      ['{{b}}^({{m}}/{{n}}) ≈ {{v}}.', 'In radical form the index is {{n}}, and under the root is {{b}}^{{m}} = {{bm}}.'],
       '≈ {{v}}',
       'Typing {{b}}^{{m}}/{{n}} without parentheses.',
     ),

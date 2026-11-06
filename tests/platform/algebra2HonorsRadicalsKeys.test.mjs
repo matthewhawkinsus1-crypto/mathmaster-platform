@@ -515,3 +515,30 @@ test('L2 CW 4: one option answers what the multiplier choice asks', () => {
     assert.equal(field.answer, clearing.reduce((least, option) => (power(option) < power(least) ? option : least)));
   }
 });
+
+// What a worked solution writes, in every version (2026-11-06 walkthrough):
+// "(−3a^1b^4)³" and "6a²b¹" where an exponent drew 1, and "the 3th root" or
+// "the 2th root" where an index did. A simplified answer never shows a power of
+// 1, and these lessons grade simplest form. Classwork and Practice only: the
+// Warm-Up and Exit Ticket are not edited here, because Recovery binds to them
+// (docs/qa/2026-11-06-rewalk-changed-lessons/findings.md lists theirs).
+test('no Classwork or Practice text writes a power of 1 or a wrong ordinal, in any version', () => {
+  const wrongOrdinal = (text) => [...String(text).matchAll(/\b(\d+)th\b/g)].map(([, digits]) => Number(digits))
+    .some((value) => [1, 2, 3].includes(value % 10) && ![11, 12, 13].includes(value % 100));
+  const problems = new Set();
+  let versionsRead = 0;
+  for (const file of [L1, L2, L3]) {
+    questionsOf(file).filter((question) => ['classwork', 'practice'].includes(question.sectionId)).forEach((question) => versionsOf(question, 400).forEach((version) => {
+      versionsRead += 1;
+      const review = version.solutionReview || {};
+      const texts = [version.prompt, ...(version.answerFields || []).map((field) => field.label), ...authoredHintTexts(version),
+        review.headline, ...(review.reasoning || []), review.answerSummary, review.commonError].filter(Boolean).map(String);
+      texts.forEach((text) => {
+        if (/[A-Za-z]\^1(?![0-9./])|[A-Za-z]¹(?![⁰¹²³⁴⁵⁶⁷⁸⁹])/.test(text)) problems.add(`${version.questionId}: a power of 1 in "${text}"`);
+        if (wrongOrdinal(text)) problems.add(`${version.questionId}: a wrong ordinal in "${text}"`);
+      });
+    }));
+  }
+  assert.deepEqual([...problems], []);
+  assert.ok(versionsRead >= 1000, `${versionsRead} versions read`);
+});

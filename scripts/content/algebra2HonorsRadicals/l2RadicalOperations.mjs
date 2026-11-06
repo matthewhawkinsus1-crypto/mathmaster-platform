@@ -569,8 +569,8 @@ const practice = [
     scaffold: backUp('∛(m⁷) equals…', ['m²∛m', 'm³∛m'], 'm²∛m'),
     solutionReview: review(
       'Perfect cube out, the rest in.',
-      ['{{R}}m^{{e}} = ({{c}}m^{{q}})³ · {{k}}m^{{r}}.', 'So the cube root is {{c}}m^{{q}}∛({{k}}m^{{r}}).'],
-      '{{c}}m^{{q}}∛({{k}}m^{{r}})',
+      ['{{R}}m^{{e}} = ({{c}}m{{q|pow}})³ · {{k}}m{{r|pow}}.', 'So the cube root is {{c}}m{{q|pow}}∛({{k}}m{{r|pow}}).'],
+      '{{c}}m{{q|pow}}∛({{k}}m{{r|pow}})',
       'Taking a square root of the powers instead of a cube root.',
     ),
     generator: {
@@ -692,8 +692,8 @@ const practice = [
     scaffold: backUp('√(b⁷) equals (b positive)…', ['b³√b', 'b⁴√b'], 'b³√b'),
     solutionReview: review(
       'Perfect square out, the rest in.',
-      ['{{R}}a^{{e1}}b^{{e2}} = ({{s}}a^{{m}}b^{{n}})² · {{k}}b.', 'So the root is {{s}}a^{{m}}b^{{n}}√({{k}}b).'],
-      '{{s}}a^{{m}}b^{{n}}√({{k}}b)',
+      ['{{R}}a^{{e1}}b^{{e2}} = ({{s}}a{{m|pow}}b{{n|pow}})² · {{k}}b.', 'So the root is {{s}}a{{m|pow}}b{{n|pow}}√({{k}}b).'],
+      '{{s}}a{{m|pow}}b{{n|pow}}√({{k}}b)',
       'Leaving a perfect-square factor of {{R}} under the radical.',
     ),
     generator: {
