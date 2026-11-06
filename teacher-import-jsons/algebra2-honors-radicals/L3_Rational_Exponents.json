@@ -313,7 +313,7 @@
             },
             {
               "id": "meaning",
-              "label": "So b^(1/n) must be…",
+              "label": "So $b^{1/n}$ must be…",
               "type": "choice",
               "options": [
                 "the nth root of b",
@@ -594,7 +594,7 @@
           "responses": [
             {
               "id": "a7",
-              "label": "a^(1/7) in radical form",
+              "label": "$a^{1/7}$ in radical form",
               "answer": "root(7)(a)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -608,7 +608,7 @@
             },
             {
               "id": "a3",
-              "label": "a^(1/3) in radical form",
+              "label": "$a^{1/3}$ in radical form",
               "answer": "root(3)(a)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -852,12 +852,12 @@
             },
             {
               "id": "neg16",
-              "label": "(−16)^(3/2) is…",
+              "label": "$(-16)^{3/2}$ is…",
               "type": "choice",
               "options": [
                 "not a real number: the root is even and the base is negative",
-                "−64: (−16)^(3/2) = −(16^(3/2)), and 16^(3/2) = 64",
-                "64: the even root makes the result positive, and 16^(3/2) = 64",
+                "−64: $(-16)^{3/2} = -(16^{3/2})$, and $16^{3/2} = 64$",
+                "64: the even root makes the result positive, and $16^{3/2} = 64$",
                 "a real number: the power 3 is odd, so it keeps the sign of the base"
               ],
               "answer": "not a real number: the root is even and the base is negative"
@@ -927,14 +927,14 @@
           "responses": [
             {
               "id": "power",
-              "label": "168^(8/5) ≈ (nearest whole number)",
+              "label": "$168^{8/5}$ ≈ (nearest whole number)",
               "answer": "3635",
               "inputProfile": "number",
               "numericTolerance": 1
             },
             {
               "id": "quotient",
-              "label": "146,230 ÷ 168^(8/5) ≈ (nearest tenth)",
+              "label": "$146{,}230 \\div 168^{8/5}$ ≈ (nearest tenth)",
               "answer": "40.2",
               "inputProfile": "number",
               "numericTolerance": 0.1
@@ -1031,7 +1031,7 @@
             },
             {
               "id": "simplified",
-              "label": "x^(−2/3) in simplest form",
+              "label": "$x^{-2/3}$ in simplest form",
               "answer": "(x^(1/3))/x",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -1045,7 +1045,7 @@
             },
             {
               "id": "cyp2",
-              "label": "y^(−3/4) in simplest form",
+              "label": "$y^{-3/4}$ in simplest form",
               "answer": "(y^(1/4))/y",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -1219,7 +1219,7 @@
           "responses": [
             {
               "id": "conjugate",
-              "label": "The conjugate of y^(1/2) − 1 is",
+              "label": "The conjugate of $y^{1/2} - 1$ is",
               "type": "choice",
               "options": [
                 "y^(1/2) + 1",
@@ -1338,7 +1338,7 @@
               "options": [
                 "Not simplified: a fractional exponent is in the denominator",
                 "Simplified: it has no negative exponent, and 2/3 is in lowest terms",
-                "Not simplified: 1 / y^(2/3) has a negative exponent",
+                "Not simplified: $1/y^{2/3}$ has a negative exponent",
                 "Not simplified: the exponent 2/3 can be reduced"
               ],
               "answer": "Not simplified: a fractional exponent is in the denominator"
@@ -1914,7 +1914,7 @@
           "responses": [
             {
               "id": "power",
-              "label": "{{B}}^(8/5) ≈ (nearest whole number)",
+              "label": "${{B}}^{8/5}$ ≈ (nearest whole number)",
               "answer": "{{P}}",
               "inputProfile": "number",
               "numericTolerance": 1
@@ -2096,14 +2096,14 @@
           "responses": [
             {
               "id": "value",
-              "label": "{{b}}^({{m}}/{{n}}) ≈ (nearest hundredth)",
+              "label": "${{b}}^{ {{m}}/{{n}} }$ ≈ (nearest hundredth)",
               "answer": "{{v}}",
               "inputProfile": "number",
               "numericTolerance": 0.01
             },
             {
               "id": "radical",
-              "label": "{{b}}^({{m}}/{{n}}) in radical form, with the power under the root worked out",
+              "label": "${{b}}^{ {{m}}/{{n}} }$ in radical form, with the power under the root worked out",
               "answer": "root({{n}})({{bm}})",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -2260,7 +2260,7 @@
             },
             {
               "id": "radical",
-              "label": "V^(2/3) in radical form, with the power under the root",
+              "label": "$V^{2/3}$ in radical form, with the power under the root",
               "answer": "∛(V^2)",
               "inputProfile": "expression",
               "gradingMode": "simplestRadicalForm"
@@ -2365,7 +2365,7 @@
                 "Ben: the law that turns it into ⁶√((−8)²) needs a base ≥ 0",
                 "Ana: the exponent 2/6 may not be reduced when the base is negative",
                 "Ben: ⁶√64 is −2, not 2, so his last step is the error",
-                "Neither: (−8)^(2/6) has two values, so both are right"
+                "Neither: $(-8)^{2/6}$ has two values, so both are right"
               ],
               "answer": "Ben: the law that turns it into ⁶√((−8)²) needs a base ≥ 0"
             },

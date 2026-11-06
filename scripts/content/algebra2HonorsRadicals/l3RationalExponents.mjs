@@ -34,6 +34,12 @@ const slip = (field, match, message) => ({ field, match: [match].flat(), message
 // number under the root the power is worked out: ⁴√8, not ⁴√(2³).
 const RADICAL_FORM = 'with the power under the root';
 const RADICAL_FORM_WORKED_OUT = 'with the power under the root worked out';
+// A label or option with words in it is drawn as text, so "x^(−2/3) in
+// simplest form" showed its caret (2026-11-06 re-walk). Its mathematics is a
+// math span, "$x^{-2/3}$ in simplest form", drawn as math beside the words
+// (labelFormat.js labelHasDelimitedMath), as Question Family labels are. PR
+// 7's "Why?" options keep their carets: one of them is the key, and rewriting
+// it would change the key.
 
 /* ----------------------------------------------------------- Warm-Up */
 
@@ -115,7 +121,7 @@ const warmup = [
     responses: [
       number('exponent', '{{n}} · (1/{{n}}) =', '1'),
       number('value', '{{p}}^(1/{{n}}) =', '{{c}}'),
-      choice('meaning', 'So b^(1/n) must be…', ['the nth root of b', 'b divided by n', 'b times n', 'the nth power of b'], 'the nth root of b'),
+      choice('meaning', 'So $b^{1/n}$ must be…', ['the nth root of b', 'b divided by n', 'b times n', 'the nth power of b'], 'the nth root of b'),
     ],
     hints: [
       'What is a whole number times its reciprocal?',
@@ -213,9 +219,9 @@ const classwork = [
     prompt: tex`Radical and exponential forms. $b^{1/n} = \sqrt[n]{b}$. Write $a^{1/7}$ in radical form and $\sqrt{w}$ in exponential form. Then write $a^{1/3}$ in radical form and $\sqrt[5]{x}$ in exponential form.`,
     directionSteps: ['Write the first power in radical form.', 'Write the square root in exponential form.', 'Do the same for the last two.'],
     responses: [
-      simplest('a7', 'a^(1/7) in radical form', 'root(7)(a)'),
+      simplest('a7', '$a^{1/7}$ in radical form', 'root(7)(a)'),
       simplest('w', '√w in exponential form', 'w^(1/2)'),
-      simplest('a3', 'a^(1/3) in radical form', 'root(3)(a)'),
+      simplest('a3', '$a^{1/3}$ in radical form', 'root(3)(a)'),
       simplest('x5', '⁵√x in exponential form', 'x^(1/5)'),
     ],
     hints: ['In b^(1/n) = ⁿ√b, which part of the exponent becomes the index?', 'The denominator of the exponent is the index, and a square root has index 2.'],
@@ -284,10 +290,10 @@ const classwork = [
       number('root27', '∛27 =', '3'),
       number('value27', '27^(2/3) =', '9'),
       number('valueNeg8', '(−8)^(2/3) =', '4'),
-      choice('neg16', '(−16)^(3/2) is…', [
+      choice('neg16', '$(-16)^{3/2}$ is…', [
         'not a real number: the root is even and the base is negative',
-        '−64: (−16)^(3/2) = −(16^(3/2)), and 16^(3/2) = 64',
-        '64: the even root makes the result positive, and 16^(3/2) = 64',
+        '−64: $(-16)^{3/2} = -(16^{3/2})$, and $16^{3/2} = 64$',
+        '64: the even root makes the result positive, and $16^{3/2} = 64$',
         'a real number: the power 3 is odd, so it keeps the sign of the base',
       ], 'not a real number: the root is even and the base is negative'),
     ],
@@ -315,8 +321,8 @@ const classwork = [
     calculatorPolicy: 'scientific',
     directionSteps: ['Find the power with a positive exponent.', 'Divide.', 'Subtract from 512.', 'Find the maximum for the second lifter.'],
     responses: [
-      number('power', '168^(8/5) ≈ (nearest whole number)', '3635', { numericTolerance: 1 }),
-      number('quotient', '146,230 ÷ 168^(8/5) ≈ (nearest tenth)', '40.2', { numericTolerance: 0.1 }),
+      number('power', '$168^{8/5}$ ≈ (nearest whole number)', '3635', { numericTolerance: 1 }),
+      number('quotient', '$146{,}230 \\div 168^{8/5}$ ≈ (nearest tenth)', '40.2', { numericTolerance: 0.1 }),
       number('mass', 'M ≈ (kilograms, nearest whole number)', '472', { numericTolerance: 1 }),
       number('cyp', 'For B = 80 kilograms, M ≈ (kilograms, nearest whole number)', '380', { numericTolerance: 1 }),
     ],
@@ -345,9 +351,9 @@ const classwork = [
     responses: [
       simplest('product', 'y^(1/7) · y^(4/7) =', 'y^(5/7)'),
       simplest('reciprocal', 'x^(−2/3) = 1 / ?', 'x^(2/3)'),
-      simplest('simplified', 'x^(−2/3) in simplest form', '(x^(1/3))/x'),
+      simplest('simplified', '$x^{-2/3}$ in simplest form', '(x^(1/3))/x'),
       simplest('cyp1', 'x^(1/5) · x^(2/5) =', 'x^(3/5)'),
-      simplest('cyp2', 'y^(−3/4) in simplest form', '(y^(1/4))/y'),
+      simplest('cyp2', '$y^{-3/4}$ in simplest form', '(y^(1/4))/y'),
     ],
     hints: [
       'When you multiply powers of y, what do you do with their exponents?',
@@ -409,7 +415,7 @@ const classwork = [
     prompt: tex`A conjugate with exponents. Simplify $\dfrac{y^{1/2} + 1}{y^{1/2} - 1}$ by multiplying by the conjugate of the denominator, and multiply out the numerator. Then simplify $\dfrac{x^{1/2} - 1}{x^{1/2} + 1}$ the same way.`,
     directionSteps: ['Name the conjugate of the denominator.', 'Multiply the denominator by its conjugate.', 'Simplify the first quotient, with its numerator multiplied out.', 'Simplify the second quotient the same way.'],
     responses: [
-      choice('conjugate', 'The conjugate of y^(1/2) − 1 is', ['y^(1/2) + 1', '1 − y^(1/2)', 'y − 1', 'y^(−1/2)'], 'y^(1/2) + 1'),
+      choice('conjugate', 'The conjugate of $y^{1/2} - 1$ is', ['y^(1/2) + 1', '1 − y^(1/2)', 'y − 1', 'y^(−1/2)'], 'y^(1/2) + 1'),
       // A math box, as its neighbours are: the box chooser drew y-1 as a plain text box.
       expression('denominator', '(y^(1/2) − 1)(y^(1/2) + 1) =', 'y-1', { gradingMode: 'equivalentExpression', type: 'math' }),
       simplest('simplified', '(y^(1/2) + 1)/(y^(1/2) − 1) =', '(y+2y^(1/2)+1)/(y-1)'),
@@ -442,7 +448,7 @@ const classwork = [
     directionSteps: ['Check each expression against the four rules.', 'Decide whether it is simplified.', 'Name the rule it breaks, if any.'],
     responses: [
       choice('a', 'x^(−1/2)', ['Not simplified: it has a negative exponent', 'Simplified: the exponent −1/2 is in lowest terms', 'Not simplified: it is a complex fraction', 'Not simplified: the index can be smaller'], 'Not simplified: it has a negative exponent'),
-      choice('b', '1 / y^(2/3)', ['Not simplified: a fractional exponent is in the denominator', 'Simplified: it has no negative exponent, and 2/3 is in lowest terms', 'Not simplified: 1 / y^(2/3) has a negative exponent', 'Not simplified: the exponent 2/3 can be reduced'], 'Not simplified: a fractional exponent is in the denominator'),
+      choice('b', '1 / y^(2/3)', ['Not simplified: a fractional exponent is in the denominator', 'Simplified: it has no negative exponent, and 2/3 is in lowest terms', 'Not simplified: $1/y^{2/3}$ has a negative exponent', 'Not simplified: the exponent 2/3 can be reduced'], 'Not simplified: a fractional exponent is in the denominator'),
       choice('c', '⁸√(x⁴)', ['Not simplified: the index can be smaller', 'Simplified: x⁴ has no perfect eighth-power factor', 'Not simplified: it has a negative exponent', 'Not simplified: it is a complex fraction'], 'Not simplified: the index can be smaller'),
       choice('d', '(x^(1/3))/x', ['Simplified: the denominator’s exponent is a whole number', 'Not simplified: it has a negative exponent', 'Not simplified: a fractional exponent is in the denominator', 'Not simplified: the index can be smaller'], 'Simplified: the denominator’s exponent is a whole number'),
       // The box takes a radical only, and the last hint ends at x^(4/8):
@@ -624,7 +630,7 @@ const practice = [
     calculatorPolicy: 'scientific',
     directionSteps: ['Find the power with a positive exponent.', 'Divide.', 'Subtract from 512.'],
     responses: [
-      number('power', '{{B}}^(8/5) ≈ (nearest whole number)', '{{P}}', { numericTolerance: 1 }),
+      number('power', '${{B}}^{8/5}$ ≈ (nearest whole number)', '{{P}}', { numericTolerance: 1 }),
       number('mass', 'M ≈ (kilograms, nearest whole number)', '{{M}}', { numericTolerance: 1 }),
     ],
     hints: ['What does the negative exponent in B^(−8/5) tell you to do?', '146,230 · B^(−8/5) = 146,230 ÷ B^(8/5). Put 8/5 in parentheses on the calculator.'],
@@ -681,8 +687,8 @@ const practice = [
     // The back-up step's ∛(7²) shows where the power goes; this box takes the
     // power worked out (⁴√8), and refused ⁴√(2³) as "not in simplest form".
     responses: [
-      number('value', '{{b}}^({{m}}/{{n}}) ≈ (nearest hundredth)', '{{v}}', { numericTolerance: 0.01 }),
-      simplest('radical', `{{b}}^({{m}}/{{n}}) in radical form, ${RADICAL_FORM_WORKED_OUT}`, 'root({{n}})({{bm}})'),
+      number('value', '${{b}}^{ {{m}}/{{n}} }$ ≈ (nearest hundredth)', '{{v}}', { numericTolerance: 0.01 }),
+      simplest('radical', tex`\${{b}}^{ {{m}}/{{n}} }$ in radical form, ${RADICAL_FORM_WORKED_OUT}`, 'root({{n}})({{bm}})'),
     ],
     hints: [
       'How do you enter a fractional exponent on a calculator so the whole fraction is the power?',
@@ -720,7 +726,7 @@ const practice = [
       number('s27', 'S for V = 27', '54'),
       number('s64', 'S for V = 64', '96'),
       number('s125', 'S for V = 125', '150'),
-      simplest('radical', `V^(2/3) in radical form, ${RADICAL_FORM}`, '∛(V^2)'),
+      simplest('radical', `$V^{2/3}$ in radical form, ${RADICAL_FORM}`, '∛(V^2)'),
       number('factor', 'When V is multiplied by 8, S is multiplied by', '4'),
       choice('why', 'Why?', [
         '(8V)^(2/3) = 8^(2/3) · V^(2/3), and 8^(2/3) = 4',
@@ -761,7 +767,7 @@ const practice = [
         'Ben: the law that turns it into ⁶√((−8)²) needs a base ≥ 0',
         'Ana: the exponent 2/6 may not be reduced when the base is negative',
         'Ben: ⁶√64 is −2, not 2, so his last step is the error',
-        'Neither: (−8)^(2/6) has two values, so both are right',
+        'Neither: $(-8)^{2/6}$ has two values, so both are right',
       ], 'Ben: the law that turns it into ⁶√((−8)²) needs a base ≥ 0'),
       choice('rule', 'So, for a negative base, a rational exponent must be written in…', ['lowest terms', 'any form', 'decimal form', 'a form with an even denominator'], 'lowest terms'),
     ],

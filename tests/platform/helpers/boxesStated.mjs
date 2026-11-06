@@ -26,6 +26,10 @@ const asMath = (text) => expandLatexShorthand(unicodeSuperscriptsToMathMarkup(St
   .replace(/[−–]/g, '-')
   .replace(/·|×|\\cdot|\\times/g, '*');
 const squash = (text) => expandLatexShorthand(asMath(text).replace(/\s+/g, ''));
+// One spelling of a power: a label's $…$ span braces its exponent (a^{1/7},
+// x^{2}), a sentence brackets it (a^(1/7)) or writes it bare (x^2). Quoting a
+// label is quoting it either way (L3's labels became $…$ spans, 2026-11-06).
+const onePowerSpelling = (text) => text.replace(/\^\{([^{}]*)\}/g, (match, exponent) => (/^-?[\w.]+$/.test(exponent) ? `^${exponent}` : `^(${exponent})`));
 const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** `piece` is written whole in `text`: not as part of a longer number, monomial or power. */
 const writesWhole = (text, piece) => new RegExp(`(?<![0-9A-Za-z^.\\\\])${escaped(piece)}(?![0-9A-Za-z^.({])`).test(text);
@@ -84,8 +88,8 @@ const withoutBars = (key) => key.replace(/\|([^|]*)\|/g, '($1)');
 export const boxesStated = (sentence, version) => {
   const visible = questionVisibleText(version);
   // The prompt's and the labels' own mathematics: quoting it states nothing new.
-  const shown = mathRuns(visible);
-  const quoted = (piece) => shown.some((run) => writesWhole(run, piece));
+  const shown = mathRuns(visible).map(onePowerSpelling);
+  const quoted = (piece) => shown.some((run) => writesWhole(run, onePowerSpelling(piece)));
   const written = fragments(sentence);
   return (version.answerFields || []).filter((field) => field.type !== 'choice').filter((field) => {
     const key = String(field.answer);

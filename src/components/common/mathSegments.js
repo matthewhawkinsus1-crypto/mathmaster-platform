@@ -395,6 +395,16 @@ export const splitMathSegments = (value) => {
   return segments.filter(Boolean);
 };
 
+// A power's exponent as characters: one number or one letter stands alone
+// (x^{10} is x^10, x^{2} is x²), and anything more keeps its brackets, so
+// x^{-2/3} is x^(-2/3), never x^-2/3, which reads as (x^-2)/3, and x^{3/2} is
+// x^(3/2), never x³/2. A field's name is this (2026-11-06 re-walk: Algebra II
+// Honors L3's labels, "$x^{-2/3}$ in simplest form").
+const plainPower = (match, exponent) => {
+  const inner = exponent.trim();
+  return /^-?(?:\d+(?:\.\d+)?|[A-Za-z])$/.test(inner) ? `^${inner}` : `^(${inner})`;
+};
+
 /**
  * Authored text as plain characters, for places that cannot typeset.
  */
@@ -409,14 +419,16 @@ export const toPlainMath = (value) => splitMathSegments(value)
   .replace(/\\(?:ge|geq)\b/g, '≥')
   .replace(/\\(?:ne|neq)\b/g, '≠')
   .replace(/\\(?:cdot|times)\b/g, '×')
+  .replace(/\\div\b/g, '÷')
   .replace(/\\infty\b/g, '∞')
   .replace(/\\cup\b/g, '∪')
   .replace(/\\cap\b/g, '∩')
   .replace(/\\pi\b/g, 'π')
   .replace(/\\left|\\right/g, '')
   .replace(/\\(?:text|mathrm|operatorname)\s*\{([^{}]*)\}/g, '$1')
-  .replace(/\^\{?2\}?/g, '²')
-  .replace(/\^\{?3\}?/g, '³')
+  .replace(/\^\{([^{}]*)\}/g, plainPower)
+  .replace(/\^2(?![\d.])/g, '²')
+  .replace(/\^3(?![\d.])/g, '³')
   .replace(/\\(?:,|;|!|quad|qquad)/g, ' ')
   .replace(/[{}]/g, '')
   .replace(/\s+/g, ' ')
