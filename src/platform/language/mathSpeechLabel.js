@@ -34,8 +34,10 @@ export const spokenMathLabel = (label, { language = 'en' } = {}) => {
   // reader leaves words alone, and prose detection cannot see undelimited TeX.
   if (/\\[A-Za-z]/.test(text)) return mathToSpeech(text, { language });
   return speechTextFor(text, { language })
-    // "Given point (2, -3)": the label already said "point".
-    .replace(/\b(point|punto) (?:the point|el punto)\b/gi, '$1');
+    // "Given point (2, -3)": the label already said "point". So for "Domain
+    // interval [0, ∞)" and "Inputs set {1, 2}".
+    .replace(/\b(point|punto) (?:the point|el punto)\b|\b(interval|intervalo) (?:the interval|el intervalo)\b|\b(set|conjunto) (?:the set|el conjunto)\b/gi,
+      (match, point, interval, set) => point || interval || set);
 };
 
 /**

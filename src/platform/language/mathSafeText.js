@@ -33,6 +33,13 @@
  */
 
 const OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|]/;
+// Read aloud (speechText.js) also takes composition and union as mathematics,
+// so (f∘g)(x) and (−∞, 0) ∪ (0, ∞) reach the reader whole: "f composed with g
+// of x", and a union's pieces heard as intervals (walkthrough 2026-11-06,
+// P-1: "( f ∘ g ) the quantity x"). Translation keeps them as text: the
+// Spanish pack's lines hold them between the masked mathematics
+// ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so its segments must not move.
+const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪]/;
 const NAMED_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs', 'exp']);
 // Letters that are common one-letter WORDS in a language. Alone in prose they
 // are text: English "a" and "I"; Spanish "y" (and), "o" (or), "a" (to), "e",
@@ -63,10 +70,10 @@ const TOKEN = /[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’-][A-Za-zÀ-ÖØ-öø-ÿ]+)*|\$?(
 
 const isSpace = (value) => /^\s+$/.test(value);
 
-const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en) => {
+const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en, operator = OPERATOR) => {
   if (isSpace(token)) return 'space';
   if (/^\$?\d|^\.\d/.test(token)) return 'math';
-  if (OPERATOR.test(token) && token.length === 1) return 'math';
+  if (operator.test(token) && token.length === 1) return 'math';
   if (/^[A-Za-zÀ-ÖØ-öø-ÿ]$/.test(token)) {
     if (!words.has(token)) return 'math';
     // "a", "A" or "I" is math only when it is pressed against mathematics
@@ -80,13 +87,13 @@ const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en) => {
 };
 
 /** Is everything inside a bracket pair mathematics (no prose words)? */
-const groupIsMath = (inner) => {
+const groupIsMath = (inner, operator = OPERATOR) => {
   const tokens = inner.match(TOKEN) || [];
   if (!tokens.length) return false;
   let sawMath = false;
   for (const token of tokens) {
     if (isSpace(token) || token === ',' || token === ';') continue;
-    const kind = classifyToken(token, 'math-adjacent', 'math-adjacent');
+    const kind = classifyToken(token, 'math-adjacent', 'math-adjacent', ONE_LETTER_WORDS.en, operator);
     if (kind === 'word') {
       if (NAMED_FUNCTIONS.has(token.toLowerCase())) { sawMath = true; continue; }
       return false;
@@ -117,10 +124,12 @@ const matchingClose = (text, start) => {
 
 /**
  * Split text into ordered segments `{ kind: 'text' | 'math', value }`.
- * Joining the values always reproduces the input exactly.
+ * Joining the values always reproduces the input exactly. `speech` is Read
+ * aloud's split: ∘ and ∪ are mathematics too (SPEECH_OPERATOR).
  */
-export const segmentMathText = (input, { language = 'en' } = {}) => {
+export const segmentMathText = (input, { language = 'en', speech = false } = {}) => {
   const words = oneLetterWordsFor(language);
+  const operator = speech ? SPEECH_OPERATOR : OPERATOR;
   const text = String(input ?? '');
   if (!text) return [];
   // 1. Protected spans that are unambiguous: delimited LaTeX, placeholders and
@@ -157,7 +166,7 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
       const char = chunk[index];
       if (OPENERS.has(char)) {
         const close = matchingClose(chunk, index);
-        if (close > index && groupIsMath(chunk.slice(index + 1, close))) {
+        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator)) {
           atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
           index = close + 1;
           continue;
@@ -180,7 +189,7 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
   // 3. Classify raw tokens, with "pressed against math" for one-letter words:
   //    touching a number, bracket or math span ("2a", "f(a)"), or facing a
   //    relation/operator symbol across spaces ("a = 3", "y + 2").
-  const isOperatorAtom = (atom) => atom?.kind === 'raw' && atom.value.length === 1 && OPERATOR.test(atom.value);
+  const isOperatorAtom = (atom) => atom?.kind === 'raw' && atom.value.length === 1 && operator.test(atom.value);
   const isMathish = (atom) => Boolean(atom) && (atom.kind === 'math'
     || isOperatorAtom(atom) || (atom.kind === 'raw' && (/^\$?\d/.test(atom.value) || atom.value === '(')));
   const neighbour = (index, step) => {
@@ -202,6 +211,7 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
       adjacent(neighbour(index, -1)) ? 'math-adjacent' : 'text',
       adjacent(neighbour(index, 1)) ? 'math-adjacent' : endsLabel(after) ? 'label-end' : 'text',
       words,
+      operator,
     );
     // Function notation: a one-letter or named function directly followed by a
     // math group or "(" is math ("f(x)", "log(100)").
@@ -276,8 +286,8 @@ export const segmentMathText = (input, { language = 'en' } = {}) => {
       while (atoms[lookahead]?.kind === 'space') lookahead += 1;
       const nextMath = atoms[lookahead]?.kind === 'math';
       const touchesOperator = previousMath && nextMath && (
-        OPERATOR.test(segments[segments.length - 1].value.trim().slice(-1))
-        || OPERATOR.test(atoms[lookahead].value.trim().charAt(0))
+        operator.test(segments[segments.length - 1].value.trim().slice(-1))
+        || operator.test(atoms[lookahead].value.trim().charAt(0))
       );
       if (touchesOperator) push('math', atom.value);
       else push('text', atom.value);
