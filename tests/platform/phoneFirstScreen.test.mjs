@@ -74,7 +74,7 @@ test('"Learning goal" is on a phone once, in the row that has room for it, and n
 // #174ea6 on #5b21b6, 1.14:1, while its background stayed. Only on that phone
 // layout: on a laptop and in landscape the chips are not in the heading.
 const luminance = (hex) => {
-  const [r, g, b] = (hex.length === 4 ? [...hex.slice(1)].map((digit) => digit + digit) : hex.slice(1).match(/../g)).map((pair) => parseInt(pair, 16) / 255)
+  const [r, g, b] = (hex.length === 4 ? hex.slice(1).split('').map((digit) => digit + digit) : hex.slice(1).match(/../g)).map((pair) => parseInt(pair, 16) / 255)
     .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
