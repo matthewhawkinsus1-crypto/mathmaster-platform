@@ -225,6 +225,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolKeyboardThreePlane.mjs
+      # VPAT 2.5.7: where a pointer can only drag, the keys finish the task.
+      - name: A plotted point moved and a Graph Story sketch drawn by keys, and graded
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardDragAlternatives.mjs
       - name: Number Line endpoints by keyboard (T3, T4)
         if: ${{ !cancelled() }}
         env:
