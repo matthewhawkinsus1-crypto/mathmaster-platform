@@ -32,6 +32,10 @@
 //   H2  the teacher's live tile shows "Hand raised" with Seen / On my way;
 //       "On my way" is sent; the projector's Large room tiles show neither
 //   H3  the student, beside the raised hand, reads "Your teacher is on the way."
+//   T1  another Period 5 student stays signed in while the class is handed to
+//       another teacher (the class and the roster row restamped in the store,
+//       as the server does): their follow-up goes to the new teacher, with no
+//       reload (teacher features walk, item 10)
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/ask-my-teacher/ (git-ignored).
@@ -72,6 +76,10 @@ const FOLLOW_UP_TEXT = 'What if the number in front of x is negative?';
 const SECOND_ANSWER_TEXT = 'Divide by it all the same; a negative divisor flips the sign of every term.';
 const P5_STUDENT = '910020';
 const P3_STUDENT = '910001';
+// T1: a Period 5 classmate, and the teacher the class is handed to.
+const HANDOVER_STUDENT = '910021';
+const HARNESS_TEACHER = 'teacher@harness.example';
+const NEXT_TEACHER = 'next.teacher@harness.example';
 
 const openPage = async (context, query, viewport) => {
   const page = await context.newPage();
@@ -320,6 +328,49 @@ for (const viewport of VIEWPORTS) {
   expect(`H3 ${tag} lowered: nothing left beside it`, (await page.locator('[data-help-acknowledgement]').count()) === 0, 'acknowledgement still shown after lowering');
   const lowered = await page.evaluate((id) => window.__mmHarnessStore?.get?.(`presence/${id}`)?.helpRequestedAt ?? null, P3_STUDENT);
   expect(`H3 ${tag} lowered in presence`, lowered === null, String(lowered));
+  await page.close();
+
+  /* ------------------ a class handed to another teacher, while signed in */
+  // The follow-up after a handover went to the teacher a fresh load reads
+  // (dc16bfa9), so a student who stayed signed in through the handover kept
+  // writing to the former teacher until they reloaded. Last in the loop: it
+  // hands Period 5 to someone else for the rest of this context.
+  page = await openPage(context, `as=student&studentId=${HANDOVER_STUDENT}`, viewport);
+  await openAssignmentHelp(page, 'Linear Equations — Lesson 5');
+  const handoverPanel = page.locator('[data-hint-panel]:visible').first();
+  await handoverPanel.getByRole('button', { name: /Leave a question for my teacher/ }).click();
+  await handoverPanel.getByLabel('Your question for your teacher').fill(QUESTION_TEXT);
+  await handoverPanel.getByRole('button', { name: 'Send to my teacher' }).click();
+  await handoverPanel.locator('[data-ask-teacher-status="waiting"]').waitFor({ timeout: 10000 });
+  const handoverPath = await page.evaluate((id) => window.__mmHarnessStore.paths('askTeacherQuestions/').find((entry) => entry.startsWith(`askTeacherQuestions/${id}__`)) || null, HANDOVER_STUDENT);
+  // The teacher's answer, as answerTeacherQuestion writes it; the open page follows it.
+  await page.evaluate(({ docPath, answer, teacher }) => {
+    const now = Date.now();
+    window.__mmHarnessStore.update(docPath, { status: 'answered', answer, answeredBy: teacher, answeredAt: now, updatedAt: now });
+  }, { docPath: handoverPath, answer: ANSWER_TEXT, teacher: HARNESS_TEACHER });
+  const askAfterHandover = handoverPanel.getByRole('button', { name: 'Ask a follow-up' });
+  await askAfterHandover.waitFor({ timeout: 10000 });
+  // Period 5 is handed to another teacher while the page stays open: the class
+  // and its students' roster rows are restamped (functions/index.js, the class update).
+  await page.evaluate(({ studentId, teacher }) => {
+    window.__mmStillThisPage = true;
+    const store = window.__mmHarnessStore;
+    store.update('classes/c-alg1-p5', { teacherOfRecord: teacher });
+    store.update(`grades/${studentId}`, { assignedTeacherEmail: teacher });
+  }, { studentId: HANDOVER_STUDENT, teacher: NEXT_TEACHER });
+  await page.waitForTimeout(500);
+  await askAfterHandover.click();
+  await handoverPanel.getByLabel('Your follow-up for your teacher').fill(FOLLOW_UP_TEXT);
+  await handoverPanel.getByRole('button', { name: 'Send follow-up' }).click();
+  await handoverPanel.locator('[data-ask-teacher-follow-up]').first().waitFor({ timeout: 10000 });
+  const handedOver = await page.evaluate((docPath) => ({ ...window.__mmHarnessStore.get(docPath), stillThisPage: window.__mmStillThisPage === true }), handoverPath);
+  expect(
+    `T1 ${tag} after a handover, the follow-up goes to the class's new teacher with no reload`,
+    handedOver.stillThisPage && handedOver.teacherEmail === NEXT_TEACHER && handedOver.classId === 'c-alg1-p5'
+      && handedOver.status === 'open' && handedOver.text === FOLLOW_UP_TEXT && handedOver.earlierAnswer === ANSWER_TEXT,
+    JSON.stringify(handedOver),
+  );
+  await shot(page, 't1-handover-follow-up', viewport);
   await page.close();
   await context.close();
 }

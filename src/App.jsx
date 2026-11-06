@@ -169,7 +169,7 @@ import {
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
 import { useAskMyTeacher, useTeacherQuestionsOn } from './platform/supports/useAskMyTeacher.js';
-import { questionFor } from './platform/supports/askTeacher.js';
+import { followRosterTeacher, questionFor } from './platform/supports/askTeacher.js';
 import TeacherAnswers from './components/student/TeacherAnswers.jsx';
 import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
 import {
@@ -3596,7 +3596,8 @@ function App() {
           classPeriod: courseContext.classPeriod,
           teacherOfRecord: courseContext.teacherOfRecord,
           // Verbatim from the roster row: support evidence the student's client
-          // records must name exactly this teacher (firestore.rules).
+          // records must name exactly this teacher (firestore.rules). The grade
+          // document's listener keeps it current through a class handover.
           assignedTeacherEmail: studentData.assignedTeacherEmail || null,
           profile: {
             ...studentProfile,
@@ -5294,6 +5295,11 @@ function App() {
         // field, updated on its own so nothing else about the user changes.
         const liveTimingProfile = snapshot.data()?.profile || null;
         setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
+        // The class's teacher, as a fresh load reads it: a class handed to
+        // another teacher while this student works sends their next question
+        // or follow-up to that teacher, not the former one (askTeacher.js
+        // followRosterTeacher; teacher features walk, item 10).
+        setUser((current) => followRosterTeacher(current, snapshot.data()));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;

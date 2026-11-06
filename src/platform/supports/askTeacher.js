@@ -236,6 +236,32 @@ export const buildFollowUp = ({
   return followUp;
 };
 
+/*
+ * THE CLASS'S TEACHER, FOLLOWED WHILE THE STUDENT STAYS SIGNED IN.
+ *
+ * Sign-in copies the teacher of record from the student's roster row
+ * (grades/{studentId}, `assignedTeacherEmail`), and firestore.rules checks a
+ * new question, a follow-up that moves (above) and support evidence against
+ * that row's teacher and class. A class handed to another teacher restamps its
+ * members' rows while they may be working (functions/index.js, the class
+ * update; reassigning one student does the same), so App.jsx passes each
+ * snapshot of the row here and the next question or follow-up goes to the new
+ * teacher, as after a fresh load. Before, it went to the former teacher until
+ * the student reloaded (teacher features walk, item 10).
+ *
+ * Only while the row keeps the class this session shows. A row that names
+ * another class is a move, not a handover: the screen is still the class the
+ * student signed in with, and a new teacher beside the old class is a pair no
+ * rule accepts, so nothing changes until a reload, as before. The same user
+ * comes back when nothing changes, so React keeps its render.
+ */
+export const followRosterTeacher = (user, rosterRow) => {
+  if (!user || !rosterRow) return user;
+  if ((rosterRow.classId || null) !== (user.classId || null)) return user;
+  const teacherEmail = rosterRow.assignedTeacherEmail || null;
+  return teacherEmail === (user.assignedTeacherEmail || null) ? user : { ...user, assignedTeacherEmail: teacherEmail };
+};
+
 /** The teacher's answer: the only fields a teacher may change. */
 export const buildTeacherAnswer = ({ answer, teacherEmail, timestamp } = {}) => {
   const body = cleanQuestionText(answer, ANSWER_TEXT_MAX);

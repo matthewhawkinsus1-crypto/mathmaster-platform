@@ -271,7 +271,8 @@ test('the hook owns the hand: restored on entering an assignment, forgotten on l
 
   const app = code('src/App.jsx');
   assert.match(app, /^import \{ useAskMyTeacher, useTeacherQuestionsOn \} from '\.\/platform\/supports\/useAskMyTeacher\.js';$/m);
-  assert.match(app, /^import \{ questionFor \} from '\.\/platform\/supports\/askTeacher\.js';$/m);
+  // questionFor comes from the model (beside followRosterTeacher, which keeps the teacher current).
+  assert.match(app, /^import \{[^}]*\bquestionFor\b[^}]*\} from '\.\/platform\/supports\/askTeacher\.js';$/m);
   assert.match(app, /^import \{ TeacherAnswersList \} from '\.\/components\/student\/TeacherAnswersList\.jsx';$/m);
   const wiring = region(app, 'const askMyTeacher = useAskMyTeacher({', 'const { helpRequest, setHelpRequest } = askMyTeacher;', 'the hook call');
   assert.match(wiring, /classPeriod: user\?\.classPeriod \|\| null,/);

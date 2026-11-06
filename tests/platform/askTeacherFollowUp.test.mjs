@@ -17,7 +17,9 @@
  *   - that the store keeps ONE document per question: no second document;
  *   - what the student and the teacher read at each step;
  *   - that a waiting follow-up is a waiting question to the class-change
- *     handover and to the retention job (TT26).
+ *     handover and to the retention job (TT26);
+ *   - that after a handover the follow-up goes to the new teacher, also for a
+ *     student who stayed signed in through it.
  *
  * Not built, by decision (docs/handoffs/STUDENT_PASS3_BATCH8.md, Open): email,
  * push or any other message outside the app, which is the owner's call on
@@ -38,7 +40,9 @@ import {
   buildFollowUp,
   buildQuestionEdit,
   buildTeacherAnswer,
+  buildTeacherQuestion,
   canAskFollowUp,
+  followRosterTeacher,
   hasFollowUp,
 } from '../../src/platform/supports/askTeacher.js';
 import { askTeacherQuestionExpired, openQuestionHandover } from '../../functions/shared/askTeacherLifecycle.mjs';
@@ -77,6 +81,49 @@ test('a follow-up after a class handover is addressed to the current teacher, an
   assert.equal('classId' in same, false);
   // No current teacher known: the address is left alone rather than blanked.
   assert.equal('teacherEmail' in buildFollowUp({ existing: answered, text: SECOND, timestamp: 3 }), false);
+});
+
+// Teacher features walk, item 10: the fix above read the teacher a fresh load
+// reads, so a student who stayed signed in across the handover kept sending to
+// the former teacher until they reloaded.
+test('a student signed in across a handover follows the class\'s new teacher at once, and only for their own class', () => {
+  const NEW_TEACHER = 'new.teacher@example.org';
+  const student = { id: 'S1', role: 'student', classId: 'C1', assignedTeacherEmail: TEACHER, profile: { course: 'algebra1' } };
+  // The roster row as sign-in read it: nothing moves, and React keeps its render.
+  assert.equal(followRosterTeacher(student, { classId: 'C1', assignedTeacherEmail: TEACHER, profile: {} }), student);
+  // The class is handed to another teacher, and the row restamped, while the student works.
+  const handedOver = followRosterTeacher(student, { classId: 'C1', assignedTeacherEmail: NEW_TEACHER });
+  assert.equal(handedOver.assignedTeacherEmail, NEW_TEACHER);
+  assert.deepEqual({ ...handedOver, assignedTeacherEmail: TEACHER }, student, 'nothing else about the student changes');
+  // The next follow-up goes to the new teacher, with the class the rules check it against...
+  const followUp = buildFollowUp({
+    existing: answered, text: SECOND, timestamp: 3, teacherEmail: handedOver.assignedTeacherEmail, classId: handedOver.classId,
+  });
+  assert.equal(followUp.teacherEmail, NEW_TEACHER, 'Teacher Home lists it for the teacher who has the class now');
+  assert.equal(followUp.classId, 'C1');
+  // ...and so does a new question, which the rules refuse for anyone but the row's teacher.
+  const question = buildTeacherQuestion({
+    studentId: 'S1', classId: handedOver.classId, teacherEmail: handedOver.assignedTeacherEmail, assignmentId: 'A1', questionIndex: 4, text: FIRST, timestamp: 5,
+  });
+  assert.equal(question.data.teacherEmail, NEW_TEACHER);
+  // A row that names another class is a move, not a handover: the screen still shows the class the
+  // student signed in with, and a new teacher beside it fits no row, so nothing moves until a reload.
+  assert.equal(followRosterTeacher(student, { classId: 'C2', assignedTeacherEmail: NEW_TEACHER }), student);
+  // A class left with no teacher: none, as a fresh load reads it (there is nobody to send to).
+  assert.equal(followRosterTeacher(student, { classId: 'C1', assignedTeacherEmail: null }).assignedTeacherEmail, null);
+  // Nobody signed in, or no row yet: nothing to follow.
+  assert.equal(followRosterTeacher(null, { classId: 'C1', assignedTeacherEmail: NEW_TEACHER }), null);
+  assert.equal(followRosterTeacher(student, undefined), student);
+});
+
+test('the app passes every snapshot of the student\'s roster row through it, and both ways to ask send with what it holds', () => {
+  const app = code('src/App.jsx');
+  const listener = region(app, 'const liveTimingProfile = snapshot.data()?.profile || null;', 'Object.entries(next).forEach', 'the student\'s grade document listener');
+  assert.match(listener, /setUser\(\(current\) => followRosterTeacher\(current, snapshot\.data\(\)\)\);/, 'each snapshot of the row, as it arrives');
+  assert.match(app, /^import \{[^}]*\bfollowRosterTeacher\b[^}]*\} from '\.\/platform\/supports\/askTeacher\.js';$/m);
+  // The workspace's questions and a Recovery's "out of practice questions" screen both send to the teacher the user holds now.
+  const hooks = region(app, 'const askMyTeacher = useAskMyTeacher({', 'const publishPresenceNowRef', 'the Ask my teacher hooks');
+  assert.equal((hooks.match(/teacherEmail: askingStudentId \? user\.assignedTeacherEmail \|\| null : null,/g) || []).length, 2);
 });
 
 test('a follow-up is possible once, after the answer, and only with words', () => {
