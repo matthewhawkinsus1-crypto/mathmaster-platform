@@ -206,7 +206,12 @@ test('the toolbar carries the tools the exam policy grants, and the question is 
   assert.match(tools, /sessionCalculatorMode: session\.calculatorMode \|\| null,/);
   assert.match(tools, /question,/);
   const launchers = region(container, 'const toolLaunchers =', ') : null;', 'launchers');
-  assert.match(launchers, /\{tools\.referenceSheet && <SatReferenceSheet buttonStyle=\{EXAM_HEADER_CONTROL\} onOpenChange=\{setReferenceSheetOpen\} \/>\}/);
+  // Only where the policy grants it, styled as a toolbar control, and telling
+  // the container when it opens and closes (other props, such as its place
+  // in the test's Tab round, are pinned where that is tested).
+  const sheet = region(launchers, '{tools.referenceSheet && <SatReferenceSheet ', '/>}', 'the reference sheet');
+  assert.match(sheet, /buttonStyle=\{EXAM_HEADER_CONTROL\}/);
+  assert.match(sheet, /onOpenChange=\{setReferenceSheetOpen\}/);
   assert.match(launchers, /available=\{tools\.graphingCalculator && !pause\}/);
   assert.match(launchers, /onOpenChange=\{setGraphingCalculatorOpen\}/);
   assert.match(region(container, '<ExamPrepHeader', '/>', 'header props'), /tools=\{toolLaunchers\}/);

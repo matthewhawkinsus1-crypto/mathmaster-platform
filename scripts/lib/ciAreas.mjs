@@ -311,6 +311,12 @@ export const CI_AREAS = {
     'tests/browser/secureResults*',
     'tests/browser/secureExamNavigation*',
     'tests/browser/secureAccessParity*',
+    // secureExamToolFocus opens the practice test of the app harness's
+    // `&innerScreens=1` school.
+    'tests/browser/secureExamToolFocus*',
+    'tests/browser/accessibilityAppHarness.vite.config.mjs',
+    'tests/browser/teacherWorkflow/innerScreensFixture.js',
+    'tests/browser/teacherWorkflow/fakeSecureExamService.js',
     // The touch helper the phone drivers above take their screenshots through,
     // and the proof that it keeps a phone a phone (CI12).
     'tests/browser/support/touchEmulation*',

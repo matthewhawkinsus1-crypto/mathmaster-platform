@@ -44,6 +44,29 @@ export const useExamToolbarOffset = (anchorRef, open) => {
   return offset;
 };
 
+/*
+ * AND, IN A HOST THAT KEEPS TAB INSIDE ITSELF, A WAY BACK TO IT.
+ *
+ * The portal also leaves a drawer outside the secure exam's focus guards
+ * (examToolLayout.js examTabRound). A host that keeps keyboard focus in its
+ * own round passes the drawer `onTabOut`; the drawer then puts one of these
+ * empty stops before its panel and one after it. Tab onto the stop after it
+ * is Tab past the drawer's last control, and Shift+Tab onto the stop before
+ * it is Shift+Tab before its first: either hands focus straight to the host,
+ * as `onTabOut(panel, forward)`, so it never reaches the page or the browser.
+ * Without `onTabOut` a drawer has no stops (an ordinary assignment's
+ * calculator, where leaving the page by Tab is the browser's own way round).
+ */
+const TAB_EDGE_STYLE = Object.freeze({ position: 'fixed', top: 0, left: 0, width: 1, height: 0, padding: 0, overflow: 'hidden', outline: 'none' });
+
+/** Props for the stop at a drawer's `edge` ('start' or 'end'). */
+export const examToolTabEdge = (edge, panelRef, onTabOut) => ({
+  tabIndex: 0,
+  'data-exam-tool-tab-edge': edge,
+  onFocus: () => onTabOut?.(panelRef.current, edge === 'end'),
+  style: TAB_EDGE_STYLE,
+});
+
 /** A phone-width screen, where a drawer becomes a bottom sheet. */
 export const useNarrowScreen = () => {
   const [narrow, setNarrow] = useState(() => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(EXAM_TOOL_NARROW_QUERY).matches : false));

@@ -7,7 +7,7 @@ import {
 import {
   EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
 } from '../../platform/assessment/examToolLayout.js';
-import { useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
+import { examToolTabEdge, useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
 import { readGraphingLines, writeGraphingLines } from '../calculator/graphingLineMemory.js';
 
 /*
@@ -193,6 +193,10 @@ const describeEntry = (entry, style) => {
  * @param onOpenChange  optional: (open) => void on every open and close — the
  *                      container pads the question column (useExamToolRoom)
  * @param prefetch      start loading JSXGraph in the background (default on)
+ * @param onTabOut      optional: (panel, forward) => void, for a host that
+ *                      keeps Tab inside itself (the secure exam): Tab past the
+ *                      panel's last control, or Shift+Tab before its first,
+ *                      hands focus to the host (examToolDrawerHooks.js)
  */
 export default function GraphingCalculatorPanel({
   available = true,
@@ -213,6 +217,7 @@ export default function GraphingCalculatorPanel({
   // assignment (graphingLineMemory.js; an ordinary assignment's panel is
   // mounted per question).
   keepLinesKey = null,
+  onTabOut = null,
 }) {
   const baseId = `mm-graphing-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const narrow = useNarrowScreen();
@@ -586,6 +591,8 @@ export default function GraphingCalculatorPanel({
           in the toolbar's stacking context, under Work View whatever its own
           layer says. */}
       {open && typeof document !== 'undefined' && createPortal(
+        <>
+        {onTabOut && <span {...examToolTabEdge('start', panelRef, onTabOut)} />}
         <section
           ref={panelRef}
           id={`${baseId}-panel`}
@@ -593,6 +600,9 @@ export default function GraphingCalculatorPanel({
           aria-labelledby={`${baseId}-title`}
           tabIndex={-1}
           data-graphing-calculator={narrow ? 'sheet' : 'drawer'}
+          // A stop in the host's Tab round (the secure exam's), between the
+          // two stops around it.
+          data-exam-tool-panel={onTabOut ? TOOL : undefined}
           // Opened from a question's own control, it is a floating tool above
           // Work View, whose dialog then lets focus into it (src/ui/Dialog.jsx),
           // as it does the keypad drawer. Not in the secure exam: there no
@@ -899,7 +909,9 @@ export default function GraphingCalculatorPanel({
             </details>
           </div>
           <div aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{announcement}</div>
-        </section>,
+        </section>
+        {onTabOut && <span {...examToolTabEdge('end', panelRef, onTabOut)} />}
+        </>,
         document.body,
       )}
     </>

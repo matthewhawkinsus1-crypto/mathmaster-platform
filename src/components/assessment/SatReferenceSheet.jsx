@@ -5,7 +5,7 @@ import { SAT_REFERENCE_SHEET } from '../../platform/assessment/satReferenceSheet
 import {
   EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
 } from '../../platform/assessment/examToolLayout.js';
-import { useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
+import { examToolTabEdge, useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
 
 /*
  * THE DIGITAL SAT REFERENCE SHEET, ON THE SCREEN WHERE THE HEADER PROMISED IT.
@@ -250,8 +250,12 @@ export function SatReferenceSheetContent() {
  * @param id             optional element id (the launcher's aria-controls)
  * @param toolbarOffset  optional CSS length: the exam toolbar's height where
  *                       the opener sits (the panel is portalled away from it)
+ * @param onTabOut       optional: (panel, forward) => void, for a host that
+ *                       keeps Tab inside itself (the secure exam): Tab past
+ *                       Close, or Shift+Tab before it, hands focus to the host
+ *                       (examToolDrawerHooks.js)
  */
-export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbarOffset = undefined }) {
+export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbarOffset = undefined, onTabOut = null }) {
   const narrow = useNarrowScreen();
   const panelRef = useRef(null);
   const titleId = `sat-reference-title-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -278,6 +282,8 @@ export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbar
   // be held in the toolbar's stacking context, under Work View whatever its
   // own layer says.
   return createPortal(
+    <>
+    {onTabOut && <span {...examToolTabEdge('start', panelRef, onTabOut)} />}
     <section
       ref={panelRef}
       id={id}
@@ -285,6 +291,9 @@ export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbar
       aria-labelledby={titleId}
       tabIndex={-1}
       data-sat-reference-sheet={narrow ? 'sheet' : 'drawer'}
+      // A stop in the host's Tab round (the secure exam's), between the two
+      // stops around it.
+      data-exam-tool-panel={onTabOut ? TOOL : undefined}
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return;
         event.preventDefault();
@@ -318,7 +327,9 @@ export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbar
       <div style={{ padding: '12px 16px 20px' }}>
         <SatReferenceSheetContent />
       </div>
-    </section>,
+    </section>
+    {onTabOut && <span {...examToolTabEdge('end', panelRef, onTabOut)} />}
+    </>,
     document.body,
   );
 }
@@ -331,8 +342,9 @@ export function SatReferenceSheetDialog({ open, onClose, id = undefined, toolbar
  * @param onOpenChange optional: (open) => void on every open and close — the
  *                     container pads the question column (useExamToolRoom)
  * @param buttonStyle  optional style overrides for the launcher
+ * @param onTabOut     optional: the host's way back for Tab (SatReferenceSheetDialog)
  */
-export default function SatReferenceSheet({ label = 'Reference sheet', onOpened = null, onOpenChange = null, buttonStyle = null, defaultOpen = false }) {
+export default function SatReferenceSheet({ label = 'Reference sheet', onOpened = null, onOpenChange = null, buttonStyle = null, defaultOpen = false, onTabOut = null }) {
   const [open, setOpenState] = useState(Boolean(defaultOpen));
   const launcherRef = useRef(null);
   const dialogId = `sat-reference-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -385,7 +397,7 @@ export default function SatReferenceSheet({ label = 'Reference sheet', onOpened 
       >
         <span aria-hidden="true">📐</span> {label}
       </button>
-      <SatReferenceSheetDialog open={open} onClose={close} id={dialogId} toolbarOffset={toolbarOffset} />
+      <SatReferenceSheetDialog open={open} onClose={close} id={dialogId} toolbarOffset={toolbarOffset} onTabOut={onTabOut} />
     </>
   );
 }

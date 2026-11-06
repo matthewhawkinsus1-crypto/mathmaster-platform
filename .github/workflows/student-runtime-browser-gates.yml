@@ -138,7 +138,9 @@ name: Student Runtime Browser Gates
 #     (W7-2)
 #   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
 #     Firebase)
-#     secureResults, secureExamNavigation, secureAccessParity
+#     secureResults, secureExamNavigation, secureAccessParity; and
+#     secureExamToolFocus, on the accessibility App harness (the real app in
+#     memory, 5188): the exam's own tools stay in the test's Tab round
 #   (testCycleRichToolQa and liveChallengeShellQa, which run the real
 #   callables on the Firestore emulator, are in
 #   student-pass3-emulator-journeys.yml: their own paths, and nightly)
@@ -535,9 +537,11 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolChoiceGroups.mjs
 
-  # The secure screens (results, navigation, access parity) against stubbed
-  # services. secureResults and secureExamNavigation start their own Vite;
-  # secureAccessParity uses the emulator config's stubs. About 10 minutes.
+  # The secure screens (results, navigation, access parity, the tools' Tab
+  # round) against stubbed services. secureResults and secureExamNavigation
+  # start their own Vite; secureAccessParity uses the emulator config's stubs;
+  # secureExamToolFocus opens a practice test in the real app, in memory.
+  # About 13 minutes.
   pass3-secure-screens:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -566,3 +570,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5203"
         run: node tests/browser/secureAccessParity.mjs
+      # The real app in memory (firebase/* faked, the synthetic school), where a
+      # student's Digital SAT practice test has its reference sheet and graphing
+      # calculator in the toolbar.
+      - name: Start the accessibility App harness
+        if: ${{ !cancelled() }}
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/pass3-secure-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/pass3-secure-app-harness.log; exit 1
+      - name: The exam's own tools stay in the test's Tab round
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/secureExamToolFocus.mjs

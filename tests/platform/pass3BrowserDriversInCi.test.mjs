@@ -47,6 +47,9 @@ const DRIVERS = [
   // FB10: after a miss, the hint opens under it and Check stays in view.
   ['student-teacher-journeys.yml', 'student', 'plain', ['feedbackTeachesHintPlace']],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],
+  // The secure exam's reference sheet and graphing calculator stay in the
+  // test's Tab round, in the real app (student-a11y-2).
+  ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'a11yApp', ['secureExamToolFocus']],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacher', [
     'teacherWorkflow/assignmentChromeJourneys', 'teacherWorkflow/studentNameJourneys',
     'teacherWorkflow/draftSaveNoticeReloadJourneys', 'teacherWorkflow/phoneSaveLineJourneys',
@@ -122,6 +125,11 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   });
   // toolChoiceGroups (W7-2) opens the keyboard sweep's page.
   assert.ok(runsOnPullRequest(gates, 'tests/browser/keyboardSweep.html'));
+  // secureExamToolFocus opens the app harness's practice test (no page of its own).
+  ['tests/browser/secureExamToolFocus.mjs', 'tests/browser/accessibilityAppHarness.vite.config.mjs',
+    'tests/browser/teacherWorkflow/innerScreensFixture.js', 'tests/browser/teacherWorkflow/fakeSecureExamService.js'].forEach((file) => {
+    assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
+  });
   const journeys = 'student-teacher-journeys.yml';
   ['tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs', 'tests/browser/teacherWorkflow/fixtures/school.js',
     'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js'].forEach((file) => {

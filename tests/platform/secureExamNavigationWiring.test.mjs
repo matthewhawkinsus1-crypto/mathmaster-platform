@@ -27,7 +27,9 @@
  *     reopens the question the student was on; a teacher's pause reaches a
  *     student who is only reading; time up finishes the test as timed out;
  *   - the pause covers everything, takes focus, and leaves nothing behind it
- *     to type into; the question list keeps focus; Tab never leaves the test;
+ *     to type into; the question list keeps focus; Tab never leaves the test,
+ *     and goes round through its open tools (the reference sheet, the
+ *     graphing calculator), whose drawers sit outside it in the page;
  *   - the event before an integrity pause warns, naming everything that
  *     counts, with a way back to full screen;
  *   - the start screen states the new rules and the student's own time —
@@ -71,7 +73,7 @@ const handlers = {
   autosave: region(container, 'const autosaveDraft = useCallback(', 'const saveItemNow', 'autosaveDraft'),
   toggleFlag: region(container, 'const toggleFlag = useCallback(', 'const openNavigator = useCallback(', 'toggleFlag'),
   backToQuestion: region(container, 'const backToQuestion = useCallback(', 'const returnToFullscreen', 'backToQuestion'),
-  focusEdge: region(container, 'const focusEdge = useCallback(', '}, []);', 'focusEdge'),
+  tabRound: region(container, 'const tabRound = useCallback(', '}, []);', 'tabRound'),
   finish: region(container, 'const finish = useCallback(', 'finishRef.current = finish;', 'finish'),
 };
 
@@ -306,17 +308,30 @@ test('keyboard focus never leaves the test: the question list is a panel, and Ta
   assert.match(navigatorSource, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); onClose\?\.\(\); \} \}\}/);
   assert.match(region(navigatorSource, 'useEffect(() => {', '}, []);', 'list focus'), /closeRef\.current\?\.focus\(\);[\s\S]*opener\.focus\(\)/);
 
-  // The whole test: a guard first and last sends Tab round to the other end.
-  const guards = [...executableSource(container).matchAll(/<span tabIndex=\{0\} data-secure-focus-guard="(start|end)" onFocus=\{\(\) => focusEdge\('(first|last)'\)\}/g)].map((match) => `${match[1]}:${match[2]}`);
-  assert.deepEqual(guards, ['start:last', 'end:first']);
+  // The whole test: a guard first and last sends Tab round — Shift+Tab onto
+  // the first is leaving the test backward, Tab onto the last forward.
+  const guards = [...executableSource(container).matchAll(/<span tabIndex=\{0\} data-secure-focus-guard="(start|end)" onFocus=\{\(\) => tabRound\(rootRef\.current, (true|false)\)\}/g)]
+    .map((match) => `${match[1]}:${match[2] === 'true' ? 'forward' : 'backward'}`);
+  assert.deepEqual(guards, ['start:backward', 'end:forward']);
   const root = region(container, '<div ref={rootRef} data-secure-exam-status', '  </div>;\n};', 'the test screen');
   assert.match(root, /^<div ref=\{rootRef\}[^\n]*\n\s*<span tabIndex=\{0\} data-secure-focus-guard="start"/, 'the first thing in the test');
   assert.match(root, /<span tabIndex=\{0\} data-secure-focus-guard="end"[^\n]*\n$/, 'the last thing in the test');
-  // Only controls that can really take focus: not the guards, nothing inert.
-  assert.match(handlers.focusEdge, /!element\.hasAttribute\('data-secure-focus-guard'\)\s*&& !element\.closest\('\[inert\]'\)/);
-  assert.match(handlers.focusEdge, /if \(edge !== 'first'\) reachable\.reverse\(\);/);
-  // The first control that really takes focus; with none, the pause screen.
-  assert.match(handlers.focusEdge, /const target = reachable\.find\(\(element\) => \{ element\.focus\(\); return document\.activeElement === element; \}\);\s*if \(!target\) pauseRef\.current\?\.focus\(\);/);
+  // The round is the test, then each open tool's drawer, which the portal
+  // puts outside the guards (examToolLayout.js examTabRound) — and behind a
+  // pause, the test alone, so nothing but the pause screen takes focus.
+  assert.match(handlers.tabRound, /const paused = Boolean\(root\.querySelector\('\[data-secure-exam-surface\]\[inert\]'\)\);/);
+  assert.match(handlers.tabRound, /const stops = \[root, \.\.\.\(paused \? \[\] : document\.querySelectorAll\(EXAM_TOOL_PANEL_SELECTOR\)\)\];/);
+  assert.match(handlers.tabRound, /for \(const index of examTabRound\(\{ count: stops\.length, from: stops\.indexOf\(from\), forward \}\)\) \{\s*const reachable = \[\.\.\.stops\[index\]\.querySelectorAll\(TABBABLE\)\]/);
+  // Only controls that can really take focus: not the guards, nothing inert;
+  // the next stop's first going forward, the previous stop's last going back.
+  assert.match(handlers.tabRound, /!element\.hasAttribute\('data-secure-focus-guard'\)\s*&& !element\.closest\('\[inert\]'\)/);
+  assert.match(handlers.tabRound, /if \(!forward\) reachable\.reverse\(\);/);
+  // The first control that really takes focus; with none anywhere, the pause screen.
+  assert.match(handlers.tabRound, /const target = reachable\.find\(\(element\) => \{ element\.focus\(\); return document\.activeElement === element; \}\);\s*if \(target\) return;\s*\}\s*pauseRef\.current\?\.focus\(\);/);
+  // Both of the exam's tools hand a Tab out of their drawer back to the round.
+  const tools = region(container, 'const toolLaunchers = (', ') : null;', 'the exam\'s tools');
+  assert.match(region(tools, '<SatReferenceSheet ', '/>', 'the reference sheet'), /onTabOut=\{tabRound\}/);
+  assert.match(region(tools, '<GraphingCalculatorPanel', '/>', 'the graphing calculator'), /onTabOut=\{tabRound\}/);
 });
 
 test('the start screen states the new rules and the student\'s own time, and none of the one-way rules or jargon remain', () => {
