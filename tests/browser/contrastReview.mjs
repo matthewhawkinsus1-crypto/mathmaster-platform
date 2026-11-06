@@ -21,9 +21,12 @@
  *
  *   1. STOPS. Walk the element and its ancestors to the root, collecting every
  *      background-color and every colour stop of every background-image
- *      gradient. Composite back to front over white: each stop over every
- *      candidate colour beneath it (rgba is composited, never dropped). Opacity
- *      on the text's own chain fades the text toward its background.
+ *      gradient. Composite back to front over white, each box's colour and
+ *      images as layers, the first image on top (support/backgroundLayers.mjs):
+ *      a layer that covers the box, each stop over every candidate colour
+ *      beneath it; one that fades to transparent, over what covers the box
+ *      beneath it (rgba is composited, never dropped). Opacity on the text's
+ *      own chain fades the text toward its background.
  *   2. PIXELS. Make the node's text (and its descendants', and SVG text fill)
  *      transparent, screenshot each of the node's text boxes, and take the
  *      darkest and the lightest background pixel (by relative luminance).

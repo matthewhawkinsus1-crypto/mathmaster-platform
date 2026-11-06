@@ -62,6 +62,40 @@ test('light text over a light gradient still fails, and so does a light gradient
   assert.ok(worstRatio(light, backgroundsOf([{ color: 'rgb(9, 17, 40)', image: 'linear-gradient(rgb(255, 255, 255), rgb(240, 244, 255))' }])).ratio < 4.5);
 });
 
+// The student arena (grandPrixTheme.js ARENA, under every student Live
+// Challenge screen), computed: three glows, each in its own corner, a fade and
+// a grid over an opaque stage, on a box colour that stage hides.
+const ARENA = 'radial-gradient(60% 45% at 50% -8%, rgba(255, 63, 209, 0.38), rgba(0, 0, 0, 0) 70%), radial-gradient(45% 40% at 0% 18%, rgba(53, 227, 255, 0.22), rgba(0, 0, 0, 0) 70%), radial-gradient(45% 40% at 100% 22%, rgba(61, 123, 255, 0.26), rgba(0, 0, 0, 0) 70%), linear-gradient(rgb(22, 11, 69) 0%, rgba(13, 15, 57, 0.55) 30%, rgba(10, 16, 52, 0) 55%), repeating-linear-gradient(90deg, rgba(53, 227, 255, 0.07) 0px, rgba(53, 227, 255, 0.07) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 64px), repeating-linear-gradient(0deg, rgba(53, 227, 255, 0.07) 0px, rgba(53, 227, 255, 0.07) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 64px), linear-gradient(rgb(22, 11, 69) 0%, rgb(10, 16, 52) 42%, rgb(6, 8, 24) 100%), none';
+const ARENA_BOX = { color: 'rgb(6, 8, 24)', image: ARENA };
+
+test('glows are not stacked on each other: each is over the stage beneath it, so the arena\'s header and score pass', () => {
+  const candidates = backgroundsOf([{ color: 'rgb(255, 255, 255)' }, ARENA_BOX]);
+  const lightest = candidates.reduce((a, b) => (luminance(a) > luminance(b) ? a : b));
+  assert.deepEqual(lightest, [111, 31, 122], 'the lightest is the pink glow over the stage\'s top colour, alone');
+  const [pinkOverCyan] = compositeLayers([[22, 11, 69]], [[[53, 227, 255, 0.22]], [[255, 63, 209, 0.38]]]);
+  assert.ok(!candidates.some((colour) => colour.join() === pinkOverCyan.join()), 'never one glow over another');
+  // Text the screens draw on it, from the review's run of live-challenge/lobby and /round.
+  for (const [what, colour] of [['"MathMaster Live Challenge"', [255, 210, 63, 1]], ['"pts"', [195, 210, 234, 1]], ['the stage title', [255, 255, 255, 1]]]) {
+    assert.ok(worstRatio(colour, candidates).ratio >= 4.5, `${what}: ${worstRatio(colour, candidates).ratio.toFixed(2)}:1`);
+  }
+  // Stacked, every glow over every other, the arena showed a light purple
+  // (#7955b4) seen nowhere on it, and those texts failed.
+  const everyLayerOverEvery = (beneath, layers) => layers.reduce((current, stops) => compositeLayers(current, [stops.map(([r, g, b, a]) => [r, g, b, Math.max(a, 1e-9)])]), beneath);
+  const stacked = everyLayerOverEvery([PAGE], [[[6, 8, 24, 1]], ...[...gradientLayers(ARENA)].reverse()]);
+  assert.ok(stacked.some((colour) => colour.join() === '121,85,180'));
+  assert.ok(worstRatio([255, 210, 63, 1], stacked).ratio < 4.5);
+});
+
+test('a layer that covers its box covers the glows under it too, and a translucent box over the arena is over all of it', () => {
+  const dark = [[[10, 10, 10, 1]]];
+  const glow = [[255, 255, 255, 0.5], [0, 0, 0, 0]];
+  const tint = [[0, 0, 0, 0.5]];
+  const candidates = compositeLayers([PAGE], [...dark, glow, tint]);
+  assert.deepEqual(candidates.sort(), [[5, 5, 5], [67, 67, 67]], 'the tint over the stage, and over the glow on it');
+  const card = backgroundsOf([ARENA_BOX, { image: 'linear-gradient(160deg, rgba(42, 15, 92, 0.92) 0%, rgba(12, 20, 70, 0.94) 55%, rgba(8, 12, 42, 0.96) 100%)' }]);
+  assert.ok(card.every((colour) => luminance(colour) < 0.03), `the lobby card: ${JSON.stringify(card.slice(0, 4))}`);
+});
+
 test('the page runs the same two functions, and the review reads every box\'s images through them', () => {
   // Self-contained: evaluated with nothing around them, they answer as here.
   const window = {};

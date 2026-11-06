@@ -2,13 +2,14 @@
  * A BOX'S BACKGROUND IMAGES ARE LAYERS (contrastReview.mjs, its stops method).
  *
  * `background-image` may hold several images, and CSS paints the first on top
- * and the last just above the box's colour. Each gradient's transparent stops
- * show what is beneath that image: the next image, then the box's colour, and
- * only then the boxes behind it. The review used to read every stop of every
- * image as one list composited straight over what was behind the box, so a
- * glow fading to transparent over a dark stage counted as the white page: the
- * Live Challenge projector reported 17 false failures until its stage was
- * given an opaque colour.
+ * and the last just above the box's colour. A gradient's transparent stops
+ * show what is beneath that image: the images under it, then the box's colour,
+ * and only then the boxes behind it. The review used to read every stop of
+ * every image as one list composited straight over what was behind the box,
+ * so a glow fading to transparent over a dark stage counted as the white page:
+ * the Live Challenge projector reported 17 false failures until its stage was
+ * given an opaque colour. A glow is only somewhere in its box, so glows are
+ * not stacked on each other (compositeLayers).
  *
  * Both functions are self-contained: the review hands their source to the page
  * (`backgroundLayersInPage`), so they may use nothing outside their own bodies.
@@ -45,23 +46,37 @@ export const gradientLayers = (image) => {
 };
 
 /**
- * Every colour the background can be: each layer, bottom first, composited
- * over every colour beneath it (each stop over each candidate). Rounded,
- * distinct, at most 400.
+ * Every colour one box's background can be, over the colours behind the box:
+ * its layers bottom first (its colour, then its images from the last to the
+ * first). A layer with no transparent stop covers the whole box, so each of
+ * its stops is composited over every colour beneath it. A layer that fades to
+ * transparent (a glow, a fade, a grid line) is only somewhere in the box, and
+ * the review does not know where: its stops are composited over what covers
+ * the box beneath it, never over another such layer of the box. Stacked, the
+ * student arena's three glows, each in its own corner, made a light purple
+ * found nowhere on the screen. Rounded, distinct, at most 400.
  */
 export const compositeLayers = (candidates, layersBottomFirst) => {
   const over = ([r, g, b, a], [br, bg, bb]) => [r * a + br * (1 - a), g * a + bg * (1 - a), b * a + bb * (1 - a)];
+  const distinct = (colours) => {
+    const seen = new Map();
+    for (const colour of colours) {
+      const rounded = colour.map((v) => Math.round(v));
+      seen.set(rounded.join(','), rounded);
+    }
+    return [...seen.values()].slice(0, 400);
+  };
+  const each = (stops, beneath) => beneath.flatMap((colour) => stops.map((stop) => over(stop, colour)));
+  let cover = candidates;
   let current = candidates;
   for (const stops of layersBottomFirst) {
     if (!stops.length) continue;
-    const seen = new Map();
-    for (const beneath of current) {
-      for (const stop of stops) {
-        const colour = over(stop, beneath).map((v) => Math.round(v));
-        seen.set(colour.join(','), colour);
-      }
+    if (stops.every((stop) => stop[3] > 0)) {
+      current = distinct(each(stops, current));
+      cover = current;
+    } else {
+      current = distinct([...current, ...each(stops, cover)]);
     }
-    current = [...seen.values()].slice(0, 400);
   }
   return current;
 };
