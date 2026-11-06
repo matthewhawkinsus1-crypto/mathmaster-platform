@@ -1056,9 +1056,13 @@ const practice = [
     prompt: tex`SPACE. The hole a dust particle makes in a solar cell has diameter $d = 0.926\sqrt[3]{k} - 0.169$ millimeters, where $k$ is the particle's energy in joules. A hole has diameter {{d}} millimeters. Estimate the particle's energy. Use a calculator.`,
     calculatorPolicy: 'scientific',
     directionSteps: ['Add 0.169 to each side.', 'Divide by 0.926.', 'Cube each side.'],
+    // The key cubes the exact root. A student who cubes the thousandth the box
+    // above asks for can land one tenth away (d = 2.3: 2.666³ ≈ 18.9 for the
+    // key's 19.0), and a tolerance of exactly 0.1 refused that in floating
+    // point. 0.15 takes one tenth either way, never two.
     responses: [
       number('cubeRoot', '∛k ≈ (nearest thousandth)', '{{cr}}', { numericTolerance: 0.001 }),
-      number('energy', 'k ≈ (joules, nearest tenth)', '{{k}}', { numericTolerance: 0.1 }),
+      number('energy', 'k ≈ (joules, nearest tenth)', '{{k}}', { numericTolerance: 0.15 }),
     ],
     hints: ['Which operation in d = 0.926∛k − 0.169 is done last, so you undo it first?', 'Add 0.169, divide by 0.926, then cube: cubing undoes a cube root.'],
     scaffold: backUp('The first step to undo is…', ['subtracting 0.169', 'the cube root'], 'subtracting 0.169'),

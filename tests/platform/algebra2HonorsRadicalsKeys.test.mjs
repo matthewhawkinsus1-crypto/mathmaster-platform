@@ -375,3 +375,28 @@ test('L1 PR 7: each imaginary root has its own box, named by the root it holds, 
   }
 });
 
+// L1 PR 10 asks for ∛k to the nearest thousandth, then k to the nearest tenth.
+// Its key cubes the exact root, so a student who cubes that thousandth, as the
+// box above asks, can land one tenth from it (d = 2.3: 2.666³ ≈ 18.9 for the
+// key's 19.0), and a tolerance of exactly 0.1 refused that in floating point.
+test('L1 PR 10: the rounding the item asks for is right in every version, and two tenths off is not', () => {
+  const versions = versionsOf(compiledQuestion(L1, 'a2r1-p-10'), 200);
+  assert.ok(versions.length >= 30, `${versions.length} versions`);
+  let roundingsDiffer = 0;
+  for (const version of versions) {
+    const d = Number(/diameter (\d+(?:\.\d+)?) millimeters/.exec(version.prompt)[1]);
+    const exactRoot = (d + 0.169) / 0.926;
+    const typedRoot = Number(exactRoot.toFixed(3));
+    const energy = (typed) => gradeMultiAnswerResponse(version, { ...keyed(version), cubeRoot: String(typedRoot), energy: typed })
+      .parts.find((part) => part.id === 'energy')?.isCorrect === true;
+    const fromTypedRoot = (typedRoot ** 3).toFixed(1);
+    const fromExactRoot = (exactRoot ** 3).toFixed(1);
+    if (fromTypedRoot !== fromExactRoot) roundingsDiffer += 1;
+    assert.equal(energy(fromTypedRoot), true, `d = ${d}: ${fromTypedRoot}, the cube of ${typedRoot}`);
+    assert.equal(energy(fromExactRoot), true, `d = ${d}: ${fromExactRoot}`);
+    assert.equal(energy((Number(fromExactRoot) + 0.2).toFixed(1)), false, `d = ${d}: two tenths over`);
+    assert.equal(energy((Number(fromExactRoot) - 0.2).toFixed(1)), false, `d = ${d}: two tenths under`);
+  }
+  assert.ok(roundingsDiffer > 0, 'some version rounds the two ways differently, so this can fail');
+});
+

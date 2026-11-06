@@ -2699,7 +2699,7 @@
               "label": "k ≈ (joules, nearest tenth)",
               "answer": "{{k}}",
               "inputProfile": "number",
-              "numericTolerance": 0.1
+              "numericTolerance": 0.15
             }
           ],
           "hints": [
