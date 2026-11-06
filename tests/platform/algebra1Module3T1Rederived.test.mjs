@@ -11,6 +11,9 @@
  *   W1  L1 CW 5 keyed the check "the value of 24x + 7 when x = −1/4" as −1.
  *       It is 24(−1/4) + 7 = 1, as the item's own worked steps say: a student
  *       who checked correctly was marked wrong.
+ *   W2  L3 Honors CW 14's worked steps read "4800 − 20m > 2000 → −20m < −2800
+ *       → m < 140": the symbol turned at the subtraction, in the lesson whose
+ *       point is that only multiplying or dividing by a negative turns it.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -87,4 +90,73 @@ test('T1 L1 CW 5: the check takes 24(−1/4) + 7 = 1, the value the worked steps
   assert.equal(shown(valueAt('24x + 7', 'x', '−1/4')), '1');
   assert.equal(verdict({ ...right, check: '1' }), true, '24(−1/4) + 7 = −6 + 7 = 1');
   assert.equal(verdict({ ...right, check: '−1' }), false, '−1 is not the value of 24x + 7 at x = −1/4');
+});
+
+/*
+ * A worked chain, "4800 − 20m > 2000 → −20m > −2800 → m < 140": each statement
+ * is the one before it with the same thing done to both sides, so each has the
+ * first one's solution set. A statement's set is worked out from its two sides
+ * (each evaluated exactly at 0 and 1), as the shared grader's test does.
+ * Prose arrows ("Same x-coefficient … → no value works") and statements in two
+ * letters (kx > 4) are not statements of this kind and are passed over; an
+ * approximate one ("b < 153.33…") is not compared.
+ */
+const FLIP = { '<': '>', '>': '<', '<=': '>=', '>=': '<=', '=': '=' };
+const solutionSet = (statement) => {
+  const text = asMath(statement).replace(/≤/g, '<=').replace(/≥/g, '>=').replace(/\.$/, '');
+  const parts = /^([^<>=]*?)(<=|>=|<|>|=)([^<>=]*)$/.exec(text);
+  if (!parts) return null;
+  const letters = new Set(text.match(/[a-z]/gi) || []);
+  if (letters.size !== 1) return null;
+  const [variable] = letters;
+  const [, left, relation, right] = parts;
+  let gap;
+  try {
+    gap = (value) => exact.fraction(exact.subtract(
+      exact.evaluate(left, { [variable]: exact.fraction(value) }),
+      exact.evaluate(right, { [variable]: exact.fraction(value) }),
+    ));
+    gap(0);
+  } catch {
+    return null;
+  }
+  const b = gap(0);
+  const a = exact.subtract(gap(1), b);
+  if (!exact.equal(exact.add(exact.multiply(a, 2), b), gap(2))) return null; // not linear
+  if (exact.equal(a, 0)) {
+    const sign = Number(exact.compare(b, 0));
+    return { set: { '=': sign === 0, '<': sign < 0, '>': sign > 0, '<=': sign <= 0, '>=': sign >= 0 }[relation] ? 'every number' : 'no number' };
+  }
+  const boundary = exact.divide(exact.unaryMinus(b), a);
+  const solved = relation === '=' || exact.compare(a, 0) > 0 ? relation : FLIP[relation];
+  return { set: `${variable} ${solved} ${shown(boundary)}` };
+};
+const strings = (value, out = []) => {
+  if (typeof value === 'string') out.push(value);
+  else if (Array.isArray(value)) value.forEach((entry) => strings(entry, out));
+  else if (value && typeof value === 'object') Object.values(value).forEach((entry) => strings(entry, out));
+  return out;
+};
+const workedChains = (text) => text.split(/\n|;|\.\s/).filter((segment) => segment.includes('→')).flatMap((segment) => {
+  const pieces = segment.split('→').map((piece, index) => {
+    let statement = index === 0 ? piece.slice(piece.lastIndexOf(':') + 1) : piece.split(':')[0];
+    // What follows a comma, a dash or a bracketed word is prose: "h > 10 (the symbol reverses)".
+    statement = statement.split(/,\s| \((?=[a-z]{2})| —/i)[0].trim();
+    return statement;
+  }).filter((statement) => !statement.includes('…'));
+  const sets = pieces.map((statement) => ({ statement, solved: solutionSet(statement) }));
+  return sets.length >= 2 && sets.every((entry) => entry.solved) ? [sets] : [];
+});
+
+test('T1 L1 and L3, regular and Honors: every statement in a worked chain (a → b → c) has the solution set of the first', () => {
+  const chains = Object.keys(FILES).flatMap((key) => authoredQuestions(key).flatMap((question) => strings(question)
+    .flatMap((text) => workedChains(text).map((chain) => ({ key, question: question.questionId, chain })))));
+  // The reader must find the lessons' worked chains, or this passes by finding none.
+  assert.ok(chains.length >= 60, `${chains.length} worked chains found`);
+  chains.forEach(({ key, question, chain }) => {
+    const [first, ...rest] = chain;
+    rest.forEach(({ statement, solved }) => {
+      assert.equal(solved.set, first.solved.set, `${key} ${question}: "${first.statement}" is ${first.solved.set}, but the step "${statement}" is ${solved.set}`);
+    });
+  });
 });

@@ -1325,7 +1325,7 @@
           "solutionReview": {
             "reasoning": [
               "Below 3,200 feet: 4800 − 20m < 3200 → −20m < −1600 → m > 80.",
-              "Above 2,000 feet: 4800 − 20m > 2000 → −20m < −2800 → m < 140.",
+              "Above 2,000 feet: 4800 − 20m > 2000 → −20m > −2800 → m < 140.",
               "Both: 80 < m < 140 — open dots at 80 and 140, shaded between."
             ],
             "commonError": "Keeping both symbols after dividing by −20, which gives the impossible “m < 80 and m > 140”."
