@@ -85,6 +85,7 @@ import {
 // brings every family's generator and loads with the question runtime below
 // (loadFamilyDelivery), never in the first load.
 import { readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDeliveryPins.js';
+import { countedQuestion, shownDeliveryKey } from './platform/generation/shownFamilyQuestion.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilySlot.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
 import {
@@ -7226,8 +7227,24 @@ function App() {
     // numbers before the first Submit (RT15). The server keeps the first pin
     // saved; one this device was offered and had to drop gives way.
     workspaceDraftSyncRef.current?.recordDeliveryPin(delivery, { replace: Boolean(renderedQuestion?.familyPinNotice) });
-    familyDeliveriesRef.current.set(`${delivery.slot}|v${delivery.variant}`, { delivery, question: renderedQuestion || null });
+    familyDeliveriesRef.current.set(shownDeliveryKey(delivery), { delivery, question: renderedQuestion || null });
   }, [user?.role, user?.id, isTeacherPreview]);
+  // A teacher's preview deals family slots too. What it showed is kept under
+  // its own key, only so its tries are counted on it (P-7): nothing is pinned.
+  const handlePreviewFamilyDelivery = useCallback((delivery, renderedQuestion) => {
+    if (delivery?.slot) familyDeliveriesRef.current.set(shownDeliveryKey({ ...delivery, preview: true }), { delivery, question: renderedQuestion || null });
+  }, []);
+  // The question every try count below reads: the one shown for this slot and
+  // variant, else `fallback` (platform/generation/shownFamilyQuestion.js, P-7).
+  const countedQuestionFor = (assignment, questionIndex, record, fallback, preview = false) => countedQuestion({
+    shown: familyDeliveriesRef.current,
+    assignmentId: assignment?.id,
+    storedQuestion: getStoredAssignmentQuestions(assignment)[questionIndex],
+    questionIndex,
+    record,
+    fallback,
+    preview,
+  });
 
   /** The pin (and rendered question) for a family-backed slot, or null. */
   const familyDeliveryForQuestion = (assignment, questionIndex, record) => {
@@ -7235,7 +7252,7 @@ function App() {
     if (!assignment?.id || !isFamilyBackedQuestion(storedQuestion)) return null;
     const variant = normalizeQuestionRecord(record).variantIndex;
     const slotKey = familySlotKey({ assignmentId: assignment.id, question: storedQuestion, storageIndex: questionIndex });
-    const remembered = familyDeliveriesRef.current.get(`${slotKey}|v${variant}`);
+    const remembered = familyDeliveriesRef.current.get(shownDeliveryKey({ slot: slotKey, variant }));
     const pin = normalizeDeliveryPin(remembered?.delivery)
       || readLocalDeliveryPin({ studentId: user?.id, slotKey, variant })
       || (normalizeDeliveryPin(record?.familyDelivery)?.variant === variant ? normalizeDeliveryPin(record.familyDelivery) : null);
@@ -7346,7 +7363,7 @@ function App() {
         responseKey,
         partialCreditPercent: attemptMetadata.partialCreditPercent,
         maximumAttempts: resolveQuestionMaximumAttempts({
-          question: activeQuestions[currentQuestionIndex],
+          question: countedQuestionFor(localAssignment, currentQuestionIndex, record, activeQuestions[currentQuestionIndex], isTeacherPreview),
           maximumAttempts: activeActivityPolicy.attempts,
           activityPolicy: activeActivityPolicy,
           teacherGrantedExtraAttempts,
@@ -7612,7 +7629,7 @@ function App() {
         statePatch,
         supportUsage,
         maximumAttempts: resolveQuestionMaximumAttempts({
-          question: activeQuestions[currentQuestionIndex],
+          question: countedQuestionFor(localAssignment, currentQuestionIndex, record, activeQuestions[currentQuestionIndex], isTeacherPreview),
           maximumAttempts: activeActivityPolicy.attempts,
           activityPolicy: activeActivityPolicy,
           teacherGrantedExtraAttempts,
@@ -10364,7 +10381,7 @@ function App() {
     const entryMaximumAttempts = (entry) => {
       const policy = getEffectiveActivityPolicy(entry.role);
       return resolveQuestionMaximumAttempts({
-        question: questions[entry.index],
+        question: countedQuestionFor(assignment, entry.index, workingTracker?.[entry.index], questions[entry.index], preview),
         maximumAttempts: policy.attempts,
         activityPolicy: policy,
         teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
@@ -11199,7 +11216,7 @@ function App() {
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
               familyContext={currentFamilyContext}
-              onFamilyDelivery={preview ? null : handleFamilyDelivery}
+              onFamilyDelivery={preview ? handlePreviewFamilyDelivery : handleFamilyDelivery}
               adaptation={currentAdaptation}
               onGrade={handleGradeSubmit}
               onResponseCheckpoint={preview ? null : handleResponseCheckpoint}
@@ -11227,7 +11244,7 @@ function App() {
                           : ''}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
               maximumAttempts={resolveQuestionMaximumAttempts({
-                question: questions[currentQuestionIndex],
+                question: countedQuestionFor(assignment, currentQuestionIndex, workingTracker?.[currentQuestionIndex], questions[currentQuestionIndex], preview),
                 maximumAttempts: runtimeQuestionActivityPolicy.attempts,
                 activityPolicy: runtimeQuestionActivityPolicy,
               })}
