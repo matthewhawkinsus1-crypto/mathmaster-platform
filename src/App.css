@@ -631,6 +631,14 @@
     align-items: start;
   }
 
+  /* An interval's box fits the interval typed in it, as on the embedded rail
+     (InteractiveGraphWorkspace.jsx). A 230px column left 174px for a typed
+     (−∞, −1) ∪ (−1, ∞), which is 182px of math at the default text size and
+     twice that at 200%. 270 of the text's own px, so it grows with the text. */
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only.mathmaster-interval-answers {
+    grid-template-columns: minmax(min(100%, 190px), calc(270 * var(--mm-px))) minmax(0, 1fr) minmax(min(100%, 190px), calc(270 * var(--mm-px))) !important;
+  }
+
   [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only > .mathmaster-function-workspace-sidebar {
     display: contents;
   }

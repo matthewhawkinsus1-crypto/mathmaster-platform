@@ -1232,6 +1232,11 @@ export default function InteractiveGraphWorkspace({
    * stage so the plane does not change size between them, and each interval
    * box takes its card's whole width in the compact type, its keypad button
    * under it.
+   *
+   * The rail is 270 of the text's own px (--mm-px), so it grows with the
+   * student's text size as the box's math does: at 200% text it stayed 270px
+   * and a typed (−∞, −1) ∪ (−1, ∞), 361px of math, showed 188px of it
+   * (math-speech-2, item 6). At the default size it is 270px, as before.
    */
   const intervalAnswers = analysisParts.some((part) => analysisKeypadProfile(part) === 'interval');
   const domainRangeOnly = stage === 'analysis'
@@ -1384,7 +1389,7 @@ export default function InteractiveGraphWorkspace({
           <MathDisplay value={graphEquationLatex} format="latex" inline />
         </div>
       )}
-      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}`} style={{ display: 'grid', gridTemplateColumns: `minmax(min(100%, 180px), ${intervalAnswers ? 270 : 220}px) minmax(0, 1fr)`, gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
+      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}${intervalAnswers ? ' mathmaster-interval-answers' : ''}`} style={{ display: 'grid', gridTemplateColumns: `minmax(min(100%, 180px), ${intervalAnswers ? 'calc(270 * var(--mm-px))' : '220px'}) minmax(0, 1fr)`, gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
         <aside className="mathmaster-function-workspace-sidebar" style={{ border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface-tint)', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
