@@ -298,10 +298,13 @@ test('Prepare Recovery on Lesson 3: its Warm-Up review and all three exit-ticket
 test('Prepare Recovery on Lesson 4: its Warm-Up becomes 3 of 3, and the exit ticket still waits', () => {
   const assignment = liveCopy(L4, 'live-l4');
   const report = preview(assignment);
+  // The exit ticket's Q1 and Q2 have the function-operation families; its Q3 waits on the owner.
   assert.deepEqual(report.changes.map((change) => `${change.label}:${change.family.id}`), [
     'Warm-Up Q1:functions.inverseOfLinear',
     'Warm-Up Q2:functions.pointwiseFromValues',
     'Warm-Up Q3:functions.compositionFromValues',
+    'DOL Q1:functions.composeQuadraticLinear',
+    'DOL Q2:functions.conjugateProductQuotient',
   ]);
   assert.deepEqual(report.changes[0].constraints, { task: 'review' });
   assert.deepEqual(report.readiness.warmup, { before: 'unavailable', after: 'ready', message: null });

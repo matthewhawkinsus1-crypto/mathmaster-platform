@@ -1123,6 +1123,8 @@ const workedExampleSteps = [
 // hints, back-up steps and worked examples of every generated instance — the
 // families Recovery practice and "Try a similar one" use, beyond the lessons.
 const platformFamilySentences = [
+  // The excluded input of a quotient (functions.conjugateProductQuotient, RC01's next shapes).
+  ['For {1}, the excluded x-values make the denominator zero: solve {2}.', 'Para {1}, los valores de x excluidos son los que hacen cero el denominador: resuelve {2}.'],
   // hints
   ['Get {1} alone first: in {2}, subtract {3} from both sides, then divide both sides by {4}.', 'Primero deja sola {1}: en {2}, resta {3} en los dos lados y luego divide los dos lados entre {4}.'],
   ['An absolute value measures a distance, so it is never negative.', 'Un valor absoluto mide una distancia, así que nunca es negativo.'],

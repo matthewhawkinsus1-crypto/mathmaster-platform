@@ -6,7 +6,7 @@
     "honors.functions.identifyIntercepts.interceptsInContext@1",
     "honors.linear.representationSort.buildFromReading@1"
   ],
-  "familyCount": 68,
+  "familyCount": 70,
   "courses": {
     "algebra1": {
       "courseId": "algebra1",
@@ -55,6 +55,20 @@
           "teacherReason": "MathMaster's solution-check generator only asks whether one given value works, so it cannot yet build a built-in Honors extension."
         },
         {
+          "familyId": "functions.composeQuadraticLinear",
+          "familyTitle": "Compose a quadratic and a linear function both ways",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Composing functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Composing functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
           "familyId": "functions.compositionFromValues",
           "familyTitle": "Evaluate a composition f(g(a)) from function values",
           "familyDifficulty": {
@@ -67,6 +81,20 @@
           "reason": "Composing functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
           "missingCapability": null,
           "teacherReason": "Composing functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
+        },
+        {
+          "familyId": "functions.conjugateProductQuotient",
+          "familyTitle": "The product of x + p and x − p, and the input their quotient excludes",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra1",
+          "status": "NOT APPROPRIATE",
+          "recipes": [],
+          "reason": "Operations on functions is Algebra II content (A2.2D); Texas Algebra I does not teach it. An Algebra I-labelled lesson aligned to A2.2D is the course/TEKS conflict selection already refuses.",
+          "missingCapability": null,
+          "teacherReason": "Operations on functions is Algebra II content, so MathMaster does not build an Algebra I Honors extension on it."
         },
         {
           "familyId": "functions.domainRangeFromGraph",
@@ -1204,7 +1232,7 @@
         "READY": 4,
         "CAPABLE": 8,
         "BLOCKED": 33,
-        "NOT APPROPRIATE": 23
+        "NOT APPROPRIATE": 25
       }
     },
     "algebra2": {
@@ -1254,6 +1282,20 @@
           "teacherReason": "Checking a solution of a linear equation is Algebra I content, so MathMaster does not build an Algebra II Honors extension on it."
         },
         {
+          "familyId": "functions.composeQuadraticLinear",
+          "familyTitle": "Compose a quadratic and a linear function both ways",
+          "familyDifficulty": {
+            "dok": 3,
+            "difficultyBand": 4
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version composes x² + bx + c with mx + n both ways, chosen from four polynomials each; the remaining levers are other coefficients, which are not rigor.",
+          "missingCapability": "The compositions typed, a leading coefficient on f, and the domain of a composition with a root or a quotient, so the student writes the composition rather than choosing it.",
+          "teacherReason": "MathMaster's composition generator only offers its compositions as choices, so it cannot yet build a built-in Honors extension."
+        },
+        {
           "familyId": "functions.compositionFromValues",
           "familyTitle": "Evaluate a composition f(g(a)) from function values",
           "familyDifficulty": {
@@ -1266,6 +1308,20 @@
           "reason": "Every version reads f(g(a)) from two given values; it is the readiness check before composition, not a task an extension can deepen.",
           "missingCapability": "None on this family: an Honors task on composition anchors on a family that composes the functions themselves (f∘g and g∘f, and whether they are inverses).",
           "teacherReason": "MathMaster's function-values generator only chains two given values, so it cannot carry a built-in Honors extension."
+        },
+        {
+          "familyId": "functions.conjugateProductQuotient",
+          "familyTitle": "The product of x + p and x − p, and the input their quotient excludes",
+          "familyDifficulty": {
+            "dok": 2,
+            "difficultyBand": 3
+          },
+          "courseId": "algebra2",
+          "status": "BLOCKED",
+          "recipes": [],
+          "reason": "Every version multiplies x + p by x − p and names the input one of their quotients excludes, chosen from four each; the remaining levers are other values of p, which are not rigor.",
+          "missingCapability": "Products and quotients of other functions, typed, with every excluded input of a quotient whose denominator has two zeros.",
+          "teacherReason": "MathMaster's operations generator only offers one pair of linear functions as choices, so it cannot yet build a built-in Honors extension."
         },
         {
           "familyId": "functions.domainRangeFromGraph",
@@ -2365,7 +2421,7 @@
       "familySummary": {
         "READY": 0,
         "CAPABLE": 1,
-        "BLOCKED": 41,
+        "BLOCKED": 43,
         "NOT APPROPRIATE": 26
       }
     }

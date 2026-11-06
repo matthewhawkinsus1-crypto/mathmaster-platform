@@ -161,7 +161,8 @@ test('the committed report is generated from the live registry and audit, never 
   // in each course. Of the ALEKS bridge lesson's four (A2.6C), the absolute
   // value analysis and match are Algebra II content; the class rule's
   // translations and scales describe what Algebra I also teaches (A.3E,
-  // A.7C): BLOCKED in each course.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 68 \| 4 \| 8 \| 33 \| 23 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 68 \| 0 \| 1 \| 41 \| 26 \|/);
+  // A.7C): BLOCKED in each course. Lesson 4's exit-ticket compositions and
+  // conjugate product and quotient are Algebra II content (A2.2D).
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 70 \| 4 \| 8 \| 33 \| 25 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 70 \| 0 \| 1 \| 43 \| 26 \|/);
 });

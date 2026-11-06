@@ -222,10 +222,20 @@ ready as well as its Warm-Up.
 | Warm-Up Q3 — if g(4) = 2 and f(2) = 9, find g(4) and f(g(4)) | three new whole numbers that chain the same way |
 
 Prepare Recovery makes Lesson 4's Warm-Up ready (its Q1 is in the next table).
-Its exit ticket (compositions, and a product and quotient, chosen from
-written-out choices) has no Recovery family yet; the exit ticket's Q3 ("are
-these inverses?") always has the answer "yes" in fresh versions of the same
-pair, so it needs your decision first.
+
+### Operations on functions and composition: Lesson 4's exit ticket (Algebra II Honors)
+
+| Question | Recovery versions |
+| --- | --- |
+| DOL Q1 — (f∘g)(x) and (g∘f)(x) for f(x) = x² − 2x + 3 and g(x) = 2x + 1 | a new x² + bx + c and a new mx + n, both compositions chosen |
+| DOL Q2 — the product of f(x) = x + 4 and g(x) = x − 4, and the input f/g excludes | a new pair x + p and x − p, either one as f, and the input f/g or g/f excludes |
+
+Each wrong choice is the same mistake as the lesson's, with the new numbers: the
+other order, a middle term of (mx + n)² taken once, only part of f multiplied,
+the sign of the constant slipped, f + g for f · g, and the zero of the numerator
+for the excluded input. Prepare Recovery adds both. The exit ticket becomes
+ready only with its Q3 ("are these inverses?"), whose answer is "yes" in every
+fresh version of the same pair, so it needs your decision first.
 
 ### Inverses (Algebra II Honors Lessons 3 and 4)
 

@@ -686,6 +686,27 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
       teacherReason: 'MathMaster\'s function-values generator only chains two given values, so it cannot carry a built-in Honors extension.',
     }),
   }),
+  // The Recovery V2 families for Algebra II Honors Module 1 Lesson 4's exit
+  // ticket Q1 and Q2 (questionFamiliesFunctionOperations.mjs, RC01's next
+  // shapes), A2.2D.
+  'functions.composeQuadraticLinear': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Composing functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version composes x² + bx + c with mx + n both ways, chosen from four polynomials each; the remaining levers are other coefficients, which are not rigor.',
+      missingCapability: 'The compositions typed, a leading coefficient on f, and the domain of a composition with a root or a quotient, so the student writes the composition rather than choosing it.',
+      teacherReason: 'MathMaster\'s composition generator only offers its compositions as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
+  'functions.conjugateProductQuotient': Object.freeze({
+    algebra1: Object.freeze(ALGEBRA_II_ONLY('Operations on functions', 'A2.2D')),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Every version multiplies x + p by x − p and names the input one of their quotients excludes, chosen from four each; the remaining levers are other values of p, which are not rigor.',
+      missingCapability: 'Products and quotients of other functions, typed, with every excluded input of a quotient whose denominator has two zeros.',
+      teacherReason: 'MathMaster\'s operations generator only offers one pair of linear functions as choices, so it cannot yet build a built-in Honors extension.',
+    }),
+  }),
   // The Recovery V2 family for the graphed domain and range of Algebra II
   // Honors Module 1 Lesson 1 (questionFamiliesGraphReading.mjs, RC01), A2.7I.
   'functions.domainRangeFromGraph': Object.freeze({
