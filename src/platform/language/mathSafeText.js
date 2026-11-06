@@ -148,6 +148,30 @@ const opensPriceProse = (span, after) => {
   return /[A-Za-z]{3,}/.test(rest);
 };
 
+/*
+ * READ ALOUD'S OWN TOKENS (platform-polish-3; F-READ-SYMBOLS in the
+ * 2026-11-06 Algebra I M3 T2 walkthrough). Speech only, like ∘ and ∪ above:
+ *   - a fraction written as one character (½, ⅔) is a number, so its sign
+ *     and what it multiplies stay with it ("−½x", "½(x − 4)"); it was prose,
+ *     handed to the voice raw;
+ *   - two lowercase letters beside an operator are two variables, not a
+ *     word: "my" in "3x + my = 5" and "by" in "ax + by = c" were said as the
+ *     words. A word on the other side keeps them a word ("2 + my age").
+ */
+const VULGAR_FRACTION = /^[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒]$/;
+const PRODUCT_OPERATOR = /^[=≠<>≤≥+−\-×·*±÷]$/;
+// Two letters that are a word, a unit or a name the reader says, never two
+// variables, even beside a symbol: "a closed dot for ≤ or ≥", "+ or −",
+// "Reverse ≤ to ≥", '"At most" is ≤', Spanish "es", "de", "en". (my and by
+// are not here: "3x + my = 5" and "ax + by = c" are the cases; beside a word
+// they stay words, "my answer", "multiply by 2".)
+export const NOT_TWO_VARIABLES = new Set([
+  'ah', 'am', 'an', 'as', 'at', 'be', 'do', 'eh', 'ex', 'go', 'ha', 'he', 'hi', 'id', 'if', 'in', 'is', 'it',
+  'me', 'no', 'of', 'oh', 'ok', 'on', 'or', 'so', 'to', 'up', 'us', 'we',
+  'al', 'da', 'de', 'el', 'en', 'es', 'la', 'le', 'lo', 'mi', 'ni', 'os', 'se', 'si', 'su', 'te', 'tu', 'un', 'va', 've', 'ya', 'yo',
+  'ln', 'pi', 'cm', 'mm', 'km', 'kg', 'mg', 'ml', 'ft', 'yd', 'oz', 'lb', 'hr',
+]);
+
 /** The matching close for the bracket at `start`, or -1. Same line only. */
 const matchingClose = (text, start) => {
   let depth = 0;
@@ -258,9 +282,29 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   };
   const adjacent = ({ atom, spaced }) => (spaced ? isOperatorAtom(atom) : isMathish(atom));
   const endsLabel = (atom) => !atom || (atom.kind === 'raw' && /^[,.;:)\]?!]$/.test(atom.value));
+  const isWordAtom = (atom) => Boolean(atom) && atom.kind !== 'math' && /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,}/.test(atom.value);
+  const isProductOperator = (atom) => Boolean(atom) && PRODUCT_OPERATOR.test(atom.value);
+  // Where the nearest atom that is not a space stands, classified yet or not.
+  const nearest = (index, step) => {
+    let cursor = index + step;
+    while (atoms[cursor] && isSpace(atoms[cursor].value)) cursor += step;
+    return cursor;
+  };
+  // A sign pressed against what follows it ("de −5", "to −5") joins no terms.
+  const isSign = (at) => /^[+\-−]$/.test(atoms[at]?.value || '') && Boolean(atoms[at + 1]) && !isSpace(atoms[at + 1].value);
+  const twoLetterProduct = (index) => {
+    const before = nearest(index, -1);
+    const after = nearest(index, 1);
+    return (isProductOperator(atoms[before]) && !isWordAtom(atoms[after]))
+      || (isProductOperator(atoms[after]) && !isSign(after) && !isWordAtom(atoms[before]));
+  };
   atoms.forEach((atom, index) => {
     if (atom.kind !== 'raw') return;
     const after = atoms[index + 1];
+    if (speech && VULGAR_FRACTION.test(atom.value)) {
+      atom.kind = 'math';
+      return;
+    }
     const kind = classifyToken(
       atom.value,
       adjacent(neighbour(index, -1)) ? 'math-adjacent' : 'text',
@@ -269,8 +313,13 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
       operator,
     );
     // Function notation: a one-letter or named function directly followed by a
-    // math group or "(" is math ("f(x)", "log(100)").
-    if (kind === 'word' && NAMED_FUNCTIONS.has(atom.value.toLowerCase()) && after && (after.kind === 'math' || after.value === '(')) {
+    // math group or "(" is math ("f(x)", "log(100)"). For Read aloud, a name
+    // with a power on it too: sin²(x) is sin^(2)(x) by the time it is split.
+    if (kind === 'word' && NAMED_FUNCTIONS.has(atom.value.toLowerCase()) && after && (after.kind === 'math' || after.value === '(' || (speech && after.value === '^'))) {
+      atom.kind = 'math';
+      return;
+    }
+    if (speech && kind === 'word' && /^[a-z]{2}$/.test(atom.value) && !NOT_TWO_VARIABLES.has(atom.value) && twoLetterProduct(index)) {
       atom.kind = 'math';
       return;
     }

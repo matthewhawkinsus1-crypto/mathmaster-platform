@@ -56,7 +56,7 @@ test('QuestionPrompt breaks the line where the prose has one, and nowhere else',
 test('Read aloud pauses between authored lines', () => {
   assert.equal(
     speechTextFor(SYSTEMS),
-    'Honors — Parameters decide the case. Use substitution with a letter in place of a number. System A: y equals 3x minus 2 and 6x minus 2y equals a. System B: kx plus 2y equals 7 and y equals negative 2x plus 1',
+    'Honors — Parameters decide the case. Use substitution with a letter in place of a number. System A: y equals 3x minus 2 and 6x minus 2y equals a. System B: k x plus 2y equals 7 and y equals negative 2x plus 1',
   );
   // An error analysis's steps are heard one by one.
   assert.equal(

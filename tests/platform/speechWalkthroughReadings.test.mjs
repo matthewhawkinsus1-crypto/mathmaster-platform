@@ -130,7 +130,8 @@ test('where a quantity of more than one term closes is said when more follows', 
 // where its bars closed ("|−3| − 3" was heard as |−3 − 3|).
 test('absolute-value bars are read as a pair, and their end is said where more follows', () => {
   assert.equal(speechTextFor('For |x|, |bx| = |b|·|x|.'), 'For the absolute value of x, the absolute value of bx equals the absolute value of b end absolute value times the absolute value of x.');
-  assert.match(speechTextFor('Equivalently, |½(x − 4)| = ½|x − 4|.'), /^Equivalently, the absolute value of ½ the quantity x minus 4 end absolute value equals /);
+  // ½ is "one half" (platform-polish-3, readAloudSlips.test.mjs).
+  assert.match(speechTextFor('Equivalently, |½(x − 4)| = ½|x − 4|.'), /^Equivalently, the absolute value of one half times the quantity x minus 4 end absolute value equals /);
   assert.equal(speechTextFor('f(−5) = |−3| − 3 = 0.'), 'f of negative 5 equals the absolute value of negative 3 end absolute value minus 3 equals 0.');
   assert.equal(mathToSpeech('\\ln|x|'), 'natural log of the absolute value of x', 'no "times" after "of"');
   // A relation or the end needs no end.

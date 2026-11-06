@@ -17,7 +17,7 @@
  * `language` chooses the spoken math words; the browser's voice is chosen by
  * the caller (speakAloud sets the utterance language).
  */
-import { segmentMathText } from './mathSafeText.js';
+import { NOT_TWO_VARIABLES, segmentMathText } from './mathSafeText.js';
 
 // Marks the "a" an arrow is said with in Spanish ("corresponde a"), so that
 // "a" joins any "el" after it ("corresponde al punto"), while elsewhere only
@@ -60,6 +60,17 @@ const WORDS = {
     units: { dollars: 'in dollars' },
     // Where a bracket of more than one term closes, when more follows.
     endQuantity: 'end quantity',
+    // A fraction written as one character (platform-polish-3): ½ is "one
+    // half", 2½ "2 and one half".
+    vulgarFractions: {
+      '½': 'one half', '⅓': 'one third', '⅔': 'two thirds', '¼': 'one fourth', '¾': 'three fourths',
+      '⅕': 'one fifth', '⅖': 'two fifths', '⅗': 'three fifths', '⅘': 'four fifths', '⅙': 'one sixth',
+      '⅚': 'five sixths', '⅐': 'one seventh', '⅛': 'one eighth', '⅜': 'three eighths', '⅝': 'five eighths',
+      '⅞': 'seven eighths', '⅑': 'one ninth', '⅒': 'one tenth',
+    },
+    mixedAnd: 'and',
+    // sin, cos and tan by name, as log and ln are (platform-polish-3).
+    trig: { sin: 'sine', cos: 'cosine', tan: 'tangent' },
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -100,6 +111,17 @@ const WORDS = {
     },
     units: { dollars: 'en dólares' },
     endQuantity: 'fin de la cantidad',
+    // New with platform-polish-3, for the Spanish review (NOVEMBER_BUILD
+    // section 5): a fraction written as one character, a mixed number's "y",
+    // and the names of sine, cosine and tangent.
+    vulgarFractions: {
+      '½': 'un medio', '⅓': 'un tercio', '⅔': 'dos tercios', '¼': 'un cuarto', '¾': 'tres cuartos',
+      '⅕': 'un quinto', '⅖': 'dos quintos', '⅗': 'tres quintos', '⅘': 'cuatro quintos', '⅙': 'un sexto',
+      '⅚': 'cinco sextos', '⅐': 'un séptimo', '⅛': 'un octavo', '⅜': 'tres octavos', '⅝': 'cinco octavos',
+      '⅞': 'siete octavos', '⅑': 'un noveno', '⅒': 'un décimo',
+    },
+    mixedAnd: 'y',
+    trig: { sin: 'seno', cos: 'coseno', tan: 'tangente' },
   },
 };
 
@@ -442,8 +464,23 @@ const intervalSpeech = (open, left, right, close, w) => {
 };
 
 /** Plain-text mathematics (after LaTeX is reduced) to words. */
+/*
+ * A FRACTION WRITTEN AS ONE CHARACTER (platform-polish-3; F-READ-SYMBOLS in
+ * the 2026-11-06 Algebra I M3 T2 walkthrough). "y = ½x + 4" was "y equals ½
+ * x plus 4": the character went to the voice as it is. It is said as a
+ * fraction is: "one half", 2½ "2 and one half". Said first, so the rules
+ * below read it as any number: −½ is "negative one half" and ½(x − 4) "one
+ * half times the quantity x minus 4".
+ */
+const VULGAR_FRACTIONS = '½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
+const MIXED_VULGAR = new RegExp(`(\\d)([${VULGAR_FRACTIONS}])`, 'g');
+const LONE_VULGAR = new RegExp(`[${VULGAR_FRACTIONS}]`, 'g');
+const vulgarFractionsToWords = (text, w) => String(text)
+  .replace(MIXED_VULGAR, (match, whole, fraction) => `${whole} ${w.mixedAnd} ${w.vulgarFractions[fraction]} `)
+  .replace(LONE_VULGAR, (fraction) => ` ${w.vulgarFractions[fraction]} `);
+
 const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {}) => {
-  let text = ` ${raw} `;
+  let text = ` ${vulgarFractionsToWords(raw, w)} `;
   const letters = functionLettersFor(functionNames);
   // The last word of every operator phrase: a bracket after one of these is a
   // new quantity, not a product ("x equals the quantity …", never "equals
@@ -685,6 +722,12 @@ const plainLogsToWords = (text, w) => {
 const proseLogNames = (prose, next, w) => prose
   .replace(/(?<![A-Za-z\\])(?<!\ban? )(log|ln)(\s+)$/, (match, name, space) => (
     next?.kind === 'math' && /^\s*(?:\d|[A-Za-z](?![A-Za-z])|\()/.test(next.value) ? `${name === 'ln' ? w.naturalLog : w.commonLog} ${w.of}${space}` : match))
+  // …and sin, cos or tan before its own (platform-polish-3): "sin x" is
+  // "sine of x", and "sin2x" "sine of 2x".
+  .replace(/(?<![A-Za-z\\])(sin|cos|tan)(\s*)$/, (match, name, space) => (
+    next?.kind === 'math' && /^\s*(?:\d|[A-Za-z](?![A-Za-z])|\()/.test(next.value) ? `${w.trig[name]} ${w.of}${space}` : match))
+  // …or before an angle's name, which stays in the prose ("tan θ").
+  .replace(/(?<![A-Za-z\\])(sin|cos|tan)(\s*)(?=[θαβφ])/g, (match, name, space) => `${w.trig[name]} ${w.of}${space || ' '}`)
   .replace(/(?<![A-Za-z\\])ln(?![A-Za-z])/g, w.naturalLog);
 
 /*
@@ -758,9 +801,18 @@ const unicodeMathToSpokenForm = (raw, w) => {
         // A root inside a root (√(∛x)) is read the same way.
         const simple = SIMPLE_ARGUMENT.test(argument[0].trim());
         const body = unicodeMathToSpokenForm(argument[0].trim(), w).trim();
+        // A slash before a root is a fraction bar, "over": "√8/√2" and "3 /
+        // √6". The root is words from here on, so the slash was left to the
+        // voice as a symbol (platform-polish-3).
+        if (/\/\s*$/.test(out)) out = out.replace(/\s*\/\s*$/, ` ${w.over} `);
         // 5∛2 is "5 times the cube root of 2", and x³√x "x cubed times …".
         const coefficient = ROOT_COEFFICIENT.test(out);
-        out += ` ${coefficient ? `${w.times} ` : ''}${words} ${simple ? body : `(${body})`} `;
+        // A root after absolute-value bars multiplies them, "|5b⁷k⁵| ⁴√(k³)",
+        // and is written so (×): the bars' end is then said where they close
+        // ("… end absolute value times the 4th root of k cubed"). It never was
+        // (platform-polish-3). Only after a closing bar: bars are counted.
+        const afterBars = /\|\s*$/.test(out) && (out.match(/\|/g) || []).length % 2 === 0;
+        out += ` ${afterBars ? '× ' : coefficient ? `${w.times} ` : ''}${words} ${simple ? body : `(${body})`} `;
         index = argument[1];
         continue;
       }
@@ -969,6 +1021,56 @@ const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
  * Speech for one math segment. `intervals`: the sentence says a pair in round
  * brackets is an interval ("increasing on (−2, 2)"), not a point.
  */
+/*
+ * SINE, COSINE AND TANGENT, BY NAME (platform-polish-3; F-READ-SYMBOLS).
+ * "sin(x)" was "sin times the quantity x": the bracket was read as a product,
+ * and the voice said the word "sin". They are "sine of x", "cosine of x",
+ * "tangent of x", as "log of x" is (plainLogsToWords), LaTeX's \sin too. A
+ * power on the name is said with it: sin²(x) is "sine squared of x". A name
+ * with no argument is still said by name.
+ */
+const TRIG_NAME = /(?<![A-Za-z])\\?(sin|cos|tan)(?:\^[({]?\s*(\d+)\s*[)}]?)?(?![A-Za-z_])\s*/g;
+// The argument: a bracket, or a number with its letter ("\sin2x" is sin(2x)),
+// a letter, or an angle's name (θ; \theta, the one the reader says).
+const TRIG_ARGUMENT = /^(?:\d+(?:\.\d+)?[A-Za-z]?|[A-Za-z]|[θαβφ]|\\theta)(?![A-Za-z])/;
+const trigArgument = (text, from) => {
+  if (text[from] === '(') return plainLogArgument(text, from);
+  const run = TRIG_ARGUMENT.exec(text.slice(from));
+  return run ? [run[0], from + run[0].length] : null;
+};
+const trigToWords = (text, w) => {
+  let out = '';
+  let from = 0;
+  for (const match of String(text).matchAll(TRIG_NAME)) {
+    if (match.index < from) continue;
+    const power = match[2] === '2' ? ` ${w.squared}` : match[2] === '3' ? ` ${w.cubed}` : match[2] ? ` ${w.power} ${match[2]}` : '';
+    const argument = trigArgument(text, match.index + match[0].length);
+    const body = argument?.[0].trim();
+    const simple = SIMPLE_ARGUMENT.test(body ?? '') || TRIG_ARGUMENT.test(body ?? '');
+    const of = argument ? ` ${w.of} ${simple ? body : `(${body})`}` : '';
+    out += `${text.slice(from, match.index)} ${w.trig[match[1]]}${power}${of} `;
+    from = argument ? argument[1] : match.index + match[0].length;
+  }
+  return out + text.slice(from);
+};
+
+/*
+ * TWO LETTERS SIDE BY SIDE ARE TWO VARIABLES (platform-polish-3;
+ * F-READ-SYMBOLS). "3x + my = 5" was "3x plus my equals 5", "my" said as the
+ * word, and "kx + 2y = 7" "kx" as one sound. Two lowercase letters beside an
+ * operator are said apart: "m y", "k x"; a word, a unit or a name the reader
+ * says is not (mathSafeText.js NOT_TWO_VARIABLES: "≤ or ≥", "ln"), nor a
+ * pair with only a sign pressed against a number after it ("de −5").
+ */
+const TWO_LETTERS = /(?<![A-Za-z\\])([a-z])([a-z])(?![A-Za-z])/g;
+const OPERATOR_BEFORE = /[=≠<>≤≥+−\-×·*±÷]$/;
+const OPERATOR_AFTER = /^\s*(?:[=≠<>≤≥×·*±÷]|[+\-−](?=\s))/;
+const twoLetterProductsApart = (text) => String(text).replace(TWO_LETTERS, (match, first, second, offset, whole) => {
+  if (NOT_TWO_VARIABLES.has(match)) return match;
+  const beside = OPERATOR_BEFORE.test(whole.slice(0, offset).trimEnd()) || OPERATOR_AFTER.test(whole.slice(offset + match.length));
+  return beside ? `${first} ${second}` : match;
+});
+
 export const mathToSpeech = (raw, { language = 'en', functionNames = '', intervals = false } = {}) => {
   const w = wordsFor(language);
   // A price is not a LaTeX span: "$4.50" is "4 dollars and 50 cents".
@@ -977,7 +1079,7 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '', interva
   const names = `${functionNames || ''}${definedFunctionNames(raw)}`;
   const arrowed = mathArrowSpeech(arrowsAsCharacters(String(raw)), { language, functionNames: names, intervals }, w, functionLettersFor(names));
   if (arrowed !== null) return w.contract(arrowed);
-  const reduced = latexToSpeech(plainLogsToWords(writtenNotationToSpokenForm(raw, w), w), w);
+  const reduced = latexToSpeech(trigToWords(plainLogsToWords(writtenNotationToSpokenForm(twoLetterProductsApart(raw), w), w), w), w);
   // A union's pieces are intervals, (−3, 1) ∪ (2, 5) too; a union of sets is not.
   const union = reduced.includes('∪') && !reduced.includes(w.setOpen);
   return w.contract(plainMathToSpeech(reduced, w, names, { intervals: intervals || union }).replace(/\s+/g, ' ').trim());

@@ -78,7 +78,9 @@ test('a division whose denominator carries a sign is "over negative"', () => {
 // of 3". Signed or not, the whole word is the denominator.
 test('a word denominator is read whole, with or without a sign', () => {
   const cases = [
-    ['1/-sin(x)', '1 over negative sin times the quantity x', '1 sobre negativo sin por la cantidad x'],
+    // sin(x) is "sine of x" (platform-polish-3, readAloudSlips.test.mjs);
+    // the word denominator is still read whole.
+    ['1/-sin(x)', '1 over negative sine of x', '1 sobre negativo seno de x'],
     ['3 / -sqrt(2)', '3 over negative the square root of 2', '3 sobre negativo la raíz cuadrada de 2'],
     ['x/-√2', 'x over negative the square root of 2', 'x sobre negativo la raíz cuadrada de 2'],
     ['2/-pi', '2 over negative pi', '2 sobre negativo pi'],
@@ -87,7 +89,7 @@ test('a word denominator is read whole, with or without a sign', () => {
     // is still read whole, which is what this case is here for.
     ['1/-ln(x)', '1 over negative natural log of x', '1 sobre negativo logaritmo natural de x'],
     ['4/-abs(x)', '4 over negative abs times the quantity x', '4 sobre negativo abs por la cantidad x'],
-    ['1/sin(x)', '1 over sin times the quantity x', '1 sobre sin por la cantidad x'],
+    ['1/sin(x)', '1 over sine of x', '1 sobre seno de x'],
     ['2/sqrt(3)', '2 over the square root of 3', '2 sobre la raíz cuadrada de 3'],
     ['1/|b|', '1 over the absolute value of b', '1 sobre el valor absoluto de b'],
   ];
