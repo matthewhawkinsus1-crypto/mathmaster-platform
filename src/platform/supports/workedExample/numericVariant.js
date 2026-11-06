@@ -62,6 +62,13 @@
  * terms, letters, exponents and signs, never easier, never a give-away, and its
  * keys confirmed by the item's own key and grader.
  *
+ * THE THIRD KIND: a printed system solved with matrices in the Matrix Lab
+ * (write A · X = B, find A⁻¹ with technology, X = A⁻¹B), with exactly one
+ * solution. Its rules are in matrixSystemVariant.js: the same layout and the
+ * same kind of solution (whole, halves or quarters), never easier, and its
+ * steps the lab's own worked solution, written only once the lab's grader
+ * accepts it.
+ *
  * NOTHING HERE IS RECORDED. It returns values, like practiceLikeThis.js.
  */
 import algebraicGraders from '../../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
@@ -75,9 +82,10 @@ import {
 import { resolveSystemsWorkspaceMode } from '../../../../functions/shared/toolMath/systemsWorkspace/systemsWorkspaceMode.mjs';
 import { similarExampleIsSafe } from './similarProblem.js';
 import { POLYNOMIAL_VARIANT_KIND, buildPolynomialVariant } from './polynomialVariant.js';
+import { MATRIX_SYSTEM_VARIANT_KIND, buildMatrixSystemVariant } from './matrixSystemVariant.js';
 
 export const NUMERIC_VARIANT_SOURCE = 'numericVariant';
-export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND });
+export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND, MATRIX_SYSTEM: MATRIX_SYSTEM_VARIANT_KIND });
 
 const text = (value) => String(value ?? '').trim();
 const gcd = (left, right) => {
@@ -508,8 +516,8 @@ export const buildNumericVariant = (question, { seed = 0 } = {}) => {
   try {
     const system = readSystem3x3(question);
     if (system) return system3x3Variant(question, system, seed);
-    const polynomial = buildPolynomialVariant(question, { seed });
-    return polynomial ? { ...polynomial, source: NUMERIC_VARIANT_SOURCE } : null;
+    const other = buildPolynomialVariant(question, { seed }) || buildMatrixSystemVariant(question, { seed });
+    return other ? { ...other, source: NUMERIC_VARIANT_SOURCE } : null;
   } catch {
     return null;
   }

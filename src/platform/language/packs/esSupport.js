@@ -833,6 +833,9 @@ const workedExamplePrompts = [
   ['Third product: {1}.', 'Tercer producto: {1}.'],
   ['Square: {1}.', 'Cuadrado: {1}.'],
   ['Cube: {1}.', 'Cubo: {1}.'],
+  // A system solved with matrices, with new numbers (matrixSystemVariant.js).
+  ['Solve the system with technology and matrices: {1}, {2} and {3}.', 'Resuelve el sistema con tecnología y matrices: {1}, {2} y {3}.'],
+  ['Give exact answers.', 'Da respuestas exactas.'],
 ];
 
 const workedExampleAnswers = [
@@ -1154,6 +1157,14 @@ const workedExampleSteps = [
   ['Distribute {1}: {2}.', 'Distribuye {1}: {2}.'],
   ['Write the square as a product: {1}.', 'Escribe el cuadrado como un producto: {1}.'],
   ['Write the cube as the square times {1}: {2}.', 'Escribe el cubo como el cuadrado por {1}: {2}.'],
+  // The Matrix Lab's worked solution of a system (matrixLabReview.js), the
+  // steps of a matrices practice; the lab's own closed review reads them too.
+  ['Write each equation in standard form: {1}; {2}; {3}.', 'Escribe cada ecuación en forma estándar: {1}; {2}; {3}.'],
+  ['A holds the coefficients in order {1}, with {2} for a missing variable: {3}.', 'A contiene los coeficientes en orden {1}, con {2} para una variable que falta: {3}.'],
+  ['{1} holds the constants: {2}.', '{1} contiene las constantes: {2}.'],
+  ['The calculator gives A⁻¹ {1}.', 'La calculadora da A⁻¹ {1}.'],
+  ['{1} A⁻¹{2}, so {3}, {4}, {5}.', '{1} A⁻¹{2}, así que {3}, {4}, {5}.'],
+  ['Check: substitute {1}, {2}, {3} into each original equation; every one is true.', 'Comprobación: sustituye {1}, {2}, {3} en cada ecuación original; todas son verdaderas.'],
 ];
 
 // --- The platform's question families (functions/shared/questionFamily*):
