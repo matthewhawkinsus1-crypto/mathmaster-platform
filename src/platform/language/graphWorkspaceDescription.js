@@ -27,7 +27,7 @@
  */
 import { formatNumber, GRAPH_WORDS } from './graphDescription.js';
 import { NUMBER_LINE_WORDS } from './numberLineDescription.js';
-import { say, sayFigure } from './figureSay.js';
+import { itemWords, say, sayFigure } from './figureSay.js';
 
 const pair = (point) => `(${formatNumber(point[0])}, ${formatNumber(point[1])})`;
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -77,7 +77,7 @@ export const graphWorkspaceReading = ({
   const says = [say('window', formatNumber(window.xMin ?? -10), formatNumber(window.xMax ?? 10), formatNumber(window.yMin ?? -10), formatNumber(window.yMax ?? 10))];
   if (givenGraph) says.push(say('givenGraphDrawn'));
   const placed = placedPoints.filter((entry) => Array.isArray(entry?.point));
-  if (placed.length) says.push(say('youPlaced', placed.map((entry) => (entry.label ? say('pointAt', String(entry.label), pair(entry.point)) : pair(entry.point)))));
+  if (placed.length) says.push(say('youPlaced', placed.map((entry) => (entry.label ? say('pointAt', itemWords(entry.label), pair(entry.point)) : pair(entry.point)))));
   if (curveDrawn) says.push(say('curveThroughYourPoints'));
   else if (strokeCount > 0) says.push(say('youDrewStrokes', strokeCount));
   const ends = markers.filter((entry) => entry && Array.isArray(entry.point) && MARKER_SAYS[entry.type]);

@@ -16,7 +16,7 @@ import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './p
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
-import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { joinFigureSays } from '../../platform/language/figureSay.js';
 import { graphReadOutApplies, useGraphReadOut, useReportGraphReadOut } from '../../platform/supports/graphReadOut.js';
 import { axisTitleSay, axisTitleSentence, cleanAxisLabel } from './planeAxisTitles.js';
@@ -1094,7 +1094,7 @@ export default function CoordinatePlane({
           question's first step off a phone screen, PR #454). */}
       {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
       <PublishFigureReading entry={{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay }} />
-      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'} lang={described.lang}>{described.text}</p>
+      <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'} lang={described.lang}>{describedContent(described)}</p>
 
       {showDataTable ? (
         <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>

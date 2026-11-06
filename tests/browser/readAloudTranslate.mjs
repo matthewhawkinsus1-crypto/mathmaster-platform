@@ -37,6 +37,9 @@
 //                inequality graph are read in Spanish with no "in English"
 //                note, and its description follows the boundary the student
 //                plots, in Spanish (AX05, slice 3).
+//   lang="en"    inside a Spanish description the item's own English words
+//                (the workspace's task) are marked lang="en", and nothing else
+//                is (AX05, slice 3).
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
@@ -214,6 +217,7 @@ for (const device of DEVICES) {
     const hidden = await screenReaderDescription(page, '[data-graph-description]', 'svg');
     check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 7 y el eje y, de −6 a 16. 1 curva. 1 círculo abierto y 1 círculo cerrado. Las posiciones no se leen mientras se pueda responder esta pregunta.', `${device.name}: the graph's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden));
     check(hidden.ax === hidden.text, `${device.name}: and it is the graph's accessible description`, hidden.ax);
+    check(await page.locator('[data-graph-description] [lang]').count() === 0, `${device.name}: a description with no English words marks none`);
     await context.close();
   }
   {
@@ -267,6 +271,11 @@ for (const device of DEVICES) {
     check(after.includes('Colocaste 1 punto: Plot the point where x es igual a 0 en el punto 0, 1.') && !/inglés|You placed/.test(after), `${device.name}: the student's point is read back in Spanish`, after.slice(0, 300));
     const hidden = await screenReaderDescription(page, '[data-graph-workspace-description]', 'svg[role="application"]');
     check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 4 y el eje y, de −6 a 8. Colocaste 1 punto: Plot the point where x = 0 en (0, 1).' && (hidden.ax || '').startsWith(hidden.text), `${device.name}: the workspace's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden).slice(0, 400));
+    // The task's words are the item's own English: marked lang="en" where they
+    // sit in the Spanish description, so a screen reader says them in English
+    // (AX05, slice 3). Nothing else in it is marked.
+    const marked = await page.locator('[data-graph-workspace-description] [lang]').evaluateAll((spans) => spans.map((span) => [span.getAttribute('lang'), span.textContent]));
+    check(JSON.stringify(marked) === JSON.stringify([['en', 'Plot the point where x = 0']]), `${device.name}: the task's English words are marked lang="en", and nothing else`, JSON.stringify(marked));
     await context.close();
   }
   {

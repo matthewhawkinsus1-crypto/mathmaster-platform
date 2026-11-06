@@ -28,7 +28,7 @@ import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
 import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
 import { threePlaneModelReading } from './threePlaneDescription.js';
-import { PublishFigureReading, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
@@ -397,7 +397,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             Arrow keys rotate the model: Left and Right turn it, Up and Down tilt it. Hold Shift for larger steps. Home returns to the opening view.
           </span>
           <PublishFigureReading entry={{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay }} />
-          <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true" lang={described.lang}>{described.text}</span>
+          <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true" lang={described.lang}>{describedContent(described)}</span>
           <span className="mathmaster-threeplane-sr-only" role="status" aria-live="polite">{viewAnnouncement}</span>
           <svg
             ref={modelRef}

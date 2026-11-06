@@ -50,7 +50,7 @@ import { GRAPH_WORKSPACE_WORDS, graphWorkspaceReading } from '../../src/platform
 import { ROW_CHOOSER_WORDS } from '../../src/tools/shared/toolTableReading.js';
 import { INEQUALITY_GRAPH_WORDS, inequalityGraphMarksReading, regionCornersReading } from '../../src/tools/systemsWorkspace/inequalityGraphMarks.js';
 import { boundaryFromSlopeIntercept, boundaryWithChosenSide, feasibleRegionPolygon } from '../../src/tools/systemsWorkspace/inequalityBuilderAdapter.js';
-import { englishOnly, loadFigureWords, say, sayFigure } from '../../src/platform/language/figureSay.js';
+import { englishOnly, itemWords, loadFigureWords, say, sayFigure, sayFigureParts } from '../../src/platform/language/figureSay.js';
 import { describedIn } from '../../src/platform/language/figureReadings.js';
 import { questionReadingParts, questionReadingText } from '../../src/platform/language/questionReading.js';
 import { speechTextFor } from '../../src/platform/language/speechText.js';
@@ -614,13 +614,16 @@ const HTML_ENTITIES = { '&#x27;': "'", '&quot;': '"', '&amp;': '&', '&lt;': '<',
 const decode = (html) => html.replace(/&#x27;|&quot;|&amp;|&lt;|&gt;/g, (entity) => HTML_ENTITIES[entity]);
 // The description element a pattern finds ({ id, lang, text }), which must be
 // the one the figure's aria-describedby names.
+// Its text is its words, and `marked` each run inside it marked with a
+// language of its own ({ lang, text }: slice 3, English words lang="en").
 const descriptionIn = (markup, pattern, where) => {
   const match = pattern.exec(markup);
   assert.ok(match, `${where}: its description element is drawn`);
-  const [, id, attributes, text] = match;
+  const [, id, attributes, inner] = match;
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   assert.match(markup, new RegExp(`aria-describedby="(?:[^"]* )?${escaped}(?: [^"]*)?"`), `${where}: it is what aria-describedby names`);
-  return { id, lang: /\blang="([^"]*)"/.exec(attributes)?.[1] ?? null, text: decode(text) };
+  const marked = [...inner.matchAll(/<span lang="([^"]*)">([^<]*)<\/span>/g)].map(([, lang, text]) => ({ lang, text: decode(text) }));
+  return { id, lang: /\blang="([^"]*)"/.exec(attributes)?.[1] ?? null, text: decode(inner.replace(/<[^>]+>/g, '')), marked };
 };
 
 test('describedIn: Spanish and its language where the messages say it all; else the English, with no language', () => {
@@ -643,12 +646,12 @@ test('each figure\'s screen-reader description is Spanish, marked lang="es", und
   const lesson = JSON.parse(readFileSync(new URL('docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json', ROOT), 'utf8'));
   const planes = normalizeContextualQuestion(generateQuestion(prepareQuestionForRuntimeRouting(compileAuthoringIntentV5(lesson).package.sections.flatMap((section) => section.questions).find((entry) => entry.questionId === '3x3-d1-cw-1'), {}), 0, null, null, null));
   const figures = [
-    ['the question graph', React.createElement(GraphDisplay, { graph: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'linear', m: 1, b: 0 }] }, title: 'Question graph', enlargeable: false }), /<p id="([^"]+)" data-graph-description=""([^>]*)>([^<]*)<\/p>/],
-    ['a tool plane', React.createElement(CoordinatePlane, { xMin: -1, xMax: 7, yMin: -20, yMax: 100, xAxisTitle: 'Hours studied', points: [{ x: 1, y: 60 }], lines: [{ m: 5, b: 55 }], enlargeable: false, ariaLabel: 'Coordinate plane' }), /<p id="(mm-plane-desc-[^"]+)"([^>]*)>([^<]*)<\/p>/],
-    ['the pick-a-point line', React.createElement(NumberLine, { question: { target: 5, choices: [-10, -5, 0, 5, 10] }, onStateChange: () => {}, feedback: null }), /<span id="([^"]+)" aria-hidden="true"([^>]*)>([^<]*)<\/span>/],
-    ['the interval number line', React.createElement(IntervalNumberLine, { questionData: { type: 'intervalNumberLine', toolId: 'intervalNumberLine', prompt: 'Graph x ≥ −3.', min: -8, max: 8, step: 1, variable: 'x', ask: ['graph'], intervals: [{ min: -3, max: Infinity, minClosed: true, maxClosed: false }] }, onAction: () => {} }), /<p id="([^"]+)" data-number-line-description=""([^>]*)>([^<]*)<\/p>/],
-    ['the 3D model', React.createElement(ThreePlaneWorkspace, { questionData: planes, onAction: () => {} }), /<span id="([^"]+)" class="mathmaster-threeplane-sr-only" data-threeplane-description=""([^>]*)>([^<]*)<\/span>/],
-    ['the graph workspace', React.createElement(InteractiveGraphWorkspace, { question: { type: 'graphAnalysis', prompt: 'Read the graph.', functionSpec: { type: 'linear', m: 2, b: 1 }, graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 }, analysisRequests: [{ id: 'at-two', kind: 'value', label: 'f(2)', expected: 5 }] }, mode: 'analysis', onStateChange: () => {} }), /<span id="([^"]+)" data-graph-workspace-description=""([^>]*)>([^<]*)<\/span>/],
+    ['the question graph', React.createElement(GraphDisplay, { graph: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'linear', m: 1, b: 0 }] }, title: 'Question graph', enlargeable: false }), /<p id="([^"]+)" data-graph-description=""([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/],
+    ['a tool plane', React.createElement(CoordinatePlane, { xMin: -1, xMax: 7, yMin: -20, yMax: 100, xAxisTitle: 'Hours studied', points: [{ x: 1, y: 60 }], lines: [{ m: 5, b: 55 }], enlargeable: false, ariaLabel: 'Coordinate plane' }), /<p id="(mm-plane-desc-[^"]+)"([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/],
+    ['the pick-a-point line', React.createElement(NumberLine, { question: { target: 5, choices: [-10, -5, 0, 5, 10] }, onStateChange: () => {}, feedback: null }), /<span id="([^"]+)" aria-hidden="true"([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/span>/],
+    ['the interval number line', React.createElement(IntervalNumberLine, { questionData: { type: 'intervalNumberLine', toolId: 'intervalNumberLine', prompt: 'Graph x ≥ −3.', min: -8, max: 8, step: 1, variable: 'x', ask: ['graph'], intervals: [{ min: -3, max: Infinity, minClosed: true, maxClosed: false }] }, onAction: () => {} }), /<p id="([^"]+)" data-number-line-description=""([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/],
+    ['the 3D model', React.createElement(ThreePlaneWorkspace, { questionData: planes, onAction: () => {} }), /<span id="([^"]+)" class="mathmaster-threeplane-sr-only" data-threeplane-description=""([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/span>/],
+    ['the graph workspace', React.createElement(InteractiveGraphWorkspace, { question: { type: 'graphAnalysis', prompt: 'Read the graph.', functionSpec: { type: 'linear', m: 2, b: 1 }, graph: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 }, analysisRequests: [{ id: 'at-two', kind: 'value', label: 'f(2)', expected: 5 }] }, mode: 'analysis', onStateChange: () => {} }), /<span id="([^"]+)" data-graph-workspace-description=""([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/span>/],
   ];
   figures.forEach(([where, figure, pattern]) => {
     const english = capture.render(figure);
@@ -660,9 +663,84 @@ test('each figure\'s screen-reader description is Spanish, marked lang="es", und
     assert.equal(described.lang, 'es', `${where}: marked lang="es"`);
     assert.equal(described.text, sayFigure(spanish.entries[0].say, esFigures.words), `${where}: the figure's own messages, in Spanish`);
     sameNumbers(plain.text, described.text, where);
+    // Its English words, and only those, are marked lang="en" (slice 3): the
+    // tool plane's axis title. An English page marks nothing.
+    assert.deepEqual(described.marked, where === 'a tool plane' ? [{ lang: 'en', text: 'Hours studied' }] : [], `${where}: its English words are marked`);
+    assert.deepEqual(plain.marked, [], `${where}: English marks nothing`);
     // Read aloud's entry is unchanged: its English and its messages.
     assert.deepEqual(spanish.entries, english.entries, `${where}: Read aloud gets the same entry`);
   });
+});
+
+/*
+ * ENGLISH WORDS INSIDE A SPANISH DESCRIPTION (slice 3). The item's own words
+ * in a figure's description are English as the screen shows them: an axis
+ * title, a point's label, a task's words. In a Spanish description each is
+ * marked lang="en" where it appears, so a screen reader says it in an
+ * English voice. A lone letter naming a point ("A", "P₁") is no English word:
+ * it is said in Spanish, as the mathematics is. The text is unchanged.
+ */
+test('describedIn marks the item\'s English words in a Spanish description, and only words', () => {
+  const axis = [say('xAxisShows', itemWords('Hours studied')), say('lineCount', 1)];
+  assert.deepEqual(describedIn(esFigures, 'The horizontal x-axis shows Hours studied. 1 line.', axis), {
+    text: 'El eje x horizontal muestra Hours studied. 1 recta.',
+    lang: 'es',
+    parts: [{ text: 'El eje x horizontal muestra ' }, { text: 'Hours studied', lang: 'en' }, { text: '. 1 recta.' }],
+  });
+  // A lone letter, a subscripted letter and a pair of capitals name a point: no part.
+  for (const label of ['A', 'P₁', 'AB']) {
+    assert.deepEqual(describedIn(esFigures, '', [say('pointsRead', 1, 0, [say('pointAt', itemWords(label), '(2, 3)')])]), { text: `1 punto: ${label} en (2, 3).`, lang: 'es' }, label);
+  }
+  // A list of labels: each word marked, the letter between them not.
+  assert.deepEqual(describedIn(esFigures, '', [say('givenMarks', 3, ['popcorn', 'A', 'candles'].map(itemWords), 0, 0, 0)]).parts, [
+    { text: '3 puntos con las etiquetas ' }, { text: 'popcorn', lang: 'en' }, { text: ', A y ' }, { text: 'candles', lang: 'en' }, { text: '.' },
+  ]);
+  // English, or no messages, or a sentence the words cannot say: no parts.
+  assert.deepEqual(describedIn(null, 'x', axis), { text: 'x', lang: undefined });
+  assert.deepEqual(describedIn(esFigures, 'x', [...axis, englishOnly('Boundary line 1: solid.')]), { text: 'x', lang: undefined });
+  // A language's words that change an item's words (none of the pack's do)
+  // keep the text and mark nothing, rather than mark the wrong words.
+  const shouting = { language: 'es', words: { loud: (value) => `¡${value.toUpperCase()}!` } };
+  assert.deepEqual(describedIn(shouting, '', [say('loud', itemWords('hello there'))]), { text: '¡HELLO THERE!', lang: 'es' });
+  // The parts are always exactly the text.
+  const parts = sayFigureParts([say('xAxisShows', itemWords('Time  (hours)'))], esFigures.words);
+  assert.equal(parts.map((part) => part.text).join(''), sayFigure([say('xAxisShows', itemWords('Time  (hours)'))], esFigures.words));
+});
+
+test('each figure marks the English words it shows: axis titles, point labels, open and closed, a task\'s words', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: CoordinatePlane } = await capture.load('/src/tools/shared/CoordinatePlane.jsx');
+  const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');
+  const { QuestionLifecycleProvider } = await capture.load('/src/platform/question/QuestionLifecycleContext.jsx');
+  const PLANE = /<p id="(mm-plane-desc-[^"]+)"([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/;
+  const STATIC = /<p id="([^"]+)" data-graph-description=""([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/;
+  const inBoth = (figure, pattern, where) => {
+    const english = descriptionIn(capture.render(figure).markup, pattern, `${where} (English)`);
+    const spanish = descriptionIn(capture.render(React.createElement(FigureWordsProvider, { pack: esFigures }, figure)).markup, pattern, `${where} (Spanish)`);
+    assert.deepEqual([english.lang, english.marked], [null, []], `${where}: English is unmarked`);
+    assert.equal(spanish.lang, 'es');
+    sameNumbers(english.text, spanish.text, where);
+    return spanish;
+  };
+  // A plane with both axis titles and labelled points, while it can be answered.
+  const plane = { xMin: -1, xMax: 7, yMin: -20, yMax: 100, xAxisTitle: 'Hours studied', yAxisTitle: 'Quiz score (points)', points: [{ x: 1, y: 60, label: 'A' }, { x: 2, y: 70, label: 'popcorn' }], enlargeable: false, ariaLabel: 'Coordinate plane' };
+  const open = inBoth(React.createElement(CoordinatePlane, plane), PLANE, 'open plane');
+  assert.equal(open.text, 'El eje x horizontal muestra Hours studied. El eje y vertical muestra Quiz score (points). El eje x va de −1 a 7 y el eje y, de −20 a 100. 2 puntos con las etiquetas A y popcorn. Las posiciones no se leen mientras se pueda responder esta pregunta.');
+  assert.deepEqual(open.marked, [{ lang: 'en', text: 'Hours studied' }, { lang: 'en', text: 'Quiz score (points)' }, { lang: 'en', text: 'popcorn' }]);
+  // Closed: each label where its point is.
+  const closed = inBoth(React.createElement(CoordinatePlane, { ...plane, describeFeatures: true }), PLANE, 'closed plane');
+  assert.match(closed.text, /2 puntos: A en \(1, 60\); popcorn en \(x 2, y entre 60 y 80\)\.$/);
+  assert.deepEqual(closed.marked.map((run) => run.text), ['Hours studied', 'Quiz score (points)', 'popcorn']);
+  // The question graph: its labels, once closed (the Parabola lab's words are labels too).
+  const graph = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, points: [{ x: 1, y: -1, label: 'vertex' }, { x: 3, y: -1, label: 'focus' }, { x: 0, y: 2, label: 'P' }] };
+  const shown = inBoth(React.createElement(QuestionLifecycleProvider, { terminal: true, positionsReadable: true }, React.createElement(GraphDisplay, { graph, title: 'Question graph', enlargeable: false })), STATIC, 'question graph');
+  assert.match(shown.text, /3 puntos: vertex en \(1, −1\); focus en \(3, −1\); P en \(0, 2\)\.$/);
+  assert.deepEqual(shown.marked.map((run) => run.text), ['vertex', 'focus']);
+  // The graph workspace's task, the author's words, where the student placed it.
+  const workspace = graphWorkspaceReading({ window: { xMin: -4, xMax: 4, yMin: -6, yMax: 8 }, placedPoints: [{ label: 'Plot the point where x = 0', point: [0, 1] }, { label: 'B', point: [2, 5] }] });
+  assert.deepEqual(describedIn(esFigures, workspace.text, workspace.say).parts, [
+    { text: 'El eje x va de −4 a 4 y el eje y, de −6 a 8. Colocaste 2 puntos: ' }, { text: 'Plot the point where x = 0', lang: 'en' }, { text: ' en (0, 1); B en (2, 5).' },
+  ]);
 });
 
 test('a description the Spanish words cannot say all of stays English, with no lang', async () => {

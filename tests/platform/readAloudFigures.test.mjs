@@ -220,9 +220,9 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
   // `say` is the same reading as messages, for Read aloud in Spanish (AX05,
   // figureReadingSpanish.test.mjs); the hidden description is `described`: the
   // same description, in Spanish under a translation (slice 2).
-  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{described\.text\}<\/p>/);
+  assert.match(graph, /<PublishFigureReading entry=\{\{ kind: 'figure', label: title, text: \[spokenDescription, graph\.caption \? String\(graph\.caption\) : '', scaleCaption\]\.join\(' '\), say: readingSay \}\} \/>\s*<p id=\{descriptionId\} data-graph-description="" aria-hidden="true"[^>]*>\{describedContent\(described\)\}<\/p>/);
   const plane = code('src/tools/shared/CoordinatePlane.jsx');
-  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{described\.text\}<\/p>/);
+  assert.match(plane, /<PublishFigureReading entry=\{\{ kind: 'figure', label: ariaLabel, text: spokenDescription, say: spokenSay \}\} \/>\s*<p id=\{descriptionId\} className="mm-sr-only"[^>]*>\{describedContent\(described\)\}<\/p>/);
   const visual = code('src/QuestionVisual.jsx');
   assert.match(visual, /const displayTable = includeTable \? displayTableFor\(question\) : null;/, 'the table drawn is the shared model');
   assert.match(visual, /\{displayTable && <PublishFigureReading entry=\{\{ kind: 'table', label: question\?\.tableCaption \|\| '', table: displayTable \}\} \/>\}/);
@@ -231,10 +231,10 @@ test('each figure publishes the text it describes itself with, and QuestionEngin
 
   // The other figures that already describe themselves, beside that description.
   [
-    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{described\.text\}<\/p>/],
-    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{described\.text\}<\/span>/],
-    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{described\.text\}<\/span>/],
-    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{described\.text\}<\/span>/],
+    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay \}\} \/>\s*<p id=\{lineDescriptionId\} data-number-line-description=""[^>]*>\{describedContent\(described\)\}<\/p>/],
+    ['src/NumberLine.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Number line', text: description, say: descriptionSay \}\} \/>\s*<span id=\{descriptionId\}[^>]*>\{describedContent\(described\)\}<\/span>/],
+    ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay \}\} \/>\s*<span id=\{modelDescriptionId\}[^>]*>\{describedContent\(described\)\}<\/span>/],
+    ['src/InteractiveGraphWorkspace.jsx', /<PublishFigureReading entry=\{\{ kind: 'figure', label: 'Graph', text: workspaceDescription, say: workspaceSay \}\} \/>\s*<span id=\{workspaceDescriptionId\}[^>]*>\{describedContent\(described\)\}<\/span>/],
   ].forEach(([path, wiring]) => assert.match(code(path), wiring, path));
 
   const engine = code('src/QuestionEngine.jsx');

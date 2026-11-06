@@ -65,7 +65,7 @@
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { majorTicks, niceStep } from '../graph/graphScaleService.js';
 import { verticalLineDrawing } from '../graph/verticalLineStyle.js';
-import { englishOnly, say, sayFigure, toolSentence } from './figureSay.js';
+import { englishOnly, itemWords, say, sayFigure, toolSentence } from './figureSay.js';
 
 // Above this many resolution steps across the window the plane cannot draw a
 // minor grid (CoordinatePlane's MAX_MINOR_LINES), so the eye has only the major
@@ -231,8 +231,8 @@ const describePoints = (points, res, w) => {
       mark = say(marker === 'open' ? 'openDotAt' : 'closedDotAt', at);
     } else {
       // A label that is the point's own coordinates ("(1, 3)") is not read
-      // twice: "(1, 3) at (1, 3)" (AX36).
-      mark = label && !sameCoordinates(label, readPair(x, y, res)) ? say('pointAt', label, at) : at;
+      // twice: "(1, 3) at (1, 3)" (AX36). A label is the item's own words.
+      mark = label && !sameCoordinates(label, readPair(x, y, res)) ? say('pointAt', itemWords(label), at) : at;
     }
     entries.push({ kind, label, x, y, marker, say: inWindow(x, y, w) ? mark : say('outsideWindowMark', mark) });
   });
@@ -726,7 +726,7 @@ const describeKinds = ({
     const closed = given.filter((point) => point?.marker === 'closed').length;
     const dots = given.length - arrows - open - closed;
     const labels = given.filter((point) => !point?.marker && point?.label != null && String(point.label).trim()).map((point) => String(point.label).trim());
-    says.push(say('givenMarks', dots, labels, open, closed, arrows));
+    says.push(say('givenMarks', dots, labels.map(itemWords), open, closed, arrows));
   }
   if (plotted.length) {
     says.push(say('plotted', plotted.map((point) => { const [x, y] = readGraphPointCoordinates(point); return readPairSay(x, y, res); })));

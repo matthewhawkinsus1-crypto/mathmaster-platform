@@ -105,7 +105,7 @@ test('the interval number line is described by the student\'s drawing, then its 
   // The described-by target holds that description (in the reading's language
   // under a translation, AX05 slice 2: figureReadingSpanish.test.mjs).
   assert.match(source, /const described = describedIn\(figureWords, lineDescription, lineSay\);/);
-  assert.match(source, /<p id=\{lineDescriptionId\}[^>]*lang=\{described\.lang\}>\{described\.text\}<\/p>/);
+  assert.match(source, /<p id=\{lineDescriptionId\}[^>]*lang=\{described\.lang\}>\{describedContent\(described\)\}<\/p>/);
   assert.match(source, /<p id=\{lineInstructionsId\}[^>]*>\s*\{`Click anywhere on the line/);
 });
 
@@ -116,7 +116,7 @@ test('the legacy pick-a-point line is a described group with pressed marks', () 
   assert.match(source, /role="group" aria-label="Number line" aria-describedby=\{descriptionId\}/);
   assert.match(source, /aria-pressed=\{selectedPoint === Number\(number\)\}/);
   assert.match(source, /const described = describedIn\(figureWords, description, descriptionSay\);/);
-  assert.match(source, /<span id=\{descriptionId\}[^>]*lang=\{described\.lang\}>\{described\.text\}<\/span>/);
+  assert.match(source, /<span id=\{descriptionId\}[^>]*lang=\{described\.lang\}>\{describedContent\(described\)\}<\/span>/);
 });
 
 test('the three-plane model is described by its planes; the detail follows the question\'s lifecycle', () => {
@@ -150,7 +150,7 @@ test('the static question graph carries the shared plane\'s description, by the 
   // The described-by target holds that description, in the reading's language
   // under a translation where the figure's messages say it all (AX05, slice 2).
   assert.match(source, /const described = describedIn\(figureWords, spokenDescription, authoredDescription \? null : generated\.say\);/);
-  assert.match(source, /<p id=\{descriptionId\}[^>]*lang=\{described\.lang\}[^>]*>\{described\.text\}<\/p>/);
+  assert.match(source, /<p id=\{descriptionId\}[^>]*lang=\{described\.lang\}[^>]*>\{describedContent\(described\)\}<\/p>/);
   // Hooks before the early return (rules of hooks).
   const head = region(source, 'export default function GraphDisplay(', 'if (!graph) return null;', 'the component head');
   assert.match(head, /useId\(\)[\s\S]*useQuestionLifecycle\(\)/);
@@ -166,7 +166,7 @@ test('the legacy graph workspace and the Graph Story sketch are described by the
   assert.match(call, /givenGraph: mode === 'analysis' && !pointOnly,/);
   assert.match(workspace, /aria-label="Coordinate plane"\s*aria-describedby=\{`\$\{workspaceDescriptionId\} \$\{workspaceDescriptionId\}-keys`\}/);
   assert.match(workspace, /const described = describedIn\(figureWords, workspaceDescription, workspaceSay\);/);
-  assert.match(workspace, /<span id=\{workspaceDescriptionId\}[^>]*lang=\{described\.lang\}[^>]*>\{described\.text\}<\/span>/);
+  assert.match(workspace, /<span id=\{workspaceDescriptionId\}[^>]*lang=\{described\.lang\}[^>]*>\{describedContent\(described\)\}<\/span>/);
   const story = executableSource(read('src/GraphStory.jsx'));
   assert.match(story, /const strokeCount = Array\.isArray\(values\.strokes\) \? values\.strokes\.length : 0;/);
   // Since AX14 the sketch takes keys (role="application"); its description is

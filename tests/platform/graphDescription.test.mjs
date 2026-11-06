@@ -218,7 +218,7 @@ test('the plane svg is described by the generated (or authored) summary paragrap
   // The spoken description, in the reading's language under a translation
   // where its messages say it all (AX05, slice 2: figureReadingSpanish.test.mjs).
   assert.match(planeCode, /const described = describedIn\(figureWords, spokenDescription, spokenSay\);/);
-  const paragraph = planeCode.match(/<p id=\{descriptionId\}[^>]*>\{described\.text\}<\/p>/);
+  const paragraph = planeCode.match(/<p id=\{descriptionId\}[^>]*>\{describedContent\(described\)\}<\/p>/);
   assert.match(paragraph?.[0] || '', /style=\{SR_ONLY_STYLE\}/, 'hidden even where no UI kit CSS is loaded');
   assert.ok(paragraph, 'the described-by target holds the spoken description');
   assert.match(paragraph[0], /lang=\{described\.lang\}/, 'marked with the language it is in');

@@ -40,9 +40,16 @@
  * reader speaks it in Spanish. One its messages cannot say completely (an
  * author's description, or a tool's own sentence given without its messages)
  * stays English and unmarked: the page is English.
+ *
+ * ENGLISH WORDS INSIDE A SPANISH DESCRIPTION (slice 3). The item's own words
+ * in it — an axis title, a point's label, a task's words — are English, as
+ * the screen shows them; each is marked lang="en" where it appears
+ * (describedContent), so a screen reader says it in English. A lone letter
+ * naming a point is no English word, and is said in the description's
+ * language, as the mathematics is.
  */
 import React, { createContext, useContext, useEffect, useId } from 'react';
-import { sayFigure } from './figureSay.js';
+import { ITEM_LANGUAGE, sayFigure, sayFigureParts } from './figureSay.js';
 
 const FigureReadingPortContext = createContext(null);
 
@@ -118,15 +125,42 @@ export function FigureWordsProvider({ pack = null, children }) {
 /** The figure words a figure here describes itself in: null outside a host, or in English. */
 export const useFigureWords = () => useContext(FigureWordsContext);
 
+// clean(), for a text in parts: one space for any run of spaces, none at the ends.
+const cleanParts = (parts) => {
+  const out = [];
+  (Array.isArray(parts) ? parts : []).forEach((part) => {
+    let text = String(part.text).replace(/\s+/g, ' ');
+    if ((!out.length || out[out.length - 1].text.endsWith(' ')) && text.startsWith(' ')) text = text.slice(1);
+    if (text) out.push({ ...part, text });
+  });
+  if (out.length) out[out.length - 1].text = out[out.length - 1].text.replace(/ $/, '');
+  return out.filter((part) => part.text);
+};
+
 /**
  * A figure's own description as a screen reader gets it: { text, lang }. In
  * the host's language, marked with it, when the figure's messages (`say`)
- * can say it all there; otherwise its English, with no lang. Pure.
+ * can say it all there; otherwise its English, with no lang. In another
+ * language than the item's, its English words come as `parts` too, each
+ * { text, lang } where it is marked (slice 3), together exactly the text.
+ * Pure.
  */
 export const describedIn = (pack, english, say) => {
   const text = pack?.words && Array.isArray(say) ? clean(sayFigure(say, pack.words)) : '';
-  return text ? { text, lang: pack.language } : { text: english, lang: undefined };
+  if (!text) return { text: english, lang: undefined };
+  const parts = pack.language === ITEM_LANGUAGE ? [] : cleanParts(sayFigureParts(say, pack.words));
+  const marked = parts.some((part) => part.lang) && parts.map((part) => part.text).join('') === text;
+  return marked ? { text, lang: pack.language, parts } : { text, lang: pack.language };
 };
+
+/**
+ * What a figure's description element holds: its text, with each part in
+ * another language (describedIn's `parts`) in a <span lang>, so a screen
+ * reader says it in that language.
+ */
+export const describedContent = (described) => (Array.isArray(described?.parts)
+  ? described.parts.map((part, index) => (part.lang ? React.createElement('span', { key: index, lang: part.lang }, part.text) : part.text))
+  : described?.text ?? '');
 
 /**
  * The host's state update: returns `published` itself when nothing changed,
