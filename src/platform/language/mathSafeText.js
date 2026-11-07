@@ -34,7 +34,9 @@
 
 const OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|]/;
 // A Greek letter is mathematics to Read aloud as π is (math-speech-3): "φ − 1"
-// was "φ negative 1", φ taken for prose and the minus for a sign.
+// was "φ negative 1", φ taken for prose and the minus for a sign. So are a
+// degree sign, ≈, ∓, ⟂ and an inverse's ⁻¹, which went to the voice raw
+// ("180 °", "tangent ( 45 °)", "2^(1/2) ≈ 1.41", "f inverse x").
 // Read aloud (speechText.js) also takes composition, union and membership as
 // mathematics, so (f∘g)(x) and (−∞, 0) ∪ (0, ∞) reach the reader whole: "f
 // composed with g of x", and a union's pieces heard as intervals (walkthrough
@@ -42,7 +44,7 @@ const OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|]/;
 // raw). Translation keeps them as text: the Spanish pack's lines hold them
 // between the masked mathematics ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so its
 // segments must not move.
-const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪∈\uE030αβγΓδΔεϵθϑλΛμρσΣτφϕΦωΩ]/;
+const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪∈\uE030αβγΓδΔεϵθϑλΛμρσΣτφϕΦωΩ°≈∓⟂⊥⁻¹]/;
 /*
  * WHAT READ ALOUD HAS ALREADY SAID IN WORDS (math-speech-3). Read aloud says a
  * root in words before it splits a text (speechText.js), and its words were
@@ -80,7 +82,7 @@ const AXIS_VOCABULARY = Object.freeze({
 
 const DELIMITED = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\{\{[^{}]+\}\}/g;
 // Read aloud's spans step over an escaped dollar (math-speech-3): the banks
-// write a price inside mathematics as "$\\$54 - \\$30$", and the span ended at
+// write a price inside mathematics as "$\$54 - \$30$", and the span ended at
 // the escaped sign, so the second price lost its "dollars" and the closing
 // "$" reached the voice ("54 dollars minus 30", "3 dollars $"). Translate's
 // masked lines are keyed to the split as it is, so it keeps DELIMITED.
@@ -109,16 +111,24 @@ const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en, opera
   return 'punct';
 };
 
-/** Is everything inside a bracket pair mathematics (no prose words)? */
-const groupIsMath = (inner, operator = OPERATOR) => {
+/**
+ * Is everything inside a bracket pair mathematics (no prose words)?
+ * `products` (Read aloud): two lowercase letters side by side are two
+ * variables in a bracket that also holds a sign or a number, or that is a
+ * power's ("(a² + ab + b²)", "x^(ab)"); the bracket was prose to the split,
+ * and its brackets, signs and "/" reached the voice (math-speech-3).
+ */
+const groupIsMath = (inner, operator = OPERATOR, { products = false, power = false } = {}) => {
   const tokens = withoutSaid(inner).match(TOKEN) || [];
   if (!tokens.length) return false;
+  const productsHere = products && (power || tokens.some((token) => /^\d/.test(token) || (token.length === 1 && operator.test(token))));
   let sawMath = false;
   for (const token of tokens) {
     if (isSpace(token) || token === ',' || token === ';') continue;
     const kind = classifyToken(token, 'math-adjacent', 'math-adjacent', ONE_LETTER_WORDS.en, operator);
     if (kind === 'word') {
       if (NAMED_FUNCTIONS.has(token.toLowerCase())) { sawMath = true; continue; }
+      if (productsHere && /^[a-z]{2}$/.test(token) && !NOT_TWO_VARIABLES.has(token)) { sawMath = true; continue; }
       return false;
     }
     if (kind === 'math' || '()[]'.includes(token)) sawMath = true;
@@ -257,7 +267,7 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
       const char = chunk[index];
       if (OPENERS.has(char)) {
         const close = matchingClose(chunk, index);
-        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator)) {
+        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator, { products: speech, power: chunk[index - 1] === '^' })) {
           atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
           index = close + 1;
           continue;

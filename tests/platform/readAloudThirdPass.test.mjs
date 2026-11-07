@@ -6,7 +6,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
+import { definedFunctionNames, mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
 import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
 import { maskMath } from '../../src/platform/language/mathSafeText.js';
 
@@ -143,4 +143,60 @@ test('Spanish joins "a" and "de" to the article the reader says', () => {
   assert.match(speechTextFor('f(x) = a|x − h| + k', es), /^f de x es igual a a el valor absoluto de x /);
   // English is unchanged.
   assert.equal(speechTextFor('y = |x|'), 'y equals the absolute value of x');
+});
+
+// The sweep of every lesson and bank text (item 4): the symbols passed raw
+// most often.
+test('a degree sign, ≈, ∓ and ⟂ are said in words', () => {
+  assert.equal(speechTextFor('A straight angle measures 180°.'), 'A straight angle measures 180 degrees.');
+  assert.equal(speechTextFor('tan(45°)'), 'tangent of 45 degrees');
+  assert.equal(speechTextFor('2^(1/2) ≈ 1.41, so M ≈ 3.4 kg'), '2 to the power 1 over 2 is approximately equal to 1.41, so M is approximately equal to 3.4 kg');
+  assert.match(speechTextFor('a³ ± b³ = (a ± b)(a² ∓ ab + b²)'), /a squared minus or plus a b plus b squared$/);
+  assert.equal(speechTextFor('Tangent ⟂ radius'), 'Tangent is perpendicular to radius');
+  assert.equal(speechTextFor('A straight angle measures 180°.', es), 'A straight angle measures 180 grados.');
+  assert.equal(speechTextFor('x ≈ 2.4', es), 'x es aproximadamente igual a 2.4');
+});
+
+test('a system in a brace is its equations', () => {
+  assert.equal(speechTextFor('The system is $\\begin{cases}y=3x+3\\\\y=3x^2+3x\\end{cases}$.'),
+    'The system is y equals 3x plus 3; y equals 3x squared plus 3x.');
+  assert.equal(spokenMathLabel('\\begin{cases} 2x+y=13 \\\\ y=1 \\end{cases}'), '2x plus y equals 13; y equals 1');
+  assert.equal(speechTextFor('Solve \\begin{cases} x+y=12 \\\\ y=x-2 \\end{cases} by substitution.'), 'Solve x plus y equals 12; y equals x minus 2 by substitution.');
+});
+
+test('an exponent that holds a bracket, or words, is a power', () => {
+  assert.equal(speechTextFor('x^((3 + 3)/3) = x²'), 'x to the power the quantity 3 plus 3 end quantity over 3 equals x squared');
+  assert.equal(speechTextFor('x⁸ → x^√8'), 'x to the power 8 gives x to the power the square root of 8');
+  assert.equal(speechTextFor('x^(ab)'), 'x to the power ab');
+});
+
+test('a point\'s primes and a mean\'s bar are said with their letter', () => {
+  assert.equal(speechTextFor('B′ = (−5, 8), so the slope of A′B′ is 8 ÷ (−5).'),
+    'B prime equals the point negative 5, 8, so the slope of A prime B prime is 8 divided by negative 5.');
+  assert.equal(speechTextFor('AB and A″B″ have slope 5/8; A‴B‴ has slope −8/5.'),
+    'AB and A double prime B double prime have slope 5 over 8; A triple prime B triple prime has slope negative 8 over 5.');
+  assert.equal(speechTextFor('Means: x̄ = 10 ÷ 4 = 2.5, ȳ = 77 ÷ 4 = 19.25.'),
+    'Means: x bar equals 10 divided by 4 equals 2.5, y bar equals 77 divided by 4 equals 19.25.');
+  assert.equal(speechTextFor('B′ = (−5, 8)', es), 'B prima es igual al punto negativo 5, 8');
+  assert.equal(speechTextFor('x̄ = 2.5', es), 'x barra es igual a 2.5');
+});
+
+test('two letters side by side in a bracket with a sign are two variables', () => {
+  assert.equal(speechTextFor('a³ + b³ = (a + b)(a² − ab + b²)'),
+    'a cubed plus b cubed equals the quantity a plus b end quantity times the quantity a squared minus a b plus b squared');
+  assert.equal(speechTextFor('Multiply (−2a³b)(5ab²)'), 'Multiply the quantity negative 2a cubed b times the quantity 5ab squared');
+  // Words in a bracket are prose, as before, two letters with no sign too.
+  assert.equal(speechTextFor('Multiply (my answer) by 2'), 'Multiply (my answer) by 2');
+  assert.equal(speechTextFor('He wrote (my) next to it.'), 'He wrote (my) next to it.');
+});
+
+test('an inverse applied is "f inverse of x"', () => {
+  assert.equal(speechTextFor('f⁻¹(x) = 2x + 1'), 'f inverse of x equals 2x plus 1');
+  assert.equal(speechTextFor('f(f⁻¹(x)) = x'), 'f of f inverse of x equals x');
+  assert.equal(speechTextFor('$f^{-1}(11)$ is the input that $f$ sends to $11$.'), 'f inverse of 11 is the input that f sends to 11.');
+  assert.equal(speechTextFor('Check your rule: E(E⁻¹(x)) should simplify back to x.'), 'Check your rule: E of E inverse of x should simplify back to x.');
+  assert.equal(definedFunctionNames('Inverse rule s=E⁻¹(x)'), 'E');
+  // A matrix's inverse is not applied.
+  assert.equal(speechTextFor('X = A⁻¹B'), 'X equals A inverse B');
+  assert.equal(speechTextFor('f⁻¹(x) = 2x + 1', es), 'f inversa de x es igual a 2x más 1');
 });

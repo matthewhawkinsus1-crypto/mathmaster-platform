@@ -81,6 +81,9 @@ const WORDS = {
       alpha: 'alpha', beta: 'beta', gamma: 'gamma', delta: 'delta', epsilon: 'epsilon', lambda: 'lambda', mu: 'mu',
       rho: 'rho', sigma: 'sigma', tau: 'tau', phi: 'phi', omega: 'omega',
     },
+    // What the sweep of every lesson and bank text found passed raw
+    // (math-speech-3): ∓, a mean's bar (x̄) and a point's primes (B′, A″).
+    mp: 'minus or plus', bar: 'bar', primes: ['prime', 'double prime', 'triple prime'],
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -145,6 +148,7 @@ const WORDS = {
       alpha: 'alfa', beta: 'beta', gamma: 'gamma', delta: 'delta', epsilon: 'épsilon', lambda: 'lambda', mu: 'mu',
       rho: 'ro', sigma: 'sigma', tau: 'tau', phi: 'fi', omega: 'omega',
     },
+    mp: 'menos o más', bar: 'barra', primes: ['prima', 'doble prima', 'triple prima'],
   },
 };
 
@@ -165,6 +169,10 @@ const FUNCTION_LETTERS = 'fghjpqrstuvwCPAVRNTDHGF';
 // "y − 2 = m(x − 6)" stay products: neither defines a function.
 const DEFINITION = /(?<![A-Za-z\\])([A-Za-z])\s*\(\s*([A-Za-z])\s*\)\s*=(?!=)/g;
 
+// A letter whose inverse is applied is a function too: "E⁻¹(x)", "E(E⁻¹(x))"
+// (math-speech-3: "E inverse the quantity x", "E ( E inverse …").
+const INVERSE_APPLIED = /(?<![A-Za-z\\])([A-Za-z])\s*(?:⁻¹|\^\{\s*-1\s*\}|\^\(\s*-1\s*\))\s*\(/g;
+
 /** The one-letter function names a text defines ("c(x) = …"), as a string of letters. */
 export const definedFunctionNames = (raw) => {
   const text = String(raw ?? '').replace(/\\(?:left|right)(?![A-Za-z])/g, '');
@@ -172,6 +180,7 @@ export const definedFunctionNames = (raw) => {
   for (const match of text.matchAll(DEFINITION)) {
     if (match[1] !== match[2]) names.add(match[1]);
   }
+  for (const match of text.matchAll(INVERSE_APPLIED)) names.add(match[1]);
   return [...names].join('');
 };
 
@@ -215,6 +224,13 @@ const matrixSpeech = (body, environment, w) => {
   return ` ${lead}: ${spoken}; ${w.endMatrix} `;
 };
 const MATRIX_ENVIRONMENT = /\\begin\{([bpvBV]?matrix|smallmatrix|array)\}(?:\{[^{}]*\})?([\s\S]*?)\\end\{\1\}/g;
+// A system in a brace, \begin{cases}…\end{cases} (the Digital SAT bank's
+// systems), is its equations one after another, as the question reading says
+// a system: "y equals 3x plus 3; y equals 3x squared plus 3x". It was "cases
+// y equals 3x plus 3\\ equals …", the row break raw (math-speech-3). Read
+// before a text is split, so a brace written without $…$ is read whole too.
+const CASES_ENVIRONMENT = /\\begin\{cases\}([\s\S]*?)\\end\{cases\}/g;
+const casesSpeech = (body) => ` ${String(body).split(/\\\\(?:\[[^\]]*\])?/).map((row) => row.replace(/&/g, ' ').trim()).filter(Boolean).join('; ')} `;
 
 // f(x − 7) and f(x) − 7 are opposite transformations, so the words must differ:
 // an input of more than one term is "the quantity", as a bracket is everywhere
@@ -282,7 +298,7 @@ const markQuantityEnds = (text, w, operatorWords) => {
 const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
   // An operator after the first character: f(−3) is one term, f(x − 3) is two.
   // An inner application already read ("d of 2" in c(d(2))) is one term.
-  /.[\s+\-−*/·=<>]/.test(argument.trim()) && !new RegExp(`^[A-Za-z] ${w.of} (?!.*[+\\-−*/·=<>])`).test(argument.trim())
+  /.[\s+\-−*/·=<>]/.test(argument.trim()) && !new RegExp(`^[A-Za-z](?: ${w.inverse})? ${w.of} (?!.*[+\\-−*/·=<>])`).test(argument.trim())
     ? `${before} ${name} ${w.of} ${w.quantity} ${argument.trim()}${moreMathFollows(offset, whole, match) ? PAUSE : ''} `
     : `${before} ${name} ${w.of} ${argument} `
 );
@@ -530,6 +546,24 @@ const intervalSpeech = (open, left, right, close, w) => {
   return ` ${w.interval(from, to)}${ends ? `, ${ends}` : ''} `;
 };
 
+// x^((3 + 3)/3): the exponent's own bracket is the power's, "x to the power
+// the quantity 3 plus 3 end quantity over 3"; the brackets inside it are read
+// as any are.
+const bracketedPowers = (raw, w) => {
+  let text = raw;
+  for (let at = text.indexOf('^('); at !== -1; at = text.indexOf('^(')) {
+    let depth = 0;
+    let close = -1;
+    for (let index = at + 1; index < text.length; index += 1) {
+      if (text[index] === '(') depth += 1;
+      else if (text[index] === ')') { depth -= 1; if (depth === 0) { close = index; break; } }
+    }
+    if (close === -1) break;
+    text = `${text.slice(0, at)} ${w.power} ${text.slice(at + 2, close)} ${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
 /** Plain-text mathematics (after LaTeX is reduced) to words. */
 /*
  * A FRACTION WRITTEN AS ONE CHARACTER (platform-polish-3; F-READ-SYMBOLS in
@@ -644,10 +678,13 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     .replace(/∪/g, (match, offset, whole) => `${/\S/.test(whole.slice(0, offset)) ? PAUSE : ''} ${w.union} `)
     // "x ∈ {−2, 0, 2}" is "x is in the set …", as LaTeX's \in is.
     .replace(/∈/g, ` ${w.in} `);
-  // f(g(2)) is applied from the inside out: each pass reads one level.
-  const application = new RegExp(`(^|[^A-Za-z])([${letters}])\\(([^()]+)\\)`, 'g');
+  // f(g(2)) is applied from the inside out: each pass reads one level. An
+  // inverse applied, f⁻¹(x) or f^(-1)(x), is "f inverse of x"; it was "f
+  // inverse x" or "f inverse times x" (math-speech-3).
+  const application = new RegExp(`(^|[^A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\))?\\(([^()]+)\\)`, 'g');
+  const applied = (match, before, name, inverse, argument, offset, whole) => functionApplicationSpeech(w)(match, before, inverse ? `${name} ${w.inverse}` : name, argument, offset, whole);
   for (let pass = 0; pass < 4; pass += 1) {
-    const next = text.replace(application, functionApplicationSpeech(w));
+    const next = text.replace(application, applied);
     if (next === text) break;
     text = next;
   }
@@ -665,12 +702,21 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     .replace(/\^\(\s*3\s*\)|\^3(?![0-9./])|³/g, ` ${w.cubed} `)
     .replace(/\^\(([^()]+)\)/g, ` ${w.power} $1 `)
     .replace(/\^(-?[A-Za-z0-9.]+)/g, ` ${w.power} $1 `)
+    // An exponent that holds a bracket, x^((3 + 3)/3), and a power whose
+    // exponent the reader has said in words (x^√8): the caret reached the
+    // voice, "x^ the quantity the quantity 3 plus 3 …" (math-speech-3).
+    .replace(/[\s\S]*/, (whole) => bracketedPowers(whole, w))
+    .replace(/\^\s*/g, ` ${w.power} `)
     .replace(/<=|≤/g, ` ${w.le} `)
     .replace(/>=|≥/g, ` ${w.ge} `)
     .replace(/!=|≠/g, ` ${w.ne} `)
     .replace(/</g, ` ${w.lt} `)
     .replace(/>/g, ` ${w.gt} `)
+    .replace(/∓/g, ` ${w.mp} `)
     .replace(/±/g, ` ${w.pm} `)
+    // ≈ as \approx is; it was passed raw (math-speech-3), and so was ⟂.
+    .replace(/≈/g, ` ${w.approx} `)
+    .replace(/[⟂⊥]/g, ` ${w.perp} `)
     .replace(/=/g, ` ${w.eq} `)
     .replace(/∞/g, ` ${w.infinity} `)
     .replace(/π/g, ` ${w.pi} `)
@@ -874,6 +920,22 @@ const isSetMembers = (members) => /[\p{L}\p{N}∞]/u.test(members) && !/\p{L}{2,
 // was handed "($)" (lesson re-walk 2026-11-06). Taken out before the text is
 // split, so its "$" never opens a LaTeX span with a later one.
 const dollarUnits = (text, w) => text.replace(/\s*\(\s*\$\s*\)/g, ` ${w.units.dollars}`);
+
+/*
+ * A NAME'S MARKS, SAID (math-speech-3; the sweep of every lesson and bank
+ * text). A point's primes went to the voice raw and apart from their letter
+ * ("B ′", "A‴ B ‴"), and a mean's bar too ("x ̄"). They are "B prime", "A
+ * triple prime" and "x bar", held for Read aloud's split as a root's words
+ * are.
+ */
+const PRIMES = { '′': 0, '″': 1, '‴': 2 };
+const markedNames = (text, w, mark) => {
+  const said = (words) => (mark ? `${SAID_OPEN}${words}${SAID_CLOSE}` : ` ${words} `);
+  return text
+    .replace(/([A-Za-z])([′″‴])/g, (match, letter, prime) => `${letter}${said(w.primes[PRIMES[prime]])}`)
+    .replace(/([A-Za-z])\u0304/g, (match, letter) => `${letter}${said(w.bar)}`)
+    .replace(/ȳ/g, `y${said(w.bar)}`);
+};
 
 // A blank to fill in, "4(x − 2) + 3 = 4x + ___" (Algebra I M3 T1 L1 PR 11,
 // walkthrough 2026-11-06), reached the voice as underscores. It is "blank",
@@ -1159,7 +1221,7 @@ const proseArrowsToWords = (segments, w, letters) => {
 // log with no base is read with the mathematics around it, in mathToSpeech:
 // said here, "1/-ln(x)" lost its fraction to the prose.)
 const writtenNotationToSpokenForm = (raw, w, { mark = false } = {}) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(arrowsAsCharacters(String(raw ?? '')), w), w)), w), w), w, { mark },
+  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(markedNames(arrowsAsCharacters(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body))), w, mark), w), w)), w), w), w, { mark },
 );
 
 /**
