@@ -228,12 +228,18 @@
     border-radius: 9px !important;
   }
 
-  .algebra-equation-side {
-    font-size: calc(20 * var(--mm-px)) !important;
+  /* A side is drawn at most 20 units here. The board's fit reads this cap
+     (StepByStepAlgebraCore.jsx AutoFitEquationExpression), so a long side
+     still shrinks, or scrolls, instead of being drawn at 20 and cut off: a
+     font size on the side itself overrode the fit (P-6). */
+  .algebra-expression-fit-viewport {
+    --algebra-side-max-size: 20;
   }
 
+  /* Each side's share comes from the board, so a long side borrows the room a
+     short one does not need (P-6); without one, the halves are equal. */
   .algebra-equation-stage {
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr) !important;
+    grid-template-columns: var(--algebra-side-left, minmax(0, 1fr)) 34px var(--algebra-side-right, minmax(0, 1fr)) !important;
     padding: 10px !important;
     gap: 6px !important;
   }

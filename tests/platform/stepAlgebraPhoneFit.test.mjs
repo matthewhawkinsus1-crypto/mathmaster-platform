@@ -154,7 +154,7 @@ test('on a phone a long side borrows the room a short side does not need', () =>
   assert.equal(phoneSideColumnWeight(1, 2), 1, 'a one-character side counts as four');
 });
 
-test('the board and the phone layout are wired to the fit', () => {
+test('the board, App.css and the phone layout are wired to the fit', () => {
   const core = executableSource(read('src/StepByStepAlgebraCore.jsx'));
   const fit = region(core, 'function AutoFitEquationExpression', 'function OperationChip', 'the fit');
   // The fit's size comes from the shared arithmetic, with the screen's cap and
@@ -170,6 +170,13 @@ test('the board and the phone layout are wired to the fit', () => {
   assert.match(board, /'--algebra-side-right': `minmax\(0, \$\{phoneSideColumnWeight\(rightVisualLength, leftVisualLength\)\}fr\)`/);
   assert.match(core, /: adaptiveBalanceColumns \? \{ gridTemplateColumns: adaptiveBalanceColumns \} : phoneBalanceShares\}/);
 
+  // App.css: below 720 px no rule sizes a side over the fit any more; the 20
+  // is the fit's cap, and the stage's halves come from the board's shares.
+  const app = read('src/App.css');
+  const phone = region(app, '@media (max-width: 720px) {\n  .algebra-operation-grid', '@keyframes mathmasterSnapReveal', 'the phone algebra rules');
+  assert.doesNotMatch(phone, /\.algebra-equation-side\s*\{[^}]*font-size/, 'no font size on a side: it would beat the fit');
+  assert.match(phone, /\.algebra-expression-fit-viewport\s*\{\s*--algebra-side-max-size: 20;\s*\}/);
+  assert.match(phone, /\.algebra-equation-stage\s*\{\s*grid-template-columns: var\(--algebra-side-left, minmax\(0, 1fr\)\) 34px var\(--algebra-side-right, minmax\(0, 1fr\)\) !important;/);
   const css = read('src/StepByStepAlgebra.css');
   assert.match(css, /\.is-mobile-tap-layout \.algebra-connected-balance \{[^}]*grid-template-columns: var\(--algebra-side-left, minmax\(0, 1fr\)\) 34px var\(--algebra-side-right, minmax\(0, 1fr\)\);/);
   assert.match(css, /\.algebra-expression-fit-content:has\(> \.is-inline-structure\) \{[^}]*--algebra-side-wraps: 1;/);
