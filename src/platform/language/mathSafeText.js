@@ -33,6 +33,8 @@
  */
 
 const OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|]/;
+// A Greek letter is mathematics to Read aloud as π is (math-speech-3): "φ − 1"
+// was "φ negative 1", φ taken for prose and the minus for a sign.
 // Read aloud (speechText.js) also takes composition, union and membership as
 // mathematics, so (f∘g)(x) and (−∞, 0) ∪ (0, ∞) reach the reader whole: "f
 // composed with g of x", and a union's pieces heard as intervals (walkthrough
@@ -40,7 +42,21 @@ const OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|]/;
 // raw). Translation keeps them as text: the Spanish pack's lines hold them
 // between the masked mathematics ("({1} ∘ {2}){3}", "{1} ∪ {2}"), so its
 // segments must not move.
-const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪∈]/;
+const SPEECH_OPERATOR = /[=≠<>≤≥+−\-×·*/÷^±√π∞²³|∘∪∈\uE030αβγΓδΔεϵθϑλΛμρσΣτφϕΦωΩ]/;
+/*
+ * WHAT READ ALOUD HAS ALREADY SAID IN WORDS (math-speech-3). Read aloud says a
+ * root in words before it splits a text (speechText.js), and its words were
+ * prose to the split: "|√x|" became "| the square root of x |", the bars cut
+ * off from what they hold, and a sign or a bracket beside the root was left
+ * raw. Read aloud holds those words between SAID_OPEN and SAID_CLOSE: its
+ * split takes such a run as one piece of mathematics, inside a bracket or a
+ * pair of bars too, and joins it to the mathematics around it (SAID_OPEN
+ * counts as an operator). Nothing else writes the marks.
+ */
+export const SAID_OPEN = '\uE030';
+export const SAID_CLOSE = '\uE031';
+const SAID_RUN = /\uE030[^\uE030\uE031]*\uE031/g;
+const withoutSaid = (inner) => inner.replace(SAID_RUN, '·');
 const NAMED_FUNCTIONS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs', 'exp']);
 // Letters that are common one-letter WORDS in a language. Alone in prose they
 // are text: English "a" and "I"; Spanish "y" (and), "o" (or), "a" (to), "e",
@@ -63,6 +79,12 @@ const AXIS_VOCABULARY = Object.freeze({
 });
 
 const DELIMITED = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\{\{[^{}]+\}\}/g;
+// Read aloud's spans step over an escaped dollar (math-speech-3): the banks
+// write a price inside mathematics as "$\\$54 - \\$30$", and the span ended at
+// the escaped sign, so the second price lost its "dollars" and the closing
+// "$" reached the voice ("54 dollars minus 30", "3 dollars $"). Translate's
+// masked lines are keyed to the split as it is, so it keeps DELIMITED.
+const DELIMITED_SPEECH = /\$\$[\s\S]+?\$\$|\$(?:\\.|[^$\\\n])+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\{\{[^{}]+\}\}/g;
 const LATEX_COMMAND = /\\[a-zA-Z]+(?:\s*\{[^{}]*\})*/g;
 
 /** Tokens: words, numbers, whitespace, LaTeX, single characters. */
@@ -89,7 +111,7 @@ const classifyToken = (token, previous, next, words = ONE_LETTER_WORDS.en, opera
 
 /** Is everything inside a bracket pair mathematics (no prose words)? */
 const groupIsMath = (inner, operator = OPERATOR) => {
-  const tokens = inner.match(TOKEN) || [];
+  const tokens = withoutSaid(inner).match(TOKEN) || [];
   if (!tokens.length) return false;
   let sawMath = false;
   for (const token of tokens) {
@@ -110,9 +132,12 @@ const OPENERS = new Set(['(', '[']);
 // Read aloud: what a pair of bars holds is mathematics when it has a letter or
 // a digit, no word (a run of three letters or more that is not a function's
 // name) and no punctuation but a decimal point: |bx|, |½(x − 4)|, |5b⁷k⁵|.
-const barGroupIsMath = (inner) => /[\p{L}\p{N}]/u.test(inner)
-  && (inner.match(/\p{L}+/gu) || []).every((word) => word.length <= 2 || NAMED_FUNCTIONS.has(word.toLowerCase()))
-  && !/[,;:?!]|\.(?!\d)/.test(inner);
+const barGroupIsMath = (held) => {
+  const inner = withoutSaid(held);
+  return /[\p{L}\p{N}]/u.test(inner)
+    && (inner.match(/\p{L}+/gu) || []).every((word) => word.length <= 2 || NAMED_FUNCTIONS.has(word.toLowerCase()))
+    && !/[,;:?!]|\.(?!\d)/.test(inner);
+};
 
 /*
  * A SPAN THAT OPENS WITH A PRICE, READ AS THE SCREEN READS IT (platform-polish-3;
@@ -216,7 +241,7 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   // closed by the next price ("$20, $25"): Read aloud dropped every "dollars".
   // A number with nothing between it and the closing sign ("$7$") is a span:
   // it is how a LaTeX author writes the number 7, never a price (PR-4).
-  collect(DELIMITED, (value, end) => !(speech && opensPriceProse(value, text.slice(end))) && ((
+  collect(speech ? DELIMITED_SPEECH : DELIMITED, (value, end) => !(speech && opensPriceProse(value, text.slice(end))) && ((
     !/^\$\d[\d,]*(?:\.\d+)?[,;:.]?\s+[A-Za-z]{2,}/.test(value)
     && !/^\$\d[\d,]*(?:\.\d+)?[\s,;:]+\$$/.test(value)
   ) || /[\\{}^=]/.test(value)), { delimited: true });
@@ -233,6 +258,15 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
       if (OPENERS.has(char)) {
         const close = matchingClose(chunk, index);
         if (close > index && groupIsMath(chunk.slice(index + 1, close), operator)) {
+          atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
+          index = close + 1;
+          continue;
+        }
+      }
+      // Read aloud only: what it has already said in words is one piece.
+      if (speech && char === SAID_OPEN) {
+        const close = chunk.indexOf(SAID_CLOSE, index + 1);
+        if (close > index) {
           atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
           index = close + 1;
           continue;

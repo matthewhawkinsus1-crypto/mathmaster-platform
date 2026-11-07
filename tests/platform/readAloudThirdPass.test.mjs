@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
 import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
+import { maskMath } from '../../src/platform/language/mathSafeText.js';
 
 const es = { language: 'es' };
 
@@ -71,4 +72,62 @@ test('an arrow between two statements is "gives"', () => {
   // L1 CW 1 and the walk's 40 worked steps (math-speech-2 built this).
   assert.equal(speechTextFor('x + 7 = 9 → 4x + 28 = 36'), 'x plus 7 equals 9 gives 4x plus 28 equals 36');
   assert.equal(speechTextFor('x + 7 = 9 → 4x + 28 = 36', es), 'x más 7 es igual a 9 da 4x más 28 es igual a 36');
+});
+
+test('a root is read with the bars, brackets and signs around it', () => {
+  // platform-polish-3 logged "| the square root of x |".
+  assert.equal(speechTextFor('|√x|'), 'the absolute value of the square root of x');
+  assert.equal(speechTextFor('Simplify |√x| + 1.'), 'Simplify the absolute value of the square root of x end absolute value plus 1.');
+  assert.equal(speechTextFor('f(x) = |∛x|'), 'f of x equals the absolute value of the cube root of x');
+  assert.equal(speechTextFor('Find |ab√x| + 1.'), 'Find the absolute value of ab times the square root of x end absolute value plus 1.');
+  assert.equal(speechTextFor('|√x|', es), 'el valor absoluto de la raíz cuadrada de x');
+  // A sign and a bracket beside a root were passed raw.
+  assert.equal(speechTextFor('Use the graph of f(x)=−√x.'), 'Use the graph of f of x equals negative the square root of x.');
+  assert.equal(speechTextFor('−√5'), 'negative the square root of 5');
+  assert.equal(speechTextFor('√45 − √80 + √20'), 'the square root of 45 minus the square root of 80 plus the square root of 20');
+  assert.equal(speechTextFor('(√3 − 1)/2'), 'the quantity the square root of 3 minus 1 end quantity over 2');
+  assert.equal(speechTextFor('(2√3 + 3√5)(3 − √3) ='),
+    'the quantity 2 times the square root of 3 plus 3 times the square root of 5 end quantity times the quantity 3 minus the square root of 3 equals');
+  assert.equal(speechTextFor('(√2, √3)'), 'the point the square root of 2, the square root of 3');
+  assert.equal(speechTextFor('√(∛x) ='), 'the square root of the cube root of x equals');
+  assert.equal(speechTextFor('(√3 − 1)/2', es), 'la cantidad la raíz cuadrada de 3 menos 1 fin de la cantidad sobre 2');
+  // In prose a root is read as before, and the marks the split uses are never said.
+  assert.equal(speechTextFor('Simplify √50 completely.'), 'Simplify the square root of 50 completely.');
+  assert.doesNotMatch(speechTextFor('|√x| + (√2, √3)'), /[]/u);
+});
+
+test('Greek letters are said by name', () => {
+  // platform-polish-3 logged \alpha and \beta as silent.
+  assert.equal(speechTextFor('\\alpha + \\beta = 90'), 'alpha plus beta equals 90');
+  assert.equal(speechTextFor('$\\cos\\alpha=\\frac{12}{13}$'), 'cosine of alpha equals 12 over 13');
+  // \Delta was silent: "y over x".
+  assert.equal(speechTextFor('One student computes slope as $\\Delta y/\\Delta x=3$.'), 'One student computes slope as delta y over delta x equals 3.');
+  assert.equal(speechTextFor('The rate of change is Δy ÷ Δx.'), 'The rate of change is delta y divided by delta x.');
+  // φ was prose, so its minus was a sign: "φ negative 1".
+  assert.equal(speechTextFor('φ² = φ − 1'), 'phi squared equals phi minus 1');
+  assert.equal(speechTextFor('1/φ = 2 − φ'), '1 over phi equals 2 minus phi');
+  assert.equal(speechTextFor('The leg adjacent to α is 3.'), 'The leg adjacent to alpha is 3.');
+  assert.equal(speechTextFor('tan θ = 3/4'), 'tangent of theta equals 3 over 4');
+  assert.equal(speechTextFor('\\alpha + \\beta = 90', es), 'alfa más beta es igual a 90');
+  assert.equal(speechTextFor('1/φ = 2 − φ', es), '1 sobre fi es igual a 2 menos fi');
+});
+
+test('a minus before the letter a is "minus"', () => {
+  // L1 Honors CW 8's feedback (A1 M3 T2 walkthrough).
+  assert.equal(speechTextFor('Substitute s = 450 − a into 5s + 10a = C and simplify.'),
+    'Substitute s equals 450 minus a into 5s plus 10a equals C and simplify.');
+  assert.equal(speechTextFor('Write 2 − a as −a + 2.'), 'Write 2 minus a as negative a plus 2.');
+});
+
+test('a price inside mathematics keeps "dollars", and nothing says a price change unless the text does', () => {
+  // The ASVAB bank's prices in LaTeX: the span ended at the escaped sign.
+  assert.equal(speechTextFor('Between the two rows the cost rises by $\\$54 - \\$30$ over $3$ extra days.'),
+    'Between the two rows the cost rises by 54 dollars minus 30 dollars over 3 extra days.');
+  assert.equal(speechTextFor('It cost $\\$3$.'), 'It cost 3 dollars.');
+  assert.equal(speechTextFor('Each copy carries $\\$40 - \\$25 = \\$15$ of the setup.', es),
+    'Each copy carries 40 dólares menos 25 dólares es igual a 15 dólares of the setup.');
+  // A change of price is said as the text says it.
+  assert.equal(speechTextFor('The price rose from $5 to $10.'), 'The price rose from 5 dollars to 10 dollars.');
+  // Translate's split is unchanged.
+  assert.deepEqual(maskMath('It cost $\\$3$.'), { masked: 'It cost ⟦0⟧$.', tokens: ['$\\$3'] });
 });

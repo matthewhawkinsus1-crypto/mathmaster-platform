@@ -83,6 +83,8 @@ test('bars before a root say where they close', () => {
   assert.equal(speechTextFor('|5b⁷k⁵| ⁴√(k³)'), 'the absolute value of 5b to the power 7 k to the power 5 end absolute value times the 4th root of k cubed');
   assert.equal(speechTextFor('|x| √2'), 'the absolute value of x end absolute value times the square root of 2');
   assert.equal(speechTextFor('|x| √2', es), 'el valor absoluto de x fin del valor absoluto por la raíz cuadrada de 2');
-  // A root inside the bars is not after them: no product is said there.
-  assert.doesNotMatch(speechTextFor('|√x| + 1'), /times|end absolute value/);
+  // A root inside the bars is not after them: no product is said there. The
+  // bars hold it whole and end where more follows (math-speech-3).
+  assert.doesNotMatch(speechTextFor('|√x| + 1'), /times/);
+  assert.equal(speechTextFor('|√x| + 1'), 'the absolute value of the square root of x end absolute value plus 1');
 });

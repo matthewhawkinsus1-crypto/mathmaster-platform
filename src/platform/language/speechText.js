@@ -17,7 +17,7 @@
  * `language` chooses the spoken math words; the browser's voice is chosen by
  * the caller (speakAloud sets the utterance language).
  */
-import { NOT_TWO_VARIABLES, segmentMathText } from './mathSafeText.js';
+import { NOT_TWO_VARIABLES, SAID_CLOSE, SAID_OPEN, segmentMathText } from './mathSafeText.js';
 
 // Marks the "a" an arrow is said with in Spanish ("corresponde a"), so that
 // "a" joins any "el" after it ("corresponde al punto"), while elsewhere only
@@ -73,6 +73,12 @@ const WORDS = {
     trig: { sin: 'sine', cos: 'cosine', tan: 'tangent' },
     // A blank to fill in, "4x + ___" (math-speech-3).
     blank: 'blank',
+    // Greek letters by name (math-speech-3): \alpha, β and \Delta were silent
+    // or passed raw. A capital is said as its letter, "delta x" for Δx.
+    greek: {
+      alpha: 'alpha', beta: 'beta', gamma: 'gamma', delta: 'delta', epsilon: 'epsilon', lambda: 'lambda', mu: 'mu',
+      rho: 'rho', sigma: 'sigma', tau: 'tau', phi: 'phi', omega: 'omega',
+    },
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -125,8 +131,12 @@ const WORDS = {
     mixedAnd: 'y',
     trig: { sin: 'seno', cos: 'coseno', tan: 'tangente' },
     // New with math-speech-3, for the Spanish review: a blank to fill in is
-    // the pack's "espacio en blanco".
+    // the pack's "espacio en blanco", and the Greek letters' Spanish names.
     blank: 'espacio en blanco',
+    greek: {
+      alpha: 'alfa', beta: 'beta', gamma: 'gamma', delta: 'delta', epsilon: 'épsilon', lambda: 'lambda', mu: 'mu',
+      rho: 'ro', sigma: 'sigma', tau: 'tau', phi: 'fi', omega: 'omega',
+    },
   },
 };
 
@@ -353,6 +363,25 @@ const latexLogsToWords = (text, w) => {
   return out + text.slice(from);
 };
 
+/*
+ * GREEK LETTERS BY NAME (math-speech-3; platform-polish-3 logged it). LaTeX's
+ * \alpha, \beta and \Delta were silent: "\Delta y/\Delta x" was "y over x",
+ * "\cos\alpha" "cosine". The letters written as characters went to the voice
+ * raw, and "φ − 1" was "φ negative 1": the split took φ for prose (Read
+ * aloud's split now takes a Greek letter as mathematics, mathSafeText.js). π
+ * and θ were already said.
+ */
+const GREEK_NAMES = Object.freeze({
+  alpha: 'alpha', beta: 'beta', gamma: 'gamma', Gamma: 'gamma', delta: 'delta', Delta: 'delta', epsilon: 'epsilon',
+  varepsilon: 'epsilon', lambda: 'lambda', Lambda: 'lambda', mu: 'mu', rho: 'rho', varrho: 'rho', sigma: 'sigma',
+  Sigma: 'sigma', tau: 'tau', phi: 'phi', varphi: 'phi', Phi: 'phi', omega: 'omega', Omega: 'omega',
+  'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'Γ': 'gamma', 'δ': 'delta', 'Δ': 'delta', 'ε': 'epsilon', 'ϵ': 'epsilon',
+  'λ': 'lambda', 'Λ': 'lambda', 'μ': 'mu', 'ρ': 'rho', 'σ': 'sigma', 'Σ': 'sigma', 'τ': 'tau', 'φ': 'phi', 'ϕ': 'phi',
+  'Φ': 'phi', 'ω': 'omega', 'Ω': 'omega',
+});
+const LATEX_GREEK = new RegExp(`\\\\(${Object.keys(GREEK_NAMES).filter((name) => /^[A-Za-z]+$/.test(name)).join('|')})(?![A-Za-z])`, 'g');
+const UNICODE_GREEK = new RegExp(`[${Object.keys(GREEK_NAMES).filter((name) => !/^[A-Za-z]+$/.test(name)).join('')}]`, 'g');
+
 const latexToSpeech = (raw, w) => {
   let text = String(raw)
     // An escaped dollar is a price, not a delimiter.
@@ -433,7 +462,9 @@ const latexToSpeech = (raw, w) => {
     .replace(/\\(?:cdot|times)(?![A-Za-z])/g, ' × ')
     .replace(/\\div(?![A-Za-z])/g, ' ÷ ')
     .replace(/\\pi(?![A-Za-z])/g, ' π ')
-    .replace(/\\theta(?![A-Za-z])/g, ` ${w.theta} `)
+    .replace(/\\(?:var)?theta(?![A-Za-z])|[θϑ]/g, ` ${w.theta} `)
+    .replace(LATEX_GREEK, (match, name) => ` ${w.greek[GREEK_NAMES[name]]} `)
+    .replace(UNICODE_GREEK, (letter) => ` ${w.greek[GREEK_NAMES[letter]]} `)
     .replace(/\\%/g, '%')
     .replace(/\\(sin|cos|tan|ln|log)(?![A-Za-z])/g, ' $1 ')
     .replace(/\\[a-zA-Z]+/g, ' ')
@@ -454,6 +485,8 @@ const phraseWordsFor = (w) => new Set(Object.values(w).filter((value) => typeof 
 const phraseWordsCache = new WeakMap();
 const readsAsWord = (letters, w) => {
   if (DENOMINATOR_WORDS.has(letters.toLowerCase())) return true;
+  // A Greek letter's name, said already ("1/φ": "1 over phi", Spanish "fi").
+  if (Object.values(w.greek).includes(letters)) return true;
   if (!phraseWordsCache.has(w)) phraseWordsCache.set(w, phraseWordsFor(w));
   if (phraseWordsCache.get(w).has(letters)) return true;
   return letters.length >= 3 && /[aeiou]/i.test(letters);
@@ -708,6 +741,7 @@ const EXPONENT_CHARACTERS = SUPERSCRIPTS.replace(/[⁻⁺⁼⁽⁾]/g, '');
 const fromSuperscript = (run) => [...run].map((char) => SUPERSCRIPT_MAP[char] ?? '').join('');
 const SUPERSCRIPT_ORDINAL = /(\d)(ˢᵗ|ⁿᵈ|ʳᵈ|ᵗʰ)(?![\p{L}\p{N}])/gu;
 const SIMPLE_ARGUMENT = new RegExp(`^[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*$`);
+const ROOT_OF_SIMPLE = new RegExp(`^(?:[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+√|[√∛∜])[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*$`);
 const rootArgument = (text, from) => {
   let index = from;
   while (text[index] === ' ') index += 1;
@@ -806,8 +840,8 @@ const proseLogNames = (prose, next, w) => prose
   // …and sin, cos or tan before its own (platform-polish-3): "sin x" is
   // "sine of x", and "sin2x" "sine of 2x".
   .replace(/(?<![A-Za-z\\])(sin|cos|tan)(\s*)$/, (match, name, space) => (
-    next?.kind === 'math' && /^\s*(?:\d|[A-Za-z](?![A-Za-z])|\()/.test(next.value) ? `${w.trig[name]} ${w.of}${space}` : match))
-  // …or before an angle's name, which stays in the prose ("tan θ").
+    next?.kind === 'math' && /^\s*(?:\d|[A-Za-z](?![A-Za-z])|\(|[θαβφ])/.test(next.value) ? `${w.trig[name]} ${w.of}${space}` : match))
+  // …or before an angle's name in the prose ("tan θ").
   .replace(/(?<![A-Za-z\\])(sin|cos|tan)(\s*)(?=[θαβφ])/g, (match, name, space) => `${w.trig[name]} ${w.of}${space || ' '}`)
   .replace(/(?<![A-Za-z\\])ln(?![A-Za-z])/g, w.naturalLog);
 
@@ -863,7 +897,16 @@ const plainSetsToWords = (text, w) => {
 const POWER_BASE = /[\p{L}\p{N})\]}|]/u;
 // The end of what a root after it multiplies: 5∛2, and x³√x.
 const ROOT_COEFFICIENT = new RegExp(`[A-Za-z0-9)⁾${EXPONENT_CHARACTERS}]$`);
-const unicodeMathToSpokenForm = (raw, w) => {
+/*
+ * `mark`: Read aloud's own pass over a whole text, before it is split. A root
+ * is said in words there, and the split took its words for prose: a sign, a
+ * bracket or bars around the root were cut off from their mathematics and
+ * reached the voice raw ("|√x|" was "| the square root of x |", "(√3 + 1)/2"
+ * "( the square root of 3 plus 1 ) /2", math-speech-3). The words are held
+ * between two marks the split takes as mathematics (mathSafeText.js
+ * SAID_OPEN), and speechTextFor takes the marks out before anything is said.
+ */
+const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
   // A blank power, 2^(…), is "2 to the power …", and so is x^?, which kept
   // its caret ("x^3 · x^4 = x^?", lesson re-walk 2026-11-06, Rational
   // Exponents Warm-Up 1).
@@ -884,21 +927,26 @@ const unicodeMathToSpokenForm = (raw, w) => {
       const argument = rootArgument(text, index + (indexRun ? indexRun[0].length : 1));
       if (argument) {
         const words = order === '2' ? w.squareRoot : order === '3' ? w.cubeRoot : w.root(order);
-        // A root inside a root (√(∛x)) is read the same way.
-        const simple = SIMPLE_ARGUMENT.test(argument[0].trim());
-        const body = unicodeMathToSpokenForm(argument[0].trim(), w).trim();
+        // A root inside a root (√(∛x)) is read the same way, and a root of
+        // one number or letter is one term: "the square root of the cube
+        // root of x" needs no "quantity" (math-speech-3).
+        const simple = SIMPLE_ARGUMENT.test(argument[0].trim()) || ROOT_OF_SIMPLE.test(argument[0].trim());
+        const body = unicodeMathToSpokenForm(argument[0].trim(), w, { mark }).trim();
         // A slash before a root is a fraction bar, "over": "√8/√2" and "3 /
         // √6". The root is words from here on, so the slash was left to the
         // voice as a symbol (platform-polish-3).
-        if (/\/\s*$/.test(out)) out = out.replace(/\s*\/\s*$/, ` ${w.over} `);
+        const over = /\/\s*$/.test(out);
+        if (over) out = out.replace(/\s*\/\s*$/, ' ');
         // 5∛2 is "5 times the cube root of 2", and x³√x "x cubed times …".
-        const coefficient = ROOT_COEFFICIENT.test(out);
+        const coefficient = !over && ROOT_COEFFICIENT.test(out);
         // A root after absolute-value bars multiplies them, "|5b⁷k⁵| ⁴√(k³)",
         // and is written so (×): the bars' end is then said where they close
         // ("… end absolute value times the 4th root of k cubed"). It never was
         // (platform-polish-3). Only after a closing bar: bars are counted.
-        const afterBars = /\|\s*$/.test(out) && (out.match(/\|/g) || []).length % 2 === 0;
-        out += ` ${afterBars ? '× ' : coefficient ? `${w.times} ` : ''}${words} ${simple ? body : `(${body})`} `;
+        const afterBars = !over && /\|\s*$/.test(out) && (out.match(/\|/g) || []).length % 2 === 0;
+        const said = `${over ? `${w.over} ` : afterBars ? '× ' : coefficient ? `${w.times} ` : ''}${words}`;
+        const argumentSaid = simple ? body : `(${body})`;
+        out += mark ? ` ${SAID_OPEN}${said}${SAID_CLOSE}${argumentSaid} ` : ` ${said} ${argumentSaid} `;
         index = argument[1];
         continue;
       }
@@ -1099,8 +1147,8 @@ const proseArrowsToWords = (segments, w, letters) => {
 // logarithm's base and a set in braces, then the powers and roots above. (A
 // log with no base is read with the mathematics around it, in mathToSpeech:
 // said here, "1/-ln(x)" lost its fraction to the prose.)
-const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(arrowsAsCharacters(String(raw ?? '')), w), w)), w), w), w,
+const writtenNotationToSpokenForm = (raw, w, { mark = false } = {}) => unicodeMathToSpokenForm(
+  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(arrowsAsCharacters(String(raw ?? '')), w), w)), w), w), w, { mark },
 );
 
 /**
@@ -1118,7 +1166,7 @@ const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
 const TRIG_NAME = /(?<![A-Za-z])\\?(sin|cos|tan)(?:\^[({]?\s*(\d+)\s*[)}]?)?(?![A-Za-z_])\s*/g;
 // The argument: a bracket, or a number with its letter ("\sin2x" is sin(2x)),
 // a letter, or an angle's name (θ; \theta, the one the reader says).
-const TRIG_ARGUMENT = /^(?:\d+(?:\.\d+)?[A-Za-z]?|[A-Za-z]|[θαβφ]|\\theta)(?![A-Za-z])/;
+const TRIG_ARGUMENT = new RegExp(`^(?:\\d+(?:\\.\\d+)?[A-Za-z]?|[A-Za-z]|[θϑ]|${UNICODE_GREEK.source}|\\\\(?:var)?theta|${LATEX_GREEK.source.slice(0, -'(?![A-Za-z])'.length)})(?![A-Za-z])`);
 const trigArgument = (text, from) => {
   if (text[from] === '(') return plainLogArgument(text, from);
   const run = TRIG_ARGUMENT.exec(text.slice(from));
@@ -1223,6 +1271,7 @@ const INTERVAL_CUE = /(?:\b(?:increasing|decreasing|positive|negative|constant)(
  * spacing. Text with no line break is returned as it is.
  */
 const DISPLAY_MATH = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/g;
+const SAID_MARKS = new RegExp(`[${SAID_OPEN}${SAID_CLOSE}]`, 'g');
 const ENDS_LINE = /[.;:!?,…][)\]"'”’]*\s*$/u;
 // A line that ends inside a $…$ span it opened (a broken one: a span never
 // holds a line break) is left as it was. Its LaTeX signs are odd in number
@@ -1257,12 +1306,13 @@ const withPriceSigns = (segment) => (segment.delimited || /^\s*\$\d[\d,]*(?:\.\d
 
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
-  const text = spokenLineForms(writtenNotationToSpokenForm(lineBreaksAsPauses(raw), w), w);
+  const text = spokenLineForms(writtenNotationToSpokenForm(lineBreaksAsPauses(raw), w, { mark: true }), w);
   if (!text.trim()) return '';
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
   const names = `${functionNames || ''}${definedFunctionNames(text)}`;
-  const segments = proseArrowsToWords(segmentMathText(text, { speech: true }), w, functionLettersFor(names));
+  const split = segmentMathText(text, { speech: true }).map((segment) => ({ ...segment, value: segment.value.replace(SAID_MARKS, ' ') }));
+  const segments = proseArrowsToWords(split, w, functionLettersFor(names));
   const dimensionsText = /dimension|matri|dimensi/i.test(text);
   return segments
     .map((segment, index) => {

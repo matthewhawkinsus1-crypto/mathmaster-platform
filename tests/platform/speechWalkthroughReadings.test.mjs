@@ -50,7 +50,8 @@ test('powers and roots written as characters are read in words', () => {
   assert.equal(speechTextFor('∛(8/(3y²)) ='), 'the cube root of the quantity 8 over the quantity 3y squared equals');
   assert.match(speechTextFor('⁶√16 / ∛2 ='), /^the 6th root of 16 .* the cube root of 2 equals$/);
   assert.equal(speechTextFor('5∛2 + ∛16'), '5 times the cube root of 2 plus the cube root of 16');
-  assert.match(speechTextFor('√(∛x) ='), /^the square root of \(?\s*the cube root of x \)? equals$/);
+  // A root of a root needs no quantity, and no bracket reaches the voice (math-speech-3).
+  assert.equal(speechTextFor('√(∛x) ='), 'the square root of the cube root of x equals');
   assert.equal(speechTextFor('as a power of 2: 2^(…)'), 'as a power of 2: 2 to the power …');
   assert.equal(speechTextFor('√(16x⁴y¹¹) =', { language: 'es' }), 'la raíz cuadrada de la cantidad 16x a la potencia 4 y a la potencia 11 es igual a');
 });
