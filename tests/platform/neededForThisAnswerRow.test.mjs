@@ -14,7 +14,11 @@
  *
  * Across every lesson file, every typed box's row is exactly what it was, in
  * every version a student is dealt. The bounded answer is not added to CW 8
- * here; the last test shows it now can be.
+ * here; the last test shows it now can be. For CW 8 itself the phone shows no
+ * difference either way: an inequality box's keypad also carries its format's
+ * four relations (resolveRequiredAnswerSymbols), so <, ≤, > and ≥ are on every
+ * inequality box. The reading matters where a box's format names no relation
+ * (an equation, an expression, a number).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
 import { versionsOf } from './helpers/lessonFileChecks.mjs';
-import { fieldKeyValues, inferRequiredAnswerSymbols, neededAnswerSymbols } from '../../src/platform/interaction/answerEntryTools.js';
+import { fieldKeyValues, inferRequiredAnswerSymbols, neededAnswerSymbols, resolveRequiredAnswerSymbols } from '../../src/platform/interaction/answerEntryTools.js';
 import { answerCandidatesForField, matchesFieldAnswer } from '../../functions/shared/answerUtils.mjs';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
@@ -113,4 +117,13 @@ test('L3 CW 8 part b can now take 0 ≤ b < 540: graded right in the browser and
   // The row is the key's: no ≤ for an answer that uses only <.
   assert.deepEqual(rowNow(withBounded), rowNow(field));
   assert.equal(rowNow(withBounded).includes('≤'), false);
+  // What the phone shows (MathInput): the box's keys and its format's. An
+  // inequality box always carries all four relations, so the bounded form
+  // changes nothing a student sees on CW 8, read the new way or the old.
+  const shown = (box, row) => [...new Set(resolveRequiredAnswerSymbols({
+    answerFormat: box.answerFormat, toolProfile: 'inequality', requiredSymbols: [...(box.requiredSymbols || []), ...row],
+  }))];
+  assert.deepEqual(shown(field, rowNow(field)), ['<', '≤', '>', '≥', 'b']);
+  assert.deepEqual(shown(withBounded, rowNow(withBounded)), shown(field, rowNow(field)));
+  assert.deepEqual(shown(withBounded, rowBefore(withBounded)), shown(field, rowNow(field)));
 });
