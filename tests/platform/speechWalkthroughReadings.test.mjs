@@ -139,7 +139,8 @@ test('absolute-value bars are read as a pair, and their end is said where more f
   assert.equal(mathToSpeech('\\ln|x|'), 'natural log of the absolute value of x', 'no "times" after "of"');
   // A relation or the end needs no end.
   assert.equal(speechTextFor('|x| = 3'), 'the absolute value of x equals 3');
-  assert.equal(speechTextFor('f(−5) = |−3| − 3 = 0.', { language: 'es' }), 'f de negativo 5 es igual a el valor absoluto de negativo 3 fin del valor absoluto menos 3 es igual a 0.');
+  // "es igual al": the preposition joins the article (math-speech-3).
+  assert.equal(speechTextFor('f(−5) = |−3| − 3 = 0.', { language: 'es' }), 'f de negativo 5 es igual al valor absoluto de negativo 3 fin del valor absoluto menos 3 es igual a 0.');
   // Only Read aloud's split takes the bars whole: Translate's is unchanged.
   assert.deepEqual(segmentMathText('|bx| = 2', { speech: true }).map((segment) => segment.kind), ['math']);
   assert.equal(maskMath('For |x|, |bx| = |b|·|x|.').masked, 'For ⟦0⟧, ⟦1⟧bx⟦2⟧.');

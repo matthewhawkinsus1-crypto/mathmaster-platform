@@ -131,3 +131,16 @@ test('a price inside mathematics keeps "dollars", and nothing says a price chang
   // Translate's split is unchanged.
   assert.deepEqual(maskMath('It cost $\\$3$.'), { masked: 'It cost ⟦0⟧$.', tokens: ['$\\$3'] });
 });
+
+test('Spanish joins "a" and "de" to the article the reader says', () => {
+  // The November handoff, section 6: "es igual a el valor absoluto".
+  assert.equal(speechTextFor('f(−5) = |−3| − 3 = 0.', es), 'f de negativo 5 es igual al valor absoluto de negativo 3 fin del valor absoluto menos 3 es igual a 0.');
+  assert.equal(speechTextFor('S1 = (−2, −2)', es), 'S1 es igual al punto negativo 2, negativo 2');
+  assert.equal(speechTextFor('√|x|', es), 'la raíz cuadrada del valor absoluto de x');
+  assert.equal(spokenMathLabel('x \\approx |y|', es), 'x es aproximadamente igual al valor absoluto de y');
+  assert.equal(speechTextFor('x ∈ {1, 2}', es), 'x pertenece al conjunto 1, 2 fin de conjunto');
+  // The letter a is not the preposition: it is still said.
+  assert.match(speechTextFor('f(x) = a|x − h| + k', es), /^f de x es igual a a el valor absoluto de x /);
+  // English is unchanged.
+  assert.equal(speechTextFor('y = |x|'), 'y equals the absolute value of x');
+});

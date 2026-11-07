@@ -19,10 +19,12 @@
  */
 import { NOT_TWO_VARIABLES, SAID_CLOSE, SAID_OPEN, segmentMathText } from './mathSafeText.js';
 
-// Marks the "a" an arrow is said with in Spanish ("corresponde a"), so that
-// "a" joins any "el" after it ("corresponde al punto"), while elsewhere only
-// "el conjunto" and "el intervalo" do, as before. Removed by `contract`.
-const ARROW_A = '';
+// Marks the "a" a phrase is said with in Spanish: an arrow's ("corresponde
+// a") and a relation's ("es igual a", "pertenece a", math-speech-3). That "a"
+// joins any "el" after it ("corresponde al punto", "es igual al valor
+// absoluto"); an "a" without it is the letter a, which never does. Removed by
+// `contract`.
+const PREPOSITION_A = '';
 
 const WORDS = {
   en: {
@@ -83,26 +85,32 @@ const WORDS = {
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
     inverse: 'inversa', squared: 'al cuadrado', cubed: 'al cubo', power: 'a la potencia',
-    le: 'es menor o igual que', ge: 'es mayor o igual que', ne: 'no es igual a', lt: 'es menor que', gt: 'es mayor que',
-    eq: 'es igual a', pm: 'más o menos', infinity: 'infinito', times: 'por', divided: 'dividido entre', plus: 'más', minus: 'menos',
+    le: 'es menor o igual que', ge: 'es mayor o igual que', ne: `no es igual a${PREPOSITION_A}`, lt: 'es menor que', gt: 'es mayor que',
+    eq: `es igual a${PREPOSITION_A}`, pm: 'más o menos', infinity: 'infinito', times: 'por', divided: 'dividido entre', plus: 'más', minus: 'menos',
     negative: 'negativo', abs: 'el valor absoluto de', endAbs: 'fin del valor absoluto', point: 'el punto', pi: 'pi', percent: 'por ciento', dollars: 'dólares',
     dollar: 'dólar', cent: 'centavo', cents: 'centavos', moneyAnd: 'con', composed: 'compuesta con',
     matrix: (rows, columns) => `una matriz de ${rows} por ${columns}`, row: 'fila', endMatrix: 'fin de matriz', determinant: 'el determinante de',
     quantity: 'la cantidad', by: 'por',
     fraction: 'la fracción', endFraction: 'fin de fracción', endRoot: 'fin de raíz', root: (n) => `la raíz ${n} de`,
     degrees: 'grados', repeating: 'periódico', segment: 'segmento', ray: 'rayo', sub: 'sub', endSub: '',
-    approx: 'es aproximadamente igual a', cong: 'es congruente con', sim: 'es semejante a', parallel: 'es paralela a',
-    perp: 'es perpendicular a', angle: 'ángulo', triangle: 'triángulo', in: 'pertenece a', theta: 'theta',
+    approx: `es aproximadamente igual a${PREPOSITION_A}`, cong: 'es congruente con', sim: `es semejante a${PREPOSITION_A}`,
+    parallel: `es paralela a${PREPOSITION_A}`, perp: `es perpendicular a${PREPOSITION_A}`, angle: 'ángulo', triangle: 'triángulo',
+    in: `pertenece a${PREPOSITION_A}`, theta: 'theta',
     setOpen: 'el conjunto', setClose: 'fin de conjunto', squareRootFn: 'la raíz cuadrada de', not: 'no', hat: 'gorro',
     // New with the interval reading (2026-11-06): for the Spanish review
     // (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). "incluye" is the
     // pack's verb for an endpoint ("{2} incluye {3}").
     union: 'unión', interval: (from, to) => `el intervalo de ${from} a ${to}`,
-    // "pertenece al conjunto", "del intervalo": a and de join the article. An
-    // arrow's "a" (ARROW_A) joins any "el" after it: "corresponde al punto".
+    // "pertenece al conjunto", "del intervalo": a and de join the article. A
+    // phrase's "a" (PREPOSITION_A) joins any "el" after it: "corresponde al
+    // punto", "es igual al valor absoluto" (math-speech-3; the November
+    // handoff, section 6: it was "es igual a el valor absoluto"). "de" joins
+    // every article the reader says: "la raíz cuadrada del valor absoluto",
+    // "del punto". The letter a is not a preposition: "a|x|" keeps "a el".
     contract: (text) => text
-      .replace(new RegExp(`\\ba${ARROW_A} el\\b`, 'g'), 'al')
-      .replace(new RegExp(ARROW_A, 'g'), '')
+      .replace(new RegExp(`\\ba${PREPOSITION_A} el\\b`, 'g'), 'al')
+      .replace(new RegExp(PREPOSITION_A, 'g'), '')
+      .replace(/\bde el (valor absoluto|punto|determinante)\b/g, 'del $1')
       .replace(/\b(a|de) el (conjunto|intervalo)\b/g, (match, word, noun) => `${word === 'a' ? 'al' : 'del'} ${noun}`),
     ends: {
       both: (a, b) => `que incluye ${a} y ${b}`, neither: (a, b) => `que no incluye ${a} ni ${b}`,
@@ -114,8 +122,8 @@ const WORDS = {
     commonLog: 'logaritmo', naturalLog: 'logaritmo natural',
     setBuilder: { of: 'el conjunto de', suchThat: 'tal que' },
     arrows: {
-      approaches: `se acerca a${ARROW_A}`, mapsTo: `corresponde a${ARROW_A}`, to: `a${ARROW_A}`, gives: 'da', next: 'luego', means: 'significa',
-      goesInto: 'entra en', replacedBy: 'se reemplaza por', correspondsTo: `corresponde a${ARROW_A}`, iff: 'si y solo si', implies: 'implica',
+      approaches: `se acerca a${PREPOSITION_A}`, mapsTo: `corresponde a${PREPOSITION_A}`, to: `a${PREPOSITION_A}`, gives: 'da', next: 'luego', means: 'significa',
+      goesInto: 'entra en', replacedBy: 'se reemplaza por', correspondsTo: `corresponde a${PREPOSITION_A}`, iff: 'si y solo si', implies: 'implica',
     },
     units: { dollars: 'en dólares' },
     endQuantity: 'fin de la cantidad',
@@ -586,8 +594,11 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
   // The last word of every operator phrase: a bracket after one of these is a
   // new quantity, not a product ("x equals the quantity …", never "equals
   // times the quantity").
+  // A Spanish phrase's marked "a" is one of them, and so, as before, is the
+  // letter a (a sign after it is read as after "es igual a"; the November
+  // handoff's section 5 holds that for the owner).
   const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power, w.quantity, w.union]
-    .map((word) => word.split(' ').pop());
+    .flatMap((word) => { const last = word.split(' ').pop(); return [last, last.replace(PREPOSITION_A, '')]; });
   // A bracket holding only the symbol names the symbol: "a union (∪)".
   text = text.replace(/\(\s*([∘∪])\s*\)/g, ' $1 ');
   const matrixRows = /\[\s*\[|\]\s*\]/.test(text);
