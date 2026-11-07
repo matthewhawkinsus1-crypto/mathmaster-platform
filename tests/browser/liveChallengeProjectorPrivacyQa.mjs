@@ -143,6 +143,20 @@ const authFor = (identity = {}) => (identity.as === 'teacher'
   : { uid: `${identity.studentId}-uid`, token: { role: 'student', studentId: identity.studentId, email: `${identity.studentId}@example.com`, email_verified: true } });
 
 const bridgeCalls = [];
+// The console configures a room right after it creates one (Create Lobby and
+// Play Again: configureLiveChallengeExperience). A scenario that cancels the
+// room it made waits for that call to come back first: a cancel that beats it
+// leaves the server refusing the configure (the room has ended), a refusal
+// this run would count against the console.
+const configureCalls = () => bridgeCalls.filter((call) => call.name === 'configureLiveChallengeExperience').length;
+const configureAnsweredSince = async (before, timeout = 15_000) => {
+  const until = Date.now() + timeout;
+  while (Date.now() < until) {
+    if (configureCalls() > before) return true;
+    await wait(100);
+  }
+  return false;
+};
 const bridge = http.createServer(async (request, response) => {
   response.setHeader('access-control-allow-origin', '*');
   response.setHeader('access-control-allow-headers', 'content-type');
@@ -703,6 +717,7 @@ try {
   await shot(teacher, 'F03-podium-full');
 
   // PLAY AGAIN keeps the choice.
+  const configuresBeforeReplay = configureCalls();
   await teacher.page.locator('[data-mm-primary-action="playAgain"]').first().click();
   const replayId = await (async () => {
     const until = Date.now() + 30_000;
@@ -716,6 +731,7 @@ try {
   check(replayId, 'Play Again did not create a new room', 'Play Again creates a new room');
   if (replayId) {
     check((await roomOf(replayId)).standingsDisplay === 'full', 'Play Again dropped "Full standings"', 'Play Again keeps "Full standings"');
+    check(await configureAnsweredSince(configuresBeforeReplay), 'the console never configured the new room', 'the console configures the new room');
     await teacherCall('cancelLiveChallenge', { roomId: replayId }).catch(() => {});
   }
 
@@ -909,6 +925,7 @@ try {
   const gpResult = (await db.collection('liveChallengeMatchResults').doc(gpId).get()).data();
   check(gpResult?.scoringStrategyId === 'grandPrix', `the match result is scored by ${gpResult?.scoringStrategyId}`, 'the match result records Grand Prix');
   // PLAY AGAIN keeps the choice (as it keeps the projector choice above).
+  const configuresBeforeGpReplay = configureCalls();
   await teacher.page.locator('[data-mm-primary-action="playAgain"]').first().click();
   const gpReplay = await (async () => {
     const until = Date.now() + 30_000;
@@ -923,6 +940,7 @@ try {
   if (gpReplay) {
     const replayRoom = await roomOf(gpReplay);
     check(replayRoom.scoringStrategyId === 'grandPrix' && replayRoom.speedInfluencePercent === 20, `Play Again scored by ${replayRoom.scoringStrategyId}, speed ${replayRoom.speedInfluencePercent}`, 'Play Again keeps Grand Prix (and the default speed)');
+    check(await configureAnsweredSince(configuresBeforeGpReplay), 'the console never configured the new room', 'the console configures the new room');
     await teacherCall('cancelLiveChallenge', { roomId: gpReplay }).catch(() => {});
   }
   await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click().catch(() => {});
