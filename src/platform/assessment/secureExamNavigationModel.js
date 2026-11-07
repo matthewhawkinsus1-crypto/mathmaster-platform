@@ -524,6 +524,27 @@ export function studentSessionStatus(session) {
   }
 }
 
+/**
+ * The status a teacher reads in the live proctor monitor: words, never a
+ * stored code such as `locked_integrity`, in the monitor's own terms (its
+ * button is Unlock). `tone` picks the colour; a status the server adds later
+ * is shown as it is stored rather than hidden.
+ */
+export function proctorSessionStatus(status) {
+  const value = String(status || '');
+  const make = (label, tone) => ({ status: value, label, tone });
+  switch (value) {
+    case SESSION_STATUS.NOT_STARTED: return make('Not started', 'neutral');
+    case SESSION_STATUS.IN_PROGRESS: return make('In progress', 'neutral');
+    case SESSION_STATUS.LOCKED_PROCTOR: return make('Locked by a teacher', 'locked');
+    case SESSION_STATUS.LOCKED_INTEGRITY: return make('Locked after leaving the test', 'locked');
+    case SESSION_STATUS.SUBMITTED: return make('Submitted', 'done');
+    case SESSION_STATUS.FORCE_SUBMITTED: return make('Submitted by a teacher', 'done');
+    case SESSION_STATUS.TIME_EXPIRED: return make('Time ran out', 'done');
+    default: return make(value || 'Unknown', value.startsWith('locked') ? 'locked' : 'neutral');
+  }
+}
+
 /** When this student's results arrive, said once on their list of tests. */
 export function resultsTimingText(session) {
   const status = String(session?.status || '');
