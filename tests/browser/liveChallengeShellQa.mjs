@@ -677,9 +677,13 @@ const watcherTotal = (open) => Object.values(open).reduce((sum, count) => sum + 
 
 /* ------------------------------ run a scenario ------------------------------ */
 
+// When the scenario now running began, so a console error can be matched to
+// the calls the bridge refused in it.
+let scenarioStartedAt = 0;
 const run = async (name, scenario) => {
   if (ONLY.length && !ONLY.includes(name)) return;
   log(`▶ ${name}`);
+  scenarioStartedAt = Date.now();
   const before = findings.length;
   try {
     await scenario(name);
@@ -693,8 +697,16 @@ const run = async (name, scenario) => {
   log(`${findings.length === before ? '✓' : '✗'} ${name}`);
 };
 
+// The bridge answers a refused callable with a 400, which the browser logs
+// only as "Failed to load resource": name the refusals behind such an error.
+const refusedSinceScenarioStart = () => bridgeCalls
+  .filter((call) => !call.ok && call.at >= scenarioStartedAt)
+  .map((call) => ({ name: call.name, code: call.code, lifecycle: call.lifecycle, who: call.identity?.studentId || call.identity?.role || 'teacher' }));
 const consoleErrors = (S, handles) => {
-  for (const handle of handles) check(S, handle.errors.length === 0, `console errors on ${handle.device}${handle.studentId ? ` (${handle.studentId})` : ''}: ${handle.errors.slice(0, 3).join(' | ')}`);
+  for (const handle of handles) {
+    const clean = check(S, handle.errors.length === 0, `console errors on ${handle.device}${handle.studentId ? ` (${handle.studentId})` : ''}: ${handle.errors.slice(0, 3).join(' | ')}`);
+    if (!clean && handle.errors.some((text) => /status of 400/.test(text))) note(S, 'calls the bridge refused in this scenario', refusedSinceScenarioStart());
+  }
 };
 
 /* ================================ scenarios ================================ */
