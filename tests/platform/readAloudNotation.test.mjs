@@ -34,7 +34,7 @@ test('a power written as a superscript letter is read as the typed power is', ()
   // hyphenated word, and a bracket in the exponent is said where it ends.
   assert.equal(speechTextFor('(aᵐ)ⁿ = aᵐⁿ'), 'the quantity a to the power m, to the power n equals a to the power m n');
   assert.equal(speechTextFor('xᵃ/xᵇ = xᵃ⁻ᵇ'), 'x to the power a over x to the power b equals x to the power a minus b');
-  assert.equal(speechTextFor('h⁶⁻⁽⁻²⁾ = h⁸'), 'h to the power the quantity 6 minus the quantity negative 2 equals h to the power 8');
+  assert.equal(speechTextFor('h⁶⁻⁽⁻²⁾ = h⁸'), 'h to the power the quantity 6 minus negative 2 equals h to the power 8');
   // A letter index makes a root of that index, never a square root.
   assert.equal(speechTextFor('In ⁿ√b, n is the index.'), 'In the nth root of b, n is the index.');
   assert.equal(speechTextFor('ⁿ√(aⁿ) = |a|'), 'the nth root of a to the power n equals the absolute value of a');
@@ -251,7 +251,7 @@ test('a log with no base is "log of", and ln is "natural log of"', () => {
   // An argument of more than one term is a quantity, typed or in LaTeX.
   assert.equal(speechTextFor('g(x) = log(x + 2) − 1'), 'g of x equals log of the quantity x plus 2 end quantity minus 1');
   assert.equal(mathToSpeech('\\log(x+2)'), 'log of the quantity x plus 2', 'it was "log x plus 2"');
-  assert.equal(mathToSpeech('y=\\log(x-(-2))+3'), 'y equals log of the quantity x minus the quantity negative 2 plus 3', 'a bracket inside the argument');
+  assert.equal(mathToSpeech('y=\\log(x-(-2))+3'), 'y equals log of the quantity x minus negative 2 plus 3', 'a bracket inside the argument');
   assert.equal(mathToSpeech('\\log_{0.5}(x-3)'), 'log base 0.5 of the quantity x minus 3', 'it was "log base 0.5 of x minus 3"');
   // Around other mathematics.
   assert.equal(speechTextFor('y = -ln(x)'), 'y equals negative natural log of x');

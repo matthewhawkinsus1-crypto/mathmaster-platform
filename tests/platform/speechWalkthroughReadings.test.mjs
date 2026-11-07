@@ -18,7 +18,7 @@ test('absolute value: a coefficient is "times", and a multi-term inside ends whe
   // Nothing to close at the end. One term ends too where more follows
   // (math-speech-2, item 11: "|−3| − 3" was heard as |−3 − 3|).
   assert.equal(speechTextFor('If 3 < x ≤ 7, what is |x - 5|?'), 'If 3 is less than x is less than or equal to 7, what is the absolute value of x minus 5?');
-  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x end absolute value plus the quantity 2');
+  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x end absolute value plus 2');
   assert.equal(mathToSpeech('2|x-2|-4', { language: 'es' }), '2 por el valor absoluto de x menos 2 fin del valor absoluto menos 4');
 });
 
@@ -101,8 +101,9 @@ test('(fg)(x) is the product of two functions, applied: "f times g of x" (AX20)'
   assert.equal(mathToSpeech('(f g)(2)'), 'f times g of 2');
   assert.equal(spokenMathLabel('(fg)(x)'), 'f times g of x');
   assert.equal(mathToSpeech('(fg)(x)', { language: 'es' }), 'f por g de x');
-  // A bracket that is not two function names is still a quantity.
-  assert.equal(mathToSpeech('(ab)(c)'), 'the quantity ab times the quantity c');
+  // A bracket that is not two function names is still a quantity; one
+  // letter in brackets is not one (math-speech-3).
+  assert.equal(mathToSpeech('(ab)(c)'), 'the quantity ab times c');
   assert.equal(mathToSpeech('(x+1)(x-2)'), 'the quantity x plus 1 end quantity times the quantity x minus 2', 'where the first closes is said (item 10)');
 });
 
@@ -117,10 +118,11 @@ test('where a quantity of more than one term closes is said when more follows', 
   assert.equal(speechTextFor('4(3x + 2) = 8x + 4'), '4 times the quantity 3x plus 2 equals 8x plus 4');
   assert.equal(speechTextFor('(x + 1)² + 3'), 'the quantity x plus 1, squared plus 3');
   assert.equal(speechTextFor('Simplify (x + 4).'), 'Simplify the quantity x plus 4.');
-  // One term in a bracket is read as before.
+  // A fraction in a bracket is read as before. One number in a bracket is
+  // not a quantity (math-speech-3, readAloudThirdPass.test.mjs).
   assert.equal(speechTextFor('y = (1/2)x − 3'), 'y equals the quantity 1 over 2 x minus 3');
-  assert.equal(speechTextFor('6(4) + 4'), '6 times the quantity 4 plus 4');
-  assert.equal(speechTextFor('(−3) + 2'), 'the quantity negative 3 plus 2');
+  assert.equal(speechTextFor('6(4) + 4'), '6 times 4 plus 4');
+  assert.equal(speechTextFor('(−3) + 2'), 'negative 3 plus 2');
   assert.equal(speechTextFor('(x − 3)/2 + 1', { language: 'es' }), 'la cantidad x menos 3 fin de la cantidad sobre 2 más 1');
 });
 

@@ -53,7 +53,9 @@ test('tidying only removes grouping a reader never sees', () => {
   assert.equal(tidyMathForSpeech('(2)3'), '(2)3');
   assert.equal(tidyMathForSpeech('(x+1)(x-1)'), '(x+1)(x-1)');
   assert.equal(tidyMathForSpeech('-(x+2)'), '-(x+2)');
-  assert.equal(spokenMathValue('2(3)'), '2 times the quantity 3');
+  // Said as the product it is; one number in brackets is not a quantity
+  // (math-speech-3).
+  assert.equal(spokenMathValue('2(3)'), '2 times 3');
 });
 
 // Every component under src/. The scan began as six folders and files of the

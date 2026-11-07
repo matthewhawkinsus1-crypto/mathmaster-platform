@@ -71,6 +71,8 @@ const WORDS = {
     mixedAnd: 'and',
     // sin, cos and tan by name, as log and ln are (platform-polish-3).
     trig: { sin: 'sine', cos: 'cosine', tan: 'tangent' },
+    // A blank to fill in, "4x + ___" (math-speech-3).
+    blank: 'blank',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -122,6 +124,9 @@ const WORDS = {
     },
     mixedAnd: 'y',
     trig: { sin: 'seno', cos: 'coseno', tan: 'tangente' },
+    // New with math-speech-3, for the Spanish review: a blank to fill in is
+    // the pack's "espacio en blanco".
+    blank: 'espacio en blanco',
   },
 };
 
@@ -216,24 +221,45 @@ const moreMathFollows = (offset, whole, match) => typeof whole === 'string'
  * a "\u2212" after it is still "minus".
  */
 const QUANTITY_END = '\uE005';
+/*
+ * ONE NUMBER OR ONE LETTER IN BRACKETS IS NOT A QUANTITY (math-speech-3).
+ * "6(4) + 4 = 28" was "6 times the quantity 4 plus 4 equals 28", which is how
+ * 6(4 + 4) sounds (Algebra I M3 T1 Honors PR 13, walkthrough 2026-11-06). It
+ * is "6 times 4 plus 4 equals 28", and "(−3) + 2" "negative 3 plus 2": the
+ * bracket only keeps a sign apart. So is a number with its letter, "3(2x) +
+ * 1" ("3 times 2x plus 1"), except in a denominator: 1/(2x) is not (1/2)x.
+ * Its own power keeps a bracket a quantity, "(−3)²" is "the quantity negative
+ * 3, squared", and so does anything more ("(1/2)x", "(x + 1)").
+ */
+const ONE_TERM = /^\s*[-−]?\s*(?:\d[\d,]*(?:\.\d+)?|\p{L})\s*$/u;
+const ONE_TERM_WITH_LETTERS = /^\s*[-−]?\s*\d[\d,]*(?:\.\d+)?\p{L}{1,2}\s*$/u;
 const markQuantityEnds = (text, w, operatorWords) => {
   const words = [w.times, w.plus, w.over, w.divided, w.pm].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const continues = new RegExp(`^\\s*(?:[−\\-+×·÷*/]|(?:${words.join('|')})(?=\\s|$))`);
   // More than one term: a "plus", or a minus between two terms (not a sign after an operator word).
   const terms = new RegExp(`(?:^|\\s)${words[1]}(?=\\s|$)`);
+  const denominator = new RegExp(`(?:^|\\s)(?:${words[2]}|${words[3]})\\s*$`);
   const binaryMinus = (inner) => [...inner.matchAll(/(\S+)\s*[\u2212-]\s*(?=\S)/g)]
     .some(([, before]) => /[\p{L}\p{N})\]]$/u.test(before) && !operatorWords.includes(before));
   const ends = [];
   const open = [];
+  const dropped = new Set();
   for (let index = 0; index < text.length; index += 1) {
     if (text[index] === '(') open.push(index);
     else if (text[index] === ')' && open.length) {
       const start = open.pop();
       const inner = text.slice(start + 1, index);
+      // A power after a bracket stands after a pause (plainMathToSpeech).
+      const oneTerm = ONE_TERM.test(inner) || (ONE_TERM_WITH_LETTERS.test(inner) && !denominator.test(text.slice(0, start)));
+      if (oneTerm && !/^\s*/.test(text.slice(index + 1))) {
+        dropped.add(start).add(index);
+        continue;
+      }
       if ((terms.test(inner) || binaryMinus(inner)) && continues.test(text.slice(index + 1))) ends.push(index + 1);
     }
   }
-  return ends.reverse().reduce((out, at) => `${out.slice(0, at)}${QUANTITY_END}${out.slice(at)}`, text);
+  const kept = dropped.size ? text.split('').map((char, index) => (dropped.has(index) ? ' ' : char)).join('') : text;
+  return ends.reverse().reduce((out, at) => `${out.slice(0, at)}${QUANTITY_END}${out.slice(at)}`, kept);
 };
 const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
   // An operator after the first character: f(−3) is one term, f(x − 3) is two.
@@ -479,8 +505,50 @@ const vulgarFractionsToWords = (text, w) => String(text)
   .replace(MIXED_VULGAR, (match, whole, fraction) => `${whole} ${w.mixedAnd} ${w.vulgarFractions[fraction]} `)
   .replace(LONE_VULGAR, (fraction) => ` ${w.vulgarFractions[fraction]} `);
 
+/*
+ * A BRACKET THAT HOLDS A RELATION IS AN ASIDE, NEVER A QUANTITY
+ * (math-speech-3). "…the greatest whole number is 153 (f(153) = 598.75)" was
+ * "…is 153 the quantity f of 153 equals 598.75" (Algebra I M3 T1 L3 CW 11
+ * and Honors CW 9, worked steps), and "a negative number (b = −2)" "… the
+ * quantity b equals negative 2". Its brackets are pauses: "is 153, f of 153
+ * equals 598.75". A bracket pressed against a name or a number, f(x = 2), is
+ * not an aside; nor is a relation inside a bracket inside it.
+ */
+const RELATION_SYMBOL = /[=<>≤≥≠≈]/;
+const asideSpans = (text) => {
+  const spans = [];
+  const open = [];
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') open.push(index);
+    else if (text[index] === ')' && open.length) {
+      const start = open.pop();
+      let own = text.slice(start + 1, index);
+      for (let pass = 0; pass < 4 && /\([^()]*\)/.test(own); pass += 1) own = own.replace(/\([^()]*\)/g, ' ');
+      if (RELATION_SYMBOL.test(own) && !/[\p{L}\p{N})\]]$/u.test(text.slice(0, start))) spans.push([start, index]);
+    }
+  }
+  // The outermost only: an aside inside an aside is read with it.
+  return spans.filter(([start, end]) => !spans.some(([from, to]) => from < start && to > end));
+};
+// A pause where something is said before or after it, and none against a
+// stop that is already there ("(b = −2), which").
+const PAUSES_BEFORE = /[\p{L}\p{N}%)\]’”"']\s*$/u;
+const PAUSES_AFTER = /^\s*[\p{L}\p{N}(]/u;
+const relationAsidesAsPauses = (text) => asideSpans(text)
+  .sort((a, b) => b[0] - a[0])
+  .reduce((out, [start, end]) => {
+    const [before, after] = [out.slice(0, start), out.slice(end + 1)];
+    return `${before}${PAUSES_BEFORE.test(before) ? PAUSE : ''} ${out.slice(start + 1, end)} ${PAUSES_AFTER.test(after) ? PAUSE : ''}${after}`;
+  }, text);
+// A run of mathematics that is one aside ("(f(153) = 598.75)" after a word):
+// speechTextFor gives it its pauses, which the run cannot see.
+const isWholeAside = (value) => {
+  const text = String(value).trim();
+  return asideSpans(text).some(([start, end]) => start === 0 && end === text.length - 1);
+};
+
 const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {}) => {
-  let text = ` ${vulgarFractionsToWords(raw, w)} `;
+  let text = relationAsidesAsPauses(` ${vulgarFractionsToWords(raw, w)} `);
   const letters = functionLettersFor(functionNames);
   // The last word of every operator phrase: a bracket after one of these is a
   // new quantity, not a product ("x equals the quantity …", never "equals
@@ -594,6 +662,19 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
   text = text.replace(/([^\s\-−]*)\s*[-−]\s*(?=[A-Za-z0-9.(√]|[-−]\s*[A-Za-z0-9.(√])/g, (match, before) => {
     const previous = before.trim();
     const unary = !previous || /[(,[;:]$/.test(previous) || operatorWords.includes(previous);
+    return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
+  });
+  // A sign the run ends with (math-speech-3). The split cuts it off from
+  // the words after it, "(starting amount) − (rate) · (variable)" (Algebra I
+  // M3 T1 L3 PR 6), "joined by + or −", "4x − ___", and it reached the voice
+  // as the symbol. After an operand, or alone, it is "minus"; after an
+  // operator word or an opening, "negative" ("x = −___": "negative blank").
+  // A hyphen pressed against what is before it is a word's: "the x- and
+  // y-values", "a 6-hour job".
+  text = text.replace(/([^\s\-−]*)(\s*)([-−])\s*$/, (match, before, space, sign) => {
+    if (sign === '-' && before && !space) return match;
+    const previous = before.trim();
+    const unary = Boolean(previous) && (/[(,[;:]$/.test(previous) || operatorWords.includes(previous));
     return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
   });
   return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',').replace(new RegExp(QUANTITY_END, 'g'), ` ${w.endQuantity} `);
@@ -748,6 +829,11 @@ const isSetMembers = (members) => /[\p{L}\p{N}∞]/u.test(members) && !/\p{L}{2,
 // was handed "($)" (lesson re-walk 2026-11-06). Taken out before the text is
 // split, so its "$" never opens a LaTeX span with a later one.
 const dollarUnits = (text, w) => text.replace(/\s*\(\s*\$\s*\)/g, ` ${w.units.dollars}`);
+
+// A blank to fill in, "4(x − 2) + 3 = 4x + ___" (Algebra I M3 T1 L1 PR 11,
+// walkthrough 2026-11-06), reached the voice as underscores. It is "blank",
+// a word, so "___x + 1" is "blank x plus 1" (math-speech-3).
+const blanksToWords = (text, w) => text.replace(/_{3,}/g, ` ${w.blank} `);
 
 // "!=" typed for ≠, as the bank's set-builder examples write it ("{x|x!=3}"):
 // in prose the segmenter split the "!" off, and it was read "x! equals 3".
@@ -1014,7 +1100,7 @@ const proseArrowsToWords = (segments, w, letters) => {
 // log with no base is read with the mathematics around it, in mathToSpeech:
 // said here, "1/-ln(x)" lost its fraction to the prose.)
 const writtenNotationToSpokenForm = (raw, w) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(typedNotEqual(dollarUnits(arrowsAsCharacters(String(raw ?? '')), w)), w), w), w,
+  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(arrowsAsCharacters(String(raw ?? '')), w), w)), w), w), w,
 );
 
 /**
@@ -1189,7 +1275,12 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
       }
       if (segment.kind === 'math') {
         const intervals = segments[index - 1]?.kind === 'text' && INTERVAL_CUE.test(segments[index - 1].value);
-        return ` ${mathToSpeech(withPriceSigns(segment), { language, functionNames: names, intervals })} `;
+        const spoken = mathToSpeech(withPriceSigns(segment), { language, functionNames: names, intervals });
+        // An aside in brackets after a word is said between pauses: "is 153,
+        // f of 153 equals 598.75." (relationAsidesAsPauses).
+        if (!isWholeAside(segment.value)) return ` ${spoken} `;
+        const around = (from, to) => segments.slice(from, to).map((part) => part.value).join('');
+        return ` ${PAUSES_BEFORE.test(around(0, index)) ? ',' : ''} ${spoken}${PAUSES_AFTER.test(around(index + 1)) ? ',' : ''} `;
       }
       // "A⁻¹" in prose is "A inverse"; a speech engine cannot say ⁻¹. An
       // escaped price ("\\$4.50" outside a span) loses its backslash.

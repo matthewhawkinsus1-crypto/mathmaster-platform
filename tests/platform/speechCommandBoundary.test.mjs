@@ -71,7 +71,7 @@ test('a letter after a command name makes it a different command, never the shor
   assert.equal(mathToSpeech('x\\leq5'), 'x is less than or equal to 5');
   assert.equal(mathToSpeech('x\\neq5'), 'x is not equal to 5');
   assert.equal(mathToSpeech('\\infty'), 'infinity', '\\infty is not \\in');
-  assert.equal(mathToSpeech('\\left(x\\right)'), 'the quantity x', '\\left is not \\le');
+  assert.equal(mathToSpeech('\\left(x\\right)'), 'x', '\\left is not \\le');
 });
 
 test('commands that take an argument also end at a non-letter', () => {

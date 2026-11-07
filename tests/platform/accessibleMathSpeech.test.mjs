@@ -88,7 +88,8 @@ test('a word denominator is read whole, with or without a sign', () => {
     // x" (math-speech-2, readAloudNotation.test.mjs); the word denominator
     // is still read whole, which is what this case is here for.
     ['1/-ln(x)', '1 over negative natural log of x', '1 sobre negativo logaritmo natural de x'],
-    ['4/-abs(x)', '4 over negative abs times the quantity x', '4 sobre negativo abs por la cantidad x'],
+    // One letter in brackets is not a quantity (math-speech-3).
+    ['4/-abs(x)', '4 over negative abs times x', '4 sobre negativo abs por x'],
     ['1/sin(x)', '1 over sine of x', '1 sobre seno de x'],
     ['2/sqrt(3)', '2 over the square root of 3', '2 sobre la raíz cuadrada de 3'],
     ['1/|b|', '1 over the absolute value of b', '1 sobre el valor absoluto de b'],
@@ -204,8 +205,9 @@ test('a bracket after an operator is a quantity, not a product', () => {
   assert.equal(mathToSpeech('x = (2 + 1)'), 'x equals the quantity 2 plus 1');
   assert.equal(mathToSpeech('3 * (x + 1)'), '3 times the quantity x plus 1');
   assert.equal(mathToSpeech('3 ÷ (x + 1)'), '3 divided by the quantity x plus 1');
-  // The bars' end is said when more follows, one term too (math-speech-2, item 11).
-  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x end absolute value plus the quantity 2');
+  // The bars' end is said when more follows, one term too (math-speech-2,
+  // item 11). One number in brackets is not a quantity (math-speech-3).
+  assert.equal(mathToSpeech('|x| + (2)'), 'the absolute value of x end absolute value plus 2');
   assert.equal(mathToSpeech('2(x + 1)'), '2 times the quantity x plus 1');
   assert.equal(mathToSpeech('x^2(x+1)'), 'x squared times the quantity x plus 1');
   assert.equal(mathToSpeech('x + (2 - x)', { language: 'es' }), 'x más la cantidad 2 menos x');

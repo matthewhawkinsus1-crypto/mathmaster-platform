@@ -39,12 +39,12 @@ test('a price and then words is prose with a price in it, whatever the span hold
 });
 
 test('a price inside a calculation is money', () => {
-  assert.equal(speechTextFor('After 6 weeks each has 10(6) + 40 = $100.'), 'After 6 weeks each has 10 times the quantity 6 plus 40 equals 100 dollars.');
+  assert.equal(speechTextFor('After 6 weeks each has 10(6) + 40 = $100.'), 'After 6 weeks each has 10 times 6 plus 40 equals 100 dollars.');
   assert.equal(speechTextFor('Every ticket sold is a student ticket: 450 × $5'), 'Every ticket sold is a student ticket: 450 times 5 dollars');
   assert.equal(speechTextFor('Isabella deposits $4 + $6 = $10 a week, the same as Diego.'), 'Isabella deposits 4 dollars plus 6 dollars equals 10 dollars a week, the same as Diego.');
   assert.equal(
     speechTextFor('At 150 miles: A = 0.25(150) + 40 = $77.50 and B = 0.4(150) + 25 = $85.'),
-    'At 150 miles: A equals 0.25 times the quantity 150 plus 40 equals 77 dollars and 50 cents and B equals 0.4 times the quantity 150 plus 25 equals 85 dollars.',
+    'At 150 miles: A equals 0.25 times 150 plus 40 equals 77 dollars and 50 cents and B equals 0.4 times 150 plus 25 equals 85 dollars.',
   );
   assert.equal(speechTextFor('450 × $5', es), '450 por 5 dólares');
 });
