@@ -230,8 +230,10 @@ test('T1 L1 and L3, regular and Honors: no hand-written answer box shows its own
         .filter((field) => !(field.options?.length || field.type === 'choice' || field.inputProfile === 'choice'))
         .forEach((field) => {
           boxes += 1;
-          // What the empty box shows: its author's placeholder, or the format's example.
-          const { placeholder } = describeBoxPlaceholder(field, { prompt: question.prompt });
+          // What the empty box shows: its author's placeholder, or the format's
+          // example, passing over a value the box would mark right, as
+          // MultiAnswerGrader asks it to (its grader is the isAnswer hook).
+          const { placeholder } = describeBoxPlaceholder(field, { prompt: question.prompt, isAnswer: (typed) => matchesFieldAnswer(typed, field) });
           if (placeholder && matchesFieldAnswer(placeholder, field)) showsAnswer.push(`${key} ${question.questionId}.${field.id}: "${placeholder}"`);
         }));
   });
