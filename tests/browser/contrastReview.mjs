@@ -20,13 +20,20 @@
  * viewports (the certification's own drivers and contexts):
  *
  *   1. STOPS. Walk the element and its ancestors to the root, collecting every
- *      background-color and every colour stop of every background-image
- *      gradient. Composite back to front over white, each box's colour and
- *      images as layers, the first image on top (support/backgroundLayers.mjs):
- *      a layer that covers the box, each stop over every candidate colour
- *      beneath it; one that fades to transparent, over what covers the box
- *      beneath it (rgba is composited, never dropped). Opacity on the text's
- *      own chain fades the text toward its background.
+ *      background-color and every background-image gradient. At each of the
+ *      node's text boxes, cell by cell (16px), composite back to front over
+ *      white, each box's colour and images as layers, the first image on top
+ *      (support/backgroundLayers.mjs). A gradient is read where the text is: its
+ *      tile (background-size, -position, -repeat) and its line or ray give the
+ *      colours it paints over that cell, each composited over every candidate
+ *      colour beneath it, so a glow counts as bright as it is there, not at its
+ *      centre (checked against the pixels Chromium paints). One the review
+ *      cannot place (a conic gradient, a colour hint, a calc() size, a rotated
+ *      or skewed box, a box the text scrolls or is pinned across) is read
+ *      whole: every stop,
+ *      and one that fades to transparent over what covers the box beneath it.
+ *      rgba is composited, never dropped. Opacity on the text's own chain
+ *      fades the text toward its background.
  *   2. PIXELS. Make the node's text (and its descendants', and SVG text fill)
  *      transparent, screenshot each of the node's text boxes, and take the
  *      darkest and the lightest background pixel (by relative luminance).
@@ -89,7 +96,10 @@ const collectInPage = async ({ include, exclude }) => {
   const entry = result.incomplete.find((item) => item.id === 'color-contrast');
   const nodes = entry ? entry.nodes : [];
 
+  // A color-mix() computes to color(srgb …), which the shared parser reads.
   const parse = (value) => {
+    const exact = window.__crLayers.parseColour(value);
+    if (exact) return exact;
     const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)/.exec(value || '');
     if (!m) return null;
     let a = m[4] == null ? 1 : (m[4].endsWith('%') ? Number(m[4].slice(0, -1)) / 100 : Number(m[4]));
@@ -139,6 +149,38 @@ const collectInPage = async ({ include, exclude }) => {
   const CONTROL = 'button, a[href], [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="link"], label, summary, [role="status"], [role="alert"]';
   const isEmoji = (text) => /\p{Extended_Pictographic}/u.test(text);
 
+  // The text's own boxes, the rectangles the pixels are read from too
+  // (measurePixels): each line box of its text, or the element's box.
+  const textBoxes = (el) => {
+    const boxes = [];
+    const add = (r) => { if (r.width > 0 && r.height > 0) boxes.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom }); };
+    if (el instanceof SVGElement) add(el.getBoundingClientRect());
+    else {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        for (const r of range.getClientRects()) add(r);
+      }
+      if (!boxes.length) add(el.getBoundingClientRect());
+    }
+    return boxes.slice(0, 12);
+  };
+  // Rotated, skewed or flipped: its background no longer lines up with the
+  // viewport's rectangles, so it is read whole.
+  const turned = (s) => {
+    if ((s.rotate && s.rotate !== 'none') || (s.scale && s.scale !== 'none' && s.scale.split(/\s+/).some((v) => !(parseFloat(v) > 0)))) return true;
+    if (!s.transform || s.transform === 'none') return false;
+    const m = /^matrix\(([^)]*)\)$/.exec(s.transform);
+    if (!m) return true;
+    const [a, b, c, d] = m[1].split(',').map(Number);
+    return Math.abs(b) > 1e-6 || Math.abs(c) > 1e-6 || !(a > 0) || !(d > 0);
+  };
+  const scrolls = (node, s) => (/auto|scroll/.test(s.overflowY) && node.scrollHeight > node.clientHeight + 1)
+    || (/auto|scroll/.test(s.overflowX) && node.scrollWidth > node.clientWidth + 1);
+  const px = (v) => parseFloat(v) || 0;
+
   const describe = (el) => {
     const style = getComputedStyle(el);
     const fontSize = parseFloat(style.fontSize);
@@ -153,23 +195,58 @@ const collectInPage = async ({ include, exclude }) => {
     const chain = [];
     for (let node = el; node && node.nodeType === 1; node = node.parentElement || node.getRootNode()?.host) chain.push(node);
     chain.reverse();
-    let candidates = [[255, 255, 255]];
+    const styles = chain.map((node) => getComputedStyle(node));
+    // Where each box paints, for reading its images at the text's boxes
+    // (support/backgroundLayers.mjs). The page's own background covers the
+    // canvas, placed on the root's box; the body's is the page's when the root
+    // has none. A box is read whole if it or a box around it is turned, or if
+    // the text can move across it: it scrolls its content, or a box between it
+    // and the text scrolls or is fixed or sticky (each moves when scrolled).
+    const rootBare = !(parse(styles[0].backgroundColor)?.[3] > 0) && styles[0].backgroundImage === 'none';
+    let straight = true;
+    const boxes = chain.map((node, i) => {
+      straight = straight && !turned(styles[i]);
+      const moves = (k) => scrolls(chain[k], styles[k]) || /fixed|sticky/.test(styles[k].position);
+      const still = !(i > 0 && scrolls(node, styles[i])) && !chain.slice(i + 1).some((_, k) => moves(i + 1 + k));
+      const canvas = i === 0 || (i === 1 && node === document.body && rootBare);
+      const s = canvas ? styles[0] : styles[i];
+      const r = (canvas ? chain[0] : node).getBoundingClientRect();
+      return {
+        border: { left: r.left, top: r.top, width: r.width, height: r.height },
+        borders: [px(s.borderTopWidth), px(s.borderRightWidth), px(s.borderBottomWidth), px(s.borderLeftWidth)],
+        paddings: [px(s.paddingTop), px(s.paddingRight), px(s.paddingBottom), px(s.paddingLeft)],
+        clip: canvas ? null : { left: r.left, top: r.top, width: r.width, height: r.height },
+        plain: straight && still,
+      };
+    });
+    // One list of candidates per cell of each text box: a glow is read where
+    // each part of each line is.
+    const rects = textBoxes(el).flatMap((box) => window.__crLayers.cellsOf(box));
+    let perRect = (rects.length ? rects : [null]).map(() => [[255, 255, 255]]);
     const notes = new Set();
     let fade = 1; // opacity between the text and its nearest opaque layer
-    for (const node of chain) {
-      const s = getComputedStyle(node);
-      const layers = [];
+    chain.forEach((node, i) => {
+      const s = styles[i];
       const bg = parse(s.backgroundColor);
-      if (bg && bg[3] > 0 && !(node === el && gradientText.length)) layers.push([bg]);
-      // Each background image is a layer of its own, the first painted on top
-      // (support/backgroundLayers.mjs): a transparent stop shows what is under
-      // that image, not the page.
-      const images = node === el && gradientText.length ? [] : window.__crLayers.gradientLayers(s.backgroundImage);
-      for (const stopsOfLayer of [...images].reverse()) {
-        if (!stopsOfLayer.length) continue;
-        layers.push(stopsOfLayer);
-        notes.add('gradient');
-      }
+      const colour = bg && bg[3] > 0 && !(node === el && gradientText.length) ? [bg] : null;
+      const background = {
+        image: node === el && gradientText.length ? 'none' : s.backgroundImage, size: s.backgroundSize,
+        positionX: s.backgroundPositionX, positionY: s.backgroundPositionY, repeat: s.backgroundRepeat,
+        origin: s.backgroundOrigin, attachment: s.backgroundAttachment,
+      };
+      // Each background image is a layer of its own, the first painted on top,
+      // read at the text's box where it can be placed: a transparent stop shows
+      // what is under that image, not the page, and a glow counts as bright as
+      // it is where the text is, not at its centre.
+      const layersByRect = perRect.map((_, k) => {
+        const layers = colour ? [colour] : [];
+        for (const image of window.__crLayers.imageLayersAt(background, boxes[i], rects[k] || null).reverse()) {
+          if (!image.stops.length) continue;
+          layers.push(image);
+          notes.add(image.placed ? 'gradient' : 'gradient read whole');
+        }
+        return layers;
+      });
       if (hasUrlImage(s.backgroundImage)) notes.add('image');
       for (const pseudo of ['::before', '::after']) {
         const p = getComputedStyle(node, pseudo);
@@ -177,11 +254,12 @@ const collectInPage = async ({ include, exclude }) => {
       }
       if (s.mixBlendMode !== 'normal' || (s.filter && s.filter !== 'none') || (s.backdropFilter && s.backdropFilter !== 'none')) notes.add('blend/filter');
       // Keep the distinct candidates (rounded), bounded.
-      candidates = window.__crLayers.compositeLayers(candidates, layers);
+      perRect = perRect.map((candidates, k) => window.__crLayers.compositeLayers(candidates, layersByRect[k]));
       const opacity = Number(s.opacity);
-      if (layers.some((l) => l.every((stop) => stop[3] >= 1))) fade = 1;
+      if (layersByRect.every((layers) => layers.some((l) => (Array.isArray(l) ? l : l.stops).every((stop) => stop[3] >= 1)))) fade = 1;
       if (opacity < 1) { fade *= opacity; notes.add(`opacity ${opacity}`); }
-    }
+    });
+    const candidates = [...new Map(perRect.flat().map((c) => [c.join(','), c])).values()];
     const textColours = texts.map((c) => [c[0], c[1], c[2], c[3] * fade]);
     const glyph = (el.textContent || '').trim();
     const ariaHidden = Boolean(el.closest('[aria-hidden="true"]'));
@@ -257,13 +335,19 @@ const pixelExtremes = async (b64) => {
   return { dark, light };
 };
 
-const HIDE_CSS = `
-  .__crHide, .__crHide * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; caret-color: transparent !important; }
-  .__crHide text, text.__crHide, .__crHide tspan, tspan.__crHide { fill: transparent !important; stroke: transparent !important; }
+// The hiding rules outrank every colour rule of the app's: each carries three
+// ids it never matches (:not(#…)), so a rule such as the dark theme's
+// ":root[data-theme='dark'] #root select { color: … !important }" cannot keep
+// the text in the shot, where its own pixels were read as its background (the
+// projector's threshold select, 1:1 in dark where it is about 13:1).
+const OUTRANK = ':not(#__cr):not(#__cr):not(#__cr)';
+export const HIDE_CSS = `
+  .__crHide${OUTRANK}, .__crHide *${OUTRANK} { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; caret-color: transparent !important; }
+  .__crHide text${OUTRANK}, text.__crHide${OUTRANK}, .__crHide tspan${OUTRANK}, tspan.__crHide${OUTRANK} { fill: transparent !important; stroke: transparent !important; }
   /* Gradient text (background-clip: text) is painted by its own background, so a
      transparent colour leaves the glyphs in the shot: take the paint away, and
      the drop-shadow glow that follows the glyphs with it (as text-shadow above). */
-  .__crHideClip { background-image: none !important; filter: none !important; }
+  .__crHideClip${OUTRANK} { background-image: none !important; filter: none !important; }
   *, *::before, *::after { transition: none !important; animation-play-state: paused !important; }
 `;
 
@@ -490,7 +574,7 @@ const main = async () => {
   const failing = nodes.filter((node) => !node.pass);
   const report = {
     generatedBy: 'tests/browser/contrastReview.mjs',
-    method: 'worst of text vs every composited background stop and vs the darkest/lightest background pixel with the text hidden',
+    method: 'worst of text vs every background colour composited at its text boxes (a gradient read where the text is, or whole where it cannot be placed) and vs the darkest/lightest background pixel with the text hidden',
     unreachable, totals: { nodes: nodes.length, families: familyRows.length, failingNodes: failing.length, skippedDecorative: nodes.filter((n) => n.decision?.startsWith('skip')).length },
     families: familyRows, nodes,
   };
