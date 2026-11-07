@@ -13,7 +13,7 @@ import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGr
 // field grader reads (kept out of the first load: answerUtils.mjs).
 import '../functions/shared/formSpecificFieldGrading.mjs';
 import { choiceShowsMixedMath, labelHasDelimitedMath, resolveLabelFormat } from './labelFormat';
-import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
+import { fieldKeyValues, neededAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat, describeBoxPlaceholder } from './platform/interaction/answerFormatHints.js';
 import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { declaredKeypadProfile, withheldVerdictKeys } from './platform/interaction/withheldVerdictKeypad.js';
@@ -250,9 +250,12 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
           const markId = `${markBase}-${field.id}-mark`;
           const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
-          const inferredRequiredSymbols = inferRequiredAnswerSymbols(acceptedAnswersForField(field));
+          // What the key says (a relation or a letter only the key needs) and
+          // what any accepted form needs to be spelled (answerEntryTools.js).
+          const accepted = acceptedAnswersForField(field);
+          const inferredRequiredSymbols = neededAnswerSymbols({ key: fieldKeyValues(field, accepted), accepted });
           // The keys a field names, the import's reading of its key among
-          // them, and this box's own reading of its accepted answers.
+          // them, and this box's own reading of its answers.
           const requiredSymbols = [
             ...(Array.isArray(field.requiredSymbols) ? field.requiredSymbols : []),
             ...(Array.isArray(field.inputContract?.requiredSymbols) ? field.inputContract.requiredSymbols : []),
