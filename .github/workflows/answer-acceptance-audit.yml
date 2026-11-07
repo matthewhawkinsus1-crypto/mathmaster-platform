@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   answer-acceptance:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       # Two commits: on a pull request, the merge commit and its base, which

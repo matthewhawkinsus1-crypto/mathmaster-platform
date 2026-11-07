@@ -28,7 +28,7 @@ jobs:
   # minutes on CI, so a newer push often cancelled it before its last steps: they are three jobs now, each with the
   # steps it had, in the order they had. This one took about thirteen minutes (2026-11-06).
   browser-accessibility-ratchet:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
@@ -75,7 +75,7 @@ jobs:
   # keyboard), and the contrast review, which replays the certification's scenes to decide what axe left undecided:
   # 4.5 and 10.4 minutes on CI (2026-11-06). The review writes contrast-review.json, kept here.
   browser-accessibility-contrast-and-targets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -122,7 +122,7 @@ jobs:
   # student QA checks after them: about fifteen minutes on CI (2026-11-06). None of them writes to the certification's
   # report folder, so this job has no report to keep.
   browser-accessibility-keyboard-and-names:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -309,7 +309,7 @@ jobs:
   # WCAG 1.4.4 / 1.4.10 / 1.4.12 at 200% text, 320px and text spacing: half
   # the browser time, so a runner of its own.
   browser-large-text:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -355,7 +355,7 @@ jobs:
   # sceneShards.mjs): 13 to 16 minutes each.
   browser-teacher-large-text:
     name: browser-teacher-large-text (${{ matrix.shard }}/3)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -388,7 +388,7 @@ jobs:
   # Path's session and a DOL Recovery assessment; a stop mostly under something the page drew fails. A job of its own:
   # the forward walks alone took about eight minutes on a busy four-core machine (2026-11-06).
   browser-focus-not-obscured:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6

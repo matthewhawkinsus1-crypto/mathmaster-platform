@@ -43,7 +43,7 @@ jobs:
   # against the real callables on the Firestore emulator. Long: its own job.
   # About 5 minutes locally.
   pass3-test-cycle-rich-tools:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
@@ -65,7 +65,7 @@ jobs:
   # scroll or unreadable button at Chromebook, iPad and phone widths, light
   # and dark. About 3 minutes locally (71 checks).
   pass3-test-cycle-lifecycle:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -82,7 +82,7 @@ jobs:
   # game, scoring, Graph Feature Rush, reconnects, a class of 40 launching, a
   # big class, Play Again and five games in a row. Long: its own job.
   pass3-live-challenge-shell:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
@@ -102,7 +102,7 @@ jobs:
   # round, and the tap-to-mark latency with the CPU slowed 4x. About 7 minutes
   # locally.
   pass3-graph-feature-rush:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6

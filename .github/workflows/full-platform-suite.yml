@@ -20,7 +20,7 @@ permissions:
 jobs:
   platform-tests:
     name: Platform tests (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -48,7 +48,7 @@ jobs:
   # suites made it fail on their load, not on the game.
   live-challenge-launch:
     name: Live Challenge launch at class scale
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -63,7 +63,7 @@ jobs:
   # assertions cannot tell a correct write from a wrong field path.
   live-challenge-finish:
     name: Live Challenge finish integration suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -78,7 +78,7 @@ jobs:
   # the next suite's result.
   firestore-certifications:
     name: Firestore rules and emulator certifications
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -155,7 +155,7 @@ jobs:
   # lint.
   audits-and-builds:
     name: Tool tests, audits, builds and lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6

@@ -11,6 +11,13 @@
 # packages this runner lacks. They are the same packages either way, so pages
 # render with the same fonts as before.
 #
+# The workflows run on ubuntu-24.04, not ubuntu-latest: on 2026-11-07
+# ubuntu-latest became Ubuntu 26.04 (image 20261101.186.1), where Playwright
+# 1.55 installs no Chromium ("Playwright does not support chromium on
+# ubuntu26.04-x64"), so every browser job failed at this step. Move them on
+# with a Playwright that supports the newer image; the fonts CI draws
+# (tests/browser/support/ciFonts.conf) come from this image too.
+#
 # Writes fetched=true to GITHUB_OUTPUT when it went to the mirror, so the
 # action saves what it downloaded.
 set -euo pipefail

@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   certify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # One job per shard of the manifest (CERTIFICATION_SHARDS), in parallel:
     # together they run exactly the suites one job ran in sequence (about 43
     # minutes at the release tier, the longest part of main's CI; CI03). Below
