@@ -1046,10 +1046,9 @@ export default function LiveChallengeArenaProjector({
       gap: 'clamp(8px, 1.4vh, 16px)',
       color: '#f7f9ff',
       colorScheme: 'dark',
-      // The colour under the gradients is the stage's own dark (TT27, fifth slice): the gradients alone left the
-      // background colour transparent, so a reading of what lies behind the text (the contrast review's) went through to
-      // the page under the projector. Nothing on screen changes: the last gradient is opaque.
-      background: 'radial-gradient(circle at 12% 12%, rgba(74,103,255,.24), transparent 34%), radial-gradient(circle at 88% 4%, rgba(174,83,255,.2), transparent 31%), radial-gradient(circle at 74% 90%, rgba(0,206,209,.12), transparent 36%), linear-gradient(145deg, #111831 0%, #091128 48%, #12142e 100%) #091128',
+      // The last gradient is opaque: it covers the page under the projector. The contrast review reads the glows over
+      // it where the text is (tests/browser/support/backgroundLayers.mjs), so the stage needs no colour beneath them.
+      background: 'radial-gradient(circle at 12% 12%, rgba(74,103,255,.24), transparent 34%), radial-gradient(circle at 88% 4%, rgba(174,83,255,.2), transparent 31%), radial-gradient(circle at 74% 90%, rgba(0,206,209,.12), transparent 36%), linear-gradient(145deg, #111831 0%, #091128 48%, #12142e 100%)',
       boxShadow: 'none',
     }}>
       <ChallengeShellStyles />

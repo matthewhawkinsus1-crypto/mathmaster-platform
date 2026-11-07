@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { splitTopLevel } from '../browser/support/backgroundLayers.mjs';
 
 const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
 
@@ -85,8 +86,9 @@ test('leaving the projector puts focus back on the console\'s Projector View', (
 //     narrow layout now starts at 56.25em, which is 900px at the default text size and 1800px at 200%: the header and
 //     its title wrap, each section of a round is as tall as its content and no wider than the column, the stage
 //     scrolls as one page, and the clock is no wider than the screen;
-//   - the stage's colour was its gradients alone, over a transparent background colour, so what the contrast review
-//     read behind the text went through to the page under the projector. The opaque dark is its background colour now.
+//   - the contrast review read the stage's glows, which fade to transparent, as the page under the projector, and the
+//     stage was given an opaque colour under its gradients for it. The review reads each glow where the text is now
+//     (contrastReviewLayers.test.mjs), so that colour is gone: the stage's last gradient is opaque and covers the page.
 test('on a narrow screen, or with large text, the projector reflows: the header and title wrap, a round is one column', () => {
   const source = read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
   const narrow = region(source, '@media (max-width: 56.25em) {', '@media (prefers-reduced-motion: reduce)', 'the narrow-screen rules');
@@ -104,8 +106,12 @@ test('on a narrow screen, or with large text, the projector reflows: the header 
   assert.match(source, /<div style=\{\{ minHeight: 0, minWidth: 0 \}\}>\s*\{loading && <section/, 'the views\' box is no wider than the stage');
 });
 
-test('the stage\'s background colour is its own opaque dark, under the gradients', async () => {
+test('the stage covers the page under it: its last layer is a gradient of opaque colours over the whole stage', async () => {
   const html = await markup('/src/components/liveChallenge/LiveChallengeArenaProjector.jsx', 'default', { room: null, loading: true, onExit() {} });
   const background = html.match(/^<div class="mm-arena-shell"[^>]* style="[^"]*background:([^;"]+)/)?.[1] || '';
-  assert.match(background, /linear-gradient\(145deg, #111831 0%, #091128 48%, #12142e 100%\) #091128$/, 'the last layer carries the colour');
+  const layers = splitTopLevel(background);
+  assert.ok(layers.length >= 2, `the glows, then the stage: ${background}`);
+  const last = layers[layers.length - 1];
+  assert.match(last, /^linear-gradient\(/, 'the bottom layer is a gradient');
+  assert.doesNotMatch(last, /transparent|rgba|hsla|#[0-9a-f]{8}\b|#[0-9a-f]{4}\b|\//i, 'of opaque colours, over the whole stage (no tile)');
 });
