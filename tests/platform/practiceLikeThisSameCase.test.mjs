@@ -199,3 +199,81 @@ test('a case answer is checked as a case: right in any spelling, wrong only on a
   const practice = buildPracticeLikeThis(byId(L1, 'm3l1-cw-11'), { seed: 0 });
   assert.equal(practiceCheckMessage(checkPracticeAnswers(practice, { 'part-1': 'no solution' })), 'That matches. Nice work.');
 });
+
+/*
+ * The model builder (L3 CW 1 and CW 12, Honors CW 1 and CW 10): its practice
+ * was proportional and growing ("W(t) = 15t", "M(x) = 7x") for a rule with a
+ * starting amount, f(b) = 3.75b + 25, or one that goes down, h(m) = 4800 − 20m.
+ * Now the practice has the item's form, read again here from the sibling's own
+ * rule and checked against every row of its table, its domain and its range.
+ * While the item is open, "Try a similar one" is still the proportional one.
+ */
+const L3 = lesson('T1_L3_Modeling_and_Solving_Linear_Inequalities.json');
+const L3H = lesson('T1_L3_Modeling_and_Solving_Linear_Inequalities_Honors.json');
+/** "P(t) = 5t + 80" in an answer line → { name, variable, at(x) }. */
+const ruleIn = (answer) => {
+  const match = /([A-Z])\(([a-z])\) = ([^;]+)/.exec(answer);
+  assert.ok(match, `a rule in "${answer}"`);
+  const node = math.parse(toMath(match[3]));
+  return { name: match[1], variable: match[2], at: (x) => F(node.evaluate({ [match[2]]: F(x) })) };
+};
+const formOf = (at) => {
+  const start = at(0);
+  const slope = math.subtract(at(1), start);
+  if (math.smaller(slope, 0) && math.larger(start, 0)) return 'decreasing';
+  if (math.larger(slope, 0) && math.larger(start, 0)) return 'starting';
+  return math.equal(start, 0) ? 'proportional' : 'other';
+};
+
+test('the model builder practises a model in its own form: a starting amount, or one that goes down to zero', () => {
+  [[L3, 'm3l3-cw-1', 'starting'], [L3, 'm3l3-cw-12', 'decreasing'], [L3H, 'm3l3h-cw-1', 'starting'], [L3H, 'm3l3h-cw-10', 'decreasing']].forEach(([questions, id, expected]) => {
+    const question = byId(questions, id);
+    // The item's own form, from the rule a student is graded on.
+    const [, itemRule] = question.correctEquation.split('=');
+    const variable = /\(([a-z])\)/.exec(question.correctEquation)[1];
+    const itemAt = (x) => F(math.evaluate(toMath(itemRule), { [variable]: F(x) }));
+    assert.equal(formOf(itemAt), expected, `${id} is ${expected}`);
+    const first = buildPracticeLikeThis(question, { seed: 0 });
+    const second = buildPracticeLikeThis(question, { seed: 0, avoidPrompts: [first.prompt] });
+    assert.notEqual(first.prompt, second.prompt);
+    [first, second].forEach((practice) => {
+      const rule = ruleIn(practice.answer);
+      assert.equal(formOf(rule.at), expected, `${id}: ${practice.answer}`);
+      // The scenario states the start and the rate the rule uses.
+      const start = rule.at(0);
+      const rate = math.abs(math.subtract(rule.at(1), start));
+      assert.ok(practice.prompt.includes(String(start)) && practice.prompt.includes(String(rate)), practice.prompt);
+      // Every row of the table is on the rule.
+      const rows = [.../table ([^;]+)/.exec(practice.answer)[1].matchAll(/\((\d+), (\d+)\)/g)].map(([, x, y]) => [Number(x), Number(y)]);
+      assert.ok(rows.length >= 3, practice.answer);
+      rows.forEach(([x, y]) => assert.ok(math.equal(rule.at(x), F(y)), `${id}: (${x}, ${y}) is on ${practice.answer}`));
+      // A model that goes down ends where it reaches zero, and its range runs from zero to the start.
+      const domain = /domain (?:0 ≤ [a-z] ≤ (\d+)|\{0, 1, 2, \.\.\., (\d+)\})/.exec(practice.answer);
+      const range = /range (?:0 ≤ [A-Z]\([a-z]\) ≤ (\d+)|\{0, \d+, \d+, \.\.\., (\d+)\})/.exec(practice.answer);
+      if (expected === 'decreasing' && question.correctDomain) {
+        assert.ok(domain && range, `${id}: a domain and a range in "${practice.answer}"`);
+        const end = Number(domain[1] || domain[2]);
+        assert.ok(math.equal(rule.at(end), 0), `${id}: the domain ends where ${practice.answer.split(';')[1]} is zero`);
+        assert.ok(math.equal(F(Number(range[1] || range[2])), start), `${id}: the range runs up to the start`);
+      }
+    });
+    // While the item is open, "Try a similar one" is still the proportional sibling.
+    const open = buildSimilarWorkedExample(question, { seed: 0 });
+    assert.equal(formOf(ruleIn(open.answer).at), 'proportional', `${id}: ${open.answer}`);
+  });
+});
+
+test('every sentence of the model builder\'s practice has Spanish', async () => {
+  const pack = await loadLanguagePack('es');
+  const missing = new Set();
+  [[L3, 'm3l3-cw-1'], [L3, 'm3l3-cw-12']].forEach(([questions, id]) => {
+    const done = [];
+    for (let index = 0; index < 4; index += 1) {
+      const practice = buildPracticeLikeThis(byId(questions, id), { seed: 0, avoidPrompts: done });
+      done.push(practice.prompt);
+      [practice.prompt, ...practice.steps, `Answer: ${practice.answer}`].forEach((text) => translateWithPack(text, pack).sentences
+        .filter((sentence) => !sentence.translated && !sentence.mathOnly).forEach((sentence) => missing.add(sentence.source)));
+    }
+  });
+  assert.deepEqual([...missing], []);
+});

@@ -2151,8 +2151,146 @@ const MODELING_TEMPLATES = Object.freeze([
 
 const MODELING_GROUPS = new Set(['quantities', 'equation', 'table', 'continuity', 'graph', 'domain', 'range', 'axes', 'origin']);
 
-const modelingSibling = (question, model, guard, seed) => {
+/*
+ * "Practise one like this" (keepCase, once the item has closed): a model in
+ * the item's own form. The proportional templates above start from zero and
+ * grow; an item whose rule has a starting amount (f(b) = 3.75b + 25) or goes
+ * down (h(m) = 4800 − 20m) practises one that does the same (2026-11-06 A1 M3
+ * T1 walkthrough: L3 CW 1 and CW 12 were offered "W(t) = 15t", "M(x) = 7x").
+ * "Try a similar one", shown while the item is open, keeps the proportional
+ * sibling: the form is read from the item's rule, its key.
+ */
+const FORM_TEMPLATES = Object.freeze({
+  starting: Object.freeze([
+    {
+      connected: false,
+      scenario: (rate, max, start) => `A club’s fund starts with $${start}, and the club adds $${rate} for each car it washes, for up to ${max} cars. Let x be the number of cars washed and F(x) the money in the fund in dollars.`,
+      name: 'F', variable: 'x', input: 'Cars washed', output: 'Money in the fund in dollars', unit: 'car',
+      whole: 'only a whole number of cars can be washed',
+      start: (start) => `before any car is washed, the fund already holds $${start}`,
+    },
+    {
+      connected: true,
+      scenario: (rate, max, start) => `A pool already holds ${start} gallons of water, and a hose adds ${rate} gallons per minute for up to ${max} minutes. Let t be the time in minutes and P(t) the gallons of water in the pool.`,
+      name: 'P', variable: 't', input: 'Time in minutes', output: 'Gallons of water in the pool', unit: 'minute',
+      whole: 'time can be any value in between, such as half a minute',
+      start: (start) => `before the hose runs, the pool already holds ${start} gallons`,
+    },
+  ]),
+  decreasing: Object.freeze([
+    {
+      connected: true,
+      scenario: (rate, max, start) => `A water tank holds ${start} gallons and drains at a steady ${rate} gallons per minute until it is empty. Let t be the time in minutes and V(t) the gallons of water left in the tank.`,
+      name: 'V', variable: 't', input: 'Time in minutes', output: 'Gallons of water left in the tank', unit: 'minute',
+      whole: 'time can be any value in between, such as half a minute',
+      start: (start) => `before the tank drains, it holds ${start} gallons`,
+    },
+    {
+      connected: false,
+      scenario: (rate, max, start) => `A gift card starts with $${start}, and each smoothie costs $${rate}, until the card is used up. Let x be the number of smoothies bought and G(x) the money left on the card in dollars.`,
+      name: 'G', variable: 'x', input: 'Smoothies bought', output: 'Money left on the card in dollars', unit: 'smoothie',
+      whole: 'only a whole number of smoothies can be bought',
+      start: (start) => `before any smoothie is bought, the card holds $${start}`,
+    },
+  ]),
+});
+
+/** The form of the item's rule: 'starting' (a positive starting amount), 'decreasing', or null (from zero, growing). */
+const modelFormOf = (model) => {
+  const rule = linearRuleOf(model.correctEquation);
+  if (!rule || !Number.isFinite(rule.m) || !Number.isFinite(rule.b)) return null;
+  if (rule.m < 0 && rule.b > 0) return 'decreasing';
+  if (rule.m > 0 && rule.b > 0) return 'starting';
+  return null;
+};
+
+const formSibling = (question, model, guard, seed, form) => {
+  const templates = FORM_TEMPLATES[form];
+  const template = templates[Math.abs(Math.trunc(Number(seed) || 0)) % templates.length];
+  const tableStage = model.stages.find((stage) => stageGroup(stage) === 'table');
+  const count = Math.max(3, Math.min(5, list(tableStage?.xValues).length || 4));
+  const candidates = [];
+  if (form === 'starting') {
+    for (const rate of [5, 6, 7, 8, 9, 12, 15]) for (const start of [30, 45, 60, 70, 80, 90]) for (const max of [25, 35, 40, 50, 60]) for (const first of [7, 11, 13, 16]) candidates.push({ rate, start, max, first });
+  } else {
+    // Down to empty after a whole number of units: start = rate · max.
+    for (const rate of [5, 6, 8, 12, 15, 25]) for (const max of [24, 30, 36, 40, 48]) for (const first of [7, 11, 13, 16]) candidates.push({ rate, start: rate * max, max, first });
+  }
+  const salt = `${typeOf(question)}|${text(question.prompt)}|${form}`;
+  return fromCandidates(candidates, seed, salt, ({ rate, start, max, first }) => {
+    const { name, variable: v } = template;
+    const down = form === 'decreasing';
+    const valueAt = (x) => (down ? start - rate * x : start + rate * x);
+    const steps = [];
+    const answers = [];
+    const groups = model.groups;
+    if (groups.includes('quantities')) {
+      steps.push(`The input (independent quantity) is ${template.input.toLowerCase()}; the output (dependent quantity) is ${template.output.toLowerCase()}, because it depends on the input.`);
+      answers.push(`input ${template.input.toLowerCase()}, output ${template.output.toLowerCase()}`);
+    }
+    const rule = down ? `${name}(${v}) = ${start} - ${rate}${v}` : `${name}(${v}) = ${rate}${v} + ${start}`;
+    if (groups.includes('equation')) {
+      steps.push(down
+        ? `The amount starts at ${start}, and each ${template.unit} takes away ${rate}, so ${rule}.`
+        : `The amount starts at ${start}, and each ${template.unit} adds ${rate}, so ${rule}.`);
+      answers.push(rule);
+    }
+    // Rows start past the small numbers, as in the proportional sibling.
+    if (groups.includes('table')) {
+      const xs = Array.from({ length: count }, (_, index) => index + first);
+      if (xs.some((x) => x > max)) return null;
+      steps.push(`Table: ${xs.map((x) => `${name}(${x}) = ${down ? `${start} - ${rate} · ${x}` : `${rate} · ${x} + ${start}`} = ${valueAt(x)}`).join('; ')}.`);
+      answers.push(`table ${xs.map((x) => `(${x}, ${valueAt(x)})`).join(', ')}`);
+    }
+    if (groups.includes('continuity') || groups.includes('graph')) {
+      steps.push(template.connected
+        ? `Because ${template.whole}, the graph is one connected segment.`
+        : `Because ${template.whole}, the graph is separate points, not a connected line.`);
+      answers.push(template.connected ? 'a connected graph' : 'separate points');
+    }
+    const low = down ? 0 : start;
+    const high = down ? start : valueAt(max);
+    const interval = model.notation === 'interval';
+    if (groups.includes('domain')) {
+      const shown = template.connected ? (interval ? `[0, ${max}]` : `0 ≤ ${v} ≤ ${max}`) : `{0, 1, 2, ..., ${max}}`;
+      steps.push(down
+        ? `Domain: from zero until the amount runs out, at ${start} ÷ ${rate} = ${max}${template.connected ? ', both ends included' : ', in whole numbers'}.`
+        : (template.connected ? `Domain: every time from zero up to ${max}, both ends included.` : `Domain: the whole numbers from zero up to ${max}.`));
+      answers.push(`domain ${shown}`);
+    }
+    if (groups.includes('range')) {
+      const shown = template.connected
+        ? (interval ? `[${low}, ${high}]` : `${low} ≤ ${name}(${v}) ≤ ${high}`)
+        : `{${low}, ${low + rate}, ${low + 2 * rate}, ..., ${high}}`;
+      steps.push(down
+        ? `Range: the output starts at ${start} and goes down to zero${template.connected ? ', with every value in between' : `, ${rate} at a time`}.`
+        : `Range: the output starts at ${start} and ends at ${name}(${max}) = ${rate} · ${max} + ${start} = ${high}${template.connected ? ', with every value in between' : `, ${rate} at a time`}.`);
+      answers.push(`range ${shown}`);
+    }
+    if (groups.includes('axes')) {
+      steps.push(`Axes: label the horizontal axis “${template.input}” and the vertical axis “${template.output}”, with scale steps that reach ${max} across and ${high} up.`);
+      answers.push(`x-axis ${template.input.toLowerCase()}, y-axis ${template.output.toLowerCase()}`);
+    }
+    if (groups.includes('origin')) {
+      steps.push(`Starting point: when the input is zero the output is ${start}: ${template.start(start)}.`);
+      answers.push(`the start is (0, ${start})`);
+    }
+    if (!steps.length) return null;
+    const example = {
+      prompt: `${template.scenario(rate, max, start)} Build a model for this situation.`,
+      steps,
+      answer: answers.join('; '),
+    };
+    return siblingIsSafe(question, guard, example) ? example : null;
+  });
+};
+
+const modelingSibling = (question, model, guard, seed, { keepCase = false } = {}) => {
   if (model.groups.some((group) => !MODELING_GROUPS.has(group))) return null;
+  // In the item's own form, once it has closed; else (or if none fits) the proportional one.
+  const form = keepCase ? modelFormOf(model) : null;
+  const same = form ? formSibling(question, model, guard, seed, form) : null;
+  if (same) return same;
   const template = MODELING_TEMPLATES[Math.abs(Math.trunc(Number(seed) || 0)) % MODELING_TEMPLATES.length];
   const tableStage = model.stages.find((stage) => stageGroup(stage) === 'table');
   const count = Math.max(3, Math.min(5, list(tableStage?.xValues).length || 4));
@@ -2632,14 +2770,14 @@ const attributesSibling = (question, model, guard, seed) => {
   });
 };
 
-export const similarProblem = (question, { seed = 0 } = {}) => {
+export const similarProblem = (question, { seed = 0, keepCase = false } = {}) => {
   try {
     const model = modelFor(question);
     if (!model) return null;
     const guard = guardFor(question);
     if (model.kind === 'graph') return graphSibling(question, model, guard, seed);
     if (model.kind === 'composed') {
-      if (model.recipe === 'functionModeling') return modelingSibling(question, model, guard, seed);
+      if (model.recipe === 'functionModeling') return modelingSibling(question, model, guard, seed, { keepCase });
       if (model.recipe === 'relationRepresentations') {
         const pairs = relationPairsOf(question.pairs);
         const ask = model.groups.flatMap((group) => ({ mapping: ['mapping'], domain: ['domain'], range: ['range'], isFunction: ['isFunction'], graph: ['plot'] }[group] || []));

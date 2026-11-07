@@ -1621,5 +1621,48 @@ const matrixLabFixes = [
   ...['₁', '₂', '₃', '₄', '₅', '₆'].flatMap((row) => ['₁', '₂', '₃', '₄', '₅', '₆'].map((col) => [`Reconsider: Element {1}${row}${col}.`, `Revisa: el elemento {1}${row}${col}.`])),
 ];
 
-export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences];
+// "Practise one like this" for a model with a starting amount or one that goes
+// down (functionFeatures.js FORM_TEMPLATES): its scenarios, steps and answers.
+const modelFormSiblings = [
+  ['A club’s fund starts with {1}, and the club adds {2} for each car it washes, for up to {3} cars.', 'El fondo de un club empieza con {1}, y el club agrega {2} por cada carro que lava, hasta {3} carros.'],
+  ['Let {1} be the number of cars washed and {2} the money in the fund in dollars.', 'Sea {1} el número de carros lavados y {2} el dinero del fondo en dólares.'],
+  ['A pool already holds {1} gallons of water, and a hose adds {2} gallons per minute for up to {3} minutes.', 'Una piscina ya tiene {1} galones de agua, y una manguera agrega {2} galones por minuto durante hasta {3} minutos.'],
+  ['Let {1} be the time in minutes and {2} the gallons of water in the pool.', 'Sea {1} el tiempo en minutos y {2} los galones de agua en la piscina.'],
+  ['A water tank holds {1} gallons and drains at a steady {2} gallons per minute until it is empty.', 'Un tanque de agua tiene {1} galones y se vacía a un ritmo constante de {2} galones por minuto hasta quedar vacío.'],
+  ['Let {1} be the time in minutes and {2} the gallons of water left in the tank.', 'Sea {1} el tiempo en minutos y {2} los galones de agua que quedan en el tanque.'],
+  ['A gift card starts with {1}, and each smoothie costs {2}, until the card is used up.', 'Una tarjeta de regalo empieza con {1}, y cada licuado cuesta {2}, hasta que se acaba el saldo de la tarjeta.'],
+  ['Let {1} be the number of smoothies bought and {2} the money left on the card in dollars.', 'Sea {1} el número de licuados comprados y {2} el dinero que queda en la tarjeta en dólares.'],
+  ['The input (independent quantity) is cars washed; the output (dependent quantity) is money in the fund in dollars, because it depends on the input.', 'La entrada (cantidad independiente) son los carros lavados; la salida (cantidad dependiente) es el dinero del fondo en dólares, porque depende de la entrada.'],
+  ['The input (independent quantity) is time in minutes; the output (dependent quantity) is gallons of water in the pool, because it depends on the input.', 'La entrada (cantidad independiente) es el tiempo en minutos; la salida (cantidad dependiente) son los galones de agua en la piscina, porque depende de la entrada.'],
+  ['The input (independent quantity) is time in minutes; the output (dependent quantity) is gallons of water left in the tank, because it depends on the input.', 'La entrada (cantidad independiente) es el tiempo en minutos; la salida (cantidad dependiente) son los galones de agua que quedan en el tanque, porque depende de la entrada.'],
+  ['The input (independent quantity) is smoothies bought; the output (dependent quantity) is money left on the card in dollars, because it depends on the input.', 'La entrada (cantidad independiente) son los licuados comprados; la salida (cantidad dependiente) es el dinero que queda en la tarjeta en dólares, porque depende de la entrada.'],
+  ['The amount starts at {1}, and each car adds {2}, so {3}.', 'La cantidad empieza en {1}, y cada carro suma {2}, así que {3}.'],
+  ['The amount starts at {1}, and each minute adds {2}, so {3}.', 'La cantidad empieza en {1}, y cada minuto suma {2}, así que {3}.'],
+  ['The amount starts at {1}, and each minute takes away {2}, so {3}.', 'La cantidad empieza en {1}, y cada minuto resta {2}, así que {3}.'],
+  ['The amount starts at {1}, and each smoothie takes away {2}, so {3}.', 'La cantidad empieza en {1}, y cada licuado resta {2}, así que {3}.'],
+  ['Because only a whole number of cars can be washed, the graph is separate points, not a connected line.', 'Como solo se puede lavar un número entero de carros, la gráfica son puntos separados, no una recta continua.'],
+  ['Because only a whole number of smoothies can be bought, the graph is separate points, not a connected line.', 'Como solo se puede comprar un número entero de licuados, la gráfica son puntos separados, no una recta continua.'],
+  ['Because time can be any value in between, such as half a minute, the graph is one connected segment.', 'Como el tiempo puede tomar cualquier valor intermedio, como medio minuto, la gráfica es un solo segmento continuo.'],
+  ['Domain: every time from zero up to {1}, both ends included.', 'Dominio: todos los tiempos desde cero hasta {1}, con los dos extremos incluidos.'],
+  ['Domain: from zero until the amount runs out, at {1}, both ends included.', 'Dominio: desde cero hasta que la cantidad se acaba, en {1}, con los dos extremos incluidos.'],
+  ['Domain: from zero until the amount runs out, at {1}, in whole numbers.', 'Dominio: desde cero hasta que la cantidad se acaba, en {1}, en números enteros.'],
+  ['Range: the output starts at {1} and ends at {2}, with every value in between.', 'Rango: la salida empieza en {1} y termina en {2}, con todos los valores intermedios.'],
+  ['Range: the output starts at {1} and ends at {2}, {3} at a time.', 'Rango: la salida empieza en {1} y termina en {2}, aumentando {3} cada vez.'],
+  ['Range: the output starts at {1} and goes down to zero, with every value in between.', 'Rango: la salida empieza en {1} y baja hasta cero, con todos los valores intermedios.'],
+  ['Range: the output starts at {1} and goes down to zero, {2} at a time.', 'Rango: la salida empieza en {1} y baja hasta cero, disminuyendo {2} cada vez.'],
+  ['Axes: label the horizontal axis “Cars washed” and the vertical axis “Money in the fund in dollars”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Carros lavados” y el eje vertical “Dinero del fondo en dólares”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Axes: label the horizontal axis “Time in minutes” and the vertical axis “Gallons of water in the pool”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Tiempo en minutos” y el eje vertical “Galones de agua en la piscina”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Axes: label the horizontal axis “Time in minutes” and the vertical axis “Gallons of water left in the tank”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Tiempo en minutos” y el eje vertical “Galones de agua que quedan en el tanque”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Axes: label the horizontal axis “Smoothies bought” and the vertical axis “Money left on the card in dollars”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Licuados comprados” y el eje vertical “Dinero que queda en la tarjeta en dólares”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Starting point: when the input is zero the output is {1}: before any car is washed, the fund already holds {2}.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de lavar ningún carro, el fondo ya tiene {2}.'],
+  ['Starting point: when the input is zero the output is {1}: before the hose runs, the pool already holds {2} gallons.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de que corra la manguera, la piscina ya tiene {2} galones.'],
+  ['Starting point: when the input is zero the output is {1}: before the tank drains, it holds {2} gallons.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de que el tanque se vacíe, tiene {2} galones.'],
+  ['Starting point: when the input is zero the output is {1}: before any smoothie is bought, the card holds {2}.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de comprar ningún licuado, la tarjeta tiene {2}.'],
+  ['Answer: input cars washed, output money in the fund in dollars; {1}; table {2}, {3}, {4}, {5}', 'Respuesta: entrada, carros lavados; salida, dinero del fondo en dólares; {1}; tabla {2}, {3}, {4}, {5}'],
+  ['Answer: input time in minutes, output gallons of water in the pool; {1}; table {2}, {3}, {4}, {5}', 'Respuesta: entrada, tiempo en minutos; salida, galones de agua en la piscina; {1}; tabla {2}, {3}, {4}, {5}'],
+  ['Answer: input smoothies bought, output money left on the card in dollars; {1}; table {2}, {3}, {4}, {5}, {6}; separate points; domain {{7}, {8}, {9}, ..., {10}}; range {{11}, {12}, {13}, ..., {14}}', 'Respuesta: entrada, licuados comprados; salida, dinero que queda en la tarjeta en dólares; {1}; tabla {2}, {3}, {4}, {5}, {6}; puntos separados; dominio {{7}, {8}, {9}, ..., {10}}; rango {{11}, {12}, {13}, ..., {14}}'],
+  ['Answer: input time in minutes, output gallons of water left in the tank; {1}; table {2}, {3}, {4}, {5}, {6}; a connected graph; domain {7}; range {8}', 'Respuesta: entrada, tiempo en minutos; salida, galones de agua que quedan en el tanque; {1}; tabla {2}, {3}, {4}, {5}, {6}; una gráfica continua; dominio {7}; rango {8}'],
+];
+
+export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences, ...modelFormSiblings];
 export const supportChoices = [...backUpChoices, ...platformFamilyChoices];
