@@ -15,6 +15,7 @@ import AlgebraTermRow from './AlgebraTermRow';
 import './StepByStepAlgebra.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import { workspaceNeedsReveal } from './platform/layout/workspaceReveal.js';
+import { expressionWidthChanged, fitEquationSide, phoneSideColumnWeight, sideScrolls } from './platform/algebra/equationSideFit.js';
 import { KEYBOARD_PLACEMENT_ROUTE, extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
   applyAdditiveOperationAtPlacement,
@@ -243,11 +244,13 @@ export function CancellationFactorRow({
  * The chip a student drags. A fraction is stacked with a real horizontal rule
  * rather than written with a slash, because that is what a fraction looks like.
  */
-function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' }) {
+function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '', scrollLabel = '', scrollFocusable = true }) {
   const viewportRef = useRef(null);
   const contentRef = useRef(null);
   const base = Number(baseFontSize) || 34;
   const [fontSize, setFontSize] = useState(base);
+  // Wider than its room even at the floor: the side scrolls, never cut (P-6).
+  const [scrolls, setScrolls] = useState(false);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -255,27 +258,37 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
     if (!viewport || !content) return undefined;
 
     let frame = null;
+    // The expression's width per unit of size when it was last fitted
+    // (platform/algebra/equationSideFit.js): what tells a change in the
+    // mathematics from a change of the fit's own making.
+    let fittedWidthPerUnit = 0;
     const fit = () => {
-      const available = Math.max(1, viewport.clientWidth - 8);
+      frame = null;
       // Sizes are in --mm-px (one CSS pixel at the default text size), so the
       // equation grows with the student's text-size setting (WCAG 1.4.4).
       // `units` is the size now written on the content; `pxPerUnit` is what
-      // the text setting makes of one unit.
+      // the text setting makes of one unit. A phone caps the size (App.css,
+      // --algebra-side-max-size): that cap is the fit's, so a long side still
+      // shrinks below it instead of being drawn at it and cut off.
       const units = Number(content.dataset.fitSize) || base;
-      const pxPerUnit = (Number.parseFloat(window.getComputedStyle(content).fontSize) || units) / units;
-      const rendered = Math.max(1, content.scrollWidth);
-
-      // Estimate the width this exact expression would occupy at the base
-      // typography, then derive one stable target size from that measurement.
-      // The old code multiplied the *current* font by a fresh width ratio while
-      // also observing the content itself. Changing the font changed the
-      // observed width, which triggered another resize, producing the visible
-      // "pulsing" students saw near the fit boundary.
-      // Fitting wins over size: the floor stays 17 CSS pixels at any setting.
-      const widthAtBase = Math.max(1, rendered * (base / units));
-      const target = Math.max(17 / pxPerUnit, Math.min(base, base * (available / widthAtBase) * 0.975));
-
-      setFontSize((current) => (Math.abs(target - current) > 0.35 ? target : current));
+      const contentStyle = window.getComputedStyle(content);
+      const pxPerUnit = (Number.parseFloat(contentStyle.fontSize) || units) / units;
+      const available = Math.max(1, viewport.clientWidth - 8);
+      const next = fitEquationSide({
+        available,
+        rendered: Math.max(1, content.scrollWidth),
+        units,
+        base,
+        cap: Number.parseFloat(window.getComputedStyle(viewport).getPropertyValue('--algebra-side-max-size')),
+        pxPerUnit,
+        // Set where the side wraps its tokens instead (StepByStepAlgebra.css).
+        wraps: contentStyle.getPropertyValue('--algebra-side-wraps').trim() === '1',
+      });
+      fittedWidthPerUnit = next.widthPerUnit;
+      const size = Math.abs(next.size - units) > 0.35 ? next.size : units;
+      setFontSize(size);
+      // Only wider than its own box: the fit's few pixels of air are not a reason to scroll.
+      setScrolls(sideScrolls({ widthPerUnit: next.widthPerUnit, size, box: viewport.clientWidth }));
     };
     const scheduleFit = () => {
       if (frame) window.cancelAnimationFrame(frame);
@@ -283,21 +296,39 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
     };
 
     scheduleFit();
-    // Observe only the space available to the equation. Observing the content
-    // itself creates a feedback loop because changing its font size changes its
-    // dimensions. Content changes already arrive through cacheKey.
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(scheduleFit) : null;
+    // The space available to the equation, and the expression's own width:
+    // its mathematics is typeset only once on screen, often after this first
+    // fit. A resize of the content that keeps its width per unit is the fit's
+    // own change of size and is ignored, so the two cannot feed each other.
+    const ResizeObserverClass = typeof ResizeObserver === 'function' ? ResizeObserver : null;
+    const observer = ResizeObserverClass ? new ResizeObserverClass(scheduleFit) : null;
     observer?.observe(viewport);
+    const contentObserver = ResizeObserverClass ? new ResizeObserverClass(() => {
+      if (expressionWidthChanged({ fittedWidthPerUnit, rendered: content.scrollWidth, units: Number(content.dataset.fitSize) || base })) scheduleFit();
+    }) : null;
+    contentObserver?.observe(content);
     window.addEventListener('resize', scheduleFit);
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
       observer?.disconnect();
+      contentObserver?.disconnect();
       window.removeEventListener('resize', scheduleFit);
     };
   }, [base, cacheKey]);
 
+  // A side that scrolls can be reached and scrolled from the keyboard, except
+  // inside a side that is itself a button (an operation in hand): a control
+  // inside a control is not allowed.
+  const focusable = scrolls && scrollFocusable;
   return (
-    <div ref={viewportRef} className="algebra-expression-fit-viewport">
+    <div
+      ref={viewportRef}
+      className="algebra-expression-fit-viewport"
+      data-scrolls={scrolls ? 'true' : undefined}
+      tabIndex={focusable ? 0 : undefined}
+      role={focusable ? 'group' : undefined}
+      aria-label={focusable && scrollLabel ? scrollLabel : undefined}
+    >
       <div ref={contentRef} className="algebra-expression-fit-content" data-fit-size={fontSize} style={{ fontSize: `calc(${fontSize} * var(--mm-px))` }}>
         {children}
       </div>
@@ -2082,6 +2113,13 @@ export default function StepByStepAlgebra({
   const adaptiveBalanceColumns = mobileInteraction.isMobile
     ? undefined
     : `minmax(0, ${sideColumnWeight(leftVisualLength)}fr) 56px minmax(0, ${sideColumnWeight(rightVisualLength)}fr)`;
+  // A phone's columns are set by its own rules (App.css, the tap layout below),
+  // which read each side's share from these, so a long side borrows the room a
+  // short one does not need instead of being cut at half the board (P-6).
+  const phoneBalanceShares = {
+    '--algebra-side-left': `minmax(0, ${phoneSideColumnWeight(leftVisualLength, rightVisualLength)}fr)`,
+    '--algebra-side-right': `minmax(0, ${phoneSideColumnWeight(rightVisualLength, leftVisualLength)}fr)`,
+  };
   // A structure tool writes one side out as tokens (primes, a fraction being
   // split); that side borrows most of the width, on a phone especially, so the
   // tokens are never clipped to the half-width the balance gives each side.
@@ -2699,7 +2737,7 @@ export default function StepByStepAlgebra({
           className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}${structureFocusSides.length === 1 ? ` has-structure-focus-${structureFocusSides[0]}` : ''}`}
           style={structureFocusColumns
             ? { gridTemplateColumns: structureFocusColumns }
-            : adaptiveBalanceColumns ? { gridTemplateColumns: adaptiveBalanceColumns } : undefined}
+            : adaptiveBalanceColumns ? { gridTemplateColumns: adaptiveBalanceColumns } : phoneBalanceShares}
         >
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
@@ -2754,6 +2792,8 @@ export default function StepByStepAlgebra({
                   <AutoFitEquationExpression
                     baseFontSize={sideFontSize(side)}
                     cacheKey={`${sideExpression(side)}|${inlineToolActive ? 'inline' : 'balance'}|${distributionState?.placedIndices?.length || 0}|${structureToolFitKey(structureTool)}`}
+                    scrollLabel={`${side === 'left' ? 'Left' : 'Right'} side of the equation, scrolls sideways`}
+                    scrollFocusable={!sideTapReady}
                   >
                     {renderSide(side, cancellationModel)}
                   </AutoFitEquationExpression>
