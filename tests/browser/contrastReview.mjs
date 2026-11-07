@@ -8,7 +8,10 @@
  *   Same environment as accessibilityCertification.mjs (AUDIT_ORIGIN,
  *   TEACHER_HARNESS_ORIGIN, ONLY=<screen id>[,...], PLAYWRIGHT_MODULE /
  *   CHROMIUM_PATH, ACCESSIBILITY_ARTIFACTS). Writes contrast-review.json
- *   next to the certification's report.json.
+ *   next to the certification's report.json. Light theme, as the
+ *   certification; COLOR_SCHEME=dark reads the same scenes on a dark device
+ *   (the app follows the device; a standalone harness, which does not, is put
+ *   in the dark theme as darkModeCertification.mjs puts its own).
  *
  * WHY. axe answers "needs review" for text it cannot place on one solid colour:
  * text over a gradient, an image, a pseudo-element, or a translucent layer, and
@@ -442,6 +445,7 @@ const main = async () => {
   else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOptions);
 
+  const colorScheme = process.env.COLOR_SCHEME === 'dark' ? 'dark' : 'light';
   const nodes = [];
   const unreachable = [];
   for (const viewport of VIEWPORTS) {
@@ -449,8 +453,17 @@ const main = async () => {
       const context = await newScreenContext(browser, screen, {
         viewport: { width: viewport.width, height: viewport.height },
         isMobile: Boolean(viewport.isMobile), hasTouch: Boolean(viewport.hasTouch),
-        colorScheme: 'light', reducedMotion: 'reduce',
+        colorScheme, reducedMotion: 'reduce',
       });
+      // A harness that does not follow the device is put in the dark theme
+      // before its first paint, as the app's own script puts the app.
+      if (colorScheme === 'dark') {
+        await context.addInitScript(() => {
+          const dark = () => { document.documentElement.dataset.theme = 'dark'; document.documentElement.style.colorScheme = 'dark'; };
+          if (document.documentElement) dark();
+          else new MutationObserver((_, observer) => { if (document.documentElement) { dark(); observer.disconnect(); } }).observe(document, { childList: true });
+        });
+      }
       await context.route('**/*', (route) => {
         const url = route.request().url();
         if (/^(https?|wss?):\/\/(localhost|127\.0\.0\.1)[:/]/.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
@@ -575,6 +588,7 @@ const main = async () => {
   const report = {
     generatedBy: 'tests/browser/contrastReview.mjs',
     method: 'worst of text vs every background colour composited at its text boxes (a gradient read where the text is, or whole where it cannot be placed) and vs the darkest/lightest background pixel with the text hidden',
+    colorScheme,
     unreachable, totals: { nodes: nodes.length, families: familyRows.length, failingNodes: failing.length, skippedDecorative: nodes.filter((n) => n.decision?.startsWith('skip')).length },
     families: familyRows, nodes,
   };

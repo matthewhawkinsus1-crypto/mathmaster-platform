@@ -207,6 +207,20 @@ test('a scene audits and is walked as it says, and otherwise as its screen does'
   assert.match(review, /collectInPage, \{ include: asList\(scope\.include\), exclude: asList\(scope\.exclude\) \}/);
 });
 
+// The contrast review reads the scenes in the light theme, as the certification audits them and as CI runs it.
+// COLOR_SCHEME=dark reads the same scenes on a dark device, to check both themes by hand: the app follows the device,
+// and a standalone harness, which does not, is put in the dark theme before it paints.
+test('the contrast review reads the scenes light, as CI runs it, and on a dark device when asked', () => {
+  const review = executableSource(readFileSync(new URL('../browser/contrastReview.mjs', import.meta.url), 'utf8'));
+  assert.match(review, /const colorScheme = process\.env\.COLOR_SCHEME === 'dark' \? 'dark' : 'light';/, 'light unless asked');
+  assert.match(review, /isMobile: Boolean\(viewport\.isMobile\), hasTouch: Boolean\(viewport\.hasTouch\),\s*colorScheme, reducedMotion: 'reduce',/, 'every context on that device');
+  const dark = region(review, "if (colorScheme === 'dark') {", 'await context.route(', 'the dark run');
+  assert.match(dark, /await context\.addInitScript\(\(\) => \{[\s\S]*document\.documentElement\.dataset\.theme = 'dark'; document\.documentElement\.style\.colorScheme = 'dark';/, 'a harness put in the dark theme');
+  const workflow = readFileSync(new URL('../../.github/workflows/accessibility-certification.yml', import.meta.url), 'utf8');
+  const step = region(workflow, '- name: Contrast over gradients', 'run: npm run review:contrast', 'CI\'s contrast step');
+  assert.doesNotMatch(step, /COLOR_SCHEME/, 'CI reads it light');
+});
+
 // TT27 slice 2: the class selector's list and a card's ⋮ menu are scenes of the Assignments screen, each
 // opened as a keyboard teacher opens it. The scene is not reached unless focus lands inside the pop-up, so
 // the audit fails if those keys stop working. Each audits the pop-up itself (the page behind it is read as
