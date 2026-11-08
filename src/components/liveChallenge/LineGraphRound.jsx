@@ -216,7 +216,7 @@ const LINE_CSS = `
 }
 ${arenaLayerCss('.mm-line-shell')}
 .mm-line-bar {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   min-height: 52px; box-sizing: border-box;
   background: linear-gradient(90deg, rgba(42,15,92,.92), rgba(10,16,52,.92) 55%, rgba(42,15,92,.92));
@@ -227,12 +227,40 @@ ${arenaLayerCss('.mm-line-shell')}
 .mm-line-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
 .mm-line-progress { padding: 4px 10px; border-radius: 999px; background: rgba(10,16,52,.7); border: 1px solid rgba(53,227,255,.35); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mm-line-done { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mm-line-streak { font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #ffb020; white-space: nowrap; }
+/* The streak's slot, as wide as a two-digit streak, and kept while there is no
+   streak (none yet, or a miss or Skip ended it): 🔥 2 arrives and leaves inside
+   it. Where the bar could run out of room, its arrival wrapped the bar onto a
+   second row (57 to 91 px on a 320 px phone; a Sprint's to 98 at 390), and the
+   grid jumped 34 to 41 px under the student's finger as a streak began and back
+   as it ended. The reserve is drawn invisible in the same cell; a screen reader
+   reads only the streak itself. Wider than 60em the bar's longest row fits
+   (a Sprint's, with a long alias), so there it comes and goes as it always did. */
+.mm-line-streak { display: inline-grid; align-items: center; justify-items: start; font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #ffb020; white-space: nowrap; }
+.mm-line-streak > * { grid-area: 1 / 1; }
+.mm-line-streak[data-streak="0"], .mm-line-reserve { display: none; }
+@media (max-width: 60em) {
+  .mm-line-streak[data-streak="0"] { display: inline-grid; }
+  .mm-line-reserve { display: block; visibility: hidden; }
+}
 /* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
 .mm-line-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
 /* The last ten seconds: red, and a pulse (a transform: the compositor's). */
 .mm-line-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
-.mm-line-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; }
+/* "Reconnecting…" sits on the bar's lower edge and takes no room in it, as in
+   Graph Feature Rush (.mm-rush-sync). In the bar's row it wrapped a phone's bar
+   onto three rows (57 to 122 px high at 390 and 360 px wide), so the grid jumped
+   65 px down under the student's finger as a send failed, and back up as it
+   landed: a point dragged there landed 65 px from where it was aimed. It catches
+   no pointer, so the stage under it stays the student's. Where the sentence does
+   not fit on one line (large text on a phone) it wraps, so every word is shown;
+   it is still drawn over the bar's edge, and still takes no room. One line at
+   320 px in CI's fonts (DejaVu Sans, the widest it is drawn in): 294 px wide. */
+.mm-line-sync {
+  position: absolute; left: 50%; top: 100%; z-index: 2; transform: translate(-50%, -50%);
+  width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; text-align: center; text-wrap: balance;
+  padding: 1px 8px; border-radius: 999px; background: #4a3708; border: 1px solid #f9ab00; pointer-events: none;
+  font-size: calc(12 * var(--mm-px)); line-height: 1.25; font-weight: 900; color: #fdd663;
+}
 .mm-line-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(53,227,255,.45); border-radius: 8px; background: rgba(10,16,52,.6); color: #eef2ff; font-weight: 900; cursor: pointer; }
 .mm-line-stage {
   /* minmax(0, 1fr) here and in the grids inside: nothing may widen a column
@@ -806,6 +834,10 @@ export default function LineGraphRound({
     ? (completed ? 'You got it.' : 'This one is done.')
     : `${completed} of ${completed + ended} right.`;
   const streak = session?.streak || 0;
+  const streakShown = streak >= 2;
+  // A Classic round is one line, so it never has a streak; a Sprint or a Rush
+  // keeps the streak's slot from its first line.
+  const streakSlot = format !== LINE_GRAPH_FORMAT.CLASSIC || streakShown;
 
   let overlay = null;
   if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : 'Getting your lines ready.'}</span></>;
@@ -844,7 +876,13 @@ export default function LineGraphRound({
         {progress && <span className="mm-line-progress"><span aria-hidden="true">{progress}</span><span style={SR_ONLY_STYLE}>{`${progress.replace(' / ', ' of ')} done`}</span></span>}
         {/* Each right line pops the count (and the streak) once, keyed to it. */}
         <span className="mm-line-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
-        {streak >= 2 && <span className="mm-line-streak"><span key={streak} className="mm-gp-bump" aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></span>}
+        {/* The streak in its own slot: kept while there is none, so 🔥 coming and going never moves the bar. */}
+        {streakSlot && (
+          <span className="mm-line-streak" data-streak={streakShown ? '1' : '0'}>
+            {streakShown && <><span key={streak} className="mm-gp-bump" aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></>}
+            <span className="mm-line-reserve" aria-hidden="true">🔥 00</span>
+          </span>
+        )}
         {connection === 'retrying' && <span className="mm-line-sync" role="status">Reconnecting… your answers are saved</span>}
         <LineClock startMono={timing.startMono} endMono={clockEndMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-line-exit" onClick={onExit}>{exitLabel}</button>}
