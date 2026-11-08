@@ -49,11 +49,13 @@
  * scene is driven there as the certification drives it; then the scene is read,
  * the device is switched to its light contrast theme (a standalone harness,
  * which does not follow the device, is put in the light theme with it, as the
- * contrast review puts one in the dark), read again, and switched back before
- * the next scene is driven. The palette is the device's, so the second reading
- * is of the light theme throughout. A reading focuses every Tab stop and blurs
- * it again, so what focus opens and leaves open (a phone's math keypad) is read
- * by the next reading too.
+ * contrast review puts one in the dark, once the browser has drawn it in the
+ * new contrast theme, the order in which the app follows the device), read
+ * again, and switched back before the next scene is driven. Every formula on
+ * screen is typeset before the switch and before each reading. The palette is
+ * the device's, so the second reading is of the light theme throughout. A
+ * reading focuses every Tab stop and blurs it again, so what focus opens and
+ * leaves open (a phone's math keypad) is read by the next reading too.
  *
  * tests/browser/forcedColorsSelfTest.mjs shows each rule finding a planted
  * defect, and passing its fixed twin, on pages written there.
@@ -68,7 +70,7 @@ import {
   CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, screensToRun,
   servesStubbedServices,
 } from './accessibilityCertification.mjs';
-import { auditForcedColors } from './forcedColorsAudit.mjs';
+import { auditForcedColors, waitForFormulas } from './forcedColorsAudit.mjs';
 import { FORCED_COLORS_RULE_IDS } from '../../scripts/lib/forcedColors.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -96,11 +98,29 @@ const THEME_FROM_DEVICE = (scheme) => {
   window.dispatchEvent(new CustomEvent('mathmasterthemechange', { detail: { theme: scheme } }));
 };
 
-/** The device switched to a contrast theme, the page following it. */
+// Two frames and a layout read: the page drawn as it stands now.
+const DRAWN = () => new Promise((resolve) => {
+  requestAnimationFrame(() => requestAnimationFrame(() => { document.documentElement.getBoundingClientRect(); resolve(); }));
+});
+
+/**
+ * The device switched to a contrast theme, the page following it, in the order
+ * a device and the app keep: the browser draws the page in the new contrast
+ * theme, and then the app, told by its media listener (src/theme/mathMasterTheme.js),
+ * renames its own theme. A standalone harness is renamed here in that order,
+ * once it is drawn. Renamed at once, as it was, whether the browser drew it in
+ * between was the run's timing; drawn and renamed in one go, a formula that
+ * keeps the page's own white after the app's switch (MathLive's
+ * preserve-parent-color) followed the theme instead, and the walk's self-test
+ * found nothing on its planted page under load.
+ */
 export const useContrastTheme = async (page, screen, scheme) => {
   await page.emulateMedia({ forcedColors: 'active', colorScheme: scheme });
-  if (screen.harness !== 'app') await page.evaluate(THEME_FROM_DEVICE, scheme);
-  await page.evaluate(() => new Promise((resolve) => { requestAnimationFrame(() => requestAnimationFrame(resolve)); }));
+  if (screen.harness !== 'app') {
+    await page.evaluate(DRAWN);
+    await page.evaluate(THEME_FROM_DEVICE, scheme);
+  }
+  await page.evaluate(DRAWN);
 };
 
 const main = async () => {
@@ -172,6 +192,14 @@ const main = async () => {
           break;
         }
         const scope = sceneScope(screen, scene);
+        // Every formula on screen typeset before the switch: one typeset after it is drawn afresh in the new theme,
+        // and a formula that would keep the old one's colour passes (waitForFormulas). One never typeset fails here.
+        try {
+          await waitForFormulas(page, { include: scope.include, exclude: scope.exclude });
+        } catch (error) {
+          unreachable.push(`${label}|${viewport.id}: ${error.message.split('\n')[0]}`);
+          continue;
+        }
         for (const scheme of CONTRAST_THEMES) {
           await useContrastTheme(page, screen, scheme);
           const key = `${viewport.id}/${scheme}`;

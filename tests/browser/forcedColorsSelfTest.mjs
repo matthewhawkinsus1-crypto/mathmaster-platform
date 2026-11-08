@@ -34,9 +34,11 @@
  *   math-fixed-colour    MathLive's own <math-span> in words of a colour the page
  *                        fixed (white, as the Live Challenge projector writes its
  *                        question), on a page that themes itself as the app does;
- *                        opened in the dark contrast theme and switched to the
- *                        light one as the walk switches: the formula stays white
- *                        on the white page while the words are black
+ *                        opened in the dark contrast theme, typeset, and switched
+ *                        to the light one as the walk switches a standalone page
+ *                        (drawn in the new theme, then renamed, as the app follows
+ *                        the device): the formula stays white on the white page
+ *                        while the words are black
  *   math-canvastext      fixed: the same, the math element given the theme's
  *                        text colour under forced colours
  *   math-theme-colour    fixed: words in the theme's own colour, which the switch
@@ -45,7 +47,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { auditForcedColors } from './forcedColorsAudit.mjs';
+import { auditForcedColors, waitForFormulas } from './forcedColorsAudit.mjs';
 import { CONTRAST_THEMES, useContrastTheme } from './forcedColorsCertification.mjs';
 
 const BASE = 'body { margin: 0; font: 16px/1.4 sans-serif; background: #fff; color: #202124; } main { padding: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; } button { font: inherit; padding: 8px 14px; }';
@@ -168,7 +170,9 @@ const walk = async (name, scheme) => {
     await page.setContent(`<!doctype html><html lang="en" data-theme="${opens}"><head><style>${BASE} ${spec.css}</style></head><body><main id="fixture">${spec.html}</main></body></html>`);
     if (spec.math) {
       await page.addScriptTag({ content: MATHLIVE });
-      await page.waitForFunction(() => document.querySelector('#planted')?.shadowRoot?.querySelector('[part="render"]')?.childElementCount, null, { timeout: 30_000 });
+      // Typeset before the switch, as the walk has every formula on screen: one typeset after it is drawn afresh in
+      // the new theme, and the planted page has no defect left to find. One never typeset fails the page by name.
+      await waitForFormulas(page, { include: '#fixture' });
     }
     if (scheme !== opens) await useContrastTheme(page, SELF_TEST_PAGE, scheme);
     const result = await auditForcedColors(page, { name, viewport: scheme, include: '#fixture' });
@@ -182,20 +186,32 @@ const failures = [];
 try {
   for (const name of Object.keys(PAGES)) {
     for (const scheme of THEMES) {
-      // eslint-disable-next-line no-await-in-loop
-      const result = await walk(name, scheme);
+      let result;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        result = await walk(name, scheme);
+      } catch (error) {
+        // A page the walk could not read (a formula never typeset) is its own failure, never "found nothing".
+        console.log(`FAIL ${name.padEnd(20)} ${scheme.padEnd(6)} not read: ${error.message.split('\n')[0]}`);
+        failures.push(`${name} (${scheme}): not read: ${error.message.split('\n')[0]}`);
+        continue;
+      }
       const found = result.violations.map((violation) => violation.id).sort();
       const targets = result.violations.flatMap((violation) => violation.nodes.map((node) => node.target[0]));
       const expected = expectedFor(name, scheme);
-      const line = `${name.padEnd(20)} ${scheme.padEnd(6)} found ${found.length ? found.join(', ') : 'nothing'}${targets.length ? ` on ${targets.join(' | ')}` : ''}`;
-      console.log(`${JSON.stringify(found) === JSON.stringify(expected) ? 'ok  ' : 'FAIL'} ${line}`);
+      // A page of mathematics whose formula was not read says so, never "found nothing".
+      const unread = PAGES[name].math && result.summary.formulas !== 1;
+      const line = unread
+        ? `${name.padEnd(20)} ${scheme.padEnd(6)} read ${result.summary.formulas} formula(s), not the 1 on the page`
+        : `${name.padEnd(20)} ${scheme.padEnd(6)} found ${found.length ? found.join(', ') : 'nothing'}${targets.length ? ` on ${targets.join(' | ')}` : ''}`;
+      console.log(`${!unread && JSON.stringify(found) === JSON.stringify(expected) ? 'ok  ' : 'FAIL'} ${line}`);
       try {
+        // The walk read what it judges, first: a control, and a Tab stop; a page of mathematics, its formula.
+        if (PAGES[name].math) assert.equal(result.summary.formulas, 1, `${name} (${scheme}): the formula was not read`);
+        else assert.ok(result.summary.controls > 0 || name.startsWith('state-choice'), `${name} (${scheme}): no control was read`);
         assert.deepEqual(found, expected, `${name} (${scheme}): expected ${expected.join(', ') || 'nothing'}`);
         // A planted defect is found on the planted control, not somewhere near it.
         if (expected.length) assert.ok(targets.every((target) => /#planted\b/.test(target)), `${name} (${scheme}): reported on ${targets.join(' | ')}, not on #planted`);
-        // The walk read what it judges: a control, and a Tab stop; a page of mathematics, its formula.
-        if (PAGES[name].math) assert.equal(result.summary.formulas, 1, `${name} (${scheme}): the formula was not read`);
-        else assert.ok(result.summary.controls > 0 || name.startsWith('state-choice'), `${name} (${scheme}): no control was read`);
       } catch (error) {
         failures.push(error.message);
       }

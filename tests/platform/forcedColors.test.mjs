@@ -160,6 +160,26 @@ test('a formula drawn in another colour than its words kept one under forced col
   assert.match(found.nodes[0].failureSummary, /rgb\(255, 255, 255\).*rgb\(0, 0, 0\)/, 'and both colours');
 });
 
+// The order of a switch decides whether that defect shows: drawn in the new contrast theme and then renamed (as the app
+// follows the device, from its media listener) the formula keeps the page's white; renamed at once, the page was
+// sometimes drawn both ways in one go, and the self-test's planted formula followed the theme under load. And a formula
+// typeset only after the switch, or after the reading, is drawn afresh or not read at all.
+test('a standalone page is renamed once drawn in the new contrast theme, and every formula on screen is typeset before the switch and the reading', () => {
+  const walk = read('tests/browser/forcedColorsCertification.mjs');
+  const switched = region(walk, 'export const useContrastTheme = async', '\n};', 'useContrastTheme');
+  const media = switched.indexOf("await page.emulateMedia({ forcedColors: 'active', colorScheme: scheme });");
+  const drawn = switched.indexOf('await page.evaluate(DRAWN);');
+  const renamed = switched.indexOf('await page.evaluate(THEME_FROM_DEVICE, scheme);');
+  assert.ok(media >= 0 && drawn > media && renamed > drawn, 'the device switches, the page is drawn, and then it is renamed');
+  assert.match(region(walk, 'const DRAWN = ', '\n});', 'DRAWN'), /requestAnimationFrame\(\(\) => requestAnimationFrame\(\(\) => \{ document\.documentElement\.getBoundingClientRect\(\); resolve\(\); \}\)\)/, 'drawn: two frames and a layout read');
+  // Before the switch, in the run's loop: a scene whose formula is never typeset is not read, and says why.
+  const scene = region(walk, 'const scope = sceneScope(screen, scene);', 'for (const scheme of CONTRAST_THEMES)', 'a scene before its switch');
+  assert.match(scene, /await waitForFormulas\(page, \{ include: scope\.include, exclude: scope\.exclude \}\);[\s\S]*unreachable\.push\(/);
+  // Before each reading, in the audit itself.
+  const audit = read('tests/browser/forcedColorsAudit.mjs');
+  assert.match(region(audit, 'export const auditForcedColors = async', 'const setup = await page.evaluate(INSTALL', 'a reading'), /await waitForFormulas\(page, \{ include, exclude \}\);\s*$/);
+});
+
 // ------------------------------------------------------------------ CI
 test('the theme readability job runs the forced-colours walk on the stubbed server and the app, after its self-test', () => {
   const workflow = 'theme-certification.yml';

@@ -17,7 +17,9 @@
  *
  *   0. Every formula MathLive has drawn, read first, as the page stands: its
  *      element's colour and its formula's (see mathColourKept). Anything the
- *      walk does after this draws a formula afresh.
+ *      walk does after this draws a formula afresh. Each formula on screen is
+ *      waited for until it is typeset (waitForFormulas), and one that never is
+ *      fails the reading by name.
  *   1. Every control that is drawn (buttons, links, fields, math boxes, and the
  *      widget roles), and every control in a state (aria-pressed, -selected,
  *      -checked, -current; a checked radio or checkbox that its label draws)
@@ -373,6 +375,52 @@ export const INSTALL = ({ include, exclude, styleKeys, renderPart }) => {
   return { controls: controls.length, states: pairs.length, stops: stops.length, formulas };
 };
 
+/*
+ * EVERY FORMULA ON SCREEN TYPESET, before the walk switches theme or reads one.
+ * MathLive typesets a <math-span> or <math-div> lazily, when its own
+ * IntersectionObserver first reports it (MathDisplay looks again a frame and
+ * 400 ms after mount: src/platform/math/ensureMathElementRenders.js). Under load
+ * that can land after a switch of contrast theme, where the formula is drawn
+ * afresh in the new theme and one that would keep the old colour passes; or
+ * after the reading, which then has nothing to read. So each formula on screen
+ * (within 50 px of the viewport, as ensureMathElementRenders counts one) is
+ * waited for, up to `timeoutMs`, and one still not typeset then fails the run by
+ * name, never as "nothing found". One farther off stays lazy, as it does on a
+ * student's screen, and is judged once it is drawn.
+ */
+export const FORMULA_WAIT_MS = 15_000;
+const UNTYPESET_FORMULAS = ({ include, exclude, renderPart }) => {
+  const roots = include.length ? include.flatMap((selector) => [...document.querySelectorAll(selector)]) : [document.body];
+  const excluded = (el) => exclude.some((selector) => el.closest(selector));
+  const waiting = [];
+  for (const el of new Set(roots.flatMap((root) => [...(root.matches?.('math-span, math-div') ? [root] : []), ...root.querySelectorAll('math-span, math-div')]))) {
+    if (excluded(el) || !el.isConnected || !el.getClientRects().length) continue;
+    if (typeof el.checkVisibility === 'function' && !el.checkVisibility({ checkVisibilityCSS: true })) continue;
+    const box = el.getBoundingClientRect();
+    if (box.bottom < -50 || box.top > innerHeight + 50) continue;
+    if (el.shadowRoot?.querySelector(renderPart)?.childElementCount) continue;
+    waiting.push(`${el.parentElement?.localName || '?'} > ${el.localName} "${String(el.textContent || '').trim().slice(0, 40)}"`);
+  }
+  return waiting;
+};
+
+/** Waits until every formula on screen in the scope is typeset; throws naming any that is not by `timeoutMs`. */
+export const waitForFormulas = async (page, { include = null, exclude = null, timeoutMs = FORMULA_WAIT_MS } = {}) => {
+  const asList = (value) => (value == null ? [] : [].concat(value));
+  const scope = { include: asList(include), exclude: asList(exclude), renderPart: MATHLIVE_RENDER_PART_SELECTOR };
+  const deadline = Date.now() + timeoutMs;
+  let waiting = await page.evaluate(UNTYPESET_FORMULAS, scope);
+  while (waiting.length && Date.now() < deadline) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.waitForTimeout(100);
+    // eslint-disable-next-line no-await-in-loop
+    waiting = await page.evaluate(UNTYPESET_FORMULAS, scope);
+  }
+  if (waiting.length) {
+    throw new Error(`${waiting.length} formula(s) on screen not typeset by MathLive in ${Math.round(timeoutMs / 1000)} s, so not read: ${waiting.slice(0, 4).join(' | ')}`);
+  }
+};
+
 /* Runs in the page: how many pixels differ by more than a hair between two same-sized PNGs. */
 const changedPixelsInPage = async ({ a, b }) => {
   const decode = async (b64) => {
@@ -414,6 +462,8 @@ export const auditForcedColors = async (page, { name, viewport = 'default', incl
   // Nothing hovered: a pointer left over a control by the scene's own clicks
   // would draw that control's hover style into one reading and not the other.
   await page.mouse.move(0, 0).catch(() => {});
+  // Every formula on screen typeset first: one that is not cannot be read.
+  await waitForFormulas(page, { include, exclude });
   const setup = await page.evaluate(INSTALL, { include: asList(include), exclude: asList(exclude), styleKeys: [...STYLE_KEYS, 'borderBottomWidth'], renderPart: MATHLIVE_RENDER_PART_SELECTOR });
   if (setup.missing) throw new Error(`${name}: nothing on the page matches the scene's scope (${setup.missing.join(', ')})`);
   try {
