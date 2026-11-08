@@ -118,7 +118,7 @@ test('the Data Modeling Lab\'s residual table is read as drawn, and only once th
   assert.deepEqual(residual.table.columns.map((column) => column.label), drawn[0]);
   // Said with the quantities, and ŷ as "y hat": the y and ŷ columns no longer sound alike.
   const said = speechTextFor(tableReading(residual.table, { label: residual.label }));
-  assert.match(said, /^Residual table, 10 rows\. Columns: x, Hours studied; y, Quiz score \(points\); y hat; residual\. Row 1: x, 0\.5; y, 58; y hat, 54\.07; residual, 3\.93\./, said);
+  assert.match(said, /^Residual table, 10 rows\. Columns: x, Hours studied; y, Quiz score, points; y hat; residual\. Row 1: x, 0\.5; y, 58; y hat, 54\.07; residual, 3\.93\./, said);
 
   // A model still missing a coefficient draws no residual table: none is read.
   const quadratic = { ...lineFit, mode: 'quadraticFit', startingModel: {} };

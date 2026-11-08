@@ -86,6 +86,9 @@ const WORDS = {
     mp: 'minus or plus', bar: 'bar', primes: ['prime', 'double prime', 'triple prime'],
     // A slash between words (math-speech-4): "left or right", "kcal per day".
     slash: { or: 'or', per: 'per' },
+    // A list that goes on ("0, 1, 2, and so on, 48"), and brackets named in a
+    // sentence ("write intervals with parentheses or square brackets").
+    andSoOn: 'and so on', parentheses: 'parentheses', squareBrackets: 'square brackets',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -152,8 +155,10 @@ const WORDS = {
     },
     mp: 'menos o más', bar: 'barra', primes: ['prima', 'doble prima', 'triple prima'],
     // New with math-speech-4, for the Spanish review: a slash between words,
-    // "izquierda o derecha", and between units, "km por h".
+    // "izquierda o derecha", and between units, "km por h"; a list that goes
+    // on, "0, 1, 2, y así sucesivamente, 48"; brackets named in a sentence.
     slash: { or: 'o', per: 'por' },
+    andSoOn: 'y así sucesivamente', parentheses: 'paréntesis', squareBrackets: 'corchetes',
   },
 };
 
@@ -613,6 +618,9 @@ const latexToSpeech = (raw, w) => {
     .replace(/\\(?:cdot|times)(?![A-Za-z])/g, ' × ')
     .replace(/\\div(?![A-Za-z])/g, ' ÷ ')
     .replace(/\\pi(?![A-Za-z])/g, ' π ')
+    // \ldots, \cdots: a list that goes on (math-speech-4). The catch-all below
+    // dropped them, so "$3, 6, 12, \ldots$" was heard as three numbers.
+    .replace(/\\(?:l|c)?dots[bc]?(?![A-Za-z])/g, ' … ')
     .replace(/\\(?:var)?theta(?![A-Za-z])|[θϑ]/g, ` ${w.theta} `)
     .replace(LATEX_GREEK, (match, name) => ` ${w.greek[GREEK_NAMES[name]]} `)
     .replace(UNICODE_GREEK, (letter) => ` ${w.greek[GREEK_NAMES[letter]]} `)
@@ -1064,6 +1072,22 @@ const markedNames = (text, w, mark) => {
 // a word, so "___x + 1" is "blank x plus 1" (math-speech-3).
 const blanksToWords = (text, w) => text.replace(/_{3,}/g, ` ${w.blank} `);
 
+/*
+ * AN ELLIPSIS THAT STANDS FOR A BLANK IS "BLANK" (math-speech-4). The Radicals
+ * hints write the term a student finds as "…": "5∛(…), with … =", "a√2 − a =
+ * a(…)", "(a² + 4)² − (…)²". A voice says nothing for it (flite, measured), so
+ * these were "5 times the cube root of, with, equals". In a bracket of its own,
+ * or between a sign and more mathematics, it is a blank, said as "___" is; a
+ * factor before the bracket multiplies it ("a times blank"). An ellipsis that
+ * ends a sentence is heard as its stop, and one in a list goes on
+ * (ellipsesInWords).
+ */
+const BRACKETED_ELLIPSIS = /([\p{L}\p{N})\]])?[([]\s*(?:…|\.{3})\s*[)\]]/gu;
+const OPERAND_ELLIPSIS = /((?:[=<>≤≥≠+\-−×·÷√∛∜]|\bwith|\bcon)\s*)(?:…|\.{3})(?=\s*(?:[,;)=<>≤≥≠]|(?:with|con)\b))/gu;
+const ellipsisBlanks = (text) => text
+  .replace(BRACKETED_ELLIPSIS, (match, factor) => (factor ? `${factor}·___` : '___'))
+  .replace(OPERAND_ELLIPSIS, '$1___');
+
 // "!=" typed for ≠, as the bank's set-builder examples write it ("{x|x!=3}"):
 // in prose the segmenter split the "!" off, and it was read "x! equals 3".
 const typedNotEqual = (text) => text.replace(/(?<=[\p{L}\p{N})\]}])\s*!=\s*/gu, ' ≠ ');
@@ -1404,7 +1428,7 @@ const proseArrowsToWords = (segments, w, letters) => {
 // log with no base is read with the mathematics around it, in mathToSpeech:
 // said here, "1/-ln(x)" lost its fraction to the prose.)
 const writtenNotationToSpokenForm = (raw, w, { mark = false } = {}) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(markedNames(slashesBetweenWords(arrowsAsCharacters(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body))), w), w, mark), w), w)), w), w), w, { mark },
+  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(ellipsisBlanks(dollarUnits(markedNames(slashesBetweenWords(arrowsAsCharacters(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body))), w), w, mark), w)), w)), w), w), w, { mark },
 );
 
 /**
@@ -1472,7 +1496,7 @@ export const mathToSpeech = (raw, { language = 'en', functionNames = '', interva
   const reduced = latexToSpeech(trigToWords(plainLogsToWords(writtenNotationToSpokenForm(twoLetterProductsApart(raw), w), w), w), w);
   // A union's pieces are intervals, (−3, 1) ∪ (2, 5) too; a union of sets is not.
   const union = reduced.includes('∪') && !reduced.includes(w.setOpen);
-  return w.contract(plainMathToSpeech(reduced, w, names, { intervals: intervals || union }).replace(/\s+/g, ' ').trim());
+  return w.contract(ellipsesInWords(plainMathToSpeech(reduced, w, names, { intervals: intervals || union }), w).replace(/\s+/g, ' ').trim());
 };
 
 /**
@@ -1502,7 +1526,11 @@ const spokenLineForms = (text, w) => text
     `y ${w.minus} y ${w.sub} 1 ${w.eq} m ${w.times} ${w.quantity} x ${w.minus} x ${w.sub} 1`)
   .replace(/\by\s*=\s*mx\s*\+\s*b\b/g, 'y = m x + b')
   .replace(/\bAx\s*\+\s*By\s*=\s*C\b/g, 'A x + B y = C')
-  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter} ${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}`)
+  // A subscript said in words is held for the split as a root's words are
+  // (math-speech-4): "(y₂ − y₁) ÷ (x₂ − x₁)" was prose to it, "sub" being a
+  // word, and its brackets, which group the slope formula, were left to the
+  // voice: "y sub 2 minus y sub 1 divided by x sub 2 minus x sub 1".
+  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter}${SAID_OPEN}${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}${SAID_CLOSE}`)
   // aₙ, aₙ₋₁, a₍₁₂₎: an engine gets the raw character and says nothing or
   // its name (walkthrough 2026-10-22). Letters, signs and brackets too.
   .replace(new RegExp(`([A-Za-z])([${SUBSCRIPT_SOURCE}]+)`, 'g'), (match, letter, marks) => (
@@ -1560,6 +1588,75 @@ const withPriceSigns = (segment) => (segment.delimited || /^\s*\$\d[\d,]*(?:\.\d
   ? segment.value
   : segment.value.replace(/(?<!\\)\$(?=\d)/g, '\\$'));
 
+/*
+ * AN ASIDE IN BRACKETS IS SAID WITH ITS PAUSES (math-speech-4; 1,062 texts
+ * hand the voice a bracket of words). A voice takes a closing bracket for a
+ * pause but not an opening one (flite, measured): "Total cost (dollars)"
+ * sounded exactly as "Total cost dollars", and "Card A (each gallon pumped
+ * adds to the cost), Card C (…)" ran each label into its reason. A bracket of
+ * words after a word and a space is said between commas, as one that holds a
+ * relation already is. A bracket pressed against a word ("f(bx)", "(coefficient)x"),
+ * one after a stop ("… in order. (The grid snaps to halves.)"), and a
+ * quantity in a formula in words ("(starting amount) − (rate)", a sign beside
+ * it) keep their brackets, and the voice what it had.
+ */
+const ASIDE_OPEN = '\uE022';
+const ASIDE_CLOSE = '\uE023';
+const ASIDE_MARKS = /[\uE022\uE023]/;
+const ASIDE_BEFORE = /[\p{L}\p{N}%’”"'$]\s+$/u;
+const SIGN_AFTER = /^\s*[=<>≤≥≠+\-−×·*/÷^²³]/;
+const proseAsides = (text, segments) => {
+  const prose = new Set();
+  let at = 0;
+  for (const segment of segments) {
+    if (segment.kind !== 'math') for (let index = at; index < at + segment.value.length; index += 1) prose.add(index);
+    at += segment.value.length;
+  }
+  const marks = new Map();
+  for (let index = text.indexOf('('); index !== -1; index = text.indexOf('(', index + 1)) {
+    if (!prose.has(index)) continue;
+    let depth = 0;
+    let close = -1;
+    for (let cursor = index; cursor < text.length && text[cursor] !== '\n'; cursor += 1) {
+      if (text[cursor] === '(') depth += 1;
+      else if (text[cursor] === ')') { depth -= 1; if (depth === 0) { close = cursor; break; } }
+    }
+    if (close === -1 || !prose.has(close)) continue;
+    const inner = text.slice(index + 1, close);
+    if (!/\p{L}{2}/u.test(inner)) continue;
+    // "(coefficient)x": a bracket a letter or digit is pressed against is a factor.
+    if (!ASIDE_BEFORE.test(text.slice(0, index)) || SIGN_AFTER.test(text.slice(close + 1)) || /^[\p{L}\p{N}]/u.test(text.slice(close + 1))) continue;
+    marks.set(index, ASIDE_OPEN).set(close, ASIDE_CLOSE);
+  }
+  if (!marks.size) return segments;
+  let from = 0;
+  return segments.map((segment) => {
+    const start = from;
+    from += segment.value.length;
+    return { ...segment, value: [...segment.value].map((char, offset) => marks.get(start + offset) ?? char).join('') };
+  });
+};
+const asidesAsPauses = (text) => (ASIDE_MARKS.test(text) ? text
+  .replace(/\s*\uE022\s*/g, (mark, offset, whole) => (PAUSES_BEFORE.test(whole.slice(0, offset)) ? ', ' : ' '))
+  .replace(/\s*\uE023\s*/g, (mark, offset, whole) => (PAUSES_AFTER.test(whole.slice(offset + mark.length)) ? ', ' : ' ')) : text);
+
+/*
+ * AN ELLIPSIS IN A LIST IS "AND SO ON" (math-speech-4; 808 texts hand the
+ * voice an ellipsis). A voice says nothing for it (flite, measured): "the set
+ * 0, 1, 2, …, 48" sounded exactly as "the set 0, 1, 2, 48", four members, and
+ * "0, 1, 2, 3, …" as four numbers. After a list's comma it is "and so on", and
+ * after a decimal's digits too ("153.33, and so on"). An ellipsis that ends a
+ * sentence, as the back-up questions' "The rate of change is…" do, sounded as
+ * the stop it is, and is left. A bracket named in a sentence, "write
+ * intervals with ( ) or [ ]" or "inside f( )", was silent: it is named.
+ */
+const ellipsesInWords = (text, w) => text
+  .replace(/,\s*(?:…|\.{3})/g, (match, offset, whole) => `, ${w.andSoOn}${/^\s*[\p{L}\p{N}]/u.test(whole.slice(offset + match.length)) ? ',' : ''}`)
+  .replace(/(\d\.\d+)\s*(?:…|\.{3})/g, `$1, ${w.andSoOn}`);
+const emptyBracketsNamed = (text, w) => text
+  .replace(/\(\s*\)/g, ` ${w.parentheses} `)
+  .replace(/\[\s*\]/g, ` ${w.squareBrackets} `);
+
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
   const text = spokenLineForms(writtenNotationToSpokenForm(lineBreaksAsPauses(raw), w, { mark: true }), w);
@@ -1567,7 +1664,7 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
   const names = `${functionNames || ''}${definedFunctionNames(text)}`;
-  const split = segmentMathText(text, { speech: true }).map((segment) => ({ ...segment, value: segment.value.replace(SAID_MARKS, ' ') }));
+  const split = proseAsides(text, segmentMathText(text, { speech: true }).map((segment) => ({ ...segment, value: segment.value.replace(SAID_MARKS, ' ') })));
   const segments = proseArrowsToWords(split, w, functionLettersFor(names));
   const dimensionsText = /dimension|matri|dimensi/i.test(text);
   return segments
@@ -1596,7 +1693,9 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
       return proseLogNames(joined, segments[index + 1], w).replace(/⁻¹/g, ` ${w.inverse}`);
     })
     .join('')
+    .replace(/[\s\S]*/, (whole) => emptyBracketsNamed(ellipsesInWords(asidesAsPauses(whole), w), w))
     .replace(/\s+([,.;:?!])/g, '$1')
+    .replace(/,(?:\s*,)+/g, ',')
     .replace(/\s+/g, ' ')
     // "name the point (0, 7)" — the prose already said "the point"; so for
     // "the set {1, 2}", "on the interval [0, 5)" and "a union (∪)".

@@ -136,7 +136,8 @@ test('∘ is "composed with", as LaTeX\'s \\circ is', () => {
 test('a set in plain braces is read as LaTeX\'s \\{…\\} is: its members, from "the set" to "end set"', () => {
   assert.equal(speechTextFor('Find the inverse relation of {(−3, 26), (2, 11)}.'), 'Find the inverse relation of the set the point negative 3, 26, the point 2, 11 end set.');
   assert.equal(speechTextFor('{1, 2, 3}'), speechTextFor('$\\{1, 2, 3\\}$'), 'as the LaTeX');
-  assert.equal(speechTextFor('so the domain is {0, 1, 2, ..., 48}.'), 'so the domain is the set 0, 1, 2,..., 48 end set.');
+  // The list's ellipsis is "and so on" (math-speech-4): a voice said nothing for it.
+  assert.equal(speechTextFor('so the domain is {0, 1, 2, ..., 48}.'), 'so the domain is the set 0, 1, 2, and so on, 48 end set.');
   assert.equal(speechTextFor('the zeros are {-4}.'), 'the zeros are the set negative 4 end set.');
   assert.equal(speechTextFor('the set {1, 2}'), 'the set 1, 2 end set', '"the set" said once');
   // A first member's sign is a sign, after plain braces and LaTeX's alike.

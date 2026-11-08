@@ -112,7 +112,8 @@ test('the read-only table: headers shape, its caption, money units and Spanish',
   assert.deepEqual(table.columns.map((column) => column.label), ['Month', 'Cost ($)']);
   assert.equal(
     speechTextFor(tableReading(table, { label: 'Phone bill' })),
-    'Phone bill, 2 rows. Columns: Month; Cost (dollars). Row 1: Month, May; Cost (dollars), 4 dollars and 50 cents. Row 2: Month, June; Cost (dollars), blank.',
+    // A unit in brackets is an aside, said between pauses (math-speech-4).
+    'Phone bill, 2 rows. Columns: Month; Cost, dollars. Row 1: Month, May; Cost, dollars, 4 dollars and 50 cents. Row 2: Month, June; Cost, dollars, blank.',
   );
   assert.equal(
     tableReading(table, { language: 'es' }),

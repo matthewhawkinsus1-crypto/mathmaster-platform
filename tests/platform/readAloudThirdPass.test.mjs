@@ -56,7 +56,8 @@ test('one number or one letter in brackets is not a quantity', () => {
 test('a bracket that holds a relation is an aside, said between pauses', () => {
   // L3 CW 11 and Honors CW 9, worked steps.
   assert.equal(speechTextFor('b < 153.33…, so the greatest whole number is 153 (f(153) = 598.75).'),
-    'b is less than 153.33 …, so the greatest whole number is 153, f of 153 equals 598.75.');
+    // A decimal that goes on is "and so on" (math-speech-4).
+    'b is less than 153.33, and so on, so the greatest whole number is 153, f of 153 equals 598.75.');
   assert.equal(speechTextFor('A false statement (0 = −10.5) means the lines are parallel.'),
     'A false statement, 0 equals negative 10.5, means the lines are parallel.');
   assert.equal(speechTextFor('x is multiplied by a negative number (b = −2), which flips the graph.'),
@@ -185,9 +186,10 @@ test('two letters side by side in a bracket with a sign are two variables', () =
   assert.equal(speechTextFor('a³ + b³ = (a + b)(a² − ab + b²)'),
     'a cubed plus b cubed equals the quantity a plus b end quantity times the quantity a squared minus a b plus b squared');
   assert.equal(speechTextFor('Multiply (−2a³b)(5ab²)'), 'Multiply the quantity negative 2a cubed b times the quantity 5ab squared');
-  // Words in a bracket are prose, as before, two letters with no sign too.
-  assert.equal(speechTextFor('Multiply (my answer) by 2'), 'Multiply (my answer) by 2');
-  assert.equal(speechTextFor('He wrote (my) next to it.'), 'He wrote (my) next to it.');
+  // Words in a bracket are prose, as before, two letters with no sign too;
+  // as an aside they are said between pauses (math-speech-4).
+  assert.equal(speechTextFor('Multiply (my answer) by 2'), 'Multiply, my answer, by 2');
+  assert.equal(speechTextFor('He wrote (my) next to it.'), 'He wrote, my, next to it.');
 });
 
 test('an inverse applied is "f inverse of x"', () => {

@@ -267,7 +267,9 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
       const char = chunk[index];
       if (OPENERS.has(char)) {
         const close = matchingClose(chunk, index);
-        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator, { products: speech, power: chunk[index - 1] === '^' })) {
+        // Read aloud: a bracket pressed against a letter is its argument or a
+        // factor, as a power's bracket is: "f(bx)" was "f (bx)" (math-speech-4).
+        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator, { products: speech, power: chunk[index - 1] === '^' || /[A-Za-z]/.test(chunk[index - 1] || '') })) {
           atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
           index = close + 1;
           continue;

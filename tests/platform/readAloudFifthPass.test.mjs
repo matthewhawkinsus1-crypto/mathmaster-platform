@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { definedFunctionNames, mathToSpeech, speechTextFor } from '../../src/platform/language/speechText.js';
 import { spokenMathLabel } from '../../src/platform/language/mathSpeechLabel.js';
 import { questionReadingParts } from '../../src/platform/language/questionReading.js';
+import { maskMath } from '../../src/platform/language/mathSafeText.js';
 
 const es = { language: 'es' };
 
@@ -93,7 +94,7 @@ test('a slash between two words is "or", and "and/or" is "and or"', () => {
 });
 
 test('a slash before a unit is "per", and between two parts of a ratio "over"', () => {
-  assert.equal(speechTextFor('the energy output y (kcal/day) of a reptile'), 'the energy output y (kcal per day) of a reptile');
+  assert.equal(speechTextFor('the energy output y (kcal/day) of a reptile'), 'the energy output y, kcal per day, of a reptile');
   assert.equal(speechTextFor('One travels at 3 km/h; Runner A moves 3 m/s.'), 'One travels at 3 km per h; Runner A moves 3 m per s.');
   assert.equal(speechTextFor('Slope equals rise/run.'), 'Slope equals rise over run.');
   assert.equal(speechTextFor('tan θ = opposite/adjacent.'), 'tangent of theta equals opposite over adjacent.');
@@ -112,4 +113,50 @@ test('numbers, fractions, letters, a LaTeX span and an address keep their slash 
   assert.equal(speechTextFor('Simplify $abc / xyz$.'), 'Simplify abc over x y z.');
   assert.equal(speechTextFor('Source: drafts/ccmr-v2.1/act'), 'Source: drafts / ccmr-v 2.1/ act');
   assert.doesNotMatch(speechTextFor('See https://www.act.org/content/products-and-services/x.html'), /\b(?:or|per|over)\b/);
+});
+
+// Item 3. A voice was handed prose brackets and ellipses as typed. Measured
+// with a speech engine (flite): an opening bracket and an ellipsis are
+// silent; a closing bracket and a stop pause.
+test('an aside in brackets is said between pauses; a formula in words keeps its brackets', () => {
+  assert.equal(speechTextFor('Count the rise (change in y) and the run (change in x) between them.'),
+    'Count the rise, change in y, and the run, change in x, between them.');
+  assert.equal(speechTextFor('Total cost (dollars)'), 'Total cost, dollars');
+  assert.equal(speechTextFor('Causation: Card A (each gallon pumped adds to the cost), Card C (burning longer makes the candle shorter) and Card E (each hour Mia works adds $12 to her pay).'),
+    'Causation: Card A, each gallon pumped adds to the cost, Card C, burning longer makes the candle shorter, and Card E, each hour Mia works adds 12 dollars to her pay.');
+  // Beside a sign, pressed against a letter, or a whole sentence: as before.
+  assert.equal(speechTextFor('A decreasing amount is (starting amount) − (rate) · (variable).'), 'A decreasing amount is (starting amount) minus (rate) times (variable).');
+  assert.equal(speechTextFor('Simplify each side to (coefficient)x + (constant).'), 'Simplify each side to (coefficient) x plus (constant).');
+  assert.equal(speechTextFor('Plot each point, in order. (The grid snaps to halves.)'), 'Plot each point, in order. (The grid snaps to halves.)');
+  assert.equal(speechTextFor('Total cost (dollars)', es), 'Total cost, dollars');
+});
+
+test('a bracket the split took for prose is mathematics: the slope formula, and f(bx)', () => {
+  assert.equal(speechTextFor('Use the slope formula: (y₂ − y₁) ÷ (x₂ − x₁).'),
+    'Use the slope formula: the quantity y sub 2 minus y sub 1 end quantity divided by the quantity x sub 2 minus x sub 1.');
+  assert.equal(speechTextFor('y = f(bx) multiplies every input by 1/b.'), 'y equals f of bx multiplies every input by 1 over b.');
+  // Translate's split is as it was.
+  assert.deepEqual(maskMath('y = f(bx) multiplies every input by 1/b.'), { masked: '⟦0⟧(bx) multiplies every input by ⟦1⟧.', tokens: ['y = f', '1/b'] });
+});
+
+test('an ellipsis in a list is "and so on"; one that ends a sentence is left', () => {
+  assert.equal(speechTextFor('so the domain is {0, 1, 2, ..., 48}.'), 'so the domain is the set 0, 1, 2, and so on, 48 end set.');
+  assert.equal(speechTextFor('A geometric sequence begins $3, 6, 12, 24, \\ldots$. Write a rule.'), 'A geometric sequence begins 3, 6, 12, 24, and so on. Write a rule.');
+  assert.equal(speechTextFor('An arithmetic sequence begins 3, 7, 11,.... The rule adds 4.'), 'An arithmetic sequence begins 3, 7, 11, and so on. The rule adds 4.');
+  assert.equal(speechTextFor('b < 153.33…, so b is at most 153.'), 'b is less than 153.33, and so on, so b is at most 153.');
+  assert.equal(spokenMathLabel('{0, 1, 2, …, 48}'), 'the set 0, 1, 2, and so on, 48 end set');
+  assert.equal(speechTextFor('Let’s back up. The rate of change between two rows of a table is…'), 'Let’s back up. The rate of change between two rows of a table is…');
+  assert.equal(speechTextFor('{0, 1, 2, …, 48}', es), 'el conjunto 0, 1, 2, y así sucesivamente, 48 fin de conjunto');
+});
+
+test('an ellipsis that stands for a blank is "blank", and brackets named in a sentence are named', () => {
+  assert.equal(speechTextFor('Under one cube root: 5∛(…), with … ='), 'Under one cube root: 5 times the cube root of blank, with blank equals');
+  assert.equal(speechTextFor('Factor the denominator: a√2 − a = a(…), with … ='),
+    'Factor the denominator: a times the square root of 2 minus a equals a times blank, with blank equals');
+  assert.equal(speechTextFor('After grouping: (a + b)(…) ='), 'After grouping: the quantity a plus b end quantity times blank equals');
+  // At the end of a sentence it is the stop it already was.
+  assert.equal(speechTextFor('The slope of line q is m₂ = …'), 'The slope of line q is m sub 2 equals …');
+  assert.equal(speechTextFor('Write interval notation with ( ) or [ ] and ∪.'), 'Write interval notation with parentheses or square brackets and union.');
+  assert.equal(speechTextFor('Inside f( ), x−4 acts on x.'), 'Inside f parentheses, x minus 4 acts on x.');
+  assert.equal(speechTextFor('Under one cube root: 5∛(…), with … =', es), 'Under one cube root: 5 por la raíz cúbica de espacio en blanco, with espacio en blanco es igual a');
 });
