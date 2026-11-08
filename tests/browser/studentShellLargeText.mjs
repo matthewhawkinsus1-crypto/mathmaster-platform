@@ -60,7 +60,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync } from 'node:fs';
 import { SCREENS, sceneLabel, newScreenContext } from './accessibilityCertification.mjs';
-import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
+import { TEACHER_SCREENS, openTeacherApp } from './accessibilityTeacherScreens.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 import { parseShard, shardOf } from './support/sceneShards.mjs';
@@ -441,6 +441,38 @@ const stepAlgebraOperationInHand = async (page, origins, state) => {
 };
 const KEYBOARD_RULES_JUDGED = ['mm-pointer-only-control', 'mm-tab-stop-not-activatable', 'mm-unnamed-tab-stop'];
 
+// THE MATH TOOLS LAB (student-a11y-3). The teacher's bench mounts each student tool
+// with its sample question; its other tools and their Work Views had not been walked
+// (the VPAT's notes on the teacher screens). Walked by hand on 2026-11-08, its 24 tools
+// at 1366×768 and on a 390×844 phone, and the 16 Work Views they open there: nothing
+// hidden, unnamed, pointer-only, out of reach or a trap. The Matrix Lab stays in the
+// walk, on the page and in its Work View (which a phone opens on its own), judged by
+// the keyboard rules too.
+const openMathToolsLab = async (page, origins) => {
+  await openTeacherApp(page, origins);
+  await page.locator('nav[aria-label="Teacher dashboard navigation"] button[title="Math Tools Lab"]').evaluate((button) => button.click());
+  await page.getByRole('heading', { name: /^Math Tools Lab$/ }).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
+};
+const closeLabWorkView = async (page) => {
+  const close = page.locator('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button', { hasText: /^Close/ });
+  if (await close.count()) {
+    await close.first().evaluate((button) => button.click());
+    await page.waitForTimeout(600);
+  }
+};
+const labTool = (label, { workView }) => async (page) => {
+  await closeLabWorkView(page);
+  await page.locator('aside.mm-tools-lab-list button', { hasText: label }).first().evaluate((button) => button.click());
+  await page.waitForTimeout(1500);
+  if (!workView) { await closeLabWorkView(page); return; }
+  if (!(await page.locator('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header').count())) {
+    await page.locator('button:visible', { hasText: /Open Work View/ }).first().click();
+  }
+  await page.waitForSelector('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header', { timeout: 30_000 });
+  await page.waitForTimeout(800);
+};
+
 export const FOCUS_SCREENS = [
   {
     id: 'step-algebra-board',
@@ -449,6 +481,17 @@ export const FOCUS_SCREENS = [
     scenes: [
       { id: 'at-rest', run: toolQuestion('ux-step') },
       { id: 'operation-in-hand', run: stepAlgebraOperationInHand, mustReach: [/^button: Place add 5 on the left side$/, /^button: Place add 5 on the right side$/] },
+    ],
+  },
+  {
+    id: 'math-tools-lab',
+    harness: 'app',
+    schoolClock: true,
+    keyboardRules: KEYBOARD_RULES_JUDGED,
+    open: openMathToolsLab,
+    scenes: [
+      { id: 'matrix-lab', run: labTool('Matrix Lab', { workView: false }) },
+      { id: 'matrix-lab-work-view', run: labTool('Matrix Lab', { workView: true }) },
     ],
   },
   {
