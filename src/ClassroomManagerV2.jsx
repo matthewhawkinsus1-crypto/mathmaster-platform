@@ -717,13 +717,15 @@ export default function ClassroomManagerV2({
           {rosterCourseId && !rosterMapping && <p style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))' }}>Map this course to a MathMaster class first.</p>}
           {rosterCourseId && rosterMapping && (
             <div style={{ marginTop: 12, padding: 12, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
-              <strong style={{ fontSize: 'calc(13 * var(--mm-px))' }}>ID-only students: paste an identity list (optional)</strong>
+              {/* The list's title, in the same bold, is its field's label: the field was named only by its example rows. */}
+              <label htmlFor="classroom-identity-list" style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>ID-only students: paste an identity list (optional)</label>
               <p style={{ margin: '6px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
                 Google already supplies the name, school email, and Google user ID shown below. If MathMaster only knows district IDs,
                 paste one student per line as <code>ID, Name, Email</code> or <code>ID, Name</code>. You can copy rows from a spreadsheet
                 or have an AI convert a roster picture into that text first. MathMaster only links students after teacher confirmation.
               </p>
               <textarea
+                id="classroom-identity-list"
                 value={identityText}
                 onChange={(event) => setIdentityText(event.target.value)}
                 placeholder={'123456, Jane Doe, jane.doe@district.org\n123457, John Smith'}
@@ -752,24 +754,28 @@ export default function ClassroomManagerV2({
               <div role="region" aria-label="Google Classroom roster matches" tabIndex={0} style={{ overflowX: 'auto', marginTop: 12 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
                 <thead><tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
-                  <th style={{ padding: 8 }}>Google Classroom</th><th style={{ padding: 8 }}>MathMaster match</th><th style={{ padding: 8 }}>Match</th><th></th>
+                  <th style={{ padding: 8 }}>Google Classroom</th><th id="classroom-roster-match-column" style={{ padding: 8 }}>MathMaster match</th><th style={{ padding: 8 }}>Match</th><th></th>
                 </tr></thead>
                 <tbody>
-                  {matchPlan.map((item) => {
+                  {matchPlan.map((item, index) => {
                     const google = item.classroomStudent;
+                    // A row's ID box is named by what labels it on screen: its column and its Classroom student (the
+                    // name, or the email when Google has no name). Its placeholder was its only name.
+                    const rowId = `classroom-roster-${index}`;
                     const linked = rosterLinkByGoogleUserId.get(String(google.googleUserId));
                     const selected = manualMatches[google.googleUserId] || linked?.studentId || item.suggestedStudent?.id || '';
                     const alreadyLinked = Boolean(linked && String(linked.studentId) === String(selected));
                     return (
                       <tr key={google.googleUserId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                         <td style={{ padding: 8 }}>
-                          <strong>{google.name}</strong>
-                          <div style={{ color: 'var(--mm-text-muted)' }}>{google.email}</div>
+                          <strong id={`${rowId}-name`}>{google.name}</strong>
+                          <div id={`${rowId}-email`} style={{ color: 'var(--mm-text-muted)' }}>{google.email}</div>
                           <div style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(11 * var(--mm-px))' }}>Google ID {google.googleUserId}</div>
                         </td>
                         <td style={{ padding: 8, minWidth: 220 }}>
                           <input
                             list="mathmaster-roster-id-options"
+                            aria-labelledby={`classroom-roster-match-column ${rowId}-${google.name ? 'name' : 'email'}`}
                             style={input}
                             value={selected}
                             placeholder="Type MathMaster ID…"
@@ -916,9 +922,17 @@ export default function ClassroomManagerV2({
           <div role="group" aria-labelledby="classroom-resource-links" style={{ marginTop: 10 }}>
             <div id="classroom-resource-links" style={label}>Links / notes / resources</div>
             {materials.map((material, index) => (
+              // Each of a link's two fields under a label of its own. They were named only by their placeholders, which
+              // go once a field holds text: "Title" is the label now, and "https://…" stays as the link's example.
               <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 7 }}>
-                <input style={input} placeholder="Title" value={material.title} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, title: e.target.value } : item))} />
-                <input style={input} placeholder="https://…" value={material.url} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, url: e.target.value } : item))} />
+                <div>
+                  <label style={label} htmlFor={`classroom-resource-link-${index}-title`}>Title</label>
+                  <input id={`classroom-resource-link-${index}-title`} style={input} value={material.title} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, title: e.target.value } : item))} />
+                </div>
+                <div>
+                  <label style={label} htmlFor={`classroom-resource-link-${index}-url`}>Link</label>
+                  <input id={`classroom-resource-link-${index}-url`} style={input} placeholder="https://…" value={material.url} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, url: e.target.value } : item))} />
+                </div>
               </div>
             ))}
             <button style={secondary} onClick={() => setMaterials((current) => [...current, { title: '', url: '' }])}>+ Add resource link</button>
@@ -964,9 +978,17 @@ export default function ClassroomManagerV2({
       {courses.length > 0 && (
         <section style={card}>
           <strong>6. Publish a standalone notes/material post</strong>
+          {/* Each field under a label of its own: their placeholders were their only names, and the title's never shows,
+              since it always holds one. The description's label is its placeholder's words; the title keeps its example. */}
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-            <input style={input} value={materialTitle} onChange={(e) => setMaterialTitle(e.target.value)} placeholder="Lesson 3 — Notes & Resources" />
-            <textarea style={{ ...input, minHeight: 70 }} value={materialDescription} onChange={(e) => setMaterialDescription(e.target.value)} placeholder="What students should know about these resources…" />
+            <div>
+              <label style={label} htmlFor="classroom-material-title">Title</label>
+              <input id="classroom-material-title" style={input} value={materialTitle} onChange={(e) => setMaterialTitle(e.target.value)} placeholder="Lesson 3 — Notes & Resources" />
+            </div>
+            <div>
+              <label style={label} htmlFor="classroom-material-description">What students should know about these resources</label>
+              <textarea id="classroom-material-description" style={{ ...input, minHeight: 70 }} value={materialDescription} onChange={(e) => setMaterialDescription(e.target.value)} />
+            </div>
           </div>
           <button style={{ ...primary, marginTop: 10 }} disabled={busy} onClick={handlePublishMaterial}>Publish material post</button>
         </section>

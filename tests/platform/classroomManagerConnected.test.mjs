@@ -6,9 +6,16 @@
  * go, the students' instructions. No scene had seen it, because the harness could not answer listGoogleCourses. The
  * first audit (accessibilityTeacherScreens.mjs, teacher-classroom/connected) found six choosers and the instructions
  * box with no name: a screen reader said "combo box" or "edit text" and nothing more, though five of them sat under a
- * visible label (axe's select-name and label, and the Tab walk's unnamed stops, at both sizes). Now:
- *   - every field is named: by the label that points at it, by aria-label or aria-labelledby, by the label around it,
- *     or, a text field, by its placeholder, as axe allows;
+ * visible label (axe's select-name and label, and the Tab walk's unnamed stops, at both sizes). It also left fields
+ * named only by their placeholders: the standalone post's two, each link's two, the identity list's (by its example
+ * rows) and, after Import Roster, each row's ID box. A placeholder is a name axe accepts, but not a label: it is gone
+ * once the field holds text, and the standalone post's title always holds some (WCAG 1.3.1, 2.5.3, 3.3.2). Now:
+ *   - every field is named by a label a teacher can see: the label that points at it, the label around it, or the
+ *     words on screen its aria-labelledby names; the one other name is a course's chooser, named by the course it
+ *     maps (aria-label, below). A placeholder no longer counts;
+ *   - each of those labels is the wording a teacher already read there: "Title", the description's own words, the
+ *     list's title, a row's column and student; a placeholder that stays is an example ("https://…"), never the label
+ *     said twice;
  *   - every label names the field under it, or holds its field (a label tied to nothing names nothing);
  *   - a course's chooser is named by the course it maps, and the links' fields sit in a group named by their heading.
  * Its contrast review found one more thing: on a phone a label lay across its card's border. Three rows of the screen
@@ -19,7 +26,7 @@
  *   - a course's row wraps, its parts at most as wide as the row, and a course to publish to never wider than the card.
  *
  * Node cannot render the screen past "Not connected" (its courses arrive from a callable once it has mounted), so its
- * source is read, element by element. The browser proof is the scene, at 0 in the ratchet.
+ * source is read, element by element. The browser proof is the scenes, at 0 in the ratchet.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,6 +35,25 @@ import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const source = executableSource(readFileSync(new URL('../../src/ClassroomManagerV2.jsx', import.meta.url), 'utf8'));
 
+// From `start` (just past an opening character) to the index of the `close` that balances it: not one inside a
+// string or a template.
+const balanced = (start, open, close) => {
+  let depth = 0;
+  let quote = null;
+  for (let at = start; at < source.length; at += 1) {
+    const char = source[at];
+    if (quote) {
+      if (char === '\\') at += 1;
+      else if (char === quote) quote = null;
+    } else if (char === '"' || char === "'" || char === '`') quote = char;
+    else if (char === open) depth += 1;
+    else if (char === close) {
+      if (depth === 0) return at;
+      depth -= 1;
+    }
+  }
+  throw new Error(`no ${close} to balance the ${open} before ${start}`);
+};
 // The opening tag that starts at `start`, to the `>` that ends it: not one inside an expression or a string.
 const openingTag = (start) => {
   let depth = 0;
@@ -58,28 +84,119 @@ const closing = (at, name) => {
   throw new Error(`no end to the <${name}> at ${at}`);
 };
 const elements = (name) => [...source.matchAll(new RegExp(`<${name}\\b`, 'g'))].map((match) => ({ at: match.index, tag: openingTag(match.index) }));
-const attribute = (tag, name) => tag.match(new RegExp(`\\s${name}=(?:"([^"]*)"|\\{)`))?.[1] ?? (new RegExp(`\\s${name}=\\{`).test(tag) ? '{expression}' : null);
+// An attribute of an opening tag: its quoted value, or the source of its expression (id={`link-${index}`} reads
+// "`link-${index}`"), so that a label and the field it names are matched by the one id they share. Null: none.
+const attribute = (tag, name) => {
+  const match = new RegExp(`\\s${name}=(?:"([^"]*)"|\\{)`).exec(tag);
+  if (!match) return null;
+  if (match[1] !== undefined) return match[1];
+  const at = source.indexOf(tag) + match.index + match[0].length;
+  return source.slice(at, balanced(at, '{', '}')).trim();
+};
+// What an element says on screen: its own words, without its tags or the expressions between them.
+const text = (inner) => {
+  let words = '';
+  let depth = 0;
+  let quote = null;
+  let inTag = false;
+  for (let at = 0; at < inner.length; at += 1) {
+    const char = inner[at];
+    if (quote) {
+      if (char === '\\') at += 1;
+      else if (char === quote) quote = null;
+    } else if (depth > 0) {
+      if (char === '"' || char === "'" || char === '`') quote = char;
+      else if (char === '{') depth += 1;
+      else if (char === '}') depth -= 1;
+    } else if (char === '{') {
+      depth = 1;
+      words += ' ';
+    } else if (inTag) {
+      if (char === '"') quote = char;
+      else if (char === '>') {
+        inTag = false;
+        words += ' ';
+      }
+    } else if (char === '<') inTag = true;
+    else words += char;
+  }
+  return words.replace(/\s+/g, ' ').trim();
+};
 
-const labels = elements('label').map(({ at, tag }) => ({ at, tag, end: source.indexOf('</label>', at) }));
+const labels = elements('label').map(({ at, tag }) => ({ at, tag, end: source.indexOf('</label>', at) }))
+  .map((entry) => ({ ...entry, words: text(source.slice(entry.at + entry.tag.length, entry.end)) }));
 const ids = new Set([...source.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]));
-const pointedAt = new Set(labels.map(({ tag }) => attribute(tag, 'htmlFor')).filter(Boolean));
 const fields = ['select', 'textarea', 'input'].flatMap((name) => elements(name).map((field) => ({ ...field, name })))
   .filter(({ tag }) => !/\stype="hidden"/.test(tag));
 const describe = ({ name, tag }) => `<${name}${tag.slice(name.length + 1, 90).replace(/\s+/g, ' ')}…`;
+// The label that names a field: the one that points at its id (the same id, written the same way), or the one around it.
+const labelOf = ({ at, tag }) => {
+  const id = attribute(tag, 'id');
+  return (id && labels.find((label) => attribute(label.tag, 'htmlFor') === id))
+    || labels.find((label) => label.at < at && at < label.end)
+    || null;
+};
+const fieldShowing = (value) => {
+  const field = fields.find(({ tag }) => attribute(tag, 'value') === value);
+  assert.ok(field, `the field that shows ${value}`);
+  return field;
+};
 
-test('every field of the Classroom screen has a name a screen reader can say', () => {
+test('every field of the Classroom screen is named by a label a teacher can see, and never by its placeholder alone', () => {
   assert.ok(fields.filter(({ name }) => name === 'select').length >= 5, 'the screen\'s choosers are all read');
-  const unnamed = fields.filter((field) => {
-    const { at, tag, name } = field;
-    if (attribute(tag, 'aria-label') || attribute(tag, 'aria-labelledby')) return false;
-    const id = attribute(tag, 'id');
-    if (id && pointedAt.has(id)) return false;
-    if (labels.some((label) => label.at < at && at < label.end)) return false;
-    // A text field's placeholder names it, as axe allows; a chooser has none.
-    if (name !== 'select' && attribute(tag, 'placeholder')) return false;
+  assert.ok(fields.filter(({ name }) => name !== 'select').length >= 9, 'and its text fields and boxes');
+  const unlabelled = fields.filter((field) => {
+    if (labelOf(field)) return false;
+    // Named by words the screen draws (which, the next tests).
+    if (attribute(field.tag, 'aria-labelledby')) return false;
+    // The one name that is no element's words: a course's chooser, named by the course on its row (tested below).
+    if (attribute(field.tag, 'aria-label') === '`MathMaster class for ${courseLabel(course)}`') return false;
     return true;
   });
-  assert.deepEqual(unnamed.map(describe), [], 'a field with no name');
+  assert.deepEqual(unlabelled.map(describe), [], 'a field with no visible label: a placeholder is not one, it goes once the field holds text');
+});
+
+test('the standalone post, each link and the identity list are named by the words a teacher already reads there', () => {
+  const named = (value, words, message) => {
+    const label = labelOf(fieldShowing(value));
+    assert.ok(label, `${message}: a label names it`);
+    assert.equal(label.words, words, message);
+  };
+  named('materialTitle', 'Title', 'the standalone post\'s title');
+  named('materialDescription', 'What students should know about these resources', 'its description, by the words its placeholder held');
+  named('material.title', 'Title', 'a link\'s title, by the word its placeholder held');
+  named('material.url', 'Link', 'a link\'s address');
+  named('identityText', 'ID-only students: paste an identity list (optional)', 'the identity list, by its title');
+  // A placeholder that stays is an example of what goes in the field, and never says its label again.
+  assert.equal(attribute(fieldShowing('material.url').tag, 'placeholder'), 'https://…', 'a link keeps its example');
+  assert.equal(attribute(fieldShowing('materialTitle').tag, 'placeholder'), 'Lesson 3 — Notes & Resources', 'and the title its own');
+  for (const field of fields) {
+    const placeholder = attribute(field.tag, 'placeholder');
+    const label = labelOf(field);
+    if (placeholder && label) assert.notEqual(placeholder.replace(/…$/, ''), label.words, `${describe(field)} says its label twice`);
+  }
+  // Each link's labels name that link's fields: one id per row, written once for the label and once for the field.
+  const links = region(source, 'materials.map((material, index) => (', '+ Add resource link', 'one row per link');
+  for (const value of ['material.title', 'material.url']) {
+    const id = attribute(fieldShowing(value).tag, 'id');
+    assert.ok(links.includes(fieldShowing(value).tag), `${value}: the field is the link row's`);
+    assert.match(id, /^`[^`]*\$\{index\}[^`]*`$/, `${value}: its id is the row's own (${id})`);
+  }
+});
+
+test('a roster row\'s ID box is named by its column and its Classroom student, as the row shows them', () => {
+  const table = region(source, 'aria-label="Google Classroom roster matches"', '</table>', 'the roster table');
+  const column = elements('th').find(({ tag }) => attribute(tag, 'id') === 'classroom-roster-match-column');
+  assert.ok(column && table.includes(column.tag), 'the column has an id');
+  assert.equal(text(source.slice(column.at + column.tag.length, source.indexOf('</th>', column.at))), 'MathMaster match', 'the column it heads');
+  const box = fields.find(({ tag }) => attribute(tag, 'list') === 'mathmaster-roster-id-options');
+  assert.ok(box && table.includes(box.tag), 'the row\'s ID box');
+  assert.equal(attribute(box.tag, 'aria-labelledby'), "`classroom-roster-match-column ${rowId}-${google.name ? 'name' : 'email'}`", 'named by its column, then its student: the name, or the email where Google has none');
+  // The row draws the student's name and email under the ids the box names, and the row's ids are its own.
+  const row = region(source, 'matchPlan.map((item, index) => {', '</tr>', 'one roster row');
+  assert.match(row, /const rowId = `classroom-roster-\$\{index\}`;/, 'a row\'s ids are its own');
+  assert.match(row, /<strong id=\{`\$\{rowId\}-name`\}>\{google\.name\}<\/strong>/, 'the name the row shows');
+  assert.match(row, /<div id=\{`\$\{rowId\}-email`\} style=\{[^>]*\}>\{google\.email\}<\/div>/, 'and its email');
 });
 
 test('every label names the field under it, or holds its field', () => {
@@ -93,7 +210,7 @@ test('every label names the field under it, or holds its field', () => {
   // A name taken from elsewhere is taken from something on the screen.
   for (const { tag } of [...fields, ...elements('div')]) {
     const named = attribute(tag, 'aria-labelledby');
-    if (named && named !== '{expression}') assert.ok(ids.has(named), `aria-labelledby="${named}" names an element the screen draws`);
+    if (named && !named.startsWith('`')) assert.ok(ids.has(named), `aria-labelledby="${named}" names an element the screen draws`);
   }
 });
 
@@ -106,7 +223,7 @@ test('a course\'s chooser is named by the course it maps, and the links\' fields
   assert.ok(links, 'the links are a group named by their heading');
   const group = source.slice(links.at, closing(links.at, 'div'));
   assert.match(group, /<div id="classroom-resource-links" style=\{label\}>Links \/ notes \/ resources<\/div>/, 'the heading they always had, inside it');
-  assert.ok(group.includes('placeholder="Title"') && group.includes('placeholder="https://…"'), 'and both fields of every link');
+  for (const value of ['material.title', 'material.url']) assert.ok(group.includes(fieldShowing(value).tag), `and ${value}, a field of every link`);
 });
 
 test('on a phone every row of the connected screen fits its card, and on a laptop it is as it was', () => {
