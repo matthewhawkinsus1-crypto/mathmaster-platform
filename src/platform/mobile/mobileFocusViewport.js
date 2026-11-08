@@ -302,4 +302,24 @@ export const revealFocusedControlAfterResize = ({
   return scrollFocusedControlVertically(active, { root, windowObject, documentObject });
 };
 
+/*
+ * FOCUS THAT LEAVES THE QUESTION CLOSES THE NUMBER KEYPAD (student-a11y-3).
+ *
+ * The keypad is a software keyboard for the box that has focus, and it stays
+ * up while focus moves on to a button inside the question: Step Algebra
+ * commits a move from its number box to "Apply to both sides", and closing it
+ * on the way re-rendered the editor before the press counted
+ * (MobileViewportContainer handleFocusCapture). But it stayed up when focus left
+ * the question altogether, for a control the question does not hold and no
+ * reveal of the question's scrolls: after a My Math Path question was
+ * submitted, Tab went on from it to the session's "Next question", which sat
+ * under the keypad (WCAG 2.4.11). Focus moving to an element outside the
+ * question's root is leaving the question, and a software keyboard closes
+ * when its box is left. Focus going nowhere (to the page or the browser)
+ * leaves the keypad as it was.
+ */
+export const focusLeavesQuestion = (root, nextFocus) => Boolean(
+  root && nextFocus && nextFocus.nodeType === 1 && typeof root.contains === 'function' && !root.contains(nextFocus),
+);
+
 export const mobileViewportLockSelector = LOCKED_CONTAINER_SELECTOR;

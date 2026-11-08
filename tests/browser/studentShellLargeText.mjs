@@ -387,6 +387,28 @@ const sessionHost = (query) => async (page, origins) => {
   await page.evaluate(() => document.querySelectorAll('[data-host-sentinel]').forEach((button) => { button.tabIndex = -1; }));
   await page.waitForTimeout(900);
 };
+// MY MATH PATH AFTER A SUBMITTED QUESTION, WITH THE PHONE'S KEYPAD UP
+// (student-a11y-3). The session host's one-try Step Algebra question, worked by
+// keyboard: 6 typed into its number box (on a phone the number keypad opens, and
+// stays open while focus moves on to a button) and Enter, which subtracts it;
+// then Tab on to "Submit — your only try" and Enter. The walk goes over what
+// follows: the closed question, the solution review and "Next question".
+const pathAfterSubmit = async (page, origins) => {
+  await sessionHost('scene=path-tool&tool=stepAlgebra2&submitted=1')(page, origins);
+  await page.locator('main input[type="number"]').first().focus();
+  await page.keyboard.type('6');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  for (let step = 0; step < 20; step += 1) {
+    await page.keyboard.press('Tab');
+    if (await page.evaluate(() => /^Submit/.test(document.activeElement?.textContent?.trim() || ''))) break;
+  }
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Next question' }).waitFor({ timeout: 30_000 });
+  await page.evaluate(() => { document.activeElement?.blur?.(); });
+  await page.waitForTimeout(900);
+};
+
 // THE SCRATCHPAD over a question (student-a11y-2): a modal, so the walk goes
 // round inside it. The work bar's calculator, a panel on the page the student
 // can move, was walked the same way and is not here: on a phone 11 of its
@@ -444,6 +466,7 @@ export const FOCUS_SCREENS = [
       { id: 'path-data-modeling', run: sessionHost('scene=path-tool&tool=dataModelingLab') },
       { id: 'path-step-algebra', run: sessionHost('scene=path-tool&tool=stepAlgebra2') },
       { id: 'path-choices', run: sessionHost('scene=path-generic&kind=practice') },
+      { id: 'path-after-submit', run: pathAfterSubmit },
       { id: 'recovery', run: sessionHost('scene=recovery') },
     ],
   },

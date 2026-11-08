@@ -5,7 +5,9 @@
  * tests/browser/emulator/vite.config.mjs, which stubs src/firebase.js):
  *
  *   ?scene=path-tool&tool=<id>      PathSessionPlayer, a registry tool question
- *                                   (SAMPLE_SPECS) as the Path delivers it
+ *                                   (SAMPLE_SPECS) as the Path delivers it;
+ *                                   &submitted=1: one try, and what follows its
+ *                                   submit (the solution review, Next question)
  *   ?scene=path-generic&kind=<k>    PathSessionPlayer's own renderer, a
  *                                   multiple-choice question; k = practice |
  *                                   retentionProbe; &framework=tsia2 for exam
@@ -51,21 +53,40 @@ const session = {
   ...(params.get('framework') ? { assessmentFramework: params.get('framework') } : {}),
 };
 
+// &submitted=1: what follows a submitted question, held as
+// MyMathPathProductionContainer holds it (student-a11y-3): the grading closes the
+// question (its one try), the server's solution review is shown under it, and the
+// student presses "Next question", which the harness counts and does not follow.
+const SUBMITTED_REVIEW = Object.freeze({
+  headline: 'Undo the operations in reverse order.',
+  reasoning: ['Subtract 6 from both sides: $3x = 15$.', 'Divide both sides by 3: $x = 5$.'],
+  answerSummary: 'The solution is $x = 5$.',
+  commonError: 'Dividing before subtracting leaves a fraction to carry.',
+});
+
 function PathTool() {
   const toolId = params.get('tool') || 'dataModelingLab';
+  const submittedFlow = params.get('submitted') === '1';
+  const [grading, setGrading] = React.useState(null);
   const canonicalQuestion = { id: `host-${toolId}`, questionId: `host-${toolId}`, type: toolId, prompt: `Complete the ${toolId} activity.`, ...SAMPLE_SPECS[toolId] };
   const questionInstance = {
     questionInstanceId: `host-${toolId}-1`, questionType: toolId, prompt: canonicalQuestion.prompt,
-    canonicalQuestion, attemptsAllowed: 3, attemptsUsed: 0, applicableSupports: [], teksCode: 'A.5A',
+    canonicalQuestion, attemptsAllowed: submittedFlow ? 1 : 3, attemptsUsed: 0, applicableSupports: [], teksCode: 'A.5A',
   };
   return (
     <PathSessionPlayer
       session={session}
       questionInstance={questionInstance}
-      lastGradingResult={null}
+      lastGradingResult={grading}
+      solutionReview={grading ? SUBMITTED_REVIEW : null}
       isSubmitting={false}
       studentProfile={{}}
-      onSubmitAnswer={async (...args) => { window.__hostSubmits.push(args.length); return null; }}
+      onSubmitAnswer={async (...args) => {
+        window.__hostSubmits.push(args.length);
+        if (submittedFlow) setGrading({ isCorrect: false, questionFinalized: true, attemptNumber: 1, attemptsRemaining: 0 });
+        return null;
+      }}
+      onContinue={submittedFlow && grading ? () => { window.__hostContinued = (window.__hostContinued || 0) + 1; } : null}
     />
   );
 }

@@ -3,6 +3,7 @@ import QuestionPrompt from '../../QuestionPrompt';
 import './MathToolMobileLayout.css';
 import '../../platform/mobile/MobileInteractionFoundation.css';
 import {
+  focusLeavesQuestion,
   revealFocusedControlAfterResize,
   scheduleHorizontalViewportStabilization,
   scrollFocusedControlVertically,
@@ -320,6 +321,9 @@ export const MobileViewportContainer = ({
 
   const handleBlurCapture = (event) => {
     if (rootRef.current?.contains?.(event.relatedTarget)) return;
+    // Out of the question to a control it does not hold (the session's "Next
+    // question"): the keypad closes as a software keyboard does (student-a11y-3).
+    if (focusLeavesQuestion(rootRef.current, event.relatedTarget)) setNumericTarget(null);
     focusedScrollerLockRef.current = { element: null, left: 0 };
     scheduleHorizontalViewportStabilization({ root: rootRef.current });
   };

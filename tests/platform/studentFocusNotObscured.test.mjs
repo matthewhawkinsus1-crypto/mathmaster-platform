@@ -195,3 +195,28 @@ test('CI walks Step Algebra\'s board at rest and with an operation in hand, and 
   assert.match(check, /for \(const rule of keyboardRules\) \{[\s\S]*?if \(total\) failures\.push\(/);
   assert.match(check, /for \(const pattern of mustReach\) \{[\s\S]*?if \(!reached\) failures\.push\(/);
 });
+
+// MY MATH PATH AFTER A SUBMITTED QUESTION, WITH THE PHONE'S KEYPAD UP (student-a11y-3).
+// No scene had reached what follows a submit (the solution review and "Next question"),
+// and there the number keypad, still up from the number box, hid "Next question" from a
+// keyboard on a phone (numberKeypadClosesWhenFocusLeaves.test.mjs holds the fix). The
+// session host keeps a one-try question's grading as the container does, and the CI job
+// walks it after a keyboard submit, at both sizes.
+test('CI walks My Math Path after a submitted question, its keypad up from the number box', () => {
+  const driver = read('tests/browser/studentShellLargeText.mjs');
+  const extra = region(driver, 'export const FOCUS_SCREENS = [', '\n];', 'the extra scenes');
+  assert.match(region(extra, "id: 'session-hosts'", '\n  },', 'the session hosts'), /\{ id: 'path-after-submit', run: pathAfterSubmit \}/);
+  const scene = region(driver, 'const pathAfterSubmit = async', '\n};', 'the scene');
+  assert.match(scene, /sessionHost\('scene=path-tool&tool=stepAlgebra2&submitted=1'\)/);
+  // Worked and submitted by keyboard, from the number box: the keypad is up when the walk begins.
+  assert.match(scene, /locator\('main input\[type="number"\]'\)\.first\(\)\.focus\(\);\s*await page\.keyboard\.type\('6'\);/);
+  assert.match(scene, /\/\^Submit\/\.test\(/);
+  assert.match(scene, /getByRole\('button', \{ name: 'Next question' \}\)\.waitFor\(/);
+  // The host holds a submitted question as MyMathPathProductionContainer does: closed, reviewed, and a way on.
+  const host = read('tests/browser/hostAccessibilityMain.jsx');
+  const tool = region(host, 'function PathTool() {', '\n}\n', 'the Path tool scene');
+  assert.match(tool, /const submittedFlow = params\.get\('submitted'\) === '1';/);
+  assert.match(tool, /if \(submittedFlow\) setGrading\(\{ isCorrect: false, questionFinalized: true, attemptNumber: 1, attemptsRemaining: 0 \}\);/);
+  assert.match(tool, /solutionReview=\{grading \? SUBMITTED_REVIEW : null\}/);
+  assert.match(tool, /onContinue=\{submittedFlow && grading \? /);
+});
