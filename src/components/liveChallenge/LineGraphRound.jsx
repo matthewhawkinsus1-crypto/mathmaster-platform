@@ -918,10 +918,13 @@ export default function LineGraphRound({
   const shownAnswer = revealed && question?.itemType === LINE_ITEM_TYPE.NAME && question.answerStyle !== LINE_ANSWER_STYLE.CHOICE ? answerEquation(question) : null;
   // The room the feedback line keeps: what an item of this kind can be told
   // in this round, never this item's own answer (lineFeedbackReserve). Before
-  // the first item arrives, the kind the round starts with.
+  // GO, the kind the round starts with, from its settings: the first item is
+  // on the device during the countdown, and neither this room nor the buttons
+  // (Start over, below) may say what kind it is before it is shown.
   const startsDrawing = (config.itemTypes || []).includes(LINE_ITEM_TYPE.GRAPH) || !(config.itemTypes || []).length;
-  const kindItemType = question ? question.itemType : (startsDrawing ? LINE_ITEM_TYPE.GRAPH : LINE_ITEM_TYPE.NAME);
-  const kindAnswerStyle = question ? question.answerStyle : (startsDrawing ? LINE_ANSWER_STYLE.GRAPH : config.nameStyle || LINE_ANSWER_STYLE.CHOICE);
+  const kindItemType = started && question ? question.itemType : (startsDrawing ? LINE_ITEM_TYPE.GRAPH : LINE_ITEM_TYPE.NAME);
+  const kindAnswerStyle = started && question ? question.answerStyle : (startsDrawing ? LINE_ANSWER_STYLE.GRAPH : config.nameStyle || LINE_ANSWER_STYLE.CHOICE);
+  const drawsNow = started && question ? graphing : startsDrawing;
   const roundForms = (config.forms || []).join(' ');
   const feedbackRoom = useMemo(() => lineFeedbackReserve({
     itemType: kindItemType,
@@ -1103,7 +1106,7 @@ export default function LineGraphRound({
             <BuildAnswer question={question} disabled={disabled} feedback={feedback} onCheck={onBuild} />
           )}
           <div className="mm-line-buttons">
-            {graphing && <button type="button" className="mm-line-button" disabled={disabled} onClick={() => { setStartOver((value) => value + 1); setLineCheck(null); }}>Start over</button>}
+            {drawsNow && <button type="button" className="mm-line-button" disabled={disabled} onClick={() => { setStartOver((value) => value + 1); setLineCheck(null); }}>Start over</button>}
             {canSkip && <button type="button" className="mm-line-button" disabled={disabled} onClick={onSkip}>Skip</button>}
           </div>
           {alert && <div role="alert" className="mm-line-alert">{alert}</div>}

@@ -253,7 +253,9 @@ test('each round draws its feedback line over the room it keeps, and the room is
   // The rush's room is the round's settings; the line's, its item's kind and the round's forms.
   assert.match(ROUNDS.rush.source, /feedbackReserve\(\{ features: roundFeatures \? roundFeatures\.split\(' '\) : \[\], offScreen: offScreenGame, inequality: inequalityGame \}\)/);
   assert.match(ROUNDS.line.source, /lineFeedbackReserve\(\{\s*itemType: kindItemType,\s*answerStyle: kindAnswerStyle,\s*forms: roundForms \? roundForms\.split\(' '\) : \[\],/);
-  assert.match(ROUNDS.line.source, /const kindItemType = question \? question\.itemType : /);
+  // The item's kind from GO; before it the kind the round starts with
+  // (liveChallengeKindsHoldStill.test.mjs: the countdown says nothing of the first item).
+  assert.match(ROUNDS.line.source, /const kindItemType = started && question \? question\.itemType : /);
 });
 
 test('the cooldown keeps its place between pauses, and is said only while it runs', () => {

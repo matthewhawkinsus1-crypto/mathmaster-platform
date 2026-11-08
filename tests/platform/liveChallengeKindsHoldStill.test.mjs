@@ -20,9 +20,10 @@
  * rushRoundKinds), drawn invisible in their own cells where the screen is
  * tall for its text (min-height: 36em, as the feedback line's room is).
  * Before GO the controls show the round's own kind, never the first item's,
- * which the countdown would give away. (Graph the Line's rounds that deal
- * lines to graph and lines to name keep their own room per kind: holding the
- * largest kind's room on every item is the owner's to choose.)
+ * which the countdown would give away; Graph the Line's countdown likewise
+ * shows its round's own kind. (Graph the Line's rounds that deal lines to
+ * graph and lines to name keep their own room per kind: holding the largest
+ * kind's room on every item is the owner's to choose.)
  *
  * Node lays nothing out, so this holds each kept room against everything the
  * generators' own items ask with, and the screen's markup and rules as the
@@ -31,7 +32,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { componentSource, region } from './helpers/sourceContract.mjs';
+import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { parseCss, rulesFor } from './helpers/cssRules.mjs';
 import {
   promptReserve,
@@ -153,4 +154,15 @@ test('before GO the rush shows the round\'s own kind, from GO the item\'s', () =
   assert.match(rush.source, /\{shownKind\.set \? \(/, 'the controls');
   // An inequality game's countdown says the number line's words (it said a graph's "Does Not Exist").
   assert.equal(rushRoundKinds({ inequality: true })[0].inequality, true);
+});
+
+test('before GO Graph the Line shows the round\'s own kind, from GO the item\'s', () => {
+  const line = componentSource('src/components/liveChallenge/LineGraphRound.jsx');
+  // The first item is on the device during the countdown: neither the
+  // feedback line's room nor Start over may say what kind it is.
+  assert.match(line, /const kindItemType = started && question \? question\.itemType : \(startsDrawing \? LINE_ITEM_TYPE\.GRAPH : LINE_ITEM_TYPE\.NAME\);/);
+  assert.match(line, /const kindAnswerStyle = started && question \? question\.answerStyle : \(startsDrawing \? LINE_ANSWER_STYLE\.GRAPH : /);
+  assert.match(line, /const drawsNow = started && question \? graphing : startsDrawing;/);
+  assert.match(line, /\{drawsNow && <button type="button" className="mm-line-button" disabled=\{disabled\}[^\n]*>Start over<\/button>\}/);
+  assert.doesNotMatch(executableSource(line), /\{graphing && <button[^\n]*>Start over/, 'never the first item\'s kind');
 });
