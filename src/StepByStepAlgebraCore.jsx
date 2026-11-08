@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
 import { buildCancellationModel } from './algebraCancellationModel';
-import { stageOperationPlacement } from './algebraOperationPlacement';
+import { keyboardPlacementSlots, keyboardPlacementStart, moveKeyboardPlacement, placementSideName, stageOperationPlacement } from './algebraOperationPlacement';
 import {
   appendStrokePoint, createStroke, resolveStruckTerms, strokeLength, strokeToPath,
 } from './strokeGeometry';
@@ -94,6 +94,7 @@ import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublish
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 import { START_OVER } from './platform/student/studentWords.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -594,6 +595,11 @@ export default function StepByStepAlgebra({
     () => hintsAllowed && getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
   );
   const [factorZoneHint, setFactorZoneHint] = useState(null); // { side, position } | null
+  // The place the arrow keys chose on a focused side (student-a11y-3): { side, index } into keyboardPlacementSlots.
+  const [keyboardSlot, setKeyboardSlot] = useState(null);
+  const placementHintId = useId();
+  // Placed, cancelled or undone: the operation leaves the student's hand, and the place chosen for it goes too.
+  useEffect(() => { if (!tapPlacementArmed) setKeyboardSlot(null); }, [tapPlacementArmed]);
   const [selectedCancellationIndices, setSelectedCancellationIndices] = useState(savedDraft?.selectedCancellationIndices || {}); // { left: number[], right: number[] }
   const prefillAppliedRef = useRef(false);
   const dragRef = useRef(null); // { operation, label, pointerId }
@@ -2060,6 +2066,46 @@ export default function StepByStepAlgebra({
     });
     stagePlacement(side, position);
   };
+  /*
+   * THE SAME PLACES BY KEYBOARD (student-a11y-3). A tap chooses where on a side
+   * the operation goes; Enter on a side could only put it where a tap that says
+   * nothing does. While a side has keyboard focus the pointer's own hover cue
+   * shows where Enter will put it, Left and Right (Home, End) move it among the
+   * places a pointer can choose (algebraOperationPlacement.js), and the side's
+   * name says the place once one is chosen. Enter with no arrow pressed places
+   * exactly as before.
+   */
+  const placementSlotsFor = (side) => keyboardPlacementSlots({
+    operation: armedTile?.operation,
+    terms: splitAdditiveTerms(sideExpression(side)) || [],
+  });
+  const keyboardSlotIndex = (side, slots) => (keyboardSlot?.side === side ? keyboardSlot.index : keyboardPlacementStart(slots));
+  const showPlacementCue = (side, slot) => {
+    if (!slot) return;
+    setDragOverSide(side);
+    setFactorZoneHint({ side, position: slot.position });
+  };
+  const leavePlacementSide = (side) => {
+    setKeyboardSlot((current) => (current?.side === side ? null : current));
+    setDragOverSide((current) => (current === side ? null : current));
+    setFactorZoneHint((current) => (current?.side === side ? null : current));
+  };
+  const placementKeyDown = (side, event) => {
+    if (!tapPlacementArmed || !armedTile) return;
+    const slots = placementSlotsFor(side);
+    const index = keyboardSlotIndex(side, slots);
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      stagePlacement(side, slots[index]?.position);
+      return;
+    }
+    // A side that has the operation already keeps its place, as it does for a pointer.
+    const next = moveKeyboardPlacement({ key: event.key, index, count: slots.length });
+    if (next === null || slots.length < 2 || placedOperationSidesRef.current.includes(side)) return;
+    event.preventDefault();
+    setKeyboardSlot({ side, index: next });
+    showPlacementCue(side, slots[next]);
+  };
   const suggestedMove = getSuggestedMove(equation);
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
@@ -2758,6 +2804,9 @@ export default function StepByStepAlgebra({
             // the tile is spent (placed on this side) the side must stop
             // announcing "Place undefined 5 on both sides".
             const sideTapReady = tapPlacementArmed && Boolean(armedTile?.operation);
+            // Where on this side a pointer can put the operation, for the arrow keys (placementKeyDown).
+            const placementSlots = sideTapReady ? placementSlotsFor(side) : [];
+            const chosenPlace = sideTapReady && keyboardSlot?.side === side ? placementSlots[keyboardSlot.index]?.words : null;
             return (
               <div
                 key={side}
@@ -2765,17 +2814,22 @@ export default function StepByStepAlgebra({
                 className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && sideTapReady ? 'mathmaster-tap-placement-ready' : ''}`}
                 role={sideTapReady ? 'button' : undefined}
                 tabIndex={sideTapReady ? 0 : undefined}
-                aria-label={sideTapReady ? `Place ${spokenOperation(armedTile.operation, operandLabel)} on the ${side} side` : undefined}
-                onClick={(event) => tapPlacementOnSide(side, event)}
-                onKeyDown={(event) => {
-                  /* Not gated on isMobile any more. A student on a Chromebook
-                     with a keyboard is not a mobile user, and was the one group
-                     this workspace locked out entirely. */
-                  if (tapPlacementArmed && (event.key === 'Enter' || event.key === ' ')) {
-                    event.preventDefault();
-                    tapPlacementOnSide(side, event);
-                  }
-                }}
+                aria-label={sideTapReady ? placementSideName({ operationWords: spokenOperation(armedTile.operation, operandLabel), side, place: chosenPlace }) : undefined}
+                aria-describedby={sideTapReady && placementSlots.length > 1 ? `${placementHintId}-${side}` : undefined}
+                // A side takes a click only while an operation is in hand, and is
+                // then a named Tab stop that Enter and Space press as well. At
+                // rest it answers nothing, so it has no handler a keyboard could
+                // lack (the Tab walk counted the resting one, student-a11y-3).
+                onClick={sideTapReady ? (event) => tapPlacementOnSide(side, event) : undefined}
+                onFocus={sideTapReady ? (event) => {
+                  // Keyboard focus shows where Enter will put it; a click places at once.
+                  if (event.currentTarget.matches?.(':focus-visible')) showPlacementCue(side, placementSlots[keyboardSlotIndex(side, placementSlots)]);
+                } : undefined}
+                onBlur={sideTapReady ? () => leavePlacementSide(side) : undefined}
+                /* Not gated on isMobile any more. A student on a Chromebook
+                   with a keyboard is not a mobile user, and was the one group
+                   this workspace locked out entirely. */
+                onKeyDown={sideTapReady ? (event) => placementKeyDown(side, event) : undefined}
                 onDragOver={(event) => { event.preventDefault(); updatePointerVisuals(event.clientX, event.clientY); }}
                 onDragLeave={() => { setDragOverSide(null); setFactorZoneHint(null); }}
                 onDrop={(event) => {
@@ -2787,6 +2841,9 @@ export default function StepByStepAlgebra({
                 }}
                 style={{ gridColumn: index === 0 ? 1 : 3, gridRow: 1 }}
               >
+                {placementSlots.length > 1 ? (
+                  <span id={`${placementHintId}-${side}`} style={SR_ONLY_STYLE}>The left and right arrow keys choose where on this side it goes.</span>
+                ) : null}
                 <div className="algebra-side-label">{side} side</div>
                 <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
                   <AutoFitEquationExpression

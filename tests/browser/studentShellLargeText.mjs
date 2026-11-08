@@ -65,7 +65,7 @@ import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 import { parseShard, shardOf } from './support/sceneShards.mjs';
 import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
-import { hiddenUnderOverlay } from '../../scripts/lib/keyboardReach.mjs';
+import { hiddenUnderOverlay, KEYBOARD_RULES } from '../../scripts/lib/keyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifacts = path.join(here, 'artifacts/large-text');
@@ -397,7 +397,38 @@ const scratchpadOverQuestion = async (page, origins, state) => {
   await page.locator('[role="dialog"][aria-label="Full-screen scratchpad"]').first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(800);
 };
+// STEP ALGEBRA'S BOARD BY KEYBOARD (student-a11y-3). Its two side boxes are where
+// an operation in hand is put. At rest they answer nothing; with an operation in
+// hand each is a named Tab stop whose keys place it (Enter, and the arrow keys for
+// where on the side: tests/browser/stepAlgebraStructureTools.mjs presses them). The
+// walk judges its keyboard rules on this board as well as 2.4.11 (`keyboardRules`):
+// a box that answers a pointer and no key, a stop with no name or one that Enter
+// cannot press fails, and with the operation in hand both sides must be reached.
+// Until then the walk counted the boxes' resting click handler, 2 a walk.
+const stepAlgebraOperationInHand = async (page, origins, state) => {
+  await toolQuestion('ux-step')(page, origins, state);
+  const host = page.locator('[data-question-id="ux-step"]');
+  await host.locator('button[aria-label="Choose Add operation"]').first().click();
+  const operand = host.locator('math-field').first();
+  await operand.waitFor({ timeout: 30_000 });
+  await operand.evaluate((field) => { field.setValue('5'); field.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForTimeout(400);
+  await host.locator('button.algebra-pickup-button').click();
+  await host.locator('[aria-label="Place add 5 on the right side"]').waitFor({ timeout: 30_000 });
+  await page.evaluate(() => document.activeElement?.blur?.());
+};
+const KEYBOARD_RULES_JUDGED = ['mm-pointer-only-control', 'mm-tab-stop-not-activatable', 'mm-unnamed-tab-stop'];
+
 export const FOCUS_SCREENS = [
+  {
+    id: 'step-algebra-board',
+    include: '.mathmaster-question-stage',
+    keyboardRules: KEYBOARD_RULES_JUDGED,
+    scenes: [
+      { id: 'at-rest', run: toolQuestion('ux-step') },
+      { id: 'operation-in-hand', run: stepAlgebraOperationInHand, mustReach: [/^button: Place add 5 on the left side$/, /^button: Place add 5 on the right side$/] },
+    ],
+  },
   {
     id: 'work-view',
     workView: true,
@@ -456,7 +487,7 @@ const runScenes = async (setting, callback, screens = TEACHER_SWEEP ? TEACHER_SC
         }
         await applyTextScale(page);
         await page.waitForTimeout(700);
-        await callback(page, label, screen);
+        await callback(page, label, screen, scene);
       }
     } catch (error) {
       failures.push(`${screen.id} ${setting.id}: could not open — ${error.message.split('\n')[0]}`);
@@ -690,7 +721,9 @@ if (CHECKS.has('targetsize')) {
 // business and are not judged here. The teacher's screens are walked there.
 if (CHECKS.has('obscured')) {
   const focusReport = [];
-  const walk = async (page, label, settingId, include) => {
+  // `keyboardRules`: the walk's other rules this screen is judged by too (Step Algebra's board).
+  // `mustReach`: what the walk must have stopped on, by Chromium's role and name.
+  const walk = async (page, label, settingId, include, { keyboardRules = [], mustReach = [] } = {}) => {
     const result = await auditKeyboardReach(page, { name: label, viewport: settingId, include });
     const entries = Object.entries(result.details).filter(([key]) => key.endsWith('|mm-focus-obscured'));
     const count = entries.reduce((sum, [key]) => sum + (result.counts[key] || 0), 0);
@@ -704,6 +737,18 @@ if (CHECKS.has('obscured')) {
     if (count) failures.push(`${label} ${settingId}: ${count} focused control(s) under something the page drew (WCAG 2.4.11): ${covered.join('; ')}`);
     if (back.hidden.length) failures.push(`${label} ${settingId}: walking back with Shift+Tab, ${back.hidden.length} focused control(s) under something the page drew (WCAG 2.4.11): ${back.hidden.join('; ')}`);
     if (!back.stops) failures.push(`${label} ${settingId}: walking back with Shift+Tab reached no control, so nothing was measured`);
+    for (const rule of keyboardRules) {
+      const found = Object.entries(result.details).filter(([key]) => key.endsWith(`|${rule}`))
+        .flatMap(([key, entry]) => Array.from({ length: Math.min(3, result.counts[key] || 0) }, (_, at) => entry.examples[at]?.target || key));
+      const total = Object.entries(result.counts).filter(([key]) => key.endsWith(`|${rule}`)).reduce((sum, [, count]) => sum + count, 0);
+      console.log(`${total ? 'FAIL' : 'ok  '} keyboard ${label.padEnd(40)} ${settingId.padEnd(10)} ${rule}=${total}`);
+      if (total) failures.push(`${label} ${settingId}: ${total} × ${rule} (${KEYBOARD_RULES[rule]?.help || rule}): ${found.join('; ')}`);
+    }
+    for (const pattern of mustReach) {
+      const reached = result.summary.stopNames.some((name) => pattern.test(name));
+      console.log(`${reached ? 'ok  ' : 'FAIL'} reach    ${label.padEnd(40)} ${settingId.padEnd(10)} ${pattern}`);
+      if (!reached) failures.push(`${label} ${settingId}: Tab never reached ${pattern} (stops: ${result.summary.stopNames.join(' | ')})`);
+    }
   };
   // The walk goes forward only, and a bar at the top of a screen hides what
   // focus scrolls UP into view: Shift+Tab up Grades left "See results" under
@@ -766,9 +811,12 @@ if (CHECKS.has('obscured')) {
   };
   const DRAWER_BUTTONS = '[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button[aria-expanded]';
   for (const setting of [{ id: 'chromebook', width: 1366, height: 768 }, { id: 'phone', width: 390, height: 844, mobile: true }]) {
-    await runScenes(setting, async (page, label, screen) => {
+    await runScenes(setting, async (page, label, screen, scene) => {
       if (screen.id === 'teacher') return;
-      if (!screen.workView) { await walk(page, label, setting.id, [].concat(screen.include || [])[0] || null); return; }
+      if (!screen.workView) {
+        await walk(page, label, setting.id, [].concat(screen.include || [])[0] || null, { keyboardRules: screen.keyboardRules, mustReach: scene?.mustReach });
+        return;
+      }
       await walk(page, label, setting.id, null);
       const drawers = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((button) => button.textContent.trim()), DRAWER_BUTTONS);
       if (!drawers.length) failures.push(`${label} ${setting.id}: Work View's header offers no drawer, so none was walked`);

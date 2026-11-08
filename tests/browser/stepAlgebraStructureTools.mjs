@@ -45,6 +45,8 @@
 //                       pair, a factor pair, and on a phone), and Factor, Split
 //                       fraction, Cancel factors and Arrange terms, and the
 //                       relation workspace's placement and cancellation.
+//   directions-places-* student-a11y-3: on a focused side the arrow keys choose
+//                       where the operation goes, as a tap does, at 1366 and 390.
 //
 // Exit code 1 on any finding. Screenshots land in
 // tests/browser/artifacts/stepAlgebraStructureTools/.
@@ -845,6 +847,45 @@ async function directionsPlacementAndCancel(browserInstance, viewport) {
   await context.close();
 }
 
+// WHERE ON A SIDE, BY KEYBOARD (student-a11y-3). A tap chooses where on a side the
+// operation goes; on a focused side the arrow keys choose among the same places.
+// 3x + 6 = 21, subtract 6: keyboard focus on the right side shows where Enter puts
+// it (the end), Home moves it in front of 21 and the name says so, and Enter places
+// it there; the left side, with no arrow pressed, takes it at its end as before.
+// The move the student then sees is -6 + 21 on the right and 3x + 6 - 6 on the left.
+async function directionsPlacementPlaces(browserInstance, viewport) {
+  const journey = `directions-places-${viewport.width}`;
+  const context = await ownerContext(browserInstance, viewport);
+  const page = await open(context, 4);
+  const cueOn = (side) => page.evaluate((at) => [...document.querySelectorAll('.algebra-equation-box')][at === 'left' ? 0 : 1]
+    ?.querySelector('.algebra-term-placement-cue')?.className.replace(/.*algebra-term-placement-cue\s*/, '').trim() || '', side);
+  expect(journey, await tabUntil(page, (now) => now.label === 'Choose Subtract operation', { limit: 80 }), 'Tab never reached Subtract');
+  await press(page, 'Enter', 450);
+  await page.keyboard.type('6');
+  await settle(page, 450);
+  expect(journey, await tabUntil(page, (now) => /^(Pick up|Use|Ready to place) /.test(now.label), { limit: 30 }), 'Tab never reached Pick up');
+  await press(page, 'Enter', 600);
+  const right = await tabUntil(page, (now) => now.label.endsWith('on the right side'), { back: true, limit: 40 });
+  expect(journey, right?.label === 'Place subtract 6 on the right side', `the right side's name before an arrow: ${right?.label}`);
+  // Keyboard focus draws the place Enter would use: after 21, the side's end.
+  expect(journey, /\bis-after\b.*\bis-hover\b/.test(await cueOn('right')), `no cue at the end of the right side: "${await cueOn('right')}"`);
+  await press(page, 'Home', 300);
+  const moved = await focusNow(page);
+  expect(journey, moved.label === 'Place subtract 6 before 21 on the right side', `after Home the right side says: ${moved.label}`);
+  expect(journey, /\bis-before\b.*\bis-hover\b/.test(await cueOn('right')), `Home did not move the cue in front of 21: "${await cueOn('right')}"`);
+  await press(page, 'Enter', 450);
+  const left = await tabUntil(page, (now) => now.label.endsWith('on the left side'), { back: true, limit: 40 });
+  expect(journey, left?.label === 'Place subtract 6 on the left side', `the left side's name: ${left?.label}`);
+  await press(page, 'Enter', 1000);
+  const terms = await page.evaluate(() => [...document.querySelectorAll('.algebra-equation-box')]
+    .map((box) => [...box.querySelectorAll('[data-term-text]')].map((term) => term.getAttribute('data-term-text').replace(/\s+/g, ''))));
+  expect(journey, JSON.stringify(terms[1]) === JSON.stringify(['-6', '+21']), `the right side after the move: ${JSON.stringify(terms[1])}`);
+  expect(journey, JSON.stringify(terms[0]) === JSON.stringify(['3x', '+6', '-6']), `the left side after the move: ${JSON.stringify(terms[0])}`);
+  report.push({ journey, right: terms[1], left: terms[0] });
+  await page.close();
+  await context.close();
+}
+
 // Each Rewrite tool: its status line, then the keys it names.
 async function directionsStructureTools(context) {
   const journey = 'directions-structure-tools';
@@ -1003,6 +1044,11 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await directionsPlacementAndCancel(browser, viewport);
   } catch (error) {
     note(`directions-placement-${viewport.width}`, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
+  }
+  try {
+    await directionsPlacementPlaces(browser, viewport);
+  } catch (error) {
+    note(`directions-places-${viewport.width}`, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
   }
 }
 await browser.close();

@@ -29,6 +29,7 @@ import { GRAND_PRIX_CSS } from '../../src/components/liveChallenge/grandPrixThem
 import { parseCss } from './helpers/cssRules.mjs';
 import { componentSource, region } from './helpers/sourceContract.mjs';
 import { jobsOf, readWorkflow, stepsOf } from './helpers/ciWorkflows.mjs';
+import { KEYBOARD_RULE_IDS } from '../../scripts/lib/keyboardReach.mjs';
 
 const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
 
@@ -167,4 +168,30 @@ test('the walk opens its two rounds on the school clock, as the live-challenge s
     assert.match(driver, new RegExp(`\\{ id: '${id}', harness: liveChallenge\\.harness, schoolClock: liveChallenge\\.schoolClock, open: liveChallenge\\.open, `), `${id} opens as the live-challenge screen does`);
   }
   assert.match(driver, /const context = await \(screen \? newScreenContext\(browser, screen, contextOptions\) : browser\.newContext\(contextOptions\)\);/, 'a screen\'s context comes from newScreenContext');
+});
+
+// STEP ALGEBRA'S BOARD (student-a11y-3). Its two side boxes answered a click at rest,
+// when they place nothing, and the walk counted them as pointer-only, 2 a walk; with
+// an operation in hand they are named Tab stops whose keys place it. The same CI job
+// walks the board in both states and judges it by the walk's keyboard rules too, so a
+// box that answers a pointer and no key, an unnamed stop, one Enter cannot press, or
+// a side the walk never reaches fails it (each broken once to see it go red).
+test('CI walks Step Algebra\'s board at rest and with an operation in hand, and judges its keyboard rules', () => {
+  const driver = read('tests/browser/studentShellLargeText.mjs');
+  const extra = region(driver, 'export const FOCUS_SCREENS = [', '\n];', 'the extra scenes');
+  const board = region(extra, "id: 'step-algebra-board'", '\n  },', 'the board');
+  assert.match(board, /keyboardRules: KEYBOARD_RULES_JUDGED/);
+  assert.match(board, /\{ id: 'at-rest', run: toolQuestion\('ux-step'\) \}/);
+  assert.match(board, /\{ id: 'operation-in-hand', run: stepAlgebraOperationInHand, mustReach: \[\/\^button: Place add 5 on the left side\$\/, \/\^button: Place add 5 on the right side\$\/\] \}/);
+  // The operation is really in hand when the walk starts: the side is a named button by then.
+  assert.match(region(driver, 'const stepAlgebraOperationInHand = async', '\n};', 'the scene'), /await host\.locator\('\[aria-label="Place add 5 on the right side"\]'\)\.waitFor\(/);
+  // The rules judged are the walk's own (a misspelt one would judge nothing).
+  const judged = JSON.parse(driver.match(/const KEYBOARD_RULES_JUDGED = (\[[^\]]*\]);/)[1].replace(/'/g, '"'));
+  assert.deepEqual(judged, ['mm-pointer-only-control', 'mm-tab-stop-not-activatable', 'mm-unnamed-tab-stop']);
+  for (const rule of judged) assert.ok(KEYBOARD_RULE_IDS.includes(rule), rule);
+  // A count of a judged rule fails the run, and so does a stop the walk had to reach and did not.
+  const check = region(driver, "if (CHECKS.has('obscured'))", "if (CHECKS.has('workviewheader'))", 'the obscured check');
+  assert.match(check, /keyboardRules: screen\.keyboardRules, mustReach: scene\?\.mustReach/);
+  assert.match(check, /for \(const rule of keyboardRules\) \{[\s\S]*?if \(total\) failures\.push\(/);
+  assert.match(check, /for \(const pattern of mustReach\) \{[\s\S]*?if \(!reached\) failures\.push\(/);
 });
