@@ -12,7 +12,7 @@ import {
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
-import { OPENER_GAP, openerSharesRow } from '../../platform/workView/openerPlacement.js';
+import { OPENER_GAP, observeOpenerRoom, openerSharesRow } from '../../platform/workView/openerPlacement.js';
 import { WorkViewPresentationContext } from '../../platform/workView/workViewPresentation.js';
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
@@ -497,13 +497,13 @@ export default function EnlargeableFigure({
       surface.style.setProperty('--mm-work-view-opener-space', stacked ? '0px' : `${width + OPENER_GAP}px`);
       surface.style.setProperty('--mm-work-view-opener-bottom', stacked ? '0px' : `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
     };
-    publishSpace();
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publishSpace) : null;
-    observer?.observe(opener);
-    // The room beside the button changes with the screen as well as with the button.
-    observer?.observe(surface);
+    // Measured now, and again when the button or the room beside it changes:
+    // in the frame after the observer reports it, never inside its callback,
+    // where these writes resized the work area it watches (P-5,
+    // openerPlacement.js observeOpenerRoom).
+    const stopObserving = observeOpenerRoom({ opener, surface, publish: publishSpace });
     return () => {
-      observer?.disconnect();
+      stopObserving();
       surface.removeAttribute('data-opener-stacked');
       surface.style.removeProperty('--mm-work-view-opener-space');
       surface.style.removeProperty('--mm-work-view-opener-bottom');
