@@ -246,3 +246,24 @@ test('the planted-defect self-test names a page for every rule, and the harness 
   assert.ok(plants.includes('scrolling'), 'a page the walk has to scroll is checked to be left scrolled where it was found');
   for (const plant of plants) assert.match(harness, new RegExp(`\\b${plant}: \\(\\) =>`), `the harness renders the "${plant}" page`);
 });
+
+// THE SELF-TEST'S MATH BOXES ARE A STUDENT'S (keypad-done). They were bare <math-field> elements named by hand, with
+// neither MathInput's naming nor its guard on MathLive's late hand-over of focus, so the walk was shown against a
+// stand-in. The named boxes are the app's MathInput now, with its keypad button and in a row without; the box named
+// nowhere stays bare, since MathInput names every box it makes. The driver checks what each page holds, so a plant
+// that went back to a stand-in fails in the browser as well.
+test('the self-test\'s math boxes are the app\'s MathInput, and the one named nowhere is a box made without it', () => {
+  const harness = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReachSelfTestMain.jsx', import.meta.url), 'utf8'));
+  assert.match(harness, /^import MathInput from '\.\.\/\.\.\/src\/MathInput\.jsx';$/m);
+  const box = region(harness, 'function MathBox(', '\n}', 'the math box');
+  assert.match(box, /return <MathInput value=\{value\} onChange=\{setValue\} ariaLabel=\{name\} hideToolsToggle=\{!keypadButton\} \/>;/);
+  assert.match(harness, /mathBox: \(\) => \(<><Correct \/><MathBox \/><\/>\),/, 'one box, with its keypad button');
+  assert.match(region(harness, 'mathBoxesThenControl: () => (', '\n  ),', 'the row of boxes'), /<MathBox key=\{name\} name=\{name\} keypadButton=\{false\} \/>/, 'four in a row without');
+  assert.match(harness, /unnamedMathBox: \(\) => \(<><Correct \/><math-field /, 'the box named nowhere is bare');
+  assert.doesNotMatch(harness, /<math-field ref=/, 'no hand-named stand-in is left');
+  const driver = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReachSelfTest.mjs', import.meta.url), 'utf8'));
+  assert.match(driver, /assert\.deepEqual\(result\.mathBoxes, \{ mathInput: 1, bare: 0 \}, 'mathBox: the box is a MathInput'\);/);
+  assert.match(driver, /assert\.deepEqual\(names\.slice\(-2\), \['Slope', 'Show math tools'\]/, 'named where focus is, then its keypad button');
+  assert.match(driver, /assert\.deepEqual\(result\.mathBoxes, \{ mathInput: 4, bare: 0 \}, 'mathBoxesThenControl: the boxes are MathInputs'\);/);
+  assert.match(driver, /assert\.deepEqual\(result\.mathBoxes, \{ mathInput: 0, bare: 1 \}, 'unnamedMathBox: a box made without MathInput'\);/);
+});

@@ -258,6 +258,15 @@ const INSTALL = ({ rootSelector }) => {
   // a few ms, stopped on "Slope" this way 3 times in 3 (full Chromium's frames
   // came after the timer). So a math box that seems to keep focus after Tab
   // gets the timer's time before the walk counts it as the same stop.
+  //
+  // Both waits are for a box made without MathInput. The app's MathInput
+  // guards that hand-over itself (mathFieldFocusHandoff.js): measured on the
+  // self-test (keypad-done), a row of four MathInput boxes passes the walk
+  // with both waits taken out, 3 times in 3 in CI's headless shell and in full
+  // Chromium, while a row of bare boxes then loops on its first, 3 times in 3
+  // in the headless shell. They stay, so that a box made without MathInput
+  // (the self-test's box named nowhere is one) is read as the app's are, and
+  // they cost a MathInput box about a fifth of a second (two settles).
   const MATH_BOX_HANDOVER_MS = 300;
   const settle = async (el) => {
     if (el?.localName !== 'math-field') return;
