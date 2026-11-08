@@ -25,7 +25,6 @@ import {
   nextClassroomSessionExpiry,
 } from './classroomSession.js';
 import { clearAccountTabStorage } from './accountTabStorage.js';
-import { runStudentControlsMigrationPass } from '../platform/admin/studentControlsMigration.js';
 
 const REMEMBER_DEVICE_KEY = 'mathmaster.rememberDevice';
 const LAST_ROLE_KEY = 'mathmaster.lastRole';
@@ -341,28 +340,21 @@ export const teacherAdmin = {
   mirrorSharedStudentControls: () =>
     callable('setAssignmentOverrideStorage')({ action: 'mirror' }).then((result) => result.data || {}),
   /**
-   * One whole pass of the staged migration (studentAssignmentOverrideStore.mjs)
-   * — `backfill`, `strip` or `restore` — page after page until done, as one
-   * report. A dry run unless `dryRun` is false; a real strip or restore also
-   * needs the typed `confirm` the server asks for. A real run resumes where an
-   * interrupted one stopped. `onPage` receives the running report.
+   * The staged migration's two callables (studentAssignmentOverrideStore.mjs).
+   * The administrator's card runs a whole pass with them, page after page
+   * (runStudentControlsMigrationPass in platform/admin/studentControlsMigration.js,
+   * which the card imports): this module is on the sign-in path, and the pass
+   * and the report and calendar modules under it are not.
+   *
+   * One page of `backfill`, `strip` or `restore`: a dry run unless `dryRun` is
+   * false; a real strip or restore also needs the typed `confirm` the server
+   * asks for.
    */
-  runStudentControlsMigration: ({ mode = 'backfill', dryRun = true, confirm = '', onPage = null } = {}) => runStudentControlsMigrationPass({
-    mode,
-    dryRun,
-    confirm,
-    onPage,
-    migrate: (request) => callable('migrateStudentAssignmentOverrides')(request).then((result) => result.data || {}),
-    readProgress: () => callable('setAssignmentOverrideStorage')({ action: 'status' }).then((result) => result.data?.migration || {}),
-  }),
-  /** The Stage 2 copy (the backfill), as before: one whole pass. */
-  backfillStudentAssignmentOverrides: ({ dryRun = true, onPage = null } = {}) => runStudentControlsMigrationPass({
-    mode: 'backfill',
-    dryRun,
-    onPage,
-    migrate: (request) => callable('migrateStudentAssignmentOverrides')(request).then((result) => result.data || {}),
-    readProgress: () => callable('setAssignmentOverrideStorage')({ action: 'status' }).then((result) => result.data?.migration || {}),
-  }),
+  migrateStudentAssignmentOverrides: (request) =>
+    callable('migrateStudentAssignmentOverrides')(request).then((result) => result.data || {}),
+  /** Where each pass stands (its cursor, its last completed pass), so a real run resumes. */
+  readStudentControlsMigrationProgress: () =>
+    callable('setAssignmentOverrideStorage')({ action: 'status' }).then((result) => result.data?.migration || {}),
   /** Put a student in a class, move them, or take them out (classId: null). */
   setStudentClass: ({ studentId, classId }) =>
     callable('setStudentClass')({ studentId, classId: classId || '' }).then((result) => result.data || {}),

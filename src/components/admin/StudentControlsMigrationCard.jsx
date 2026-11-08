@@ -5,6 +5,7 @@ import {
   GATE_LABELS,
   describeMigrationStage,
   firstFullDistrictSchoolDay,
+  runStudentControlsMigrationPass,
   stripReportRows,
 } from '../../platform/admin/studentControlsMigration.js';
 import {
@@ -139,8 +140,18 @@ export default function StudentControlsMigrationCard() {
   const dryStripReady = Boolean(lastDryStrip && Number(lastDryStrip.failureCount) === 0 && (Number(lastDryStrip.completedAtMs) || 0) >= retiredAtMs);
   const hostingUnverified = readiness?.hosting?.state === 'unverified';
 
+  // One whole pass, page after page until done, as one report; a real run
+  // resumes where an interrupted one stopped. The card runs it with
+  // authService's two callables, so the pass stays off the sign-in path.
   const runPass = (key, { mode, dryRun, confirm = '' }, setReport, describe) => run(key, async () => {
-    const report = await teacherAdmin.runStudentControlsMigration({ mode, dryRun, confirm, onPage: setReport });
+    const report = await runStudentControlsMigrationPass({
+      mode,
+      dryRun,
+      confirm,
+      onPage: setReport,
+      migrate: teacherAdmin.migrateStudentAssignmentOverrides,
+      readProgress: teacherAdmin.readStudentControlsMigrationProgress,
+    });
     setReport(report);
     await refresh();
     return report;
