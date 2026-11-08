@@ -42,6 +42,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     addMenuOpen: 'Add menu open/closed.',
     collapsed: 'Whether the list is collapsed.',
     notice: 'Transient status line, regenerated from the action that raised it.',
+    overflowing: 'Whether the source-data row is wider than its box, measured from the page: it makes the row a keyboard-scrollable region. Layout, not an answer.',
   }),
   inverseCompositionLab: entry([
     'inverseComposition/InverseCompositionLabRouter.jsx',
