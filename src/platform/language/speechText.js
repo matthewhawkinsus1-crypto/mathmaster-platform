@@ -1703,12 +1703,22 @@ const withPriceSigns = (segment) => (segment.delimited || /^\s*\$\d[\d,]*(?:\.\d
  * one after a stop ("… in order. (The grid snaps to halves.)"), and a
  * quantity in a formula in words ("(starting amount) − (rate)", a sign beside
  * it) keep their brackets, and the voice what it had.
+ *
+ * A bracket that says something in symbols, a relation or an arrow, is an
+ * aside as one of words is (after the seventh pass). "in order (S1 → P1, S2 →
+ * P2, …)" holds labels and arrows and no word; relationAsidesAsPauses, which
+ * makes a bracket that holds a relation an aside, reads only inside one run of
+ * mathematics, and the split ends the run at each arrow. So its opening
+ * bracket reached the voice, which says nothing for it, and the mapping ran on
+ * from "in order". A LaTeX command's letters counted as a word: "($\ge$)" was
+ * an aside and "($<$)" was not.
  */
 const ASIDE_OPEN = '\uE022';
 const ASIDE_CLOSE = '\uE023';
 const ASIDE_MARKS = /[\uE022\uE023]/;
 const ASIDE_BEFORE = /[\p{L}\p{N}%’”"'$]\s+$/u;
 const SIGN_AFTER = /^\s*[=<>≤≥≠+\-−×·*/÷^²³]/;
+const ASIDE_STATEMENT = new RegExp(`${RELATION_SYMBOL.source}|${ARROW.source}`);
 const proseAsides = (text, segments) => {
   const prose = new Set();
   let at = 0;
@@ -1727,7 +1737,7 @@ const proseAsides = (text, segments) => {
     }
     if (close === -1 || !prose.has(close)) continue;
     const inner = text.slice(index + 1, close);
-    if (!/\p{L}{2}/u.test(inner)) continue;
+    if (!/\p{L}{2}/u.test(inner) && !ASIDE_STATEMENT.test(inner)) continue;
     // "(coefficient)x": a bracket a letter or digit is pressed against is a factor.
     if (!ASIDE_BEFORE.test(text.slice(0, index)) || SIGN_AFTER.test(text.slice(close + 1)) || /^[\p{L}\p{N}]/u.test(text.slice(close + 1))) continue;
     marks.set(index, ASIDE_OPEN).set(close, ASIDE_CLOSE);

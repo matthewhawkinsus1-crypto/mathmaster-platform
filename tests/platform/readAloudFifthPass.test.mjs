@@ -131,6 +131,32 @@ test('an aside in brackets is said between pauses; a formula in words keeps its 
   assert.equal(speechTextFor('Total cost (dollars)', es), 'Total cost, dollars');
 });
 
+// After the seventh pass: "(S1 → P1, S2 → P2, …)" was handed to the voice with
+// its brackets. A bracket of words is an aside (above), and so is one that
+// holds a relation inside a run of mathematics (readAloudThirdPass); this one
+// holds labels and arrows and no word, and the split ends its run at each
+// arrow, so neither read it. A bracket after a word that holds a relation or an
+// arrow is an aside as one of words is. (A LaTeX command's letters counted as a
+// word: "($\ge$)" was an aside and "($<$)" was not.)
+test('a bracket after a word that holds a relation or an arrow is an aside, as one of words is', () => {
+  // Algebra I M2 T2 L2, Activity 2.1.
+  assert.equal(speechTextFor('Plot the image of each labeled point S1–S5, in order (S1 → P1, S2 → P2, …).'),
+    'Plot the image of each labeled point S1 – S5, in order, S1 maps to P1, S2 maps to P2, and so on.');
+  assert.equal(speechTextFor('Plot the image of each labeled point S1–S5, in order (S1 → P1, S2 → P2, …).', es),
+    'Plot the image of each labeled point S1 – S5, in order, S1 corresponde a P1, S2 corresponde a P2, y así sucesivamente.');
+  // The banks' worked steps and common errors: a relation, and a relation sign named, in brackets.
+  assert.equal(speechTextFor('B gains 2 more each month ($5 - 3 = 2$), so B catches up to A.'),
+    'B gains 2 more each month, 5 minus 3 equals 2, so B catches up to A.');
+  assert.equal(speechTextFor('The inequality is strict ($>$), so points on the line are not solutions.'),
+    'The inequality is strict, is greater than, so points on the line are not solutions.');
+  assert.equal(speechTextFor('Points on $y=3x+3$ are included ($\\ge$), but points with $x=3$ are not ($<$).'),
+    'Points on y equals 3x plus 3 are included, is greater than or equal to, but points with x equals 3 are not, is less than.');
+  // As a bracket of words: after a stop, or pressed against a letter, it keeps its brackets; empty ones are named.
+  assert.equal(speechTextFor('Plot each point. (S1 → P1.)'), 'Plot each point. ( S1 maps to P1.)');
+  assert.equal(speechTextFor('Map each source point (S1 → P1)x'), 'Map each source point ( S1 maps to P1 ) x');
+  assert.equal(speechTextFor('Write interval notation with ( ) or [ ] and ∪.'), 'Write interval notation with parentheses or square brackets and union.');
+});
+
 test('a bracket the split took for prose is mathematics: the slope formula, and f(bx)', () => {
   assert.equal(speechTextFor('Use the slope formula: (y₂ − y₁) ÷ (x₂ − x₁).'),
     'Use the slope formula: the quantity y sub 2 minus y sub 1 end quantity divided by the quantity x sub 2 minus x sub 1.');
