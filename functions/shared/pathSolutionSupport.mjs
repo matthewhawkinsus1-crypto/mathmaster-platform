@@ -35,6 +35,22 @@ const text = (value) => String(value ?? '').trim();
 
 const clampText = (value, max = 400) => text(value).slice(0, max);
 
+/*
+ * A COEFFICIENT OF 1 BEFORE A ROOT IS NOT WRITTEN: "1√k" IS "√k".
+ *
+ * An answer summary is filled from the question's own parameters, so a
+ * summary written "{{t}}√{{k}}" read "1√2" whenever the terms added up to one
+ * root (Radicals L2, exit ticket 2), and "-1√2" for minus one. The key's
+ * template already says "{{t|coef}}"; the summary is read here, for every
+ * surface that shows one (the closed review, My Math Path, Corrections, Live
+ * Challenge, the teacher's preview), so it is written here too. Only a 1 that
+ * stands alone before √, ∛, ∜ or \sqrt goes, after a sign, a space, a bracket
+ * or the start: 11√2, 0.1√2, 2/1√3 and x1√2 are left as they are. Display
+ * only: the stored question, its key and its fingerprint are untouched.
+ */
+const UNIT_ROOT_COEFFICIENT = /(^|[\s=+\-−±([{,;:$≈<>≤≥])1(?=√|∛|∜|\\sqrt(?![A-Za-z]))/gu;
+export const withoutUnitRootCoefficient = (value) => String(value ?? '').replace(UNIT_ROOT_COEFFICIENT, '$1');
+
 /**
  * The private support bundle, taken off an authored bank question.
  *
@@ -68,7 +84,7 @@ export const buildPrivateSupport = (question = {}) => {
       reasoning: list(review.reasoning).map((entry) => clampText(entry, 400)).filter(Boolean).slice(0, 8),
       commonError: clampText(review.commonError, 400) || null,
       connection: clampText(review.connection, 400) || null,
-      answerSummary: clampText(review.answerSummary, 240) || null,
+      answerSummary: withoutUnitRootCoefficient(clampText(review.answerSummary, 240)) || null,
     } : null,
   };
 };
