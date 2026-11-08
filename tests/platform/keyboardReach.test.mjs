@@ -205,9 +205,14 @@ test('the walk names the element focus is really on, and lets a refocused math b
   assert.match(named, /let named = window\.__mmReach\?\.focusedAtStop\?\.\(\) \|\| document\.activeElement;/);
   assert.match(named, /while \(named\?\.shadowRoot\?\.activeElement\) named = named\.shadowRoot\.activeElement;\s*return named;/);
   assert.match(region(walk, 'const accessibleNameOfFocus = async (cdp) => {', '\n};', 'the naming'), /Runtime\.evaluate', \{ expression: FOCUSED_ELEMENT, awaitPromise: true \}/);
-  const refocus = observe.slice(observe.indexOf('el.focus({ preventScroll: true });'));
-  assert.match(refocus, /for \(let wait = 0; wait < \d+ && el\.localName === 'math-field' && !el\.shadowRoot\?\.activeElement; wait \+= 1\) \{\s*await new Promise/, 'a refocused math box is waited for');
-  assert.ok(refocus.indexOf('wait += 1') < refocus.indexOf('info.refocused = document.activeElement === el;'), 'before the stop is recorded and the walk goes on');
+  // Every refocus goes through one wait: the one after a stop is read, and the
+  // one after the focus ring's picture (focusById), which once waited for nothing.
+  const refocus = region(walk, 'const refocus = async (el) => {', '\n  };', 'the refocus');
+  assert.match(refocus, /el\.focus\(\{ preventScroll: true \}\);\s*for \(let wait = 0; wait < \d+ && el\.localName === 'math-field' && !el\.shadowRoot\?\.activeElement; wait \+= 1\) \{\s*await new Promise/, 'a refocused math box is waited for');
+  assert.ok(refocus.indexOf('wait += 1') < refocus.indexOf('return document.activeElement === el;'), 'before the walk goes on');
+  assert.match(observe, /info\.refocused = await refocus\(el\);\s*return \{ \.\.\.info, focused, blurred \};/, 'a stop is recorded after the refocus');
+  assert.match(walk, /const focusById = async \(id\) => \{ const el = elements\[id\]; if \(!el\?\.isConnected\) return false; return refocus\(el\); \};/, 'the refocus after the ring\'s picture waits too');
+  assert.doesNotMatch(observe, /el\.focus\(/, 'observe refocuses only through the wait');
 });
 
 // The browser half is shown finding each defect on a page with only that defect

@@ -241,6 +241,25 @@ const INSTALL = ({ rootSelector }) => {
   // really is when Tab lands, read before the walk blurs and refocuses it.
   let focusedAtStop = null;
 
+  // A math box's host hands focus on to its keyboard sink a moment later
+  // (MathLive, about 60 ms here), and until then focus is on <body>. The walk's
+  // next Tab, pressed inside that moment, started from <body>, and the late
+  // hand-over then pulled focus back into the box: on a phone, with the box's
+  // keypad opening too, a walk once saw "Slope" twice and stopped with 12
+  // controls unreached, though plain Tab presses never loop there (10 of 10
+  // walks). So every refocus waits for the hand-over before the walk goes on:
+  // the one after a stop is read, and the one after the focus ring's picture,
+  // which waited for nothing (CI's first run of the four-box plant stopped on
+  // "Slope", where 3 of 3 runs here passed). It stops waiting once the sink has
+  // focus, so it costs only as long as the hand-over takes, at most 1.5 s.
+  const refocus = async (el) => {
+    el.focus({ preventScroll: true });
+    for (let wait = 0; wait < 75 && el.localName === 'math-field' && !el.shadowRoot?.activeElement; wait += 1) {
+      await new Promise((resolve) => { setTimeout(resolve, 20); });
+    }
+    return document.activeElement === el;
+  };
+
   // The stop Tab just made: what it is, and what focusing it changed.
   const observe = async (previousId) => {
     await new Promise((resolve) => { requestAnimationFrame(() => resolve()); });
@@ -264,23 +283,12 @@ const INSTALL = ({ rootSelector }) => {
     const blurred = snap(el);
     const rect = el.isConnected ? el.getBoundingClientRect() : null;
     info.sameBox = Boolean(rect) && Math.round(scrollY) === info.scrollY && Math.round(rect.y) === info.rect.y;
-    el.focus({ preventScroll: true });
-    // A math box's host hands focus on to its keyboard sink a moment later
-    // (MathLive, about 60 ms), and until then focus is on <body>. The walk's
-    // next Tab, pressed inside that moment, started from <body>, and the late
-    // hand-over then pulled focus back into the box: on a phone, with the box's
-    // keypad opening too, a walk once saw "Slope" twice and stopped with 12
-    // controls unreached, though plain Tab presses never loop there (10 of 10
-    // walks). So the walk waits for the hand-over before it goes on.
-    for (let wait = 0; wait < 25 && el.localName === 'math-field' && !el.shadowRoot?.activeElement; wait += 1) {
-      await new Promise((resolve) => { setTimeout(resolve, 20); });
-    }
-    info.refocused = document.activeElement === el;
+    info.refocused = await refocus(el);
     return { ...info, focused, blurred };
   };
 
   const blurById = (id) => { elements[id]?.blur(); };
-  const focusById = (id) => { const el = elements[id]; if (!el?.isConnected) return false; el.focus({ preventScroll: true }); return document.activeElement === el; };
+  const focusById = async (id) => { const el = elements[id]; if (!el?.isConnected) return false; return refocus(el); };
   const clipOf = (id) => {
     const rect = elements[id].getBoundingClientRect();
     const pad = 8;
