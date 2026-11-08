@@ -6,8 +6,9 @@
  *   Administration > Pre-production reset  resetPreproductionTestData (the read-only preview)
  *   Administration > Path content coverage getPathRuntimeStatus, getCoursePathReleaseStatusV2
  *   Google Classroom                       getClassroomConnectionStatus, listGoogleCourses,
- *                                          listPublishedAssignments, listClassroomGradeSyncs (and the
- *                                          course mappings fakeFunctions.js's listClassroomCourseMappings reads)
+ *                                          listPublishedAssignments, listClassroomGradeSyncs, the roster
+ *                                          Import Roster reads (listClassroomStudents, listClassroomRosterLinks),
+ *                                          and the course mappings fakeFunctions.js's listClassroomCourseMappings reads
  *
  * Each returns the shape the deployed callable returns (functions/index.js), over invented data: a few
  * audit entries, the counts of what the harness holds, the release this browser bundle was built from,
@@ -58,6 +59,43 @@ export const classroomCourseMappings = () => (classroomConnected() ? [{
   id: 'harness-mapping-alg2-p3', mappingId: 'harness-mapping-alg2-p3', courseId: 'course-alg2-p3', courseName: 'Algebra II',
   courseSection: 'Period 3', classId: 'c-alg2-p3', className: 'Algebra II — Period 3', classPeriod: 'Period 3', updatedAtMillis: Date.UTC(2026, 8, 2, 14),
 }] : []);
+// What the server's Classroom client throws for an account that has not connected: a plain Error, which reaches the
+// browser as a bare "internal". Google's own answer for a course the account does not teach reaches it the same way.
+const classroomUnavailable = () => Object.assign(new Error('internal'), { code: 'functions/internal' });
+
+/*
+ * ITS ROSTER: what Import Roster reads, for the roster table under it. The course's students come from Google
+ * (listClassroomStudents; lib/classroom.js listStudents: each one's Google user id, name and school email), and the
+ * links the teacher made before from MathMaster (listClassroomRosterLinks: one record a link, functions/index.js).
+ * Invented, and only for the connected teacher, as the courses are. The mapped course, Algebra II Period 3, has the
+ * harness's students of that class under invented Google accounts, and one student more, who has no MathMaster account
+ * yet; the first of them was linked to their MathMaster ID before. The harness's students are ID-only (no email), so
+ * the screen matches the rest by name, for the teacher to review, and the one more matches no one. The two Algebra I
+ * sections have no roster: the screen imports only a mapped course's. Nothing here writes (linking a student,
+ * linkClassroomRosterBatch, has no stand-in), and a teacher who has not connected has never made a link.
+ */
+const ROSTER_COURSE_ID = 'course-alg2-p3';
+const ROSTER_CLASS_ID = 'c-alg2-p3';
+const NEW_TO_MATHMASTER = { firstName: 'Noor', lastName: 'Abernathy' };
+// An invented Google account: the student's name, and a school address made from it.
+const googleAccount = ({ firstName, lastName }, index) => ({
+  googleUserId: `g-11880033${String(index + 1).padStart(4, '0')}`,
+  name: `${firstName} ${lastName}`,
+  email: `${firstName}.${lastName}@students.example`.toLowerCase(),
+});
+// Each Google student with the MathMaster ID they are, or none: [{ googleUserId, name, email, studentId }].
+const rosterOfMappedCourse = () => [
+  ...harnessStore.paths('grades/')
+    .filter((path) => path.split('/').length === 2)
+    .map((path) => ({ studentId: path.split('/')[1], ...harnessStore.get(path) }))
+    .filter((student) => student.classId === ROSTER_CLASS_ID),
+  { studentId: null, ...NEW_TO_MATHMASTER },
+].map((student, index) => ({ studentId: student.studentId, ...googleAccount(student, index) }));
+const requireCourseId = (courseId) => {
+  const id = String(courseId || '').trim();
+  if (!id) throw refusal('invalid-argument', 'courseId is required.');
+  return id;
+};
 
 // The names preservedLabel() in PreproductionReset.jsx knows, and a few the preview counts.
 const PRESERVED_COLLECTIONS = [
@@ -124,8 +162,25 @@ export const adminScreenHandlers = {
   // The connected account's active courses. Without a connection the server's Classroom client throws a plain
   // Error, which reaches the browser as a bare "internal" (the screen never asks then: it waits for "Connected").
   listGoogleCourses: () => {
-    if (!classroomConnected()) throw Object.assign(new Error('internal'), { code: 'functions/internal' });
+    if (!classroomConnected()) throw classroomUnavailable();
     return { courses: CLASSROOM_COURSES.map((course) => ({ ...course })) };
+  },
+  // A course's students, as Google lists them (ITS ROSTER, above).
+  listClassroomStudents: ({ courseId } = {}) => {
+    const id = requireCourseId(courseId);
+    if (!classroomConnected() || !CLASSROOM_COURSES.some((course) => course.id === id)) throw classroomUnavailable();
+    return { students: id === ROSTER_COURSE_ID ? rosterOfMappedCourse().map(({ googleUserId, name, email }) => ({ googleUserId, name, email })) : [] };
+  },
+  // The course's links made before, in the shape the callable returns them.
+  listClassroomRosterLinks: ({ courseId } = {}) => {
+    const id = requireCourseId(courseId);
+    const linked = classroomConnected() && id === ROSTER_COURSE_ID ? rosterOfMappedCourse().filter((entry) => entry.studentId).slice(0, 1) : [];
+    return {
+      links: linked.map((entry) => ({
+        rosterLinkId: `${id}__${entry.studentId}`, courseId: id, classId: ROSTER_CLASS_ID, studentId: entry.studentId,
+        googleUserId: entry.googleUserId, email: entry.email, name: entry.name,
+      })),
+    };
   },
   listPublishedAssignments: () => ({
     links: harnessStore.paths('classroomLinks/').filter((path) => path.split('/').length === 2).map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) })),

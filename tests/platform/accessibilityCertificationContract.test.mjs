@@ -109,8 +109,9 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-find': [null, 'results'],
   'teacher-demo': [null],
   'teacher-schedule': [null],
-  // Google Classroom as a teacher who has not connected it meets it, and once connected (its courses: listGoogleCourses).
-  'teacher-classroom': [null, 'connected'],
+  // Google Classroom as a teacher who has not connected it meets it, once connected (its courses: listGoogleCourses), and
+  // its roster table after Import Roster (listClassroomStudents, listClassroomRosterLinks).
+  'teacher-classroom': [null, 'connected', 'roster'],
   'teacher-access': [null],
   'teacher-admin': ['classes', 'accounts', 'coverage', 'ai', 'reset'],
 };

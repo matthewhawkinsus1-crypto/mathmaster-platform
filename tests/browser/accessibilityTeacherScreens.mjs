@@ -77,6 +77,8 @@
  *
  * teacher-classroom/connected  Google Classroom once it is connected: the courses the account teaches, which the
  *                        harness's stand-in for listGoogleCourses answers (teacherWorkflow/fakeAdminScreens.js).
+ * teacher-classroom/roster  then Import Roster: the roster table, from the stand-ins for listClassroomStudents and
+ *                        listClassroomRosterLinks (the same file), a row for each Google student and its MathMaster match.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -730,6 +732,17 @@ const openClassroomConnected = async (page) => {
   await workspaceMain(page).getByText('ID-only students: paste an identity list (optional)').waitFor({ timeout: 30_000 });
   await page.waitForTimeout(900);
 };
+// Then Import Roster, as a teacher links the roster for grade passback: the mapped course's students from Google and the
+// links made before (listClassroomStudents, listClassroomRosterLinks: fakeAdminScreens.js, ITS ROSTER), matched against
+// the class's MathMaster students. The table is read once it has drawn the link made before, and the screen has said
+// what it loaded. Programmatic, like the sidebar: on a phone a sticky bar can sit over a real click.
+const openClassroomRoster = async (page) => {
+  await workspaceMain(page).getByRole('button', { name: 'Import Roster', exact: true }).evaluate((button) => button.click());
+  const matches = workspaceMain(page).getByRole('region', { name: 'Google Classroom roster matches' });
+  await matches.getByText('LINKED', { exact: true }).waitFor({ timeout: 30_000 });
+  await workspaceMain(page).getByText(/^Loaded \d+ Google Classroom students and 1 existing MathMaster link\.$/).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
 
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
@@ -846,6 +859,8 @@ export const TEACHER_SCREENS = [
     { id: null, run: openDestination('Google Classroom', /^Google Classroom Manager$/) },
     // Once connected: the courses (listGoogleCourses, which the harness now answers) and what they open.
     { id: 'connected', run: openClassroomConnected },
+    // And the roster table under Import Roster (listClassroomStudents and listClassroomRosterLinks, answered the same way).
+    { id: 'roster', run: openClassroomRoster },
   ]),
   teacherScreen('teacher-access', [{ id: null, run: openDestination('Student Access', /^Student Access$/) }]),
   // The administrator's workspace: the harness's root-admin teacher, its Administration view, and each of its five sections.

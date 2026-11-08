@@ -312,6 +312,72 @@ test('Google Classroom, connected: off unless asked for; then the courses and a 
   }
 });
 
+// Google Classroom's roster, after Import Roster (the November build's section 6): the screen reads the mapped course's
+// students from Google and the links the teacher made before, which the harness could not answer, so no scene audited the
+// roster table. Off unless asked for, as the courses are. Asked for, both come back in the deployed shapes, over invented
+// accounts for the mapped class's own students and one student more; and the screen's own matching
+// (classroomRosterMatching.js, against the roster the teacher's screens load) makes of them a row of every kind an ID-only
+// roster can give: a link made before, names for the teacher to review, and a student no one matches.
+test('Google Classroom, connected: the roster Import Roster reads, off unless asked for, then in the deployed shapes', async () => {
+  const functions = await loadFake('fakeFunctions.js', '?reset=1', 'classroomRoster');
+  const { buildRosterMatchPlan, studentsForClass } = await import('../../src/classroomRosterMatching.js');
+  const call = (name, data) => functions.httpsCallable(functions.getFunctions(), name)(data).then((result) => result.data);
+  const rejectsWith = (promise, code) => assert.rejects(promise, (error) => error.code === `functions/${code}`, code);
+
+  // Not asked for: the teacher who has never connected. Google cannot be read for them, and they never made a link.
+  await rejectsWith(call('listClassroomStudents', { courseId: 'course-alg2-p3' }), 'internal');
+  assert.deepEqual(await call('listClassroomRosterLinks', { courseId: 'course-alg2-p3' }), { links: [] });
+  // As the server: a course is always named.
+  await rejectsWith(call('listClassroomStudents', {}), 'invalid-argument');
+  await rejectsWith(call('listClassroomRosterLinks', { courseId: ' ' }), 'invalid-argument');
+
+  globalThis.window.__mmHarness.classroomConnected = true;
+  try {
+    const { courses } = await call('listGoogleCourses', {});
+    const [mapping] = (await call('listClassroomCourseMappings', {})).mappings;
+    const { students } = await call('listClassroomStudents', { courseId: mapping.courseId });
+    // lib/classroom.js listStudents: each student's Google user id, name and email, one account each.
+    assert.ok(students.length > 2);
+    for (const student of students) {
+      assert.deepEqual(Object.keys(student).sort(), ['email', 'googleUserId', 'name']);
+      assert.ok(student.googleUserId && student.name && /@students\.example$/.test(student.email), 'an invented account');
+    }
+    assert.equal(new Set(students.map((student) => student.googleUserId)).size, students.length);
+    // functions/index.js listClassroomRosterLinks: the course's links, each in the shape it returns.
+    const { links } = await call('listClassroomRosterLinks', { courseId: mapping.courseId });
+    assert.equal(links.length, 1, 'one link made before');
+    assert.deepEqual(Object.keys(links[0]).sort(), ['classId', 'courseId', 'email', 'googleUserId', 'name', 'rosterLinkId', 'studentId']);
+    assert.equal(links[0].courseId, mapping.courseId);
+    assert.equal(links[0].classId, mapping.classId);
+
+    // What the table draws: the screen matches the Google roster against the mapped class's students, from the roster
+    // the teacher's screens load (listSignInAccess), and a row with a link shows the link.
+    const roster = await call('listSignInAccess', {});
+    const classStudents = studentsForClass(roster.students.map((row) => ({ ...row, id: row.studentId })), roster.classes.find((entry) => entry.classId === mapping.classId), roster.classes);
+    assert.ok(classStudents.length > 1, 'the mapped class has students');
+    const plan = buildRosterMatchPlan({ classroomStudents: students, mathMasterStudents: classStudents });
+    const linkFor = new Map(links.map((link) => [link.googleUserId, link]));
+    const kinds = plan.map((item) => (linkFor.has(item.classroomStudent.googleUserId) ? 'linked' : item.status));
+    assert.deepEqual(
+      Object.fromEntries([...new Set(kinds)].map((kind) => [kind, kinds.filter((entry) => entry === kind).length])),
+      { linked: 1, 'exact-name': classStudents.length - 1, unmatched: 1 },
+      'the link made before, every other student of the class by name, and the one student more by nothing',
+    );
+    const linkedRow = plan.find((item) => linkFor.has(item.classroomStudent.googleUserId));
+    assert.equal(linkedRow.suggestedStudent?.id, links[0].studentId, 'the link made before is to the student of that name');
+    // The two Algebra I sections have no roster or link, and a course the account does not teach cannot be read.
+    for (const other of courses.filter((course) => course.id !== mapping.courseId)) {
+      assert.deepEqual(await call('listClassroomStudents', { courseId: other.id }), { students: [] });
+      assert.deepEqual(await call('listClassroomRosterLinks', { courseId: other.id }), { links: [] });
+    }
+    await rejectsWith(call('listClassroomStudents', { courseId: 'course-not-taught' }), 'internal');
+  } finally {
+    delete globalThis.window.__mmHarness.classroomConnected;
+  }
+  await rejectsWith(call('listClassroomStudents', { courseId: 'course-alg2-p3' }), 'internal');
+  assert.deepEqual(await call('listClassroomRosterLinks', { courseId: 'course-alg2-p3' }), { links: [] }, 'and off again once the flag is gone');
+});
+
 // Every name the app imports from a Firebase module, from every file under src/.
 const appImports = (moduleName) => {
   const names = new Set();
