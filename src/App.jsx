@@ -137,7 +137,9 @@ import {
   saveResumeAction,
   subscribeToQuestionDrafts,
 } from './questionDraftStorage';
-import { answerFocusPosition } from './platform/interaction/answerEntryUx.js';
+// The cursor's box alone, not the answer-entry contract (Enter, focus on open,
+// the math field's handoff), which loads with the question runtime (PF01).
+import { answerFocusPosition } from './platform/interaction/answerFocusPosition.js';
 import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
