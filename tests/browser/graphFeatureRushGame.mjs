@@ -110,6 +110,10 @@ if (!await waitForHttp(`http://${EMULATOR}/`, 2)) {
 
 /* -------------------- the real server, behind a bridge -------------------- */
 
+// Transactions are re-run as production re-runs them: the emulator closes a
+// contended one that production would re-run, and the command fails instead
+// (liveChallengeShellQa.mjs; the integration suites load the same re-run).
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 // The deployed entry point (functions/package.json "main"), so every callable
 // a screen uses is served — some live in entry.js, not index.js.
 const functionsIndex = require(path.join(repo, 'functions/platformEntry.js'));

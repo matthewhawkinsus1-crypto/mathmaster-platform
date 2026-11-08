@@ -141,6 +141,13 @@ await fetch(`http://${EMULATOR}/emulator/v1/projects/${PROJECT}/databases/(defau
 
 /* -------------------- the real server, behind a bridge -------------------- */
 
+// Transactions are re-run as production re-runs them. Under contention the
+// emulator closes a transaction ("Transaction is invalid or closed") that
+// production would re-run as expired, and the command fails instead: the
+// adversarial scenario presses Start and Next Round from two tabs at once, so
+// a press that lost the race was once answered 400, not "already applied".
+// The integration suites load the same re-run.
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 const functionsIndex = require(path.join(repo, 'functions/platformEntry.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
@@ -386,7 +393,13 @@ const openPage = async ({ device = 'chromebook', url, init = null, reducedMotion
   if (init) await context.addInitScript(init.fn, init.arg);
   const page = await context.newPage();
   const errors = [];
-  page.on('console', (message) => { if (message.type() === 'error' && !IGNORABLE_CONSOLE.test(message.text())) errors.push(message.text()); });
+  // "Failed to load resource" names its URL only in the message's location:
+  // kept, so a 400 says whether the bridge refused a call or something else did.
+  page.on('console', (message) => {
+    if (message.type() !== 'error' || IGNORABLE_CONSOLE.test(message.text())) return;
+    const failed = message.text().startsWith('Failed to load resource') ? message.location()?.url : '';
+    errors.push(failed ? `${message.text()} at ${failed}` : message.text());
+  });
   page.on('pageerror', (error) => errors.push(`pageerror: ${error?.message || error}`));
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   return { page, context, errors, device };

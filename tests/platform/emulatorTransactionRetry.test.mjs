@@ -117,3 +117,39 @@ test('outside the emulator nothing is patched', () => {
   const source = readFileSync(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'), 'utf8');
   assert.match(executableSource(source), /if \(process\.env\.FIRESTORE_EMULATOR_HOST\) \{\s*retryEmulatorClosedTransactions\(functionsFirestoreClass\(\)/);
 });
+
+// The Live Challenge drivers CI runs answer every page's callables from a
+// bridge in their own process: the real handlers, against the emulator. Two
+// host tabs pressing Start or Next Round at once lost a press to the closed
+// transaction there (a 400 where production answers "already applied"), so
+// each loads the same re-run before the callables.
+const LIVE_CHALLENGE_BRIDGE_DRIVERS = [
+  'liveChallengeShellQa.mjs',
+  'liveChallengeProjectorPrivacyQa.mjs',
+  'liveChallengeTeachingQa.mjs',
+  'graphFeatureRushGame.mjs',
+];
+const loadsCallables = /require\(path\.join\(repo, 'functions\/platformEntry\.js'\)\)/;
+const loadsRetry = /await import\(path\.join\(repo, 'tests\/integration\/support\/emulatorTransactions\.mjs'\)\)/;
+
+test('the Live Challenge drivers CI runs re-run it in their bridges, before the callables load', () => {
+  for (const driver of LIVE_CHALLENGE_BRIDGE_DRIVERS) {
+    const source = executableSource(readFileSync(path.join(repo, 'tests/browser', driver), 'utf8'));
+    const callables = source.search(loadsCallables);
+    const retry = source.search(loadsRetry);
+    assert.ok(callables > 0, `${driver} runs the real callables`);
+    assert.ok(retry > 0 && retry < callables, `${driver} loads the emulator transaction re-run before the callables`);
+  }
+});
+
+test('every Live Challenge driver CI runs with a bridge of its own is on that list', () => {
+  const ci = [
+    ...readdirSync(path.join(repo, '.github/workflows')).map((file) => readFileSync(path.join(repo, '.github/workflows', file), 'utf8')),
+    readFileSync(path.join(repo, 'package.json'), 'utf8'),
+  ].join('\n');
+  const bridged = readdirSync(path.join(repo, 'tests/browser'))
+    .filter((file) => /^(liveChallenge|graphFeatureRush|lineGraph|inequalityRush)\w*\.mjs$/.test(file))
+    .filter((file) => ci.includes(`tests/browser/${file}`))
+    .filter((file) => loadsCallables.test(executableSource(readFileSync(path.join(repo, 'tests/browser', file), 'utf8'))));
+  assert.deepEqual(bridged.sort(), [...LIVE_CHALLENGE_BRIDGE_DRIVERS].sort());
+});
