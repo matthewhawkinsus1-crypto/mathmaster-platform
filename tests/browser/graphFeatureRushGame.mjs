@@ -617,19 +617,38 @@ await run('two-player-grand-prix', async () => {
   await shot(b, 'gp-r2-after-refresh-phone');
 
   // A goes offline: taps still answer at once and queue up; back online they land.
-  await a.page.evaluate(() => { window.__mmBridgeOffline = true; });
+  // B, on the phone, goes offline with it, and "Reconnecting…" must not move B's graph:
+  // in the bar's row it wrapped a phone's bar onto more rows, and the graph jumped under
+  // the finger as the connection came and went, so a tap aimed at a feature landed past it
+  // (once in CI-like runs, a phone's "graph 0 did not complete after its answer").
+  const graphBox = (student) => student.page.locator('svg.mm-rush-graph').boundingBox();
+  const sameBox = (left, right) => Boolean(left && right) && ['x', 'y', 'width', 'height'].every((key) => Math.abs(left[key] - right[key]) <= 0.5);
+  const offline = (on) => Promise.all([a, b].map((student) => student.page.evaluate((value) => {
+    window.__mmBridgeOffline = value;
+    if (!value) window.dispatchEvent(new Event('online'));
+  }, on)));
+  await offline(true);
+  const phoneGraph = await graphBox(b);
   const offlineGraphs = [];
   for (let index = 0; index < 2; index += 1) offlineGraphs.push(await solveOne(a, roomId, { scenario: S }));
+  await solveOne(b, roomId, { scenario: S });
   await wait(1_800);
   check(S, /Reconnecting/.test(await textOf(a)), 'A: offline taps did not show "Reconnecting…"');
+  check(S, /Reconnecting/.test(await textOf(b)), 'B: offline taps did not show "Reconnecting…"');
+  const phoneGraphReconnecting = await graphBox(b);
+  check(S, sameBox(phoneGraph, phoneGraphReconnecting), `B: "Reconnecting…" moved the phone's graph (${JSON.stringify(phoneGraph)} → ${JSON.stringify(phoneGraphReconnecting)})`);
   await shot(a, 'gp-r2-offline-chromebook');
+  await shot(b, 'gp-r2-offline-phone');
   const offlineDone = await doneCount(a);
-  await a.page.evaluate(() => { window.__mmBridgeOffline = false; window.dispatchEvent(new Event('online')); });
+  await offline(false);
   await wait(2_500);
   const recordA = await privatePlayer(roomId, idA);
   const roundTwoCompletions = Object.values(recordA.submissionReceipts || {}).filter((receipt) => receipt.roundIndex === 1 && receipt.completesQuestion).length;
   check(S, roundTwoCompletions === offlineDone, `A: after reconnecting the server has ${roundTwoCompletions} round-2 completions, the screen ${offlineDone}`);
   check(S, !/Reconnecting/.test(await textOf(a)), 'A: still "Reconnecting…" after the queue landed');
+  check(S, !/Reconnecting/.test(await textOf(b)), 'B: still "Reconnecting…" after the queue landed');
+  const phoneGraphBack = await graphBox(b);
+  check(S, sameBox(phoneGraph, phoneGraphBack), `B: the connection's return moved the phone's graph (${JSON.stringify(phoneGraph)} → ${JSON.stringify(phoneGraphBack)})`);
 
   // The teacher refreshes; the round still closes on time.
   await teacher.page.reload({ waitUntil: 'domcontentloaded' });

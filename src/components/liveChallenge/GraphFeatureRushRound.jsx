@@ -228,7 +228,7 @@ const RUSH_CSS = `
 }
 ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-bar {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   min-height: 52px; box-sizing: border-box;
   background: linear-gradient(90deg, rgba(42,15,92,.92), rgba(10,16,52,.92) 55%, rgba(42,15,92,.92));
@@ -244,7 +244,19 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
 /* The last ten seconds: red, and a pulse (a transform: the compositor's). */
 .mm-rush-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
-.mm-rush-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; }
+/* "Reconnecting…" sits on the bar's lower edge and takes no room in it. In the
+   bar's row it wrapped a phone's bar onto more rows (57 to 122 px high at 390 px
+   wide), so the graph jumped down under the student's finger as the connection
+   dropped, and back up as it returned: a finger aimed at a feature landed 65 px
+   from it, a miss (the game driver's "did not complete after its answer" on a
+   phone). Low enough to sit in the bar's padding and the stage's, clear of the
+   prompt; it catches no pointer, so the stage under it stays the student's. */
+.mm-rush-sync {
+  position: absolute; left: 50%; top: 100%; z-index: 2; transform: translate(-50%, -50%);
+  max-width: calc(100% - 24px); box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 10px; border-radius: 999px; background: #4a3708; border: 1px solid #f9ab00; pointer-events: none;
+  font-size: calc(12 * var(--mm-px)); line-height: 1.25; font-weight: 900; color: #fdd663;
+}
 .mm-rush-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(53,227,255,.45); border-radius: 8px; background: rgba(10,16,52,.6); color: #eef2ff; font-weight: 900; cursor: pointer; }
 .mm-rush-stage {
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; min-height: 0;
