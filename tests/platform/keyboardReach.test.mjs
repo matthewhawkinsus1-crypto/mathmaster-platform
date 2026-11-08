@@ -205,14 +205,22 @@ test('the walk names the element focus is really on, and lets a refocused math b
   assert.match(named, /let named = window\.__mmReach\?\.focusedAtStop\?\.\(\) \|\| document\.activeElement;/);
   assert.match(named, /while \(named\?\.shadowRoot\?\.activeElement\) named = named\.shadowRoot\.activeElement;\s*return named;/);
   assert.match(region(walk, 'const accessibleNameOfFocus = async (cdp) => {', '\n};', 'the naming'), /Runtime\.evaluate', \{ expression: FOCUSED_ELEMENT, awaitPromise: true \}/);
-  // Every refocus goes through one wait: the one after a stop is read, and the
-  // one after the focus ring's picture (focusById), which once waited for nothing.
+  // A math box takes focus for 60 ms more than it seems to (MathLive refocuses
+  // its keyboard sink from a 60 ms timer): wherever a box takes focus, when Tab
+  // lands on it and after each refocus, the walk waits for the sink and then
+  // the timer, so its next Tab is not pulled back into the box.
+  const settle = region(walk, 'const settle = async (el) => {', '\n  };', 'the settle');
+  assert.match(settle, /if \(el\?\.localName !== 'math-field'\) return;/, 'only a math box is waited for');
+  assert.match(settle, /for \(let wait = 0; wait < \d+ && !el\.shadowRoot\?\.activeElement; wait \+= 1\) \{\s*await new Promise/, 'first its sink');
+  assert.match(settle, /await new Promise\(\(resolve\) => \{ setTimeout\(resolve, MATH_BOX_SETTLE_MS\); \}\);/, 'then MathLive\'s own timer');
+  const settleMs = Number(/const MATH_BOX_SETTLE_MS = (\d+);/.exec(walk)?.[1]);
+  assert.ok(settleMs > 60, `longer than MathLive's 60 ms (${settleMs})`);
   const refocus = region(walk, 'const refocus = async (el) => {', '\n  };', 'the refocus');
-  assert.match(refocus, /el\.focus\(\{ preventScroll: true \}\);\s*for \(let wait = 0; wait < \d+ && el\.localName === 'math-field' && !el\.shadowRoot\?\.activeElement; wait \+= 1\) \{\s*await new Promise/, 'a refocused math box is waited for');
-  assert.ok(refocus.indexOf('wait += 1') < refocus.indexOf('return document.activeElement === el;'), 'before the walk goes on');
+  assert.match(refocus, /el\.focus\(\{ preventScroll: true \}\);\s*await settle\(el\);\s*return document\.activeElement === el;/, 'a refocused math box settles before the walk goes on');
+  assert.ok(observe.indexOf('await settle(el);') >= 0 && observe.indexOf('await settle(el);') < observe.indexOf('focusedAtStop = el;'), 'a box Tab lands on settles before the stop is read');
   assert.match(observe, /info\.refocused = await refocus\(el\);\s*return \{ \.\.\.info, focused, blurred \};/, 'a stop is recorded after the refocus');
-  assert.match(walk, /const focusById = async \(id\) => \{ const el = elements\[id\]; if \(!el\?\.isConnected\) return false; return refocus\(el\); \};/, 'the refocus after the ring\'s picture waits too');
-  assert.doesNotMatch(observe, /el\.focus\(/, 'observe refocuses only through the wait');
+  assert.match(walk, /const focusById = async \(id\) => \{ const el = elements\[id\]; if \(!el\?\.isConnected\) return false; return refocus\(el\); \};/, 'the refocus after the ring\'s picture settles too');
+  assert.doesNotMatch(observe, /el\.focus\(/, 'observe refocuses only through the settle');
 });
 
 // The browser half is shown finding each defect on a page with only that defect

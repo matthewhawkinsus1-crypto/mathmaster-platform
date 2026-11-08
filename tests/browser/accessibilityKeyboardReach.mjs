@@ -241,22 +241,26 @@ const INSTALL = ({ rootSelector }) => {
   // really is when Tab lands, read before the walk blurs and refocuses it.
   let focusedAtStop = null;
 
-  // A math box's host hands focus on to its keyboard sink a moment later
-  // (MathLive, about 60 ms here), and until then focus is on <body>. The walk's
-  // next Tab, pressed inside that moment, started from <body>, and the late
-  // hand-over then pulled focus back into the box: on a phone, with the box's
-  // keypad opening too, a walk once saw "Slope" twice and stopped with 12
-  // controls unreached, though plain Tab presses never loop there (10 of 10
-  // walks). So every refocus waits for the hand-over before the walk goes on:
-  // the one after a stop is read, and the one after the focus ring's picture,
-  // which waited for nothing (CI's first run of the four-box plant stopped on
-  // "Slope", where 3 of 3 runs here passed). It stops waiting once the sink has
-  // focus, so it costs only as long as the hand-over takes, at most 1.5 s.
-  const refocus = async (el) => {
-    el.focus({ preventScroll: true });
-    for (let wait = 0; wait < 75 && el.localName === 'math-field' && !el.shadowRoot?.activeElement; wait += 1) {
+  // A math box finishes taking focus 60 ms after it gets it: MathLive's
+  // Mathfield.onFocus refocuses the box's keyboard sink from a 60 ms timer, and
+  // ignores focus() until then. A Tab pressed inside those 60 ms moves on, and
+  // the timer then pulls focus back into the box: in Chromium a Tab 5 ms after
+  // a box took focus came back to it 5 times in 5, and 150 ms after, it moved
+  // on 5 times in 5. CI's idle runner pressed the walk's next Tab that fast, so
+  // its four-box plant stopped on "Slope" (never here, on a busy machine). So
+  // wherever a math box takes focus, from Tab or from the walk's refocus, the
+  // walk waits for the sink and then the timer.
+  const MATH_BOX_SETTLE_MS = 100;
+  const settle = async (el) => {
+    if (el?.localName !== 'math-field') return;
+    for (let wait = 0; wait < 75 && !el.shadowRoot?.activeElement; wait += 1) {
       await new Promise((resolve) => { setTimeout(resolve, 20); });
     }
+    await new Promise((resolve) => { setTimeout(resolve, MATH_BOX_SETTLE_MS); });
+  };
+  const refocus = async (el) => {
+    el.focus({ preventScroll: true });
+    await settle(el);
     return document.activeElement === el;
   };
 
@@ -269,6 +273,7 @@ const INSTALL = ({ rootSelector }) => {
     // Tab that stayed on the same element (the parts of a date box) is not a
     // new stop, and blurring it would send the next Tab back to its first part.
     if (ids.get(el) === previousId && previousId != null) return { same: true, id: previousId, type: el.getAttribute('type'), target: selectorOf(el) };
+    await settle(el);
     // A math box's <math-field> is a host: focus is in MathLive's keyboard sink
     // inside its shadow root, which is what a screen reader lands on and what
     // carries the box's name. Refocusing the host below drops focus to <body>
