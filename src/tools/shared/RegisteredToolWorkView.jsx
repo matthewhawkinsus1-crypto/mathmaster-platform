@@ -70,11 +70,15 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
   const { terminal: questionClosed } = useQuestionLifecycle();
   if (!inventory || inventory.status !== 'migrated') return children;
 
+  // A sample with no prompt of its own (the Math Tools Lab's; every student question has one) is named by the
+  // tool's own name, as the dialog is (TL42), not by its program id: "Complete the inverseCompositionLab activity."
+  // read as code, and the id was a word longer than a phone's line.
+  const catalogName = getToolCatalogEntry(toolId)?.label;
   const taskText = String(
     questionData?.prompt
       || questionData?.task
       || questionData?.scenario
-      || `Complete the ${toolId} activity.`,
+      || (catalogName ? `Complete the ${catalogName} activity.` : 'Complete this activity.'),
   ).trim();
 
   // The question's AUTHORED HINTS are help, not directions. The Work View
