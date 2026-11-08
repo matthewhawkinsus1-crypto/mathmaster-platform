@@ -33,7 +33,9 @@
  *      already see exactly where it is.
  */
 
-import { PINCH_ZOOM_THRESHOLD, isBrowserPinchZoomed } from '../mobile/mobileInteractionFoundation.js';
+// From pinchZoomScale.js, not mobileInteractionFoundation.js: main.jsx installs
+// the root flag before the sign-in screen, which needs nothing else of it.
+import { PINCH_ZOOM_THRESHOLD, isBrowserPinchZoomed } from '../mobile/pinchZoomScale.js';
 
 export const PINCH_ZOOM_ROOT_ATTRIBUTE = 'data-mm-pinch-zoomed';
 

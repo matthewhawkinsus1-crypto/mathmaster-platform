@@ -1,12 +1,12 @@
+// The pinch-zoom check lives on its own (pinchZoomScale.js), so the sign-in
+// path reads it without this module; the same bindings, re-exported here.
+import { PINCH_ZOOM_THRESHOLD, isBrowserPinchZoomed } from './pinchZoomScale.js';
+
+export { PINCH_ZOOM_THRESHOLD, isBrowserPinchZoomed };
 export const MOBILE_INTERACTION_BREAKPOINT = 768;
 export const COMPACT_PHONE_BREAKPOINT = 620;
 export const MIN_TOUCH_TARGET_PX = 44;
 export const MOBILE_VIEWPORT_MARGIN_PX = 8;
-export const PINCH_ZOOM_THRESHOLD = 1.02;
-
-export const isBrowserPinchZoomed = (windowObject = typeof window !== 'undefined' ? window : null) => (
-  Number(windowObject?.visualViewport?.scale || 1) > PINCH_ZOOM_THRESHOLD
-);
 
 // Layout should react to keyboard/browser-chrome changes, but NOT to page pinch
 // zoom. When the student zooms the page, the page must behave like paper under
