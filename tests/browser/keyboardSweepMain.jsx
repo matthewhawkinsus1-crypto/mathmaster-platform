@@ -53,6 +53,16 @@
 //     the question. With none, focus fell to <body>, which the sweep read as a
 //     keyboard student losing their place after "Correct! This question is
 //     complete." (Graph Comparison). Pressing it here does nothing.
+//   - THE SCREEN'S OWN LAYOUT (student-a11y-3). On a phone App.css makes the
+//     assignment screen one screen tall, its shell a grid of the navigator and
+//     the stage, and the question as tall as the stage, so the work scrolls
+//     above the work bar at the screen's foot. The stand-in had the screen's
+//     class on a wrapper with no shell and the sentinels inside it: the stage
+//     had no height, the question collapsed to 258px of the 844 and its work
+//     area to 16px, and the work bar sat over the question's controls (five of
+//     a fraction question's 14 stops under it). The stand-in is now the App's
+//     own structure, screen > shell > navigator and stage, with their inline
+//     styles; the sentinels take no room.
 // The other drivers that mount this page leave it off, as they always did.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -80,36 +90,60 @@ const record = (kind) => (...args) => {
 // A way on that goes nowhere: the sweep never follows it, it only has to exist.
 const noWayOn = () => {};
 
+// What App.jsx's assignment screen and its stage carry inline (the student's own
+// support presentation aside): the screen's padding and height, the stage's card.
+// On a phone App.css overrides each with the one-screen layout (`!important`).
+const ASSIGNMENT_SCREEN_STYLE = Object.freeze({ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-control)', minHeight: '100vh', padding: '20px' });
+const QUESTION_STAGE_STYLE = Object.freeze({ background: 'var(--mm-surface)', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' });
+const SENTINEL_STYLE = Object.freeze({ position: 'fixed', top: 0, left: 0, width: 1, height: 1, padding: 0, border: 0, overflow: 'hidden', opacity: 0.01 });
+
 function Harness() {
   if (!toolId) return <main data-kb-idle="true">Pass ?tool=</main>;
   const sceneId = variant ? `kb-${toolId}-${variant}` : `kb-${toolId}`;
   const base = SAMPLE_SPECS[toolId] || QUESTION_TYPE_CATALOG[toolId]?.example;
   const question = { id: sceneId, questionId: sceneId, type: toolId, prompt: `Complete the ${toolId} activity.`, ...base, ...override };
   const shell = params.get('shell') === 'assignment' && params.get('host') !== 'bare';
+  const engine = (
+    <QuestionEngine
+      key={sceneId}
+      question={question}
+      generationKey={sceneId}
+      questionRecord={null}
+      onGrade={record('grade')}
+      onStepGrade={record('step')}
+      onNextQuestion={shell ? noWayOn : undefined}
+      studentProfile={{}}
+      activityRole="classwork"
+      maximumAttempts={3}
+      assignmentId="keyboard-sweep"
+      executionScope="student"
+    />
+  );
+  if (shell) {
+    // App.jsx's assignment screen, as it is drawn (SHELL above): the screen, the
+    // shell inside it, the navigator and the stage, with their own inline styles.
+    // The sentinels take no room, as the Tab walk's do: in the App nothing of the
+    // page's lies around the screen but the identity bar, whose height it
+    // subtracts (--mm-student-identity-stack-offset, 0 here, where there is none).
+    return (
+      <div className="app-container" data-kb-tool={toolId} data-kb-host="assignment" data-kb-shell="assignment">
+        <button type="button" data-kb-sentinel="start" style={SENTINEL_STYLE}>Start of page (sweep sentinel)</button>
+        <div className="mathmaster-assignment-screen" style={ASSIGNMENT_SCREEN_STYLE}>
+          <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
+            <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className="mathmaster-assignment-unified-nav is-collapsed" aria-hidden="true" data-kb-stand-in="navigator">
+              <div className="mathmaster-assignment-unified-top" style={{ minHeight: 40 }} />
+            </nav>
+            <main className="mathmaster-question-stage" data-kb-root="true" style={QUESTION_STAGE_STYLE}>{engine}</main>
+          </div>
+        </div>
+        <button type="button" data-kb-sentinel="end" style={SENTINEL_STYLE}>End of page (sweep sentinel)</button>
+      </div>
+    );
+  }
   return (
-    <div className={params.get('host') === 'bare' ? 'app-container' : 'app-container mathmaster-assignment-screen'} data-kb-tool={toolId} data-kb-host={params.get('host') === 'bare' ? 'bare' : 'assignment'} data-kb-shell={shell ? 'assignment' : undefined}>
+    <div className={params.get('host') === 'bare' ? 'app-container' : 'app-container mathmaster-assignment-screen'} data-kb-tool={toolId} data-kb-host={params.get('host') === 'bare' ? 'bare' : 'assignment'}>
       <button type="button" data-kb-sentinel="start">Start of page (sweep sentinel)</button>
-      {shell && (
-        <nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)} className="mathmaster-assignment-unified-nav is-collapsed" aria-hidden="true" data-kb-stand-in="navigator">
-          <div className="mathmaster-assignment-unified-top" style={{ minHeight: 40 }} />
-        </nav>
-      )}
-      <main className="mathmaster-question-stage" data-kb-root="true">
-        <QuestionEngine
-          key={sceneId}
-          question={question}
-          generationKey={sceneId}
-          questionRecord={null}
-          onGrade={record('grade')}
-          onStepGrade={record('step')}
-          onNextQuestion={shell ? noWayOn : undefined}
-          studentProfile={{}}
-          activityRole="classwork"
-          maximumAttempts={3}
-          assignmentId="keyboard-sweep"
-          executionScope="student"
-        />
-      </main>
+      <main className="mathmaster-question-stage" data-kb-root="true">{engine}</main>
       <button type="button" data-kb-sentinel="end">End of page (sweep sentinel)</button>
     </div>
   );
