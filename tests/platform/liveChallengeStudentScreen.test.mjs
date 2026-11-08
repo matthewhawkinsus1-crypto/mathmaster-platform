@@ -118,7 +118,8 @@ test('extended time: the round counts down to, and buzzes at, the student\'s own
   assert.match(main, /const timeMultiplier = joinedTimeMultiplier \?\? \(invite\?\.roomId === roomId \? storedTimeMultiplier\(invite\?\.timeMultiplier\) : 1\);/);
   assert.doesNotMatch(executableSource(student), /maxTimeMultiplier|extendedTimeInPlay/, 'the room\'s flag says nothing about this student');
   // The round stays mounted after the class's deadline until the room closes it.
-  assert.match(main, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady && \(\s*<ChallengeRound/);
+  assert.match(main, /const classicRoundShown = Boolean\(!questionSetRoom && room\.status === 'running' && room\.currentQuestion && roundOpen && clockReady\);/);
+  assert.match(main, /\{classicRoundShown && \(\s*<ChallengeRound/);
 });
 
 test('Read aloud is offered only to a student whose plan grants it, and stops with the round', () => {
@@ -151,9 +152,12 @@ test('a device that comes back is told which rounds closed without its answer', 
   assert.match(effect, /readLiveChallengePlayerSummary\(roomId, studentId\)/);
   assert.match(effect, /summaryUnansweredRounds\(summary, rounds, \{ roomId \}\)/);
   assert.doesNotMatch(effect, /readLiveChallengeRound\(/);
-  // Shown once, dismissible.
-  const notice = region(main, '{missedNotice && (', '\n        )}', 'missed notice');
-  assert.match(notice, /onClick=\{\(\) => setMissedNotice\(''\)\}/);
+  // Shown once, dismissible: above the rounds between them, under a classic
+  // round's question while one is on screen (the next test).
+  const notice = region(main, '{missedNotice && !classicRoundShown && (', '\n        )}', 'missed notice');
+  assert.match(notice, /<MissedRoundsWords notice=\{missedNotice\} onDismiss=\{dismissMissed\} \/>/);
+  assert.match(main, /const dismissMissed = \(\) => setMissedNotice\(''\);/);
+  assert.match(region(student, 'function MissedRoundsWords(', '\n}\n', 'the notice'), /<span>\{notice\}<\/span>\s*<button type="button" onClick=\{onDismiss\}[^>]*>Got it<\/button>/);
   assert.match(student, /try \{ return window\.sessionStorage; \} catch \{ return null; \}/);
 });
 

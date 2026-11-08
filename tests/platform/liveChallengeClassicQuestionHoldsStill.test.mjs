@@ -92,7 +92,7 @@ test('the step-graded tools are the ones the question engine takes step grades f
   for (const id of casesWithSteps) assert.ok(listed.has(id), `${id} grades steps: its rounds can bank points, so their line needs its room`);
 });
 
-test('the slow-connection line is said under the question, where nothing it does can move it', () => {
+test('the slow-connection line and a missed round\'s notice are said under the question, where nothing they do can move it', () => {
   const round = region(student, 'export function ChallengeRound(', '\nfunction StudentRoundResults', 'the classic round');
   assert.match(round, /underQuestion = null,/);
   // After the question's own block, before the lock line and the result.
@@ -100,6 +100,19 @@ test('the slow-connection line is said under the question, where nothing it does
   assert.match(afterQuestion, /\n\s*<\/div>\n\s*\)\}\n\s*<\/div>\n\n\s*\{underQuestion\}\n\n\s*\{lockedLine && \(/);
   const call = region(student, '<ChallengeRound\n            key=', '\n          />', 'the round on the page');
   assert.match(call, /beforeQuestion=\{lateJoinNote\}/);
-  assert.match(call, /underQuestion=\{clock\.quality === 'degraded' \? <div role="status">Your connection is slow right now\. You can still answer — your time is taken when your answer arrives\.<\/div> : null\}/);
-  assert.doesNotMatch(region(call, 'beforeQuestion=', '\n', 'before'), /degraded/);
+  const under = region(call, 'underQuestion={(', '\n            )}', 'under the question');
+  // Rounds that closed while this device was away arrive after the room does
+  // (a read of the student's own summary): above the question they pushed it
+  // down 140 px on a phone mid-round, and back up at "Got it".
+  assert.match(under, /\{missedNotice \? <div role="status" data-mm-missed-rounds="1" style=\{MISSED_NOTICE\}><MissedRoundsWords notice=\{missedNotice\} onDismiss=\{dismissMissed\} \/><\/div> : null\}/);
+  assert.match(under, /\{clock\.quality === 'degraded' \? <div role="status">Your connection is slow right now\. You can still answer — your time is taken when your answer arrives\.<\/div> : null\}/);
+  // The notice first: the slow line, coming and going, moves nothing above it (a "Got it" under a finger).
+  assert.ok(under.indexOf('missedNotice') < under.indexOf('degraded'), 'the notice, then the slow line');
+  assert.doesNotMatch(region(call, 'beforeQuestion=', '\n', 'before'), /degraded|missedNotice/);
+  // Above the round only where no classic round is on screen: between rounds,
+  // and over a full-screen round, which covers it (data-mm-under-round).
+  const page = region(student, 'export default function LiveChallengeStudent(', null, 'the page');
+  assert.match(page, /\{missedNotice && !classicRoundShown && \(\s*<div role="status" data-mm-missed-rounds="1" data-mm-under-round="" style=\{\{ \.\.\.MISSED_NOTICE, marginBottom: 14 \}\}>/);
+  assert.match(page, /\{classicRoundShown && \(\s*<ChallengeRound/);
+  assert.equal((page.match(/<MissedRoundsWords /g) || []).length, 2, 'the same words in either place');
 });

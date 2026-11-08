@@ -106,6 +106,25 @@ function BankedPoints({ points }) {
 }
 
 /*
+ * ROUNDS THAT CLOSED WHILE THIS DEVICE WAS AWAY (challengeMissedRounds.js): one
+ * plain notice, and "Got it". It arrives after the room does — a read of the
+ * student's own summary once a reconnect brings the room back — so a phone
+ * that came back mid-round met it above the question, which it pushed down
+ * 140 px as it arrived (82 px on a Chromebook) and back up at "Got it". Above
+ * the round between rounds; under the question while a classic round is on
+ * screen, where it moves nothing.
+ */
+const MISSED_NOTICE = Object.freeze({ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 });
+function MissedRoundsWords({ notice, onDismiss }) {
+  return (
+    <>
+      <span>{notice}</span>
+      <button type="button" onClick={onDismiss} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
+    </>
+  );
+}
+
+/*
  * A STABLE QUESTION ENGINE. The round around the question redraws its clock
  * four times a second and its board whenever a classmate makes progress; the
  * engine — every interactive tool a question can use — must not redraw with
@@ -1340,6 +1359,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const lateJoinNote = joinedAtRound !== null && joinedAtRound === roundIndex && stage === CHALLENGE_STAGE.ROUND_ACTIVE
     ? <StudentGuidance compact guidance={guidance} />
     : null;
+  // A classic round (a Standard Challenge, a Solver Race) on screen: its
+  // question is in the page's flow, so what arrives above it moves it.
+  const classicRoundShown = Boolean(!questionSetRoom && room.status === 'running' && room.currentQuestion && roundOpen && clockReady);
+  const dismissMissed = () => setMissedNotice('');
   // THE FINAL STANDINGS AND PODIUM are the final snapshot's alone: written
   // from the match result in the commit that finished the match. A live
   // snapshot is never shown as the final one.
@@ -1393,10 +1416,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </div>
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{error}</div>}
-        {missedNotice && (
-          <div role="status" data-mm-missed-rounds="1" data-mm-under-round="" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 }}>
-            <span>{missedNotice}</span>
-            <button type="button" onClick={() => setMissedNotice('')} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
+        {/* Between rounds, above them; during a classic round, under its question (MissedRoundsWords). */}
+        {missedNotice && !classicRoundShown && (
+          <div role="status" data-mm-missed-rounds="1" data-mm-under-round="" style={{ ...MISSED_NOTICE, marginBottom: 14 }}>
+            <MissedRoundsWords notice={missedNotice} onDismiss={dismissMissed} />
           </div>
         )}
 
@@ -1436,7 +1459,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </Suspense>
         )}
 
-        {!questionSetRoom && room.status === 'running' && room.currentQuestion && roundOpen && clockReady && (
+        {classicRoundShown && (
           <ChallengeRound
             key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
             room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
@@ -1449,9 +1472,16 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             timeMultiplier={timeMultiplier}
             readAloud={readAloud}
             beforeQuestion={lateJoinNote}
-            // A connection that drops comes and goes mid-question: said under
-            // it, where it moves nothing (above, it pushed the question down).
-            underQuestion={clock.quality === 'degraded' ? <div role="status">Your connection is slow right now. You can still answer — your time is taken when your answer arrives.</div> : null}
+            // What comes and goes mid-question is said under it, where it moves
+            // nothing (above, each pushed the question down): rounds that closed
+            // while this device was away, told once it is back, and a dropped
+            // connection.
+            underQuestion={(
+              <>
+                {missedNotice ? <div role="status" data-mm-missed-rounds="1" style={MISSED_NOTICE}><MissedRoundsWords notice={missedNotice} onDismiss={dismissMissed} /></div> : null}
+                {clock.quality === 'degraded' ? <div role="status">Your connection is slow right now. You can still answer — your time is taken when your answer arrives.</div> : null}
+              </>
+            )}
           />
         )}
 
