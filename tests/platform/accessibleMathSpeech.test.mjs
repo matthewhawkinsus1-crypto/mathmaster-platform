@@ -129,7 +129,8 @@ test('a product of variables in a denominator is said letter by letter', () => {
     assert.equal(mathToSpeech(value, { language: 'es' }), es, `${value} (es)`);
   }
   assert.equal(mathToSpeech('rise/run'), 'rise over run', 'a word of three or more letters with a vowel is a word');
-  assert.equal(mathToSpeech('Slope = rise/run.'), 'Slope equals rise over run .');
+  // The ratio is said before the split now (math-speech-4), so its stop stays with it.
+  assert.equal(mathToSpeech('Slope = rise/run.'), 'Slope equals rise over run.');
 });
 
 // What these two rounds must not move: each reads exactly as it did before them.
@@ -140,8 +141,10 @@ test('denominators the review named as unchanged still read the same', () => {
     ['1/2x', '1 over 2 x', '1 sobre 2 x'],
     ['x/2y', 'x over 2 y', 'x sobre 2 y'],
     ['m/s', 'm over s', 'm sobre s'],
-    ['km/h', 'km over h', 'km sobre h'],
-    ['ft/s', 'ft over s', 'ft sobre s'],
+    // A slash between units is "per" (math-speech-4); km and ft keep their
+    // names. A lone m may be a slope: m/s is "m per s" after a number only.
+    ['km/h', 'km per h', 'km por h'],
+    ['ft/s', 'ft per s', 'ft por s'],
     ['w/l', 'w over l', 'w sobre l'],
     ['C/2pi', 'C over 2 pi', 'C sobre 2 pi'],
     ['t = d/r', 't equals d over r', 't es igual a d sobre r'],

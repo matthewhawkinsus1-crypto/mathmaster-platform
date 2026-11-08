@@ -49,7 +49,8 @@ test('two letters side by side beside an operator are two variables; a word stay
   assert.ok(segmentMathText('a closed dot for ≤ or ≥', { speech: true }).some((segment) => segment.kind === 'text' && segment.value === ' or '));
   assert.equal(mathToSpeech('≤ or ≥'), 'is less than or equal to or is greater than or equal to');
   // A unit, ln and pi keep their names; a denominator keeps its reading.
-  assert.equal(mathToSpeech('km/h'), 'km over h');
+  // A slash between units is "per" (math-speech-4).
+  assert.equal(mathToSpeech('km/h'), 'km per h');
   assert.equal(mathToSpeech('3/2ab'), '3 over 2 ab');
 });
 

@@ -79,3 +79,37 @@ test('a function\'s input that holds a bracket or a power is still its input', (
   assert.equal(mathToSpeech('f((x + 6)/3)'), 'f of the quantity the quantity x plus 6 end quantity over 3');
   assert.equal(speechTextFor('g(x) = f(x²) + 1', es), 'g de x es igual a f de x al cuadrado más 1');
 });
+
+// Item 2. A slash between words reached the voice as typed: "Left / right".
+test('a slash between two words is "or", and "and/or" is "and or"', () => {
+  assert.equal(speechTextFor('Left/right changes only the x-coordinate.'), 'Left or right changes only the x-coordinate.');
+  assert.equal(speechTextFor('Use the correct solid/dashed style.'), 'Use the correct solid or dashed style.');
+  assert.equal(speechTextFor('Diagnose the AND/OR error.'), 'Diagnose the AND or OR error.');
+  assert.equal(speechTextFor('the x-intercept/zero, and a sum/difference/product rule'), 'the x-intercept or zero, and a sum or difference or product rule');
+  assert.equal(speechTextFor('Max/min on a closed interval'), 'Max or min on a closed interval');
+  assert.equal(speechTextFor('Check the domain and/or range.'), 'Check the domain and or range.');
+  assert.equal(speechTextFor('Left/right changes only the x-coordinate.', es), 'Left o right changes only the x-coordinate.');
+  assert.equal(speechTextFor('Elige izquierda/derecha y/o arriba.', es), 'Elige izquierda o derecha y o arriba.');
+});
+
+test('a slash before a unit is "per", and between two parts of a ratio "over"', () => {
+  assert.equal(speechTextFor('the energy output y (kcal/day) of a reptile'), 'the energy output y (kcal per day) of a reptile');
+  assert.equal(speechTextFor('One travels at 3 km/h; Runner A moves 3 m/s.'), 'One travels at 3 km per h; Runner A moves 3 m per s.');
+  assert.equal(speechTextFor('Slope equals rise/run.'), 'Slope equals rise over run.');
+  assert.equal(speechTextFor('tan θ = opposite/adjacent.'), 'tangent of theta equals opposite over adjacent.');
+  assert.equal(speechTextFor('Divide, then write quotient + remainder/divisor.'), 'Divide, then write quotient plus remainder over divisor.');
+  assert.equal(speechTextFor('Use Δvalue/Δtime on both intervals.'), 'Use delta value over delta time on both intervals.');
+  assert.equal(speechTextFor('One travels at 3 km/h.', es), 'One travels at 3 km por h.');
+  assert.equal(speechTextFor('Slope equals rise/run.', es), 'Slope equals rise sobre run.');
+});
+
+test('numbers, fractions, letters, a LaTeX span and an address keep their slash readings', () => {
+  assert.equal(speechTextFor('He/she wrote 1/2 and x = a/b.'), 'He or she wrote 1 over 2 and x equals a over b.');
+  assert.equal(speechTextFor('Find dy/dx.'), 'Find dy / dx.');
+  assert.equal(speechTextFor('(f/g)(x)'), 'f over g of x');
+  assert.equal(speechTextFor('Use $\\text{time}=\\text{pages}/\\text{rate}$.'), 'Use time equals pages over rate.');
+  // Inside LaTeX a run of letters is a product of variables.
+  assert.equal(speechTextFor('Simplify $abc / xyz$.'), 'Simplify abc over x y z.');
+  assert.equal(speechTextFor('Source: drafts/ccmr-v2.1/act'), 'Source: drafts / ccmr-v 2.1/ act');
+  assert.doesNotMatch(speechTextFor('See https://www.act.org/content/products-and-services/x.html'), /\b(?:or|per|over)\b/);
+});

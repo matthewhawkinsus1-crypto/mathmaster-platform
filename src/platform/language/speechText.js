@@ -84,6 +84,8 @@ const WORDS = {
     // What the sweep of every lesson and bank text found passed raw
     // (math-speech-3): ∓, a mean's bar (x̄) and a point's primes (B′, A″).
     mp: 'minus or plus', bar: 'bar', primes: ['prime', 'double prime', 'triple prime'],
+    // A slash between words (math-speech-4): "left or right", "kcal per day".
+    slash: { or: 'or', per: 'per' },
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -149,6 +151,9 @@ const WORDS = {
       rho: 'ro', sigma: 'sigma', tau: 'tau', phi: 'fi', omega: 'omega',
     },
     mp: 'menos o más', bar: 'barra', primes: ['prima', 'doble prima', 'triple prima'],
+    // New with math-speech-4, for the Spanish review: a slash between words,
+    // "izquierda o derecha", and between units, "km por h".
+    slash: { or: 'o', per: 'por' },
   },
 };
 
@@ -1082,6 +1087,67 @@ const plainSetsToWords = (text, w) => {
   return out + rewrite(text.slice(from));
 };
 
+/*
+ * A SLASH BETWEEN WORDS IS SAID AS THE WORDS MEAN IT (math-speech-4; 214
+ * lesson and bank texts). The split took the slash for mathematics, so
+ * "Left/right changes only the input" and "the solid/dashed style" handed the
+ * voice "Left / right". Between two words it is "or" ("left or right", "AND
+ * or OR"; "and/or" is "and or"); before a unit it is "per" ("kcal per day",
+ * "60 km per h"); between two named parts of a ratio it is the fraction bar
+ * it stands for, "over" ("rise over run", "opposite over hypotenuse",
+ * "quotient plus remainder over divisor", "Δvalue over Δtime"). A number on
+ * either side, two letters or fewer on both (dy/dx, a/b), a LaTeX span, a web
+ * address or a file path is left as it is: numbers and fractions keep their
+ * readings.
+ */
+// A unit written out is one after any word ("kcal/day", "miles/gallon").
+const PER_UNITS = new Set([
+  'hour', 'hours', 'minute', 'minutes', 'second', 'seconds', 'day', 'days', 'week', 'weeks', 'month', 'months', 'year', 'years',
+  'mile', 'miles', 'meter', 'meters', 'foot', 'feet', 'yard', 'yards', 'gallon', 'gallons', 'liter', 'liters', 'pound', 'pounds',
+  'ounce', 'ounces', 'item', 'items', 'unit', 'units', 'person', 'ticket', 'tickets', 'page', 'pages', 'serving', 'servings', 'cup', 'cups',
+  'hora', 'horas', 'minuto', 'minutos', 'segundo', 'segundos', 'día', 'días', 'semana', 'semanas', 'mes', 'meses', 'año', 'años',
+  'milla', 'millas', 'metro', 'metros', 'galón', 'galones', 'litro', 'litros', 'libra', 'libras', 'artículo', 'artículos', 'persona',
+]);
+// An abbreviation only after a unit, or a number and a unit (km/h, 3 m/s):
+// "Max/min on a closed interval" is "max or min".
+const PER_ABBREVIATIONS = new Set(['h', 'hr', 'hrs', 'min', 'mins', 's', 'sec', 'secs', 'wk', 'yr', 'yrs', 'mi', 'km', 'm', 'ft', 'yd', 'gal', 'lb', 'lbs', 'kg', 'g', 'oz', 'L']);
+const UNITS_BEFORE = new Set(['km', 'mi', 'm', 'cm', 'mm', 'ft', 'yd', 'kcal', 'cal', 'gal', 'mL', 'kg', 'g', 'lb', 'oz', 'miles', 'meters', 'feet',
+  'kilometers', 'gallons', 'liters', 'calories', 'dollars', 'cents', 'words', 'beats', 'pages']);
+const RATIO_PARTS = new Set(['rise', 'run', 'opposite', 'adjacent', 'hypotenuse', 'remainder', 'divisor', 'part', 'whole', 'distance', 'time']);
+const WORD_RUN = /[\p{L}'’-]+$/u;
+const NOT_PROSE_RUN = /:\/\/|www\.|[._\\{}$]/;
+const slashSaid = (before, after, numberBefore, w) => {
+  const [left, right] = [before.toLowerCase(), after.toLowerCase()];
+  // "and/or", "either/or", Spanish "y/o": the connective is already said.
+  if ((after === 'or' && before.length > 1) || (before === 'y' && after === 'o')) return ' ';
+  if (PER_UNITS.has(right)) return ` ${w.slash.per} `;
+  if (PER_ABBREVIATIONS.has(after) && UNITS_BEFORE.has(before) && (before.length > 1 || numberBefore)) return ` ${w.slash.per} `;
+  if ((RATIO_PARTS.has(left) && RATIO_PARTS.has(right)) || (/^[Δδ]/u.test(before) && /^[Δδ]/u.test(after))) return ` ${w.over} `;
+  const word = (side) => side.replace(/['’-]/g, '').length >= 3 || NOT_TWO_VARIABLES.has(side.toLowerCase()) || /^\p{Lu}{2}$/u.test(side);
+  return before.replace(/['’-]/g, '').length >= 2 && after.replace(/['’-]/g, '').length >= 2 && word(before) && word(after) ? ` ${w.slash.or} ` : null;
+};
+const slashesBetweenWords = (text, w) => {
+  const rewrite = (plain) => plain.replace(/\s*\/\s*/g, (slash, offset, whole) => {
+    const head = whole.slice(0, offset);
+    const tail = whole.slice(offset + slash.length);
+    const before = WORD_RUN.exec(head)?.[0] || '';
+    const after = /^[\p{L}'’-]+/u.exec(tail)?.[0] || '';
+    if (!/^\p{L}/u.test(before) || !/^\p{L}/u.test(after)) return slash;
+    // The whole run of characters around the slash: a web address or a path.
+    const run = `${/\S*$/.exec(head)[0]}${slash.trim() ? slash : '/'}${/^\S*/.exec(tail)[0]}`;
+    if (!/\s/.test(slash) && NOT_PROSE_RUN.test(run.replace(/[.,;:!?)\]]+$/, ''))) return slash;
+    const said = slashSaid(before, after, /\d\s*\p{L}+$/u.test(head), w);
+    return said ?? slash;
+  });
+  let out = '';
+  let from = 0;
+  for (const span of text.matchAll(LATEX_SPAN)) {
+    out += rewrite(text.slice(from, span.index)) + span[0];
+    from = span.index + span[0].length;
+  }
+  return out + rewrite(text.slice(from));
+};
+
 // What a superscript straight after it is a power of, as MathDisplay draws it
 // (mathDisplayFormat.js): a letter, a digit, a closing bracket or a bar.
 const POWER_BASE = /[\p{L}\p{N})\]}|]/u;
@@ -1338,7 +1404,7 @@ const proseArrowsToWords = (segments, w, letters) => {
 // log with no base is read with the mathematics around it, in mathToSpeech:
 // said here, "1/-ln(x)" lost its fraction to the prose.)
 const writtenNotationToSpokenForm = (raw, w, { mark = false } = {}) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(markedNames(arrowsAsCharacters(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body))), w, mark), w), w)), w), w), w, { mark },
+  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(dollarUnits(markedNames(slashesBetweenWords(arrowsAsCharacters(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body))), w), w, mark), w), w)), w), w), w, { mark },
 );
 
 /**
