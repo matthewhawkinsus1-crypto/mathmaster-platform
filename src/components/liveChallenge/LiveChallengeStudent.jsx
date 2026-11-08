@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { BACK_TO_HOME } from '../../platform/student/studentWords.js';
 import QuestionEngineView from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
-import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
+import { LIVE_PROVISIONAL_MAX_POINTS, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { getScoringStrategy, leaderboardOptionsFor, provisionalWorth, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
@@ -88,6 +88,23 @@ const writeStoredJson = (key, value) => {
   try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* the server still holds the answer */ }
 };
 
+// The tools that grade a student's steps as they go (QuestionEngine routes
+// their onStepGrade): only their rounds can bank points before the answer.
+const STEP_GRADED_TOOLS = new Set(['stepAlgebra', 'algebra', 'literal']);
+
+// Its words wrap as a row of words, not three narrow columns: the room it keeps
+// on a phone is two short rows (it was three columns, 73 px tall at 390 px).
+const BANKED_LINE = Object.freeze({ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8, fontWeight: 900 });
+function BankedPoints({ points }) {
+  return (
+    <>
+      <span style={{ fontSize: 'calc(13 * var(--mm-px))', opacity: .85 }}>Points banked this round</span>
+      <span style={{ fontSize: 'calc(22 * var(--mm-px))', fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>{points}</span>
+      <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: .8 }}>keep going — every correct step adds more</span>
+    </>
+  );
+}
+
 /*
  * A STABLE QUESTION ENGINE. The round around the question redraws its clock
  * four times a second and its board whenever a classmate makes progress; the
@@ -161,6 +178,8 @@ export function ChallengeRound({
   submitResponse = submitLiveChallengeResponse,
   reportProgress = reportLiveChallengeProgress,
   beforeQuestion = null,
+  // Under the question, where nothing that comes and goes can move it.
+  underQuestion = null,
   // EXTENDED TIME: this student's own multiplier (their invite; 1 for everyone
   // without it). Their clock, their buzzer and their lock all follow their own
   // deadline, which is the one the server judges their answer against.
@@ -269,6 +288,14 @@ export function ChallengeRound({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [question?.questionInstanceId, question?.pathToolId],
   );
+  // "Points banked this round" keeps its room in the banner from GO in a round
+  // that can bank points — a tool that grades steps as they go, under a
+  // scoring that pays for work in progress — so its arrival with the first
+  // right step never moves the question below it, nor its leaving with the
+  // answer. Its room holds the most a round's work can bank.
+  const canBankPoints = STEP_GRADED_TOOLS.has(secureQuestion?.type)
+    && provisionalWorth({ strategyId: scoringStrategyId, credit: 1, secondChance: replayRound }) > 0;
+  const banked = workingPoints > 0 && !result;
 
   pendingRef.current = pending;
   resultRef.current = result;
@@ -600,11 +627,16 @@ export function ChallengeRound({
           ))}
         </div>
 
-        {workingPoints > 0 && !result && (
-          <div aria-live="polite" style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontWeight: 900 }}>
-            <span style={{ fontSize: 'calc(13 * var(--mm-px))', opacity: .85 }}>Points banked this round</span>
-            <span style={{ fontSize: 'calc(22 * var(--mm-px))', fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>+{workingPoints.toLocaleString()}</span>
-            <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: .8 }}>keep going — every correct step adds more</span>
+        {canBankPoints && (
+          // The line, said as it arrives, over its room: the same words with the
+          // most it can bank, unseen and unread, in the same cell.
+          <div data-mm-banked-line={banked ? '1' : '0'} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+            <div aria-live="polite" style={{ ...BANKED_LINE, gridArea: '1 / 1' }}>
+              {banked && <BankedPoints points={`+${workingPoints.toLocaleString()}`} />}
+            </div>
+            <div aria-hidden="true" style={{ ...BANKED_LINE, gridArea: '1 / 1', visibility: 'hidden' }}>
+              <BankedPoints points={`+${LIVE_PROVISIONAL_MAX_POINTS.toLocaleString()}`} />
+            </div>
           </div>
         )}
       </section>
@@ -671,6 +703,8 @@ export function ChallengeRound({
       </div>
       )}
       </div>
+
+      {underQuestion}
 
       {lockedLine && (
         // A new node when it starts to be announced: a live region speaks what
@@ -1331,13 +1365,15 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <GrandPrixStyles />
       <div data-mm-student-stage={stage} style={{ maxWidth: 900, margin: '0 auto' }}>
         {/* data-mm-under-round: hidden while a full-screen round covers it (grandPrixTheme.js). */}
-        <header data-mm-under-round="" style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+        <header data-mm-under-round="" style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
             <div style={{ color: '#ffd23f', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '.08em' }}><span className="mm-gp-checker" aria-hidden="true" style={{ marginRight: 8 }} />MathMaster Live Challenge</div>
             <h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', fontStyle: 'italic', color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
           </div>
+          {/* "Reconnecting…" beside the score on a wide screen; on the header's
+              lower edge, taking no room, where the header can wrap (SHELL_CSS). */}
+          <ConnectionPill state={connection} look="student" className="mm-shell-pill-edge" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <ConnectionPill state={connection} look="student" />
             {headerRow && (
               <div data-mm-student-score="1" style={{ textAlign: 'right', lineHeight: 1.2 }}>
                 <div style={{ fontSize: 'calc(11 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '.06em', color: '#9fb0cc', fontWeight: 900 }}>Your score</div>
@@ -1412,12 +1448,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             onOwnAnswer={keepAnswerHere}
             timeMultiplier={timeMultiplier}
             readAloud={readAloud}
-            beforeQuestion={(
-              <>
-                {lateJoinNote}
-                {clock.quality === 'degraded' ? <div role="status">Your connection is slow right now. You can still answer — your time is taken when your answer arrives.</div> : null}
-              </>
-            )}
+            beforeQuestion={lateJoinNote}
+            // A connection that drops comes and goes mid-question: said under
+            // it, where it moves nothing (above, it pushed the question down).
+            underQuestion={clock.quality === 'degraded' ? <div role="status">Your connection is slow right now. You can still answer — your time is taken when your answer arrives.</div> : null}
           />
         )}
 

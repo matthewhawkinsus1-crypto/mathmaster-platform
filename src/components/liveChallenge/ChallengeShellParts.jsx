@@ -391,13 +391,13 @@ export function Confetti({ pieces = 36 }) {
   );
 }
 
-/** "Reconnecting…" while a device is not in sync with the server. */
-export function ConnectionPill({ state = 'online', look = 'student' }) {
+/** "Reconnecting…" while a device is not in sync with the server. `className` places it (SHELL_CSS). */
+export function ConnectionPill({ state = 'online', look = 'student', className = '' }) {
   if (state === 'online') return null;
   const style = lookOf(look);
   const offline = state === 'offline';
   return (
-    <span role="status" className="mm-shell-pill" style={{ background: offline ? 'rgba(255,180,171,.16)' : 'rgba(253,214,99,.16)', color: offline ? style.down : style.gold, border: `1px solid ${offline ? style.down : style.gold}` }}>
+    <span role="status" className={className ? `mm-shell-pill ${className}` : 'mm-shell-pill'} style={{ background: offline ? 'rgba(255,180,171,.16)' : 'rgba(253,214,99,.16)', color: offline ? style.down : style.gold, border: `1px solid ${offline ? style.down : style.gold}` }}>
       <span className="mm-shell-dot mm-shell-pulse" data-mm-status-dot="" style={{ background: offline ? style.down : style.gold }} />
       {offline ? 'Offline — reconnecting…' : 'Reconnecting…'}
     </span>

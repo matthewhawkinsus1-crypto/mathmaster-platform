@@ -75,7 +75,8 @@ test('the student\'s connection status comes from the listener itself, honestly'
   assert.match(missing, /This Live Challenge is no longer available\./);
   assert.match(missing, /\(roomMissing \|\| error\) && \(\s*<button type="button" onClick=\{onExit\}/);
   assert.match(studentMain, /const connection = studentConnectionState\(\{ online, fromCache: roomFromCache, everInSync \}\);/);
-  assert.match(studentMain, /<ConnectionPill state=\{connection\} look="student" \/>/);
+  // (Where it sits, on the header's edge on a phone: liveChallengeClassicQuestionHoldsStill.test.mjs.)
+  assert.match(studentMain, /<ConnectionPill state=\{connection\} look="student"[^>]*\/>/);
   const onlineEffect = region(studentMain, "window.addEventListener('online', update);", '}, []);', 'online listener');
   assert.match(onlineEffect, /window\.removeEventListener\('online', update\);/);
   assert.match(onlineEffect, /window\.removeEventListener\('offline', update\);/);
