@@ -775,15 +775,32 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
   const { default: PathQuestionStimulus } = await capture.load('/src/components/student/PathQuestionStimulus.jsx');
   const { GraphReadOutProvider } = await capture.load('/src/platform/supports/graphReadOut.js');
   const PLANE = /<p id="(mm-plane-desc-[^"]+)"([^>]*)>((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/p>/;
-  // The plane's name and the language it is marked with (slice 4).
+  // The plane's name and the language it is marked with (slice 4): its
+  // aria-label, or (AX05) the hidden element it points at, whose item's own
+  // English words are each marked lang="en".
   const NAME = /(<svg\b[^>]*?) aria-label="([^"]*)"(?: lang="([^"]*)")?/;
-  const withoutDescription = (markup) => markup.replace(PLANE, '').replace(NAME, '$1');
-  const nameIn = (markup) => { const [, , label, lang] = NAME.exec(markup) || []; return { label: label && decode(label), lang: lang ?? null }; };
+  const NAMED_BY = /(<svg\b[^>]*?) aria-labelledby="([^"]*)"(?: lang="([^"]*)")?/;
+  const NAME_ELEMENT = /<span id="(mm-plane-name-[^"]+)" data-plane-name=""[^>]*? lang="([^"]*)">((?:[^<]|<span lang="[^"]*">[^<]*<\/span>)*)<\/span>/;
+  const withoutDescription = (markup) => markup.replace(PLANE, '').replace(NAME_ELEMENT, '').replace(NAME, '$1').replace(NAMED_BY, '$1');
+  const nameIn = (markup) => {
+    const [, , label, lang] = NAME.exec(markup) || [];
+    if (label !== undefined) return { label: decode(label), lang: lang ?? null };
+    const [, , id, svgLang] = NAMED_BY.exec(markup) || [];
+    const [, elementId, elementLang, content = ''] = NAME_ELEMENT.exec(markup) || [];
+    return {
+      labelledBy: Boolean(id) && id === elementId,
+      label: decode(content.replace(/<[^>]+>/g, '')),
+      lang: svgLang ?? null,
+      elementLang: elementLang ?? null,
+      english: [...content.matchAll(/<span lang="en">([^<]*)<\/span>/g)].map(([, text]) => decode(text)),
+    };
+  };
   const seed = JSON.parse(readFileSync(new URL('functions/seeds/secureAssessments/algebra1_district_dol2.json', ROOT), 'utf8'));
   const stimuli = seed.documents.flatMap((doc) => (doc.variants || []).filter((variant) => variant.stimulus?.graph).map((variant, index) => [`${doc.id} v${index}`, variant.stimulus]));
   assert.ok(stimuli.length >= 300, `${stimuli.length} secure stimulus graphs`);
   let withheld = 0;
   let drawn = 0;
+  let named = 0;
   stimuli.forEach(([where, stimulus]) => {
     const render = (readOut, words) => capture.render(React.createElement(GraphReadOutProvider, { enabled: readOut },
       React.createElement(FigureWordsProvider, { pack: words }, React.createElement(PathQuestionStimulus, { stimulus }))));
@@ -809,11 +826,18 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
     assert.equal(withoutDescription(spanish.markup), withoutDescription(english.markup), `${where}: only the description and the name are in Spanish`);
     // Its name, the item's own, made from its axis titles: the English as
     // authored; in Spanish the same axis titles, as the axes show them, inside
-    // a Spanish name marked lang="es" (an attribute cannot mark them lang="en").
+    // a Spanish name marked lang="es". An attribute cannot mark them lang="en",
+    // so (AX05) a name whose titles are English words is said from the hidden
+    // element it points at, which marks each title lang="en"; one whose
+    // titles are only letters keeps its aria-label.
     const [, x, y] = /^Graph with horizontal axis (.+) and vertical axis (.+)$/.exec(stimulus.graph.ariaLabel) || [];
     assert.ok(x && y, `${where}: ${stimulus.graph.ariaLabel}`);
     assert.deepEqual(nameIn(english.markup), { label: stimulus.graph.ariaLabel, lang: null }, `${where}: the English name, unmarked`);
-    assert.deepEqual(nameIn(spanish.markup), { label: `Gráfica con el eje horizontal ${x} y el eje vertical ${y}`, lang: 'es' }, `${where}: the Spanish name`);
+    const titlesInWords = [x, y].filter((title) => /\p{L}\p{Ll}|\p{Ll}\p{L}/u.test(title));
+    assert.deepEqual(nameIn(spanish.markup), titlesInWords.length
+      ? { labelledBy: true, label: `Gráfica con el eje horizontal ${x} y el eje vertical ${y}`, lang: 'es', elementLang: 'es', english: titlesInWords }
+      : { label: `Gráfica con el eje horizontal ${x} y el eje vertical ${y}`, lang: 'es' }, `${where}: the Spanish name`);
+    named += titlesInWords.length ? 1 : 0;
     // The graph read-out (a student whose plan gives it): the full reading, in
     // Spanish, with positions wherever the English reading has them.
     const englishReadOut = descriptionIn(render(true, null).markup, PLANE, `${where} (read-out, English)`).text;
@@ -826,6 +850,8 @@ test('every secure DOL 2 stimulus graph is described in Spanish, marked lang="es
   assert.ok(withheld >= 300, `${withheld} of ${stimuli.length} hold their positions back`);
   // Measured: 192 of 384 draw a curve; the other half draw none.
   assert.ok(drawn >= 150 && stimuli.length - drawn >= 150, `${drawn} of ${stimuli.length} draw a curve`);
+  // Not vacuous: stimuli with axis titles in words are named through their element.
+  assert.ok(named > 0, `${named} of ${stimuli.length} are named with their English titles marked`);
 });
 
 test('a description the Spanish words cannot say all of stays English, with no lang', async () => {
@@ -872,8 +898,19 @@ test('a figure\'s name is a message: its English as it always was, its Spanish f
   // the axis titles are the item's own words, said as the axes show them.
   assert.deepEqual(namedIn(esFigures, 'Graph 2'), { text: 'Gráfica 2', lang: 'es' });
   assert.deepEqual(namedIn(esFigures, 'Graph B'), { text: 'Gráfica B', lang: 'es' });
-  assert.deepEqual(namedIn(esFigures, 'Graph with horizontal axis Reading time, x (hours) and vertical axis Pages remaining, y'),
-    { text: 'Gráfica con el eje horizontal Reading time, x (hours) y el eje vertical Pages remaining, y', lang: 'es' });
+  // Its axis titles are English words, so the name also comes in parts, each
+  // title marked lang="en" (AX05); titles that are only letters need none.
+  assert.deepEqual(namedIn(esFigures, 'Graph with horizontal axis Reading time, x (hours) and vertical axis Pages remaining, y'), {
+    text: 'Gráfica con el eje horizontal Reading time, x (hours) y el eje vertical Pages remaining, y',
+    lang: 'es',
+    parts: [
+      { text: 'Gráfica con el eje horizontal ' },
+      { text: 'Reading time, x (hours)', lang: 'en' },
+      { text: ' y el eje vertical ' },
+      { text: 'Pages remaining, y', lang: 'en' },
+    ],
+  });
+  assert.deepEqual(namedIn(esFigures, 'Graph with horizontal axis x and vertical axis y'), { text: 'Gráfica con el eje horizontal x y el eje vertical y', lang: 'es' });
   // An author's own name is the item's words: as written, its element unmarked.
   for (const own of ['Graph of y=x', 'A line and an upward-opening parabola', 'Graph popcorn', 'Gráfica del viaje']) {
     assert.deepEqual(figureName(own), { text: own, say: null }, own);
@@ -1092,4 +1129,50 @@ test('the Spanish words are loaded only for a Spanish reading, and never on the 
   assert.match(engine, /const figurePack = loadedFigureWords\?\.language === readAloudLanguage \? loadedFigureWords\.pack : null;/, 'never another language\'s words');
   const reading = region(engine, 'const readingParts = useMemo(', ');', 'the reading');
   assert.match(reading, /language: readAloudLanguage,\s*figures: figureReadings,\s*figurePack,/);
+});
+
+/*
+ * ENGLISH WORDS INSIDE A SPANISH NAME (AX05). An aria-label cannot mark a part
+ * of itself, so a DOL 2 graph's axis titles were said in the Spanish voice.
+ * A Spanish name that holds the item's English words is now said from a
+ * hidden element the figure points at (aria-labelledby), which marks each of
+ * those words lang="en". No other name changes: an English name, a name with
+ * no item words, and a name whose titles are only letters keep their
+ * aria-label.
+ */
+test('a Spanish name holding the item\'s English words is said from an element that marks them lang="en"; no other name changes', async () => {
+  const { FigureWordsProvider } = await capture.load('/src/platform/language/figureReadings.js');
+  const { default: GraphDisplay } = await capture.load('/src/GraphDisplay.jsx');
+  const { default: CoordinatePlane } = await capture.load('/src/tools/shared/CoordinatePlane.jsx');
+  const render = (figure, pack) => capture.render(pack ? React.createElement(FigureWordsProvider, { pack }, figure) : figure).markup;
+  const AXES = 'Graph with horizontal axis Time (hours) and vertical axis Cost ($)';
+  const graph = (ariaLabel) => React.createElement(GraphDisplay, { graph: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [{ type: 'linear', m: 1, b: 0 }], ariaLabel }, title: 'Question graph', enlargeable: false });
+  const plane = (ariaLabel) => React.createElement(CoordinatePlane, { xMin: -6, xMax: 6, yMin: -6, yMax: 6, enlargeable: false, ariaLabel, onPlot: () => {} }, () => null);
+  // The figure's svg: its aria-label, or the element its aria-labelledby names, with that element's English parts.
+  const nameOf = (markup) => {
+    const svg = /<svg\b[^>]*\brole="(?:img|application)"[^>]*>/.exec(markup)?.[0] || '';
+    const attribute = (name) => { const found = new RegExp(`\\s${name}="([^"]*)"`).exec(svg); return found ? decode(found[1]) : null; };
+    const by = attribute('aria-labelledby');
+    const id = by ? by.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+    const element = by ? new RegExp(`<span id="${id}"[^>]*?\\slang="([^"]*)"[^>]*>((?:[^<]|<span lang="[^"]*">[^<]*</span>)*)</span>`).exec(markup) : null;
+    return {
+      label: attribute('aria-label'),
+      lang: attribute('lang'),
+      named: element ? { lang: element[1], text: decode(element[2].replace(/<[^>]+>/g, '')), english: [...element[2].matchAll(/<span lang="en">([^<]*)<\/span>/g)].map(([, text]) => decode(text)) } : null,
+    };
+  };
+  const SPANISH = 'Gráfica con el eje horizontal Time (hours) y el eje vertical Cost ($)';
+  // The static graph: in Spanish its titles are marked; in English it is as it was.
+  assert.deepEqual(nameOf(render(graph(AXES), esFigures)), { label: null, lang: 'es', named: { lang: 'es', text: SPANISH, english: ['Time (hours)', 'Cost ($)'] } });
+  assert.deepEqual(nameOf(render(graph(AXES), null)), { label: AXES, lang: null, named: null });
+  // A plane the student plots on: its keys are said in Spanish after the titles.
+  const plotted = nameOf(render(plane(AXES), esFigures));
+  assert.deepEqual([plotted.label, plotted.lang, plotted.named?.lang, plotted.named?.english], [null, 'es', 'es', ['Time (hours)', 'Cost ($)']]);
+  assert.equal(plotted.named.text, `${SPANISH}. ${KEYS_ES}`);
+  assert.deepEqual(nameOf(render(plane(AXES), null)).named, null);
+  // No other name changes: no item words, or titles that are only letters.
+  assert.deepEqual(nameOf(render(graph('Question graph'), esFigures)), { label: 'Gráfica de la pregunta', lang: 'es', named: null });
+  assert.deepEqual(nameOf(render(graph('Graph with horizontal axis x and vertical axis y'), esFigures)), { label: 'Gráfica con el eje horizontal x y el eje vertical y', lang: 'es', named: null });
+  assert.deepEqual(nameOf(render(plane('Coordinate plane'), esFigures)).named, null);
+  assert.doesNotMatch(render(graph('Question graph'), esFigures), /data-graph-name|aria-labelledby/);
 });

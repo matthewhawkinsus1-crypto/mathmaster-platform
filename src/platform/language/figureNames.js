@@ -26,13 +26,13 @@
  * is: one with a piece the language has no words for keeps its English. The
  * element that holds a name in another language is marked with it (namedIn
  * gives the lang). A name can hold the item's own words, as a DOL 2 graph's
- * holds its axis titles; they are said as the axes show them, and since a
- * name sits in an attribute (aria-label), which cannot mark a part of itself
- * lang="en" as a description does, they stay unmarked inside it.
+ * holds its axis titles; they are said as the axes show them, and marked
+ * lang="en" in a hidden element the figure's name points at (namedIn's
+ * `parts`), since an aria-label cannot mark a part of itself.
  *
  * Pure: no React, no DOM.
  */
-import { itemWords, say, sayFigure } from './figureSay.js';
+import { ITEM_LANGUAGE, itemWords, say, sayFigure, sayFigureParts } from './figureSay.js';
 
 /** The platform's names for its figures, by message id, in English. */
 export const FIGURE_NAME_WORDS = Object.freeze({
@@ -122,14 +122,37 @@ export const plotName = (name, { movable = false } = {}) => {
   return { text: FIGURE_NAME_WORDS[id](own.text), say: own.say ? say(id, own.say) : null };
 };
 
+// A name's parts with its spaces as in its text (figureReadings.js cleanParts).
+const nameParts = (parts) => {
+  const out = [];
+  (Array.isArray(parts) ? parts : []).forEach((part) => {
+    let text = String(part.text).replace(/\s+/g, ' ');
+    if ((!out.length || out[out.length - 1].text.endsWith(' ')) && text.startsWith(' ')) text = text.slice(1);
+    if (text) out.push({ ...part, text });
+  });
+  if (out.length) out[out.length - 1].text = out[out.length - 1].text.replace(/ $/, '');
+  return out.filter((part) => part.text);
+};
+
 /**
  * A name as a screen reader gets it: { text, lang }. In the host's language,
  * marked with it, where the name's message can be said there completely;
  * otherwise its English, with no lang (the page is English). Pure.
+ *
+ * ENGLISH WORDS INSIDE A SPANISH NAME (AX05). An aria-label cannot mark a part
+ * of itself, so a DOL 2 graph's axis titles ("Time (hours)") were said in the
+ * Spanish voice. A name that holds the item's own English words also gives
+ * them as `parts` ({ text }, { text, lang: 'en' }), as describedIn does for a
+ * description: the figure then points its name at a hidden element that marks
+ * each lang="en" (aria-labelledby). Any other name has no parts and keeps its
+ * aria-label.
  */
 export const namedIn = (pack, name) => {
   const own = figureName(name);
   const spoken = pack?.words && own.say ? sayFigure([own.say], pack.words) : null;
   const text = String(spoken ?? '').replace(/\s+/g, ' ').trim();
-  return text ? { text, lang: pack.language } : { text: own.text, lang: undefined };
+  if (!text) return { text: own.text, lang: undefined };
+  const parts = pack.language === ITEM_LANGUAGE ? [] : nameParts(sayFigureParts([own.say], pack.words));
+  const marked = parts.some((part) => part.lang) && parts.map((part) => part.text).join('') === text;
+  return marked ? { text, lang: pack.language, parts } : { text, lang: pack.language };
 };

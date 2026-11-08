@@ -702,6 +702,11 @@ export default function CoordinatePlane({
   // IDREFs, not url(#…), so useId's own characters are fine here.
   const descriptionUid = useId();
   const descriptionId = `mm-plane-desc-${descriptionUid}`;
+  // A Spanish name holding the item's English words (an axis title) is said
+  // from a hidden element that marks them lang="en" (namedIn's parts, AX05).
+  // It is read only through the name, even inside a card button, so a
+  // button's own name cannot hold it twice.
+  const nameId = `mm-plane-name-${descriptionUid}`;
   const dataTableId = `mm-plane-table-${descriptionUid}`;
   const [dataTableOpen, setDataTableOpen] = useState(false);
   // Null until measured: the toggle must never render, even for one frame,
@@ -865,7 +870,8 @@ export default function CoordinatePlane({
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
         role={interactive ? 'application' : 'img'}
-        aria-label={named.text}
+        aria-label={named.parts ? undefined : named.text}
+        aria-labelledby={named.parts ? nameId : undefined}
         lang={named.lang}
         aria-describedby={descriptionId}
         tabIndex={interactive ? 0 : undefined}
@@ -1123,6 +1129,7 @@ export default function CoordinatePlane({
       {/* Read aloud says the same description, under the same rule (figureReadings.js). */}
       <PublishFigureReading entry={{ kind: 'figure', label: nameText, labelSay: name.say, text: spokenDescription, say: spokenSay }} />
       <p id={descriptionId} className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden={insideControl ? undefined : 'true'} lang={described.lang}>{describedContent(described)}</p>
+      {named.parts ? <span id={nameId} data-plane-name="" className="mm-sr-only" style={SR_ONLY_STYLE} aria-hidden="true" lang={named.lang}>{describedContent(named)}</span> : null}
 
       {showDataTable ? (
         <div className="mathmaster-plane-data" style={{ margin: '6px 0 0', textAlign: 'left' }}>

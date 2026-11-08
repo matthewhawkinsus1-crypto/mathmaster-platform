@@ -306,7 +306,11 @@ const describeStaticGraph = ({ xMin, xMax, yMin, yMax, xStep, yStep, minorStep, 
 };
 
 export default function GraphDisplay({ graph, title = 'Coordinate graph', enlargeable = true }) {
-  const descriptionId = `mm-graph-desc-${useId()}`;
+  const figureUid = useId();
+  const descriptionId = `mm-graph-desc-${figureUid}`;
+  // A Spanish name holding the item's English words (an axis title) is said
+  // from a hidden element that marks them lang="en" (namedIn's parts, AX05).
+  const nameId = `mm-graph-name-${figureUid}`;
   const { positionsReadable: questionClosed, terminal: questionLocked } = useQuestionLifecycle();
   // GRAPH READ-OUT (AX03): the full reading while the question is open, for a
   // student whose plan gives it (graphReadOut.js). An axis whose numbers the
@@ -514,7 +518,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         viewBox={`0 0 ${DEFAULT_WIDTH} ${DEFAULT_HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={named.text}
+        aria-label={named.parts ? undefined : named.text}
+        aria-labelledby={named.parts ? nameId : undefined}
         aria-describedby={descriptionId}
         lang={named.lang}
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
@@ -832,6 +837,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
       {/* Read aloud says the same description, and the caption the screen shows (figureReadings.js). */}
       <PublishFigureReading entry={{ kind: 'figure', label: title, text: [spokenDescription, graph.caption ? String(graph.caption) : '', scaleCaption].join(' '), say: readingSay }} />
       <p id={descriptionId} data-graph-description="" aria-hidden="true" lang={described.lang} style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{describedContent(described)}</p>
+      {named.parts ? <span id={nameId} data-graph-name="" aria-hidden="true" lang={named.lang} style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>{describedContent(named)}</span> : null}
       {fixedGraph ? (
         <div data-scale-control="" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 6px 2px' }}>
           {/* The live region: the button's own name changes with the state, so this line is what says the figure changed. */}
