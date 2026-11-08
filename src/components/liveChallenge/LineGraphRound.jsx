@@ -362,6 +362,15 @@ ${arenaLayerCss('.mm-line-shell')}
 .mm-line-count { font-size: clamp(calc(64 * var(--mm-px)), calc(18vmin * var(--mm-text-scale, 1)), calc(140 * var(--mm-px))); font-weight: 1000; font-style: italic; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 4px 4px 0 rgba(255,63,209,.7), 0 7px 0 rgba(10,16,52,.9); animation: mmLineCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
 .mm-line-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #45ff8a; animation: mmLineFlash 420ms ease-out forwards; }
 .mm-line-banner { padding: 6px 10px; border-radius: 8px; background: rgba(253,214,99,.14); border: 1px solid rgba(253,214,99,.45); color: #fdd663; font-weight: 800; font-size: calc(13 * var(--mm-px)); }
+/* The extra-time box: its words and, unseen in the same cell, the same words,
+   so it is the same size before the buzzer as after. It takes its room before
+   the buzzer only where the screen is tall for its text (the min-height: 36em
+   rules): on a phone at 150-200% text it is 200 px or more, and held from the
+   start it would leave the grid little or none. */
+.mm-line-extra { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mm-line-extra > * { grid-area: 1 / 1; }
+.mm-line-extra-held { visibility: hidden; }
+.mm-line-extra[data-mm-line-extra-time="0"] { display: none; }
 .mm-line-alert { padding: 9px 12px; border-radius: 9px; background: #4a3708; color: #ffe9a8; border: 1px solid #f9ab00; font-weight: 800; }
 .mm-line-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .mm-line-reveal { animation: mmLineReveal 500ms ease-out; }
@@ -414,6 +423,7 @@ ${GP_RACE_CSS}
    fit (at 360 x 740 a held line left no grid at all): there the line takes
    the room its words need, as before, until that layout is chosen. */
 @media (min-height: 36em) {
+  .mm-line-extra[data-mm-line-extra-time="0"] { display: grid; visibility: hidden; }
   .mm-line-feedback-held, .mm-line-preview-held { display: block; visibility: hidden; }
   .mm-line-cooldown-slot:empty { display: block; height: 6px; }
 }
@@ -438,6 +448,7 @@ const BUILD_LAYOUT = Object.freeze({
 });
 
 const BUILD_PROMPT = 'Whole numbers, fractions like 2/3, or decimals.';
+const EXTRA_TIME_WORDS = 'Your extra time. The race is over — finish your lines. They count for your practice, not the race.';
 
 /** Name it, build: the form's boxes; Enter (or Check) checks them. */
 function BuildAnswer({ question, disabled, feedback, onCheck }) {
@@ -969,6 +980,11 @@ export default function LineGraphRound({
   // EXTRA TIME, past the class's buzzer and before this student's own
   // deadline: said to them, on their own screen, and nowhere else.
   const extraTime = playing && pastBuzzer;
+  // Its box is laid out from the round's start, unseen until then, for a
+  // student whose own deadline is after the buzzer: arriving above the prompt
+  // at the buzzer it pushed the grid 66 px down at 390 px wide and 90 px at
+  // 360, under a finger still drawing lines (.mm-line-extra in LINE_CSS).
+  const extraTimeAhead = timing.endMono > timing.buzzerMono;
   return (
     <div className="mm-line-shell" role="region" aria-label={practice ? 'Graph the Line practice' : `Graph the Line, round ${roundIndex + 1}`}>
       <style>{LINE_CSS}</style>
@@ -1008,9 +1024,11 @@ export default function LineGraphRound({
       <div className="mm-line-stage">
         <section className="mm-line-prompt" aria-live="polite">
           {practice && <div className="mm-line-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
-          {extraTime && (
-            <div className="mm-line-banner" data-mm-line-extra-time="1" style={{ marginBottom: 6 }}>
-              Your extra time. The race is over — finish your lines. They count for your practice, not the race.
+          {extraTimeAhead && (
+            <div className="mm-line-banner mm-line-extra" data-mm-line-extra-time={extraTime ? '1' : '0'} style={{ marginBottom: 6 }}>
+              {/* The words arrive at the buzzer (the prompt's live region says them then); until then the same words, unseen and unread, give the box its size. */}
+              <span>{extraTime ? EXTRA_TIME_WORDS : null}</span>
+              <span className="mm-line-extra-held" aria-hidden="true">{EXTRA_TIME_WORDS}</span>
             </div>
           )}
           <h2>{prompt ? question.title : 'Graph the Line'}</h2>
