@@ -66,11 +66,12 @@ const PLANTS = {
   // A math box named on its keyboard sink, where focus is: a named stop (the
   // walk once named the <math-field> host, and called every math box unnamed).
   mathBox: () => (<><Correct /><NamedMathBox /></>),
-  // Math boxes with a control after them. MathLive refocuses a box's keyboard
-  // sink 60 ms after the box takes focus, so a Tab pressed sooner is pulled
-  // back into the box; the walk takes focus and refocuses at every stop, and a
-  // fast runner's next Tab came within those 60 ms (CI stopped on "Slope").
-  // Four boxes, so the walk meets it four times. No findings.
+  // Math boxes with a control after them. MathLive gives a box focus from a
+  // 60 ms timer: a Tab pressed sooner is pulled back into the box, and Tab from
+  // one box to the next leaves focus in the first for those 60 ms. The walk
+  // must wait out both (CI's headless shell, reading focus a few ms after each
+  // Tab, stopped on "Slope"). Four boxes, so it meets the hand-over three
+  // times. No findings.
   mathBoxesThenControl: () => (
     <>
       <Correct />

@@ -196,7 +196,7 @@ test('the rules are the ones the walk reports, none of them an axe rule id', () 
 // sink a moment later: the walk waits for it, or its next Tab starts from
 // <body> and comes back to the box (a phone walk saw "Slope" twice and
 // stopped with 12 controls unreached; plain Tab presses never loop there).
-test('the walk names the element focus is really on, and lets a refocused math box take focus back before the next Tab', () => {
+test('the walk names the element focus is really on, and lets a math box take focus, and hand it on, before the next Tab', () => {
   const walk = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReach.mjs', import.meta.url), 'utf8'));
   const observe = region(walk, 'const observe = async (previousId) => {', '\n  };', 'observe');
   const readAt = observe.search(/focusedAtStop = el;\s*while \(focusedAtStop\.shadowRoot\?\.activeElement\) focusedAtStop = focusedAtStop\.shadowRoot\.activeElement;/);
@@ -221,6 +221,15 @@ test('the walk names the element focus is really on, and lets a refocused math b
   assert.match(observe, /info\.refocused = await refocus\(el\);\s*return \{ \.\.\.info, focused, blurred \};/, 'a stop is recorded after the refocus');
   assert.match(walk, /const focusById = async \(id\) => \{ const el = elements\[id\]; if \(!el\?\.isConnected\) return false; return refocus\(el\); \};/, 'the refocus after the ring\'s picture settles too');
   assert.doesNotMatch(observe, /el\.focus\(/, 'observe refocuses only through the settle');
+  // Tab from one math box to the next hands focus over from the same timer:
+  // until it fires, focus is still in the box Tab left. A math box that seems
+  // to keep focus is given that time before it counts as the same stop, or a
+  // walk that reads focus quickly (CI's headless shell) calls the box a trap.
+  const handover = observe.search(/let el = document\.activeElement;\s*if \(el\?\.localName === 'math-field' && previousId != null && ids\.get\(el\) === previousId\) \{\s*for \(let waited = 0; waited < MATH_BOX_HANDOVER_MS && document\.activeElement === el; waited \+= 20\) \{\s*await new Promise\(\(resolve\) => \{ setTimeout\(resolve, 20\); \}\);\s*\}\s*el = document\.activeElement;\s*\}/);
+  assert.ok(handover >= 0, 'a math box that seems to keep focus after Tab is waited for, and focus read again');
+  assert.ok(handover < observe.indexOf('return { same: true'), 'before the walk counts Tab as staying put');
+  const handoverMs = Number(/const MATH_BOX_HANDOVER_MS = (\d+);/.exec(walk)?.[1]);
+  assert.ok(handoverMs > 60, `longer than MathLive's 60 ms (${handoverMs})`);
 });
 
 // The browser half is shown finding each defect on a page with only that defect

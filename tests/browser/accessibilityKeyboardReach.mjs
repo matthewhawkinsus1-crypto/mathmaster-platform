@@ -246,11 +246,19 @@ const INSTALL = ({ rootSelector }) => {
   // ignores focus() until then. A Tab pressed inside those 60 ms moves on, and
   // the timer then pulls focus back into the box: in Chromium a Tab 5 ms after
   // a box took focus came back to it 5 times in 5, and 150 ms after, it moved
-  // on 5 times in 5. CI's idle runner pressed the walk's next Tab that fast, so
-  // its four-box plant stopped on "Slope" (never here, on a busy machine). So
-  // wherever a math box takes focus, from Tab or from the walk's refocus, the
-  // walk waits for the sink and then the timer.
+  // on 5 times in 5. So wherever a math box takes focus, from Tab or from the
+  // walk's refocus, the walk waits for the sink and then the timer.
   const MATH_BOX_SETTLE_MS = 100;
+  // The same timer makes Tab from one math box to the next hand focus over
+  // late. MathLive takes the Tab and calls focus() on the next box, which takes
+  // focus from its 60 ms timer, so until then focus is still in the box Tab
+  // left. Read a frame after the Tab, that looks like Tab staying put; the next
+  // Tab is taken by the same box and aims at the same next box, and three
+  // reads called the box a trap. CI's headless shell, whose frames come within
+  // a few ms, stopped on "Slope" this way 3 times in 3 (full Chromium's frames
+  // came after the timer). So a math box that seems to keep focus after Tab
+  // gets the timer's time before the walk counts it as the same stop.
+  const MATH_BOX_HANDOVER_MS = 300;
   const settle = async (el) => {
     if (el?.localName !== 'math-field') return;
     for (let wait = 0; wait < 75 && !el.shadowRoot?.activeElement; wait += 1) {
@@ -267,7 +275,13 @@ const INSTALL = ({ rootSelector }) => {
   // The stop Tab just made: what it is, and what focusing it changed.
   const observe = async (previousId) => {
     await new Promise((resolve) => { requestAnimationFrame(() => resolve()); });
-    const el = document.activeElement;
+    let el = document.activeElement;
+    if (el?.localName === 'math-field' && previousId != null && ids.get(el) === previousId) {
+      for (let waited = 0; waited < MATH_BOX_HANDOVER_MS && document.activeElement === el; waited += 20) {
+        await new Promise((resolve) => { setTimeout(resolve, 20); });
+      }
+      el = document.activeElement;
+    }
     if (!el || el === document.body || el === document.documentElement) return { body: true };
     if (el.dataset?.mmReachSentinel) return { sentinel: el.dataset.mmReachSentinel };
     // Tab that stayed on the same element (the parts of a date box) is not a
