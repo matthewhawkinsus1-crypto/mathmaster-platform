@@ -39,11 +39,12 @@ import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import { requiredAnswerToolForSymbol } from '../../platform/interaction/answerEntryTools.js';
 import './PolynomialWorkshop.css';
-import { binomialProductText, binomialTermTexts, polynomialReadoutText } from './polynomialReadout.js';
+import { areaProductText, binomialProductText, binomialTermTexts, polynomialReadoutText } from './polynomialReadout.js';
 import { SubmitText, useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { SYNTHETIC_TABLE_RETRY, SYNTHETIC_TABLE_WITHHELD, syntheticMissMessage, syntheticTableMissMessage } from './syntheticFeedback.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import { addSubtractHints } from './addSubtractHints.js';
+import { areaModelHints, coefficientAreaHints } from './areaModelHints.js';
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
@@ -99,9 +100,8 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
 }
 
 // A cell's product as the narrow-panel list names it beside its box: "2x · x",
-// "3 · (−4)". The box's own name says the same to a screen reader, so this is
-// hidden from it.
-const areaProductText = (rowTerm, columnTerm) => `${rowTerm} · ${/^[−-]/.test(columnTerm) ? `(${columnTerm})` : columnTerm}`;
+// "3 · (−4)" (areaProductText, polynomialReadout.js). The box's own name says
+// the same to a screen reader, so this is hidden from it.
 
 // The expanded polynomial is this mode's graded ANSWER (a coefficient list the
 // shared grader reads), not a step in an algebra workspace, so it does not use
@@ -112,6 +112,8 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
   const right = questionData.rightBinomial || DEFAULTS.multiplyArea.rightBinomial;
   // "(2x + 3)(x − 4)", with heads "x" and "−4": never "(1x -4)" (P-5).
   const [leftTerms, rightTerms] = [binomialTermTexts(left), binomialTermTexts(right)];
+  // Written for these binomials (areaModelHints.js), not the same on every item.
+  const hints = useMemo(() => coefficientAreaHints(left, right), [left, right]);
   const cellDegrees = [2, 1, 1, 0];
   const [cells, setCells] = usePersistentToolState('cells', ['','','','']);
   const [expanded, setExpanded] = usePersistentToolState('expanded', '');
@@ -142,7 +144,7 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
         </div>
         </div>
       </Panel>
-      <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="a, b, c" aria-label="Expanded polynomial: coefficients from the highest degree to the constant"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={['An area model is just organised distribution — every cell is one of the products you would get from FOIL.', 'Cells on the same diagonal usually hold the like terms that combine.', 'Enter coefficients highest degree first, and include a 0 for any missing degree.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
+      <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="a, b, c" aria-label="Expanded polynomial: coefficients from the highest degree to the constant"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={hints} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
   </ToolShell>;
 }
@@ -183,6 +185,7 @@ function MultiplyFactors({ questionData, feedback, submit, clearFeedback = () =>
   const setTerm = (index, value) => { clearFeedback(); setTerms((old) => listWith(size, old, index, value)); };
   const setProductText = (value) => { clearFeedback(); setProduct(value); };
   const keys = useMemo(() => (model ? keypadKeys([...model.rows, ...model.columns]) : []), [model]);
+  const hints = useMemo(() => areaModelHints(model), [model]);
   useFieldUndoHistory({questionData,fields:{terms:[terms,setTerms],product:[product,setProduct]}});
   const work={terms,product};
   useReportToolWork(work);
@@ -216,7 +219,9 @@ function MultiplyFactors({ questionData, feedback, submit, clearFeedback = () =>
         <MathInput value={product} onChange={setProductText} inputStatus={statusOf(wrong, 'product')} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="product" ariaLabel="Product in simplest form" />
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button>
         <Feedback feedback={feedback} success="Every cell and the product are correct." retry="Check each red cell: multiply the signs and the numbers, and add the exponents of the same letter. Then combine like terms."/>
-        <HintPanel hints={['Every term of the first factor multiplies every term of the second — that is what the area model shows: one cell for each pair.', 'Multiply the numbers and keep the letters: a² · 3a = 3a³, because a² · a = a³ (add the exponents).', 'Cells with the same letters and exponents are like terms. Add them to finish, and leave unlike terms separate.']} onHintUsed={() => onAction?.("HINT_USED")} />
+        {/* Written for this item's factors (areaModelHints.js): the same fixed
+            hints on every item gave CW 10's first cell before the last. */}
+        <HintPanel hints={hints} onHintUsed={() => onAction?.("HINT_USED")} />
       </Panel>
     </ToolGrid>
   </ToolShell>;

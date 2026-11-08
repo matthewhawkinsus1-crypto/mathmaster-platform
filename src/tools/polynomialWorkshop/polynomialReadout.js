@@ -51,3 +51,7 @@ export const binomialProductText = (left = [], right = []) => `(${polynomialRead
 
 /** A binomial's two terms as the area model heads its row or column: "x" and "−4" from [1, -4]. */
 export const binomialTermTexts = ([coefficient, constant] = []) => [polynomialReadoutText([coefficient, 0]), polynomialReadoutText([constant])];
+
+// A cell's product as the binomial view's narrow-panel list names it beside its
+// box, "2x · x", "3 · (−4)", and as its hints quote it (areaModelHints.js).
+export const areaProductText = (rowTerm, columnTerm) => `${rowTerm} · ${/^[−-]/.test(columnTerm) ? `(${columnTerm})` : columnTerm}`;
