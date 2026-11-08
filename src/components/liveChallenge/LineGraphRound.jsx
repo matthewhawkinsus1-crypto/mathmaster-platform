@@ -30,6 +30,7 @@ import {
   dropQueue,
   inputState,
   lineFeedbackMessage,
+  lineFeedbackReserve,
   lineQueueKey,
   lockRemainingMs,
   newLineAttemptId,
@@ -42,6 +43,7 @@ import {
   recordSkip,
   settle,
   triesLeft,
+  widestAnswerEquation,
   withQuestions,
 } from '../../platform/liveChallenge/lineGraphSession.js';
 import { getLineGraphRound, submitLineGraphAttempts, timestampMillis } from '../../platform/liveChallenge/liveChallengeService.js';
@@ -299,7 +301,17 @@ ${arenaLayerCss('.mm-line-shell')}
 .mm-line-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 0 0 1px rgba(53,227,255,.6), 0 0 0 5px rgba(53,227,255,.1), 0 8px 30px rgba(0,0,0,.35); }
 .mm-line-graph-frame[data-paused="1"] .mm-line-graph { opacity: .6; transition: opacity 120ms; }
 .mm-line-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
-.mm-line-feedback { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); line-height: 1.3; }
+.mm-line-feedback, .mm-line-feedback-held { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); line-height: 1.3; }
+/* What comes and goes under the grid keeps its room, so nothing it says moves
+   the grid (GraphFeatureRushRound's rule; lineGraphSession.lineFeedbackReserve):
+   the feedback line is as tall as the longest things an item of this kind can
+   be told in this round, drawn invisible in the line's own cell, and the
+   pause's bar keeps its place between pauses. Only where the screen is tall
+   for its text (the min-height: 36em rules below). */
+.mm-line-hold { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mm-line-hold > * { grid-area: 1 / 1; min-width: 0; }
+.mm-line-feedback-held { display: none; }
+.mm-line-cooldown-slot:empty { display: none; }
 .mm-line-feedback[data-kind="correct"] { color: #45ff8a; }
 .mm-line-feedback[data-kind="miss"], .mm-line-feedback[data-kind="revealed"], .mm-line-feedback[data-kind="repeated"] { color: #ff8fa3; }
 .mm-line-feedback[data-kind="method"], .mm-line-feedback[data-kind="form"] { color: #fdd663; }
@@ -312,10 +324,17 @@ ${arenaLayerCss('.mm-line-shell')}
 .mm-line-button:focus-visible, .mm-line-exit:focus-visible, .mm-line-choice:focus-visible, .mm-line-box:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .mm-line-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .mm-line-choice {
-  min-height: 60px; padding: 8px 10px; border-radius: 12px; cursor: pointer; text-align: center;
+  position: relative; min-height: 60px; padding: 8px 10px; border-radius: 12px; cursor: pointer; text-align: center;
   border: 2px solid rgba(53,227,255,.4); background: rgba(10,16,52,.6); color: #fff;
   font-size: clamp(calc(18 * var(--mm-px)), calc(3.6vmin * var(--mm-text-scale, 1)), calc(24 * var(--mm-px))); font-weight: 800;
 }
+/* A chosen equation's ✓ or ✗ sits on its corner and takes no room. Before
+   the equation it wrapped a phone's equation onto a second line as the answer
+   was shown (each choice 60 to 73 px tall at 360 px wide), and the grid above
+   shrank 12 px. Its colour is the choice's border; it catches no pointer. */
+.mm-line-mark { position: absolute; top: -.5em; left: -.45em; display: grid; place-items: center; width: 1.5em; height: 1.5em; box-sizing: border-box; border-radius: 50%; border: 2px solid currentColor; background: #070a22; font-size: calc(14 * var(--mm-px)); line-height: 1; font-weight: 1000; pointer-events: none; }
+.mm-line-choice[data-state="right"] .mm-line-mark { color: #45ff8a; }
+.mm-line-choice[data-state="wrong"] .mm-line-mark { color: #ff8fa3; }
 .mm-line-choice[data-state="right"] { border-color: #45ff8a; background: rgba(69,255,138,.16); }
 .mm-line-choice[data-state="wrong"] { border-color: #ff8fa3; background: rgba(255,93,115,.14); }
 .mm-line-choice:disabled { cursor: default; }
@@ -329,7 +348,8 @@ ${arenaLayerCss('.mm-line-shell')}
   border: 2px solid rgba(53,227,255,.5); background: #070a22; color: #fff; font: inherit; font-size: .8em;
 }
 .mm-line-box[aria-invalid="true"] { border-color: #fdd663; }
-.mm-line-preview { text-align: center; color: #c3d2ea; font-size: calc(15 * var(--mm-px)); min-height: 1.6em; }
+.mm-line-preview, .mm-line-preview-held { text-align: center; color: #c3d2ea; font-size: calc(15 * var(--mm-px)); min-height: 1.6em; }
+.mm-line-preview-held { display: none; }
 .mm-line-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
 .mm-line-cooldown > span { display: block; height: 100%; background: #ff5d73; transform-origin: left; animation: mmLineDrain linear forwards; }
 .mm-line-overlay {
@@ -388,6 +408,15 @@ ${GP_RACE_CSS}
   .mm-line-clock { font-size: calc(26 * var(--mm-px)); }
   .mm-line-clock[data-soon="1"] .mm-line-clock-face, .mm-line-clock-soon { font-size: calc(12 * var(--mm-px)); }
 }
+/* A screen tall for its text: a phone held upright at the default text size
+   or 125% (36em is 576 px at the default size), a tablet, a Chromebook. On a
+   phone at 150% or 200% text the grid, the prompt and a held line do not all
+   fit (at 360 x 740 a held line left no grid at all): there the line takes
+   the room its words need, as before, until that layout is chosen. */
+@media (min-height: 36em) {
+  .mm-line-feedback-held, .mm-line-preview-held { display: block; visibility: hidden; }
+  .mm-line-cooldown-slot:empty { display: block; height: 6px; }
+}
 @media (max-height: 420px) {
   .mm-line-bar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
   .mm-line-clock { font-size: calc(24 * var(--mm-px)); }
@@ -407,6 +436,8 @@ const BUILD_LAYOUT = Object.freeze({
   [LINE_FORM.POINT_SLOPE]: ['y', '−', 'y1', '=', 'm', '(', 'x', '−', 'x1', ')'],
   [LINE_FORM.STANDARD]: ['A', 'x', '+', 'B', 'y', '=', 'C'],
 });
+
+const BUILD_PROMPT = 'Whole numbers, fractions like 2/3, or decimals.';
 
 /** Name it, build: the form's boxes; Enter (or Check) checks them. */
 function BuildAnswer({ question, disabled, feedback, onCheck }) {
@@ -466,8 +497,15 @@ function BuildAnswer({ question, disabled, feedback, onCheck }) {
           );
         })}
       </form>
-      <div className="mm-line-preview" aria-live="polite">
-        {preview ? <>You wrote <LineEquation equation={preview} /></> : 'Whole numbers, fractions like 2/3, or decimals.'}
+      {/* What the boxes spell, over the room of its prompt and its widest equation:
+          typing never moves the grid (the prompt took two lines at 360 px, an
+          equation one, and the grid grew 21 px as the first box was filled). */}
+      <div className="mm-line-hold">
+        <div className="mm-line-preview" aria-live="polite">
+          {preview ? <>You wrote <LineEquation equation={preview} /></> : BUILD_PROMPT}
+        </div>
+        <div className="mm-line-preview-held" aria-hidden="true">{BUILD_PROMPT}</div>
+        <div className="mm-line-preview-held" aria-hidden="true">You wrote <LineEquation equation={widestAnswerEquation(question.build?.form)} /></div>
       </div>
       <button type="button" className="mm-line-button mm-line-button-primary" disabled={disabled} onClick={check}>Check (Enter)</button>
     </div>
@@ -494,8 +532,8 @@ function ChoiceAnswer({ question, disabled, feedback, onChoose }) {
             disabled={disabled || settled}
             onClick={() => onChoose(choice.id)}
           >
-            {state === 'right' && <><span aria-hidden="true">✓ </span><span style={SR_ONLY_STYLE}>Right answer: </span></>}
-            {state === 'wrong' && <><span aria-hidden="true">✗ </span><span style={SR_ONLY_STYLE}>Your answer: </span></>}
+            {state === 'right' && <><span className="mm-line-mark" aria-hidden="true">✓</span><span style={SR_ONLY_STYLE}>Right answer: </span></>}
+            {state === 'wrong' && <><span className="mm-line-mark" aria-hidden="true">✗</span><span style={SR_ONLY_STYLE}>Your answer: </span></>}
             <LineEquation equation={choice.equation} />
           </button>
         );
@@ -867,6 +905,25 @@ export default function LineGraphRound({
   const graphing = question?.itemType === LINE_ITEM_TYPE.GRAPH;
   const verdict = lineCheck && question && lineCheck.questionIndex === question.questionIndex ? lineCheck : null;
   const shownAnswer = revealed && question?.itemType === LINE_ITEM_TYPE.NAME && question.answerStyle !== LINE_ANSWER_STYLE.CHOICE ? answerEquation(question) : null;
+  // The room the feedback line keeps: what an item of this kind can be told
+  // in this round, never this item's own answer (lineFeedbackReserve). Before
+  // the first item arrives, the kind the round starts with.
+  const startsDrawing = (config.itemTypes || []).includes(LINE_ITEM_TYPE.GRAPH) || !(config.itemTypes || []).length;
+  const kindItemType = question ? question.itemType : (startsDrawing ? LINE_ITEM_TYPE.GRAPH : LINE_ITEM_TYPE.NAME);
+  const kindAnswerStyle = question ? question.answerStyle : (startsDrawing ? LINE_ANSWER_STYLE.GRAPH : config.nameStyle || LINE_ANSWER_STYLE.CHOICE);
+  const roundForms = (config.forms || []).join(' ');
+  const feedbackRoom = useMemo(() => lineFeedbackReserve({
+    itemType: kindItemType,
+    answerStyle: kindAnswerStyle,
+    forms: roundForms ? roundForms.split(' ') : [],
+    specialLines: config.specialLines === true,
+    triesPerItem: config.triesPerItem,
+  }), [kindItemType, kindAnswerStyle, roundForms, config.specialLines, config.triesPerItem]);
+  // A built item's shown answer follows its words: the widest it can be, in
+  // each of the round's forms, keeps room too.
+  const shownAnswerRoom = kindItemType === LINE_ITEM_TYPE.NAME && kindAnswerStyle !== LINE_ANSWER_STYLE.CHOICE
+    ? (roundForms ? roundForms.split(' ') : []).map((form) => widestAnswerEquation(form)).filter(Boolean)
+    : [];
   // A Sprint counts through its set; a Classic round is one item.
   const progress = format === LINE_GRAPH_FORMAT.SPRINT && poolEnd ? `${Math.min(poolEnd, completed + ended)} / ${poolEnd}` : null;
   const doneLine = format === LINE_GRAPH_FORMAT.CLASSIC
@@ -1000,15 +1057,27 @@ export default function LineGraphRound({
           )}
         </section>
         <section className="mm-line-controls">
-          <div className="mm-line-feedback" data-kind={feedback?.kind || ''} aria-live="polite">
-            {playing ? message : ''}
-            {playing && shownAnswer && <> <LineEquation equation={shownAnswer} /></>}
-          </div>
-          {input === LINE_INPUT.LOCKED && playing && (
-            <div className="mm-line-cooldown" role="status" aria-label="Short pause after misses">
-              <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
+          {/* The line and, invisible in its cell, the longest things it can say: its room. */}
+          <div className="mm-line-hold">
+            <div className="mm-line-feedback" data-kind={feedback?.kind || ''} aria-live="polite">
+              {playing ? message : ''}
+              {playing && shownAnswer && <> <LineEquation equation={shownAnswer} /></>}
             </div>
-          )}
+            {feedbackRoom.map((words) => <div key={words} className="mm-line-feedback-held" aria-hidden="true">{words}</div>)}
+            {shownAnswerRoom.map((equation) => (
+              <div key={equation.text} className="mm-line-feedback-held" aria-hidden="true">
+                {lineFeedbackMessage({ kind: LINE_FEEDBACK.REVEALED }, { itemType: kindItemType, answerStyle: kindAnswerStyle })} <LineEquation equation={equation} />
+              </div>
+            ))}
+          </div>
+          {/* The pause's place, kept between pauses. */}
+          <div className="mm-line-cooldown-slot">
+            {input === LINE_INPUT.LOCKED && playing && (
+              <div className="mm-line-cooldown" role="status" aria-label="Short pause after misses">
+                <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
+              </div>
+            )}
+          </div>
           {prompt && question.answerStyle === LINE_ANSWER_STYLE.CHOICE && (
             <ChoiceAnswer question={question} disabled={disabled} feedback={feedback} onChoose={onChoose} />
           )}

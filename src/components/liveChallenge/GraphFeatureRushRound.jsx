@@ -27,6 +27,7 @@ import {
   parseStoredQueue,
   prefetchRequest,
   drawingReady,
+  feedbackReserve,
   isInequalityQuestion,
   isNumberLineQuestion,
   lineNotation,
@@ -40,6 +41,7 @@ import {
   toggleAxisArrow,
   rushQueueKey,
   settle,
+  widestNotation,
   withQuestions,
 } from '../../platform/liveChallenge/rushSession.js';
 import {
@@ -145,6 +147,11 @@ const promptWords = (question) => {
   if (!question?.inequality || !question.prompt.endsWith(question.inequality)) return question.prompt;
   return <>{question.prompt.slice(0, question.prompt.length - question.inequality.length)}<span className="mm-rush-math">{question.inequality}</span></>;
 };
+
+// What the notation under a set says while nothing is drawn: how to start.
+const notationPrompt = (inequality) => (inequality
+  ? 'Tap the number line, or use the arrow keys and Enter, to place a dot.'
+  : 'Tap the graph, or use the arrow keys and Enter, to place a dot.');
 
 // A number line's frame: the area's width (to a readable most), and a
 // height that leaves room for the labels and the "Get ready" card.
@@ -301,7 +308,17 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 0 0 1px rgba(53,227,255,.6), 0 0 0 5px rgba(53,227,255,.1), 0 8px 30px rgba(0,0,0,.35); }
 .mm-rush-graph-frame[data-paused="1"] .mm-rush-graph { opacity: .55; transition: opacity 120ms; }
 .mm-rush-controls { display: grid; gap: 8px; }
-.mm-rush-feedback { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); }
+.mm-rush-feedback, .mm-rush-feedback-held { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); }
+/* What comes and goes under the graph keeps its room, so nothing it says or
+   shows moves the graph (rushSession.feedbackReserve): the feedback line is as
+   tall as the longest things the round can say, the notation as its prompt or
+   its widest set, each drawn invisible in the line's own cell, and the
+   cooldown's bar keeps its place between pauses. Only where the screen is tall
+   for its text (the min-height: 36em rules below). */
+.mm-rush-hold { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mm-rush-hold > * { grid-area: 1 / 1; }
+.mm-rush-feedback-held, .mm-rush-notation-held { display: none; }
+.mm-rush-cooldown-slot:empty { display: none; }
 .mm-rush-feedback[data-kind="hit"], .mm-rush-feedback[data-kind="complete"] { color: #45ff8a; }
 .mm-rush-feedback[data-kind="miss"], .mm-rush-feedback[data-kind="autoSkipped"] { color: #ff8fa3; }
 .mm-rush-buttons { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
@@ -325,14 +342,14 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; border: 0; background: linear-gradient(180deg, #8dffb8 0%, #45ff8a 55%, #16c45a 100%); color: #052b14; box-shadow: 0 4px 0 #0c7a37; }
 .mm-rush-check:disabled { opacity: .45; cursor: not-allowed; }
 .mm-rush-check:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
-.mm-rush-notation { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
+.mm-rush-notation, .mm-rush-notation-held { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
 /* An inequality's two forms break between them, never inside one. */
-.mm-rush-notation > span { white-space: nowrap; }
+.mm-rush-notation > span, .mm-rush-notation-held > span { white-space: nowrap; }
 .mm-rush-notation-sep { color: #b8c4ef; }
 .mm-rush-math { white-space: nowrap; }
 /* A number line sits in the middle of its area; a graph fills it from the top. */
 .mm-rush-graph-area[data-line="1"] { place-items: center; }
-.mm-rush-notation[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b8c4ef; }
+.mm-rush-notation[data-empty="1"], .mm-rush-notation-held[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b8c4ef; }
 .mm-rush-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
 .mm-rush-cooldown > span { display: block; height: 100%; background: #ff5d73; transform-origin: left; animation: mmRushDrain linear forwards; }
 .mm-rush-overlay {
@@ -397,7 +414,17 @@ ${GP_RACE_CSS}
   .mm-rush-hint { display: none; }
   .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 46px; }
   .mm-rush-check { min-height: 46px; }
-  .mm-rush-notation { font-size: calc(17 * var(--mm-px)); }
+  .mm-rush-notation, .mm-rush-notation-held { font-size: calc(17 * var(--mm-px)); }
+}
+/* A screen tall for its text: a phone held upright at the default text size
+   or 125% (36em is 576 px at the default size), a tablet, a Chromebook. On a
+   phone at 150% or 200% text the graph, the prompt and a held line do not all
+   fit (at 360 x 740 and 200% a held line would leave the 128 px graph 37 px):
+   there the line takes the room its words need, as before, until that layout
+   is chosen. */
+@media (min-height: 36em) {
+  .mm-rush-feedback-held, .mm-rush-notation-held { display: block; visibility: hidden; }
+  .mm-rush-cooldown-slot:empty { display: block; height: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mm-rush-found-fresh, .mm-rush-in-a, .mm-rush-in-b, .mm-rush-count { animation: none; }
@@ -760,6 +787,13 @@ export default function GraphFeatureRushRound({
   const notation = setQuestion ? lineNotation(question, studentDrawing, { revealing }) : null;
   const queued = session?.queue.length || 0;
   const buttonsDisabled = !playing || input !== RUSH_INPUT.READY;
+  // The room the feedback line keeps: what this round can say, never what
+  // this graph will (rushSession.feedbackReserve).
+  const roundFeatures = (room.graphFeatureRush?.config?.features || []).join(' ');
+  const feedbackRoom = useMemo(
+    () => feedbackReserve({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame }),
+    [roundFeatures, offScreenGame, inequalityGame],
+  );
 
   const completedWords = `${completed} ${completed === 1 ? noun.one : noun.many} completed`;
   let overlay = null;
@@ -867,23 +901,37 @@ export default function GraphFeatureRushRound({
           )}
         </section>
         <section className="mm-rush-controls">
-          <div className="mm-rush-feedback" data-kind={feedback?.kind || ''} aria-live="polite">{playing ? message : ''}</div>
-          {input === RUSH_INPUT.LOCKED && playing && (
-            <div className="mm-rush-cooldown" role="status" aria-label="Short pause after misses">
-              <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
-            </div>
-          )}
+          {/* The line and, invisible in its cell, the longest things the round can say: its room. */}
+          <div className="mm-rush-hold">
+            <div className="mm-rush-feedback" data-kind={feedback?.kind || ''} aria-live="polite">{playing ? message : ''}</div>
+            {feedbackRoom.map((words) => <div key={words} className="mm-rush-feedback-held" aria-hidden="true">{words}</div>)}
+          </div>
+          {/* The cooldown's place, kept between pauses. */}
+          <div className="mm-rush-cooldown-slot">
+            {input === RUSH_INPUT.LOCKED && playing && (
+              <div className="mm-rush-cooldown" role="status" aria-label="Short pause after misses">
+                <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
+              </div>
+            )}
+          </div>
           {setQuestion && (
             // The set as it is drawn; while the answer is shown, the answer.
-            <div className="mm-rush-notation" data-empty={notation ? '0' : '1'} aria-live="polite">
-              {notation
-                ? notation.map((form, index) => (
-                  <span key={form}>
-                    {index > 0 && <><span className="mm-rush-notation-sep" aria-hidden="true"> · </span><span className="mm-rush-visually-hidden">, </span></>}
-                    {form}
-                  </span>
-                ))
-                : (inequalityItem ? 'Tap the number line, or use the arrow keys and Enter, to place a dot.' : 'Tap the graph, or use the arrow keys and Enter, to place a dot.')}
+            // Its room: its prompt and its widest set, invisible in its cell.
+            <div className="mm-rush-hold">
+              <div className="mm-rush-notation" data-empty={notation ? '0' : '1'} aria-live="polite">
+                {notation
+                  ? notation.map((form, index) => (
+                    <span key={form}>
+                      {index > 0 && <><span className="mm-rush-notation-sep" aria-hidden="true"> · </span><span className="mm-rush-visually-hidden">, </span></>}
+                      {form}
+                    </span>
+                  ))
+                  : notationPrompt(inequalityItem)}
+              </div>
+              <div className="mm-rush-notation-held" data-empty="1" aria-hidden="true">{notationPrompt(inequalityItem)}</div>
+              <div className="mm-rush-notation-held" data-empty="0" aria-hidden="true">
+                {widestNotation({ axis: vertical ? 'y' : 'x' }).map((form, index) => <span key={form}>{index > 0 && <span className="mm-rush-notation-sep"> · </span>}{form}</span>)}
+              </div>
             </div>
           )}
           {setQuestion ? (

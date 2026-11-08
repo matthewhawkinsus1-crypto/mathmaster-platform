@@ -26,9 +26,11 @@
  * monotonic clock reading, so the rules are tested without timers.
  */
 
-import { checkChoiceAnswer, checkEquationAnswer, checkLineAnswer } from '../../../functions/shared/lineGraphGrading.mjs';
+import { FORM_MESSAGES, checkChoiceAnswer, checkEquationAnswer, checkLineAnswer } from '../../../functions/shared/lineGraphGrading.mjs';
+import { LINE_DIAGNOSIS, diagnosisMessage } from '../../../functions/shared/lineGraphFeedback.mjs';
 import {
   LINE_FORM,
+  POINT_SLOPE_LAYOUT,
   pointSlopeTokens,
   presentEquation,
   slopeInterceptTokens,
@@ -45,6 +47,7 @@ import {
   LINE_REVEAL_MS,
   LINE_SKIP_PAUSE_MS,
   LINE_VERDICT,
+  SPECIAL_FORM,
   lineLockoutMs,
   missesAllowed,
 } from '../../../functions/shared/lineGraphRules.mjs';
@@ -439,6 +442,61 @@ export const lineFeedbackMessage = (feedback, question, { left = Number.POSITIVE
     default:
       return '';
   }
+};
+
+/*
+ * THE FEEDBACK LINE'S ROOM (rushSession.feedbackReserve has the why). Under a
+ * phone's grid the line says what the last answer did, and a hint with its
+ * tries left runs to four lines at 360 px: when it took another line the grid
+ * shrank under the student's finger (a name-it item's 336 px grid to 320). The
+ * line keeps the room of the longest things it can say about an item of this
+ * kind in this round — drawing a line, choosing, or building, in the round's
+ * forms and settings — never this item's own line or answer, so a wide number
+ * stands in for an item's own (−19/2: no grid reaches past ±10).
+ */
+const RESERVE_LINE_COUNT = 6;
+const WIDE_NUMBER = Object.freeze({ n: -19, d: 2 });
+
+export const lineFeedbackReserve = ({ itemType = LINE_ITEM_TYPE.GRAPH, answerStyle = LINE_ANSWER_STYLE.GRAPH, forms = [], specialLines = false, triesPerItem } = {}) => {
+  const question = { itemType, answerStyle };
+  const lines = [
+    lineFeedbackMessage({ kind: LINE_FEEDBACK.CORRECT }, question),
+    lineFeedbackMessage({ kind: LINE_FEEDBACK.REVEALED }, question),
+    lineFeedbackMessage({ kind: LINE_FEEDBACK.SKIPPED }, question),
+    lineFeedbackMessage({ kind: LINE_FEEDBACK.RESYNCED }, question),
+  ];
+  // A chosen equation has one try: a wrong one shows the answer.
+  if (answerStyle !== LINE_ANSWER_STYLE.CHOICE) {
+    lines.push(lineFeedbackMessage({ kind: LINE_FEEDBACK.REPEATED }, question));
+    // The most tries a miss can leave, as its words say them.
+    const left = missesAllowed({ triesPerItem, answerStyle }) - 1;
+    const point = { x: WIDE_NUMBER, y: WIDE_NUMBER };
+    for (const form of [...forms, ...(specialLines ? [SPECIAL_FORM] : [])]) {
+      for (const code of Object.values(LINE_DIAGNOSIS)) {
+        for (const params of [
+          { horizontal: true, layout: POINT_SLOPE_LAYOUT.POINT_SLOPE },
+          { horizontal: false, layout: POINT_SLOPE_LAYOUT.SOLVED_FOR_Y },
+        ]) {
+          const message = diagnosisMessage({ code, params: { ...params, itemType, form, point, yIntercept: WIDE_NUMBER, xIntercept: WIDE_NUMBER } });
+          lines.push(lineFeedbackMessage({ kind: LINE_FEEDBACK.MISS, message }, question, { left }));
+        }
+      }
+    }
+    if (itemType === LINE_ITEM_TYPE.NAME) lines.push(...Object.values(FORM_MESSAGES));
+  }
+  return Object.freeze([...new Set(lines.filter(Boolean))].sort((left, right) => right.length - left.length).slice(0, RESERVE_LINE_COUNT));
+};
+
+/**
+ * The widest right equation a built item's shown answer can be in `form`,
+ * for the room its line keeps: wide numbers, a stacked fraction (taller than
+ * a line of words).
+ */
+export const widestAnswerEquation = (form) => {
+  const m = { n: -19, d: 7 };
+  if (form === LINE_FORM.STANDARD) return presentEquation(standardTokens({ A: -19, B: 17, C: -190 }));
+  if (form === LINE_FORM.POINT_SLOPE) return presentEquation(pointSlopeTokens({ x1: WIDE_NUMBER, y1: WIDE_NUMBER, m }));
+  return presentEquation(slopeInterceptTokens({ m, b: WIDE_NUMBER }));
 };
 
 /**

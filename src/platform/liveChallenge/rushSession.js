@@ -36,7 +36,7 @@
  */
 
 import { clampTolerance, resolveTap, TAP_RESULT } from '../../../functions/shared/graphFeatureHitTest.mjs';
-import { getGraphFeature, isIntervalFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
+import { SET_FEATURE_AXIS, getGraphFeature, isIntervalFeature, isSetFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import {
   EMPTY_DRAWING,
   drawingForSet,
@@ -64,7 +64,7 @@ import {
   rushQuestionWeight,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
-import { SET_TAP_TIP, formatPoint, formatTarget, nearOpenDot, setAxisOf } from './rushGraphModel.js';
+import { SET_TAP_TIP, formatCoordinate, formatPoint, formatTarget, nearOpenDot, setAxisOf } from './rushGraphModel.js';
 
 export const RUSH_FEEDBACK = Object.freeze({
   HIT: 'hit',
@@ -704,6 +704,113 @@ export const feedbackMessage = (feedback, question) => {
       return '';
   }
 };
+
+/*
+ * THE FEEDBACK LINE'S ROOM. On a phone the line sits under the graph, and the
+ * graph takes what is left of the screen: when a message took another line,
+ * the graph shrank (at 200% text a two-line miss took it from 279 to 234 px),
+ * and a number line, which sits in the middle of its area, moved down and
+ * back as the notation and the cooldown came and went (9 px at 390 px wide) —
+ * so a tap aimed at it landed off it. The round keeps the line's room for the
+ * longest things it can say (GraphFeatureRushRound draws these, invisible, in
+ * the line's own cell), so nothing it says moves the graph.
+ *
+ * What the round CAN say, never what this graph will: a line kept taller for
+ * a graph whose answer is "does not exist" would give that away, and a room
+ * that changed from graph to graph would move the graph between them. So the
+ * round's settings decide (its features, whether "Off screen" is offered, an
+ * inequality game), and wide numbers stand in for an item's own: no view
+ * reaches past ±10.5, and a set has at most two pieces where it has ends.
+ */
+const RESERVE_LINE_COUNT = 6;
+const WIDE = -10.5;
+const WIDE_SET = Object.freeze([[null, false, WIDE, false], [-WIDE, false, null, false]]);
+const WIDE_PLACES = Object.freeze([{ x: WIDE, y: 0 }, { x: -WIDE, y: 0 }, { x: WIDE, y: WIDE }]);
+
+// The messages of one kind of graph, from the same words a student reads.
+const pointLines = (featureId, { offScreen }) => {
+  const feature = getGraphFeature(featureId);
+  const target = feature?.geometry === 'line'
+    ? { id: 'w', geometry: 'line', orientation: 'vertical', x: WIDE, y: WIDE }
+    : { id: 'w', x: WIDE, y: WIDE };
+  const question = { feature: featureId, targets: [target], ...(offScreen ? { offScreen: true, offScreenTargets: WIDE_PLACES } : {}) };
+  const said = [
+    { kind: RUSH_FEEDBACK.HIT, targetId: 'w' },
+    { kind: RUSH_FEEDBACK.COMPLETE, targetId: 'w' },
+    { kind: RUSH_FEEDBACK.MISS },
+    { kind: RUSH_FEEDBACK.MISS, openDot: true },
+    { kind: RUSH_FEEDBACK.AUTO_SKIPPED },
+  ];
+  if (feature?.canNotExist !== false) {
+    said.push({ kind: RUSH_FEEDBACK.COMPLETE, doesNotExist: true }, { kind: RUSH_FEEDBACK.MISS, doesNotExist: true }, { kind: RUSH_FEEDBACK.MISS, doesNotExist: true, offScreen: true });
+  }
+  if (offScreen) said.push({ kind: RUSH_FEEDBACK.COMPLETE, offScreenPress: true }, { kind: RUSH_FEEDBACK.MISS, offScreenPress: true });
+  return said.map((feedback) => feedbackMessage(feedback, question));
+};
+
+const setLines = (featureId) => {
+  const axis = SET_FEATURE_AXIS[featureId] === 'y' ? 'y' : 'x';
+  const question = { feature: featureId, setAxis: axis, targets: [{ id: 'w', geometry: 'set', axis, set: WIDE_SET }] };
+  const wide = setFromPlain(WIDE_SET);
+  const said = [
+    { kind: RUSH_FEEDBACK.COMPLETE, checked: bothNotations(wide, setVariableOf(question)).join(' · ') },
+    { kind: RUSH_FEEDBACK.MISS },
+    { kind: RUSH_FEEDBACK.MISS, hint: checkHint(question, setFromPlain([[WIDE, true, null, false]]), wide) },
+    { kind: RUSH_FEEDBACK.AUTO_SKIPPED },
+    ...Object.values(SET_TAP_TIP).map((tip) => ({ kind: RUSH_FEEDBACK.TIP, tip, line: `${axis === 'y' ? 'x' : 'y'} = ${formatCoordinate(WIDE)}` })),
+    { kind: RUSH_FEEDBACK.TIP },
+  ];
+  if (getGraphFeature(featureId)?.canNotExist !== false) {
+    const never = { feature: featureId, setAxis: axis, targets: [] };
+    said.push({ kind: RUSH_FEEDBACK.COMPLETE, doesNotExist: true }, { kind: RUSH_FEEDBACK.MISS, doesNotExist: true });
+    return [...said.map((feedback) => feedbackMessage(feedback, question)), feedbackMessage({ kind: RUSH_FEEDBACK.AUTO_SKIPPED }, never), feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: checkHint(never, wide, null) }, never)];
+  }
+  return said.map((feedback) => feedbackMessage(feedback, question));
+};
+
+const inequalityLines = () => {
+  // Closed at its right end, drawn open there: the longest hint, "Open or closed at the right end? …".
+  const question = { kind: 'inequality', targets: [{ id: 'w', set: [[null, false, WIDE, true]] }] };
+  const open = setFromPlain([[null, false, WIDE, false]]);
+  const flipped = { ...question, flipSet: [[null, false, WIDE, false]] };
+  const wide = { kind: 'inequality', targets: [{ id: 'w', set: WIDE_SET }] };
+  return [
+    feedbackMessage({ kind: RUSH_FEEDBACK.COMPLETE, doesNotExist: true }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.COMPLETE, checked: bothNotations(setFromPlain(WIDE_SET), 'x').join(' · ') }, wide),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, doesNotExist: true }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: inequalityHint(question, open) }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: inequalityHint(flipped, open) }, flipped),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: inequalityHint({ kind: 'inequality', targets: [] }, open) }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.AUTO_SKIPPED }, wide),
+  ];
+};
+
+/**
+ * The longest things a round of these settings can say on its feedback line,
+ * longest first (a few: each is drawn, and the line keeps the room of the
+ * tallest at the screen's own width and text size).
+ */
+export const feedbackReserve = ({ features = [], offScreen = false, inequality = false } = {}) => {
+  const lines = [
+    feedbackMessage({ kind: RUSH_FEEDBACK.SKIPPED }, inequality ? { kind: 'inequality' } : {}),
+    feedbackMessage({ kind: RUSH_FEEDBACK.RESYNCED }, {}),
+    feedbackMessage({ kind: RUSH_FEEDBACK.ALREADY_FOUND }, {}),
+  ];
+  if (inequality) lines.push(...inequalityLines());
+  else {
+    for (const featureId of features) {
+      lines.push(...(isSetFeature(featureId) ? setLines(featureId) : pointLines(featureId, { offScreen })));
+    }
+  }
+  return Object.freeze([...new Set(lines.filter(Boolean))].sort((left, right) => right.length - left.length).slice(0, RESERVE_LINE_COUNT));
+};
+
+/**
+ * The widest set the notation under a set question can show, as its forms
+ * (two pieces, in both notations): with its prompt, the room the notation
+ * keeps, so a dot placed or taken away moves nothing.
+ */
+export const widestNotation = ({ axis = 'x' } = {}) => bothNotations(setFromPlain(WIDE_SET), axis === 'y' ? 'y' : 'x');
 
 /* ------------------------------ persistence ------------------------------ */
 
