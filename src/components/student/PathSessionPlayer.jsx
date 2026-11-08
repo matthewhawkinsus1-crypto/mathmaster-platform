@@ -8,7 +8,7 @@ import MathText from '../common/MathText.jsx';
 import PathResponseFields, { pathResponseComplete } from './PathResponseFields.jsx';
 import PathQuestionStimulus from './PathQuestionStimulus.jsx';
 import PathSolutionReview from './PathSolutionReview.jsx';
-import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies.js';
+import { getEffectiveActivityPolicy, isActivityRole } from '../../platform/policies/activityPolicies.js';
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
 import PathSupportBar, { speechTextFor, supportPresentationStyle } from './PathSupportBar.jsx';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
@@ -22,7 +22,7 @@ import { questionAssessmentFramework } from '../../platform/student/questionAlig
 import { getAssessmentStandardReferences, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
 import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
-import { gradingClosesQuestion, latestAttemptCount, sessionHeaderQuestionNumber } from '../../platform/path/pathProgression.js';
+import { gradingClosesQuestion, latestAttemptCount, pathEngineQuestionRecord, sessionHeaderQuestionNumber } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
@@ -344,6 +344,16 @@ export const PathSessionPlayer = ({
   const instanceId = questionInstance?.questionInstanceId || '';
   const activityRole = questionInstance?.activityRole || 'practice';
   const activityPolicy = getEffectiveActivityPolicy(activityRole);
+  // The engine runs the role's policy without replacement. My Math Path never
+  // replaces a question: the session moves on with "Next question". Under the
+  // role's own policy a question closed by a miss offered "Request New
+  // Question", a button with nothing behind it here (the engine is given no
+  // onRequestNewQuestion). An unknown role passes no policy, so the engine's
+  // support ladder still fails closed on it.
+  const engineActivityPolicy = useMemo(
+    () => (isActivityRole(activityRole) ? { ...activityPolicy, allowReplacement: false } : null),
+    [activityRole, activityPolicy],
+  );
   const calculatorPolicy = useMemo(() => resolveCalculatorPolicy({
     questionSpec: questionInstance || {},
     activityPolicy,
@@ -506,7 +516,6 @@ export const PathSessionPlayer = ({
 
   const attemptsUsed = latestAttemptCount(questionInstance, lastGradingResult);
   const attemptsAllowed = Number(questionInstance.attemptsAllowed) || activityPolicy.attempts || 3;
-  const attemptsLeft = Math.max(0, attemptsAllowed - attemptsUsed);
   const finalized = gradingClosesQuestion(lastGradingResult);
   // The header names the reviewed question while its review is on screen:
   // when the grading closed it, or while the container holds for Continue.
@@ -514,6 +523,9 @@ export const PathSessionPlayer = ({
   // (responseClosesQuestion), so an older server that signals closure only
   // with needsNextQuestion still counts, and so does a failed advance.
   const reviewing = finalized || typeof onContinue === 'function';
+  // A question whose review the session holds has no try left: one answered
+  // on the first of three tries said "2 tries left" over its own review.
+  const attemptsLeft = typeof onContinue === 'function' ? 0 : Math.max(0, attemptsAllowed - attemptsUsed);
   const Landmark = mainLandmark ? 'main' : 'div';
 
   // A secure payload wins over a canonical one: if the server built a tool
@@ -538,16 +550,17 @@ export const PathSessionPlayer = ({
           question={canonical}
           // The session owns the attempt count, so the renderer is told where
           // the student actually is. Passing null gave the student unlimited
-          // attempts on screen while the session finalized underneath them.
-          questionRecord={{
-            status: questionInstance.attemptsUsed > 0 ? 'attempted' : 'unattempted',
-            attemptCount: questionInstance.attemptsUsed || 0,
-          }}
+          // attempts on screen while the session finalized underneath them;
+          // the stored count alone left a question the server had closed open
+          // with a try left. Closed while the session holds its review for
+          // "Next question" (pathEngineQuestionRecord).
+          questionRecord={pathEngineQuestionRecord({ questionInstance, grading: lastGradingResult, closed: typeof onContinue === 'function', attemptsAllowed })}
           studentProfile={studentProfile}
           supportEntitlement={engineSupportTools}
           onSupportEvidence={onEngineSupportEvidence}
           maximumAttempts={questionInstance.attemptsAllowed}
           activityRole={questionInstance.activityRole || 'practice'}
+          activityPolicy={engineActivityPolicy}
           showStandardBadge={false}
           draftKey={`path-${questionInstance.questionInstanceId}`}
           // With a secure payload the engine collects raw work and the server

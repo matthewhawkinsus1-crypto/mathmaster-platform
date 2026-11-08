@@ -221,6 +221,29 @@ test('CI walks My Math Path after a submitted question, its keypad up from the n
   assert.match(tool, /onContinue=\{submittedFlow && grading \? /);
 });
 
+// AND AS THE QUESTION CLOSES (student-a11y-3). The engine counted the try the session had
+// closed as still left, so on a phone the keypad stayed over the review and "Next question"
+// until Done: only focus leaving the question closed it, and a tap that moves no focus does
+// not. Before the walk moves focus, the scene reads the closed question: the keypad gone (and
+// up when Submit was pressed, so its closing is what is tested), no Submit, the engine's strip
+// closed, each a failure of the run (pathClosedQuestionEngine.test.mjs holds the count).
+test('CI reads My Math Path\'s closed question before the walk: no keypad, no Submit, the engine says closed', () => {
+  const driver = read('tests/browser/studentShellLargeText.mjs');
+  const scene = region(driver, 'const pathAfterSubmit = async', '\n};', 'the scene');
+  const submit = scene.indexOf("await page.keyboard.press('Enter');\n  await page.getByRole('button', { name: 'Next question' }).waitFor(");
+  assert.ok(submit > 0, 'submitted by keyboard, then Next question awaited');
+  const before = scene.indexOf("const keypadBeforeSubmit = await page.locator('.mathmaster-mobile-numeric-keypad').count();");
+  assert.ok(before > 0 && before < submit, 'the keypad is counted before the submit');
+  const closing = region(scene, "getByRole('button', { name: 'Next question' }).waitFor(", 'document.activeElement?.blur?.()', 'what the scene reads as the question closes');
+  assert.match(closing, /keypad: document\.querySelectorAll\('\.mathmaster-mobile-numeric-keypad'\)\.length,/);
+  assert.match(closing, /submit: \[\.\.\.document\.querySelectorAll\('button'\)\]\.filter\(\(button\) => button\.textContent\.trim\(\)\.startsWith\('Submit'\) && !button\.matches\(':disabled'\)\)\.length,/);
+  assert.match(closing, /\.\.\.\(setting === 'phone' && !keypadBeforeSubmit \? \[/);
+  assert.match(closing, /\.\.\.\(closed\.keypad \? \[/);
+  assert.match(closing, /\.\.\.\(closed\.submit \? \[/);
+  assert.match(closing, /\.\.\.\(closed\.strip !== 'This question is closed' \? \[/);
+  assert.match(closing, /problems\.forEach\(\(problem\) => failures\.push\(`session-hosts\/path-after-submit \$\{setting\}: \$\{problem\}`\)\);/);
+});
+
 // THE MATH TOOLS LAB (student-a11y-3). The teacher's bench mounts every student tool with
 // its sample question, and its other tools and their Work Views had not been walked. All
 // 24 tools were walked by hand at both sizes (nothing found); the Matrix Lab stays in the

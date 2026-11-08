@@ -393,6 +393,10 @@ const sessionHost = (query) => async (page, origins) => {
 // stays open while focus moves on to a button) and Enter, which subtracts it;
 // then Tab on to "Submit — your only try" and Enter. The walk goes over what
 // follows: the closed question, the solution review and "Next question".
+// First, as the question closes and before any key or tap: the engine says it is
+// closed and offers no Submit, and on a phone the keypad has gone with it. The
+// engine counted the try the session had closed as still left, so the keypad
+// stayed up over the review and "Next question" until Done.
 const pathAfterSubmit = async (page, origins) => {
   await sessionHost('scene=path-tool&tool=stepAlgebra2&submitted=1')(page, origins);
   await page.locator('main input[type="number"]').first().focus();
@@ -403,8 +407,26 @@ const pathAfterSubmit = async (page, origins) => {
     await page.keyboard.press('Tab');
     if (await page.evaluate(() => /^Submit/.test(document.activeElement?.textContent?.trim() || ''))) break;
   }
+  const keypadBeforeSubmit = await page.locator('.mathmaster-mobile-numeric-keypad').count();
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Next question' }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(600);
+  // A Submit is the engine's or the tool's own ("Submit — your only try"), and one
+  // that can still be pressed.
+  const closed = await page.evaluate(() => ({
+    keypad: document.querySelectorAll('.mathmaster-mobile-numeric-keypad').length,
+    submit: [...document.querySelectorAll('button')].filter((button) => button.textContent.trim().startsWith('Submit') && !button.matches(':disabled')).length,
+    strip: document.querySelector('.mathmaster-question-attempt-strip strong')?.textContent.trim() || '',
+  }));
+  const setting = (page.viewportSize()?.width || 0) < 500 ? 'phone' : 'chromebook';
+  const problems = [
+    ...(setting === 'phone' && !keypadBeforeSubmit ? ['the number keypad was not up when Submit was pressed, so its closing went untested'] : []),
+    ...(closed.keypad ? ['the number keypad stayed up after the session closed the question'] : []),
+    ...(closed.submit ? ['the engine still offers Submit on the question the session closed'] : []),
+    ...(closed.strip !== 'This question is closed' ? [`the engine's tries strip reads "${closed.strip}", not "This question is closed"`] : []),
+  ];
+  console.log(`${problems.length ? 'FAIL' : 'ok  '} closed   ${'session-hosts/path-after-submit'.padEnd(40)} ${setting.padEnd(10)} keypad before submit=${keypadBeforeSubmit} after=${closed.keypad} submit=${closed.submit} strip="${closed.strip}"`);
+  problems.forEach((problem) => failures.push(`session-hosts/path-after-submit ${setting}: ${problem}`));
   await page.evaluate(() => { document.activeElement?.blur?.(); });
   await page.waitForTimeout(900);
 };
