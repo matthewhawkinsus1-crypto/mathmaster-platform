@@ -263,8 +263,22 @@ export const buildQuestionHints = (question = {}, { toolHints = [] } = {}) => {
  * remembered is taken from the ladder in order, which is what was shown when
  * the ladder did not change. `hints` is what was read followed by what is left,
  * so hintRelease reads it unchanged.
+ *
+ * A PRESS BEFORE THE TOOL'S RUNGS ARRIVE (hint-ladder timing). A registry
+ * tool's chunk loads after the question does, and its panels publish their
+ * rungs once it has mounted, so for the first second or so an item with no
+ * hints of its own had only the fallbacks: a fast press opened the generic
+ * first rung, where a press a second later opened the tool's. While the
+ * tool's rungs are on their way (`toolRungsPending`), a fallback the student
+ * is owed is not decided yet. It keeps its place in the count, so the release
+ * rule and the count read the view unchanged, and it is marked `pending`: the
+ * panel says the hint is loading. Once the rungs are here it is the rung the
+ * ladder they make gives in that place, exactly what a press then would have
+ * opened (QuestionEngine keeps it as read from then on). An authored or family
+ * rung is never marked: a tool's rungs come after it, so it is already the
+ * rung the student gets.
  */
-export const hintLadderView = ({ ladder = [], revealedTexts = [], revealedCount = 0 } = {}) => {
+export const hintLadderView = ({ ladder = [], revealedTexts = [], revealedCount = 0, toolRungsPending = false } = {}) => {
   const entries = list(ladder).filter((hint) => hint && text(hint.text));
   const key = (hint) => text(hint.text).toLowerCase();
   const shown = [];
@@ -277,7 +291,7 @@ export const hintLadderView = ({ ladder = [], revealedTexts = [], revealedCount 
   const owed = Math.max(0, Math.floor(Number(revealedCount) || 0) - shown.length);
   entries.filter((hint) => !seen.has(key(hint))).slice(0, owed).forEach((hint) => {
     seen.add(key(hint));
-    shown.push(hint);
+    shown.push(toolRungsPending && hint.source === 'generic' ? { ...hint, pending: true } : hint);
   });
   const remaining = entries.filter((hint) => !seen.has(key(hint)));
   return { hints: [...shown, ...remaining], revealed: shown.length, next: remaining[0] || null };

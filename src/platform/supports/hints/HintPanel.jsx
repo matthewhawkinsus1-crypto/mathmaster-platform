@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import MathText from '../../../components/common/MathText.jsx';
 import { SupportedTextActions } from '../SupportedText.jsx';
 import { useAskTeacherControl } from '../AskTeacherControl.jsx';
 import { authoredLineFor } from '../../language/authoredSupportText.js';
-import { hintCostSentence } from './hintCopy.js';
+import { PENDING_RUNG_TEXT, hintCostSentence } from './hintCopy.js';
 
 /*
  * THE PLATFORM HINT PANEL — opened from the work bar's Hint control (and the
@@ -31,8 +31,19 @@ import { hintCostSentence } from './hintCopy.js';
  * teacher — only where the teacher can be asked (Ask is wired), so the
  * sentence never points at a button that is not there, and not while the hand
  * is up (the button below is then "Cancel my help request").
+ *
+ * WHILE THE TOOL'S RUNGS ARE ON THEIR WAY (hint-ladder timing). A rung the
+ * student asked for before the tool on screen had published its own is
+ * `pending` (questionHints.js hintLadderView): in its place the panel says the
+ * hint is loading, and shows the rung once the tool's are here — never the
+ * fallback it may not be. A tool that takes longer than PENDING_RUNG_WAIT_MS
+ * shows the rung the ladder has by then (read again once the tool is there),
+ * so nobody waits on a load that does not come. Until the rungs are here
+ * (`rungsPending`) the ladder is not known to be only fallbacks, so the
+ * pointer above is not shown either.
  */
 const summaryStyle = { cursor: 'pointer', fontWeight: 800, color: 'var(--mm-primary-text)', minHeight: 32 };
+export const PENDING_RUNG_WAIT_MS = 4000;
 
 // The teacher's own words for this hint in the student's language, or null.
 const teachersWords = (hint, translation) => {
@@ -65,15 +76,24 @@ export default function HintPanel({
   onSupportEvidence = null,
   costNote = null,
   diagnosis = null,
+  rungsPending = false,
 }) {
   const shown = hints.slice(0, revealed);
+  const awaiting = shown.some((hint) => hint?.pending === true);
+  const [waitedOut, setWaitedOut] = useState(false);
+  useEffect(() => {
+    if (!awaiting || waitedOut) return undefined;
+    const timer = setTimeout(() => setWaitedOut(true), PENDING_RUNG_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [awaiting, waitedOut]);
+  const loading = (hint) => hint?.pending === true && !waitedOut;
   // "Ask my teacher": a raised hand in class, a question left for the teacher
   // outside it (AskTeacherControl.jsx).
   const ask = useAskTeacherControl(askTeacher, button);
   // On a DOL (no hints) the panel holds only "Ask my teacher", and says
   // nothing about hints (PR #462 review m9).
   const askOnly = !hints.length && !similar;
-  const fallbackOnly = hints.length > 0 && hints.every((hint) => hint.source === 'generic');
+  const fallbackOnly = !rungsPending && hints.length > 0 && hints.every((hint) => hint.source === 'generic');
   const diagnosisShown = diagnosis?.shown?.text ? diagnosis.shown : null;
   const diagnosisOffered = !diagnosisShown && typeof diagnosis?.onShow === 'function';
   /*
@@ -92,6 +112,13 @@ export default function HintPanel({
     <ol start={start + 1} style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 10 }}>
       {list.map((hint, offset) => {
         const index = start + offset;
+        if (loading(hint)) {
+          return (
+            <li key={`hint-${index}`} data-hint-source="pending" style={{ lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
+              <span role="status">{PENDING_RUNG_TEXT}</span>
+            </li>
+          );
+        }
         return (
           <li key={`hint-${index}`} data-hint-source={hint.source} style={{ lineHeight: 1.55 }}>
             <MathText>{hint.text}</MathText>
@@ -143,7 +170,7 @@ export default function HintPanel({
         {diagnosisOffered && (
           <button type="button" data-miss-diagnosis-offer="" style={button} onClick={diagnosis.onShow}>What might have gone wrong?</button>
         )}
-        {release.waitingForAttempt && (
+        {release.waitingForAttempt && !shown.some(loading) && (
           <span role="status" style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>Try again with that hint — the next one opens after your next try.</span>
         )}
         {similar && !similarOpen && (

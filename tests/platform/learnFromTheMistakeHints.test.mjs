@@ -230,9 +230,11 @@ test('inside a question with the platform ladder a tool shows no ladder of its o
 test('QuestionEngine feeds the tool\'s rungs into its ladder, and hands every tool the channel', () => {
   const engine = code('src/QuestionEngine.jsx');
   assert.match(engine, /import \{ createToolHintChannel \} from '\.\/tools\/shared\/toolHintChannel\.js';/);
-  assert.match(engine, /buildQuestionHints\(processedQuestion, \{ toolHints \}\)/);
+  // The tool's rungs, once the tool on screen has mounted with this question
+  // (hint-ladder timing, hintLadderTiming.test.mjs).
+  assert.match(engine, /buildQuestionHints\(processedQuestion, \{ toolHints: toolRungsPending \? \[\] : toolHints \}\)/);
   assert.match(engine, /\n\s*const toolHintPublisher = hintControlAllowed \? toolHintChannel\.publish : null;/);
-  assert.match(engine, /\n\s*const hintLadder = hintLadderView\(\{ ladder: questionHints, revealedTexts: revealedHintTexts, revealedCount: hintsRevealed \}\);/);
+  assert.match(engine, /\n\s*const hintLadder = hintLadderView\(\{ ladder: questionHints, revealedTexts: revealedHintTexts, revealedCount: hintsRevealed, toolRungsPending \}\);/);
   assert.match(engine, /hintRelease\(\{ hints: hintLadder\.hints, revealed: hintLadder\.revealed,/);
   const render = region(engine, 'const renderModule = () => {', null, 'renderModule');
   const providers = [...render.matchAll(/<ToolRuntimeProvider\b[^>]*>/g)].map((match) => match[0]);

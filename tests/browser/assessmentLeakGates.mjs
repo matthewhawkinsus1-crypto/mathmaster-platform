@@ -64,6 +64,7 @@ import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { MISCONCEPTION_STUDENT_MESSAGES } from '../../functions/shared/misconceptionStudentMessages.mjs';
 import { GENERIC_MISS_MESSAGES } from '../../src/platform/supports/feedback/genericMissChecks.js';
 import { FALLBACK_HINTS } from '../../src/platform/supports/hints/questionHints.js';
+import { PENDING_RUNG_TEXT } from '../../src/platform/supports/hints/hintCopy.js';
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 // Screenshots of any journey that could not be completed.
@@ -761,7 +762,9 @@ const LADDER_WORDS = ['LEAKCHECK', 'A hint is ready', 'Show a hint', 'See why it
   'See a similar problem worked', 'What might have gone wrong', 'Hints never lower your grade', 'won\'t count toward unlocking',
   // Student pass 3, wave 6 (HELP-23): the pointer beside the fallbacks, and
   // every fallback (none may reach a DOL or test).
-  'These hints are general', ...Object.values(FALLBACK_HINTS).flat()];
+  'These hints are general', ...Object.values(FALLBACK_HINTS).flat(),
+  // Hint-ladder timing: the line a rung shows while its tool loads.
+  PENDING_RUNG_TEXT];
 const ladderLeaks = async (page) => {
   const html = await page.evaluate(() => document.documentElement.outerHTML);
   const messages = [...Object.values(MISCONCEPTION_STUDENT_MESSAGES), ...Object.values(GENERIC_MISS_MESSAGES)];
