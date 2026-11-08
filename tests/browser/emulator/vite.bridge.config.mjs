@@ -16,6 +16,7 @@ export default defineConfig({
   plugins: [
     swapModules('mm-bridge-swap', [
       [path.join(repo, 'src/firebase.js'), path.join(here, 'firebaseEmulator.js')],
+      [path.join(repo, 'src/firebaseApp.js'), path.join(here, 'firebaseEmulator.js')],
       [path.join(repo, 'src/platform/liveChallenge/liveChallengeService.js'), path.join(here, 'liveChallengeBridgeService.js')],
     ]),
     react(),

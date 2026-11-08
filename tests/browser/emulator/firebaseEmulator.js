@@ -1,7 +1,9 @@
-// Stands in for src/firebase.js inside the full-game harness ONLY.
+// Stands in for src/firebase.js and src/firebaseApp.js inside the full-game
+// harness ONLY.
 //
-// The real module hardcodes the live project's config, so a harness that
-// imported it would point a browser at production. This one connects to the
+// The real firebaseApp.js hardcodes the live project's config, and
+// firebase.js builds on it, so a harness that imported either would point a
+// browser at production. This one connects to the
 // Firestore emulator instead, under a throwaway project id, so nothing the
 // harness does can reach a real student.
 import { initializeApp, getApps, getApp } from 'firebase/app';

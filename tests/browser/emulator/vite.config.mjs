@@ -16,6 +16,8 @@ export default defineConfig({
   plugins: [
     swapModules('mm-harness-swap', [
       [path.join(repo, 'src/firebase.js'), path.join(here, 'firebaseEmulator.js')],
+      // The production config itself: the sign-in path's Auth and Functions.
+      [path.join(repo, 'src/firebaseApp.js'), path.join(here, 'firebaseEmulator.js')],
       [path.join(repo, 'src/platform/liveChallenge/liveChallengeService.js'), path.join(here, 'liveChallengeServiceStub.js')],
       [path.join(repo, 'src/services/testCycleService.js'), path.join(here, 'testCycleServiceStub.js')],
       [path.join(repo, 'src/services/secureExamService.js'), path.join(here, 'secureExamServiceStub.js')],

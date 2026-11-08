@@ -16,7 +16,9 @@ import {
   signOut,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '../firebase';
+// Not firebase.js: that one brings Firestore, which signing in never reads
+// (firebaseApp.js).
+import { auth, functions } from '../firebaseApp.js';
 import {
   CLASSROOM_STUDENT_SESSION_EXPIRES_KEY,
   classroomSessionIsExpired,

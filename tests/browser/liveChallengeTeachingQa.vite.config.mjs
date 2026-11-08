@@ -15,6 +15,7 @@ const harnessService = path.join(here, 'liveChallengeTeachingQaService.js');
 const bridgeService = path.join(here, 'emulator/liveChallengeBridgeService.js');
 const swaps = new Map([
   [path.join(repo, 'src/firebase.js'), path.join(here, 'emulator/firebaseEmulator.js')],
+  [path.join(repo, 'src/firebaseApp.js'), path.join(here, 'emulator/firebaseEmulator.js')],
   [realService, harnessService],
 ]);
 const keepReal = new Set([harnessService, bridgeService]);

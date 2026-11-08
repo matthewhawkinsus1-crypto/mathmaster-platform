@@ -14,7 +14,9 @@
  * through registerClientFirebase.mjs, which also checks what actually loaded.
  */
 const CLIENT_FIREBASE = new URL('./clientFirebase.mjs', import.meta.url).href;
-const PRODUCTION_CONFIG = /\/src\/firebase\.js(?:[?#].*)?$/;
+// src/firebaseApp.js holds the config itself (the sign-in path's Auth and
+// Functions); src/firebase.js builds Firestore on it. Neither may load.
+const PRODUCTION_CONFIG = /\/src\/firebase(?:App)?\.js(?:[?#].*)?$/;
 
 export async function resolve(specifier, context, nextResolve) {
   const parent = String(context?.parentURL || '');
@@ -23,8 +25,10 @@ export async function resolve(specifier, context, nextResolve) {
     return { url: `${CLIENT_FIREBASE}?mmClient=${device}`, shortCircuit: true };
   }
   const resolved = await nextResolve(specifier, context);
-  if (PRODUCTION_CONFIG.test(String(resolved?.url || ''))) {
-    throw new Error(`The production Firebase config (src/firebase.js) must never load in the emulator suites; it was imported from ${parent || 'the entry point'}.`);
+  const production = PRODUCTION_CONFIG.exec(String(resolved?.url || ''));
+  if (production) {
+    const file = production[0].replace(/[?#].*$/, '').slice(1);
+    throw new Error(`The production Firebase config (${file}) must never load in the emulator suites; it was imported from ${parent || 'the entry point'}.`);
   }
   return resolved;
 }

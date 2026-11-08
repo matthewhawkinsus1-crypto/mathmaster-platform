@@ -1,5 +1,7 @@
 import { httpsCallable } from "firebase/functions";
-import { functions } from "./firebase";
+// The sign-in screen's launch preview calls getAssignmentByLaunchId, so this
+// takes Functions from firebaseApp.js, which does not bring Firestore.
+import { functions } from "./firebaseApp.js";
 
 function readableFunctionError(error, functionName) {
   const code = String(error?.code || "").replace("functions/", "");

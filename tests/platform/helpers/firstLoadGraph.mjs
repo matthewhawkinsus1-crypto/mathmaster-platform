@@ -6,6 +6,12 @@
  * then App.jsx, which AppShell loads the moment an account is signed in.
  * `firstLoadGraph()` maps every module reached to the module that reached it;
  * `chainTo` prints that path, for a failure message.
+ *
+ * `signInGraph()` is main.jsx's walk alone: what the sign-in screen loads
+ * (scripts/lib/firstLoadBudget.mjs's signIn path), before App. A package is a
+ * node per entry point there (`pkg:firebase/auth`, `pkg:firebase/firestore`),
+ * since one package can be half on the path; `firstLoadGraph()` keeps one
+ * node per package (`pkg:firebase`).
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -14,8 +20,9 @@ import { fileURLToPath } from 'node:url';
 export const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];
 
-const resolveSpecifier = (from, specifier) => {
+const resolveSpecifier = (from, specifier, { entryPoints = false } = {}) => {
   if (!specifier.startsWith('.')) {
+    if (entryPoints) return `pkg:${specifier}`;
     const parts = specifier.split('/');
     return `pkg:${specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]}`;
   }
@@ -34,14 +41,14 @@ const staticImports = (file) => {
   return [...code.matchAll(/(?:^|\n)\s*(?:import|export)\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/g)].map((match) => match[1]);
 };
 
-const staticGraph = (entry) => {
+const staticGraph = (entry, options = {}) => {
   const parent = new Map([[entry, null]]);
   const queue = [entry];
   while (queue.length) {
     const file = queue.shift();
     if (file.startsWith('pkg:') || !/\.(m?jsx?)$/.test(file)) continue;
     for (const specifier of staticImports(file)) {
-      const resolved = resolveSpecifier(file, specifier);
+      const resolved = resolveSpecifier(file, specifier, options);
       if (resolved && !parent.has(resolved)) {
         parent.set(resolved, file);
         queue.push(resolved);
@@ -58,6 +65,11 @@ export const firstLoadGraph = () => {
   }
   return graph;
 };
+
+export const signInGraph = () => staticGraph(path.join(repo, 'src/main.jsx'), { entryPoints: true });
+
+/** What App.jsx reaches statically: the chunks loading App brings, and its prefetch fetches. */
+export const appGraph = () => staticGraph(path.join(repo, 'src/App.jsx'), { entryPoints: true });
 
 export const chainTo = (graph, target) => {
   const chain = [];

@@ -218,7 +218,9 @@ const vite = await createServer({
         const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
         if (!resolved) return null;
         const id = path.resolve(resolved.id);
-        if (id === path.join(repo, 'src/firebase.js')) return { ...resolved, id: path.join(here, 'emulator/firebaseEmulator.js') };
+        // firebaseApp.js holds the production config (the sign-in path's Auth
+        // and Functions): it is swapped like firebase.js.
+        if (id === path.join(repo, 'src/firebase.js') || id === path.join(repo, 'src/firebaseApp.js')) return { ...resolved, id: path.join(here, 'emulator/firebaseEmulator.js') };
         if (id === realService && importer !== VIRTUAL_SERVICE && path.resolve(importer) !== bridgeService) return VIRTUAL_SERVICE;
         return resolved;
       },

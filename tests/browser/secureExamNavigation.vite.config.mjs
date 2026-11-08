@@ -31,6 +31,7 @@ export default defineConfig({
   plugins: [
     swapModules('mm-secure-navigation-swap', [
       [path.join(repo, 'src/firebase.js'), path.join(emulator, 'firebaseEmulator.js')],
+      [path.join(repo, 'src/firebaseApp.js'), path.join(emulator, 'firebaseEmulator.js')],
       [path.join(repo, 'src/platform/liveChallenge/liveChallengeService.js'), path.join(emulator, 'liveChallengeServiceStub.js')],
       [path.join(repo, 'src/services/testCycleService.js'), path.join(emulator, 'testCycleServiceStub.js')],
       [path.join(repo, 'src/platform/rewards/rewardsClient.js'), path.join(emulator, 'rewardsClientStub.js')],

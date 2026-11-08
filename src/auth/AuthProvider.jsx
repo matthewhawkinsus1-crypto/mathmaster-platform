@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
+// Auth from firebaseApp.js, not firebase.js: the sign-in screen does not wait
+// for the Firestore SDK (firebaseApp.js).
+import { auth } from '../firebaseApp.js';
 import {
   consumeRedirectResult,
   describeAuthError,
