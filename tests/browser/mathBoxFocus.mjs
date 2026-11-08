@@ -111,11 +111,16 @@ for (const size of SIZES) {
         const { page, close } = await open(size, query);
         const ends = [];
         for (let run = 0; run < 5; run += 1) {
-          if (run) await page.reload({ waitUntil: 'networkidle' });
-          await page.locator('math-field').nth(BOXES.length - 1).waitFor();
-          const { gap, end } = await tabInsideHandOver(page, size, 'Slope', how);
-          assert.ok(gap < HAND_OVER_MS, `run ${run + 1}: the second Tab came ${Math.round(gap)} ms after the box took focus, not inside its ${HAND_OVER_MS} ms`);
-          ends.push(end);
+          // A busy runner can send the second Tab too late to test anything:
+          // that run is tried again, and only a Tab inside the 60 ms counts.
+          let tried = null;
+          for (let attempt = 0; attempt < 3 && !(tried?.gap < HAND_OVER_MS); attempt += 1) {
+            if (run || attempt) await page.reload({ waitUntil: 'networkidle' });
+            await page.locator('math-field').nth(BOXES.length - 1).waitFor();
+            tried = await tabInsideHandOver(page, size, 'Slope', how);
+          }
+          assert.ok(tried.gap < HAND_OVER_MS, `run ${run + 1}: the second Tab came ${Math.round(tried.gap)} ms after the box took focus, not inside its ${HAND_OVER_MS} ms`);
+          ends.push(tried.end);
         }
         assert.deepEqual(ends, Array(5).fill(next), `focus went on to ${next} every time (${ends.join(' | ')})`);
         await close();
@@ -175,12 +180,18 @@ for (const size of SIZES) {
         return before !== window.__mathBoxFocus.sinkOf('x-intercept');
       });
       assert.equal(rebuilt, true, 'precondition: moving the box made MathLive build it a new sink');
-      await page.evaluate(() => window.__mathBoxFocus.clear());
-      await press(page, size, 'x-intercept');
-      await page.waitForTimeout(5);
-      await page.keyboard.press('Tab');
-      await page.waitForTimeout(250);
-      const gap = tabGap(await focusLog(page), 'x-intercept');
+      // As above: only a Tab inside the 60 ms counts, so a late one is tried again.
+      let gap = Infinity;
+      for (let attempt = 0; attempt < 3 && !(gap < HAND_OVER_MS); attempt += 1) {
+        await page.locator('[data-test="before"]').focus();
+        await page.waitForTimeout(150);
+        await page.evaluate(() => window.__mathBoxFocus.clear());
+        await press(page, size, 'x-intercept');
+        await page.waitForTimeout(5);
+        await page.keyboard.press('Tab');
+        await page.waitForTimeout(250);
+        gap = tabGap(await focusLog(page), 'x-intercept');
+      }
       assert.ok(gap < HAND_OVER_MS, `run ${run + 1}: the Tab came ${Math.round(gap)} ms after the box took focus`);
       ends.push(await where(page));
     }
