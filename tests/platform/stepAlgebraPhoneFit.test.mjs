@@ -28,6 +28,7 @@ import {
   phoneSideColumnWeight,
 } from '../../src/platform/algebra/equationSideFit.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { declared, parseCss } from './helpers/cssRules.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -184,3 +185,40 @@ test('the board, App.css and the phone layout are wired to the fit', () => {
   assert.match(css, /\.algebra-expression-fit-viewport\[data-scrolls="true"\] \{[^}]*justify-content: flex-start;[^}]*overflow-x: auto;/);
   assert.match(css, /\.algebra-expression-fit-viewport \{[^}]*overflow: hidden;/);
 });
+
+test('a phone on its side fits a side as an upright phone does: the 18 there is the fit\'s cap', () => {
+  // MathToolMobileLayout.css drew every side at 18 px with !important on a
+  // landscape phone, which beat the board's fit, the fault P-6 fixed upright.
+  const LANDSCAPE = '(orientation: landscape) and (max-height: 500px)';
+  const rules = parseCss(read('src/components/student/MathToolMobileLayout.css'));
+  const landscape = rules.filter((rule) => rule.atRules.some((atRule) => atRule.includes(LANDSCAPE)));
+  assert.ok(landscape.length > 20, 'the landscape rules are read');
+  const sizedSides = landscape.filter((rule) => rule.selectors.some((selector) => /\.algebra-(equation|connected)-side(\s|$)/.test(selector)) && 'font-size' in rule.declarations);
+  assert.deepEqual(sizedSides.map((rule) => rule.selectors.join(', ')), [], 'no font size on a side: it would beat the fit');
+  assert.deepEqual(
+    declared(rules, '.mathmaster-question-container.mode-landscape .algebra-expression-fit-viewport', '--algebra-side-max-size', { media: LANDSCAPE }),
+    { value: '18', important: false },
+  );
+  // The stage's two columns take each side's share from the board, as upright.
+  assert.deepEqual(
+    declared(rules, '.mathmaster-question-container.mode-landscape .algebra-equation-stage', 'grid-template-columns', { media: LANDSCAPE }),
+    { value: 'var(--algebra-side-left, minmax(0, 1fr)) 34px var(--algebra-side-right, minmax(0, 1fr))', important: true },
+  );
+  // The upright phone keeps its 20, and nothing sizes a side for every screen.
+  const app = parseCss(read('src/App.css'));
+  assert.deepEqual(declared(app, '.algebra-expression-fit-viewport', '--algebra-side-max-size', { media: '(max-width: 720px)' }), { value: '20', important: false });
+  assert.equal(declared(rules, '.algebra-expression-fit-viewport', '--algebra-side-max-size', { media: null }), null);
+
+  // With the cap at 18 a side that fits looks as it did: at 844x390 (CI's
+  // fonts) Honors PR 7's 2(3(x − 1) − (x + 4)) is 172 px at 18 in a 228-px box.
+  assert.deepEqual(fitEquationSide({ available: 220, rendered: 172, units: 18, base: 27, cap: 18 }), { size: 18, scrolls: false, widthPerUnit: 172 / 18 });
+  // At 200% text one unit is 2 px: the same side was drawn at 36 px, 344 px
+  // wide, and cut by 116 px. With its share of the board (a 331-px box) the
+  // fit draws it at about 33 px, and it fits; the floor is still 17 px.
+  const at200 = fitEquationSide({ available: 323, rendered: 344, units: 18, base: 27, cap: 18, pxPerUnit: 2 });
+  assert.ok(at200.size < 18 && at200.size * 2 >= EQUATION_FIT_FLOOR_PX, `${at200.size}`);
+  assert.ok(Math.abs(at200.size * 2 - 33) < 0.5, `${at200.size * 2} px`);
+  assert.ok(at200.widthPerUnit * at200.size <= 323, 'it fits');
+  assert.equal(at200.scrolls, false);
+});
+

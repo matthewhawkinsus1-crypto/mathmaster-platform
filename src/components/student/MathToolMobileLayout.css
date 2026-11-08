@@ -767,14 +767,22 @@
     font-size: calc(17 * var(--mm-px)) !important;
   }
 
+  /* Each side's share comes from the board, as on an upright phone (App.css,
+     P-6): a long side borrows the room a short one does not need; without
+     the board's shares the halves are equal. */
   .mathmaster-question-container.mode-landscape .algebra-equation-stage {
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr) !important;
+    grid-template-columns: var(--algebra-side-left, minmax(0, 1fr)) 34px var(--algebra-side-right, minmax(0, 1fr)) !important;
     gap: 5px !important;
     padding: 8px !important;
   }
 
-  .mathmaster-question-container.mode-landscape .algebra-equation-side {
-    font-size: calc(18 * var(--mm-px)) !important;
+  /* A side is drawn at most 18 units here, as it was. The board's fit reads
+     this cap (StepByStepAlgebraCore.jsx AutoFitEquationExpression), so a long
+     side still shrinks, or scrolls, instead of being drawn at 18 and cut off:
+     a font size on the side itself overrode the fit, the fault P-6 fixed on
+     an upright phone. */
+  .mathmaster-question-container.mode-landscape .algebra-expression-fit-viewport {
+    --algebra-side-max-size: 18;
   }
 
   .mathmaster-question-container.mode-landscape .algebra-equation-box {
