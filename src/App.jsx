@@ -2907,6 +2907,8 @@ function App() {
     gradesByAssignment = {},
     assignmentList = [],
     correctedAt = new Date().toISOString(),
+    studentId = null,
+    classId = null,
   } = {}) => {
     let changed = false;
     const next = { ...(gradesByAssignment || {}) };
@@ -2919,6 +2921,10 @@ function App() {
         assignmentTracker: gradesByAssignment[assignment.id],
         questions,
         correctedAt,
+        // A repair retry is counted as the student's screen counts it.
+        assignment,
+        studentId,
+        classId,
       });
       if (repairedTracker !== gradesByAssignment[assignment.id]) {
         next[assignment.id] = repairedTracker;
@@ -2946,6 +2952,8 @@ function App() {
         gradesByAssignment: student?.gradesByAssignment || {},
         assignmentList,
         correctedAt,
+        studentId: student?.id || null,
+        classId: student?.classId || null,
       });
       return result.changed
         ? { student, gradesByAssignment: result.gradesByAssignment }
@@ -7234,10 +7242,27 @@ function App() {
   const handlePreviewFamilyDelivery = useCallback((delivery, renderedQuestion) => {
     if (delivery?.slot) familyDeliveriesRef.current.set(shownDeliveryKey({ ...delivery, preview: true }), { delivery, question: renderedQuestion || null });
   }, []);
+  // What a slot's pin dealt, rebuilt once per pin and per copy of the
+  // assignment (platform/generation/dealtFamilyQuestion.js).
+  const dealtFamilyQuestionsRef = useRef(new WeakMap());
   // The question every try count below reads: the one shown for this slot and
-  // variant, else `fallback` (platform/generation/shownFamilyQuestion.js, P-7).
+  // variant; where nothing has been shown on this device yet (after a reload,
+  // a slot not opened again), the one its pin dealt, as the server counts it;
+  // else `fallback` (platform/generation/shownFamilyQuestion.js, P-7).
   const countedQuestionFor = (assignment, questionIndex, record, fallback, preview = false) => countedQuestion({
     shown: familyDeliveriesRef.current,
+    deal: familyDelivery && user?.role === 'student' && user?.id
+      ? ({ slot, variant, storedQuestion }) => familyDelivery.dealtFamilyQuestion({
+        assignment,
+        question: storedQuestion,
+        questionIndex,
+        record,
+        devicePin: readLocalDeliveryPin({ studentId: user.id, slotKey: slot, variant }),
+        studentId: user.id,
+        classId: user.classId || null,
+        cache: dealtFamilyQuestionsRef.current,
+      })
+      : null,
     assignmentId: assignment?.id,
     storedQuestion: getStoredAssignmentQuestions(assignment)[questionIndex],
     questionIndex,

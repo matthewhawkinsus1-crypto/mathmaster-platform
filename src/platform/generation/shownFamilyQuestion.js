@@ -13,12 +13,21 @@
  *
  * QuestionEngine reports each question it deals (onFamilyDelivery), and App
  * keeps it by slot and variant under `shownDeliveryKey`. Every count App makes
- * reads `countedQuestion`, which is that question, or the stored one where
- * nothing has been shown on this device yet. A teacher's preview keeps what it
- * showed under its own key: it is never a student's delivery, so a student's
- * submission can never pick it up as a pin.
+ * reads `countedQuestion`, which is that question. A teacher's preview keeps
+ * what it showed under its own key: it is never a student's delivery, so a
+ * student's submission can never pick it up as a pin.
  *
- * No family engine is imported here: App reads this on the first load.
+ * WHERE NOTHING HAS BEEN SHOWN, THE PIN SAYS WHAT WAS DEALT. After a reload
+ * the question list counted a slot the student had not opened again on that
+ * device on the stored slot, so a Warm-Up 2 closed after its one try read
+ * "2 tries left"; the teacher's case review and a live correction's repair
+ * retry, which no screen of the student's informs, did the same. They now
+ * hand `countedQuestion` a `deal`: the question the slot's delivery pin names,
+ * rebuilt as the server rebuilds it to count (dealtFamilyQuestion.js). Only
+ * where neither gives a question is the stored slot counted, as before.
+ *
+ * No family engine is imported here: App reads this on the first load. The
+ * `deal` comes from the engine, where the caller has it.
  */
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../../../functions/shared/questionFamilySlot.mjs';
@@ -33,11 +42,15 @@ export const shownDeliveryKey = ({ slot = '', variant = 0, preview = false } = {
  *
  * `shown` is App's map of what QuestionEngine reported showing
  * (key → { delivery, question }); `record` says which variant is current;
- * `fallback` is the question used where nothing was shown (App's own stored
- * question, as every count read before).
+ * `deal`, where nothing was shown, is asked for the question the slot's pin
+ * dealt (`{ slot, variant, storedQuestion, questionIndex, record }` → a
+ * question or null; never for a preview, which pins nothing); `fallback` is
+ * the question used where neither gives one (the caller's stored question, as
+ * every count read before).
  */
 export const countedQuestion = ({
   shown = null,
+  deal = null,
   assignmentId = '',
   storedQuestion = null,
   questionIndex = 0,
@@ -48,5 +61,8 @@ export const countedQuestion = ({
   if (!assignmentId || !isFamilyBackedQuestion(storedQuestion)) return fallback;
   const slot = familySlotKey({ assignmentId, question: storedQuestion, storageIndex: questionIndex });
   const variant = normalizeQuestionRecord(record).variantIndex;
-  return shown?.get?.(shownDeliveryKey({ slot, variant, preview }))?.question || fallback;
+  const seen = shown?.get?.(shownDeliveryKey({ slot, variant, preview }))?.question;
+  if (seen) return seen;
+  if (preview || typeof deal !== 'function') return fallback;
+  return deal({ slot, variant, storedQuestion, questionIndex, record }) || fallback;
 };

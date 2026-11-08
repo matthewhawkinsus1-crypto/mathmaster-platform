@@ -1321,7 +1321,7 @@ export default function TeacherWorkspace({
           }))
           : [];
 
-        gradeEntries.forEach(({ studentRef, snapshot }) => {
+        gradeEntries.forEach(({ student, studentRef, snapshot }) => {
           if (!snapshot.exists()) return;
           const studentData = snapshot.data() || {};
           const gradesByAssignment = studentData.gradesByAssignment || {};
@@ -1336,6 +1336,10 @@ export default function TeacherWorkspace({
               questions: persistedQuestions,
               repairs: liveRepairs,
               correctedAt,
+              // A repair retry is counted as this student's screen counts it.
+              assignment: liveAssignment,
+              studentId: student.id,
+              classId: studentData.classId || student.classId || null,
             });
           }
           if (weightChanges.length > 0) {

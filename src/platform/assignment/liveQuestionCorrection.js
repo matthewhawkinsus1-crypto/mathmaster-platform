@@ -1,7 +1,11 @@
 import {
   normalizeQuestionRecord,
   resolveQuestionMaximumAttempts,
+  resolveTeacherGrantedExtraAttempts,
 } from '../../attemptPolicy.js';
+import { getEffectiveActivityPolicy } from '../policies/activityPolicies.js';
+import { countedQuestion } from '../generation/shownFamilyQuestion.js';
+import { dealtFamilyQuestion } from '../generation/dealtFamilyQuestion.js';
 import { stableStringify } from '../../utils/idUtils.js';
 import { getDomainRangeAcceptedAnswers } from '../../interactiveGraphEngine.js';
 import { pathAnalysisTextMatches } from '../../../functions/shared/pathToolContracts.mjs';
@@ -30,13 +34,53 @@ const compactRepairHistory = (history, entry) => [
   entry,
 ].slice(-20);
 
+/*
+ * ONE REPAIR RETRY, UNDER THE LIMIT THE STUDENT'S SCREEN AND THE SERVER COUNT
+ * (P-7).
+ *
+ * A repair that leaves an exhausted student with a part still wrong gives one
+ * try back: the record's attempt count is set one short of the question's
+ * limit. That limit was read off the stored question alone, three tries in
+ * every section, so on an exit ticket (one try) the record kept two tries
+ * used: the screen said "0 tries left" while the server still took an
+ * answer. It is now the limit App.jsx and the server count: the section's own
+ * policy (the role each stored question carries), a teacher's extra
+ * exit-ticket tries for this student, and, for a Question Family slot, the
+ * question its pin dealt (shownFamilyQuestion.js countedQuestion). Without an
+ * assignment or a student (an older caller) the policy still applies.
+ */
+const repairAttemptLimit = ({ record, question, questionIndex = 0, assignment = null, studentId = null, classId = null }) => {
+  const activityRole = question?.activityRole || null;
+  const activityPolicy = getEffectiveActivityPolicy(activityRole);
+  const triesCountedOn = countedQuestion({
+    assignmentId: assignment?.id || '',
+    storedQuestion: question,
+    questionIndex,
+    record,
+    deal: () => dealtFamilyQuestion({ assignment, question, questionIndex, record, studentId, classId }),
+  });
+  return resolveQuestionMaximumAttempts({
+    question: triesCountedOn,
+    maximumAttempts: activityPolicy.attempts,
+    activityPolicy,
+    teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({ assignment: assignment || {}, activityRole, classId, studentId }),
+  });
+};
+
 export const repairQuestionRecordForLiveCorrection = ({
   record,
   question,
   affectedFieldIds = [],
   repairKind = null,
   correctedAt = new Date().toISOString(),
+  // Whose record this is, for the limit its repair retry is counted under
+  // (repairAttemptLimit): the assignment, the slot's storage index, the student.
+  assignment = null,
+  questionIndex = 0,
+  studentId = null,
+  classId = null,
 } = {}) => {
+  const limitFor = (repairing) => repairAttemptLimit({ record: repairing, question, questionIndex, assignment, studentId, classId });
   // A presentation-only repair (today: graph viewport bounds) reframes what a
   // student looks at without changing anything they were asked or anything the
   // grader reads. Nothing about the stored record is re-derived from it: no
@@ -58,7 +102,7 @@ export const repairQuestionRecordForLiveCorrection = ({
       || Number(current.bestPartialCredit || 0) > 0;
     if (!hadActivity || current.status === 'correct') return record;
 
-    const maximumAttempts = resolveQuestionMaximumAttempts({ question });
+    const maximumAttempts = limitFor(record);
     const needsRepairRetry = current.status === 'expired' || current.attemptCount >= maximumAttempts;
     if (!needsRepairRetry) return record;
 
@@ -105,7 +149,7 @@ export const repairQuestionRecordForLiveCorrection = ({
     ? Math.min(90, Math.round((partGrades.filter((part) => part.isComplete && part.isCorrect).length / partGrades.length) * 100))
     : 0;
 
-  const maximumAttempts = resolveQuestionMaximumAttempts({ question });
+  const maximumAttempts = limitFor(record);
   const needsRepairRetry = current.status === 'expired' || current.attemptCount >= maximumAttempts;
   const attemptCount = allPartsCorrect
     ? current.attemptCount
@@ -149,6 +193,11 @@ export const repairAssignmentTrackerForLiveCorrections = ({
   questions = [],
   repairs = [],
   correctedAt = new Date().toISOString(),
+  // Whose tracker this is: each repair retry is counted under the limit the
+  // student's screen counts (repairAttemptLimit).
+  assignment = null,
+  studentId = null,
+  classId = null,
 } = {}) => {
   const next = { ...(assignmentTracker || {}) };
   repairs.forEach((repair) => {
@@ -162,6 +211,10 @@ export const repairAssignmentTrackerForLiveCorrections = ({
       affectedFieldIds: repair.affectedFieldIds || [],
       repairKind: repair.repairKind || null,
       correctedAt,
+      assignment,
+      questionIndex: index,
+      studentId,
+      classId,
     });
   });
   return next;
@@ -337,6 +390,11 @@ export const repairQuestionRecordForCurrentGrader = ({
   record,
   question,
   correctedAt = new Date().toISOString(),
+  // Whose record, for the limit its repair retry is counted under (repairAttemptLimit).
+  assignment = null,
+  questionIndex = 0,
+  studentId = null,
+  classId = null,
 } = {}) => {
   if (!record || !question || String(question.type || '') !== 'graphAnalysis') return record;
   if (question.generator || (Array.isArray(question.variants) && question.variants.length)) return record;
@@ -391,7 +449,7 @@ export const repairQuestionRecordForCurrentGrader = ({
       )
     : 0;
 
-  const maximumAttempts = resolveQuestionMaximumAttempts({ question });
+  const maximumAttempts = repairAttemptLimit({ record, question, questionIndex, assignment, studentId, classId });
   const needsRepairRetry = current.status === 'expired' || current.attemptCount >= maximumAttempts;
   const attemptCount = allPartsCorrect
     ? current.attemptCount
@@ -432,6 +490,10 @@ export const repairAssignmentTrackerForCurrentGrader = ({
   assignmentTracker = {},
   questions = [],
   correctedAt = new Date().toISOString(),
+  // Whose tracker this is (repairAttemptLimit).
+  assignment = null,
+  studentId = null,
+  classId = null,
 } = {}) => {
   let changed = false;
   const next = { ...(assignmentTracker || {}) };
@@ -443,6 +505,10 @@ export const repairAssignmentTrackerForCurrentGrader = ({
       record,
       question,
       correctedAt,
+      assignment,
+      questionIndex: index,
+      studentId,
+      classId,
     });
     if (repaired !== record) {
       next[index] = repaired;

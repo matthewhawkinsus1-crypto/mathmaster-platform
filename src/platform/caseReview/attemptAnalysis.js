@@ -37,6 +37,9 @@ import { normalizeQuestionStandards, normalizeQuestionComplexity } from '../../.
 import { toDisplayCode } from '../../../functions/shared/teksUtils.mjs';
 import { trustedMisconceptionFindings } from '../../../functions/shared/misconceptionCodes.mjs';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
+import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
+import { countedQuestion } from '../generation/shownFamilyQuestion.js';
+import { dealtFamilyQuestion } from '../generation/dealtFamilyQuestion.js';
 import { projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
 import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
 import { CASE_PROVENANCE } from './caseProvenance.js';
@@ -246,6 +249,7 @@ export const analyzeAssignmentQuestions = ({
   // What the student's reduced-item-count accommodation omits, from their own
   // answers (answered work is never omitted). Empty without the support.
   const notRequired = studentOmittedIndices({ assignment, profile: student?.profile || null, tracker: rawTracker });
+  const storedQuestions = getStoredAssignmentQuestions(assignment);
 
   const rows = entries.map((entry, overallIndex) => {
     const question = entry.question || {};
@@ -255,8 +259,23 @@ export const analyzeAssignmentQuestions = ({
     const record = normalizeQuestionRecord(raw);
     const graded = normalizeQuestionRecord(projected[index] ?? projected[String(index)]);
     const questionEvents = events.get(index) || [];
+    // Tries are counted on the question the student was dealt, as their
+    // screen and the server count them (P-7): a Question Family slot is stored
+    // with no answer fields (three tries), and dealt as all choices it has one.
+    // Its record's pin names what was dealt (dealtFamilyQuestion.js).
+    const stored = storedQuestions[index] || question;
+    const triesCountedOn = countedQuestion({
+      assignmentId,
+      storedQuestion: stored,
+      questionIndex: index,
+      record: raw,
+      fallback: question,
+      deal: () => dealtFamilyQuestion({
+        assignment, question: stored, questionIndex: index, record: raw, studentId: student?.id || null, classId: student?.classId || null,
+      }),
+    });
     const maxAttempts = resolveQuestionMaximumAttempts({
-      question,
+      question: triesCountedOn,
       activityPolicy: getEffectiveActivityPolicy(role),
       teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
         assignment, activityRole: role, classId: student?.classId || null, studentId: student?.id || null,
