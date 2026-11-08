@@ -60,7 +60,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync } from 'node:fs';
 import { SCREENS, sceneLabel, newScreenContext } from './accessibilityCertification.mjs';
-import { TEACHER_SCREENS, openTeacherApp } from './accessibilityTeacherScreens.mjs';
+import { MATH_TOOLS_LAB_WORK_VIEW_TOOLS, TEACHER_SCREENS, openLabWorkView, openTeacherApp } from './accessibilityTeacherScreens.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
 import { parseShard, shardOf } from './support/sceneShards.mjs';
@@ -466,10 +466,12 @@ const KEYBOARD_RULES_JUDGED = ['mm-pointer-only-control', 'mm-tab-stop-not-activ
 // THE MATH TOOLS LAB (student-a11y-3). The teacher's bench mounts each student tool
 // with its sample question; its other tools and their Work Views had not been walked
 // (the VPAT's notes on the teacher screens). Walked by hand on 2026-11-08, its 24 tools
-// at 1366×768 and on a 390×844 phone, and the 16 Work Views they open there: nothing
-// hidden, unnamed, pointer-only, out of reach or a trap. The Matrix Lab stays in the
-// walk, on the page and in its Work View (which a phone opens on its own), judged by
-// the keyboard rules too.
+// at 1366×768 and on a 390×844 phone: nothing hidden, unnamed, pointer-only, out of
+// reach or a trap. The Matrix Lab stays in the walk on the page, and every Work View
+// the Lab's tools open is walked (keypad-done): all but Solution Review's, which has
+// none, at both sizes, each opened as the certification opens it
+// (accessibilityTeacherScreens.mjs openLabWorkView) and judged by the keyboard rules
+// too. The Matrix Lab's was the only one until then.
 const openMathToolsLab = async (page, origins) => {
   await openTeacherApp(page, origins);
   await page.locator('nav[aria-label="Teacher dashboard navigation"] button[title="Math Tools Lab"]').evaluate((button) => button.click());
@@ -483,16 +485,12 @@ const closeLabWorkView = async (page) => {
     await page.waitForTimeout(600);
   }
 };
-const labTool = (label, { workView }) => async (page) => {
+// A tool on the page: chosen in the list, with a Work View it opened on its own closed.
+const labTool = (label) => async (page) => {
   await closeLabWorkView(page);
   await page.locator('aside.mm-tools-lab-list button', { hasText: label }).first().evaluate((button) => button.click());
   await page.waitForTimeout(1500);
-  if (!workView) { await closeLabWorkView(page); return; }
-  if (!(await page.locator('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header').count())) {
-    await page.locator('button:visible', { hasText: /Open Work View/ }).first().click();
-  }
-  await page.waitForSelector('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header', { timeout: 30_000 });
-  await page.waitForTimeout(800);
+  await closeLabWorkView(page);
 };
 
 export const FOCUS_SCREENS = [
@@ -512,8 +510,8 @@ export const FOCUS_SCREENS = [
     keyboardRules: KEYBOARD_RULES_JUDGED,
     open: openMathToolsLab,
     scenes: [
-      { id: 'matrix-lab', run: labTool('Matrix Lab', { workView: false }) },
-      { id: 'matrix-lab-work-view', run: labTool('Matrix Lab', { workView: true }) },
+      { id: 'matrix-lab', run: labTool('Matrix Lab') },
+      ...MATH_TOOLS_LAB_WORK_VIEW_TOOLS.map(({ toolId, label }) => ({ id: `${toolId}-work-view`, run: openLabWorkView(label) })),
     ],
   },
   {

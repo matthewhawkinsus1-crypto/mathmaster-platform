@@ -87,6 +87,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEACHER_EMAIL } from './teacherWorkflow/fixture.js';
 import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
+import { WORK_VIEW_INVENTORY } from '../../src/tools/workViewInventory.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -415,6 +416,23 @@ const openLabTool = (label) => async (page) => {
   await closeLabWorkView(page);
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
   await page.waitForTimeout(600);
+};
+
+// THE LAB'S WORK VIEWS (keypad-done). The scenes above close a Work View a tool opens on its own, so axe and the contrast
+// review had seen none of the Lab's. Every tool there opens one at both sizes but Solution Review, which the Work View
+// inventory exempts (read-only, nothing to enlarge): the Transformations Lab's too. A scene each: the tool chosen in the
+// list, its Work View opened with the tool's own button where it did not open on its own, and read once it has drawn.
+export const MATH_TOOLS_LAB_WORK_VIEW_TOOLS = Object.freeze(Object.entries(TOOL_CATALOG)
+  .filter(([toolId]) => WORK_VIEW_INVENTORY[toolId]?.status === 'migrated')
+  .map(([toolId, entry]) => Object.freeze({ toolId, label: entry.label })));
+const LAB_WORK_VIEW = '.mm-tools-lab-tool .mathmaster-work-view-host[data-open="true"][role="dialog"]';
+export const openLabWorkView = (label) => async (page) => {
+  await openLabTool(label)(page);
+  // Programmatic, like the list: on a phone a sticky bar can sit over a real press.
+  await page.locator('.mm-tools-lab-tool button.mathmaster-work-view-opener').first().evaluate((button) => button.click());
+  await page.locator(LAB_WORK_VIEW).waitFor({ timeout: 30_000 });
+  await page.locator(`${LAB_WORK_VIEW} .mathmaster-work-view-header`).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1200);
 };
 
 // The administrator's workspace is a view of the same page (the header's "Administration" button), with
@@ -924,8 +942,9 @@ export const TEACHER_SCREENS = [
 // browser-accessibility-math-tools-lab: `ownJob`, so a run that names no screen leaves them to that job). Not one of
 // TEACHER_SCREENS, which the teacher's large-text runs take too: each tool is measured at 200% text, at 320 px and for
 // target size on the student's screens (studentShellLargeText.mjs, its registry tools), and the Lab's own page with its
-// first tool above. Not walked by Tab here: all 24 and their Work Views were walked by hand at both sizes (student-a11y-3),
-// and the 2.4.11 walk keeps the Matrix Lab (studentShellLargeText.mjs --check=obscured).
+// first tool above. Not walked by Tab here: all 24 were walked by hand at both sizes (student-a11y-3), the 2.4.11 walk
+// keeps the Matrix Lab on the page and walks every Work View the Lab's tools open (studentShellLargeText.mjs
+// --check=obscured), and those Work Views are certified below (MATH_TOOLS_LAB_WORK_VIEW_SCREEN).
 export const MATH_TOOLS_LAB_SCREEN = {
   id: 'teacher-math-tools-lab',
   harness: 'app',
@@ -943,4 +962,19 @@ export const MATH_TOOLS_LAB_SCREEN = {
   // diagram).
   exclude: ['svg.mathmaster-responsive-canvas text'],
   scenes: MATH_TOOLS_LAB_TOOLS.map(({ toolId, label }) => ({ id: toolId, run: openLabTool(label) })),
+};
+
+// The Lab's Work Views (THE LAB'S WORK VIEWS, above): one scene each on one page, at both sizes, in the Lab's own CI job
+// beside its tools (`ownJob`), by axe and the contrast review, light and dark. A Work View is a modal dialog over the
+// page, so it is audited as the dialog; the shared plane's text is left out, for the Lab's reason. Walked by Tab in the
+// 2.4.11 walk (studentShellLargeText.mjs --check=obscured, the Lab's screen there), and not here.
+export const MATH_TOOLS_LAB_WORK_VIEW_SCREEN = {
+  id: 'teacher-math-tools-lab-work-view',
+  harness: 'app',
+  schoolClock: true,
+  ownJob: true,
+  open: MATH_TOOLS_LAB_SCREEN.open,
+  include: LAB_WORK_VIEW,
+  exclude: ['svg.mathmaster-responsive-canvas text'],
+  scenes: MATH_TOOLS_LAB_WORK_VIEW_TOOLS.map(({ toolId, label }) => ({ id: toolId, run: openLabWorkView(label) })),
 };

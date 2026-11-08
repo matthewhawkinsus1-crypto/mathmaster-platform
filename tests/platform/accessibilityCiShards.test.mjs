@@ -179,16 +179,18 @@ test('the contrast review runs light and dark, each in a job of its own with a r
 // THE MATH TOOLS LAB'S OTHER TOOLS (student-keyboard-ci): certified, and their contrast reviewed light and dark, in a
 // job of their own. Each step names the Lab's screen; a run that names none leaves it out (screensToRun), so each of
 // them is run once, here, and the jobs of every screen take no longer for it.
-test("the Math Tools Lab's other tools are certified and reviewed light and dark in a job of their own", async () => {
-  const { MATH_TOOLS_LAB_SCREEN } = await import('../browser/accessibilityTeacherScreens.mjs');
+test("the Math Tools Lab's other tools and its Work Views are certified and reviewed light and dark in a job of their own", async () => {
+  const { MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_SCREEN } = await import('../browser/accessibilityTeacherScreens.mjs');
   const lab = jobs['browser-accessibility-math-tools-lab'];
   assert.ok(lab, 'the job');
   const steps = stepsOf(lab).filter(commandOf);
+  // The Lab's two screens, its tools and the Work Views they open (keypad-done), and no other.
+  const both = `${MATH_TOOLS_LAB_SCREEN.id},${MATH_TOOLS_LAB_WORK_VIEW_SCREEN.id}`;
   assert.deepEqual(steps.map(stepRun), [
-    `npm run certify:accessibility (light, ${MATH_TOOLS_LAB_SCREEN.id})`,
-    `npm run review:contrast (light, ${MATH_TOOLS_LAB_SCREEN.id})`,
-    `npm run review:contrast (dark, ${MATH_TOOLS_LAB_SCREEN.id})`,
-  ], 'the certification, then the review in each theme, of the Lab\'s screen alone');
+    `npm run certify:accessibility (light, ${both})`,
+    `npm run review:contrast (light, ${both})`,
+    `npm run review:contrast (dark, ${both})`,
+  ], 'the certification, then the review in each theme, of the Lab\'s screens alone');
   // The two reviews write the same file: each into a folder of its own, under the one the job keeps.
   const folders = steps.slice(1).map((step) => step.match(/^ {10}ACCESSIBILITY_ARTIFACTS: (.+)$/m)?.[1]);
   assert.deepEqual(folders, ['tests/browser/artifacts/accessibility/math-tools-lab-light', 'tests/browser/artifacts/accessibility/math-tools-lab-dark']);
@@ -198,6 +200,7 @@ test("the Math Tools Lab's other tools are certified and reviewed light and dark
   assert.ok(elsewhere.length >= 3);
   for (const step of elsewhere) assert.equal(onlyOf(step), null, 'every screen but the Lab\'s other tools');
   assert.equal(MATH_TOOLS_LAB_SCREEN.ownJob, true, 'which is what leaves them out there');
+  assert.equal(MATH_TOOLS_LAB_WORK_VIEW_SCREEN.ownJob, true);
   assert.ok(runsOnPullRequest('accessibility-certification.yml', 'src/dev/MathToolsLab.jsx'), 'a change to the Lab runs it');
 });
 

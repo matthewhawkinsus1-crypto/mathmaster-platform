@@ -74,7 +74,7 @@ import {
 } from '../../scripts/lib/accessibilityRatchet.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
-import { MATH_TOOLS_LAB_SCREEN, TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
+import { MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_SCREEN, TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
 import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -315,14 +315,14 @@ export const EXAM_PRACTICE_CHIP_SCREEN = {
   ],
 };
 
-// The Math Tools Lab's other 24 tools are certified too (accessibilityTeacherScreens.mjs MATH_TOOLS_LAB_SCREEN), in a CI job
-// of their own: see screensToRun.
-export const CERTIFIED_SCREENS = [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS, MATH_TOOLS_LAB_SCREEN];
+// The Math Tools Lab's other 24 tools are certified too (accessibilityTeacherScreens.mjs MATH_TOOLS_LAB_SCREEN), and the
+// Work Views its tools open (MATH_TOOLS_LAB_WORK_VIEW_SCREEN), in a CI job of their own: see screensToRun.
+export const CERTIFIED_SCREENS = [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS, MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_SCREEN];
 
 /*
- * The screens a run audits. ONLY=<id>[,<id>] names them. A run that names none audits every certified screen but one
- * certified in a CI job of its own (`ownJob`: the Math Tools Lab's other tools, whose job names it), so the jobs that
- * run every screen take no longer for it. The contrast review runs the same screens.
+ * The screens a run audits. ONLY=<id>[,<id>] names them. A run that names none audits every certified screen but those
+ * certified in a CI job of their own (`ownJob`: the Math Tools Lab's other tools and its Work Views, whose job names
+ * them), so the jobs that run every screen take no longer for them. The contrast review runs the same screens.
  */
 export const screensToRun = (only, screens = CERTIFIED_SCREENS) => screens.filter((screen) => (only.size ? only.has(screen.id) : !screen.ownJob));
 

@@ -2,10 +2,20 @@
   "version": 1,
   "description": "axe-core color-contrast violations in the dark theme (a dark device, COLOR_SCHEME=dark) per scene|viewport|rule over the certified scenes: failing node counts, each with the reason it is accepted. Ratchet: a new key or a higher count fails the dark contrast review; counts may only go down. Regenerate with `COLOR_SCHEME=dark npm run review:contrast -- --write-baseline` after a deliberate change, and give every new key its reason.",
   "counts": {
+    "teacher-math-tools-lab-work-view/complexPlaneLab|desktop|color-contrast": 2,
+    "teacher-math-tools-lab-work-view/complexPlaneLab|phone|color-contrast": 2,
     "teacher-math-tools-lab/complexPlaneLab|desktop|color-contrast": 2,
     "teacher-math-tools-lab/complexPlaneLab|phone|color-contrast": 2
   },
   "targets": {
+    "teacher-math-tools-lab-work-view/complexPlaneLab|desktop|color-contrast": [
+      "div:nth-child(3) > span:nth-child(1)",
+      "div:nth-child(3) > span:nth-child(2)"
+    ],
+    "teacher-math-tools-lab-work-view/complexPlaneLab|phone|color-contrast": [
+      "div:nth-child(3) > span:nth-child(1)",
+      "div:nth-child(3) > span:nth-child(2)"
+    ],
     "teacher-math-tools-lab/complexPlaneLab|desktop|color-contrast": [
       "div:nth-child(3) > span:nth-child(1)",
       "div:nth-child(3) > span:nth-child(2)"
@@ -16,6 +26,8 @@
     ]
   },
   "reasons": {
+    "teacher-math-tools-lab-work-view/complexPlaneLab|desktop|color-contrast": "Owner item: identity colours in dark (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). The Lab's tool scene's two readouts, in its Work View: the Complex Plane Lab writes z and its rotation in the colours of their arrows on the plane, fixed light-theme hues (#1a73e8, #8a3ffc): 3.7:1 and 3.3:1 on the dark surface. They are the class the owner item names (the strand titles on a student's skill card, SkillDetailCardModal.jsx, and Representation Match's group labels): a token would merge hues meant to differ and change light, and the proposal is to tint each hue toward white in dark only.",
+    "teacher-math-tools-lab-work-view/complexPlaneLab|phone|color-contrast": "Owner item: identity colours in dark (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). The Lab's tool scene's two readouts, in its Work View: the Complex Plane Lab writes z and its rotation in the colours of their arrows on the plane, fixed light-theme hues (#1a73e8, #8a3ffc): 3.7:1 and 3.3:1 on the dark surface. They are the class the owner item names (the strand titles on a student's skill card, SkillDetailCardModal.jsx, and Representation Match's group labels): a token would merge hues meant to differ and change light, and the proposal is to tint each hue toward white in dark only.",
     "teacher-math-tools-lab/complexPlaneLab|desktop|color-contrast": "Owner item: identity colours in dark (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). The Complex Plane Lab writes z and its rotation in the colours of their arrows on the plane, fixed light-theme hues (#1a73e8, #8a3ffc): 3.7:1 and 3.3:1 on the dark surface. They are the class the owner item names (the strand titles on a student's skill card, SkillDetailCardModal.jsx, and Representation Match's group labels): a token would merge hues meant to differ and change light, and the proposal is to tint each hue toward white in dark only.",
     "teacher-math-tools-lab/complexPlaneLab|phone|color-contrast": "Owner item: identity colours in dark (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). The Complex Plane Lab writes z and its rotation in the colours of their arrows on the plane, fixed light-theme hues (#1a73e8, #8a3ffc): 3.7:1 and 3.3:1 on the dark surface. They are the class the owner item names (the strand titles on a student's skill card, SkillDetailCardModal.jsx, and Representation Match's group labels): a token would merge hues meant to differ and change light, and the proposal is to tint each hue toward white in dark only."
   }

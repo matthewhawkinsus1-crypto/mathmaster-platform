@@ -15,6 +15,8 @@
  *   nextFocusIndex      Tab on the last item wraps to the first, Shift+Tab on
  *                       the first wraps to the last, and focus that escaped
  *                       the dialog is pulled back in
+ *   revealInDialog      the item the trap moved focus to is brought into view
+ *                       inside the dialog, as Tab would bring it
  *   dialog stack        only the TOPMOST open dialog traps and answers Escape,
  *                       so a confirm opened from a drawer closes alone
  */
@@ -63,6 +65,52 @@ export const nextFocusIndex = ({ count, activeIndex, shift = false }) => {
   if (shift && activeIndex === 0) return count - 1;
   if (!shift && activeIndex === count - 1) return 0;
   return null;
+};
+
+/*
+ * WHERE THE TRAP PUTS FOCUS IS ON SCREEN (keypad-done; WCAG 2.4.11).
+ *
+ * Tab between two controls of a dialog is the browser's own move, and it brings
+ * the control into view. At the dialog's ends (and for focus coming back from
+ * outside it) the trap moves focus itself, without scrolling, so that the page
+ * behind the dialog never moves. A control at the far end of a part of the
+ * dialog that scrolls was then left out of view: on a phone, Shift+Tab from
+ * Work View's first control went round to the tool's last ("Stuck? Show a
+ * hint"), below the work's visible edge and under Work View's row of actions
+ * (the Math Tools Lab's Work Views in the 2.4.11 walk; Transformations Lab and
+ * Open Sort Board).
+ *
+ * So each part of the dialog that scrolls and holds the control, from the
+ * control out to the dialog itself, is scrolled by as little as shows it, as Tab
+ * does: its bottom brought up to the part's lower edge, or its top down to the
+ * upper one, and its top kept in view when it is taller than the part. Only
+ * up and down, never sideways (a phone's question panes are locked sideways),
+ * and never past the dialog: the page behind stays where it is. `styleOf` reads
+ * a node's computed style (the window's, in the browser). Returns how many parts
+ * it scrolled.
+ */
+export const revealInDialog = (element, dialog, { styleOf = null } = {}) => {
+  // A control outside the dialog is none of its business: the walk up would reach the page.
+  if (!element || !dialog || (typeof dialog.contains === 'function' && !dialog.contains(element))) return 0;
+  const style = styleOf || ((node) => node.ownerDocument?.defaultView?.getComputedStyle?.(node));
+  let scrolled = 0;
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const overflowY = style(node)?.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight - node.clientHeight > 1) {
+      const top = node.getBoundingClientRect().top + (node.clientTop || 0);
+      const bottom = top + node.clientHeight;
+      const box = element.getBoundingClientRect();
+      let by = 0;
+      if (box.bottom > bottom) by = Math.min(box.bottom - bottom, box.top - top);
+      else if (box.top < top) by = box.top - top;
+      if (Math.abs(by) >= 1) {
+        node.scrollTop += by;
+        scrolled += 1;
+      }
+    }
+    if (node === dialog) break;
+  }
+  return scrolled;
 };
 
 /**

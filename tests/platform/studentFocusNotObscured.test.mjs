@@ -244,20 +244,25 @@ test('CI reads My Math Path\'s closed question before the walk: no keypad, no Su
   assert.match(closing, /problems\.forEach\(\(problem\) => failures\.push\(`session-hosts\/path-after-submit \$\{setting\}: \$\{problem\}`\)\);/);
 });
 
-// THE MATH TOOLS LAB (student-a11y-3). The teacher's bench mounts every student tool with
-// its sample question, and its other tools and their Work Views had not been walked. All
-// 24 tools were walked by hand at both sizes (nothing found); the Matrix Lab stays in the
-// CI walk, on the page and in its Work View, judged by the keyboard rules as well as 2.4.11.
-test('CI walks the Math Tools Lab with a tool on the page and in its Work View', () => {
+// THE MATH TOOLS LAB (student-a11y-3, keypad-done). The teacher's bench mounts every student tool with its sample
+// question. All 24 tools were walked by hand at both sizes (nothing found); the Matrix Lab stays in the CI walk on the
+// page, and every Work View the Lab's tools open is walked there too (the Matrix Lab's was the only one), each opened as
+// the certification opens it, judged by the keyboard rules as well as 2.4.11. The walk found Shift+Tab going round
+// Work View to a control left under its row of actions (mathToolsLabWorkViewFindings.test.mjs).
+test('CI walks the Math Tools Lab with a tool on the page and in every Work View its tools open', async () => {
+  const { MATH_TOOLS_LAB_WORK_VIEW_TOOLS } = await import('../browser/accessibilityTeacherScreens.mjs');
   const driver = read('tests/browser/studentShellLargeText.mjs');
   const extra = region(driver, 'export const FOCUS_SCREENS = [', '\n];', 'the extra scenes');
   const lab = region(extra, "id: 'math-tools-lab'", '\n  },', 'the Lab');
   assert.match(lab, /harness: 'app',\s*schoolClock: true,\s*keyboardRules: KEYBOARD_RULES_JUDGED,\s*open: openMathToolsLab,/);
-  assert.match(lab, /\{ id: 'matrix-lab', run: labTool\('Matrix Lab', \{ workView: false \}\) \}/);
-  assert.match(lab, /\{ id: 'matrix-lab-work-view', run: labTool\('Matrix Lab', \{ workView: true \}\) \}/);
-  // Opened as a teacher opens it, and the tool chosen from the Lab's own list; the Work View scene waits for the dialog.
+  assert.match(lab, /\{ id: 'matrix-lab', run: labTool\('Matrix Lab'\) \}/);
+  assert.match(lab, /\.\.\.MATH_TOOLS_LAB_WORK_VIEW_TOOLS\.map\(\(\{ toolId, label \}\) => \(\{ id: `\$\{toolId\}-work-view`, run: openLabWorkView\(label\) \}\)\),/, 'a scene for each Work View, opened as the certification opens it');
+  assert.match(driver, /import \{ MATH_TOOLS_LAB_WORK_VIEW_TOOLS, TEACHER_SCREENS, openLabWorkView, openTeacherApp \} from '\.\/accessibilityTeacherScreens\.mjs';/);
+  assert.equal(MATH_TOOLS_LAB_WORK_VIEW_TOOLS.length, 24, 'every one the Lab\'s tools open, the Matrix Lab\'s among them');
+  assert.ok(MATH_TOOLS_LAB_WORK_VIEW_TOOLS.some((tool) => tool.toolId === 'matrixLab'));
+  // Opened as a teacher opens it, and the tool chosen from the Lab's own list; a Work View it opened on its own is closed.
   assert.match(region(driver, 'const openMathToolsLab = async', '\n};', 'the Lab'), /button\[title="Math Tools Lab"\][\s\S]*getByRole\('heading', \{ name: \/\^Math Tools Lab\$\/ \}\)/);
-  const tool = region(driver, 'const labTool = (label, { workView }) =>', '\n};', 'a tool');
+  const tool = region(driver, 'const labTool = (label) =>', '\n};', 'a tool');
   assert.match(tool, /aside\.mm-tools-lab-list button', \{ hasText: label \}/);
-  assert.match(tool, /waitForSelector\('\[role="dialog"\]\[aria-modal="true"\] \.mathmaster-work-view-header'/);
+  assert.match(tool, /await page\.waitForTimeout\(1500\);\s*await closeLabWorkView\(page\);$/);
 });

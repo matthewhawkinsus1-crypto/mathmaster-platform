@@ -21,6 +21,7 @@ import { useModalDialog } from '../../ui/Dialog.jsx';
 import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
 import { LANGUAGE_TOOLS, OPEN_WORK_VIEW, workViewCapabilityWord } from '../../platform/student/studentWords.js';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
+import { overflowsDownward } from './matrixScrollRegion.js';
 import './WorkViewShell.css';
 
 // A graph a student can actually see.
@@ -522,6 +523,29 @@ export default function EnlargeableFigure({
   // own words too.
   const shownTask = taskShown(registeredCapabilities.task, methodWithheld);
   const task = shownTask?.content || shownTask?.text || (methodWithheld ? '' : taskText);
+  // THE TASK IN THE HEADER, BY KEYBOARD (keypad-done). The header shows four whole lines of the task and scrolls the
+  // rest (WorkViewShell.css), and a longer one (Function Investigation's on a phone) was a box only a finger could
+  // scroll (axe: a scrollable region with no keyboard access, found by the Math Tools Lab's Work View scenes). While it
+  // is taller than its lines and scrolls, and only then, it is a Tab stop the arrow keys scroll, as a matrix wider than
+  // its box is (matrixScrollRegion.js); a task that fits adds no stop. The Task button still opens all of it. Measured
+  // again when the box or the header around it changes size (text size, width, turning the phone) and the task changes.
+  const taskRef = useRef(null);
+  const [taskScrolls, setTaskScrolls] = useState(false);
+  const taskWords = typeof task === 'string' ? task : Boolean(task);
+  useLayoutEffect(() => {
+    const box = taskRef.current;
+    if (!enlarged || !box) {
+      setTaskScrolls(false);
+      return undefined;
+    }
+    const measure = () => setTaskScrolls(/^(auto|scroll)$/.test(window.getComputedStyle(box).overflowY) && overflowsDownward(box));
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    if (box.parentElement) observer.observe(box.parentElement);
+    return () => observer.disconnect();
+  }, [enlarged, taskWords]);
   // THE HELP DRAWER, IN THREE PARTS (student pass 3, TOOL-3): the tool's
   // description and steps (its TaskCard, which Work View hides), then the
   // platform's Help — the hint ladder and "Ask my teacher", never replaced —
@@ -726,11 +750,14 @@ export default function EnlargeableFigure({
           {task ? null : <strong className="mathmaster-work-view-title">{label}</strong>}
           {task ? (
             <div
+              ref={taskRef}
               className="mathmaster-work-view-persistent-task"
               // A group, so its name is read (a label on a bare div is not,
               // AX18); the group says "Your task", so the words are not said twice.
               role="group"
               aria-label="Your task"
+              // A Tab stop only while it scrolls (taskScrolls, above).
+              tabIndex={taskScrolls ? 0 : undefined}
               style={{
                 minWidth: 0,
                 paddingRight: 4,

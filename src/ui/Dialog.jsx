@@ -1,6 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useRef } from 'react';
 import {
-  TABBABLE_SELECTOR, initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, pushDialog,
+  TABBABLE_SELECTOR, initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, pushDialog, revealInDialog,
 } from './dialogFocus.js';
 import { MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR } from '../platform/math/mathLiveCompat.js';
 
@@ -197,6 +197,8 @@ export function useModalDialog(ref, {
       if (index == null) return;
       event.preventDefault();
       items[index].focus({ preventScroll: true });
+      // In view inside the dialog, as Tab would bring it, and the page behind left still (dialogFocus.js revealInDialog).
+      revealInDialog(items[index], dialog);
     };
     const onFocusIn = (event) => {
       if (!onTop()) return;

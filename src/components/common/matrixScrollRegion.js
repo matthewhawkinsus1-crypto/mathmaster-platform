@@ -24,6 +24,14 @@ export const overflowsSideways = ({ scrollWidth = 0, clientWidth = 0 } = {}) => 
   Number(scrollWidth) - Number(clientWidth) > 1
 );
 
+/**
+ * Taller than its box, for one that scrolls up and down: Work View's header task, which shows four whole lines and
+ * scrolls the rest, follows the same rule (EnlargeableFigure.jsx, keypad-done).
+ */
+export const overflowsDownward = ({ scrollHeight = 0, clientHeight = 0 } = {}) => (
+  Number(scrollHeight) - Number(clientHeight) > 1
+);
+
 /** The props of the box that scrolls: a named, focusable region while it overflows, nothing otherwise. */
 export const matrixScrollRegionProps = ({ overflowing = false, spokenName = 'Matrix', dimensionsText = '' } = {}) => (
   overflowing
