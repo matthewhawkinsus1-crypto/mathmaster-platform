@@ -871,6 +871,13 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     .replace(/\^\(\s*2\s*\)|\^2(?![0-9./])|²/g, ` ${w.squared} `)
     .replace(/\^\(\s*3\s*\)|\^3(?![0-9./])|³/g, ` ${w.cubed} `)
     .replace(/\^\(([^()]+)\)/g, ` ${w.power} $1 `)
+    // A whole-number exponent ends where its digits do, as it is drawn: x^10p
+    // is x¹⁰p (normalizePlainMathTypography), so "5m^10p^6" is "5m to the
+    // power 10 p to the power 6", as 5m¹⁰p⁶ is, and the grader reads it so; it
+    // was "to the power 10p", the exponent run into the next letter (hint-ladder
+    // timing, item 3). LaTeX ends an unbraced one at its digit too: $x^4y^{11}$
+    // was "x to the power 4y …". ² and ³ already stop at their digit, above.
+    .replace(/\^(-?\d+)(?=[A-Za-z])/g, ` ${w.power} $1 `)
     .replace(/\^(-?[A-Za-z0-9.]+)/g, ` ${w.power} $1 `)
     // An exponent that holds a bracket, x^((3 + 3)/3), and a power whose
     // exponent the reader has said in words (x^√8): the caret reached the
@@ -1819,11 +1826,30 @@ const outsideSpans = (text, rewrite) => {
   }
   return out + rewrite(text.slice(from));
 };
-const undelimitedLatexAsSpans = (text) => outsideSpans(text, (plain) => numberRowsAsLists(/[\^_]\{|\\sqrt/.test(plain) ? latexRunsAsSpans(plain) : plain));
+/*
+ * A SUBSCRIPT TYPED WITHOUT BRACES (hint-ladder timing, item 3): "x_1", "a_n",
+ * "P_0", "2R_1". Outside $…$ only a braced one was read ("x_{1}", a span then,
+ * above); at an unbraced one the split took the underscore for prose and the
+ * voice was handed it, with the brackets around it: "y - y_1 = m(x - x_1)" was
+ * "y minus y _ 1 equals m ( x minus x _ 1 )". It is "sub" and what follows,
+ * held for the split as a subscript digit's words are (spokenLineForms): a
+ * letter's subscript is its digits, all of them ("a_10" is a sub 10, as typed),
+ * one letter, or a bracket, as the Path banks' recursive rules write it
+ * ("P_n=3P_(n-1)" was "3P _ the quantity n minus 1"; now "3P sub n minus 1",
+ * as P_{n-1} is read). A word's underscore ("first_name", an id's
+ * "-y_v21", "log_2", read as a base by logBasesToWords), a blank ("x = ___")
+ * and LaTeX inside $…$, which has rules of its own, are left as they were.
+ */
+const TYPED_SUBSCRIPT = /(?<![A-Za-z\\_])([A-Za-z])_(?:(\d+|[A-Za-z](?![A-Za-z0-9]))|\(([^()]+)\))(?![_{])/g;
+const typedSubscriptsInWords = (plain, w) => plain.replace(TYPED_SUBSCRIPT, (match, letter, subscript, bracketed) => `${letter}${SAID_OPEN}${w.sub} ${subscript ?? bracketed.trim()}${SAID_CLOSE}`);
+const undelimitedLatexAsSpans = (text, w) => outsideSpans(text, (raw) => {
+  const plain = typedSubscriptsInWords(raw, w);
+  return numberRowsAsLists(/[\^_]\{|\\sqrt/.test(plain) ? latexRunsAsSpans(plain) : plain);
+});
 
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
-  const text = spokenLineForms(writtenNotationToSpokenForm(undelimitedLatexAsSpans(lineBreaksAsPauses(raw)), w, { mark: true }), w);
+  const text = spokenLineForms(writtenNotationToSpokenForm(undelimitedLatexAsSpans(lineBreaksAsPauses(raw), w), w, { mark: true }), w);
   if (!text.trim()) return '';
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
