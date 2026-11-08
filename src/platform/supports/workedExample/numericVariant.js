@@ -78,6 +78,14 @@
  * and each key graded by the item's own box, which then checks the student's
  * practice answer too (`fields`).
  *
+ * THE FIFTH KIND: an nth root of a monomial in simplest radical form (√(25a⁴b⁹)
+ * = 5a²b⁴√b, ∛(−54a⁷), 3√12, with absolute value bars where an even root of a
+ * letter that may be negative needs them), and the boxes beside it (the
+ * largest perfect nth-power factor, the radicand as a perfect power): the
+ * Algebra II radicals lessons. Its rules are in radicalVariant.js: the index,
+ * the letters, what stays under the root and the bars kept, never easier, and
+ * each key graded and checked by the item's own simplest-radical-form box.
+ *
  * NOTHING HERE IS RECORDED. It returns values, like practiceLikeThis.js.
  */
 import algebraicGraders from '../../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
@@ -93,9 +101,10 @@ import { similarExampleIsSafe } from './similarProblem.js';
 import { POLYNOMIAL_VARIANT_KIND, buildPolynomialVariant } from './polynomialVariant.js';
 import { MATRIX_SYSTEM_VARIANT_KIND, buildMatrixSystemVariant } from './matrixSystemVariant.js';
 import { FACTORING_VARIANT_KIND, buildFactoringVariant } from './factoringVariant.js';
+import { RADICAL_VARIANT_KIND, buildRadicalVariant } from './radicalVariant.js';
 
 export const NUMERIC_VARIANT_SOURCE = 'numericVariant';
-export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND, MATRIX_SYSTEM: MATRIX_SYSTEM_VARIANT_KIND, FACTORING: FACTORING_VARIANT_KIND });
+export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND, MATRIX_SYSTEM: MATRIX_SYSTEM_VARIANT_KIND, FACTORING: FACTORING_VARIANT_KIND, RADICAL: RADICAL_VARIANT_KIND });
 
 const text = (value) => String(value ?? '').trim();
 const gcd = (left, right) => {
@@ -526,7 +535,8 @@ export const buildNumericVariant = (question, { seed = 0 } = {}) => {
   try {
     const system = readSystem3x3(question);
     if (system) return system3x3Variant(question, system, seed);
-    const other = buildPolynomialVariant(question, { seed }) || buildMatrixSystemVariant(question, { seed }) || buildFactoringVariant(question, { seed });
+    const other = buildPolynomialVariant(question, { seed }) || buildMatrixSystemVariant(question, { seed }) || buildFactoringVariant(question, { seed })
+      || buildRadicalVariant(question, { seed });
     return other ? { ...other, source: NUMERIC_VARIANT_SOURCE } : null;
   } catch {
     return null;

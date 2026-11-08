@@ -854,6 +854,10 @@ const workedExamplePrompts = [
   ['Second: {1}.', 'Segundo: {1}.'],
   ['Third: {1}.', 'Tercero: {1}.'],
   ['Fourth: {1}.', 'Cuarto: {1}.'],
+  // An nth root with new numbers (radicalVariant.js). "Simplify {1}." is es.js's own.
+  ['Simplify each root.', 'Simplifica cada raíz.'],
+  ['Assume every variable is positive.', 'Supón que todas las variables son positivas.'],
+  ['The variables can be any real numbers: use absolute value where it is needed.', 'Las variables pueden ser cualquier número real: usa el valor absoluto donde haga falta.'],
 ];
 
 const workedExampleAnswers = [
@@ -944,6 +948,15 @@ const workedExampleAnswers = [
   ['Answer: First {1}; Second {2}', 'Respuesta: primero {1}; segundo {2}'],
   ['Answer: First {1}; Second {2}; Third {3}', 'Respuesta: primero {1}; segundo {2}; tercero {3}'],
   ['Answer: First {1}; Second {2}; Third {3}; Fourth {4}', 'Respuesta: primero {1}; segundo {2}; tercero {3}; cuarto {4}'],
+  // An nth root with new numbers: each box's name, then "= " and its answer.
+  ['Answer: Simplified {1}', 'Respuesta: forma simplificada {1}'],
+  ['Answer: Largest perfect square factor {1}; Simplified {2}', 'Respuesta: mayor factor cuadrado perfecto {1}; forma simplificada {2}'],
+  ['Answer: Largest perfect cube factor {1}; Simplified {2}', 'Respuesta: mayor factor cubo perfecto {1}; forma simplificada {2}'],
+  ['Answer: Largest perfect fourth power factor {1}; Simplified {2}', 'Respuesta: mayor factor que es una cuarta potencia perfecta {1}; forma simplificada {2}'],
+  ['Answer: First root {1}; Second root {2}', 'Respuesta: primera raíz {1}; segunda raíz {2}'],
+  ['Answer: First perfect square factor {1}; First root {2}; Second perfect cube factor {3}; Second root {4}', 'Respuesta: factor cuadrado perfecto de la primera {1}; primera raíz {2}; factor cubo perfecto de la segunda {3}; segunda raíz {4}'],
+  ['Answer: First base {1}; Second root {2}', 'Respuesta: base de la primera {1}; segunda raíz {2}'],
+  ['Answer: Base {1}; Simplified {2}', 'Respuesta: base {1}; forma simplificada {2}'],
 ];
 
 const workedExampleSteps = [
@@ -1213,6 +1226,18 @@ const workedExampleSteps = [
   ['Group the first two terms and the last two terms: {1}.', 'Agrupa los dos primeros términos y los dos últimos: {1}.'],
   ['Factor each group: {1} and {2}.', 'Factoriza cada grupo: {1} y {2}.'],
   ['The binomials {1} and {2} are opposites: {3}.', 'Los binomios {1} y {2} son opuestos: {3}.'],
+  // An nth root with new numbers (radicalVariant.js).
+  ['The largest perfect square factor of {1} is {2}: {3}.', 'El mayor factor cuadrado perfecto de {1} es {2}: {3}.'],
+  ['The largest perfect cube factor of {1} is {2}: {3}.', 'El mayor factor cubo perfecto de {1} es {2}: {3}.'],
+  ['The largest perfect fourth power factor of {1} is {2}: {3}.', 'El mayor factor de {1} que es una cuarta potencia perfecta es {2}: {3}.'],
+  ['The largest perfect fifth power factor of {1} is {2}: {3}.', 'El mayor factor de {1} que es una quinta potencia perfecta es {2}: {3}.'],
+  ['The largest perfect sixth power factor of {1} is {2}: {3}.', 'El mayor factor de {1} que es una sexta potencia perfecta es {2}: {3}.'],
+  ['{1}, a perfect square.', '{1}, un cuadrado perfecto.'],
+  ['{1}, a perfect cube.', '{1}, un cubo perfecto.'],
+  ['{1}, a perfect fourth power.', '{1}, una cuarta potencia perfecta.'],
+  ['{1}, a perfect fifth power.', '{1}, una quinta potencia perfecta.'],
+  ['{1}, a perfect sixth power.', '{1}, una sexta potencia perfecta.'],
+  ['{1} can be negative and the index is even, so {2}.', '{1} puede ser negativo y el índice es par, así que {2}.'],
   // The Matrix Lab's worked solution of a system (matrixLabReview.js), the
   // steps of a matrices practice; the lab's own closed review reads them too.
   ['Write each equation in standard form: {1}; {2}; {3}.', 'Escribe cada ecuación en forma estándar: {1}; {2}; {3}.'],
