@@ -54,6 +54,8 @@ import {
   recordCheck,
   recordDoesNotExist,
   recordSkip,
+  rushItemKind,
+  rushRoundKinds,
   settle,
   toggleAxisArrow,
 } from '../../src/platform/liveChallenge/rushSession.js';
@@ -659,8 +661,16 @@ test('students race on the rush\'s screen with a number line and No Solution; ev
   assert.match(region(round, '<InequalityNumberLine', '/>', 'the number line'), /drawing=\{studentDrawing\}[\s\S]*reveal=\{revealDrawing\}[\s\S]*onTap=\{onTap\}/);
   // The reveal draws the answer from the session's own rule (answerDrawing): an empty line for "no solution".
   assert.match(round, /const revealDrawing = useMemo\(\(\) => \(revealing \? answerDrawing\(question\) : null\), \[revealing, question\]\);/);
-  // No Solution on every inequality item, whatever its answer.
-  assert.match(round, /\{inequalityItem && \(\s*<button type="button" className="mm-rush-dne" disabled=\{buttonsDisabled\} onClick=\{onDoesNotExist\}[^>]*>No Solution<\/button>/);
+  // No Solution on every inequality item, whatever its answer: the inequality
+  // kind's button (rushSession.rushItemKind), the game's one kind before GO too.
+  assert.match(round, /\{shownKind\.inequality && \(\s*<button type="button" className="mm-rush-dne" disabled=\{buttonsDisabled\} onClick=\{onDoesNotExist\}[^>]*>No Solution<\/button>/);
+  const config = I.normalizeInequalityRushConfig({ presetId: 'everything' });
+  for (let index = 0; index < 24; index += 1) {
+    const item = I.generateInequalityQuestion({ seed: 'kinds', studentKey: 'a', roundIndex: 0, questionIndex: index, config });
+    assert.deepEqual(rushItemKind(item), rushRoundKinds({ inequality: true })[0], `${item.prompt}: the game's one kind`);
+  }
+  assert.equal(rushRoundKinds({ inequality: true }).length, 1);
+  assert.equal(rushRoundKinds({ inequality: true })[0].inequality, true);
   // Words for the game, from the client's one place.
   const words = rushGameWords({ challengeMode: INEQUALITY_RUSH_MODE_ID });
   assert.equal(words.game, 'Inequality Graphing Rush');

@@ -4,11 +4,10 @@ import InequalityNumberLine from './InequalityNumberLine.jsx';
 import StartLights from './StartLights.jsx';
 import { ARENA_RUSH_VARS, GP_RACE_CSS, arenaLayerCss } from './grandPrixTheme.js';
 import { INEQUALITY_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
 import { rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
-import { axisSetDrawing, graphDrawing, setAxisOf, setTapAt } from '../../platform/liveChallenge/rushGraphModel.js';
+import { axisSetDrawing, graphDrawing, setTapAt } from '../../platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
   RUSH_INPUT,
@@ -26,11 +25,14 @@ import {
   nextBatch,
   parseStoredQueue,
   prefetchRequest,
+  promptReserve,
   drawingReady,
   feedbackReserve,
   isInequalityQuestion,
   isNumberLineQuestion,
   lineNotation,
+  rushItemKind,
+  rushRoundKinds,
   recordAxisTap,
   recordCheck,
   recordDoesNotExist,
@@ -152,6 +154,19 @@ const promptWords = (question) => {
 const notationPrompt = (inequality) => (inequality
   ? 'Tap the number line, or use the arrow keys and Enter, to place a dot.'
   : 'Tap the graph, or use the arrow keys and Enter, to place a dot.');
+
+// The hint under the prompt, the same words on every item of a kind
+// (rushSession.rushItemKind). Each names the keys beside the tap (AX32): the
+// graph takes focus when play begins, its arrow keys move a crosshair and
+// Enter presses where it is; a set question's Page Up and Page Down step to
+// each arrow and point. The graph's own name says the same.
+const rushHint = (kind) => {
+  if (kind.inequality) return 'Tap the number line, or use the arrow keys and Enter: once for a closed dot, twice for open, three times to take it away. Tap an end arrow, or arrow past the last number onto it, for "keeps going". Nothing works? No Solution.';
+  // Two lines on a phone: the tip a wrong tap gets says the rest.
+  if (kind.set) return `Tap the graph, or use Page Up, Page Down and Enter: an arrow for "keeps going", a point for its ${kind.vertical ? 'y' : 'x'}-value — twice for an open dot.${kind.canBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
+  if (kind.offScreen) return 'Tap it on the graph, or use the arrow keys and Enter. Past the edge? Off Screen. Not there at all? Does Not Exist.';
+  return 'Tap it on the graph, or use the arrow keys and Enter. Not there? Choose Does Not Exist.';
+};
 
 // A number line's frame: the area's width (to a readable most), and a
 // height that leaves room for the labels and the "Get ready" card.
@@ -300,7 +315,7 @@ ${arenaLayerCss('.mm-rush-shell')}
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; min-height: 0;
   padding: 10px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
-.mm-rush-prompt h2 { margin: 0; font-size: clamp(calc(21 * var(--mm-px)), calc(4.2vmin * var(--mm-text-scale, 1)), calc(34 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #f7f9ff; }
+.mm-rush-prompt h2, .mm-rush-ask-held { margin: 0; font-size: clamp(calc(21 * var(--mm-px)), calc(4.2vmin * var(--mm-text-scale, 1)), calc(34 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #f7f9ff; }
 .mm-rush-hint { margin: 4px 0 0; font-size: calc(13 * var(--mm-px)); color: #b8c4ef; }
 .mm-rush-graph-area { position: relative; min-height: 0; min-width: 0; display: grid; place-items: start center; }
 /* The graph in neon: a cyan rim and a faint outer ring — crisp, not a blurred
@@ -309,15 +324,17 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-graph-frame[data-paused="1"] .mm-rush-graph { opacity: .55; transition: opacity 120ms; }
 .mm-rush-controls { display: grid; gap: 8px; }
 .mm-rush-feedback, .mm-rush-feedback-held { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); }
-/* What comes and goes under the graph keeps its room, so nothing it says or
-   shows moves the graph (rushSession.feedbackReserve): the feedback line is as
-   tall as the longest things the round can say, the notation as its prompt or
-   its widest set, each drawn invisible in the line's own cell, and the
+/* What comes and goes around the graph keeps its room, so nothing it says or
+   shows moves the graph (rushSession.feedbackReserve, promptReserve,
+   rushRoundKinds): the feedback line is as tall as the longest things the
+   round can say, the prompt as the widest it can ask, the hint as every kind's
+   the round deals, the notation as its prompt or its widest set (on every item
+   of a round that deals sets), each drawn invisible in its own cell, and the
    cooldown's bar keeps its place between pauses. Only where the screen is tall
    for its text (the min-height: 36em rules below). */
 .mm-rush-hold { display: grid; grid-template-columns: minmax(0, 1fr); }
 .mm-rush-hold > * { grid-area: 1 / 1; }
-.mm-rush-feedback-held, .mm-rush-notation-held { display: none; }
+.mm-rush-feedback-held, .mm-rush-notation-held, .mm-rush-ask-held, .mm-rush-hint-held { display: none; }
 .mm-rush-cooldown-slot:empty { display: none; }
 .mm-rush-feedback[data-kind="hit"], .mm-rush-feedback[data-kind="complete"] { color: #45ff8a; }
 .mm-rush-feedback[data-kind="miss"], .mm-rush-feedback[data-kind="autoSkipped"] { color: #ff8fa3; }
@@ -423,7 +440,7 @@ ${GP_RACE_CSS}
    there the line takes the room its words need, as before, until that layout
    is chosen. */
 @media (min-height: 36em) {
-  .mm-rush-feedback-held, .mm-rush-notation-held { display: block; visibility: hidden; }
+  .mm-rush-feedback-held, .mm-rush-notation-held, .mm-rush-ask-held, .mm-rush-hint-held { display: block; visibility: hidden; }
   .mm-rush-cooldown-slot:empty { display: block; height: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -779,11 +796,6 @@ export default function GraphFeatureRushRound({
   // line as it is; on a graph, on its axis.
   const revealDrawing = useMemo(() => (revealing ? answerDrawing(question) : null), [revealing, question]);
   const revealSet = useMemo(() => (revealDrawing && !inequalityItem ? axisSetDrawing(question, revealDrawing) : null), [revealDrawing, inequalityItem, question]);
-  const vertical = setAxisOf(question) === 'y';
-  // A set that can be empty offers its "none" button: an inequality's "No
-  // Solution", an interval's "Does Not Exist" (a line that only rises has no
-  // decreasing interval). On every such item, so it never gives anything away.
-  const setCanBeEmpty = setQuestion && (inequalityItem || getGraphFeature(question?.feature)?.canNotExist === true);
   const notation = setQuestion ? lineNotation(question, studentDrawing, { revealing }) : null;
   const queued = session?.queue.length || 0;
   const buttonsDisabled = !playing || input !== RUSH_INPUT.READY;
@@ -794,6 +806,28 @@ export default function GraphFeatureRushRound({
     () => feedbackReserve({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame }),
     [roundFeatures, offScreenGame, inequalityGame],
   );
+  // The kinds of item this round deals and the widest it can ask, from its
+  // settings: the prompt, the hint and the notation keep the room of every
+  // one of them, so neither the next item nor the next kind moves the graph
+  // (rushSession.rushRoundKinds, promptReserve).
+  const inequalityKinds = (room.inequalityRush?.config?.itemTypes || []).join(' ');
+  const inequalityDifficulty = room.inequalityRush?.config?.difficulty || '';
+  const roundKinds = useMemo(
+    () => rushRoundKinds({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame }),
+    [roundFeatures, offScreenGame, inequalityGame],
+  );
+  const promptRoom = useMemo(() => promptReserve(inequalityGame
+    ? { inequality: { itemTypes: inequalityKinds ? inequalityKinds.split(' ') : [], difficulty: inequalityDifficulty } }
+    : { features: roundFeatures ? roundFeatures.split(' ') : [] }), [inequalityGame, inequalityKinds, inequalityDifficulty, roundFeatures]);
+  const hintRoom = useMemo(() => [...new Set(roundKinds.map(rushHint))], [roundKinds]);
+  const roundSets = roundKinds.filter((kind) => kind.set);
+  const notationAxes = [...new Set(roundSets.map((kind) => (kind.vertical ? 'y' : 'x')))];
+  // What the hint and the controls show: the item's kind from GO; before it,
+  // the round's own (a point to tap where it deals one), never the first
+  // item's, which the countdown would give away.
+  const shownKind = started && question
+    ? rushItemKind(question, { offScreen: offScreenGame })
+    : roundKinds.find((kind) => !kind.set) || roundKinds[0] || rushItemKind(null, { offScreen: offScreenGame });
 
   const completedWords = `${completed} ${completed === 1 ? noun.one : noun.many} completed`;
   let overlay = null;
@@ -813,14 +847,7 @@ export default function GraphFeatureRushRound({
   } else if (input === RUSH_INPUT.EXHAUSTED) overlay = <><strong>All done!</strong><span>You finished every {noun.one} in this round.</span></>;
   else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next {noun.one}.</span></>;
 
-  // Each hint names the keys beside the tap (AX32): the graph takes focus when play begins, its
-  // arrow keys move a crosshair and Enter presses where it is; a set question's Page Up and
-  // Page Down step to each arrow and point. The graph's own name says the same.
-  let promptHint = 'Tap it on the graph, or use the arrow keys and Enter. Not there? Choose Does Not Exist.';
-  if (inequalityItem) promptHint = 'Tap the number line, or use the arrow keys and Enter: once for a closed dot, twice for open, three times to take it away. Tap an end arrow, or arrow past the last number onto it, for "keeps going". Nothing works? No Solution.';
-  // Two lines on a phone: the tip a wrong tap gets says the rest.
-  else if (setQuestion) promptHint = `Tap the graph, or use Page Up, Page Down and Enter: an arrow for "keeps going", a point for its ${vertical ? 'y' : 'x'}-value — twice for an open dot.${setCanBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
-  else if (offScreenGame) promptHint = 'Tap it on the graph, or use the arrow keys and Enter. Past the edge? Off Screen. Not there at all? Does Not Exist.';
+  const promptHint = rushHint(shownKind);
 
   return (
     <div className="mm-rush-shell" role="region" aria-label={practice ? `${noun.game} practice` : `${noun.game}, round ${roundIndex + 1}`}>
@@ -845,8 +872,16 @@ export default function GraphFeatureRushRound({
       <div className="mm-rush-stage">
         <section className="mm-rush-prompt" aria-live="polite">
           {practice && <div className="mm-rush-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
-          <h2>{playing && question ? promptWords(question) : noun.game}</h2>
-          <p className="mm-rush-hint">{promptHint}</p>
+          {/* What is asked and, invisible in its cell, the widest the round can ask: its room. */}
+          <div className="mm-rush-hold">
+            <h2>{playing && question ? promptWords(question) : noun.game}</h2>
+            {promptRoom.map((ask) => <div key={ask.prompt} className="mm-rush-ask-held" aria-hidden="true">{promptWords(ask)}</div>)}
+          </div>
+          {/* The hint and, the same way, every kind's the round deals. */}
+          <div className="mm-rush-hold">
+            <p className="mm-rush-hint">{promptHint}</p>
+            {hintRoom.map((words) => <p key={words} className="mm-rush-hint mm-rush-hint-held" aria-hidden="true">{words}</p>)}
+          </div>
         </section>
         <section className="mm-rush-graph-area" ref={graphAreaRef} data-line={inequalityGame ? '1' : '0'}>
           {frame.width > 0 && frame.height > 0 && (
@@ -914,35 +949,45 @@ export default function GraphFeatureRushRound({
               </div>
             )}
           </div>
-          {setQuestion && (
+          {roundSets.length > 0 && (
             // The set as it is drawn; while the answer is shown, the answer.
-            // Its room: its prompt and its widest set, invisible in its cell.
+            // Its room, on every item of a round that deals sets: its prompt
+            // and its widest set on each axis the round marks, invisible in
+            // its cell (a point's item shows only the room).
             <div className="mm-rush-hold">
-              <div className="mm-rush-notation" data-empty={notation ? '0' : '1'} aria-live="polite">
-                {notation
-                  ? notation.map((form, index) => (
-                    <span key={form}>
-                      {index > 0 && <><span className="mm-rush-notation-sep" aria-hidden="true"> · </span><span className="mm-rush-visually-hidden">, </span></>}
-                      {form}
-                    </span>
-                  ))
-                  : notationPrompt(inequalityItem)}
-              </div>
-              <div className="mm-rush-notation-held" data-empty="1" aria-hidden="true">{notationPrompt(inequalityItem)}</div>
-              <div className="mm-rush-notation-held" data-empty="0" aria-hidden="true">
-                {widestNotation({ axis: vertical ? 'y' : 'x' }).map((form, index) => <span key={form}>{index > 0 && <span className="mm-rush-notation-sep"> · </span>}{form}</span>)}
-              </div>
+              {shownKind.set && (
+                <div className="mm-rush-notation" data-empty={notation ? '0' : '1'} aria-live="polite">
+                  {notation
+                    ? notation.map((form, index) => (
+                      <span key={form}>
+                        {index > 0 && <><span className="mm-rush-notation-sep" aria-hidden="true"> · </span><span className="mm-rush-visually-hidden">, </span></>}
+                        {form}
+                      </span>
+                    ))
+                    : notationPrompt(shownKind.inequality)}
+                </div>
+              )}
+              <div className="mm-rush-notation-held" data-empty="1" aria-hidden="true">{notationPrompt(inequalityGame)}</div>
+              {notationAxes.map((axis) => (
+                <div key={axis} className="mm-rush-notation-held" data-empty="0" aria-hidden="true">
+                  {widestNotation({ axis }).map((form, index) => <span key={form}>{index > 0 && <span className="mm-rush-notation-sep"> · </span>}{form}</span>)}
+                </div>
+              ))}
             </div>
           )}
-          {setQuestion ? (
+          {shownKind.set ? (
             // "Keeps going" is tapped on the graph's own arrows (or the number
-            // line's): no arrow buttons here.
-            <div className="mm-rush-buttons" data-set="1" data-inequality={inequalityItem ? '1' : '0'} data-dne={setCanBeEmpty ? '1' : '0'}>
+            // line's): no arrow buttons here. A set that can be empty offers its
+            // "none" button (rushItemKind's canBeEmpty): an inequality's "No
+            // Solution", an interval's "Does Not Exist" (a line that only rises
+            // has no decreasing interval). On every such item, so it never
+            // gives anything away.
+            <div className="mm-rush-buttons" data-set="1" data-inequality={shownKind.inequality ? '1' : '0'} data-dne={shownKind.canBeEmpty ? '1' : '0'}>
               <button type="button" className="mm-rush-check" disabled={buttonsDisabled || !drawingReady(session)} onClick={onCheck}>✓ Check</button>
-              {inequalityItem && (
+              {shownKind.inequality && (
                 <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist} aria-label="No solution: no number makes it true">No Solution</button>
               )}
-              {setCanBeEmpty && !inequalityItem && (
+              {shownKind.canBeEmpty && !shownKind.inequality && (
                 <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
               )}
               <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>

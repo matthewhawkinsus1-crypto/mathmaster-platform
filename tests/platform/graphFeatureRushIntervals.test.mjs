@@ -43,6 +43,7 @@ import {
   recordDoesNotExist,
   recordSetTap,
   recordSkip,
+  rushItemKind,
   settle,
 } from '../../src/platform/liveChallenge/rushSession.js';
 import { rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
@@ -411,9 +412,19 @@ test('the reading guide reads each interval in one short line, and names them al
 
 test('the round offers "Does Not Exist" on every interval question and says so in its hint; the setup lists the new features', () => {
   const round = executableSource(read('src/components/liveChallenge/GraphFeatureRushRound.jsx'));
-  assert.match(round, /const setCanBeEmpty = setQuestion && \(inequalityItem \|\| getGraphFeature\(question\?\.feature\)\?\.canNotExist === true\);/);
-  assert.match(round, /\$\{setCanBeEmpty \? ' Nowhere\? Does Not Exist\.' : ''\}/);
-  assert.match(round, /const vertical = setAxisOf\(question\) === 'y';/, 'the axis from the question, target or not');
+  // An interval question's kind (rushSession.rushItemKind) can be empty, so it
+  // offers Does Not Exist and its hint says so; its axis is read from the
+  // question, target or not (an empty answer has no target to read it from).
+  assert.match(round, /\$\{kind\.canBeEmpty \? ' Nowhere\? Does Not Exist\.' : ''\}/);
+  const config = normalizeGraphFeatureRushConfig({ presetId: 'intervals' });
+  let empty = 0;
+  for (let index = 0; index < 60; index += 1) {
+    const question = publicRushQuestion(generateRushQuestion({ seed: 'kinds', studentKey: 'a', roundIndex: 0, questionIndex: index, config }));
+    const kind = rushItemKind(question);
+    assert.deepEqual([kind.set, kind.canBeEmpty, kind.vertical], [true, true, false], `${question.feature}: a set on x that can be empty`);
+    if (!question.targets.length) empty += 1;
+  }
+  assert.ok(empty > 0, 'an interval that does not exist, its axis still x');
   assert.match(read('src/components/liveChallenge/GraphFeatureRushSetup.jsx'), /\{GRAPH_FEATURE_IDS\.map\(\(id\) => \(/, 'every registered feature is offered');
   assert.equal(RUSH_ATTEMPT_KIND.CHECK, 'check');
 });

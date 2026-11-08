@@ -269,10 +269,14 @@ test('the cooldown keeps its place between pauses, and is said only while it run
 
 test('a set\'s notation keeps the room of its prompt and its widest set', () => {
   const { source } = ROUNDS.rush;
-  const notation = region(source, '            <div className="mm-rush-hold">\n              <div className="mm-rush-notation"', '\n            </div>\n          )}', 'the notation');
-  assert.match(notation, /: notationPrompt\(inequalityItem\)\}/, 'the prompt it shows');
-  assert.match(notation, /<div className="mm-rush-notation-held" data-empty="1" aria-hidden="true">\{notationPrompt\(inequalityItem\)\}<\/div>/);
-  assert.match(notation, /<div className="mm-rush-notation-held" data-empty="0" aria-hidden="true">\s*\{widestNotation\(\{ axis: vertical \? 'y' : 'x' \}\)\.map\(/);
+  // On every item of a round that deals sets (a point's item shows only the room).
+  const notation = region(source, '{roundSets.length > 0 && (', '\n          )}', 'the notation');
+  assert.match(notation, /\{shownKind\.set && \(\s*<div className="mm-rush-notation" data-empty=\{notation \? '0' : '1'\} aria-live="polite">/);
+  assert.match(notation, /: notationPrompt\(shownKind\.inequality\)\}/, 'the prompt it shows');
+  assert.match(notation, /<div className="mm-rush-notation-held" data-empty="1" aria-hidden="true">\{notationPrompt\(inequalityGame\)\}<\/div>/);
+  // The widest set on each axis the round marks.
+  assert.match(notation, /\{notationAxes\.map\(\(axis\) => \(\s*<div key=\{axis\} className="mm-rush-notation-held" data-empty="0" aria-hidden="true">\s*\{widestNotation\(\{ axis \}\)\.map\(/);
+  assert.match(source, /const notationAxes = \[\.\.\.new Set\(roundSets\.map\(\(kind\) => \(kind\.vertical \? 'y' : 'x'\)\)\)\];/);
   for (const [selector, property] of [['.mm-rush-notation-held', 'font-size'], ['.mm-rush-notation-held[data-empty="1"]', 'font-size'], ['.mm-rush-notation-held > span', 'white-space']]) {
     const shared = rulesFor(ROUNDS.rush.sheet, selector).filter((rule) => property in rule.declarations && rule.selectors.includes(selector.replace('-held', '')));
     assert.ok(shared.length >= 1, `${selector}: drawn as the notation is (${property})`);

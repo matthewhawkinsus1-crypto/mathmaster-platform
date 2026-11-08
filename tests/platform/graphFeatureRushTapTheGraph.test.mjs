@@ -31,6 +31,7 @@ import {
   lineNotation,
   recordCheck,
   recordSetTap,
+  rushItemKind,
 } from '../../src/platform/liveChallenge/rushSession.js';
 import { executableSource } from './helpers/sourceContract.mjs';
 
@@ -338,10 +339,13 @@ test('the round has no bar of arrow buttons: a set\'s controls are ✓ Check, Do
   assert.doesNotMatch(round, /onArrow|mm-rush-arrow|[◀▶▲▼]/, 'no arrow buttons, no arrow glyphs');
   assert.doesNotMatch(read('src/components/liveChallenge/InequalityNumberLine.jsx'), /[◀▶]/);
   assert.match(round, /recordSetTap\(current, \{ \.\.\.context, hit: setTapAt\(/, 'a set question\'s tap is read on the graph');
-  const start = round.indexOf('{setQuestion ? (');
+  // The controls of the kind shown (rushSession.rushItemKind: the item's from GO).
+  const start = round.indexOf('{shownKind.set ? (');
+  assert.ok(start > -1, 'a set\'s controls, for a set\'s kind');
   const controls = round.slice(start, round.indexOf(') : (', start));
   assert.match(controls, /data-set="1"/);
   assert.deepEqual(controls.match(/>(✓ Check|No Solution|Does Not Exist|Skip)</g), ['>✓ Check<', '>No Solution<', '>Does Not Exist<', '>Skip<']);
-  assert.match(controls, /\{setCanBeEmpty && !inequalityItem && \(/, 'Does Not Exist only for a set that can be empty');
-  assert.match(round, /const setCanBeEmpty = setQuestion && \(inequalityItem \|\| getGraphFeature\(question\?\.feature\)\?\.canNotExist === true\);/);
+  assert.match(controls, /\{shownKind\.canBeEmpty && !shownKind\.inequality && \(/, 'Does Not Exist only for a set that can be empty');
+  const domain = publicRushQuestion(generateQuestionForSlot({ slot: { family: 'squareRoot', feature: GRAPH_FEATURE.DOMAIN, variant: 'endpoint', tier: QUESTION_TIER.EASY }, seedText: 'tap' }));
+  assert.equal(rushItemKind(domain).canBeEmpty, false, 'a domain is never empty: no Does Not Exist');
 });

@@ -63,7 +63,7 @@ import {
   rushLockoutMs,
   rushQuestionWeight,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
+import { INEQUALITY_ITEM, NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
 import { SET_TAP_TIP, formatCoordinate, formatPoint, formatTarget, nearOpenDot, setAxisOf } from './rushGraphModel.js';
 
 export const RUSH_FEEDBACK = Object.freeze({
@@ -811,6 +811,80 @@ export const feedbackReserve = ({ features = [], offScreen = false, inequality =
  * keeps, so a dot placed or taken away moves nothing.
  */
 export const widestNotation = ({ axis = 'x' } = {}) => bothNotations(setFromPlain(WIDE_SET), axis === 'y' ? 'y' : 'x');
+
+/*
+ * THE KINDS OF ITEM A ROUND DEALS. A point to tap and a set to mark ask in
+ * other words and offer other controls: a set's hint is longer, and it brings
+ * its notation's line under the graph. In a round that deals both, the graph
+ * moved 23 px as the kind changed (on both phones, in CI's fonts), so
+ * the prompt, the hint and the notation each keep the room of every kind the
+ * round's settings can deal (GraphFeatureRushRound draws the others, unseen,
+ * in the same cell). An inequality game deals one kind.
+ */
+export const rushRoundKinds = ({ features = [], offScreen = false, inequality = false } = {}) => {
+  if (inequality) return Object.freeze([Object.freeze({ inequality: true, set: true, vertical: false, canBeEmpty: true, offScreen: false })]);
+  const kinds = new Map();
+  for (const featureId of features) {
+    const kind = isSetFeature(featureId)
+      ? { inequality: false, set: true, vertical: SET_FEATURE_AXIS[featureId] === 'y', canBeEmpty: getGraphFeature(featureId)?.canNotExist === true, offScreen: false }
+      : { inequality: false, set: false, vertical: false, canBeEmpty: true, offScreen: offScreen === true };
+    kinds.set(JSON.stringify(kind), Object.freeze(kind));
+  }
+  return Object.freeze([...kinds.values()]);
+};
+
+/** The kind of the item on screen, in rushRoundKinds' terms. */
+export const rushItemKind = (question, { offScreen = false } = {}) => {
+  if (isInequalityQuestion(question)) return Object.freeze({ inequality: true, set: true, vertical: false, canBeEmpty: true, offScreen: false });
+  if (isNumberLineQuestion(question)) {
+    return Object.freeze({ inequality: false, set: true, vertical: setAxisOf(question) === 'y', canBeEmpty: getGraphFeature(question?.feature)?.canNotExist === true, offScreen: false });
+  }
+  return Object.freeze({ inequality: false, set: false, vertical: false, canBeEmpty: true, offScreen: offScreen === true });
+};
+
+/*
+ * THE PROMPT'S ROOM. On a phone the number line sits in the middle of the
+ * space the prompt leaves it, so an inequality whose prompt took two lines
+ * where the last took one moved it 12 px as it appeared (half a line), and a
+ * finger aimed at it landed off it. The prompt keeps the room of the widest
+ * things the round can ask, as the feedback line keeps the room of the
+ * longest it can say: from the round's settings — its features, or its kinds
+ * of inequality and its difficulty — never an item's own words. Each kind of
+ * inequality stands here asked with the widest numbers its builder draws at a
+ * tier (inequalityRush.mjs ITEM_BUILDERS; liveChallengeKindsHoldStill.test.mjs
+ * holds every generated prompt to these): from that tier up, until the next.
+ */
+const ASK_TIERS = Object.freeze(['easy', 'standard', 'challenge']);
+const SOLVE_FIRST_LEAD = 'Solve, then graph';
+const WIDEST_INEQUALITY = Object.freeze({
+  [INEQUALITY_ITEM.SIMPLE]: { lead: 'Graph', easy: 'x ≥ −7' },
+  [INEQUALITY_ITEM.REVERSED]: { lead: 'Graph', easy: '−7 ≥ x' },
+  [INEQUALITY_ITEM.COMPOUND_AND]: { lead: 'Graph', easy: '−7 ≤ x ≤ −1', standard: 'x ≥ −7 and x ≤ −1' },
+  [INEQUALITY_ITEM.COMPOUND_OR]: { lead: 'Graph', easy: 'x ≤ −7 or x ≥ −1' },
+  [INEQUALITY_ITEM.ONE_STEP]: { lead: SOLVE_FIRST_LEAD, easy: 'x − 8 ≤ −14' },
+  [INEQUALITY_ITEM.TWO_STEP]: { lead: SOLVE_FIRST_LEAD, easy: '5x − 9 ≤ −39', standard: '−5x − 9 ≥ −39' },
+  [INEQUALITY_ITEM.ABSOLUTE]: { lead: SOLVE_FIRST_LEAD, easy: '|x| ≤ 5', standard: '|x − 5| ≤ −5', challenge: '|x − 5| − 6 ≥ −5' },
+});
+const RESERVE_ASK_COUNT = 6;
+
+/**
+ * The widest prompts a round of these settings can ask, each as an item
+ * carries it ({ prompt, inequality? }), widest first.
+ */
+export const promptReserve = ({ features = [], inequality = null } = {}) => {
+  if (inequality) {
+    const tiers = inequality.difficulty === 'mixed' ? ASK_TIERS : [ASK_TIERS.includes(inequality.difficulty) ? inequality.difficulty : 'standard'];
+    const top = Math.max(...tiers.map((tier) => ASK_TIERS.indexOf(tier)));
+    return Object.freeze((inequality.itemTypes || []).map((itemType) => {
+      const widest = WIDEST_INEQUALITY[itemType];
+      if (!widest) return null;
+      const text = ASK_TIERS.slice(0, top + 1).reduce((found, tier) => widest[tier] || found, null);
+      return Object.freeze({ prompt: `${widest.lead}: ${text}`, inequality: text });
+    }).filter(Boolean).sort((left, right) => right.prompt.length - left.prompt.length));
+  }
+  const prompts = [...new Set(features.flatMap((featureId) => (getGraphFeature(featureId)?.vocabulary || []).map((entry) => entry.prompt)))];
+  return Object.freeze(prompts.sort((left, right) => right.length - left.length).slice(0, RESERVE_ASK_COUNT).map((prompt) => Object.freeze({ prompt })));
+};
 
 /* ------------------------------ persistence ------------------------------ */
 
