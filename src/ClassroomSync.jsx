@@ -36,11 +36,13 @@ function courseLabel(course) {
   return details ? `${course.name} — ${details}` : course.name;
 }
 
+// A publish result's status in theme tokens, so it holds its contrast on the
+// dark theme's rows too: the fixed light-theme colours read below 3:1 there.
 function statusColor(status) {
-  if (status === 'published' || status === 'already-published') return '#188038';
-  if (status === 'failed') return '#c5221f';
-  if (status === 'publishing' || status === 'in-progress') return '#b06000';
-  return '#5f6368';
+  if (status === 'published' || status === 'already-published') return 'var(--mm-success)';
+  if (status === 'failed') return 'var(--mm-danger)';
+  if (status === 'publishing' || status === 'in-progress') return 'var(--mm-warning-text)';
+  return 'var(--mm-text-muted)';
 }
 
 export default function ClassroomSync({ assignments = [] }) {

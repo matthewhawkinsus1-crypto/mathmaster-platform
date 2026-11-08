@@ -24,6 +24,7 @@ import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../../p
 import AssessmentSkillInspector from './AssessmentSkillInspector';
 import SimulatedStudentExperience from './SimulatedStudentExperience';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
+import { themedTextColor } from '../../theme/themeColorRoles.js';
 import { auditPathQuestionQuality, summarizePathBankQuality, buildPathQuestionRevisionBrief } from '../../platform/path/pathQuestionQuality.js';
 import {
   createSlot, describeSimulatedDate, duplicateSlot, removeSlot, renameSlot, resolveSimulatedNow,
@@ -90,9 +91,11 @@ const REMEDIATION_LABEL = {
   [REMEDIATION_ACTION.NONE]: 'Nothing to route',
 };
 
+// The text is the colour's theme token (the tints stay the hex: a var() takes
+// no alpha suffix), so a pill reads on the dark theme's panels too.
 const pill = (color) => ({
   display: 'inline-block', padding: '1px 8px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))',
-  fontWeight: 900, color, border: `1px solid ${color}33`, background: `${color}14`,
+  fontWeight: 900, color: themedTextColor(color), border: `1px solid ${color}33`, background: `${color}14`,
 });
 
 const DECISION_COLOR = {

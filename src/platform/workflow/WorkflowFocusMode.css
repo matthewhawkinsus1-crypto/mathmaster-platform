@@ -47,6 +47,36 @@
   --wf-accent: #0b7285; --wf-accent-dark: #075766; --wf-tint: #e3f5f8; --wf-edge: #a4d8e2;
 }
 
+/* The dark theme. The tints, edges and the text were the light theme's, so a
+   step chip read 1.7 to 2.4:1 on the dark surface. Each family takes its
+   theme tokens there (teal has none, so it has the same tones written here),
+   and text reads --wf-text, which only the dark theme sets: light keeps
+   --wf-accent-dark. The two accents stay as they are: they are the fills
+   behind the primary button's white text, which reads on both themes. Print
+   keeps the light palette, as theme/tokens.css does. */
+@media screen {
+  :root[data-theme='dark'] .workflow-focus,
+  :root[data-theme='dark'] .workflow-focus[data-family="build"],
+  :root[data-theme='dark'] .workflow-focus [data-family="build"] {
+    --wf-text: var(--mm-primary-text); --wf-tint: var(--mm-primary-soft); --wf-edge: var(--mm-primary-border);
+  }
+
+  :root[data-theme='dark'] .workflow-focus[data-family="locate"],
+  :root[data-theme='dark'] .workflow-focus [data-family="locate"] {
+    --wf-text: var(--mm-accent-text); --wf-tint: var(--mm-accent-soft); --wf-edge: var(--mm-accent-border);
+  }
+
+  :root[data-theme='dark'] .workflow-focus[data-family="decide"],
+  :root[data-theme='dark'] .workflow-focus [data-family="decide"] {
+    --wf-text: var(--mm-warning-text); --wf-tint: var(--mm-warning-bg); --wf-edge: var(--mm-warning-border-soft);
+  }
+
+  :root[data-theme='dark'] .workflow-focus[data-family="state"],
+  :root[data-theme='dark'] .workflow-focus [data-family="state"] {
+    --wf-text: #9fdfe8; --wf-tint: #0f2e33; --wf-edge: #2d7480;
+  }
+}
+
 /* ------------------------------------------------------------ progress rail */
 
 /* How far through, at a glance and without counting pills. It fills in the
@@ -85,7 +115,7 @@
   border: 1px solid var(--wf-edge);
   border-radius: 999px;
   background: color-mix(in srgb, var(--wf-tint) 45%, var(--mm-surface));
-  color: var(--wf-accent-dark);
+  color: var(--wf-text, var(--wf-accent-dark));
   padding: 8px 13px;
   font: inherit;
   font-weight: 800;
@@ -101,7 +131,7 @@
 .workflow-focus__step--active {
   border: 2px solid var(--wf-accent);
   background: var(--wf-tint);
-  color: var(--wf-accent-dark);
+  color: var(--wf-text, var(--wf-accent-dark));
   box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--wf-accent) 45%, transparent);
 }
 
@@ -430,7 +460,7 @@
   background: var(--wf-tint);
   border: 1px solid var(--wf-edge);
   padding: 3px 10px;
-  color: var(--wf-accent-dark);
+  color: var(--wf-text, var(--wf-accent-dark));
   font-size: calc(11 * var(--mm-px));
   font-weight: 900;
   letter-spacing: .07em;
@@ -532,7 +562,7 @@
 
 .workflow-focus__workspace-heading h4 {
   margin: 0;
-  color: var(--wf-accent-dark);
+  color: var(--wf-text, var(--wf-accent-dark));
   font-size: calc(16 * var(--mm-px));
   font-weight: 900;
 }

@@ -6,6 +6,7 @@ import { getEvidence } from '../../platform/ccmr/assessmentEvidence';
 import { getAssessmentStandardReferences } from '../../platform/ccmr/assessmentStandardReferences.js';
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
 import { assessmentTierStats, resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFidelity.js';
+import { themedTextColor } from '../../theme/themeColorRoles.js';
 
 // §28 teacher skill inspector, and §29 simulator controls, in one component.
 //
@@ -96,7 +97,7 @@ export default function AssessmentSkillInspector({
             <div key={framework} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: alignment ? 'var(--mm-surface)' : 'var(--mm-surface-sunken)' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 'calc(14 * var(--mm-px))' }}>{FRAMEWORK_LABELS[framework]}</strong>
-                <span style={{ fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900, padding: '1px 8px', borderRadius: 999, color, border: `1px solid ${color}33`, background: `${color}14` }}>
+                <span style={{ fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900, padding: '1px 8px', borderRadius: 999, color: themedTextColor(color), border: `1px solid ${color}33`, background: `${color}14` }}>
                   {STATUS_TEXT[pathway?.status] || 'Not available'}
                 </span>
               </div>

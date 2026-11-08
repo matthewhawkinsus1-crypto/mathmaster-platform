@@ -14,7 +14,7 @@
  * and anything mid-tone are left exactly as they are, because they read
  * correctly on both themes.
  *
- * Used at runtime by toneTextColor() below, by scripts/codemods/tokenize-theme-colors.mjs (the Dark Mode 2.0
+ * Used at runtime by toneTextColor() and themedTextColor() below, by scripts/codemods/tokenize-theme-colors.mjs (the Dark Mode 2.0
  * migration) and by scripts/audit-theme-colors.mjs, which rejects a NEW
  * literal that has a token, and names the token to use.
  */
@@ -159,4 +159,17 @@ export const toneTextColor = (tone) => {
   const rgb = parseHexColor(tone);
   if (!rgb) return tone;
   return `var(${TONE_TEXT_TOKEN[hueFamily(rgb)]})`;
+};
+
+/**
+ * A light-theme TEXT colour as its theme token: the token whose light value it
+ * is (the one the theme audit names for it), so light shows the same colour
+ * and dark the one designed for it. For a component that also builds tints
+ * from the hex (`${color}14`), where a var() cannot go. Unlike toneTextColor it
+ * keeps text and muted text apart (#3c4043 stays --mm-text). A colour that is
+ * not light-theme text (white, a token) passes through.
+ */
+export const themedTextColor = (color) => {
+  const hit = classifyThemeColor(color, COLOR_ROLE.TEXT);
+  return hit ? `var(${hit.token})` : color;
 };

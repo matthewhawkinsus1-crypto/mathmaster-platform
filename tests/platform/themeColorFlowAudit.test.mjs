@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseAst } from 'vite';
 import { cssDeclarations, indirectThemeColors } from '../../scripts/lib/themeColorFlow.mjs';
+import { parseHexColor, relativeLuminance, themedTextColor } from '../../src/theme/themeColorRoles.js';
 import { runsOnPullRequest } from './helpers/ciWorkflows.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -138,8 +139,8 @@ test('what the baselines keep on purpose is not a style: SVG attributes, canvas,
 });
 
 test('the theme\'s own helpers, colours that read on both themes, and literals the audit counts where written are not counted here', () => {
-  const helpers = "import { toneTextColor } from './theme/themeColorRoles.js';\nconst T = '#174ea6';\nexport const H = () => <b style={{ color: toneTextColor(T) }} />;";
-  assert.deepEqual(found({ 'src/H.jsx': helpers }), [], 'toneTextColor() gives a token for any colour');
+  const helpers = "import { toneTextColor, themedTextColor } from './theme/themeColorRoles.js';\nconst T = '#174ea6';\nexport const H = () => <b style={{ color: toneTextColor(T), borderColor: themedTextColor(T) }} />;";
+  assert.deepEqual(found({ 'src/H.jsx': helpers }), [], 'toneTextColor() and themedTextColor() give a token for any colour');
   const both = "const FILL = '#1a73e8'; const INK = '#ffffff'; export const B = () => <b style={{ background: FILL, color: INK, border: `1px solid ${FILL}` }} />;";
   assert.deepEqual(found({ 'src/B.jsx': both }), [], 'a saturated fill and white text read on both themes');
   const written = "export const W = () => <b style={{ color: '#174ea6' }} />;";
@@ -157,6 +158,83 @@ test('a declaration\'s value and its offset, read from CSS whatever wraps it', (
     ['--x', '#fff', '#fff', false, true],
     ['--y', '#000', '#000', true, false],
   ]);
+});
+
+/* --- the screens this batch moved to tokens -------------------------------- */
+
+const palette = read('src/theme/tokens.css');
+const definitions = (text) => Object.fromEntries([...text.matchAll(/(--mm-[\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+const THEMES = {
+  light: definitions(palette.slice(palette.indexOf(':root {'), palette.indexOf('@media screen'))),
+  dark: definitions(palette.slice(palette.indexOf(":root[data-theme='dark'] {"))),
+};
+const resolve = (value, tokens) => value.replace(/var\((--mm-[\w-]+)\)/g, (_, name) => resolve(tokens[name], tokens));
+const ratio = (a, b) => {
+  const [x, y] = [relativeLuminance(parseHexColor(a)), relativeLuminance(parseHexColor(b))].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+};
+
+const FIXED = [
+  'src/ClassroomSync.jsx', 'src/components/teacher/CognitiveDemandView.jsx', 'src/components/teacher/PathSimulator.jsx',
+  'src/components/teacher/AssessmentSkillInspector.jsx', 'src/QuestionStandardsEditor.jsx', 'src/TexasStandardsDashboard.jsx',
+  'src/platform/workflow/WorkflowFocusMode.css',
+];
+
+test('the screens moved to tokens take no light-theme colour into a style, however it gets there', () => {
+  const findings = flow(Object.fromEntries(FIXED.map((file) => [file, read(file)])));
+  assert.deepEqual(findings.map((f) => `${f.file}:${f.line} ${f.hex} -> ${f.sink.property}`), []);
+});
+
+test('themedTextColor names the token whose light value a text colour is, and passes anything else through', () => {
+  assert.equal(themedTextColor('#a50e0e'), 'var(--mm-error-text)');
+  assert.equal(themedTextColor('#7a4f00'), 'var(--mm-warning-text)');
+  assert.equal(themedTextColor('#3c4043'), 'var(--mm-text)', 'text, not muted text');
+  assert.equal(themedTextColor('#5f6368'), 'var(--mm-text-muted)');
+  assert.equal(themedTextColor('#5b21b6'), 'var(--mm-accent-text)', 'a purple with no token of its own: the accent text');
+  assert.equal(themedTextColor('#ffffff'), '#ffffff', 'white text reads on both themes');
+  assert.equal(themedTextColor('var(--mm-text)'), 'var(--mm-text)');
+  // Every value the two inspectors hand it lands on a token that reads on the card in both themes.
+  for (const hex of ['#a50e0e', '#7a4f00', '#137333', '#5b21b6', '#174ea6', '#3c4043', '#5f6368']) {
+    for (const [theme, tokens] of Object.entries(THEMES)) {
+      const text = resolve(themedTextColor(hex), tokens);
+      const card = resolve('var(--mm-surface)', tokens);
+      assert.ok(ratio(text, card) >= 4.5, `${theme}: ${hex} -> ${text} on ${card} is ${ratio(text, card).toFixed(2)}:1`);
+    }
+  }
+});
+
+// The workflow focus mode's dark values: each family's step chip (the tint at
+// 45% over the card), its active step and its label (the tint), in dark; and
+// light reads the light theme's colours, unchanged.
+test('the workflow focus mode reads in dark, and light keeps its own colours', () => {
+  const css = read('src/platform/workflow/WorkflowFocusMode.css');
+  const declarations = cssDeclarations(css);
+  const mix = (a, b, t) => `#${parseHexColor(a).map((v, i) => Math.round(v * t + parseHexColor(b)[i] * (1 - t)).toString(16).padStart(2, '0')).join('')}`;
+  const family = (dark, name) => {
+    const values = {};
+    for (const d of declarations.filter((entry) => entry.dark === dark && entry.property.startsWith('--wf-'))) {
+      // A declaration's rule names the family by its data-family; the default has none.
+      const prelude = css.slice(0, d.offset).slice(css.slice(0, d.offset).lastIndexOf('}') + 1);
+      const named = prelude.match(/data-family="(\w+)"/)?.[1] || 'build';
+      if (named === name) values[d.property] = d.value;
+    }
+    return values;
+  };
+  for (const name of ['build', 'locate', 'decide', 'state']) {
+    const dark = family(true, name);
+    assert.ok(dark['--wf-text'] && dark['--wf-tint'] && dark['--wf-edge'], `${name}: text, tint and edge in dark`);
+    const text = resolve(dark['--wf-text'], THEMES.dark);
+    const tint = resolve(dark['--wf-tint'], THEMES.dark);
+    const card = resolve('var(--mm-surface)', THEMES.dark);
+    for (const [where, background] of [['the active step and the label', tint], ['a step chip', mix(tint, card, 0.45)], ['the card', card]]) {
+      assert.ok(ratio(text, background) >= 4.5, `${name}: ${text} on ${where} (${background}) is ${ratio(text, background).toFixed(2)}:1`);
+    }
+    assert.equal(family(false, name)['--wf-text'], undefined, `${name}: light sets no --wf-text, so text falls back to --wf-accent-dark`);
+  }
+  const texts = [...css.matchAll(/^\s*color:\s*(var\(--wf-[^;]+);/gm)].map((m) => m[1]);
+  assert.ok(texts.length >= 4, 'the chips, the active step, the label and the heading');
+  for (const value of texts) assert.equal(value, 'var(--wf-text, var(--wf-accent-dark))', 'every text reads the dark text first, then the light one');
+  assert.deepEqual(['build', 'locate', 'decide', 'state'].map((name) => family(false, name)['--wf-accent-dark']), ['#14508f', '#59268f', '#8a4b00', '#075766'], 'light keeps its colours');
 });
 
 /* --- the audit -------------------------------------------------------------- */

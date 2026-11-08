@@ -47,11 +47,13 @@ const PerformanceBadge = ({ performance }) => (
   </span>
 );
 
+// [background, text], in theme tokens: a light badge on a dark row was a light
+// island, and its text the light theme's.
 const standardBadgeTone = (classification) => {
-  if (classification === 'readiness') return ['#e6f4ea', '#137333'];
-  if (classification === 'supporting') return ['#e8f0fe', '#174ea6'];
-  if (classification === 'content') return ['#f3e8fd', '#7b1fa2'];
-  return ['#f1f3f4', '#5f6368'];
+  if (classification === 'readiness') return ['var(--mm-success-bg)', 'var(--mm-success-text)'];
+  if (classification === 'supporting') return ['var(--mm-primary-soft)', 'var(--mm-primary-text)'];
+  if (classification === 'content') return ['var(--mm-accent-soft)', 'var(--mm-accent-text)'];
+  return ['var(--mm-surface-control)', 'var(--mm-text-muted)'];
 };
 
 const StandardBadge = ({ standard }) => {

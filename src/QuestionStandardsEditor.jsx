@@ -43,11 +43,13 @@ const coursePlaceholder = (courseId, role = 'primary') => {
   return examples[courseId]?.[role] || examples.algebra1[role];
 };
 
+// [background, text, label], in theme tokens: a light badge on a dark row was a
+// light island, and its text the light theme's.
 const standardBadge = (standard) => {
-  if (standard?.classification === 'readiness') return ['#e6f4ea', '#137333', 'Readiness'];
-  if (standard?.classification === 'supporting') return ['#e8f0fe', '#174ea6', 'Supporting'];
-  if (standard?.classification === 'process') return ['#f1f3f4', '#5f6368', 'Process'];
-  return ['#f3e8fd', '#7b1fa2', 'Course TEKS'];
+  if (standard?.classification === 'readiness') return ['var(--mm-success-bg)', 'var(--mm-success-text)', 'Readiness'];
+  if (standard?.classification === 'supporting') return ['var(--mm-primary-soft)', 'var(--mm-primary-text)', 'Supporting'];
+  if (standard?.classification === 'process') return ['var(--mm-surface-control)', 'var(--mm-text-muted)', 'Process'];
+  return ['var(--mm-accent-soft)', 'var(--mm-accent-text)', 'Course TEKS'];
 };
 
 export default function QuestionStandardsEditor({ question, onApply, onCancel }) {
