@@ -41,6 +41,15 @@
  *   2. PIXELS. Make the node's text (and its descendants', and SVG text fill)
  *      transparent, screenshot each of the node's text boxes, and take the
  *      darkest and the lightest background pixel (by relative luminance).
+ *      The node's own border is made transparent too (its width stays, so
+ *      nothing moves): a text box is the font's whole height, taller than
+ *      its glyphs, and where a line is shorter than that it reaches across
+ *      the node's padding into its border. The border frames the text and is
+ *      not behind it: read as its background, the Live Challenge lobby's
+ *      name plate (34px under the root's 26.1px line, inside a white border)
+ *      read 1.30:1 where it is 4.80:1. What the border hid is read instead,
+ *      the node's own background. An ancestor's border is still read: text
+ *      that runs over one is on it.
  *   3. The node's ratio is the WORST of text-vs-each-stop and text-vs-darkest /
  *      text-vs-lightest pixel. Required: 4.5:1, 3:1 for large text (>= 24px, or
  *      >= 18.66px bold), 3:1 for an icon glyph that is a control's only visible
@@ -93,7 +102,7 @@ export const worstRatio = (text, backgrounds) => {
 
 // ------------------------------------------------------------------ in-page analysis
 /* Runs in the page: axe's incomplete color-contrast nodes, each described. */
-const collectInPage = async ({ include, exclude }) => {
+export const collectInPage = async ({ include, exclude }) => {
   const context = { include: include.length ? include.map((s) => [s]) : [['html']] };
   if (exclude.length) context.exclude = exclude.map((s) => [s]);
   const result = await window.axe.run(context, { runOnly: { type: 'rule', values: ['color-contrast'] }, resultTypes: ['incomplete'], elementRef: true });
@@ -359,11 +368,13 @@ export const HIDE_CSS = `
      transparent colour leaves the glyphs in the shot: take the paint away, and
      the drop-shadow glow that follows the glyphs with it (as text-shadow above). */
   .__crHideClip${OUTRANK} { background-image: none !important; filter: none !important; }
+  /* The node's own border, and only the node's (measurePixels). */
+  .__crHideBorder${OUTRANK} { border-color: transparent !important; border-image: none !important; }
   *, *::before, *::after { transition: none !important; animation-play-state: paused !important; }
 `;
 
 /* Screenshot each text box of target `index` with its text hidden. */
-const measurePixels = async (page, index) => {
+export const measurePixels = async (page, index) => {
   const rects = await page.evaluate(({ i, css }) => {
     const el = window.__crTargets[i];
     if (!el?.isConnected) return [];
@@ -378,7 +389,7 @@ const measurePixels = async (page, index) => {
       host.append(style);
     }
     el.scrollIntoView({ block: 'center', inline: 'center' });
-    el.classList.add('__crHide');
+    el.classList.add('__crHide', '__crHideBorder');
     for (const node of [el, ...el.querySelectorAll('*')]) {
       const clip = getComputedStyle(node);
       if (/text/.test(clip.backgroundClip || clip.webkitBackgroundClip || '')) node.classList.add('__crHideClip');
@@ -415,7 +426,7 @@ const measurePixels = async (page, index) => {
   await page.evaluate((i) => {
     const el = window.__crTargets[i];
     if (!el) return;
-    el.classList.remove('__crHide');
+    el.classList.remove('__crHide', '__crHideBorder');
     for (const node of [el, ...el.querySelectorAll('.__crHideClip')]) node.classList.remove('__crHideClip');
   }, index);
   const all = extremes.flatMap((e) => [e.dark, e.light]).filter(Boolean);
@@ -424,7 +435,7 @@ const measurePixels = async (page, index) => {
   return { dark: sorted[0], light: sorted[sorted.length - 1] };
 };
 
-const judge = (info, pixels) => {
+export const judge = (info, pixels) => {
   const backgrounds = [...info.stopCandidates];
   if (pixels) backgrounds.push(pixels.dark, pixels.light);
   let worst = { ratio: Infinity, against: null, text: null };

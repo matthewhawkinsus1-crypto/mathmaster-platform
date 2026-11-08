@@ -10,6 +10,13 @@
  * threshold select at 1:1, where it is #f3f5f9 on #242832 (about 13:1). The
  * hiding rules must outrank every colour rule the app's stylesheets set with
  * !important.
+ *
+ * The step also leaves the node's own border out (its text box is the font's
+ * whole height and can reach across the padding into the border, which frames
+ * the text and is not behind it: the Live Challenge lobby's name plate read
+ * 1.30:1 against its own white border). That rule must outrank every border
+ * colour the app sets with !important as well. tests/browser/
+ * contrastReviewSelfTest.mjs holds what it reads, on pages whose answer is known.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -66,6 +73,8 @@ const specificity = (selector) => {
 // The rules of a stylesheet, innermost: [selectors, declarations].
 const rules = (css) => [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]]);
 const setsColourImportant = (body) => /(?:^|[;\s])(?:color|-webkit-text-fill-color|fill)\s*:[^;]*!important/i.test(body);
+// border, border-color and each side's, and border-image: what paints a border's colour.
+const setsBorderImportant = (body) => /(?:^|[;\s])border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-color|-image)?\s*:[^;]*!important/i.test(body);
 const cssFiles = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
   const file = path.join(dir, entry.name);
   if (entry.isDirectory()) return cssFiles(file);
@@ -79,7 +88,7 @@ test('specificity as the cascade counts it, for the selectors the app writes', (
 });
 
 test('the text the review hides for its pixel reading stays hidden over every colour rule the app sets with !important', () => {
-  const hiding = rules(HIDE_CSS).filter(([, body]) => /color:\s*transparent\s*!important/.test(body)).flatMap(([selectors]) => splitList(selectors));
+  const hiding = rules(HIDE_CSS).filter(([, body]) => /(?:^|[\s;])color:\s*transparent\s*!important/.test(body)).flatMap(([selectors]) => splitList(selectors));
   assert.ok(hiding.length >= 2, 'the hiding rules');
   const weakestHiding = hiding.map(specificity).sort(higher)[0];
   let strongest = { specificity: [0, 0, 0], selector: null, file: null };
@@ -95,5 +104,24 @@ test('the text the review hides for its pixel reading stays hidden over every co
     }
   }
   assert.ok(strongest.selector, 'the app does set colours with !important (the dark theme\'s form controls)');
+  assert.ok(higher(weakestHiding, strongest.specificity) > 0, `hiding [${weakestHiding}] must outrank "${strongest.selector}" [${strongest.specificity}] (${strongest.file})`);
+});
+
+test("the node's own border, which the pixel step leaves out, stays out over every border the app sets with !important", () => {
+  const hiding = rules(HIDE_CSS).filter(([, body]) => /border-color:\s*transparent\s*!important/.test(body) && /border-image:\s*none\s*!important/.test(body))
+    .flatMap(([selectors]) => splitList(selectors));
+  assert.ok(hiding.length >= 1, 'a rule makes the border transparent and drops a border image');
+  const weakestHiding = hiding.map(specificity).sort(higher)[0];
+  let strongest = { specificity: [0, 0, 0], selector: null, file: null };
+  for (const file of cssFiles(path.join(repo, 'src'))) {
+    for (const [selectors, body] of rules(readFileSync(file, 'utf8'))) {
+      if (selectors.startsWith('@') || !setsBorderImportant(body)) continue;
+      for (const selector of splitList(selectors)) {
+        const value = specificity(selector);
+        if (higher(value, strongest.specificity) > 0) strongest = { specificity: value, selector, file: path.relative(repo, file) };
+      }
+    }
+  }
+  assert.ok(strongest.selector, 'the app does set borders with !important (the dark theme\'s neutral buttons, print rules)');
   assert.ok(higher(weakestHiding, strongest.specificity) > 0, `hiding [${weakestHiding}] must outrank "${strongest.selector}" [${strongest.specificity}] (${strongest.file})`);
 });
