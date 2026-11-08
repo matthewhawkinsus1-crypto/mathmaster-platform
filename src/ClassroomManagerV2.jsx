@@ -57,6 +57,10 @@ const card = { background: 'var(--mm-surface)', border: '1px solid var(--mm-bord
 // A field's label, tied to its field (htmlFor and id). Untied, the field had no name a screen reader could say: the
 // first audit of the connected screen found six choosers and the instructions box so (the November build's section 6).
 const label = { display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 6 };
+// A section's title is a heading, one level under the screen's own (h2), and drawn as the bold line it was, at the size
+// of the text around it and with no margin of its own. As bold text a screen reader could neither list the sections nor
+// move from one to the next (WCAG 1.3.1, 2.4.6; the connected screen's first audit, the November build's section 6).
+const sectionTitle = { margin: 0, fontSize: 'inherit' };
 const input = { width: '100%', padding: '10px 12px', fontSize: 'calc(14 * var(--mm-px))', borderRadius: 8, border: '1px solid var(--mm-border)', boxSizing: 'border-box', background: 'var(--mm-surface)' };
 const btn = { padding: '10px 15px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, borderRadius: 8, border: 0, cursor: 'pointer' };
 const primary = { ...btn, background: '#1a73e8', color: '#fff' };
@@ -623,7 +627,7 @@ export default function ClassroomManagerV2({
       <section style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div>
-            <strong>1. Classroom connection</strong>
+            <h3 style={sectionTitle}>1. Classroom connection</h3>
             <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 4 }}>
               {connection.connected ? 'Connected' : 'Not connected'}
               {connection.needsReconnect ? ' · reconnect required for current permissions' : ''}
@@ -659,7 +663,7 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>2. Map Google Classroom courses to MathMaster classes</strong>
+          <h3 style={sectionTitle}>2. Map Google Classroom courses to MathMaster classes</h3>
           <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
             This mapping is the guardrail that keeps Algebra I students, assignments and grades out of an Algebra II Classroom.
           </p>
@@ -700,7 +704,7 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>3. Link the Google roster for grade passback</strong>
+          <h3 style={sectionTitle}>3. Link the Google roster for grade passback</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginTop: 12 }}>
             <div style={{ flex: '1 1 320px' }}>
               <label style={label} htmlFor="classroom-roster-course">Google Classroom course</label>
@@ -817,7 +821,7 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>4. Classroom destinations and organization</strong>
+          <h3 style={sectionTitle}>4. Classroom destinations and organization</h3>
           <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Choose where the next assignment/material should go. Mapped courses are safer than “select all.”</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {courses.map((course) => {
@@ -856,7 +860,7 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>5. Publish a MathMaster assignment</strong>
+          <h3 style={sectionTitle}>5. Publish a MathMaster assignment</h3>
           <div style={{ marginTop: 12 }}>
             <label style={label} htmlFor="classroom-assignment">MathMaster assignment</label>
             <select id="classroom-assignment" style={input} value={assignmentId} onChange={(e) => handleAssignmentChange(e.target.value)}>
@@ -977,7 +981,7 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>6. Publish a standalone notes/material post</strong>
+          <h3 style={sectionTitle}>6. Publish a standalone notes/material post</h3>
           {/* Each field under a label of its own: their placeholders were their only names, and the title's never shows,
               since it always holds one. The description's label is its placeholder's words; the title keeps its example. */}
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
@@ -996,7 +1000,7 @@ export default function ClassroomManagerV2({
 
       {syncByAssignment.length > 0 && (
         <section style={card}>
-          <strong>7. Published assignment health</strong>
+          <h3 style={sectionTitle}>7. Published assignment health</h3>
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             {syncByAssignment.map(({ assignment, sync }) => (
               <div key={assignment.id} style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 8, padding: 10 }}>
@@ -1095,7 +1099,7 @@ export default function ClassroomManagerV2({
       )}
 
       <section style={card}>
-        <strong>8. Grade passback monitor</strong>
+        <h3 style={sectionTitle}>8. Grade passback monitor</h3>
         <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           MathMaster sends progress checkpoints while students work, a due-date checkpoint, and a final grade at completion or the final cutoff. Failures stay visible instead of disappearing silently.
         </p>

@@ -18,6 +18,8 @@
  *     said twice;
  *   - every label names the field under it, or holds its field (a label tied to nothing names nothing);
  *   - a course's chooser is named by the course it maps, and the links' fields sit in a group named by their heading.
+ * Its eight sections were titled in bold text, so a screen reader could neither list them nor move from one to the next
+ * (WCAG 1.3.1, 2.4.6). Each title is a heading now, one level under the screen's own, and looks as it did.
  * Its contrast review found one more thing: on a phone a label lay across its card's border. Three rows of the screen
  * kept their laptop columns at any width: each course's class chooser and its pill ran 167 and 242px past the card at
  * 390px, the second column of "Publish a MathMaster assignment" 147px, and at 320px the courses to publish to 11px.
@@ -226,6 +228,31 @@ test('a course\'s chooser is named by the course it maps, and the links\' fields
   for (const value of ['material.title', 'material.url']) assert.ok(group.includes(fieldShowing(value).tag), `and ${value}, a field of every link`);
 });
 
+test('each section is headed by its title, one level under the screen\'s own, and drawn as the bold line it was', () => {
+  // The screen's own heading, the workspace's (h1) being above it, and no other at its level or above.
+  const headings = [...source.matchAll(/<h([1-6])\b[^>]*>([^<]*)<\/h\1>/g)].map(([tag, level, words]) => ({ tag, level: Number(level), words: words.trim() }));
+  assert.deepEqual(headings.filter(({ level }) => level <= 2).map(({ tag }) => tag), ['<h2 style={{ margin: 0 }}>Google Classroom Manager</h2>']);
+  // Each section's first words are its title, a heading one level under the screen's: 1. to 8., in order.
+  const sections = elements('section').map(({ at, tag }) => source.slice(at + tag.length, closing(at, 'section')));
+  assert.equal(sections.length, 8, 'the screen\'s eight sections');
+  sections.forEach((inner, index) => {
+    const first = /<(h[1-6]|strong|b|div|span|p|label)\b[^>]*>([^<{]*[^<{\s][^<{]*)</.exec(inner);
+    assert.ok(first, `section ${index + 1} has words`);
+    assert.match(first[2].trim(), new RegExp(`^${index + 1}\\. `), `section ${index + 1} starts with its numbered title`);
+    assert.equal(first[1], 'h3', `"${first[2].trim()}" is a heading under the screen's h2, not bold text`);
+  });
+  assert.deepEqual(headings.filter(({ level }) => level === 3).map(({ words }) => words.replace(/ .*/, '')), ['1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.'], 'the sections\' headings, and no other at their level');
+  // In the screen's heading order: under the workspace's h1 its h2, and no heading more than one level under the last.
+  headings.reduce((previous, heading) => {
+    assert.ok(heading.level <= previous.level + 1, `"${heading.words}" (h${heading.level}) after an h${previous.level}: no level skipped`);
+    return heading;
+  }, { level: 1 });
+  // Drawn as the bold line it was: a heading's own margins and larger size are taken off, so on screen nothing moves.
+  for (const { tag } of headings.filter(({ level }) => level === 3)) assert.match(tag, /^<h3 style=\{sectionTitle\}>/);
+  assert.match(source, /const sectionTitle = \{ margin: 0, fontSize: 'inherit' \};/);
+  assert.doesNotMatch(source, /<strong>\d\. /, 'no section is titled in bold text');
+});
+
 test('on a phone every row of the connected screen fits its card, and on a laptop it is as it was', () => {
   // Two tracks with minimum widths, side by side in every width, run past a narrow card: a grid of them is auto-fit.
   for (const [, tracks] of source.matchAll(/gridTemplateColumns: '([^']+)'/g)) {
@@ -233,7 +260,7 @@ test('on a phone every row of the connected screen fits its card, and on a lapto
     assert.ok(minimums <= 1 || /^repeat\(auto-fit, minmax\(min\(100%, \d+px\), 1fr\)\)$/.test(tracks), `columns "${tracks}" sit side by side only where they fit`);
   }
   // "Publish a MathMaster assignment": the topic and the delivery side by side, in two equal columns where two fit.
-  const publish = region(source, '<strong>5. Publish a MathMaster assignment</strong>', '</section>', 'the publish card');
+  const publish = region(source, '5. Publish a MathMaster assignment', '</section>', 'the publish card');
   assert.match(publish, /gridTemplateColumns: 'repeat\(auto-fit, minmax\(min\(100%, 220px\), 1fr\)\)'/);
   // A course's row: the course, its class and its pill side by side where they fit, the course and its class sharing
   // the row equally as the two equal columns did, and wrapping on a phone.
@@ -242,7 +269,7 @@ test('on a phone every row of the connected screen fits its card, and on a lapto
   assert.match(rows, /<div style=\{\{ flex: '1 1 0', minWidth: 'min\(100%, 220px\)' \}\}>/, 'the course');
   assert.match(rows, /<div style=\{\{ flex: '1 1 0', minWidth: 'min\(100%, 240px\)' \}\}>\s*<select\s+style=\{\{ \.\.\.input, display: 'block' \}\}/, 'its class, in a box without padding, as the course is');
   // A course to publish to: 220px of course where there is room, as always, and never past the card.
-  const courses = region(source, '<strong>4. Classroom destinations and organization</strong>', '</section>', 'the destinations card');
+  const courses = region(source, '4. Classroom destinations and organization', '</section>', 'the destinations card');
   assert.match(courses, /<label key=\{course\.id\} style=\{\{[^}]*minWidth: 'min\(220px, 100% - 26px\)' \}\}>/);
   assert.doesNotMatch(courses, /minWidth: \d/, 'no fixed minimum left');
 });
