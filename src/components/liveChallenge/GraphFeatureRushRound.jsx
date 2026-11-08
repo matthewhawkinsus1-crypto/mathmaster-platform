@@ -153,7 +153,14 @@ const lineFrame = ({ width, height }) => {
   return { width: lineWidth, height: Math.min(height, Math.max(160, Math.min(300, Math.round(lineWidth * 0.36)))) };
 };
 
-/** The round clock: its own component, so its ticks redraw nothing else. */
+/*
+ * The round clock: its own component, so its ticks redraw nothing else. Its
+ * slot holds both its faces, "Starts in 3" before GO and 0:59 after, each with
+ * an invisible reserve of the other: where the bar could run out of room, the
+ * countdown's longer words wrapped a phone's bar onto a second row (91 px at
+ * 390 px wide), so the bar shrank back to 57 px at GO, just as the first graph
+ * appeared, and the graph jumped up under the student's finger.
+ */
 function RushClock({ startMono, endMono }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
@@ -162,12 +169,18 @@ function RushClock({ startMono, endMono }) {
   }, []);
   const before = startMono - now;
   if (before > 0) {
-    return <span className="mm-rush-clock" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>Starts in {Math.ceil(before / 1000)}</span>;
+    return (
+      <span className="mm-rush-clock" data-soon="1" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>
+        <span className="mm-rush-clock-face">Starts in {Math.ceil(before / 1000)}</span>
+        <span className="mm-rush-reserve" aria-hidden="true">0:00</span>
+      </span>
+    );
   }
   const remaining = Math.max(0, endMono - now);
   return (
     <span className={remaining <= 10_000 ? 'mm-rush-clock mm-rush-clock-low' : 'mm-rush-clock'} role="timer" aria-label={`${Math.ceil(remaining / 1000)} seconds left`}>
-      {formatClock(remaining)}
+      <span className="mm-rush-clock-face">{formatClock(remaining)}</span>
+      <span className="mm-rush-reserve mm-rush-clock-soon" aria-hidden="true">Starts in 0</span>
     </span>
   );
 }
@@ -237,11 +250,24 @@ ${arenaLayerCss('.mm-rush-shell')}
 /* The student's name on a racing plate. */
 .mm-rush-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #d92a48, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
 .mm-rush-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
+/* The round and its counts, one item of the bar: in its row on a wide screen,
+   the round over the counts on a phone (the max-width: 480px rules). */
+.mm-rush-tally, .mm-rush-counts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .mm-rush-done { font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #b8c4ef; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The round's points: what the race is ranked by. */
 .mm-rush-points { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* A count and its reserve (its largest count, drawn invisible) share one cell,
+   so the slot is as wide as the largest count from the round's start and a
+   count that grows moves nothing: on a 360 px phone a three-digit total wrapped
+   the bar (57 to 91 px), and the graph jumped 34 px under the student's finger.
+   A screen reader reads only the count. Wider than 60em (960 px at the default
+   text size, 1920 at 200%) the bar's longest row fits, so there the reserves
+   take no room. */
+.mm-rush-points, .mm-rush-done { display: inline-grid; align-items: center; justify-items: start; }
+.mm-rush-points > *, .mm-rush-done > *, .mm-rush-clock > * { grid-area: 1 / 1; }
+.mm-rush-reserve { display: none; }
 /* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
-.mm-rush-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
+.mm-rush-clock { display: inline-grid; align-items: center; justify-items: end; margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
 /* The last ten seconds: red, and a pulse (a transform: the compositor's). */
 .mm-rush-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
 /* "Reconnecting…" sits on the bar's lower edge and takes no room in it. In the
@@ -250,11 +276,16 @@ ${arenaLayerCss('.mm-rush-shell')}
    dropped, and back up as it returned: a finger aimed at a feature landed 65 px
    from it, a miss (the game driver's "did not complete after its answer" on a
    phone). Low enough to sit in the bar's padding and the stage's, clear of the
-   prompt; it catches no pointer, so the stage under it stays the student's. */
+   prompt; it catches no pointer, so the stage under it stays the student's.
+   Every word is shown: one line at 320 px in CI's fonts (294 px wide), and where
+   it cannot be (large text on a phone) it wraps (an ellipsis cut it) and grows
+   up over the bar, never down over the prompt: its bottom is held half a line
+   below the edge (half of 1.25em and its 4px of padding and border), so one
+   line sits centred on it. */
 .mm-rush-sync {
-  position: absolute; left: 50%; top: 100%; z-index: 2; transform: translate(-50%, -50%);
-  max-width: calc(100% - 24px); box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  padding: 1px 10px; border-radius: 999px; background: #4a3708; border: 1px solid #f9ab00; pointer-events: none;
+  position: absolute; left: 50%; bottom: calc(-0.625em - 2px); z-index: 2; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; text-align: center; text-wrap: balance;
+  padding: 1px 8px; border-radius: 999px; background: #4a3708; border: 1px solid #f9ab00; pointer-events: none;
   font-size: calc(12 * var(--mm-px)); line-height: 1.25; font-weight: 900; color: #fdd663;
 }
 .mm-rush-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(53,227,255,.45); border-radius: 8px; background: rgba(10,16,52,.6); color: #eef2ff; font-weight: 900; cursor: pointer; }
@@ -340,10 +371,25 @@ ${GP_RACE_CSS}
   .mm-rush-controls { grid-area: controls; align-self: end; }
   .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"], .mm-rush-buttons[data-set="1"], .mm-rush-buttons[data-set="1"][data-dne="1"] { grid-template-columns: 1fr; }
 }
+/* Where the bar could run out of room (a phone, a tablet standing up, 200%
+   text): every count keeps its slot, and "Starts in 3" is drawn small enough to
+   share the clock's. */
+@media (max-width: 60em) {
+  .mm-rush-reserve { display: block; visibility: hidden; }
+  .mm-rush-clock[data-soon="1"] .mm-rush-clock-face, .mm-rush-clock-soon { font-size: calc(15 * var(--mm-px)); }
+}
+/* A phone: the round over its counts, so a four-digit total, the items done,
+   the status (on the bar's edge), the clock and Exit hold one row at 320 px in
+   CI's fonts, where the round's words beside the counts took two. */
 @media (max-width: 480px) {
   .mm-rush-chip { display: none; }
-  .mm-rush-bar { gap: 8px; }
+  .mm-rush-bar { gap: 6px; }
+  .mm-rush-exit { padding-left: 10px; padding-right: 10px; }
+  .mm-rush-tally { flex-direction: column; align-items: flex-start; gap: 0; }
+  .mm-rush-round { font-size: calc(12 * var(--mm-px)); line-height: 1.2; }
+  .mm-rush-counts { gap: 8px; line-height: 1.2; }
   .mm-rush-clock { font-size: calc(26 * var(--mm-px)); }
+  .mm-rush-clock[data-soon="1"] .mm-rush-clock-face, .mm-rush-clock-soon { font-size: calc(12 * var(--mm-px)); }
 }
 @media (max-height: 420px) {
   .mm-rush-bar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
@@ -747,10 +793,17 @@ export default function GraphFeatureRushRound({
       <style>{RUSH_CSS}</style>
       <header className="mm-rush-bar">
         {alias && <span className="mm-rush-chip">{alias}</span>}
-        <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        {/* The round's points, and items completed: each pops once as it goes up (keyed to it). */}
-        <span className="mm-rush-points"><span key={points} className={points > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">★ {points}</span><span style={SR_ONLY_STYLE}>{`${points} ${points === 1 ? 'point' : 'points'}`}</span></span>
-        <span className="mm-rush-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
+        {/* The round and its counts: in the bar's row, and on a phone the round over the counts. */}
+        <span className="mm-rush-tally">
+          <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
+          {/* The round's points, and items completed: each pops once as it goes up (keyed to it),
+              in a slot that holds its largest count (an invisible reserve), so a count that grows
+              never moves the bar: four digits of points, three of items (a round's pool is 150). */}
+          <span className="mm-rush-counts">
+            <span className="mm-rush-points"><span key={points} className={points > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">★ {points}</span><span className="mm-rush-reserve" aria-hidden="true">★ 0000</span><span style={SR_ONLY_STYLE}>{`${points} ${points === 1 ? 'point' : 'points'}`}</span></span>
+            <span className="mm-rush-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span className="mm-rush-reserve" aria-hidden="true">✓ 000</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
+          </span>
+        </span>
         {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your answers are saved</span>}
         <RushClock startMono={timing.startMono} endMono={timing.endMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-rush-exit" onClick={onExit}>{exitLabel}</button>}

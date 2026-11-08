@@ -313,8 +313,9 @@ const cornerOf = (view) => ({ x: view.xMin + 0.02 * (view.xMax - view.xMin), y: 
 
 const foundCount = (student) => student.page.locator('.mm-rush-found').count();
 // The count on screen: `.mm-rush-done` also holds a screen-reader sentence
-// with the same number ("2 graphs completed"), which read whole gave "22".
-const doneCount = async (student) => Number((await student.page.locator('.mm-rush-done [aria-hidden="true"]').innerText()).replace(/\D+/g, '')) || 0;
+// with the same number ("2 graphs completed"), which read whole gave "22", and
+// the invisible reserve that keeps its slot ("✓ 000").
+const doneCount = async (student) => Number((await student.page.locator('.mm-rush-done > [aria-hidden="true"]:not(.mm-rush-reserve)').innerText()).replace(/\D+/g, '')) || 0;
 
 const waitForQuestionChange = async (student, from, timeout = 4_000) => {
   try {

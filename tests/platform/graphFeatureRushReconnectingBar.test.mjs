@@ -39,12 +39,32 @@ test('the status is placed on the bar, out of its row, at every width', () => {
   const positions = value('.mm-rush-sync', 'position');
   assert.ok(positions.length >= 1, 'the status is positioned');
   assert.ok(positions.every((entry) => entry.value === 'absolute'), `always absolute: ${JSON.stringify(positions)}`);
-  // On the bar: the bar is its containing block, and it sits on the bar's lower edge.
+  // On the bar: the bar is its containing block, and it sits on the bar's lower
+  // edge. Its bottom is held half a line below the edge (half its line-height in
+  // em, half its padding and border in px), so one line is centred on the edge and
+  // more lines (large text) grow up over the bar, never down over the prompt.
   assert.deepEqual(value('.mm-rush-bar', 'position').map((entry) => entry.value), ['relative']);
-  assert.deepEqual(value('.mm-rush-sync', 'top').map((entry) => entry.value), ['100%']);
-  // One line that never widens the bar, and no taps: the stage under it is the student's.
-  assert.deepEqual(value('.mm-rush-sync', 'white-space').map((entry) => entry.value), ['nowrap']);
+  const one = (property) => value('.mm-rush-sync', property).map((entry) => entry.value);
+  const [lineHeight] = one('line-height').map(Number);
+  const [padding] = one('padding').map((text) => parseFloat(text));
+  const [border] = one('border').map((text) => parseFloat(text));
+  assert.deepEqual(one('bottom'), [`calc(-${lineHeight / 2}em - ${padding + border}px)`]);
+  assert.deepEqual(one('top'), [], 'held by its bottom, not its top');
+  assert.deepEqual(one('transform'), ['translateX(-50%)'], 'centred across the bar, not moved up or down');
+  // No taps: the stage under it is the student's.
   assert.deepEqual(value('.mm-rush-sync', 'pointer-events').map((entry) => entry.value), ['none']);
+});
+
+// Out of the row it can never widen the bar, so nothing holds it to one line:
+// an ellipsis cut its words where it did not fit (large text on a phone). As
+// wide as its sentence up to the bar's width (a box placed at left: 50% would
+// otherwise shrink to half the bar), then it wraps.
+test('every word of the status is shown: it wraps where it does not fit, and is never cut', () => {
+  assert.deepEqual(value('.mm-rush-sync', 'width').map((entry) => entry.value), ['max-content']);
+  assert.match(value('.mm-rush-sync', 'max-width').map((entry) => entry.value).join(), /^calc\(100% - \d+px\)$/);
+  for (const property of ['white-space', 'text-overflow', 'overflow']) {
+    assert.deepEqual(value('.mm-rush-sync', property), [], `the status sets no ${property}: nothing cuts or holds back its words`);
+  }
 });
 
 test('the status is drawn inside the round bar, and only while a send is retried', () => {

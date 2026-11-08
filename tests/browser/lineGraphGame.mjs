@@ -402,8 +402,9 @@ const buildRowOnOneLine = async (student) => student.page.locator('.mm-line-buil
 });
 
 // The count a student sees ("✓ 2"). The counter also holds a screen reader's
-// "2 right" (AX18), so reading every digit in it gave 22.
-const doneCount = async (student) => Number((await student.page.locator('.mm-line-done [aria-hidden="true"]').innerText()).replace(/\D+/g, '')) || 0;
+// "2 right" (AX18), so reading every digit in it gave 22, and the invisible
+// reserve that keeps its slot ("✓ 0000").
+const doneCount = async (student) => Number((await student.page.locator('.mm-line-done > [aria-hidden="true"]:not(.mm-line-reserve)').innerText()).replace(/\D+/g, '')) || 0;
 
 /** Answer the item on screen the right way: a line, an option or the boxes. */
 const answerRight = async (student, roomId, { scenario, keyboard = false, afterFirst = null } = {}) => {

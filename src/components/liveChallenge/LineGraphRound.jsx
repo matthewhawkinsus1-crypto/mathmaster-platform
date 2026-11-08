@@ -146,7 +146,12 @@ function useElementSquare(ref) {
   return side;
 }
 
-/** The round clock: its own component, so its ticks redraw nothing else. */
+/*
+ * The round clock: its own component, so its ticks redraw nothing else. Its
+ * slot holds both its faces, "Starts in 3" before GO and 0:59 after, each with
+ * an invisible reserve of the other, so the bar keeps its size at GO, as the
+ * first line appears (GraphFeatureRushRound's RushClock).
+ */
 function LineClock({ startMono, endMono }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
@@ -155,12 +160,18 @@ function LineClock({ startMono, endMono }) {
   }, []);
   const before = startMono - now;
   if (before > 0) {
-    return <span className="mm-line-clock" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>Starts in {Math.ceil(before / 1000)}</span>;
+    return (
+      <span className="mm-line-clock" data-soon="1" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>
+        <span className="mm-line-clock-face">Starts in {Math.ceil(before / 1000)}</span>
+        <span className="mm-line-reserve" aria-hidden="true">0:00</span>
+      </span>
+    );
   }
   const remaining = Math.max(0, endMono - now);
   return (
     <span className={remaining <= 10_000 ? 'mm-line-clock mm-line-clock-low' : 'mm-line-clock'} role="timer" aria-label={`${Math.ceil(remaining / 1000)} seconds left`}>
-      {formatClock(remaining)}
+      <span className="mm-line-clock-face">{formatClock(remaining)}</span>
+      <span className="mm-line-reserve mm-line-clock-soon" aria-hidden="true">Starts in 0</span>
     </span>
   );
 }
@@ -225,8 +236,20 @@ ${arenaLayerCss('.mm-line-shell')}
 /* The student's name on a racing plate. */
 .mm-line-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #d92a48, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
 .mm-line-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
-.mm-line-progress { padding: 4px 10px; border-radius: 999px; background: rgba(10,16,52,.7); border: 1px solid rgba(53,227,255,.35); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.mm-line-done { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The round and its counts, one item of the bar: in its row on a wide screen;
+   on a phone where the student is (the round, a Sprint's progress) over the
+   score (the max-width: 480px rules). */
+.mm-line-tally, .mm-line-where, .mm-line-counts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.mm-line-progress { display: inline-grid; align-items: center; justify-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(10,16,52,.7); border: 1px solid rgba(53,227,255,.35); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Before the round's first items say how long the Sprint is: an empty slot. */
+.mm-line-progress[data-progress="0"] { background: none; border-color: transparent; }
+/* A count and its reserve (the round's largest count, drawn invisible) share
+   one cell, so the slot is as wide as the largest count from the round's start
+   and a count that grows moves nothing (a three-digit count wrapped a 360 px
+   phone's bar onto a second row, 57 to 91 px). A screen reader reads only the
+   count. Wider than 60em (960 px at the default text size, 1920 at 200%) the
+   bar's longest row fits, so there the reserves take no room. */
+.mm-line-done { display: inline-grid; align-items: center; justify-items: start; font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The streak's slot, as wide as a two-digit streak, and kept while there is no
    streak (none yet, or a miss or Skip ended it): 🔥 2 arrives and leaves inside
    it. Where the bar could run out of room, its arrival wrapped the bar onto a
@@ -235,15 +258,11 @@ ${arenaLayerCss('.mm-line-shell')}
    as it ended. The reserve is drawn invisible in the same cell; a screen reader
    reads only the streak itself. Wider than 60em the bar's longest row fits
    (a Sprint's, with a long alias), so there it comes and goes as it always did. */
-.mm-line-streak { display: inline-grid; align-items: center; justify-items: start; font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #ffb020; white-space: nowrap; }
-.mm-line-streak > * { grid-area: 1 / 1; }
-.mm-line-streak[data-streak="0"], .mm-line-reserve { display: none; }
-@media (max-width: 60em) {
-  .mm-line-streak[data-streak="0"] { display: inline-grid; }
-  .mm-line-reserve { display: block; visibility: hidden; }
-}
+.mm-line-streak { display: inline-grid; align-items: center; justify-items: start; font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #ffb020; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mm-line-progress > *, .mm-line-done > *, .mm-line-streak > *, .mm-line-clock > * { grid-area: 1 / 1; }
+.mm-line-progress[data-progress="0"], .mm-line-streak[data-streak="0"], .mm-line-reserve { display: none; }
 /* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
-.mm-line-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
+.mm-line-clock { display: inline-grid; align-items: center; justify-items: end; margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
 /* The last ten seconds: red, and a pulse (a transform: the compositor's). */
 .mm-line-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
 /* "Reconnecting…" sits on the bar's lower edge and takes no room in it, as in
@@ -252,11 +271,13 @@ ${arenaLayerCss('.mm-line-shell')}
    65 px down under the student's finger as a send failed, and back up as it
    landed: a point dragged there landed 65 px from where it was aimed. It catches
    no pointer, so the stage under it stays the student's. Where the sentence does
-   not fit on one line (large text on a phone) it wraps, so every word is shown;
-   it is still drawn over the bar's edge, and still takes no room. One line at
-   320 px in CI's fonts (DejaVu Sans, the widest it is drawn in): 294 px wide. */
+   not fit on one line (large text on a phone) it wraps, so every word is shown,
+   and grows up over the bar, never down over the line to graph: its bottom is
+   held half a line below the edge (half of 1.25em and its 4px of padding and
+   border), so one line sits centred on it. One line at 320 px in CI's fonts
+   (DejaVu Sans, the widest it is drawn in): 294 px wide. */
 .mm-line-sync {
-  position: absolute; left: 50%; top: 100%; z-index: 2; transform: translate(-50%, -50%);
+  position: absolute; left: 50%; bottom: calc(-0.625em - 2px); z-index: 2; transform: translateX(-50%);
   width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; text-align: center; text-wrap: balance;
   padding: 1px 8px; border-radius: 999px; background: #4a3708; border: 1px solid #f9ab00; pointer-events: none;
   font-size: calc(12 * var(--mm-px)); line-height: 1.25; font-weight: 900; color: #fdd663;
@@ -344,10 +365,28 @@ ${GP_RACE_CSS}
   .mm-line-graph-area { grid-area: graph; place-items: center; }
   .mm-line-controls { grid-area: controls; align-self: end; }
 }
+/* Where the bar could run out of room (a phone, a tablet standing up, 200%
+   text): every slot is kept, empty or not, and "Starts in 3" is drawn small
+   enough to share the clock's. */
+@media (max-width: 60em) {
+  .mm-line-progress[data-progress="0"], .mm-line-streak[data-streak="0"] { display: inline-grid; }
+  .mm-line-reserve { display: block; visibility: hidden; }
+  .mm-line-clock[data-soon="1"] .mm-line-clock-face, .mm-line-clock-soon { font-size: calc(15 * var(--mm-px)); }
+}
+/* A phone: the round (and a Sprint's progress, as words) over the score, so a
+   four-digit count, the streak, the status (on the bar's edge), the clock and
+   Exit hold one row at 320 px in CI's fonts, where they took two or three. */
 @media (max-width: 480px) {
   .mm-line-chip { display: none; }
-  .mm-line-bar { gap: 8px; }
+  .mm-line-bar { gap: 6px; }
+  .mm-line-exit { padding-left: 10px; padding-right: 10px; }
+  .mm-line-tally { flex-direction: column; align-items: flex-start; gap: 0; }
+  .mm-line-where { gap: 6px; }
+  .mm-line-round { font-size: calc(12 * var(--mm-px)); line-height: 1.2; }
+  .mm-line-progress { padding: 0; border: 0; background: none; font-size: calc(12 * var(--mm-px)); line-height: 1.2; }
+  .mm-line-counts { gap: 8px; line-height: 1.2; }
   .mm-line-clock { font-size: calc(26 * var(--mm-px)); }
+  .mm-line-clock[data-soon="1"] .mm-line-clock-face, .mm-line-clock-soon { font-size: calc(12 * var(--mm-px)); }
 }
 @media (max-height: 420px) {
   .mm-line-bar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
@@ -838,6 +877,12 @@ export default function LineGraphRound({
   // A Classic round is one line, so it never has a streak; a Sprint or a Rush
   // keeps the streak's slot from its first line.
   const streakSlot = format !== LINE_GRAPH_FORMAT.CLASSIC || streakShown;
+  const progressSlot = format === LINE_GRAPH_FORMAT.SPRINT || Boolean(progress);
+  // The most lines the count can show, as its slot's digits: a Sprint's set (20
+  // at most), a Classic round's one line, a Rush's four digits (its pool is 150).
+  let doneReserve = '0000';
+  if (format === LINE_GRAPH_FORMAT.SPRINT) doneReserve = '00';
+  else if (format === LINE_GRAPH_FORMAT.CLASSIC) doneReserve = '0';
 
   let overlay = null;
   if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : 'Getting your lines ready.'}</span></>;
@@ -872,17 +917,33 @@ export default function LineGraphRound({
       <style>{LINE_CSS}</style>
       <header className="mm-line-bar">
         {alias && <span className="mm-line-chip">{alias}</span>}
-        <span className="mm-line-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        {progress && <span className="mm-line-progress"><span aria-hidden="true">{progress}</span><span style={SR_ONLY_STYLE}>{`${progress.replace(' / ', ' of ')} done`}</span></span>}
-        {/* Each right line pops the count (and the streak) once, keyed to it. */}
-        <span className="mm-line-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
-        {/* The streak in its own slot: kept while there is none, so 🔥 coming and going never moves the bar. */}
-        {streakSlot && (
-          <span className="mm-line-streak" data-streak={streakShown ? '1' : '0'}>
-            {streakShown && <><span key={streak} className="mm-gp-bump" aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></>}
-            <span className="mm-line-reserve" aria-hidden="true">🔥 00</span>
+        {/* The round and its counts: in the bar's row, and on a phone where the
+            student is (the round, a Sprint's progress) over the score. */}
+        <span className="mm-line-tally">
+          <span className="mm-line-where">
+            <span className="mm-line-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
+            {/* A Sprint's progress, its slot kept from the first render: it arrives with the round's first items. */}
+            {progressSlot && (
+              <span className="mm-line-progress" data-progress={progress ? '1' : '0'}>
+                {progress && <><span aria-hidden="true">{progress}</span><span style={SR_ONLY_STYLE}>{`${progress.replace(' / ', ' of ')} done`}</span></>}
+                <span className="mm-line-reserve" aria-hidden="true">00 / 00</span>
+              </span>
+            )}
           </span>
-        )}
+          <span className="mm-line-counts">
+            {/* Each right line pops the count (and the streak) once, keyed to it, in a slot that
+                holds the round's largest count (an invisible reserve), so a count that grows never
+                moves the bar. */}
+            <span className="mm-line-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span className="mm-line-reserve" aria-hidden="true">✓ {doneReserve}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
+            {/* The streak in its own slot: kept while there is none, so 🔥 coming and going never moves the bar. */}
+            {streakSlot && (
+              <span className="mm-line-streak" data-streak={streakShown ? '1' : '0'}>
+                {streakShown && <><span key={streak} className="mm-gp-bump" aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></>}
+                <span className="mm-line-reserve" aria-hidden="true">🔥 00</span>
+              </span>
+            )}
+          </span>
+        </span>
         {connection === 'retrying' && <span className="mm-line-sync" role="status">Reconnecting… your answers are saved</span>}
         <LineClock startMono={timing.startMono} endMono={clockEndMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-line-exit" onClick={onExit}>{exitLabel}</button>}

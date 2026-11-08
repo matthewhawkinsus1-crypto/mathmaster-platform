@@ -43,9 +43,17 @@ test('the status is placed on the bar\'s lower edge, out of its row, at every wi
   const positions = values('.mm-line-sync', 'position');
   assert.ok(positions.length >= 1, 'the status is positioned');
   assert.ok(positions.every((entry) => entry.value === 'absolute'), `always absolute: ${JSON.stringify(positions)}`);
-  // The bar is its containing block, and it sits on the bar's lower edge.
+  // The bar is its containing block, and it sits on the bar's lower edge: its
+  // bottom half a line below it (half its line-height in em, half its padding and
+  // border in px), so one line is centred on the edge and more lines (large text)
+  // grow up over the bar, never down over the line to graph.
   assert.deepEqual(only('.mm-line-bar', 'position'), ['relative']);
-  assert.deepEqual(only('.mm-line-sync', 'top'), ['100%']);
+  const [lineHeight] = only('.mm-line-sync', 'line-height').map(Number);
+  const [padding] = only('.mm-line-sync', 'padding').map((text) => parseFloat(text));
+  const [border] = only('.mm-line-sync', 'border').map((text) => parseFloat(text));
+  assert.deepEqual(only('.mm-line-sync', 'bottom'), [`calc(-${lineHeight / 2}em - ${padding + border}px)`]);
+  assert.deepEqual(only('.mm-line-sync', 'top'), [], 'held by its bottom, not its top');
+  assert.deepEqual(only('.mm-line-sync', 'transform'), ['translateX(-50%)'], 'centred across the bar, not moved up or down');
   // No taps: the stage under it is the student's.
   assert.deepEqual(only('.mm-line-sync', 'pointer-events'), ['none']);
 });
@@ -65,7 +73,8 @@ test('the status is drawn inside the round bar, a live region, only while a send
 });
 
 test('the streak keeps its slot from the first line of a Sprint or a Rush, so 🔥 coming and going moves nothing', () => {
-  const slot = region(bar, '<span className="mm-line-streak"', '</span>\n        )}', 'the streak slot');
+  // The slot, up to the end of its reserve.
+  const slot = `${region(bar, '<span className="mm-line-streak"', '🔥 00</span>', 'the streak slot')}🔥 00</span>`;
   // Rendered whenever the round can have a streak, not only while it has one.
   assert.match(bar, /\{streakSlot && \(\s*<span className="mm-line-streak" data-streak=\{streakShown \? '1' : '0'\}>/);
   assert.match(source, /const streakShown = streak >= 2;/);
