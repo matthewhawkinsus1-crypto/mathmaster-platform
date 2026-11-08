@@ -137,6 +137,7 @@ const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.m
 const { leaderboardOptionsFor } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
 const { podiumRecognitionRows, publicStandingsRows } = await import(path.join(repo, 'src/platform/liveChallenge/liveChallengeProjectorModel.js'));
 const { isMathSegment, splitMathSegments } = await import(path.join(repo, 'src/components/common/mathSegments.js'));
+const { boardHoldingAnswers } = await import(path.join(here, 'emulator/liveChallengeBoards.mjs'));
 
 const authFor = (identity = {}) => (identity.as === 'teacher'
   ? { uid: `${identity.email}-uid`, token: { role: 'teacher', email: identity.email, email_verified: true } }
@@ -399,10 +400,18 @@ const selectInLabel = async (handle, labelStart, value) => {
   }
   throw lastError || new Error(`${labelStart} would not keep ${value}`);
 };
-// The board on screen after everyone answered: the round closes itself, so the
-// live board may already have become the standings after the round.
-const STANDINGS_ON_SCREEN = '[aria-label="Live standings"] [data-mm-standing], [aria-label="Standings after this round"] [data-mm-standing]';
 const keysIn = (handle, selector) => handle.page.locator(selector).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-mm-standing') || node.getAttribute('data-mm-round-result')));
+// A board is read only once it holds the round's answers, in the page at that
+// moment (emulator/liveChallengeBoards.mjs): a read a fixed time after the last
+// answer could land before the answers reached the console or in the results'
+// tally, and found no rows (once in 2 runs on a loaded machine). Null when no
+// board held them within `timeout`.
+const boardWithAnswers = async (handle, { answered = 0, live = true, afterRound = true, timeout = 20_000 } = {}) => {
+  try {
+    return await (await handle.page.waitForFunction(boardHoldingAnswers, { answered, live, afterRound }, { timeout })).jsonValue();
+  } catch { return null; }
+};
+const keysOnBoard = (board) => board?.keys || [];
 // How far each results panel's content runs past its box, in px: a panel is
 // overflow:hidden, so anything past it is cut off (LC03: two tables share a column).
 const panelsCutOff = (handle) => handle.page.locator('[data-mm-results-panel]').evaluateAll((nodes) => nodes.map((node) => node.scrollHeight - node.clientHeight));
@@ -493,7 +502,9 @@ try {
   // ROUND 1 — student 8 sits it out inside their extended time.
   await startFromProjector(teacher, roomId);
   await playRound(roomId, { skip: [EXTENDED] });
-  await wait(1_500);
+  // Six answers: the silent student never answers and student 8 sits it out.
+  // The round cannot close yet, so only the live board counts.
+  const liveBoard = await boardWithAnswers(teacher, { answered: IDS.length - 2, afterRound: false });
   const silentAlias = await aliasOf(roomId, SILENT);
   const live = await standingsOf(roomId);
   // Student 8 has not answered yet either (extended time), so the bottom is
@@ -501,7 +512,7 @@ try {
   const lastRank = live[live.length - 1]?.rank;
   const lastAliases = live.filter((row) => row.rank === lastRank).map((row) => row.alias);
   check(lastAliases.includes(silentAlias), `the last place is ${lastAliases.join(', ')}, without the silent student (${silentAlias})`, `last place: ${lastAliases.join(', ')}`);
-  const liveKeys = await keysIn(teacher, '[aria-label="Live standings"] [data-mm-standing]');
+  const liveKeys = keysOnBoard(liveBoard);
   check(liveKeys.length === 5, `the live board shows ${liveKeys.length} rows (expected 5)`, 'the live board shows five rows');
   check(JSON.stringify(liveKeys) === JSON.stringify(live.slice(0, 5).map((row) => row.playerKey)), 'the live board is not the top five', 'the live board is the server\'s top five');
   const liveRule = publicStandingsRows(created, live, { spaceForRows: 6 });
@@ -563,7 +574,9 @@ try {
   const fontPx = await teacher.page.locator('[data-mm-projector-solution="ready"] ol').first().evaluate((node) => parseFloat(getComputedStyle(node).fontSize)).catch(() => 0);
   check(fontPx >= 18, `the solution's steps are ${fontPx}px at 1366×768`, `the solution's steps are ${fontPx}px at 1366×768`);
   const after1 = await standingsOf(roomId);
-  const resultsKeys = await keysIn(teacher, '[aria-label="Standings after this round"] [data-mm-standing]');
+  // The solution and the round's own result are separate reads: the standings
+  // count once that result is on screen.
+  const resultsKeys = keysOnBoard(await boardWithAnswers(teacher, { live: false }));
   check(resultsKeys.length <= 5 && resultsKeys.length > 0, `the standings after the round show ${resultsKeys.length} rows`, `the standings after the round show ${resultsKeys.length} rows`);
   text = await textOf(teacher);
   check(!text.includes(silentAlias), 'the results name the last-placed player', 'the results never name the last-placed player');
@@ -695,6 +708,7 @@ try {
   // The worked solution is published a moment after the close; with it up the
   // round's table and the standings share the column beside it (LC03).
   check(await waitForAttr(teacher, '[data-mm-results-layout]', 'data-mm-results-layout', 'solution', 15_000), 'a full-standings game never shows the worked solution at its results', 'a full-standings game shows the worked solution at its results');
+  await boardWithAnswers(teacher, { live: false });
   await wait(800);
   check((await textOf(teacher)).includes(fullSilent), 'full standings do not show the last-placed player on the results', 'full standings show the last-placed player on the results');
   // …with the round's table beside the solution, neither cut off.
@@ -735,9 +749,18 @@ try {
     await teacherCall('cancelLiveChallenge', { roomId: replayId }).catch(() => {});
   }
 
-  // Remembered on this device.
+  // Remembered on this device, read where a teacher meets it after a reload.
+  // The reload reopens the game this tab hosted last (the replay, cancelled
+  // above; the finished game if the console had not yet moved to it): the
+  // console mounts on the create panel, then its watch on the teacher's active
+  // game answers and it opens the remembered room, so the panel seen first is
+  // gone a moment later. A read of the panel then waited 30 s for a select that
+  // never came back (once in 3 runs on a loaded machine). The reopened room
+  // offers New Challenge, which leads back to the panel.
   await teacher.page.reload({ waitUntil: 'domcontentloaded' });
-  await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 60_000 });
+  const reopened = check(await waitForAttr(teacher, '[data-mm-host-console]', 'data-mm-host-console', ['cancelled', 'completed'], 60_000), 'the reload did not reopen the game this tab hosted last', 'the reload reopens the game this tab hosted last');
+  if (reopened) await teacher.page.getByRole('button', { name: 'New Challenge', exact: true }).click();
+  await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 30_000 });
   check(await teacher.page.locator('select[data-mm-standings-display]').inputValue() === 'full', 'the choice is not remembered on this device', 'the choice is remembered on this device');
   /* ================= 3. A TABLE OF FOUR, ONE RIGHT ================= */
 
@@ -752,13 +775,13 @@ try {
   await waitForAttr(teacher, '[data-mm-lobby-count]', 'data-mm-lobby-count', '4', 15_000);
   await startFromProjector(teacher, tableId);
   for (const [index, id] of TABLE.entries()) await botAnswer(tableId, id, { correct: index === 0, humanElapsedMs: 2_000 + index * 600 });
-  await wait(1_500);
+  const tableBoard = await boardWithAnswers(teacher, { answered: TABLE.length });
   const tableLive = await standingsOf(tableId);
   const tableWinner = tableLive.find((row) => row.rank === 1);
   const tableLast = tableLive.filter((row) => row.rank === tableLive[tableLive.length - 1].rank);
   check(tableLast.length === 3, `the table's bottom is ${tableLast.length} players (expected 3 tied)`, 'three players tie for last at the table');
-  const tableLiveKeys = await keysIn(teacher, STANDINGS_ON_SCREEN);
-  check(JSON.stringify(tableLiveKeys) === JSON.stringify([tableWinner?.playerKey]), `the table's live board shows ${tableLiveKeys.length} rows (expected the winner only)`, 'the table\'s live board shows the winner only');
+  const tableLiveKeys = keysOnBoard(tableBoard);
+  check(JSON.stringify(tableLiveKeys) === JSON.stringify([tableWinner?.playerKey]), `the table's board (${tableBoard?.board || 'never with the four answers'}) shows ${tableLiveKeys.length} rows (expected the winner only)`, 'the table\'s live board shows the winner only');
   check(await waitForText(teacher, 'and 3 more players · everyone sees their own place on their device', 3_000), 'the table\'s live board does not say "and 3 more players"', 'the table\'s live board says "and 3 more players · everyone sees their own place on their device"');
   text = await textOf(teacher);
   check(!tableLast.some((row) => text.includes(row.alias)), 'the table\'s live board names a player tied for last', 'no player tied for last is named live');
@@ -766,8 +789,7 @@ try {
   await waitForDeadline(tableId, 1_000);
   check(await waitForRoom(tableId, (room) => room.roundState === 'closed', 20_000), 'the table\'s round never closed', 'the table\'s round closes');
   check(await waitForArena(teacher, 'roundResults', 10_000), 'no results for the table', 'the table\'s results');
-  await wait(1_000);
-  const tableStandingKeys = await keysIn(teacher, '[aria-label="Standings after this round"] [data-mm-standing]');
+  const tableStandingKeys = keysOnBoard(await boardWithAnswers(teacher, { live: false }));
   check(JSON.stringify(tableStandingKeys) === JSON.stringify([tableWinner?.playerKey]), `the standings after the round show ${tableStandingKeys.length} rows (expected the winner only)`, 'the standings after the round show the winner only');
   text = await textOf(teacher);
   check(!tableLast.some((row) => text.includes(row.alias)), 'the table\'s results name a player tied for last', 'the results name nobody tied for last');
@@ -816,13 +838,14 @@ try {
       await botAnswer(gameId, id, { correct: true, humanElapsedMs: 0 });
       await wait(2_100);
     }
+    const gameBoard = await boardWithAnswers(teacher, { answered: players });
     const live = await standingsOf(gameId);
     const everyAlias = live.map((row) => row.alias);
     check(live.length === players && new Set(live.map((row) => row.rank)).size === players, `the ranks are ${live.map((row) => row.rank).join(',')}`, `${players} players, ${players} places`);
     const expectedKeys = live.slice(0, shown).map((row) => row.playerKey);
     const unlisted = live.slice(shown);
-    const liveKeys = await keysIn(teacher, STANDINGS_ON_SCREEN);
-    check(JSON.stringify(liveKeys) === JSON.stringify(expectedKeys), `the live board of ${players} shows ${liveKeys.length} rows (expected ${shown})`, `the live board of ${players} shows ${shown === 0 ? 'nobody' : `the top ${shown} only`}`);
+    const liveKeys = keysOnBoard(gameBoard);
+    check(JSON.stringify(liveKeys) === JSON.stringify(expectedKeys), `the board of ${players} (${gameBoard?.board || `never with the ${players} answers`}) shows ${liveKeys.length} rows (expected ${shown})`, `the live board of ${players} shows ${shown === 0 ? 'nobody' : `the top ${shown} only`}`);
     // The public rule, asked of the same standings: the board is what it allows.
     const rule = publicStandingsRows(created, live, { spaceForRows: 6 });
     check(JSON.stringify(liveKeys) === JSON.stringify(rule.rows.map((row) => row.playerKey)), `the board of ${players} is not what the public rule allows`, `the board of ${players} is exactly what the public rule allows`);
@@ -835,8 +858,7 @@ try {
     await shot(teacher, `${tag}01-live`);
     check(await waitForRoom(gameId, (room) => room.roundState === 'closed', 30_000), `the round of ${players} never closed`, `the round of ${players} closes once everyone has answered`);
     check(await waitForArena(teacher, 'roundResults', 10_000), `no results for the game of ${players}`, `the results of the game of ${players}`);
-    await wait(1_200);
-    const standingKeys = await keysIn(teacher, '[aria-label="Standings after this round"] [data-mm-standing]');
+    const standingKeys = keysOnBoard(await boardWithAnswers(teacher, { live: false }));
     check(JSON.stringify(standingKeys) === JSON.stringify(expectedKeys), `the standings after the round show ${standingKeys.length} rows (expected ${shown})`, `the standings after the round show ${shown === 0 ? 'nobody' : `the top ${shown} only`}`);
     const hideSolution = teacher.page.getByRole('button', { name: 'Hide solution' });
     if (await hideSolution.isVisible().catch(() => false)) await hideSolution.click();
@@ -909,7 +931,7 @@ try {
   await playRound(gpId);
   check(await waitForRoom(gpId, (room) => room.roundState === 'closed', 40_000), 'the Grand Prix round never closed', 'the Grand Prix round closes');
   check(await waitForArena(teacher, 'roundResults', 10_000), 'no results for the Grand Prix game', 'the Grand Prix results show');
-  await wait(1_200);
+  await boardWithAnswers(teacher, { live: false });
   const gpHide = teacher.page.getByRole('button', { name: 'Hide solution' });
   if (await gpHide.isVisible().catch(() => false)) await gpHide.click();
   await wait(600);
