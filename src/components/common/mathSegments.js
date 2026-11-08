@@ -299,8 +299,13 @@ export const removeRedundantPlainFractionParens = (value) => String(value ?? '')
  * aloud (speechText.js says it as a root) and every key and grade, stay as
  * they were. A letter before one is a factor ("2xcbrt(3)"), but a word
  * ending in "root" is not one: "cuberoot(3)(x)" is left alone.
+ *
+ * The Path banks key a square root the same way, "3sqrt(3)", "sqrt(2x+3)=5",
+ * "(-(4)-sqrt(5))/2" (hint-ladder timing, item 2): Read aloud said them as
+ * roots, and every surface that draws a key showed "sqrt" as typed. Each is
+ * drawn \sqrt{…}, as a square root is written, with no index.
  */
-const TYPED_RADICAL = /(?<!\\)(?:cbrt|(?<![A-Za-z]{2})root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/g;
+const TYPED_RADICAL = /(?<!\\)(?:cbrt|(sqrt)|(?<![A-Za-z]{2})root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/g;
 
 // The ")" that closes the "(" at `open`, or -1.
 const closingParen = (text, open) => {
@@ -319,12 +324,12 @@ const typedRadicals = (text) => {
     if (found.length && match.index < found[found.length - 1].end) continue;
     const open = match.index + match[0].length;
     const close = closingParen(text, open);
-    if (close !== -1) found.push({ start: match.index, end: close + 1, index: match[1] ?? '3', radicand: text.slice(open + 1, close) });
+    if (close !== -1) found.push({ start: match.index, end: close + 1, index: match[1] ? '2' : match[2] ?? '3', radicand: text.slice(open + 1, close) });
   }
   return found;
 };
 
-const radicalLatex = (index, radicand) => `\\sqrt[${index}]{${typedRadicalsAsLatex(normalizePlainMathTypography(radicand.trim()))}}`;
+const radicalLatex = (index, radicand) => `\\sqrt${index === '2' ? '' : `[${index}]`}{${typedRadicalsAsLatex(normalizePlainMathTypography(radicand.trim()))}}`;
 function typedRadicalsAsLatex(text) {
   let out = '';
   let from = 0;
