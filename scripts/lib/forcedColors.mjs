@@ -1,0 +1,260 @@
+/*
+ * FORCED COLOURS — the pure half of the forced-colours walk
+ * (tests/browser/forcedColorsAudit.mjs reads the page; this file judges what it
+ * read, so node can test every verdict).
+ *
+ * Windows' contrast themes (forced colours) replace a page's colours with the
+ * user's own system colours: every text and border colour becomes one of a few
+ * (CanvasText, ButtonText, LinkText, Highlight...), every background Canvas, and
+ * box-shadows and gradient backgrounds are not drawn at all. Students with low
+ * vision use them on school laptops. Whatever a screen showed only by a colour,
+ * a background, a shadow or a gradient is gone there. The walk reads each
+ * control twice, as the screen draws it and under forced colours, and asks
+ * three things:
+ *
+ *   mm-forced-focus-not-drawn   a Tab stop shows no focus indicator: its ring
+ *                               was a box-shadow, or a background, or an outline
+ *                               set to none with nothing else.
+ *   mm-forced-state-colour-only a selected, pressed, checked or current control
+ *                               looks the same as one of its kind that is not:
+ *                               the state was shown only by colour or background.
+ *   mm-forced-edge-lost         a control whose edge was drawn by its background,
+ *                               a gradient or a shadow has no border or outline
+ *                               left, so its edge is gone.
+ *
+ * Each finding is shaped like an axe violation (id, impact, help, nodes), as the
+ * Tab walk's are (scripts/lib/keyboardReach.mjs).
+ */
+import { focusIndicator } from './keyboardReach.mjs';
+
+const WCAG = 'https://www.w3.org/WAI/WCAG21/Understanding';
+
+export const FORCED_COLORS_RULES = Object.freeze({
+  'mm-forced-focus-not-drawn': {
+    impact: 'serious',
+    help: 'Under forced colours every Tab stop must still draw a focus indicator (an outline or a border, not a box-shadow or a background)',
+    helpUrl: `${WCAG}/focus-visible.html`,
+  },
+  'mm-forced-state-colour-only': {
+    impact: 'serious',
+    help: 'Under forced colours a selected, pressed, checked or current control must still look different from one that is not (not only by colour or background)',
+    helpUrl: `${WCAG}/use-of-color.html`,
+  },
+  'mm-forced-edge-lost': {
+    impact: 'serious',
+    help: 'Under forced colours a control whose edge was its background, gradient or shadow must keep a visible edge (a border or an outline)',
+    helpUrl: `${WCAG}/non-text-contrast.html`,
+  },
+});
+
+export const FORCED_COLORS_RULE_IDS = Object.freeze(Object.keys(FORCED_COLORS_RULES));
+
+// ------------------------------------------------------------------ colours
+/** [r, g, b, a] from a computed colour: rgb(), rgba(), color(srgb ...) or `transparent`. */
+export const parseColour = (value) => {
+  const text = String(value || '').trim();
+  if (!text || text === 'transparent') return [0, 0, 0, 0];
+  const srgb = /^color\(srgb\s+([\d.e-]+)\s+([\d.e-]+)\s+([\d.e-]+)(?:\s*\/\s*([\d.e-]+%?))?\s*\)$/.exec(text);
+  if (srgb) {
+    const alpha = srgb[4] == null ? 1 : (srgb[4].endsWith('%') ? Number(srgb[4].slice(0, -1)) / 100 : Number(srgb[4]));
+    return [Number(srgb[1]) * 255, Number(srgb[2]) * 255, Number(srgb[3]) * 255, alpha];
+  }
+  const rgb = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/.exec(text);
+  if (!rgb) return null;
+  const alpha = rgb[4] == null ? 1 : (rgb[4].endsWith('%') ? Number(rgb[4].slice(0, -1)) / 100 : Number(rgb[4]));
+  return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3]), Number.isFinite(alpha) ? alpha : 1];
+};
+
+const channel = (value) => {
+  const c = value / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+const luminance = ([r, g, b]) => 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+export const contrastRatio = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+const over = ([r, g, b, a], [br, bg, bb]) => [r * a + br * (1 - a), g * a + bg * (1 - a), b * a + bb * (1 - a)];
+
+// A background tells a box from what is behind it when the two differ by this
+// much: #f1f3f4 on white (1.11:1) is a grey key a person sees; #f8f9fa (1.05:1)
+// is a tint few do.
+export const EDGE_RATIO = 1.1;
+
+const visibleColour = (value) => (parseColour(value)?.[3] ?? 0) > 0.1;
+const drawnLine = (style, width, colour) => style && style !== 'none' && style !== 'hidden' && parseFloat(width) >= 1 && visibleColour(colour);
+
+/**
+ * What draws a box's edge, from one reading of it (the in-page `boxFacts`):
+ * the sides its border draws, an outline, a background that differs from what
+ * is behind it (or a background image), a shadow, and a box just around it that
+ * draws all four sides (`wrapped`: a search pill around its field).
+ */
+export const edgeOf = (facts) => {
+  if (!facts) return { border: 0, outline: false, background: false, image: false, shadow: false, wrapped: false, any: false };
+  const border = (facts.sides || []).filter((side) => drawnLine(side.style, side.width, side.colour)).length;
+  const outline = Boolean(drawnLine(facts.outline?.style, facts.outline?.width, facts.outline?.colour));
+  const own = parseColour(facts.background);
+  const behind = parseColour(facts.behind) || [255, 255, 255, 1];
+  const background = Boolean(own && own[3] > 0 && contrastRatio(over(own, behind), behind) >= EDGE_RATIO);
+  const image = Boolean(facts.gradient);
+  const shadow = Boolean(facts.shadow);
+  const wrapped = Boolean(facts.wrapped);
+  return { border, outline, background, image, shadow, wrapped, any: border > 0 || outline || background || image || shadow };
+};
+
+/**
+ * mm-forced-edge-lost: the control showed an edge on screen that was not a border
+ * or an outline (its background, a gradient, a shadow), and under forced colours
+ * it has no border, outline or background of its own left, and no box just
+ * around it that draws one.
+ */
+export const edgeLost = ({ normal, forced }) => {
+  const before = edgeOf(normal);
+  const after = edgeOf(forced);
+  if (!before.any) return false;
+  // A border or an outline is never taken away by forced colours, only recoloured.
+  if (before.border > 0 || before.outline) return false;
+  return !(after.border > 0 || after.outline || after.background || after.wrapped);
+};
+
+// ------------------------------------------------------------------ states
+// A background as a person sees it: the colour it paints over what is behind
+// it, or nothing when the two cannot be told apart. Under forced colours a
+// selected pill's opaque Canvas on the Canvas around it is no background at
+// all, the same as its neighbour's transparent one.
+const seenBackground = (background, behind) => {
+  const own = parseColour(background);
+  if (!own || own[3] <= 0) return '-';
+  const under = parseColour(behind) || [255, 255, 255, 1];
+  const painted = over(own, under);
+  return contrastRatio(painted, under) >= EDGE_RATIO ? `rgb(${painted.map((c) => Math.round(c)).join(', ')})` : '-';
+};
+
+// What a box looks like apart from its words: each part (the box, its ::before
+// and ::after, each descendant that is drawn) as one line of its traits. Words
+// differ between any two controls (their labels), so text is left out; the
+// glyphs that mark a state are read on their own (STATE_GLYPHS). A weight of
+// 600 and one of 800 are both bold to the eye: a weight counts as a mark only
+// across that line.
+const traitLine = (part) => [
+  part.kind,
+  `b:${(part.sides || []).map((side) => (drawnLine(side.style, side.width, side.colour) ? `${Math.round(parseFloat(side.width))}${side.style}/${side.colour}` : '-')).join(' ')}`,
+  `o:${drawnLine(part.outline?.style, part.outline?.width, part.outline?.colour) ? `${part.outline.style}${Math.round(parseFloat(part.outline.width))}/${part.outline.colour}` : '-'}`,
+  `bg:${seenBackground(part.background, part.behind)}`,
+  `img:${part.gradient ? 'y' : '-'}${part.urlImage ? 'u' : ''}`,
+  `sh:${part.shadow ? 'y' : '-'}`,
+  `c:${part.colour}`,
+  `fw:${Number(part.fontWeight) >= 550 ? 'bold' : 'normal'}`,
+  `fs:${part.fontStyle}`,
+  `td:${part.textDecoration}`,
+  `op:${Math.round(Number(part.opacity ?? 1) * 10)}`,
+  `tf:${part.transform || 'none'}`,
+  part.content ? `ct:${part.content}` : '',
+  part.fill ? `fill:${part.fill}` : '',
+  part.stroke ? `stroke:${part.stroke}` : '',
+].join('|');
+
+export const traitsOf = (facts) => (facts?.parts || []).map(traitLine);
+
+// Glyphs and words that say a state in the text itself: a check mark, a filled
+// dot, "Selected".
+export const STATE_GLYPHS = /[✓✔☑●◉★✕✗]|\b(selected|current|chosen|pressed)\b/i;
+
+/** The traits one box has and the other has not, both ways (sets: a label's own structure is not a state). */
+export const traitDifference = (on, off) => {
+  const a = new Set(traitsOf(on));
+  const b = new Set(traitsOf(off));
+  return [...a].filter((line) => !b.has(line)).concat([...b].filter((line) => !a.has(line)));
+};
+
+/**
+ * mm-forced-state-colour-only, for one control in a state (selected, pressed,
+ * checked, current) and one of its kind in the same group that is not:
+ *
+ *   'colour-only'   on screen the two looked different; under forced colours
+ *                   nothing tells them apart.
+ *   'shown'         under forced colours they still differ (a border, a weight,
+ *                   an icon, a system colour the screen chose).
+ *   'not-shown'     they look the same on screen too: not a forced-colours loss
+ *                   (the state may be said in words), so not judged here.
+ */
+export const stateVerdict = ({ normal, forced }) => {
+  const glyph = (facts) => STATE_GLYPHS.test(facts?.on?.text || '') && !STATE_GLYPHS.test(facts?.off?.text || '');
+  if (glyph(forced)) return 'shown';
+  const forcedDiff = traitDifference(forced?.on, forced?.off);
+  if (forcedDiff.length) return 'shown';
+  const normalDiff = traitDifference(normal?.on, normal?.off);
+  return normalDiff.length ? 'colour-only' : 'not-shown';
+};
+
+// ------------------------------------------------------------------ focus
+/*
+ * A focus snapshot (keyboardReach.mjs snap, with each part's `behind` and its
+ * bottom border's width) as it is DRAWN under forced colours. Chromium reports
+ * values it does not paint there: a box-shadow; an outline colour, which it
+ * turns to Highlight on a focused control even while the outline's style is
+ * none; a border colour with no border; and a fill that is the page's own
+ * Canvas, opaque on focus and transparent when blurred, the same to the eye.
+ * Read as reported, each was a change on focus, and a ring that was a shadow,
+ * or a focus shown by a tint, passed (forcedColorsSelfTest.mjs plants both).
+ */
+const asDrawn = (snapshot) => (snapshot ? Object.fromEntries(Object.entries(snapshot).map(([part, keys]) => {
+  if (!keys) return [part, keys];
+  const outline = keys.outlineStyle !== 'none' && parseFloat(keys.outlineWidth) >= 1 && visibleColour(keys.outlineColor);
+  const top = parseFloat(keys.borderTopWidth) >= 1;
+  const bottom = keys.borderBottomWidth == null ? top : parseFloat(keys.borderBottomWidth) >= 1;
+  return [part, {
+    ...keys,
+    boxShadow: 'none',
+    outlineStyle: outline ? keys.outlineStyle : 'none',
+    outlineWidth: outline ? keys.outlineWidth : '-',
+    outlineColor: outline ? keys.outlineColor : '-',
+    borderTopColor: top ? keys.borderTopColor : '-',
+    borderBottomColor: bottom ? keys.borderBottomColor : '-',
+    backgroundColor: keys.behind ? seenBackground(keys.backgroundColor, keys.behind) : keys.backgroundColor,
+  }];
+})) : snapshot);
+
+/**
+ * mm-forced-focus-not-drawn: what shows focus on a Tab stop under forced colours
+ * (keyboardReach.mjs focusIndicator, on the snapshots as drawn): 'outline',
+ * 'style', 'pixels-only' or 'none'. A ring that was a box-shadow, or a focus
+ * shown by a fill forced colours paint as the page, reads as nothing changed.
+ */
+export const forcedFocusIndicator = ({ focused, blurred, changedPixels = null }) => focusIndicator({ focused: asDrawn(focused), blurred: asDrawn(blurred), changedPixels });
+
+// ------------------------------------------------------------------ judging
+const node = (target, html, summary) => ({ target: [target], html: String(html || '').slice(0, 240), failureSummary: summary });
+const violation = (id, nodes) => ({ id, impact: FORCED_COLORS_RULES[id].impact, help: FORCED_COLORS_RULES[id].help, helpUrl: FORCED_COLORS_RULES[id].helpUrl, nodes });
+
+/**
+ * One scene's readings -> axe-shaped violations.
+ *
+ *   edges   [{ target, html, normal, forced }]           every control on screen
+ *   states  [{ id, target, html, state, peer, normal: { on, off }, forced: { on, off } }]
+ *           one per control in a state and one of its peers (`id` names the
+ *           control): the control is reported once, when any peer looks the same
+ *   focus   [{ target, html, focusVisible, focused, blurred, changedPixels }]
+ */
+export const judgeForcedColors = ({ edges = [], states = [], focus = [] } = {}) => {
+  const out = [];
+  const edgeNodes = edges.filter(edgeLost).map((entry) => {
+    const before = edgeOf(entry.normal);
+    const what = [before.background && 'its background', before.image && 'a background image', before.shadow && 'a shadow'].filter(Boolean).join(' and ');
+    return node(entry.target, entry.html, `Its edge was ${what}; under forced colours it has no border or outline, so the control has no edge.`);
+  });
+  if (edgeNodes.length) out.push(violation('mm-forced-edge-lost', edgeNodes));
+  const lost = new Map();
+  for (const entry of states) {
+    const key = entry.id ?? entry.target;
+    if (!lost.has(key) && stateVerdict(entry) === 'colour-only') lost.set(key, entry);
+  }
+  const stateNodes = [...lost.values()]
+    .map((entry) => node(entry.target, entry.html, `Its state (${entry.state}) looks the same as ${entry.peer} under forced colours: it was shown only by colour or background.`));
+  if (stateNodes.length) out.push(violation('mm-forced-state-colour-only', stateNodes));
+  const focusNodes = focus.filter((entry) => forcedFocusIndicator(entry) === 'none')
+    .map((entry) => node(entry.target, entry.html, 'Focused under forced colours, nothing about it changes on screen: its indicator was a box-shadow or a background, or its outline is none.'));
+  if (focusNodes.length) out.push(violation('mm-forced-focus-not-drawn', focusNodes));
+  return out;
+};

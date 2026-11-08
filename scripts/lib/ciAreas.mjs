@@ -397,6 +397,23 @@ export const CI_AREAS = {
     'tests/browser/teacherWorkflow/**',
     'tests/platform/themeArchitecture.test.mjs',
     'tests/platform/darkModeArchitecture.test.mjs',
+    // Windows' contrast themes: the forced-colours walk, its rules and its self-test, and what it walks and
+    // imports (the certified scenes and the modules they load, their standalone pages, the stubbed server that
+    // serves them, and the Tab walk's focus-indicator rule it judges focus by).
+    'tests/browser/forcedColors*',
+    'scripts/lib/forcedColors.mjs',
+    'tests/platform/forcedColors*',
+    'tests/browser/accessibilityCertification.mjs',
+    'tests/browser/accessibilityTeacherScreens.mjs',
+    'tests/browser/accessibilityAudit.mjs',
+    'tests/browser/accessibilityKeyboardReach.mjs',
+    'tests/browser/accessibilitySecureExam*',
+    'tests/browser/support/touchEmulation*',
+    'tests/browser/studentUxPlatform*',
+    'tests/browser/keyboardSweep*',
+    'tests/browser/emulator/**',
+    'scripts/lib/keyboardReach.mjs',
+    'scripts/lib/accessibilityRatchet.mjs',
     'package.json',
   ],
   'work-view-browser-matrix': [
