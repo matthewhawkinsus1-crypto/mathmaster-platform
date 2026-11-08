@@ -156,24 +156,71 @@ export const SPEECH_LANGUAGES = Object.freeze(Object.keys(WORDS));
 
 const wordsFor = (language) => WORDS[String(language || 'en').toLowerCase().split('-')[0]] || WORDS.en;
 
-// One-letter names that are functions when followed by "(": f(x), g(2), C(n).
-// x, y, a, b, c, n, k, m are left alone so x(x + 1) is still a product. j is a
-// function: Algebra I names a fourth function j(x) far more often than it
-// multiplies by a variable j (Oct 2026: "j times the quantity x equals 2x − 1").
+/*
+ * A LETTER BEFORE A BRACKET IS A FUNCTION ONLY WHEN THE TEXT MAKES IT ONE
+ * (math-speech-4). Every letter below was read as a function before any
+ * bracket, so "3p(p + 2)" was "3 p of the quantity p plus 2", "t(t + 2) = 15"
+ * "t of the quantity t plus 2", and "A = P(1 + rt)", "4p(y − k)", "w(x + 5)"
+ * and "(u + v)(u − v)" were functions too. A sweep of every lesson and bank
+ * text found these letters in two uses: applied to one input, p(x), P(500),
+ * V(2), t(r(1500)), they are functions, the notation itself naming them
+ * ("Compare the graphs of p(x) and s(x)"); before a bracket of more than one
+ * term they are factors (factoring, distributing, A = P(1 + rt), Heron's
+ * s(s − a)(s − b)(s − c)). So a letter of this list is a function applied to
+ * one term, or to a bracket that holds a relation (P(x ≤ 3)); before more
+ * than one term, only when the text makes it one (functionsNamedBy below) or
+ * it is a conventional name (CONVENTIONAL_FUNCTIONS). A bracket that holds the
+ * letter itself, t(t + 2), is a product unless the text defines that letter.
+ */
 const FUNCTION_LETTERS = 'fghjpqrstuvwCPAVRNTDHGF';
+// The conventional names, functions before any bracket: f, g and h, and j,
+// the fourth function Algebra I names (Oct 2026: "j times the quantity x
+// equals 2x − 1"; "Simplify r(x): j(x + 4) = 2(x + 4) − 1").
+const CONVENTIONAL_FUNCTIONS = 'fghj';
 
-// Any other letter is a function where the text itself DEFINES it as one:
+// Any letter is a function where the text itself DEFINES it as one:
 // "c(x) = 5x + 20", "Let m(t) = …" (Q-21 / PR-29: c, d, m and n were read as
 // products — "c times the quantity x"). A definition is a letter applied to
 // one other letter and followed by "=", so x(x + 1) = 6 and the point-slope
 // "y − 2 = m(x − 6)" stay products: neither defines a function.
 const DEFINITION = /(?<![A-Za-z\\])([A-Za-z])\s*\(\s*([A-Za-z])\s*\)\s*=(?!=)/g;
+// …or gives its value at a number, where a statement starts with it: "a(4) =
+// 15 + 4 = 19, so a(5) = 23", "Table: M(0) = 2 · 0 = 0", "y(0) = 3"
+// (math-speech-4: "a times 4 equals 15 plus 4"). After a sign or a relation
+// the bracket is a substitution's: "3 = k(3)", "(3)² + k(3) − 3".
+const VALUE_DEFINITION = /(?<![A-Za-z\\_])([A-Za-z])\(\s*[-−]?\d[\d,]*(?:\.\d+)?\s*\)\s*=(?!=)/g;
+const STARTS_STATEMENT = /(?:^|[\s,;:.([{$])$/;
+const AFTER_OPERATOR = /[=<>≤≥≠+\-−×·*/÷^]\s*$/;
 
 // A letter whose inverse is applied is a function too: "E⁻¹(x)", "E(E⁻¹(x))"
 // (math-speech-3: "E inverse the quantity x", "E ( E inverse …").
 const INVERSE_APPLIED = /(?<![A-Za-z\\])([A-Za-z])\s*(?:⁻¹|\^\{\s*-1\s*\}|\^\(\s*-1\s*\))\s*\(/g;
 
-/** The one-letter function names a text defines ("c(x) = …"), as a string of letters. */
+// A letter written applied to one other letter names a function of it, as
+// "W(t)", "Q(x)" and "Look back at a(x), b(x), c(x), and d(x)" do (no lesson
+// or bank text writes a product so); a power on the bracket makes it a
+// product's, "a(b)^x" (math-speech-4).
+const APPLIED_TO_ONE_LETTER = /(?<![A-Za-z\\_])([A-Za-z])\(\s*([A-Za-z])\s*\)(?!\s*(?:\^|[²³⁴⁵⁶⁷⁸⁹ⁿˣ]))/g;
+
+// …and a text names one in words: "the function p", "functions p and q",
+// "p is a function", "la función p", or "P of d" written out (math-speech-4;
+// the brief's "h of t"). "Within d of c" and "a zero r of a cubic" are not
+// names: only a letter of the list, and "of a" before a word is the article.
+const NAMED_IN_WORDS = /\b(?:functions?|funci(?:ón|ones))\s+((?:\$?[A-Za-z]\$?(?![A-Za-z])(?:\s*\([^()]*\))?(?:\s*(?:,|and|or|y|o)\s*)?)+)/giu;
+const NAMED_A_FUNCTION = /(?<![A-Za-z\\])([A-Za-z])\$?\s+(?:is|es)\s+(?:a|an|una)\s+(?:\w+\s+)?(?:function|función)\b/gu;
+const SPELLED_APPLICATION = /(?<![A-Za-z\\])([A-Za-z]) of ([A-Za-z])(?![A-Za-z])(?!\s+[a-z]{2,})/g;
+// A text about a sequence names a(n) its terms, the conventional notation: "An
+// arithmetic sequence starts at 7 … Find the second, third and fifth terms"
+// over boxes labelled a(2), a(3), a(5) ("a times 2", math-speech-4). Only a
+// applied to n or a number: "y = a(b)^x" beside "not a geometric sequence"
+// is still a product.
+const NAMES_A_SEQUENCE = /\b(?:sequences?|sucesi(?:ón|ones))\b/iu;
+const SEQUENCE_TERM = /(?<![A-Za-z\\_])a\(\s*(?:n|\d+)\s*\)(?!\s*(?:\^|[²³⁴⁵⁶⁷⁸⁹ⁿˣ]))/;
+
+/**
+ * The one-letter function names a text makes ("c(x) = …", "a(4) = 19", "W(t)",
+ * "the function p"), as a string of letters.
+ */
 export const definedFunctionNames = (raw) => {
   const text = String(raw ?? '').replace(/\\(?:left|right)(?![A-Za-z])/g, '');
   const names = new Set();
@@ -181,6 +228,21 @@ export const definedFunctionNames = (raw) => {
     if (match[1] !== match[2]) names.add(match[1]);
   }
   for (const match of text.matchAll(INVERSE_APPLIED)) names.add(match[1]);
+  for (const match of text.matchAll(VALUE_DEFINITION)) {
+    const before = text.slice(0, match.index);
+    if (STARTS_STATEMENT.test(before) && !AFTER_OPERATOR.test(before)) names.add(match[1]);
+  }
+  for (const match of text.matchAll(APPLIED_TO_ONE_LETTER)) {
+    if (match[1] !== match[2]) names.add(match[1]);
+  }
+  for (const match of text.matchAll(NAMED_IN_WORDS)) {
+    for (const letter of match[1].replace(/\([^()]*\)/g, ' ').match(/(?<![A-Za-z])[A-Za-z](?![A-Za-z])/g) || []) names.add(letter);
+  }
+  for (const match of text.matchAll(NAMED_A_FUNCTION)) names.add(match[1]);
+  for (const match of text.matchAll(SPELLED_APPLICATION)) {
+    if (FUNCTION_LETTERS.includes(match[1]) && !/^[aAI]$/.test(match[1])) names.add(match[1]);
+  }
+  if (NAMES_A_SEQUENCE.test(text) && SEQUENCE_TERM.test(text)) names.add('a');
   return [...names].join('');
 };
 
@@ -295,13 +357,73 @@ const markQuantityEnds = (text, w, operatorWords) => {
   const kept = dropped.size ? text.split('').map((char, index) => (dropped.has(index) ? ' ' : char)).join('') : text;
   return ends.reverse().reduce((out, at) => `${out.slice(0, at)}${QUANTITY_END}${out.slice(at)}`, kept);
 };
-const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
-  // An operator after the first character: f(−3) is one term, f(x − 3) is two.
-  // An inner application already read ("d of 2" in c(d(2))) is one term.
-  /.[\s+\-−*/·=<>]/.test(argument.trim()) && !new RegExp(`^[A-Za-z](?: ${w.inverse})? ${w.of} (?!.*[+\\-−*/·=<>])`).test(argument.trim())
-    ? `${before} ${name} ${w.of} ${w.quantity} ${argument.trim()}${moreMathFollows(offset, whole, match) ? PAUSE : ''} `
+// An operator after the first character: f(−3) is one term, f(x − 3) is two.
+// An inner application already read ("d of 2" in c(d(2))) is one term. A
+// power's own bracket is part of its term, f(x²); any other bracket inside
+// makes the input more than one term, f(2(x + 1)) (math-speech-4).
+const isMultiTerm = (argument, w) => {
+  const text = argument.trim().replace(/\^\([^()]*\)/g, '^1');
+  return /[()]/.test(text) || (/.[\s+\-−*/·=<>]/.test(text)
+    && !new RegExp(`^[A-Za-z](?: ${w.inverse})? ${w.of} (?!.*[+\\-−*/·=<>])`).test(text));
+};
+const applicationSpeech = (w, before, name, argument, follows) => (
+  isMultiTerm(argument, w)
+    ? `${before} ${name} ${w.of} ${w.quantity} ${argument.trim()}${follows ? PAUSE : ''} `
     : `${before} ${name} ${w.of} ${argument} `
 );
+const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
+  applicationSpeech(w, before, name, argument, moreMathFollows(offset, whole, match))
+);
+/*
+ * Is `name` before this bracket a function (math-speech-4)? `named` holds the
+ * letters the text or the caller makes functions (definedFunctionNames).
+ * A conventional name is one before any bracket but one that holds its own
+ * letter ("h(h + 2)"); any other letter of the list only before one term or a
+ * relation. Otherwise the bracket is a factor: "3p times the quantity p plus 2".
+ */
+// An inner application is already words here ("f inverse of x" in f(f⁻¹(x))).
+const holdsOwnLetter = (name, argument, w) => new RegExp(`(?<![A-Za-z\\\\])${name}(?![A-Za-z]|\\s+(?:${w.of}|${w.inverse})\\b)`).test(argument);
+const isFunctionBefore = (name, argument, named, w) => {
+  if (named.includes(name)) return true;
+  if (holdsOwnLetter(name, argument, w)) return false;
+  return CONVENTIONAL_FUNCTIONS.includes(name) || !isMultiTerm(argument, w) || /[=<>≤≥≠]/.test(argument);
+};
+const closingBracket = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') { depth -= 1; if (depth === 0) return index; }
+  }
+  return -1;
+};
+/*
+ * f(g(2)) is applied from the inside out: an application inside a bracket is
+ * read before the bracket it stands in. An inverse applied, f⁻¹(x) or
+ * f^(-1)(x), is "f inverse of x"; it was "f inverse x" or "f inverse times x"
+ * (math-speech-3). The bracket is found whole (math-speech-4): f(x²),
+ * f(2(x + 1)) and f(√(x + 1)) were "f times the quantity …", a bracket with
+ * one inside it never read as an input. A bracket that is a factor is left as
+ * written, for the products below.
+ */
+const readApplications = (text, letters, named, w) => {
+  const head = new RegExp(`(?<![A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\))?\\(`, 'g');
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(head)) {
+    if (match.index < from) continue;
+    const open = match.index + match[0].length - 1;
+    const close = closingBracket(text, open);
+    if (close === -1) continue;
+    const [, name, inverse] = match;
+    const argument = readApplications(text.slice(open + 1, close), letters, named, w);
+    const follows = /[^\s.,;:?!)\]]/.test(text.slice(close + 1));
+    out += text.slice(from, match.index) + (inverse || isFunctionBefore(name, argument, named, w)
+      ? applicationSpeech(w, '', inverse ? `${name} ${w.inverse}` : name, argument, follows)
+      : `${name}(${argument})`);
+    from = close + 1;
+  }
+  return out + text.slice(from);
+};
 
 // The argument of a LaTeX command, braces balanced: `\frac{x^{2}+1}{3}` has
 // numerator `x^{2}+1`. Returns [argument, indexAfter] or null.
@@ -666,8 +788,13 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
     // applied — "f plus g of x", never "the quantity f plus g times x". Two
     // function names side by side, (fg)(x), are their product (AX20): "f
-    // times g of x", never "the quantity fg times the quantity x".
+    // times g of x", never "the quantity fg times the quantity x". Before
+    // more than one term, two letters the text does not make functions are
+    // a product of two brackets (math-speech-4): (u + v)(u − v) was "u plus v
+    // of the quantity u minus v", and (p + q)(x + 1) "p plus q of …".
     .replace(new RegExp(`\\(\\s*([${letters}])\\s*([-+−*·×/∘]?)\\s*([${letters}])\\s*\\)\\s*\\(([^()]+)\\)`, 'g'), (match, left, operator, right, argument) => {
+      const functions = [left, right].every((name) => functionNames.includes(name) || CONVENTIONAL_FUNCTIONS.includes(name));
+      if (!functions && operator !== '∘' && (isMultiTerm(argument, w) || [left, right].some((name) => holdsOwnLetter(name, argument, w)))) return match;
       const word = { '+': w.plus, '-': w.minus, '−': w.minus, '/': w.over, '∘': w.composed }[operator] || w.times;
       return functionApplicationSpeech(w)(match, ` ${left} ${word}`, right, argument);
     })
@@ -678,17 +805,7 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     .replace(/∪/g, (match, offset, whole) => `${/\S/.test(whole.slice(0, offset)) ? PAUSE : ''} ${w.union} `)
     // "x ∈ {−2, 0, 2}" is "x is in the set …", as LaTeX's \in is.
     .replace(/∈/g, ` ${w.in} `);
-  // f(g(2)) is applied from the inside out: each pass reads one level. An
-  // inverse applied, f⁻¹(x) or f^(-1)(x), is "f inverse of x"; it was "f
-  // inverse x" or "f inverse times x" (math-speech-3).
-  const application = new RegExp(`(^|[^A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\))?\\(([^()]+)\\)`, 'g');
-  const applied = (match, before, name, inverse, argument, offset, whole) => functionApplicationSpeech(w)(match, before, inverse ? `${name} ${w.inverse}` : name, argument, offset, whole);
-  for (let pass = 0; pass < 4; pass += 1) {
-    const next = text.replace(application, applied);
-    if (next === text) break;
-    text = next;
-  }
-  text = text
+  text = readApplications(text, letters, functionNames, w)
     .replace(/(?:√|\bsqrt)\s*\(([^()]+)\)/g, ` ${w.squareRoot} $1 `)
     .replace(/√\s*([A-Za-z0-9.]+)/g, ` ${w.squareRoot} $1 `)
     // A power after a bracket ends the bracket first: (27x⁶)^(1/3) is "the
