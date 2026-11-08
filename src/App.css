@@ -488,6 +488,25 @@
   }
 }
 
+/* The same five tabs from 861 to 976px (a half-screen window on a 1920px
+   display): the laptop's row, which wrapped its fifth tab onto a second row
+   there, with tighter spacing so that all five fit on one: each tab's sides
+   8px instead of 16px, 4px between tabs instead of 8px, and the row's own
+   ends 14px, a phone's. Nothing scrolls. From 977px a laptop's row fits with
+   its own spacing, as it was; up to 860px the row above scrolls sideways. */
+@media (min-width: 861px) and (max-width: 976px) {
+  .mm-admin-tabs {
+    gap: 4px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .mm-admin-tabs > [role="tab"] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
 @media (max-width: 560px) {
   .mm-bulkbar {
     position: static;

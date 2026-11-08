@@ -15,8 +15,14 @@
  *       End and Home bring the tab they reach into view with room for its
  *       focus ring (teacher features walk, item 1);
  *   A8  at the edges of that range, 641 and 860px wide, the row scrolls
- *       sideways, and from 861px it is a laptop's, as it was: it wraps, and
- *       nothing scrolls.
+ *       sideways;
+ *   A9  from 861 to 976px (a half-screen window on a 1920px display), where
+ *       a laptop's row wrapped its fifth tab onto a second row, the five are
+ *       one row by tighter spacing: at 861, 920 and 976px one row, nothing
+ *       scrolling (the row or the page), 4px between tabs, 8px a tab's sides,
+ *       14px the row's ends, and every tab at least 24px each way;
+ *   A10 from 977px a laptop's row, as it was: one row with the laptop's
+ *       spacing (8px, 16px, 28px), at 977 and 1366px.
  *
  *   TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs &
  *   node tests/browser/accessibilityTeacherAdminTabs.mjs
@@ -132,16 +138,29 @@ try {
           return page.evaluate((list) => {
             const row = document.querySelector(list);
             const style = getComputedStyle(row);
-            const tops = new Set([...row.querySelectorAll('[role="tab"]')].map((tab) => Math.round(tab.getBoundingClientRect().top)));
-            return { rows: tops.size, wrap: style.flexWrap, overflowX: style.overflowX };
+            const tabs = [...row.querySelectorAll('[role="tab"]')];
+            const tops = new Set(tabs.map((tab) => Math.round(tab.getBoundingClientRect().top)));
+            const tab = getComputedStyle(tabs[0]);
+            return {
+              rows: tops.size, wrap: style.flexWrap, overflowX: style.overflowX,
+              scrolls: row.scrollWidth > row.clientWidth + 0.5 || document.documentElement.scrollWidth > window.innerWidth,
+              spacing: [style.columnGap, style.paddingLeft, style.paddingRight, tab.paddingLeft, tab.paddingRight].join(' '),
+              smallest: Math.min(...tabs.map((entry) => Math.min(entry.getBoundingClientRect().width, entry.getBoundingClientRect().height))),
+            };
           }, LIST);
         };
         for (const width of [641, 860]) {
           const row = await rowAt(width);
           check(tag, row.rows === 1 && row.wrap === 'nowrap' && row.overflowX === 'auto', `A8 at ${width}px one row that scrolls sideways (${JSON.stringify(row)})`);
         }
-        const laptop = await rowAt(861);
-        check(tag, laptop.wrap === 'wrap' && laptop.overflowX === 'visible', `A8 at 861px a laptop's row, as it was (${JSON.stringify(laptop)})`);
+        for (const width of [861, 920, 976]) {
+          const row = await rowAt(width);
+          check(tag, row.rows === 1 && !row.scrolls && row.overflowX === 'visible' && row.spacing === '4px 14px 14px 8px 8px' && row.smallest >= 24, `A9 at ${width}px one row by tighter spacing, nothing scrolling (${JSON.stringify(row)})`);
+        }
+        for (const width of [977, 1366]) {
+          const row = await rowAt(width);
+          check(tag, row.rows === 1 && !row.scrolls && row.wrap === 'wrap' && row.overflowX === 'visible' && row.spacing === '8px 28px 28px 16px 16px', `A10 at ${width}px a laptop's row, as it was (${JSON.stringify(row)})`);
+        }
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
       }
       check(tag, pageErrors.length === 0, `no page errors${pageErrors.length ? `: ${pageErrors.join(' | ')}` : ''}`);

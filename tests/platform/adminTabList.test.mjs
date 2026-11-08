@@ -75,3 +75,34 @@ test('on a phone and a tablet the tabs are one row that scrolls sideways, and st
   assert.match(tab, /flex: 0 0 auto;/, 'a tab keeps its size, so its target never shrinks');
   assert.match(tab, /white-space: nowrap;/);
 });
+
+// Teacher features walk, left in the November build's section 6: between 861 and 976px (a half-screen window on a 1920px
+// display) the five tabs still wrapped onto two rows, the fifth alone on the second, because a laptop's row needs 977px.
+// They are one row there now by tighter spacing alone: the tabs' sides, the gaps between them and the row's own ends.
+// Nothing scrolls there, and nothing else about a tab changes. A laptop's row (977px and up) is the inline style, as it
+// was, and up to 860px the sideways row above is unchanged. The browser driver measures one row at 861, 920 and 976px,
+// and the laptop's spacing at 977 and 1366px.
+test('between 861 and 976px the tabs are one row by tighter spacing, and a laptop\'s and a phone\'s rows are as they were', () => {
+  const css = readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8');
+  // Every block that lays the tab list out, by its media query.
+  const blocks = [...css.matchAll(/@media ([^{]+)\{/g)].map((match) => {
+    const body = css.slice(match.index, css.indexOf('\n}\n', match.index));
+    return { query: match[1].trim(), body };
+  }).filter(({ body }) => body.includes('.mm-admin-tabs'));
+  assert.deepEqual(blocks.map(({ query }) => query), ['(max-width: 860px)', '(min-width: 861px) and (max-width: 976px)'], 'the sideways row, then the tighter one; no rule for a laptop\'s width');
+  assert.equal(css.split('.mm-admin-tabs').length - 1, blocks.reduce((sum, { body }) => sum + body.split('.mm-admin-tabs').length - 1, 0), 'and none outside them');
+  const rule = (body, selector) => {
+    const at = body.indexOf(`${selector} {`);
+    assert.notEqual(at, -1, `${selector} is laid out`);
+    return Object.fromEntries(body.slice(body.indexOf('{', at) + 1, body.indexOf('}', at)).split(';').map((entry) => entry.trim()).filter(Boolean)
+      .map((entry) => entry.split(/:\s*/)));
+  };
+  const tight = blocks[1].body;
+  // Only spacing changes, and each wins over the inline style that sets it (as the sideways row's wrap does).
+  assert.deepEqual(rule(tight, '.mm-admin-tabs'), { gap: '4px !important', 'padding-left': '14px !important', 'padding-right': '14px !important' });
+  assert.deepEqual(rule(tight, '.mm-admin-tabs > [role="tab"]'), { 'padding-left': '8px !important', 'padding-right': '8px !important' });
+  // Tighter than a laptop's, which the inline style keeps: 8px between tabs, 16px a tab's sides, 14 to 28px the ends.
+  const inline = list.slice(0, list.indexOf('>'));
+  assert.match(inline, /style=\{\{ display: 'flex', gap: 8, padding: '14px clamp\(14px, 4vw, 28px\) 0', flexWrap: 'wrap' \}\}/);
+  assert.match(region(list, '<button', '</button>', 'one tab'), /style=\{\{ minHeight: 40, padding: '8px 16px', /, 'a tab keeps its height and its top and bottom');
+});
