@@ -270,6 +270,7 @@ export const CI_AREAS = {
     'tests/browser/clickMapLetterbox*',
     'tests/browser/figureDescriptions*',
     'tests/browser/mathKeypadToolbar*',
+    'tests/browser/mathBoxFocus*',
     'tests/browser/workViewReference*',
     'tests/browser/stagedQuestion*',
     'tests/browser/unansweredChoiceGates*',

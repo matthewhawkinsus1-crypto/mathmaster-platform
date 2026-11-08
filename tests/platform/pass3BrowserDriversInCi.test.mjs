@@ -44,6 +44,9 @@ const DRIVERS = [
   // Ran by hand only, and had gone stale: Graphing 2's plane stays put while
   // points are placed (it jumped 18px), and a point is dragged from its dot.
   ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['plotInteraction']],
+  // Focus that leaves a math box inside MathLive's 60 ms hand-over stays where
+  // it went (math-box-focus): a Tab, a held Tab, the page's moves, a blur.
+  ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['mathBoxFocus']],
   // FB10: after a miss, the hint opens under it and Check stays in view.
   ['student-teacher-journeys.yml', 'student', 'plain', ['feedbackTeachesHintPlace']],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],
@@ -118,7 +121,7 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   ['submitNotQueued', 'toolDraftSyncSweep', 'toolOpenAudit', 'matrixLabFeedback', 'algebra2MatricesLesson',
     'afterLastMiss', 'day1Systems', 'day2Nonunique', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise',
     'studentResultUpNext', 'studentWhatChanged', 'gradeCenterMobile', 'secureResults', 'secureExamNavigation',
-    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups'].forEach((driver) => {
+    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups', 'mathBoxFocus'].forEach((driver) => {
     for (const file of [`tests/browser/${driver}.mjs`, `tests/browser/${driver}.html`]) {
       assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
     }

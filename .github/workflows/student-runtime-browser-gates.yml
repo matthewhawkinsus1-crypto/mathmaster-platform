@@ -54,6 +54,10 @@ name: Student Runtime Browser Gates
 #                       on a phone Undo and Reset keep their word (A11Y-10)
 #   mathKeypadToolbar   MathInput's keypads are one Tab stop each: arrows, Home,
 #                       End, named keys, focus back to the field (pass 3, PR-27)
+#   mathBoxFocus        focus that leaves a math box inside MathLive's 60 ms
+#                       hand-over stays where it went: a Tab, a held Tab, the
+#                       page's own moves and a blur, and a box React has moved;
+#                       click, tap, Tab, focus(), the keypad and IME unchanged
 #   workViewReference   "Information you need" is in Work View: its own drawer,
 #                       inside Task on a phone, on a DOL too (pass 3, TOOL-12)
 #   assessmentLeakGates nothing before Submit says whether work is right on a
@@ -402,6 +406,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/mathKeypadToolbar.mjs
+      - name: Focus that leaves a math box stays where it went
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/mathBoxFocus.mjs
       - name: Information you need stays reachable in Work View
         if: ${{ !cancelled() }}
         env:
