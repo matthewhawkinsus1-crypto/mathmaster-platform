@@ -17,6 +17,7 @@ const DRIVERS = [
   'liveChallengeProjectorPrivacyQa.mjs',
   'liveChallengeShellQa.mjs',
   'graphFeatureRushGame.mjs',
+  'lineGraphGame.mjs',
 ];
 // The start sits inside the block that first asked whether an emulator answers
 // at the host (no closing brace at the start of a line between the two).

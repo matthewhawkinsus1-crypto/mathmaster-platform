@@ -236,10 +236,14 @@ export const CI_AREAS = {
     'tests/browser/testCycleLifecycleQa*',
     'tests/browser/liveChallengeShellQa*',
     'tests/browser/graphFeatureRushGame*',
+    'tests/browser/lineGraphGame*',
     'tests/browser/graphFeatureRushStudent*',
     'tests/browser/graphFeatureRushTeacher*',
     'tests/fixtures/secureRichToolAnswers.mjs',
     'tests/fixtures/testCycleCertificationFixture.mjs',
+    // The drivers load it in node, before the server: the emulator's closed
+    // transaction re-run as production re-runs it.
+    'tests/integration/support/emulatorTransactions.mjs',
     'scripts/check-emulator-journey-paths.mjs',
     'package.json',
     'package-lock.json',

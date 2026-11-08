@@ -70,6 +70,9 @@ const DRIVERS = [
   ['student-pass3-emulator-journeys.yml', 'pass3-live-challenge-shell', 'self', ['liveChallengeShellQa']],
   // CI06: whole Graph Feature Rush games, ran by hand until it was green twice in a row.
   ['student-pass3-emulator-journeys.yml', 'pass3-graph-feature-rush', 'self', ['graphFeatureRushGame']],
+  // Whole Graph the Line games, with its phone pass (the bar and grid held still);
+  // ran by hand until it passed three times in a row in two Chromiums.
+  ['student-pass3-emulator-journeys.yml', 'pass3-graph-the-line', 'self', ['lineGraphGame']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -148,6 +151,7 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
     'tests/browser/support/anything.mjs', 'tests/browser/testCycleRichToolQa.mjs', 'tests/browser/liveChallengeShellQa.mjs',
     'tests/browser/testCycleLifecycleQa.mjs', 'tests/browser/testCycleLifecycleQa.html', 'tests/fixtures/testCycleCertificationFixture.mjs',
     'tests/browser/graphFeatureRushGame.mjs', 'src/components/liveChallenge/GraphFeatureRushGraph.jsx',
+    'tests/browser/lineGraphGame.mjs', 'src/components/liveChallenge/LineGraphRound.jsx', 'tests/browser/support/roundBarFit.mjs',
     'tests/fixtures/secureRichToolAnswers.mjs'].forEach((file) => {
     assert.ok(runsOnPullRequest(emulator, file), `a change to ${file} runs the emulator journeys`);
   });
@@ -167,7 +171,7 @@ test('the emulator journeys run on their own area, nightly and on demand; the ga
   ['mathPath', 'pathContentCompiler', 'pathFirestoreShape', 'secureItems', 'secureItemStorage'].forEach((name) => {
     assert.ok(runsOnPullRequest(gates, `functions/lib/${name}.js`), `${name}.js runs the gates (secureAccessParity)`);
   });
-  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|test-cycle-lifecycle|live-challenge-shell|graph-feature-rush):/, 'the long jobs left the gates');
+  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|test-cycle-lifecycle|live-challenge-shell|graph-feature-rush|graph-the-line):/, 'the long jobs left the gates');
 });
 
 // The emulator journeys' area (scripts/lib/ciAreas.mjs) is all of src/ minus the
@@ -191,7 +195,9 @@ test('the emulator journeys watch src/** with exclusions after it, and what the 
   // Loaded by both drivers (QuestionEngine, MultiRelationAlgebraCore): never excluded.
   ['src/platform/context/wordProblemLayer.js', 'src/platform/curriculum/inequalityRepresentationPolicy.js',
     'src/platform/rewards/challengeRewardPolicy.js', 'src/MathInput.jsx', 'src/QuestionEngine.jsx',
-    'tests/fixtures/secureRichToolAnswers.mjs', 'functions/platformEntry.js', 'tests/browser/emulator/vite.bridge.config.mjs']
+    'tests/fixtures/secureRichToolAnswers.mjs', 'functions/platformEntry.js', 'tests/browser/emulator/vite.bridge.config.mjs',
+    // Loaded in node by the Live Challenge drivers, before the server.
+    'tests/integration/support/emulatorTransactions.mjs']
     .forEach((file) => assert.ok(reachedBy(file, paths), `${file} runs the journeys`));
   assert.equal(reachedBy('src/platform/gradeTransfer/gradeTransferModel.js', paths), false, 'an excluded directory does not');
   // The matching rule itself: in order, the last match decides.

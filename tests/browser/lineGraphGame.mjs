@@ -5,6 +5,9 @@
 //   node tests/browser/lineGraphGame.mjs
 //   LINE_SHOTS=/some/dir node tests/browser/lineGraphGame.mjs     # keep screenshots
 //   LINE_SCENARIOS=sprint,classic node tests/browser/lineGraphGame.mjs
+//   FIRESTORE_EMULATOR_HOST=127.0.0.1:9020 LINE_VITE_PORT=6281 LINE_BRIDGE_PORT=6282 \
+//     node tests/browser/lineGraphGame.mjs   # beside another suite, on ports of its own
+//   CHROMIUM_PATH=/path/to/chrome node tests/browser/lineGraphGame.mjs   # another Chromium
 //
 // WHAT IS REAL. The student and teacher screens (the same harness pages as
 // Graph Feature Rush's: graphFeatureRushStudent.html / Teacher.html), the
@@ -26,7 +29,13 @@
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browsers block every non-local request, and the project id is throwaway.
-// This is a QA tool, not part of the CI gate.
+// It runs in CI: .github/workflows/student-pass3-emulator-journeys.yml, job
+// pass3-graph-the-line, on a pull request that touches what it loads, nightly
+// and on demand. About 4½ minutes on a loaded 4-core machine (255–274 s). It ran
+// by hand until its phone pass (a Rush on two phones: a streak, a dropped
+// connection, and the bar at 320 and 360 px with a four-digit count, the grid held
+// to a pixel) passed three times in a row in full Chromium and three in CI's
+// headless shell.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -35,6 +44,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { roundBarAtNarrowWidths, roundBarProblems } from './support/roundBarFit.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -108,6 +118,10 @@ if (!await waitForHttp(`http://${EMULATOR}/`, 2)) {
 
 /* -------------------- the real server, behind a bridge -------------------- */
 
+// Transactions are re-run as production re-runs them: the emulator closes a
+// contended one that production would re-run, and the command fails instead
+// (graphFeatureRushGame.mjs; the integration suites load the same re-run).
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 const functionsIndex = require(path.join(repo, 'functions/platformEntry.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
@@ -171,6 +185,7 @@ const CLASSES = Object.freeze({
   pair: { classId: 'line-qa-pair', name: 'Period 1 Algebra I', period: 'P1', course: 'algebra1', size: 2 },
   trio: { classId: 'line-qa-trio', name: 'Period 3 Algebra I', period: 'P3', course: 'algebra1', size: 3 },
   solo: { classId: 'line-qa-solo', name: 'Period 6 Algebra II', period: 'P6', course: 'algebra2', size: 1 },
+  phones: { classId: 'line-qa-phones', name: 'Period 4 Algebra I', period: 'P4', course: 'algebra1', size: 2 },
 });
 const studentsOf = (key) => Array.from({ length: CLASSES[key].size }, (_, index) => `${CLASSES[key].classId}-s${index + 1}`);
 
@@ -196,10 +211,11 @@ const DEVICES = Object.freeze({
   chromebook: { viewport: { width: 1366, height: 768 } },
   ipad: { viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
   phone: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
-  smallPhone: { viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
+  smallPhone: { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
 });
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+// CI's browser is Playwright's own headless Chromium; CHROMIUM_PATH runs another.
+const browser = await chromium.launch({ args: ['--no-sandbox'], ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 const findings = [];
 const notes = [];
 const finding = (scenario, problem) => { findings.push({ scenario, problem }); log(`  ✗ ${scenario}: ${problem}`); };
@@ -220,7 +236,9 @@ const openPage = async ({ device = 'chromebook', url, init = null, colorScheme =
   const errors = [];
   page.on('console', (message) => { if (message.type() === 'error' && !IGNORABLE_CONSOLE.test(message.text())) errors.push(message.text()); });
   page.on('pageerror', (error) => errors.push(`pageerror: ${error?.message || error}`));
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  // A cold Vite dev server compiles the app on the first loads: 30 s
+  // (Playwright's default) is not always enough on a CI runner.
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   const handle = { page, context, errors, device, touch: Boolean(DEVICES[device].hasTouch) };
   handles.push(handle);
   return handle;
@@ -253,12 +271,24 @@ const waitForText = async (handle, needle, timeout = 15_000) => {
     return false;
   }
 };
+const waitForNoText = async (handle, needle, timeout = 15_000) => {
+  try {
+    await handle.page.waitForFunction((value) => !document.body.innerText.toLowerCase().includes(value.toLowerCase()), needle, { timeout });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /* ------------------------------ the server's view -------------------------- */
 
 const roomRef = (roomId) => db.collection('liveChallengeRooms').doc(roomId);
 const roomOf = async (roomId) => (await roomRef(roomId).get()).data() || {};
 const lineSecret = async (roomId) => (await db.collection('liveChallengePrivate').doc(roomId).get()).data()?.lineGraph || null;
+const privatePlayer = async (roomId, studentId) => (await db.collection('liveChallengePrivate').doc(roomId).collection('players').doc(studentId).get()).data() || {};
+// The lines the server recorded right in a round, for one student.
+const rightLinesRecorded = async (roomId, studentId, roundIndex) => Object.values((await privatePlayer(roomId, studentId)).submissionReceipts || {})
+  .filter((receipt) => receipt.roundIndex === roundIndex && receipt.completesQuestion === true && receipt.isCorrect === true).length;
 const activeRoomId = async () => (await db.collection('liveChallengeTeacherActive').doc(TEACHER).get()).data()?.roomId || null;
 
 const itemOnScreen = async (student, roomId) => {
@@ -405,6 +435,31 @@ const buildRowOnOneLine = async (student) => student.page.locator('.mm-line-buil
 // "2 right" (AX18), so reading every digit in it gave 22, and the invisible
 // reserve that keeps its slot ("✓ 0000").
 const doneCount = async (student) => Number((await student.page.locator('.mm-line-done > [aria-hidden="true"]:not(.mm-line-reserve)').innerText()).replace(/\D+/g, '')) || 0;
+
+// THE GRID AND THE BAR OVER IT, MEASURED. On a phone the bar must hold its size
+// through play: when it changed, the grid moved under the student's finger (65 px
+// as "Reconnecting…" came and went at 390 px, 34 px as 🔥 2 arrived at 320 px),
+// and a point dragged there landed off it. Held to a pixel.
+const gridBox = (student) => student.page.locator('svg.mm-line-graph').boundingBox();
+const barHeight = async (student) => (await student.page.locator('.mm-line-bar').boundingBox())?.height ?? null;
+const sameBox = (left, right) => Boolean(left && right) && ['x', 'y', 'width', 'height'].every((key) => Math.abs(left[key] - right[key]) <= 1);
+// Read at once: a streak that is not there is an answer, not something to wait for.
+const streakOf = (student) => student.page.evaluate(() => {
+  const node = document.querySelector('.mm-line-streak');
+  return { shown: node?.dataset.streak === '1', text: (node?.querySelector('.mm-gp-bump')?.textContent || '').trim() };
+});
+// The bar's own visible counts (each beside an invisible reserve and a screen
+// reader's words), for writing in a long game's numbers and putting them back.
+const VISIBLE_DONE = '.mm-line-done > [aria-hidden="true"]:not(.mm-line-reserve)';
+const VISIBLE_STREAK = '.mm-line-streak > .mm-gp-bump';
+const VISIBLE_PROGRESS = '.mm-line-progress > [aria-hidden="true"]:not(.mm-line-reserve)';
+const writeBar = (student, selector, text) => student.page.evaluate(({ at, value }) => {
+  const node = document.querySelector(at);
+  if (!node) return null;
+  const was = node.textContent;
+  node.textContent = value;
+  return was;
+}, { at: selector, value: text });
 
 /** Answer the item on screen the right way: a line, an option or the boxes. */
 const answerRight = async (student, roomId, { scenario, keyboard = false, afterFirst = null } = {}) => {
@@ -635,7 +690,18 @@ await run('sprint', async () => {
   check(S, (await b.page.locator('.mm-line-reveal').count()) === 1, 'B: no dashed answer line');
   await shot(b, 'sprint-revealed-phone');
   check(S, await waitForItemChange(b, stuck.questionIndex, 4_000), 'B: the shown line did not move on');
-  for (let index = 2; index < 5; index += 1) await answerRight(b, roomId, { scenario: S }); // eslint-disable-line no-await-in-loop
+  for (let index = 2; index < 5; index += 1) {
+    await answerRight(b, roomId, { scenario: S }); // eslint-disable-line no-await-in-loop
+    // Two right in a row (🔥 2): the bar at 320 and 360 px with a Sprint's largest
+    // counts written in (20 lines, its longest set), on one row.
+    if (index === 3) {
+      check(S, (await streakOf(b)).shown, 'B: no streak after two right lines'); // eslint-disable-line no-await-in-loop
+      // eslint-disable-next-line no-await-in-loop
+      const narrow = await roundBarAtNarrowWidths(b.page, { bar: '.mm-line-bar', counts: [[VISIBLE_PROGRESS, '20 / 20'], [VISIBLE_DONE, '✓ 20'], [VISIBLE_STREAK, '🔥 20']], restore: DEVICES.phone.viewport });
+      for (const result of narrow) for (const problem of roundBarProblems(result, { status: false })) finding(S, `B, a Sprint's bar: ${problem}`);
+      notes.push({ scenario: S, sprintBars: narrow.map(({ width, after }) => ({ width, height: after?.height, oneRow: after?.oneRow })) });
+    }
+  }
   const finishedAt = Date.now();
   const closed = await waitForRoundClosed(roomId, 0, 30_000);
   check(S, closed?.roundState === 'closed', 'the round did not close when both had finished');
@@ -791,6 +857,132 @@ await run('name-and-keyboard', async () => {
   await waitForRoundClosed(roomId, 0, 70_000);
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click().catch(() => {});
   await waitForRoom(roomId, (current) => current.status === 'finished', 20_000);
+});
+
+// PHONES: a Rush on two phones by touch, 390 × 844 and 360 × 740. The bar over the
+// grid holds its size through everything that comes and goes in it, and the grid
+// moves by no more than a pixel: the countdown giving way to the clock at GO, a
+// streak that begins and ends, a three-digit count, and "Reconnecting…" as both
+// phones go offline in round 2 and come back. At 320 and 360 px the bar holds a
+// four-digit count, a streak and the status on one row. Before the bar kept its
+// slots, "Reconnecting…" took it from 57 to 122 px at 390 and 360 px (the grid 65
+// px down, and back), and 🔥 2 wrapped it at 320 px.
+
+// Round 1 on one phone: two right lines (🔥 2 arrives), a wrong one (it ends), the
+// fix, and a three-digit count written into the bar; the grid and bar checked at each.
+const streakAndTotal = async (student, roomId, S, start) => {
+  const held = async (moment) => {
+    const grid = await gridBox(student);
+    check(S, sameBox(start.grid, grid), `${student.studentId} (${student.device}): ${moment} moved the grid (${JSON.stringify(start.grid)} → ${JSON.stringify(grid)})`);
+    const bar = await barHeight(student);
+    check(S, Math.abs(bar - start.bar) < 0.5, `${student.studentId} (${student.device}): ${moment} changed the bar (${start.bar} → ${bar} px)`);
+  };
+  await answerRight(student, roomId, { scenario: S });
+  await answerRight(student, roomId, { scenario: S });
+  const streak = await streakOf(student);
+  check(S, streak.shown && /🔥 2/.test(streak.text), `${student.studentId}: no 🔥 2 after two right lines (${JSON.stringify(streak)})`);
+  await held('🔥 2 arriving');
+  // A wrong line ends the streak; dragging its point onto the line finishes the item.
+  const item = await itemOnScreen(student, roomId);
+  const [p, wrong] = wrongPoints(item);
+  await placePoint(student, item.view, p);
+  await placePoint(student, item.view, wrong);
+  check(S, !(await streakOf(student)).shown, `${student.studentId}: a wrong line did not end the streak`);
+  await held('the streak ending');
+  await placePoint(student, item.view, rightPoints(item)[1], { from: wrong });
+  check(S, await waitForItemChange(student, item.questionIndex), `${student.studentId}: dragging the point onto the line did not complete the item`);
+  await held('the next line');
+  // A long game's count: no round here reaches three digits, so it is written in.
+  const was = await writeBar(student, VISIBLE_DONE, '✓ 125');
+  check(S, was !== null, `${student.studentId}: no count to write into`);
+  await wait(150);
+  await held('a three-digit count');
+  if (was !== null) await writeBar(student, VISIBLE_DONE, was);
+};
+
+await run('phones', async () => {
+  const S = 'phones';
+  const [idA, idB] = studentsOf('phones');
+  const teacher = await openTeacher('chromebook');
+  const a = await openStudent(idA, 'phone');
+  const b = await openStudent(idB, 'smallPhone');
+  const phones = [a, b];
+  const roomId = await createLine(teacher, { classKey: 'phones', format: 'Rush', preset: 'Slope-intercept start', rounds: 2, seconds: 45 });
+  check(S, roomId, 'no room was created');
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+
+  // ROUND 1. The bar through the countdown is the bar in play. Read as soon as
+  // the round shows: its countdown, or (on a page slower than the 3.5 s
+  // countdown) already its grid, which is noted and not waited for.
+  await startGame(teacher);
+  const countdownBars = await Promise.all(phones.map((student) => student.page.waitForFunction(
+    () => document.querySelector('.mm-line-clock[data-soon="1"]') || document.querySelector('svg.mm-line-graph'),
+    null,
+    { timeout: 30_000 },
+  ).then(async () => ((await student.page.locator('.mm-line-clock[data-soon="1"]').count()) ? barHeight(student) : null), () => null)));
+  let room = await waitForRoundOpen(roomId, 0);
+  check(S, room, 'round 1 never opened');
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid in round 1`);
+  const start = await Promise.all(phones.map(async (student) => ({ bar: await barHeight(student), grid: await gridBox(student) })));
+  phones.forEach((student, index) => {
+    if (countdownBars[index] === null) notes.push({ scenario: S, student: student.studentId, countdown: 'opened after GO: not measured' });
+    else check(S, Math.abs(countdownBars[index] - start[index].bar) < 0.5, `${student.studentId} (${student.device}): the bar changed at GO (${countdownBars[index]} → ${start[index].bar} px)`);
+  });
+  await Promise.all(phones.map((student, index) => streakAndTotal(student, roomId, S, start[index])));
+  await shot(a, 'phones-r1-390');
+  await shot(b, 'phones-r1-360');
+  room = await waitForRoundClosed(roomId, 0, 70_000);
+  check(S, room?.roundState === 'closed', 'round 1 did not close');
+  for (const student of phones) check(S, await waitForText(student, 'Round 1 results', 15_000), `${student.studentId}: no round 1 results`);
+
+  // ROUND 2: both phones go offline. Their lines still answer at once and queue
+  // up, "Reconnecting…" shows on the bar's edge, and the grid stays put; back
+  // online, the queue lands.
+  await teacher.page.getByRole('button', { name: 'Next Round' }).click();
+  room = await waitForRoundOpen(roomId, 1);
+  check(S, room, 'round 2 never opened');
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid in round 2`);
+  const second = await Promise.all(phones.map(async (student) => ({ bar: await barHeight(student), grid: await gridBox(student) })));
+  const offline = (on) => Promise.all(phones.map((student) => student.page.evaluate((value) => {
+    window.__mmBridgeOffline = value;
+    if (!value) window.dispatchEvent(new Event('online'));
+  }, on)));
+  await offline(true);
+  await Promise.all(phones.map(async (student) => {
+    await answerRight(student, roomId, { scenario: S });
+    await answerRight(student, roomId, { scenario: S });
+  }));
+  for (const [index, student] of phones.entries()) {
+    check(S, await waitForText(student, 'Reconnecting', 8_000), `${student.studentId}: offline lines did not show "Reconnecting…"`);
+    const grid = await gridBox(student);
+    check(S, sameBox(second[index].grid, grid), `${student.studentId} (${student.device}): "Reconnecting…" moved the grid (${JSON.stringify(second[index].grid)} → ${JSON.stringify(grid)})`);
+    const bar = await barHeight(student);
+    check(S, Math.abs(bar - second[index].bar) < 0.5, `${student.studentId} (${student.device}): "Reconnecting…" changed the bar (${second[index].bar} → ${bar} px)`);
+  }
+  await shot(a, 'phones-r2-offline-390');
+  await shot(b, 'phones-r2-offline-360');
+  // The bar at 320 and 360 px, beside "Reconnecting…", with a four-digit count and a
+  // two-digit streak written in: one row, nothing cut, the status one whole line.
+  check(S, (await streakOf(a)).shown, 'A: no streak beside "Reconnecting…" to measure');
+  const narrow = await roundBarAtNarrowWidths(a.page, { bar: '.mm-line-bar', counts: [[VISIBLE_DONE, '✓ 1250'], [VISIBLE_STREAK, '🔥 12']], restore: DEVICES.phone.viewport });
+  for (const result of narrow) for (const problem of roundBarProblems(result)) finding(S, `A, Graph the Line's bar: ${problem}`);
+  notes.push({ scenario: S, narrowBars: narrow.map(({ width, after }) => ({ width, height: after?.height, oneRow: after?.oneRow })) });
+  const restored = await gridBox(a);
+  check(S, sameBox(second[0].grid, restored), `A: the grid is not where it was after 320 and 360 px (${JSON.stringify(second[0].grid)} → ${JSON.stringify(restored)})`);
+  // Back online: the queue lands, the status goes, and the grid has not moved.
+  const shownRight = await Promise.all(phones.map((student) => doneCount(student)));
+  await offline(false);
+  for (const [index, student] of phones.entries()) {
+    check(S, await waitForNoText(student, 'Reconnecting', 10_000), `${student.studentId}: still "Reconnecting…" after the queue landed`);
+    const recorded = await rightLinesRecorded(roomId, student.studentId, 1);
+    check(S, recorded === shownRight[index], `${student.studentId}: after reconnecting the server has ${recorded} round-2 lines right, the screen ${shownRight[index]}`);
+    const grid = await gridBox(student);
+    check(S, sameBox(second[index].grid, grid), `${student.studentId} (${student.device}): the connection's return moved the grid (${JSON.stringify(second[index].grid)} → ${JSON.stringify(grid)})`);
+  }
+  room = await waitForRoundClosed(roomId, 1, 70_000);
+  check(S, room?.roundState === 'closed', 'round 2 did not close');
+  await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
+  check(S, await waitForRoom(roomId, (current) => current.status === 'finished', 20_000), 'Finish & Show Final Standings did not finish the game');
 });
 
 /* --------------------------------- report --------------------------------- */

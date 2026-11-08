@@ -6,7 +6,7 @@
 //
 // .github/workflows/student-pass3-emulator-journeys.yml runs its drivers
 // (testCycleRichToolQa, testCycleLifecycleQa, liveChallengeShellQa,
-// graphFeatureRushGame) on a pull request only when their files are in the
+// graphFeatureRushGame, lineGraphGame) on a pull request only when their files are in the
 // workflow's area
 // (scripts/lib/ciAreas.mjs, which ci.yml reads), and nightly. A file a driver
 // loads that no pattern reaches is a change that skips the journeys, and its
@@ -54,6 +54,12 @@ const DRIVERS = [
   {
     // CI06: the same pages and bridge as the shell driver, whole Rush games.
     driver: 'tests/browser/graphFeatureRushGame.mjs',
+    config: 'tests/browser/emulator/vite.bridge.config.mjs',
+    entries: ['/tests/browser/graphFeatureRushStudentMain.jsx', '/tests/browser/graphFeatureRushTeacherMain.jsx'],
+  },
+  {
+    // The same pages and bridge again, whole Graph the Line games.
+    driver: 'tests/browser/lineGraphGame.mjs',
     config: 'tests/browser/emulator/vite.bridge.config.mjs',
     entries: ['/tests/browser/graphFeatureRushStudentMain.jsx', '/tests/browser/graphFeatureRushTeacherMain.jsx'],
   },

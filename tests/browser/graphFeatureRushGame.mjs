@@ -34,6 +34,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { roundBarAtNarrowWidths, roundBarProblems } from './support/roundBarFit.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -638,6 +639,18 @@ await run('two-player-grand-prix', async () => {
   check(S, /Reconnecting/.test(await textOf(b)), 'B: offline taps did not show "Reconnecting…"');
   const phoneGraphReconnecting = await graphBox(b);
   check(S, sameBox(phoneGraph, phoneGraphReconnecting), `B: "Reconnecting…" moved the phone's graph (${JSON.stringify(phoneGraph)} → ${JSON.stringify(phoneGraphReconnecting)})`);
+  // The bar at 320 and 360 px beside "Reconnecting…", with a four-digit total and a
+  // round's whole pool of graphs written in: one row, nothing cut (at 360 px a
+  // three-digit total wrapped it, and the graph moved 34 px under the finger).
+  const narrowBars = await roundBarAtNarrowWidths(b.page, {
+    bar: '.mm-rush-bar',
+    counts: [['.mm-rush-points > [aria-hidden="true"]:not(.mm-rush-reserve)', '★ 1250'], ['.mm-rush-done > [aria-hidden="true"]:not(.mm-rush-reserve)', '✓ 150']],
+    restore: DEVICES.phone.viewport,
+  });
+  for (const result of narrowBars) for (const problem of roundBarProblems(result)) finding(S, `B, the rush bar: ${problem}`);
+  notes.push({ scenario: S, narrowBars: narrowBars.map(({ width, after }) => ({ width, height: after?.height, oneRow: after?.oneRow })) });
+  const phoneGraphRestored = await graphBox(b);
+  check(S, sameBox(phoneGraph, phoneGraphRestored), `B: the graph is not where it was after 320 and 360 px (${JSON.stringify(phoneGraph)} → ${JSON.stringify(phoneGraphRestored)})`);
   await shot(a, 'gp-r2-offline-chromebook');
   await shot(b, 'gp-r2-offline-phone');
   const offlineDone = await doneCount(a);

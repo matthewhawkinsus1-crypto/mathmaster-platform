@@ -135,6 +135,7 @@ const EMULATOR_BRIDGE_DRIVERS = [
   'liveChallengeProjectorPrivacyQa.mjs',
   'liveChallengeTeachingQa.mjs',
   'graphFeatureRushGame.mjs',
+  'lineGraphGame.mjs',
   'testCycleRichToolQa.mjs',
   'testCycleLifecycleQa.mjs',
   'classRewardsQa.mjs',
