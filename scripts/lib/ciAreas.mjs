@@ -352,6 +352,8 @@ export const CI_AREAS = {
     'tests/browser/readAloudTranslate*',
     'tests/browser/reviewMyWork*',
     'tests/browser/support/touchEmulation*',
+    // How readAloudTranslate, studentUxPlatform and the matrices lesson on a phone read the Work View opener's cover.
+    'tests/browser/support/openerCover*',
     'package.json',
     'package-lock.json',
     'firebase.json',

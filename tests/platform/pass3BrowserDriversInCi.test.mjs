@@ -58,6 +58,8 @@ const DRIVERS = [
     'teacherWorkflow/draftSaveNoticeReloadJourneys', 'teacherWorkflow/phoneSaveLineJourneys',
     // LC23: the Practice Passes switch in the real Review, desktop and phone.
     'teacherWorkflow/practicePassSwitchJourneys',
+    // The matrices lesson on a phone in the real App (PH10, PH03, P-4), run by hand only until student-keyboard-ci.
+    'teacherWorkflow/matrixLabPhoneJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
   // NV14: Back and a reload inside Recovery, Corrections and a Test review.
@@ -134,8 +136,11 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
     assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
   });
   const journeys = 'student-teacher-journeys.yml';
+  // The matrices lesson on a phone, and the helper it reads the Work View opener's cover with.
   ['tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs', 'tests/browser/teacherWorkflow/fixtures/school.js',
-    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js'].forEach((file) => {
+    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js',
+    'tests/browser/teacherWorkflow/matrixLabPhoneJourneys.mjs', 'tests/browser/support/openerCover.mjs',
+    'src/components/common/MatrixGrid.jsx'].forEach((file) => {
     assert.ok(runsOnPullRequest(journeys, file), `a change to ${file} runs the journeys`);
   });
   const emulator = 'student-pass3-emulator-journeys.yml';

@@ -587,7 +587,8 @@ jobs:
         run: node tests/browser/lmrProcessMode.mjs
 
   # Student pass 3's journeys in the real App. Their own job: the teacher job
-  # is near its limit. About 7 minutes locally.
+  # is near its limit. About 7 minutes locally, and about 10 since the matrices
+  # lesson on a phone joined them (2.6 minutes of its own, 2026-11-08).
   pass3-student-journeys:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -639,3 +640,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/practicePassSwitchJourneys.mjs
+      # The matrices lesson on a 390×844 phone in the real App (PH10, PH03, P-4): the first screen's room, Check above
+      # the work bar, a matrix wider than its box scrolled by keyboard at 100% and 200% text, and no matrix scrolling
+      # on a 344 or 320 px phone. It ran by hand only (student-keyboard-ci).
+      - name: The matrices lesson on a phone, in the real App (first screen, Check, a wide matrix by keyboard)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/matrixLabPhoneJourneys.mjs

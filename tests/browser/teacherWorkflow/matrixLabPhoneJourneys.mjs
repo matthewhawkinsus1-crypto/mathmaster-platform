@@ -30,7 +30,8 @@
 //                 cell into it; on a laptop a matrix that fits is no Tab stop
 //                 (student-a11y-3, the matrices walkthrough's P-4).
 //
-// Exit code 1 on any finding. MATRIX_PHONE_SHOTS=<dir> saves a screenshot of each.
+// Exit code 1 on any finding. MATRIX_PHONE_SHOTS=<dir> saves a screenshot of each. CI runs it in
+// student-teacher-journeys.yml's pass3-student-journeys, on the teacher harness that job starts (student-keyboard-ci).
 import { mkdirSync } from 'node:fs';
 import { newSchoolContext } from './schoolClock.mjs';
 import { readOpenerCover } from '../support/openerCover.mjs';
