@@ -108,11 +108,29 @@ const occurrences = (haystack, value) => {
 // A point the hint writes, "(−2, 9)".
 const POINT = /\(\s*-?[\d./]+\s*,\s*-?[\d./]+\s*\)/g;
 
+/*
+ * A NUMBER JOINED TO LETTERS, A POWER OR A BRACKET IS PART OF ITS TERM (the
+ * module 2 walk, 2026-11-06). "5xy" is the term 5xy, not the number 5 and the
+ * word "xy": letters glued to a number, to a power or to a closing bracket are
+ * variables multiplied ("5xy", "2ab³", "(x + 1)yz"), and a power written as a
+ * superscript belongs to the term ("−4x²y³" was read as "−4x"). So a hint
+ * that names a term the student reads ("What is the degree of 5xy?" beside the
+ * box "Degree of 5xy") quotes it, as "solve 0 = 3x − 8" quotes g(x) = 3x − 8,
+ * and is not hidden when another box's answer is 5. The rule for what counts
+ * is unchanged: a term the student is not shown still names its number
+ * ("y = 3x − 8" names the slope 3 wherever the problem does not show it).
+ */
+const SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ⁿ';
 // The run of mathematics around a position: digits, single letters
-// (variables), operators and brackets. A word of two or more letters ends it
-// unless a bracket follows (a function name: "log(x)"), and so do "=", ",",
-// ";", ":" and sentence punctuation.
-const MATH_CHAR = /[0-9a-z().+\-*/^·′'\s]/i;
+// (variables), letters joined to a number, a power or a bracket, superscript
+// powers, operators and brackets. A word of two or more letters standing
+// apart ends it unless a bracket follows (a function name: "log(x)"), and so
+// do "=", ",", ";", ":" and sentence punctuation.
+const MATH_CHAR = new RegExp(`[0-9a-z().+\\-*/^·′'\\s${SUPERSCRIPTS}]`, 'i');
+const JOINED_BEFORE = new RegExp(`[0-9)${SUPERSCRIPTS}]`);
+const JOINED_AFTER = new RegExp(`[\\^${SUPERSCRIPTS}]`);
+const OPERAND_END = new RegExp(`[0-9a-z)′'${SUPERSCRIPTS}]`, 'i');
+const OPERAND_START = /[0-9a-z(]/i;
 const expressionAround = (haystack, start, end) => {
   const isWordLetter = (index) => /[a-z]/i.test(haystack[index] || '');
   const wordAt = (index) => {
@@ -126,13 +144,26 @@ const expressionAround = (haystack, start, end) => {
     const char = haystack[index];
     if (!char || !MATH_CHAR.test(char)) return false;
     if (!isWordLetter(index)) return true;
-    const { word, call } = wordAt(index);
-    return word.length === 1 || call;
+    const { from, to, word, call } = wordAt(index);
+    const joined = JOINED_BEFORE.test(haystack[from - 1] || '') || JOINED_AFTER.test(haystack[to] || '');
+    return word.length === 1 || call || joined;
   };
   let from = start;
   let to = end;
   while (from > 0 && allowed(from - 1)) from -= 1;
   while (to < haystack.length && allowed(to)) to += 1;
+  // Two operands with only spaces between them are two things, not one term:
+  // in "Is 5xy a monomial?" the article "a" is not a factor of 5xy.
+  const gap = (index) => {
+    if (!/\s/.test(haystack[index])) return false;
+    let before = index - 1;
+    while (before >= 0 && /\s/.test(haystack[before])) before -= 1;
+    let after = index + 1;
+    while (after < haystack.length && /\s/.test(haystack[after])) after += 1;
+    return before >= 0 && OPERAND_END.test(haystack[before]) && OPERAND_START.test(haystack[after] || '');
+  };
+  for (let at = start - 1; at >= from; at -= 1) if (gap(at)) { from = at + 1; break; }
+  for (let at = end; at < to; at += 1) if (gap(at)) { to = at; break; }
   // A sentence's full stop, a trailing operator and unmatched brackets are not
   // part of what is quoted; a leading minus is (it is the number's sign).
   const piece = haystack.slice(from, to).replace(/[\s.+\-*/·]+$/, '').replace(/^[\s.+*/·]+/, '');
@@ -151,10 +182,16 @@ const expressionAround = (haystack, start, end) => {
 };
 
 // Quoted whole: the piece is in what the student reads as a whole token —
-// "3x−8" is not quoted by "13x−8", nor "2x+1" by "12x+1".
+// "3x−8" is not quoted by "13x−8", nor "2x+1" by "12x+1", nor "5x" by "5x²".
+// Spaces inside it do not matter; the ends are read where the student reads
+// them, so the word before a term does not join it ("Degree of 5xy" quotes
+// 5xy: squashed, it read "degreeof5xy").
+const BOUNDARY = `0-9a-z${SUPERSCRIPTS}`;
 const quotedWhole = (shown, piece) => {
-  const escaped = squash(piece).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return Boolean(escaped) && new RegExp(`(?<![0-9a-z]|\\d\\.)${escaped}(?![0-9a-z]|\\.\\d)`, 'i').test(shown);
+  const characters = [...squash(piece)];
+  if (!characters.length) return false;
+  const pattern = characters.map((character) => character.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+  return new RegExp(`(?<![${BOUNDARY}^]|\\d\\.)${pattern}(?![${BOUNDARY}^]|\\.\\d)`, 'i').test(shown);
 };
 // Mathematics, not prose: an operator, a bracket, or a number against a letter
 // ("3x"). "a 3" is the word "a" and a number.
@@ -257,7 +294,8 @@ const statements = (hint, { answers = [], visibleText = '', displayText = '' } =
   const raw = text(hint);
   if (!raw) return [];
   const haystack = minus(raw);
-  const shown = squash(visibleText);
+  // Read with its spaces, so a word is not glued to the term after it (quotedWhole).
+  const shown = minus(visibleText);
   let visible = null;
   return list(answers).map(text).filter(Boolean).flatMap((value) => {
     if (hintRevealsAnswer(raw, [value])) {

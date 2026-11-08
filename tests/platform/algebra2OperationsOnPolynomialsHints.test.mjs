@@ -206,9 +206,12 @@ test('what counts as stating a box\'s answer: a polynomial by its value, a numbe
   assert.deepEqual(stated('opp-cw-6', 'He changed the sign of only the first term of the second polynomial.'), ['mistake (He changed the sign of only the first term of the second polynomial.)']);
   assert.deepEqual(stated('opp-cw-6', 'Did he change the sign of every term?'), []);
   // A number box, as the leak guard reads it: 5 is the degree of −4x²y³. The
-  // guard reads "5xy" as 5 and the word "xy", so a hint names that card as xy.
+  // guard reads "5xy" as the term the box "Degree of 5xy" shows, not as the
+  // number 5 (hintGuardTerms.test.mjs), so a hint may name that term; a term
+  // the item does not show still names its number.
   assert.deepEqual(stated('opp-cw-2', 'Add the exponents: the degree is 5.'), ['d2 (5)']);
-  assert.deepEqual(stated('opp-cw-2', 'What is the degree of 5xy?'), ['d2 (5)']);
+  assert.deepEqual(stated('opp-cw-2', 'What is the degree of 5xy?'), []);
+  assert.deepEqual(stated('opp-cw-2', 'What is the degree of 5ab?'), ['d2 (5)']);
   assert.deepEqual(stated('opp-cw-2', 'What exponent does each letter of xy have?'), []);
 });
 
