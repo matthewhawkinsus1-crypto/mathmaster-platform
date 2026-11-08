@@ -322,4 +322,32 @@ export const focusLeavesQuestion = (root, nextFocus) => Boolean(
   root && nextFocus && nextFocus.nodeType === 1 && typeof root.contains === 'function' && !root.contains(nextFocus),
 );
 
+/*
+ * TAB OFF THE NUMBER KEYPAD GOES ON TO THE WORK BAR (student-keyboard-ci).
+ *
+ * On a phone held upright the open keypad takes the work bar's place: the bar
+ * is hidden under it (MathToolMobileLayout.css), which suits a finger, since
+ * the keys sit where the bar was, and Done brings the bar back. By keyboard,
+ * Tab from the keypad's last key went on past the hidden bar, out of the
+ * question, and the keypad then closed behind it: going forward, Tab never
+ * stopped on Submit once an answer was typed, nor on Start over, the
+ * Scratchpad, the Calculator or the hint button (the keyboard sweep on a
+ * phone: a table, a graph, a function graph and a function investigation).
+ * Only Shift+Tab, once the keypad had gone, came back to them. Tab off the
+ * keypad's last key now closes the keypad, as Done does, and goes on to the
+ * bar's first control, which is what follows the work.
+ *
+ * This picks that control. Null leaves Tab to the browser, as before: another
+ * key, Shift+Tab or a key held with another, a key of the keypad that is not
+ * its last, or a bar with nothing that takes focus.
+ */
+const BAR_CONTROL = 'button, a[href], input, select, textarea, [tabindex]';
+export const workBarControlAfterKeypad = (event, keypad, bar) => {
+  if (!event || event.key !== 'Tab' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return null;
+  const keys = [...(keypad?.querySelectorAll?.('button') || [])];
+  if (!keys.length || event.target !== keys[keys.length - 1]) return null;
+  return [...(bar?.querySelectorAll?.(BAR_CONTROL) || [])]
+    .find((control) => !control.disabled && Number(control.tabIndex) >= 0 && !control.closest?.('[inert], [aria-hidden="true"]')) || null;
+};
+
 export const mobileViewportLockSelector = LOCKED_CONTAINER_SELECTOR;

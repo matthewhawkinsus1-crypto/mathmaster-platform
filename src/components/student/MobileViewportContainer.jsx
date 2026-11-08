@@ -4,6 +4,7 @@ import './MathToolMobileLayout.css';
 import '../../platform/mobile/MobileInteractionFoundation.css';
 import {
   focusLeavesQuestion,
+  workBarControlAfterKeypad,
   revealFocusedControlAfterResize,
   scheduleHorizontalViewportStabilization,
   scrollFocusedControlVertically,
@@ -74,6 +75,8 @@ export const MobileViewportContainer = ({
 }) => {
   const rootRef = useRef(null);
   const keypadRef = useRef(null);
+  // The work bar's control that Tab off the keypad's last key goes on to, once the keypad has closed.
+  const barFocusRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
   // ONE MAIN LANDMARK (AX45). The work area was a <main> inside the
   // assignment screen's own <main>, and the same inside a secure test or Live
@@ -405,8 +408,27 @@ export const MobileViewportContainer = ({
     numericTarget.focus({ preventScroll: true });
   };
 
+  // TAB OFF THE KEYPAD GOES ON TO THE WORK BAR (mobileFocusViewport.js workBarControlAfterKeypad): the bar is hidden
+  // under the open keypad, so Tab off its last key closes the keypad, as Done does, and focus goes on to the bar's
+  // first control once the bar is back. Only where the bar is the question's own, under the keys: a phone held
+  // upright, and not from inside Work View, whose action row sits above them.
+  const handleKeypadKeyDown = (event) => {
+    if (isLandscape || workspaceActive || numericTarget?.closest?.('[role="dialog"], [aria-modal="true"]')) return;
+    const next = workBarControlAfterKeypad(event, keypadRef.current, rootRef.current?.querySelector(':scope > .portrait-action-bar'));
+    if (!next) return;
+    event.preventDefault();
+    barFocusRef.current = next;
+    setNumericTarget(null);
+  };
+  useLayoutEffect(() => {
+    const next = barFocusRef.current;
+    if (numericTarget || !next) return;
+    barFocusRef.current = null;
+    if (next.isConnected) next.focus();
+  }, [numericTarget]);
+
   const numericKeypad = isMobile && numericTarget ? (
-    <div ref={keypadRef} className="mathmaster-mobile-numeric-keypad" role="group" aria-label="Number keypad">
+    <div ref={keypadRef} className="mathmaster-mobile-numeric-keypad" role="group" aria-label="Number keypad" onKeyDown={handleKeypadKeyDown}>
       <div className="mathmaster-mobile-keypad-grid">
         {KEYS.map((key) => <button key={key} type="button" aria-label={key === '±' ? 'Make negative or positive' : undefined} onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey(key)}>{key}</button>)}
       </div>
