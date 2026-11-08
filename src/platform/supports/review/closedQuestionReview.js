@@ -129,7 +129,8 @@ export const legacyReviewSpeechLines = (question, content) => {
   });
   if (clean(question?.equationLatex)) lines.push(spokenMath(question.equationLatex));
   list(content.representations).forEach((representation) => lines.push(spokenMath(representation)));
-  list(content.completeAnswerDetails).forEach((detail) => lines.push(clean(detail)));
+  // A line of the answer list is { label, value, text } (SolutionReview.jsx).
+  list(content.completeAnswerDetails).forEach((detail) => lines.push(clean(typeof detail === 'string' ? detail : detail?.text)));
   list(content.analysisSummary).forEach((summary) => lines.push(clean(summary)));
   return lines.map(clean).filter(Boolean);
 };

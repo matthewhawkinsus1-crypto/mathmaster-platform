@@ -1,5 +1,6 @@
 import { derivative, parse, simplify } from './platform/math/mathjs.js';
 import MathDisplay from './MathDisplay';
+import MathText from './components/common/MathText.jsx';
 import GraphDisplay from './GraphDisplay';
 import {
   buildInteractiveGraphWindow,
@@ -209,36 +210,41 @@ const buildRepresentations = (question) => {
   }
 };
 
+// One line of the answer list: a box's label and its key, kept apart so each
+// is drawn as it would be on its own; `text` is the whole line, as Read aloud
+// says it (closedQuestionReview.js legacyReviewSpeechLines).
+const answerLine = (label, value) => ({ label: String(label ?? ''), value: String(value ?? ''), text: `${label}: ${value}` });
+
 const buildCompleteAnswerDetails = (question) => {
   if (question.type === 'table') {
-    return Object.entries(question.table?.answers || {}).map(([cell, value]) => `${cell}: ${value}`);
+    return Object.entries(question.table?.answers || {}).map(([cell, value]) => answerLine(cell, value));
   }
   if (question.type === 'multiAnswer') {
-    return (question.answerFields || []).map((field) => `${field.label}: ${(field.acceptedAnswers || [field.answer]).filter((value) => value !== undefined && value !== null && String(value).trim() !== '')[0] ?? ''}`);
+    return (question.answerFields || []).map((field) => answerLine(field.label, (field.acceptedAnswers || [field.answer]).filter((value) => value !== undefined && value !== null && String(value).trim() !== '')[0] ?? ''));
   }
   if (question.type === 'relationshipModel') {
     const quantities = Object.fromEntries((question.quantities || []).map((item) => [item.id, item.label]));
     return [
-      `Independent quantity: ${quantities[question.correctIndependentId] || question.correctIndependentId || ''}`,
-      `Dependent quantity: ${quantities[question.correctDependentId] || question.correctDependentId || ''}`,
-      question.origin?.sampleAnswer ? `Starting point: ${question.origin.sampleAnswer}` : '',
+      answerLine('Independent quantity', quantities[question.correctIndependentId] || question.correctIndependentId || ''),
+      answerLine('Dependent quantity', quantities[question.correctDependentId] || question.correctDependentId || ''),
+      question.origin?.sampleAnswer ? answerLine('Starting point', question.origin.sampleAnswer) : null,
     ].filter(Boolean);
   }
   if (question.type === 'contextInterpretation') {
     const config = normalizeInterpretationConfig(question);
     const [x, y] = config.target.coordinates;
     return [
-      `X-coordinate: ${config.x.name || 'x'} = ${Number.isFinite(x) ? x : ''} ${config.x.unit || ''}`.trim(),
-      `Y-coordinate: ${config.y.name || 'y'} = ${Number.isFinite(y) ? y : ''} ${config.y.unit || ''}`.trim(),
-      config.sampleAnswer ? `In context: ${config.sampleAnswer}` : '',
+      answerLine('X-coordinate', `${config.x.name || 'x'} = ${Number.isFinite(x) ? x : ''} ${config.x.unit || ''}`.trim()),
+      answerLine('Y-coordinate', `${config.y.name || 'y'} = ${Number.isFinite(y) ? y : ''} ${config.y.unit || ''}`.trim()),
+      config.sampleAnswer ? answerLine('In context', config.sampleAnswer) : null,
     ].filter(Boolean);
   }
   if (question.type === 'graphScenarioMatch') {
     const graphLabels = Object.fromEntries((question.graphs || []).map((item) => [item.id, item.label || item.id]));
-    return (question.scenarios || []).map((scenario) => `${scenario.title || scenario.id}: ${graphLabels[(question.correctMatches || {})[scenario.id] || scenario.graphId] || ''}`);
+    return (question.scenarios || []).map((scenario) => answerLine(scenario.title || scenario.id, graphLabels[(question.correctMatches || {})[scenario.id] || scenario.graphId] || ''));
   }
   if (question.type === 'graphComparison') {
-    return (question.fields || []).map((field) => `${field.label || field.id}: ${(field.acceptedAnswers || [field.answer]).filter(Boolean)[0] || (field.sampleAnswer || 'Review the graph characteristics.')}`);
+    return (question.fields || []).map((field) => answerLine(field.label || field.id, (field.acceptedAnswers || [field.answer]).filter(Boolean)[0] || (field.sampleAnswer || 'Review the graph characteristics.')));
   }
   return [];
 };
@@ -512,10 +518,19 @@ export default function SolutionReview({ question, incorrectParts = [], embedded
         </div>
       )}
       {/* `hideAnswerDetails`: the panel already lists each part, with what
-          the student wrote beside it (SolutionReviewPanel, HELP-11). */}
+          the student wrote beside it (SolutionReviewPanel, HELP-11).
+          Each line is a box's label and its key as the author wrote them
+          ("n^2-2n-63"), so each is drawn as every other key on the platform
+          is (the panel's "Correct:", My Math Path's recap, a Test's results):
+          through MathText, which sets the powers, the relations, a slash
+          fraction and a $…$ label. As bare text it showed the caret. */}
       {!hideAnswerDetails && completeAnswerDetails.length > 0 && (
-        <div style={{ display: 'grid', gap: '7px', marginBottom: '14px' }}>
-          {completeAnswerDetails.map((item) => <div key={item} style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>{item}</div>)}
+        <div data-answer-details="" style={{ display: 'grid', gap: '7px', marginBottom: '14px' }}>
+          {completeAnswerDetails.map((item) => (
+            <div key={item.text} style={{ padding: '9px 11px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>
+              <MathText>{item.label}</MathText>: <MathText>{item.value}</MathText>
+            </div>
+          ))}
         </div>
       )}
       {graph && !workflowSolution && <GraphDisplay graph={graph} title="Correct graph" />}
