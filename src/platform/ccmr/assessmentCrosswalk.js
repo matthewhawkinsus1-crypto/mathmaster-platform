@@ -51,12 +51,9 @@ export const DERIVATION = Object.freeze({
   AUTHORED: 'authored',
 });
 
-export const FRAMEWORK_LABELS = Object.freeze({
-  [EXAM_TYPES.DIGITAL_SAT]: 'Digital SAT',
-  [EXAM_TYPES.ACT]: 'ACT',
-  [EXAM_TYPES.TSIA2]: 'TSIA2',
-  [EXAM_TYPES.ASVAB]: 'ASVAB',
-});
+// The names live on their own, so a student's Home can read them without
+// loading this module (PF01). The same object, re-exported.
+export { FRAMEWORK_LABELS } from './frameworkLabels.js';
 
 // ---------------------------------------------------------------------------
 // Scope exclusions.

@@ -29,7 +29,8 @@ import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCovera
 import {
   ccmrPlanFrameworks, ccmrTestProximity, isCcmrFramework,
 } from '../../../functions/shared/ccmrPlan.mjs';
-import { FRAMEWORK_LABELS } from '../ccmr/assessmentCrosswalk.js';
+// The names alone, not the crosswalk they are re-exported from (PF01).
+import { FRAMEWORK_LABELS } from '../ccmr/frameworkLabels.js';
 
 export const TRANSFER_FRAMEWORK_REASON = Object.freeze({
   TEACHER: 'teacherFramework',

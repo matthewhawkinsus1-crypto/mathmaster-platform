@@ -383,7 +383,8 @@ import {
   writeTeacherRouteState,
 } from './platform/teacher/teacherBrowserHistory.js';
 import { questionAssessmentFramework } from './platform/student/questionAssessmentFramework.js';
-import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
+// The assessments' names alone: the crosswalk loads with the screens that use it (PF01).
+import { FRAMEWORK_LABELS } from './platform/ccmr/frameworkLabels.js';
 import {
   STUDENT_SELF_NEUTRAL_LABEL,
   buildStudentIdentityIndex,
