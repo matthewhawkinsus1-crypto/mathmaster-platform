@@ -32,9 +32,10 @@
  *      colour beneath it, so a glow counts as bright as it is there, not at its
  *      centre (checked against the pixels Chromium paints). One the review
  *      cannot place (a conic gradient, a colour hint, a calc() size, a rotated
- *      or skewed box, a box the text scrolls or is pinned across) is read
- *      whole: every stop,
- *      and one that fades to transparent over what covers the box beneath it.
+ *      or skewed box, a box the text scrolls or is pinned across inside it) is
+ *      read whole: every stop, and one that fades to transparent over what
+ *      covers the box beneath it. A box that scrolls its own content is read
+ *      where it is scrolled to (its scroll shadows where they are drawn).
  *      rgba is composited, never dropped. Opacity on the text's own chain
  *      fades the text toward its background.
  *   2. PIXELS. Make the node's text (and its descendants', and SVG text fill)
@@ -203,14 +204,20 @@ const collectInPage = async ({ include, exclude }) => {
     // (support/backgroundLayers.mjs). The page's own background covers the
     // canvas, placed on the root's box; the body's is the page's when the root
     // has none. A box is read whole if it or a box around it is turned, or if
-    // the text can move across it: it scrolls its content, or a box between it
-    // and the text scrolls or is fixed or sticky (each moves when scrolled).
+    // the text can move across it: a box between it and the text scrolls or is
+    // fixed or sticky (each moves when scrolled). A box that scrolls its own
+    // content is placed by where it is scrolled to: an image attached `scroll`
+    // stays on its padding box, and one attached `local` moves with the content
+    // (`scroll` below). Read whole, a question panel's scroll shadows (a 10 px
+    // band of 28% grey at the top, under a cover that hides it at the top of
+    // the scroll) put that grey behind text the band never reaches.
     const rootBare = !(parse(styles[0].backgroundColor)?.[3] > 0) && styles[0].backgroundImage === 'none';
     let straight = true;
     const boxes = chain.map((node, i) => {
       straight = straight && !turned(styles[i]);
       const moves = (k) => scrolls(chain[k], styles[k]) || /fixed|sticky/.test(styles[k].position);
-      const still = !(i > 0 && scrolls(node, styles[i])) && !chain.slice(i + 1).some((_, k) => moves(i + 1 + k));
+      const still = !chain.slice(i + 1).some((_, k) => moves(i + 1 + k));
+      const ownScroll = i > 0 && scrolls(node, styles[i]);
       const canvas = i === 0 || (i === 1 && node === document.body && rootBare);
       const s = canvas ? styles[0] : styles[i];
       const r = (canvas ? chain[0] : node).getBoundingClientRect();
@@ -220,6 +227,7 @@ const collectInPage = async ({ include, exclude }) => {
         paddings: [px(s.paddingTop), px(s.paddingRight), px(s.paddingBottom), px(s.paddingLeft)],
         clip: canvas ? null : { left: r.left, top: r.top, width: r.width, height: r.height },
         plain: straight && still,
+        scroll: ownScroll ? { left: node.scrollLeft, top: node.scrollTop, width: node.scrollWidth, height: node.scrollHeight } : null,
       };
     });
     // One list of candidates per cell of each text box: a glow is read where

@@ -21,9 +21,11 @@
  * layer that fades to transparent over what covers the box beneath it, never
  * over another such layer (compositeLayers). That is a conic gradient, a colour
  * other than sRGB, a colour hint (Chromium mixes its colours its own way; no
- * gradient here has one), a calc() size, space or round repeats, a fixed or
- * local attachment, or a box that is turned (rotated, skewed, flipped) or
- * inside one.
+ * gradient here has one), a calc() size, space or round repeats, a fixed
+ * attachment, a `local` one on a box that scrolls and is placed from its
+ * border box, or a box that is turned (rotated, skewed, flipped) or inside
+ * one. A box that scrolls its own content is placed where it is scrolled to:
+ * its `scroll` images on its padding box, its `local` ones on its content.
  *
  * Every function is self-contained but for the others defined here: the review
  * hands their source to the page (`backgroundLayersInPage`), so they may use
@@ -299,8 +301,11 @@ export const coloursBetween = (stops, t0, t1) => {
  * style: the box's computed background-image, -size, -position-x,
  * -position-y, -repeat, -origin and -attachment. box: its border box, border
  * and padding widths [top, right, bottom, left], the rectangle it paints
- * (`clip`; null for the page's own background, which covers the canvas) and
- * whether it is `plain` (neither it nor a box around it turned).
+ * (`clip`; null for the page's own background, which covers the canvas),
+ * whether it is `plain` (neither it nor a box around it turned, and no box
+ * between it and the text scrolls or is fixed or sticky), and, for a box that
+ * scrolls its own content, `scroll`: its scrollLeft, scrollTop, scrollWidth
+ * and scrollHeight, where an image attached `local` is.
  */
 export const imageLayersAt = (style, box, rect) => {
   const image = String(style.image || 'none');
@@ -313,12 +318,21 @@ export const imageLayersAt = (style, box, rect) => {
     const gradient = parseGradient(layer);
     if (!gradient) return { stops: [], placed: false };
     const whole = { stops: gradient.stops.map((stop) => stop.colour).filter(Boolean), placed: false };
-    if (!rect || !box?.plain || !gradient.readable || pick(attachments, i, 'scroll') !== 'scroll') return whole;
+    const attachment = pick(attachments, i, 'scroll');
+    if (!rect || !box?.plain || !gradient.readable || !(attachment === 'scroll' || attachment === 'local')) return whole;
     // The positioning area: the padding box, unless background-origin says otherwise.
     const inset = (r, [t, right, b, l]) => ({ left: r.left + l, top: r.top + t, width: Math.max(0, r.width - l - right), height: Math.max(0, r.height - t - b) });
     const origin = pick(origins, i, 'padding-box');
     const padding = inset(box.border, box.borders);
-    const area = origin === 'border-box' ? box.border : (origin === 'content-box' ? inset(padding, box.paddings) : padding);
+    let area = origin === 'border-box' ? box.border : (origin === 'content-box' ? inset(padding, box.paddings) : padding);
+    // `local` in a box that scrolls: the image is on the box's content, all of
+    // it (scrollWidth by scrollHeight, padding included), moved by the scroll
+    // offset. In a box that does not scroll, `local` paints as `scroll` does.
+    if (attachment === 'local' && box.scroll) {
+      if (origin === 'border-box') return whole;
+      const content = { left: padding.left - box.scroll.left, top: padding.top - box.scroll.top, width: Math.max(padding.width, box.scroll.width), height: Math.max(padding.height, box.scroll.height) };
+      area = origin === 'content-box' ? inset(content, box.paddings) : content;
+    }
     // The tile: background-size (a gradient has no size of its own, so auto, cover and contain fill the area).
     const size = pick(sizes, i, 'auto').split(/\s+/);
     const span = (token, full) => {

@@ -292,6 +292,65 @@ test('an image the review cannot place is read whole: a conic gradient, a turned
   assert.deepEqual(two.sort(), [[0, 0, 0], [128, 128, 128]]);
 });
 
+// The question panel's scroll shadows (.question-prompt-panel), as Chromium
+// computes them on a phone, where the panel scrolls: two covers in the page's
+// colour attached `local`, over two 10 px bands of 28% grey attached `scroll`.
+// The exam-practice chip scene's "YOUR TASK" sits 10 px under the panel's top.
+const SCROLL_SHADOWS = {
+  image: 'linear-gradient(rgb(248, 249, 250), rgba(0, 0, 0, 0)), linear-gradient(to top, rgb(248, 249, 250), rgba(0, 0, 0, 0)), linear-gradient(color(srgb 0.12549 0.129412 0.141176 / 0.28), rgba(0, 0, 0, 0)), linear-gradient(to top, color(srgb 0.12549 0.129412 0.141176 / 0.28), rgba(0, 0, 0, 0))',
+  size: '100% 20px, 100% 20px, 100% 10px, 100% 10px',
+  positionX: '50%, 50%, 50%, 50%',
+  positionY: '0%, 100%, 0%, 100%',
+  repeat: 'no-repeat, no-repeat, no-repeat, no-repeat',
+  attachment: 'local, local, scroll, scroll',
+};
+const PANEL = (scrollTop, extra = {}) => ({ ...boxAt(1, 70, 388, 211), scroll: { left: 0, top: scrollTop, width: 388, height: 600 }, ...extra });
+const PHONE_PAGE = { color: 'rgb(248, 249, 250)', box: boxAt(0, 0, 390, 844, { canvas: true }) };
+const panelAt = (rect, panel) => backgroundsOver(rect, [PHONE_PAGE, { background: SCROLL_SHADOWS, box: panel }]);
+const TASK_LABEL = rectAt(13, 80, 72, 23);
+const IN_THE_BAND = rectAt(13, 71, 72, 8);
+const TASK_BLUE = [23, 78, 166, 1];
+const TOOLS_GREY = [95, 99, 104, 1];
+const darkest = (candidates) => Math.min(...candidates.map(([r, g, b]) => r + g + b));
+
+test('a box that scrolls is read where it is scrolled to: the question panel\'s shadows count only in their bands', () => {
+  for (const scrollTop of [0, 40, 389]) {
+    const candidates = panelAt(TASK_LABEL, PANEL(scrollTop));
+    assert.deepEqual(candidates.map((c) => c.slice(0, 3).map(Math.round)), [[248, 249, 250]], `scrolled ${scrollTop}: under "YOUR TASK", only the page`);
+    assert.ok(ratioOf(TASK_BLUE, candidates) >= 4.5, `scrolled ${scrollTop}: "YOUR TASK" passes`);
+  }
+  // In the top band: at the top of the scroll the local cover hides the shadow;
+  // scrolled, the cover has moved up with the content and the shadow shows.
+  const covered = panelAt(IN_THE_BAND, PANEL(0));
+  const shown = panelAt(IN_THE_BAND, PANEL(40));
+  assert.ok(darkest(shown) < darkest(covered), 'the cover moves with the content, the shadow stays on the box');
+  assert.ok(shown.some(([r, g, b]) => Math.abs(r - 194) <= 2 && Math.abs(g - 195) <= 2 && Math.abs(b - 196) <= 2), 'the band where the text is: the shadow at about 25% just under the top edge');
+  assert.ok(ratioOf(TOOLS_GREY, shown) < 4.5, 'grey text in the shadow band still fails (3.43:1)');
+  assert.ok(ratioOf(TOOLS_GREY, covered) >= 4.5, 'and passes there at the top of the scroll, under the cover (4.62:1)');
+  // Read whole, as before (a box between it and the text scrolls), the band's grey
+  // is behind the label too: the run that failed "YOUR TASK" at 4.17:1.
+  const whole = panelAt(TASK_LABEL, PANEL(0, { plain: false }));
+  assert.ok(whole.some(([r, g, b]) => Math.abs(r - 188) <= 2 && Math.abs(g - 189) <= 2 && Math.abs(b - 190) <= 2), 'read whole: the grey is a candidate');
+  assert.ok(ratioOf(TASK_BLUE, whole) < 4.5);
+});
+
+test('`local` paints as `scroll` on a box that does not scroll, and with the content on one that does', () => {
+  const band = { image: 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))', size: '100% 20px', positionX: '0%', positionY: '0%', repeat: 'no-repeat', attachment: 'local' };
+  const still = boxAt(0, 100, 300, 200);
+  assert.deepEqual(imageLayersAt(band, still, rectAt(10, 105, 50, 10))[0], { stops: [[0, 0, 0, 1]], placed: true }, 'not scrolling: the band is at the top of the box');
+  const scrolled = { ...still, scroll: { left: 0, top: 50, width: 300, height: 500 } };
+  assert.deepEqual(imageLayersAt(band, scrolled, rectAt(10, 105, 50, 10))[0], { stops: [[0, 0, 0, 0]], placed: true }, 'scrolled 50 px: the band has gone up with the content');
+  assert.deepEqual(imageLayersAt({ ...band, attachment: 'scroll' }, scrolled, rectAt(10, 105, 50, 10))[0], { stops: [[0, 0, 0, 1]], placed: true }, '`scroll` stays on the box');
+  assert.equal(imageLayersAt({ ...band, origin: 'border-box' }, scrolled, rectAt(10, 105, 50, 10))[0].placed, false, 'a local image placed from the border box is read whole');
+});
+
+test('the review places a box that scrolls by its own scroll, and reads whole only a box the text crosses inside another', () => {
+  const review = executableSource(readFileSync(new URL('../browser/contrastReview.mjs', import.meta.url), 'utf8'));
+  assert.match(review, /const still = !chain\.slice\(i \+ 1\)\.some\(\(_, k\) => moves\(i \+ 1 \+ k\)\);/, 'only the boxes between a box and the text decide whether it is read whole');
+  assert.match(review, /const ownScroll = i > 0 && scrolls\(node, styles\[i\]\);/);
+  assert.match(review, /scroll: ownScroll \? \{ left: node\.scrollLeft, top: node\.scrollTop, width: node\.scrollWidth, height: node\.scrollHeight \} : null,/, 'a box that scrolls hands over where it is scrolled to');
+});
+
 test('past 400 candidates, the darkest and the lightest are kept', () => {
   const stops = Array.from({ length: 600 }, (_, i) => [Math.floor(i / 3), (i % 3) * 10, 0, 1]);
   const candidates = compositeLayers([PAGE], [stops]);
