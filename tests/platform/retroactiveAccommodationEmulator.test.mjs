@@ -5,6 +5,11 @@ import { canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade } fro
 import { studentRequiredQuestions } from '../../src/assignmentLifecycle.js';
 import { buildWorkloadReceipt } from '../../functions/shared/workloadReceipt.mjs';
 
+// CI runs this against the emulator (the accommodation-review job, before its
+// browser driver): its transactions are re-run as production re-runs them, as
+// the integration suites' are. Without the emulator the module patches nothing.
+await import('../integration/support/emulatorTransactions.mjs');
+
 after(async () => {
   if (process.env.FIRESTORE_EMULATOR_HOST) {
     const { db } = await import('../integration/canonicalPersistenceHarness.mjs');

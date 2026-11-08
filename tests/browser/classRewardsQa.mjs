@@ -89,6 +89,11 @@ const vite = spawn('npx', ['vite', '--config', path.join(here, 'classRewardsQa.v
 started.push(vite);
 if (!await waitForHttp(`${ORIGIN}/`)) { console.error('Vite did not start.'); process.exit(2); }
 
+// Transactions are re-run as production re-runs them: the emulator closes a
+// contended one that production would re-run, and the command fails instead
+// (liveChallengeShellQa.mjs; the integration suites load the same re-run). The
+// reward store's redeem, catalog and request writes are transactions.
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 if (!admin.apps.length) admin.initializeApp({ projectId: 'mathmaster-game-harness' });
 const db = admin.firestore();
