@@ -87,28 +87,30 @@ test('forced-color-adjust: none only where a control must be painted in system c
   }
 });
 
+// A selector's specificity, and which of two wins (the rules here are weighed against the page's focus ring).
+const specificity = (selector) => {
+  // Enough of the specificity algorithm for these selectors: :is/:not take their most specific argument.
+  const inner = (text) => {
+    let ids = 0; let classes = 0; let types = 0;
+    let rest = text;
+    rest = rest.replace(/:(is|not|where)\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)/g, (match, kind, args) => {
+      if (kind === 'where') return '';
+      const best = args.split(/,(?![^(]*\))/).map((arg) => inner(arg.trim())).sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])[0];
+      ids += best[0]; classes += best[1]; types += best[2];
+      return ' ';
+    });
+    ids += (rest.match(/#[\w-]+/g) || []).length;
+    classes += (rest.match(/\.[\w-]+|\[[^\]]*\]|:(?!:)[\w-]+/g) || []).length;
+    types += (rest.match(/(^|[\s>+~])[a-z][\w-]*/gi) || []).length;
+    return [ids, classes, types];
+  };
+  return inner(selector);
+};
+const above = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+
 test('a button keeps an edge and a focused selected control a system-colour ring, each more or less specific than the page\'s focus ring as it must be', () => {
   // The page's focus ring (index.css) is (0,5,1). The edge outline must lose to it (a focused button shows the ring);
   // the selected control's ring colour must win over it (out of forced adjustment the ring would be the app's colour).
-  const specificity = (selector) => {
-    // Enough of the specificity algorithm for these selectors: :is/:not take their most specific argument.
-    const inner = (text) => {
-      let ids = 0; let classes = 0; let types = 0;
-      let rest = text;
-      rest = rest.replace(/:(is|not|where)\(((?:[^()]|\((?:[^()]|\([^()]*\))*\))*)\)/g, (match, kind, args) => {
-        if (kind === 'where') return '';
-        const best = args.split(/,(?![^(]*\))/).map((arg) => inner(arg.trim())).sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])[0];
-        ids += best[0]; classes += best[1]; types += best[2];
-        return ' ';
-      });
-      ids += (rest.match(/#[\w-]+/g) || []).length;
-      classes += (rest.match(/\.[\w-]+|\[[^\]]*\]|:(?!:)[\w-]+/g) || []).length;
-      types += (rest.match(/(^|[\s>+~])[a-z][\w-]*/gi) || []).length;
-      return [ids, classes, types];
-    };
-    return inner(selector);
-  };
-  const above = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   const pageRing = rules.length && parseCss(read('src/index.css')).find((rule) => rule.selectors.some((selector) => selector.endsWith(':focus-visible') &&/\[tabindex\]:not\(\[tabindex="-1"\]\)/.test(selector)) && rule.declarations.outline?.important);
   assert.ok(pageRing, 'index.css draws the page\'s focus ring');
   const ring = specificity(pageRing.selectors[0]);
@@ -249,4 +251,22 @@ test('the start lights, the checkered flags and the projector\'s cover are drawn
   const cover = declares('[data-mm-arena-stage]', 'background-color');
   assert.equal(cover?.value, 'Canvas');
   assert.ok(cover.important, 'over the layer\'s own background');
+});
+
+// ------------------------------------------------------------------ the Math Tools Lab
+test('a box whose edge was its fill keeps one: the Regression Calculator\'s expression rows', () => {
+  // The forced-colours walk over the Math Tools Lab found it, in the tool and in its Work View: each expression's box is
+  // drawn with no border, and in the dark theme the field colour every box gets is its only edge.
+  const tool = parseCss(read('src/tools/regressionCalculator/RegressionCalculator.css'));
+  assert.equal(tool.find((rule) => rule.selectors.includes('.regression-expression-row input'))?.declarations.border?.value, '0');
+  const darkField = parseCss(read('src/index.css')).find((rule) => rule.selectors.some((selector) => selector.startsWith(':root[data-theme=\'dark\'] #root :is(input')));
+  assert.match(darkField?.declarations.background?.value || '', /^var\(--mm-input-bg\)$/, 'the dark theme fills every box');
+  assert.match(region(read('src/tools/regressionCalculator/RegressionCalculator.jsx'), '<div className="regression-expression-row">', '/>', 'an expression row'), /<input\s+id=\{`regression-\$\{row\.id\}`\}\s+aria-label=\{`Expression \$\{rowIndex \+ 1\}`\}/);
+  // Under forced colours that fill is the page's: the box gets the buttons' line, inset so nothing moves, in a system
+  // colour, and less specific than the page's focus ring, which a focused box shows instead.
+  const edge = rules.find((rule) => rule.selectors.includes('.regression-expression-row input'));
+  assert.equal(edge?.declarations.outline?.value, '1px solid CanvasText');
+  assert.equal(edge.declarations['outline-offset']?.value, '-1px');
+  assert.ok(edge.declarations.outline.important, 'over the tool\'s own outline');
+  assert.ok(above(specificity(edge.selectors[0]), [0, 5, 1]) < 0, 'a focused box shows the page\'s ring');
 });

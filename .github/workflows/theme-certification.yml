@@ -9,8 +9,10 @@ permissions:
 
 jobs:
   # Light and dark (darkModeCertification.mjs), then Windows' contrast themes: every certified student and teacher scene
-  # under forced colours, dark and light (forcedColorsCertification.mjs, after its self-test). The forced-colours walk
-  # (340 readings) took thirteen minutes on a shared four-core machine (2026-11-08); the limit was 40 minutes before it.
+  # under forced colours, dark and light (forcedColorsCertification.mjs, after its self-test), and then the Math Tools
+  # Lab's tools and their Work Views. The forced-colours walk (340 readings) took thirteen minutes on a shared four-core
+  # machine (2026-11-08), and ten on CI, where the whole job took sixteen; the Lab's 192 readings took six minutes on
+  # that machine (the tools two, the Work Views four). The limit was 40 minutes before the walk.
   browser-readability:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -61,6 +63,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5198"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/forcedColorsCertification.mjs
+      # The Math Tools Lab's other 24 tools and the 24 Work Views they open (accessibilityTeacherScreens.mjs
+      # MATH_TOOLS_LAB_SCREEN and MATH_TOOLS_LAB_WORK_VIEW_SCREEN), read the same way. The step above leaves them out, as
+      # every run that names no screen does (they are certified in a job of their own); named here, they need only the
+      # in-memory app. Their report is kept beside the one above.
+      - name: Certify the Math Tools Lab's tools and their Work Views under forced colours, dark and light
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          ONLY: teacher-math-tools-lab,teacher-math-tools-lab-work-view
+          FORCED_COLORS_ARTIFACTS: tests/browser/artifacts/forcedColors/math-tools-lab
         run: node tests/browser/forcedColorsCertification.mjs
       - name: Keep the certification screenshots and report
         if: always()

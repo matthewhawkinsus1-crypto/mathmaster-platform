@@ -161,6 +161,27 @@ test('the theme readability job runs the forced-colours walk on the stubbed serv
   assert.match(read('tests/browser/forcedColors.vite.config.mjs'), /cacheDir: path\.join\(root, 'node_modules\/\.vite-forced-colors'\)/);
 });
 
+test('the theme job walks the Math Tools Lab\'s tools and their Work Views too, in a step of their own', async () => {
+  // A run that names no screen leaves out the screens certified in a job of their own (`ownJob`: the Lab's other tools
+  // and the Work Views they open), so the step above does not read them. This one names them, every one: a screen
+  // given a job of its own later is walked here as soon as it is named.
+  const { CERTIFIED_SCREENS } = await import('../browser/accessibilityCertification.mjs');
+  const ownJob = CERTIFIED_SCREENS.filter((screen) => screen.ownJob).map((screen) => screen.id).sort();
+  assert.deepEqual(ownJob, ['teacher-math-tools-lab', 'teacher-math-tools-lab-work-view']);
+  const steps = stepsOf(jobsOf(readWorkflow('theme-certification.yml'))['browser-readability']);
+  const at = (pattern) => steps.findIndex((step) => pattern.test(step));
+  const app = at(/npx vite --config tests\/browser\/teacherWorkflow\/vite\.config\.mjs/);
+  const lab = steps.findIndex((step) => /run: node tests\/browser\/forcedColorsCertification\.mjs\s*$/m.test(step) && /^\s*ONLY: /m.test(step));
+  assert.ok(app >= 0 && lab > app, 'after the in-memory app starts');
+  assert.deepEqual(steps[lab].match(/^\s*ONLY: (\S+)$/m)[1].split(',').sort(), ownJob, 'it names every screen the walk otherwise leaves out');
+  assert.match(steps[lab], /TEACHER_HARNESS_ORIGIN: "http:\/\/127\.0\.0\.1:5188"/);
+  assert.match(steps[lab], /if: \$\{\{ !cancelled\(\) \}\}/, 'whatever the steps before it did');
+  // Its report beside the certified scenes' (FORCED_COLORS_ARTIFACTS), not over it, inside the folder that is kept.
+  const folder = steps[lab].match(/FORCED_COLORS_ARTIFACTS: (\S+)$/m)?.[1];
+  assert.ok(folder && folder.startsWith('tests/browser/artifacts/forcedColors/'), `its own folder under the kept one (${folder})`);
+  assert.ok(steps.slice(lab).some((step) => /path: tests\/browser\/artifacts\/forcedColors\s*$/m.test(step) && /if: always\(\)/.test(step)), 'and it is kept');
+});
+
 test('a pull request that changes the walk, what it walks or a screen runs the theme certification', () => {
   for (const file of [
     'tests/browser/forcedColorsCertification.mjs', 'tests/browser/forcedColorsAudit.mjs', 'tests/browser/forcedColorsSelfTest.mjs',

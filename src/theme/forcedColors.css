@@ -156,6 +156,19 @@
   }
 
   /*
+   * A BOX WHOSE EDGE WAS ITS FILL: the Regression Calculator's expression rows
+   * (the walk over the Math Tools Lab found them, in the tool and its Work
+   * View). Each row's box has no border; in the dark theme its edge is the
+   * field colour every box gets, which forced colours paint as the page, so
+   * the box a student types an expression in had no edge. It gets the
+   * buttons' line, inset, in the text colour; focused, the page's ring.
+   */
+  .regression-expression-row input {
+    outline: 1px solid CanvasText !important;
+    outline-offset: -1px !important;
+  }
+
+  /*
    * A LAYER OVER THE WHOLE PAGE: the Live Challenge projector. Its cover is a
    * gradient, which forced colours do not draw, so the teacher's console
    * showed through it, and the projector's words sat on the console's
