@@ -12,7 +12,8 @@
 // when the skill it repairs can be practised. No index (never built, or the
 // read failed) fails closed: nothing optional is offered.
 
-import { isSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+// The lookup alone: Home reads the index, the server builds it (PF01).
+import { isSkillLaunchable } from '../../../functions/shared/pathCoverageLookup.mjs';
 import { teksCodeFromSkillId } from './skillGraph.js';
 
 const OPTIONAL_BUCKETS = ['remediation', 'recommended', 'priority', 'available', 'extension'];

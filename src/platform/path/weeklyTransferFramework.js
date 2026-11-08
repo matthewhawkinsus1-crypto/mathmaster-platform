@@ -24,7 +24,8 @@
 //
 // Pure. The clock is injected.
 
-import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+// The lookup alone: Home reads the index, the server builds it (PF01).
+import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverageLookup.mjs';
 import {
   ccmrPlanFrameworks, ccmrTestProximity, isCcmrFramework,
 } from '../../../functions/shared/ccmrPlan.mjs';

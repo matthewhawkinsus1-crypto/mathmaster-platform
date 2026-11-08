@@ -13,7 +13,9 @@
 //
 // Pure: no Firestore and no clock of its own. The caller passes `now`.
 
-import { ASSESSMENT_COVERAGE_FRAMEWORKS } from './pathCoverage.mjs';
+// The lookup module, not pathCoverage.mjs: a student's Home reads plans, and
+// must not load the coverage builder to do it (PF01).
+import { ASSESSMENT_COVERAGE_FRAMEWORKS } from './pathCoverageLookup.mjs';
 import { buildAuthorizationContext, reauthorizeContext } from './authorizationContext.mjs';
 import { zonedDateKey } from './instructionalCalendar.mjs';
 
