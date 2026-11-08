@@ -6,8 +6,9 @@ screen's navigator and a way on: see
 [Legacy question types](#legacy-question-types-ci09-2026-10-24) and
 [The assignment-shell host](#the-assignment-shell-host-2026-10-25)). Re-runnable:
 `tests/browser/keyboardSweep.mjs` (an audit that always exits 0, unless run with
-`--gate`, which no workflow does). Nothing in application source was changed for
-the 2026-10-07 audit.
+`--gate`; CI has run it with `--gate`, at 1366×768 and on a 390×844 touch phone,
+since 2026-11-08: see [In CI, at both sizes](#in-ci-at-both-sizes-student-keyboard-ci-2026-11-08)).
+Nothing in application source was changed for the 2026-10-07 audit.
 
 ```
 npx vite --host 127.0.0.1 --port 5499 --strictPort &
@@ -18,6 +19,8 @@ AUDIT_ORIGIN=http://127.0.0.1:5499 node tests/browser/keyboardSweep.mjs --no-she
 #   --legacy-only / --no-legacy           only / without the 21 legacy question-type scenes
 #   --gate                                judge the report, exit 1 if a scene breaks a criterion
 #   --out=<name>                          write report-<name>.json instead of report.json
+#   --viewport=phone                      a 390×844 phone that answers touch (reports in artifacts/keyboard/phone/)
+#   --shard=<i>/<n>                       the i-th of n runs of the scenes, in order (CI runs three per size)
 ```
 
 Output: `tests/browser/artifacts/keyboard/report.json` (gitignored, like every
@@ -206,7 +209,7 @@ read: a plain disclosure that does not close (Read aloud's panel), a Check the
 generic probe could not satisfy, stops off screen. The criteria are in
 `tests/browser/support/keyboardSweepGate.mjs`.
 
-**It is not a CI gate, because it is not green.** When it was added (2026-10-24, on the assignment wrapper alone: no navigator, no way on from a closed question):
+**It was not a CI gate, because it was not green** (it is one since 2026-11-08, at both sizes: [below](#in-ci-at-both-sizes-student-keyboard-ci-2026-11-08)). When it was added (2026-10-24, on the assignment wrapper alone: no navigator, no way on from a closed question):
 
 | Run | Scenes | Tab stops | Scenes that break a criterion |
 | --- | --- | --- | --- |
@@ -263,7 +266,24 @@ Checked both ways on 2026-10-25:
 
 On a phone held upright App.css makes the assignment screen one screen tall, its shell (`.mathmaster-assignment-shell`) a grid of the navigator and the stage, and the question as tall as the stage, so the work scrolls above the work bar at the screen's foot. The stand-in had the screen's class on a wrapper with no shell, with the sweep's two sentinels inside it, so its stage had no height: at 390×844 a fraction question was 258px tall, its work area 16px, and the work bar lay over five of its 14 Tab stops. That is why the legacy question types' phone walk could not be trusted. The stand-in is now App.jsx's own structure (screen, shell, navigator, stage, with their inline styles), and its sentinels take no room (`tests/platform/keyboardSweepAssignmentShell.test.mjs` binds it to App.jsx's markup). The same question is 797px tall, its work area 555px, with the bar at the foot.
 
-Walked again on 2026-11-08, the 21 legacy scenes, forward with the Tab walk and back with Shift+Tab: at 1366×768 none breaks any of the walk's rules; on a 390×844 touch phone no stop is hidden, forward or back, and no stop is unnamed, pointer-only or a trap. Four scenes (table, graphing, function graph, function investigation) leave four controls unreached: the work bar's Start over, Scratchpad, Calculator and Hint, which the number keypad takes the place of while it is up. Tab goes from the keypad's keys on past the question; the four are reached with Shift+Tab once the keypad has closed (it closes when focus leaves the question, or with Done). Whether the bar should stay in the Tab order under an open keypad is a question for the keypad's design, and is not changed.
+Walked again on 2026-11-08, the 21 legacy scenes, forward with the Tab walk and back with Shift+Tab: at 1366×768 none breaks any of the walk's rules; on a 390×844 touch phone no stop is hidden, forward or back, and no stop is unnamed, pointer-only or a trap. Four scenes (table, graphing, function graph, function investigation) leave four controls unreached: the work bar's Start over, Scratchpad, Calculator and Hint, which the number keypad takes the place of while it is up. Tab goes from the keypad's keys on past the question; the four are reached with Shift+Tab once the keypad has closed (it closes when focus leaves the question, or with Done). Whether the bar should stay in the Tab order under an open keypad is a question for the keypad's design, and is not changed. **Fixed since (student-keyboard-ci):** the bar stays hidden under the open keypad, and Tab off the keypad's last key closes the keypad, as Done does, and goes on to the bar's first control ([below](#in-ci-at-both-sizes-student-keyboard-ci-2026-11-08)).
+
+### In CI, at both sizes (student-keyboard-ci, 2026-11-08)
+
+The sweep now runs on a phone too (`--viewport=phone`: 390×844, `isMobile` and `hasTouch`, so the page answers `(pointer: coarse)` as a student's phone does and a number box opens the number keypad), and it counts one more rule, the Tab walk's own (`mm-tabbable-unreached`): every control in the tool's tab order that Tab going forward never stopped on, read where the walk ends (`unreached`, a gate criterion, 2.1.1). A control only Shift+Tab finds is one Tab went past.
+
+Run on the base with `--gate` (2026-11-08):
+
+| Size | Scenes | Scenes that break a criterion |
+| --- | --- | --- |
+| 1366×768, every scene | 54 (862 Tab stops) | **0** |
+| 390×844 phone, every scene | 54 | **9**: `table:legacy`, `graphing:legacy`, `functionGraph:legacy`, `functionInvestigation:legacy`, `stepAlgebra2`, `constraintFunctionBuilder`, `representationBridge`, `transformationsLab:match`, `sequenceExplorer:fullBridge` |
+
+The nine phone scenes are the ones with a number box, and the legacy four are the legacy question walk's finding by hand (above): each leaves the work bar's Start question over, Scratchpad, Calculator and Hint unreached (`unreached` 4), and in the table and the graph, once the probe has typed an answer, the enabled "Submit — uses 1 of 3 tries" too (`mouseOnly`: an enabled Check Tab never reaches). The keypad is open while focus is in a number box or on its keys, and the bar is hidden under it (`MathToolMobileLayout.css`, which suits a finger: the keys sit where the bar was). Tab from the keypad's last key went on past the hidden bar and out of the question, and the keypad then closed behind it.
+
+**Fixed, in the platform:** Tab off the keypad's last key (Done) closes the keypad, as Done does, and goes on to the bar's first control, which is what follows the work (`src/platform/mobile/mobileFocusViewport.js` `workBarControlAfterKeypad`, `MobileViewportContainer.jsx`; `tests/platform/numberKeypadTabToWorkBar.test.mjs`). Shift+Tab, any other key, a phone on its side (its bar is in the task panel, before the work) and Work View (its action row sits above the keys) are as they were; a touch student sees no change. With it all 54 phone scenes pass, 1011 Tab stops: in the nine each walk goes from Done to the bar's four tools, and the table and the graph are now graded by keyboard (the probe reaches Submit). Taken out, the nine fail again. The 21 legacy scenes are graded by the generic keyboard-only attempt in the same nine as at 1366×768 (literal typed, fraction, number line, table, multi-answer, graphing, graph analysis, graph comparison, context interpretation).
+
+CI runs it in the accessibility workflow, `browser-keyboard-sweep (chromebook|phone i/3)`: the whole sweep at each size with `--gate`, cut in three shards of 18 scenes each (`--shard`, `tests/browser/support/sceneShards.mjs` `itemsOfShard`), each with its report (`keyboard-sweep-<size>-<i>`). The phone's legacy scenes are the walk that ran by hand. Here, on a four-core machine shared with other runs (load 3 to 9), a whole size took 33.4 minutes at 1366×768 and 35.8 on the phone, about 40 seconds a scene, so a shard is about 11 to 12 minutes; `tests/platform/keyboardSweepInCi.test.mjs` holds the job.
 
 ### Target size (WCAG 2.2 2.5.8, 2026-10-25)
 
@@ -273,9 +293,11 @@ Each scene's pointer targets are measured once, at load: every native control an
 | --- | --- | --- | --- | --- |
 | The sweep, 1366×768: registry tools and extra modes | 33 | 558 | 0 | **0** |
 | The sweep, 1366×768: legacy question types | 21 | 385 | 0 | **0** |
+| The sweep, 390×844 phone: registry tools and extra modes (2026-11-08) | 33 | 546 | 0 | **0** |
+| The sweep, 390×844 phone: legacy question types (2026-11-08) | 21 | 313 | 0 | **0** |
 | `studentShellLargeText.mjs --check=targetsize`: the student screens, 1366×768 and 390×844 (a phone) | 18 × 2 | 598 | 5 | **0** |
 
-The only target under 24px in any of them is the "Grade weight ×N" disclosure in the phone's navigator, 23.2px tall (0.8px short), with room around it. The screen driver is a step of the accessibility workflow; the sweep is not run by any workflow. Targets that appear after load (the calculator's keys, the Scratchpad, Work View's drawers, dialogs) are not measured.
+The only target under 24px in any of them is the "Grade weight ×N" disclosure in the phone's navigator, 23.2px tall (0.8px short), with room around it. The screen driver is a step of the accessibility workflow, and so is the sweep since 2026-11-08 (the measure is still read, never gated). Targets that appear after load (the calculator's keys, the Scratchpad, Work View's drawers, dialogs) are not measured.
 
 ---
 

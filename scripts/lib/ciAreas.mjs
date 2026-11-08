@@ -52,6 +52,8 @@ export const CI_AREAS = {
     'tests/browser/dolCloseCopy*',
     'tests/browser/unchangedConfirmWorkView*',
     'tests/browser/keyboardSweep*',
+    // The sweep's gate (the browser-keyboard-sweep jobs judge every scene by it).
+    'tests/browser/support/keyboardSweepGate*',
     'tests/browser/teacherWorkflow/**',
     'tests/browser/emulator/**',
     'tests/browser/studentUxPlatform*',

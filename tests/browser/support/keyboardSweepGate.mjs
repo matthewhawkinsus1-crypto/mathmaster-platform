@@ -59,6 +59,9 @@ export const GATE_CRITERIA = Object.freeze([
   { id: 'noVisibleFocus', wcag: '2.4.7', says: 'every Tab stop in the tool shows where focus is', reads: ['noVisibleFocus'], failures: ({ summary }) => list(summary, 'noVisibleFocus').length },
   { id: 'focusHidden', wcag: '2.4.11', says: 'no focused control is under a sticky bar or another layer', reads: ['focusHiddenUnderOverlay'], failures: ({ summary }) => list(summary, 'focusHiddenUnderOverlay').length },
   { id: 'unnamed', wcag: '4.1.2', says: 'every Tab stop has an accessible name', reads: ['unnamed'], failures: ({ summary }) => list(summary, 'unnamed').length },
+  // The Tab walk's own rule (scripts/lib/keyboardReach.mjs mm-tabbable-unreached). A control only Shift+Tab finds is
+  // one Tab went past: on a phone the open number keypad hid the work bar until Tab had left the question.
+  { id: 'unreached', wcag: '2.1.1', says: 'Tab going forward stops on every control in the tool\'s tab order', reads: ['unreached'], failures: ({ summary }) => list(summary, 'unreached').length },
   {
     id: 'mouseOnly', wcag: '2.1.1',
     says: 'nothing with a click, pointer or drag handler is out of the keyboard\'s reach, and an enabled Check is reached by Tab',

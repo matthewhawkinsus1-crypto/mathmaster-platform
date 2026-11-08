@@ -465,3 +465,44 @@ jobs:
           name: accessibility-certification-focus-obscured
           path: tests/browser/artifacts/large-text
           retention-days: 14
+
+  # THE KEYBOARD SWEEP AS A GATE (student-keyboard-ci): every student tool on its preview-bench question, its other
+  # modes and the 21 legacy question types, each in the assignment shell, worked with the keys alone (Tab and Shift+Tab,
+  # every pop-up opened and closed, a keyboard-only attempt, focus watched for three seconds), at 1366×768 and on a
+  # 390×844 touch phone, and judged by tests/browser/support/keyboardSweepGate.mjs: a trap, a control the keyboard cannot
+  # reach or press, a stop hidden, unnamed or with no visible focus, focus thrown to <body>, a layer that will not close.
+  # The phone's legacy scenes are the legacy question walk that ran by hand (student-a11y-3). A whole size took 33 to 36
+  # minutes on a busy four-core machine (2026-11-08), so each runs in three shards of 18 scenes (keyboardSweep.mjs
+  # --shard, support/sceneShards.mjs): about 12 minutes a shard there.
+  browser-keyboard-sweep:
+    name: browser-keyboard-sweep (${{ matrix.viewport }} ${{ matrix.shard }}/3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        viewport: [chromebook, phone]
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      # The sweep's page (tests/browser/keyboardSweep.html) on the standalone harness server, with src/firebase.js and
+      # the Test Cycle / secure exam services swapped for stubs (tests/browser/emulator/vite.config.mjs).
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/keyboardSweep.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      - name: Every student tool and question type by keyboard alone, judged by the sweep's gate
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/keyboardSweep.mjs --gate --viewport=${{ matrix.viewport }} --shard=${{ matrix.shard }}/3
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyboard-sweep-${{ matrix.viewport }}-${{ matrix.shard }}
+          path: tests/browser/artifacts/keyboard
+          retention-days: 14

@@ -10,6 +10,8 @@
 //   --no-shell                           the wrapper alone, without the navigator and the way on (see SHELL below)
 //   --out=<name>                         write report-<name>.json, not report.json
 //   --gate                               judge the report (keyboardSweepGate.mjs) and exit 1 if a scene fails
+//   --viewport=phone                     a 390x844 touch phone instead of the 1366x768 Chromebook (VIEWPORTS below)
+//   --shard=<i>/<n>                      only the i-th of n slices of the scenes, in order (support/sceneShards.mjs)
 //
 //   (PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
 //    when the defaults below are not installed.)
@@ -24,9 +26,11 @@
 // browser that cannot launch, or a run that measured nothing, fails it too.
 //
 // Every registered student tool is mounted through QuestionEngine with its
-// preview-bench question (keyboardSweepMain.jsx), at a 1366x768 Chromebook,
-// between two sentinel buttons. So is every LEGACY question type, the graders
-// in src/*.jsx that QuestionEngine's type switch mounts (StepByStepAlgebra,
+// preview-bench question (keyboardSweepMain.jsx), at a 1366x768 Chromebook
+// (or, with --viewport=phone, a 390x844 phone that answers touch, as the
+// certification's phone does), between two sentinel buttons. So is every
+// LEGACY question type, the graders in src/*.jsx that QuestionEngine's type
+// switch mounts (StepByStepAlgebra,
 // MultiRelationAlgebra and the intercepts orchestrator, the fraction, literal,
 // system, table, ordered-pair and multi-answer graders, the pick-a-point number
 // line, the graph workspaces, the relationship model with its axis editor, the
@@ -83,6 +87,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { gateLines, gateVerdict } from './support/keyboardSweepGate.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
+import { itemsOfShard, parseShard } from './support/sceneShards.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -100,8 +106,26 @@ const GATE = process.argv.includes('--gate');
 // and 2026-10-24 runs, to reproduce those numbers.
 const SHELL = HOST !== 'bare' && !process.argv.includes('--no-shell');
 const MAX_STOPS = 260;
-const VIEWPORT = { width: 1366, height: 768 };
-const OUT_DIR = HOST === 'bare' ? path.join(OUT_DIR_BASE, 'bare') : OUT_DIR_BASE;
+// The two screens the certification audits (accessibilityCertification.mjs VIEWPORTS): a Chromebook, and a
+// phone held upright that answers touch, `(pointer: coarse)`, as a student's does. On the phone a number box
+// opens the number keypad, the work bar is the screen's foot and the assignment screen is one screen tall
+// (keyboardSweepMain.jsx, THE SCREEN'S OWN LAYOUT), so the walk meets what a student with a keyboard on a
+// phone meets. `--viewport=phone` writes its reports into a folder of their own.
+const VIEWPORTS = {
+  chromebook: { width: 1366, height: 768, isMobile: false, hasTouch: false },
+  phone: { width: 390, height: 844, isMobile: true, hasTouch: true },
+};
+const VIEWPORT_ID = (process.argv.find((arg) => arg.startsWith('--viewport=')) || '').slice('--viewport='.length) || 'chromebook';
+if (!VIEWPORTS[VIEWPORT_ID]) {
+  console.error(`--viewport=${VIEWPORT_ID}: give ${Object.keys(VIEWPORTS).join(' or ')}`);
+  process.exit(2);
+}
+const DEVICE = VIEWPORTS[VIEWPORT_ID];
+const VIEWPORT = { width: DEVICE.width, height: DEVICE.height };
+// `--shard=i/n`: CI runs the sweep in slices, each its own job (accessibility-certification.yml). A wrong value
+// stops the run here, before a browser starts.
+const SHARD = parseShard((process.argv.find((arg) => arg.startsWith('--shard=')) || '').slice('--shard='.length) || null);
+const OUT_DIR = path.join(OUT_DIR_BASE, ...(HOST === 'bare' ? ['bare'] : []), ...(VIEWPORT_ID === 'phone' ? ['phone'] : []));
 // `--out=<name>` writes report-<name>.json instead of report.json, so a partial
 // run (one tool, `--extras-only`) does not replace the full report.
 const OUT_SUFFIX = (process.argv.find((arg) => arg.startsWith('--out=')) || '').slice('--out='.length);
@@ -411,7 +435,26 @@ const PAGE_HELPERS = () => {
       .map((el) => ({ id: kbId(el), name: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 60), disabled: Boolean(el.disabled || el.getAttribute('aria-disabled') === 'true'), tabStop: el.tabIndex >= 0 && !el.disabled }));
   };
 
-  window.__kb = { kbId, describe, active, snapStyle, pointerAudit, openSurfaces, dialogs, feedbackText, svgMarks, byId, visible, checkButtons };
+  // Every control in the tool's tab order that the forward walk never stopped on (`visitedIds`), read as the walk
+  // ends: enabled, not inert, drawn, a tab index of 0 or more, and a radio group once (the Tab walk's own rule,
+  // accessibilityKeyboardReach.mjs `unreached`). A control that only Shift+Tab finds, behind the walk, is one Tab
+  // skipped: on a phone the open number keypad hid the work bar until Tab had gone past it (student-keyboard-ci).
+  const TABBABLE = 'button, a[href], input:not([type="hidden"]), select, textarea, summary, [tabindex], [contenteditable=""], [contenteditable="true"], math-field';
+  const unreached = (visitedIds) => {
+    const root = document.querySelector('[data-kb-root]') || document.body;
+    const visited = new Set(visitedIds);
+    const seen = (el) => visited.has(el.dataset.kbId);
+    const groupSeen = (el) => el.type === 'radio' && el.name
+      && [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(el.name)}"]`)].some(seen);
+    let disabled;
+    return [...root.querySelectorAll(TABBABLE)]
+      .filter((el) => { try { disabled = el.matches(':disabled'); } catch { disabled = false; } return el.tabIndex >= 0 && !disabled && !el.closest('[inert]'); })
+      .filter((el) => visible(el) && (typeof el.checkVisibility !== 'function' || el.checkVisibility()))
+      .filter((el) => !seen(el) && !groupSeen(el))
+      .map((el) => { const d = describe(el); return { id: d.id, tag: d.tag, roleAttr: d.roleAttr, name: d.ariaLabel || d.text, className: d.className, owners: d.owners }; });
+  };
+
+  window.__kb = { kbId, describe, active, snapStyle, pointerAudit, openSurfaces, dialogs, feedbackText, svgMarks, byId, visible, checkButtons, unreached };
 };
 
 /* ------------------------------------------------------------------------ */
@@ -435,7 +478,7 @@ try {
   // A gate that could not look has not passed.
   process.exit(GATE ? 1 : 0);
 }
-const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1 });
+const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1, isMobile: DEVICE.isMobile, hasTouch: DEVICE.hasTouch });
 const diffPage = await context.newPage();
 await diffPage.setContent('<!doctype html><title>diff</title>');
 
@@ -563,7 +606,8 @@ const forwardWalk = async (page, cdp) => {
     const focusedStyle = await page.evaluate(() => window.__kb.snapStyle(window.__kb.active()));
     const clip = info.onScreen ? clipFor(info.rect) : null;
     let shotFocused = null;
-    if (clip && clip.width * clip.height < 1366 * 768) shotFocused = await page.screenshot({ clip }).catch(() => null);
+    // A clip inside the viewport (clipFor): on the phone, through the helper that keeps its touch (touchEmulation.mjs).
+    if (clip && clip.width * clip.height < VIEWPORT.width * VIEWPORT.height) shotFocused = await screenshotKeepingTouch(page, { clip }).catch(() => null);
     const blurred = await page.evaluate((id) => {
       const el = window.__kb.byId(id);
       el.blur();
@@ -571,7 +615,7 @@ const forwardWalk = async (page, cdp) => {
     }, info.id);
     await wait(page, 40);
     let shotBlurred = null;
-    if (shotFocused && blurred.scrollY === info.scrollY && blurred.rect.y === info.rect.y) shotBlurred = await page.screenshot({ clip }).catch(() => null);
+    if (shotFocused && blurred.scrollY === info.scrollY && blurred.rect.y === info.rect.y) shotBlurred = await screenshotKeepingTouch(page, { clip }).catch(() => null);
     // Put focus back where Tab left it; the next Tab continues from here.
     const refocused = await page.evaluate((id) => {
       const el = window.__kb.byId(id);
@@ -627,7 +671,9 @@ const forwardWalk = async (page, cdp) => {
       stops[stops.length - 1].note = 'element did not survive blur; walk continues from document start';
     }
   }
-  return { stops, reachedEnd, trap };
+  // Read where the walk ended (at the end sentinel, outside the question), as the student's screen then is.
+  const unreached = await page.evaluate((ids) => window.__kb.unreached(ids), [...visits.keys()]);
+  return { stops, reachedEnd, trap, unreached };
 };
 
 const reverseWalk = async (page) => {
@@ -1062,11 +1108,15 @@ const NO_EXTRAS = process.argv.includes('--no-extras');
 const LEGACY_ONLY = process.argv.includes('--legacy-only');
 const NO_LEGACY = process.argv.includes('--no-legacy');
 const SAMPLES_WANTED = !(EXTRAS_ONLY || LEGACY_ONLY);
-const scenes = [
+const listed = [
   ...(SAMPLES_WANTED ? allIds.map((toolId) => ({ toolId, variant: 'sample', spec: null })) : []),
   ...(NO_EXTRAS || LEGACY_ONLY ? [] : EXTRA_SCENES),
   ...(NO_LEGACY || EXTRAS_ONLY ? [] : LEGACY_SCENES),
 ].filter((scene) => !ONLY || ONLY === scene.toolId || ONLY === `${scene.toolId}:${scene.variant}`);
+// --shard=i/n: a run of the list in its own order, about a 1/n of its scenes (each scene opens its own pages,
+// so any scene can start a slice); the n slices together are the list, every scene once.
+const scenes = itemsOfShard(listed, SHARD);
+if (SHARD) console.log(`shard ${SHARD.index}/${SHARD.count}: ${scenes.length} of ${listed.length} scenes (${scenes.map((scene) => (scene.variant === 'sample' ? scene.toolId : `${scene.toolId}:${scene.variant}`)).join(', ') || 'none'})`);
 const toolIds = [...new Set(scenes.map((scene) => scene.toolId))];
 
 const tools = [];
@@ -1118,6 +1168,8 @@ for (const scene of scenes) {
     reverseTrap: entry.reverse?.trap || null,
     noVisibleFocus: toolStops.filter((s) => !s.focusVisibleIndicator).map((s) => ({ id: s.id, tag: s.tag, role: s.role, name: s.name, className: s.className, indicator: s.indicator, changedPixels: s.changedPixels, hiddenUnderOverlay: s.hiddenUnderOverlay, obscured: s.obscured, owners: s.owners })),
     focusHiddenUnderOverlay: toolStops.filter((s) => s.hiddenUnderOverlay).map((s) => ({ id: s.id, tag: s.tag, name: s.name, by: s.obscured?.by })),
+    // In the tool's tab order, and Tab going forward never stopped on it. (A walk that threw is the `ran` criterion's.)
+    unreached: entry.forward?.unreached ?? [],
     unnamed: toolStops.filter((s) => !s.name).map((s) => ({ id: s.id, tag: s.tag, role: s.role, className: s.className, owners: s.owners })),
     offscreenStops: toolStops.filter((s) => !s.onScreen || !s.visible).map((s) => ({ id: s.id, tag: s.tag, role: s.role, name: s.name, className: s.className })),
     pointerNotReachable: (entry.pointerAudit || []).filter((p) => p.verdict === 'not-reachable'),
@@ -1143,7 +1195,7 @@ for (const scene of scenes) {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, `tool-${sceneKey.replace(':', '--')}.json`), `${JSON.stringify(entry, null, 2)}\n`);
   const s = entry.summary;
-  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
+  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} unreached=${s.unreached.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
 }
 
 await browser.close();
@@ -1151,7 +1203,8 @@ await browser.close();
 const report = {
   generatedAt: new Date().toISOString(),
   origin: ORIGIN,
-  viewport: VIEWPORT,
+  viewport: { id: VIEWPORT_ID, ...DEVICE },
+  shard: SHARD,
   harness: 'tests/browser/keyboardSweep.html (QuestionEngine + SAMPLE_SPECS, sentinels)',
   host: HOST,
   shell: SHELL,

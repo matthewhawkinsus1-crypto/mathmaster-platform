@@ -34,6 +34,7 @@ const clean = (sceneKey = 'demo') => ({
     noVisibleFocus: [],
     focusHiddenUnderOverlay: [],
     unnamed: [],
+    unreached: [],
     offscreenStops: [],
     pointerNotReachable: [],
     pointerNotActivatable: [],
@@ -68,6 +69,8 @@ test('each criterion fails a scene that breaks it, and only that criterion', () 
     noVisibleFocus: { summary: { noVisibleFocus: [{ id: 'k4' }] } },
     focusHidden: { summary: { focusHiddenUnderOverlay: [{ id: 'k5', by: 'div.work-bar' }] } },
     unnamed: { summary: { unnamed: [{ id: 'k6' }] } },
+    // The work bar's Start over, Scratchpad, Calculator and hint button, which Tab went past under the phone's keypad.
+    unreached: { summary: { unreached: [{ id: 'k10', name: 'Start over' }, { id: 'k11', name: 'Scratchpad' }] } },
     mouseOnly: { summary: { pointerNotReachable: [{ id: 'k7' }] } },
     notActivatable: { summary: { pointerNotActivatable: [{ id: 'k8' }] } },
     cannotClose: { summary: { escapeFailures: [{ name: 'Menu' }] } },
@@ -92,6 +95,7 @@ test('the several ways to break one criterion each count', () => {
   assert.equal(failures({ summary: { focusDroppedAfterLoadMs: 600 } }, 'focusLost'), 1, 'focus falling to <body> on its own');
   assert.equal(failures({ summary: { focusLostAfterAction: 3 } }, 'focusLost'), 3, 'after an action that removes its button');
   assert.equal(failures({ summary: { noVisibleFocus: [{}, {}, {}] } }, 'noVisibleFocus'), 3);
+  assert.equal(failures({ summary: { unreached: [{}, {}, {}, {}] } }, 'unreached'), 4, 'each control Tab never stopped on');
 });
 
 test('what is only reported never fails a scene', () => {

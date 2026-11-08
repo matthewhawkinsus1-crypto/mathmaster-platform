@@ -37,3 +37,12 @@ export const shardOf = (screens, { index, count }) => {
     return Math.min(count - 1, Math.floor((middle * count) / total)) === index - 1;
   });
 };
+
+/**
+ * The items of slice `index` of `count` of a flat list, each item whole and of cost one, in the list's order; the
+ * whole list with no shard. For a driver whose every scene opens its own pages (keyboardSweep.mjs), so any scene can
+ * begin a slice.
+ */
+export const itemsOfShard = (items, shard) => (shard
+  ? shardOf(items.map((item, at) => ({ at, scenes: [] })), shard).map(({ at }) => items[at])
+  : items);
