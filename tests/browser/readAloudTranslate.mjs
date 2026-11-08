@@ -486,7 +486,8 @@ for (const device of DEVICES) {
     const { page, context } = await open(device, 'q=dml&role=practice&support=read');
     const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
     const drawnResiduals = () => page.locator('[data-residual-table-scroller] tbody tr').evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())));
-    const residualReading = (cells) => `Residual table, ${cells.length} rows. Columns: x, Hours studied; y, Quiz score (points); y hat; residual. ${cells.map(([x, y, fitted, residual], index) => `Row ${index + 1}: x, ${spokenValue(x)}; y, ${spokenValue(y)}; y hat, ${spokenValue(fitted)}; residual, ${spokenValue(residual)}.`).join(' ')}`;
+    // A unit in brackets is an aside, said between pauses (math-speech-4).
+    const residualReading = (cells) => `Residual table, ${cells.length} rows. Columns: x, Hours studied; y, Quiz score, points; y hat; residual. ${cells.map(([x, y, fitted, residual], index) => `Row ${index + 1}: x, ${spokenValue(x)}; y, ${spokenValue(y)}; y hat, ${spokenValue(fitted)}; residual, ${spokenValue(residual)}.`).join(' ')}`;
     const excerpt = (text) => text.slice(Math.max(0, text.indexOf('Residual table')), Math.max(0, text.indexOf('Residual table')) + 200);
     await read.click();
     const before = await drawnResiduals();
