@@ -151,8 +151,20 @@ test('CI walks every student scene for 2.4.11, forward and back, in a job of its
   // Both kinds of question-set round, each opened on its own top row (student-a11y-2 added Graph the Line,
   // which no scene had reached): the large-text scenes are walked, measured and sized.
   const screens = region(driver, 'export const LARGE_TEXT_SCREENS = [', '\n];', 'the large-text scenes');
-  assert.match(screens, /\{ id: 'graph-feature-rush', open: liveChallenge\.open, scenes: \[\{ id: 'round', run: rushRound \}\] \}/);
-  assert.match(screens, /\{ id: 'graph-the-line', open: liveChallenge\.open, scenes: \[\{ id: 'round', run: lineRound \}\] \}/);
+  assert.match(screens, /\{ id: 'graph-feature-rush', harness: liveChallenge\.harness, schoolClock: liveChallenge\.schoolClock, open: liveChallenge\.open, scenes: \[\{ id: 'round', run: rushRound \}\] \}/);
+  assert.match(screens, /\{ id: 'graph-the-line', harness: liveChallenge\.harness, schoolClock: liveChallenge\.schoolClock, open: liveChallenge\.open, scenes: \[\{ id: 'round', run: lineRound \}\] \}/);
   assert.match(driver, /const lineRound = questionSetRound\(\{ challengeMode: 'lineGraphClassic', [^\n]*shell: '\.mm-line-shell', bar: '\.mm-line-bar', ready: '\.mm-line-overlay strong'/);
   assert.match(region(driver, 'const questionSetRound = (', '\n};', 'a round'), /if \(covered\.length\) throw new Error\(/, 'a round whose top row is covered fails the scene');
+});
+
+// The rounds open on the app harness, whose bell schedule reads the clock: on
+// CI's (UTC) clock after about 23:05 the exit ticket's reminder covered their
+// top bar and a phone's navigation. They open as the live-challenge screen
+// does, on the school's clock (accessibilityCertification.mjs newScreenContext).
+test('the walk opens its two rounds on the school clock, as the live-challenge screen opens', () => {
+  const driver = read('tests/browser/studentShellLargeText.mjs');
+  for (const id of ['graph-feature-rush', 'graph-the-line']) {
+    assert.match(driver, new RegExp(`\\{ id: '${id}', harness: liveChallenge\\.harness, schoolClock: liveChallenge\\.schoolClock, open: liveChallenge\\.open, `), `${id} opens as the live-challenge screen does`);
+  }
+  assert.match(driver, /const context = await \(screen \? newScreenContext\(browser, screen, contextOptions\) : browser\.newContext\(contextOptions\)\);/, 'a screen\'s context comes from newScreenContext');
 });

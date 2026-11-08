@@ -323,8 +323,9 @@ const REGISTRY_QUESTION_IDS = { expressionMeaning: 'preview-expression-meaning',
 
 export const LARGE_TEXT_SCREENS = [
   ...SCREENS,
-  { id: 'graph-feature-rush', open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
-  { id: 'graph-the-line', open: liveChallenge.open, scenes: [{ id: 'round', run: lineRound }] },
+  // The two rounds open as the live-challenge screen does, on the school's clock.
+  { id: 'graph-feature-rush', harness: liveChallenge.harness, schoolClock: liveChallenge.schoolClock, open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
+  { id: 'graph-the-line', harness: liveChallenge.harness, schoolClock: liveChallenge.schoolClock, open: liveChallenge.open, scenes: [{ id: 'round', run: lineRound }] },
   {
     id: 'more-tools',
     include: '.mathmaster-question-stage',

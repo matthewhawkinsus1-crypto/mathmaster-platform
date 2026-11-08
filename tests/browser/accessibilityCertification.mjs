@@ -106,9 +106,16 @@ const studentTab = (name, ready) => async (page) => {
   await page.waitForTimeout(900);
 };
 
+// A screen of the app harness reads the clock: the fixture builds Period 3's
+// bell schedule from it, with its Warm-Up and exit-ticket windows and their
+// reminders. On CI's own clock (UTC), from about 23:05 Period 3 was clamped to
+// end by 23:55, and the exit ticket's "open — start now" reminder covered a
+// phone's student navigation. So these open on the school's clock
+// (teacherWorkflow/schoolClock.mjs), as the teacher screens do.
 const studentAppScreen = (id, tab, ready) => ({
   id,
   harness: 'app',
+  schoolClock: true,
   open: openStudentApp,
   scenes: [{ id: null, run: studentTab(tab, ready) }],
 });
@@ -250,6 +257,7 @@ export const SCREENS = [
   {
     id: 'live-challenge',
     harness: 'app',
+    schoolClock: true,
     open: openStudentApp,
     scenes: [
       { id: 'lobby', run: async (page) => {
@@ -320,9 +328,10 @@ export const sceneScope = (screen, scene) => ({
   keyboard: scene.keyboard ?? screen.keyboard,
 });
 
-// A browser context for one screen. A teacher screen reads the clock (the bell
-// schedule, the DOL window), so it opens on the school's, as the dark-mode
-// certification does; the contrast review opens its screens the same way.
+// A browser context for one screen. A screen of the app harness, the teacher's
+// or the student's, reads the clock (the bell schedule, the DOL window), so it
+// opens on the school's, as the dark-mode certification does; the contrast
+// review opens its screens the same way.
 export const newScreenContext = (browser, screen, options) => (screen.schoolClock ? newSchoolContext(browser, options) : browser.newContext(options));
 
 // ------------------------------------------------------- the audit server

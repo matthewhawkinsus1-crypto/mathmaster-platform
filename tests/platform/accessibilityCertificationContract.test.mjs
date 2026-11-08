@@ -192,7 +192,16 @@ test('every teacher screen opens on the school clock and is walked by Tab; a mod
   // The two modal screens: axe and the contrast review read the page behind a scrim as covered, undecided text.
   assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-preflight').include, '[aria-label="Lesson pre-flight review"]');
   assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-assignment-hub').include, '[data-assignment-hub]');
-  assert.equal(SCREENS.some((screen) => screen.schoolClock || screen.keyboard), false, 'the student screens are unchanged');
+  assert.equal(SCREENS.some((screen) => screen.keyboard), false, 'the student screens are not walked by Tab here');
+});
+
+test('every student screen of the app harness opens on the school clock too; a standalone harness has no bell schedule', () => {
+  // The fixture builds Period 3 from the clock. On CI's (UTC), from about 23:05 the period was clamped to end
+  // by 23:55, and the exit ticket's "open — start now" reminder covered a phone's student navigation (2.4.11).
+  const app = SCREENS.filter((screen) => screen.harness === 'app');
+  assert.ok(app.length >= 5, 'the student app screens are found');
+  for (const screen of app) assert.equal(screen.schoolClock, true, `${screen.id}: the app harness reads the clock, so it opens on the school's`);
+  for (const screen of SCREENS.filter((entry) => entry.harness !== 'app')) assert.notEqual(screen.schoolClock, true, `${screen.id}: a standalone harness is left on the browser's clock`);
 });
 
 test('a scene audits and is walked as it says, and otherwise as its screen does', () => {
