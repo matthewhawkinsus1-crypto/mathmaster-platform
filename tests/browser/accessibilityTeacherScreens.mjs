@@ -79,6 +79,8 @@
  *                        harness's stand-in for listGoogleCourses answers (teacherWorkflow/fakeAdminScreens.js).
  * teacher-classroom/roster  then Import Roster: the roster table, from the stand-ins for listClassroomStudents and
  *                        listClassroomRosterLinks (the same file), a row for each Google student and its MathMaster match.
+ * teacher-classroom/linked  then a row's "Confirm link": the screen after a link, from the stand-in for
+ *                        linkClassroomRosterBatch (the same file).
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -743,6 +745,19 @@ const openClassroomRoster = async (page) => {
   await workspaceMain(page).getByText(/^Loaded \d+ Google Classroom students and 1 existing MathMaster link\.$/).waitFor({ timeout: 30_000 });
   await page.waitForTimeout(900);
 };
+// Then a link, as a teacher confirms one of the names the screen matched for review: the first row's own button, by
+// the name it has ("Confirm link for <the student>"), which sends linkClassroomRosterBatch (the harness's stand-in:
+// fakeAdminScreens.js, LINKING ITS ROSTER). The screen reads the course's links again and draws that row as linked.
+// Read once it has said what it linked and the row's button says so. Programmatic, as above.
+const openClassroomLinked = async (page) => {
+  const matches = workspaceMain(page).getByRole('region', { name: 'Google Classroom roster matches' });
+  const confirm = matches.getByRole('button', { name: /^Confirm link for / }).first();
+  const student = (await confirm.getAttribute('aria-label')).replace(/^Confirm link for /, '');
+  await confirm.evaluate((button) => button.click());
+  await workspaceMain(page).getByText(`Linked ${student} to MathMaster ID `).waitFor({ timeout: 30_000 });
+  await matches.getByRole('button', { name: `Linked for ${student}`, exact: true }).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
 
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
@@ -861,6 +876,8 @@ export const TEACHER_SCREENS = [
     { id: 'connected', run: openClassroomConnected },
     // And the roster table under Import Roster (listClassroomStudents and listClassroomRosterLinks, answered the same way).
     { id: 'roster', run: openClassroomRoster },
+    // And after a link is confirmed on a row (linkClassroomRosterBatch, answered the same way).
+    { id: 'linked', run: openClassroomLinked },
   ]),
   teacherScreen('teacher-access', [{ id: null, run: openDestination('Student Access', /^Student Access$/) }]),
   // The administrator's workspace: the harness's root-admin teacher, its Administration view, and each of its five sections.

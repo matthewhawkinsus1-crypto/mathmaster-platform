@@ -61,6 +61,10 @@ const label = { display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeigh
 // of the text around it and with no margin of its own. As bold text a screen reader could neither list the sections nor
 // move from one to the next (WCAG 1.3.1, 2.4.6; the connected screen's first audit, the November build's section 6).
 const sectionTitle = { margin: 0, fontSize: 'inherit' };
+// The bold line that titles a box of controls inside a section is a heading one level under the section's, in the
+// screen's order, drawn exactly as the line it was (its own styles, with no margin of its own); as bold text a screen
+// reader could not find it (WCAG 1.3.1, 2.4.6; the connected screen's audit, the November build's section 6).
+const boxTitle = { margin: 0, fontSize: 'inherit' };
 const input = { width: '100%', padding: '10px 12px', fontSize: 'calc(14 * var(--mm-px))', borderRadius: 8, border: '1px solid var(--mm-border)', boxSizing: 'border-box', background: 'var(--mm-surface)' };
 const btn = { padding: '10px 15px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, borderRadius: 8, border: 0, cursor: 'pointer' };
 const primary = { ...btn, background: '#1a73e8', color: '#fff' };
@@ -721,8 +725,9 @@ export default function ClassroomManagerV2({
           {rosterCourseId && !rosterMapping && <p style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))' }}>Map this course to a MathMaster class first.</p>}
           {rosterCourseId && rosterMapping && (
             <div style={{ marginTop: 12, padding: 12, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
-              {/* The list's title, in the same bold, is its field's label: the field was named only by its example rows. */}
-              <label htmlFor="classroom-identity-list" style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>ID-only students: paste an identity list (optional)</label>
+              {/* The list's title, in the same bold, is its field's label: the field was named only by its example rows.
+                  It titles the box's buttons too, so it is a heading of its own as well. */}
+              <h4 style={boxTitle}><label htmlFor="classroom-identity-list" style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>ID-only students: paste an identity list (optional)</label></h4>
               <p style={{ margin: '6px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
                 Google already supplies the name, school email, and Google user ID shown below. If MathMaster only knows district IDs,
                 paste one student per line as <code>ID, Name, Email</code> or <code>ID, Name</code>. You can copy rows from a spreadsheet
@@ -769,6 +774,11 @@ export default function ClassroomManagerV2({
                     const linked = rosterLinkByGoogleUserId.get(String(google.googleUserId));
                     const selected = manualMatches[google.googleUserId] || linked?.studentId || item.suggestedStudent?.id || '';
                     const alreadyLinked = Boolean(linked && String(linked.studentId) === String(selected));
+                    // The row's button says what it does, and is named by its row as well: the words on it, then the
+                    // Classroom student it links, as the row and the status after it name them. Every row's button was
+                    // named "Confirm link" alone (WCAG 2.4.6; 2.5.3, the visible words first).
+                    const linkWords = linked && !alreadyLinked ? 'Change link' : alreadyLinked ? 'Linked' : 'Confirm link';
+                    const linkName = `${linkWords} for ${google.name || google.email || 'this Classroom student'}`;
                     return (
                       <tr key={google.googleUserId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                         <td style={{ padding: 8 }}>
@@ -802,10 +812,11 @@ export default function ClassroomManagerV2({
                         <td style={{ padding: 8 }}>
                           <button
                             style={secondary}
+                            aria-label={linkName}
                             disabled={busy || !selected || alreadyLinked}
                             onClick={() => handleLinkOne(item)}
                           >
-                            {linked && !alreadyLinked ? 'Change link' : alreadyLinked ? 'Linked' : 'Confirm link'}
+                            {linkWords}
                           </button>
                         </td>
                       </tr>
@@ -837,8 +848,11 @@ export default function ClassroomManagerV2({
               );
             })}
           </div>
-          <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
-            <div>
+          {/* A row that wraps: the topics' box and its button side by side, the box taking what the button leaves, as
+              the two columns did, and the button under the box where the box would be narrower than the 220px the
+              screen's other fields keep. At 320px the button's column left the box about 45px. */}
+          <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 0', minWidth: 'min(100%, 220px)' }}>
               <label style={label} htmlFor="classroom-topic-names">Topic names, one per line</label>
               <textarea id="classroom-topic-names" style={{ ...input, minHeight: 90 }} value={topicNamesText} onChange={(e) => setTopicNamesText(e.target.value)} placeholder="Module 1 • Functions&#10;Module 2 • Linear Functions" />
             </div>
@@ -942,8 +956,10 @@ export default function ClassroomManagerV2({
             <button style={secondary} onClick={() => setMaterials((current) => [...current, { title: '', url: '' }])}>+ Add resource link</button>
           </div>
           {selectedAssignment && (
-            <div style={{ marginTop: 12, padding: '12px 14px', border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
-              <div style={{ ...label, marginBottom: 8 }}>Google Classroom grade represents</div>
+            // The grade's checkboxes are a group named by the title above them, which named nothing (WCAG 1.3.1), as the
+            // links' fields are by theirs.
+            <div role="group" aria-labelledby="classroom-grade-represents" style={{ marginTop: 12, padding: '12px 14px', border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
+              <div id="classroom-grade-represents" style={{ ...label, marginBottom: 8 }}>Google Classroom grade represents</div>
               <ClassroomSectionGradeSelector
                 assignment={selectedAssignment}
                 selectedKeys={selectedClassroomSectionKeys}
@@ -953,7 +969,7 @@ export default function ClassroomManagerV2({
           )}
           <button style={{ ...primary, marginTop: 12 }} disabled={busy || !selectedAssignment} onClick={handlePublishAssignment}>Publish assignment package</button>
           <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)' }}>
-            <strong>Post missing but MathMaster says it exists?</strong>
+            <h4 style={boxTitle}>Post missing but MathMaster says it exists?</h4>
             <div style={{ marginTop: 5, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
               Select the exact Google Classroom course(s) and grade target(s) above. The preview below is what Force NEW post will create. This intentionally bypasses duplicate protection. Your MathMaster assignment and student progress stay intact; each newly created post becomes the grade-passback destination for the section it represents.
             </div>
@@ -1003,9 +1019,11 @@ export default function ClassroomManagerV2({
           <h3 style={sectionTitle}>7. Published assignment health</h3>
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             {syncByAssignment.map(({ assignment, sync }) => (
-              <div key={assignment.id} style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 8, padding: 10 }}>
+              // Each assignment's buttons are a group named by its title, the bold line that titles them: the buttons
+              // read the same on every assignment.
+              <div key={assignment.id} role="group" aria-labelledby={`classroom-health-${assignment.id}`} style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 8, padding: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <span><strong>{assignment.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{sync.message}</div></span>
+                  <span><strong id={`classroom-health-${assignment.id}`}>{assignment.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{sync.message}</div></span>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button style={secondary} disabled={busy} onClick={() => run(async () => {
                       const response = await repairClassroomAssignmentPublications({
@@ -1110,9 +1128,9 @@ export default function ClassroomManagerV2({
         )}
         {retryableGradeSyncs.length > 0 && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-error-bg)', border: '1px solid var(--mm-error-border-soft)' }}>
-            <div style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
+            <h4 style={{ ...boxTitle, color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               {retryableGradeSyncs.length} grade passback failure{retryableGradeSyncs.length === 1 ? '' : 's'} can be retried now.
-            </div>
+            </h4>
             <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
               Rows marked Needs roster link are intentionally excluded until the student is linked to Google Classroom.
             </div>
@@ -1134,9 +1152,9 @@ export default function ClassroomManagerV2({
         )}
         {selectedAssignment && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)' }}>
-            <div style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
+            <h4 style={{ ...boxTitle, color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               Regrade an assignment that is already closed
-            </div>
+            </h4>
             <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
               This independently recalculates every published section grade from canonical saved MathMaster work and repairs stale or false-zero Classroom columns. Students do not need to reopen or redo the assignment.
             </div>

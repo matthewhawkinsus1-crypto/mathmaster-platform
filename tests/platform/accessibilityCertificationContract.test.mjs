@@ -109,9 +109,10 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-find': [null, 'results'],
   'teacher-demo': [null],
   'teacher-schedule': [null],
-  // Google Classroom as a teacher who has not connected it meets it, once connected (its courses: listGoogleCourses), and
-  // its roster table after Import Roster (listClassroomStudents, listClassroomRosterLinks).
-  'teacher-classroom': [null, 'connected', 'roster'],
+  // Google Classroom as a teacher who has not connected it meets it, once connected (its courses: listGoogleCourses), its
+  // roster table after Import Roster (listClassroomStudents, listClassroomRosterLinks), and the table after a row's link
+  // is confirmed (linkClassroomRosterBatch).
+  'teacher-classroom': [null, 'connected', 'roster', 'linked'],
   'teacher-access': [null],
   'teacher-admin': ['classes', 'accounts', 'coverage', 'ai', 'reset'],
 };
@@ -383,3 +384,19 @@ test('the Classroom and administrator callables are registered after the harness
   assert.match(fakes, /Object\.entries\(adminScreenHandlers\)\.forEach\(\(\[name, handler\]\) => \{ if \(!handlers\[name\]\) handlers\[name\] = handler; \}\);/);
 });
 
+
+// Google Classroom after a link (the November build's section 6): the scene presses a roster row's own button by the name
+// it has now, its row's ("Confirm link for <the student>"), and reads the screen once the link is made and drawn: the
+// status that names the student, and that row's button saying "Linked". So it audits the screen after a link, and it
+// fails if the rows' buttons lose their names.
+test('the Classroom "linked" scene confirms a row\'s link by its row\'s name and waits for the link to be drawn', () => {
+  const classroom = TEACHER_SCREENS.find((screen) => screen.id === 'teacher-classroom');
+  assert.deepEqual(classroom.scenes.map((scene) => scene.id), [null, 'connected', 'roster', 'linked'], 'after Import Roster, on the same page');
+  const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  const open = region(scenes, 'const openClassroomLinked = async (page) => {', '\n};', 'the linked scene');
+  assert.match(open, /getByRole\('region', \{ name: 'Google Classroom roster matches' \}\)/, 'inside the roster table');
+  assert.match(open, /getByRole\('button', \{ name: \/\^Confirm link for \/ \}\)\.first\(\)/, 'the first row a link can be confirmed on, by its name');
+  assert.match(open, /\.evaluate\(\(button\) => button\.click\(\)\)/, 'pressed as the other scenes press');
+  assert.match(open, /getByText\(`Linked \$\{student\} to MathMaster ID `\)\.waitFor/, 'the screen says what it linked');
+  assert.match(open, /getByRole\('button', \{ name: `Linked for \$\{student\}`, exact: true \}\)\.waitFor/, 'and the row is drawn as linked');
+});

@@ -8,13 +8,15 @@
  *   Google Classroom                       getClassroomConnectionStatus, listGoogleCourses,
  *                                          listPublishedAssignments, listClassroomGradeSyncs, the roster
  *                                          Import Roster reads (listClassroomStudents, listClassroomRosterLinks),
- *                                          and the course mappings fakeFunctions.js's listClassroomCourseMappings reads
+ *                                          the links its buttons make (linkClassroomRosterBatch), and the course
+ *                                          mappings fakeFunctions.js's listClassroomCourseMappings reads
  *
  * Each returns the shape the deployed callable returns (functions/index.js), over invented data: a few
  * audit entries, the counts of what the harness holds, the release this browser bundle was built from,
  * and a teacher who has not connected Google Classroom, or, when asked, one who has (GOOGLE CLASSROOM,
- * CONNECTED, below). Nothing here writes: the destructive half of resetPreproductionTestData is refused,
- * as it is for a school the lock covers.
+ * CONNECTED, below). Nothing here writes but a roster link the connected teacher makes, into the harness's
+ * own store (LINKING ITS ROSTER, below): the destructive half of resetPreproductionTestData is refused, as
+ * it is for a school the lock covers.
  *
  * fakeFunctions.js adds these to its table without replacing a callable it already implements.
  */
@@ -71,8 +73,8 @@ const classroomUnavailable = () => Object.assign(new Error('internal'), { code: 
  * harness's students of that class under invented Google accounts, and one student more, who has no MathMaster account
  * yet; the first of them was linked to their MathMaster ID before. The harness's students are ID-only (no email), so
  * the screen matches the rest by name, for the teacher to review, and the one more matches no one. The two Algebra I
- * sections have no roster: the screen imports only a mapped course's. Nothing here writes (linking a student,
- * linkClassroomRosterBatch, has no stand-in), and a teacher who has not connected has never made a link.
+ * sections have no roster: the screen imports only a mapped course's. A teacher who has not connected has never made
+ * a link.
  */
 const ROSTER_COURSE_ID = 'course-alg2-p3';
 const ROSTER_CLASS_ID = 'c-alg2-p3';
@@ -96,6 +98,42 @@ const requireCourseId = (courseId) => {
   if (!id) throw refusal('invalid-argument', 'courseId is required.');
   return id;
 };
+
+/*
+ * LINKING ITS ROSTER: what the roster's buttons send ("Confirm link" and "Change link" on a row, "Link unique
+ * suggestions", "Auto-link exact emails": linkClassroomRosterBatch), so that a scene can press one and audit the
+ * screen after it. Off unless a scene asks, as the rest is: only the connected teacher has a mapped course, and the
+ * server refuses a link to a course that is not mapped to the class named. As the server does (functions/index.js):
+ * courseId, classId and 1 to 200 links, each a MathMaster student of the mapped class; one Google student owns one
+ * MathMaster ID in a course, so a link that gives a Google student another ID replaces the link they had; the reply
+ * is { linked, replaced }. Each link is kept where the server keeps it, classroomRosterLinks/ in the harness's own
+ * store, so the course's links read afterwards hold it. The link made before is one of them until a newer link takes
+ * its Google student or its MathMaster student. The server also copies the Google name and email onto the student's
+ * grade document; no screen the scenes open reads them back, so the stand-in leaves the student as they were.
+ */
+const ROSTER_LINKS = 'classroomRosterLinks';
+const HARNESS_TEACHER_UID = 'harness-teacher-uid';
+const rosterLinkShape = ({ courseId, classId, studentId, googleUserId, email, name }) => ({
+  rosterLinkId: `${courseId}__${studentId}`, courseId, classId, studentId, googleUserId, email: email || null, name: name || null,
+});
+// The course's links, as listClassroomRosterLinks returns them: those made in the harness, then the one made before.
+const rosterLinksOf = (courseId) => {
+  if (!classroomConnected()) return [];
+  const made = harnessStore.paths(`${ROSTER_LINKS}/`)
+    .filter((path) => path.split('/').length === 2)
+    .map((path) => harnessStore.get(path))
+    .filter((link) => link?.courseId === courseId)
+    .map(rosterLinkShape);
+  if (courseId !== ROSTER_COURSE_ID) return made;
+  const before = rosterOfMappedCourse().filter((entry) => entry.studentId).slice(0, 1)
+    .map((entry) => rosterLinkShape({ ...entry, courseId, classId: ROSTER_CLASS_ID }))
+    .filter((link) => !made.some((entry) => entry.googleUserId === link.googleUserId || entry.studentId === link.studentId));
+  return [...made, ...before];
+};
+// The server's studentBelongsToMappedClass: the student's class, or for one with none, the class's period.
+const belongsToClass = (student, classId) => (student.classId
+  ? String(student.classId) === classId
+  : String(student.classPeriod || '') === String(harnessStore.get(`classes/${classId}`)?.period || ''));
 
 // The names preservedLabel() in PreproductionReset.jsx knows, and a few the preview counts.
 const PRESERVED_COLLECTIONS = [
@@ -171,16 +209,35 @@ export const adminScreenHandlers = {
     if (!classroomConnected() || !CLASSROOM_COURSES.some((course) => course.id === id)) throw classroomUnavailable();
     return { students: id === ROSTER_COURSE_ID ? rosterOfMappedCourse().map(({ googleUserId, name, email }) => ({ googleUserId, name, email })) : [] };
   },
-  // The course's links made before, in the shape the callable returns them.
-  listClassroomRosterLinks: ({ courseId } = {}) => {
-    const id = requireCourseId(courseId);
-    const linked = classroomConnected() && id === ROSTER_COURSE_ID ? rosterOfMappedCourse().filter((entry) => entry.studentId).slice(0, 1) : [];
-    return {
-      links: linked.map((entry) => ({
-        rosterLinkId: `${id}__${entry.studentId}`, courseId: id, classId: ROSTER_CLASS_ID, studentId: entry.studentId,
-        googleUserId: entry.googleUserId, email: entry.email, name: entry.name,
-      })),
-    };
+  // The course's links, made before and since, in the shape the callable returns them.
+  listClassroomRosterLinks: ({ courseId } = {}) => ({ links: rosterLinksOf(requireCourseId(courseId)) }),
+  // Links Google students to MathMaster IDs (LINKING ITS ROSTER, above), as the server does.
+  linkClassroomRosterBatch: ({ courseId, classId, links } = {}) => {
+    const course = String(courseId || '').trim();
+    const cls = String(classId || '').trim();
+    if (!course || !cls || !Array.isArray(links) || !links.length) throw refusal('invalid-argument', 'courseId, classId and at least one roster link are required.');
+    if (links.length > 200) throw refusal('invalid-argument', 'Link at most 200 students at a time.');
+    const mapping = classroomCourseMappings().find((entry) => entry.courseId === course);
+    if (!mapping || mapping.classId !== cls) throw refusal('failed-precondition', 'This Google Classroom course is not mapped to that MathMaster class.');
+    const prepared = links
+      .map((item) => ({ ...item, studentId: String(item?.studentId || '').trim(), googleUserId: String(item?.googleUserId || '').trim() }))
+      .filter((item) => item.studentId && item.googleUserId);
+    for (const { studentId } of prepared) {
+      const student = harnessStore.get(`grades/${studentId}`);
+      if (!student) throw refusal('not-found', `MathMaster student ${studentId} does not exist.`);
+      if (!belongsToClass(student, cls)) throw refusal('failed-precondition', `MathMaster student ${studentId} is not enrolled in the mapped class.`);
+    }
+    // A Google student's link to another MathMaster ID gives way. (The link made before has no document; the new
+    // link takes its place in rosterLinksOf.)
+    const replaced = rosterLinksOf(course).filter((link) => prepared.some((item) => item.googleUserId === link.googleUserId && item.studentId !== link.studentId));
+    replaced.forEach((link) => harnessStore.remove(`${ROSTER_LINKS}/${link.rosterLinkId}`));
+    for (const item of prepared) {
+      harnessStore.set(`${ROSTER_LINKS}/${course}__${item.studentId}`, {
+        ...rosterLinkShape({ courseId: course, classId: cls, studentId: item.studentId, googleUserId: item.googleUserId, email: item.email, name: item.name }),
+        teacherUid: HARNESS_TEACHER_UID,
+      });
+    }
+    return { linked: prepared.length, replaced: replaced.length };
   },
   listPublishedAssignments: () => ({
     links: harnessStore.paths('classroomLinks/').filter((path) => path.split('/').length === 2).map((path) => ({ id: path.split('/')[1], ...harnessStore.get(path) })),

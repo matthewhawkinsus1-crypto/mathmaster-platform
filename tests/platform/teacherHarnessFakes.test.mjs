@@ -378,6 +378,82 @@ test('Google Classroom, connected: the roster Import Roster reads, off unless as
   assert.deepEqual(await call('listClassroomRosterLinks', { courseId: 'course-alg2-p3' }), { links: [] }, 'and off again once the flag is gone');
 });
 
+// Linking the roster (the November build's section 6): the roster's buttons ("Confirm link", "Change link", "Link unique
+// suggestions") send linkClassroomRosterBatch, which the harness could not answer, so no scene pressed one. Off unless
+// asked for, as the rest of the connected screen is. Asked for, it refuses what the server refuses, links as the server
+// links (one Google student, one MathMaster ID in a course), and the links read afterwards are the ones the screen draws.
+test('Google Classroom, connected: linking the roster, off unless asked for, then as the server links', async () => {
+  const functions = await loadFake('fakeFunctions.js', '?reset=1', 'classroomRosterLinking');
+  const store = (await import('../browser/teacherWorkflow/fakeFirestore.js')).harnessStore;
+  const { buildRosterMatchPlan, studentsForClass } = await import('../../src/classroomRosterMatching.js');
+  const call = (name, data) => functions.httpsCallable(functions.getFunctions(), name)(data).then((result) => result.data);
+  const rejectsWith = (promise, code, message = code) => assert.rejects(promise, (error) => error.code === `functions/${code}`, message);
+  const COURSE = 'course-alg2-p3';
+  const CLASS = 'c-alg2-p3';
+  const linkPaths = () => store.paths('classroomRosterLinks/');
+  const before = linkPaths();
+  const link = (links, courseId = COURSE, classId = CLASS) => call('linkClassroomRosterBatch', { courseId, classId, links });
+  const pairs = (links) => links.map((entry) => `${entry.studentId}~${entry.googleUserId}`).sort();
+
+  // Not asked for: the teacher who never connected has no course mapped to the class, and the server refuses a link then.
+  await rejectsWith(link([{ studentId: '910002', googleUserId: 'g-1' }]), 'failed-precondition');
+  assert.deepEqual(linkPaths(), before, 'and writes nothing');
+
+  globalThis.window.__mmHarness.classroomConnected = true;
+  try {
+    const { students } = await call('listClassroomStudents', { courseId: COURSE });
+    const { links: [madeBefore] } = await call('listClassroomRosterLinks', { courseId: COURSE });
+    const roster = await call('listSignInAccess', {});
+    const classStudents = studentsForClass(roster.students.map((row) => ({ ...row, id: row.studentId })), roster.classes.find((entry) => entry.classId === CLASS), roster.classes);
+    const plan = buildRosterMatchPlan({ classroomStudents: students, mathMasterStudents: classStudents });
+    const asRow = ({ classroomStudent, suggestedStudent }) => ({ studentId: String(suggestedStudent.id), googleUserId: classroomStudent.googleUserId, email: classroomStudent.email, name: classroomStudent.name });
+    const second = asRow(plan[1]);
+    const third = asRow(plan[2]);
+    const elsewhere = roster.students.find((row) => row.classId && row.classId !== CLASS).studentId;
+
+    // As the server refuses: no course, class or link; more than 200 at once; a course not mapped to that class; a
+    // student MathMaster does not have, or one of another class. A refused batch writes nothing.
+    await rejectsWith(link([]), 'invalid-argument');
+    await rejectsWith(link([second], ''), 'invalid-argument');
+    await rejectsWith(link(Array.from({ length: 201 }, () => second)), 'invalid-argument', 'at most 200');
+    await rejectsWith(link([second], 'course-alg1-p1', 'c-alg1-p1'), 'failed-precondition', 'a course with no mapping');
+    await rejectsWith(link([second], COURSE, 'c-lab-p3'), 'failed-precondition', 'a course mapped to another class');
+    await rejectsWith(link([second, { ...third, studentId: 'not-a-student' }]), 'not-found');
+    await rejectsWith(link([second, { ...third, studentId: elsewhere }]), 'failed-precondition', 'a student of another class');
+    assert.deepEqual(linkPaths(), before, 'and nothing was written');
+
+    // A row's "Confirm link": the second Google student, to the MathMaster student of that name. Again: the same link.
+    assert.deepEqual(await link([second]), { linked: 1, replaced: 0 });
+    assert.deepEqual(await link([second]), { linked: 1, replaced: 0 });
+    let { links } = await call('listClassroomRosterLinks', { courseId: COURSE });
+    assert.deepEqual(pairs(links), pairs([madeBefore, second]), 'the link made before, and the new one');
+    for (const entry of links) {
+      assert.deepEqual(Object.keys(entry).sort(), ['classId', 'courseId', 'email', 'googleUserId', 'name', 'rosterLinkId', 'studentId'], 'the shape listClassroomRosterLinks returns');
+      assert.equal(entry.courseId, COURSE);
+      assert.equal(entry.classId, CLASS);
+    }
+    // What the table draws: both rows linked, every other name still to review, the one student more matched by no one.
+    const linkFor = new Map(links.map((entry) => [entry.googleUserId, entry]));
+    const kinds = plan.map((item) => (linkFor.get(item.classroomStudent.googleUserId)?.studentId === String(item.suggestedStudent?.id) ? 'linked' : item.status));
+    assert.deepEqual(kinds.filter((kind) => kind === 'linked').length, 2);
+    assert.deepEqual(kinds.filter((kind) => kind === 'unmatched').length, 1);
+
+    // One Google student owns one MathMaster ID in a course: "Change link" gives the first one another ID, and the link
+    // made before gives way to it.
+    assert.deepEqual(await link([{ ...third, googleUserId: madeBefore.googleUserId }]), { linked: 1, replaced: 1 });
+    ({ links } = await call('listClassroomRosterLinks', { courseId: COURSE }));
+    assert.deepEqual(pairs(links), pairs([second, { ...third, googleUserId: madeBefore.googleUserId }]));
+    // The two Algebra I sections have no links, and none is made there.
+    assert.deepEqual(await call('listClassroomRosterLinks', { courseId: 'course-alg1-p1' }), { links: [] });
+  } finally {
+    delete globalThis.window.__mmHarness.classroomConnected;
+  }
+  assert.deepEqual(await call('listClassroomRosterLinks', { courseId: COURSE }), { links: [] }, 'off again once the flag is gone');
+  await rejectsWith(link([{ studentId: '910002', googleUserId: 'g-1' }]), 'failed-precondition');
+  // The store as this test found it, for the tests after it.
+  linkPaths().filter((path) => !before.includes(path)).forEach((path) => store.remove(path));
+});
+
 // Every name the app imports from a Firebase module, from every file under src/.
 const appImports = (moduleName) => {
   const names = new Set();

@@ -20,6 +20,16 @@
  *   - a course's chooser is named by the course it maps, and the links' fields sit in a group named by their heading.
  * Its eight sections were titled in bold text, so a screen reader could neither list them nor move from one to the next
  * (WCAG 1.3.1, 2.4.6). Each title is a heading now, one level under the screen's own, and looks as it did.
+ * What the last batch left (the November build's section 6), closed:
+ *   - "Google Classroom grade represents" is the name of its checkboxes' group (1.3.1), as "Links / notes / resources"
+ *     is of its fields';
+ *   - a bold line inside a section that titles a box of controls is a heading one level under the section's, in the
+ *     screen's order, or the name of the box's group, and looks as it did;
+ *   - every roster row's button is named by its row ("Confirm link for <the student>"), its visible words first and
+ *     unchanged (2.4.6, 2.5.3): every row's was "Confirm link";
+ *   - at 320px the "Topic names" box narrowed to about 45px beside its button: their row wraps where the box would be
+ *     narrower than the 220px the screen's other fields keep, and is as it was on a laptop.
+ * Nothing a teacher can do changes: the same buttons, the same calls to the server, in the same order.
  * Its contrast review found one more thing: on a phone a label lay across its card's border. Three rows of the screen
  * kept their laptop columns at any width: each course's class chooser and its pill ran 167 and 242px past the card at
  * 390px, the second column of "Publish a MathMaster assignment" 147px, and at 320px the courses to publish to 11px.
@@ -272,4 +282,117 @@ test('on a phone every row of the connected screen fits its card, and on a lapto
   const courses = region(source, '4. Classroom destinations and organization', '</section>', 'the destinations card');
   assert.match(courses, /<label key=\{course\.id\} style=\{\{[^}]*minWidth: 'min\(220px, 100% - 26px\)' \}\}>/);
   assert.doesNotMatch(courses, /minWidth: \d/, 'no fixed minimum left');
+});
+
+// The element `name` that opens nearest before `at` and closes after it (-1: none).
+const enclosing = (at, name) => {
+  for (let open = source.lastIndexOf(`<${name}`, at); open !== -1; open = source.lastIndexOf(`<${name}`, open - 1)) {
+    if (/^<\w+[\s>]/.test(source.slice(open, open + name.length + 2)) && closing(open, name) > at) return open;
+  }
+  return -1;
+};
+// The first element inside the one whose opening tag is `tag` at `at`, past white space and emptied comments.
+const firstChild = (at, tag) => {
+  const match = /^(?:\s|\{\s*\})*<([A-Za-z][\w.]*)\b/.exec(source.slice(at + tag.length));
+  if (!match) return null;
+  const start = at + tag.length + match[0].length - match[1].length - 1;
+  return { name: match[1], at: start, tag: openingTag(start) };
+};
+
+test('the grade\'s checkboxes are a group named by "Google Classroom grade represents", the title above them', () => {
+  const group = elements('div').find(({ tag }) => /\srole="group"/.test(tag) && attribute(tag, 'aria-labelledby') === 'classroom-grade-represents');
+  assert.ok(group, 'the box is a group, named by its title');
+  const inner = source.slice(group.at, closing(group.at, 'div'));
+  const title = firstChild(group.at, group.tag);
+  assert.equal(attribute(title.tag, 'id'), 'classroom-grade-represents', 'its title, first in the box, is what names it');
+  assert.match(inner, /<div id="classroom-grade-represents" style=\{\{ \.\.\.label, marginBottom: 8 \}\}>Google Classroom grade represents<\/div>/, 'the words and the look it always had');
+  assert.match(inner, /<ClassroomSectionGradeSelector\b/, 'and the checkboxes are inside it');
+});
+
+test('a bold line that titled a box of controls is a heading under its section\'s, in the screen\'s order, drawn as it was', () => {
+  const sections = elements('section').map(({ at }) => ({ at, end: closing(at, 'section') }));
+  const titles = ['ID-only students: paste an identity list (optional)', 'Post missing but MathMaster says it exists?', 'can be retried now.', 'Regrade an assignment that is already closed'];
+  for (const words of titles) {
+    const at = source.indexOf(words);
+    assert.notEqual(at, -1, `"${words}" is on the screen`);
+    const heading = enclosing(at, 'h4');
+    assert.notEqual(heading, -1, `"${words}" is a heading, one level under its section's`);
+    assert.match(openingTag(heading), /^<h4 style=\{(?:boxTitle|\{ \.\.\.boxTitle, [^{}]*\})\}>$/, `"${words}" keeps its own look, with no margin of its own`);
+    // In the screen's order: inside a section, after the section's own heading.
+    const section = sections.find(({ at: start, end }) => start < heading && heading < end);
+    assert.ok(section && source.indexOf('<h3 style={sectionTitle}>', section.at) < heading, `"${words}" comes after its section's heading`);
+    // It titles a box of controls: the first thing in that box, which holds a button.
+    const box = enclosing(heading, 'div');
+    assert.equal(firstChild(box, openingTag(box))?.at, heading, `"${words}" opens its box`);
+    assert.match(source.slice(box, closing(box, 'div')), /<button\b/, `"${words}" titles controls`);
+  }
+  assert.match(source, /const boxTitle = \{ margin: 0, fontSize: 'inherit' \};/, 'a heading\'s own margins and size are taken off');
+  // The identity list's title is also its field's label, as it was.
+  assert.equal(attribute(labels.find(({ words }) => words === titles[0]).tag, 'htmlFor'), 'classroom-identity-list');
+});
+
+test('no box of controls is titled by bold text alone: its title is a heading, or the name of the group it is in', () => {
+  const controlsIn = (inner) => (inner.match(/<(?:button|input|select|textarea)\b/g) || []).length
+    + 2 * (inner.match(/<ClassroomSectionGradeSelector\b/g) || []).length;
+  const boldText = ({ name, tag }) => ['strong', 'b'].includes(name)
+    || (['div', 'span', 'p'].includes(name) && /fontWeight: (?:700|800|900)\b|style=\{label\}|\.\.\.label\b/.test(tag));
+  const groups = elements('div').filter(({ tag }) => /\srole="group"/.test(tag)).map(({ at, tag }) => ({ at, end: closing(at, 'div'), name: attribute(tag, 'aria-labelledby') }));
+  const titled = new Set();
+  for (const { at, tag } of elements('div')) {
+    const end = closing(at, 'div');
+    if (controlsIn(source.slice(at, end)) < 2) continue;
+    // The box's first words, down through the wrappers it opens with (a row, a span).
+    let first = firstChild(at, tag);
+    while (first && ['div', 'span'].includes(first.name) && !boldText(first)) first = firstChild(first.at, first.tag);
+    if (!first || !boldText(first)) continue;
+    const id = attribute(first.tag, 'id');
+    const group = groups.find((entry) => entry.at <= at && end <= entry.end && entry.name === id);
+    assert.ok(id && group, `a box of controls titled in bold text that names nothing: ${first.tag.slice(0, 80)}`);
+    titled.add(id);
+  }
+  // The links' fields, the grade's checkboxes and each published assignment's buttons, each named by its title.
+  assert.deepEqual([...titled].sort(), ['classroom-grade-represents', 'classroom-resource-links', '`classroom-health-${assignment.id}`'].sort());
+  const health = region(source, 'syncByAssignment.map(({ assignment, sync }) => (', 'Check / repost missing assignment', 'a published assignment\'s row');
+  assert.match(health, /<strong id=\{`classroom-health-\$\{assignment\.id\}`\}>\{assignment\.title\}<\/strong>/, 'an assignment\'s row is named by its title');
+});
+
+test('every roster row\'s button is named by its row: the words on it first, then the Classroom student it links', () => {
+  const row = region(source, 'matchPlan.map((item, index) => {', '</tr>', 'one roster row');
+  // The row's own two lines: the words its button shows, and its name. Run here on the cases a row can be in.
+  const words = /const linkWords = [^;]+;/.exec(row)?.[0];
+  const name = /const linkName = [^;]+;/.exec(row)?.[0];
+  assert.ok(words && name, 'the row works out its button\'s words and its name');
+  const button = new Function('linked', 'alreadyLinked', 'google', `${words}\n${name}\nreturn { linkWords, linkName };`);
+  const ana = { name: 'Ana Diaz', email: 'ana.diaz@students.example' };
+  assert.deepEqual(button(undefined, false, ana), { linkWords: 'Confirm link', linkName: 'Confirm link for Ana Diaz' });
+  assert.deepEqual(button({ studentId: '7' }, false, ana), { linkWords: 'Change link', linkName: 'Change link for Ana Diaz' });
+  assert.deepEqual(button({ studentId: '7' }, true, ana), { linkWords: 'Linked', linkName: 'Linked for Ana Diaz' });
+  // A student Google gives no name is named by their email, as the row shows them; one with neither, as the status does.
+  assert.equal(button(undefined, false, { name: '', email: 'x.y@students.example' }).linkName, 'Confirm link for x.y@students.example');
+  assert.equal(button(undefined, false, {}).linkName, 'Confirm link for this Classroom student');
+  // Two rows' buttons no longer share a name; the status after a link names the student the same way.
+  assert.notEqual(button(undefined, false, ana).linkName, button(undefined, false, { name: 'Noor Abernathy' }).linkName);
+  assert.match(source, /const googleLabel = item\.classroomStudent\.name \|\| item\.classroomStudent\.email \|\| 'this Classroom student';/);
+  // The button shows those words and has that name; what it does is what it did.
+  const tag = openingTag(row.indexOf('<button') + source.indexOf(row));
+  assert.match(tag, /\saria-label=\{linkName\}/);
+  assert.match(tag, /\sdisabled=\{busy \|\| !selected \|\| alreadyLinked\}/);
+  assert.match(tag, /\sonClick=\{\(\) => handleLinkOne\(item\)\}/);
+  assert.match(row, /onClick=\{\(\) => handleLinkOne\(item\)\}\s*>\s*\{linkWords\}\s*<\/button>/, 'its visible words, unchanged');
+});
+
+test('the "Topic names" box keeps a usable width: its row wraps on a phone, and is as it was on a laptop', () => {
+  const card = region(source, '4. Classroom destinations and organization', '</section>', 'the destinations card');
+  const area = card.indexOf('<textarea id="classroom-topic-names"');
+  assert.notEqual(area, -1, 'the topics\' box');
+  const at = source.indexOf(card);
+  const box = enclosing(at + area, 'div');
+  const row = enclosing(box - 1, 'div');
+  assert.match(openingTag(row), /^<div style=\{\{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' \}\}>$/, 'a row that wraps, its button at the box\'s foot as it was');
+  // The box takes what the button leaves, as the column did, and never less than 220px or more than the card: where both
+  // do not fit, the button goes under it.
+  assert.match(openingTag(box), /^<div style=\{\{ flex: '1 1 0', minWidth: 'min\(100%, 220px\)' \}\}>$/);
+  const button = source.slice(closing(box, 'div'), closing(row, 'div'));
+  assert.match(button, /^<\/div>\s*<button style=\{secondary\} disabled=\{busy\} onClick=\{handleCreateTopics\}>Create \/ ensure topics<\/button>\s*$/, 'the same button, beside or under the box, doing what it did');
+  assert.doesNotMatch(card, /gridTemplateColumns: '1fr auto'/, 'no column that leaves the box what a phone has left');
 });
