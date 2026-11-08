@@ -205,7 +205,8 @@ export const MyMathPathWheel = ({
                               onMouseLeave={() => setFocusedTeks(null)}
                               style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', gap: 9, padding: '6px 8px', border: 0, borderRadius: 8, background: focusedTeks === entry.code ? 'var(--mm-primary-soft)' : 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
                             >
-                              <span aria-hidden="true" style={{ flex: '0 0 auto', width: 12, height: 12, borderRadius: 999, background: MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE], border: '1px solid var(--mm-border-strong)' }} />
+                              {/* The wedge's colour, kept under forced colours (theme/forcedColors.css). */}
+                              <span aria-hidden="true" data-mm-swatch="" style={{ flex: '0 0 auto', width: 12, height: 12, borderRadius: 999, background: MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE], border: '1px solid var(--mm-border-strong)' }} />
                               <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{studentLabelForTeks(entry.code)}</span>
                               <span style={{ flex: '0 0 auto', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-muted)', textAlign: 'right' }}>{status}</span>
                             </button>

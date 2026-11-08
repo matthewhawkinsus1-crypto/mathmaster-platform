@@ -51,12 +51,15 @@ export function WeeklyProgressBar({ required, completed, compact = false }) {
         </strong>
         <span style={{ color: complete ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{percent}%</span>
       </div>
+      {/* The track and the fill are named for forced colours, which draw
+          neither of their fills (theme/forcedColors.css). */}
       <div
         role="progressbar"
         aria-valuenow={done}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-label={`${done} of ${total} weekly sessions complete`}
+        data-mm-progress-track=""
         style={{
           height: compact ? 9 : 11,
           borderRadius: 999,
@@ -64,7 +67,7 @@ export function WeeklyProgressBar({ required, completed, compact = false }) {
           overflow: 'hidden',
         }}
       >
-        <div style={{
+        <div data-mm-progress-fill="" style={{
           width: `${percent}%`,
           height: '100%',
           borderRadius: 999,

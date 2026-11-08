@@ -122,6 +122,9 @@ function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
       {[...states].map((character, index) => (
         <span
           key={index}
+          // Its state, for forced colours: there the bar keeps its own colour
+          // and gets an edge (theme/forcedColors.css).
+          data-question-state={character}
           style={{
             flex: 1,
             height: index === questionIndex ? 10 : 6,

@@ -1,0 +1,154 @@
+/*
+ * FORCED COLOURS: WINDOWS' CONTRAST THEMES.
+ *
+ * A student with low vision can turn on a contrast theme on a school laptop
+ * (Windows Settings > Accessibility > Contrast themes). The browser then draws
+ * every page in that theme's few system colours: text in CanvasText, every
+ * background as Canvas, links in LinkText, buttons in ButtonText, and no
+ * box-shadow and no gradient at all. What a screen showed only with a
+ * background, a shadow or a colour is gone there: a filled button is its words
+ * floating on the page, the selected tab looks like the others, a progress bar
+ * is not drawn.
+ *
+ * These rules give back what forced colours take, in the theme's own system
+ * colours, so it reads on a dark contrast theme and a light one alike. Every
+ * rule is inside the media query: nothing changes for anyone else. The sign-in
+ * screen has its own (LoginScreen.css). tests/browser/forcedColorsCertification.mjs
+ * opens the certified student and teacher scenes under forced colours, dark and
+ * light, and fails a Tab stop that draws no focus indicator, a selected or
+ * pressed control that looks like one that is not, and a control that lost its
+ * edge.
+ *
+ * !important: most controls are styled inline (an inline style beats any rule
+ * that is not), and the page's focus ring (index.css) is !important too. A
+ * button's edge is less specific than that ring, so a focused button shows the
+ * ring; the one rule here that must win over it (a selected control's ring
+ * colour) says so.
+ */
+@media (forced-colors: active) {
+  /*
+   * A BUTTON KEEPS ITS EDGE. Most buttons here are drawn by their fill (a blue
+   * Continue, a grey key) with `border: none`, and forced colours paint the
+   * fill as the page's own Canvas, so the button's edge went with it. The
+   * system draws its own buttons with a ButtonText border; these get the same
+   * line as an outline inset by its own width, so nothing moves and a button
+   * that has a border looks as it did. Items in a popup list are not buttons
+   * (the selected one is highlighted, below), nor are the shapes of a drawing,
+   * nor a control that draws its own focus ring (data-focus-ring="own": this
+   * outline would take that ring's place).
+   */
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"]):not(svg, svg *, [data-focus-ring="own"]) {
+    outline: 1px solid ButtonText !important;
+    outline-offset: -1px !important;
+  }
+
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"]):is(:disabled, [aria-disabled="true"]):not(svg, svg *, [data-focus-ring="own"]) {
+    outline-color: GrayText !important;
+  }
+
+  /*
+   * A SELECTED, PRESSED, CHECKED OR CURRENT CONTROL IS HIGHLIGHTED, as the
+   * system shows a selected item: Highlight behind HighlightText. The page you
+   * are on in the navigation, the open tab, the section and question you are
+   * on, a pressed toggle or chip, a chosen answer: each was a tint or a
+   * shadow, which forced colours do not draw.
+   *
+   * forced-color-adjust: none, with system colours only. Under forced colours
+   * Chromium paints a Canvas plate behind every line of text, whatever is
+   * behind it: HighlightText on a Highlight button sat on a black (or white)
+   * plate, invisible. Out of forced adjustment the control is painted with
+   * exactly the colours below, and nothing of its own: its shadow, gradient
+   * and border colour are set here too, and what is inside it takes the
+   * highlight's text colour and lets the highlight through (a badge's own fill
+   * and colours would otherwise come back).
+   */
+  :is(button, a, [role="button"], [role="link"], [role="tab"], [role="option"], [role="radio"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="gridcell"], [role="treeitem"]):is([aria-pressed="true"], [aria-pressed="mixed"], [aria-selected="true"], [aria-checked="true"], [aria-checked="mixed"], [aria-current]:not([aria-current="false"])):not(svg, svg *, input) {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+    outline-color: Highlight !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  :is(button, a, [role="button"], [role="link"], [role="tab"], [role="option"], [role="radio"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="gridcell"], [role="treeitem"]):is([aria-pressed="true"], [aria-pressed="mixed"], [aria-selected="true"], [aria-checked="true"], [aria-checked="mixed"], [aria-current]:not([aria-current="false"])):not(svg, svg *, input) :not(svg, svg *) {
+    color: inherit !important;
+    background: transparent !important;
+    border-color: currentColor !important;
+    outline-color: currentColor !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Its focus ring in the system's colour: out of forced adjustment the page's
+     ring (index.css) would keep the app's own --mm-focus. That ring sets the
+     whole outline at a specificity of (0,5,1); `html body` and the
+     data-focus-ring test make this one (0,5,3), so its colour wins. */
+  html body :is(button, a, [role="button"], [role="link"], [role="tab"], [role="option"], [role="radio"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="gridcell"], [role="treeitem"]):is([aria-pressed="true"], [aria-pressed="mixed"], [aria-selected="true"], [aria-checked="true"], [aria-checked="mixed"], [aria-current]:not([aria-current="false"])):not(svg, svg *, input):not([data-focus-ring="own"]):focus-visible {
+    outline-color: CanvasText !important;
+  }
+
+  /*
+   * A PROGRESS BAR: its track has an edge and the part done is filled with the
+   * highlight. Both were fills (the done part often a gradient), so the bar
+   * was not drawn at all.
+   */
+  :is(.mm-progress, .workflow-focus__rail, [data-mm-progress-track]) {
+    outline: 1px solid CanvasText !important;
+  }
+
+  :is(.mm-progress__fill, .workflow-focus__rail-fill, [data-mm-progress-fill]) {
+    background-color: Highlight !important;
+  }
+
+  /* A bar of steps (a Path session's questions): each step is a box, the
+     ones done are filled, and the one the student is on is empty with a heavier
+     edge drawn around it. Inside a 6px step a heavy edge would fill it, and a
+     filled black step beside the light theme's navy Highlight told them apart
+     by shade only. */
+  [data-mm-progress-step] {
+    outline: 1px solid CanvasText !important;
+    outline-offset: -1px !important;
+  }
+
+  [data-mm-progress-step="done"] {
+    background-color: Highlight !important;
+  }
+
+  [data-mm-progress-step="current"] {
+    outline-width: 2px !important;
+    outline-offset: 1px !important;
+  }
+
+  /*
+   * A TEACHER'S QUESTION STRIP (Live Class, a tile per student): one bar per
+   * question, green right, red wrong, amber tried, grey not yet. The colour is
+   * the meaning, so it keeps its own (forced-color-adjust: none), and each bar
+   * gets a CanvasText edge: grey and amber are faint on a light theme's white,
+   * and every question still shows as a box on both.
+   */
+  [data-question-state] {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+  }
+
+  /*
+   * A COLOUR KEY (My Math Path's mastery wheel: Mastered, Secure, Developing,
+   * Needs Attention, Not Enough Evidence; the two round-done dots). The wheel
+   * is an SVG, whose paint forced colours leave alone, so its wedges keep
+   * their colours; its key's swatches were fills and its dots text colours,
+   * painted as the page, and the key no longer said which colour is which. A
+   * swatch keeps its own colour, with a CanvasText edge, so the pale ones (Not
+   * Enough Evidence's grey, Developing's amber) still show on a light theme.
+   */
+  [data-mm-swatch] {
+    forced-color-adjust: none;
+    border-color: CanvasText !important;
+  }
+
+  /* The balance scale's beam in Step Algebra: a bar drawn by its fill. */
+  .algebra-balance-beam {
+    background-color: CanvasText !important;
+  }
+}

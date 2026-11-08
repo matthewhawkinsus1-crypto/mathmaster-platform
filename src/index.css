@@ -1,5 +1,8 @@
 /* Every color token lives in theme/tokens.css (light, dark, print). */
 @import './theme/tokens.css';
+/* Windows' contrast themes (forced colours): what they would erase, given back
+   in system colours. Inside its media query only. */
+@import './theme/forcedColors.css';
 
 :root {
   /* Vite-starter names some older styles still read; they follow the tokens. */

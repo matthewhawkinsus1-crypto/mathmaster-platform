@@ -267,6 +267,9 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
         {Array.from({ length: total }, (unused, index) => (
           <span
             key={index}
+            // Done, the one being worked, or to come: forced colours draw none
+            // of the three fills, so each step says which it is (theme/forcedColors.css).
+            data-mm-progress-step={index < done ? 'done' : index === done ? 'current' : 'todo'}
             style={{
               flex: 1,
               height: 6,
