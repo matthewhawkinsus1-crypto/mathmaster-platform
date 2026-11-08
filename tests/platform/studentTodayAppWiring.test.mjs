@@ -33,6 +33,13 @@ test('the dashboard model receives the student, their Recovery states and the te
   assert.match(call, /recoveryStateByAssignment:\s*recoveryStatesFromSummaries\(studentRecoverySummariesByAssignment\)/);
   assert.match(call, /\bgetSectionAccessState,/);
   assert.match(app, /import\s*\{[^}]*\bgetSectionAccessState\b/);
+  // "Finished" counts a family slot on the question it dealt, from what this
+  // page knows: the same counting Start hands questionIsTerminal (P-7).
+  assert.match(region(app, 'buildStudentDashboardModel({', '\n    });', 'the dashboard model call'), /\n\s*terminalCounting: terminalCountingFor,\n/);
+  const counting = region(app, 'const terminalCountingFor = ', '\n  });', 'terminalCountingFor');
+  assert.match(counting, /=> \(\{\s*questionIndex,\s*shown: familyDeliveriesRef\.current,\s*deal: dealFor\(assignment, questionIndex, record\),\s*$/);
+  // The same deal every count in the question list reads.
+  assert.match(region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /\bdeal: dealFor\(assignment, questionIndex, record\),/);
 });
 
 test('Start/Continue lands on the first unfinished open question, and never on a dead end', () => {
@@ -44,6 +51,9 @@ test('Start/Continue lands on the first unfinished open question, and never on a
   assert.match(start, /const keepRequested = Boolean\(options\?\.returnToResult\)\s*\|\| Boolean\(options\?\.keepRequestedQuestion && roleIsActionable\(requestedRole\)\);/);
   // The same "finished" as Home: questionIsTerminal (extra DOL tries reopen).
   assert.match(entry, /: \(index\) => questionIsTerminal\(\{\s*record: tracker\?\.\[assignmentId\]\?\.\[index\]/);
+  // Counted, as Home counts it, on the question a family slot dealt (P-7).
+  const finished = region(entry, ': (index) => questionIsTerminal({', '}),', 'the finished test');
+  assert.match(finished, /\.\.\.terminalCountingFor\(assignmentData, index, tracker\?\.\[assignmentId\]\?\.\[index\]\),\s*$/);
   // With nothing open for a whole-assignment start, the student is taken to
   // the result page (what opens when), not left on a toast.
   assert.match(entry, /if \(actionableIndex === null && user\?\.role === 'student' && !scopedSectionKey\) \{\s*openStudentAssignmentResult\(assignmentId/);

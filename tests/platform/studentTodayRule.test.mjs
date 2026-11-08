@@ -411,6 +411,60 @@ test('a teacher-granted extra DOL try reopens an expired DOL: not finished, stil
   });
 });
 
+// P-7: "finished" counts a Question Family slot's tries on the question it
+// dealt, as the question list counts them (shownFamilyQuestion.js
+// countedQuestion). An exit ticket gives every question one try, so the answer
+// is the same on the stored slot; these hold that it reads the dealt question,
+// so the two cannot drift apart.
+const TICKET_FAMILY_SLOT = { questionId: 'ticket-family', activityRole: 'dol', prompt: 'Words to symbols.', questionFamily: { id: 'inequalities.translatePhrase' } };
+const ticketWithFamily = (dol = { enabled: true }) => dolOnly('ticket', { sections: [{ id: 'dol', role: 'dol', questions: [TICKET_FAMILY_SLOT] }], dol });
+
+test('P-7: finished counts an exit ticket\'s family slot on the question it dealt, as the list does', async () => {
+  const { questionIsTerminal } = await import('../../src/platform/student/studentWorkState.js');
+  const { resolveFamilyPreviewInstance } = await import('../../functions/shared/questionFamilyInstance.mjs');
+  const { isChoiceOnlyQuestion } = await import('../../src/attemptPolicy.js');
+  const { shownDeliveryKey } = await import('../../src/platform/generation/shownFamilyQuestion.js');
+  const dealt = resolveFamilyPreviewInstance(TICKET_FAMILY_SLOT).question;
+  assert.equal(isChoiceOnlyQuestion(dealt), true, 'dealt as four choices');
+  // One try, and one more the teacher granted.
+  const assignment = ticketWithFamily({ enabled: true, attemptGrantsByClassId: { 'class-1': { extraAttempts: 1 } } });
+  const used = (count) => ({ status: 'expired', attemptCount: count, totalAttempts: count });
+  const asked = [];
+  const deal = (slot) => { asked.push(slot); return dealt; };
+  const terminal = (record, counting = {}) => questionIsTerminal({
+    record, role: 'dol', question: TICKET_FAMILY_SLOT, assignment, classId: 'class-1', studentId: 's1', questionIndex: 0, ...counting,
+  });
+  assert.equal(terminal(used(1), { deal }), false, 'the extra try is still there');
+  assert.equal(terminal(used(2), { deal }), true);
+  // It asked what the slot dealt, for its variant.
+  assert.deepEqual(asked.map(({ slot, variant, questionIndex }) => [slot, variant, questionIndex]), [['ticket|ticket-family', 0, 0], ['ticket|ticket-family', 0, 0]]);
+  // What the page showed answers first, as in the list.
+  asked.length = 0;
+  const shown = new Map([[shownDeliveryKey({ slot: 'ticket|ticket-family', variant: 0 }), { question: dealt }]]);
+  assert.equal(terminal(used(1), { shown, deal }), false);
+  assert.equal(asked.length, 0, 'nothing to rebuild');
+  // No visible change: counted on the stored slot it answers the same.
+  for (const count of [1, 2]) assert.equal(terminal(used(count)), terminal(used(count), { deal }), `${count} used`);
+  // Only an exit ticket counts at all: another section's expired question is finished.
+  assert.equal(questionIsTerminal({ record: used(1), role: 'warmup', question: TICKET_FAMILY_SLOT, assignment, questionIndex: 0, deal }), true);
+});
+
+test('P-7: Home\'s "finished" counts through the page\'s provider when it has one', () => {
+  const record = { status: 'expired', attemptCount: 1, totalAttempts: 1 };
+  const calls = [];
+  const asked = [];
+  const terminalCounting = (assignment, questionIndex, given) => {
+    calls.push([assignment.id, questionIndex, given]);
+    return { questionIndex, shown: null, deal: (slot) => { asked.push(slot.slot); return null; } };
+  };
+  const dashboard = model({ assignments: [ticketWithFamily()], tracker: { ticket: { 0: record } }, studentId: 's1', providers: { ...PROVIDERS, terminalCounting } });
+  assert.equal(entryOf(dashboard, 'ticket').finished, true, 'its one try is used');
+  assert.ok(calls.some(([id, index, given]) => id === 'ticket' && index === 0 && given === record), JSON.stringify(calls));
+  assert.ok(asked.includes('ticket|ticket-family'), 'and the slot\'s deal was asked');
+  // Without one (the Path Simulator's providers), the stored slot, as before.
+  assert.equal(entryOf(model({ assignments: [ticketWithFamily()], tracker: { ticket: { 0: record } }, studentId: 's1' }), 'ticket').finished, true);
+});
+
 test('a locked Recovery keeps the lesson unfinished and points the next action at the unlock path', () => {
   const lesson = bundle('rec', { dueAt: inHours(-2) });
   const tracker = { rec: { 0: { status: 'correct', totalAttempts: 1 }, 1: { status: 'correct', totalAttempts: 1 }, 2: { status: 'correct', totalAttempts: 1 } } };

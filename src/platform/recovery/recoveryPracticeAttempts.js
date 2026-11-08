@@ -17,6 +17,33 @@
  *
  * Display only. Nothing here grades or reaches the server.
  */
+import { resolveQuestionMaximumAttempts } from '../../attemptPolicy.js';
+
 export const RECOVERY_PRACTICE_ANSWERS = 1;
 
 export const RECOVERY_PRACTICE_ONE_ANSWER = 'One answer per practice question.';
+
+/*
+ * THE LIMIT A RECOVERY ITEM'S STEPS ARE COUNTED UNDER, ON THE QUESTION DEALT
+ * (P-7).
+ *
+ * Every Recovery question is an instance of a Question Family slot, named by
+ * its pin, and the server marks the instance the pin names. Its tries are
+ * counted on that question too, as the assignment counts a family slot's: the
+ * stored slot has no answer fields, so a four-choice instance counted on it had
+ * a constructed answer's three tries. QuestionEngine reports the instance as it
+ * renders it (SectionRecoveryRunner `onRendered`); before that nothing can be
+ * graded, and the stored slot stands in.
+ *
+ * Nothing a student sees changes today: no step spends a try (decision D1),
+ * so this limit never closes an item, and an exit ticket's one try is one on
+ * any question.
+ *
+ *   dealt           the question the item's pin dealt, once rendered
+ *   stored          the stored slot (entry.questionsByIndex)
+ *   activityPolicy  the policy the item runs under
+ */
+export const recoveryAttemptLimit = ({ dealt = null, stored = null, activityPolicy = null } = {}) => resolveQuestionMaximumAttempts({
+  question: dealt || stored || {},
+  activityPolicy,
+});

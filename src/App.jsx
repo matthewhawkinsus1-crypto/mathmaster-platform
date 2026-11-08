@@ -6369,6 +6369,8 @@ function App() {
             assignment: assignmentData,
             classId: user.classId || null,
             studentId: user.id,
+            // Its tries counted on the question it dealt, as the list counts them.
+            ...terminalCountingFor(assignmentData, index, tracker?.[assignmentId]?.[index]),
           }),
       });
       if (actionableIndex === null && options?.returnToResult) {
@@ -7333,6 +7335,17 @@ function App() {
   const countedQuestionKnownFor = (assignment, questionIndex, record, preview = false) => countedQuestionKnown(
     triesCountingFor(assignment, questionIndex, record, preview),
   );
+  // What questionIsTerminal needs to count a family slot as the list does:
+  // where it is stored, what this page has shown and the engine's deal
+  // (platform/student/studentWorkState.js). Start/Continue and Home's Today
+  // rule both read it, so they keep answering "finished?" the same way. Home
+  // asks for every question it lists, so nothing here is worked out until a
+  // count needs it.
+  const terminalCountingFor = (assignment, questionIndex, record) => ({
+    questionIndex,
+    shown: familyDeliveriesRef.current,
+    deal: dealFor(assignment, questionIndex, record),
+  });
 
   /** The pin (and rendered question) for a family-backed slot, or null. */
   const familyDeliveryForQuestion = (assignment, questionIndex, record) => {
@@ -12008,6 +12021,8 @@ function App() {
         assignmentHasHeldTeacherFeedback,
         // Same wrap as getAssignmentLifecycle above, and for the same reason.
         matchesSmartView: (assignment, viewId, options) => matchesSmartView(assignment, viewId, { ...options, studentId: user.id }),
+        // "Finished" counts a family slot on the question it dealt, as Start does.
+        terminalCounting: terminalCountingFor,
       },
     });
   }

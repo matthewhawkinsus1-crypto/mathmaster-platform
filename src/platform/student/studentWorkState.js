@@ -5,6 +5,7 @@ import {
   resolveTeacherGrantedExtraAttempts,
 } from '../../attemptPolicy.js';
 import { getEffectiveActivityPolicy } from '../policies/activityPolicies.js';
+import { countedQuestion } from '../generation/shownFamilyQuestion.js';
 
 /*
  * TWO QUESTIONS THE "TODAY" RULE AND ASSIGNMENT ENTRY MUST ANSWER THE SAME WAY.
@@ -36,6 +37,14 @@ export const timedSectionWorkableNow = (windowState) => (
  * attempts after the student used theirs, and the attempt policy then reopens
  * the question ("1 try left"). A DOL question is terminal only when it is
  * correct or no try remains under the same maximum the workspace enforces.
+ *
+ * That maximum is counted on the question the student was dealt, as the
+ * question list counts it (P-7): for a Question Family slot, the question it
+ * dealt, which `countedQuestion` finds from what the caller knows — the
+ * questions shown on its page (`shown`) and the family engine's rebuild of the
+ * slot's pin (`deal`), as App hands them (terminalCountingFor). A caller with neither
+ * counts on the stored slot, as before. An exit ticket gives one try to every
+ * question, so today the answer is the same either way.
  */
 export const questionIsTerminal = ({
   record,
@@ -44,6 +53,10 @@ export const questionIsTerminal = ({
   assignment = null,
   classId = null,
   studentId = null,
+  // Where the slot is stored, and what the caller knows of what it dealt.
+  questionIndex = 0,
+  shown = null,
+  deal = null,
 } = {}) => {
   const normalized = normalizeQuestionRecord(record);
   if (normalized.status === 'correct') return true;
@@ -51,7 +64,15 @@ export const questionIsTerminal = ({
   if (String(role || '').trim().toLowerCase() !== 'dol' || !assignment) return true;
   const activityPolicy = getEffectiveActivityPolicy('dol');
   const maximum = resolveQuestionMaximumAttempts({
-    question: question || {},
+    question: countedQuestion({
+      shown,
+      deal,
+      assignmentId: assignment.id || '',
+      storedQuestion: question,
+      questionIndex,
+      record,
+      fallback: question || {},
+    }),
     maximumAttempts: activityPolicy?.attempts,
     activityPolicy,
     teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
