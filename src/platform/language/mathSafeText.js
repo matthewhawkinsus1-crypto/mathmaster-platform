@@ -129,6 +129,11 @@ const groupIsMath = (inner, operator = OPERATOR, { products = false, power = fal
     if (kind === 'word') {
       if (NAMED_FUNCTIONS.has(token.toLowerCase())) { sawMath = true; continue; }
       if (productsHere && /^[a-z]{2}$/.test(token) && !NOT_TWO_VARIABLES.has(token)) { sawMath = true; continue; }
+      // Read aloud: single letters joined by a hyphen in a bracket are a
+      // difference, "(x-h)", "(a-b)", "(x-r1)", never one hyphenated word
+      // (display and reading polish; the Path banks write vertex and factored
+      // forms so). Outside a bracket "x-y plane" keeps its hyphen.
+      if (products && /^[A-Za-z](?:-[A-Za-z])+$/.test(token)) { sawMath = true; continue; }
       return false;
     }
     if (kind === 'math' || '()[]'.includes(token)) sawMath = true;
@@ -277,7 +282,9 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
         const close = matchingClose(chunk, index);
         // Read aloud: a bracket pressed against a letter is its argument or a
         // factor, as a power's bracket is: "f(bx)" was "f (bx)" (math-speech-4).
-        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator, { products: speech, power: chunk[index - 1] === '^' || /[A-Za-z]/.test(chunk[index - 1] || '') })) {
+        // So is a denominator's: "b⁴/(ac)" and "V/(lw)" were "b to the power
+        // 4 / (ac)" (display and reading polish).
+        if (close > index && groupIsMath(chunk.slice(index + 1, close), operator, { products: speech, power: chunk[index - 1] === '^' || chunk[index - 1] === '/' || /[A-Za-z]/.test(chunk[index - 1] || '') })) {
           atoms.push({ kind: 'math', value: chunk.slice(index, close + 1) });
           index = close + 1;
           continue;
@@ -350,7 +357,10 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
     const before = nearest(index, -1);
     const after = nearest(index, 1);
     return (isProductOperator(atoms[before]) && !isWordAtom(atoms[after]))
-      || (isProductOperator(atoms[after]) && !isSign(after) && !isWordAtom(atoms[before]));
+      || (isProductOperator(atoms[after]) && !isSign(after) && !isWordAtom(atoms[before]))
+      // A numerator too: "x√(xy)/y⁴", whose "xy" was a word, and its slash
+      // was left to the voice (display and reading polish).
+      || (atoms[after]?.value === '/' && !isWordAtom(atoms[nearest(after, 1)]));
   };
   atoms.forEach((atom, index) => {
     if (atom.kind !== 'raw') return;

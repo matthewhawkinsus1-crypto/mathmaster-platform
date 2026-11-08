@@ -206,8 +206,10 @@ const STARTS_STATEMENT = /(?:^|[\s,;:.([{$])$/;
 const AFTER_OPERATOR = /[=<>≤≥≠+\-−×·*/÷^]\s*$/;
 
 // A letter whose inverse is applied is a function too: "E⁻¹(x)", "E(E⁻¹(x))"
-// (math-speech-3: "E inverse the quantity x", "E ( E inverse …").
-const INVERSE_APPLIED = /(?<![A-Za-z\\])([A-Za-z])\s*(?:⁻¹|\^\{\s*-1\s*\}|\^\(\s*-1\s*\))\s*\(/g;
+// (math-speech-3: "E inverse the quantity x", "E ( E inverse …"), and so with
+// a bare caret, "f^-1(x)", the Path banks' and the demo's spelling (display
+// and reading polish: "f inverse times x").
+const INVERSE_APPLIED = /(?<![A-Za-z\\])([A-Za-z])\s*(?:⁻¹|\^\{\s*-1\s*\}|\^\(\s*-1\s*\)|\^\s*[-−]1(?![0-9./]))\s*\(/g;
 
 // A letter written applied to one other letter names a function of it, as
 // "W(t)", "Q(x)" and "Look back at a(x), b(x), c(x), and d(x)" do (no lesson
@@ -419,7 +421,7 @@ const closingBracket = (text, open) => {
  * written, for the products below.
  */
 const readApplications = (text, letters, named, w) => {
-  const head = new RegExp(`(?<![A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\))?\\(`, 'g');
+  const head = new RegExp(`(?<![A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\)|\\^\\s*[-−]1(?![0-9./]))?\\(`, 'g');
   let out = '';
   let from = 0;
   for (const match of text.matchAll(head)) {
@@ -484,6 +486,16 @@ const rewriteCommand = (text, pattern, arity, speak) => {
   }
   return out + text.slice(cursor);
 };
+
+// A LaTeX root after its coefficient multiplies it, as 5∛2 does (5 times the
+// cube root of 2): "3\sqrt{12}" was "3 the square root of 12" (display and
+// reading polish). A command before it is not a coefficient: \pm\sqrt{…}.
+const LATEX_COEFFICIENT = /[A-Za-z0-9)}]$/;
+const rewriteRoot = (text, pattern, w, speak) => rewriteCommand(text, pattern, 1, (body, match) => {
+  const before = text.slice(0, match.index);
+  const times = LATEX_COEFFICIENT.test(before) && !/\\[A-Za-z]+$/.test(before) ? ` ${w.times}` : '';
+  return `${times}${speak(body, match)}`;
+});
 
 // A fraction part that is more than one number or letter needs its edges said
 // aloud: "x² + 1 over 3" could be x² + (1/3).
@@ -575,9 +587,12 @@ const latexToSpeech = (raw, w) => {
     text = rewriteCommand(text, String.raw`\\[dt]?frac(?![A-Za-z])\s*`, 2, (top, bottom) => (isSimplePart(top) && isSimplePart(bottom)
       ? ` ${top} ${w.over} ${bottom} `
       : ` ${w.fraction} ${top} ${w.over} ${bottom} ${w.endFraction} `));
-    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*3\s*\]\s*`, 1, (body) => ` ${w.cubeRoot} ${body} `);
-    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*([^\]]+)\]\s*`, 1, (body, match) => ` ${w.root(match[1])} ${body} `);
-    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*`, 1, (body) => (isSimplePart(body)
+    // A root after its coefficient multiplies it, "3\sqrt{12}" as 3√12 is
+    // "3 times the square root of 12"; it was "3 the square root of 12"
+    // (display and reading polish). A command before it is not one: \pm\sqrt.
+    text = rewriteRoot(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*3\s*\]\s*`, w, (body) => ` ${w.cubeRoot} ${body} `);
+    text = rewriteRoot(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*([^\]]+)\]\s*`, w, (body, match) => ` ${w.root(match[1])} ${body} `);
+    text = rewriteRoot(text, String.raw`\\sqrt(?![A-Za-z])\s*`, w, (body) => (isSimplePart(body)
       ? ` ${w.squareRoot} ${body} `
       : ` ${w.squareRoot} ${body} ${w.endRoot} `));
   }
@@ -760,6 +775,21 @@ const isWholeAside = (value) => {
   return asideSpans(text).some(([start, end]) => start === 0 && end === text.length - 1);
 };
 
+// A denominator: one number, one word, or one bracket, which may hold two
+// levels of brackets ("((x-(3))*(x-(3)))").
+const FRACTION_SLASH = /([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*)(\d+(?:\.\d+)?|[A-Za-z]+|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))/g;
+const fractionSlashes = (text, w) => {
+  let out = text;
+  // Each pass reads the slashes the one before left inside a denominator.
+  for (let pass = 0; pass < 4; pass += 1) {
+    const next = out.replace(FRACTION_SLASH, (match, numerator, sign, denominator) => (
+      ` ${numerator} ${w.over} ${sign}${/^[A-Za-z]+$/.test(denominator) && !readsAsWord(denominator, w) ? denominator.split('').join(' ') : denominator} `
+    ));
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+};
 const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {}) => {
   let text = relationAsidesAsPauses(` ${vulgarFractionsToWords(raw, w)} `);
   const letters = functionLettersFor(functionNames);
@@ -878,9 +908,11 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     // (rise/run, miles/hour). Anything else is a product of variables, said
     // letter by letter: "V/lw" is "V over l w", "dy/dx" "dy over d x"
     // (review SF2).
-    .replace(/([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*)(\d+(?:\.\d+)?|[A-Za-z]+|\([^()]*\))/g, (match, numerator, sign, denominator) => (
-      ` ${numerator} ${w.over} ${sign}${/^[A-Za-z]+$/.test(denominator) && !readsAsWord(denominator, w) ? denominator.split('').join(' ') : denominator} `
-    ))
+    // A fraction inside a bracket the rule has read is read too, and a
+    // bracket may hold brackets (display and reading polish): "2/(y + 1/2)"
+    // was "2 over the quantity y plus 1/2", and "3/(x-(3))" "3/ the quantity
+    // x minus 3", the slash handed to the voice.
+    .replace(/[\s\S]*/, (whole) => fractionSlashes(whole, w))
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')
@@ -1177,12 +1209,24 @@ const slashSaid = (before, after, numberBefore, w) => {
   const word = (side) => side.replace(/['’-]/g, '').length >= 3 || NOT_TWO_VARIABLES.has(side.toLowerCase()) || /^\p{Lu}{2}$/u.test(side);
   return before.replace(/['’-]/g, '').length >= 2 && after.replace(/['’-]/g, '').length >= 2 && word(before) && word(after) ? ` ${w.slash.or} ` : null;
 };
+/*
+ * A number or one letter over a word that names a quantity is a fraction
+ * (display and reading polish): the Path banks' "1/base" and "a/base", and
+ * "the ratio I/reference", were "1/ base", the split taking the word for
+ * prose and leaving the slash to the voice. So is a slash before a blank:
+ * "x^(−2/3) = 1 / ?" was "1 /?". Another word after a number keeps its
+ * slash: "right 1/up 1" is two moves.
+ */
+const QUANTITY_WORDS = new Set([...RATIO_PARTS, 'base', 'reference', 'referencia']);
+const OPERAND_BEFORE = /(?:^|[\s(=+\-−×·*√∛∜])(?:\d+(?:\.\d+)?|\p{L})$/u;
+const BLANK_AFTER = /^(?:_{3,}|[([]\s*\?\s*[)\]])/;
 const slashesBetweenWords = (text, w) => {
-  const rewrite = (plain) => plain.replace(/\s*\/\s*/g, (slash, offset, whole) => {
+  const rewrite = (plain) => plain.replace(/(\/\s*)\?(?=\s*(?:[.,;:)\]]|$))/g, '$1___').replace(/\s*\/\s*/g, (slash, offset, whole) => {
     const head = whole.slice(0, offset);
     const tail = whole.slice(offset + slash.length);
     const before = WORD_RUN.exec(head)?.[0] || '';
     const after = /^[\p{L}'’-]+/u.exec(tail)?.[0] || '';
+    if (OPERAND_BEFORE.test(head) && (QUANTITY_WORDS.has(after.toLowerCase()) || BLANK_AFTER.test(tail))) return ` ${w.over} `;
     if (!/^\p{L}/u.test(before) || !/^\p{L}/u.test(after)) return slash;
     // The whole run of characters around the slash: a web address or a path.
     const run = `${/\S*$/.exec(head)[0]}${slash.trim() ? slash : '/'}${/^\S*/.exec(tail)[0]}`;
@@ -1220,12 +1264,15 @@ const ROOT_COEFFICIENT = new RegExp(`[A-Za-z0-9)⁾${EXPONENT_CHARACTERS}]$`);
  * 9y", "root 7 times a"). Each is read as the radical it is, by the same rules
  * as ∛ and ⁷√: "2 times the cube root of 9y", "the 7th root of a". A letter
  * before one is a factor ("2xcbrt(3)"); never the tail of a word ("cuberoot").
+ * The Path banks' "sqrt(" is read here too, so its radicand may hold a
+ * bracket: "sqrt(x-(3))" was "sqrt times the quantity x minus 3", and "3sqrt(3)"
+ * "3sqrt times 3".
  */
-const TYPED_ROOT = /^(?:cbrt|root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/;
+const TYPED_ROOT = /^(?:cbrt|(sqrt)|root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/;
 const typedRootAt = (text, index) => {
   if (text[index - 1] === '\\') return null;
   const found = TYPED_ROOT.exec(text.slice(index));
-  return found && !found[0].startsWith('cbrt') && /[A-Za-z]{2}$/.test(text.slice(0, index)) ? null : found;
+  return found && found[0].startsWith('root') && /[A-Za-z]{2}$/.test(text.slice(0, index)) ? null : found;
 };
 // Its radicand's powers are the drawing's, "p^2" as p²: "the cube root of p
 // squared", as for ∛(p²), not "of the quantity p squared".
@@ -1241,7 +1288,7 @@ const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
   const text = String(raw ?? '').replace(/\^\s*\(\s*(…|\.\.\.)\s*\)/g, ` ${w.power} $1`)
     .replace(/\^\s*\?/g, ` ${w.power} ${w.blank}`)
     .replace(SUPERSCRIPT_ORDINAL, (match, digit, suffix) => `${digit}${fromSuperscript(suffix)}`);
-  if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]|cbrt|root\\(`).test(text)) return text;
+  if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]|cbrt|sqrt|root\\(`).test(text)) return text;
   let out = '';
   for (let index = 0; index < text.length;) {
     // A superscript straight after its base is a power, as it is drawn, so
@@ -1252,7 +1299,7 @@ const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
     const typed = indexRun ? null : typedRootAt(text, index);
     const symbol = indexRun || typed ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
     if (indexRun || typed || symbol) {
-      const order = indexRun ? fromSuperscript(indexRun[1]) : typed ? typed[1] ?? '3' : symbol;
+      const order = indexRun ? fromSuperscript(indexRun[1]) : typed ? (typed[1] ? '2' : typed[2] ?? '3') : symbol;
       const argument = rootArgument(text, index + (indexRun || typed ? (indexRun || typed)[0].length : 1));
       if (argument) {
         const words = order === '2' ? w.squareRoot : order === '3' ? w.cubeRoot : w.root(order);
@@ -1707,9 +1754,76 @@ const emptyBracketsNamed = (text, w) => text
   .replace(/\(\s*\)/g, ` ${w.parentheses} `)
   .replace(/\[\s*\]/g, ` ${w.squareBrackets} `);
 
+/*
+ * LATEX WRITTEN WITHOUT ITS DELIMITERS (display and reading polish). A braced
+ * power or subscript, or a LaTeX root, outside a $…$ span was split at its
+ * braces, which the split takes for prose, and the voice was handed them:
+ * "g^{-1}(x)" was "g to the power { negative 1 } x", and the Path banks'
+ * "x^3*\sqrt[3]{x^3}" "x cubed times 3 { x cubed }". The run of mathematics
+ * around one, braces balanced and without the sentence's own punctuation, is
+ * read as the span it is written as: "g inverse of x", "the cube root of x
+ * cubed". A brace no power, subscript or root opens is left alone ("sets as
+ * {value, value}").
+ */
+const UNDELIMITED_LATEX = /[\^_]\{|\\sqrt(?![A-Za-z])/g;
+const closingCurly = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '{') depth += 1;
+    else if (text[index] === '}' && (depth -= 1) === 0) return index;
+  }
+  return -1;
+};
+const latexRunsAsSpans = (plain) => {
+  const runs = [];
+  for (const match of plain.matchAll(UNDELIMITED_LATEX)) {
+    if (runs.length && match.index < runs[runs.length - 1][1]) continue;
+    let start = match.index;
+    while (start > 0 && /\S/.test(plain[start - 1])) start -= 1;
+    let end = match.index + match[0].length - (match[0].endsWith('{') ? 1 : 0);
+    // Through each group the run opens (a root's index too), then to the end of the word.
+    for (;;) {
+      while (end < plain.length && /[^\s{]/.test(plain[end])) end += 1;
+      if (plain[end] !== '{') break;
+      const close = closingCurly(plain, end);
+      if (close === -1) return plain;
+      end = close + 1;
+    }
+    while (end > start && /[.,;:!?]/.test(plain[end - 1])) end -= 1;
+    runs.push([start, end]);
+  }
+  let out = '';
+  let from = 0;
+  runs.forEach(([start, end]) => {
+    out += `${plain.slice(from, start)}$${plain.slice(start, end)}$`;
+    from = end;
+  });
+  return out + plain.slice(from);
+};
+/*
+ * A ROW OF NUMBERS WRITTEN WITH SPACES (display and reading polish): a
+ * synthetic division's coefficients, "1 | 1 −2 −5 6 gives 1 −1 −6 | 0". Its
+ * signs were read as subtractions, "1 minus 2 minus 5 6". Three numbers or more
+ * with only spaces between them, one with its sign pressed against it, are a
+ * list: "1, negative 2, negative 5, 6". A minus with a space on both sides is
+ * still a subtraction ("x² − x − 6").
+ */
+const NUMBER_ROW = /(?<![\p{L}\p{N}.,^_/])[-−]?\d+(?:\.\d+)?(?:[ \t]+[-−]?\d+(?:\.\d+)?){2,}(?![\p{L}\p{N}.,^/])/gu;
+const numberRowsAsLists = (plain) => plain.replace(NUMBER_ROW, (row) => (/[ \t][-−]\d/.test(row) ? row.replace(/[ \t]+/g, ', ') : row));
+const outsideSpans = (text, rewrite) => {
+  let out = '';
+  let from = 0;
+  for (const span of text.matchAll(LATEX_SPAN)) {
+    out += rewrite(text.slice(from, span.index)) + span[0];
+    from = span.index + span[0].length;
+  }
+  return out + rewrite(text.slice(from));
+};
+const undelimitedLatexAsSpans = (text) => outsideSpans(text, (plain) => numberRowsAsLists(/[\^_]\{|\\sqrt/.test(plain) ? latexRunsAsSpans(plain) : plain));
+
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
-  const text = spokenLineForms(writtenNotationToSpokenForm(lineBreaksAsPauses(raw), w, { mark: true }), w);
+  const text = spokenLineForms(writtenNotationToSpokenForm(undelimitedLatexAsSpans(lineBreaksAsPauses(raw)), w, { mark: true }), w);
   if (!text.trim()) return '';
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
