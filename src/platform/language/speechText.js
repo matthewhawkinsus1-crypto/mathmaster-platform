@@ -89,6 +89,8 @@ const WORDS = {
     // A list that goes on ("0, 1, 2, and so on, 48"), and brackets named in a
     // sentence ("write intervals with parentheses or square brackets").
     andSoOn: 'and so on', parentheses: 'parentheses', squareBrackets: 'square brackets',
+    // "p | 4": p divides 4 (the rational root theorem's candidates).
+    divides: 'divides',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
@@ -159,6 +161,7 @@ const WORDS = {
     // on, "0, 1, 2, y así sucesivamente, 48"; brackets named in a sentence.
     slash: { or: 'o', per: 'por' },
     andSoOn: 'y así sucesivamente', parentheses: 'paréntesis', squareBrackets: 'corchetes',
+    divides: 'divide a',
   },
 };
 
@@ -798,6 +801,13 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
         : /^\s*(?:[+\-−*/·×÷^√∛∜(|]|[\p{L}\p{N}])/u.test(whole.slice(offset + match.length));
       return ` ${coefficient ? `${w.times} ` : ''}${w.abs} ${body} ${ends ? `${w.endAbs} ` : ''}`;
     })
+    // A bar that pairs with none (math-speech-4, item 4) was handed to the
+    // voice: "p | 4" is "p divides 4" (the rational root theorem), and the bar
+    // of an augmented row or a synthetic division, "[3, −2, −4 | −4]" and
+    // "1, −2, −3 | 0", is "bar" between pauses; its "−4" is negative 4, not
+    // "minus 4".
+    .replace(/(^|\s)([A-Za-z])\s+\|\s+(\d+|[A-Za-z])(?=\s|$)/g, `$1$2 ${w.divides} $3`)
+    .replace(/\s*\|\s*/g, (bar, offset, whole) => `${whole.slice(0, offset).trim() ? ', ' : ' '}${w.bar}${whole.slice(offset + bar.length).trim() ? ', ' : ' '}`)
     // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
     // applied — "f plus g of x", never "the quantity f plus g times x". Two
     // function names side by side, (fg)(x), are their product (AX20): "f
@@ -854,6 +864,10 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     .replace(/÷/g, ` ${w.divided} `)
     .replace(/(\d)\s*%/g, `$1 ${w.percent}`)
     .replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (match, amount) => priceSpeech(amount, w))
+    // A price written with a letter, "$\$m$ a month" (the ASVAB bank), is m
+    // dollars; it was "$m" (math-speech-4, item 4). Only a price's "$" is left
+    // here: latexToSpeech took out every delimiter.
+    .replace(/\$([A-Za-z])(?![A-Za-z])/g, (match, letter) => `${letter} ${w.dollars}`)
     // a/b — a fraction, read "a over b". The denominator is one number, one
     // word or one bracket, so "-2/3x" is "negative 2 over 3 x". It may carry
     // its own sign: a divided term "-10 / -2" is "negative 10 over negative 2"
@@ -1070,7 +1084,7 @@ const markedNames = (text, w, mark) => {
 // A blank to fill in, "4(x − 2) + 3 = 4x + ___" (Algebra I M3 T1 L1 PR 11,
 // walkthrough 2026-11-06), reached the voice as underscores. It is "blank",
 // a word, so "___x + 1" is "blank x plus 1" (math-speech-3).
-const blanksToWords = (text, w) => text.replace(/_{3,}/g, ` ${w.blank} `);
+const blanksToWords = (text, w) => text.replace(/_{3,}(?=([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ])?)/g, (match, power) => (power ? ` ${w.blank}` : ` ${w.blank} `));
 
 /*
  * AN ELLIPSIS THAT STANDS FOR A BLANK IS "BLANK" (math-speech-4). The Radicals
@@ -1080,13 +1094,26 @@ const blanksToWords = (text, w) => text.replace(/_{3,}/g, ` ${w.blank} `);
  * or between a sign and more mathematics, it is a blank, said as "___" is; a
  * factor before the bracket multiplies it ("a times blank"). An ellipsis that
  * ends a sentence is heard as its stop, and one in a list goes on
- * (ellipsesInWords).
+ * (ellipsesInWords). A "?" in a bracket of its own is the same blank: "3x³ =
+ * ( ? )²" and "243(x + 2)¹⁵ = [ ? ]⁵" (the Radicals lessons) were "equals
+ * question mark squared" or nothing (math-speech-4, item 4).
  */
-const BRACKETED_ELLIPSIS = /([\p{L}\p{N})\]])?[([]\s*(?:…|\.{3})\s*[)\]]/gu;
+const BRACKETED_ELLIPSIS = /([\p{L}\p{N})\]])?[([]\s*(?:…|\.{3}|\?)\s*[)\]]/gu;
 const OPERAND_ELLIPSIS = /((?:[=<>≤≥≠+\-−×·÷√∛∜]|\bwith|\bcon)\s*)(?:…|\.{3})(?=\s*(?:[,;)=<>≤≥≠]|(?:with|con)\b))/gu;
 const ellipsisBlanks = (text) => text
   .replace(BRACKETED_ELLIPSIS, (match, factor) => (factor ? `${factor}·___` : '___'))
   .replace(OPERAND_ELLIPSIS, '$1___');
+
+/*
+ * AN ESCAPED PERCENT SIGN IS "PERCENT" (math-speech-4, item 4). The grade 6
+ * bank writes "\%" outside LaTeX ("A benchmark share of 3\% participates") and
+ * in a span it never closes ("${{p}}\%", two answer summaries): the voice was
+ * handed "3 \%" and "3 dollars \%". It is a percent sign, and a "$" that opens
+ * its number, with no "$" after it, is LaTeX's, not a price's.
+ */
+const escapedPercents = (text) => (text.includes('\\%') ? text
+  .replace(/\$(?=\s*\d[\d,]*(?:\.\d+)?\s*\\%)(?![^$\n]*\$)/g, '')
+  .replace(/\\%/g, '%') : text);
 
 // "!=" typed for ≠, as the bank's set-builder examples write it ("{x|x!=3}"):
 // in prose the segmenter split the "!" off, and it was read "x! equals 3".
@@ -1189,9 +1216,10 @@ const ROOT_COEFFICIENT = new RegExp(`[A-Za-z0-9)⁾${EXPONENT_CHARACTERS}]$`);
 const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
   // A blank power, 2^(…), is "2 to the power …", and so is x^?, which kept
   // its caret ("x^3 · x^4 = x^?", lesson re-walk 2026-11-06, Rational
-  // Exponents Warm-Up 1).
+  // Exponents Warm-Up 1). Said "blank" since math-speech-4: a voice says
+  // nothing for "…" (ellipsisBlanks reads Read aloud's bracketed one first).
   const text = String(raw ?? '').replace(/\^\s*\(\s*(…|\.\.\.)\s*\)/g, ` ${w.power} $1`)
-    .replace(/\^\s*\?/g, ` ${w.power} …`)
+    .replace(/\^\s*\?/g, ` ${w.power} ${w.blank}`)
     .replace(SUPERSCRIPT_ORDINAL, (match, digit, suffix) => `${digit}${fromSuperscript(suffix)}`);
   if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]`).test(text)) return text;
   let out = '';
@@ -1428,7 +1456,7 @@ const proseArrowsToWords = (segments, w, letters) => {
 // log with no base is read with the mathematics around it, in mathToSpeech:
 // said here, "1/-ln(x)" lost its fraction to the prose.)
 const writtenNotationToSpokenForm = (raw, w, { mark = false } = {}) => unicodeMathToSpokenForm(
-  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(ellipsisBlanks(dollarUnits(markedNames(slashesBetweenWords(arrowsAsCharacters(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body))), w), w, mark), w)), w)), w), w), w, { mark },
+  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(ellipsisBlanks(dollarUnits(markedNames(slashesBetweenWords(arrowsAsCharacters(escapedPercents(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body)))), w), w, mark), w)), w)), w), w), w, { mark },
 );
 
 /**
@@ -1694,6 +1722,10 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
     })
     .join('')
     .replace(/[\s\S]*/, (whole) => emptyBracketsNamed(ellipsesInWords(asidesAsPauses(whole), w), w))
+    // A "$" that no number follows is a delimiter whose pair was lost
+    // ("2{{b}}x={{A}}$", "Only factors of {{q}}$"), never a price: it was
+    // handed to the voice (math-speech-4, item 4).
+    .replace(/\$(?!\s*\d)/g, ' ')
     .replace(/\s+([,.;:?!])/g, '$1')
     .replace(/,(?:\s*,)+/g, ',')
     .replace(/\s+/g, ' ')

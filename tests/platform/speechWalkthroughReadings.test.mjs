@@ -73,7 +73,8 @@ test('a power before a root and a blank power are read as they are drawn', () =>
   assert.equal(speechTextFor('2 + ⁴√x'), '2 plus the 4th root of x');
   assert.match(speechTextFor('⁶√16 / ∛2 ='), /^the 6th root of 16 /);
   assert.match(speechTextFor('|5b⁷k⁵| ⁴√(k³)'), /the 4th root of k cubed$/);
-  assert.equal(speechTextFor('x^3 · x^4 = x^?'), 'x cubed times x to the power 4 equals x to the power …');
+  // The blank is said "blank" since math-speech-4: a voice says nothing for "…".
+  assert.equal(speechTextFor('x^3 · x^4 = x^?'), 'x cubed times x to the power 4 equals x to the power blank');
   assert.equal(speechTextFor('x³√x', { language: 'es' }), 'x al cubo por la raíz cuadrada de x');
 });
 

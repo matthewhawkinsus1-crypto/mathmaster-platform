@@ -142,10 +142,13 @@ const OPENERS = new Set(['(', '[']);
 // Read aloud: what a pair of bars holds is mathematics when it has a letter or
 // a digit, no word (a run of three letters or more that is not a function's
 // name) and no punctuation but a decimal point: |bx|, |½(x − 4)|, |5b⁷k⁵|.
+// Words a sign joins are a distance in words, "|w − center|", "|left side −
+// 3|": their bars were handed to the voice (math-speech-4, item 4).
 const barGroupIsMath = (held) => {
   const inner = withoutSaid(held);
   return /[\p{L}\p{N}]/u.test(inner)
-    && (inner.match(/\p{L}+/gu) || []).every((word) => word.length <= 2 || NAMED_FUNCTIONS.has(word.toLowerCase()))
+    && ((inner.match(/\p{L}+/gu) || []).every((word) => word.length <= 2 || NAMED_FUNCTIONS.has(word.toLowerCase()))
+      || /\S\s+[-−+]\s+\S/.test(inner))
     && !/[,;:?!]|\.(?!\d)/.test(inner);
 };
 
@@ -175,12 +178,15 @@ const withoutLatexCommands = (value) => {
   }
   return text;
 };
+// Words Read aloud has said already (a root, "$3√3$") and a function's name
+// ("$3*sqrt(x)$") are mathematics, not prose after a price (math-speech-4:
+// both were read "3 dollars … $").
 const opensPriceProse = (span, after) => {
   const amount = SPAN_PRICE.exec(span);
   if (!amount || span.startsWith('$$')) return false;
-  const rest = withoutLatexCommands(span.slice(amount[0].length, -1));
+  const rest = withoutLatexCommands(span.slice(amount[0].length, -1)).replace(SAID_RUN, ' ');
   if (PRICE_CONNECTOR.test(rest) && SPAN_PRICE.test(`$${after}`)) return true;
-  return /[A-Za-z]{3,}/.test(rest);
+  return (rest.match(/[A-Za-z]{3,}/g) || []).some((word) => !NAMED_FUNCTIONS.has(word.toLowerCase()));
 };
 
 /*
@@ -251,9 +257,11 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   // closed by the next price ("$20, $25"): Read aloud dropped every "dollars".
   // A number with nothing between it and the closing sign ("$7$") is a span:
   // it is how a LaTeX author writes the number 7, never a price (PR-4).
+  // For Read aloud only a "$" before a number opens the next price: "${{p}} $
+  // to the left" (an ASVAB key) is a span with a stray space (math-speech-4).
   collect(speech ? DELIMITED_SPEECH : DELIMITED, (value, end) => !(speech && opensPriceProse(value, text.slice(end))) && ((
     !/^\$\d[\d,]*(?:\.\d+)?[,;:.]?\s+[A-Za-z]{2,}/.test(value)
-    && !/^\$\d[\d,]*(?:\.\d+)?[\s,;:]+\$$/.test(value)
+    && !(/^\$\d[\d,]*(?:\.\d+)?[\s,;:]+\$$/.test(value) && (!speech || /^\d/.test(text.slice(end))))
   ) || /[\\{}^=]/.test(value)), { delimited: true });
   collect(LATEX_COMMAND);
   protectedSpans.sort((a, b) => a.start - b.start);

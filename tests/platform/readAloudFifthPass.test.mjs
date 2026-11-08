@@ -160,3 +160,60 @@ test('an ellipsis that stands for a blank is "blank", and brackets named in a se
   assert.equal(speechTextFor('Inside f( ), x−4 acts on x.'), 'Inside f parentheses, x minus 4 acts on x.');
   assert.equal(speechTextFor('Under one cube root: 5∛(…), with … =', es), 'Under one cube root: 5 por la raíz cúbica de espacio en blanco, with espacio en blanco es igual a');
 });
+
+// Item 4. Bank texts read as typed. Where a rule covers the slip it is the
+// reading's; the authoring slips no rule should read are fixed in the drafts
+// (the next test).
+test('an escaped percent is "percent", and a "?" in a bracket of its own is "blank"', () => {
+  assert.equal(speechTextFor('A group has 3 students. A benchmark share of 3\\% participates.'), 'A group has 3 students. A benchmark share of 3 percent participates.');
+  assert.equal(speechTextFor('$3\\%'), '3 percent');
+  assert.equal(speechTextFor('Write $3\\%$ as a decimal.'), 'Write 3 percent as a decimal.');
+  assert.equal(speechTextFor('3x^3 = ( ? )²'), '3x cubed equals blank squared');
+  assert.equal(speechTextFor('243(x + 2)¹⁵ = [ ? ]⁵.'), '243 times the quantity x plus 2, to the power 15 equals blank to the power 5.');
+  assert.equal(speechTextFor('3√2 / √6 = 3 / √( ? )'), '3 times the square root of 2 over the square root of 6 equals 3 over the square root of blank');
+  assert.equal(speechTextFor('$3\\%', es), '3 por ciento');
+  assert.equal(speechTextFor('3x^3 = ( ? )²', es), '3x al cubo es igual a espacio en blanco al cuadrado');
+});
+
+test('a "$" is a price only before a number: a stray one is silent, and $\\$m$ is m dollars', () => {
+  // An ASVAB key and its feedback: a span closed after a space.
+  assert.equal(speechTextFor('The first coordinate is negative, so the move is $3 $ to the left.'), 'The first coordinate is negative, so the move is 3 to the left.');
+  assert.equal(speechTextFor('Plan A costs $\\$3$ plus $\\$m$ a month.'), 'Plan A costs 3 dollars plus m dollars a month.');
+  // A pair of prices is still two prices.
+  assert.equal(speechTextFor('The team sold $20, $25, and $50 gas cards.'), 'The team sold 20 dollars, 25 dollars, and 50 dollars gas cards.');
+  // A delimiter whose pair was lost, and a span whose root or sqrt is mathematics.
+  assert.equal(speechTextFor('23x=3$'), '23x equals 3');
+  assert.equal(speechTextFor('Only factors of 3$'), 'Only factors of 3');
+  assert.equal(speechTextFor('$3√3$'), '3 times the square root of 3');
+  assert.equal(speechTextFor('$3*sqrt(x)$'), '3 times the square root of x');
+  assert.equal(speechTextFor('Plan A costs $\\$3$ plus $\\$m$ a month.', es), 'Plan A costs 3 dólares plus m dólares a month.');
+  // Translate's split is as it was.
+  assert.deepEqual(maskMath('so the move is $3 $ to the left.'), { masked: 'so the move is ⟦0⟧ $ to the left.', tokens: ['$3'] });
+});
+
+test('a bar that pairs with none is "divides" or "bar", and bars around words a sign joins are absolute value', () => {
+  assert.equal(speechTextFor('so row 1 is [3, −2, −4 | −4]. Marcus kept +4 for z.'), 'so row 1 is 3, negative 2, negative 4, bar, negative 4. Marcus kept plus 4 for z.');
+  assert.equal(speechTextFor('bottom row 1, −2, −3 | 0, so the quotient is x² − 2x − 3.'), 'bottom row 1, negative 2, negative 3, bar, 0, so the quotient is x squared minus 2x minus 3.');
+  assert.equal(speechTextFor('Every p/q, with p | 4 and q | 3.'), 'Every p over q, with p divides 4 and q divides 3.');
+  assert.equal(speechTextFor('A distance from the center is written |w − center|.'), 'A distance from the center is written the absolute value of w minus center.');
+  assert.equal(speechTextFor('|'), 'bar');
+  assert.equal(speechTextFor('y = |x − 2| + 1'), 'y equals the absolute value of x minus 2 end absolute value plus 1');
+  assert.equal(speechTextFor('row 1 is [3, −2, −4 | −4].', es), 'row 1 is 3, negativo 2, negativo 4, barra, negativo 4.');
+  assert.equal(speechTextFor('with p | 4', es), 'with p divide a 4');
+});
+
+test('the three old Path drafts hold no double-escaped LaTeX, and document 405 its \\ne', async () => {
+  const { readFileSync } = await import('node:fs');
+  for (const name of ['act', 'digitalSAT', 'tsia2']) {
+    const documents = JSON.parse(readFileSync(new URL(`../../drafts/${name}.json`, import.meta.url), 'utf8')).documents;
+    const strings = [];
+    const walk = (value) => {
+      if (typeof value === 'string') strings.push(value);
+      else if (value && typeof value === 'object') Object.values(value).forEach(walk);
+    };
+    walk(documents);
+    assert.deepEqual(strings.filter((text) => /\\\\(?:times|text)/.test(text)), [], `${name}: a double-escaped command`);
+    assert.ok(documents[405].solutionReview.headline.endsWith('the restriction $x\\ne0$.'), `${name}: document 405`);
+    assert.equal(speechTextFor(documents[405].solutionReview.headline).endsWith('the restriction x is not equal to 0.'), true, name);
+  }
+});
