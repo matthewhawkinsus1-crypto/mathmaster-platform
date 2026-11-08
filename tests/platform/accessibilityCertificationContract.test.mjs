@@ -9,9 +9,11 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 
 const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
 import {
-  CERTIFIED_SCREENS, EXAM_PRACTICE_CHIP_SCREEN, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, servesStubbedServices,
+  CERTIFIED_SCREENS, EXAM_PRACTICE_CHIP_SCREEN, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, runScope, sceneLabel, sceneScope, screensToRun,
+  servesStubbedServices,
 } from '../browser/accessibilityCertification.mjs';
-import { TEACHER_SCREENS } from '../browser/accessibilityTeacherScreens.mjs';
+import { MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_TOOLS, TEACHER_SCREENS } from '../browser/accessibilityTeacherScreens.mjs';
+import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
 
 const REQUIRED_SCREENS = [
   'student-home',
@@ -132,8 +134,61 @@ test('the teacher screens are audited next to the student ones, each scene drive
   // The student list is what the other drivers (large text, names, landmarks) import: it stays the student's.
   assert.ok(SCREENS.every((screen) => !screen.id.startsWith('teacher-')), 'SCREENS is the student list');
   // The run audits the student list, the exam-practice chip's screen (audited, but kept out of the large-text
-  // runs: see its own test) and the teacher list, and nothing else.
-  assert.deepEqual(CERTIFIED_SCREENS, [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS]);
+  // runs: see its own test), the teacher list and the Math Tools Lab's other tools (see theirs), and nothing else.
+  assert.deepEqual(CERTIFIED_SCREENS, [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS, MATH_TOOLS_LAB_SCREEN]);
+});
+
+// THE MATH TOOLS LAB'S OTHER TOOLS (student-keyboard-ci). Axe and the contrast review saw only the Lab's first tool. Each
+// of the other 24 is a scene of its own, chosen in the tool list, audited as the tool's region, at both sizes and (the
+// contrast review) in both themes, in a CI job of its own: a run that names no screen leaves it to that job.
+test('every tool of the Math Tools Lab but its first is a certified scene of its own, audited as the tool', () => {
+  const lab = executableSource(readFileSync(new URL('../../src/dev/MathToolsLab.jsx', import.meta.url), 'utf8'));
+  // The Lab lists every registry tool and opens on the Transformations Lab, which teacher-math-tools audits.
+  assert.match(lab, /const \[toolId, setToolId\] = useState\('transformationsLab'\);/, 'the first tool is the one teacher-math-tools audits');
+  assert.deepEqual(MATH_TOOLS_LAB_TOOLS.map((tool) => tool.toolId).sort(), Object.keys(TOOL_CATALOG).filter((id) => id !== 'transformationsLab').sort(), 'every other tool');
+  assert.equal(MATH_TOOLS_LAB_TOOLS.length, 24);
+  assert.deepEqual(MATH_TOOLS_LAB_SCREEN.scenes.map((scene) => scene.id), MATH_TOOLS_LAB_TOOLS.map((tool) => tool.toolId), 'a scene each, named for its tool');
+  for (const tool of MATH_TOOLS_LAB_TOOLS) assert.equal(tool.label, TOOL_CATALOG[tool.toolId].label, `${tool.toolId} is chosen by the label the list shows`);
+  for (const scene of MATH_TOOLS_LAB_SCREEN.scenes) assert.equal(typeof scene.run, 'function', `${sceneLabel(MATH_TOOLS_LAB_SCREEN, scene)} has a driver`);
+  assert.equal(MATH_TOOLS_LAB_SCREEN.harness, 'app');
+  assert.equal(MATH_TOOLS_LAB_SCREEN.schoolClock, true, 'the teacher harness reads the clock');
+  // The tool's region: the hook is on the element that holds the tool, and the scene audits it. The shared plane's text
+  // is left out, as the first scene leaves it out: the samples draw lines through its labels (accessibilityTeacherScreens.mjs).
+  assert.equal(MATH_TOOLS_LAB_SCREEN.include, '.mm-tools-lab-tool');
+  assert.deepEqual(MATH_TOOLS_LAB_SCREEN.exclude, ['svg.mathmaster-responsive-canvas text'], 'the plane\'s text, and nothing else');
+  const section = region(lab, '<section className="mm-tools-lab-tool"', '</section>', 'the tool\'s region');
+  assert.match(section, /<Tool questionData=\{SAMPLE_SPECS\[toolId\] \|\| \{\}\}/, 'which holds the tool');
+  assert.equal(sceneScope(MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_SCREEN.scenes[0]).keyboard, undefined, 'axe and the contrast review: the Tab walk of all 24 ran by hand');
+  // Kept out of the teacher list, which the large-text runs take too, and given to a job of its own.
+  assert.ok(!TEACHER_SCREENS.includes(MATH_TOOLS_LAB_SCREEN));
+  assert.equal(MATH_TOOLS_LAB_SCREEN.ownJob, true);
+  const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  const choose = region(scenes, 'const openLabTool = (label) => async (page) => {', '\n};', 'choosing a tool');
+  assert.match(choose, /locator\('aside\.mm-tools-lab-list'\)\.getByRole\('button', \{ name: label, exact: true \}\)/, 'in the tool list, by its label');
+  assert.match(choose, /await closeLabWorkView\(page\);\s*await page\.waitForLoadState/, 'a Work View the tool opened on its own is closed before the audit');
+});
+
+test('a run that names no screen audits every certified screen but one with a job of its own; ONLY names any', () => {
+  const all = screensToRun(new Set());
+  assert.deepEqual(all, CERTIFIED_SCREENS.filter((screen) => screen !== MATH_TOOLS_LAB_SCREEN), 'the Lab\'s tools are left to their job');
+  assert.deepEqual(CERTIFIED_SCREENS.filter((screen) => screen.ownJob), [MATH_TOOLS_LAB_SCREEN], 'and nothing else is');
+  assert.deepEqual(screensToRun(new Set(['teacher-math-tools-lab'])), [MATH_TOOLS_LAB_SCREEN]);
+  assert.deepEqual(screensToRun(new Set(['student-home', 'teacher-math-tools'])).map((screen) => screen.id), ['student-home', 'teacher-math-tools']);
+  // What each run judges and writes: only the keys of what it ran, and every key when it ran everything.
+  assert.equal(runScope(CERTIFIED_SCREENS), null);
+  const defaultScope = runScope(all);
+  assert.equal(defaultScope({ screen: 'teacher-math-tools' }), true, 'the Lab\'s first tool is the default run\'s');
+  assert.equal(defaultScope({ screen: 'teacher-math-tools-lab/matrixLab' }), false, 'its other tools are not');
+  assert.equal(defaultScope({ screen: 'student-assignments/completed-section' }), true);
+  const labScope = runScope([MATH_TOOLS_LAB_SCREEN]);
+  assert.equal(labScope({ screen: 'teacher-math-tools-lab/representationMatch' }), true);
+  assert.equal(labScope({ screen: 'teacher-math-tools' }), false, 'a screen whose id begins another\'s is not it');
+  // Both drivers run the same screens and judge the same keys.
+  for (const file of ['accessibilityCertification.mjs', 'contrastReview.mjs']) {
+    const source = executableSource(readFileSync(new URL(`../browser/${file}`, import.meta.url), 'utf8'));
+    assert.match(source, /const screens = screensToRun\(ONLY\);/, `${file} runs screensToRun`);
+    assert.match(source, /runScope\(screens\)/, `${file} judges what it ran`);
+  }
 });
 
 // Every destination of the teacher's navigation has a scene (TT27, third slice). The list is read from the navigation itself, so a
@@ -307,7 +362,7 @@ test('the run audits every viewport × every (selected) screen × every scene, i
   const run = region(source, 'const main = async', 'const current = mergeNormalized', 'certification main loop');
   assert.match(run, /for \(const viewport of VIEWPORTS\)/, 'the loop must cover every viewport');
   assert.match(run, /for \(const screen of screens\)/, 'the loop must cover the selected screens');
-  assert.match(run, /SCREENS\.filter\(\(screen\) => !ONLY\.size \|\| ONLY\.has\(screen\.id\)\)/, 'only ONLY may narrow the screens');
+  assert.match(run, /const screens = screensToRun\(ONLY\);/, 'only ONLY, and a screen\'s job of its own, narrow the screens (screensToRun)');
   assert.match(run, /for \(const scene of screen\.scenes\)/, 'every scene is audited');
   assert.match(run, /colorScheme: 'light'/, 'the certification runs in the light theme');
   assert.match(run, /auditAccessibility\(page,/, 'each scene is audited with axe');

@@ -74,7 +74,7 @@ import {
 } from '../../scripts/lib/accessibilityRatchet.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
-import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
+import { MATH_TOOLS_LAB_SCREEN, TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
 import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -315,7 +315,27 @@ export const EXAM_PRACTICE_CHIP_SCREEN = {
   ],
 };
 
-export const CERTIFIED_SCREENS = [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS];
+// The Math Tools Lab's other 24 tools are certified too (accessibilityTeacherScreens.mjs MATH_TOOLS_LAB_SCREEN), in a CI job
+// of their own: see screensToRun.
+export const CERTIFIED_SCREENS = [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS, MATH_TOOLS_LAB_SCREEN];
+
+/*
+ * The screens a run audits. ONLY=<id>[,<id>] names them. A run that names none audits every certified screen but one
+ * certified in a CI job of its own (`ownJob`: the Math Tools Lab's other tools, whose job names it), so the jobs that
+ * run every screen take no longer for it. The contrast review runs the same screens.
+ */
+export const screensToRun = (only, screens = CERTIFIED_SCREENS) => screens.filter((screen) => (only.size ? only.has(screen.id) : !screen.ownJob));
+
+/**
+ * What a run judges and writes: the ratchet keys of the screens it ran (a key's screen is the scene's label,
+ * `screen` or `screen/scene`), or null, every key, when it ran every certified screen. A run that left a screen out
+ * must not read that screen's keys as fixed, nor write them away.
+ */
+export const runScope = (ran, screens = CERTIFIED_SCREENS) => {
+  if (screens.every((screen) => ran.includes(screen))) return null;
+  const ids = ran.map((screen) => screen.id);
+  return (key) => ids.some((id) => key.screen === id || key.screen.startsWith(`${id}/`));
+};
 
 export const sceneLabel = (screen, scene) => (scene.id ? `${screen.id}/${scene.id}` : screen.id);
 
@@ -385,7 +405,7 @@ const main = async () => {
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((entry) => entry.trim()).filter(Boolean));
   const unknown = [...ONLY].filter((id) => !CERTIFIED_SCREENS.some((screen) => screen.id === id));
   if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')} (known: ${CERTIFIED_SCREENS.map((screen) => screen.id).join(', ')})`);
-  const screens = CERTIFIED_SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
+  const screens = screensToRun(ONLY);
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -499,7 +519,7 @@ const main = async () => {
   const current = mergeNormalized(...results);
   const labels = new Set(results.map((result) => result.label));
   // A partial run judges only the screens it ran.
-  const scope = ONLY.size ? (key) => [...ONLY].some((id) => key.screen === id || key.screen.startsWith(`${id}/`)) : null;
+  const scope = runScope(screens);
   const comparison = compare(baselineCounts, current.counts, { scope });
   const report = {
     axeVersion: AXE_VERSION,

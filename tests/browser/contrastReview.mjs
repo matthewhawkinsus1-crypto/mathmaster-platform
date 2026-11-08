@@ -65,15 +65,21 @@
  * Families group nodes by component: the node's own classes/tag plus its
  * nearest identified ancestor (a class, data-mm-*, aria-label or role).
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AXE_PATH, settleForAudit } from './accessibilityAudit.mjs';
-import { CERTIFIED_SCREENS, VIEWPORTS, newScreenContext, sceneLabel, sceneScope } from './accessibilityCertification.mjs';
+import { VIEWPORTS, newScreenContext, runScope, sceneLabel, sceneScope, screensToRun } from './accessibilityCertification.mjs';
 import { backgroundLayersInPage } from './support/backgroundLayers.mjs';
+import {
+  compare, describeFailures, mergeNormalized, normalizeViolations, parseRatchetKey, ratchetFailed, readBaselineCounts,
+} from '../../scripts/lib/accessibilityRatchet.mjs';
+import { DARK_CONTRAST_RULE, buildDarkContrastBaseline, darkContrastCounts, unexplainedKeys } from '../../scripts/lib/darkContrastRatchet.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
+// Axe's own contrast verdicts in the dark theme, ratcheted (scripts/lib/darkContrastRatchet.mjs).
+export const DARK_BASELINE_PATH = path.join(repo, 'scripts/accessibility-dark-contrast-baseline.json');
 
 // ------------------------------------------------------------------ colour maths (node side)
 const channel = (value) => {
@@ -102,6 +108,24 @@ export const worstRatio = (text, backgrounds) => {
 };
 
 // ------------------------------------------------------------------ in-page analysis
+/*
+ * Runs in the page: the nodes axe itself decided fail color-contrast, as the certification's audit returns them
+ * (accessibilityAudit.mjs), for the dark theme's ratchet. The light theme's are the certification's, which runs
+ * every WCAG rule. Read before the review touches the page (it hides text and borders to read pixels).
+ */
+export const collectViolationsInPage = async ({ include, exclude }) => {
+  const context = { include: include.length ? include.map((s) => [s]) : [['html']] };
+  if (exclude.length) context.exclude = exclude.map((s) => [s]);
+  const result = await window.axe.run(context, { runOnly: { type: 'rule', values: ['color-contrast'] }, resultTypes: ['violations'], elementRef: false });
+  return result.violations.map((violation) => ({
+    id: violation.id,
+    impact: violation.impact,
+    help: violation.help,
+    helpUrl: violation.helpUrl,
+    nodes: violation.nodes.map((node) => ({ target: node.target, html: node.html, failureSummary: node.failureSummary })),
+  }));
+};
+
 /* Runs in the page: axe's incomplete color-contrast nodes, each described. */
 export const collectInPage = async ({ include, exclude }) => {
   const context = { include: include.length ? include.map((s) => [s]) : [['html']] };
@@ -451,8 +475,15 @@ const hex = (c) => (c ? `#${c.slice(0, 3).map((v) => Math.round(v).toString(16).
 
 // ------------------------------------------------------------------ main
 const main = async () => {
+  const colorScheme = process.env.COLOR_SCHEME === 'dark' ? 'dark' : 'light';
+  // In the dark theme, axe's own color-contrast verdicts too, against their baseline (DARK_BASELINE_PATH). The light
+  // theme's are the certification's, which gates every rule.
+  const darkRatchet = colorScheme === 'dark';
+  const WRITE = process.argv.includes('--write-baseline');
+  if (WRITE && !darkRatchet) throw new Error('--write-baseline writes the dark theme\'s contrast baseline: run it with COLOR_SCHEME=dark (the light theme\'s is the certification\'s, npm run certify:accessibility -- --write-baseline)');
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((s) => s.trim()).filter(Boolean));
-  const screens = CERTIFIED_SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
+  // The certification's screens (screensToRun): a run that names none leaves a screen with a job of its own to that job.
+  const screens = screensToRun(ONLY);
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -465,7 +496,7 @@ const main = async () => {
   else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOptions);
 
-  const colorScheme = process.env.COLOR_SCHEME === 'dark' ? 'dark' : 'light';
+  const verdicts = [];
   const nodes = [];
   const unreachable = [];
   for (const viewport of VIEWPORTS) {
@@ -511,6 +542,11 @@ const main = async () => {
         if (!(await page.evaluate(() => typeof window.axe?.run === 'function'))) await page.addScriptTag({ path: AXE_PATH });
         const asList = (v) => (v == null ? [] : (Array.isArray(v) ? v : [v]));
         const scope = sceneScope(screen, scene);
+        // What axe decided, before the review hides anything to read its pixels.
+        const decided = darkRatchet
+          ? normalizeViolations({ screen: label, viewport: viewport.id, violations: await page.evaluate(collectViolationsInPage, { include: asList(scope.include), exclude: asList(scope.exclude) }) })
+          : null;
+        if (decided) verdicts.push(decided);
         await page.evaluate(backgroundLayersInPage);
         const described = await page.evaluate(collectInPage, { include: asList(scope.include), exclude: asList(scope.exclude) });
         for (const info of described) {
@@ -560,7 +596,8 @@ const main = async () => {
             decision: decision || null, pass,
           });
         }
-        console.log(`     ${label.padEnd(32)} ${viewport.id.padEnd(8)} ${described.length} undecided node(s)`);
+        const failingByAxe = decided ? Object.values(decided.counts).reduce((sum, count) => sum + count, 0) : null;
+        console.log(`     ${label.padEnd(32)} ${viewport.id.padEnd(8)} ${described.length} undecided node(s)${decided ? `, ${failingByAxe} failing by axe` : ''}`);
       }
       await context.close();
     }
@@ -612,12 +649,50 @@ const main = async () => {
     unreachable, totals: { nodes: nodes.length, families: familyRows.length, failingNodes: failing.length, skippedDecorative: nodes.filter((n) => n.decision?.startsWith('skip')).length },
     families: familyRows, nodes,
   };
+  // AXE'S OWN VERDICTS IN THE DARK THEME, against their baseline (scripts/lib/darkContrastRatchet.mjs): a node axe
+  // decides fails where the baseline has no key for it, or more of them than it counts, fails the run. A partial run
+  // (ONLY) judges, and writes, only the screens it ran.
+  let darkFailed = false;
+  if (darkRatchet) {
+    const current = mergeNormalized(...verdicts);
+    const counts = darkContrastCounts(current.counts);
+    const baseline = (() => { try { return JSON.parse(readFileSync(DARK_BASELINE_PATH, 'utf8')); } catch { return { counts: {}, targets: {}, reasons: {} }; } })();
+    const inRun = runScope(screens);
+    const comparison = compare(readBaselineCounts(baseline), counts, { scope: inRun });
+    const baselineName = path.relative(repo, DARK_BASELINE_PATH);
+    report.darkContrast = { rule: DARK_CONTRAST_RULE, baseline: baselineName, comparison, counts, details: current.details };
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+    console.log(`\nIn the dark theme axe decides ${total} node(s) fail ${DARK_CONTRAST_RULE}, in ${Object.keys(counts).length} scene|viewport key(s) (baseline ${baselineName}).`);
+    if (WRITE) {
+      if (unreachable.length) {
+        console.error(`Not writing the dark baseline: ${unreachable.length} scene(s) could not be reached.`);
+        darkFailed = true;
+      } else {
+        const keep = (key) => Boolean(inRun) && !inRun(parseRatchetKey(key));
+        const kept = (map = {}) => Object.fromEntries(Object.entries(map).filter(([key]) => keep(key)));
+        const next = buildDarkContrastBaseline({ counts: { ...kept(baseline.counts), ...counts }, details: current.details, reasons: baseline.reasons || {} });
+        next.targets = Object.fromEntries(Object.entries({ ...kept(baseline.targets), ...next.targets }).filter(([key]) => key in next.counts).sort(([a], [b]) => a.localeCompare(b)));
+        writeFileSync(DARK_BASELINE_PATH, `${JSON.stringify(next, null, 2)}\n`);
+        const unexplained = unexplainedKeys(next);
+        console.log(`Wrote ${baselineName}: ${Object.keys(next.counts).length} key(s), ${Object.values(next.counts).reduce((sum, count) => sum + count, 0)} failing node(s).`);
+        if (unexplained.length) console.log(`Give each of these its reason in the file's "reasons" (tests/platform/darkContrastRatchet.test.mjs fails until then):\n  ${unexplained.join('\n  ')}`);
+      }
+    } else if (ratchetFailed(comparison)) {
+      darkFailed = true;
+      console.error(`\nNew color-contrast failures in the dark theme (axe-core's own verdicts). Fix them, or - only for a deliberate, reviewed exception, with its reason - run with COLOR_SCHEME=dark and --write-baseline:`);
+      describeFailures(comparison, { details: current.details, baselineTargets: baseline.targets || {} }).forEach((line) => console.error(`  ${line}`));
+    }
+    if (!WRITE && comparison.reduced.length) {
+      console.log(`\n${comparison.reduced.length} dark count(s) below the baseline - the baseline can be lowered: run with COLOR_SCHEME=dark and --write-baseline`);
+      comparison.reduced.forEach((row) => console.log(`  ${row.key}: ${row.count} (baseline ${row.baseline})`));
+    }
+  }
   writeFileSync(path.join(artifacts, 'contrast-review.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(`\n${nodes.length} undecided color-contrast node(s) in ${familyRows.length} famil(ies); ${failing.length} fail, ${report.totals.skippedDecorative} skipped as decorative. Report: ${path.relative(repo, path.join(artifacts, 'contrast-review.json'))}`);
   if (unreachable.length) {
     console.error(`${unreachable.length} scene(s) could not be reached:\n  ${unreachable.join('\n  ')}`);
   }
-  if (failing.length || unreachable.length) process.exitCode = 1;
+  if (failing.length || unreachable.length || darkFailed) process.exitCode = 1;
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

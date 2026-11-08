@@ -786,13 +786,15 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   stroke="#8793a3"
                   strokeWidth="1.5"
                 />
+                {/* The graph's label colour in each theme: a fixed #4f5b6b read 2.4:1 on the dark
+                    theme's plane (the contrast review, the Math Tools Lab's scenes, student-keyboard-ci). */}
                 <text
                   pointerEvents="none"
                   x={sx(value)}
                   y={HEIGHT / 2 + 27}
                   textAnchor="middle"
                   fontSize="12"
-                  fill="#4f5b6b"
+                  style={{ fill: 'var(--mm-graph-label)' }}
                 >
                   {String(Number(value.toFixed(6))).replace('-', '−')}
                 </text>

@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { AttemptOutcome, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -23,6 +23,7 @@ import { regressionFeedbackText } from './regressionFeedback.js';
 import { START_OVER } from '../../platform/student/studentWords.js';
 import { enteredXyTable, givenXyTable } from '../shared/toolTableReading.js';
 import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { overflowsSideways } from '../../components/common/matrixScrollRegion.js';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
 const orderedPair = (value) => {
@@ -47,6 +48,27 @@ const boundsFor = (points) => {
   return { xMin, xMax, yMin, yMax };
 };
 
+// THE SOURCE DATA, BY KEYBOARD (student-keyboard-ci). The given pairs are one row that scrolls sideways when it is
+// wider than its box, as on a phone; it holds nothing that takes focus, so it scrolled by touch alone (axe: a
+// scrollable region with no keyboard access, found by the Math Tools Lab's scenes). While it overflows, and only then,
+// it is a Tab stop and a region named for what it holds, which the arrow keys scroll: the rule a matrix wider than its
+// box follows (src/components/common/matrixScrollRegion.js). Where it fits, the Tab order is as it was.
+const SOURCE_DATA_SCROLLS = 'Source data, scrolls sideways';
+const useOverflowsSideways = (ref, size) => {
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const box = ref.current;
+    if (!box) return undefined;
+    const measure = () => setOverflowing(overflowsSideways(box));
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [ref, size]);
+  return overflowing;
+};
+
 export default function RegressionCalculator({ questionData = {}, onAction }) {
   const source = cleanRegressionPoints(questionData.sourceData || questionData.points);
   // The same routing the grading declaration resolves, so the grader marks
@@ -63,6 +85,8 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   const [notice, setNotice] = useState('');
   const [processEvidence, setProcessEvidence] = usePersistentToolState('processEvidence', []);
   const inputRefs = useRef([]);
+  const givensRef = useRef(null);
+  const givensOverflow = useOverflowsSideways(givensRef, `${sourceMode}:${source.length}`);
   const addTriggerRef = useRef(null);
   const addMenuId = useId();
   const addMenuItemRefs = useRef([]);
@@ -368,7 +392,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
               reads off the graph, so they are never published there. */}
           <PublishFigureReading entry={{ kind: 'table', label: 'Given table of values', table: givenXyTable(source) }} />
           <strong>Source data</strong>
-          <div className="regression-givens-list">
+          <div ref={givensRef} className="regression-givens-list" {...(givensOverflow ? { role: 'region', tabIndex: 0, 'aria-label': SOURCE_DATA_SCROLLS } : {})}>
             {source.map(([x, y], index) => <span key={index}>({x}, {y})</span>)}
           </div>
         </aside>

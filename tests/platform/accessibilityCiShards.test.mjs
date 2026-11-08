@@ -106,8 +106,11 @@ const PARTS = ['browser-accessibility-ratchet', 'browser-accessibility-contrast-
 const commandOf = (step) => step.match(/^ {8}run: (?!\|)(.+)$/m)?.[1] ?? null;
 // The theme a step reads: the contrast review runs once light and once on a dark device (COLOR_SCHEME=dark).
 const schemeOf = (step) => step.match(/^ {10}COLOR_SCHEME: (\w+)$/m)?.[1] ?? 'light';
-// What a step does: its command, in its theme. The same command in two themes is two steps, not one run twice.
-const stepRun = (step) => (commandOf(step) ? `${commandOf(step)} (${schemeOf(step)})` : null);
+// The screens a step names (ONLY=…): none is every screen but those with a job of their own (screensToRun).
+const onlyOf = (step) => step.match(/^ {10}ONLY: (.+)$/m)?.[1] ?? null;
+// What a step does: its command, in its theme, on its screens. The same command in two themes, or on other screens,
+// is two steps, not one run twice.
+const stepRun = (step) => (commandOf(step) ? `${commandOf(step)} (${schemeOf(step)}${onlyOf(step) ? `, ${onlyOf(step)}` : ''})` : null);
 const DARK_REVIEW = 'browser-accessibility-contrast-dark';
 const SERVERS = {
   'http://127.0.0.1:5199': /npx vite --config tests\/browser\/emulator\/vite\.config\.mjs --host 127\.0\.0\.1 --port 5199 --strictPort/,
@@ -139,8 +142,9 @@ test("the certification's steps are three jobs, and no step of the workflow runs
 // in the light theme's blue on a dark row, 2.13:1. It runs in a job of its own beside the light one, each with its own
 // report, and the light job is as it was: the same step, the same command, the same exit.
 test('the contrast review runs light and dark, each in a job of its own with a report of its own', () => {
+  // Over every screen (no ONLY): the Lab's other tools have their review in a job of their own, below.
   const reviews = Object.entries(jobs).flatMap(([job, text]) => stepsOf(text)
-    .filter((step) => commandOf(step) === 'npm run review:contrast').map((step) => ({ job, step, scheme: schemeOf(step) })));
+    .filter((step) => commandOf(step) === 'npm run review:contrast' && !onlyOf(step)).map((step) => ({ job, step, scheme: schemeOf(step) })));
   assert.deepEqual(reviews.map(({ job, scheme }) => `${job} ${scheme}`).sort(), [
     'browser-accessibility-contrast-and-targets light',
     `${DARK_REVIEW} dark`,
@@ -170,6 +174,31 @@ test('the contrast review runs light and dark, each in a job of its own with a r
   const steps = stepsOf(jobs[DARK_REVIEW]).map(commandOf).filter(Boolean);
   assert.deepEqual(steps, ['node tests/browser/contrastReviewSelfTest.mjs', 'npm run review:contrast']);
   assert.ok(runsOnPullRequest('accessibility-certification.yml', 'tests/browser/contrastReviewSelfTest.mjs'), 'a change to the fixtures runs the workflow');
+});
+
+// THE MATH TOOLS LAB'S OTHER TOOLS (student-keyboard-ci): certified, and their contrast reviewed light and dark, in a
+// job of their own. Each step names the Lab's screen; a run that names none leaves it out (screensToRun), so each of
+// them is run once, here, and the jobs of every screen take no longer for it.
+test("the Math Tools Lab's other tools are certified and reviewed light and dark in a job of their own", async () => {
+  const { MATH_TOOLS_LAB_SCREEN } = await import('../browser/accessibilityTeacherScreens.mjs');
+  const lab = jobs['browser-accessibility-math-tools-lab'];
+  assert.ok(lab, 'the job');
+  const steps = stepsOf(lab).filter(commandOf);
+  assert.deepEqual(steps.map(stepRun), [
+    `npm run certify:accessibility (light, ${MATH_TOOLS_LAB_SCREEN.id})`,
+    `npm run review:contrast (light, ${MATH_TOOLS_LAB_SCREEN.id})`,
+    `npm run review:contrast (dark, ${MATH_TOOLS_LAB_SCREEN.id})`,
+  ], 'the certification, then the review in each theme, of the Lab\'s screen alone');
+  // The two reviews write the same file: each into a folder of its own, under the one the job keeps.
+  const folders = steps.slice(1).map((step) => step.match(/^ {10}ACCESSIBILITY_ARTIFACTS: (.+)$/m)?.[1]);
+  assert.deepEqual(folders, ['tests/browser/artifacts/accessibility/math-tools-lab-light', 'tests/browser/artifacts/accessibility/math-tools-lab-dark']);
+  // Only this job names the Lab's screen; every other step that runs the certification or the review names none.
+  const elsewhere = Object.entries(jobs).filter(([job]) => job !== 'browser-accessibility-math-tools-lab')
+    .flatMap(([, text]) => stepsOf(text).filter((step) => /^ {8}run: npm run (certify:accessibility|review:contrast)$/m.test(step)));
+  assert.ok(elsewhere.length >= 3);
+  for (const step of elsewhere) assert.equal(onlyOf(step), null, 'every screen but the Lab\'s other tools');
+  assert.equal(MATH_TOOLS_LAB_SCREEN.ownJob, true, 'which is what leaves them out there');
+  assert.ok(runsOnPullRequest('accessibility-certification.yml', 'src/dev/MathToolsLab.jsx'), 'a change to the Lab runs it');
 });
 
 test('every job starts the servers its steps call before it calls them', () => {

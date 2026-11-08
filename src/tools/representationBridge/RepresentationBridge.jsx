@@ -481,11 +481,14 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         </Panel>
 
         <Panel title="Equations">
-          <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 10, padding: 12, marginBottom: 12, opacity: stageBlocked('generalForm') ? 0.7 : 1 }}>
+          {/* A stage waiting on the one before it shows its fields and its Check faded, as they are disabled; the
+              stage's name, what it waits for and what it asks stay at full strength. Faded with them, at 70%, the
+              notice read 3.5:1 and the instructions 3.1:1 (axe, the Math Tools Lab's scenes, student-keyboard-ci). */}
+          <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 10, padding: 12, marginBottom: 12 }}>
             <div style={{ fontWeight: 800, marginBottom: 8 }}>General form: y = mx + b</div>
             {stageBlocked('generalForm') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the table/rate stage first.</p> : null}
             <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>Your slope from the table stage: <strong>{studentSlope || '—'}</strong>. Determine b yourself — it is never filled in for you.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10, opacity: stageBlocked('generalForm') ? 0.7 : 1 }}>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>m</span>
                 <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={generalM} disabled={stageBlocked('generalForm')} onChange={(event) => { setGeneralM(event.target.value); clearFeedback(); }} aria-label="Slope m in general form" />
@@ -500,21 +503,21 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
               </label>
             </div>
             {feedbackTiming !== 'submitOnly' ? (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 10, opacity: stageBlocked('generalForm') ? 0.7 : 1 }}>
                 <button data-mm-enter-action="card" type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
                 {stageCheckResult('generalForm', 'General form correct')}
               </div>
             ) : null}
           </div>
 
-          <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 10, padding: 12, opacity: stageBlocked('factoredForm') ? 0.7 : 1 }}>
+          <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 10, padding: 12 }}>
             <div style={{ fontWeight: 800, marginBottom: 8 }}>Factored linear form: y = a(x − c)</div>
             {stageBlocked('factoredForm') ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>Check the general form stage first.</p> : null}
             <p style={{ fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text-muted)', margin: '0 0 8px' }}>{methodWithheld
               // Which number is a and which is c is the method (W4-1's round-2 note).
               ? 'Rewrite your own general-form equation as y = a(x − c).'
               : 'Rewrite your own general-form equation: a is the rate, c is the zero/x-intercept.'}</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10, opacity: stageBlocked('factoredForm') ? 0.7 : 1 }}>
               <label>
                 <span style={{ fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))', color: highlightBorder(true, shownHighlight === 'rate') ? 'var(--mm-warning-text)' : undefined }}>a</span>
                 <input style={{ ...input, border: highlightBorder(true, shownHighlight === 'rate') || input.border }} {...FRACTION_ENTRY_PROPS} value={factoredA} disabled={stageBlocked('factoredForm')} onChange={(event) => { setFactoredA(event.target.value); clearFeedback(); }} aria-label="Coefficient a in factored form" />
@@ -529,7 +532,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
               </label>
             </div>
             {feedbackTiming !== 'submitOnly' ? (
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 10, opacity: stageBlocked('factoredForm') ? 0.7 : 1 }}>
                 <button data-mm-enter-action="card" type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
                 {stageCheckResult('factoredForm', 'Factored form correct')}
               </div>

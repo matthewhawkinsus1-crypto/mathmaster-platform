@@ -1,0 +1,16 @@
+/* THE MATH TOOLS LAB HOLDS A TOOL WITH NO QUESTION AROUND IT (student-keyboard-ci). On a
+   student's screen the question's own rules leave a tool's Work View opener its room and
+   make the tool's grid one column on a phone (WorkViewShell.css, MathToolMobileLayout.css).
+   The Lab mounts the bare tool: its opener lay over its first panel's heading at 1366x768,
+   and on a phone a grid of two columns ran past the tool's edge, its text cut off (found by
+   the Lab's tool scenes of the certification and the contrast review). The Lab loads on
+   demand, so these rules stay off a student's first load. */
+.mm-tools-lab-tool .mathmaster-work-view-surface[data-enlarged="false"]:not([data-opener-stacked="true"]) {
+  padding-top: var(--mm-work-view-opener-bottom, 52px);
+}
+
+@media (max-width: 600px) {
+  .mm-tools-lab-tool .mathmaster-tool-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

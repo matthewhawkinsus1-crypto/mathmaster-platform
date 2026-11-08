@@ -45,7 +45,10 @@ const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid var
 
 const WIDTH = 420;
 const ROW = 46;
-const PAD_Y = 34;
+// Room above the first value for the "Domain (x)" and "Range (y)" titles (y = 18): at 34 the titles sat on the
+// oval's top edge and the first value's circle, 1.1 to 1.5:1 against the stroke in both themes (the contrast review,
+// the Math Tools Lab's scenes, student-keyboard-ci).
+const PAD_Y = 46;
 const LEFT_X = 118;
 const RIGHT_X = WIDTH - 118;
 

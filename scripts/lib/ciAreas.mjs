@@ -60,6 +60,9 @@ export const CI_AREAS = {
     'tests/platform/accessibility*',
     'scripts/accessibility-baseline.json',
     'scripts/lib/accessibilityRatchet.mjs',
+    // Axe's own contrast verdicts in the dark theme, and the failures accepted today.
+    'scripts/accessibility-dark-contrast-baseline.json',
+    'scripts/lib/darkContrastRatchet.mjs',
     'scripts/lib/keyboardReach.mjs',
     'package.json',
     'package-lock.json',

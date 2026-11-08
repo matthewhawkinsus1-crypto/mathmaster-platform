@@ -14,7 +14,9 @@ name: Accessibility Certification (WCAG 2.1 AA)
 # ci.yml calls this when a pull request changes a file in its area
 # (scripts/lib/ciAreas.mjs), and on every push to main. The large-text sweep,
 # half of the browser time, runs in a job of its own, and so does the contrast
-# review in the dark theme, beside the light one.
+# review in the dark theme, beside the light one. So do the keyboard sweep of
+# every student tool, at both sizes, in shards, and the Math Tools Lab's other
+# tools (student-keyboard-ci).
 
 on:
   workflow_call:
@@ -123,7 +125,9 @@ jobs:
   # theme the app follows the device into (a standalone harness is put in it before it paints). The light review
   # cannot see a light-theme colour on a dark surface: the live proctor monitor's status read 2.13:1 on its dark rows.
   # A job of its own, beside the light one, with a report of its own. The review's pixel step is first shown on pages
-  # whose answer is known (contrastReviewSelfTest.mjs, which needs no server).
+  # whose answer is known (contrastReviewSelfTest.mjs, which needs no server). In the same replay axe's own contrast
+  # verdicts in dark are held to scripts/accessibility-dark-contrast-baseline.json, today's dark failures, each with its
+  # reason: a new one fails (student-keyboard-ci; the light theme's are the certification's).
   browser-accessibility-contrast-dark:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -150,7 +154,7 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/contrastReviewSelfTest.mjs
-      - name: Contrast over gradients in the dark theme (axe's undecided nodes, measured on a dark device)
+      - name: Contrast over gradients in the dark theme (axe's undecided nodes, measured on a dark device; its own verdicts against their baseline)
         if: ${{ !cancelled() }}
         env:
           PLAYWRIGHT_MODULE: playwright
@@ -505,4 +509,54 @@ jobs:
         with:
           name: keyboard-sweep-${{ matrix.viewport }}-${{ matrix.shard }}
           path: tests/browser/artifacts/keyboard
+          retention-days: 14
+
+  # THE MATH TOOLS LAB'S OTHER 24 TOOLS (student-keyboard-ci). The certification and the contrast review saw only the
+  # Lab's first tool. Each other tool is a scene of its own (accessibilityTeacherScreens.mjs MATH_TOOLS_LAB_SCREEN), at
+  # 1366×768 and 390×844, here in a job of its own so the jobs above take no longer (a run that names no screen leaves
+  # it out): axe against the same baseline, then the contrast review, light and on a dark device, where axe's own dark
+  # verdicts are held to theirs. Each review keeps its report in a folder of its own. About seven minutes on a busy
+  # four-core machine (2026-11-08): the certification two, each review between two and three.
+  browser-accessibility-math-tools-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      # The real app in memory (firebase/* faked, synthetic school), signed in as the synthetic teacher.
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: Certify the Lab's other tools (WCAG 2.1 AA, ratchet)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          ONLY: teacher-math-tools-lab
+        run: npm run certify:accessibility
+      - name: Contrast over gradients in the Lab's other tools (axe's undecided nodes, measured)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          ONLY: teacher-math-tools-lab
+          ACCESSIBILITY_ARTIFACTS: tests/browser/artifacts/accessibility/math-tools-lab-light
+        run: npm run review:contrast
+      - name: Contrast in the Lab's other tools on a dark device (axe's verdicts against their baseline, the undecided measured)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          ONLY: teacher-math-tools-lab
+          ACCESSIBILITY_ARTIFACTS: tests/browser/artifacts/accessibility/math-tools-lab-dark
+          COLOR_SCHEME: dark
+        run: npm run review:contrast
+      - name: Keep the reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification-math-tools-lab
+          path: tests/browser/artifacts/accessibility
           retention-days: 14

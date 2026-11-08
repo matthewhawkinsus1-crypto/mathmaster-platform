@@ -86,6 +86,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEACHER_EMAIL } from './teacherWorkflow/fixture.js';
+import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -380,6 +381,40 @@ const openMathToolsLab = async (page) => {
     await close.first().evaluate((button) => button.click());
     await page.waitForTimeout(900);
   }
+};
+
+// THE MATH TOOLS LAB'S OTHER TOOLS (student-keyboard-ci). The scene above audits the Lab with its first tool, the
+// Transformations Lab, and axe and the contrast review had seen none of the other 24. Each is a student tool of its own,
+// on its preview-bench question (src/dev/MathToolsLab.jsx SAMPLE_SPECS) and, on this bench only, with its worked answers
+// shown (revealAnswers), so no student scene shows what each draws here. A scene for each, chosen in the tool list as a
+// teacher chooses it and read once the tool has drawn. A tool that opens in Work View on its own (a Registered Work View
+// tool on a phone, Graphing or the number line on a wide screen) has it closed, as the first scene closes the
+// Transformations Lab's: Work View is the student's own, audited on the student's screens. What is audited is the tool
+// and what the bench says about it (`.mm-tools-lab-tool`); the header and the list are the first scene's.
+export const MATH_TOOLS_LAB_TOOLS = Object.freeze(Object.entries(TOOL_CATALOG)
+  .filter(([toolId]) => toolId !== 'transformationsLab')
+  .map(([toolId, entry]) => Object.freeze({ toolId, label: entry.label })));
+const LAB_TOOL = '.mm-tools-lab-tool';
+const closeLabWorkView = async (page) => {
+  const close = page.locator('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button', { hasText: /^Close/ });
+  if (await close.count()) {
+    await close.first().evaluate((button) => button.click());
+    await page.waitForTimeout(600);
+  }
+};
+const openLabTool = (label) => async (page) => {
+  await closeLabWorkView(page);
+  await page.locator('aside.mm-tools-lab-list').getByRole('button', { name: label, exact: true }).evaluate((button) => button.click());
+  // Drawn: the tool's own element, between the course chips and the bench's two panels, holds something to work with
+  // (a tool is loaded on demand, and its first frame is Suspense's).
+  await page.waitForFunction((selector) => {
+    const tool = document.querySelector(selector)?.children?.[1];
+    return Boolean(tool?.querySelector('button, input, select, textarea, math-field, svg, [role="radio"], [tabindex]'));
+  }, LAB_TOOL, { timeout: 30_000 });
+  await page.waitForTimeout(1200);
+  await closeLabWorkView(page);
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+  await page.waitForTimeout(600);
 };
 
 // The administrator's workspace is a view of the same page (the header's "Administration" button), with
@@ -883,3 +918,29 @@ export const TEACHER_SCREENS = [
   // The administrator's workspace: the harness's root-admin teacher, its Administration view, and each of its five sections.
   teacherScreen('teacher-admin', ADMIN_SECTIONS.map(([id, label]) => ({ id, run: openAdministration(label) })), { open: (page, origins) => openTeacherApp(page, origins, '&rootAdmin=1') }),
 ];
+
+// The Lab's other 24 tools (THE MATH TOOLS LAB'S OTHER TOOLS, above), one scene each on one page, at both sizes. Audited
+// by axe and the contrast review, light and dark, in a CI job of their own (accessibility-certification.yml
+// browser-accessibility-math-tools-lab: `ownJob`, so a run that names no screen leaves them to that job). Not one of
+// TEACHER_SCREENS, which the teacher's large-text runs take too: each tool is measured at 200% text, at 320 px and for
+// target size on the student's screens (studentShellLargeText.mjs, its registry tools), and the Lab's own page with its
+// first tool above. Not walked by Tab here: all 24 and their Work Views were walked by hand at both sizes (student-a11y-3),
+// and the 2.4.11 walk keeps the Matrix Lab (studentShellLargeText.mjs --check=obscured).
+export const MATH_TOOLS_LAB_SCREEN = {
+  id: 'teacher-math-tools-lab',
+  harness: 'app',
+  schoolClock: true,
+  ownJob: true,
+  open: async (page, origins) => {
+    await openTeacherApp(page, origins);
+    await openDestination('Math Tools Lab', /^Math Tools Lab$/)(page);
+  },
+  include: LAB_TOOL,
+  // The shared coordinate plane's text, for the first scene's reason: the samples draw their lines and curves through
+  // its tick and point labels (eight tools' planes, 1.0 to 4.1:1 against the line behind a label, in the light theme and
+  // the dark), and a rule that keeps a label off a line changes the student's graph. The plane is audited on its own in
+  // assignment-tools/graphing, in both themes. Every other drawing's text is audited here (the number line, the mapping
+  // diagram).
+  exclude: ['svg.mathmaster-responsive-canvas text'],
+  scenes: MATH_TOOLS_LAB_TOOLS.map(({ toolId, label }) => ({ id: toolId, run: openLabTool(label) })),
+};
