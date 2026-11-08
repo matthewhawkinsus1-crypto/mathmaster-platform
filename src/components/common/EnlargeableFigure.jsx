@@ -21,7 +21,7 @@ import { useModalDialog } from '../../ui/Dialog.jsx';
 import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
 import { LANGUAGE_TOOLS, OPEN_WORK_VIEW, workViewCapabilityWord } from '../../platform/student/studentWords.js';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
-import { overflowsDownward } from './matrixScrollRegion.js';
+import { overflowsDownward, overflowsSideways } from './matrixScrollRegion.js';
 import './WorkViewShell.css';
 
 // A graph a student can actually see.
@@ -538,13 +538,32 @@ export default function EnlargeableFigure({
       setTaskScrolls(false);
       return undefined;
     }
-    const measure = () => setTaskScrolls(/^(auto|scroll)$/.test(window.getComputedStyle(box).overflowY) && overflowsDownward(box));
+    // Either way: a box that scrolls up and down scrolls sideways too (CSS makes its other axis auto), and a word
+    // longer than its line did so, a tool's id where an item has no prompt ("Complete the inverseCompositionLab
+    // activity.") in CI's wider font on a phone, a box only a finger could scroll. The task now wraps such a word
+    // (WorkViewShell.css), and a box that still scrolls either way is a Tab stop. Measured again when its
+    // words change after mounting (mathematics drawn late, a reading's language) and once the fonts have loaded, since
+    // neither changes the clamped box's own size, which is all a ResizeObserver sees.
+    const measure = () => setTaskScrolls(/^(auto|scroll)$/.test(window.getComputedStyle(box).overflowY) && (overflowsDownward(box) || overflowsSideways(box)));
     measure();
-    if (typeof ResizeObserver !== 'function') return undefined;
-    const observer = new ResizeObserver(measure);
-    observer.observe(box);
-    if (box.parentElement) observer.observe(box.parentElement);
-    return () => observer.disconnect();
+    let gone = false;
+    const observers = [];
+    if (typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(box);
+      if (box.parentElement) observer.observe(box.parentElement);
+      observers.push(observer);
+    }
+    if (typeof MutationObserver === 'function') {
+      const words = new MutationObserver(measure);
+      words.observe(box, { subtree: true, childList: true, characterData: true });
+      observers.push(words);
+    }
+    document.fonts?.ready?.then(() => { if (!gone) measure(); });
+    return () => {
+      gone = true;
+      observers.forEach((observer) => observer.disconnect());
+    };
   }, [enlarged, taskWords]);
   // THE HELP DRAWER, IN THREE PARTS (student pass 3, TOOL-3): the tool's
   // description and steps (its TaskCard, which Work View hides), then the
