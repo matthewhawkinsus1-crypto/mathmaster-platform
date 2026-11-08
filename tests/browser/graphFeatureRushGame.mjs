@@ -272,6 +272,16 @@ const rushSecret = async (roomId) => (await db.collection('liveChallengePrivate'
 const privatePlayer = async (roomId, studentId) => (await db.collection('liveChallengePrivate').doc(roomId).collection('players').doc(studentId).get()).data() || {};
 const publicPlayers = async (roomId) => (await roomRef(roomId).collection('players').get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 const activeRoomId = async () => (await db.collection('liveChallengeTeacherActive').doc(TEACHER).get()).data()?.roomId || null;
+// Whether the game finished within `timeout`: a press of Finish is a call from
+// the page, which closing the page too soon can cancel on its way.
+const finishedBy = async (roomId, timeout = 20_000) => {
+  const until = Date.now() + timeout;
+  while (Date.now() < until) {
+    if ((await roomOf(roomId)).status === 'finished') return true;
+    await wait(400);
+  }
+  return false;
+};
 
 const questionOnScreen = async (student, roomId) => {
   const attribute = await student.page.locator('.mm-rush-graph-frame').getAttribute('data-question-index').catch(() => '');
@@ -352,7 +362,15 @@ const solveOne = async (student, roomId, { misses = 0, scenario }) => {
     }
   }
   const moved = await waitForQuestionChange(student, question.questionIndex);
-  if (scenario) check(scenario, moved, `${student.studentId}: graph ${question.questionIndex} (${question.feature}, ${question.family}) did not complete after its answer`);
+  // What the screen showed when its graph did not move on, so the finding says
+  // whether a tap missed, the cooldown held it, or nothing answered.
+  const screen = moved ? null : await student.page.evaluate(() => ({
+    onScreen: document.querySelector('.mm-rush-graph-frame')?.getAttribute('data-question-index'),
+    found: document.querySelectorAll('.mm-rush-found').length,
+    feedback: (document.querySelector('.mm-rush-feedback')?.textContent || '').trim(),
+    cooldown: Boolean(document.querySelector('.mm-rush-cooldown')),
+  })).catch(() => null);
+  if (scenario) check(scenario, moved, `${student.studentId}: graph ${question.questionIndex} (${question.feature}, ${question.family}) did not complete after its answer${screen ? ` (on screen: graph ${screen.onScreen}, ${screen.found} of ${question.targets.length} found, "${screen.feedback}"${screen.cooldown ? ', in the cooldown' : ''})` : ''}`);
   return question;
 };
 
@@ -813,6 +831,11 @@ await run('class-of-twelve', async () => {
   await shot(students[0], 'class12-results-chromebook');
   await shot(teacher, 'class12-results-teacher');
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
+  // The finish has to reach the server before the pages close (as the cancel
+  // in correct-count-devices): a game left open stays the teacher's active
+  // room, and the next scenario's teacher page reopened it instead of "Create
+  // a challenge" (once in 2 runs on a loaded machine).
+  check(S, await finishedBy(roomId), 'Finish & Show Final Standings did not finish the game');
   for (const handle of [teacher, ...students]) check(S, handle.errors.length === 0, `console errors on ${handle.device}: ${handle.errors.slice(0, 3).join(' | ')}`);
   await Promise.all([teacher, ...students].map((handle) => handle.context.close()));
 });
@@ -879,6 +902,7 @@ await run('tap-latency', async () => {
   check(S, at(0.95) < 150, `tap feedback p95 ${at(0.95)}ms on a 4× slower CPU`);
   await waitForRoundClosed(roomId, 0, 15_000);
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
+  check(S, await finishedBy(roomId), 'Finish & Show Final Standings did not finish the game');
   await Promise.all([teacher, student].map((handle) => handle.context.close()));
 });
 
