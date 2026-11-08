@@ -137,7 +137,9 @@ name: Student and Teacher Journeys
 #                          practicePassSwitchJourneys.mjs (LC23: Review's
 #                          Practice Passes switch saved, reopened and changed,
 #                          desktop and phone; the review never scrolls
-#                          sideways). Ask my teacher and the
+#                          sideways), resizeLoopJourneys.mjs (no
+#                          ResizeObserver loop error on a phone in Work View
+#                          at 200% text or turned). Ask my teacher and the
 #                          lobby's way into the game run on the accessibility
 #                          App harness, on port 5189
 #
@@ -660,3 +662,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/matrixLabPhoneJourneys.mjs
+      # On a 390×844 phone: Work View, 200% text, the phone turned, the keypad
+      # and the navigator raise no ResizeObserver loop error (the identity bar's
+      # height is published after its observer reports it).
+      - name: No ResizeObserver loop on a phone (Work View, 200% text, turned, keypad, navigator)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/resizeLoopJourneys.mjs

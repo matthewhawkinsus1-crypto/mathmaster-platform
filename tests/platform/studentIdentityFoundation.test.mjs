@@ -43,7 +43,10 @@ test('classroom alerts stack below the measured identity bar instead of competin
   const warmUp = region(app, 'const renderStudentWarmupBanner =', 'const renderIdleOverlay =', 'Warm-Up alert');
 
   assert.match(identity, /STUDENT_IDENTITY_STACK_OFFSET/);
-  assert.match(identity, /ResizeObserver\(publishHeight\)/, 'the offset must follow wrapped mobile identity height');
+  // The offset must follow the wrapped mobile identity height: measured again
+  // whenever the bar resizes, in the frame after its observer reports it
+  // (publishAfterResize.test.mjs).
+  assert.match(identity, /observeThenPublish\(\{ targets: \[bar, noticeRef\.current\], publish: publishHeight \}\)/, 'the offset must follow wrapped mobile identity height');
   assert.match(identity, /zIndex: STUDENT_IDENTITY_Z_INDEX/);
   assert.match(warmUp, /position: 'sticky',[\s\S]*top: `var\(\$\{STUDENT_IDENTITY_STACK_OFFSET\}, 38px\)`/);
   assert.doesNotMatch(warmUp, /top: 0/);
@@ -57,7 +60,8 @@ test('classroom alerts stack below the measured identity bar instead of competin
   assert.match(publish, /const noticeHeight = noticeRef\.current\?\.offsetHeight \|\| 0;/);
   assert.match(publish, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight \+ noticeHeight\}px`\)/);
   assert.match(publish, /setProperty\(STUDENT_IDENTITY_BAR_HEIGHT, `\$\{bar\.offsetHeight\}px`\)/);
-  assert.match(identity, /if \(noticeRef\.current\) observer\?\.observe\(noticeRef\.current\);/);
+  // The notice row is watched with the bar (the targets above).
+  assert.match(identity, /targets: \[bar, noticeRef\.current\]/);
   const noticeRow = region(identity, '{notice && (', ')}', 'notice row');
   assert.match(noticeRow, /ref=\{noticeRef\}/);
   assert.match(noticeRow, /position: 'sticky', top: `var\(\$\{STUDENT_IDENTITY_BAR_HEIGHT\}, 38px\)`/);

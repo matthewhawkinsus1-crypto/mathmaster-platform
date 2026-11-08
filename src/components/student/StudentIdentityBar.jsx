@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoundation.js';
 import { LOGOUT_RISK_MESSAGE } from '../../platform/student/logoutGuard.js';
 import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../platform/studentName.js';
+import { observeThenPublish } from '../../platform/layout/publishAfterResize.js';
 import StarIcon from '../common/StarIcon.jsx';
 import Dialog from '../../ui/Dialog.jsx';
 import './StudentIdentityBar.css';
@@ -78,12 +79,15 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
       document.documentElement.style.setProperty(STUDENT_IDENTITY_BAR_HEIGHT, `${bar.offsetHeight}px`);
       document.documentElement.style.setProperty(STUDENT_IDENTITY_STACK_OFFSET, `${bar.offsetHeight + noticeHeight}px`);
     };
-    publishHeight();
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publishHeight) : null;
-    observer?.observe(bar);
-    if (noticeRef.current) observer?.observe(noticeRef.current);
+    // Measured now, before the first paint, and again when the bar or its
+    // notice changes size: in the frame after the observer reports it, never
+    // inside its callback. On a phone the assignment screen is sized from this
+    // offset, so written there it resized the screen while the other observers
+    // were being delivered (a ResizeObserver loop error in Work View at 200%
+    // text and when the phone turned: platform/layout/publishAfterResize.js).
+    const stopObserving = observeThenPublish({ targets: [bar, noticeRef.current], publish: publishHeight });
     return () => {
-      observer?.disconnect();
+      stopObserving();
       document.documentElement.style.removeProperty(STUDENT_IDENTITY_STACK_OFFSET);
       document.documentElement.style.removeProperty(STUDENT_IDENTITY_BAR_HEIGHT);
     };

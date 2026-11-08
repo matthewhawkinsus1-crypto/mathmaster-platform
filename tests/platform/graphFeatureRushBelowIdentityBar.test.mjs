@@ -27,7 +27,9 @@ test('the Rush round is laid out below the identity bar, which stays on top', ()
   assert.ok(barZ > 0, 'the identity bar has a z-index');
   // The bar keeps the published height current as it wraps.
   assert.match(bar, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight \+ noticeHeight\}px`\)/);
-  assert.match(bar, /new ResizeObserver\(publishHeight\)/);
+  // Measured again whenever the bar's size changes, in the frame after its
+  // observer reports it (publishAfterResize.test.mjs).
+  assert.match(bar, /observeThenPublish\(\{ targets: \[bar, noticeRef\.current\], publish: publishHeight \}\)/);
 
   const rush = read('src/components/liveChallenge/GraphFeatureRushRound.jsx');
   const shell = region(rush, '.mm-rush-shell {', '}', 'Rush shell rule');
