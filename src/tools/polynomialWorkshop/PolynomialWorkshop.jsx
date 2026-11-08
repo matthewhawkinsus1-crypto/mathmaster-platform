@@ -43,6 +43,7 @@ import { binomialProductText, binomialTermTexts, polynomialReadoutText } from '.
 import { SubmitText, useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { SYNTHETIC_TABLE_RETRY, SYNTHETIC_TABLE_WITHHELD, syntheticMissMessage, syntheticTableMissMessage } from './syntheticFeedback.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
+import { addSubtractHints } from './addSubtractHints.js';
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
@@ -233,6 +234,7 @@ function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {},
   const setSum = (index, value) => { clearFeedback(); setSums((old) => listWith(count, old, index, value)); };
   const setResult = (value) => { clearFeedback(); setAnswer(value); };
   const keys = useMemo(() => (model ? keypadKeys([...model.first, ...model.second]) : []), [model]);
+  const hints = useMemo(() => addSubtractHints(model), [model]);
   useFieldUndoHistory({questionData,fields:{opposites:[opposites,setOpposites],sums:[sums,setSums],result:[answer,setAnswer]}});
   const work={opposites,sums,result:answer};
   useReportToolWork(work);
@@ -282,9 +284,9 @@ function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {},
       <MathInput value={answer} onChange={setResult} inputStatus={statusOf(wrong, 'result')} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="result" ariaLabel="Result in simplest form" />
       <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button>
       <Feedback feedback={feedback} success="Every step and the result are correct." retry={subtracting ? 'Check the sign of EVERY opposite, then combine each column.' : 'Combine only like terms: same letters, same exponents.'}/>
-      <HintPanel hints={subtracting
-        ? ['Subtracting a polynomial is adding its opposite. The minus sign in front of the parentheses changes the sign of every term inside.', 'The opposite of a³ is −a³, the opposite of −3a is +3a, and the opposite of 2 is −2.', 'Like terms have the same letters with the same exponents. Add their numbers; a column whose terms cancel combines to 0.']
-        : ['Adding polynomials means combining like terms.', 'Like terms have the same letters with the same exponents: 4x² and −2x² are like terms; 4x² and −9x are not.', 'Add the numbers in each column and keep the letters. A column whose terms cancel combines to 0.']} onHintUsed={() => onAction?.("HINT_USED")} />
+      {/* Written for this item's polynomials (addSubtractHints.js): the same
+          fixed hints on every item gave CW 3 its opposites before the last. */}
+      <HintPanel hints={hints} onHintUsed={() => onAction?.("HINT_USED")} />
     </Panel>
   </ToolShell>;
 }
