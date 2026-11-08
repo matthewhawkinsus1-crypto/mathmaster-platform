@@ -24,6 +24,11 @@
 //   checkReach    Practice 6, every box filled, Check brought into view the way
 //                 a browser does: nothing covers it, and it is above the work
 //                 bar, not under it (P2-7; PH10).
+//   keyboardScroll  Classwork 1 and 3, whose 4×5 matrices are wider than a 390 px
+//                 phone's box, at 100% and 200% text: Tab reaches the box, named
+//                 for its matrix, and End, Home and the arrow keys bring every
+//                 cell into it; on a laptop a matrix that fits is no Tab stop
+//                 (student-a11y-3, the matrices walkthrough's P-4).
 //
 // Exit code 1 on any finding. MATRIX_PHONE_SHOTS=<dir> saves a screenshot of each.
 import { mkdirSync } from 'node:fs';
@@ -53,7 +58,8 @@ const check = (ok, label, detail = '') => {
 };
 
 const openLesson = async (device = PHONE) => {
-  const context = await newSchoolContext(browser, { viewport: device.viewport, isMobile: true, hasTouch: true });
+  const touch = device.isMobile !== false;
+  const context = await newSchoolContext(browser, { viewport: device.viewport, isMobile: touch, hasTouch: touch });
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${device.name}: page error ${error.message}`));
   const search = new URLSearchParams({ reset: '1', as: 'student', studentId: STUDENT, questions: 'matrices', p3StartMin: '40' });
@@ -204,6 +210,86 @@ const firstScreen = (page) => page.evaluate(() => {
   check(reach.barTop !== null && reach.bottom <= reach.barTop, `${PHONE.name}, Practice 6: Check is above the work bar, not under it`, `Check ends at ${reach.bottom}, the bar starts at ${reach.barTop}`);
   check(reach.enabled, `${PHONE.name}, Practice 6: Check is ready with every value in`);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/check-reach-practice-6.png` });
+  await context.close();
+}
+
+/* ---------------------------------------------------------- keyboardScroll */
+// A MATRIX WIDER THAN THE PHONE, BY KEYBOARD (student-a11y-3; the matrices
+// walkthrough's P-4). At 390 px the lesson's 4×5 matrices are wider than their
+// boxes, which scroll sideways, and a keyboard could not bring the last column
+// into view: Classwork 3's matrix A is shown, not answered, and Classwork 1's
+// cells take focus only once an element is chosen. Each box that is wider than
+// it shows is a Tab stop named for its matrix ("Matrix A, 4 by 5, scrolls
+// sideways"), and End and Home, or the arrow keys, scroll it: every cell of the
+// matrix comes into its box. At 390 px and at 200% text; on a laptop, where it
+// fits, the box adds no Tab stop.
+const cellsInView = (page, region) => page.evaluate((name) => {
+  const box = [...document.querySelectorAll('[data-matrix-scroll][role="region"]')].find((element) => element.getAttribute('aria-label') === name);
+  if (!box) return null;
+  const edge = box.getBoundingClientRect();
+  const cells = [...box.querySelectorAll('[data-matrix-cell]')];
+  const inside = (cell) => { const rect = cell.getBoundingClientRect(); return rect.left >= edge.left - 1 && rect.right <= edge.right + 1; };
+  return { cells: cells.length, inView: cells.filter(inside).map((cell) => cell.getAttribute('data-matrix-cell')), scrollLeft: Math.round(box.scrollLeft), room: box.scrollWidth - box.clientWidth };
+}, region);
+const tabTo = async (page, name, limit = 80) => {
+  for (let step = 0; step < limit; step += 1) {
+    await page.keyboard.press('Tab');
+    if (await page.evaluate((wanted) => document.activeElement?.getAttribute('aria-label') === wanted, name)) return true;
+  }
+  return false;
+};
+for (const setting of [{ label: '390 px', textScale: 1 }, { label: '390 px at 200% text', textScale: 2 }]) {
+  const { context, page } = await openLesson();
+  if (setting.textScale !== 1) {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Page.setFontSizes', { fontSizes: { standard: 16 * setting.textScale, fixed: 13 * setting.textScale } });
+    await page.waitForTimeout(800);
+  }
+  for (const [section, number, label, name] of [
+    ['Classwork', 3, 'Classwork 3 (the sprinters, shown)', 'Matrix A, 4 by 5, scrolls sideways'],
+    ['Classwork', 1, 'Classwork 1 (cells to choose)', 'Matrix A, 4 by 5, scrolls sideways'],
+  ]) {
+    await goTo(page, section, number);
+    const at = `${PHONE.name}, ${setting.label}, ${label}`;
+    const before = await cellsInView(page, name);
+    if (!check(before && before.room > 1, `${at}: the matrix is wider than its box, and the box is a region named "${name}"`, JSON.stringify(before))) continue;
+    await page.evaluate(() => document.activeElement?.blur?.());
+    const reached = await tabTo(page, name);
+    check(reached, `${at}: Tab reaches the box`);
+    if (!reached) continue;
+    await page.keyboard.press('End');
+    await page.waitForTimeout(400);
+    let end = await cellsInView(page, name);
+    // End scrolls a focused box in Chromium; the arrow keys do too, a step at a time.
+    for (let step = 0; step < 30 && end.scrollLeft < end.room - 1; step += 1) {
+      await page.keyboard.press('ArrowRight');
+      await page.waitForTimeout(60);
+      end = await cellsInView(page, name);
+    }
+    check(end.scrollLeft >= end.room - 1, `${at}: the keys scroll the box to its far edge`, `${end.scrollLeft} of ${end.room}px`);
+    check(end.inView.some((cell) => cell.endsWith(',5')), `${at}: the last column is then in the box`, end.inView.join(' '));
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(400);
+    let start = await cellsInView(page, name);
+    for (let step = 0; step < 30 && start.scrollLeft > 0; step += 1) {
+      await page.keyboard.press('ArrowLeft');
+      await page.waitForTimeout(60);
+      start = await cellsInView(page, name);
+    }
+    check(start.scrollLeft === 0 && start.inView.some((cell) => cell.endsWith(',1')), `${at}: and back to the first column`, `${start.scrollLeft}px, ${start.inView.join(' ')}`);
+    // Between the two, every cell was in the box.
+    const seen = new Set([...end.inView, ...start.inView]);
+    check(seen.size === end.cells, `${at}: every cell of the matrix came into view (${seen.size} of ${end.cells})`);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/keyboard-scroll-${section.toLowerCase()}-${number}-${setting.textScale}x.png` });
+  }
+  await context.close();
+}
+{
+  // On a laptop the same matrices fit: no box is a stop of its own.
+  const { context, page } = await openLesson({ name: 'laptop 1366×768', viewport: { width: 1366, height: 768 }, isMobile: false });
+  await goTo(page, 'Classwork', 3);
+  const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-matrix-scroll]')].map((box) => ({ room: box.scrollWidth - box.clientWidth, region: box.getAttribute('role'), tab: box.getAttribute('tabindex') })));
+  check(boxes.length > 0 && boxes.every((box) => box.room <= 1 && box.region === null && box.tab === null), 'laptop 1366×768, Classwork 3: a matrix that fits is no Tab stop', JSON.stringify(boxes));
   await context.close();
 }
 

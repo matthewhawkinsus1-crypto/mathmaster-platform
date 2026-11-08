@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import MathDisplay from '../../MathDisplay';
 import { spokenMathLabel } from '../../platform/language/mathSpeechLabel.js';
 import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
+import { matrixScrollRegionProps, overflowsSideways } from './matrixScrollRegion.js';
 import './MatrixGrid.css';
 
 /*
@@ -36,6 +37,25 @@ export function MatrixCellValue({ value }) {
   return <span>{matrixCellText(text)}</span>;
 }
 
+// Whether the box is wider than it shows (matrixScrollRegion.js), measured again
+// whenever it or the matrix inside it changes size: a narrower window, larger text,
+// a longer value typed into a cell.
+const useOverflowsSideways = (ref, shape) => {
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const box = ref.current;
+    if (!box) return undefined;
+    const measure = () => setOverflowing(overflowsSideways(box));
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    [...box.children].forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, [ref, shape]);
+  return overflowing;
+};
+
 const labelStyle = {
   fontSize: 'calc(13 * var(--mm-px))',
   fontWeight: 800,
@@ -64,6 +84,8 @@ export default function MatrixGrid({
 }) {
   const height = rows.length;
   const width = height ? Math.max(...rows.map((row) => (Array.isArray(row) ? row.length : 0))) : 0;
+  const scrollRef = useRef(null);
+  const overflowing = useOverflowsSideways(scrollRef, `${height}x${width}`);
   if (!height || !width) return null;
   const hasRowLabels = Array.isArray(rowLabels) && rowLabels.length === height;
   const hasColLabels = Array.isArray(colLabels) && colLabels.length === width;
@@ -109,7 +131,8 @@ export default function MatrixGrid({
           column of stacked fractions (CW 5's S) drew a 5px vertical scrollbar
           (P2-11). The box scrolls sideways only; the block padding gives a
           stacked fraction's bar and descender the room they were clipped by. */}
-      <div data-matrix-scroll="true" style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: '100%', minWidth: 0, overflowX: 'auto', overflowY: 'hidden', paddingBlock: 4, alignSelf: 'stretch', justifyContent: 'safe center' }}>
+      {/* Wider than its box, it is a named Tab stop the arrow keys scroll (matrixScrollRegion.js). */}
+      <div ref={scrollRef} data-matrix-scroll="true" {...matrixScrollRegionProps({ overflowing, spokenName, dimensionsText })} style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: '100%', minWidth: 0, overflowX: 'auto', overflowY: 'hidden', paddingBlock: 4, alignSelf: 'stretch', justifyContent: 'safe center' }}>
         {rowTitle && hasRowLabels ? (
           <div aria-hidden="true" style={{ ...labelStyle, flex: '0 0 auto', writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: 'var(--mm-text-muted)' }}>{rowTitle}</div>
         ) : null}
