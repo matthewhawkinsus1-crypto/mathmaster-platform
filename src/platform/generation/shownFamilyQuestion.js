@@ -28,6 +28,15 @@
  *
  * No family engine is imported here: App reads this on the first load. The
  * `deal` comes from the engine, where the caller has it.
+ *
+ * BEFORE THE ENGINE, NOTHING IS COUNTED ON A STAND-IN. After a reload straight
+ * into an assignment, App has no `deal` until the engine lands (prefetched
+ * from Home, so on a reload this is the moment the question shows "Loading
+ * this question…"), and nothing has been shown on the new page. countedQuestion
+ * can then only hand back the stored slot, and the question list read a
+ * Warm-Up 2 its one try had closed as "2 tries left". `countedQuestionKnown`
+ * says when that is so, from the same inputs, and the list says nothing about
+ * the slot's tries until it is not (assignmentNavigator.js PENDING).
  */
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../../../functions/shared/questionFamilySlot.mjs';
@@ -65,4 +74,28 @@ export const countedQuestion = ({
   if (seen) return seen;
   if (preview || typeof deal !== 'function') return fallback;
   return deal({ slot, variant, storedQuestion, questionIndex, record }) || fallback;
+};
+
+/**
+ * Does `countedQuestion`, given the same input, name the question the slot's
+ * tries are counted on? Yes for every slot but a family slot nothing has shown
+ * on this device when there is no `deal` to ask (App before the family engine
+ * has loaded): its answer would be the stored slot standing in for what was
+ * dealt. A `deal` that names nothing (no pin for the variant) is an answer: the
+ * stored slot, as before. A preview pins nothing and is never dealt, so it
+ * counts on what it showed or on the stored slot, as always.
+ */
+export const countedQuestionKnown = ({
+  shown = null,
+  deal = null,
+  assignmentId = '',
+  storedQuestion = null,
+  questionIndex = 0,
+  record = null,
+  preview = false,
+} = {}) => {
+  if (!assignmentId || !isFamilyBackedQuestion(storedQuestion) || preview || typeof deal === 'function') return true;
+  const slot = familySlotKey({ assignmentId, question: storedQuestion, storageIndex: questionIndex });
+  const variant = normalizeQuestionRecord(record).variantIndex;
+  return Boolean(shown?.get?.(shownDeliveryKey({ slot, variant }))?.question);
 };

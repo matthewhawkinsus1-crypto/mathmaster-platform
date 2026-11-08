@@ -1580,6 +1580,16 @@
   color: var(--mm-primary-text);
 }
 
+/* Answered, and how it stands is not known yet: the family engine is still
+   loading after a reload (P-7). No colour that says how it went; the dotted
+   ring tells it from "not started" and from closed. */
+.mathmaster-question-number.is-pending {
+  border-style: dotted;
+  border-color: var(--mm-border-strong);
+  background: var(--mm-surface);
+  color: var(--mm-text);
+}
+
 .mathmaster-question-number.is-locked,
 .mathmaster-question-number:disabled {
   border-color: var(--mm-border);

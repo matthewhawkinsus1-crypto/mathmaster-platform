@@ -42,6 +42,11 @@ export const QUESTION_STATUS = Object.freeze({
   NOT_STARTED: 'notStarted',
   // Its section cannot be opened yet.
   LOCKED: 'locked',
+  // Answered, and how it stands is not known yet: what decides it (the
+  // question a family slot dealt, whether a new version can be offered)
+  // arrives with the family engine. Nothing about tries or verdicts is said
+  // until then (`triesKnown`, `replacementKnown` below).
+  PENDING: 'pending',
 });
 
 const SPOKEN = Object.freeze({
@@ -52,7 +57,11 @@ const SPOKEN = Object.freeze({
   [QUESTION_STATUS.SUBMITTED]: 'submitted, feedback comes later',
   [QUESTION_STATUS.NOT_STARTED]: 'not started',
   [QUESTION_STATUS.LOCKED]: 'locked',
+  [QUESTION_STATUS.PENDING]: 'loading',
 });
+
+// What a pending question and a section waiting on one show.
+export const NAVIGATOR_PENDING_LABEL = 'Loading…';
 
 const triesText = (count) => `${count} ${count === 1 ? 'try' : 'tries'} left`;
 
@@ -68,7 +77,17 @@ const triesText = (count) => `${count} ${count === 1 ? 'try' : 'tries'} left`;
  * @param {string} [input.lockedLabel]   why it cannot be opened ("Opens 2:15 PM")
  * @param {boolean} [input.replacementAvailable] out of tries, the question
  *   offers a new version (its policy allows a replacement and its outcome is shown)
- * @returns {{ status: string, spoken: string, label: string, triesLeft: number }}
+ * @param {boolean} [input.triesKnown] `maximumAttempts` is counted on the
+ *   question the student was dealt. False for a Question Family slot nothing
+ *   has shown on this device while the family engine that rebuilds what its
+ *   pin dealt is still loading (shownFamilyQuestion.js countedQuestionKnown):
+ *   the stored slot's count stands in, and it is not the student's.
+ * @param {boolean} [input.replacementKnown] `replacementAvailable` is decided.
+ *   False while the rules that say whether a question can vary are still
+ *   loading (they arrive with the family engine) and its policy would offer a
+ *   new version.
+ * @returns {{ status: string, spoken: string, label: string, triesLeft: number|null }}
+ *   `triesLeft` is null while the tries are not known.
  */
 export const describeNavigatorQuestion = ({
   record,
@@ -78,11 +97,16 @@ export const describeNavigatorQuestion = ({
   available = true,
   lockedLabel = '',
   replacementAvailable = false,
+  triesKnown = true,
+  replacementKnown = true,
 } = {}) => {
   const normalized = normalizeQuestionRecord(record);
   const triesLeft = getAttemptsRemaining(normalized, maximumAttempts);
   const answered = normalized.totalAttempts > 0 || ['correct', 'expired'].includes(normalized.status);
-  const finish = (status, label, spoken = SPOKEN[status]) => ({ status, spoken, label, triesLeft });
+  // A count that is not the student's is never handed on, whatever the state.
+  const finish = (status, label, spoken = SPOKEN[status]) => ({ status, spoken, label, triesLeft: triesKnown ? triesLeft : null });
+  // Not counted, not labelled: a moment later it is (P-7, after a reload).
+  const pending = () => ({ status: QUESTION_STATUS.PENDING, spoken: SPOKEN[QUESTION_STATUS.PENDING], label: NAVIGATOR_PENDING_LABEL, triesLeft: null });
 
   if (!available) {
     return finish(QUESTION_STATUS.LOCKED, lockedLabel || 'Locked', lockedLabel ? `locked, ${lockedLabel}` : SPOKEN.locked);
@@ -93,7 +117,14 @@ export const describeNavigatorQuestion = ({
     return finish(QUESTION_STATUS.SUBMITTED, 'Submitted · feedback later');
   }
   if (normalized.status === 'correct') return finish(QUESTION_STATUS.CORRECT, 'Correct');
+  // Everything below an answered question reads its tries. Counted on the
+  // stored slot, a closed Warm-Up 2 (one try dealt, three stored) read
+  // "2 tries left" until the family engine landed.
+  if (answered && !triesKnown) return pending();
   const outOfTries = normalized.status === 'expired' && triesLeft <= 0;
+  // Out of tries, "closed" or "new question available" turns on whether it
+  // can vary. Guessed "no", it read closed and counted as done, then flipped.
+  if (outOfTries && !sectionClosed && !replacementKnown) return pending();
   // A new version is one tap away while the section is open: not done, and a
   // section tab still lands on it so the student can ask for it.
   if (outOfTries && replacementAvailable && !sectionClosed) {
@@ -141,17 +172,23 @@ export const outcomeWithheld = ({ feedbackMode = 'immediate', released = false, 
  * A section tab's words. `questions` are describeNavigatorQuestion results.
  * "✓ Complete" means every answer is right, so a held section never says it:
  * once all are in it says "All submitted".
+ *
+ * While one of its questions is PENDING the section's count is not known
+ * either (that question may be done or not), so `pending` is set, the label is
+ * the pending one and `done` is null: no count is shown until it is known.
  */
 export const describeNavigatorSectionProgress = ({ questions = [], feedbackHeld = false } = {}) => {
   const total = questions.length;
-  const done = questions.filter((question) => TERMINAL.has(question.status)).length;
+  const pending = questions.some((question) => question.status === QUESTION_STATUS.PENDING);
+  const done = pending ? null : questions.filter((question) => TERMINAL.has(question.status)).length;
   const allCorrect = total > 0 && !feedbackHeld && questions.every((question) => question.status === QUESTION_STATUS.CORRECT);
   const allSubmitted = total > 0 && feedbackHeld && done === total;
   return {
     total,
     done,
+    pending,
     allCorrect,
-    label: allCorrect ? 'Complete' : allSubmitted ? 'All submitted' : `${done}/${total}`,
+    label: allCorrect ? 'Complete' : allSubmitted ? 'All submitted' : pending ? NAVIGATOR_PENDING_LABEL : `${done}/${total}`,
   };
 };
 
@@ -160,7 +197,8 @@ export const describeNavigatorSectionProgress = ({ questions = [], feedbackHeld 
  * has not finished; else (nothing workable) the first one they can open that
  * is not correct, so a closed section still opens for review; else the
  * current one; else the first one they can open. Never an out-of-tries
- * question while a workable one is left (RUN-9).
+ * question while a workable one is left (RUN-9). A PENDING question may be
+ * either, so a question known to be unfinished comes first.
  *
  * `entries` carry `{ index, viewable, workable, status }`; status is a
  * QUESTION_STATUS.
@@ -168,8 +206,10 @@ export const describeNavigatorSectionProgress = ({ questions = [], feedbackHeld 
 export const sectionLandingEntry = ({ entries = [], currentIndex = null } = {}) => {
   const viewable = entries.filter((entry) => entry.viewable);
   if (!viewable.length) return null;
-  const unfinished = (entry) => !TERMINAL.has(entry.status);
+  const isPending = (entry) => entry.status === QUESTION_STATUS.PENDING;
+  const unfinished = (entry) => !TERMINAL.has(entry.status) && !isPending(entry);
   return viewable.find((entry) => entry.workable && unfinished(entry))
+    || viewable.find((entry) => entry.workable && isPending(entry))
     || viewable.find((entry) => entry.status !== QUESTION_STATUS.CORRECT && entry.status !== QUESTION_STATUS.SUBMITTED)
     || viewable.find((entry) => entry.index === currentIndex)
     || viewable[0];

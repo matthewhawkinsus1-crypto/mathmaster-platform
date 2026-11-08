@@ -85,7 +85,7 @@ import {
 // brings every family's generator and loads with the question runtime below
 // (loadFamilyDelivery), never in the first load.
 import { readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDeliveryPins.js';
-import { countedQuestion, shownDeliveryKey } from './platform/generation/shownFamilyQuestion.js';
+import { countedQuestion, countedQuestionKnown, shownDeliveryKey } from './platform/generation/shownFamilyQuestion.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilySlot.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
 import {
@@ -213,6 +213,7 @@ import {
   outcomeWithheld,
   QUESTION_STATUS,
   SECTION_ACCESS,
+  NAVIGATOR_PENDING_LABEL,
   describeNavigatorQuestion,
   describeNavigatorSectionProgress,
   describeSectionAccess,
@@ -7291,31 +7292,47 @@ function App() {
   // What a slot's pin dealt, rebuilt once per pin and per copy of the
   // assignment (platform/generation/dealtFamilyQuestion.js).
   const dealtFamilyQuestionsRef = useRef(new WeakMap());
+  // The question a slot's pin dealt, rebuilt as the server rebuilds it to
+  // count, for the signed-in student. It comes with the family engine, so
+  // until the engine lands there is none.
+  const dealFor = (assignment, questionIndex, record) => (familyDelivery && user?.role === 'student' && user?.id
+    ? ({ slot, variant, storedQuestion }) => familyDelivery.dealtFamilyQuestion({
+      assignment,
+      question: storedQuestion,
+      questionIndex,
+      record,
+      devicePin: readLocalDeliveryPin({ studentId: user.id, slotKey: slot, variant }),
+      studentId: user.id,
+      classId: user.classId || null,
+      cache: dealtFamilyQuestionsRef.current,
+    })
+    : null);
+  // What every try count below reads for one stored slot: the questions shown
+  // on this page, then that deal (platform/generation/shownFamilyQuestion.js).
+  const triesCountingFor = (assignment, questionIndex, record, preview = false) => ({
+    shown: familyDeliveriesRef.current,
+    deal: dealFor(assignment, questionIndex, record),
+    assignmentId: assignment?.id,
+    storedQuestion: getStoredAssignmentQuestions(assignment)[questionIndex],
+    questionIndex,
+    record,
+    preview,
+  });
   // The question every try count below reads: the one shown for this slot and
   // variant; where nothing has been shown on this device yet (after a reload,
   // a slot not opened again), the one its pin dealt, as the server counts it;
   // else `fallback` (platform/generation/shownFamilyQuestion.js, P-7).
   const countedQuestionFor = (assignment, questionIndex, record, fallback, preview = false) => countedQuestion({
-    shown: familyDeliveriesRef.current,
-    deal: familyDelivery && user?.role === 'student' && user?.id
-      ? ({ slot, variant, storedQuestion }) => familyDelivery.dealtFamilyQuestion({
-        assignment,
-        question: storedQuestion,
-        questionIndex,
-        record,
-        devicePin: readLocalDeliveryPin({ studentId: user.id, slotKey: slot, variant }),
-        studentId: user.id,
-        classId: user.classId || null,
-        cache: dealtFamilyQuestionsRef.current,
-      })
-      : null,
-    assignmentId: assignment?.id,
-    storedQuestion: getStoredAssignmentQuestions(assignment)[questionIndex],
-    questionIndex,
-    record,
+    ...triesCountingFor(assignment, questionIndex, record, preview),
     fallback,
-    preview,
   });
+  // Whether that question is the one the student was dealt. Not for a family
+  // slot nothing has shown on this page before the engine lands (a reload
+  // straight into the assignment): the stored slot stands in, and the question
+  // list counts nothing on it (assignmentNavigator.js PENDING).
+  const countedQuestionKnownFor = (assignment, questionIndex, record, preview = false) => countedQuestionKnown(
+    triesCountingFor(assignment, questionIndex, record, preview),
+  );
 
   /** The pin (and rendered question) for a family-backed slot, or null. */
   const familyDeliveryForQuestion = (assignment, questionIndex, record) => {
@@ -10481,6 +10498,10 @@ function App() {
       return describeNavigatorQuestion({
         record: workingTracker?.[entry.index],
         maximumAttempts: entryMaximumAttempts(entry),
+        // A family slot's tries are counted on the question it dealt; before
+        // the family engine lands (a reload straight into the assignment) that
+        // is not known, and the navigator neither counts nor labels it.
+        triesKnown: countedQuestionKnownFor(assignment, entry.index, workingTracker?.[entry.index], preview),
         feedbackHeld: entryFeedbackHeld(entry),
         sectionClosed: access.state === SECTION_ACCESS.READ_ONLY,
         available: access.viewable,
@@ -10492,6 +10513,9 @@ function App() {
           activityPolicy: policy,
           canGenerateFresh: isPersonalizedBlueprint(questions[entry.index]),
         }),
+        // Whether it can vary is decided by rules that arrive with the family
+        // engine: until then an offer its policy would make is not known.
+        replacementKnown: Boolean(familyDelivery) || !resolveQuestionReplacementAllowed({ activityPolicy: policy, canGenerateFresh: true }),
       });
     };
     const compactSectionLabel = (section) => section?.role === 'dol'
@@ -11002,7 +11026,7 @@ function App() {
                           aria-disabled={sectionAvailable ? undefined : 'true'}
                           aria-current={active ? 'page' : undefined}
                           aria-describedby={access.reason ? reasonId : undefined}
-                          title={access.reason || `${compactSectionLabel(section)}: ${section.progress.done} of ${section.progress.total} done.`}
+                          title={access.reason || `${compactSectionLabel(section)}: ${section.progress.pending ? NAVIGATOR_PENDING_LABEL : `${section.progress.done} of ${section.progress.total} done.`}`}
                         >
                           {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
                           <span className="mathmaster-section-tab-copy">
@@ -11206,7 +11230,7 @@ function App() {
                     {section.allCorrect ? (
                       <span style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}><span aria-hidden="true">✓ {sectionName.toUpperCase()} COMPLETE</span><span style={SR_ONLY_STYLE}>{`${sectionName} section complete`}</span></span>
                     ) : (
-                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' ? 'All submitted' : `${section.progress.done} of ${section.progress.total} done`}</span>
+                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' || section.progress.pending ? section.progress.label : `${section.progress.done} of ${section.progress.total} done`}</span>
                     )}
                     <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{sectionScoreLine}</span>
                     {sectionAccess.reason && <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>{sectionAccess.reason}</span>}

@@ -28,10 +28,15 @@ import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../src/platform/contract/assignmentSchemaV5.js';
 import { getEffectiveActivityPolicy } from '../../src/platform/policies/activityPolicies.js';
-import { countedQuestion } from '../../src/platform/generation/shownFamilyQuestion.js';
+import { countedQuestion, countedQuestionKnown, shownDeliveryKey } from '../../src/platform/generation/shownFamilyQuestion.js';
 import { dealtFamilyQuestion } from '../../src/platform/generation/dealtFamilyQuestion.js';
 import { readLocalDeliveryPin } from '../../src/platform/generation/familyDeliveryPins.js';
-import { QUESTION_STATUS, describeNavigatorQuestion } from '../../src/platform/student/assignmentNavigator.js';
+import {
+  QUESTION_STATUS,
+  describeNavigatorQuestion,
+  describeNavigatorSectionProgress,
+  outcomeWithheld,
+} from '../../src/platform/student/assignmentNavigator.js';
 import { QUESTION_OUTCOME, analyzeAssignmentQuestions } from '../../src/platform/caseReview/attemptAnalysis.js';
 import {
   repairQuestionRecordForCurrentGrader,
@@ -39,7 +44,12 @@ import {
 } from '../../src/platform/assignment/liveQuestionCorrection.js';
 import { SYSTEMS_WORKSPACE_UPGRADE_REPAIR_KIND } from '../../functions/shared/liveResponseRepairPolicy.mjs';
 import { familySlotKey } from '../../functions/shared/questionFamilySlot.mjs';
-import { getAttemptsRemaining, isChoiceOnlyQuestion, resolveQuestionMaximumAttempts } from '../../functions/shared/attemptPolicy.mjs';
+import {
+  getAttemptsRemaining,
+  isChoiceOnlyQuestion,
+  resolveQuestionMaximumAttempts,
+  resolveQuestionReplacementAllowed,
+} from '../../functions/shared/attemptPolicy.mjs';
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import {
@@ -187,9 +197,13 @@ test('after a reload the question list says the closed Warm-Up 2 is closed, on a
 
 test('App.jsx hands every count the question the pin dealt where nothing was shown', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  const counted = region(app, 'const countedQuestionFor = ', '});', 'countedQuestionFor');
-  assert.match(counted, /countedQuestion\(\{\s*shown: familyDeliveriesRef\.current,\s*deal: familyDelivery && user\?\.role === 'student' && user\?\.id\s*\? \(\{ slot, variant, storedQuestion \}\) => familyDelivery\.dealtFamilyQuestion\(\{/);
-  const dealt = region(counted, 'familyDelivery.dealtFamilyQuestion({', ': null,', 'the deal');
+  // Every count reads one input (triesCountingFor): the questions shown, then
+  // the engine's rebuild of what the pin dealt (dealFor), for a student.
+  const counting = region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor');
+  assert.match(counting, /=> \(\{\s*shown: familyDeliveriesRef\.current,\s*deal: dealFor\(assignment, questionIndex, record\),/);
+  assert.match(region(app, 'const countedQuestionFor = ', '});', 'countedQuestionFor'), /countedQuestion\(\{\s*\.\.\.triesCountingFor\(assignment, questionIndex, record, preview\),/);
+  const dealt = region(app, 'const dealFor = ', ': null);', 'dealFor');
+  assert.match(dealt, /=> \(familyDelivery && user\?\.role === 'student' && user\?\.id\s*\? \(\{ slot, variant, storedQuestion \}\) => familyDelivery\.dealtFamilyQuestion\(\{/);
   assert.match(dealt, /\bquestion: storedQuestion,/);
   assert.match(dealt, /\bquestionIndex,/);
   assert.match(dealt, /\brecord,/);
@@ -202,6 +216,160 @@ test('App.jsx hands every count the question the pin dealt where nothing was sho
   assert.match(executableSource(engine), /export \{ dealtFamilyQuestion \} from '\.\/dealtFamilyQuestion\.js';/);
   const helper = executableSource(readFileSync(new URL('../../src/platform/generation/shownFamilyQuestion.js', import.meta.url), 'utf8'));
   assert.doesNotMatch(helper, /dealtFamilyQuestion|questionFamilyGrading|questionFamilyInstance/);
+});
+
+/*
+ * BEFORE THE FAMILY ENGINE LANDS.
+ *
+ * The rebuild above comes with the family engine, which App loads with the
+ * question runtime: prefetched from Home, and on opening an assignment. After a
+ * reload straight into an assignment the question list is drawn before it
+ * lands, with nothing shown on the new page (the question itself reads
+ * "Loading this question…"), so countedQuestion can only hand back the stored
+ * slot: the closed Warm-Up 2 read "75% so far · 2 tries left" until the engine
+ * arrived. Whether a question can vary arrives with the engine too, so one out
+ * of tries read "Closed" (and counted as done) where a new version waited.
+ * Until both are known the list neither counts nor labels the question
+ * (assignmentNavigator.js PENDING).
+ */
+test('before the family engine lands, the question list neither counts nor labels the closed Warm-Up 2', async () => {
+  const { assignment, questionIndex, stored, canonical, opened } = await missedWarmUp2();
+  const slot = familySlotKey({ assignmentId: assignment.id, question: stored, storageIndex: questionIndex });
+  // App.jsx triesCountingFor after a reload: nothing shown, and no engine, so no deal.
+  const counting = (overrides = {}) => ({ shown: new Map(), deal: null, assignmentId: assignment.id, storedQuestion: stored, questionIndex, record: canonical, ...overrides });
+  assert.equal(countedQuestionKnown(counting()), false, 'the stored slot only stands in');
+  assert.equal(countedQuestion({ ...counting(), fallback: stored }), stored);
+  const before = describeNavigatorQuestion({ record: canonical, maximumAttempts: triesOn(stored), triesKnown: countedQuestionKnown(counting()) });
+  assert.equal(before.status, QUESTION_STATUS.PENDING);
+  assert.equal(before.triesLeft, null);
+  assert.doesNotMatch(`${before.label} ${before.spoken}`, /tries? left|credit|closed|correct|so far/i);
+  // The engine lands: its deal names the four choices, and the slot is closed.
+  const deal = appDeal({ device: null, assignment, questionIndex, record: canonical });
+  assert.equal(countedQuestionKnown(counting({ deal })), true);
+  const landed = describeNavigatorQuestion({ record: canonical, maximumAttempts: triesOn(countedQuestion({ ...counting({ deal }), fallback: stored })), triesKnown: true });
+  assert.equal(landed.label, 'Closed · 75% credit');
+  // Shown on this page, it is known without the engine.
+  const shown = new Map([[shownDeliveryKey({ slot, variant: 0 }), { delivery: opened.processed.familyDelivery, question: opened.processed }]]);
+  assert.equal(countedQuestionKnown(counting({ shown })), true);
+  // A deal that names nothing (no pin for this variant) is an answer: the stored slot, as before.
+  assert.equal(countedQuestionKnown(counting({ deal: () => null, record: { ...canonical, variantIndex: 1 } })), true);
+  // A preview pins nothing and is never dealt: what it showed, else the stored slot, as always.
+  assert.equal(countedQuestionKnown(counting({ preview: true })), true);
+  // A slot that is not a family slot is counted on itself.
+  assert.equal(countedQuestionKnown(counting({ storedQuestion: { questionId: 'plain', type: 'literal', prompt: 'Solve 2x = 6.', answer: '3' } })), true);
+});
+
+test('what the list says before the family engine lands is pending, or exactly what it says after', async () => {
+  const { stored, opened } = await missedWarmUp2();
+  // App.jsx navigatorQuestionFor, with and without the engine (bound to App below).
+  const listSays = ({ engine, question, policy, record, sectionClosed, teacherBonus }) => {
+    const counting = { shown: new Map(), deal: engine ? () => question.dealt : null, assignmentId: 'a-list', storedQuestion: question.stored, questionIndex: 4, record };
+    return describeNavigatorQuestion({
+      record,
+      maximumAttempts: resolveQuestionMaximumAttempts({
+        question: countedQuestion({ ...counting, fallback: question.stored }),
+        maximumAttempts: policy.attempts,
+        activityPolicy: policy,
+        teacherGrantedExtraAttempts: teacherBonus,
+      }),
+      triesKnown: countedQuestionKnown(counting),
+      feedbackHeld: outcomeWithheld({ feedbackMode: policy.feedback, record }),
+      sectionClosed,
+      replacementAvailable: resolveQuestionReplacementAllowed({ activityPolicy: policy, canGenerateFresh: engine && question.canVary }),
+      replacementKnown: engine || !resolveQuestionReplacementAllowed({ activityPolicy: policy, canGenerateFresh: true }),
+    });
+  };
+  const plain = { questionId: 'plain', type: 'multiAnswer', prompt: 'What is 2 + 1?', answerFields: [{ id: 'sum', answer: '3' }] };
+  const questions = [
+    { name: 'Warm-Up 2, four choices dealt', stored, dealt: opened.processed, canVary: true },
+    { name: 'a question that cannot vary', stored: plain, dealt: plain, canVary: false },
+    { name: 'a question with versions', stored: { ...plain, variants: [{ prompt: 'What is 2 + 1?' }, { prompt: 'What is 3 + 1?', answerFields: [{ id: 'sum', answer: '4' }] }] }, dealt: plain, canVary: true },
+    { name: 'a choice question', stored: { questionId: 'pick', type: 'multipleChoice', prompt: 'Pick one.', choices: ['a', 'b'], answer: 'a' }, dealt: { questionId: 'pick', type: 'multipleChoice', choices: ['a', 'b'], answer: 'a' }, canVary: false },
+  ];
+  const records = [
+    null,
+    { status: 'attempted', attemptCount: 1, totalAttempts: 1, bestPartialCredit: 50 },
+    { status: 'attempted', attemptCount: 2, totalAttempts: 2 },
+    { status: 'expired', attemptCount: 1, totalAttempts: 1, bestPartialCredit: 75 },
+    { status: 'expired', attemptCount: 3, totalAttempts: 3 },
+    { status: 'correct', attemptCount: 1, totalAttempts: 1 },
+  ];
+  let cases = 0;
+  let pendingCases = 0;
+  const wrongBefore = [];
+  for (const question of questions) {
+    for (const role of ['warmup', 'classwork', 'practice', 'dol', 'quiz']) {
+      const policy = getEffectiveActivityPolicy(role);
+      for (const record of records) {
+        for (const sectionClosed of [false, true]) {
+          for (const teacherBonus of role === 'dol' ? [0, 1] : [0]) {
+            const input = { question, policy, record, sectionClosed, teacherBonus };
+            const before = listSays({ ...input, engine: false });
+            const after = listSays({ ...input, engine: true });
+            const label = `${question.name}, ${role}, ${JSON.stringify(record)}, closed ${sectionClosed}, +${teacherBonus}`;
+            cases += 1;
+            assert.notEqual(after.status, QUESTION_STATUS.PENDING, `${label}: known once the engine is here`);
+            if (before.status === QUESTION_STATUS.PENDING) pendingCases += 1;
+            else {
+              const { triesLeft: countBefore, ...said } = before;
+              const { triesLeft: countAfter, ...true_ } = after;
+              assert.deepEqual(said, true_, `${label}: said before the engine, and not so`);
+              // A count, where one is handed on at all, is the real one.
+              assert.ok(countBefore === null || countBefore === countAfter, `${label}: ${countBefore} tries left before the engine, ${countAfter} after`);
+            }
+            // The list as it was, counting on the stand-in and guessing "cannot vary".
+            const guessed = describeNavigatorQuestion({
+              record,
+              maximumAttempts: resolveQuestionMaximumAttempts({ question: question.stored, maximumAttempts: policy.attempts, activityPolicy: policy, teacherGrantedExtraAttempts: teacherBonus }),
+              feedbackHeld: outcomeWithheld({ feedbackMode: policy.feedback, record }),
+              sectionClosed,
+              replacementAvailable: false,
+            });
+            if (JSON.stringify(guessed) !== JSON.stringify(after)) wrongBefore.push(`${label}: "${guessed.label}", then "${after.label}"`);
+          }
+        }
+      }
+    }
+  }
+  // Four roles, and the exit ticket with and without a teacher's extra try.
+  assert.equal(cases, questions.length * records.length * 2 * (4 + 2));
+  // Only what waits on the engine waits: never a question that cannot vary in a role that offers no new version.
+  assert.ok(pendingCases > 0 && pendingCases < cases / 2, `${pendingCases} of ${cases} wait`);
+  // The premise: without the wait, the list said something wrong a moment before.
+  assert.ok(wrongBefore.some((line) => line.startsWith('Warm-Up 2, four choices dealt, warmup, {"status":"expired","attemptCount":1') && line.includes('"75% so far · 2 tries left", then "Out of tries · new question available"')), wrongBefore.slice(0, 3).join('\n'));
+  assert.ok(wrongBefore.some((line) => line.startsWith('a question with versions, classwork, {"status":"expired","attemptCount":3') && line.includes('"Closed · no tries left", then "Out of tries · new question available"')), wrongBefore.slice(0, 3).join('\n'));
+  // A section's count waits with them: before the engine it is pending, or the count it has after.
+  const section = (engine) => describeNavigatorSectionProgress({
+    questions: [
+      listSays({ engine, question: questions[0], policy: WARMUP, record: records[3], sectionClosed: false, teacherBonus: 0 }),
+      listSays({ engine, question: questions[1], policy: WARMUP, record: records[5], sectionClosed: false, teacherBonus: 0 }),
+    ],
+  });
+  assert.deepEqual([section(false).pending, section(false).done, section(false).label], [true, null, 'Loading…']);
+  assert.deepEqual([section(true).pending, section(true).done, section(true).label], [false, 1, '1/2']);
+});
+
+test('App.jsx tells the question list what is not known before the family engine lands', () => {
+  const source = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const app = executableSource(source);
+  // The same input as the count itself, so the two cannot disagree.
+  assert.match(region(app, 'const countedQuestionKnownFor = ', ');', 'countedQuestionKnownFor'), /=> countedQuestionKnown\(\s*triesCountingFor\(assignment, questionIndex, record, preview\),\s*$/);
+  const question = region(app, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
+  assert.match(question, /triesKnown: countedQuestionKnownFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], preview\),/);
+  assert.match(question, /maximumAttempts: entryMaximumAttempts\(entry\),/);
+  assert.match(region(app, 'const entryMaximumAttempts = (entry) => {', '};', 'entryMaximumAttempts'), /question: countedQuestionFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], questions\[entry\.index\], preview\),/);
+  // Whether it can vary is the engine's answer, and known only once it is here.
+  assert.match(question, /canGenerateFresh: isPersonalizedBlueprint\(questions\[entry\.index\]\),/);
+  assert.match(app, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
+  assert.match(question, /replacementKnown: Boolean\(familyDelivery\) \|\| !resolveQuestionReplacementAllowed\(\{ activityPolicy: policy, canGenerateFresh: true \}\),/);
+  // Every place a section's count is printed holds it while a question is pending.
+  const printed = source.split('\n').filter((line) => line.includes('section.progress.done'));
+  assert.equal(printed.length, 2, 'the tab\'s title and the Overview');
+  printed.forEach((line) => assert.match(line, /section\.progress\.pending \?/, line.trim()));
+  // The strip tells a pending number from one not started (the class is its status).
+  const css = readFileSync(new URL('../../src/App.css', import.meta.url), 'utf8');
+  assert.match(region(css, '.mathmaster-question-number.is-pending {', '}', 'the pending number'), /border-style: dotted;/);
+  assert.match(region(source, 'className="mathmaster-question-number-strip"', '</div>', 'the number strip'), /className=\{`mathmaster-question-number is-\$\{shown\.status\}/);
 });
 
 test('the teacher\'s case review counts Warm-Up 2 on the question dealt', async () => {

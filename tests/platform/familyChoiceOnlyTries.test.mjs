@@ -209,7 +209,9 @@ test('the screen locks after the miss: no Submit, the closed card', async () => 
 test('App.jsx counts every try on the question shown', () => {
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   // From a module that carries no family engine (the first load).
-  assert.match(app, /import \{ countedQuestion, shownDeliveryKey \} from '\.\/platform\/generation\/shownFamilyQuestion\.js';/);
+  const shownImport = app.match(/import \{([^}]*)\} from '\.\/platform\/generation\/shownFamilyQuestion\.js';/);
+  assert.ok(shownImport, 'App reads the count from shownFamilyQuestion.js');
+  for (const name of ['countedQuestion', 'shownDeliveryKey']) assert.match(shownImport[1], new RegExp(`\\b${name}\\b`), name);
   // What QuestionEngine reports showing is kept under the one key; a
   // teacher's preview under its own, and the preview hands it only there.
   assert.match(region(app, 'const handleFamilyDelivery = useCallback(', '}, [user?.role', 'handleFamilyDelivery'),
@@ -218,8 +220,10 @@ test('App.jsx counts every try on the question shown', () => {
     /familyDeliveriesRef\.current\.set\(shownDeliveryKey\(\{ \.\.\.delivery, preview: true \}\), \{ delivery, question: renderedQuestion \|\| null \}\);/);
   const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
   assert.match(mount, /onFamilyDelivery=\{preview \? handlePreviewFamilyDelivery : handleFamilyDelivery\}/);
-  // The count reads that map.
-  assert.match(region(app, 'const countedQuestionFor = ', '});', 'countedQuestionFor'), /countedQuestion\(\{\s*shown: familyDeliveriesRef\.current,/);
+  // The count reads that map: countedQuestionFor takes its input, the map
+  // first, from triesCountingFor (familyDealtTriesCounted.test.mjs holds the rest).
+  assert.match(region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /=> \(\{\s*shown: familyDeliveriesRef\.current,/);
+  assert.match(region(app, 'const countedQuestionFor = ', '});', 'countedQuestionFor'), /countedQuestion\(\{\s*\.\.\.triesCountingFor\(assignment, questionIndex, record, preview\),\s*fallback,\s*$/);
   // Each place App counts reads it: the attempt, the step, the navigator and
   // the limit QuestionEngine is handed.
   const sites = {

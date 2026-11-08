@@ -37,6 +37,12 @@ name: Student and Teacher Journeys
 #                          the class was seated shows the same numbers on the
 #                          next Chromebook, before any Submit; a slow read
 #                          waits, a stalled one does not hold the question)
+#   the question list      tests/browser/teacherWorkflow/familyListReloadJourneys.mjs
+#   after a reload         (P-7: reloaded straight into a question, before the
+#                          family engine lands, the list neither counts nor
+#                          labels a family slot, nor calls a question out of
+#                          tries closed: "Loading…", never "2 tries left";
+#                          Chromebook and phone)
 #   restored-draft focus   tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
 #                          (its own job: once the student clicks, taps or keys
 #                          after a cross-device restore, no late focus — the
@@ -255,6 +261,12 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/familyPinCrossDeviceJourneys.mjs
+      - name: The question list after a reload, before the family engine lands
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/familyListReloadJourneys.mjs
       - name: Warm-Up close and reopen under unfinished work
         if: ${{ !cancelled() }}
         env:
