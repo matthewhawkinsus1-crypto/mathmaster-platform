@@ -13,6 +13,12 @@
 import { Suspense } from 'react';
 // Shared with App so the sheets form their own chunk that links before App.css.
 import '../shell/leadingStyles.js';
+// The teacher's own sheets, here and not on a student's first load (PF01). The
+// workspace loads before any screen inside it, so they link before every
+// teacher screen's own CSS, as they did when App carried them. App.css's touch
+// rules beat theirs by weight (app/shell/leadingStyles.js says how).
+import '../../components/teacher/supportEvidence.css';
+import '../../components/teacher/teacherWorkspace.css';
 import { addDoc, collection, deleteField, doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';

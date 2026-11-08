@@ -15,7 +15,11 @@ const app = read('src/App.jsx');
 // module since G2; App keeps openIEPReport and hands it over by name.
 const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
 const view = read('src/components/teacher/SupportEvidenceReportView.jsx');
-const css = read('src/components/teacher/supportEvidence.css');
+// The report's print rules: a sheet of their own since PF01, linked before
+// App.css on every first load (src/app/shell/leadingStyles.js), where
+// supportEvidence.css used to bring them.
+const printCss = read('src/components/teacher/supportEvidencePrint.css');
+const leadingStyles = read('src/app/shell/leadingStyles.js');
 
 test('every entry point opens the new report; the old pop-up generator is gone', () => {
   assert.doesNotMatch(executableSource(app), /buildIEPReportHtml|reportWindow\.document\.write/);
@@ -55,7 +59,9 @@ test('the report loads through the rules-guarded readers and degrades rather tha
 
 test('printing expands every section and prints only the report', () => {
   assert.match(region(view, 'const printReport = () => {', '\n  };', 'printReport'), /setExpanded\(true\);\n    setTimeout\(\(\) => window\.print\(\), 150\);/);
-  const print = region(css, '@media print {', '\n}\n', 'print css');
+  const print = region(printCss, '@media print {', '\n}\n', 'print css');
+  // Linked with every page, so the report prints the same whatever loaded it.
+  assert.match(executableSource(leadingStyles), /^import '\.\.\/\.\.\/components\/teacher\/supportEvidencePrint\.css';$/m);
   assert.match(print, /body \* \{ visibility: hidden !important; \}/);
   assert.match(print, /\.se-report, \.se-report \* \{ visibility: visible !important; \}/);
   assert.match(print, /\.se-report__controls, \.se-report \[data-screen-only\] \{ display: none !important; \}/);

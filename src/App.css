@@ -2376,6 +2376,22 @@
     padding-top: 12px;
     padding-bottom: 12px;
   }
+
+  /* The same sizes where a teacher sheet sets its own with a selector as
+     specific as the two above: supportEvidence.css's support options (18px)
+     and evidence tables (6px), teacherWorkspace.css's Grade Export rows (24px).
+     Those sheets load with the teacher's workspace, after this one, so these
+     name them and win by weight, whichever sheet comes last (PF01; the order
+     used to decide it, G2). */
+  .mm-dashboard-content :is(.se-option, .tw-export-row) input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mm-dashboard-content .se-table :is(td, th) {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
 }
 
 /* --- INTERACTIVE DISPLAY: two metres away ---------------------------------
@@ -2393,6 +2409,11 @@
 
   .mm-dashboard-content h2 { font-size: 1.9rem; }
   .mm-dashboard-content h3 { font-size: 1.45rem; }
+  /* The support evidence report sizes its own headings as specifically
+     (supportEvidence.css), and loads after this sheet: named, these win by
+     weight (PF01). */
+  .mm-dashboard-content .se-report h2 { font-size: 1.9rem; }
+  .mm-dashboard-content .se-report h3 { font-size: 1.45rem; }
 
   .mm-dashboard-content :is(button, select, input) {
     font-size: 1.05rem;

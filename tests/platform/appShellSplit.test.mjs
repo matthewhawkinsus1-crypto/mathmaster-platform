@@ -222,25 +222,27 @@ test('student Home prefetches the question runtime at idle, the chunk an assignm
 });
 
 // G2 review: stylesheets App used to get through modules that moved with the
-// teacher's screen must still link BEFORE App.css, as at 805b69e2. App.css's
-// coarse-pointer `.mm-dashboard-content` rules (22px checkboxes, 12px cells,
-// 52px controls, large-screen headings) tie on specificity with rules in the
-// teacher sheets and win only by order. They reach App through one shared
-// module that App and the workspace both import, so the bundler gives it a
-// chunk of its own, linked before App's CSS. (Checked against the built
-// manifest at the time: the CSS App links, concatenated in order, equals
-// 805b69e2's.)
-test('the teacher and phone stylesheets link before App.css, in the order they had', () => {
+// teacher's screen must still link BEFORE App.css, as at 805b69e2, where
+// App.css's result depends on it. They reach App through one shared module
+// that App and the workspace both import, so the bundler gives it a chunk of
+// its own, linked before App's CSS. (Checked against the built manifest at the
+// time: the CSS App links, concatenated in order, equals 805b69e2's.)
+// PF01: the two teacher sheets left it. App.css's coarse-pointer
+// `.mm-dashboard-content` rules (22px checkboxes, 12px cells, large-screen
+// headings) used to tie with rules in them and win only by order; they win by
+// weight now (firstLoadTeacherStyles.test.mjs), so the sheets load with the
+// workspace and a student does not download them. What stays: the support
+// report's print rules, which reach every page, and the phone layout sheet.
+test('the print and phone stylesheets link before App.css, in the order they had', () => {
   const leading = read('src/app/shell/leadingStyles.js');
   const sheets = [...executableSource(leading).matchAll(/^import '([^']+\.css)';$/gm)].map((match) => match[1]);
   assert.deepEqual(sheets, [
-    '../../components/teacher/supportEvidence.css',
-    '../../components/teacher/teacherWorkspace.css',
+    '../../components/teacher/supportEvidencePrint.css',
     '../../platform/mobile/MobileInteractionFoundation.css',
   ]);
   const shared = "import './app/shell/leadingStyles.js';";
   assert.ok(app.indexOf(shared) > 0 && app.indexOf(shared) < app.indexOf("import './App.css';"), 'App imports them ahead of App.css');
   assert.match(teacherWorkspace, /^import '\.\.\/shell\/leadingStyles\.js';$/m, 'the workspace shares the module, so it is its own chunk');
-  assert.doesNotMatch(executableSource(app), /^import '\.\/(?:components\/teacher\/(?:supportEvidence|teacherWorkspace)|platform\/mobile\/MobileInteractionFoundation)\.css';$/m,
+  assert.doesNotMatch(executableSource(app), /^import '\.\/(?:components\/teacher\/(?:supportEvidence|supportEvidencePrint|teacherWorkspace)|platform\/mobile\/MobileInteractionFoundation)\.css';$/m,
     'imported straight from App they would link after App.css');
 });
