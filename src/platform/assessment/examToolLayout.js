@@ -94,6 +94,30 @@ export const examTabRound = ({ count = 1, from = 0, forward = true } = {}) => {
   return Array.from({ length: total }, (_, index) => (((start + step * (index + 1)) % total) + total) % total);
 };
 
+/*
+ * COMING INTO THE ROUND FROM OUTSIDE IT (student-a11y-3).
+ *
+ * Each region of the round has an empty stop at either end: the test's two
+ * guards, and the two around each open drawer. Focus that reaches one from
+ * inside the round is leaving that region the way the stop faces: past its end
+ * going forward, before its start going back. But Tab from the student
+ * navigation above a running test lands on the test's start guard too, which
+ * read it as Shift+Tab before the test's first control and sent it round to
+ * the last: a student who Tabbed into the test came in at the end of its round.
+ * Focus that reaches a stop from outside the round (the page around the test,
+ * the browser, or nowhere) is coming in, the way the key went: through a start
+ * going forward, to the round's first control, the one Tab past its last
+ * reaches; through an end going back, to its last, after any open drawer.
+ *
+ * `edge` is 'start' or 'end'; the move is { into, forward }, `into` true when
+ * the round is entered from outside it (examTabRound's `from` is then no region).
+ */
+export const examTabEdgeMove = ({ edge = 'start', fromInsideRound = false } = {}) => (
+  fromInsideRound
+    ? { into: false, forward: edge === 'end' }
+    : { into: true, forward: edge !== 'end' }
+);
+
 const width = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 
 /** Can both drawers sit beside a usable question at this width? */

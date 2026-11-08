@@ -33,6 +33,15 @@
  * At 1366×768 the two drawers fit side by side, so both are opened and one
  * walk must reach every control of both.
  *
+ * COMING INTO THE TEST (student-a11y-3). Tab from the student navigation above
+ * the test landed on its last control: the guard at the test's start read every
+ * focus as Shift+Tab before its first control. Now, with no tool open and with
+ * each open: Tab from a stop just before the test lands on the round's first
+ * control (the one Tab past its last reaches), Shift+Tab from a stop at the end
+ * of the page lands on its last (with a drawer open, the drawer's last: the
+ * drawer still comes after the test's last control), and Tab from the student
+ * navigation's last control lands on the test's first control.
+ *
  * NOTHING LEAVES LOCALHOST: every context aborts non-local requests.
  */
 import path from 'node:path';
@@ -152,11 +161,77 @@ const closeWithEscape = async (page, tool, label) => {
   check(closed && onLauncher, `${label}: Escape inside it closes it, and focus is back on its toolbar button`, `closed ${closed}, on its button ${onLauncher}`);
 };
 
+// In the page: mark the round's first and last controls (the test, then each
+// open drawer in page order: SecureExamContainer.jsx tabRound's own rule), and
+// put a stop just before the test and one at the end of the page, outside it.
+const markEntry = () => {
+  const TABBABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, math-field, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+  const usable = (scope) => [...scope.querySelectorAll(TABBABLE)].filter((element) => !element.hasAttribute('data-secure-focus-guard')
+    && !element.hasAttribute('data-exam-tool-tab-edge') && !element.closest('[inert]') && element.getClientRects().length > 0);
+  const root = document.querySelector('[data-secure-exam-status]');
+  const drawers = [...document.querySelectorAll('[data-exam-tool-panel]')];
+  document.querySelectorAll('[data-mm-entry]').forEach((element) => element.removeAttribute('data-mm-entry'));
+  document.querySelectorAll('[data-mm-entry-stop]').forEach((element) => element.remove());
+  usable(root)[0]?.setAttribute('data-mm-entry', 'first');
+  (drawers.length ? usable(drawers.at(-1)) : usable(root)).at(-1)?.setAttribute('data-mm-entry', 'last');
+  const stop = (where) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.mmEntryStop = where;
+    button.textContent = `outside the test (${where})`;
+    button.style.cssText = 'position:fixed;left:0;width:1px;height:1px;opacity:0.01;';
+    return button;
+  };
+  root.before(stop('before'));
+  document.body.append(stop('after'));
+  const name = (element) => (element?.getAttribute('aria-label') || element?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  return { first: name(root.querySelector('[data-mm-entry="first"]')), last: name(document.querySelector('[data-mm-entry="last"]')) };
+};
+const entryNow = () => {
+  const element = document.activeElement;
+  return { entry: element?.getAttribute('data-mm-entry') || null, name: (element?.getAttribute('aria-label') || element?.textContent || element?.tagName || '').replace(/\s+/g, ' ').trim().slice(0, 40) };
+};
+const entryChecks = async (page, label) => {
+  // Focus goes back where it was afterwards, so the walks that follow start where they always did.
+  await page.evaluate(() => { window.__mmEntryPrior = document.activeElement; });
+  const expected = await page.evaluate(markEntry);
+  await page.locator('[data-mm-entry-stop="before"]').focus();
+  await page.keyboard.press('Tab');
+  const forward = await page.evaluate(entryNow);
+  check(forward.entry === 'first', `${label}: Tab into the test from just before it lands on its first control (${expected.first})`, `it landed on ${forward.name}`);
+  await page.locator('[data-mm-entry-stop="after"]').focus();
+  await page.keyboard.press('Shift+Tab');
+  const backward = await page.evaluate(entryNow);
+  check(backward.entry === 'last', `${label}: Shift+Tab into the test from the end of the page lands on the round's last control (${expected.last})`, `it landed on ${backward.name}`);
+  // The real way in from above: the student navigation's last control, where it comes before the test.
+  const navBefore = await page.evaluate(() => {
+    document.querySelectorAll('[data-mm-entry-stop]').forEach((element) => element.remove());
+    const controls = [...document.querySelectorAll('nav[aria-label="Student navigation"] :is(a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"]))')]
+      .filter((control) => control.getClientRects().length > 0 && !control.closest('[inert]'));
+    const root = document.querySelector('[data-secure-exam-status]');
+    const last = controls.at(-1);
+    if (!last || !(last.compareDocumentPosition(root) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+    last.focus();
+    return document.activeElement === last;
+  });
+  if (navBefore) {
+    await page.keyboard.press('Tab');
+    const fromNav = await page.evaluate(entryNow);
+    check(fromNav.entry === 'first', `${label}: Tab from the student navigation lands on the test's first control`, `it landed on ${fromNav.name}`);
+  }
+  await page.evaluate(() => {
+    document.querySelectorAll('[data-mm-entry-stop]').forEach((element) => element.remove());
+    if (window.__mmEntryPrior?.isConnected) window.__mmEntryPrior.focus();
+    else document.activeElement?.blur?.();
+  });
+};
+
 const walkTools = async (page, device, tools) => {
   const label = `${device.id}, ${tools.map((tool) => TOOLS[tool].name).join(' and ')}`;
   for (const tool of tools) await openTool(page, tool);
   const open = await page.evaluate(() => [...document.querySelectorAll('[data-exam-tool-panel]')].map((drawer) => drawer.getAttribute('data-exam-tool-panel')));
   check(tools.every((tool) => open.includes(tool)), `${label}: open`, `open: ${open.join(', ') || 'none'}`);
+  await entryChecks(page, label);
   const controls = await page.evaluate(drawerControls);
   for (const [key, direction] of [['Tab', 'forward'], ['Shift+Tab', 'back']]) {
     const { strays, missed, kinds } = await walk(page, key);
@@ -191,6 +266,7 @@ try {
     try {
       await openPracticeTest(page);
       check(true, `${device.id}: the Digital SAT practice test is open, with its reference sheet and graphing calculator`);
+      await entryChecks(page, `${device.id}, no tool open`);
       await walkTools(page, device, ['graphingCalculator']);
       await walkTools(page, device, ['referenceSheet']);
       // Side by side only where both fit (examToolLayout.js examToolsFitSideBySide).

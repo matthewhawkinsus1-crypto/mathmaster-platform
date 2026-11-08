@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_NARROW_QUERY, EXAM_TOOL_PANEL_SELECTOR,
-  examTabRound, examToolRoom, examToolYieldsTo, examToolsFitSideBySide,
+  examTabEdgeMove, examTabRound, examToolRoom, examToolYieldsTo, examToolsFitSideBySide,
 } from '../../src/platform/assessment/examToolLayout.js';
 import { examToolTabEdge } from '../../src/components/assessment/examToolDrawerHooks.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -135,6 +135,33 @@ test('in the secure exam Tab goes round the test and its open tools, and never o
   assert.deepEqual(examTabRound({ count: 0, from: -1, forward: true }), [0], 'the test is always a stop');
 });
 
+test('Tab into the test from outside comes in at the start of its round, and Shift+Tab at its end', () => {
+  // From inside the round a stop is a way out, the way it faces: Shift+Tab onto a
+  // start is leaving before the first control, Tab onto an end leaving past the last.
+  assert.deepEqual(examTabEdgeMove({ edge: 'start', fromInsideRound: true }), { into: false, forward: false });
+  assert.deepEqual(examTabEdgeMove({ edge: 'end', fromInsideRound: true }), { into: false, forward: true });
+  // From outside (the student navigation above the test, the page, the browser,
+  // nowhere) it is a way in, the way the key went: Tab from above lands on the
+  // test's start guard and goes on into the round; it used to go back, round to
+  // the test's last control (student-a11y-3).
+  assert.deepEqual(examTabEdgeMove({ edge: 'start', fromInsideRound: false }), { into: true, forward: true });
+  assert.deepEqual(examTabEdgeMove({ edge: 'end', fromInsideRound: false }), { into: true, forward: false });
+  assert.deepEqual(examTabEdgeMove(), { into: true, forward: true }, 'focus from nowhere comes in at the start');
+  // Coming in, the round is tried from outside it: forward the test first (its
+  // first control is the one Tab past the round's last reaches), backward the
+  // last open drawer first, so the open drawer still comes after the test's last control.
+  const enter = (edge, count) => {
+    const move = examTabEdgeMove({ edge, fromInsideRound: false });
+    return examTabRound({ count, from: move.into ? -1 : 0, forward: move.forward });
+  };
+  assert.deepEqual(enter('start', 1), [0]);
+  assert.deepEqual(enter('start', 2), [0, 1], 'the test, then the open drawer');
+  assert.deepEqual(enter('end', 2), [1, 0], 'from below, the open drawer\'s last control first');
+  assert.deepEqual(enter('end', 3), [2, 1, 0]);
+  // Where Tab from above now lands is where Tab past the round's last control lands.
+  assert.deepEqual(enter('start', 3)[0], examTabRound({ count: 3, from: 2, forward: true })[0]);
+});
+
 test('a drawer joins its host\'s Tab round only when asked: a stop before it and after it hands focus back', () => {
   // The stop itself: Tab onto the one after a drawer is leaving it forward,
   // Shift+Tab onto the one before it is leaving it backward; either tells the
@@ -145,9 +172,12 @@ test('a drawer joins its host\'s Tab round only when asked: a stop before it and
   const before = examToolTabEdge('start', { current: panel }, (...args) => calls.push(args));
   assert.equal(after.tabIndex, 0, 'Tab reaches the stop after the drawer');
   assert.equal(before.tabIndex, 0, 'Shift+Tab reaches the stop before the drawer');
-  after.onFocus();
+  // And where focus came from (the event's relatedTarget, or null): from outside
+  // the round a stop is a way in (examTabEdgeMove, student-a11y-3).
+  const control = { id: 'a drawer control' };
+  after.onFocus({ relatedTarget: control });
   before.onFocus();
-  assert.deepEqual(calls, [[panel, true], [panel, false]]);
+  assert.deepEqual(calls, [[panel, true, control], [panel, false, null]]);
   assert.doesNotThrow(() => examToolTabEdge('end', { current: panel }, null).onFocus(), 'no host, no hand-off');
   // Empty and out of sight, like the exam's own guards.
   assert.equal(after.style.height, 0);

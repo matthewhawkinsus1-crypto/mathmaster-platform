@@ -308,11 +308,18 @@ test('keyboard focus never leaves the test: the question list is a panel, and Ta
   assert.match(navigatorSource, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); onClose\?\.\(\); \} \}\}/);
   assert.match(region(navigatorSource, 'useEffect(() => {', '}, []);', 'list focus'), /closeRef\.current\?\.focus\(\);[\s\S]*opener\.focus\(\)/);
 
-  // The whole test: a guard first and last sends Tab round — Shift+Tab onto
-  // the first is leaving the test backward, Tab onto the last forward.
-  const guards = [...executableSource(container).matchAll(/<span tabIndex=\{0\} data-secure-focus-guard="(start|end)" onFocus=\{\(\) => tabRound\(rootRef\.current, (true|false)\)\}/g)]
-    .map((match) => `${match[1]}:${match[2] === 'true' ? 'forward' : 'backward'}`);
-  assert.deepEqual(guards, ['start:backward', 'end:forward']);
+  // The whole test: a guard first and last sends Tab round — from inside the
+  // test, Shift+Tab onto the first is leaving it backward and Tab onto the last
+  // forward; from outside it (the student navigation above it), Tab onto the
+  // first is coming in, at the round's start (student-a11y-3: it came in at the
+  // end). Which, is examToolLayout.js examTabEdgeMove's, told where focus came from.
+  const guards = [...executableSource(container).matchAll(/<span tabIndex=\{0\} data-secure-focus-guard="(start|end)" onFocus=\{\(event\) => tabEdge\(rootRef\.current, '(start|end)', event\.relatedTarget\)\}/g)]
+    .map((match) => `${match[1]}:${match[2]}`);
+  assert.deepEqual(guards, ['start:start', 'end:end']);
+  const edge = region(container, 'const insideRound = (element) =>', 'const toolTabOut = ', 'tabEdge');
+  // Inside the round is the test or an open drawer of it.
+  assert.match(edge, /rootRef\.current\?\.contains\(element\) \|\| element\.closest\(EXAM_TOOL_PANEL_SELECTOR\)/);
+  assert.match(edge, /const move = examTabEdgeMove\(\{ edge, fromInsideRound: insideRound\(cameFrom\) \}\);\s*tabRound\(move\.into \? null : region, move\.forward\);/);
   const root = region(container, '<div ref={rootRef} data-secure-exam-status', '  </div>;\n};', 'the test screen');
   assert.match(root, /^<div ref=\{rootRef\}[^\n]*\n\s*<span tabIndex=\{0\} data-secure-focus-guard="start"/, 'the first thing in the test');
   assert.match(root, /<span tabIndex=\{0\} data-secure-focus-guard="end"[^\n]*\n$/, 'the last thing in the test');
@@ -328,10 +335,12 @@ test('keyboard focus never leaves the test: the question list is a panel, and Ta
   assert.match(handlers.tabRound, /if \(!forward\) reachable\.reverse\(\);/);
   // The first control that really takes focus; with none anywhere, the pause screen.
   assert.match(handlers.tabRound, /const target = reachable\.find\(\(element\) => \{ element\.focus\(\); return document\.activeElement === element; \}\);\s*if \(target\) return;\s*\}\s*pauseRef\.current\?\.focus\(\);/);
-  // Both of the exam's tools hand a Tab out of their drawer back to the round.
+  // Both of the exam's tools hand a Tab out of their drawer back to the round,
+  // through the same rule as the guards: a drawer's edge reached from outside is a way in.
   const tools = region(container, 'const toolLaunchers = (', ') : null;', 'the exam\'s tools');
-  assert.match(region(tools, '<SatReferenceSheet ', '/>', 'the reference sheet'), /onTabOut=\{tabRound\}/);
-  assert.match(region(tools, '<GraphingCalculatorPanel', '/>', 'the graphing calculator'), /onTabOut=\{tabRound\}/);
+  assert.match(region(tools, '<SatReferenceSheet ', '/>', 'the reference sheet'), /onTabOut=\{toolTabOut\}/);
+  assert.match(region(tools, '<GraphingCalculatorPanel', '/>', 'the graphing calculator'), /onTabOut=\{toolTabOut\}/);
+  assert.match(container, /const toolTabOut = useCallback\(\(panel, forward, cameFrom = null\) => tabEdge\(panel, forward \? 'end' : 'start', cameFrom\), \[tabEdge\]\);/);
 });
 
 test('the start screen states the new rules and the student\'s own time, and none of the one-way rules or jargon remain', () => {

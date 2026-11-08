@@ -59,11 +59,16 @@ export const useExamToolbarOffset = (anchorRef, open) => {
  */
 const TAB_EDGE_STYLE = Object.freeze({ position: 'fixed', top: 0, left: 0, width: 1, height: 0, padding: 0, overflow: 'hidden', outline: 'none' });
 
-/** Props for the stop at a drawer's `edge` ('start' or 'end'). */
+/**
+ * Props for the stop at a drawer's `edge` ('start' or 'end'). The host is also
+ * told where focus came from (the focus event's relatedTarget, or null): from
+ * outside its round, a stop is a way in, not a way out (examToolLayout.js
+ * examTabEdgeMove, student-a11y-3).
+ */
 export const examToolTabEdge = (edge, panelRef, onTabOut) => ({
   tabIndex: 0,
   'data-exam-tool-tab-edge': edge,
-  onFocus: () => onTabOut?.(panelRef.current, edge === 'end'),
+  onFocus: (event) => onTabOut?.(panelRef.current, edge === 'end', event?.relatedTarget ?? null),
   style: TAB_EDGE_STYLE,
 });
 

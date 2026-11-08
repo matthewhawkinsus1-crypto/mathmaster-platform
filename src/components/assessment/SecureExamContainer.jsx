@@ -14,7 +14,7 @@ import { SECURE_ITEM_DRAFT_PREFIX, secureItemDraftKey } from '../../platform/ass
 import { resolveSecureExamTools } from '../../platform/assessment/secureExamTools.js';
 import { createSerialSaver, newDraftWriterId } from '../../platform/assessment/serialDraftSaves.js';
 import { useExamToolRoom } from './examToolDrawerHooks.js';
-import { EXAM_TOOL_PANEL_SELECTOR, examTabRound } from '../../platform/assessment/examToolLayout.js';
+import { EXAM_TOOL_PANEL_SELECTOR, examTabEdgeMove, examTabRound } from '../../platform/assessment/examToolLayout.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
 import {
   DEFAULT_INTEGRITY_LOCK_THRESHOLD,
@@ -860,6 +860,19 @@ export const SecureExamContainer = ({
     pauseRef.current?.focus();
   }, []);
 
+  // Focus on one of the round's empty stops: the test's guards, or an open
+  // drawer's edges (onTabOut). From inside the round it is leaving `region` the
+  // way the stop faces; from outside it (the student navigation, the page, the
+  // browser) it is coming in, at the round's first control going forward and at
+  // its last going back (examToolLayout.js examTabEdgeMove, student-a11y-3).
+  const insideRound = (element) => Boolean(element?.nodeType === 1
+    && (rootRef.current?.contains(element) || element.closest(EXAM_TOOL_PANEL_SELECTOR)));
+  const tabEdge = useCallback((region, edge, cameFrom) => {
+    const move = examTabEdgeMove({ edge, fromInsideRound: insideRound(cameFrom) });
+    tabRound(move.into ? null : region, move.forward);
+  }, [tabRound]);
+  const toolTabOut = useCallback((panel, forward, cameFrom = null) => tabEdge(panel, forward ? 'end' : 'start', cameFrom), [tabEdge]);
+
   // The pause screen takes focus (everything behind it is inert, so typing
   // cannot reach an answer box under it), and gives it back afterwards to
   // where the student was working. It is the shared Dialog, but with the
@@ -1049,7 +1062,7 @@ export const SecureExamContainer = ({
   });
   const toolLaunchers = (tools.referenceSheet || tools.graphingCalculator) ? (
     <>
-      {tools.referenceSheet && <SatReferenceSheet buttonStyle={EXAM_HEADER_CONTROL} onOpenChange={setReferenceSheetOpen} onTabOut={tabRound} />}
+      {tools.referenceSheet && <SatReferenceSheet buttonStyle={EXAM_HEADER_CONTROL} onOpenChange={setReferenceSheetOpen} onTabOut={toolTabOut} />}
       <GraphingCalculatorPanel
         available={tools.graphingCalculator && !pause}
         // A practice test's calculator lists zeros, minimum and maximum, as the
@@ -1060,13 +1073,13 @@ export const SecureExamContainer = ({
         onOpenChange={setGraphingCalculatorOpen}
         onOpened={() => { if (question?.questionInstanceId) calculatorUsedRef.current.add(question.questionInstanceId); }}
         // Tab out of the open drawer comes back into the test (TABBABLE).
-        onTabOut={tabRound}
+        onTabOut={toolTabOut}
       />
     </>
   ) : null;
 
   return <div ref={rootRef} data-secure-exam-status={session.status} style={{ minHeight: '100dvh', background: 'var(--mm-surface-sunken)', position: 'relative' }}>
-    <span tabIndex={0} data-secure-focus-guard="start" onFocus={() => tabRound(rootRef.current, false)} style={focusGuardStyle} />
+    <span tabIndex={0} data-secure-focus-guard="start" onFocus={(event) => tabEdge(rootRef.current, 'start', event.relatedTarget)} style={focusGuardStyle} />
     {integrityNotice && session.status === EXAM_RUNTIME_STATES.IN_PROGRESS && (
       <div role="alert" data-secure-integrity-warning="" style={{ ...bannerStyle('warning'), position: 'fixed', top: 12, left: 0, right: 0, margin: '0 auto', zIndex: WARNING_LAYER, background: 'var(--mm-warning-bg)', boxShadow: 'var(--mm-shadow-lg)', display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <span><strong>Stay in the test window.</strong> {integrityNotice}</span>
@@ -1198,7 +1211,7 @@ export const SecureExamContainer = ({
         </div>
       </Dialog>
     )}
-    <span tabIndex={0} data-secure-focus-guard="end" onFocus={() => tabRound(rootRef.current, true)} style={focusGuardStyle} />
+    <span tabIndex={0} data-secure-focus-guard="end" onFocus={(event) => tabEdge(rootRef.current, 'end', event.relatedTarget)} style={focusGuardStyle} />
   </div>;
 };
 
