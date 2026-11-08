@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { applyStudentSupportToQuestion, buildSupportUsage } from '../../src/studentSupport.js';
+import { followRosterClass, studentClassFields } from '../../src/platform/student/rosterMembership.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
 
 const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
@@ -71,6 +72,14 @@ test('launch records come from the shared rules, and every called module is impo
   assert.match(launch, /workload = \{ failed: true,/, 'a projection that throws is recorded as unavailable, never as provided');
   assert.match(launch, /const presentedQuestions = activeQuestions\.filter\(\(_, index\) => required\.has\(index\)\);/);
   assert.match(launch, /launchSupportRecords\(\{ profile: user\.profile, assignment: activeAssignmentData, roles, questions: presentedQuestions, workload: accommodation \}\)/);
-  // The roster teacher email the rules compare against is loaded verbatim.
-  assert.match(executableSource(app), /assignedTeacherEmail: studentData\.assignedTeacherEmail \|\| null,/);
+  // The roster teacher email the rules compare against is loaded verbatim: sign-in takes the session's class fields from
+  // the roster row (rosterMembership.js studentClassFields), and so does a move while the student stays signed in. Both
+  // keep the row's teacher as it is, even where the class's record names another.
+  const hydrate = executableSource(region(app, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession'));
+  assert.match(hydrate, /\} = studentClassFields\(\{\s*rosterRow: studentData,/);
+  assert.match(hydrate, /setUser\(\{[\s\S]*\.\.\.classFields,[\s\S]*\}\);/);
+  const row = { classId: 'C', classPeriod: 'Period 2', assignedTeacherEmail: 'Row.Teacher@District.example' };
+  const classesById = { C: { classId: 'C', name: 'Algebra I — Period 2', period: 'Period 2', teacherOfRecord: 'class.teacher@district.example' } };
+  assert.equal(studentClassFields({ rosterRow: row, classesById }).assignedTeacherEmail, 'Row.Teacher@District.example');
+  assert.equal(followRosterClass({ id: 'S', classId: 'B', assignedTeacherEmail: 'b@district.example', profile: {} }, row, { classesById }).assignedTeacherEmail, 'Row.Teacher@District.example');
 });

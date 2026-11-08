@@ -36,6 +36,11 @@
 //       another teacher (the class and the roster row restamped in the store,
 //       as the server does): their follow-up goes to the new teacher, with no
 //       reload (teacher features walk, item 10)
+//   T2  a third Period 5 student stays signed in while moved to Algebra II
+//       Period 3 (their roster row restamped as setStudentClass does): with no
+//       reload, Home offers Period 3's lessons and not Period 5's, and a
+//       question about a Period 3 lesson goes to Period 3's teacher, with
+//       Period 3 (the November build's section 6)
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/ask-my-teacher/ (git-ignored).
@@ -78,6 +83,8 @@ const P5_STUDENT = '910020';
 const P3_STUDENT = '910001';
 // T1: a Period 5 classmate, and the teacher the class is handed to.
 const HANDOVER_STUDENT = '910021';
+// T2: another, moved to Algebra II Period 3 (taught by the harness teacher) while signed in.
+const MOVED_STUDENT = '910022';
 const HARNESS_TEACHER = 'teacher@harness.example';
 const NEXT_TEACHER = 'next.teacher@harness.example';
 
@@ -371,6 +378,56 @@ for (const viewport of VIEWPORTS) {
     JSON.stringify(handedOver),
   );
   await shot(page, 't1-handover-follow-up', viewport);
+  await page.close();
+
+  /* ------------------------------ a move to another class, while signed in */
+  // Following the teacher was not following the class: a student moved to
+  // another class while signed in kept the class they left until they
+  // reloaded (its lessons, its bell times), and their questions named a class
+  // and a teacher the roster row no longer did, which the rules refuse. After
+  // T1 here, Period 5 is NEXT_TEACHER's; Period 3 is still the harness
+  // teacher's, and out of class for this step, so a question is left rather
+  // than a hand raised.
+  page = await openPage(context, `as=student&studentId=${MOVED_STUDENT}`, viewport);
+  await page.locator('[data-primary-action="true"]:visible').first().waitFor({ timeout: 20000 });
+  const homeBefore = await page.locator('main').first().innerText();
+  await endPeriodThree(page);
+  // Moved to Algebra II Period 3 while the page stays open: the roster row restamped (functions/index.js setStudentClass).
+  await page.evaluate((studentId) => {
+    window.__mmStillThisPage = true;
+    window.__mmHarnessStore.update(`grades/${studentId}`, { classId: 'c-alg2-p3', classPeriod: 'Period 3', assignedTeacherEmail: 'teacher@harness.example' });
+  }, MOVED_STUDENT);
+  const followed = await page.waitForFunction(() => {
+    const text = document.querySelector('main')?.innerText || '';
+    return text.includes('Systems of Equations') && !text.includes('Linear Equations — Lesson 5');
+  }, null, { timeout: 15000 }).then(() => true, () => false);
+  expect(
+    `T2 ${tag} after a move, Home offers the new class's lessons and not the old class's, with no reload`,
+    homeBefore.includes('Linear Equations — Lesson 5') && !homeBefore.includes('Systems of Equations') && followed
+      && await page.evaluate(() => window.__mmStillThisPage === true),
+    `before: ${homeBefore.slice(0, 200)} | after: ${(await page.locator('main').first().innerText()).slice(0, 200)}`,
+  );
+  await openAssignmentHelp(page, 'Systems of Equations');
+  const movedPanel = page.locator('[data-hint-panel]:visible').first();
+  await movedPanel.getByRole('button', { name: /Leave a question for my teacher/ }).click();
+  await movedPanel.getByLabel('Your question for your teacher').fill(QUESTION_TEXT);
+  await movedPanel.getByRole('button', { name: 'Send to my teacher' }).click();
+  await movedPanel.locator('[data-ask-teacher-status="waiting"]').waitFor({ timeout: 10000 });
+  const movedQuestion = await page.evaluate((id) => {
+    const store = window.__mmHarnessStore;
+    const path = store.paths('askTeacherQuestions/').find((entry) => entry.startsWith(`askTeacherQuestions/${id}__`));
+    const question = path ? store.get(path) : {};
+    const assignment = question.assignmentId ? store.get(`assignments/${question.assignmentId}`) : null;
+    return { ...question, assignedClassIds: assignment?.assignedClassIds || null, stillThisPage: window.__mmStillThisPage === true };
+  }, MOVED_STUDENT);
+  expect(
+    `T2 ${tag} after a move, a question goes to the new class's teacher, with the new class`,
+    movedQuestion.stillThisPage && movedQuestion.classId === 'c-alg2-p3' && movedQuestion.teacherEmail === HARNESS_TEACHER
+      && (movedQuestion.assignedClassIds || []).includes('c-alg2-p3') && movedQuestion.text === QUESTION_TEXT,
+    JSON.stringify(movedQuestion),
+  );
+  await shot(page, 't2-moved-question', viewport);
+  await resumePeriodThree(page);
   await page.close();
   await context.close();
 }

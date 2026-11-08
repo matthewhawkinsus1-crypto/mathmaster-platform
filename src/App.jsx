@@ -95,6 +95,7 @@ import {
   markIndividuallyAssigned,
   mergeStudentAssignments,
   priorWorkAssignmentIds,
+  priorWorkFromClassLeft,
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
@@ -170,7 +171,8 @@ import {
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
 import { useAskMyTeacher, useTeacherQuestionsOn } from './platform/supports/useAskMyTeacher.js';
-import { followRosterTeacher, questionFor } from './platform/supports/askTeacher.js';
+import { questionFor } from './platform/supports/askTeacher.js';
+import { followRosterClass, followSupportProfile, rosterMembershipOf, sameRosterMembership, studentClassFields } from './platform/student/rosterMembership.js';
 import TeacherAnswers from './components/student/TeacherAnswers.jsx';
 import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
 import {
@@ -194,7 +196,6 @@ import {
   buildSupportUsage,
   getStudentSupportPresentation,
   normalizeStudentProfile,
-  sameStudentProfile,
 } from './studentSupport';
 
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
@@ -2313,6 +2314,9 @@ function App() {
 
   useEffect(() => {
     if (!user?.role || !user.id) return undefined;
+    // What this student has work on when the listener opens: after a move, the
+    // lessons of the class left that it keeps.
+    const studentWorkedIds = user.role === 'student' ? workedAssignmentKey(tracker, individuallyAssignedTestCycleIds(testCycleGrades)).split('|') : [];
 
     if (user.role === 'student') {
       return subscribeStudentClassAssignments({
@@ -2320,6 +2324,12 @@ function App() {
         studentId: user.id,
         classId: user.classId,
         onChange: (classAssignments) => {
+          // A move to another class while signed in (rosterMembership.js): as
+          // the new class's lessons come, the lessons of the class left that
+          // this student has work on stay, as prior work, as a fresh load reads
+          // them; the class left's other lessons go.
+          const keptFromClassLeft = priorWorkFromClassLeft({ classAssignments: studentClassAssignmentsRef.current, classId: user.classId, workedIds: studentWorkedIds });
+          if (keptFromClassLeft.length) studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, keptFromClassLeft);
           studentClassAssignmentsRef.current = classAssignments;
           publishStudentAssignments();
           // A teacher DOL unlock is an assignment update; see below.
@@ -3579,8 +3589,11 @@ function App() {
         // classes share a period.
         const loadedClasses = await fetchClasses();
         if (cancelled) return;
-        const courseContext = resolveStudentCourseContext({
-          student: studentData,
+        // The class, its name, period and teachers, and the course and level it sets, from the roster row
+        // and the class's record; the grade document's listener keeps them following the row
+        // (platform/student/rosterMembership.js).
+        const { course: classCourse, courseLevel: classCourseLevel, ...classFields } = studentClassFields({
+          rosterRow: studentData,
           classesById: Object.fromEntries(loadedClasses.map((entry) => [entry.classId, entry])),
           courseProfiles: loadedCourseProfiles,
         });
@@ -3600,18 +3613,14 @@ function App() {
           // The roster is authoritative because student passcode sessions do
           // not necessarily carry a useful Firebase Auth displayName.
           displayName: studentDisplayName,
-          classId: studentData.classId || null,
-          className: courseContext.className,
-          classPeriod: courseContext.classPeriod,
-          teacherOfRecord: courseContext.teacherOfRecord,
-          // Verbatim from the roster row: support evidence the student's client
-          // records must name exactly this teacher (firestore.rules). The grade
-          // document's listener keeps it current through a class handover.
-          assignedTeacherEmail: studentData.assignedTeacherEmail || null,
+          // classId, className, classPeriod, teacherOfRecord, and the teacher the
+          // roster row names, verbatim: support evidence the student's client
+          // records must name exactly this teacher (firestore.rules).
+          ...classFields,
           profile: {
             ...studentProfile,
-            course: courseContext.courseId,
-            courseLevel: courseContext.courseLevel,
+            course: classCourse,
+            courseLevel: classCourseLevel,
           },
           // The grade document's own `profile` field, as the server reads it (D7).
           timingProfile: studentData.profile || null,
@@ -5250,8 +5259,12 @@ function App() {
   // record the server holds AHEAD of this session is the exception, adopted
   // below (canonicalTrackerReconciliation.js): an attempt this device never
   // made — the Warm-Up or DOL deadline's auto-submit, or another Chromebook's.
+  // The same listener hears the roster row's class and teacher change: see
+  // studentRosterMembership below.
+  const [studentRosterMembership, setStudentRosterMembership] = useState(null);
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
+      setStudentRosterMembership(null);
       setClassroomSyncStatusByAssignment({});
       setTestCycleGrades({});
       setTeacherGradeOverridesByAssignment({});
@@ -5263,6 +5276,8 @@ function App() {
       return undefined;
     }
 
+    // Whoever is signed in now, their row is followed from its first snapshot.
+    setStudentRosterMembership(null);
     return onSnapshot(
       doc(db, 'grades', user.id),
       (snapshot) => {
@@ -5299,16 +5314,17 @@ function App() {
         // this student is working reaches their required items now, not at
         // the next sign-in.
         const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
-        setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
+        // Supports only: the course and level the class sets stay (rosterMembership.js).
+        setUser((current) => followSupportProfile(current, liveProfile));
         // The DOL window's source (D7): the grade document's own `profile`
         // field, updated on its own so nothing else about the user changes.
         const liveTimingProfile = snapshot.data()?.profile || null;
         setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
-        // The class's teacher, as a fresh load reads it: a class handed to
-        // another teacher while this student works sends their next question
-        // or follow-up to that teacher, not the former one (askTeacher.js
-        // followRosterTeacher; teacher features walk, item 10).
-        setUser((current) => followRosterTeacher(current, snapshot.data()));
+        // The class and its teacher, as a fresh load reads them: a class handed
+        // to another teacher, or this student moved to another class, while they
+        // work (followed below; teacher features walk, item 10).
+        const membership = rosterMembershipOf(snapshot.data());
+        setStudentRosterMembership((current) => (sameRosterMembership(current, membership) ? current : membership));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -5363,6 +5379,33 @@ function App() {
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
     );
   }, [user?.role, user?.id, toastSuccess]);
+
+  /*
+   * WHAT THE STUDENT'S SCREENS READ ABOUT THEIR CLASS FOLLOWS THEIR ROSTER ROW
+   * (platform/student/rosterMembership.js). A class handed to another teacher
+   * moves the teacher their next question goes to; a move to another class
+   * takes the new class whole, as a fresh load reads it: its lessons (the class
+   * listener follows user.classId), its bell times, its course and level, and
+   * the class and teacher a question or support evidence names. A class made
+   * after this student signed in is read first, once, and followed with what
+   * that read gave (as sign-in does when it cannot read the class).
+   */
+  const classReadForRosterRef = useRef(null);
+  useEffect(() => {
+    if (user?.role !== 'student' || !studentRosterMembership) return undefined;
+    const { classId } = studentRosterMembership;
+    const follow = (byId) => setUser((current) => followRosterClass(current, studentRosterMembership, { classesById: byId, courseProfiles }));
+    if (!classId || classId === (user.classId || null) || classesById[classId] || classReadForRosterRef.current === classId) {
+      follow(classesById);
+      return undefined;
+    }
+    classReadForRosterRef.current = classId;
+    let cancelled = false;
+    fetchClasses().then((loaded) => { if (!cancelled) follow(Object.fromEntries(loaded.map((entry) => [entry.classId, entry]))); });
+    return () => { cancelled = true; };
+    // fetchClasses is the component's own loader; the row, the classes read and the course settings decide the answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;

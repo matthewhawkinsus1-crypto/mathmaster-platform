@@ -244,16 +244,17 @@ export const buildFollowUp = ({
  * new question, a follow-up that moves (above) and support evidence against
  * that row's teacher and class. A class handed to another teacher restamps its
  * members' rows while they may be working (functions/index.js, the class
- * update; reassigning one student does the same), so App.jsx passes each
- * snapshot of the row here and the next question or follow-up goes to the new
- * teacher, as after a fresh load. Before, it went to the former teacher until
- * the student reloaded (teacher features walk, item 10).
+ * update; reassigning one student does the same), so each snapshot of the row
+ * reaches here (through platform/student/rosterMembership.js) and the next
+ * question or follow-up goes to the new teacher, as after a fresh load.
+ * Before, it went to the former teacher until the student reloaded (teacher
+ * features walk, item 10).
  *
  * Only while the row keeps the class this session shows. A row that names
- * another class is a move, not a handover: the screen is still the class the
- * student signed in with, and a new teacher beside the old class is a pair no
- * rule accepts, so nothing changes until a reload, as before. The same user
- * comes back when nothing changes, so React keeps its render.
+ * another class is a move, not a handover, and a new teacher beside the old
+ * class is a pair no rule accepts: rosterMembership.js takes the new class
+ * whole instead, its teacher with it. The same user comes back when nothing
+ * changes, so React keeps its render.
  */
 export const followRosterTeacher = (user, rosterRow) => {
   if (!user || !rosterRow) return user;
