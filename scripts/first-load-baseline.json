@@ -4,12 +4,12 @@
   "allowanceBytes": 8192,
   "paths": {
     "signIn": {
-      "bytes": 299646,
-      "files": 27
+      "bytes": 140321,
+      "files": 23
     },
     "studentHome": {
-      "bytes": 758241,
-      "files": 188
+      "bytes": 755628,
+      "files": 189
     }
   }
 }
