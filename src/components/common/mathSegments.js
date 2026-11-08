@@ -286,10 +286,111 @@ export const removeRedundantPlainFractionParens = (value) => String(value ?? '')
  * `stackDivisions` already protects both (see its own docstring), so this
  * reuses it rather than inventing a second fraction detector.
  */
+/*
+ * A RADICAL TYPED AS TEXT: "cbrt(9y)", "root(7)(a)" (display and reading
+ * polish). The radicals lessons key 27 boxes the way the grader reads them, and
+ * MathText showed them as typed on every surface that draws a key (the closed
+ * review and its "Correct:" rows, My Math Path's recap, a Test's results);
+ * inside a slash fraction it drew a wrong one, "2cbrt(9y)/(3y)" as "2cbrt"
+ * beside 9y over 3y. Each is drawn as the radical it is, \sqrt[3]{9y}, by
+ * MathDisplay in LaTeX: never through MathLive's ASCIIMath reader, which reads
+ * "[3, ∞)" as "3, ∞)". Its radicand's powers are set as a key's are
+ * (normalizePlainMathTypography). Only the drawing changes: the text, so Read
+ * aloud (speechText.js says it as a root) and every key and grade, stay as
+ * they were. A letter before one is a factor ("2xcbrt(3)"), but a word
+ * ending in "root" is not one: "cuberoot(3)(x)" is left alone.
+ */
+const TYPED_RADICAL = /(?<!\\)(?:cbrt|(?<![A-Za-z]{2})root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/g;
+
+// The ")" that closes the "(" at `open`, or -1.
+const closingParen = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')' && (depth -= 1) === 0) return index;
+  }
+  return -1;
+};
+
+// Each typed radical, outermost first: where it is, its index and its radicand.
+const typedRadicals = (text) => {
+  const found = [];
+  for (const match of text.matchAll(TYPED_RADICAL)) {
+    if (found.length && match.index < found[found.length - 1].end) continue;
+    const open = match.index + match[0].length;
+    const close = closingParen(text, open);
+    if (close !== -1) found.push({ start: match.index, end: close + 1, index: match[1] ?? '3', radicand: text.slice(open + 1, close) });
+  }
+  return found;
+};
+
+const radicalLatex = (index, radicand) => `\\sqrt[${index}]{${typedRadicalsAsLatex(normalizePlainMathTypography(radicand.trim()))}}`;
+function typedRadicalsAsLatex(text) {
+  let out = '';
+  let from = 0;
+  for (const radical of typedRadicals(text)) {
+    out += `${text.slice(from, radical.start)}${radicalLatex(radical.index, radical.radicand)}`;
+    from = radical.end;
+  }
+  return out + text.slice(from);
+}
+
+/*
+ * Inside a slash fraction a typed radical is held as √(…) while the fraction
+ * is stacked, since stackDivisions reads that as one factor with the number
+ * before it ("2√(9y)/(3y)" is (2√(9y))/(3y)), and gets its own index back
+ * after. An author's own √ in the same text is left as it is: each √ is
+ * marked, in order, as held or not.
+ */
+const holdRadicals = (text) => {
+  const marks = [];
+  let held = '';
+  let from = 0;
+  const authored = (piece) => [...piece].forEach((character) => { if (character === '√') marks.push(null); });
+  for (const radical of typedRadicals(text)) {
+    const before = text.slice(from, radical.start);
+    authored(before);
+    marks.push(radical.index);
+    held += `${before}√(${radical.radicand})`;
+    from = radical.end;
+  }
+  authored(text.slice(from));
+  return { held: held + text.slice(from), marks };
+};
+
+// Where each held radical is in the stacked text, as [start, end, index].
+const heldRadicalSpans = (stacked, marks) => {
+  const spans = [];
+  let count = 0;
+  for (let at = stacked.indexOf('√'); at !== -1; at = stacked.indexOf('√', at + 1)) {
+    const index = marks[count];
+    count += 1;
+    if (index === null || index === undefined || stacked[at + 1] !== '(') continue;
+    const close = closingParen(stacked, at + 1);
+    if (close !== -1) spans.push([at, close + 1, index]);
+  }
+  return count === marks.length ? spans : null;
+};
+
+// A stacked piece with its held radicals written as LaTeX radicals.
+const releaseRadicals = (piece, offset, held) => {
+  let out = '';
+  let from = 0;
+  held.filter(([start, end]) => start >= offset && end <= offset + piece.length).forEach(([start, end, index]) => {
+    out += `${piece.slice(from, start - offset)}${radicalLatex(index, piece.slice(start - offset + 2, end - offset - 1))}`;
+    from = end - offset;
+  });
+  return out + piece.slice(from);
+};
+
 const fractionRunsOf = (proseText) => {
   const text = removeRedundantPlainFractionParens(proseText);
-  if (!text.includes('/')) return [{ text, isFraction: false }];
-  const stacked = stackDivisions(text, { unicodeMath: true });
+  const radicals = typedRadicals(text).length ? holdRadicals(text) : null;
+  if (!text.includes('/') && !radicals) return [{ text, isFraction: false }];
+  const source = radicals ? radicals.held : text;
+  const stacked = text.includes('/') ? stackDivisions(source, { unicodeMath: true }) : source;
+  const held = radicals ? heldRadicalSpans(stacked, radicals.marks) : [];
+  if (!held) return [{ text, isFraction: false }];
   if (stacked === text) return [{ text, isFraction: false }];
   const chunks = [];
   let cursor = 0;
@@ -300,9 +401,14 @@ const fractionRunsOf = (proseText) => {
     if (carried || value) chunks.push({ text: `${carried}${value}`, isFraction: false });
     carried = '';
   };
-  for (const [start, end] of mathSpans(stacked)) {
+  // A held radical outside every fraction is a piece of its own, with any
+  // fraction in its radicand ("cbrt(1/8)").
+  const fractions = mathSpans(stacked);
+  const alone = held.filter(([start, end]) => !fractions.some(([from, to]) => start >= from && end <= to)).map(([start, end]) => [start, end]);
+  const spans = [...fractions.filter(([from, to]) => !alone.some(([start, end]) => from >= start && to <= end)), ...alone];
+  for (const [start, end] of spans.sort((a, b) => a[0] - b[0])) {
     if (start > cursor || carried) pushProse(stacked.slice(cursor, start));
-    const math = stacked.slice(start, end);
+    const math = releaseRadicals(stacked.slice(start, end), start, held);
     const stop = SENTENCE_STOP_IN_DENOMINATOR.exec(math);
     chunks.push({ text: stop ? `${stop[1]}}` : math, isFraction: true });
     carried = stop ? stop[2] : '';

@@ -73,7 +73,7 @@ test('Read aloud says the list as it did: each box\'s label and key, in order', 
 const drawn = (line) => splitMathSegments(line).map((segment) => (isMathSegment(segment) ? { math: segment } : null)
   || { runs: splitProseFractionRuns(segment).map((run) => (run.isFraction ? { fraction: run.text } : { text: normalizePlainMathTypography(run.text) })) });
 const shownText = (line) => drawn(line).map((part) => (part.math ? '⟨math⟩' : part.runs.map((run) => (run.fraction ? '⟨fraction⟩' : run.text)).join(''))).join('');
-const NOTATION = { power: /\^/, relation: /<=|>=|!=|\+\/-/ };
+const NOTATION = { power: /\^/, relation: /<=|>=|!=|\+\/-/, radical: /(?<![A-Za-z])(?:cbrt|root\(\s*(?:\d+|[A-Za-z])\s*\))\s*\(/ };
 
 const lessonFiles = (dir = new URL('teacher-import-jsons/', repo).pathname) => fs.readdirSync(dir, { withFileTypes: true })
   .flatMap((entry) => (entry.isDirectory() ? lessonFiles(path.join(dir, entry.name)) : entry.name.endsWith('.json') ? [path.join(dir, entry.name)] : []));
@@ -95,14 +95,17 @@ const everyAnswerLine = () => lessonFiles().flatMap((file) => JSON.parse(fs.read
 test('every lesson\'s answer list: what changes is notation set as mathematics, and nothing else', () => {
   const lines = everyAnswerLine();
   assert.ok(lines.length > 2000, `every multi-box key of every lesson (${lines.length})`);
-  const changes = { key: { power: 0, relation: 0, fraction: 0, math: 0 }, label: { power: 0, relation: 0, fraction: 0, math: 0 } };
+  const changes = { key: { power: 0, relation: 0, radical: 0, fraction: 0, math: 0 }, label: { power: 0, relation: 0, radical: 0, fraction: 0, math: 0 } };
   for (const { where, label, key } of lines) {
     for (const [part, written] of [['key', key], ['label', label]]) {
       const parts = drawn(written);
       const kinds = {
         power: NOTATION.power.test(written),
         relation: NOTATION.relation.test(written),
-        fraction: parts.some((piece) => piece.runs?.some((run) => run.fraction)),
+        // A typed root, "cbrt(9y)" or "root(7)(a)", is drawn as a radical
+        // (display and reading polish: typedRadicalKeys.test.mjs).
+        radical: NOTATION.radical.test(written),
+        fraction: parts.some((piece) => piece.runs?.some((run) => run.fraction && !run.fraction.startsWith('\\sqrt['))),
         math: parts.some((piece) => piece.math),
       };
       if (!Object.values(kinds).some(Boolean)) {
@@ -112,9 +115,10 @@ test('every lesson\'s answer list: what changes is notation set as mathematics, 
       }
       Object.entries(kinds).forEach(([kind, present]) => { if (present) changes[part][kind] += 1; });
     }
-    // What is left of a key as text spells no power and no relation. (A label
-    // keeps its own question mark: "x⁴ · x³ = x^?" asks for the power.)
-    assert.doesNotMatch(shownText(key), /\^|<=|>=|!=/, `${where}: ${key} → ${shownText(key)}`);
+    // What is left of a key as text spells no power, no relation and no typed
+    // root. (A label keeps its own question mark: "x⁴ · x³ = x^?" asks for
+    // the power.)
+    assert.doesNotMatch(shownText(key), /\^|<=|>=|!=|cbrt|root\(/, `${where}: ${key} → ${shownText(key)}`);
   }
   // The sweep's own record of what changes (2200 lines on this branch): 261
   // keys with a power, all of PR 3's among them, and the relations, fractions
@@ -122,5 +126,6 @@ test('every lesson\'s answer list: what changes is notation set as mathematics, 
   assert.ok(changes.key.power >= 250, `keys whose powers are set: ${changes.key.power}`);
   assert.ok(changes.key.relation >= 40, `keys whose relations are set: ${changes.key.relation}`);
   assert.ok(changes.key.fraction >= 100, `keys with a stacked fraction: ${changes.key.fraction}`);
+  assert.ok(changes.key.radical >= 25, `keys with a typed root drawn as a radical: ${changes.key.radical}`);
   assert.ok(changes.label.math >= 1, `labels with $…$ set as mathematics: ${changes.label.math}`);
 });

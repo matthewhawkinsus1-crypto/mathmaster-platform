@@ -1213,6 +1213,26 @@ const ROOT_COEFFICIENT = new RegExp(`[A-Za-z0-9)⁾${EXPONENT_CHARACTERS}]$`);
  * between two marks the split takes as mathematics (mathSafeText.js
  * SAID_OPEN), and speechTextFor takes the marks out before anything is said.
  */
+/*
+ * A RADICAL TYPED AS TEXT is a root too (display and reading polish): the
+ * radicals lessons key boxes "cbrt(9y)" and "root(7)(a)", the way the grader
+ * reads them, and every surface that draws a key read them as typed ("2 cbrt
+ * 9y", "root 7 times a"). Each is read as the radical it is, by the same rules
+ * as ∛ and ⁷√: "2 times the cube root of 9y", "the 7th root of a". A letter
+ * before one is a factor ("2xcbrt(3)"); never the tail of a word ("cuberoot").
+ */
+const TYPED_ROOT = /^(?:cbrt|root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/;
+const typedRootAt = (text, index) => {
+  if (text[index - 1] === '\\') return null;
+  const found = TYPED_ROOT.exec(text.slice(index));
+  return found && !found[0].startsWith('cbrt') && /[A-Za-z]{2}$/.test(text.slice(0, index)) ? null : found;
+};
+// Its radicand's powers are the drawing's, "p^2" as p²: "the cube root of p
+// squared", as for ∛(p²), not "of the quantity p squared".
+const caretPowersAsDrawn = (text) => text.replace(/\^(\d+)(?![\d.])/g, (match, digits) => [...digits].map((digit) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[digit]).join(''));
+// A term typed before it with a space between, "x root(12)(x)" and "−2a^2b
+// root(5)(2a)", multiplies it, as 5∛2 does; a word ("Simplify root(4)(16)") does not.
+const TYPED_ROOT_COEFFICIENT = /(?:^|[\s(=+\-−])[-−]?(?:\d+(?:\.\d+)?(?:[A-Za-z]|\^\d+|\|[^|\s]+\|)*|[A-Za-z](?:\^\d+|[A-Za-z]\^\d+|\|[^|\s]+\|)*|[A-Za-z]\^\d+[A-Za-z^\d]*)\)?\s+$/;
 const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
   // A blank power, 2^(…), is "2 to the power …", and so is x^?, which kept
   // its caret ("x^3 · x^4 = x^?", lesson re-walk 2026-11-06, Rational
@@ -1221,7 +1241,7 @@ const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
   const text = String(raw ?? '').replace(/\^\s*\(\s*(…|\.\.\.)\s*\)/g, ` ${w.power} $1`)
     .replace(/\^\s*\?/g, ` ${w.power} ${w.blank}`)
     .replace(SUPERSCRIPT_ORDINAL, (match, digit, suffix) => `${digit}${fromSuperscript(suffix)}`);
-  if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]`).test(text)) return text;
+  if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]|cbrt|root\\(`).test(text)) return text;
   let out = '';
   for (let index = 0; index < text.length;) {
     // A superscript straight after its base is a power, as it is drawn, so
@@ -1229,24 +1249,26 @@ const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
     // 2026-11-06, Radical Operations CW 4 and its worked solutions). An index
     // stands at the start, or after a space or an operator: ³√x, 2 + ⁴√x.
     const indexRun = POWER_BASE.test(text[index - 1] || '') ? null : /^([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+)√/.exec(text.slice(index));
-    const symbol = indexRun ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
-    if (indexRun || symbol) {
-      const order = indexRun ? fromSuperscript(indexRun[1]) : symbol;
-      const argument = rootArgument(text, index + (indexRun ? indexRun[0].length : 1));
+    const typed = indexRun ? null : typedRootAt(text, index);
+    const symbol = indexRun || typed ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
+    if (indexRun || typed || symbol) {
+      const order = indexRun ? fromSuperscript(indexRun[1]) : typed ? typed[1] ?? '3' : symbol;
+      const argument = rootArgument(text, index + (indexRun || typed ? (indexRun || typed)[0].length : 1));
       if (argument) {
         const words = order === '2' ? w.squareRoot : order === '3' ? w.cubeRoot : w.root(order);
         // A root inside a root (√(∛x)) is read the same way, and a root of
         // one number or letter is one term: "the square root of the cube
         // root of x" needs no "quantity" (math-speech-3).
-        const simple = SIMPLE_ARGUMENT.test(argument[0].trim()) || ROOT_OF_SIMPLE.test(argument[0].trim());
-        const body = unicodeMathToSpokenForm(argument[0].trim(), w, { mark }).trim();
+        const radicand = typed ? caretPowersAsDrawn(argument[0].trim()) : argument[0].trim();
+        const simple = SIMPLE_ARGUMENT.test(radicand) || ROOT_OF_SIMPLE.test(radicand);
+        const body = unicodeMathToSpokenForm(radicand, w, { mark }).trim();
         // A slash before a root is a fraction bar, "over": "√8/√2" and "3 /
         // √6". The root is words from here on, so the slash was left to the
         // voice as a symbol (platform-polish-3).
         const over = /\/\s*$/.test(out);
         if (over) out = out.replace(/\s*\/\s*$/, ' ');
         // 5∛2 is "5 times the cube root of 2", and x³√x "x cubed times …".
-        const coefficient = !over && ROOT_COEFFICIENT.test(out);
+        const coefficient = !over && (ROOT_COEFFICIENT.test(out) || Boolean(typed && TYPED_ROOT_COEFFICIENT.test(out)));
         // A root after absolute-value bars multiplies them, "|5b⁷k⁵| ⁴√(k³)",
         // and is written so (×): the bars' end is then said where they close
         // ("… end absolute value times the 4th root of k cubed"). It never was
