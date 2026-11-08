@@ -21,6 +21,8 @@
  *   mm-forced-edge-lost         a control whose edge was drawn by its background,
  *                               a gradient or a shadow has no border or outline
  *                               left, so its edge is gone.
+ *   mm-forced-math-colour-kept  a formula is not drawn in the colour the theme
+ *                               gives the text around it: it kept another one.
  *
  * Each finding is shaped like an axe violation (id, impact, help, nodes), as the
  * Tab walk's are (scripts/lib/keyboardReach.mjs).
@@ -44,6 +46,11 @@ export const FORCED_COLORS_RULES = Object.freeze({
     impact: 'serious',
     help: 'Under forced colours a control whose edge was its background, gradient or shadow must keep a visible edge (a border or an outline)',
     helpUrl: `${WCAG}/non-text-contrast.html`,
+  },
+  'mm-forced-math-colour-kept': {
+    impact: 'serious',
+    help: 'Under forced colours a formula must be drawn in the colour the theme gives the text around it, after a switch of contrast theme too, not in a colour it kept',
+    helpUrl: `${WCAG}/contrast-minimum.html`,
   },
 });
 
@@ -224,6 +231,33 @@ const asDrawn = (snapshot) => (snapshot ? Object.fromEntries(Object.entries(snap
  */
 export const forcedFocusIndicator = ({ focused, blurred, changedPixels = null }) => focusIndicator({ focused: asDrawn(focused), blurred: asDrawn(blurred), changedPixels });
 
+// ------------------------------------------------------------------ mathematics
+/*
+ * A formula's colour under forced colours. MathLive draws each <math-span> and
+ * <math-div> in its own shadow root, where its stylesheet gives the formula
+ * forced-color-adjust: preserve-parent-color: the formula takes the colour of
+ * the text around it, a link's LinkText, a selected choice's HighlightText, and
+ * not one of its own. In Chromium that held when the formula was drawn but not
+ * after a switch of contrast theme under a colour of the page's own (the Live
+ * Challenge projector's white): the app restyles the page for its new theme,
+ * and the formula took the page's white again, on a light theme's white page,
+ * while the words around it were black. The walk reads the formula as the page
+ * stands, before its own readings turn forced colours off and on, which draws
+ * it afresh.
+ *
+ * `colour` is the math element's (the system colour its text is given),
+ * `formulaColour` its formula's (the render part's first child). A rounding of
+ * the colour model is not a different colour.
+ */
+export const mathColourKept = ({ colour, formulaColour } = {}) => {
+  // Nothing read is not judged (parseColour takes an empty value for transparent).
+  if (!colour || !formulaColour) return false;
+  const host = parseColour(colour);
+  const formula = parseColour(formulaColour);
+  if (!host || !formula) return false;
+  return host.some((value, index) => Math.abs(value - formula[index]) > (index === 3 ? 0.02 : 1.5));
+};
+
 // ------------------------------------------------------------------ judging
 const node = (target, html, summary) => ({ target: [target], html: String(html || '').slice(0, 240), failureSummary: summary });
 const violation = (id, nodes) => ({ id, impact: FORCED_COLORS_RULES[id].impact, help: FORCED_COLORS_RULES[id].help, helpUrl: FORCED_COLORS_RULES[id].helpUrl, nodes });
@@ -236,8 +270,9 @@ const violation = (id, nodes) => ({ id, impact: FORCED_COLORS_RULES[id].impact, 
  *           one per control in a state and one of its peers (`id` names the
  *           control): the control is reported once, when any peer looks the same
  *   focus   [{ target, html, focusVisible, focused, blurred, changedPixels }]
+ *   math    [{ target, html, colour, formulaColour }]       every formula drawn
  */
-export const judgeForcedColors = ({ edges = [], states = [], focus = [] } = {}) => {
+export const judgeForcedColors = ({ edges = [], states = [], focus = [], math = [] } = {}) => {
   const out = [];
   const edgeNodes = edges.filter(edgeLost).map((entry) => {
     const before = edgeOf(entry.normal);
@@ -256,5 +291,8 @@ export const judgeForcedColors = ({ edges = [], states = [], focus = [] } = {}) 
   const focusNodes = focus.filter((entry) => forcedFocusIndicator(entry) === 'none')
     .map((entry) => node(entry.target, entry.html, 'Focused under forced colours, nothing about it changes on screen: its indicator was a box-shadow or a background, or its outline is none.'));
   if (focusNodes.length) out.push(violation('mm-forced-focus-not-drawn', focusNodes));
+  const mathNodes = math.filter(mathColourKept)
+    .map((entry) => node(entry.target, entry.html, `The formula is drawn in ${entry.formulaColour}, the text around it in ${entry.colour}: under forced colours it kept a colour the theme does not give it.`));
+  if (mathNodes.length) out.push(violation('mm-forced-math-colour-kept', mathNodes));
   return out;
 };

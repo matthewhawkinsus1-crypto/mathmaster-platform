@@ -179,6 +179,29 @@
   }
 
   /*
+   * MATHEMATICS ON THE LIVE CHALLENGE PROJECTOR AND A STUDENT'S LIVE
+   * CHALLENGE PAGE. Both paint their own dark look in colours of their own,
+   * not the app theme's: the projector writes its question in white, and a
+   * student's page is near-white. MathLive draws each formula in a shadow root
+   * of its own and has it take the colour of the words around it
+   * (forced-color-adjust: preserve-parent-color). Under a colour of the
+   * screen's own that held while the formula was drawn, but after a switch
+   * from a dark contrast theme to a light one, when the app restyles the page
+   * for its new theme, the formula took the screen's white again: white on the
+   * light theme's white page, its words black. Given the theme's text colour,
+   * the formula takes that. Not inside a link or a control: the theme draws
+   * their words in colours of their own (LinkText, ButtonText, GrayText when
+   * disabled, a selected choice's HighlightText), which their mathematics
+   * takes; the one control here with mathematics in it, a student's choice,
+   * is written in the app theme's colours, which the switch changes, and its
+   * formula follows them. tests/browser/forcedColorsAudit.mjs fails a formula
+   * not drawn in its words' colour.
+   */
+  :is([data-mm-arena-stage], .mm-gp-arena-page) :is(math-span, math-div):not(:is(a, button, select, summary, [role="button"], [role="link"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"], [role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]) *) {
+    color: CanvasText;
+  }
+
+  /*
    * A STATUS DOT (Live Challenge: "Round live" on the teacher's console, each
    * student's dot on its roster, a student's "Reconnecting…", the lobby's
    * players-in dot, the projector's "Waiting for teacher to start"): a fill,

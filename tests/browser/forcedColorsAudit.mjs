@@ -15,6 +15,9 @@
  *
  * THE WALK, on the scene as it stands (the `include` and `exclude` its audit has):
  *
+ *   0. Every formula MathLive has drawn, read first, as the page stands: its
+ *      element's colour and its formula's (see mathColourKept). Anything the
+ *      walk does after this draws a formula afresh.
  *   1. Every control that is drawn (buttons, links, fields, math boxes, and the
  *      widget roles), and every control in a state (aria-pressed, -selected,
  *      -checked, -current; a checked radio or checkbox that its label draws)
@@ -34,30 +37,24 @@
 import { judgeForcedColors, forcedFocusIndicator } from '../../scripts/lib/forcedColors.mjs';
 import { STYLE_KEYS, STYLE_PARTS, MIN_CHANGED_PIXELS } from '../../scripts/lib/keyboardReach.mjs';
 import { normalizeViolations } from '../../scripts/lib/accessibilityRatchet.mjs';
+import { MATHLIVE_RENDER_PART_SELECTOR } from '../../src/platform/math/mathLiveCompat.js';
 
 /* ------------------------------------------------------------------------ */
 /* In the page                                                               */
 /* ------------------------------------------------------------------------ */
 
-export const INSTALL = ({ include, exclude, styleKeys }) => {
+export const INSTALL = ({ include, exclude, styleKeys, renderPart }) => {
   if (window.__mmForced) window.__mmForced.dispose();
   const scrolledAtStart = new Map();
   for (const el of document.querySelectorAll('*')) {
     if (el.scrollLeft || el.scrollTop) scrolledAtStart.set(el, [el.scrollLeft, el.scrollTop]);
   }
   const windowAtStart = [scrollX, scrollY];
-  const style = document.createElement('style');
-  // Deterministic readings: no transition half way, no blinking caret.
-  style.textContent = '*, *::before, *::after { transition: none !important; animation-play-state: paused !important; caret-color: transparent !important; }';
-  document.head.appendChild(style);
 
   const roots = include.length ? include.flatMap((selector) => [...document.querySelectorAll(selector)]) : [document.body];
   // A scene audited as a pop-up whose pop-up is gone reads nothing, and nothing
   // is not a pass.
-  if (!roots.length) {
-    style.remove();
-    return { missing: include };
-  }
+  if (!roots.length) return { missing: include };
   const excluded = (el) => exclude.some((selector) => el.closest(selector));
   const inScope = (el) => roots.some((root) => root === el || root.contains(el)) && !excluded(el);
   // Drawn: a box of some size, not hidden, not see-through, not in a closed <details>.
@@ -90,6 +87,30 @@ export const INSTALL = ({ include, exclude, styleKeys }) => {
     return `${above}${identity(el)}${words}`;
   };
   const html = (el) => el.outerHTML.replace(/\s+/g, ' ').slice(0, 240);
+
+  // ---------------------------------------------------------------- mathematics
+  // Each formula MathLive has drawn, as the page stands: its element's colour
+  // and its formula's (the render part's first child, in its shadow root). Read
+  // before anything below touches the page: the style that follows restyles it,
+  // and the readings turn forced colours off and on, which draws a formula
+  // afresh in the theme's colour and would hide one that kept another. A math
+  // element is hidden from assistive technology (its words are read beside it),
+  // so drawn here means only a box of some size that is not hidden.
+  const formulas = [...new Set(roots.flatMap((root) => [...(root.matches?.('math-span, math-div') ? [root] : []), ...root.querySelectorAll('math-span, math-div')]))]
+    .filter((el) => {
+      if (!inScope(el)) return false;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return false;
+      return typeof el.checkVisibility !== 'function' || el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+    })
+    .map((el) => ({ el, formula: el.shadowRoot?.querySelector(renderPart)?.firstElementChild || null }))
+    .filter(({ formula }) => formula)
+    .map(({ el, formula }) => ({ target: selectorOf(el), html: html(el), colour: getComputedStyle(el).color, formulaColour: getComputedStyle(formula).color }));
+
+  const style = document.createElement('style');
+  // Deterministic readings: no transition half way, no blinking caret.
+  style.textContent = '*, *::before, *::after { transition: none !important; animation-play-state: paused !important; caret-color: transparent !important; }';
+  document.head.appendChild(style);
 
   // ---------------------------------------------------------------- readings
   // [r, g, b, a] from a computed colour: rgb(), rgba(), or color(srgb ...), which
@@ -349,7 +370,7 @@ export const INSTALL = ({ include, exclude, styleKeys }) => {
       delete window.__mmForced;
     },
   };
-  return { controls: controls.length, states: pairs.length, stops: stops.length };
+  return { controls: controls.length, states: pairs.length, stops: stops.length, formulas };
 };
 
 /* Runs in the page: how many pixels differ by more than a hair between two same-sized PNGs. */
@@ -393,7 +414,7 @@ export const auditForcedColors = async (page, { name, viewport = 'default', incl
   // Nothing hovered: a pointer left over a control by the scene's own clicks
   // would draw that control's hover style into one reading and not the other.
   await page.mouse.move(0, 0).catch(() => {});
-  const setup = await page.evaluate(INSTALL, { include: asList(include), exclude: asList(exclude), styleKeys: [...STYLE_KEYS, 'borderBottomWidth'] });
+  const setup = await page.evaluate(INSTALL, { include: asList(include), exclude: asList(exclude), styleKeys: [...STYLE_KEYS, 'borderBottomWidth'], renderPart: MATHLIVE_RENDER_PART_SELECTOR });
   if (setup.missing) throw new Error(`${name}: nothing on the page matches the scene's scope (${setup.missing.join(', ')})`);
   try {
     const described = await page.evaluate(() => window.__mmForced.describe());
@@ -443,7 +464,8 @@ export const auditForcedColors = async (page, { name, viewport = 'default', incl
       focus.push(entry);
     }
 
-    const violations = judgeForcedColors({ edges, states, focus });
+    const math = setup.formulas;
+    const violations = judgeForcedColors({ edges, states, focus, math });
     const normalized = normalizeViolations({ screen: name, viewport, violations });
     return {
       name,
@@ -456,12 +478,13 @@ export const auditForcedColors = async (page, { name, viewport = 'default', incl
         statesCompared: described.states.filter((entry) => entry.peers.length).length,
         statesWithoutPeer: described.states.filter((entry) => !entry.peers.length).map((entry) => `${entry.target} (${entry.state})`),
         stops: focus.length,
+        formulas: math.length,
         stopsInScope: described.stops.length,
         stopsNotFocusVisible: focus.filter((entry) => !entry.focusVisible).length,
         stopsPhotographed: focus.filter((entry) => entry.changedPixels != null).length,
         minChangedPixels: MIN_CHANGED_PIXELS,
       },
-      readings: { edges, states, focus },
+      readings: { edges, states, focus, math },
     };
   } finally {
     await page.evaluate(() => window.__mmForced?.dispose()).catch(() => {});

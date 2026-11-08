@@ -31,15 +31,32 @@
  *   edge-transparent     fixed: the same with a transparent border
  *   edge-text-button     a text-styled button: it had no edge to lose
  *   edge-wrapped-field   a field drawn by the pill around it, as a search box is
+ *   math-fixed-colour    MathLive's own <math-span> in words of a colour the page
+ *                        fixed (white, as the Live Challenge projector writes its
+ *                        question), on a page that themes itself as the app does;
+ *                        opened in the dark contrast theme and switched to the
+ *                        light one as the walk switches: the formula stays white
+ *                        on the white page while the words are black
+ *   math-canvastext      fixed: the same, the math element given the theme's
+ *                        text colour under forced colours
+ *   math-theme-colour    fixed: words in the theme's own colour, which the switch
+ *                        changes, and the formula follows them
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { auditForcedColors } from './forcedColorsAudit.mjs';
+import { CONTRAST_THEMES, useContrastTheme } from './forcedColorsCertification.mjs';
 
 const BASE = 'body { margin: 0; font: 16px/1.4 sans-serif; background: #fff; color: #202124; } main { padding: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; } button { font: inherit; padding: 8px 14px; }';
 // A button styled as a link: no fill and no border, so it has no edge to lose and
 // nothing of its own that forced colours recolour on focus.
 const TEXT_BUTTON = 'button { border: 0; background: transparent; color: #1a73e8; text-decoration: underline; }';
 const TAB = '[role="tab"] { border: 1px solid #5f6368; border-radius: 8px; background: #fff; color: #202124; font-weight: 400; } [role="tab"]:focus-visible { outline: 3px solid #1a73e8; }';
+// A page that themes itself as the app does (src/theme/mathMasterTheme.js): its colours are variables of the theme its
+// root names, and a switch of contrast theme renames it (useContrastTheme). MathLive is the installed one.
+const THEMED = ':root[data-theme="dark"] { --page-text: #e8eaed; --page-bg: #111318; } :root[data-theme="light"] { --page-text: #202124; --page-bg: #fff; } body { color: var(--page-text); background: var(--page-bg); } math-span { color: inherit; }';
+const MATHLIVE = readFileSync(createRequire(import.meta.url).resolve('mathlive'), 'utf8');
 const CARD = '.card { display: inline-block; padding: 10px 18px; border: 1px solid #5f6368; border-radius: 10px; } .card input { position: absolute; opacity: 0; width: 1px; height: 1px; } .card:has(input:checked) { background: #1a73e8; color: #fff; }';
 
 export const PAGES = {
@@ -108,9 +125,33 @@ export const PAGES = {
     html: '<div class="pill"><span aria-hidden="true">?</span><input id="planted" aria-label="Search" placeholder="Search"></div>',
     expect: [],
   },
+  // Opened in the dark contrast theme, where white is the theme's text colour too, and read in the light one after the
+  // walk's switch.
+  'math-fixed-colour': {
+    css: THEMED,
+    html: '<p style="color: #fff">Solve <math-span id="planted">2x+5=17</math-span>.</p>',
+    math: true,
+    expect: { dark: [], light: ['mm-forced-math-colour-kept'] },
+  },
+  'math-canvastext': {
+    css: `${THEMED} @media (forced-colors: active) { math-span { color: CanvasText; } }`,
+    html: '<p style="color: #fff">Solve <math-span id="planted">2x+5=17</math-span>.</p>',
+    math: true,
+    expect: [],
+  },
+  'math-theme-colour': {
+    css: THEMED,
+    html: '<p>Solve <math-span id="planted">2x+5=17</math-span>.</p>',
+    math: true,
+    expect: [],
+  },
 };
 
-const THEMES = ['dark', 'light'];
+// A page of formulas opens as every scene does, in the walk's first contrast theme, and is switched to the other.
+const SELF_TEST_PAGE = { id: 'self-test', harness: 'self-test' };
+const expectedFor = (name, scheme) => [...(Array.isArray(PAGES[name].expect) ? PAGES[name].expect : PAGES[name].expect[scheme])].sort();
+
+const THEMES = CONTRAST_THEMES;
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const launchOptions = {};
@@ -119,10 +160,17 @@ else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw
 const browser = await chromium.launch(launchOptions);
 
 const walk = async (name, scheme) => {
-  const context = await browser.newContext({ viewport: { width: 900, height: 400 }, colorScheme: scheme, forcedColors: 'active', reducedMotion: 'reduce' });
+  const spec = PAGES[name];
+  const opens = spec.math ? THEMES[0] : scheme;
+  const context = await browser.newContext({ viewport: { width: 900, height: 400 }, colorScheme: opens, forcedColors: 'active', reducedMotion: 'reduce' });
   const page = await context.newPage();
   try {
-    await page.setContent(`<!doctype html><html lang="en"><head><style>${BASE} ${PAGES[name].css}</style></head><body><main id="fixture">${PAGES[name].html}</main></body></html>`);
+    await page.setContent(`<!doctype html><html lang="en" data-theme="${opens}"><head><style>${BASE} ${spec.css}</style></head><body><main id="fixture">${spec.html}</main></body></html>`);
+    if (spec.math) {
+      await page.addScriptTag({ content: MATHLIVE });
+      await page.waitForFunction(() => document.querySelector('#planted')?.shadowRoot?.querySelector('[part="render"]')?.childElementCount, null, { timeout: 30_000 });
+    }
+    if (scheme !== opens) await useContrastTheme(page, SELF_TEST_PAGE, scheme);
     const result = await auditForcedColors(page, { name, viewport: scheme, include: '#fixture' });
     return result;
   } finally {
@@ -138,15 +186,16 @@ try {
       const result = await walk(name, scheme);
       const found = result.violations.map((violation) => violation.id).sort();
       const targets = result.violations.flatMap((violation) => violation.nodes.map((node) => node.target[0]));
-      const expected = [...PAGES[name].expect].sort();
+      const expected = expectedFor(name, scheme);
       const line = `${name.padEnd(20)} ${scheme.padEnd(6)} found ${found.length ? found.join(', ') : 'nothing'}${targets.length ? ` on ${targets.join(' | ')}` : ''}`;
       console.log(`${JSON.stringify(found) === JSON.stringify(expected) ? 'ok  ' : 'FAIL'} ${line}`);
       try {
         assert.deepEqual(found, expected, `${name} (${scheme}): expected ${expected.join(', ') || 'nothing'}`);
         // A planted defect is found on the planted control, not somewhere near it.
         if (expected.length) assert.ok(targets.every((target) => /#planted\b/.test(target)), `${name} (${scheme}): reported on ${targets.join(' | ')}, not on #planted`);
-        // The walk read what it judges: a control, and a Tab stop.
-        assert.ok(result.summary.controls > 0 || name.startsWith('state-choice'), `${name} (${scheme}): no control was read`);
+        // The walk read what it judges: a control, and a Tab stop; a page of mathematics, its formula.
+        if (PAGES[name].math) assert.equal(result.summary.formulas, 1, `${name} (${scheme}): the formula was not read`);
+        else assert.ok(result.summary.controls > 0 || name.startsWith('state-choice'), `${name} (${scheme}): no control was read`);
       } catch (error) {
         failures.push(error.message);
       }

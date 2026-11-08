@@ -37,6 +37,9 @@
  *                                 not (its state was only a colour or a background)
  *   mm-forced-edge-lost           a control whose edge was its fill, gradient or
  *                                 shadow and has no border or outline left
+ *   mm-forced-math-colour-kept    a formula not drawn in the colour the theme
+ *                                 gives the text around it (one the switch to
+ *                                 the light theme left white on its white page)
  *
  * HOW. Chromium draws forced colours when Playwright emulates them, and a
  * contrast theme sets prefers-color-scheme from its Canvas, as Windows tells
@@ -176,7 +179,7 @@ const main = async () => {
             const result = await auditForcedColors(page, { name: label, viewport: key, include: scope.include, exclude: scope.exclude });
             results.push({ label, viewport: viewport.id, scheme, counts: result.counts, details: result.details, summary: result.summary });
             const total = Object.values(result.counts).reduce((sum, count) => sum + count, 0);
-            console.log(`${total ? 'FAIL' : 'ok  '} ${label.padEnd(40)} ${viewport.id.padEnd(8)} ${scheme.padEnd(6)} ${result.summary.controls} controls, ${result.summary.statesCompared} states, ${result.summary.stops} stops${total ? `: ${total} finding(s)` : ''}`);
+            console.log(`${total ? 'FAIL' : 'ok  '} ${label.padEnd(40)} ${viewport.id.padEnd(8)} ${scheme.padEnd(6)} ${result.summary.controls} controls, ${result.summary.statesCompared} states, ${result.summary.stops} stops, ${result.summary.formulas} formulas${total ? `: ${total} finding(s)` : ''}`);
           } catch (error) {
             unreachable.push(`${label}|${key}: the forced-colours reading failed: ${error.message.split('\n')[0]}`);
           }

@@ -5,7 +5,7 @@
  * forced colours, dark and light, read by tests/browser/forcedColorsAudit.mjs and
  * judged by scripts/lib/forcedColors.mjs: a Tab stop that draws no focus
  * indicator, a selected or pressed control shown only by colour or background,
- * a control that lost its edge. The browser half is shown finding each planted
+ * a control that lost its edge, a formula not drawn in its words' colour. The browser half is shown finding each planted
  * defect by forcedColorsSelfTest.mjs; this file holds the judge to its verdicts
  * on readings shaped as Chromium reports them, and the theme job to running the
  * walk on the servers it needs. (The stylesheet the walk holds the screens to:
@@ -15,7 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EDGE_RATIO, FORCED_COLORS_RULE_IDS, contrastRatio, edgeLost, edgeOf, forcedFocusIndicator, judgeForcedColors,
-  parseColour, stateVerdict, traitDifference,
+  mathColourKept, parseColour, stateVerdict, traitDifference,
 } from '../../scripts/lib/forcedColors.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
 import { region } from './helpers/sourceContract.mjs';
@@ -134,6 +134,30 @@ test('one scene\'s readings become axe-shaped violations, a state reported once 
   assert.deepEqual(violations.find((violation) => violation.id === 'mm-forced-edge-lost').nodes.map((node) => node.target[0]), ['button "Continue"']);
   assert.equal(violations.find((violation) => violation.id === 'mm-forced-state-colour-only').nodes.length, 1, 'Room is one finding, not one per peer');
   violations.forEach((violation) => assert.ok(FORCED_COLORS_RULE_IDS.includes(violation.id) && violation.help && violation.helpUrl && violation.impact));
+});
+
+// MathLive has a formula take the colour of its words (forced-color-adjust: preserve-parent-color, in its shadow root).
+// After a switch from the dark contrast theme to the light one the Live Challenge projector's formulas were white while
+// their words were black: the walk reads each formula's colour against its element's.
+test('a formula drawn in another colour than its words kept one under forced colours; the same colour, rounded, did not', () => {
+  assert.equal(mathColourKept({ colour: 'rgb(0, 0, 0)', formulaColour: 'rgb(255, 255, 255)' }), true, 'white on the light theme, its words black');
+  assert.equal(mathColourKept({ colour: 'rgb(0, 0, 0)', formulaColour: 'rgb(247, 249, 255)' }), true, 'a near-white too');
+  assert.equal(mathColourKept({ colour: 'rgba(0, 0, 0, 0.5)', formulaColour: 'rgb(0, 0, 0)' }), true, 'and a fainter one');
+  assert.equal(mathColourKept({ colour: TEXT, formulaColour: TEXT }), false, 'the dark theme\'s text colour, as its words');
+  assert.equal(mathColourKept({ colour: 'rgb(0, 0, 159)', formulaColour: 'rgb(0, 0, 159)' }), false, 'a link\'s LinkText, which the formula takes');
+  assert.equal(mathColourKept({ colour: 'color(srgb 0 0 0.004)', formulaColour: 'rgb(0, 0, 1)' }), false, 'a rounding of the colour model is the same colour');
+  assert.equal(mathColourKept({ colour: 'rgb(0, 0, 0)' }), false, 'a formula not read is not judged');
+  const [found, ...rest] = judgeForcedColors({
+    math: [
+      { target: 'div[aria-label="Question"] > math-span', html: '<math-span>2x + 5 = 17</math-span>', colour: 'rgb(0, 0, 0)', formulaColour: 'rgb(255, 255, 255)' },
+      { target: 'li > math-span', html: '<math-span>x</math-span>', colour: 'rgb(0, 0, 0)', formulaColour: 'rgb(0, 0, 0)' },
+    ],
+  });
+  assert.equal(rest.length, 0);
+  assert.equal(found.id, 'mm-forced-math-colour-kept');
+  assert.ok(FORCED_COLORS_RULE_IDS.includes(found.id) && found.help && found.helpUrl && found.impact);
+  assert.deepEqual(found.nodes.map((entry) => entry.target[0]), ['div[aria-label="Question"] > math-span'], 'the formula that kept a colour, not the one that follows its words');
+  assert.match(found.nodes[0].failureSummary, /rgb\(255, 255, 255\).*rgb\(0, 0, 0\)/, 'and both colours');
 });
 
 // ------------------------------------------------------------------ CI

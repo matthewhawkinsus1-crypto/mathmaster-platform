@@ -253,6 +253,31 @@ test('the start lights, the checkered flags and the projector\'s cover are drawn
   assert.ok(cover.important, 'over the layer\'s own background');
 });
 
+// MathLive has a formula take the colour of its words (preserve-parent-color, in its shadow root). Under a colour of the
+// screen's own, a switch from a dark contrast theme to a light one left the projector's formulas white on the light
+// theme's white page (forcedColorsCertification.mjs, mm-forced-math-colour-kept). The two screens that paint their own
+// look give their mathematics the theme's text colour; nowhere else is mathematics recoloured.
+test('the Live Challenge projector and a student\'s page draw their mathematics in the theme\'s text colour, outside links and controls', () => {
+  const mathRules = rules.filter((rule) => rule.selectors.some((selector) => /\bmath-(span|div)\b/.test(selector)));
+  assert.equal(mathRules.length, 1, 'one rule colours mathematics');
+  const [rule] = mathRules;
+  assert.deepEqual(Object.keys(rule.declarations), ['color']);
+  assert.equal(rule.declarations.color.value, 'CanvasText');
+  assert.ok(!rule.declarations.color.important, 'inside a selected choice its HighlightText (!important) still wins');
+  assert.equal(rule.selectors.length, 1);
+  const [selector] = rule.selectors;
+  // Only on the two screens: app-wide it would recolour mathematics in a link or a disabled control.
+  assert.match(selector, /^:is\(\[data-mm-arena-stage\], \.mm-gp-arena-page\) :is\(math-span, math-div\):not\(/);
+  // Never inside a link or a control, whose words the theme draws in colours of their own.
+  const outside = /:not\(:is\(([^()]*)\) \*\)$/.exec(selector)?.[1].split(/,\s*/) || [];
+  for (const control of ['a', 'button', '[role="button"]', '[role="link"]', '[role="radio"]', '[role="checkbox"]', '[role="option"]', '[role="tab"]', '[role="switch"]']) {
+    assert.ok(outside.includes(control), `not inside ${control}`);
+  }
+  // Each screen carries its hook: the projector's layer, and the page a student plays on.
+  assert.match(region(live('LiveChallengeArenaProjector.jsx'), '<div ref={shellRef} className="mm-arena-shell"', '<ChallengeShellStyles />', 'the projector\'s layer'), /data-mm-arena-stage=\{/);
+  assert.match(live('LiveChallengeStudent.jsx'), /<div className="mm-gp-arena-page" style=\{\{/, 'a student\'s page');
+});
+
 // ------------------------------------------------------------------ the Math Tools Lab
 test('a box whose edge was its fill keeps one: the Regression Calculator\'s expression rows', () => {
   // The forced-colours walk over the Math Tools Lab found it, in the tool and in its Work View: each expression's box is
