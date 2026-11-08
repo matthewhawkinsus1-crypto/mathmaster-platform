@@ -54,16 +54,32 @@ test('forced-color-adjust: none only where a control must be painted in system c
   //   a selected / pressed / current control: Chromium paints a Canvas plate behind text under forced colours, so
   //     HighlightText on Highlight is only readable out of forced adjustment, painted in system colours only;
   //   the Live Class question strip: its colours are what each question's bar means;
-  //   a colour key's swatch: the wheel it explains keeps its colours.
+  //   a colour key's swatch: the wheel it explains keeps its colours;
+  //   a Live Challenge status dot (a student's presence on the roster, "Reconnecting…"): its colour is what it says;
+  //   the start lights: a lit pod's red or green is what it says;
+  //   the checkered flag: a gradient, which forced colours drop unless the drawing opts out (painted in system colours).
   const optedOut = rules.filter((rule) => rule.declarations['forced-color-adjust']?.value === 'none');
   const reasons = optedOut.map((rule) => {
     const selector = rule.selectors.join(', ');
     if (/\[aria-current\]:not\(\[aria-current="false"\]\)/.test(selector) && /\[aria-pressed="true"\]/.test(selector)) return 'selected control';
     if (selector === '[data-question-state]') return 'question strip';
     if (selector === '[data-mm-swatch]') return 'colour key swatch';
+    if (selector === '[data-mm-status-dot]') return 'status dot';
+    if (selector === '[data-mm-start-lights] > *') return 'start lights';
+    if (selector === '.mm-gp-flagged::before, .mm-gp-checker') return 'checkered flag';
     return `unexplained: ${selector}`;
   });
-  assert.deepEqual(reasons.sort(), ['colour key swatch', 'question strip', 'selected control']);
+  assert.deepEqual([...reasons].sort(), ['checkered flag', 'colour key swatch', 'question strip', 'selected control', 'start lights', 'status dot']);
+  // What keeps its own colour still shows on either theme: an edge in the theme's text colour (a gold dot, an amber bar
+  // on a light theme's white; a dark pod on a dark theme's black).
+  for (const reason of ['status dot', 'start lights']) {
+    const rule = optedOut[reasons.indexOf(reason)];
+    assert.equal(rule.declarations.outline?.value, '1px solid CanvasText', `${reason}: a CanvasText edge`);
+  }
+  // The flag is drawn again in the theme's own two colours, not its own: a checker of Canvas and CanvasText.
+  const flag = optedOut[reasons.indexOf('checkered flag')];
+  assert.match(flag.declarations.background?.value || '', /^repeating-conic-gradient\(CanvasText 0 25%, Canvas 0 50%\)/);
+  assert.ok(flag.declarations.background.important, 'over the theme\'s own flag, which a later <style> sets');
   // The selected control, out of forced adjustment, sets every colour it paints.
   const selected = optedOut.find((rule) => /\[aria-pressed="true"\]/.test(rule.selectors.join(', ')));
   for (const property of ['background', 'color', 'border-color', 'outline-color', 'box-shadow']) {
@@ -152,4 +168,85 @@ test('the mastery wheel\'s colour key, its topic list and the topic browser mark
   assert.match(list, /data-mm-swatch="" style=\{\{[^}]*background: MASTERY_STATUS_COLORS\[status\]/);
   const browser = read('src/components/student/MyMathPathTopicBrowser.jsx');
   assert.match(region(browser, '<span data-mastery-status', '</span>', 'the mastery chip'), /data-mm-swatch="" style=\{\{[^}]*background: skill\.masteryColor/);
+});
+
+// ------------------------------------------------------------------ Live Challenge
+// A Live Challenge draws its meters, dots, lights and flags with fills and gradients, which a contrast theme does not
+// draw. Each is named for the stylesheet with a data attribute (the rounds' layout is another batch's: the screens
+// only gain attributes), or reached by the class the theme already gives it.
+const LIVE = 'src/components/liveChallenge';
+const live = (file) => read(`${LIVE}/${file}`);
+// What the stylesheet's rule for exactly this selector declares for a property ({ value, important }), or undefined.
+const declares = (selector, property) => rules.find((rule) => rule.selectors.includes(selector) && rule.declarations[property])?.declarations[property];
+
+test('a Live Challenge\'s round meters say which round is done, being played or to come, as their fills do', () => {
+  // The projector's meter across its header.
+  const meter = region(live('LiveChallengeArenaProjector.jsx'), 'function RoundProgress(', '\n}\n', 'the projector\'s round meter');
+  assert.match(meter, /data-mm-progress-step=\{complete \? 'done' : active \? 'current' : 'todo'\}/);
+  assert.match(meter, /background: complete \? [^:]+ : active \? /, 'the fill it stands for is keyed the same way');
+  // A student's own round, under its clock.
+  const pips = region(live('LiveChallengeStudent.jsx'), 'Array.from({ length: Math.max(1, Number(room.roundCount) || 1) })', '</div>', 'a student\'s round pips');
+  assert.match(pips, /data-mm-progress-step=\{pip < roundIndex \? 'done' : pip === roundIndex \? 'current' : 'todo'\}/);
+  assert.match(pips, /background: pip < roundIndex \? [^:]+ : pip === roundIndex \? /, 'keyed as its fill is');
+  // Both are drawn by the step rules: done filled, the current one ringed.
+  assert.equal(declares('[data-mm-progress-step="done"]', 'background-color')?.value, 'Highlight');
+  assert.equal(declares('[data-mm-progress-step="current"]', 'outline-width')?.value, '2px');
+});
+
+test('a Live Challenge\'s bars name their track and fill: the projector\'s "Locked in", each racer\'s, a rush round\'s pause', () => {
+  const lockedIn = region(live('LiveChallengeArenaProjector.jsx'), '<span>Locked in</span>', 'Scores update as answers lock.', 'the projector\'s Locked in bar');
+  assert.match(lockedIn, /<div data-mm-progress-track="" style=\{\{[^}]*\}\}>\s*<div data-mm-progress-fill="" style=\{\{ width: `\$\{answeredShare\}%`/);
+  const race = region(live('GraphFeatureRushHost.jsx'), 'export function RushRaceBoard(', '\n}\n', 'the race board');
+  assert.match(race, /<span aria-hidden="true" data-mm-progress-track="" style=\{\{[^}]*\}\}>\s*<span data-mm-progress-fill="" style=\{\{[^}]*width: `\$\{Math\.round\(\(valueOf\(row\) \/ top\) \* 100\)\}%`/);
+  // A rush round's pause after misses (Graph Feature Rush, Graph the Line): a track and the span that drains inside it,
+  // reached by their own classes.
+  const track = rules.find((rule) => rule.declarations.outline?.value === '1px solid CanvasText' && rule.selectors.some((selector) => selector.includes('[data-mm-progress-track]')));
+  const fill = rules.find((rule) => rule.declarations['background-color']?.value === 'Highlight' && rule.selectors.some((selector) => selector.includes('[data-mm-progress-fill]')));
+  for (const [file, name] of [['GraphFeatureRushRound.jsx', 'mm-rush-cooldown'], ['LineGraphRound.jsx', 'mm-line-cooldown']]) {
+    const source = live(file);
+    assert.match(source, new RegExp(`<div className="${name}" role="status"[^>]*>\\s*<span key=`), `${file}: the pause is a track with its fill inside`);
+    assert.match(source, new RegExp(`\\.${name} > span \\{[^}]*background: #`), `${file}: its fill is a fill`);
+    assert.ok(track.selectors[0].includes(`.${name}`) && fill.selectors[0].includes(`.${name} > span`), `${file}: drawn as a bar`);
+  }
+});
+
+test('every Live Challenge status dot is named, and keeps its colour with an edge', () => {
+  // Every dot: the shell's (.mm-shell-dot), the pulsing ones (.mm-shell-pulse) and the projector's (.mm-arena-pulse).
+  const dots = [];
+  for (const file of readdirSync(new URL(`../../${LIVE}`, import.meta.url)).filter((name) => name.endsWith('.jsx'))) {
+    for (const tag of live(file).match(/<span\b[^>]*className="[^"]*\b(?:mm-shell-dot|mm-shell-pulse|mm-arena-pulse)\b[^"]*"[^>]*\/>/g) || []) dots.push({ file, tag });
+  }
+  // "Round live", the roster's, "Reconnecting…", the lobby's players in, the projector's "Waiting for teacher to start".
+  assert.ok(dots.length >= 5, `dots found: ${dots.map((dot) => dot.file).join(', ')}`);
+  assert.deepEqual(dots.filter((dot) => !/\bdata-mm-status-dot=""/.test(dot.tag)).map((dot) => `${dot.file}: ${dot.tag}`), []);
+  // The roster's dot is the one whose colour says the most: each presence its own.
+  const roster = region(live('ChallengeHostConsole.jsx'), 'export function HostRosterPanel(', '\n}\n', 'the roster');
+  assert.match(roster, /data-mm-status-dot="" style=\{\{ background: presenceColor\(presence\) \}\}/);
+  assert.equal(declares('[data-mm-status-dot]', 'forced-color-adjust')?.value, 'none');
+});
+
+test('the start lights, the checkered flags and the projector\'s cover are drawn again', async () => {
+  // The lights: a pod has data-on only while it is lit, so an unlit one is the empty ring.
+  const lights = live('StartLights.jsx');
+  assert.match(lights, /<span className="mm-gp-lights" aria-hidden="true" data-mm-start-lights=/);
+  assert.equal((lights.match(/<span className="mm-gp-light" data-on=\{pods\[\d\] \|\| undefined\} \/>/g) || []).length, 3);
+  assert.equal(declares('[data-mm-start-lights] > :not([data-on])', 'background')?.value, 'Canvas');
+  // The flags: the Grand Prix theme draws both with a gradient only, which forced colours drop.
+  const { GRAND_PRIX_CSS } = await import('../../src/components/liveChallenge/grandPrixTheme.js');
+  const theme = parseCss(GRAND_PRIX_CSS);
+  for (const selector of ['.mm-gp-flagged::before', '.mm-gp-checker']) {
+    const own = theme.find((rule) => rule.selectors.includes(selector) && rule.declarations.background);
+    assert.match(own?.declarations.background.value || '', /^repeating-conic-gradient\(/, `${selector}: the theme's flag is a gradient`);
+    assert.ok(rules.some((rule) => rule.selectors.includes(selector) && rule.declarations['forced-color-adjust']?.value === 'none'), `${selector}: drawn again under forced colours`);
+  }
+  assert.match(live('ChallengeStudentShell.jsx'), /const CARD = 'mm-gp-card mm-gp-flagged';/);
+  assert.match(live('LiveChallengeStudent.jsx'), /<span className="mm-gp-checker" aria-hidden="true"/);
+  // The projector: a layer over the whole page whose cover is gradients alone, so the console showed through it.
+  const shell = region(live('LiveChallengeArenaProjector.jsx'), '<div ref={shellRef} className="mm-arena-shell"', '<ChallengeShellStyles />', 'the projector\'s layer');
+  assert.match(shell, /data-mm-arena-stage=\{/);
+  assert.match(shell, /position: 'fixed',\s*inset: 0,/);
+  assert.match(shell, /background: 'radial-gradient\([^']*linear-gradient\([^']*\)',/, 'its cover is gradients, which forced colours drop');
+  const cover = declares('[data-mm-arena-stage]', 'background-color');
+  assert.equal(cover?.value, 'Canvas');
+  assert.ok(cover.important, 'over the layer\'s own background');
 });

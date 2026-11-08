@@ -46,7 +46,7 @@ export function StagePill({ stage }) {
   const tone = TONES[label.tone];
   return (
     <span data-mm-stage={stage || 'loading'} className="mm-shell-pill" style={{ background: tone.background, color: tone.color, border: `1px solid ${tone.border}` }}>
-      {stage === 'roundActive' && <span className="mm-shell-dot mm-shell-pulse" style={{ background: tone.color }} />}
+      {stage === 'roundActive' && <span className="mm-shell-dot mm-shell-pulse" data-mm-status-dot="" style={{ background: tone.color }} />}
       {label.text}
     </span>
   );
@@ -135,7 +135,8 @@ export function HostRosterPanel({ roster, stage, showAliases = false, onToggleAl
                 border: `1px ${presence.state === PRESENCE.NOT_JOINED ? 'dashed' : 'solid'} var(--mm-border)`, fontSize: 'calc(14 * var(--mm-px))',
               }}
             >
-              <span className="mm-shell-dot" aria-hidden="true" style={{ background: presenceColor(presence) }} />
+              {/* data-mm-status-dot: under a contrast theme the dot keeps its colour, with an edge (src/theme/forcedColors.css). */}
+              <span className="mm-shell-dot" aria-hidden="true" data-mm-status-dot="" style={{ background: presenceColor(presence) }} />
               <span style={{ minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: presence.state === PRESENCE.NOT_JOINED ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)' }}>{entry.name}</span>
                 <span style={{ display: 'block', fontSize: 'calc(12 * var(--mm-px))', color: presenceColor(presence) }}>

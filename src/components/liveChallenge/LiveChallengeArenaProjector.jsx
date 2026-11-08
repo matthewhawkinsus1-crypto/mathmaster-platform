@@ -243,6 +243,9 @@ function RoundProgress({ currentRound, roundCount, accent }) {
           <span
             key={round}
             title={`Round ${round}`}
+            // Under a contrast theme the fills below are not drawn: src/theme/forcedColors.css draws each round
+            // from this (done filled, the one being played ringed).
+            data-mm-progress-step={complete ? 'done' : active ? 'current' : 'todo'}
             style={{
               height: active ? 9 : 6,
               flex: 1,
@@ -507,7 +510,7 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
           </div>
           {lines.length > 0 && <div style={{ marginTop: 10, color: '#ffd166', fontWeight: 900, fontSize: 'clamp(calc(15 * var(--mm-px)), calc(1.5vw * var(--mm-text-scale, 1)), calc(20 * var(--mm-px)))' }}>🏆 {lines.join(' · ')}</div>}
           <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '10px 14px', borderRadius: 999, background: 'rgba(99,226,255,.1)', border: '1px solid rgba(99,226,255,.28)', color: '#c8f6ff', fontWeight: 900 }}>
-            <span className="mm-arena-pulse" /> Waiting for teacher to start
+            <span className="mm-arena-pulse" data-mm-status-dot="" /> Waiting for teacher to start
           </div>
           {typeof onStart === 'function' && <div style={{ marginTop: 18 }}>
             <button type="button" disabled={joinedCount < 1 || busy === 'start'} onClick={onStart} style={{ ...bigButton, opacity: joinedCount < 1 || busy === 'start' ? 0.5 : 1 }}>
@@ -595,8 +598,9 @@ function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, jo
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 'clamp(calc(14 * var(--mm-px)), calc(1.4vw * var(--mm-text-scale, 1)), calc(19 * var(--mm-px)))', fontWeight: 900, color: 'rgba(236,241,255,.78)' }}>
             <span>Locked in</span><span data-mm-locked-in={answeredCount}>{answeredCount} / {joinedCount}</span>
           </div>
-          <div style={{ height: 12, marginTop: 7, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
-            <div style={{ width: `${answeredShare}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${accent}, var(--mm-primary-soft))`, transition: 'width 200ms ease' }} />
+          {/* The bar's track and fill, named for a contrast theme, which draws neither (src/theme/forcedColors.css). */}
+          <div data-mm-progress-track="" style={{ height: 12, marginTop: 7, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
+            <div data-mm-progress-fill="" style={{ width: `${answeredShare}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${accent}, var(--mm-primary-soft))`, transition: 'width 200ms ease' }} />
           </div>
           <div style={{ marginTop: 8, color: 'rgba(236,241,255,.6)', fontSize: 'clamp(calc(12 * var(--mm-px)), calc(1.1vw * var(--mm-text-scale, 1)), calc(15 * var(--mm-px)))', fontWeight: 800 }}>
             {finishing ? `${STILL_FINISHING_MESSAGE}.` : locked ? 'Collecting the last answers — results next.' : 'Scores update as answers lock.'}

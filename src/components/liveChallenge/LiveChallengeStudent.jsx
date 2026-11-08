@@ -587,6 +587,8 @@ export function ChallengeRound({
           {Array.from({ length: Math.max(1, Number(room.roundCount) || 1) }).map((_, pip) => (
             <span
               key={pip}
+              // Drawn from this under a contrast theme, which paints none of the fills (src/theme/forcedColors.css).
+              data-mm-progress-step={pip < roundIndex ? 'done' : pip === roundIndex ? 'current' : 'todo'}
               style={{
                 flex: 1,
                 height: 5,

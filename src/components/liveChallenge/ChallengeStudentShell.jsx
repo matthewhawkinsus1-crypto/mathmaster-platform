@@ -107,7 +107,7 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
         <span className="mm-gp-plate" style={{ fontSize: 'clamp(calc(24 * var(--mm-px)), calc(7vw * var(--mm-text-scale, 1)), calc(34 * var(--mm-px)))' }}>{alias || 'Player'}</span>
       </div>
       <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '8px 16px', borderRadius: 999, background: 'rgba(5,8,28,.7)', border: '1px solid rgba(69,255,138,.35)' }}>
-        <span aria-hidden="true" className="mm-shell-pulse" style={{ width: 9, height: 9, borderRadius: '50%', background: '#45ff8a', boxShadow: '0 0 8px #45ff8a' }} />
+        <span aria-hidden="true" className="mm-shell-pulse" data-mm-status-dot="" style={{ width: 9, height: 9, borderRadius: '50%', background: '#45ff8a', boxShadow: '0 0 8px #45ff8a' }} />
         <span style={{ fontSize: 'calc(17 * var(--mm-px))', fontWeight: 800 }}>{joining ? 'Joining…' : `${playerCount} ${playerCount === 1 ? 'player' : 'players'} in`}</span>
       </div>
       <p style={{ margin: '18px 0 0', color: '#f2f5ff', fontWeight: 800, fontSize: 'calc(18 * var(--mm-px))' }}>Waiting for your teacher to start. Keep this screen open.</p>

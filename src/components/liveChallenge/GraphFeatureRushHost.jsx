@@ -92,8 +92,9 @@ export function RushRaceBoard({ players = [], roundIndex = 0, limit = 10, look =
         <li key={row.playerKey} data-mm-race-finished={row.finished ? '1' : undefined} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 4, padding: '7px 10px', borderRadius: 10, background: style.row, border: `1px solid ${style.rowBorder}`, color: style.text, fontSize: style.size }}>
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
           <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{row.finished && <span style={{ color: style.good, marginRight: 8 }}>✓ done</span>}{points ? `${row.points} pts` : row.completed}</strong>
-          <span aria-hidden="true" style={{ gridColumn: '1 / -1', height: 6, borderRadius: 999, background: style.track, overflow: 'hidden' }}>
-            <span style={{ display: 'block', height: '100%', width: `${Math.round((valueOf(row) / top) * 100)}%`, background: style.bar, transition: 'width 300ms ease' }} />
+          {/* Its track and fill, named for a contrast theme, which draws neither (src/theme/forcedColors.css). */}
+          <span aria-hidden="true" data-mm-progress-track="" style={{ gridColumn: '1 / -1', height: 6, borderRadius: 999, background: style.track, overflow: 'hidden' }}>
+            <span data-mm-progress-fill="" style={{ display: 'block', height: '100%', width: `${Math.round((valueOf(row) / top) * 100)}%`, background: style.bar, transition: 'width 300ms ease' }} />
           </span>
         </li>
       ))}

@@ -92,17 +92,20 @@
   /*
    * A PROGRESS BAR: its track has an edge and the part done is filled with the
    * highlight. Both were fills (the done part often a gradient), so the bar
-   * was not drawn at all.
+   * was not drawn at all. Live Challenge's too: the projector's "Locked in"
+   * bar, each racer's bar on the console, and a rush round's pause after
+   * misses, which drains as the pause runs out.
    */
-  :is(.mm-progress, .workflow-focus__rail, [data-mm-progress-track]) {
+  :is(.mm-progress, .workflow-focus__rail, [data-mm-progress-track], .mm-rush-cooldown, .mm-line-cooldown) {
     outline: 1px solid CanvasText !important;
   }
 
-  :is(.mm-progress__fill, .workflow-focus__rail-fill, [data-mm-progress-fill]) {
+  :is(.mm-progress__fill, .workflow-focus__rail-fill, [data-mm-progress-fill], .mm-rush-cooldown > span, .mm-line-cooldown > span) {
     background-color: Highlight !important;
   }
 
-  /* A bar of steps (a Path session's questions): each step is a box, the
+  /* A bar of steps (a Path session's questions; a Live Challenge's rounds, on
+     the projector and on a student's round): each step is a box, the
      ones done are filled, and the one the student is on is empty with a heavier
      edge drawn around it. Inside a 6px step a heavy edge would fill it, and a
      filled black step beside the light theme's navy Highlight told them apart
@@ -150,5 +153,58 @@
   /* The balance scale's beam in Step Algebra: a bar drawn by its fill. */
   .algebra-balance-beam {
     background-color: CanvasText !important;
+  }
+
+  /*
+   * A LAYER OVER THE WHOLE PAGE: the Live Challenge projector. Its cover is a
+   * gradient, which forced colours do not draw, so the teacher's console
+   * showed through it, and the projector's words sat on the console's
+   * navigation. It is painted the page's own Canvas.
+   */
+  [data-mm-arena-stage] {
+    background-color: Canvas !important;
+  }
+
+  /*
+   * A STATUS DOT (Live Challenge: "Round live" on the teacher's console, each
+   * student's dot on its roster, a student's "Reconnecting…", the lobby's
+   * players-in dot, the projector's "Waiting for teacher to start"): a fill,
+   * painted as the page, so the dot was gone. On the roster its colour is
+   * what it says (connected, no signal, joined, not joined), so a dot keeps
+   * its own colour (forced-color-adjust: none) with a CanvasText ring, as the
+   * question strip keeps its colours: a pale one (a student's gold, a grey)
+   * still shows on a light theme. Each says it in words beside it too.
+   */
+  [data-mm-status-dot] {
+    forced-color-adjust: none;
+    outline: 1px solid CanvasText;
+  }
+
+  /*
+   * THE START LIGHTS over a round's countdown: a pod lit red each second of
+   * 3 · 2 · 1, all three green at GO. Each pod was a gradient, which forced
+   * colours do not draw, so the lights were an empty box. A pod is a ring in
+   * the theme's text colour, empty until it is lit; a lit one keeps its own
+   * red or green (forced-color-adjust: none), which is what it says. The
+   * countdown says it in words too.
+   */
+  [data-mm-start-lights] > * {
+    forced-color-adjust: none;
+    outline: 1px solid CanvasText;
+  }
+
+  [data-mm-start-lights] > :not([data-on]) {
+    background: Canvas !important;
+  }
+
+  /*
+   * THE CHECKERED FLAG on a student's Live Challenge (across a card's top
+   * corners, and beside the screen's name): a conic gradient, which forced
+   * colours do not draw. It is drawn again in the theme's own two colours.
+   */
+  .mm-gp-flagged::before,
+  .mm-gp-checker {
+    forced-color-adjust: none;
+    background: repeating-conic-gradient(CanvasText 0 25%, Canvas 0 50%) 0 0 / 14px 14px !important;
   }
 }

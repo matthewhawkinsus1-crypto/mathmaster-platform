@@ -398,7 +398,7 @@ export function ConnectionPill({ state = 'online', look = 'student' }) {
   const offline = state === 'offline';
   return (
     <span role="status" className="mm-shell-pill" style={{ background: offline ? 'rgba(255,180,171,.16)' : 'rgba(253,214,99,.16)', color: offline ? style.down : style.gold, border: `1px solid ${offline ? style.down : style.gold}` }}>
-      <span className="mm-shell-dot mm-shell-pulse" style={{ background: offline ? style.down : style.gold }} />
+      <span className="mm-shell-dot mm-shell-pulse" data-mm-status-dot="" style={{ background: offline ? style.down : style.gold }} />
       {offline ? 'Offline — reconnecting…' : 'Reconnecting…'}
     </span>
   );
