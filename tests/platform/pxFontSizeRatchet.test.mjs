@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { PRINT_ONLY, runCodemod, scaleFluidClamps } from '../../scripts/codemods/px-to-rem.mjs';
 import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
 import { region } from './helpers/sourceContract.mjs';
+import { LIVE_CHALLENGE_ROUND_SCREENS } from '../browser/accessibilityCertification.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -145,7 +146,10 @@ test('CI measures every swept surface at 200% text', () => {
   assert.ok(runs.some((checks) => checks.includes('text')), 'a CI step runs studentShellLargeText --check=text');
   const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
   const screens = harness.slice(harness.indexOf('export const LARGE_TEXT_SCREENS'), harness.indexOf('const runScenes'));
-  for (const id of ['more-tools', 'recovery', 'teacher', 'graph-feature-rush', 'registry-tools']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
+  for (const id of ['more-tools', 'recovery', 'teacher', 'registry-tools']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
+  // The Graph Feature Rush round (and Graph the Line's): the rounds' own screens, which the certification module keeps.
+  assert.match(screens, /^\s*\.\.\.LIVE_CHALLENGE_ROUND_SCREENS,$/m, 'the rounds\' own screens are measured');
+  assert.ok(LIVE_CHALLENGE_ROUND_SCREENS.some((screen) => screen.id === 'graph-feature-rush'), 'among them, the Graph Feature Rush round');
   assert.match(screens, /^\s*\.\.\.SCREENS,/m, "the certification's student screens are measured too");
   // The default run walks the extended list; only --teacher (TT27) swaps it for the teacher's scenes.
   // (runScenes takes another list only when a check passes one: the 2.4.11 walk adds Work View and

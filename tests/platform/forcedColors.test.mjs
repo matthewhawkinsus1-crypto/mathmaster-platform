@@ -18,6 +18,7 @@ import {
   parseColour, stateVerdict, traitDifference,
 } from '../../scripts/lib/forcedColors.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
+import { region } from './helpers/sourceContract.mjs';
 import { readFileSync } from 'node:fs';
 
 const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
@@ -180,6 +181,30 @@ test('the theme job walks the Math Tools Lab\'s tools and their Work Views too, 
   const folder = steps[lab].match(/FORCED_COLORS_ARTIFACTS: (\S+)$/m)?.[1];
   assert.ok(folder && folder.startsWith('tests/browser/artifacts/forcedColors/'), `its own folder under the kept one (${folder})`);
   assert.ok(steps.slice(lab).some((step) => /path: tests\/browser\/artifacts\/forcedColors\s*$/m.test(step) && /if: always\(\)/.test(step)), 'and it is kept');
+});
+
+test('the walk reads the rounds\' own screens, the student\'s arena, beside the certified scenes', async () => {
+  // A Graph Feature Rush round and a Graph the Line round are measured by the large-text runs and were read by no
+  // forced-colours walk. The projector and the host console during a round are certified scenes it already reads.
+  const { screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
+  const { CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, SCREENS, sceneLabel, screensToRun } = await import('../browser/accessibilityCertification.mjs');
+  const labels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
+  // The run walks what screensToWalk gives it (ONLY, or nothing named).
+  assert.match(region(read('tests/browser/forcedColorsCertification.mjs'), 'const main = async () => {', 'const origins = {', 'the run'), /\n {2}const screens = screensToWalk\(ONLY\);\n/);
+  const byDefault = labels(screensToWalk(new Set()));
+  for (const label of ['graph-feature-rush/round', 'graph-the-line/round', 'live-challenge/lobby', 'live-challenge/round',
+    'teacher-live-challenge/round', 'teacher-live-challenge/projector', 'teacher-live-challenge/results']) {
+    assert.ok(byDefault.includes(label), `${label} is read`);
+  }
+  // Every certified scene still, and the Lab's own-job screens left to the step that names them.
+  assert.deepEqual(byDefault.filter((label) => !labels(LIVE_CHALLENGE_ROUND_SCREENS).includes(label)), labels(screensToRun(new Set(), CERTIFIED_SCREENS)));
+  assert.ok(!byDefault.some((label) => label.startsWith('teacher-math-tools-lab/')), 'the Lab\'s tools are their own step\'s');
+  // ONLY can name a round, as it names a certified screen.
+  assert.deepEqual(labels(screensToWalk(new Set(['graph-the-line']))), ['graph-the-line/round']);
+  assert.throws(() => screensToWalk(new Set(['graph-the-lines'])), /ONLY names unknown screen\(s\): graph-the-lines/);
+  // The rounds open as the live-challenge screen opens: the app, on the school's clock.
+  const live = SCREENS.find((screen) => screen.id === 'live-challenge');
+  for (const screen of LIVE_CHALLENGE_ROUND_SCREENS) assert.ok(screen.open === live.open && screen.harness === 'app' && screen.schoolClock, screen.id);
 });
 
 test('a pull request that changes the walk, what it walks or a screen runs the theme certification', () => {

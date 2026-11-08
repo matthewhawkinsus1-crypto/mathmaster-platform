@@ -19,11 +19,15 @@
  * and nothing checked it (src/theme/forcedColors.css gives these back).
  *
  * WHAT. Every certified scene (accessibilityCertification.mjs: the student
- * screens, the exam-practice chip, the teacher's; the Math Tools Lab's tools are
- * certified in a job of their own and are not here), at 1366x768 and 390x844
- * with touch, read under forced colours in a dark contrast theme and in a light
- * one by tests/browser/forcedColorsAudit.mjs, judged by
- * scripts/lib/forcedColors.mjs. It fails:
+ * screens, the exam-practice chip, the teacher's) and the rounds' own screens,
+ * a Graph Feature Rush and a Graph the Line round in the student's arena
+ * (LIVE_CHALLENGE_ROUND_SCREENS, which the large-text runs measure), at
+ * 1366x768 and 390x844 with touch, read under forced colours in a dark contrast
+ * theme and in a light one by tests/browser/forcedColorsAudit.mjs, judged by
+ * scripts/lib/forcedColors.mjs. A run that names no screen leaves out the Math
+ * Tools Lab's 24 tools and the Work Views they open (`ownJob` screens), as the
+ * certification does: the theme job reads them in a step of its own
+ * (ONLY=teacher-math-tools-lab,teacher-math-tools-lab-work-view). It fails:
  *
  *   mm-forced-focus-not-drawn     a Tab stop that, focused as a keyboard focuses
  *                                 it, shows nothing (a box-shadow ring, a
@@ -58,7 +62,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { settleForAudit } from './accessibilityAudit.mjs';
 import {
-  CERTIFIED_SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, screensToRun, servesStubbedServices,
+  CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, screensToRun,
+  servesStubbedServices,
 } from './accessibilityCertification.mjs';
 import { auditForcedColors } from './forcedColorsAudit.mjs';
 import { FORCED_COLORS_RULE_IDS } from '../../scripts/lib/forcedColors.mjs';
@@ -68,6 +73,17 @@ const repo = path.resolve(here, '../..');
 
 // The dark contrast theme first: the scene is driven in it, then read in both.
 export const CONTRAST_THEMES = Object.freeze(['dark', 'light']);
+
+// What the walk reads: the certified screens and the rounds' own (the student's arena in a Graph Feature Rush and a
+// Graph the Line round, the rounds' certified scenes that are not axe's: the large-text runs measure them).
+export const WALKED_SCREENS = Object.freeze([...CERTIFIED_SCREENS, ...LIVE_CHALLENGE_ROUND_SCREENS]);
+
+/** The screens a run walks: those ONLY names, or every one of WALKED_SCREENS but those with a job of their own. */
+export const screensToWalk = (only) => {
+  const unknown = [...only].filter((id) => !WALKED_SCREENS.some((screen) => screen.id === id));
+  if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')}`);
+  return screensToRun(only, WALKED_SCREENS);
+};
 
 // A standalone harness does not follow the device: it is put in the theme the
 // device is in, as the contrast review puts it (and the app puts itself).
@@ -86,9 +102,7 @@ export const useContrastTheme = async (page, screen, scheme) => {
 
 const main = async () => {
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((entry) => entry.trim()).filter(Boolean));
-  const unknown = [...ONLY].filter((id) => !CERTIFIED_SCREENS.some((screen) => screen.id === id));
-  if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')}`);
-  const screens = screensToRun(ONLY);
+  const screens = screensToWalk(ONLY);
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5198',

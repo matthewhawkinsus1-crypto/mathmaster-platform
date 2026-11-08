@@ -298,6 +298,53 @@ export const SCREENS = [
   },
 ];
 
+// THE ROUNDS' OWN SCREENS, the student's arena: a Graph Feature Rush round (student push N, review of #487) and a
+// Graph the Line round (student-a11y-2, which no scene had reached), each a full-screen round over the student page,
+// staged on the live-challenge screen's lobby as the server stages one. A round's sizes are fluid
+// (clamp(28px, 7vmin, 56px) is 54px on a Chromebook, so a viewport term that ignored the text setting grew only to the
+// new minimum), and each opens on its own "Loading…" card (this harness serves no rush graphs and no lines), which
+// carries those sizes and the round's whole top bar. Not axe's scenes: the large-text runs measure them
+// (studentShellLargeText.mjs: 200% text, 320 px, target size and the 2.4.11 walk), and the forced-colours walk reads
+// them (forcedColorsCertification.mjs).
+const liveChallenge = SCREENS.find((screen) => screen.id === 'live-challenge');
+const questionSetRound = ({ challengeMode, token, prompt, shell: shellSelector, bar, ready, name }) => async (page, origins, context) => {
+  await liveChallenge.scenes[0].run(page, origins, context);
+  const question = { questionInstanceId: 'challenge_a11y-room_r1', prompt, challengeRound: 0 };
+  await page.evaluate(({ currentQuestion, mode, roundToken }) => {
+    const startsAt = Date.now() - 2000;
+    window.__mmHarnessStore.update('liveChallengeRooms/a11y-room', {
+      challengeMode: mode, status: 'running', currentRound: 0, currentQuestion, roundVersion: 1,
+      roundToken, roundState: 'open', phase: 'answering', startsAt, endsAt: startsAt + 600_000,
+      roundStartedAt: startsAt, roundEndsAt: startsAt + 600_000,
+    });
+  }, { currentQuestion: question, mode: challengeMode, roundToken: token });
+  await page.locator(ready).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1500);
+  // The round's top row (alias, round, count, clock) must not sit under
+  // anything outside the round. The student identity bar draws on top of
+  // everything (z-index 21000), so the round starts at the bar's height.
+  const covered = await page.evaluate(({ shellAt, barAt }) => {
+    const shell = document.querySelector(shellAt);
+    const row = shell?.querySelector(barAt);
+    if (!row) return [`the round has no top row (${barAt})`];
+    return [...row.children].flatMap((item) => {
+      const box = item.getBoundingClientRect();
+      if (!box.width || !box.height) return [];
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return top && !shell.contains(top) ? [`"${item.textContent.trim().slice(0, 24)}" is under ${top.tagName.toLowerCase()}${top.className ? `.${String(top.className).split(' ')[0]}` : ''}`] : [];
+    });
+  }, { shellAt: shellSelector, barAt: bar });
+  if (covered.length) throw new Error(`the ${name} round's top row is covered: ${covered.join('; ')}`);
+};
+const rushRound = questionSetRound({ challengeMode: 'graphFeatureRush', token: 'a11y-rush-1', prompt: 'Tap each feature you are asked for.', shell: '.mm-rush-shell', bar: '.mm-rush-bar', ready: '.mm-rush-overlay strong', name: 'Rush' });
+const lineRound = questionSetRound({ challengeMode: 'lineGraphClassic', token: 'a11y-line-1', prompt: 'Graph the line.', shell: '.mm-line-shell', bar: '.mm-line-bar', ready: '.mm-line-overlay strong', name: 'Graph the Line' });
+
+// The two rounds open as the live-challenge screen does, on the school's clock.
+export const LIVE_CHALLENGE_ROUND_SCREENS = [
+  { id: 'graph-feature-rush', harness: liveChallenge.harness, schoolClock: liveChallenge.schoolClock, open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
+  { id: 'graph-the-line', harness: liveChallenge.harness, schoolClock: liveChallenge.schoolClock, open: liveChallenge.open, scenes: [{ id: 'round', run: lineRound }] },
+];
+
 // The student screens above and the teacher's (accessibilityTeacherScreens.mjs):
 // what the run audits, and what the contrast review decides. SCREENS stays the
 // student list, which the other drivers import for their own checks.
