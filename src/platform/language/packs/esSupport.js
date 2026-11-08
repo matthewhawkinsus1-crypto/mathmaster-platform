@@ -840,6 +840,20 @@ const workedExamplePrompts = [
   // A system solved with matrices, with new numbers (matrixSystemVariant.js).
   ['Solve the system with technology and matrices: {1}, {2} and {3}.', 'Resuelve el sistema con tecnología y matrices: {1}, {2} y {3}.'],
   ['Give exact answers.', 'Da respuestas exactas.'],
+  // A factoring item with new numbers (factoringVariant.js). "Factor {1}."
+  // and "Factor {1} completely." are es.js's own direction sentences.
+  ['Factor {1}: find the GCF of its terms, then factor it out.', 'Factoriza {1}: halla el máximo común divisor (MCD) de sus términos y luego sácalo como factor común.'],
+  ['Factor {1} by grouping: factor the first two terms and the last two terms, then factor out the common binomial.', 'Factoriza {1} por agrupación: factoriza los dos primeros términos y los dos últimos, y luego saca el binomio común como factor.'],
+  ['Factor {1} by grouping.', 'Factoriza {1} por agrupación.'],
+  ['Factor each polynomial.', 'Factoriza cada polinomio.'],
+  ['Factor each polynomial completely.', 'Factoriza cada polinomio por completo.'],
+  ['Factor each polynomial by grouping.', 'Factoriza cada polinomio por agrupación.'],
+  ['Factor each trinomial.', 'Factoriza cada trinomio.'],
+  ['Factor each trinomial completely.', 'Factoriza cada trinomio por completo.'],
+  ['First: {1}.', 'Primero: {1}.'],
+  ['Second: {1}.', 'Segundo: {1}.'],
+  ['Third: {1}.', 'Tercero: {1}.'],
+  ['Fourth: {1}.', 'Cuarto: {1}.'],
 ];
 
 const workedExampleAnswers = [
@@ -923,6 +937,13 @@ const workedExampleAnswers = [
   ['Answer: First product {1}; Second product {2}', 'Respuesta: primer producto {1}; segundo producto {2}'],
   ['Answer: First product {1}; Second product {2}; Third product {3}', 'Respuesta: primer producto {1}; segundo producto {2}; tercer producto {3}'],
   ['Answer: Square {1}; Cube {2}', 'Respuesta: cuadrado {1}; cubo {2}'],
+  // A factoring item with new numbers: each box's name, then "= " and its answer.
+  ['Answer: Factored form {1}', 'Respuesta: forma factorizada {1}'],
+  ['Answer: GCF {1}; Factored form {2}', 'Respuesta: MCD {1}; forma factorizada {2}'],
+  ['Answer: First group {1}; Second group {2}; Factored form {3}', 'Respuesta: primer grupo {1}; segundo grupo {2}; forma factorizada {3}'],
+  ['Answer: First {1}; Second {2}', 'Respuesta: primero {1}; segundo {2}'],
+  ['Answer: First {1}; Second {2}; Third {3}', 'Respuesta: primero {1}; segundo {2}; tercero {3}'],
+  ['Answer: First {1}; Second {2}; Third {3}; Fourth {4}', 'Respuesta: primero {1}; segundo {2}; tercero {3}; cuarto {4}'],
 ];
 
 const workedExampleSteps = [
@@ -1170,6 +1191,28 @@ const workedExampleSteps = [
   ['Distribute {1}: {2}.', 'Distribuye {1}: {2}.'],
   ['Write the square as a product: {1}.', 'Escribe el cuadrado como un producto: {1}.'],
   ['Write the cube as the square times {1}: {2}.', 'Escribe el cubo como el cuadrado por {1}: {2}.'],
+  // A factoring item with new numbers (factoringVariant.js).
+  ['The greatest common factor of the terms is {1}: {2} and {3}.', 'El máximo común divisor de los términos es {1}: {2} y {3}.'],
+  ['The greatest common factor of the terms is {1}: {2}, {3} and {4}.', 'El máximo común divisor de los términos es {1}: {2}, {3} y {4}.'],
+  ['The greatest common factor of the terms is {1}: {2}, {3}, {4} and {5}.', 'El máximo común divisor de los términos es {1}: {2}, {3}, {4} y {5}.'],
+  ['Factor it out: {1}.', 'Sácalo como factor común: {1}.'],
+  ['{1} is a difference of squares: {2}.', '{1} es una diferencia de cuadrados: {2}.'],
+  ['{1} is a sum of cubes: {2}.', '{1} es una suma de cubos: {2}.'],
+  ['{1} is a difference of cubes: {2}.', '{1} es una diferencia de cubos: {2}.'],
+  ['{1} does not factor over the integers.', '{1} no se puede factorizar con coeficientes enteros.'],
+  ['{1} and {2} do not factor over the integers.', '{1} y {2} no se pueden factorizar con coeficientes enteros.'],
+  ['{1}, {2} and {3} do not factor over the integers.', '{1}, {2} y {3} no se pueden factorizar con coeficientes enteros.'],
+  ['{1}, {2}, {3} and {4} do not factor over the integers.', '{1}, {2}, {3} y {4} no se pueden factorizar con coeficientes enteros.'],
+  ['{1}, so {2} is a perfect square trinomial: {3}.', '{1}, así que {2} es un trinomio cuadrado perfecto: {3}.'],
+  ['{1} and {2}, so {3} is a perfect square trinomial: {4}.', '{1} y {2}, así que {3} es un trinomio cuadrado perfecto: {4}.'],
+  ['{1}, {2} and {3}, so {4} is a perfect square trinomial: {5}.', '{1}, {2} y {3}, así que {4} es un trinomio cuadrado perfecto: {5}.'],
+  ['Find two numbers whose product is {1} and whose sum is {2}: {3} and {4}, since {5} and {6}.', 'Halla dos números cuyo producto sea {1} y cuya suma sea {2}: {3} y {4}, ya que {5} y {6}.'],
+  ['Multiply the first and last coefficients: {1}.', 'Multiplica el primer coeficiente por el último: {1}.'],
+  ['Split the middle term and group: {1}.', 'Separa el término del medio en dos y agrupa: {1}.'],
+  ['Factor out the common binomial: {1}.', 'Saca el binomio común como factor: {1}.'],
+  ['Group the first two terms and the last two terms: {1}.', 'Agrupa los dos primeros términos y los dos últimos: {1}.'],
+  ['Factor each group: {1} and {2}.', 'Factoriza cada grupo: {1} y {2}.'],
+  ['The binomials {1} and {2} are opposites: {3}.', 'Los binomios {1} y {2} son opuestos: {3}.'],
   // The Matrix Lab's worked solution of a system (matrixLabReview.js), the
   // steps of a matrices practice; the lab's own closed review reads them too.
   ['Write each equation in standard form: {1}; {2}; {3}.', 'Escribe cada ecuación en forma estándar: {1}; {2}; {3}.'],

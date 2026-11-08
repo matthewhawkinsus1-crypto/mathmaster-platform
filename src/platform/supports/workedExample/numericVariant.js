@@ -69,6 +69,15 @@
  * steps the lab's own worked solution, written only once the lab's grader
  * accepts it.
  *
+ * THE FOURTH KIND: a polynomial factored over the integers (a common factor,
+ * a trinomial, a perfect square, a difference of squares, a sum or
+ * difference of cubes, four terms by grouping, and these in turn until every
+ * factor is prime), typed in boxes the item grades as a factoring (Algebra II
+ * Factoring Polynomials). Its rules are in factoringVariant.js: the item's own
+ * factoring with new numbers, taking exactly the item's path, never easier,
+ * and each key graded by the item's own box, which then checks the student's
+ * practice answer too (`fields`).
+ *
  * NOTHING HERE IS RECORDED. It returns values, like practiceLikeThis.js.
  */
 import algebraicGraders from '../../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
@@ -83,9 +92,10 @@ import { resolveSystemsWorkspaceMode } from '../../../../functions/shared/toolMa
 import { similarExampleIsSafe } from './similarProblem.js';
 import { POLYNOMIAL_VARIANT_KIND, buildPolynomialVariant } from './polynomialVariant.js';
 import { MATRIX_SYSTEM_VARIANT_KIND, buildMatrixSystemVariant } from './matrixSystemVariant.js';
+import { FACTORING_VARIANT_KIND, buildFactoringVariant } from './factoringVariant.js';
 
 export const NUMERIC_VARIANT_SOURCE = 'numericVariant';
-export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND, MATRIX_SYSTEM: MATRIX_SYSTEM_VARIANT_KIND });
+export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND, MATRIX_SYSTEM: MATRIX_SYSTEM_VARIANT_KIND, FACTORING: FACTORING_VARIANT_KIND });
 
 const text = (value) => String(value ?? '').trim();
 const gcd = (left, right) => {
@@ -516,7 +526,7 @@ export const buildNumericVariant = (question, { seed = 0 } = {}) => {
   try {
     const system = readSystem3x3(question);
     if (system) return system3x3Variant(question, system, seed);
-    const other = buildPolynomialVariant(question, { seed }) || buildMatrixSystemVariant(question, { seed });
+    const other = buildPolynomialVariant(question, { seed }) || buildMatrixSystemVariant(question, { seed }) || buildFactoringVariant(question, { seed });
     return other ? { ...other, source: NUMERIC_VARIANT_SOURCE } : null;
   } catch {
     return null;

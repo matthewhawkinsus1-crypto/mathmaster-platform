@@ -25,6 +25,10 @@
 //              answer, ✗ then ✓ typed with real keys, no grade, the worked
 //              solution with every formula typeset once on screen, another
 //              one.
+//   factoring  the same for Factoring Polynomials PR 6 (three trinomials):
+//              each box is the item's own factored-form box, so each
+//              polynomial typed back unfactored is ✗ and its factoring,
+//              typed with real keys, ✓.
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/afterLastMiss.
 import { mkdirSync } from 'node:fs';
@@ -298,6 +302,7 @@ for (const device of DEVICES) {
   for (const { q, name, labels, shows, steps } of [
     { q: 'polynomial', name: 'products', labels: 'First product =|Second product =|Third product =', shows: 'Multiply. Write each product in simplest form.', steps: 6 },
     { q: 'matrix', name: 'matrices', labels: 'x =|y =|z =', shows: 'Solve the system with technology and matrices', steps: 4 },
+    { q: 'factoring', name: 'factorings', labels: 'First =|Second =|Third =', shows: 'Factor each trinomial.', steps: 6 },
   ]) {
     const { page, context } = await open(device, `q=${q}&role=practice&closed=1`);
     const practice = await page.evaluate(() => window.__mmPractice);
@@ -330,8 +335,10 @@ for (const device of DEVICES) {
         message: await section.locator('[data-practice-message]').textContent(),
       };
     };
-    // A wrong answer in every box (the polynomial one more, each value 1), then each box's answer.
-    const wrong = await typeAll((part) => (q === 'matrix' ? '1' : `${part.expected}+1`));
+    // A wrong answer in every box (the polynomial one more, each value 1, each
+    // trinomial typed back unfactored: its value, not a factoring), then each box's answer.
+    const asked = (practice.prompt.match(/\$[^$]+\$/g) || []).map((piece) => piece.slice(1, -1));
+    const wrong = await typeAll((part) => (q === 'matrix' ? '1' : q === 'factoring' ? asked[practice.parts.indexOf(part)] : `${part.expected}+1`));
     check(wrong.marks.every((mark) => mark === 'incorrect') && wrong.message.startsWith('Not quite'), `${device.name} ${name}: wrong answers are marked ✗`, `${wrong.marks.join(',')} · ${wrong.message}`);
     const right = await typeAll((part) => part.expected);
     check(right.marks.every((mark) => mark === 'correct') && /That matches/.test(right.message), `${device.name} ${name}: the answers are marked ✓`, `${right.marks.join(',')} · ${right.message}`);

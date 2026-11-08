@@ -14,6 +14,9 @@
 //   ?q=polynomial|matrix                 the same for Operations on Polynomials PR 3 (three
 //                                        products, polynomialVariant.js) and the matrices
 //                                        lesson's PR 7 (matrixSystemVariant.js)
+//   ?q=factoring                         the same for Factoring Polynomials PR 6 (three
+//                                        trinomials, factoringVariant.js), each box checked
+//                                        by the item's own factored-form box
 //   ?closed=1                            mount the item with the record its last miss leaves
 //                                        (recordQuestionAttempt, once per try) — for an item
 //                                        whose workspace a journey cannot miss quickly
@@ -41,6 +44,7 @@ import sampleLesson from '../../SAMPLE_AUTHORING_INTENT_V5.json';
 import systems3x3Lesson from '../../docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json';
 import operationsLesson from '../../teacher-import-jsons/algebra2-honors-module2/L1_Operations_on_Polynomials.json';
 import matricesLesson from '../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json';
+import factoringLesson from '../../teacher-import-jsons/algebra2-polynomials-radicals/1_Factoring_Polynomials.json';
 import PracticeLikeThis from '../../src/platform/supports/workedExample/PracticeLikeThis.jsx';
 import '../../src/index.css';
 import '../../src/App.css';
@@ -72,6 +76,8 @@ const QUESTIONS = {
   // The same, for polynomial arithmetic (three products, two of them in two letters) and a system solved with matrices.
   polynomial: () => lessonItem(operationsLesson, 'opp-pr-3'),
   matrix: () => lessonItem(matricesLesson, 'l3m-pr-7'),
+  // Three trinomials to factor: each box is the item's own factored-form box, keyed to the variant.
+  factoring: () => lessonItem(factoringLesson, 'fp-p-6'),
   // A typed item ("If f(a) = b, …f⁻¹…") whose sibling can be checked.
   inverse: () => practiceLike(inverseLesson).find((question) => buildPracticeLikeThis(question)?.checkable
     && (question.answerFields || []).length >= 1 && question.answerFields.every((field) => !Array.isArray(field.options))),

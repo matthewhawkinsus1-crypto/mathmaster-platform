@@ -33,7 +33,11 @@
  *                                                       number", "infinitely many"); a single value is
  *                                                       one solution, so not that case
  * and the graph of a linear function, named by collinear points ("The graph
- * through (0, -12), (1, -8), (2, -4)"), is checked as that line. Whatever the
+ * through (0, -12), (1, -8), (2, -4)"), is checked as that line. A part the
+ * variant asks in one of the item's own boxes (`fields`: a factoring, whose
+ * form is the answer) is checked by that box, keyed to the variant: the
+ * platform's multi-answer grader with the box's own form rule, so a
+ * polynomial retyped unfactored is not yet a factoring, as on the item. Whatever the
  * reader cannot take apart completely (a word it does not know, a sign in
  * front of a distance, two directions, a bracket left open) is COMPARE, never
  * INCORRECT: it says the student wrote something it cannot judge, not that it is
@@ -61,6 +65,9 @@ import { compareMathAnswer } from '../../../../functions/shared/answerUtils.mjs'
 import { sameNumberWithThousandsSeparators } from '../../../../functions/shared/answerEquivalence.mjs';
 import { sameEquivalentExpression } from '../../../../functions/shared/equivalentExpression.mjs';
 import { latexToExpression } from '../../../../functions/shared/algebra/latexToExpression.mjs';
+import { gradeMultiAnswerResponse } from '../../../../functions/shared/ordinaryResponseGrading.mjs';
+// A part asked in one of the item's boxes is graded as that box (its form-specific comparator included).
+import '../../../../functions/shared/formSpecificFieldGrading.mjs';
 import { parse } from '../../math/mathjs.js';
 import { NUMERIC_VARIANT_SOURCE, buildNumericVariant } from './numericVariant.js';
 import { buildSimilarWorkedExample } from './similarProblem.js';
@@ -574,9 +581,21 @@ export const buildPracticeLikeThis = (question, { seed = 0, avoidPrompts = [] } 
   for (let offset = 1; offset <= 12; offset += 1) {
     const variant = buildNumericVariant(question, { seed: Number(seed) + 97 * offset });
     if (!variant || avoid.has(variant.prompt)) continue;
-    return { ...variant, ...readPracticeAnswer(variant.answer) };
+    return { ...variant, ...withBoxes(readPracticeAnswer(variant.answer), variant.fields) };
   }
   return null;
+};
+
+/*
+ * A variant that asks the item's own boxes (`fields`, one per part of its
+ * answer, in order) has each part checked by its box. Read otherwise: the
+ * parts as the answer line gives them.
+ */
+const withBoxes = (read, fields) => {
+  if (!Array.isArray(fields) || !fields.length) return read;
+  if (fields.length !== read.parts.length) return read;
+  const parts = read.parts.map((part, index) => ({ ...part, field: fields[index], checkable: true }));
+  return { parts, checkable: true, wordsOnly: [] };
 };
 
 /** The parts of a sibling's answer line. */
@@ -757,6 +776,13 @@ export const checkPracticePart = (part, response) => {
   if (!part || !part.checkable) return PRACTICE_VERDICT.COMPARE;
   if (!typed) return PRACTICE_VERDICT.BLANK;
   const { expected } = part;
+
+  // Asked in one of the item's boxes: that box decides, form and all.
+  if (part.field && typeof part.field === 'object') {
+    const box = { ...part.field, id: text(part.field.id) || part.id };
+    const graded = safely(() => gradeMultiAnswerResponse({ type: 'multiAnswer', answerFields: [box] }, { [box.id]: typed }).parts?.[0]?.isCorrect === true);
+    return graded ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  }
 
   if (part.kind === 'none') {
     const answer = typed.replace(/\\emptyset|\\varnothing/g, '∅').replace(/\\\{\s*\\\}/g, '{}');
