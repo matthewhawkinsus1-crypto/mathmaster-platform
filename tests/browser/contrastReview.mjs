@@ -11,7 +11,8 @@
  *   next to the certification's report.json. Light theme, as the
  *   certification; COLOR_SCHEME=dark reads the same scenes on a dark device
  *   (the app follows the device; a standalone harness, which does not, is put
- *   in the dark theme as darkModeCertification.mjs puts its own).
+ *   in the dark theme as darkModeCertification.mjs puts its own). CI reads
+ *   both, each in a job of its own (accessibility-certification.yml).
  *
  * WHY. axe answers "needs review" for text it cannot place on one solid colour:
  * text over a gradient, an image, a pseudo-element, or a translucent layer, and

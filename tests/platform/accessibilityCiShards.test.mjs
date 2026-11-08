@@ -104,6 +104,11 @@ const jobs = jobsOf(workflow);
 const PARTS = ['browser-accessibility-ratchet', 'browser-accessibility-contrast-and-targets', 'browser-accessibility-keyboard-and-names'];
 // A test step runs one command on one line; the servers start in `run: |` blocks.
 const commandOf = (step) => step.match(/^ {8}run: (?!\|)(.+)$/m)?.[1] ?? null;
+// The theme a step reads: the contrast review runs once light and once on a dark device (COLOR_SCHEME=dark).
+const schemeOf = (step) => step.match(/^ {10}COLOR_SCHEME: (\w+)$/m)?.[1] ?? 'light';
+// What a step does: its command, in its theme. The same command in two themes is two steps, not one run twice.
+const stepRun = (step) => (commandOf(step) ? `${commandOf(step)} (${schemeOf(step)})` : null);
+const DARK_REVIEW = 'browser-accessibility-contrast-dark';
 const SERVERS = {
   'http://127.0.0.1:5199': /npx vite --config tests\/browser\/emulator\/vite\.config\.mjs --host 127\.0\.0\.1 --port 5199 --strictPort/,
   'http://127.0.0.1:5188': /TEACHER_HARNESS_PORT=5188 npx vite --config tests\/browser\/accessibilityAppHarness\.vite\.config\.mjs/,
@@ -124,10 +129,47 @@ test('the teacher sweep runs as one job per shard, each named for its shard, and
 
 test("the certification's steps are three jobs, and no step of the workflow runs twice", () => {
   for (const part of PARTS) assert.ok(jobs[part], part);
-  const commands = Object.values(jobs).flatMap((text) => stepsOf(text).map(commandOf).filter(Boolean));
-  assert.ok(commands.length >= 30, `${commands.length} test steps`);
-  assert.deepEqual(commands.filter((command, at) => commands.indexOf(command) !== at), [], 'a step in two jobs');
-  for (const command of ['npm run certify:accessibility', 'npm run review:contrast']) assert.ok(commands.includes(command), command);
+  const runs = Object.values(jobs).flatMap((text) => stepsOf(text).map(stepRun).filter(Boolean));
+  assert.ok(runs.length >= 30, `${runs.length} test steps`);
+  assert.deepEqual(runs.filter((run, at) => runs.indexOf(run) !== at), [], 'a step in two jobs');
+  for (const run of ['npm run certify:accessibility (light)', 'npm run review:contrast (light)']) assert.ok(runs.includes(run), run);
+});
+
+// The contrast review's dark reading (COLOR_SCHEME=dark) found what CI never saw: the live proctor monitor's status
+// in the light theme's blue on a dark row, 2.13:1. It runs in a job of its own beside the light one, each with its own
+// report, and the light job is as it was: the same step, the same command, the same exit.
+test('the contrast review runs light and dark, each in a job of its own with a report of its own', () => {
+  const reviews = Object.entries(jobs).flatMap(([job, text]) => stepsOf(text)
+    .filter((step) => commandOf(step) === 'npm run review:contrast').map((step) => ({ job, step, scheme: schemeOf(step) })));
+  assert.deepEqual(reviews.map(({ job, scheme }) => `${job} ${scheme}`).sort(), [
+    'browser-accessibility-contrast-and-targets light',
+    `${DARK_REVIEW} dark`,
+  ], 'once in each theme, in two jobs');
+  const light = reviews.find((review) => review.scheme === 'light').step;
+  assert.equal(light, [
+    '      - name: Contrast over gradients (axe\'s undecided nodes, measured)',
+    '        if: ${{ !cancelled() }}',
+    '        env:',
+    '          PLAYWRIGHT_MODULE: playwright',
+    '          AUDIT_ORIGIN: "http://127.0.0.1:5199"',
+    '          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"',
+    '        run: npm run review:contrast',
+    '',
+  ].join('\n'), 'the light review is the step it was');
+  const dark = reviews.find((review) => review.scheme === 'dark').step;
+  assert.match(dark, /^ {8}if: \$\{\{ !cancelled\(\) \}\}$/m, 'it runs whatever happened to the step before it');
+  for (const origin of ['AUDIT_ORIGIN: "http://127.0.0.1:5199"', 'TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"', 'PLAYWRIGHT_MODULE: playwright']) {
+    assert.ok(dark.includes(`          ${origin}\n`), `on the same servers and browser as the light one: ${origin}`);
+  }
+  // Its own report, under its own name: the two reviews write the same file, on two runners.
+  const keeps = (job) => stepsOf(jobs[job]).filter((step) => /uses: actions\/upload-artifact@/.test(step))
+    .filter((step) => /path: tests\/browser\/artifacts\/accessibility$/m.test(step)).map((step) => step.match(/^ {10}name: (.+)$/m)?.[1]);
+  assert.deepEqual(keeps('browser-accessibility-contrast-and-targets'), ['accessibility-certification-contrast']);
+  assert.deepEqual(keeps(DARK_REVIEW), ['accessibility-certification-contrast-dark']);
+  // Before it, the pixel step on pages whose answer is known (contrastReviewSelfTest.mjs), which needs no server.
+  const steps = stepsOf(jobs[DARK_REVIEW]).map(commandOf).filter(Boolean);
+  assert.deepEqual(steps, ['node tests/browser/contrastReviewSelfTest.mjs', 'npm run review:contrast']);
+  assert.ok(runsOnPullRequest('accessibility-certification.yml', 'tests/browser/contrastReviewSelfTest.mjs'), 'a change to the fixtures runs the workflow');
 });
 
 test('every job starts the servers its steps call before it calls them', () => {
