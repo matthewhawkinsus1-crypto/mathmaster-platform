@@ -53,13 +53,15 @@ test('anything else is left to the browser, as before', () => {
 test('the phone question hands Tab off its keypad to the bar, only where the bar is under the keys', () => {
   const container = executableSource(readFileSync(new URL('../../src/components/student/MobileViewportContainer.jsx', import.meta.url), 'utf8'));
   const handler = region(container, 'const handleKeypadKeyDown = (event) => {', '\n  };', 'the keypad\'s key handler');
-  // Not on its side or in a focused workspace (no portrait bar), and not from inside Work View, whose row is above the keys.
-  assert.match(handler, /^const handleKeypadKeyDown = \(event\) => \{\s*if \(isLandscape \|\| workspaceActive \|\| numericTarget\?\.closest\?\.\('\[role="dialog"\], \[aria-modal="true"\]'\)\) return;/);
-  assert.match(handler, /workBarControlAfterKeypad\(event, keypadRef\.current, rootRef\.current\?\.querySelector\(':scope > \.portrait-action-bar'\)\)/, 'the question\'s own bar');
-  assert.match(handler, /if \(!next\) return;\s*event\.preventDefault\(\);\s*barFocusRef\.current = next;\s*setNumericTarget\(null\);/, 'the keypad closes, as Done closes it');
+  // The bar under the keys (barUnderKeys, which Done pressed from the keyboard reads too): none on its side or in a
+  // focused workspace (no portrait bar), and none from inside Work View, whose row is above the keys.
+  const bar = region(container, 'const barUnderKeys = () => (', ');', 'the bar under the keys');
+  assert.match(bar, /^const barUnderKeys = \(\) => \(isLandscape \|\| workspaceActive \|\| numericTarget\?\.closest\?\.\('\[role="dialog"\], \[aria-modal="true"\]'\)\s*\? null\s*: rootRef\.current\?\.querySelector\(':scope > \.portrait-action-bar'\)$/, 'the question\'s own bar, and only there');
+  assert.match(handler, /^const handleKeypadKeyDown = \(event\) => \{\s*const next = workBarControlAfterKeypad\(event, keypadRef\.current, barUnderKeys\(\)\);/, 'Tab hands off to that bar');
+  assert.match(handler, /if \(!next\) return;\s*event\.preventDefault\(\);\s*closeFocusRef\.current = next;\s*setNumericTarget\(null\);/, 'the keypad closes, as Done closes it');
   // Focus goes on once the keypad is gone and the bar is shown again (before the next frame, so no key lands between).
-  const effect = region(container, 'useLayoutEffect(() => {\n    const next = barFocusRef.current;', '}, [numericTarget]);', 'the hand-off');
-  assert.match(effect, /if \(numericTarget \|\| !next\) return;\s*barFocusRef\.current = null;\s*if \(next\.isConnected\) next\.focus\(\);/);
+  const effect = region(container, 'useLayoutEffect(() => {\n    const next = closeFocusRef.current;', '}, [numericTarget]);', 'the hand-off');
+  assert.match(effect, /if \(numericTarget \|\| !next\) return;\s*closeFocusRef\.current = null;\s*if \(next\.isConnected\) next\.focus\(\);/);
   assert.match(container, /role="group" aria-label="Number keypad" onKeyDown=\{handleKeypadKeyDown\}/, 'the keypad listens');
   // The bar it hands off to is the one the open keypad hides.
   const css = readFileSync(new URL('../../src/components/student/MathToolMobileLayout.css', import.meta.url), 'utf8');

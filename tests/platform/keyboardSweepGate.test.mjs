@@ -46,6 +46,7 @@ const clean = (sceneKey = 'demo') => ({
     focusDroppedAfterLoadMs: null,
     focusLostAfterCheck: [],
     focusLostAfterAction: null,
+    focusLostAfterKeypadDone: null,
   },
 });
 const with_ = (changes, sceneKey) => {
@@ -94,6 +95,11 @@ test('the several ways to break one criterion each count', () => {
   assert.equal(failures({ summary: { dialogFocusLeaks: [{}] } }, 'cannotClose'), 1, 'Tab leaving a modal');
   assert.equal(failures({ summary: { focusDroppedAfterLoadMs: 600 } }, 'focusLost'), 1, 'focus falling to <body> on its own');
   assert.equal(failures({ summary: { focusLostAfterAction: 3 } }, 'focusLost'), 3, 'after an action that removes its button');
+  // Enter and Space on the number keypad's Done, and Enter on it on its side, each a press that can leave focus nowhere (keypad-done).
+  assert.equal(failures({ summary: { focusLostAfterKeypadDone: 2 } }, 'focusLost'), 2, 'after the keypad\'s Done pressed from the keyboard');
+  assert.equal(failures({ summary: { focusLostAfterKeypadDone: 0 } }, 'focusLost'), 0, 'every press of Done left focus in the question');
+  // A field the gate reads, so the sweep must write it (below) and a report without it is an error, never a pass.
+  assert.ok(GATE_SUMMARY_FIELDS.includes('focusLostAfterKeypadDone'), 'the gate lists what it reads of Done');
   assert.equal(failures({ summary: { noVisibleFocus: [{}, {}, {}] } }, 'noVisibleFocus'), 3);
   assert.equal(failures({ summary: { unreached: [{}, {}, {}, {}] } }, 'unreached'), 4, 'each control Tab never stopped on');
 });

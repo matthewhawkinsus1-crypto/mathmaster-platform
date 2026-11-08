@@ -84,11 +84,13 @@ export const GATE_CRITERIA = Object.freeze([
   },
   {
     id: 'focusLost', wcag: '2.4.3',
-    says: 'focus does not fall to <body> on its own after load, after a keyboard Check, or after an action that removes its button',
-    reads: ['focusDroppedAfterLoadMs', 'focusLostAfterCheck', 'focusLostAfterAction'],
+    // The number keypad's Done is such an action: it takes the keypad off the page, itself included (keypad-done).
+    says: 'focus does not fall to <body> on its own after load, after a keyboard Check, or after an action that removes its button (the number keypad\'s Done among them)',
+    reads: ['focusDroppedAfterLoadMs', 'focusLostAfterCheck', 'focusLostAfterAction', 'focusLostAfterKeypadDone'],
     failures: ({ summary }) => (field(summary, 'focusDroppedAfterLoadMs') != null ? 1 : 0)
       + list(summary, 'focusLostAfterCheck').length
-      + (field(summary, 'focusLostAfterAction') || 0),
+      + (field(summary, 'focusLostAfterAction') || 0)
+      + (field(summary, 'focusLostAfterKeypadDone') || 0),
   },
 ]);
 

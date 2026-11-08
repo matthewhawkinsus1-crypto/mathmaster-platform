@@ -342,12 +342,56 @@ export const focusLeavesQuestion = (root, nextFocus) => Boolean(
  * its last, or a bar with nothing that takes focus.
  */
 const BAR_CONTROL = 'button, a[href], input, select, textarea, [tabindex]';
+// The bar's first control that takes focus: enabled, in the tab order, and not in a hidden or inert part of the bar.
+const firstBarControl = (bar) => [...(bar?.querySelectorAll?.(BAR_CONTROL) || [])]
+  .find((control) => !control.disabled && Number(control.tabIndex) >= 0 && !control.closest?.('[inert], [aria-hidden="true"]')) || null;
 export const workBarControlAfterKeypad = (event, keypad, bar) => {
   if (!event || event.key !== 'Tab' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return null;
   const keys = [...(keypad?.querySelectorAll?.('button') || [])];
   if (!keys.length || event.target !== keys[keys.length - 1]) return null;
-  return [...(bar?.querySelectorAll?.(BAR_CONTROL) || [])]
-    .find((control) => !control.disabled && Number(control.tabIndex) >= 0 && !control.closest?.('[inert], [aria-hidden="true"]')) || null;
+  return firstBarControl(bar);
 };
+
+/*
+ * DONE, PRESSED FROM THE KEYBOARD, GOES ON (keypad-done; WCAG 2.4.3, 2.1.1).
+ *
+ * Done closes the number keypad by taking it off the page, Done included. A
+ * finger's press leaves focus on the page, which suits a finger: no ring shows,
+ * no keypad comes back and no screen keyboard opens. A student who reached Done
+ * with Tab and pressed Enter or Space was left there too (a touch-screen
+ * Chromebook with a keyboard shows the keypad and takes keys), with nothing
+ * focused and the next Tab starting again from the top of the page.
+ *
+ * Pressed from the keyboard (a click no pointer made: `detail` 0), Done goes on
+ * where Tab off it goes, to the work bar's first control
+ * (workBarControlAfterKeypad above): Done is the keypad's last key, the bar is
+ * what follows the work, and Submit is on it. Where no bar is under the keys (a
+ * phone on its side, whose bar is in the task panel before the work; a solver
+ * workspace; a box inside a dialog), Tab off the keypad leaves the question, so
+ * Done goes back to the box it served, which keeps its keypad closed until the
+ * student touches it again (`keepClosed`; keypadTargetOnFocus below).
+ *
+ * Null leaves Done as it was: a press of a finger, a pen or a mouse, or nowhere
+ * to go (no control in the bar and no box still on the page).
+ */
+export const focusAfterKeypadDone = (event, { bar = null, box = null } = {}) => {
+  if (!event || event.detail !== 0) return null;
+  const control = firstBarControl(bar);
+  if (control) return { focus: control, keepClosed: null };
+  return box?.isConnected ? { focus: box, keepClosed: box } : null;
+};
+
+/*
+ * THE BOX DONE CLOSED FROM THE KEYBOARD (focusAfterKeypadDone, `keepClosed`).
+ *
+ * Focus coming back to it, from Done or by Tab, opens no keypad: the keypad that
+ * was open for another box closes, as it does for any control that is not a key
+ * or a button. A press on the box (a finger, a pen, a mouse) opens it again, as a
+ * tap on any box does.
+ */
+export const keypadTargetOnFocus = (box, keptClosed) => (box && box === keptClosed ? null : box);
+export const pressReopensKeypad = (keptClosed, pressed) => Boolean(
+  keptClosed && pressed && (pressed === keptClosed || keptClosed.contains?.(pressed)),
+);
 
 export const mobileViewportLockSelector = LOCKED_CONTAINER_SELECTOR;

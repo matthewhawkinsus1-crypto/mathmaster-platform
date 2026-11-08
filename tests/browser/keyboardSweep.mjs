@@ -72,6 +72,12 @@
 //      `smallTargets` (the rest, for a reviewer: an equivalent control or an
 //      essential size may still excuse one). Read, never gated. The rules are
 //      in support/targetSize.mjs.
+//   9. THE NUMBER KEYPAD'S DONE FROM THE KEYBOARD (keypadDoneProbe). On a
+//      phone, where the forward walk went through the keypad to its Done:
+//      Enter, and Space, on Done, and Enter on it with the phone on its side,
+//      must leave focus in the question with the keypad closed
+//      (`focusLostAfterKeypadDone`, judged with the rest of focus lost). Where
+//      each lands, beside where Tab off Done went, is kept.
 //
 // A focused control counts as visibly focused only if something changed on
 // screen AND it is not under another element (elementFromPoint), so a ring
@@ -1041,6 +1047,112 @@ const ACTION_FOCUS_PROBES = {
   },
 };
 
+/*
+ * DONE ON THE NUMBER KEYPAD, PRESSED FROM THE KEYBOARD (keypad-done; 2.4.3). On a phone a number box opens the
+ * number keypad, and Done takes the keypad off the page, Done included: pressed with Enter or Space it left a
+ * keyboard student with nothing focused. Where the forward walk went through the keypad to its Done, the scene is
+ * opened again for each of Enter and Space: Tab from the start to Done, the key, and where focus is then. It must be
+ * in the question with the keypad closed, and it goes on where Tab off Done went in the walk (the work bar's first
+ * control). Then once more on its side (the phone turned to 844x390), where no bar is under the keys: Enter on Done
+ * goes back to the box the keypad served, which keeps its keypad closed for a typed digit until a tap opens it.
+ * `focusLost` counts the presses that left focus out of the question or the keypad open (support/keyboardSweepGate.mjs);
+ * the rest is read.
+ */
+const KEYPAD_DONE = 'mathmaster-keypad-done';
+const keypadDoneInWalk = (forward) => (forward?.stops || []).some((stop) => stop.id && String(stop.className || '').includes(KEYPAD_DONE));
+// A stop as both sides can name it: its tag and its words (the walk's `text`, and describe's in the page).
+const stopLabel = (stop) => (stop ? `${stop.tag}: ${String(stop.text || '').trim().slice(0, 60)}` : null);
+// Tab from the start sentinel to Done, keeping the last box that opens the keypad (the one Done serves).
+const tabToKeypadDone = async (page) => {
+  await focusSentinel(page, 'start');
+  let box = null;
+  for (let i = 0; i < MAX_STOPS; i += 1) {
+    await page.keyboard.press('Tab');
+    await wait(page, 70);
+    const at = await page.evaluate((done) => {
+      const el = document.activeElement;
+      return {
+        done: Boolean(el?.classList?.contains(done)),
+        end: el?.dataset?.kbSentinel === 'end',
+        box: el?.matches?.('input[data-mathmaster-mobile-keypad="true"]') ? window.__kb.kbId(el) : null,
+      };
+    }, KEYPAD_DONE);
+    if (at.box) box = at.box;
+    if (at.done) return { reached: true, box };
+    if (at.end) break;
+  }
+  return { reached: false, box };
+};
+const focusAfterKeypadDone = (page, box) => page.evaluate((boxId) => {
+  const el = document.activeElement;
+  const body = !el || el === document.body || el === document.documentElement;
+  const described = body ? null : window.__kb.describe(el);
+  return {
+    keypadOpen: Boolean(document.querySelector('.mathmaster-mobile-numeric-keypad')),
+    body,
+    inQuestion: Boolean(!body && document.querySelector('[data-kb-root]')?.contains(el)),
+    landed: described ? `${described.tag}: ${String(described.text || '').trim().slice(0, 60)}` : null,
+    onBox: Boolean(boxId) && el === window.__kb.byId(boxId),
+    focusVisible: Boolean(el?.matches?.(':focus-visible')),
+  };
+}, box);
+const keypadDoneProbe = async (open, forward) => {
+  // Where Tab off Done went in the forward walk: the next stop, or the end of the page.
+  const stops = forward.stops || [];
+  const doneAt = stops.findIndex((stop) => stop.id && String(stop.className || '').includes(KEYPAD_DONE));
+  const next = stops.slice(doneAt + 1).find((stop) => stop.id || stop.body);
+  const tabLanded = next?.body ? 'page' : (next ? stopLabel(next) : 'the end of the page');
+  const errors = [];
+  const presses = [];
+  for (const press of ['Enter', 'Space']) {
+    const { page, errors: pageErrors } = await open();
+    try {
+      const walk = await tabToKeypadDone(page);
+      if (!walk.reached) { presses.push({ press, reached: false }); continue; }
+      await page.keyboard.press(press);
+      await wait(page, 350);
+      const after = await focusAfterKeypadDone(page, walk.box);
+      presses.push({ press, reached: true, ...after, asTab: after.landed === tabLanded });
+    } finally {
+      errors.push(...pageErrors);
+      await page.close();
+    }
+  }
+  // On its side: no bar under the keys, so Enter on Done goes back to the box.
+  const side = await open();
+  let sideways = { reached: false };
+  try {
+    await side.page.setViewportSize({ width: VIEWPORT.height, height: VIEWPORT.width });
+    await wait(side.page, 900);
+    const walk = await tabToKeypadDone(side.page);
+    if (walk.reached) {
+      await side.page.keyboard.press('Enter');
+      await wait(side.page, 350);
+      sideways = { reached: true, ...(await focusAfterKeypadDone(side.page, walk.box)) };
+      if (sideways.onBox) {
+        await side.page.keyboard.press('7');
+        await wait(side.page, 300);
+        sideways.keptClosedWhileTyping = !(await focusAfterKeypadDone(side.page, walk.box)).keypadOpen;
+        await side.page.locator(`[data-kb-id="${walk.box}"]`).tap();
+        await wait(side.page, 500);
+        sideways.tapOpens = (await focusAfterKeypadDone(side.page, walk.box)).keypadOpen;
+      }
+    }
+  } finally {
+    errors.push(...side.errors);
+    await side.page.close();
+  }
+  const lost = (result) => result.reached && (result.body || !result.inQuestion || result.keypadOpen);
+  return {
+    tabLanded,
+    presses,
+    sideways,
+    errors,
+    // A press that could not reach Done although the walk did is not a pass either.
+    focusLost: presses.filter((result) => !result.reached || lost(result)).length + (lost(sideways) ? 1 : 0),
+  };
+};
+
 const idPage = await context.newPage();
 await idPage.goto(`${ORIGIN}/tests/browser/keyboardSweep.html`, { waitUntil: 'networkidle', timeout: 90000 });
 const allIds = await idPage.evaluate(() => window.__TOOL_IDS__ || []);
@@ -1155,6 +1267,12 @@ for (const scene of scenes) {
       entry.pageErrors.push(...third.errors);
       await third.page.close();
     }
+
+    // The number keypad's Done from the keyboard, where the walk went through the keypad (keypadDoneProbe).
+    if (keypadDoneInWalk(entry.forward)) {
+      entry.keypadDone = await keypadDoneProbe(open, entry.forward);
+      entry.pageErrors.push(...entry.keypadDone.errors);
+    }
   } catch (error) {
     entry.error = String(error?.stack || error).slice(0, 800);
   }
@@ -1183,6 +1301,8 @@ for (const scene of scenes) {
     focusLostAfterCheck: (entry.primary?.checks || []).filter((c) => c.focusLostToBody).map((c) => c.name),
     plotted: entry.primary ? entry.primary.plotMarksAfter !== entry.primary.plotMarksBefore : null,
     focusLostAfterAction: entry.actionFocus ? entry.actionFocus.focusLost : null,
+    // Enter and Space on the number keypad's Done, and Enter on it on its side, that left focus out of the question.
+    focusLostAfterKeypadDone: entry.keypadDone ? entry.keypadDone.focusLost : null,
     // WCAG 2.2 2.5.8: pointer targets measured, those under 24x24 CSS px, how many of those pass by spacing, and the rest.
     targetsMeasured: entry.targets?.measured ?? null,
     undersizedTargets: entry.targets?.undersized ?? null,
@@ -1195,7 +1315,7 @@ for (const scene of scenes) {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, `tool-${sceneKey.replace(':', '--')}.json`), `${JSON.stringify(entry, null, 2)}\n`);
   const s = entry.summary;
-  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} unreached=${s.unreached.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
+  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} unreached=${s.unreached.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`}${entry.keypadDone ? ` keypadDone=${entry.keypadDone.presses.map((press) => `${press.press}:${press.reached ? (press.asTab ? 'as-Tab' : press.landed || 'page') : 'unreached'}`).join(',')},side:${entry.keypadDone.sideways.reached ? (entry.keypadDone.sideways.onBox ? 'box' : entry.keypadDone.sideways.landed || 'page') : 'unreached'} lostAfterDone=${s.focusLostAfterKeypadDone}` : ''} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
 }
 
 await browser.close();
