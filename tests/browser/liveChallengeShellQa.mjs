@@ -52,6 +52,11 @@
 //                  with students solving in the browser: open listeners per
 //                  page, heap/listeners/DOM after a forced GC, names, board
 //                  against the stored result, rewards delivered exactly once
+//   P phone round  a Solver Race round on two touch phones (390 x 844, 360 x
+//                  740): the question held to a pixel as "Points banked this
+//                  round" arrives, grows and goes, and as the connection drops
+//                  ("Offline — reconnecting…", the slow-connection line) and
+//                  returns
 //   adversarial    double Start, two host tabs, End Round Now / End Game /
 //                  Cancel confirmations, End Game during the countdown, an
 //                  answer during the countdown, a refresh mid-countdown
@@ -349,8 +354,10 @@ const DEVICES = Object.freeze({
   ipad: { viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
   phone: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
   smallPhone: { viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
+  phone360: { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
 });
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+// CI's browser is Playwright's own headless Chromium; CHROMIUM_PATH runs another.
+const browser = await chromium.launch({ args: ['--no-sandbox'], ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 const findings = [];
 const notes = [];
 const finding = (scenario, problem) => { findings.push({ scenario, problem }); log(`  ✗ ${scenario}: ${problem}`); };
@@ -1623,6 +1630,88 @@ await run('endurance', async (S) => {
   check(S, stale.length === 0, `games left open: ${stale.map((doc) => doc.id).join(', ')}`);
   consoleErrors(S, [teacher, s1, s2]);
   await closeAll(teacher, s1, s2);
+});
+
+// P — A CLASSIC ROUND ON TWO PHONES (390 x 844 and 360 x 740, touch): THE
+// QUESTION HOLDS ITS PLACE while what is above it comes and goes. Measured in
+// CI's fonts before it did: "Reconnecting…" in the page header wrapped the score
+// and Exit onto rows of their own and moved the question 50 px down (and back
+// as the connection returned); "Points banked this round", arriving in the
+// round's banner with the first right step, 83 px; and "Your connection is slow
+// right now", which comes with a dropped connection, sat above it too. A Solver
+// Race round: a tool that grades steps as they go, so its banked line keeps its
+// room from GO. No round in CI's time banks points from a step a driver can
+// make, so the line is written into its own cell, as a round's first right step
+// fills it (support/roundBarFit.mjs writes a bar's largest counts the same way).
+const questionTop = (handle) => handle.page.evaluate(() => {
+  const box = document.querySelector('[data-live-challenge-engine]')?.parentElement?.getBoundingClientRect();
+  return box ? { top: Math.round((box.top + window.scrollY) * 10) / 10, left: Math.round(box.left * 10) / 10, width: Math.round(box.width * 10) / 10 } : null;
+});
+const writeBanked = (handle, points) => handle.page.evaluate((value) => {
+  const line = document.querySelector('[data-mm-banked-line]');
+  const live = line?.querySelector('[aria-live]');
+  const room = line?.querySelector('[aria-hidden="true"]');
+  if (!live || !room) return false;
+  live.innerHTML = value === null ? '' : room.innerHTML;
+  if (value !== null) live.children[1].textContent = value;
+  return true;
+}, points);
+
+await run('phone-round', async (S) => {
+  const ids = studentsOf('p4');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(ids[0], 'phone'), await openStudent(ids[1], 'phone360')];
+  // Long enough for a clock check to fail while offline (one every 30 s).
+  const roomId = await createSolverRace(teacher, { classKey: 'p4', rounds: 5, seconds: 60 });
+  for (const id of ids.slice(2)) await botJoin(roomId, id);
+  for (const student of phones) check(S, await waitForStudentStage(student, 'lobby', 20_000), `${student.studentId}: not in the lobby`);
+  await primary(teacher, 'start').click();
+  const room = await waitForRoom(roomId, (value) => value.status === 'running' && value.roundState !== 'closed', 20_000);
+  if (!check(S, room, 'the round never opened')) return;
+  await wait(Math.max(0, ms(room.startsAt) - Date.now()) + 600);
+  const tops = [];
+  for (const student of phones) {
+    const shown = await student.page.locator('[data-live-challenge-engine] button').first().waitFor({ timeout: 15_000 }).then(() => true, () => false);
+    check(S, shown, `${student.studentId}: no question at GO`);
+    tops.push(await questionTop(student));
+  }
+  const held = async (moment) => {
+    for (const [index, student] of phones.entries()) {
+      const now = await questionTop(student);
+      const same = Boolean(now && tops[index]) && Math.abs(now.top - tops[index].top) <= 1 && Math.abs(now.width - tops[index].width) <= 1;
+      check(S, same, `${student.studentId} (${student.device}): ${moment} moved the question (${JSON.stringify(tops[index])} → ${JSON.stringify(now)})`);
+    }
+  };
+  // The banked line: its room is there from GO; its words arrive and grow, and go with the answer.
+  for (const student of phones) check(S, (await student.page.locator('[data-mm-banked-line="0"]').count()) === 1, `${student.studentId}: a step-graded round keeps no room for its banked points`);
+  for (const points of ['+5', '+1,000']) {
+    for (const student of phones) check(S, await writeBanked(student, points), `${student.studentId}: no banked line to write into`);
+    await wait(150);
+    await held(`"Points banked this round ${points}"`);
+  }
+  await Promise.all(phones.map((student) => shot(student, `P01-banked-${student.device}`)));
+  for (const student of phones) await writeBanked(student, null);
+  await wait(150);
+  await held('the banked line going');
+  // The connection drops: "Offline — reconnecting…", then the clock that cannot be read ("…slow right now").
+  await Promise.all(phones.map((student) => student.context.setOffline(true)));
+  for (const student of phones) check(S, await waitForText(student, 'Offline', 6_000), `${student.studentId}: an offline phone is not told`);
+  await held('"Offline — reconnecting…"');
+  const slow = await Promise.all(phones.map((student) => waitForText(student, 'Your connection is slow right now', 40_000)));
+  phones.forEach((student, index) => check(S, slow[index], `${student.studentId}: no slow-connection line while offline`));
+  await held('"Your connection is slow right now"');
+  await Promise.all(phones.map((student) => shot(student, `P02-offline-${student.device}`)));
+  await Promise.all(phones.map((student) => student.context.setOffline(false)));
+  for (const student of phones) {
+    const gone = await student.page.waitForFunction(() => !/Offline/.test(document.body.innerText), null, { timeout: 15_000 }).then(() => true, () => false);
+    check(S, gone, `${student.studentId}: still "Offline" after the connection returned`);
+  }
+  await held('the connection returning');
+  await teacher.page.getByRole('button', { name: 'End Game' }).click();
+  await confirmDialog(teacher, 'End Game');
+  check(S, await waitForRoom(roomId, (value) => value.status === 'finished', 30_000), 'End Game did not finish the game');
+  consoleErrors(S, [teacher, ...phones]);
+  await closeAll(teacher, ...phones);
 });
 
 // ADVERSARIAL — DOUBLE PRESSES, TWO HOST TABS, CONFIRMATIONS, EARLY ANSWERS.

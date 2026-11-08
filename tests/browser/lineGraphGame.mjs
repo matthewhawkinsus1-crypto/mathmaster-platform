@@ -35,7 +35,10 @@
 // by hand until its phone pass (a Rush on two phones: a streak, a dropped
 // connection, and the bar at 320 and 360 px with a four-digit count, the grid held
 // to a pixel) passed three times in a row in full Chromium and three in CI's
-// headless shell.
+// headless shell. Two more phone passes (about 1½ minutes) hold the grid through
+// a name-it item's answer (a wrong choice and its marks, a built equation being
+// typed, its hints) and across a Classic round's buzzer for students with extra
+// time, as the extra-time words arrive.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -186,6 +189,9 @@ const CLASSES = Object.freeze({
   trio: { classId: 'line-qa-trio', name: 'Period 3 Algebra I', period: 'P3', course: 'algebra1', size: 3 },
   solo: { classId: 'line-qa-solo', name: 'Period 6 Algebra II', period: 'P6', course: 'algebra2', size: 1 },
   phones: { classId: 'line-qa-phones', name: 'Period 4 Algebra I', period: 'P4', course: 'algebra1', size: 2 },
+  namers: { classId: 'line-qa-namers', name: 'Period 5 Algebra I', period: 'P5', course: 'algebra1', size: 2 },
+  // Both on plans with extended time: their own deadline is after the class's buzzer.
+  extra: { classId: 'line-qa-extra', name: 'Period 7 Algebra I', period: 'P7', course: 'algebra1', size: 2, extraTime: true },
 });
 const studentsOf = (key) => Array.from({ length: CLASSES[key].size }, (_, index) => `${CLASSES[key].classId}-s${index + 1}`);
 
@@ -196,6 +202,7 @@ for (const key of Object.keys(CLASSES)) {
   const batch = db.batch();
   studentsOf(key).forEach((studentId, index) => batch.set(db.collection('grades').doc(studentId), {
     assignedTeacherEmail: TEACHER, classId: CLASSES[key].classId, classPeriod: CLASSES[key].period, firstName: `Student${index + 1}`, lastName: key,
+    ...(CLASSES[key].extraTime ? { profile: { accommodations: ['extra-time'] } } : {}),
   }));
   await batch.commit();
 }
@@ -983,6 +990,149 @@ await run('phones', async () => {
   check(S, room?.roundState === 'closed', 'round 2 did not close');
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
   check(S, await waitForRoom(roomId, (current) => current.status === 'finished', 20_000), 'Finish & Show Final Standings did not finish the game');
+});
+
+// WHAT COMES AND GOES UNDER THE GRID, AND THE EXTRA-TIME WORDS, ON TWO PHONES.
+// Measured in CI's fonts at the default text size, before the round kept their
+// room: on a 360 x 740 phone a name-it item's grid shrank 12 px as a wrong
+// choice's ✓ and ✗ arrived, 21 px as typing filled a built equation's preview,
+// and the line under the grid moved it as a hint came; and the extra-time words
+// pushed the grid 66 px down at 390 px and 90 px at 360 at the class's buzzer.
+// Each is held to a pixel here, on 390 x 844 and 360 x 740 phones by touch.
+const holdOf = (S, student) => {
+  let base = null;
+  return {
+    mark: async () => { base = await gridBox(student); },
+    held: async (moment) => {
+      const grid = await gridBox(student);
+      check(S, sameBox(base, grid), `${student.studentId} (${student.device}): ${moment} moved the grid (${JSON.stringify(base)} → ${JSON.stringify(grid)})`);
+    },
+  };
+};
+
+// Skip items until the one on screen is one to name (and, given `wanted`, of
+// that kind); null if none comes in time.
+const toNameItem = async (student, roomId, untilMs, wanted = () => true) => {
+  while (Date.now() < untilMs) {
+    // eslint-disable-next-line no-await-in-loop
+    const item = await itemOnScreen(student, roomId);
+    if (item?.itemType === 'name' && wanted(item)) return item;
+    // eslint-disable-next-line no-await-in-loop
+    if (item) await student.page.getByRole('button', { name: 'Skip', exact: true }).click().catch(() => {});
+    // eslint-disable-next-line no-await-in-loop
+    await waitForItemChange(student, item?.questionIndex ?? -1, 3_000);
+    // eslint-disable-next-line no-await-in-loop
+    await waitForItem(student, 5_000);
+  }
+  return null;
+};
+
+const endLineGame = async (S, teacher, roomId) => {
+  await teacher.page.getByRole('button', { name: 'End Game' }).click();
+  await teacher.page.getByRole('button', { name: 'End Game' }).last().click();
+  check(S, await waitForRoom(roomId, (room) => room.status === 'finished', 20_000), 'End Game did not finish the game');
+};
+
+await run('name-on-phones', async () => {
+  const S = 'name-on-phones';
+  const [idA, idB] = studentsOf('namers');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(idA, 'phone'), await openStudent(idB, 'smallPhone')];
+  // A chosen equation: a wrong tap, its ✓ and ✗, the answer shown.
+  let roomId = await createLine(teacher, { classKey: 'namers', format: 'Rush', preset: 'Graph it and name it', rounds: 1, seconds: 45 });
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+  await startGame(teacher);
+  let room = await waitForRoundOpen(roomId, 0);
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid`);
+  await Promise.all(phones.map(async (student) => {
+    // A point-slope equation, the widest a choice holds: its ✓ before it wrapped it at 360 px.
+    const item = await toNameItem(student, roomId, endsAtOf(room) - 8_000, (candidate) => candidate.form === 'pointSlope' && candidate.answerStyle === 'choice')
+      || await toNameItem(student, roomId, endsAtOf(room) - 6_000);
+    if (!check(S, item?.answerStyle === 'choice', `${student.studentId}: no equation to choose came (${item?.answerStyle})`)) return;
+    notes.push({ scenario: S, student: student.studentId, device: student.device, choiceForm: item.form });
+    const hold = holdOf(S, student);
+    await hold.mark();
+    await student.page.locator('.mm-line-choice').nth(item.choices.findIndex((choice) => choice.id !== item.answerChoice)).click();
+    await wait(250);
+    check(S, (await student.page.locator('.mm-line-choice[data-state]').count()) === 2, `${student.studentId}: a wrong choice did not mark the right and the wrong one`);
+    await hold.held('a wrong choice, its ✓ and ✗ and "Not that one"');
+    await shot(student, `name-choice-${student.device}`);
+  }));
+  await endLineGame(S, teacher, roomId);
+
+  // A built equation: typing, unfinished boxes, a wrong equation and its hint.
+  await teacher.page.getByRole('button', { name: 'New Challenge', exact: true }).click();
+  roomId = await createLine(teacher, {
+    classKey: 'namers', format: 'Rush', preset: 'Graph it and name it', rounds: 1, seconds: 45,
+    setup: async (handle) => { await handle.page.locator('label', { hasText: 'Name it: Build it' }).locator('input').check(); },
+  });
+  for (const student of phones) check(S, await waitForText(student, 'You are in as', 20_000), `${student.studentId}: no lobby for the built game`);
+  await startGame(teacher);
+  room = await waitForRoundOpen(roomId, 0);
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid in the built game`);
+  await Promise.all(phones.map(async (student) => {
+    const item = await toNameItem(student, roomId, endsAtOf(room) - 10_000);
+    if (!check(S, item?.answerStyle === 'build', `${student.studentId}: no equation to build came (${item?.answerStyle})`)) return;
+    const hold = holdOf(S, student);
+    await hold.mark();
+    const fields = Object.keys(buildFieldsFor(item));
+    await typeBoxes(student, item, { [fields[0]]: '-19/7' });
+    await wait(200);
+    await hold.held('typing the first box');
+    await student.page.keyboard.press('Enter');
+    await wait(250);
+    check(S, (await feedbackOf(student)).kind === 'form', `${student.studentId}: unfinished boxes were not asked for (${JSON.stringify(await feedbackOf(student))})`);
+    await hold.held('"Fill in every box…"');
+    // A wrong equation: every box a number, none the line's.
+    await typeBoxes(student, item, Object.fromEntries(fields.map((field) => [field, field === 'B' ? '1' : '7'])));
+    await wait(200);
+    await hold.held('the preview of a whole equation');
+    await student.page.keyboard.press('Enter');
+    await wait(300);
+    const miss = await feedbackOf(student);
+    check(S, miss.kind === 'miss' || miss.kind === 'repeated' || miss.kind === 'revealed', `${student.studentId}: a wrong equation was not answered (${JSON.stringify(miss)})`);
+    await hold.held(`a wrong equation's hint ("${miss.text}")`);
+    await shot(student, `name-build-${student.device}`);
+  }));
+  await endLineGame(S, teacher, roomId);
+});
+
+// EXTRA TIME on two phones: a Classic round played past the class's buzzer.
+await run('extra-time-on-phones', async () => {
+  const S = 'extra-time-on-phones';
+  const [idA, idB] = studentsOf('extra');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(idA, 'phone'), await openStudent(idB, 'smallPhone')];
+  const roomId = await createLine(teacher, { classKey: 'extra', format: 'Classic', preset: 'Slope-intercept start', rounds: 3, seconds: 20 });
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+  await startGame(teacher);
+  const room = await waitForRoundOpen(roomId, 0);
+  check(S, room, 'the round never opened');
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid`);
+  const holds = await Promise.all(phones.map(async (student) => {
+    const hold = holdOf(S, student);
+    await hold.mark();
+    // Before the buzzer the words are not there to see, nor to hear.
+    check(S, (await student.page.locator('[data-mm-line-extra-time="1"]').count()) === 0, `${student.studentId}: extra-time words before the buzzer`);
+    return hold;
+  }));
+  // The class's buzzer: the race is over, their own time goes on.
+  while (Date.now() < endsAtOf(room) + 600) await wait(150); // eslint-disable-line no-await-in-loop
+  for (const [index, student] of phones.entries()) {
+    const shown = await student.page.waitForSelector('[data-mm-line-extra-time="1"]', { timeout: 6_000 }).then(() => true, () => false);
+    check(S, shown && await waitForText(student, 'Your extra time. The race is over', 2_000), `${student.studentId}: no extra-time words after the buzzer`);
+    await holds[index].held('the extra-time words at the buzzer');
+  }
+  await Promise.all(phones.map((student) => shot(student, `extra-time-${student.device}`)));
+  await endLineGame(S, teacher, roomId);
+  // The console asks to close the round at the class's buzzer and the server
+  // keeps it open for these students' own time: a refusal (failed-precondition,
+  // which the browser logs as a 400) that is the rule working, not the page failing.
+  const keptOpen = bridgeCalls.filter((call) => call.name === 'closeLiveChallengeRound' && !call.ok && call.code === 'failed-precondition').length;
+  if (keptOpen) {
+    notes.push({ scenario: S, closeRefusedForExtraTime: keptOpen });
+    teacher.errors.splice(0, teacher.errors.length, ...teacher.errors.filter((text) => !/status of 400/.test(text)));
+  }
 });
 
 /* --------------------------------- report --------------------------------- */

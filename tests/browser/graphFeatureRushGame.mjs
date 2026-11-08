@@ -26,6 +26,9 @@
 // nightly and on demand. About 7 minutes. It was added once it passed twice in a
 // row on a loaded 4-core machine; its one real failure there was a keyboard
 // press lost to GraphFeatureRushGraph's late reset effect (a layout effect now).
+// Its phone pass (inequality-phones, about 70 s more) plays Inequality Graphing
+// Rush on two touch phones and holds the number line to a pixel through what
+// comes and goes under it. CHROMIUM_PATH runs another Chromium.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -177,6 +180,7 @@ const TEACHER = 'rush-qa-teacher@example.com';
 const CLASSES = Object.freeze({
   pair: { classId: 'rush-qa-pair', name: 'Period 2 Algebra I', period: 'P2', course: 'algebra1', size: 2 },
   class: { classId: 'rush-qa-class', name: 'Period 5 Algebra II', period: 'P5', course: 'algebra2', size: 12 },
+  phones: { classId: 'rush-qa-phones', name: 'Period 4 Algebra I', period: 'P4', course: 'algebra1', size: 2 },
 });
 const studentsOf = (key) => Array.from({ length: CLASSES[key].size }, (_, index) => `${CLASSES[key].classId}-s${String(index + 1).padStart(2, '0')}`);
 
@@ -206,9 +210,11 @@ const DEVICES = Object.freeze({
   phone: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
   phoneLandscape: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
   smallPhone: { viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
+  phone360: { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
 });
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+// CI's browser is Playwright's own headless Chromium; CHROMIUM_PATH runs another.
+const browser = await chromium.launch({ args: ['--no-sandbox'], ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 const findings = [];
 const notes = [];
 const finding = (scenario, problem) => { findings.push({ scenario, problem }); log(`  ✗ ${scenario}: ${problem}`); };
@@ -383,10 +389,10 @@ const selectInLabel = async (handle, labelStart, value) => {
   await select.selectOption(String(value));
 };
 
-const createRush = async (teacher, { classKey, preset = null, rounds = 3, seconds = 30, scoring = 'grandPrix', passPlaces = 0 }) => {
+const createRush = async (teacher, { classKey, game = 'graphFeatureRush', preset = null, rounds = 3, seconds = 30, scoring = 'grandPrix', passPlaces = 0 }) => {
   await teacher.page.waitForSelector('text=Create a challenge', { timeout: 20_000 });
   await selectInLabel(teacher, 'Class', CLASSES[classKey].classId);
-  await selectInLabel(teacher, 'Game type', 'graphFeatureRush');
+  await selectInLabel(teacher, 'Game type', game);
   await teacher.page.waitForSelector('text=Start from a preset', { timeout: 15_000 });
   if (preset) await teacher.page.getByRole('button', { name: preset, exact: true }).click();
   await selectInLabel(teacher, 'Rounds', rounds);
@@ -937,6 +943,84 @@ await run('tap-latency', async () => {
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
   check(S, await finishedBy(roomId), 'Finish & Show Final Standings did not finish the game');
   await Promise.all([teacher, student].map((handle) => handle.context.close()));
+});
+
+// INEQUALITY GRAPHING RUSH ON TWO PHONES, by touch: 390 x 844 and 360 x 740. Its
+// number line sits in the middle of its area, so whatever came and went under it
+// moved it: measured in CI's fonts, a dot placed (the notation's prompt giving way
+// to the set) 9 px, the cooldown's bar 7 px, and back as each went. Now the line
+// under it keeps the room of the longest things the round can say, the notation
+// its prompt's and its widest set's, the cooldown its place: each moment below is
+// held to a pixel, on each item, through its last miss and the answer shown.
+const frameBox = (student) => student.page.locator('.mm-rush-graph-frame').boundingBox();
+const tapFrame = async (student, fx, fy) => {
+  const frame = await frameBox(student);
+  await student.page.touchscreen.tap(frame.x + frame.width * fx, frame.y + frame.height * fy);
+};
+const inequalityItemHolds = async (S, student, { last }) => {
+  const index = await student.page.locator('.mm-rush-graph-frame').getAttribute('data-question-index');
+  const base = await frameBox(student);
+  const held = async (moment) => {
+    const box = await frameBox(student);
+    check(S, sameFrame(base, box), `${student.studentId} (${student.device}), item ${index}: ${moment} moved the number line (${JSON.stringify(base)} → ${JSON.stringify(box)})`);
+  };
+  await tapFrame(student, 0.35, 0.5);
+  await wait(200);
+  check(S, (await student.page.locator('.mm-rush-notation').getAttribute('data-empty')) === '0', `${student.studentId}: a tap on the number line placed no dot`);
+  await held('a dot, its set in the notation');
+  await tapFrame(student, 0.65, 0.5);
+  await wait(200);
+  await held('a second dot');
+  const checkButton = student.page.getByRole('button', { name: '✓ Check' });
+  if (await checkButton.isEnabled()) {
+    await checkButton.click();
+    await wait(250);
+    await held(`a check and its feedback ("${(await student.page.locator('.mm-rush-feedback').innerText()).trim()}")`);
+  }
+  if (await checkButton.isEnabled()) {
+    await checkButton.click();
+    await wait(150);
+    const cooling = (await student.page.locator('.mm-rush-cooldown').count()) > 0;
+    await held(cooling ? 'a second check, and the cooldown\'s bar' : 'a second check');
+    await wait(1_400);
+    await held('the cooldown ending');
+  }
+  if (last === 'skip') {
+    await student.page.getByRole('button', { name: 'Skip', exact: true }).click();
+    await wait(250);
+    await held('"Skipped. Next one."');
+  } else {
+    await student.page.getByRole('button', { name: 'No solution: no number makes it true' }).click();
+    await wait(250);
+    await held(`"No Solution" and what it was told ("${(await student.page.locator('.mm-rush-feedback').innerText()).trim()}")`);
+  }
+  await waitForQuestionChange(student, Number(index), 5_000);
+};
+const sameFrame = (left, right) => Boolean(left && right) && ['x', 'y', 'width', 'height'].every((key) => Math.abs(left[key] - right[key]) <= 1);
+
+await run('inequality-phones', async () => {
+  const S = 'inequality-phones';
+  const [idA, idB] = studentsOf('phones');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(idA, 'phone'), await openStudent(idB, 'phone360')];
+  const roomId = await createRush(teacher, { classKey: 'phones', game: 'inequalityRush', preset: 'Solve and Graph', rounds: 1, seconds: 45, scoring: 'correctCount' });
+  check(S, roomId, 'no room was created');
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+  await startGame(teacher);
+  const room = await waitForRoundOpen(roomId, 0);
+  check(S, room?.challengeMode === 'inequalityRush', `the round is not an Inequality Graphing Rush (${room?.challengeMode})`);
+  for (const student of phones) check(S, await waitForPlay(student), `${student.studentId}: no number line`);
+  await Promise.all(phones.map(async (student) => {
+    await inequalityItemHolds(S, student, { last: 'no solution' });
+    await shot(student, `inequality-${student.device}`);
+    check(S, await waitForPlay(student, 8_000), `${student.studentId}: no second item`);
+    await inequalityItemHolds(S, student, { last: 'skip' });
+  }));
+  await waitForRoundClosed(roomId, 0, 60_000);
+  await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
+  check(S, await finishedBy(roomId), 'Finish & Show Final Standings did not finish the game');
+  for (const handle of [teacher, ...phones]) check(S, handle.errors.length === 0, `console errors on ${handle.device}: ${handle.errors.slice(0, 3).join(' | ')}`);
+  await Promise.all([teacher, ...phones].map((handle) => handle.context.close()));
 });
 
 /* --------------------------------- report --------------------------------- */
