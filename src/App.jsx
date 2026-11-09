@@ -1458,11 +1458,25 @@ function App() {
   const recoveryAssignmentId = user?.role === 'student' && activeView === 'assignmentResult'
     ? assignmentResultRoute?.assignmentId || null
     : null;
+  /*
+   * WORKED OUT WHEN A SCREEN SHOWS THEM, NOT ON EVERY SAVE.
+   *
+   * The Recovery summaries, the Grade Center, the assignments a Practice Pass
+   * can be used on and My Math Path's options are read by Home, the
+   * Assignments Center, Grades, My Rewards, My Math Path and the result page,
+   * and by nothing inside an assignment. As memos keyed on the tracker they
+   * ran again on each of a Submit's tracker changes there, about 60 ms of a
+   * Submit at 4x CPU. Each is now asked for by the screen that shows it
+   * (`…Now()`), and worked out then, once per change of what it reads
+   * (renderMemo, on exactly the inputs the memo had): the screen a student
+   * moves to from an assignment works it out in the render that draws it,
+   * from the trackers as they are.
+   */
   // Recovery for every open assignment, so Home's "Today" rule and Grades'
   // "Ways to raise your grade" see the Recoveries the result page would offer
   // (platform/student/recoveryStates.js). Refreshed once a minute at most.
   const studentRecoveryMinute = Math.floor(now / 60000);
-  const studentRecoverySummariesByAssignment = useMemo(() => (user?.role === 'student' && user?.id && studentRecoveryKit
+  const studentRecoverySummariesNow = () => renderMemo('recoverySummaries', [studentRecoveryKit, user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute], () => (user?.role === 'student' && user?.id && studentRecoveryKit
     ? studentRecoveryKit.buildRecoverySummariesByAssignment({
       assignments,
       trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
@@ -1476,7 +1490,7 @@ function App() {
       studentProfile: user.timingProfile || null,
       nowValue: studentRecoveryMinute * 60000,
     })
-    : {}), [studentRecoveryKit, user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute]);
+    : {}));
   const studentRecoverySummary = useMemo(() => {
     if (!recoveryAssignmentId || !user?.id || !studentRecoveryKit) return [];
     const assignment = assignments.find((item) => item.id === recoveryAssignmentId);
@@ -1644,9 +1658,14 @@ function App() {
    * teacher gradebook and Google Classroom passback read. `practiceTracker` is
    * deliberately NOT passed: post-close practice runs against it, and the model
    * has no parameter that could receive it, so practising a closed assignment
-   * cannot move a recorded grade.
+   * cannot move a recorded grade. Asked for by the screens that show it
+   * (WORKED OUT WHEN A SCREEN SHOWS THEM, above).
    */
-  const studentGradeCenter = useMemo(() => {
+  const studentGradeCenterNow = () => renderMemo('gradeCenter', [
+    user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment,
+    gradingPeriodSettings, classroomSyncStatusByAssignment, studentClassPoints.redemptionsByAssignment,
+    sectionRecoveryByAssignment, teacherGradeOverridesByAssignment,
+  ], () => {
     if (user?.role !== 'student') return null;
     return buildStudentGradeCenter({
       assignments,
@@ -1668,11 +1687,7 @@ function App() {
       teacherGradeOverridesByAssignment,
       providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
     });
-  }, [
-    user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment,
-    gradingPeriodSettings, classroomSyncStatusByAssignment, studentClassPoints.redemptionsByAssignment,
-    sectionRecoveryByAssignment, teacherGradeOverridesByAssignment,
-  ]);
+  });
 
   /*
    * WHICH ASSIGNMENTS THE WALLET OFFERS, AND THE ONE DOOR THAT SPENDS POINTS.
@@ -1683,9 +1698,10 @@ function App() {
    * (functions/index.js) independently re-verifies everything before it ever
    * spends a point; a refusal surfaces through the wallet's own inline error
    * state, and the balance shown never moves until the authoritative account
-   * subscription above updates it.
+   * subscription above updates it. Asked for by My Rewards and Grades' ways
+   * to raise (WORKED OUT WHEN A SCREEN SHOWS THEM, above).
    */
-  const studentPracticePassEligibleAssignments = useMemo(() => (
+  const studentPracticePassEligibleNow = () => renderMemo('practicePassEligible', [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now], () => (
     user?.role === 'student' && user.id && user.classId
       ? practicePassEligibleAssignments({
         assignments,
@@ -1697,7 +1713,7 @@ function App() {
         studentId: user.id,
       })
       : []
-  ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
+  ));
 
   const studentRewardWallet = useMemo(() => buildRewardWallet({
     grants: studentClassPoints.grants,
@@ -2560,18 +2576,20 @@ function App() {
 
   // Evaluated once and shared, so Recommended for You and My Math Path cannot
   // disagree about what this student should do next.
-  const studentPathOptions = useMemo(() => buildStudentPathOptions({
+  // Asked for by Home and My Math Path (WORKED OUT WHEN A SCREEN SHOWS THEM,
+  // above): the student record under it is rebuilt with every tracker change.
+  const studentPathOptionsNow = () => renderMemo('pathOptions', [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides, studentServerMasteryProfiles], () => buildStudentPathOptions({
     student: studentRecord,
     assignments: studentPathAssignments,
     courseId: studentCourseId,
     pacing: studentStoredPacing,
     teacherOverrides: studentOverrides,
     serverMasteryProfiles: studentServerMasteryProfiles,
-  }), [studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides, studentServerMasteryProfiles]);
+  }));
 
   // Downstream presentation may want to say whether timing is automatic or
   // teacher-set. The engine has already resolved that distinction for us.
-  const studentPacing = studentPathOptions?.pacing || studentStoredPacing;
+  const studentPacingNow = () => studentPathOptionsNow()?.pacing || studentStoredPacing;
 
   const handleChooseSkill = (card) => {
     if (!card?.skillId) return;
@@ -12108,7 +12126,7 @@ function App() {
       // The one "Today" rule needs who the student is (their excusal) and
       // which closed sections have a Recovery they can take now.
       studentId: user.id,
-      recoveryStateByAssignment: recoveryStatesFromSummaries(studentRecoverySummariesByAssignment),
+      recoveryStateByAssignment: recoveryStatesFromSummaries(studentRecoverySummariesNow()),
       providers: {
         assignmentIsForStudent,
         // The teacher's per-class Classwork/Practice lock, for this student.
@@ -12142,7 +12160,7 @@ function App() {
     const inputs = [
       Math.floor(now / 60000), user, assignments, gradeDisplayTracker, assignmentActivity,
       classworkGradesByAssignment, classSchedule, resumeAction, studentClassPoints.redemptionsByAssignment,
-      testCycleGrades, studentRecoverySummariesByAssignment,
+      testCycleGrades, studentRecoverySummariesNow(),
     ];
     const cache = studentUpNextCacheRef.current;
     if (cache.dashboard && cache.inputs?.length === inputs.length && inputs.every((input, index) => input === cache.inputs[index])) {
@@ -12163,11 +12181,12 @@ function App() {
   // student cannot take. Grades lists them; Home shows their count.
   // eslint-disable-next-line no-inner-declarations
   function studentWaysToRaiseNow() {
-    return studentGradeCenter ? buildWaysToRaise({
-      gradeCenter: studentGradeCenter,
-      recoverySummariesByAssignment: studentRecoverySummariesByAssignment,
+    const gradeCenter = studentGradeCenterNow();
+    return gradeCenter ? buildWaysToRaise({
+      gradeCenter,
+      recoverySummariesByAssignment: studentRecoverySummariesNow(),
       // Only offered to a student who holds a Practice Pass to use.
-      practicePassEligibleAssignmentIds: studentRewardWallet?.practicePasses?.count > 0 ? studentPracticePassEligibleAssignments : [],
+      practicePassEligibleAssignmentIds: studentRewardWallet?.practicePasses?.count > 0 ? studentPracticePassEligibleNow() : [],
       todayByAssignment: studentTodayByAssignment(),
       nowValue: now,
     }) : [];
@@ -12223,7 +12242,7 @@ function App() {
           // else the tab a launch asked for (pathLaunchTab, job B).
           initialTab={mathPathArrival?.tab || pathLaunchTab || 'path'}
           initialSessionConfig={mathPathArrival?.sessionConfig || null}
-          pathOptions={studentPathOptions}
+          pathOptions={studentPathOptionsNow()}
           weeklyGoalConfig={studentWeeklyGoalConfig}
           courseId={studentCourseId}
           studentRecord={studentRecord}
@@ -12241,7 +12260,7 @@ function App() {
           {renderStudentLiveChallengeInvite()}
           <StudentAssignmentsCenter
             dashboard={studentDashboard}
-            gradeCenter={studentGradeCenter}
+            gradeCenter={studentGradeCenterNow()}
             gradingPeriodSettings={gradingPeriodSettings}
             supportPresentation={getStudentSupportPresentation(user.profile)}
             onNavigate={navigateStudent}
@@ -12268,7 +12287,7 @@ function App() {
             classPoints={studentClassPoints}
             inventoryUnavailable={studentClassPoints.inventoryUnavailable}
             redemptions={studentClassPoints.redemptions}
-            eligibleAssignments={studentPracticePassEligibleAssignments}
+            eligibleAssignments={studentPracticePassEligibleNow()}
             onUsePracticePass={handleUsePracticePass}
             loadHistory={handleLoadRewardHistory}
             newGrantIds={newRewardIds}
@@ -12286,7 +12305,7 @@ function App() {
           {renderStudentWarmupBanner()}
           {renderStudentLiveChallengeInvite()}
           <StudentGradeCenter
-            gradeCenter={studentGradeCenter}
+            gradeCenter={studentGradeCenterNow()}
             supportPresentation={getStudentSupportPresentation(user.profile)}
             onNavigate={navigateStudent}
             onLogout={handleLogout}
@@ -12437,8 +12456,8 @@ function App() {
           student: studentRecord,
           assignments: studentPathAssignments,
           courseId: studentCourseId,
-          pacing: studentPacing,
-          pathOptions: studentPathOptions,
+          pacing: studentPacingNow(),
+          pathOptions: studentPathOptionsNow(),
           onChooseSkill: handleChooseSkill,
         }}
         />
@@ -12457,7 +12476,7 @@ function App() {
    * that linked to it cannot show different numbers.
    */
   if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {
-    const resultEntry = findGradeCenterEntry(studentGradeCenter, assignmentResultRoute.assignmentId);
+    const resultEntry = findGradeCenterEntry(studentGradeCenterNow(), assignmentResultRoute.assignmentId);
     // The Today rule for this assignment and what comes after it: the result
     // page is where "nothing open now" lands, so it says what opens when and
     // hands off to Up next.

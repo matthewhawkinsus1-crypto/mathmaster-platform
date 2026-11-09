@@ -559,7 +559,8 @@ test('on-device Recovery, the finalize hint and the teacher roster take timing f
   assert.equal(opportunity(DISTRICT_DOUBLE_TIME, at(9, 33)).status, ORIGINAL_OPPORTUNITY.OPEN, 'a district multiplier keeps it open on the device too');
 
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  const discovery = region(app, 'studentRecoveryMinute * 60000,', 'const studentRecoverySummary = useMemo(', 'Recovery discovery');
+  // The summaries' inputs (worked out when a screen asks: appRenderWork.test.mjs).
+  const discovery = region(app, "const studentRecoverySummariesNow = () => renderMemo('recoverySummaries', [", '], () => (', 'Recovery summaries');
   assert.match(discovery, /user\?\.timingProfile, assignments/);
   const discoveryCall = app.slice(app.lastIndexOf('schedule: classSchedule,', app.indexOf('studentRecoveryMinute * 60000,')), app.indexOf('studentRecoveryMinute * 60000,'));
   assert.match(discoveryCall, /studentProfile: user\.timingProfile \|\| null,/);

@@ -15,6 +15,10 @@
  *     objects; the place to resume, the same after a Submit; the device
  *     report's "nothing went wrong", the same null, twice; an empty list of
  *     answers needing review, new on every drain (every 10 seconds);
+ *   - memos keyed on the tracker that nothing inside an assignment shows (the
+ *     Grade Center, the Recovery summaries, My Math Path's options, the
+ *     Practice Pass list) ran again on each of a Submit's tracker changes,
+ *     about 60 ms of a Submit at 4x;
  *
  * Node cannot render App.jsx; this file holds the pieces it can check: the
  * helpers, a model of the save line before and after, and where App wires them.
@@ -22,7 +26,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createRenderFold, FOLD_STEPS, keepSame, sameData } from '../../src/platform/performance/renderStability.js';
+import { createRenderFold, createRenderMemo, FOLD_STEPS, keepSame, sameData } from '../../src/platform/performance/renderStability.js';
 import {
   describeRuntimeSaveLine, initialSaveSubject, nextSaveSubject, persistenceStatusAfterDrain,
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, saveLineIsAboutDrafts,
@@ -270,4 +274,69 @@ test('App renders nothing for a snapshot, a resume, a report or a drain that cha
   // The answers needing review: the same list while it names the same assignments.
   const drain = region(code, 'const drainStudentOutbox = async', 'return result;', 'the drain');
   assert.match(drain, /setStudentNeedsReviewAssignmentIds\(keepSame\(\[\.\.\.new Set\(/);
+});
+
+/* ------------------------------------- worked out when a screen shows them */
+
+test('a value a screen asks for is worked out when it asks, from the inputs as they are then', () => {
+  const renderMemo = createRenderMemo();
+  const built = [];
+  let tracker = { version: 0 };
+  const gradeCenterNow = () => renderMemo('gradeCenter', [tracker], () => { built.push(tracker.version); return { builtFrom: tracker.version }; });
+  // Home shows it: worked out.
+  assert.deepEqual(gradeCenterNow(), { builtFrom: 0 });
+  // Inside the assignment: four Submits change the tracker; nothing asks.
+  for (let version = 1; version <= 4; version += 1) tracker = { version };
+  assert.deepEqual(built, [0], 'nothing worked out while no screen shows it');
+  // Back on Home: worked out once, from the tracker as it is now.
+  assert.deepEqual(gradeCenterNow(), { builtFrom: 4 });
+  // Home and its count ask again in the same render: the same value.
+  assert.equal(gradeCenterNow(), gradeCenterNow());
+  assert.deepEqual(built, [0, 4]);
+});
+
+// The four, each with the inputs its memo had (a change to any of them is a
+// change to what the screens show, and must work it out again).
+const DEFERRED = {
+  studentRecoverySummariesNow: ['recoverySummaries', 'studentRecoveryKit, user?.role, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, studentRecoveryMinute', 'studentRecoveryKit.buildRecoverySummariesByAssignment('],
+  studentGradeCenterNow: ['gradeCenter', 'user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment, gradingPeriodSettings, classroomSyncStatusByAssignment, studentClassPoints.redemptionsByAssignment, sectionRecoveryByAssignment, teacherGradeOverridesByAssignment', 'buildStudentGradeCenter('],
+  studentPracticePassEligibleNow: ['practicePassEligible', 'user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now', 'practicePassEligibleAssignments('],
+  studentPathOptionsNow: ['pathOptions', 'studentRecord, studentPathAssignments, studentCourseId, studentStoredPacing, studentOverrides, studentServerMasteryProfiles', 'buildStudentPathOptions('],
+};
+
+test('App works out the Grade Center, the Recovery summaries, the Path options and the Practice Pass list only for the screens that show them', () => {
+  const code = app();
+  const screens = code.indexOf('function buildStudentDashboardNow() {');
+  const assignmentBranch = code.lastIndexOf('if (isStudentAssignment) {');
+  assert.ok(screens > 0 && assignmentBranch > screens, 'the student screens, then the assignment');
+  const workspace = region(code, 'const renderAssignmentWorkspace = (preview = false) => {', 'const renderWhatChangedPanel = ', 'the assignment workspace');
+  for (const [name, [slot, inputs, builder]] of Object.entries(DEFERRED)) {
+    // Made once, through renderMemo, on the inputs the memo had.
+    const definition = new RegExp(`const ${name} = \\(\\) => renderMemo\\('${slot}', \\[\\s*([^\\]]*?)\\s*\\], \\(\\) =>`);
+    const found = definition.exec(code);
+    assert.ok(found, `${name} is a renderMemo`);
+    assert.equal(found[1].replace(/\s+/g, ' ').replace(/,\s*$/, ''), inputs, `${name}: its inputs`);
+    const builds = code.indexOf(builder, found.index);
+    assert.ok(builds > found.index && builds - found.index < 900, `${name} builds with ${builder}`);
+    // (The teacher's views build other students' Path options with the same builder.)
+    if (name !== 'studentPathOptionsNow') assert.equal(code.split(builder).length - 1, 1, `${builder} is called only there`);
+    assert.doesNotMatch(workspace, new RegExp(builder.replace(/[.()]/g, '\\$&')), `${builder}: not inside the assignment`);
+    // Asked for only by the screens outside an assignment.
+    const calls = [...code.matchAll(new RegExp(`\\b${name}\\(\\)`, 'g'))].map((match) => match.index);
+    assert.ok(calls.length >= 2, `${name}: asked for`);
+    for (const at of calls) {
+      const where = code.slice(Math.max(0, code.lastIndexOf('\n', at)), at).trim();
+      const insideTheScreens = at > screens && at < assignmentBranch;
+      const pacing = name === 'studentPathOptionsNow' && /^const studentPacingNow = \(\) =>$/.test(where);
+      assert.ok(insideTheScreens || pacing, `${name}() asked for outside the student screens: ${where}`);
+    }
+    assert.doesNotMatch(workspace, new RegExp(`\\b${name}\\(`), `${name}: nothing inside the assignment asks`);
+  }
+  // No memo of the old kind is left, and nothing reads a value by its old name.
+  for (const old of ['studentGradeCenter', 'studentRecoverySummariesByAssignment', 'studentPathOptions', 'studentPacing', 'studentPracticePassEligibleAssignments']) {
+    // (A module's path is not a read: platform/path/studentPathOptions.js.)
+    assert.doesNotMatch(code, new RegExp(`(?<![/.\\w])${old}\\b(?!Now|\\.js)`), `${old} is read through its accessor`);
+  }
+  // Pacing follows the options it is read from.
+  assert.match(code, /const studentPacingNow = \(\) => studentPathOptionsNow\(\)\?\.pacing \|\| studentStoredPacing;/);
 });

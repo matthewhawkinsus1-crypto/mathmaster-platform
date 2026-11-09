@@ -245,7 +245,7 @@ test('the student\'s Recovery decision reads the teacher\'s per-question grades,
   const app = executableSource(componentSource('src/App.jsx'));
   const results = region(app, 'const studentRecoverySummary = useMemo(', '}, [recoveryAssignmentId', 'result summary');
   assert.match(results, /overrides: teacherGradeOverridesByAssignment\?\.\[recoveryAssignmentId\] \|\| null,/);
-  const all = region(app, 'const studentRecoverySummariesByAssignment = useMemo(', ']);', 'summaries');
+  const all = region(app, 'const studentRecoverySummariesNow = () => renderMemo(', '\n    : {}));', 'summaries');
   assert.match(all, /overridesByAssignment: teacherGradeOverridesByAssignment \|\| \{\},/);
   const discovery = region(app, 'const studentRecoveryDiscovery = useMemo(', '\n  );\n', 'discovery');
   assert.match(discovery, /overridesByAssignment: teacherGradeOverridesByAssignment \|\| \{\},/);
