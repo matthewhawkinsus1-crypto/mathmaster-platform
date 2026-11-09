@@ -253,7 +253,8 @@ test('App hands QuestionEngine no function or object made in its render', () => 
   assert.match(props.get('studentProfile'), /^preview \? null : renderMemo\('studentProfile', /);
   // Made once per App, among its hooks, before any render path can return.
   const top = app.slice(app.indexOf('function App()'), app.indexOf('const renderAssignmentWorkspace'));
-  assert.match(top, /\n {2}const \[stableCallbacks, renderMemo\] = useRenderStability\(\);\n/);
+  // (And the fold that follows App's renders: appRenderWork.test.mjs.)
+  assert.match(top, /\n {2}const \[stableCallbacks, renderMemo, renderFold\] = useRenderStability\(\);\n/);
   assert.doesNotMatch(top.slice(0, top.indexOf('useRenderStability()')), /\n {2}(if \([^\n]*\) )?return\b/, 'no return before it');
 });
 

@@ -1031,9 +1031,10 @@ function App() {
   const [now, setNow] = useState(Date.now());
   // What App's render works out, made to change only when what it means
   // changes: QuestionEngine is memoised (app/lazyScreens.js), and App renders
-  // seven to thirteen times on a Submit or Next and every 30 seconds for this
-  // clock (platform/performance/renderStability.js).
-  const [stableCallbacks, renderMemo] = useRenderStability();
+  // several times on a Submit or Next and every 30 seconds for this clock; and
+  // what follows its renders without one of its own (renderFold: the save
+  // line's subject). platform/performance/renderStability.js.
+  const [stableCallbacks, renderMemo, renderFold] = useRenderStability();
   const [classSchedule, setClassSchedule] = useState(DEFAULT_CLASS_SCHEDULE);
   const [courseProfiles, setCourseProfiles] = useState(() => defaultCourseProfiles(CLASS_PERIODS));
   const [courseProfilesSaving, setCourseProfilesSaving] = useState(false);
@@ -3416,12 +3417,14 @@ function App() {
 
   // WHAT THE SAVE LINE IS ABOUT: a draft, or an answer the student sent
   // (RUN-11, saveStatusModel.js). Derived during render so "Answer recorded"
-  // appears with the drain that recorded it, then committed.
+  // appears with the drain that recorded it. Each render folds the status it
+  // shows into the subject the last render worked out (renderFold,
+  // renderStability.js): an effect committing it cost App a render of its own
+  // after every change of the status, three on each Submit and Next. The
+  // state holds what a handler or a reset says (an answer sent, a new
+  // assignment or student); the fold starts again from it when it moves.
   const [studentSaveSubjectState, setStudentSaveSubject] = useState(initialSaveSubject);
-  const studentSaveSubject = nextSaveSubject(studentSaveSubjectState, { type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount });
-  useEffect(() => {
-    if (studentSaveSubject !== studentSaveSubjectState) setStudentSaveSubject(studentSaveSubject);
-  }, [studentSaveSubject, studentSaveSubjectState]);
+  const studentSaveSubject = renderFold('saveSubject', studentSaveSubjectState, (subject) => nextSaveSubject(subject, { type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount }));
   const studentSaveLine = describeRuntimeSaveLine({ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject, outboxDepth: studentOutboxDepth, pendingGradeCount: studentPendingGradeCount });
   // Unfinished work on this assignment that is not being saved (Batch 3,
   // draftSaveHealth.js), re-read whenever its health changes. While it
@@ -3437,7 +3440,8 @@ function App() {
   const studentSaveLineAnnouncement = studentPersistenceStatus === 'rejected'
     ? 'This change was not accepted because the assignment is no longer available.'
     : ['offline', 'needs-review'].includes(studentPersistenceStatus) ? studentSaveLine || '' : '';
-  const markAnswerSent = () => setStudentSaveSubject((current) => nextSaveSubject(current, { type: 'answer-sent' }));
+  // From the subject the line shows (the fold's), not the state it last started from.
+  const markAnswerSent = () => setStudentSaveSubject((current) => nextSaveSubject(renderFold.from('saveSubject', current), { type: 'answer-sent' }));
   // The line is about this student's work in this assignment: it starts over
   // when either changes.
   useEffect(() => {
