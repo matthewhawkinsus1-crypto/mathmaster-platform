@@ -212,16 +212,19 @@ export const getAssignmentLifecycle = (assignment, nowValue = Date.now(), { stud
   };
 };
 
+// One formatter, made on first use: toLocaleString with options builds a new
+// one on every call (about 3 ms on a 4x-throttled Chromebook), and App writes
+// an assignment's due dates on every render, seven renders to a Submit. The
+// same options, so the same words; a date that is not a date still reads
+// "Invalid Date" (format() would throw).
+const DATE_TIME_OPTIONS = Object.freeze({ month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+let dateTimeFormat = null;
 export const formatDateTime = (value) => {
   const date = parseLocalDateTime(value, true);
   if (!date) return 'Not set';
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  if (Number.isNaN(date.getTime())) return date.toLocaleString(undefined, DATE_TIME_OPTIONS);
+  dateTimeFormat ||= new Intl.DateTimeFormat(undefined, DATE_TIME_OPTIONS);
+  return dateTimeFormat.format(date);
 };
 
 /**
