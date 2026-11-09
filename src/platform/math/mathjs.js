@@ -22,6 +22,10 @@ import { all, create } from 'mathjs';
 
 export const math = create(all);
 
+// The factories the instance builds each function from, with their
+// dependencies: what idleMathSteps.js needs to build one ahead of its first use.
+export const factories = all;
+
 // The functions the client calls, forwarded so that importing this module
 // builds none of them. Node classes are used as `math.OperatorNode`.
 export const parse = (...args) => math.parse(...args);

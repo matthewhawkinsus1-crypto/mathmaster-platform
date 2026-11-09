@@ -46,7 +46,11 @@ const hasSymbols = (node) => node.filter((child) => child.isSymbolNode && !['e',
 /** { numerator: monomial (sign folded in), denominator: integer } for a fraction term. */
 export const fractionTermParts = (termMagnitudeText, termSign = 1) => {
   try {
-    const node = unwrap(parse(String(termMagnitudeText)));
+    const text = String(termMagnitudeText);
+    // mathjs reads a division only from a slash, so a term without one is
+    // no fraction, and is not parsed to find that out.
+    if (!text.includes('/')) return null;
+    const node = unwrap(parse(text));
     if (node?.type !== 'OperatorNode' || node.fn !== 'divide' || node.args?.length !== 2) return null;
     const denominatorNode = unwrap(node.args[1]);
     if (!denominatorNode || hasSymbols(denominatorNode)) return null;

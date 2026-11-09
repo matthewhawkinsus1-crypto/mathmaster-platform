@@ -23,9 +23,11 @@ import {
   committedCancellationModel,
   equationIsSolved,
   equationReadingsKept,
+  simplifyPartsFor,
   strategicHintReadings,
   suggestedMove,
 } from '../../src/platform/algebra/committedEquationFacts.js';
+import { detectSimplifyParts } from '../../src/platform/algebra/simplify/simplifyEngine.js';
 import { getSuggestedMove, isSolvedEquation, parseEquationInput, splitAdditiveTerms } from '../../src/algebraAstEngine.js';
 import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -130,6 +132,19 @@ test('the board\'s terms are the splitter\'s, kept by the side\'s text', () => {
     assert.equal(boardTerms(String(side)), terms, 'the same text, the same terms');
   }
   assert.equal(boardTerms('x +'), splitAdditiveTerms('x +'), 'a side that does not parse has no terms, as before');
+});
+
+test('Simplify\'s parts are the engine\'s, kept by the board\'s text', () => {
+  const regionsOf = (left, right) => [
+    { key: 'left', label: 'left side', expression: left, variable: 'x' },
+    { key: 'right', label: 'right side', expression: right, variable: 'x' },
+  ];
+  const parts = simplifyPartsFor(regionsOf('3 x + 5 + 8 x', '(2)(3)'));
+  assert.ok(parts.length >= 2, 'like terms and a product');
+  assert.deepEqual(parts, detectSimplifyParts(regionsOf('3 x + 5 + 8 x', '(2)(3)')));
+  assert.equal(simplifyPartsFor(JSON.parse(JSON.stringify(regionsOf('3 x + 5 + 8 x', '(2)(3)')))), parts, 'an equal board: the kept parts');
+  assert.notEqual(simplifyPartsFor(regionsOf('3 x + 5 + 8 x', '6')), parts, 'another side: worked out afresh');
+  assert.deepEqual(simplifyPartsFor([]), [], 'no board, no parts');
 });
 
 test('the strategic hint reads the equation only where the hint can be offered', () => {

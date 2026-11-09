@@ -4,9 +4,11 @@
  * platform/algebra/committedEquationFacts.js keeps four readings of the
  * committed equation by the text they are worked out from, in a bounded cache
  * that outlives the board: whether it is solved, the move the strategic hint
- * suggests, each side's cancellation model and each side's terms. The solver
- * reads the hint's two only where the hint can be offered. Before, the board
+ * suggests, each side's cancellation model, each side's terms and the parts
+ * Simplify can act on. The solver reads the hint's two only where the hint
+ * can be offered, and Simplify's only while it is open. Before, the board
  * asked the engine directly (behind a cache keyed on the equation object).
+ * And the fraction tools no longer parse a term with no slash in it.
  *
  * This sweep reads every Step Algebra equation in the bank (the lessons, the
  * Path seeds, the demo bank and the platform's equation families), every
@@ -28,9 +30,11 @@ import {
   boardTerms,
   committedCancellationModel,
   equationIsSolved,
+  simplifyPartsFor,
   strategicHintReadings,
   suggestedMove,
 } from '../../src/platform/algebra/committedEquationFacts.js';
+import { detectSimplifyParts } from '../../src/platform/algebra/simplify/simplifyEngine.js';
 import {
   describeOperation,
   getSuggestedMove,
@@ -42,6 +46,9 @@ import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
 import { makePendingMove } from '../../src/algebraDraftState.js';
 import { resolveEquationAfterMove } from '../../src/algebraSupportLevels.js';
 import { resolveFamilyPreviewInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { parse as clientParse } from '../../src/platform/math/mathjs.js';
+import { splittableFraction } from '../../src/algebraFractionSplitModel.js';
+import { fractionTermParts } from '../../src/algebraFractionReductionModel.js';
 import { buildLiteralWorkspaceQuestion } from '../../functions/shared/toolMath/algebra-literal/literalWorkspace.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -189,6 +196,11 @@ const hintText = (move, solved, offered) => (offered && move && !solved
   ? `Look for a move that cancels a term: ${describeOperation(move.operation, move.operand)}.`
   : '');
 const fresh = (equation) => JSON.parse(JSON.stringify(equation));
+// The board's regions, as StepByStepAlgebraCore builds them for Simplify.
+const regionsOf = (equation) => [
+  { key: 'left', label: 'left side', expression: equation.left, variable: equation.variable || 'x' },
+  { key: 'right', label: 'right side', expression: equation.right, variable: equation.variable || 'x' },
+];
 
 // As the board read them before: the engine, every time.
 const engineReadings = (equation) => ({
@@ -197,6 +209,7 @@ const engineReadings = (equation) => ({
   hint: [true, false].map((offered) => outcome(() => hintText(getSuggestedMove(fresh(equation)), isSolvedEquation(fresh(equation)), offered))),
   models: ['left', 'right'].map((side) => outcome(() => buildCancellationModel(equation[side], null, equation.variable, []))),
   terms: ['left', 'right'].map((side) => outcome(() => splitAdditiveTerms(equation[side]))),
+  parts: outcome(() => detectSimplifyParts(regionsOf(equation))),
 });
 
 // As the board reads them now: the cache, given a new object each time.
@@ -209,6 +222,7 @@ const keptReadings = (equation) => ({
   })),
   models: ['left', 'right'].map((side) => outcome(() => committedCancellationModel(fresh(equation), side))),
   terms: ['left', 'right'].map((side) => outcome(() => boardTerms(equation[side]))),
+  parts: outcome(() => simplifyPartsFor(regionsOf(equation))),
 });
 
 test(`the sweep reads enough of the bank to mean something (${EQUATIONS.length} equations)`, () => {
@@ -232,4 +246,40 @@ test('every reading the board takes from the cache is the engine\'s, worked out 
     }
   }
   assert.deepEqual(differences.slice(0, 5), [], `${differences.length} readings differ`);
+});
+
+// The fraction tools (Split fraction, Cancel factors) no longer parse a term
+// with no slash in it to find it is no fraction: mathjs reads a division only
+// from a slash. Every term the bank's boards hold, and some written to test
+// the grammar, bear that out (the tools' own answer for a term that is a
+// division is unchanged: it is still parsed).
+test('a term with no slash is never a division to mathjs, so the fraction tools need not parse it', () => {
+  const unwrap = (node) => {
+    let current = node;
+    while (current?.type === 'ParenthesisNode') current = current.content;
+    return current;
+  };
+  const texts = new Set(['5 cm', 'x mod 2', '5!', 'x ^ -1', '2 x (3)', 'sqrt(x)', '1e-3 x', '-(x + 2)', '1 * (x + 2)', '0.5 x', 'x .* 2', 'abs(-x)', 'x ^ (1 - 2)']);
+  for (const equation of EQUATIONS) {
+    for (const side of [equation.left, equation.right]) {
+      texts.add(String(side));
+      for (const term of splitAdditiveTerms(side) || []) texts.add(String(term.magnitudeText));
+    }
+  }
+  let read = 0;
+  for (const text of texts) {
+    if (text.includes('/')) continue;
+    let node = null;
+    try {
+      node = clientParse(text);
+    } catch {
+      continue;
+    }
+    read += 1;
+    assert.notEqual(unwrap(node)?.fn, 'divide', text);
+    assert.equal(node.filter((child) => child.type === 'OperatorNode' && child.fn === 'divide').length, 0, `${text} holds no division anywhere`);
+    assert.equal(splittableFraction(text), null, text);
+    assert.equal(fractionTermParts(text), null, text);
+  }
+  assert.ok(read > 400, `${read} terms read`);
 });

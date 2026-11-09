@@ -30,8 +30,9 @@ import {
   parseOperationOperand,
 } from './algebraAstEngine';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
-import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
-import { boardTerms, committedCancellationModel, equationIsSolved, strategicHintReadings } from './platform/algebra/committedEquationFacts.js';
+import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
+import { boardTerms, committedCancellationModel, equationIsSolved, simplifyPartsFor, strategicHintReadings } from './platform/algebra/committedEquationFacts.js';
+import { clientParserSteps, takeStepsWhenIdle } from './platform/math/idleMathSteps.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -106,6 +107,9 @@ const OPERATIONS = [
 // crosses out its partner too, so a line that names the tap or the slash names this
 // in the same sentence.
 const CANCEL_KEYS = 'Tab to one and press Enter';
+
+// Simplify's parts while Simplify is closed: none are shown.
+const NO_SIMPLIFY_PARTS = Object.freeze([]);
 
 // A record that holds the student's saved equation (both sides).
 const recordHoldsEquation = (record) => {
@@ -803,9 +807,24 @@ export default function StepByStepAlgebra({
     { key: 'left', label: 'left side', expression: equation.left, variable: equation.variable || 'x' },
     { key: 'right', label: 'right side', expression: equation.right, variable: equation.variable || 'x' },
   ] : []), [equation]);
+  // Read only while Simplify is open: nothing else shows them (the board's
+  // highlights, the panel's parts, a tap on a term). Kept by the board's text
+  // (committedEquationFacts.js), and worked out while the student reads (below).
+  const simplifyOpen = Boolean(simplifyTool);
   const simplifyParts = useMemo(() => {
-    try { return detectSimplifyParts(simplifyRegions); } catch { return []; }
-  }, [simplifyRegions]);
+    if (!simplifyOpen) return NO_SIMPLIFY_PARTS;
+    try { return simplifyPartsFor(simplifyRegions); } catch { return []; }
+  }, [simplifyRegions, simplifyOpen]);
+  // WHILE THE STUDENT READS: the client's mathjs parser (which Simplify, the
+  // Rewrite tools and a division's fraction checks parse through) and the
+  // parts Simplify would show for this equation, built a step at a time in
+  // idle time and never inside a key or a press (idleMathSteps.js), so the
+  // question's first frame does not build them and opening Simplify does not
+  // wait for them. A new equation starts again; leaving the question stops.
+  useEffect(() => takeStepsWhenIdle([
+    ...clientParserSteps(),
+    () => simplifyPartsFor(simplifyRegions),
+  ]), [simplifyRegions]);
   // After the commit that leaves nothing to simplify, Simplify closes so the
   // confirmation is not pushed under the action bar, and focus goes back to
   // the Simplify button.

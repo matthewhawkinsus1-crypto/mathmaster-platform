@@ -4,7 +4,8 @@
  * The board draws from four readings of the committed equation: whether it is
  * solved and which move would cancel a term (the solver's strategic hint),
  * each side's cancellation model (the pairs a student may strike out), and
- * each side's terms as the board draws them. All four were worked out in the
+ * each side's terms as the board draws them; Simplify, once open, from a
+ * fifth, the parts it can act on. All of them were worked out in the
  * render. isSolvedEquation simplifies the sides through mathjs (about 16 ms a
  * call in node, four times that on a throttled Chromebook), a side's model
  * costs about half that, and the suggested move and the terms parse each side
@@ -26,6 +27,7 @@
  */
 import { getSuggestedMove, isSolvedEquation, splitAdditiveTerms } from '../../algebraAstEngine.js';
 import { buildCancellationModel } from '../../algebraCancellationModel.js';
+import { detectSimplifyParts } from './simplify/simplifyEngine.js';
 
 // Entries per reading: an assignment's equations and the steps a student is
 // likely to come back to, and never more.
@@ -79,6 +81,7 @@ const solvedByText = boundedCache(EQUATION_READINGS_KEPT);
 const movesByText = boundedCache(EQUATION_READINGS_KEPT);
 const modelsByText = boundedCache(EQUATION_READINGS_KEPT);
 const termsByText = boundedCache(EQUATION_READINGS_KEPT);
+const partsByText = boundedCache(EQUATION_READINGS_KEPT);
 const solvedByEquation = new WeakMap();
 const movesByEquation = new WeakMap();
 const modelsByEquation = new WeakMap();
@@ -145,10 +148,17 @@ const expressionText = (expression) => {
 };
 export const boardTerms = (expression) => termsByText.read(expressionText(expression), () => splitAdditiveTerms(expression));
 
+// Every part Simplify can act on, for the board's regions (its sides, each
+// { key, label, expression, variable }: all detectSimplifyParts reads). Asked
+// for when Simplify opens, and worked out ahead of that while the student
+// reads (StepByStepAlgebraCore's idle steps), so opening it does not wait.
+export const simplifyPartsFor = (regions) => partsByText.read(textKey(regions), () => detectSimplifyParts(regions));
+
 /** How many readings each cache holds (tests). */
 export const equationReadingsKept = () => ({
   solved: solvedByText.size,
   moves: movesByText.size,
   models: modelsByText.size,
   terms: termsByText.size,
+  parts: partsByText.size,
 });
