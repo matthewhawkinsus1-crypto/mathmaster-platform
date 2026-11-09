@@ -35,7 +35,11 @@
 //            from the build's source maps when PERF_DIST is given
 //   profile  a CPU profile of each window, read back to source names
 //            (PERF_DIST; ../support/cpuProfileNames.mjs)
-//   trace    layouts and style recalculations, and which script forced them
+//   trace    layouts and style recalculations, and which script forced them:
+//            each forced one in order (layout.forced), with its stack, the
+//            first of the platform's frames on it, and the writes that made
+//            it necessary (TRACE_DIR=<dir> also saves each window's trace,
+//            for DevTools' Performance panel)
 //
 // At the end, App's 30-second clock on the Step Algebra question, fired on
 // demand (clock-tick), and again with the page's clock moved past the end of
@@ -49,7 +53,8 @@
 // clock tick that changes nothing draws it not at all, and the one that ends
 // the class draws it again.
 
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { componentNamer, createProfileReader } from '../support/cpuProfileNames.mjs';
 import { countWhere, createCallCounter } from '../support/functionCallCounts.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
@@ -208,6 +213,46 @@ const MATHJS_CALLS = {
 };
 const mathjsCallsIn = (ran) => Object.fromEntries(Object.entries(MATHJS_CALLS)
   .map(([name, functions]) => [name, functions.reduce((sum, where) => sum + countWhere(ran, where), 0)]));
+// ------------------------------------------------------------ trace's stacks
+// A trace's stack frame, "name · file:line" through the build's source maps
+// (its line and column count from 1, a CPU profile's from 0).
+const traceFrameName = (frame) => (profileReader
+  ? profileReader.frameName({ url: frame.url, lineNumber: Math.max(0, frame.lineNumber - 1), columnNumber: Math.max(0, frame.columnNumber - 1), functionName: frame.functionName })
+  : `${frame.functionName || '(anonymous)'} ${String(frame.url || '').split('/').pop()}:${frame.lineNumber}`);
+const PLATFORM_FRAME = / · src\//;
+const platformFrame = (stack) => stack.find((frame) => PLATFORM_FRAME.test(frame)) || null;
+// Each forced layout and style recalculation in a window, in order: its stack,
+// the first of the platform's own frames on it (a read of MathLive's or
+// React's has the platform code that called it further down, or none), and
+// the writes that made it necessary: what first dirtied layout (style, for a
+// style recalculation) since the pass before it, each by its platform frame.
+const forcedReads = ({ layouts, styles, onThread }) => {
+  const passes = [...layouts, ...styles].sort((a, b) => a.ts - b.ts);
+  const writes = onThread.filter((event) => /^(InvalidateLayout|ScheduleStyleRecalculation)$/.test(event.name) && event.args?.data?.stackTrace?.length);
+  return passes.filter((event) => event.args?.beginData?.stackTrace?.length).map((event) => {
+    const stack = event.args.beginData.stackTrace.map(traceFrameName);
+    const previous = passes.filter((pass) => pass.name === event.name && pass.ts + (pass.dur || 0) <= event.ts).pop();
+    const since = previous ? previous.ts + (previous.dur || 0) : -Infinity;
+    const dirtiedBy = writes
+      .filter((write) => write.ts >= since && write.ts <= event.ts && write.name === (event.name === 'Layout' ? 'InvalidateLayout' : 'ScheduleStyleRecalculation'))
+      .map((write) => {
+        const names = write.args.data.stackTrace.map(traceFrameName);
+        return platformFrame(names) || names[0];
+      });
+    return {
+      kind: event.name === 'Layout' ? 'layout' : 'style',
+      ms: Math.round((event.dur || 0) / 100) / 10,
+      platform: platformFrame(stack),
+      stack: stack.slice(0, 8),
+      after: [...new Set(dirtiedBy)].slice(0, 4),
+    };
+  });
+};
+// TRACE_DIR=<dir>: each window's whole trace is written there too, a file
+// DevTools' Performance panel opens.
+const TRACE_DIR = process.env.TRACE_DIR || null;
+if (TRACE_DIR) mkdirSync(TRACE_DIR, { recursive: true });
+let traceWindows = 0;
 
 const runFlow = async (browser, device, mode) => {
   const context = await newSchoolContext(browser, DEVICE_OPTIONS[device]);
@@ -312,7 +357,8 @@ const runFlow = async (browser, device, mode) => {
       await cdp.send('Tracing.end');
       await complete;
       const layoutThread = traceEvents.find((event) => event.name === 'Layout');
-      const onMain = traceEvents.filter((event) => layoutThread && event.pid === layoutThread.pid && event.tid === layoutThread.tid && event.ph === 'X');
+      const onThread = traceEvents.filter((event) => layoutThread && event.pid === layoutThread.pid && event.tid === layoutThread.tid);
+      const onMain = onThread.filter((event) => event.ph === 'X');
       const ms = (list) => Math.round(list.reduce((sum, event) => sum + (event.dur || 0), 0) / 100) / 10;
       const forced = (list) => list.filter((event) => event.args?.beginData?.stackTrace?.length);
       const layouts = onMain.filter((event) => event.name === 'Layout');
@@ -321,13 +367,15 @@ const runFlow = async (browser, device, mode) => {
         layouts: layouts.length, layoutMs: ms(layouts), forcedLayouts: forced(layouts).length, forcedLayoutMs: ms(forced(layouts)),
         styleRecalcs: styles.length, styleMs: ms(styles), forcedStyleRecalcs: forced(styles).length, forcedStyleMs: ms(forced(styles)),
         forcedBy: Object.entries([...forced(layouts), ...forced(styles)].reduce((counts, event) => {
-          const frame = event.args.beginData.stackTrace[0];
-          const key = profileReader
-            ? profileReader.frameName({ url: frame.url, lineNumber: Math.max(0, frame.lineNumber - 1), columnNumber: Math.max(0, frame.columnNumber - 1), functionName: frame.functionName })
-            : `${frame.functionName || '(anonymous)'} ${String(frame.url || '').split('/').pop()}:${frame.lineNumber}`;
+          const key = traceFrameName(event.args.beginData.stackTrace[0]);
           return { ...counts, [key]: (counts[key] || 0) + 1 };
         }, {})).sort((a, b) => b[1] - a[1]).slice(0, 10),
+        forced: forcedReads({ layouts, styles, onThread }),
       };
+      if (TRACE_DIR) {
+        traceWindows += 1;
+        writeFileSync(path.join(TRACE_DIR, `${String(traceWindows).padStart(3, '0')}-${device}-${name}.json`), JSON.stringify({ traceEvents }));
+      }
     }
     const after = await telemetry();
     const slice = await page.evaluate(([a, b]) => {
