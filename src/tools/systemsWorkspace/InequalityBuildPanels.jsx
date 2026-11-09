@@ -345,14 +345,14 @@ export function InequalityGraphLayers({
           if (shaded.length < 3) return null;
           return (
             <polygon key={`shade${index}`} points={shaded.map(([px, py]) => `${sx(px)},${sy(py)}`).join(' ')}
-              fill={constraintColor(index)} fillOpacity={emphasised(index) ? 0.16 : 0.08} stroke="none" />
+              fill={constraintColor(index)} fillOpacity={emphasised(index) ? 0.16 : 0.08} stroke="none" data-mm-plane-part="shade" />
           );
         })}
         {combined && studentPolygon.length >= 3 ? (
           <>
             <defs>
               <pattern id={hatchId} width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                <line x1="0" y1="0" x2="0" y2="9" style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth="2.2" strokeOpacity="0.42" />
+                <line x1="0" y1="0" x2="0" y2="9" style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth="2.2" strokeOpacity="0.42" data-mm-plane-part="line" />
               </pattern>
             </defs>
             <polygon data-overlap="true" points={studentPolygon.map(([px, py]) => `${sx(px)},${sy(py)}`).join(' ')} fill={`url(#${hatchId})`} stroke="none" />
@@ -371,6 +371,7 @@ export function InequalityGraphLayers({
               stroke={constraintColor(index)} strokeWidth={emphasised(index) ? 3.5 : 2.5}
               strokeDasharray={renderedStyle === 'dashed' ? '10 6' : renderedStyle === 'solid' ? undefined : '3 5'}
               strokeOpacity={renderedStyle ? (emphasised(index) ? 1 : 0.6) : 0.55}
+              data-mm-plane-part="line"
             />
           );
         })}

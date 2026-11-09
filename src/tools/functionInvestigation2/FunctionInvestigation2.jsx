@@ -287,8 +287,8 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
           {mode === 'compare' ? (
             <>
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
-                <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }}><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>f(x)</strong> — solid blue</span>
-                <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }}><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>g(x)</strong> — dashed red</span>
+                <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} data-mm-plane-key=""><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>f(x)</strong> — solid blue</span>
+                <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} data-mm-plane-key=""><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>g(x)</strong> — dashed red</span>
               </div>
               <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, marginTop: 8 }}>The dashed purple vertical line marks x = {compareX}. Compare both function values at that same input.</p>
             </>

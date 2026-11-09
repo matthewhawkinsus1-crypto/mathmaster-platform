@@ -160,6 +160,15 @@ const readToken = (element, name, fallback) => {
   }
 };
 
+/*
+ * The board's parts, named for a contrast theme (src/theme/forcedColors.css
+ * draws a plane's parts in the theme's colours): JSXGraph draws them, so each
+ * is named on the node it draws, once drawn. Its words are drawn as text.
+ */
+const markPlanePart = (element, part) => {
+  try { element?.rendNode?.setAttribute('data-mm-plane-part', part); } catch { /* not drawn */ }
+};
+
 /** Is the surface behind the graph dark? Decides the line palette. */
 const isDarkSurface = (element) => {
   try {
@@ -172,8 +181,9 @@ const isDarkSurface = (element) => {
   }
 };
 
+// A line's key beside the board: drawn as the board draws the line (data-mm-plane-key, under a contrast theme).
 const Swatch = ({ style, dark }) => (
-  <svg width="30" height="12" viewBox="0 0 30 12" aria-hidden="true" style={{ flex: '0 0 auto' }}>
+  <svg width="30" height="12" viewBox="0 0 30 12" aria-hidden="true" style={{ flex: '0 0 auto' }} data-mm-plane-key="">
     <line x1="1" y1="6" x2="29" y2="6" stroke={dark ? style.dark : style.light} strokeWidth="3" strokeDasharray={style.dashArray || undefined} strokeLinecap="round" />
   </svg>
 );
@@ -373,6 +383,11 @@ export default function GraphingCalculatorPanel({
         keyboard: { enabled: false },
         resize: { enabled: true, throttle: 100 },
       });
+      ['x', 'y'].forEach((key) => {
+        markPlanePart(board.defaultAxes?.[key], 'axis');
+        // Ticks the height of the board: its grid.
+        markPlanePart(board.defaultAxes?.[key]?.defaultTicks, 'grid');
+      });
       board.on('boundingbox', () => {
         const next = board.getBoundingBox();
         if (Array.isArray(next) && next.every(Number.isFinite)) setView([...next]);
@@ -426,10 +441,14 @@ export default function GraphingCalculatorPanel({
           const value = entry.evaluate(x);
           return value === null ? NaN : value;
         };
-        drawnRef.current.push(board.create('functiongraph', [y], look));
+        const graph = board.create('functiongraph', [y], look);
+        markPlanePart(graph, 'line');
+        drawnRef.current.push(graph);
       } else if (entry.kind === ENTRY_KINDS.VERTICAL) {
         // c + a·x + b·y = 0 is the line x = entry.x.
-        drawnRef.current.push(board.create('line', [-entry.x, 1, 0], { ...look, straightFirst: true, straightLast: true }));
+        const graph = board.create('line', [-entry.x, 1, 0], { ...look, straightFirst: true, straightLast: true });
+        markPlanePart(graph, 'line');
+        drawnRef.current.push(graph);
       }
     });
     board.unsuspendUpdate();
@@ -451,9 +470,11 @@ export default function GraphingCalculatorPanel({
         if (y === null) return;
         const style = LINE_STYLES[index % LINE_STYLES.length];
         const color = dark ? style.dark : style.light;
-        tracedRef.current.push(board.create('point', [x, y], {
+        const traced = board.create('point', [x, y], {
           name: '', withLabel: false, fixed: true, highlight: false, showInfobox: false, size: 4, strokeColor: color, fillColor: color,
-        }));
+        });
+        markPlanePart(traced, 'closed');
+        tracedRef.current.push(traced);
       });
     }
     board.unsuspendUpdate();
@@ -741,6 +762,7 @@ export default function GraphingCalculatorPanel({
                   aria-label={graphDescription}
                   data-graphing-board={graphState}
                   style={{ width: '100%', height: narrow ? 250 : 300, position: 'relative', overflow: 'hidden', touchAction: 'none', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', boxSizing: 'border-box' }}
+                  data-mm-plane=""
                 />
                 {graphState !== 'ready' && (
                   <div role="status" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>

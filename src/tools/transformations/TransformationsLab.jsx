@@ -327,8 +327,8 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           {parameterFields(parameterValues, parameterSetters, parameterKeys)}
           <div style={{ marginTop: 14 }}>{graph([x => evaluateTransformedFunction(studentSpec, x), x => evaluateTransformedFunction(targetSpec, x)])}</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 'calc(13 * var(--mm-px))', color: 'var(--mm-text)' }}>
-            <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>Your graph</strong> — solid blue</span>
-            <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>Target</strong> — dashed red</span>
+            <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true" data-mm-plane-key=""><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>Your graph</strong> — solid blue</span>
+            <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true" data-mm-plane-key=""><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>Target</strong> — dashed red</span>
           </div>
           <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}><SubmitText>Check transformation</SubmitText></button>
         </> : null}

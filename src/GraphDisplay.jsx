@@ -523,16 +523,17 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         aria-describedby={descriptionId}
         lang={named.lang}
         style={{ display: 'block', width: '100%', height: 'auto', maxWidth: '100%', maxHeight: '100%' }}
+        data-mm-plane=""
       >
         <title>{named.text}</title>
-        <rect x={plotLeft} y={PADDING} width={innerWidth} height={innerHeight} fill="var(--mm-graph-bg)" stroke="#cfd4da" />
+        <rect x={plotLeft} y={PADDING} width={innerWidth} height={innerHeight} fill="var(--mm-graph-bg)" stroke="#cfd4da" data-mm-plane-part="paper" />
 
         {xMinorTicks.map((tick) => {
           const x = toScreenX(tick);
           return (
             <g key={`x-minor-${tick}`}>
-              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="var(--mm-graph-grid-minor)" />
-              <line x1={x} y1={axisX - 3} x2={x} y2={axisX + 3} stroke="var(--mm-graph-axis)" strokeWidth="1" />
+              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="var(--mm-graph-grid-minor)" data-mm-plane-part="grid-minor" />
+              <line x1={x} y1={axisX - 3} x2={x} y2={axisX + 3} stroke="var(--mm-graph-axis)" strokeWidth="1" data-mm-plane-part="axis" />
             </g>
           );
         })}
@@ -540,8 +541,8 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const y = toScreenY(tick);
           return (
             <g key={`y-minor-${tick}`}>
-              <line x1={plotLeft} y1={y} x2={plotLeft + innerWidth} y2={y} stroke="var(--mm-graph-grid-minor)" />
-              <line x1={axisY - 3} y1={y} x2={axisY + 3} y2={y} stroke="var(--mm-graph-axis)" strokeWidth="1" />
+              <line x1={plotLeft} y1={y} x2={plotLeft + innerWidth} y2={y} stroke="var(--mm-graph-grid-minor)" data-mm-plane-part="grid-minor" />
+              <line x1={axisY - 3} y1={y} x2={axisY + 3} y2={y} stroke="var(--mm-graph-axis)" strokeWidth="1" data-mm-plane-part="axis" />
             </g>
           );
         })}
@@ -550,7 +551,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const x = toScreenX(tick);
           return (
             <g key={`x-${tick}`}>
-              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="var(--mm-graph-grid)" />
+              <line x1={x} y1={PADDING} x2={x} y2={PADDING + innerHeight} stroke="var(--mm-graph-grid)" data-mm-plane-part="grid" />
               {showXTickLabels && (
                 <text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="var(--mm-graph-axis)">
                   {tick}
@@ -564,7 +565,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const y = toScreenY(tick);
           return (
             <g key={`y-${tick}`}>
-              <line x1={plotLeft} y1={y} x2={plotLeft + innerWidth} y2={y} stroke="var(--mm-graph-grid)" />
+              <line x1={plotLeft} y1={y} x2={plotLeft + innerWidth} y2={y} stroke="var(--mm-graph-grid)" data-mm-plane-part="grid" />
               {showYTickLabels && tick !== 0 && (
                 <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="var(--mm-graph-axis)">
                   {tick}
@@ -585,10 +586,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             fill={entry.fill}
             fillOpacity={SHADE_OPACITY}
             stroke="none"
+            data-mm-plane-part="shade"
           />
         ))}
-        <line x1={plotLeft} y1={axisX} x2={plotLeft + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : 'var(--mm-graph-axis)'} strokeWidth={xAxisActive ? '4' : '2'} />
-        <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke={yAxisActive ? '#9334e6' : 'var(--mm-graph-axis)'} strokeWidth={yAxisActive ? '4' : '2'} />
+        <line x1={plotLeft} y1={axisX} x2={plotLeft + innerWidth} y2={axisX} stroke={xAxisActive ? '#174ea6' : 'var(--mm-graph-axis)'} strokeWidth={xAxisActive ? '4' : '2'} data-mm-plane-part={xAxisActive ? 'cursor' : 'axis'} />
+        <line x1={axisY} y1={PADDING} x2={axisY} y2={PADDING + innerHeight} stroke={yAxisActive ? '#9334e6' : 'var(--mm-graph-axis)'} strokeWidth={yAxisActive ? '4' : '2'} data-mm-plane-part={yAxisActive ? 'cursor' : 'axis'} />
 
         {showHighlightX && (
           <line
@@ -600,6 +602,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             strokeWidth="3"
             strokeDasharray="8 6"
             opacity="0.9"
+            data-mm-plane-part="cursor"
           />
         )}
         {showHighlightY && (
@@ -612,6 +615,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             strokeWidth="3"
             strokeDasharray="8 6"
             opacity="0.9"
+            data-mm-plane-part="cursor"
           />
         )}
 
@@ -638,6 +642,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
                   stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.haloStroke}
                   strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.haloWidth}
                   opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.haloOpacity}
+                  data-mm-plane-part="halo"
                 />
                 <line
                   x1={plotLeft}
@@ -648,6 +653,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
                   strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.strokeWidth}
                   strokeDasharray={STATIC_GRAPH_ASYMPTOTE_STYLE.dashArray}
                   opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.opacity}
+                  data-mm-plane-part="line"
                 />
               </g>
             );
@@ -664,6 +670,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
                 stroke={STATIC_GRAPH_ASYMPTOTE_STYLE.haloStroke}
                 strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.haloWidth}
                 opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.haloOpacity}
+                data-mm-plane-part="halo"
               />
               <line
                 x1={x}
@@ -674,6 +681,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
                 strokeWidth={STATIC_GRAPH_ASYMPTOTE_STYLE.strokeWidth}
                 strokeDasharray={STATIC_GRAPH_ASYMPTOTE_STYLE.dashArray}
                 opacity={STATIC_GRAPH_ASYMPTOTE_STYLE.opacity}
+                data-mm-plane-part="line"
               />
             </g>
           );
@@ -717,6 +725,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
               strokeDasharray={spec.dashed === true ? BOUNDARY_DASH : undefined}
               strokeLinecap={spec.dashed === true ? 'butt' : 'round'}
               strokeLinejoin="round"
+              data-mm-plane-part="line"
             />
           )),
         )}
@@ -731,6 +740,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             stroke={line.stroke || '#1a73e8'}
             strokeWidth="3"
             strokeDasharray={line.dashed ? BOUNDARY_DASH : undefined}
+            data-mm-plane-part="line"
           />
         ))}
 
@@ -748,6 +758,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
               stroke={segment.stroke || '#9334e6'}
               strokeWidth={segment.strokeWidth || 3}
               strokeDasharray={segment.dashed === true ? BOUNDARY_DASH : undefined}
+              data-mm-plane-part="line"
             />
           );
         })}
@@ -758,11 +769,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const x = toScreenX(Number(point[0]));
           const y = toScreenY(Number(point[1]));
           if (requirement.marker === 'open' || requirement.marker === 'closed') {
-            return <circle key={`endpoint-${index}`} cx={x} cy={y} r="8" fill={requirement.marker === 'closed' ? requirement.color || '#1a73e8' : 'var(--mm-graph-bg)'} stroke={requirement.color || '#1a73e8'} strokeWidth="4" />;
+            return <circle key={`endpoint-${index}`} cx={x} cy={y} r="8" fill={requirement.marker === 'closed' ? requirement.color || '#1a73e8' : 'var(--mm-graph-bg)'} stroke={requirement.color || '#1a73e8'} strokeWidth="4" data-mm-plane-part={requirement.marker === 'closed' ? 'closed' : 'open'} />;
           }
           const vector = Array.isArray(requirement.vector) ? requirement.vector : [1, 0];
           const angle = (Math.atan2(-Number(vector[1] || 0), Number(vector[0] || 0)) * 180) / Math.PI;
-          return <g key={`endpoint-${index}`} transform={`translate(${x} ${y}) rotate(${angle})`}><polygon points="14,0 -7,-9 -7,9" fill={requirement.color || '#1a73e8'} /></g>;
+          return <g key={`endpoint-${index}`} transform={`translate(${x} ${y}) rotate(${angle})`}><polygon points="14,0 -7,-9 -7,9" fill={requirement.color || '#1a73e8'} data-mm-plane-part="closed" /></g>;
         })}
 
         {points.map((point, index) => {
@@ -771,7 +782,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
           const [x, y] = coordinates;
           return (
             <g key={`point-${index}`}>
-              <circle cx={toScreenX(x)} cy={toScreenY(y)} r={resolvePointRadius(point, 5)} fill={resolvePointFill(point, '#d93025')} stroke="var(--mm-graph-bg)" strokeWidth="2" />
+              <circle cx={toScreenX(x)} cy={toScreenY(y)} r={resolvePointRadius(point, 5)} fill={resolvePointFill(point, '#d93025')} stroke="var(--mm-graph-bg)" strokeWidth="2" data-mm-plane-part="point" />
               {!Array.isArray(point) && point.label && (
                 <text x={toScreenX(x) + 9} y={toScreenY(y) - 9} fontSize="13" fontWeight="bold" fill="var(--mm-graph-label)">
                   {point.label}
@@ -790,8 +801,9 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
               fill="#fff4ce"
               stroke="#f9ab00"
               strokeWidth="4"
+              data-mm-plane-part="cursor"
             />
-            <circle cx={toScreenX(highlightX)} cy={toScreenY(highlightY)} r="5" fill="#d93025" />
+            <circle cx={toScreenX(highlightX)} cy={toScreenY(highlightY)} r="5" fill="#d93025" data-mm-plane-part="held" />
             {interactionHighlight.label && (
               <text
                 x={toScreenX(highlightX) + 15}

@@ -23,15 +23,15 @@ function LineGridLayer({ view, side }) {
   const yLabelOnLeft = axisX > font * 2.6;
   return (
     <g aria-hidden="true">
-      <rect width={side} height={side} fill="var(--mm-graph-bg)" />
+      <rect width={side} height={side} fill="var(--mm-graph-bg)" data-mm-plane-part="paper" />
       {grid.verticals.map((line) => (
-        <line key={`gx${line.value}`} x1={line.u * side} x2={line.u * side} y1={0} y2={side} stroke="var(--mm-graph-grid)" strokeWidth={1} />
+        <line key={`gx${line.value}`} x1={line.u * side} x2={line.u * side} y1={0} y2={side} stroke="var(--mm-graph-grid)" strokeWidth={1} data-mm-plane-part="grid" />
       ))}
       {grid.horizontals.map((line) => (
-        <line key={`gy${line.value}`} x1={0} x2={side} y1={line.v * side} y2={line.v * side} stroke="var(--mm-graph-grid)" strokeWidth={1} />
+        <line key={`gy${line.value}`} x1={0} x2={side} y1={line.v * side} y2={line.v * side} stroke="var(--mm-graph-grid)" strokeWidth={1} data-mm-plane-part="grid" />
       ))}
-      <line x1={0} x2={side} y1={axisY} y2={axisY} stroke="var(--mm-graph-axis)" strokeWidth={2} />
-      <line x1={axisX} x2={axisX} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={2} />
+      <line x1={0} x2={side} y1={axisY} y2={axisY} stroke="var(--mm-graph-axis)" strokeWidth={2} data-mm-plane-part="axis" />
+      <line x1={axisX} x2={axisX} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={2} data-mm-plane-part="axis" />
       <g fill="var(--mm-graph-label)" fontSize={font} fontWeight={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
         {labels.x.map((value) => (
           <text key={`lx${value}`} x={unitX(view, value) * side} y={xLabelY} textAnchor="middle" style={halo}>{formatCoordinate(value)}</text>

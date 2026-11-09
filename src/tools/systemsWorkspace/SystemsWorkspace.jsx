@@ -58,7 +58,7 @@ const Legend = ({ items }) => (
   <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10, fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text)' }}>
     {items.map((item) => (
       <span key={item.label}>
-        <svg width="26" height="8" style={{ verticalAlign:'middle', marginRight:5 }} aria-hidden="true">
+        <svg width="26" height="8" style={{ verticalAlign:'middle', marginRight:5 }} aria-hidden="true" data-mm-plane-key="">
           <line x1="0" y1="4" x2="26" y2="4" style={{ stroke: item.color }} strokeWidth="3" strokeDasharray={item.dashed ? '8 5' : undefined} />
         </svg>
         <strong>{item.label}</strong>{item.note ? ` — ${item.note}` : ''}
@@ -374,6 +374,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
                 // graph too; the legend's swatch is the same token.
                 style={{ fill: 'var(--mm-success)', fillOpacity: 0.16, stroke: 'var(--mm-success)' }}
                 strokeWidth="2"
+                data-mm-plane-part="shade"
               />
             ) : null}
           </CoordinatePlane>

@@ -209,7 +209,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
       ) : null}
       {reference ? (
         <p data-reference-line-key="" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: 'var(--mm-text)', fontSize: 'calc(15 * var(--mm-px))' }}>
-          <svg width="34" height="10" aria-hidden="true" focusable="false" style={{ flex: '0 0 auto' }}>
+          <svg width="34" height="10" aria-hidden="true" focusable="false" style={{ flex: '0 0 auto' }} data-mm-plane-key="">
             <line x1="1" y1="5" x2="33" y2="5" stroke={GUIDE_STROKE} strokeWidth="3" strokeDasharray={GUIDE_DASH} />
           </svg>
           {/* Beside its swatch on a phone too: the words wrap, not the swatch. */}

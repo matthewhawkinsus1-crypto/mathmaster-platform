@@ -168,7 +168,8 @@ test('a figure with none of the new fields is drawn and said as before', async (
   assert.match(markup, /<polygon points="14,0 -7,-9 -7,9" fill="#1a73e8"/);
   // (A drawn segment frames the figure with equal units, as it always has.)
   assert.equal(describedText(markup), 'x from about −7.8 to about 7.8, y from −5 to 5. 1 line. 1 connected path. 2 arrowheads. Positions are not read out while this question can be answered.');
-  assert.match(markup, /<line x1="[^"]+" y1="[^"]+" x2="[^"]+" y2="[^"]+" stroke="#9334e6" stroke-width="3"><\/line>/, 'the segment, solid');
+  // Solid: no dash anywhere in its tag (it also names its part for a contrast theme, data-mm-plane-part).
+  assert.match(markup, /<line x1="[^"]+" y1="[^"]+" x2="[^"]+" y2="[^"]+" stroke="#9334e6" stroke-width="3"(?![^>]*stroke-dasharray)[^>]*><\/line>/, 'the segment, solid');
 });
 
 test('a dashed curve and a dashed segment are drawn and said dashed', async () => {

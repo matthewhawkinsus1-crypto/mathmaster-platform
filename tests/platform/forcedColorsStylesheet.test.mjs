@@ -5,7 +5,8 @@
  * as Canvas, no box-shadow, no gradient. src/theme/forcedColors.css gives back
  * what that takes from MathMaster's screens: an edge for every button, the
  * system's highlight for a selected, pressed or current control, a drawn
- * progress bar, the Live Class question strip's colours and the mastery key's.
+ * progress bar, the Live Class question strip's colours and the mastery key's,
+ * and every coordinate plane in the theme's colours.
  * This file holds the stylesheet to "nothing changes without forced colours,
  * and only system colours", its two kinds of rule to their place against the
  * page's focus ring, and the screens to the hooks it styles. What the rules do
@@ -294,4 +295,167 @@ test('a box whose edge was its fill keeps one: the Regression Calculator\'s expr
   assert.equal(edge.declarations['outline-offset']?.value, '-1px');
   assert.ok(edge.declarations.outline.important, 'over the tool\'s own outline');
   assert.ok(above(specificity(edge.selectors[0]), [0, 5, 1]) < 0, 'a focused box shows the page\'s ring');
+});
+
+// ------------------------------------------------------------------ the coordinate plane
+// A plane is an SVG drawing: Chromium gives every <svg> forced-color-adjust: preserve-parent-color, so forced colours
+// leave its paint alone, and it kept the app theme's colours under a contrast theme. The stylesheet draws every plane
+// (data-mm-plane) in the theme's colours, by its tokens and its parts (data-mm-plane-part); the forced-colours walk reads
+// what each plane paints (mm-forced-plane-paint). These hold the rules and the hooks to each other.
+const SYSTEM_VALUE = /^(Canvas|CanvasText|GrayText|Highlight)$/;
+const planeTokenRule = (selector) => rules.find((rule) => rule.selectors.includes(selector) && Object.keys(rule.declarations).some((name) => name.startsWith('--mm-')));
+
+test('a plane\'s own colours, under forced colours, are the theme\'s: the graph tokens and every token a Live Challenge round sets on its shell', async () => {
+  // The app theme's graph tokens (both themes), and the page's focus ring, which every plane draws.
+  const tokens = [...new Set(read('src/theme/tokens.css').match(/--mm-graph-[\w-]+(?=:)/g))];
+  assert.ok(tokens.length >= 6, `graph tokens: ${tokens.join(', ')}`);
+  const root = planeTokenRule(':root');
+  assert.ok(root, 'one rule redefines them on the page');
+  for (const name of [...tokens, '--mm-focus']) {
+    const declared = root.declarations[name];
+    assert.ok(declared, `${name} is redefined`);
+    assert.match(declared.value, SYSTEM_VALUE, `${name}: a system colour`);
+    assert.ok(declared.important, `${name}: over the theme's own (:root[data-theme='dark'])`);
+  }
+  // A round's shell sets its own tokens (grandPrixTheme.js; the line round's label tokens beside them): each is a
+  // system colour there too, so a mark a round adds later cannot keep its neon.
+  const { ARENA_RUSH_VARS, ARENA_LINE_VARS } = await import('../../src/components/liveChallenge/grandPrixTheme.js');
+  const names = (text) => String(text).split(';').map((entry) => entry.trim().split(':')[0].trim()).filter(Boolean);
+  const lineShellCss = region(read('src/components/liveChallenge/LineGraphRound.jsx'), '.mm-line-shell {', '\n}', 'the line round\'s shell');
+  for (const [selector, set] of [['.mm-rush-shell', names(ARENA_RUSH_VARS)], ['.mm-line-shell', [...names(ARENA_LINE_VARS), ...(lineShellCss.match(/--mm-line-[\w-]+(?=:)/g) || [])]]]) {
+    const own = rules.filter((rule) => rule.selectors.includes(selector) && Object.keys(rule.declarations).some((name) => name.startsWith('--mm-')));
+    for (const name of new Set(set)) {
+      const declared = own.map((rule) => rule.declarations[name]).find(Boolean);
+      assert.ok(declared, `${selector} ${name} is redefined`);
+      assert.match(declared.value, SYSTEM_VALUE, `${selector} ${name}: a system colour`);
+      assert.ok(declared.important, `${selector} ${name}: over the shell's own`);
+    }
+  }
+});
+
+test('the board is the page\'s Canvas and every word on a plane the text colour; nothing a plane paints is left to its own colours', () => {
+  const board = rules.find((rule) => rule.selectors.length === 1 && rule.selectors[0] === '[data-mm-plane]');
+  assert.equal(board?.declarations['background-color']?.value, 'Canvas');
+  assert.ok(board.declarations['background-color'].important, 'over the board\'s own background, set inline');
+  assert.equal(board.declarations['box-shadow']?.value, 'none');
+  assert.equal(board.declarations.color?.value, 'CanvasText', 'what is drawn in currentColor');
+  const words = rules.find((rule) => rule.selectors.includes('[data-mm-plane] text'));
+  assert.equal(words?.declarations.fill?.value, 'CanvasText');
+  assert.ok(words.declarations.fill.important && words.declarations.opacity?.value === '1', 'opaque, over a label\'s own fill');
+});
+
+// The parts the stylesheet draws, and the parts the planes name: each named part is drawn, and each drawn part is named.
+const PART = /\[data-mm-plane-part="([\w-]+)"\]/g;
+const styledParts = () => new Set(rules.flatMap((rule) => [...rule.selectors.join(' ').matchAll(PART)].map((match) => match[1])));
+const namedParts = () => {
+  const found = new Map();
+  for (const file of walk('src')) {
+    const source = read(file);
+    if (!/data-mm-plane-part|markPlanePart\(/.test(source)) continue;
+    for (const match of source.matchAll(/data-mm-plane-part=(?:"([\w-]+)"|\{([^}]*)\})|markPlanePart\([^,]+,\s*'([\w-]+)'\)|const planePart = ([^;]+);/g)) {
+      const words = match[1] || match[3] ? [match[1] || match[3]] : [...String(match[2] || match[4]).matchAll(/'([\w-]+)'/g)].map((word) => word[1]);
+      words.forEach((word) => found.set(word, [...(found.get(word) || []), file]));
+    }
+  }
+  return found;
+};
+
+test('every part of a plane the stylesheet draws is one a plane names, and every part a plane names is drawn', () => {
+  const styled = styledParts();
+  const named = namedParts();
+  assert.ok(styled.size >= 12, `parts drawn: ${[...styled].join(', ')}`);
+  assert.deepEqual([...styled].filter((part) => !named.has(part)), [], 'drawn by the stylesheet, named by no plane');
+  assert.deepEqual([...named.keys()].filter((part) => !styled.has(part)).map((part) => `${part} (${named.get(part).join(', ')})`), [], 'named by a plane, drawn by no rule');
+  // Each part's rule paints in system colours (or hides a glow): the parts the stylesheet draws as the theme's.
+  for (const part of styled) {
+    const own = rules.filter((rule) => rule.selectors.some((selector) => selector === `[data-mm-plane-part="${part}"]`));
+    assert.ok(own.length, `${part} has a rule of its own`);
+  }
+});
+
+test('a shaded region is hatched in the text colour, a second the other way, and a translucent glow is not drawn', () => {
+  const shade = rules.find((rule) => rule.selectors.includes('[data-mm-plane-part="shade"]'));
+  assert.equal(shade?.declarations.fill?.value, 'CanvasText');
+  assert.equal(shade.declarations['fill-opacity']?.value, '1');
+  assert.match(shade.declarations['mask-image']?.value || '', /^repeating-linear-gradient\(45deg, CanvasText 0 [\d.]+px, transparent [\d.]+px [\d.]+px\)$/, 'lines of the text colour, with the grid between them');
+  const second = rules.find((rule) => rule.selectors.includes('[data-mm-plane-part="shade"]:nth-child(even of [data-mm-plane-part="shade"])'));
+  assert.match(second?.declarations['mask-image']?.value || '', /^repeating-linear-gradient\(-45deg, /, 'the next region the other way: an overlap is cross-hatched');
+  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-plane-part="glow"]'))?.declarations.display?.value, 'none');
+  // Selected, held or dragged, and the keyboard's crosshair: the theme's Highlight.
+  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-plane-part="held"]'))?.declarations.fill?.value, 'Highlight');
+  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-plane-part="held-open"]'))?.declarations.stroke?.value, 'Highlight');
+  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-plane-part="cursor"]'))?.declarations.stroke?.value, 'Highlight');
+});
+
+// Every component that draws a coordinate plane names its board (the walk reads `[data-mm-plane]`, and the stylesheet
+// draws it). The board is the <svg> it draws in, or, for the graphing calculator, the box JSXGraph draws into: found
+// here by what tells it from the file's other elements of its kind.
+const openingTags = (source, tagName) => {
+  const tags = [];
+  let at = source.indexOf(`<${tagName}`);
+  while (at >= 0) {
+    let depth = 0;
+    let quote = null;
+    let end = at + tagName.length + 1;
+    for (; end < source.length; end += 1) {
+      const c = source[end];
+      if (quote) { if (c === quote) quote = null; continue; }
+      // A comment between attributes ("the theme's colours") is not a quote.
+      if (source.startsWith('//', end)) { end = source.indexOf('\n', end); continue; }
+      if (source.startsWith('/*', end)) { end = source.indexOf('*/', end) + 1; continue; }
+      if (c === '"' || c === "'" || c === '`') quote = c;
+      else if (c === '{') depth += 1;
+      else if (c === '}') depth -= 1;
+      else if (c === '>' && depth === 0) break;
+    }
+    if (/^[\s/>]/.test(source[at + tagName.length + 1] || '')) tags.push(source.slice(at, end + 1));
+    at = source.indexOf(`<${tagName}`, end);
+  }
+  return tags;
+};
+const PLANE_DRAWERS = [
+  ['src/tools/shared/CoordinatePlane.jsx', 'svg', 'mathmaster-responsive-canvas'],
+  ['src/GraphDisplay.jsx', 'svg', 'mathmaster-responsive-canvas'],
+  ['src/InteractiveGraphWorkspace.jsx', 'svg', 'mathmaster-responsive-canvas'],
+  ['src/GraphStory.jsx', 'svg', 'Graph story sketch'],
+  ['src/components/liveChallenge/GraphFeatureRushGraph.jsx', 'svg', 'mm-rush-graph'],
+  ['src/components/liveChallenge/LineGraphCanvas.jsx', 'svg', 'mm-line-graph'],
+  ['src/components/liveChallenge/LineRevealGraph.jsx', 'svg', 'aria-label={`The line'],
+  ['src/tools/relationMapping/RelationMapping.jsx', 'svg', 'Coordinate plane for plotting the relation'],
+  ['src/components/assessment/GraphingCalculatorPanel.jsx', 'div', 'ref={boardBoxRef}'],
+];
+// Drawings with the plane's tokens that are not a board of their own, each with its reason.
+const NOT_A_BOARD = {
+  'src/components/liveChallenge/LineGridLayer.jsx': 'the grid under Graph the Line\'s planes, drawn inside their boards',
+  'src/tools/systemsWorkspace/InequalityBuildPanels.jsx': 'the Systems Workspace\'s marks, drawn inside the shared plane',
+  'src/components/liveChallenge/InequalityNumberLine.jsx': 'a number line, not a plane',
+  'src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx': 'three planes in a 3D model, not a coordinate plane',
+  'src/components/liveChallenge/GraphFeatureRushRound.jsx': 'the rush round\'s shell, which sets the tokens',
+  'src/components/liveChallenge/LineGraphRound.jsx': 'the line round\'s shell, which sets the tokens',
+  'src/components/liveChallenge/grandPrixTheme.js': 'the rounds\' tokens',
+};
+
+test('every component that draws a coordinate plane names its board, and a drawing with the plane\'s tokens is a board or says why not', () => {
+  for (const [file, tagName, marker] of PLANE_DRAWERS) {
+    const boards = openingTags(read(file), tagName).filter((tag) => tag.includes(marker));
+    assert.equal(boards.length, 1, `${file}: one board`);
+    assert.match(boards[0], /\sdata-mm-plane=""/, `${file}: the board is named`);
+  }
+  const drawers = new Set(PLANE_DRAWERS.map(([file]) => file));
+  const drawings = walk('src').filter((file) => /var\(--mm-graph-(axis|grid)/.test(read(file)));
+  assert.deepEqual(drawings.filter((file) => !drawers.has(file) && !NOT_A_BOARD[file]), [], 'draws with the plane\'s axis or grid tokens, and is neither a board nor said not to be one');
+});
+
+test('a key beside a plane draws its sample line as the plane draws it', () => {
+  // A legend's sample (a short line in each mark's colour and dash, in a small svg of its own), outside the plane's svg:
+  // drawn in the text colour. One drawn in the words' own colour (currentColor) follows them already.
+  const key = rules.find((rule) => rule.selectors.includes('[data-mm-plane-key] :is(line, path)'));
+  assert.equal(key?.declarations.stroke?.value, 'CanvasText');
+  assert.ok(key.declarations.stroke.important, 'over the sample\'s own colour, set inline');
+  const small = (attributes) => ['width', 'height'].every((size) => Number(new RegExp(`\\b${size}="(\\d+)"`).exec(attributes)?.[1]) <= 40);
+  const samples = walk('src').flatMap((file) => [...read(file).matchAll(/<svg\b([^>]*)>\s*<line\b([^>]*)\/>\s*<\/svg>/g)]
+    .filter((match) => small(match[1]) && /\bstroke(=|:)/.test(match[2]) && !/currentColor/.test(match[2]))
+    .map((match) => ({ file, named: /data-mm-plane-key=""/.test(match[1]) })));
+  assert.ok(samples.length >= 8, `${samples.length} keys`);
+  assert.deepEqual(samples.filter((sample) => !sample.named).map((sample) => sample.file), [], 'a key whose line keeps its own colour');
 });

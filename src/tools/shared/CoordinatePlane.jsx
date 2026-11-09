@@ -916,18 +916,20 @@ export default function CoordinatePlane({
           touchAction: interactive ? 'pan-y pinch-zoom' : 'auto', userSelect: 'none',
           outlineOffset: 2,
         }}
+        // Drawn in the theme's colours under a contrast theme (src/theme/forcedColors.css).
+        data-mm-plane=""
       >
         <defs>
           <clipPath id={clipId}>
             <rect x={pad} y={pad} width={innerW} height={innerH} />
           </clipPath>
         </defs>
-        <rect x={pad} y={pad} width={innerW} height={innerH} style={{ fill: 'var(--mm-graph-bg)' }} />
+        <rect x={pad} y={pad} width={innerW} height={innerH} style={{ fill: 'var(--mm-graph-bg)' }} data-mm-plane-part="paper" />
 
-        {xMinor.map((x) => <line key={`mx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-grid-minor)' }} strokeWidth="1" />)}
-        {yMinor.map((y) => <line key={`my${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-grid-minor)' }} strokeWidth="1" />)}
-        {xTicks.map((x) => <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
-        {yTicks.map((y) => <line key={`gy${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
+        {xMinor.map((x) => <line key={`mx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-grid-minor)' }} strokeWidth="1" data-mm-plane-part="grid-minor" />)}
+        {yMinor.map((y) => <line key={`my${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-grid-minor)' }} strokeWidth="1" data-mm-plane-part="grid-minor" />)}
+        {xTicks.map((x) => <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" data-mm-plane-part="grid" />)}
+        {yTicks.map((y) => <line key={`gy${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" data-mm-plane-part="grid" />)}
 
         <g clipPath={plotClip}>
         {regions.map((region, index) => {
@@ -945,13 +947,14 @@ export default function CoordinatePlane({
               fill={region?.fill || (index === 0 ? '#dce9ff' : '#fde2df')}
               fillOpacity={Number.isFinite(Number(region?.opacity)) ? Number(region.opacity) : 0.42}
               stroke="none"
+              data-mm-plane-part="shade"
             />
           );
         })}
         </g>
 
-        {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
-        {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
+        {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" data-mm-plane-part="axis" /> : null}
+        {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" data-mm-plane-part="axis" /> : null}
 
         <text x={width - pad + 6} y={axisY + 4} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>{axisNames?.x || 'x'}</text>
         <text x={axisX - 4} y={pad - 10} fontSize={svgFont(13)} fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">{axisNames?.y || 'y'}</text>
@@ -962,13 +965,13 @@ export default function CoordinatePlane({
 
         {xTicks.filter((x) => x !== 0).map((x) => (
           <g key={`tx${x}`}>
-            <line x1={sx(x)} x2={sx(x)} y1={axisY - 4} y2={axisY + 4} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" />
+            <line x1={sx(x)} x2={sx(x)} y1={axisY - 4} y2={axisY + 4} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" data-mm-plane-part="axis" />
             <text x={sx(x)} y={axisY + baselineBelowAxis(svgFont(11), 17, 6)} textAnchor="middle" fontSize={svgFont(11)} style={{ fill: 'var(--mm-graph-label)' }}>{tidy(x)}</text>
           </g>
         ))}
         {yTicks.filter((y) => y !== 0).map((y) => (
           <g key={`ty${y}`}>
-            <line x1={axisX - 4} x2={axisX + 4} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" />
+            <line x1={axisX - 4} x2={axisX + 4} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" data-mm-plane-part="axis" />
             <text x={axisX - 9} y={sy(y) + 4} textAnchor="end" fontSize={svgFont(11)} style={{ fill: 'var(--mm-graph-label)' }}>{tidy(y)}</text>
           </g>
         ))}
@@ -976,8 +979,8 @@ export default function CoordinatePlane({
         <g clipPath={plotClip}>
         {/* A bare number is a guide (dashed); an { x, boundaryStyle | relation } entry is a
             boundary and is solid or dashed like any other (verticalLineStyle.js). */}
-        {verticalLineDrawings(verticalLines).map((line, index) => <line key={`v${index}`} x1={sx(line.x)} x2={sx(line.x)} y1={pad} y2={height - pad} stroke={line.stroke} strokeDasharray={line.dash} strokeWidth={line.strokeWidth} />)}
-        {horizontalLines.map((y, index) => <line key={`h${index}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" />)}
+        {verticalLineDrawings(verticalLines).map((line, index) => <line key={`v${index}`} x1={sx(line.x)} x2={sx(line.x)} y1={pad} y2={height - pad} stroke={line.stroke} strokeDasharray={line.dash} strokeWidth={line.strokeWidth} data-mm-plane-part="line" />)}
+        {horizontalLines.map((y, index) => <line key={`h${index}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#8a3ffc" strokeDasharray="7 5" strokeWidth="2" data-mm-plane-part="line" />)}
         {functions.map((fn, index) => (
           <path
             key={`f${index}`}
@@ -988,12 +991,13 @@ export default function CoordinatePlane({
             // Shape as well as colour, so the two curves stay distinguishable
             // for a student who cannot separate blue from red.
             strokeDasharray={index === 0 ? undefined : '10 6'}
+            data-mm-plane-part="line"
           />
         ))}
         {lines.map((line, index) => {
           const y1 = Number(line.m) * xMin + Number(line.b);
           const y2 = Number(line.m) * xMax + Number(line.b);
-          return <line key={`l${index}`} x1={sx(xMin)} y1={sy(y1)} x2={sx(xMax)} y2={sy(y2)} stroke={line.stroke || (index === 0 ? '#1a73e8' : '#d93025')} strokeWidth="3" strokeDasharray={line.dash || undefined} />;
+          return <line key={`l${index}`} x1={sx(xMin)} y1={sy(y1)} x2={sx(xMax)} y2={sy(y2)} stroke={line.stroke || (index === 0 ? '#1a73e8' : '#d93025')} strokeWidth="3" strokeDasharray={line.dash || undefined} data-mm-plane-part="line" />;
         })}
         {polylines.map((entry, index) => {
           const rawPoints = Array.isArray(entry) ? entry : entry?.points;
@@ -1013,6 +1017,7 @@ export default function CoordinatePlane({
               strokeDasharray={entry?.dash || undefined}
               strokeLinejoin="round"
               strokeLinecap="round"
+              data-mm-plane-part="line"
             />
           );
         })}
@@ -1022,13 +1027,13 @@ export default function CoordinatePlane({
             before committing to it. */}
         {preview && chip ? (
           <g pointerEvents="none" data-plane-readout="">
-            <line x1={chip.cx} x2={chip.cx} y1={pad} y2={height - pad} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
-            <line x1={pad} x2={width - pad} y1={chip.cy} y2={chip.cy} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" />
-            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5) * 1.8} fill="#1a73e8" opacity="0.16" />
-            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5)} fill="none" stroke="#1a73e8" strokeWidth="2.5" />
+            <line x1={chip.cx} x2={chip.cx} y1={pad} y2={height - pad} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" data-mm-plane-part="cursor" />
+            <line x1={pad} x2={width - pad} y1={chip.cy} y2={chip.cy} stroke="#1a73e8" strokeDasharray="4 4" strokeWidth="1.5" opacity="0.55" data-mm-plane-part="cursor" />
+            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5) * 1.8} fill="#1a73e8" opacity="0.16" data-mm-plane-part="glow" />
+            <circle cx={chip.cx} cy={chip.cy} r={dotRadius(5)} fill="none" stroke="#1a73e8" strokeWidth="2.5" data-mm-plane-part="cursor" />
             {revealCoordinates ? (
               <>
-                <rect x={chip.left} y={chip.top} width={chip.chipWidth} height={chip.chipHeight} rx="7" fill="#174ea6" />
+                <rect x={chip.left} y={chip.top} width={chip.chipWidth} height={chip.chipHeight} rx="7" fill="#174ea6" data-mm-plane-part="chip" />
                 <text x={chip.left + chip.chipWidth / 2} y={chip.top + chip.chipHeight * 0.68} textAnchor="middle" fontSize={chip.fontSize} fontWeight="700" fill="#fff">{formatCoordinate(preview)}</text>
               </>
             ) : null}
@@ -1063,6 +1068,7 @@ export default function CoordinatePlane({
                 stroke={pointFill}
                 strokeWidth="1.5"
                 pointerEvents="none"
+                data-mm-plane-part="closed"
               />
             );
           }
@@ -1079,6 +1085,7 @@ export default function CoordinatePlane({
                 stroke={pointFill}
                 strokeWidth="3"
                 pointerEvents="none"
+                data-mm-plane-part={open ? 'open' : 'closed'}
               />
             );
           }
@@ -1091,13 +1098,14 @@ export default function CoordinatePlane({
               onPointerLeave={pointHoverEnabled ? () => setHoveredPointIndex(null) : undefined}
               pointerEvents={pointHoverEnabled ? undefined : 'none'}
             >
-              {hovered || held ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + (held ? 10 : 6)} fill={pointFill} opacity={held ? 0.26 : 0.18} /> : null}
+              {/* Under a contrast theme the halo is a ring: the held point's in Highlight. */}
+              {hovered || held ? <circle cx={sx(pointX)} cy={sy(pointY)} r={pointRadius + (held ? 10 : 6)} fill={pointFill} opacity={held ? 0.26 : 0.18} data-mm-plane-part={held ? 'cursor' : 'ring'} /> : null}
               {/* `shape: 'square'` draws the point as a square: a cue that does
                   not depend on colour (Graphing's given points, A11Y-4). */}
               {point?.shape === 'square' ? (() => {
                 const half = (hovered || held ? pointRadius + 2 : pointRadius) * 0.95;
-                return <rect data-point-shape="square" x={sx(pointX) - half} y={sy(pointY) - half} width={half * 2} height={half * 2} rx="1.5" fill={pointFill} stroke="#fff" strokeWidth="2" />;
-              })() : <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered || held ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" />}
+                return <rect data-point-shape="square" x={sx(pointX) - half} y={sy(pointY) - half} width={half * 2} height={half * 2} rx="1.5" fill={pointFill} stroke="#fff" strokeWidth="2" data-mm-plane-part={held ? 'held' : 'point'} />;
+              })() : <circle cx={sx(pointX)} cy={sy(pointY)} r={hovered || held ? pointRadius + 2 : pointRadius} fill={pointFill} stroke="#fff" strokeWidth="2" data-mm-plane-part={held ? 'held' : 'point'} />}
               {/* Labels take the theme's graph label colour, with a halo of the
                   plane's own background so a grid or plotted line under them
                   cannot hide them: a fixed #24324a was 1.35:1 on the dark

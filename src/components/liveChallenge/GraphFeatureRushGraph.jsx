@@ -76,13 +76,13 @@ function AxisSet({ shape, side, tone }) {
       {shape.bands.map((band) => {
         const from = at(band.from);
         const to = at(band.to);
-        return <line key={`band${band.from}-${band.to}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={tone} strokeOpacity={0.42} strokeWidth={SET_BAND} strokeLinecap={band.single ? 'round' : 'butt'} />;
+        return <line key={`band${band.from}-${band.to}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={tone} strokeOpacity={0.42} strokeWidth={SET_BAND} strokeLinecap={band.single ? 'round' : 'butt'} data-mm-plane-part="band" />;
       })}
-      {shape.arrows.low !== null && <polygon points={edgeArrow(shape.arrows.low, vertical ? 1 : -1)} fill={tone} />}
-      {shape.arrows.high !== null && <polygon points={edgeArrow(shape.arrows.high, vertical ? -1 : 1)} fill={tone} />}
+      {shape.arrows.low !== null && <polygon points={edgeArrow(shape.arrows.low, vertical ? 1 : -1)} fill={tone} data-mm-plane-part="closed" />}
+      {shape.arrows.high !== null && <polygon points={edgeArrow(shape.arrows.high, vertical ? -1 : 1)} fill={tone} data-mm-plane-part="closed" />}
       {shape.dots.map((dot) => {
         const center = at(dot.at);
-        return <circle key={`dot${dot.value}`} cx={center.x} cy={center.y} r={8} fill={dot.closed ? tone : 'var(--mm-graph-bg)'} stroke={tone} strokeWidth={3} />;
+        return <circle key={`dot${dot.value}`} cx={center.x} cy={center.y} r={8} fill={dot.closed ? tone : 'var(--mm-graph-bg)'} stroke={tone} strokeWidth={3} data-mm-plane-part={dot.closed ? 'closed' : 'open'} />;
       })}
     </g>
   );
@@ -100,10 +100,10 @@ function SetPicks({ question, drawing, axisSet, picks, side }) {
   return (
     <g className="mm-rush-picks" pointerEvents="none" aria-hidden="true">
       {(drawing.arrows || []).filter((arrow) => picked.has(arrow.id)).map((arrow) => (
-        <circle key={`pick${arrow.id}`} cx={arrow.u * side - arrow.dx * 7} cy={arrow.v * side - arrow.dy * 7} r={15} fill="none" stroke="var(--mm-graph-highlight)" strokeWidth={3} />
+        <circle key={`pick${arrow.id}`} cx={arrow.u * side - arrow.dx * 7} cy={arrow.v * side - arrow.dy * 7} r={15} fill="none" stroke="var(--mm-graph-highlight)" strokeWidth={3} data-mm-plane-part="cursor" />
       ))}
       {used.map((point) => (
-        <circle key={`used${point.x},${point.y}`} cx={unitX(question.view, point.x) * side} cy={unitY(question.view, point.y) * side} r={11} fill="none" stroke="var(--mm-graph-highlight)" strokeWidth={3} />
+        <circle key={`used${point.x},${point.y}`} cx={unitX(question.view, point.x) * side} cy={unitY(question.view, point.y) * side} r={11} fill="none" stroke="var(--mm-graph-highlight)" strokeWidth={3} data-mm-plane-part="cursor" />
       ))}
     </g>
   );
@@ -140,20 +140,20 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
   const halo = { paintOrder: 'stroke', stroke: 'var(--mm-graph-bg)', strokeWidth: 3, strokeLinejoin: 'round' };
   return (
     <g aria-hidden="true">
-      <rect width={side} height={side} fill="var(--mm-graph-bg)" />
+      <rect width={side} height={side} fill="var(--mm-graph-bg)" data-mm-plane-part="paper" />
       {drawing.grid.verticals.map((line) => (
-        <line key={`gx${line.value}`} x1={line.u * side} x2={line.u * side} y1={0} y2={side} stroke="var(--mm-graph-grid)" strokeWidth={1} />
+        <line key={`gx${line.value}`} x1={line.u * side} x2={line.u * side} y1={0} y2={side} stroke="var(--mm-graph-grid)" strokeWidth={1} data-mm-plane-part="grid" />
       ))}
       {drawing.grid.horizontals.map((line) => (
-        <line key={`gy${line.value}`} x1={0} x2={side} y1={line.v * side} y2={line.v * side} stroke="var(--mm-graph-grid)" strokeWidth={1} />
+        <line key={`gy${line.value}`} x1={0} x2={side} y1={line.v * side} y2={line.v * side} stroke="var(--mm-graph-grid)" strokeWidth={1} data-mm-plane-part="grid" />
       ))}
-      <line x1={0} x2={side} y1={axisY} y2={axisY} stroke="var(--mm-graph-axis)" strokeWidth={2} />
-      <line x1={axisX} x2={axisX} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={2} />
+      <line x1={0} x2={side} y1={axisY} y2={axisY} stroke="var(--mm-graph-axis)" strokeWidth={2} data-mm-plane-part="axis" />
+      <line x1={axisX} x2={axisX} y1={0} y2={side} stroke="var(--mm-graph-axis)" strokeWidth={2} data-mm-plane-part="axis" />
       {drawing.asymptotes.vertical.map((u) => (
-        <line key={`av${u}`} x1={u * side} x2={u * side} y1={0} y2={side} {...ASYMPTOTE_STROKE} />
+        <line key={`av${u}`} x1={u * side} x2={u * side} y1={0} y2={side} data-mm-plane-part="line" {...ASYMPTOTE_STROKE} />
       ))}
       {drawing.asymptotes.horizontal.map((v) => (
-        <line key={`ah${v}`} x1={0} x2={side} y1={v * side} y2={v * side} {...ASYMPTOTE_STROKE} />
+        <line key={`ah${v}`} x1={0} x2={side} y1={v * side} y2={v * side} data-mm-plane-part="line" {...ASYMPTOTE_STROKE} />
       ))}
       {/* The curve runs on past the plot (the sampler extends it a band above
           and below), so it is clipped to the plot square itself rather than
@@ -165,12 +165,12 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
         <g transform={`scale(${side})`}>
           {drawing.paths.map((path, index) => (
             // eslint-disable-next-line react/no-array-index-key
-            <path key={index} d={path} fill="none" stroke="var(--mm-rush-curve)" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            <path key={index} d={path} fill="none" stroke="var(--mm-rush-curve)" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" data-mm-plane-part="line" />
           ))}
         </g>
         {/* Where the curve leaves the plot it keeps going: an arrowhead. */}
         {(drawing.arrows || []).map((arrow) => (
-          <polygon key={`arrow${arrow.u.toFixed(4)}-${arrow.v.toFixed(4)}`} className="mm-rush-arrow" points={arrowPoints(arrow, side)} fill="var(--mm-rush-curve)" stroke="var(--mm-rush-curve)" strokeWidth={1} strokeLinejoin="round" />
+          <polygon key={`arrow${arrow.u.toFixed(4)}-${arrow.v.toFixed(4)}`} className="mm-rush-arrow" points={arrowPoints(arrow, side)} fill="var(--mm-rush-curve)" stroke="var(--mm-rush-curve)" strokeWidth={1} strokeLinejoin="round" data-mm-plane-part="closed" />
         ))}
       </g>
       {/* The axis numbers are drawn OVER the curve, each with its own outline
@@ -204,6 +204,7 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
           fill={dot.closed ? 'var(--mm-rush-curve)' : 'var(--mm-graph-bg)'}
           stroke="var(--mm-rush-curve)"
           strokeWidth={2.5}
+          data-mm-plane-part={dot.closed ? 'closed' : 'open'}
         />
       ))}
     </g>
@@ -223,8 +224,8 @@ function FoundLine({ question, target, view, side, fresh }) {
   return (
     <g className={fresh ? 'mm-rush-found mm-rush-found-fresh' : 'mm-rush-found'} style={{ transformOrigin: vertical ? `${at}px ${side / 2}px` : `${side / 2}px ${at}px` }}>
       {vertical
-        ? <line x1={at} x2={at} y1={0} y2={side} {...ASYMPTOTE_STROKE} strokeWidth={3} />
-        : <line x1={0} x2={side} y1={at} y2={at} {...ASYMPTOTE_STROKE} strokeWidth={3} />}
+        ? <line x1={at} x2={at} y1={0} y2={side} {...ASYMPTOTE_STROKE} strokeWidth={3} data-mm-plane-part="line" />
+        : <line x1={0} x2={side} y1={at} y2={at} {...ASYMPTOTE_STROKE} strokeWidth={3} data-mm-plane-part="line" />}
       <text
         x={labelX}
         y={labelY}
@@ -248,8 +249,8 @@ function FoundMark({ question, target, view, side, fresh }) {
   const nearTop = cy < 28;
   return (
     <g className={fresh ? 'mm-rush-found mm-rush-found-fresh' : 'mm-rush-found'} style={{ transformOrigin: `${cx}px ${cy}px` }}>
-      <circle cx={cx} cy={cy} r={11} fill="var(--mm-rush-found)" stroke="var(--mm-graph-bg)" strokeWidth={2.5} />
-      <path d={`M${cx - 5} ${cy + 0.5} L${cx - 1.5} ${cy + 4} L${cx + 5.5} ${cy - 4}`} fill="none" stroke="var(--mm-graph-bg)" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={cx} cy={cy} r={11} fill="var(--mm-rush-found)" stroke="var(--mm-graph-bg)" strokeWidth={2.5} data-mm-plane-part="point" />
+      <path d={`M${cx - 5} ${cy + 0.5} L${cx - 1.5} ${cy + 4} L${cx + 5.5} ${cy - 4}`} fill="none" stroke="var(--mm-graph-bg)" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" data-mm-plane-part="halo" />
       <text
         x={nearRight ? cx - 16 : cx + 16}
         y={nearTop ? cy + 24 : cy - 13}
@@ -271,8 +272,8 @@ function MissMark({ x, y, view, side }) {
   const arm = 7;
   return (
     <g className="mm-rush-miss" style={{ transformOrigin: `${cx}px ${cy}px` }} aria-hidden="true">
-      <circle cx={cx} cy={cy} r={13} fill="none" stroke="var(--mm-rush-miss)" strokeWidth={2} opacity={0.6} />
-      <path d={`M${cx - arm} ${cy - arm} L${cx + arm} ${cy + arm} M${cx + arm} ${cy - arm} L${cx - arm} ${cy + arm}`} stroke="var(--mm-rush-miss)" strokeWidth={3} strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r={13} fill="none" stroke="var(--mm-rush-miss)" strokeWidth={2} opacity={0.6} data-mm-plane-part="ring" />
+      <path d={`M${cx - arm} ${cy - arm} L${cx + arm} ${cy + arm} M${cx + arm} ${cy - arm} L${cx - arm} ${cy + arm}`} stroke="var(--mm-rush-miss)" strokeWidth={3} strokeLinecap="round" data-mm-plane-part="line" />
     </g>
   );
 }
@@ -393,6 +394,7 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
           outline: cursorVisible ? '3px solid var(--mm-focus)' : 'none',
           outlineOffset: 3,
         }}
+        data-mm-plane=""
       >
         <GraphLayer drawing={drawing} view={view} side={side} />
         {foundTargets.map((target) => (
@@ -405,9 +407,9 @@ function GraphFeatureRushGraph({ question, drawing, side, found = [], feedback =
         {!revealSet && picks && <SetPicks question={question} drawing={drawing} axisSet={axisSet} picks={picks} side={side} />}
         {cursorVisible && (
           <g aria-hidden="true" pointerEvents="none">
-            <line x1={cursorX} x2={cursorX} y1={0} y2={side} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" />
-            <line x1={0} x2={side} y1={cursorY} y2={cursorY} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" />
-            <circle cx={cursorX} cy={cursorY} r={9} fill="none" stroke="var(--mm-focus)" strokeWidth={3} />
+            <line x1={cursorX} x2={cursorX} y1={0} y2={side} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" data-mm-plane-part="cursor" />
+            <line x1={0} x2={side} y1={cursorY} y2={cursorY} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" data-mm-plane-part="cursor" />
+            <circle cx={cursorX} cy={cursorY} r={9} fill="none" stroke="var(--mm-focus)" strokeWidth={3} data-mm-plane-part="cursor" />
           </g>
         )}
       </svg>

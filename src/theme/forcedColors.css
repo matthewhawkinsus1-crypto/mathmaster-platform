@@ -243,4 +243,230 @@
     forced-color-adjust: none;
     background: repeating-conic-gradient(CanvasText 0 25%, Canvas 0 50%) 0 0 / 14px 14px !important;
   }
+
+  /*
+   * THE COORDINATE PLANE. A plane is an SVG drawing, and forced colours leave
+   * an SVG's paint alone (Chromium gives every <svg> forced-color-adjust:
+   * preserve-parent-color): its fills and strokes, and the board's own
+   * background, border and focus ring, kept the app theme's colours, a light
+   * graph paper on a black page in a dark contrast theme. Every plane
+   * (`data-mm-plane`) is drawn here in the theme's colours instead: the board
+   * the page's Canvas, its axes, ticks and words CanvasText, its grid GrayText
+   * (the minor lines dotted), and every line, curve, point and mark on it
+   * CanvasText, told apart by their dashes, shapes and labels as they already
+   * are. What is selected, held or dragged, the keyboard's crosshair and the
+   * board's focus ring are Highlight. A contrast theme draws no translucent
+   * fill reliably, so a shaded region is hatched (a mask of lines, a second
+   * region the other way, so an overlap is cross-hatched) and a translucent
+   * glow is left out. No rule here opts out of forced colours: the drawing is
+   * out of them already, and is given system colours only.
+   *
+   * The plane's own colours are tokens (src/theme/tokens.css; a Live Challenge
+   * round sets them on its shell), so the tokens first, !important over the
+   * theme's and the round's own. --mm-focus is the focus ring every plane
+   * draws, and the keyboard's crosshair on a round's grid.
+   */
+  :root,
+  .mm-rush-shell,
+  .mm-line-shell {
+    --mm-graph-bg: Canvas !important;
+    --mm-graph-axis: CanvasText !important;
+    --mm-graph-label: CanvasText !important;
+    --mm-graph-grid: GrayText !important;
+    --mm-graph-grid-minor: GrayText !important;
+    --mm-graph-highlight: Highlight !important;
+    --mm-focus: Highlight !important;
+  }
+
+  .mm-rush-shell {
+    --mm-rush-curve: CanvasText !important;
+    --mm-rush-found: CanvasText !important;
+    --mm-rush-miss: CanvasText !important;
+    --mm-rush-asymptote: CanvasText !important;
+  }
+
+  .mm-line-shell {
+    --mm-line-draw: CanvasText !important;
+    --mm-line-given: CanvasText !important;
+    --mm-line-right: CanvasText !important;
+    --mm-line-wrong: CanvasText !important;
+    --mm-line-method: CanvasText !important;
+    --mm-line-helper: CanvasText !important;
+    --mm-line-label-bg: Canvas !important;
+    --mm-line-label-text: CanvasText !important;
+  }
+
+  /* The board: the page's Canvas, with an edge in the text colour where it
+     has one, and no shadow. */
+  [data-mm-plane] {
+    background-color: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+    color: CanvasText !important;
+  }
+
+  /* Every word on a plane: tick numbers, axis names and titles, point labels,
+     a readout. A label's halo is the board's colour (its token). The quadrant
+     names are a background, in the grid's colour. */
+  [data-mm-plane] text {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane] [data-quadrant-label] {
+    fill: GrayText !important;
+  }
+
+  /* An arrowhead drawn as a marker (the graphing calculator's axes). */
+  [data-mm-plane] marker > * {
+    fill: CanvasText !important;
+    stroke: CanvasText !important;
+  }
+
+  /* The parts of a plane (data-mm-plane-part), each in the theme's colours. */
+  [data-mm-plane-part="paper"] {
+    fill: Canvas !important;
+  }
+
+  [data-mm-plane-part="paper"][stroke] {
+    stroke: CanvasText !important;
+  }
+
+  [data-mm-plane-part="grid"] {
+    stroke: GrayText !important;
+    stroke-opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="grid-minor"] {
+    stroke: GrayText !important;
+    stroke-opacity: 1 !important;
+    stroke-dasharray: 1 3 !important;
+  }
+
+  [data-mm-plane-part="axis"] {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+  }
+
+  /* A line, a curve, a segment, a boundary, a guide: drawn in the text colour,
+     solid, dashed or dotted as it is drawn. */
+  [data-mm-plane-part="line"] {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* A point: a dot in the text colour, ringed in the board's colour so a line
+     under it still shows; a closed end or an arrowhead, solid; an open end, a
+     ring around the board's colour; a ring that marks a place. */
+  [data-mm-plane-part="point"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: Canvas !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="closed"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: CanvasText !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="open"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: CanvasText !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="ring"] {
+    fill: none !important;
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* What sits under a mark to part it from what it crosses (an asymptote's
+     wide under-stroke), and under a label (its plate): the board's colour.
+     A readout's chip has an edge too. */
+  [data-mm-plane-part="halo"] {
+    stroke: Canvas !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="plate"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="chip"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: CanvasText !important;
+    opacity: 1 !important;
+  }
+
+  /* Selected, held or dragged: the point, the marker, the crosshair that says
+     where it lands, and the keyboard's crosshair. */
+  [data-mm-plane-part="held"] {
+    fill: Highlight !important;
+    fill-opacity: 1 !important;
+    stroke: Canvas !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="held-open"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: Highlight !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="cursor"] {
+    fill: none !important;
+    stroke: Highlight !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* A translucent glow (a hovered point's, a press's): not drawn. What it
+     stood beside says the same: the point grows, the crosshair is ringed. */
+  [data-mm-plane-part="glow"] {
+    display: none !important;
+  }
+
+  /* A shaded region: hatched in the text colour, one way, and a second region
+     the other way, so where two overlap is cross-hatched. A mask lets only
+     the lines through, so the grid and the lines under the region show. */
+  [data-mm-plane-part="shade"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: none !important;
+    opacity: 1 !important;
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1.25px, transparent 1.25px 8px);
+  }
+
+  [data-mm-plane-part="shade"]:nth-child(even of [data-mm-plane-part="shade"]) {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1.25px, transparent 1.25px 8px);
+  }
+
+  /* A set shaded along an axis (a rush round's band): a broad stroke, hatched
+     the same way. */
+  [data-mm-plane-part="band"] {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1.25px, transparent 1.25px 5px);
+  }
+
+  /* A key beside a plane (a short line for each kind of mark) draws its line
+     as the plane now draws it. */
+  [data-mm-plane-key] :is(line, path) {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+  }
 }

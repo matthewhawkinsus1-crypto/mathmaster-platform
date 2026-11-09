@@ -51,7 +51,7 @@ function ComplexVisual({ values = [], title = 'Complex plane' }) {
       // The segments it draws below, said by the plane with its points.
       toolMarks={{ kinds: 'A segment joins the origin to each point.' }}
     >
-      {({ sx, sy }) => <>{items.map((item) => <line key={item.label} x1={sx(0)} y1={sy(0)} x2={sx(item.value.re)} y2={sy(item.value.im)} stroke={item.color} strokeWidth="2" opacity="0.7" />)}</>}
+      {({ sx, sy }) => <>{items.map((item) => <line key={item.label} x1={sx(0)} y1={sy(0)} x2={sx(item.value.re)} y2={sy(item.value.im)} stroke={item.color} strokeWidth="2" opacity="0.7" data-mm-plane-part="line" />)}</>}
     </CoordinatePlane>
     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>{items.map((item) => <span key={item.label} style={{ color: item.color, fontWeight: 800 }}>{item.label} = {formatComplex(item.value)}</span>)}</div>
     <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)' }}>Real part → horizontal coordinate; imaginary part → vertical coordinate.</p>
