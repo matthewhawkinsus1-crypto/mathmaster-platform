@@ -42,6 +42,27 @@
 // view: two lines upright, one on its side, where the whole stage is 177px
 // and a second line would leave the question nothing (W7-8 review, S1).
 //
+// THE LINE SAYS "SAVED" ONLY FOR WORK THAT WAS (RUN-3). App.jsx's queued-work
+// reconcile drains the device queue at sign-in, on a reconnect and every 10
+// seconds, and a drain that left nothing owed used to say "Draft saved."
+// whether or not it had delivered anything. On the Chromebook, where every
+// line is drawn:
+//
+//   U  after sign-in, and after the reconcile's next drain, an untouched
+//      question has had no save line at all (it read "Draft saved.");
+//   T  the refused save's line still stands after the reconcile's next drain
+//      (the drain wrote "Draft saved." over it, with nothing stored);
+//   Q  and so it does while the device queue holds other work: the question's
+//      progress, queued by Next and Previous, which this harness's server
+//      never takes. The reconcile says the queued work is there before it
+//      drains, and said "Draft saved on this device" over the refused line;
+//   M  and the student moves on from that refused save: Home says an answer is
+//      only on this screen; another assignment's untouched question has no
+//      save line (the refusal is not about it); a save stored there leaves
+//      Home saying it; a later save of the refused assignment's work clears
+//      it; Log Out asks first while it stands, and the next student signed in
+//      on this Chromebook is not told it.
+//
 // PHONE_SAVE_LINE_SHOTS=<dir> also saves a screenshot of each.
 // PHONE_SAVE_LINE_ONLY="phone 390×844,Chromebook 1366×768" runs only the layouts
 // whose id starts with one of those (all of them when it is not set).
@@ -206,12 +227,14 @@ const typeIntoFirst = async (page, text) => {
 // EVERY STATE OF THE SAVE LINE, IN ORDER, recorded from before the app runs
 // (an init script on the context). The student's saves are not the line's only
 // writer: App.jsx's queued-work reconcile drains the device queue on sign-in,
-// on a reconnect and every 10 seconds, and a drain that leaves nothing owed
-// says "Draft saved." whether or not anything was saved. So "Draft saved." is
-// up before the student types, and it can land on a refused save's line after
-// the journey has read it. Under load the journey took the first for the
-// student's own save, and measured the second, hidden on a phone, as the
-// refused line. Which save a line belongs to is read from this history.
+// on a reconnect and every 10 seconds. A drain that left nothing owed used to
+// say "Draft saved." whether or not anything was saved, so it was up before
+// the student typed, and it landed on a refused save's line after the journey
+// had read it: under load the journey took the first for the student's own
+// save, and measured the second, hidden on a phone, as the refused line. A
+// drain now says it only for work it delivered (U and T), but it can still
+// deliver the student's save before that save's own drain does. Which save a
+// line belongs to is read from this history.
 const recordSaveLine = (context) => context.addInitScript(() => {
   const history = [];
   window.__saveLineHistory = history;
@@ -228,11 +251,12 @@ const saveLineSince = (page, from) => page.evaluate((start) => window.__saveLine
 // The save the student just made, finished: since they began typing (`from`,
 // the history's length then) the line has said their draft was saved on this
 // device, that save queued, and it now says "Draft saved.", which a drain says
-// only when nothing is owed (App.jsx drainStudentOutbox), so after that save
-// was drained. The checkpoint waits out a debounce before it is written, so
-// the reconcile's "Draft saved." from before is not it: waiting for that, or
-// for a fixed time, let the journey switch the device's storage off with the
-// student's save still to come or still being written.
+// only once it has delivered work and nothing is owed (App.jsx
+// drainStudentOutbox), so after that save was drained. The checkpoint waits out
+// a debounce before it is written, so a "Draft saved." already on the line
+// (an earlier save's) is not it: waiting for that, or for a fixed time, let the
+// journey switch the device's storage off with the student's save still to come
+// or still being written.
 const QUEUED_DRAFT_LINE = 'Draft saved on this device. You may keep working.';
 const savedAndSettled = (page, from) => page.waitForFunction(([start, queuedLine]) => {
   const since = window.__saveLineHistory.slice(start);
@@ -244,11 +268,11 @@ const savedAndSettled = (page, from) => page.waitForFunction(([start, queuedLine
 });
 // The device refuses what the student types next (deviceStorageFault.mjs), and
 // the app's own line for that save is read: the first line after the switch
-// that needs the student, from the history, since by the time the page is
-// read again the reconcile may have written over it. The switch stays on until
-// the page is reloaded, so no later save is stored.
+// that needs the student, from the history. The switch stays on until the page
+// is reloaded, so no later save is stored.
 const failASave = async (page, digit = '8') => {
   const from = await saveLineHistoryLength(page);
+  await page.evaluate((start) => { window.__refusalFrom = start; }, from);
   await setDeviceStorageFull(page, true);
   await typeIntoFirst(page, digit);
   try {
@@ -259,20 +283,219 @@ const failASave = async (page, digit = '8') => {
   }
 };
 // The refused save's line, and what is measured beside it, measured while it
-// is the line on screen. If the reconcile wrote over it first, the
-// measurement was of the reconcile's line: the device then refuses the next
-// change as well, and that save's line is measured. The checks are the same.
+// is the line on screen. Nothing may write over it first: the student changes
+// nothing meanwhile, and a drain leaves a refused save's line as it is (App.jsx
+// drainStudentOutbox). The reconcile's tick used to write "Draft saved." over
+// it, and this journey then refused the next change too and measured that one,
+// up to three times. That retry now guards nothing, and on a phone, where T
+// does not run, it would hide a line written over again. So a line written
+// over before it is measured fails the journey, with what replaced it.
 const whileTheRefusedLineShows = async (page, refusedLine, measure) => {
-  let refused = refusedLine;
-  for (let attempt = 1; ; attempt += 1) {
-    const results = await measure();
-    const replaced = results.filter(Boolean).map((result) => result.saveLine).find((line) => !line || line.routine || line.text !== refused);
-    if (replaced === undefined) return results;
-    const by = JSON.stringify(replaced ? replaced.text : null);
-    if (attempt === 3) throw new Error(`the refused save's line was written over before it was measured, three times (by ${by})`);
-    console.log(`     the refused save's line was written over (by ${by}) before it was measured; the device refuses the next change too`);
-    refused = await failASave(page, attempt === 1 ? '9' : '8');
+  const results = await measure();
+  const replaced = results.filter(Boolean).map((result) => result.saveLine).find((line) => !line || line.routine || line.text !== refusedLine);
+  if (replaced === undefined) return results;
+  const since = await saveLineSince(page, await page.evaluate(() => window.__refusalFrom ?? 0));
+  throw new Error(`the refused save's line was written over before it was measured, by ${JSON.stringify(replaced ? replaced.text : null)} (the line since the refusal: ${JSON.stringify(since)})`);
+};
+// EVERY DRAIN OF THE DEVICE QUEUE, from the page's own copy of the telemetry
+// module: a drain ends by reporting the queue's depth (durableActionOutbox.js,
+// `submission_queue_depth`). A save that reaches the queue reports it too, so
+// a check reads this only while nothing is being stored. With no sample, a
+// check fails rather than pass on a reconcile that never ran.
+const watchDrains = (page) => page.evaluate(async () => {
+  if (window.__drainsAt) return;
+  const telemetry = await import('/src/platform/performance/performanceTelemetry.js');
+  window.__drainsAt = [];
+  telemetry.subscribeToPerformanceSamples((sample) => {
+    if (sample.name === 'submission_queue_depth') window.__drainsAt.push(Date.now());
+  });
+});
+const pageNow = (page) => page.evaluate(() => Date.now());
+// The reconcile's next drain after `since` (page time). Nothing the student
+// does starts one in these checks, so it is the 10-second tick's.
+const nextDrain = async (page, since, after) => {
+  await page.waitForFunction((start) => window.__drainsAt.some((at) => at > start), since, { timeout: 25000 })
+    .catch(() => { throw new Error(`no reconcile drained the device queue after ${after}`); });
+  // Its status is set as the drain returns; let the line take it.
+  await page.waitForTimeout(500);
+};
+const lineNow = (page) => page.evaluate(() => document.querySelector('[data-save-line]')?.textContent.trim() || null);
+// U: the question is open and untouched. The sign-in reconcile has drained
+// the (empty) queue by now, and the next tick drains it again.
+const untouchedSaysNothing = async (page, setting) => {
+  await watchDrains(page);
+  await nextDrain(page, await pageNow(page), 'the question opened');
+  const said = (await saveLineSince(page, 0)).filter((text) => text !== null);
+  check(said.length === 0, `U  an untouched question has had no save line since sign-in, after the reconcile's next drain (${setting.id})`,
+    said.length ? `the line said ${JSON.stringify(said)}` : 'no line');
+};
+// T: the refused save's line is on screen. The reconcile's next drain finds
+// nothing owed (in Q, only work it cannot deliver) and delivers nothing, and
+// the line still says what happened. The app may try the same change again
+// meanwhile ("Saving…", refused again); it never says anything was saved.
+const SAVING_LINE = 'Saving…';
+const refusedLineStands = async (page, setting, label = 'T ', when = '') => {
+  await watchDrains(page);
+  const from = await saveLineHistoryLength(page);
+  await nextDrain(page, await pageNow(page), 'the refused save');
+  const since = (await saveLineSince(page, from)) || [];
+  const now = await lineNow(page);
+  const other = since.filter((text) => text !== NEEDS_STUDENT_LINE && text !== SAVING_LINE);
+  check(now === NEEDS_STUDENT_LINE && other.length === 0, `${label} the refused save's line still stands after the reconcile's next drain${when} (${setting.id})`,
+    `now "${now}"${other.length ? `; the line since the refusal also said ${JSON.stringify(other)}` : ''}`);
+};
+// What the device queue holds, read from IndexedDB itself (reads still work
+// while the storage fault refuses writes).
+const queuedActions = (page) => page.evaluate(() => new Promise((resolve) => {
+  const open = indexedDB.open('mathmaster-student-actions');
+  open.onerror = () => resolve(-1);
+  open.onsuccess = () => {
+    const database = open.result;
+    try {
+      const request = database.transaction('outbox', 'readonly').objectStore('outbox').count();
+      request.onsuccess = () => { database.close(); resolve(request.result); };
+      request.onerror = () => { database.close(); resolve(-1); };
+    } catch {
+      database.close();
+      resolve(-1);
+    }
+  };
+}));
+// Q: Next and Previous queue the question's progress, which stays owed here
+// (this harness answers no submission without `server=1`); then the device
+// refuses a save on the question, and the reconcile's next tick finds the
+// queue holding that progress.
+const refusedWithWorkQueued = async (setting) => {
+  console.log(`\n${setting.id}: a refused save while other work is queued`);
+  const context = await newSchoolContext(browser, { viewport: { width: setting.width, height: setting.height } });
+  await installDeviceStorageFault(context);
+  await recordSaveLine(context);
+  const page = await context.newPage();
+  page.on('pageerror', (error) => failures.push(`${setting.id} (work queued): page error ${error.message}`));
+  try {
+    await signedIn(page, setting, { reset: true });
+    await openAssignment(page, setting);
+    for (const button of ['Next question', 'Previous question']) {
+      const from = await saveLineHistoryLength(page);
+      await page.locator(`button[aria-label="${button}"]`).filter({ visible: true }).first().click();
+      await page.waitForFunction(([start, line]) => window.__saveLineHistory.slice(start).some((state) => state.text === line), [from, QUEUED_DRAFT_LINE], { timeout: 30000 });
+      await page.locator('.mathmaster-question-stage math-field').first().waitFor({ timeout: 60000 });
+      await settle(page, setting);
+    }
+    const refused = await failASave(page, '8');
+    check(refused === NEEDS_STUDENT_LINE, `Q  the device refused a save while the question's progress is queued (${setting.id})`, `"${refused}"`);
+    await refusedLineStands(page, setting, 'Q ', ', with other work still queued');
+    const queued = await queuedActions(page);
+    check(queued > 0, `Q  that progress was still in the device queue through the drain (${setting.id})`, `${queued} queued`);
+  } catch (error) {
+    check(false, `${setting.id} (work queued) ran to the end`, error.message.split('\n')[0]);
   }
+  await context.close();
+};
+// M: Home, Assignments and another assignment, in the app (no reload: the
+// line's state is the page's).
+const NAV = 'nav[aria-label="Student navigation"]';
+const ONLY_ON_SCREEN = /an answer is only on this screen/;
+const homeLine = async (page) => {
+  const line = page.locator('p[role="status"][data-save-tone]').first();
+  await line.waitFor({ timeout: 30000 });
+  await page.waitForTimeout(300);
+  return { tone: await line.getAttribute('data-save-tone'), text: (await line.innerText()).replace(/\s+/g, ' ').trim() };
+};
+const leaveAssignment = async (page) => {
+  await page.locator('.mathmaster-unified-nav-back').filter({ visible: true }).first().click();
+  await page.locator(NAV).filter({ visible: true }).first().waitFor({ timeout: 30000 });
+};
+const goToScreen = async (page, label) => {
+  await page.locator(NAV).filter({ visible: true }).first().locator('a', { hasText: label }).first().click();
+};
+// Start or Continue on the assignment's row, in whichever tab of Assignments
+// it is listed under (an assignment not yet started is "Upcoming").
+const openFromAssignments = async (page, assignmentId, setting) => {
+  await goToScreen(page, 'Assignments');
+  const tabs = page.getByRole('tablist', { name: 'Assignment categories' }).getByRole('tab');
+  await tabs.first().waitFor({ timeout: 30000 });
+  const open = page.locator(`[data-row-actions="${assignmentId}"] button`).filter({ hasText: /^(Start|Continue)/ }).first();
+  for (let index = 0; !(await open.count()) && index < await tabs.count(); index += 1) {
+    await tabs.nth(index).click();
+    await page.waitForTimeout(300);
+  }
+  await open.click({ timeout: 10000 });
+  await page.locator('.mathmaster-question-stage math-field').first().waitFor({ timeout: 60000 });
+  await settle(page, setting);
+};
+// A student with two assignments open at once: the fixture's `&prereq=1`
+// opens Lesson 4 early for 910004 (fixture.js PREREQUISITE_EARLY), beside
+// today's lesson, whose Warm-Up is open.
+const MOVING_ON = Object.freeze({ student: '910004', refusedOn: 'a-prereq-lesson', other: 'a-today', next: '910005' });
+const movingOn = async (setting) => {
+  console.log(`\n${setting.id}: moving on from a refused save`);
+  const context = await newSchoolContext(browser, { viewport: { width: setting.width, height: setting.height } });
+  await installDeviceStorageFault(context);
+  await recordSaveLine(context);
+  const page = await context.newPage();
+  page.on('pageerror', (error) => failures.push(`${setting.id} (moving on): page error ${error.message}`));
+  const { student, refusedOn, other, next } = MOVING_ON;
+  try {
+    const search = new URLSearchParams({ as: 'student', studentId: student, questions: 'real', prereq: '1', reset: '1' });
+    await page.goto(`${PAGE}?${search}`, { timeout: 180000 });
+    await page.getByText('Log Out').first().waitFor({ timeout: 180000 });
+    await settle(page, setting);
+    await watchDrains(page);
+    await openFromAssignments(page, refusedOn, setting);
+    const refused = await failASave(page, '8');
+    check(refused === NEEDS_STUDENT_LINE, `M  the device refused a save on ${refusedOn} (${setting.id})`, `"${refused}"`);
+    // M1: Home.
+    await leaveAssignment(page);
+    await goToScreen(page, 'Home');
+    let home = await homeLine(page);
+    check(ONLY_ON_SCREEN.test(home.text), `M1 Home says an answer is only on this screen once the student has left it (${setting.id})`, home.text);
+    // M2: another assignment, untouched, through the reconcile's next drain.
+    const otherFrom = await saveLineHistoryLength(page);
+    await openFromAssignments(page, other, setting);
+    await nextDrain(page, await pageNow(page), `${other} opened`);
+    const otherSaid = (await saveLineSince(page, otherFrom)).filter((text) => text !== null);
+    check(otherSaid.length === 0, `M2 another assignment's untouched question has no save line: the refusal is not about it (${setting.id})`,
+      otherSaid.length ? `the line said ${JSON.stringify(otherSaid)}` : 'no line');
+    // M3: a save stored on that other assignment.
+    await setDeviceStorageFull(page, false);
+    const otherTyped = await saveLineHistoryLength(page);
+    await typeIntoFirst(page, '4');
+    await savedAndSettled(page, otherTyped);
+    await leaveAssignment(page);
+    await goToScreen(page, 'Home');
+    home = await homeLine(page);
+    check(ONLY_ON_SCREEN.test(home.text), `M3 a save stored on another assignment leaves Home saying an answer is only on this screen (${setting.id})`, home.text);
+    // M4: the refused assignment's work, saved later.
+    await openFromAssignments(page, refusedOn, setting);
+    const againFrom = await saveLineHistoryLength(page);
+    await typeIntoFirst(page, '5');
+    await savedAndSettled(page, againFrom);
+    await leaveAssignment(page);
+    await goToScreen(page, 'Home');
+    home = await homeLine(page);
+    check(home.tone === 'saved' && !ONLY_ON_SCREEN.test(home.text), `M4 once that assignment's work is saved later, Home no longer says it (${setting.id})`, home.text);
+    // M5: refused again, then Log Out and the next student on this Chromebook.
+    await openFromAssignments(page, refusedOn, setting);
+    const refusedAgain = await failASave(page, '6');
+    check(refusedAgain === NEEDS_STUDENT_LINE, `M5 the device refused another save on ${refusedOn} (${setting.id})`, `"${refusedAgain}"`);
+    await leaveAssignment(page);
+    await page.getByRole('button', { name: 'Log Out' }).first().click();
+    const dialog = page.getByRole('alertdialog');
+    const asked = await dialog.waitFor({ timeout: 10000 }).then(() => dialog.innerText()).catch(() => '');
+    check(/hasn't been sent/.test(asked), `M5 Log Out asks first while that work is only on screen (${setting.id})`, asked.replace(/\s+/g, ' ').slice(0, 120) || 'no question');
+    if (asked) await dialog.getByRole('button', { name: 'Log out anyway' }).click();
+    await page.waitForTimeout(800);
+    await page.evaluate((id) => window.__mmHarnessAuth.signInStudent(id), next);
+    await page.getByText('Log Out').first().waitFor({ timeout: 60000 });
+    await settle(page, setting);
+    home = await homeLine(page);
+    check(home.tone === 'saved' && !ONLY_ON_SCREEN.test(home.text), `M5 the next student on this Chromebook is not told the last one's work is only on screen (${setting.id})`, home.text);
+    await shot(page, `moving on ${setting.id}`);
+  } catch (error) {
+    check(false, `${setting.id} (moving on) ran to the end`, error.message.split('\n')[0]);
+  }
+  await context.close();
 };
 const draftKeys = (page) => page.evaluate((prefix) => Object.keys(window.localStorage).filter((key) => key.startsWith(prefix)), `mathmaster:draft:v2::${STUDENT}:${ASSIGNMENT}:`);
 const plant = (page, keys) => page.evaluate(([name, value]) => window.sessionStorage.setItem(name, value), [KEPT, JSON.stringify({ 'backup-refused': keys })]);
@@ -312,6 +535,7 @@ for (const setting of CHOSEN) {
   try {
     await signedIn(page, setting, { reset: true });
     await openAssignment(page, setting);
+    if (!setting.mobile) await untouchedSaysNothing(page, setting);
     const typedFrom = await saveLineHistoryLength(page);
     await typeIntoFirst(page, '7');
     await savedAndSettled(page, typedFrom);
@@ -357,6 +581,7 @@ for (const setting of CHOSEN) {
       const [line] = await whileTheRefusedLineShows(page, refusedLine, async () => [await seen(page, '[data-save-line]', setting)]);
       report(`L  a save line that needs the student is seen (the real "Not saved" line; ${setting.id})`, line);
       await shot(page, `line refused ${setting.id}`);
+      await refusedLineStands(page, setting);
     }
 
     const keys = await draftKeys(page);
@@ -375,6 +600,10 @@ for (const setting of CHOSEN) {
     check(false, `${setting.id} ran to the end`, error.message.split('\n')[0]);
   }
   await context.close();
+}
+for (const setting of CHOSEN.filter((each) => !each.mobile)) {
+  await movingOn(setting);
+  await refusedWithWorkQueued(setting);
 }
 
 await browser.close();
