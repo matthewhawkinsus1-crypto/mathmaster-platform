@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo } from 'react';
+import { memo, useEffect, useId, useMemo } from 'react';
 import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
@@ -132,7 +132,7 @@ const NO_SYMBOLS = Object.freeze([]);
 // `verdictsWithheld`: an exit ticket, a quiz or a test before its release
 // (QuestionEngine). Then the keypad says nothing about the answer
 // (withheldVerdictKeypad.js, N56); practice and classwork keep their scaffold.
-export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false }) {
+function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, verdictsWithheld = false }) {
   const { prompt, answerFields = NO_FIELDS } = question;
   // Read as the box its key says it is: an older import stamped some number
   // boxes as set boxes (RT02), and the grader reads them the same way.
@@ -163,14 +163,18 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   // this screen, the deadline finalizer, the tests — marks alike. It gets the
   // whole question, as the server does: whether a line field takes any form
   // of its line is read from the question's words (GR03, lineFormPolicy.mjs).
-  const graded = gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, answers);
+  // Once per change of the answers, not once per render.
+  const graded = useMemo(
+    () => gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, answers),
+    [question, safeFields, answers],
+  );
   const { parts, isCorrect } = graded;
   // A response that breaks its field's stated shape is not ready to submit:
   // the student is told why beside the field instead of losing a try to it.
-  const formatProblems = Object.fromEntries(safeFields.map((field) => [
+  const formatProblems = useMemo(() => Object.fromEntries(safeFields.map((field) => [
     field.id,
     formatProblemForResponse(field, answers[field.id]),
-  ]));
+  ])), [safeFields, answers]);
   const isComplete = graded.isComplete && !Object.values(formatProblems).some(Boolean);
 
   useEffect(() => {
@@ -184,10 +188,59 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
     });
   }, [answers, safeFields, prompt, question.mathDisplay, isComplete, isCorrect, onStateChange]);
 
+  // Read in the render the history changed in (useUndoHistory updates it with
+  // the value), so Undo is handed to the engine when what it can do changes:
+  // the first entry, the last undo. Handed over on every keystroke, it was a
+  // new controller each time, and the engine drew the whole question again.
+  const canUndo = history.canUndo;
   useEffect(() => {
-    onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: 'Undo the last field entry' });
+    onUndoStateChange?.({ canUndo, onUndo: history.undo, label: 'Undo the last field entry' });
     return () => onUndoStateChange?.(null);
-  }, [answers, history.canUndo, history.undo, onUndoStateChange]);
+  }, [canUndo, history.undo, onUndoStateChange]);
+
+  // What each box shows that its answer does not change: its choices, the
+  // keys its key needs, its example and its keypad. Once per question, not on
+  // every keystroke: the example is checked against the grader, and a new
+  // array of keys each render made the box build its keypad again.
+  const fieldPresentation = useMemo(() => new Map(safeFields.map((field) => {
+    const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
+    // What the key says (a relation or a letter only the key needs) and
+    // what any accepted form needs to be spelled (answerEntryTools.js).
+    const accepted = acceptedAnswersForField(field);
+    const inferredRequiredSymbols = neededAnswerSymbols({ key: fieldKeyValues(field, accepted), accepted });
+    // The keys a field names, the import's reading of its key among
+    // them, and this box's own reading of its answers.
+    const requiredSymbols = [
+      ...(Array.isArray(field.requiredSymbols) ? field.requiredSymbols : []),
+      ...(Array.isArray(field.inputContract?.requiredSymbols) ? field.inputContract.requiredSymbols : []),
+      ...inferredRequiredSymbols,
+    ];
+    // The field already enforces a shape through requiredSymbols. Saying
+    // so is the whole fix: an x-intercept box and a zero box look
+    // identical and reject each other's answers.
+    const answerShape = describeAnswerFormat(field);
+    // The box keeps the example alone and the words sit above it, where
+    // they wrap ("for exampl…" was all a 127px box could show). An
+    // inequality's example is in x and y when the prompt and the label
+    // name both (answerFormatHints.js readsXAndY). A number box's example
+    // is never one this box's grader would mark right (the 2026-11-06
+    // re-walk: "-4" was the answer in some versions).
+    const box = describeBoxPlaceholder(field, {
+      inferredFormat: shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : '',
+      prompt,
+      isAnswer: (typed) => gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, { [field.id]: typed })
+        .parts.find((part) => part.id === field.id)?.isCorrect === true,
+    });
+    // The keypad: the box's shape, the pad its field names (a number,
+    // an ordered pair), else the general one. Where the verdict is
+    // withheld nothing in it comes from the key: the pad is the one the
+    // field declares, and the keys of the secure field's profile and the
+    // letters the student reads take the place of the field's required
+    // symbols (withheldVerdictKeypad.js, N56).
+    const toolProfile = field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : (verdictsWithheld ? declaredKeypadProfile(field) : keypadProfileForResponseField(field)) || 'basic');
+    const withheldKeys = verdictsWithheld ? withheldVerdictKeys(field, { prompt, toolProfile }) : null;
+    return [field.id, { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys }];
+  })), [safeFields, question, prompt, verdictsWithheld]);
 
   return (
     <div>
@@ -249,42 +302,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
           const markId = `${markBase}-${field.id}-mark`;
-          const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
-          // What the key says (a relation or a letter only the key needs) and
-          // what any accepted form needs to be spelled (answerEntryTools.js).
-          const accepted = acceptedAnswersForField(field);
-          const inferredRequiredSymbols = neededAnswerSymbols({ key: fieldKeyValues(field, accepted), accepted });
-          // The keys a field names, the import's reading of its key among
-          // them, and this box's own reading of its answers.
-          const requiredSymbols = [
-            ...(Array.isArray(field.requiredSymbols) ? field.requiredSymbols : []),
-            ...(Array.isArray(field.inputContract?.requiredSymbols) ? field.inputContract.requiredSymbols : []),
-            ...inferredRequiredSymbols,
-          ];
-          // The field already enforces a shape through requiredSymbols. Saying
-          // so is the whole fix: an x-intercept box and a zero box look
-          // identical and reject each other's answers.
-          const answerShape = describeAnswerFormat(field);
-          // The box keeps the example alone and the words sit above it, where
-          // they wrap ("for exampl…" was all a 127px box could show). An
-          // inequality's example is in x and y when the prompt and the label
-          // name both (answerFormatHints.js readsXAndY). A number box's example
-          // is never one this box's grader would mark right (the 2026-11-06
-          // re-walk: "-4" was the answer in some versions).
-          const box = describeBoxPlaceholder(field, {
-            inferredFormat: shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : '',
-            prompt,
-            isAnswer: (typed) => gradeMultiAnswerResponse({ ...question, answerFields: safeFields }, { [field.id]: typed })
-              .parts.find((part) => part.id === field.id)?.isCorrect === true,
-          });
-          // The keypad: the box's shape, the pad its field names (a number,
-          // an ordered pair), else the general one. Where the verdict is
-          // withheld nothing in it comes from the key: the pad is the one the
-          // field declares, and the keys of the secure field's profile and the
-          // letters the student reads take the place of the field's required
-          // symbols (withheldVerdictKeypad.js, N56).
-          const toolProfile = field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : (verdictsWithheld ? declaredKeypadProfile(field) : keypadProfileForResponseField(field)) || 'basic');
-          const withheldKeys = verdictsWithheld ? withheldVerdictKeys(field, { prompt, toolProfile }) : null;
+          const { choiceOptions, inferredRequiredSymbols, requiredSymbols, answerShape, box, toolProfile, withheldKeys } = fieldPresentation.get(field.id);
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
@@ -372,3 +390,8 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
     </div>
   );
 }
+
+// Drawn again when its own answers change, or when the engine hands it new
+// props; the engine's other renders (one for every answer it is told about)
+// leave it as it is.
+export default memo(MultiAnswerGrader);

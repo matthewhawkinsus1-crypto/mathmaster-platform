@@ -185,9 +185,13 @@ test('nothing graded changes: the box publishes the same answer state either way
     const withheld = (await boxesOf(question, true)).published;
     assert.deepEqual(withheld, practice);
   }
+  // The answers are graded by the shared grader over the whole question and
+  // nothing else: not the withheld verdict, and not its keypad (memoised on
+  // the question, its fields and the answers since the keystroke pass).
   const source = executableSource(readFileSync(path.join(ROOT, 'src/MultiAnswerGrader.jsx'), 'utf8'));
-  assert.match(source, /const graded = gradeMultiAnswerResponse\(\{ \.\.\.question, answerFields: safeFields \}, answers\);/);
-  assert.doesNotMatch(region(source, 'const graded = ', 'useEffect(', 'grading'), /verdictsWithheld|withheldKeys/);
+  const grading = region(source, 'const graded = ', 'useEffect(', 'grading');
+  assert.match(grading, /gradeMultiAnswerResponse\(\{ \.\.\.question, answerFields: safeFields \}, answers\)/);
+  assert.doesNotMatch(grading, /verdictsWithheld|withheldKeys/);
 });
 
 test('QuestionEngine withholds the keypad\'s scaffold exactly where it withholds the verdict', () => {

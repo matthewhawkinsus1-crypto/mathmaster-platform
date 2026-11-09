@@ -126,7 +126,7 @@ test('an expression field holding an equation is held back with a reason; its ke
   assert.equal(formatProblemForResponse({ answerFormat: 'number', answer: '-9' }, '-9'), '');
 
   const multi = source('src/MultiAnswerGrader.jsx');
-  const completeness = region(multi, 'const graded = gradeMultiAnswerResponse', 'useEffect(', 'multi-answer completeness');
+  const completeness = region(multi, 'const graded = ', 'useEffect(', 'multi-answer completeness');
   assert.match(completeness, /formatProblemForResponse\(field, answers\[field\.id\]\)/);
   assert.match(completeness, /const isComplete = graded\.isComplete && !Object\.values\(formatProblems\)\.some\(Boolean\)/);
 });
