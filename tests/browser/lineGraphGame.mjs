@@ -502,6 +502,16 @@ const buildFieldsFor = (item) => {
   if (item.build.form === 'pointSlope') return { x1: String(item.marked.x), y1: String(item.marked.y), m: text(slopeOf(item.line)) };
   return { m: text(slopeOf(item.line)), b: text(yInterceptOf(item.line)) };
 };
+// A whole equation that is not the line's: the line's own boxes with one changed so that the line differs (a parallel
+// line in standard form, another slope through the same point, another intercept). Every box 7 (B 1) was the line's
+// own equation when the round dealt y = 7x + 7, 7x + y = 7 or a line of slope 7 through (7, 7), and was graded right.
+const wrongFieldsFor = (item) => {
+  const right = buildFieldsFor(item);
+  const another = (value) => (value === '7' ? '8' : '7');
+  if (item.build.form === 'standard') return { ...right, C: String(Number(item.line.c) + 1) };
+  if (item.build.form === 'pointSlope') return { ...right, m: another(right.m) };
+  return { ...right, b: another(right.b) };
+};
 const FIELD_LABEL = Object.freeze({ m: /^m,/, b: /^b,/, A: /^A,/, B: /^B,/, C: /^C,/, x1: /^x₁,/, y1: /^y₁,/ });
 const typeBoxes = async (student, item, fields) => {
   for (const [id, value] of Object.entries(fields)) {
@@ -1136,8 +1146,8 @@ await run('name-on-phones', async () => {
     await wait(250);
     check(S, (await feedbackOf(student)).kind === 'form', `${student.studentId}: unfinished boxes were not asked for (${JSON.stringify(await feedbackOf(student))})`);
     await hold.held('"Fill in every box…"');
-    // A wrong equation: every box a number, none the line's.
-    await typeBoxes(student, item, Object.fromEntries(fields.map((field) => [field, field === 'B' ? '1' : '7'])));
+    // A wrong equation: every box a number, and the line it names is not the item's.
+    await typeBoxes(student, item, wrongFieldsFor(item));
     await wait(200);
     await hold.held('the preview of a whole equation');
     await student.page.keyboard.press('Enter');
