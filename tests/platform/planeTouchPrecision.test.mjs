@@ -92,7 +92,12 @@ test('the plane takes the chip\'s place from the gesture, and a finger\'s lift l
   assert.match(plane, /const chipByTouch = previewByTouch && !keyboardActive;/);
   const chip = region(plane, 'const chip = useMemo(() => {', '}, [preview,', 'the readout chip');
   assert.match(chip, /readoutChipSpot\(\{[\s\S]*touch: chipByTouch[\s\S]*\}\)/, 'its place comes from readoutChipSpot, told whether a finger is down');
-  assert.match(chip, /chipByTouch \? formatCoordinate\(preview\)\.length \+ 2 : previewText\.length/, 'a finger\'s chip is as wide as the coordinates it shows; a mouse\'s as before');
+  assert.match(chip, /chipByTouch \? formatCoordinate\(preview\)\.length \+ 2 : `\$\{cursorLabel\} \$\{formatCoordinate\(preview\)\}`\.length/, 'a finger\'s chip is as wide as the coordinates it shows; a mouse\'s as before');
+  // The spoken line is the chip's width only while it is the cursor's label and coordinates: while the keyboard
+  // holds a point it is the whole move ("Moving the point from … Escape to put it back.", about 90 characters), and
+  // a chip sized from it ran wider than the plane.
+  assert.doesNotMatch(chip, /previewText/, 'the chip is never sized from the spoken line');
+  assert.match(plane, /: cursorAt \? `\$\{cursorLabel\} \$\{formatCoordinate\(cursorAt\)\}` : '';/, 'with no point held, the spoken line is the label and coordinates the mouse chip is sized from');
   // Press and slide record whether it is a finger and the point now shown.
   for (const [label, start, end] of [['press', 'const handlePointerDown = (event) => {', 'const handlePointerMove'], ['slide', 'const handlePointerMove = (event) => {', 'const handlePointerUp']]) {
     const handler = region(plane, start, end, label);

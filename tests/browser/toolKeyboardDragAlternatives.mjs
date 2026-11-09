@@ -136,6 +136,19 @@ const plane = async (browser, { at, options }) => {
     await until(async () => (await planeSays(page)).startsWith('Moving the point from (1, 3) to (1, 2).')),
     `${label}: Enter picked (1, 3) up and ArrowDown moves it (${await planeSays(page)})`,
   );
+  // The chip beside the held point shows its coordinates and is as wide as they need. It was sized from the spoken
+  // move above (about 90 characters) and ran wider than the plane, covering it while the point was moved.
+  const held = await page.evaluate(() => {
+    const host = document.activeElement?.closest?.('svg[role="application"]');
+    const chip = host?.querySelector('rect[data-mm-plane-part="chip"]');
+    const text = chip?.nextElementSibling;
+    if (!chip || !text) return null;
+    return { chip: Math.round(chip.getBBox().width), text: Math.round(text.getBBox().width), plane: Math.round(host.viewBox.baseVal.width), shows: text.textContent };
+  });
+  assert.ok(
+    held && held.shows === '(1, 2)' && held.text <= held.chip && held.chip < held.plane / 3,
+    `${label}: the held point's chip shows (1, 2) and is no wider than it needs (${JSON.stringify(held)})`,
+  );
   await page.keyboard.press('Enter');
   assert.ok(await until(async () => !(await planeSays(page)).startsWith('Moving the point')), `${label}: Enter put it down`);
   assert.equal(await submitByKeys(page, `${label}, moved`), true, `${label}: the point moved by keys is the one graded: (0, 4) and (1, 2) grade right`);

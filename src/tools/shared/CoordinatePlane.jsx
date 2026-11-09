@@ -819,14 +819,18 @@ export default function CoordinatePlane({
     const cy = sy(preview[1]);
     // Grows with the plane's text on a narrow plane (planeTextScale.js).
     const grow = planeFontSize(12, width, renderedWidth) / 12;
-    const characters = chipByTouch ? formatCoordinate(preview).length + 2 : previewText.length;
+    // A mouse's or the keyboard cursor's chip keeps the width of its spoken
+    // line ("Point (3, 4)"), as before; while the keyboard holds a point that
+    // line is the whole move ("Moving the point from … Escape to put it
+    // back."), about 90 characters, and a chip that wide covered the plane.
+    const characters = chipByTouch ? formatCoordinate(preview).length + 2 : `${cursorLabel} ${formatCoordinate(preview)}`.length;
     const chipWidth = revealCoordinates ? Math.max(58, characters * 7.2) * grow : 0;
     const chipHeight = 22 * grow;
     const { left, top } = readoutChipSpot({
       cx, cy, chipWidth, chipHeight, planeWidth: width, planeHeight: height, touch: chipByTouch, scale: renderedWidth ? renderedWidth / width : 1,
     });
     return { cx, cy, left, top, chipWidth, chipHeight, fontSize: 12 * grow };
-  }, [preview, previewText, revealCoordinates, width, height, renderedWidth, chipByTouch, xMin, xMax, yMin, yMax]);
+  }, [preview, cursorLabel, revealCoordinates, width, height, renderedWidth, chipByTouch, xMin, xMax, yMin, yMax]);
 
   /*
    * WHAT THIS PLANE CAN DO, TOLD TO WHOEVER IS HOLDING IT.
