@@ -107,8 +107,12 @@ const check = (ok, label, detail = '') => {
 // Chromebook page scrolls, so there the element is first brought into view,
 // as the student would.
 const SEEN = ([selector, minLines = 2]) => {
+  // The save line on screen as this measures, read in the same task: whether
+  // what is measured is still beside the line it is meant to be.
+  const saveLineNode = document.querySelector('[data-save-line]');
+  const saveLine = saveLineNode ? { text: saveLineNode.textContent.trim(), routine: saveLineNode.hasAttribute('data-save-line-routine') } : null;
   const element = document.querySelector(selector);
-  if (!element) return { cutBy: ['not on the page'], covered: [], full: false, startSeen: false };
+  if (!element) return { cutBy: ['not on the page'], covered: [], full: false, startSeen: false, saveLine };
   const lineHeight = (node) => {
     const style = getComputedStyle(node);
     return parseFloat(style.lineHeight) || 1.2 * parseFloat(style.fontSize);
@@ -169,6 +173,7 @@ const SEEN = ([selector, minLines = 2]) => {
     top: Math.round(rect.top),
     bottom: Math.round(rect.bottom),
     shown: `${Math.round(part.top)}–${Math.round(part.bottom)}`,
+    saveLine,
   };
 };
 
@@ -198,33 +203,76 @@ const typeIntoFirst = async (page, text) => {
   await page.keyboard.type(text, { delay: 25 });
   await page.keyboard.press('Tab');
 };
-// The save the student just made, finished: "Draft saved." is the line only
-// once the device queue has drained (App.jsx drainStudentOutbox, durable). A
-// fixed wait was not this under load: the queue could still be writing that
-// save when failASave switched the device's storage off, and the line then
-// measured belonged to it, caught mid-update, not to the next save.
-const savedAndSettled = (page) => page.waitForFunction(() => {
-  const line = document.querySelector('[data-save-line]');
-  return Boolean(line) && line.hasAttribute('data-save-line-routine') && line.textContent.trim() === 'Draft saved.';
-}, null, { timeout: 30000 }).catch(async () => {
-  const now = await page.locator('[data-save-line]').first().textContent({ timeout: 1000 }).catch(() => null);
-  throw new Error(`the save never settled on "Draft saved." (the line reads ${JSON.stringify(now && now.trim())})`);
+// EVERY STATE OF THE SAVE LINE, IN ORDER, recorded from before the app runs
+// (an init script on the context). The student's saves are not the line's only
+// writer: App.jsx's queued-work reconcile drains the device queue on sign-in,
+// on a reconnect and every 10 seconds, and a drain that leaves nothing owed
+// says "Draft saved." whether or not anything was saved. So "Draft saved." is
+// up before the student types, and it can land on a refused save's line after
+// the journey has read it. Under load the journey took the first for the
+// student's own save, and measured the second, hidden on a phone, as the
+// refused line. Which save a line belongs to is read from this history.
+const recordSaveLine = (context) => context.addInitScript(() => {
+  const history = [];
+  window.__saveLineHistory = history;
+  const record = () => {
+    const line = document.querySelector('[data-save-line]');
+    const state = line ? { text: line.textContent.trim(), routine: line.hasAttribute('data-save-line-routine') } : { text: null, routine: false };
+    const last = history[history.length - 1];
+    if (!last || last.text !== state.text || last.routine !== state.routine) history.push(state);
+  };
+  new MutationObserver(record).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['data-save-line-routine'] });
+});
+const saveLineHistoryLength = (page) => page.evaluate(() => window.__saveLineHistory.length);
+const saveLineSince = (page, from) => page.evaluate((start) => window.__saveLineHistory.slice(start).map((state) => state.text), from).catch(() => null);
+// The save the student just made, finished: since they began typing (`from`,
+// the history's length then) the line has said their draft was saved on this
+// device, that save queued, and it now says "Draft saved.", which a drain says
+// only when nothing is owed (App.jsx drainStudentOutbox), so after that save
+// was drained. The checkpoint waits out a debounce before it is written, so
+// the reconcile's "Draft saved." from before is not it: waiting for that, or
+// for a fixed time, let the journey switch the device's storage off with the
+// student's save still to come or still being written.
+const QUEUED_DRAFT_LINE = 'Draft saved on this device. You may keep working.';
+const savedAndSettled = (page, from) => page.waitForFunction(([start, queuedLine]) => {
+  const since = window.__saveLineHistory.slice(start);
+  const queued = since.findIndex((state) => state.routine && state.text === queuedLine);
+  const now = since[since.length - 1];
+  return queued >= 0 && queued < since.length - 1 && now.routine && now.text === 'Draft saved.';
+}, [from, QUEUED_DRAFT_LINE], { timeout: 30000 }).catch(async () => {
+  throw new Error(`the student's save never settled on "Draft saved." (the line since they typed: ${JSON.stringify(await saveLineSince(page, from))})`);
 });
 // The device refuses what the student types next (deviceStorageFault.mjs), and
-// the app's own line for it is waited for: the first save line that needs the
-// student. The switch stays on until the page is reloaded, so nothing later
-// can save and bring the routine line back while it is being measured.
-const failASave = async (page) => {
+// the app's own line for that save is read: the first line after the switch
+// that needs the student, from the history, since by the time the page is
+// read again the reconcile may have written over it. The switch stays on until
+// the page is reloaded, so no later save is stored.
+const failASave = async (page, digit = '8') => {
+  const from = await saveLineHistoryLength(page);
   await setDeviceStorageFull(page, true);
-  await typeIntoFirst(page, '8');
-  const line = page.locator('[data-save-line]:not([data-save-line-routine])').first();
+  await typeIntoFirst(page, digit);
   try {
-    await line.waitFor({ state: 'attached', timeout: 15000 });
+    const refused = await page.waitForFunction((start) => window.__saveLineHistory.slice(start).find((state) => state.text && !state.routine)?.text || false, from, { timeout: 15000 });
+    return await refused.jsonValue();
   } catch {
-    const now = await page.locator('[data-save-line]').first().textContent({ timeout: 1000 }).catch(() => null);
-    throw new Error(`the device refused a write, but the app showed no save line that needs the student (the line reads ${JSON.stringify(now && now.trim())})`);
+    throw new Error(`the device refused a write, but the app showed no save line that needs the student (the line since: ${JSON.stringify(await saveLineSince(page, from))})`);
   }
-  return (await line.textContent()).trim();
+};
+// The refused save's line, and what is measured beside it, measured while it
+// is the line on screen. If the reconcile wrote over it first, the
+// measurement was of the reconcile's line: the device then refuses the next
+// change as well, and that save's line is measured. The checks are the same.
+const whileTheRefusedLineShows = async (page, refusedLine, measure) => {
+  let refused = refusedLine;
+  for (let attempt = 1; ; attempt += 1) {
+    const results = await measure();
+    const replaced = results.filter(Boolean).map((result) => result.saveLine).find((line) => !line || line.routine || line.text !== refused);
+    if (replaced === undefined) return results;
+    const by = JSON.stringify(replaced ? replaced.text : null);
+    if (attempt === 3) throw new Error(`the refused save's line was written over before it was measured, three times (by ${by})`);
+    console.log(`     the refused save's line was written over (by ${by}) before it was measured; the device refuses the next change too`);
+    refused = await failASave(page, attempt === 1 ? '9' : '8');
+  }
 };
 const draftKeys = (page) => page.evaluate((prefix) => Object.keys(window.localStorage).filter((key) => key.startsWith(prefix)), `mathmaster:draft:v2::${STUDENT}:${ASSIGNMENT}:`);
 const plant = (page, keys) => page.evaluate(([name, value]) => window.sessionStorage.setItem(name, value), [KEPT, JSON.stringify({ 'backup-refused': keys })]);
@@ -254,6 +302,7 @@ for (const setting of CHOSEN) {
     hasTouch: Boolean(setting.mobile),
   });
   await installDeviceStorageFault(context);
+  await recordSaveLine(context);
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${setting.id}: page error ${error.message}`));
   if (setting.textScale) {
@@ -263,11 +312,12 @@ for (const setting of CHOSEN) {
   try {
     await signedIn(page, setting, { reset: true });
     await openAssignment(page, setting);
+    const typedFrom = await saveLineHistoryLength(page);
     await typeIntoFirst(page, '7');
-    await page.locator('[data-save-line]').first().waitFor({ state: 'attached', timeout: 15000 });
-    await savedAndSettled(page);
+    await savedAndSettled(page, typedFrom);
+    const upright = setting.mobile && setting.width <= setting.height;
     const barWhole = async (what) => {
-      if (!setting.mobile || setting.width > setting.height) return;
+      if (!upright) return;
       report(`B  the action bar is whole beside the ${what} (${setting.id})`, await seen(page, '.portrait-action-bar', setting));
     };
     if (setting.mobile) {
@@ -291,16 +341,21 @@ for (const setting of CHOSEN) {
       check(refusedLine === NEEDS_STUDENT_LINE, `L  the line is the app's own words for a write the device refused (${setting.id})`, `"${refusedLine}"`);
       // At 200% text the longest line is taller than the 30% cap and scrolls
       // in place, its start in view, as the problem notice does (W7-8).
-      report(`L  a save line that needs the student is seen (the real "Not saved" line; ${setting.id})`, await seen(page, '[data-save-line]', setting), { mayScroll: setting.textScale === 2 });
+      const [line, bar] = await whileTheRefusedLineShows(page, refusedLine, async () => [
+        await seen(page, '[data-save-line]', setting),
+        upright ? await seen(page, '.portrait-action-bar', setting) : null,
+      ]);
+      report(`L  a save line that needs the student is seen (the real "Not saved" line; ${setting.id})`, line, { mayScroll: setting.textScale === 2 });
       await shot(page, `line ${setting.id}`);
-      await barWhole('offline save line');
+      if (bar) report(`B  the action bar is whole beside the offline save line (${setting.id})`, bar);
     } else {
       report(`L  the save line is seen (${setting.id})`, await seen(page, '[data-save-line]', setting));
       await shot(page, `line ${setting.id}`);
       // And the same real failure: a Chromebook draws every line.
       const refusedLine = await failASave(page);
       check(refusedLine === NEEDS_STUDENT_LINE, `L  the line is the app's own words for a write the device refused (${setting.id})`, `"${refusedLine}"`);
-      report(`L  a save line that needs the student is seen (the real "Not saved" line; ${setting.id})`, await seen(page, '[data-save-line]', setting));
+      const [line] = await whileTheRefusedLineShows(page, refusedLine, async () => [await seen(page, '[data-save-line]', setting)]);
+      report(`L  a save line that needs the student is seen (the real "Not saved" line; ${setting.id})`, line);
       await shot(page, `line refused ${setting.id}`);
     }
 
