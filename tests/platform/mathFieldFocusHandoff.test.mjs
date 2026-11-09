@@ -341,3 +341,126 @@ test('the guard is installed once and removed with the binding', () => {
   assert.equal(guardStaleMathFieldFocus({}, { documentObject: doc }), null, 'no sink yet: nothing to guard');
 });
 
+
+/*
+ * FOCUS THAT LEFT FOR NOWHERE (a blur) IS NOT TAKEN BACK EITHER.
+ *
+ * A blur arrives at no element, so nothing recorded it as the page's intent,
+ * and MathLive's late focus pulled focus back into the box the page had just
+ * blurred: 3 times in 3 in Chromium (tests/browser/mathBoxFocus.mjs). Escape
+ * in a row with no keypad button blurs the box, and a closing question blurs
+ * whatever has focus.
+ */
+const blurTo = (doc, field, activeElement) => {
+  field.shadowRoot.activeElement = null;
+  doc.activeElement = activeElement;
+  doc.dispatch('focusout', field.sink, { relatedTarget: null });
+};
+
+test('a blur inside MathLive\'s 60 ms stays a blur: the box does not take focus back', async () => {
+  const doc = makeTrackingDocument();
+  const field = makeHostedField(doc, 'x');
+  bindMathFieldFocusHandoff(field, { documentObject: doc });
+  focusMathFieldWithoutScroll(field);
+  field.mathLiveFocused = true;
+  doc.dispatch('focusin', field.sink);
+
+  blurTo(doc, field, doc.body);
+  const callsBefore = field.sink.focusCalls.length;
+  field.sink.focus({ preventScroll: true });
+  assert.equal(doc.activeElement, doc.body, 'focus stays nowhere');
+  assert.equal(field.sink.focusCalls.length, callsBefore, 'refused before it reached the element');
+  await flushMicrotasks();
+  assert.ok(field.dispatched.includes('blur'), 'MathLive is told the box is no longer focused');
+});
+
+test('after a blur, the page asking for the box again is obeyed', () => {
+  const doc = makeTrackingDocument();
+  const field = makeHostedField(doc, 'x');
+  bindMathFieldFocusHandoff(field, { documentObject: doc });
+  focusMathFieldWithoutScroll(field);
+  doc.dispatch('focusin', field.sink);
+  blurTo(doc, field, doc.body);
+  // A keypad key or Undo: MathfieldElement.focus(), then MathLive's late focus.
+  field.focus();
+  field.sink.focus({ preventScroll: true });
+  assert.equal(doc.activeElement, field, 'the box the page asked for has focus');
+});
+
+test('a window that loses focus is not a blur: the box the page asked for still gets it', async () => {
+  const doc = makeTrackingDocument();
+  const field = makeHostedField(doc, 'x');
+  bindMathFieldFocusHandoff(field, { documentObject: doc });
+  // Focus is on a button; the page asks for the box (focus() moves nothing
+  // until MathLive's timer), and the student switches window meanwhile: the
+  // button's focusout has no element after it, but the page keeps the button.
+  const button = { name: 'Undo' };
+  doc.activeElement = button;
+  doc.dispatch('focusin', button);
+  field.focus();
+  doc.dispatch('focusout', button, { relatedTarget: null });
+  field.sink.focus({ preventScroll: true });
+  assert.equal(doc.activeElement, field, 'MathLive\'s focus of the box is carried out');
+  await flushMicrotasks();
+  assert.ok(!field.dispatched.includes('blur'), 'and the box is not blurred');
+});
+
+test('MathLive\'s own focusout (it blurs a box in its model) is not a blur', () => {
+  const doc = makeTrackingDocument();
+  const left = makeHostedField(doc, 'left');
+  const next = makeHostedField(doc, 'next');
+  bindMathFieldFocusHandoff(left, { documentObject: doc });
+  bindMathFieldFocusHandoff(next, { documentObject: doc });
+  // Focus is nowhere (a screen change took the old element away); the page
+  // asks for the next box, and MathLive, blurring the box it last had in its
+  // model, dispatches a focusout of its own on it.
+  doc.activeElement = doc.body;
+  next.focus();
+  doc.dispatch('focusout', left.sink, { relatedTarget: null, isTrusted: false });
+  next.sink.focus({ preventScroll: true });
+  assert.equal(doc.activeElement, next, 'the box the page asked for gets focus');
+});
+
+/*
+ * A BOX REACT MOVES IS GUARDED AGAIN. Moving an element disconnects and
+ * connects it; MathLive then builds the box a new keyboard sink, and the guard
+ * was left on the old one: a Tab inside the new sink's 60 ms came back to the
+ * box, 3 times in 3 (tests/browser/mathBoxFocus.mjs, a reordered list).
+ */
+test('a box MathLive rebuilt is guarded again on its mount', () => {
+  const doc = makeTrackingDocument();
+  const field = makeHostedField(doc, 'x');
+  const unbind = bindMathFieldFocusHandoff(field, { documentObject: doc });
+  const oldSink = field.sink;
+  const guardedOld = oldSink.focus;
+
+  // MathLive's connectedCallback: a new sink in the same shadow root.
+  const rebuilt = makeHostedField(makeTrackingDocument(), 'x-rebuilt').sink;
+  const ownRebuiltFocus = (options) => {
+    rebuilt.focusCalls.push(options);
+    field.shadowRoot.activeElement = rebuilt;
+    doc.activeElement = field;
+  };
+  rebuilt.focus = ownRebuiltFocus;
+  rebuilt.getRootNode = () => ({ host: field });
+  field.shadowRoot.querySelector = (selector) => (/keyboard-sink/.test(selector) ? rebuilt : null);
+  fire(field, 'mount', {});
+  assert.notEqual(rebuilt.focus, ownRebuiltFocus, 'the new sink is guarded');
+  assert.notEqual(oldSink.focus, guardedOld, 'the old one is let go');
+
+  // And the new guard works: focus went to another control; MathLive's late
+  // focus of the box is refused.
+  focusMathFieldWithoutScroll(field);
+  doc.dispatch('focusin', rebuilt);
+  const toggle = { name: 'Show math tools' };
+  field.shadowRoot.activeElement = null;
+  doc.activeElement = toggle;
+  doc.dispatch('focusin', toggle);
+  const callsBefore = rebuilt.focusCalls.length;
+  rebuilt.focus({ preventScroll: true });
+  assert.equal(doc.activeElement, toggle, 'focus stays on the control the student tabbed to');
+  assert.equal(rebuilt.focusCalls.length, callsBefore);
+
+  unbind();
+  assert.equal(rebuilt.focus, ownRebuiltFocus, 'unbinding lets the new sink go');
+});

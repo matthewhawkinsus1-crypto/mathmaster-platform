@@ -289,7 +289,8 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     // A closed math box says its answer, and Tab leaves it: MathLive's own Tab
     // cannot see the disabled fieldset, and trapped focus in the box.
     await open(page, 'interval', { closed: true });
-    const box = page.locator(`${AREA} math-field`).first();
+    // The notation box: the exact-endpoint box above it is a math box too.
+    const box = page.locator(`${AREA} math-field[aria-label^="Interval notation"]`).first();
     assert.match(await box.getAttribute('aria-label'), /^Interval notation: /, 'a closed box says its answer');
     await box.focus();
     await page.keyboard.press('Tab');

@@ -4,11 +4,10 @@ import InequalityNumberLine from './InequalityNumberLine.jsx';
 import StartLights from './StartLights.jsx';
 import { ARENA_RUSH_VARS, GP_RACE_CSS, arenaLayerCss } from './grandPrixTheme.js';
 import { INEQUALITY_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
 import { rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
-import { axisSetDrawing, graphDrawing, setAxisOf, setTapAt } from '../../platform/liveChallenge/rushGraphModel.js';
+import { axisSetDrawing, graphDrawing, setTapAt } from '../../platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
   RUSH_INPUT,
@@ -26,10 +25,14 @@ import {
   nextBatch,
   parseStoredQueue,
   prefetchRequest,
+  promptReserve,
   drawingReady,
+  feedbackReserve,
   isInequalityQuestion,
   isNumberLineQuestion,
   lineNotation,
+  rushItemKind,
+  rushRoundKinds,
   recordAxisTap,
   recordCheck,
   recordDoesNotExist,
@@ -40,6 +43,7 @@ import {
   toggleAxisArrow,
   rushQueueKey,
   settle,
+  widestNotation,
   withQuestions,
 } from '../../platform/liveChallenge/rushSession.js';
 import {
@@ -146,6 +150,24 @@ const promptWords = (question) => {
   return <>{question.prompt.slice(0, question.prompt.length - question.inequality.length)}<span className="mm-rush-math">{question.inequality}</span></>;
 };
 
+// What the notation under a set says while nothing is drawn: how to start.
+const notationPrompt = (inequality) => (inequality
+  ? 'Tap the number line, or use the arrow keys and Enter, to place a dot.'
+  : 'Tap the graph, or use the arrow keys and Enter, to place a dot.');
+
+// The hint under the prompt, the same words on every item of a kind
+// (rushSession.rushItemKind). Each names the keys beside the tap (AX32): the
+// graph takes focus when play begins, its arrow keys move a crosshair and
+// Enter presses where it is; a set question's Page Up and Page Down step to
+// each arrow and point. The graph's own name says the same.
+const rushHint = (kind) => {
+  if (kind.inequality) return 'Tap the number line, or use the arrow keys and Enter: once for a closed dot, twice for open, three times to take it away. Tap an end arrow, or arrow past the last number onto it, for "keeps going". Nothing works? No Solution.';
+  // Two lines on a phone: the tip a wrong tap gets says the rest.
+  if (kind.set) return `Tap the graph, or use Page Up, Page Down and Enter: an arrow for "keeps going", a point for its ${kind.vertical ? 'y' : 'x'}-value — twice for an open dot.${kind.canBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
+  if (kind.offScreen) return 'Tap it on the graph, or use the arrow keys and Enter. Past the edge? Off Screen. Not there at all? Does Not Exist.';
+  return 'Tap it on the graph, or use the arrow keys and Enter. Not there? Choose Does Not Exist.';
+};
+
 // A number line's frame: the area's width (to a readable most), and a
 // height that leaves room for the labels and the "Get ready" card.
 const lineFrame = ({ width, height }) => {
@@ -153,7 +175,14 @@ const lineFrame = ({ width, height }) => {
   return { width: lineWidth, height: Math.min(height, Math.max(160, Math.min(300, Math.round(lineWidth * 0.36)))) };
 };
 
-/** The round clock: its own component, so its ticks redraw nothing else. */
+/*
+ * The round clock: its own component, so its ticks redraw nothing else. Its
+ * slot holds both its faces, "Starts in 3" before GO and 0:59 after, each with
+ * an invisible reserve of the other: where the bar could run out of room, the
+ * countdown's longer words wrapped a phone's bar onto a second row (91 px at
+ * 390 px wide), so the bar shrank back to 57 px at GO, just as the first graph
+ * appeared, and the graph jumped up under the student's finger.
+ */
 function RushClock({ startMono, endMono }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
@@ -162,12 +191,18 @@ function RushClock({ startMono, endMono }) {
   }, []);
   const before = startMono - now;
   if (before > 0) {
-    return <span className="mm-rush-clock" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>Starts in {Math.ceil(before / 1000)}</span>;
+    return (
+      <span className="mm-rush-clock" data-soon="1" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>
+        <span className="mm-rush-clock-face">Starts in {Math.ceil(before / 1000)}</span>
+        <span className="mm-rush-reserve" aria-hidden="true">0:00</span>
+      </span>
+    );
   }
   const remaining = Math.max(0, endMono - now);
   return (
     <span className={remaining <= 10_000 ? 'mm-rush-clock mm-rush-clock-low' : 'mm-rush-clock'} role="timer" aria-label={`${Math.ceil(remaining / 1000)} seconds left`}>
-      {formatClock(remaining)}
+      <span className="mm-rush-clock-face">{formatClock(remaining)}</span>
+      <span className="mm-rush-reserve mm-rush-clock-soon" aria-hidden="true">Starts in 0</span>
     </span>
   );
 }
@@ -228,7 +263,7 @@ const RUSH_CSS = `
 }
 ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-bar {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   min-height: 52px; box-sizing: border-box;
   background: linear-gradient(90deg, rgba(42,15,92,.92), rgba(10,16,52,.92) 55%, rgba(42,15,92,.92));
@@ -237,20 +272,50 @@ ${arenaLayerCss('.mm-rush-shell')}
 /* The student's name on a racing plate. */
 .mm-rush-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #d92a48, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
 .mm-rush-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
+/* The round and its counts, one item of the bar: in its row on a wide screen,
+   the round over the counts on a phone (the max-width: 480px rules). */
+.mm-rush-tally, .mm-rush-counts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .mm-rush-done { font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #b8c4ef; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The round's points: what the race is ranked by. */
 .mm-rush-points { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* A count and its reserve (its largest count, drawn invisible) share one cell,
+   so the slot is as wide as the largest count from the round's start and a
+   count that grows moves nothing: on a 360 px phone a three-digit total wrapped
+   the bar (57 to 91 px), and the graph jumped 34 px under the student's finger.
+   A screen reader reads only the count. Wider than 60em (960 px at the default
+   text size, 1920 at 200%) the bar's longest row fits, so there the reserves
+   take no room. */
+.mm-rush-points, .mm-rush-done { display: inline-grid; align-items: center; justify-items: start; }
+.mm-rush-points > *, .mm-rush-done > *, .mm-rush-clock > * { grid-area: 1 / 1; }
+.mm-rush-reserve { display: none; }
 /* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
-.mm-rush-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
+.mm-rush-clock { display: inline-grid; align-items: center; justify-items: end; margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
 /* The last ten seconds: red, and a pulse (a transform: the compositor's). */
 .mm-rush-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
-.mm-rush-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; }
+/* "Reconnecting…" sits on the bar's lower edge and takes no room in it. In the
+   bar's row it wrapped a phone's bar onto more rows (57 to 122 px high at 390 px
+   wide), so the graph jumped down under the student's finger as the connection
+   dropped, and back up as it returned: a finger aimed at a feature landed 65 px
+   from it, a miss (the game driver's "did not complete after its answer" on a
+   phone). Low enough to sit in the bar's padding and the stage's, clear of the
+   prompt; it catches no pointer, so the stage under it stays the student's.
+   Every word is shown: one line at 320 px in CI's fonts (294 px wide), and where
+   it cannot be (large text on a phone) it wraps (an ellipsis cut it) and grows
+   up over the bar, never down over the prompt: its bottom is held half a line
+   below the edge (half of 1.25em and its 4px of padding and border), so one
+   line sits centred on it. */
+.mm-rush-sync {
+  position: absolute; left: 50%; bottom: calc(-0.625em - 2px); z-index: 2; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; text-align: center; text-wrap: balance;
+  padding: 1px 8px; border-radius: 999px; background: #4a3708; border: 1px solid #f9ab00; pointer-events: none;
+  font-size: calc(12 * var(--mm-px)); line-height: 1.25; font-weight: 900; color: #fdd663;
+}
 .mm-rush-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(53,227,255,.45); border-radius: 8px; background: rgba(10,16,52,.6); color: #eef2ff; font-weight: 900; cursor: pointer; }
 .mm-rush-stage {
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; min-height: 0;
   padding: 10px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
-.mm-rush-prompt h2 { margin: 0; font-size: clamp(calc(21 * var(--mm-px)), calc(4.2vmin * var(--mm-text-scale, 1)), calc(34 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #f7f9ff; }
+.mm-rush-prompt h2, .mm-rush-ask-held { margin: 0; font-size: clamp(calc(21 * var(--mm-px)), calc(4.2vmin * var(--mm-text-scale, 1)), calc(34 * var(--mm-px))); line-height: 1.15; font-weight: 800; color: #f7f9ff; }
 .mm-rush-hint { margin: 4px 0 0; font-size: calc(13 * var(--mm-px)); color: #b8c4ef; }
 .mm-rush-graph-area { position: relative; min-height: 0; min-width: 0; display: grid; place-items: start center; }
 /* The graph in neon: a cyan rim and a faint outer ring — crisp, not a blurred
@@ -258,13 +323,25 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 0 0 1px rgba(53,227,255,.6), 0 0 0 5px rgba(53,227,255,.1), 0 8px 30px rgba(0,0,0,.35); }
 .mm-rush-graph-frame[data-paused="1"] .mm-rush-graph { opacity: .55; transition: opacity 120ms; }
 .mm-rush-controls { display: grid; gap: 8px; }
-.mm-rush-feedback { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); }
+.mm-rush-feedback, .mm-rush-feedback-held { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); }
+/* What comes and goes around the graph keeps its room, so nothing it says or
+   shows moves the graph (rushSession.feedbackReserve, promptReserve,
+   rushRoundKinds): the feedback line is as tall as the longest things the
+   round can say, the prompt as the widest it can ask, the hint as every kind's
+   the round deals, the notation as its prompt or its widest set (on every item
+   of a round that deals sets), each drawn invisible in its own cell, and the
+   cooldown's bar keeps its place between pauses. Only where the screen is tall
+   for its text (the min-height: 36em rules below). */
+.mm-rush-hold { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mm-rush-hold > * { grid-area: 1 / 1; }
+.mm-rush-feedback-held, .mm-rush-notation-held, .mm-rush-ask-held, .mm-rush-hint-held { display: none; }
+.mm-rush-cooldown-slot:empty { display: none; }
 .mm-rush-feedback[data-kind="hit"], .mm-rush-feedback[data-kind="complete"] { color: #45ff8a; }
 .mm-rush-feedback[data-kind="miss"], .mm-rush-feedback[data-kind="autoSkipped"] { color: #ff8fa3; }
 .mm-rush-buttons { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
 .mm-rush-buttons[data-off-screen="1"] { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr); }
 .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 52px; border-radius: 12px; font-size: calc(17 * var(--mm-px)); font-weight: 1000; cursor: pointer; }
-/* Buttons with a little depth (a crisp ledge, no blur), pressed down on a tap (a transform only). */
+/* Buttons with a little depth (a crisp ledge, no blur), pressed down when pressed (a transform only). */
 .mm-rush-dne { border: 0; background: linear-gradient(180deg, #ffe680 0%, #ffc21a 60%, #f59f00 100%); color: #2b1700; box-shadow: 0 4px 0 #a86400; }
 .mm-rush-off { border: 2px solid #ffd23f; background: rgba(255,210,63,.1); color: #ffd23f; }
 .mm-rush-skip { border: 1px solid rgba(53,227,255,.45); background: rgba(10,16,52,.6); color: #eef2ff; }
@@ -282,14 +359,14 @@ ${arenaLayerCss('.mm-rush-shell')}
 .mm-rush-check { min-height: 52px; border-radius: 12px; font-size: calc(19 * var(--mm-px)); font-weight: 1000; cursor: pointer; border: 0; background: linear-gradient(180deg, #8dffb8 0%, #45ff8a 55%, #16c45a 100%); color: #052b14; box-shadow: 0 4px 0 #0c7a37; }
 .mm-rush-check:disabled { opacity: .45; cursor: not-allowed; }
 .mm-rush-check:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
-.mm-rush-notation { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
+.mm-rush-notation, .mm-rush-notation-held { font-size: calc(22 * var(--mm-px)); font-weight: 900; font-variant-numeric: tabular-nums; color: #f7f9ff; min-height: 1.3em; }
 /* An inequality's two forms break between them, never inside one. */
-.mm-rush-notation > span { white-space: nowrap; }
+.mm-rush-notation > span, .mm-rush-notation-held > span { white-space: nowrap; }
 .mm-rush-notation-sep { color: #b8c4ef; }
 .mm-rush-math { white-space: nowrap; }
 /* A number line sits in the middle of its area; a graph fills it from the top. */
 .mm-rush-graph-area[data-line="1"] { place-items: center; }
-.mm-rush-notation[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b8c4ef; }
+.mm-rush-notation[data-empty="1"], .mm-rush-notation-held[data-empty="1"] { font-size: calc(14 * var(--mm-px)); font-weight: 700; color: #b8c4ef; }
 .mm-rush-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
 .mm-rush-cooldown > span { display: block; height: 100%; background: #ff5d73; transform-origin: left; animation: mmRushDrain linear forwards; }
 .mm-rush-overlay {
@@ -328,10 +405,25 @@ ${GP_RACE_CSS}
   .mm-rush-controls { grid-area: controls; align-self: end; }
   .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"], .mm-rush-buttons[data-set="1"], .mm-rush-buttons[data-set="1"][data-dne="1"] { grid-template-columns: 1fr; }
 }
+/* Where the bar could run out of room (a phone, a tablet standing up, 200%
+   text): every count keeps its slot, and "Starts in 3" is drawn small enough to
+   share the clock's. */
+@media (max-width: 60em) {
+  .mm-rush-reserve { display: block; visibility: hidden; }
+  .mm-rush-clock[data-soon="1"] .mm-rush-clock-face, .mm-rush-clock-soon { font-size: calc(15 * var(--mm-px)); }
+}
+/* A phone: the round over its counts, so a four-digit total, the items done,
+   the status (on the bar's edge), the clock and Exit hold one row at 320 px in
+   CI's fonts, where the round's words beside the counts took two. */
 @media (max-width: 480px) {
   .mm-rush-chip { display: none; }
-  .mm-rush-bar { gap: 8px; }
+  .mm-rush-bar { gap: 6px; }
+  .mm-rush-exit { padding-left: 10px; padding-right: 10px; }
+  .mm-rush-tally { flex-direction: column; align-items: flex-start; gap: 0; }
+  .mm-rush-round { font-size: calc(12 * var(--mm-px)); line-height: 1.2; }
+  .mm-rush-counts { gap: 8px; line-height: 1.2; }
   .mm-rush-clock { font-size: calc(26 * var(--mm-px)); }
+  .mm-rush-clock[data-soon="1"] .mm-rush-clock-face, .mm-rush-clock-soon { font-size: calc(12 * var(--mm-px)); }
 }
 @media (max-height: 420px) {
   .mm-rush-bar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
@@ -339,7 +431,17 @@ ${GP_RACE_CSS}
   .mm-rush-hint { display: none; }
   .mm-rush-dne, .mm-rush-off, .mm-rush-skip { min-height: 46px; }
   .mm-rush-check { min-height: 46px; }
-  .mm-rush-notation { font-size: calc(17 * var(--mm-px)); }
+  .mm-rush-notation, .mm-rush-notation-held { font-size: calc(17 * var(--mm-px)); }
+}
+/* A screen tall for its text: a phone held upright at the default text size
+   or 125% (36em is 576 px at the default size), a tablet, a Chromebook. On a
+   phone at 150% or 200% text the graph, the prompt and a held line do not all
+   fit (at 360 x 740 and 200% a held line would leave the 128 px graph 37 px):
+   there the line takes the room its words need, as before, until that layout
+   is chosen. */
+@media (min-height: 36em) {
+  .mm-rush-feedback-held, .mm-rush-notation-held, .mm-rush-ask-held, .mm-rush-hint-held { display: block; visibility: hidden; }
+  .mm-rush-cooldown-slot:empty { display: block; height: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mm-rush-found-fresh, .mm-rush-in-a, .mm-rush-in-b, .mm-rush-count { animation: none; }
@@ -694,20 +796,44 @@ export default function GraphFeatureRushRound({
   // line as it is; on a graph, on its axis.
   const revealDrawing = useMemo(() => (revealing ? answerDrawing(question) : null), [revealing, question]);
   const revealSet = useMemo(() => (revealDrawing && !inequalityItem ? axisSetDrawing(question, revealDrawing) : null), [revealDrawing, inequalityItem, question]);
-  const vertical = setAxisOf(question) === 'y';
-  // A set that can be empty offers its "none" button: an inequality's "No
-  // Solution", an interval's "Does Not Exist" (a line that only rises has no
-  // decreasing interval). On every such item, so it never gives anything away.
-  const setCanBeEmpty = setQuestion && (inequalityItem || getGraphFeature(question?.feature)?.canNotExist === true);
   const notation = setQuestion ? lineNotation(question, studentDrawing, { revealing }) : null;
   const queued = session?.queue.length || 0;
   const buttonsDisabled = !playing || input !== RUSH_INPUT.READY;
+  // The room the feedback line keeps: what this round can say, never what
+  // this graph will (rushSession.feedbackReserve).
+  const roundFeatures = (room.graphFeatureRush?.config?.features || []).join(' ');
+  const feedbackRoom = useMemo(
+    () => feedbackReserve({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame }),
+    [roundFeatures, offScreenGame, inequalityGame],
+  );
+  // The kinds of item this round deals and the widest it can ask, from its
+  // settings: the prompt, the hint and the notation keep the room of every
+  // one of them, so neither the next item nor the next kind moves the graph
+  // (rushSession.rushRoundKinds, promptReserve).
+  const inequalityKinds = (room.inequalityRush?.config?.itemTypes || []).join(' ');
+  const inequalityDifficulty = room.inequalityRush?.config?.difficulty || '';
+  const roundKinds = useMemo(
+    () => rushRoundKinds({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame }),
+    [roundFeatures, offScreenGame, inequalityGame],
+  );
+  const promptRoom = useMemo(() => promptReserve(inequalityGame
+    ? { inequality: { itemTypes: inequalityKinds ? inequalityKinds.split(' ') : [], difficulty: inequalityDifficulty } }
+    : { features: roundFeatures ? roundFeatures.split(' ') : [] }), [inequalityGame, inequalityKinds, inequalityDifficulty, roundFeatures]);
+  const hintRoom = useMemo(() => [...new Set(roundKinds.map(rushHint))], [roundKinds]);
+  const roundSets = roundKinds.filter((kind) => kind.set);
+  const notationAxes = [...new Set(roundSets.map((kind) => (kind.vertical ? 'y' : 'x')))];
+  // What the hint and the controls show: the item's kind from GO; before it,
+  // the round's own (a point to tap where it deals one), never the first
+  // item's, which the countdown would give away.
+  const shownKind = started && question
+    ? rushItemKind(question, { offScreen: offScreenGame })
+    : roundKinds.find((kind) => !kind.set) || roundKinds[0] || rushItemKind(null, { offScreen: offScreenGame });
 
   const completedWords = `${completed} ${completed === 1 ? noun.one : noun.many} completed`;
   let overlay = null;
   if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : `Getting your ${noun.many} ready.`}</span></>;
   else if (phase === 'closed' || roundClosed) overlay = <><strong>Round over</strong><span>Waiting for the results…</span></>;
-  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>{inequalityGame ? 'Graph each inequality on the number line.' : 'Tap each feature you are asked for.'}</span></>;
+  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>{inequalityGame ? 'Graph each inequality on the number line.' : 'Tap each feature you are asked for, or use the arrow keys and Enter.'}</span></>;
   else if (over) {
     overlay = practice
       ? (
@@ -717,34 +843,45 @@ export default function GraphFeatureRushRound({
           {typeof onPracticeAgain === 'function' && <button type="button" className="mm-rush-skip" style={{ marginTop: 8 }} onClick={onPracticeAgain}>Play again</button>}
         </>
       )
-      : <><strong>Time!</strong><span>{completedWords}. {queued ? 'Saving your last taps…' : 'Waiting for the results…'}</span></>;
+      : <><strong>Time!</strong><span>{completedWords}. {queued ? 'Saving your last answers…' : 'Waiting for the results…'}</span></>;
   } else if (input === RUSH_INPUT.EXHAUSTED) overlay = <><strong>All done!</strong><span>You finished every {noun.one} in this round.</span></>;
   else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next {noun.one}.</span></>;
 
-  let promptHint = 'Tap it on the graph. Not there? Choose Does Not Exist.';
-  if (inequalityItem) promptHint = 'Tap the number line: once for a closed dot, twice for open, three times to take it away. Tap an end arrow for "keeps going". Nothing works? No Solution.';
-  // Two lines on a phone: the tip a wrong tap gets says the rest.
-  else if (setQuestion) promptHint = `Tap the graph: an arrow for "keeps going", a point for its ${vertical ? 'y' : 'x'}-value — twice for an open dot.${setCanBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
-  else if (offScreenGame) promptHint = 'Tap it on the graph. Past the edge? Off Screen. Not there at all? Does Not Exist.';
+  const promptHint = rushHint(shownKind);
 
   return (
     <div className="mm-rush-shell" role="region" aria-label={practice ? `${noun.game} practice` : `${noun.game}, round ${roundIndex + 1}`}>
       <style>{RUSH_CSS}</style>
       <header className="mm-rush-bar">
         {alias && <span className="mm-rush-chip">{alias}</span>}
-        <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        {/* The round's points, and items completed: each pops once as it goes up (keyed to it). */}
-        <span className="mm-rush-points"><span key={points} className={points > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">★ {points}</span><span style={SR_ONLY_STYLE}>{`${points} ${points === 1 ? 'point' : 'points'}`}</span></span>
-        <span className="mm-rush-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
-        {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your taps are saved</span>}
+        {/* The round and its counts: in the bar's row, and on a phone the round over the counts. */}
+        <span className="mm-rush-tally">
+          <span className="mm-rush-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
+          {/* The round's points, and items completed: each pops once as it goes up (keyed to it),
+              in a slot that holds its largest count (an invisible reserve), so a count that grows
+              never moves the bar: four digits of points, three of items (a round's pool is 150). */}
+          <span className="mm-rush-counts">
+            <span className="mm-rush-points"><span key={points} className={points > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">★ {points}</span><span className="mm-rush-reserve" aria-hidden="true">★ 0000</span><span style={SR_ONLY_STYLE}>{`${points} ${points === 1 ? 'point' : 'points'}`}</span></span>
+            <span className="mm-rush-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span className="mm-rush-reserve" aria-hidden="true">✓ 000</span><span style={SR_ONLY_STYLE}>{`${completed} ${noun.many} completed`}</span></span>
+          </span>
+        </span>
+        {connection === 'retrying' && <span className="mm-rush-sync" role="status">Reconnecting… your answers are saved</span>}
         <RushClock startMono={timing.startMono} endMono={timing.endMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-rush-exit" onClick={onExit}>{exitLabel}</button>}
       </header>
       <div className="mm-rush-stage">
         <section className="mm-rush-prompt" aria-live="polite">
           {practice && <div className="mm-rush-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
-          <h2>{playing && question ? promptWords(question) : noun.game}</h2>
-          <p className="mm-rush-hint">{promptHint}</p>
+          {/* What is asked and, invisible in its cell, the widest the round can ask: its room. */}
+          <div className="mm-rush-hold">
+            <h2>{playing && question ? promptWords(question) : noun.game}</h2>
+            {promptRoom.map((ask) => <div key={ask.prompt} className="mm-rush-ask-held" aria-hidden="true">{promptWords(ask)}</div>)}
+          </div>
+          {/* The hint and, the same way, every kind's the round deals. */}
+          <div className="mm-rush-hold">
+            <p className="mm-rush-hint">{promptHint}</p>
+            {hintRoom.map((words) => <p key={words} className="mm-rush-hint mm-rush-hint-held" aria-hidden="true">{words}</p>)}
+          </div>
         </section>
         <section className="mm-rush-graph-area" ref={graphAreaRef} data-line={inequalityGame ? '1' : '0'}>
           {frame.width > 0 && frame.height > 0 && (
@@ -799,34 +936,58 @@ export default function GraphFeatureRushRound({
           )}
         </section>
         <section className="mm-rush-controls">
-          <div className="mm-rush-feedback" data-kind={feedback?.kind || ''} aria-live="polite">{playing ? message : ''}</div>
-          {input === RUSH_INPUT.LOCKED && playing && (
-            <div className="mm-rush-cooldown" role="status" aria-label="Short pause after misses">
-              <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
-            </div>
-          )}
-          {setQuestion && (
+          {/* The line and, invisible in its cell, the longest things the round can say: its room. */}
+          <div className="mm-rush-hold">
+            <div className="mm-rush-feedback" data-kind={feedback?.kind || ''} aria-live="polite">{playing ? message : ''}</div>
+            {feedbackRoom.map((words) => <div key={words} className="mm-rush-feedback-held" aria-hidden="true">{words}</div>)}
+          </div>
+          {/* The cooldown's place, kept between pauses. */}
+          <div className="mm-rush-cooldown-slot">
+            {input === RUSH_INPUT.LOCKED && playing && (
+              <div className="mm-rush-cooldown" role="status" aria-label="Short pause after misses">
+                <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
+              </div>
+            )}
+          </div>
+          {roundSets.length > 0 && (
             // The set as it is drawn; while the answer is shown, the answer.
-            <div className="mm-rush-notation" data-empty={notation ? '0' : '1'} aria-live="polite">
-              {notation
-                ? notation.map((form, index) => (
-                  <span key={form}>
-                    {index > 0 && <><span className="mm-rush-notation-sep" aria-hidden="true"> · </span><span className="mm-rush-visually-hidden">, </span></>}
-                    {form}
-                  </span>
-                ))
-                : (inequalityItem ? 'Tap the number line to place a dot.' : 'Tap the graph to place a dot.')}
+            // Its room, on every item of a round that deals sets: its prompt
+            // and its widest set on each axis the round marks, invisible in
+            // its cell (a point's item shows only the room).
+            <div className="mm-rush-hold">
+              {shownKind.set && (
+                <div className="mm-rush-notation" data-empty={notation ? '0' : '1'} aria-live="polite">
+                  {notation
+                    ? notation.map((form, index) => (
+                      <span key={form}>
+                        {index > 0 && <><span className="mm-rush-notation-sep" aria-hidden="true"> · </span><span className="mm-rush-visually-hidden">, </span></>}
+                        {form}
+                      </span>
+                    ))
+                    : notationPrompt(shownKind.inequality)}
+                </div>
+              )}
+              <div className="mm-rush-notation-held" data-empty="1" aria-hidden="true">{notationPrompt(inequalityGame)}</div>
+              {notationAxes.map((axis) => (
+                <div key={axis} className="mm-rush-notation-held" data-empty="0" aria-hidden="true">
+                  {widestNotation({ axis }).map((form, index) => <span key={form}>{index > 0 && <span className="mm-rush-notation-sep"> · </span>}{form}</span>)}
+                </div>
+              ))}
             </div>
           )}
-          {setQuestion ? (
+          {shownKind.set ? (
             // "Keeps going" is tapped on the graph's own arrows (or the number
-            // line's): no arrow buttons here.
-            <div className="mm-rush-buttons" data-set="1" data-inequality={inequalityItem ? '1' : '0'} data-dne={setCanBeEmpty ? '1' : '0'}>
+            // line's): no arrow buttons here. A set that can be empty offers its
+            // "none" button (rushItemKind's canBeEmpty): an inequality's "No
+            // Solution", an interval's "Does Not Exist" (a line that only rises
+            // has no decreasing interval). On every such item, so it never
+            // gives anything away.
+            <div className="mm-rush-buttons" data-set="1" data-inequality={shownKind.inequality ? '1' : '0'} data-dne={shownKind.canBeEmpty ? '1' : '0'}>
               <button type="button" className="mm-rush-check" disabled={buttonsDisabled || !drawingReady(session)} onClick={onCheck}>✓ Check</button>
-              {inequalityItem && (
+              {shownKind.inequality && (
                 <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist} aria-label="No solution: no number makes it true">No Solution</button>
               )}
-              {setCanBeEmpty && !inequalityItem && (
+              {shownKind.canBeEmpty && !shownKind.inequality && (
                 <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
               )}
               <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>

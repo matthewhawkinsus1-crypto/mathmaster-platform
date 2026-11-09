@@ -303,7 +303,10 @@ test('the student\'s round counts down to their own deadline, says when it is ex
   assert.match(round, /useTimeAnnouncements\(clockEndMono, playing\)/);
   // The extra-time words: only between the class's buzzer and their own deadline.
   assert.match(round, /const extraTime = playing && pastBuzzer;/);
-  assert.match(region(round, '{extraTime && (', ')}', 'the extra-time banner'), /The race is over — finish your lines\. They count for your practice, not the race\./);
+  // (Its box is laid out from the start, unseen, so its arrival moves nothing:
+  // lineGraphExtraTimeBanner.test.mjs. The words come only then.)
+  assert.match(region(round, '{extraTimeAhead && (', '\n          )}', 'the extra-time banner'), /<span>\{extraTime \? EXTRA_TIME_WORDS : null\}<\/span>/);
+  assert.match(round, /const EXTRA_TIME_WORDS = 'Your extra time\. The race is over — finish your lines\. They count for your practice, not the race\.';/);
   // The slope helper: the room's, or theirs from their own round request.
   assert.match(round, /setOwnSlopeHelper\(reply\?\.slopeHelper === true\);/);
   assert.match(round, /slopeHelper=\{config\.slopeHelper === true \|\| ownSlopeHelper\}/);

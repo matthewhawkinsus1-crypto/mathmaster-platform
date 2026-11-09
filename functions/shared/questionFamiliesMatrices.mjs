@@ -11,7 +11,8 @@
  *                                  card values, columns card types); the same
  *                                  information as sentences, two totals in
  *                                  dollars over both months, and the type that
- *                                  sold the fewest. multiAnswer.
+ *                                  sold the fewest. multiAnswer. Version 2
+ *                                  writes the lesson's rewritten choices.
  *   matrices.addition              Warm-Up: add the two arrays. matrixLab,
  *                                  operate (add).
  *   numbers.multiplicativeInverse  Warm-Up: the inverse of a whole number and
@@ -182,7 +183,7 @@ const recordAnswers = ({ cardValues, first, second, asked }) => {
   };
 };
 
-export const arrayRecordTotalsFamily = defineQuestionFamily({
+const arrayRecordTotalsSpec = {
   id: 'matrices.arrayRecordTotals',
   version: 1,
   title: 'Read two arrays of data: totals over both and the smallest',
@@ -289,6 +290,44 @@ export const arrayRecordTotalsFamily = defineQuestionFamily({
     return { params, constraints: {} };
   },
   recovery: { eligible: true },
+};
+
+export const arrayRecordTotalsFamily = defineQuestionFamily(arrayRecordTotalsSpec);
+
+/*
+ * VERSION 2 WRITES THE CHOICES THE LESSON NOW HAS (F-LONGEST-IS-RIGHT). The
+ * lesson's Warm-Up 1 (l3m-wu-1) rewrote its "same information?" distractors,
+ * because the key was the longest choice by far and so could be picked
+ * unread: each is now a claim with a reason, wrong in one way. Version 1
+ * still writes the old two ("the arrays leave out the grocery cards", "the
+ * arrays only show December"), and Recovery bound version 1, so a student's
+ * fresh versions showed exactly the choices the lesson took away. Version 1
+ * is frozen: a Recovery binding stores the version it was certified with and
+ * an unpinned reference still means version 1. Version 2 is version 1 with
+ * only those two choices changed (its first names the version's own November
+ * count, as the lesson's names 230); the draws, keys, prompt, arrays and
+ * fingerprints are version 1's. A new Recovery binding takes it in place of
+ * version 1 (`replaces`, recoveryContentPlan.recoveryCandidateFamilies).
+ */
+const sameOptionsV2 = (first) => [
+  SAME_ANSWER,
+  `No — the arrays lose the card values, so ${first[0][0]} could be any card`,
+  'No — the arrays show only December, so November is missing',
+];
+
+export const arrayRecordTotalsFamilyV2 = defineQuestionFamily({
+  ...arrayRecordTotalsSpec,
+  version: 2,
+  tools: {
+    multiAnswer: (values, context) => {
+      const built = arrayRecordTotalsSpec.tools.multiAnswer(values, context);
+      return {
+        ...built,
+        answerFields: built.answerFields.map((field) => (field.id === 'same' ? { ...field, options: sameOptionsV2(values.first) } : field)),
+      };
+    },
+  },
+  recovery: { eligible: true, replaces: [1] },
 });
 
 /* ---------------------------------------------------------------------------
@@ -838,6 +877,7 @@ export const singularSystem3x3Family = defineQuestionFamily({
 
 export const MATRIX_FAMILIES = Object.freeze([
   arrayRecordTotalsFamily,
+  arrayRecordTotalsFamilyV2,
   matrixAdditionFamily,
   multiplicativeInverseFamily,
   matrixMultiplicationFamily,

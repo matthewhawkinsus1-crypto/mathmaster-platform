@@ -343,6 +343,8 @@ const graphHasDrawing = (graph = {}) => (
     asArray(graph.functions).length > 0
     || asArray(graph.points).length > 0
     || asArray(graph.segments).length > 0
+    || asArray(graph.verticalLines).length > 0
+    || asArray(graph.shading).length > 0
     || isObject(graph.line)
     || Number.isFinite(Number(graph.m))
     || Number.isFinite(Number(graph.b))
@@ -417,6 +419,16 @@ export const printableVisualsFromResolvedQuestion = (question = {}, { includeAns
   } else {
     const graph = graphWithFunctionSpec(question);
     if (graphHasDrawing(graph)) visuals.push({ kind: 'graph', graph, label: 'Graph' });
+    // A typed question's own labelled graphs ("write the inequality for graphs
+    // a, b and c", N38): on paper too, or the printed question names graphs
+    // the page does not show.
+    const graphs = asArray(question.candidateGraphs)
+      .map((entry, index) => ({
+        label: clean(entry?.label) || `Graph ${String.fromCharCode(65 + index)}`,
+        graph: isObject(entry?.graph) ? entry.graph : null,
+      }))
+      .filter((entry) => graphHasDrawing(entry.graph));
+    if (graphs.length) visuals.push({ kind: 'graphChoices', graphs });
   }
 
   return visuals;

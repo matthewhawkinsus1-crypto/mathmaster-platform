@@ -126,13 +126,14 @@ test('the browser capture covers every profile on both screen sizes, a phone\'s 
   }
 });
 
-test('an expression and an equation stay typed text for the reasons that are left', async () => {
-  // The grader's half: if either flips, the server reads the editor's
-  // division binding too, and what is left is a phone's keypad for these
-  // profiles (SECURE_TEXT_PROFILE_REASONS) and the browser capture.
-  assert.equal(await grades('\\frac{2A}{h}-b_2', '2A/h-b_2', { profile: 'expression' }), false, SECURE_TEXT_PROFILE_REASONS.expression);
+test('an expression and an equation stay typed text for the reasons that are left: none is the grader\'s', async () => {
+  // The grader's half is gone: the server reads the editor's stacked product
+  // inside a sum or as an equation's side as the same keys typed (TS05, the
+  // owner's decision). What is left is a phone's keypad for these profiles
+  // (SECURE_TEXT_PROFILE_REASONS) and the browser capture.
+  assert.equal(await grades('\\frac{2A}{h}-b_2', '2A/h-b_2', { profile: 'expression' }), true, 'the editor\'s stacked product in a sum is read');
   assert.equal(await grades('2A/h-b_2', '2A/h-b_2', { profile: 'expression' }), true, 'typed text is read');
-  assert.equal(await grades('h=\\frac{2A}{b}', 'h=2A/b', { profile: 'equation' }), false, SECURE_TEXT_PROFILE_REASONS.equation);
+  assert.equal(await grades('h=\\frac{2A}{b}', 'h=2A/b', { profile: 'equation' }), true, 'the editor\'s stacked product as an equation\'s side is read');
   assert.equal(await grades('h=2A/b', 'h=2A/b', { profile: 'equation' }), true, 'typed text is read');
   // Earlier reasons, gone: the grader reads a named function's backslash
   // (GR34), and the editor's spelling of every key a secure Test can issue

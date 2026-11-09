@@ -33,6 +33,10 @@
 //             ("…other one is not…") is said with the outcome.
 //   keypad    (TL23) a typed question's keypad offers π, e and logₐ only where
 //             the item's math uses them, on practice; on a DOL every key stays.
+//             (F-KEYPAD-GENERIC) an equation pad offers ⁿ√ on practice only
+//             where the answer needs it, on a Chromebook as on a phone (a
+//             Chromebook's DOL keeps it); an answer made with the key is spelled
+//             as the answer key is, and grades correct on both.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
@@ -60,7 +64,7 @@ const open = async (device, role, tool, prior = 0) => {
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${device}/${role}/${tool}: page error ${error.message}`));
   await page.goto(`${ORIGIN}/tests/browser/toolAttemptOutcome.html?role=${role}&tool=${tool}&prior=${prior}&run=${run}-${device}-${role}-${tool}-${prior}`, { waitUntil: 'networkidle' });
-  await page.locator(tool.startsWith('literal') ? '.mathmaster-question-tool-workspace' : '.mathmaster-tool-shell').first().waitFor({ timeout: 60000 });
+  await page.locator(/^(?:literal|equation)/.test(tool) ? '.mathmaster-question-tool-workspace' : '.mathmaster-tool-shell').first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(600);
   return { context, page };
 };
@@ -326,6 +330,79 @@ for (const role of ['dol', 'quiz', 'test']) {
   await context.close();
 }
 
+// ------------------------------------------- a missed sort names its card
+// F-SORT-WHICH-CARD. A fixed-category sort with one card in the wrong category
+// marks that card on practice, says how many, and no longer says "Focus on:
+// Mathematical grouping", which names nothing. On a DOL, quiz or test before
+// release the sort is submitted and nothing about right or wrong appears.
+const placeSort = async (page, placements) => {
+  for (const [card, category] of placements) {
+    await page.getByRole('button', { name: `${category}: place ${card} here` }).click();
+    await page.waitForTimeout(120);
+  }
+  await page.getByRole('button', { name: /^(Check my sort|Submit)/ }).first().click();
+};
+for (const device of ['chromebook', 'phone']) {
+  const { context, page } = await open(device, 'practice', 'sort');
+  await placeSort(page, [['Card A', 'Even'], ['Card B', 'Odd'], ['Card C', 'Odd'], ['Card D', 'Odd']]);
+  await waitForOutcome(page);
+  await page.waitForTimeout(300);
+  const state = await outcomeState(page);
+  const marked = await page.locator('[data-sort-card-wrong]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-placed-card')));
+  check(marked.length === 1 && marked[0] === 'c', `${device} practice sort, one card misplaced: that card, and only that card, is marked`, JSON.stringify(marked));
+  check(/One card is not in the right category yet/.test(state.pageText) && /Not in the right category yet/.test(await page.locator('[data-sort-card-wrong]').innerText()),
+    `${device} practice sort: the count and the card both say so`);
+  check(!/Focus on/.test(state.pageText), `${device} practice sort: no "Focus on: Mathematical grouping" line`, state.pageText.match(/Focus on[^\n]*/)?.[0] || '');
+  check(/You have 2 tries left/.test(state.text) && state.count === 1 && state.liveRegions === 1, `${device} practice sort: the try count is still said, once`, state.text);
+  // Moving the card takes the mark with the verdict it belonged to.
+  await page.locator('[data-placed-card="c"]').getByRole('button', { name: /take it out of/ }).click();
+  await page.waitForTimeout(200);
+  check(await page.locator('[data-sort-card-wrong]').count() === 0, `${device} practice sort: changing the work clears the marks`);
+  await context.close();
+}
+for (const role of ['dol', 'quiz', 'test']) {
+  const { context, page } = await open('chromebook', role, 'sort');
+  await placeSort(page, [['Card A', 'Even'], ['Card B', 'Odd'], ['Card C', 'Odd'], ['Card D', 'Odd']]);
+  await page.waitForFunction(() => /Your answer is saved\. You will see whether it is right when /.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  const text = await page.evaluate(() => document.body.innerText);
+  check(await page.locator('[data-sort-card-wrong]').count() === 0 && !/not in the right category|Not quite|wrong category/i.test(text),
+    `chromebook ${role} sort: no card is marked and nothing says what is wrong`);
+  await context.close();
+}
+
+// ---------------------------------- a fixed-category sort that asks for reasons
+// F-SORT-NO-REASON. Where the author asks for a reason per category, each
+// category that holds cards shows the box ("For your teacher"), Check waits
+// for them, and the reason is saved without being marked.
+{
+  const { context, page } = await open('chromebook', 'practice', 'sortReasons');
+  const checkButton = page.getByRole('button', { name: /^(Check my sort|Submit)/ }).first();
+  check(await page.locator('textarea').count() === 0, 'sort reasons: no box for a category that holds no cards');
+  for (const [card, category] of [['Card A', 'Even'], ['Card B', 'Odd'], ['Card C', 'Even'], ['Card D', 'Odd']]) {
+    await page.getByRole('button', { name: `${category}: place ${card} here` }).click();
+    await page.waitForTimeout(120);
+  }
+  check(await page.locator('textarea').count() === 2 && await page.locator('[data-rationale-audience]').count() === 2,
+    'sort reasons: one box per category, each saying who reads it');
+  check(await checkButton.isDisabled() && /explanation for each category/.test(await page.evaluate(() => document.body.innerText)),
+    'sort reasons: Check waits for the reasons, and says so');
+  const labels = await page.locator('textarea').evaluateAll((boxes) => boxes.map((box) => box.getAttribute('aria-label')));
+  check(new Set(labels).size === 2 && labels.some((label) => /Even/.test(label)) && labels.some((label) => /Odd/.test(label)),
+    'sort reasons: each box is named for its category', labels.join(' | '));
+  const boxes = page.locator('textarea');
+  await boxes.nth(0).fill('Each of these numbers divides by 2 with nothing left.');
+  await boxes.nth(1).fill('Each of these numbers leaves 1 when divided by 2.');
+  await page.waitForTimeout(150);
+  check(!(await checkButton.isDisabled()), 'sort reasons: with both reasons written, Check is ready');
+  check((await page.evaluate(() => document.body.innerText)).match(/Saved for your teacher\. It is not marked right or wrong\./g)?.length === 2, 'sort reasons: the reason is saved, not marked');
+  await checkButton.click();
+  await page.waitForFunction(() => /Correct|tries? left|Your answer is saved/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  const grades = await page.evaluate(() => window.__mmGrades);
+  check(grades.length === 1 && grades[0].isCorrect === true, 'sort reasons: the right sort with its reasons is correct', JSON.stringify(grades));
+  await context.close();
+}
+
 // ------------------------------------------------- π, e and logₐ (TL23)
 // A keypad offers π, e and logₐ only where the item's math uses them — on
 // practice. An assessment item keeps every key: its keypad says nothing about
@@ -348,6 +425,44 @@ for (const device of ['chromebook', 'phone']) {
     const shown = CONSTANT_KEYS.filter((key) => keys.includes(key));
     check(JSON.stringify(shown) === JSON.stringify(expected) && keys.includes('√') && keys.includes('a⁄b'),
       `${device} ${role} ${tool}: the keypad offers ${expected.length ? expected.join(', ') : 'none of π, e, logₐ'} (and keeps √ and a⁄b)`, keys.join(' '));
+    await context.close();
+  }
+}
+
+// ------------------------------------------------- ⁿ√ (F-KEYPAD-GENERIC)
+// On practice an equation pad offers ⁿ√ only where the answer needs it — on a
+// Chromebook now as on a phone; an assessment keeps a Chromebook's. Where it is
+// offered (the pad, or the phone's "Needed for this answer" row), an answer
+// made with it is spelled as the key spells it, and grades the same on both.
+const offeredKeys = async (page) => [
+  ...await keypadKeys(page),
+  ...await page.locator('.mathmaster-required-answer-keys button').evaluateAll((buttons) => buttons.map((button) => button.textContent.trim())),
+];
+for (const device of ['chromebook', 'phone']) {
+  const scenes = [['practice', 'equation', false], ['practice', 'equationRoot', true], ...(device === 'chromebook' ? [['dol', 'equation', true]] : [])];
+  for (const [role, tool, offered] of scenes) {
+    const { context, page } = await open(device, role, tool);
+    const keys = await offeredKeys(page);
+    check(keys.includes('ⁿ√') === offered, `${device} ${role} ${tool}: ⁿ√ is ${offered ? '' : 'not '}offered`, keys.join(' '));
+    if (tool === 'equationRoot') {
+      const field = page.locator('.mathmaster-question-tool-workspace math-field').first();
+      await field.click();
+      await page.keyboard.type('x=');
+      // The key each device offers: a Chromebook's own pad key, a phone's in its "Needed for this answer" row.
+      const key = device === 'phone'
+        ? page.locator('.mathmaster-required-answer-keys button', { hasText: 'ⁿ√' })
+        : page.locator('[role="toolbar"][aria-label="Math tools"] button', { hasText: 'ⁿ√' });
+      await key.first().click();
+      await page.keyboard.type('3');
+      await page.keyboard.press('Tab');
+      await page.keyboard.type('20');
+      const value = await field.evaluate((element) => element.value);
+      check(value === 'x=\\sqrt[3]{20}', `${device}: the ⁿ√ key spells the root as the answer key does`, value);
+      await page.locator('button.mathmaster-bar-submit').click();
+      await page.waitForFunction(() => window.__mmGrades.length > 0, null, { timeout: 8000 }).catch(() => {});
+      const grades = await page.evaluate(() => window.__mmGrades);
+      check(grades.length === 1 && grades[0].isCorrect === true, `${device}: the answer made with the ⁿ√ key grades correct`, JSON.stringify(grades));
+    }
     await context.close();
   }
 }

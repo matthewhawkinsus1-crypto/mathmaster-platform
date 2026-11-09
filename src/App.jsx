@@ -85,6 +85,7 @@ import {
 // brings every family's generator and loads with the question runtime below
 // (loadFamilyDelivery), never in the first load.
 import { readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDeliveryPins.js';
+import { countedQuestion, countedQuestionKnown, shownDeliveryKey } from './platform/generation/shownFamilyQuestion.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilySlot.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
 import {
@@ -94,6 +95,7 @@ import {
   markIndividuallyAssigned,
   mergeStudentAssignments,
   priorWorkAssignmentIds,
+  priorWorkFromClassLeft,
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
@@ -135,7 +137,9 @@ import {
   saveResumeAction,
   subscribeToQuestionDrafts,
 } from './questionDraftStorage';
-import { answerFocusPosition } from './platform/interaction/answerEntryUx.js';
+// The cursor's box alone, not the answer-entry contract (Enter, focus on open,
+// the math field's handoff), which loads with the question runtime (PF01).
+import { answerFocusPosition } from './platform/interaction/answerFocusPosition.js';
 import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
@@ -170,6 +174,7 @@ import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
 import { useAskMyTeacher, useTeacherQuestionsOn } from './platform/supports/useAskMyTeacher.js';
 import { questionFor } from './platform/supports/askTeacher.js';
+import { followRosterClass, followSupportProfile, rosterMembershipOf, sameRosterMembership, studentClassFields } from './platform/student/rosterMembership.js';
 import TeacherAnswers from './components/student/TeacherAnswers.jsx';
 import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
 import {
@@ -193,7 +198,6 @@ import {
   buildSupportUsage,
   getStudentSupportPresentation,
   normalizeStudentProfile,
-  sameStudentProfile,
 } from './studentSupport';
 
 import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasStandards.js';
@@ -209,6 +213,7 @@ import {
   outcomeWithheld,
   QUESTION_STATUS,
   SECTION_ACCESS,
+  NAVIGATOR_PENDING_LABEL,
   describeNavigatorQuestion,
   describeNavigatorSectionProgress,
   describeSectionAccess,
@@ -219,6 +224,7 @@ import { SR_ONLY_STYLE } from './ui/srOnly.js';
 import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
 import { measurePerformanceOperation, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
+import { sameStableValue, useRenderStability } from './platform/performance/renderStability.js';
 import {
   createDurableAction,
   drainDurableActions,
@@ -303,7 +309,7 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
-import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts, saveLineIsRoutine } from './platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, persistenceStatusAfterDrain, persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, persistenceStatusWithUnstoredWork, saveLineIsAboutDrafts, saveLineIsRoutine, withUnstoredWork, withoutUnstoredWork } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
@@ -350,19 +356,26 @@ import {
   TEACHER_SUPPORT_STREAM_TABS,
 } from './app/screenScopes.js';
 // Every screen loaded on demand (one chunk each), and the teacher-only
-// panels, each with its own Suspense boundary (lazyScreens.js).
+// panels, each with its own Suspense boundary (lazyScreens.js). The student's
+// Grades, Assignments, Rewards and result screens also carry their own way
+// through code that cannot load, and are fetched while Home is idle (PF01).
 import {
   LiveChallengeStudent,
   MyMathPathApp,
   QuestionEngine,
   ReviewMyWork,
   SectionRecoveryRunner,
+  StudentAssignmentResult,
+  StudentAssignmentsCenter,
+  StudentGradeCenter,
+  StudentRewardsCenter,
   StudentSecureExamDashboard,
   TeacherQuestionReviewPanel,
   TeacherWorkspace,
   TestCycleCard,
   WarmupChallengeGate,
 } from './app/lazyScreens.js';
+import { prefetchStudentScreens } from './app/student/studentScreenPrefetch.js';
 import {
   TEACHER_HISTORY_DOCUMENT_ID,
   planTeacherHistoryWrite,
@@ -372,7 +385,8 @@ import {
   writeTeacherRouteState,
 } from './platform/teacher/teacherBrowserHistory.js';
 import { questionAssessmentFramework } from './platform/student/questionAssessmentFramework.js';
-import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
+// The assessments' names alone: the crosswalk loads with the screens that use it (PF01).
+import { FRAMEWORK_LABELS } from './platform/ccmr/frameworkLabels.js';
 import {
   STUDENT_SELF_NEUTRAL_LABEL,
   buildStudentIdentityIndex,
@@ -393,13 +407,10 @@ import { buildStudentLearningProfile } from './platform/profile/studentLearningP
 import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignmentAdaptation.js';
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
-import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
-import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
 import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
 import StudentGlobalNav, { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
-import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 // Showing and announcing a Recovery list is light; DECIDING one runs the
 // server's own rules and loads after Home (app/student/studentRecoveryKit.js).
@@ -431,7 +442,6 @@ import {
 import { buildRewardWallet } from './platform/rewards/rewardWallet.js';
 import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.js';
 import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
-import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
 import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
 import { useGrowthRewardSync } from './platform/rewards/useGrowthRewardSync.js';
 
@@ -489,7 +499,7 @@ import {
   normalizeCourseProfiles,
 } from './platform/rigor/courseRigor.js';
 import SessionGate from './app/shell/SessionGate.jsx';
-import { focusScreenHeading, screenAnnouncement, screenChangeMovesFocus, studentScreenKey } from './app/shell/screenChange.js';
+import { screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -508,6 +518,9 @@ import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
 // not per-render or per-teacher state (see the identical constant in
 // LiveClassMonitor.jsx, which needs the same calendar for the same reason).
 const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
+// An assignment with no records yet: one object, so what is worked out from
+// it is not worked out again on every render.
+const NO_RECORDS = Object.freeze({});
 
 function App() {
   const auth = useAuth();
@@ -887,6 +900,10 @@ function App() {
   // The assignments those answers are on, for Home to name (NV10).
   const [studentNeedsReviewAssignmentIds, setStudentNeedsReviewAssignmentIds] = useState([]);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
+  // The assignments with a change this device could not store, until a later
+  // save of that assignment's work is stored: Home and Log Out go on saying
+  // it after the line has moved on (saveStatusModel.js, withUnstoredWork).
+  const [studentUnstoredAssignmentIds, setStudentUnstoredAssignmentIds] = useState([]);
   // Unfinished work this device could not save, or the backup could not take
   // (draftSaveHealth.js). Bumped on every change; the line below reads it.
   const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
@@ -1012,6 +1029,11 @@ function App() {
 
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
+  // What App's render works out, made to change only when what it means
+  // changes: QuestionEngine is memoised (app/lazyScreens.js), and App renders
+  // seven to thirteen times on a Submit or Next and every 30 seconds for this
+  // clock (platform/performance/renderStability.js).
+  const [stableCallbacks, renderMemo] = useRenderStability();
   const [classSchedule, setClassSchedule] = useState(DEFAULT_CLASS_SCHEDULE);
   const [courseProfiles, setCourseProfiles] = useState(() => defaultCourseProfiles(CLASS_PERIODS));
   const [courseProfilesSaving, setCourseProfilesSaving] = useState(false);
@@ -2309,6 +2331,9 @@ function App() {
 
   useEffect(() => {
     if (!user?.role || !user.id) return undefined;
+    // What this student has work on when the listener opens: after a move, the
+    // lessons of the class left that it keeps.
+    const studentWorkedIds = user.role === 'student' ? workedAssignmentKey(tracker, individuallyAssignedTestCycleIds(testCycleGrades)).split('|') : [];
 
     if (user.role === 'student') {
       return subscribeStudentClassAssignments({
@@ -2316,6 +2341,12 @@ function App() {
         studentId: user.id,
         classId: user.classId,
         onChange: (classAssignments) => {
+          // A move to another class while signed in (rosterMembership.js): as
+          // the new class's lessons come, the lessons of the class left that
+          // this student has work on stay, as prior work, as a fresh load reads
+          // them; the class left's other lessons go.
+          const keptFromClassLeft = priorWorkFromClassLeft({ classAssignments: studentClassAssignmentsRef.current, classId: user.classId, workedIds: studentWorkedIds });
+          if (keptFromClassLeft.length) studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, keptFromClassLeft);
           studentClassAssignmentsRef.current = classAssignments;
           publishStudentAssignments();
           // A teacher DOL unlock is an assignment update; see below.
@@ -2903,6 +2934,8 @@ function App() {
     gradesByAssignment = {},
     assignmentList = [],
     correctedAt = new Date().toISOString(),
+    studentId = null,
+    classId = null,
   } = {}) => {
     let changed = false;
     const next = { ...(gradesByAssignment || {}) };
@@ -2915,6 +2948,10 @@ function App() {
         assignmentTracker: gradesByAssignment[assignment.id],
         questions,
         correctedAt,
+        // A repair retry is counted as the student's screen counts it.
+        assignment,
+        studentId,
+        classId,
       });
       if (repairedTracker !== gradesByAssignment[assignment.id]) {
         next[assignment.id] = repairedTracker;
@@ -2942,6 +2979,8 @@ function App() {
         gradesByAssignment: student?.gradesByAssignment || {},
         assignmentList,
         correctedAt,
+        studentId: student?.id || null,
+        classId: student?.classId || null,
       });
       return result.changed
         ? { student, gradesByAssignment: result.gradesByAssignment }
@@ -3348,6 +3387,12 @@ function App() {
    * this device's queue — that is the difference the incident turned on, and it
    * is why the queued state names the count and the retry state is distinct
    * from the "not eligible" one.
+   *
+   * And only for work that was delivered (RUN-3): the reconcile drains an
+   * empty queue at sign-in and every 10 seconds, and that is not a save. The
+   * status is decided from the one the line shows when the drain returns, so a
+   * save refused meanwhile is never written over (saveStatusModel.js,
+   * persistenceStatusAfterDrain).
    */
   const drainStudentOutbox = async ({ successStatus = 'durable' } = {}) => {
     if (user?.role !== 'student' || !user.id) return;
@@ -3358,13 +3403,14 @@ function App() {
     setStudentNeedsReviewAssignmentIds([...new Set((result.retained || [])
       .filter((entry) => entry.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW && entry.assignmentId)
       .map((entry) => entry.assignmentId))]);
-    setStudentPersistenceStatus(
-      result.remaining
-        ? (result.tally.needsReview ? 'needs-review' : (navigator.onLine ? 'syncing' : 'offline'))
-        : result.tally.permanentlyInvalid
-          ? 'rejected'
-          : successStatus,
-    );
+    const online = navigator.onLine;
+    setStudentPersistenceStatus((status) => persistenceStatusAfterDrain({
+      status,
+      remaining: result.remaining,
+      tally: result.tally,
+      online,
+      successStatus,
+    }));
     return result;
   };
 
@@ -3397,6 +3443,20 @@ function App() {
   useEffect(() => {
     setStudentSaveSubject(initialSaveSubject());
   }, [activeAssignmentId, user?.id]);
+  // So does what it said about one save: "Draft saved." or "Not saved · …" on
+  // the last assignment is not about this one's work. A change the device
+  // could not store stays on Home (studentUnstoredAssignmentIds) until it is
+  // (saveStatusModel.persistenceStatusOnAssignmentChange).
+  useEffect(() => {
+    setStudentPersistenceStatus(persistenceStatusOnAssignmentChange);
+  }, [activeAssignmentId]);
+  // Another account on this Chromebook starts with no line and no unstored
+  // work of the last one's: Log Out asked first while any was left. Before a
+  // drain stopped saying "saved" for nothing, its false success did this.
+  useEffect(() => {
+    setStudentPersistenceStatus('idle');
+    setStudentUnstoredAssignmentIds([]);
+  }, [user?.id]);
   /*
    * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
    *
@@ -3567,8 +3627,11 @@ function App() {
         // classes share a period.
         const loadedClasses = await fetchClasses();
         if (cancelled) return;
-        const courseContext = resolveStudentCourseContext({
-          student: studentData,
+        // The class, its name, period and teachers, and the course and level it sets, from the roster row
+        // and the class's record; the grade document's listener keeps them following the row
+        // (platform/student/rosterMembership.js).
+        const { course: classCourse, courseLevel: classCourseLevel, ...classFields } = studentClassFields({
+          rosterRow: studentData,
           classesById: Object.fromEntries(loadedClasses.map((entry) => [entry.classId, entry])),
           courseProfiles: loadedCourseProfiles,
         });
@@ -3588,17 +3651,14 @@ function App() {
           // The roster is authoritative because student passcode sessions do
           // not necessarily carry a useful Firebase Auth displayName.
           displayName: studentDisplayName,
-          classId: studentData.classId || null,
-          className: courseContext.className,
-          classPeriod: courseContext.classPeriod,
-          teacherOfRecord: courseContext.teacherOfRecord,
-          // Verbatim from the roster row: support evidence the student's client
+          // classId, className, classPeriod, teacherOfRecord, and the teacher the
+          // roster row names, verbatim: support evidence the student's client
           // records must name exactly this teacher (firestore.rules).
-          assignedTeacherEmail: studentData.assignedTeacherEmail || null,
+          ...classFields,
           profile: {
             ...studentProfile,
-            course: courseContext.courseId,
-            courseLevel: courseContext.courseLevel,
+            course: classCourse,
+            courseLevel: classCourseLevel,
           },
           // The grade document's own `profile` field, as the server reads it (D7).
           timingProfile: studentData.profile || null,
@@ -3857,7 +3917,9 @@ function App() {
     [rawActiveAssignmentData],
   );
   const activeAssignmentData = activeRuntimeRepair?.assignment || null;
-  const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);
+  // A new object per question on every call: worked out once per copy of the
+  // assignment, and so the same question QuestionEngine was handed before.
+  const activeQuestions = useMemo(() => getStoredAssignmentQuestions(activeAssignmentData), [activeAssignmentData]);
 
   useEffect(() => {
     if (user?.role !== 'student' || activeView !== 'assignment' || !rawActiveAssignmentData?.contentUpgrade) return;
@@ -3876,9 +3938,10 @@ function App() {
       'This assignment was corrected by your teacher. Your previous work was preserved.',
     );
   }, [user?.role, activeView, activeAssignmentId, rawActiveAssignmentData?.contentUpgrade, toastInfo]);
-  const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now, {
-    studentId: user?.role === 'student' ? user.id : undefined,
-  });
+  const activeLifecycleStudentId = user?.role === 'student' ? user.id : undefined;
+  const activeLifecycle = useMemo(() => getAssignmentLifecycle(activeAssignmentData, now, {
+    studentId: activeLifecycleStudentId,
+  }), [activeAssignmentData, now, activeLifecycleStudentId]);
   const isTeacherPreview = user?.role === 'teacher' && activeView === 'teacherPreview';
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
   const isPracticeMode = isStudentAssignment && activeLifecycle.isPracticeOnly;
@@ -3959,7 +4022,8 @@ function App() {
     launchSupportRecords({ profile: user.profile, assignment: activeAssignmentData, roles, questions: presentedQuestions, workload: accommodation })
       .records.forEach((record) => recordStudentSupportEvidence(record));
   }, [isStudentAssignment, activeAssignmentId, activeAssignmentData, isPracticeMode, user?.profile?.supportRevisionId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
+  // The bell schedule's time-zone arithmetic, once per tick of the clock.
+  const activeDOLState = useMemo(() => getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now }), [activeAssignmentData, classSchedule, user?.classId, user?.classPeriod, now]);
   const activeQuestionRole = resolveQuestionActivityRole({
     question: activeQuestions[currentQuestionIndex],
     assignment: activeAssignmentData,
@@ -4308,7 +4372,9 @@ function App() {
       if (actions.length) {
         // After a reload, an answer still in the queue is still an answer.
         if (actions.some(isGradeBearingAction)) markAnswerSent();
-        setStudentPersistenceStatus('queued');
+        // Every tick finds it again: never over a save in progress or one the
+        // device refused, which that queued work is not (saveStatusModel.js).
+        setStudentPersistenceStatus(persistenceStatusWithQueuedWork);
         // A reload must restore the same visible score state immediately even
         // before Wi-Fi returns. The server remains canonical; this is only the
         // durable local envelope being overlaid until reconciliation succeeds.
@@ -5237,8 +5303,12 @@ function App() {
   // record the server holds AHEAD of this session is the exception, adopted
   // below (canonicalTrackerReconciliation.js): an attempt this device never
   // made — the Warm-Up or DOL deadline's auto-submit, or another Chromebook's.
+  // The same listener hears the roster row's class and teacher change: see
+  // studentRosterMembership below.
+  const [studentRosterMembership, setStudentRosterMembership] = useState(null);
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
+      setStudentRosterMembership(null);
       setClassroomSyncStatusByAssignment({});
       setTestCycleGrades({});
       setTeacherGradeOverridesByAssignment({});
@@ -5250,6 +5320,8 @@ function App() {
       return undefined;
     }
 
+    // Whoever is signed in now, their row is followed from its first snapshot.
+    setStudentRosterMembership(null);
     return onSnapshot(
       doc(db, 'grades', user.id),
       (snapshot) => {
@@ -5286,11 +5358,17 @@ function App() {
         // this student is working reaches their required items now, not at
         // the next sign-in.
         const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
-        setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
+        // Supports only: the course and level the class sets stay (rosterMembership.js).
+        setUser((current) => followSupportProfile(current, liveProfile));
         // The DOL window's source (D7): the grade document's own `profile`
         // field, updated on its own so nothing else about the user changes.
         const liveTimingProfile = snapshot.data()?.profile || null;
         setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
+        // The class and its teacher, as a fresh load reads them: a class handed
+        // to another teacher, or this student moved to another class, while they
+        // work (followed below; teacher features walk, item 10).
+        const membership = rosterMembershipOf(snapshot.data());
+        setStudentRosterMembership((current) => (sameRosterMembership(current, membership) ? current : membership));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -5345,6 +5423,33 @@ function App() {
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
     );
   }, [user?.role, user?.id, toastSuccess]);
+
+  /*
+   * WHAT THE STUDENT'S SCREENS READ ABOUT THEIR CLASS FOLLOWS THEIR ROSTER ROW
+   * (platform/student/rosterMembership.js). A class handed to another teacher
+   * moves the teacher their next question goes to; a move to another class
+   * takes the new class whole, as a fresh load reads it: its lessons (the class
+   * listener follows user.classId), its bell times, its course and level, and
+   * the class and teacher a question or support evidence names. A class made
+   * after this student signed in is read first, once, and followed with what
+   * that read gave (as sign-in does when it cannot read the class).
+   */
+  const classReadForRosterRef = useRef(null);
+  useEffect(() => {
+    if (user?.role !== 'student' || !studentRosterMembership) return undefined;
+    const { classId } = studentRosterMembership;
+    const follow = (byId) => setUser((current) => followRosterClass(current, studentRosterMembership, { classesById: byId, courseProfiles }));
+    if (!classId || classId === (user.classId || null) || classesById[classId] || classReadForRosterRef.current === classId) {
+      follow(classesById);
+      return undefined;
+    }
+    classReadForRosterRef.current = classId;
+    let cancelled = false;
+    fetchClasses().then((loaded) => { if (!cancelled) follow(Object.fromEntries(loaded.map((entry) => [entry.classId, entry]))); });
+    return () => { cancelled = true; };
+    // fetchClasses is the component's own loader; the row, the classes read and the course settings decide the answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;
@@ -5686,6 +5791,16 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [user?.role, activeView]);
 
+  // THE STUDENT'S OTHER SCREENS (PF01). Grades, Assignments, Rewards and an
+  // assignment's result load on demand (app/lazyScreens.js). Once Home has
+  // rendered, their code is fetched while the browser is idle: once per page,
+  // never when the device asks to save data, and not while it is offline
+  // (app/student/studentScreenPrefetch.js). Opening one is then instant.
+  useEffect(() => {
+    if (user?.role !== 'student' || activeView !== 'dashboard' || studentDashboardMode !== 'assignments') return undefined;
+    return prefetchStudentScreens([StudentGradeCenter, StudentAssignmentsCenter, StudentRewardsCenter, StudentAssignmentResult]);
+  }, [user?.role, activeView, studentDashboardMode]);
+
   // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
   const documentTitle = pageTitleFor({
     signedIn: Boolean(user),
@@ -5723,7 +5838,14 @@ function App() {
     lastStudentScreenKeyRef.current = currentStudentScreenKey;
     if (!currentStudentScreenKey) { pendingStudentScreenRef.current = null; return undefined; }
     if (previous && previous !== currentStudentScreenKey) {
-      pendingStudentScreenRef.current = { key: currentStudentScreenKey, startedAt: Date.now() };
+      pendingStudentScreenRef.current = {
+        key: currentStudentScreenKey,
+        startedAt: Date.now(),
+        // What has focus as the change begins: the place the student pressed,
+        // while the shell keeps it. Focus still there later is not the student's.
+        from: typeof document === 'undefined' ? null : document.activeElement,
+        said: false,
+      };
       // Cleared first, so the same name said twice in a row is still spoken.
       setStudentScreenAnnouncement('');
     }
@@ -5734,14 +5856,17 @@ function App() {
     let timer = null;
     const settle = () => {
       if (cancelled) return;
-      // A lazy screen draws its heading a moment later: look for up to 2 s.
-      const focused = screenChangeMovesFocus(pending.key) ? focusScreenHeading(document) : true;
-      if (!focused && Date.now() - pending.startedAt < 2000) {
-        timer = window.setTimeout(settle, 100);
+      // A lazy screen draws its heading a moment later, and one that loads its
+      // data first later still (shell/screenChange.js).
+      const next = settleScreenChange(document, pending, {
+        movesFocus: screenChangeMovesFocus(pending.key),
+        announce: () => setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current)),
+      });
+      if (next != null) {
+        timer = window.setTimeout(settle, next);
         return;
       }
       if (pendingStudentScreenRef.current === pending) pendingStudentScreenRef.current = null;
-      setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current));
     };
     timer = window.setTimeout(settle, 50);
     return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
@@ -5879,12 +6004,17 @@ function App() {
       setStudentPersistenceStatus('queued');
     } catch (error) {
       console.error('Could not queue question progress:', error);
+      // Not stored: Home says so until this assignment's work is (RUN-3).
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       toastWarning('Progress not queued', 'Keep this tab open and try Next again. Your current work is still on screen.');
       return;
     }
 
     setTracker(updatedTracker);
+    // Stored: a change this assignment could not store before is not the
+    // only copy of its work any more (saveStatusModel.withoutUnstoredWork).
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     setCurrentQuestionIndex(newIndex);
     window.requestAnimationFrame(() => transitionSpan.finish({ status: 'interactive' }));
 
@@ -6284,6 +6414,8 @@ function App() {
             assignment: assignmentData,
             classId: user.classId || null,
             studentId: user.id,
+            // Its tries counted on the question it dealt, as the list counts them.
+            ...terminalCountingFor(assignmentData, index, tracker?.[assignmentId]?.[index]),
           }),
       });
       if (actionableIndex === null && options?.returnToResult) {
@@ -7197,8 +7329,68 @@ function App() {
     // numbers before the first Submit (RT15). The server keeps the first pin
     // saved; one this device was offered and had to drop gives way.
     workspaceDraftSyncRef.current?.recordDeliveryPin(delivery, { replace: Boolean(renderedQuestion?.familyPinNotice) });
-    familyDeliveriesRef.current.set(`${delivery.slot}|v${delivery.variant}`, { delivery, question: renderedQuestion || null });
+    familyDeliveriesRef.current.set(shownDeliveryKey(delivery), { delivery, question: renderedQuestion || null });
   }, [user?.role, user?.id, isTeacherPreview]);
+  // A teacher's preview deals family slots too. What it showed is kept under
+  // its own key, only so its tries are counted on it (P-7): nothing is pinned.
+  const handlePreviewFamilyDelivery = useCallback((delivery, renderedQuestion) => {
+    if (delivery?.slot) familyDeliveriesRef.current.set(shownDeliveryKey({ ...delivery, preview: true }), { delivery, question: renderedQuestion || null });
+  }, []);
+  // What a slot's pin dealt, rebuilt once per pin and per copy of the
+  // assignment (platform/generation/dealtFamilyQuestion.js).
+  const dealtFamilyQuestionsRef = useRef(new WeakMap());
+  // The question a slot's pin dealt, rebuilt as the server rebuilds it to
+  // count, for the signed-in student. It comes with the family engine, so
+  // until the engine lands there is none.
+  const dealFor = (assignment, questionIndex, record) => (familyDelivery && user?.role === 'student' && user?.id
+    ? ({ slot, variant, storedQuestion }) => familyDelivery.dealtFamilyQuestion({
+      assignment,
+      question: storedQuestion,
+      questionIndex,
+      record,
+      devicePin: readLocalDeliveryPin({ studentId: user.id, slotKey: slot, variant }),
+      studentId: user.id,
+      classId: user.classId || null,
+      cache: dealtFamilyQuestionsRef.current,
+    })
+    : null);
+  // What every try count below reads for one stored slot: the questions shown
+  // on this page, then that deal (platform/generation/shownFamilyQuestion.js).
+  const triesCountingFor = (assignment, questionIndex, record, preview = false) => ({
+    shown: familyDeliveriesRef.current,
+    deal: dealFor(assignment, questionIndex, record),
+    assignmentId: assignment?.id,
+    storedQuestion: getStoredAssignmentQuestions(assignment)[questionIndex],
+    questionIndex,
+    record,
+    preview,
+  });
+  // The question every try count below reads: the one shown for this slot and
+  // variant; where nothing has been shown on this device yet (after a reload,
+  // a slot not opened again), the one its pin dealt, as the server counts it;
+  // else `fallback` (platform/generation/shownFamilyQuestion.js, P-7).
+  const countedQuestionFor = (assignment, questionIndex, record, fallback, preview = false) => countedQuestion({
+    ...triesCountingFor(assignment, questionIndex, record, preview),
+    fallback,
+  });
+  // Whether that question is the one the student was dealt. Not for a family
+  // slot nothing has shown on this page before the engine lands (a reload
+  // straight into the assignment): the stored slot stands in, and the question
+  // list counts nothing on it (assignmentNavigator.js PENDING).
+  const countedQuestionKnownFor = (assignment, questionIndex, record, preview = false) => countedQuestionKnown(
+    triesCountingFor(assignment, questionIndex, record, preview),
+  );
+  // What questionIsTerminal needs to count a family slot as the list does:
+  // where it is stored, what this page has shown and the engine's deal
+  // (platform/student/studentWorkState.js). Start/Continue and Home's Today
+  // rule both read it, so they keep answering "finished?" the same way. Home
+  // asks for every question it lists, so nothing here is worked out until a
+  // count needs it.
+  const terminalCountingFor = (assignment, questionIndex, record) => ({
+    questionIndex,
+    shown: familyDeliveriesRef.current,
+    deal: dealFor(assignment, questionIndex, record),
+  });
 
   /** The pin (and rendered question) for a family-backed slot, or null. */
   const familyDeliveryForQuestion = (assignment, questionIndex, record) => {
@@ -7206,7 +7398,7 @@ function App() {
     if (!assignment?.id || !isFamilyBackedQuestion(storedQuestion)) return null;
     const variant = normalizeQuestionRecord(record).variantIndex;
     const slotKey = familySlotKey({ assignmentId: assignment.id, question: storedQuestion, storageIndex: questionIndex });
-    const remembered = familyDeliveriesRef.current.get(`${slotKey}|v${variant}`);
+    const remembered = familyDeliveriesRef.current.get(shownDeliveryKey({ slot: slotKey, variant }));
     const pin = normalizeDeliveryPin(remembered?.delivery)
       || readLocalDeliveryPin({ studentId: user?.id, slotKey, variant })
       || (normalizeDeliveryPin(record?.familyDelivery)?.variant === variant ? normalizeDeliveryPin(record.familyDelivery) : null);
@@ -7287,10 +7479,12 @@ function App() {
       checkpointFingerprintRef.current.set(documentId, fingerprint);
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
+      setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
       // Reconciliation happens in the background. The student keeps working.
       void drainStudentOutbox();
     } catch (error) {
       console.error('Response checkpoint remains local:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
     }
   }, [activeAssignmentId, user, isTeacherPreview, assignments, currentQuestionIndex, tracker, classSchedule, activeQuestionRole]);
@@ -7317,7 +7511,7 @@ function App() {
         responseKey,
         partialCreditPercent: attemptMetadata.partialCreditPercent,
         maximumAttempts: resolveQuestionMaximumAttempts({
-          question: activeQuestions[currentQuestionIndex],
+          question: countedQuestionFor(localAssignment, currentQuestionIndex, record, activeQuestions[currentQuestionIndex], isTeacherPreview),
           maximumAttempts: activeActivityPolicy.attempts,
           activityPolicy: activeActivityPolicy,
           teacherGrantedExtraAttempts,
@@ -7532,11 +7726,13 @@ function App() {
       // question's own alert (SUBMISSION_NOT_QUEUED.message), where Submit is:
       // no toast repeats it.
       console.error('Could not durably queue this response:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       return SUBMISSION_NOT_QUEUED;
     }
 
     setTracker(updatedTracker);
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     setSupportUsageByAssignment(updatedSupportUsage);
     setDolGradesByAssignment(updatedDOLGrades);
 
@@ -7583,7 +7779,7 @@ function App() {
         statePatch,
         supportUsage,
         maximumAttempts: resolveQuestionMaximumAttempts({
-          question: activeQuestions[currentQuestionIndex],
+          question: countedQuestionFor(localAssignment, currentQuestionIndex, record, activeQuestions[currentQuestionIndex], isTeacherPreview),
           maximumAttempts: activeActivityPolicy.attempts,
           activityPolicy: activeActivityPolicy,
           teacherGrantedExtraAttempts,
@@ -7687,10 +7883,12 @@ function App() {
       // where the student is (STEP_NOT_QUEUED). A toast here sat under Work
       // View, and `null` let the solver apply the step as if it were saved.
       console.error('Could not durably queue this algebra step:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       return STEP_NOT_QUEUED;
     }
     setTracker(updatedTracker);
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     setSupportUsageByAssignment(updatedSupportUsage);
     void (async () => {
       try {
@@ -7785,10 +7983,12 @@ function App() {
       // Nothing was recorded: the question and its work stay, and the engine
       // says so under its own button (REPLACEMENT_NOT_QUEUED). No toast.
       console.error('Could not durably queue a replacement question:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       return REPLACEMENT_NOT_QUEUED;
     }
     setTracker(updatedTracker);
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     if (options.clearHistory) setDolGradesByAssignment(updatedDOLGrades);
     void reconcileAndReportStudentOutbox().catch((error) => console.error('Question replacement remains queued for retry:', error));
   };
@@ -9305,7 +9505,9 @@ function App() {
     .map((id) => assignments.find((assignment) => assignment.id === id)?.title)
     .filter(Boolean);
   const studentSaveStatusNow = () => describeSaveStatus({
-    persistenceStatus: studentPersistenceStatus,
+    // A change this device could not store stays said here after the line
+    // has moved on (saveStatusModel.persistenceStatusWithUnstoredWork).
+    persistenceStatus: persistenceStatusWithUnstoredWork(studentPersistenceStatus, studentUnstoredAssignmentIds),
     outboxDepth: studentOutboxDepth,
     pendingGradeCount: studentPendingGradeCount,
     online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
@@ -9383,8 +9585,10 @@ function App() {
 
   // The most urgent open Warm-Up this student has not finished, across their
   // lessons: the banner shows it, and on a phone (no banner) the assignment's
-  // status chip offers it when it belongs to another lesson.
-  const studentActiveWarmup = () => {
+  // status chip offers it when it belongs to another lesson. Asked twice a
+  // render, it walks every lesson's bell window: worked out once per change
+  // of what it reads.
+  const studentActiveWarmup = () => renderMemo('activeWarmup', [user, secureExamActive, assignments, classSchedule, now, tracker], () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
     // Its "Go to Warm-Up" would take a student out of a secure exam.
     if (secureExamActive) return null;
@@ -9424,7 +9628,7 @@ function App() {
       .filter(Boolean)
       .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
     return active[0] || null;
-  };
+  });
 
   const renderStudentWarmupBanner = () => {
     const activeWarmup = studentActiveWarmup();
@@ -10046,11 +10250,11 @@ function App() {
       );
     }
 
-    const questions = getStoredAssignmentQuestions(assignment);
+    // Worked out above for this same assignment, once per change of what
+    // each reads (a preview is a teacher's, whose lifecycle names no student).
+    const questions = activeQuestions;
     const currentContent = projectCurrentAssignmentContent(assignment);
-    const lifecycle = getAssignmentLifecycle(assignment, now, {
-      studentId: !preview && user?.role === 'student' ? user.id : undefined,
-    });
+    const lifecycle = activeLifecycle;
     /*
      * A GRANTED PRACTICE PASS EXCUSES PRACTICE FROM THIS RUNTIME.
      *
@@ -10079,14 +10283,23 @@ function App() {
     // over their own required items even in post-deadline Practice Mode — the
     // number the Grade Center and Classroom show.
     const officialSupportProfile = !preview && user?.role === 'student' ? user.profile : null;
-    const recordedTracker = tracker[activeAssignmentId] || {};
+    const recordedTracker = tracker[activeAssignmentId] || NO_RECORDS;
     const workingTracker = preview
       ? previewTracker
       : lifecycle.isPracticeOnly
-        ? practiceTracker[activeAssignmentId] || createPracticeAssignmentTracker(questions, recordedTracker)
+        ? practiceTracker[activeAssignmentId] || renderMemo('practiceTracker', [questions, recordedTracker], () => createPracticeAssignmentTracker(questions, recordedTracker))
         : recordedTracker;
-    const recordedGrade = calculateGrade(recordedTracker, assignment, { supportProfile: officialSupportProfile });
-    const gradeSplit = splitGrade({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
+    // The grade lines: worked out once per change of the trackers, the
+    // assignment and the profiles they read (and of the clock, for the
+    // reduced-workload revision in effect today), not on each of a Submit's
+    // renders. recordedGrade is calculateGrade's own answer from the split.
+    const [gradeSplit, progress, currentSectionGrades, currentSectionOfficialGrades] = renderMemo('grades', [recordedTracker, workingTracker, assignment, officialSupportProfile, workspaceSupportProfile, hasPracticePass, now], () => [
+      splitGrade({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile }),
+      calculatePracticeProgress(workingTracker, assignment, { hasPracticePass }),
+      splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile }),
+      splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile }),
+    ]);
+    const recordedGrade = questions.length ? gradeSplit.score ?? 0 : 0;
     const classroomReceipt = !preview ? classroomSyncStatusByAssignment?.[assignment.id] || null : null;
     const classroomReceiptStage = String(classroomReceipt?.stage || '');
     const classroomReceiptFinal = classroomReceipt?.isFinal === true || classroomReceiptStage.startsWith('final-');
@@ -10095,9 +10308,8 @@ function App() {
       ? Number(classroomReceipt.grade)
       : null;
     const classroomReceiptCurrent = classroomReceiptGrade != null && classroomReceiptGrade === recordedGrade;
-    const progress = calculatePracticeProgress(workingTracker, assignment, { hasPracticePass });
-    const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
-    const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
+    const dolState = activeDOLState;
+    const warmupState = renderMemo('warmupState', [assignment, classSchedule, user?.classId, user?.classPeriod, now], () => getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now }));
     // A teacher previewing an assignment is never handed into a live game.
     const warmupChallengeDecision = preview ? null : resolveWarmupChallenge({
       assignment,
@@ -10145,7 +10357,7 @@ function App() {
     });
     const runtimeQuestionActivityPolicy = currentReplacementAllowed === runtimeActivityPolicy.allowReplacement
       ? runtimeActivityPolicy
-      : { ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed };
+      : renderMemo('activityPolicy', [runtimeActivityPolicy, currentReplacementAllowed], () => ({ ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed }));
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
@@ -10160,7 +10372,10 @@ function App() {
     const familyEngineLoading = !familyDelivery;
     // The server's pins, once read, for this assignment only (RT15).
     const serverPinsRead = serverDeliveryPins.assignmentId === assignment.id && serverDeliveryPins.known;
-    const currentFamilyContext = !familyDelivery ? null : familyDelivery.buildStudentFamilyContext({
+    // Built on every render, as it always was: it reads this device's delivery
+    // pins from storage, which no React input says has changed (a pin written
+    // when the question reports what it showed). Kept while it says the same.
+    const currentFamilyContext = !familyDelivery ? null : renderMemo('familyContext', null, () => familyDelivery.buildStudentFamilyContext({
       assignment,
       question: questions[currentQuestionIndex],
       storageIndex: currentQuestionIndex,
@@ -10170,7 +10385,7 @@ function App() {
       record: workingTracker?.[currentQuestionIndex],
       preview,
       serverPins: serverPinsRead ? serverDeliveryPins.pins : null,
-    });
+    }), sameStableValue);
     // A FRESH ALLOCATION WAITS FOR THE SERVER'S PINS (RT15). A personalized
     // question with no pin on this device — none from its record, none of its
     // own — would be dealt numbers here that another Chromebook may already
@@ -10193,13 +10408,15 @@ function App() {
     // record what was actually delivered. Resolving it in two places would let
     // the evidence disagree with the question the student answered — which is
     // the defect this whole seam exists to close.
-    const currentAdaptation = preview ? null : resolveDeliveredQuestionMetadata({
+    // Pure in its inputs; the learning profile is rebuilt with every tracker
+    // change, so a result that says the same keeps its identity.
+    const currentAdaptation = preview ? null : renderMemo('adaptation', [questions[currentQuestionIndex], studentLearningProfile, runtimeActivityRole, currentSectionVariantMode, user?.profile?.courseLevel], () => resolveDeliveredQuestionMetadata({
       question: questions[currentQuestionIndex],
       learningProfile: studentLearningProfile,
       activityRole: runtimeActivityRole,
       variationMode: currentSectionVariantMode,
       honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
-    });
+    }), sameStableValue);
     const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
     const replacementWarning = currentIsDOL && dolState.status === 'active'
@@ -10286,8 +10503,6 @@ function App() {
     const currentSectionQuestionCount = currentNavigationSection?.entries.length || 1;
     const currentSectionCompletedCount = currentNavigationSection?.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length || 0;
     const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
-    const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile });
-    const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
     /*
      * WHAT EACH SECTION AND QUESTION IS DOING NOW, SAID ONE WAY (pass 3,
      * RUN-5 / RUN-8 / RUN-9; platform/student/assignmentNavigator.js).
@@ -10335,7 +10550,7 @@ function App() {
     const entryMaximumAttempts = (entry) => {
       const policy = getEffectiveActivityPolicy(entry.role);
       return resolveQuestionMaximumAttempts({
-        question: questions[entry.index],
+        question: countedQuestionFor(assignment, entry.index, workingTracker?.[entry.index], questions[entry.index], preview),
         maximumAttempts: policy.attempts,
         activityPolicy: policy,
         teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
@@ -10364,6 +10579,10 @@ function App() {
       return describeNavigatorQuestion({
         record: workingTracker?.[entry.index],
         maximumAttempts: entryMaximumAttempts(entry),
+        // A family slot's tries are counted on the question it dealt; before
+        // the family engine lands (a reload straight into the assignment) that
+        // is not known, and the navigator neither counts nor labels it.
+        triesKnown: countedQuestionKnownFor(assignment, entry.index, workingTracker?.[entry.index], preview),
         feedbackHeld: entryFeedbackHeld(entry),
         sectionClosed: access.state === SECTION_ACCESS.READ_ONLY,
         available: access.viewable,
@@ -10375,6 +10594,9 @@ function App() {
           activityPolicy: policy,
           canGenerateFresh: isPersonalizedBlueprint(questions[entry.index]),
         }),
+        // Whether it can vary is decided by rules that arrive with the family
+        // engine: until then an offer its policy would make is not known.
+        replacementKnown: Boolean(familyDelivery) || !resolveQuestionReplacementAllowed({ activityPolicy: policy, canGenerateFresh: true }),
       });
     };
     const compactSectionLabel = (section) => section?.role === 'dol'
@@ -10476,6 +10698,26 @@ function App() {
         sectionLabelOf: (role) => (role === 'dol' ? EXIT_TICKET : activitySectionMeta[role]?.label || ''),
       })
       : null;
+    // "Ask my teacher" on this question: rebuilt only when what it says does
+    // (the mode turns at the bell, a question is left or answered).
+    const askTeacherQuestion = questionFor(askMyTeacher.questions, { assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex });
+    const { onSendQuestion } = stableCallbacks({
+      onSendQuestion: askMyTeacher.canLeaveQuestion
+        ? ({ existing, text }) => askMyTeacher.sendQuestion({
+          existing,
+          text,
+          questionIndex: currentQuestionIndex,
+          questionLabel: `${currentSectionMeta.label} · Question ${currentSectionQuestionNumber}`,
+          assignmentTitle: assignment?.title || '',
+        })
+        : null,
+    });
+    const askTeacherContext = renderMemo('askTeacherContext', [askMyTeacher.mode, askMyTeacher.acknowledgement, askTeacherQuestion, onSendQuestion], () => ({
+      mode: askMyTeacher.mode,
+      acknowledgement: askMyTeacher.acknowledgement,
+      question: askTeacherQuestion,
+      onSendQuestion,
+    }));
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
     // Name the destination, not the direction. A student who opened this from
@@ -10885,7 +11127,7 @@ function App() {
                           aria-disabled={sectionAvailable ? undefined : 'true'}
                           aria-current={active ? 'page' : undefined}
                           aria-describedby={access.reason ? reasonId : undefined}
-                          title={access.reason || `${compactSectionLabel(section)}: ${section.progress.done} of ${section.progress.total} done.`}
+                          title={access.reason || `${compactSectionLabel(section)}: ${section.progress.pending ? NAVIGATOR_PENDING_LABEL : `${section.progress.done} of ${section.progress.total} done.`}`}
                         >
                           {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
                           <span className="mathmaster-section-tab-copy">
@@ -11089,7 +11331,7 @@ function App() {
                     {section.allCorrect ? (
                       <span style={{ padding: '7px 11px', borderRadius: 999, background: '#188038', color: '#fff', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 950, letterSpacing: '0.02em', boxShadow: '0 2px 6px rgba(24,128,56,0.28)' }}><span aria-hidden="true">✓ {sectionName.toUpperCase()} COMPLETE</span><span style={SR_ONLY_STYLE}>{`${sectionName} section complete`}</span></span>
                     ) : (
-                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' ? 'All submitted' : `${section.progress.done} of ${section.progress.total} done`}</span>
+                      <span style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{section.progress.label === 'All submitted' || section.progress.pending ? section.progress.label : `${section.progress.done} of ${section.progress.total} done`}</span>
                     )}
                     <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800 }}>{sectionScoreLine}</span>
                     {sectionAccess.reason && <span style={{ flexBasis: '100%', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 700, color: 'var(--mm-text)' }}>{sectionAccess.reason}</span>}
@@ -11165,21 +11407,40 @@ function App() {
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
             {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
+              // Each one function for App's life, calling this render's
+              // handler; null where the question offers no such action.
+              {...stableCallbacks({
+                onFamilyDelivery: preview ? handlePreviewFamilyDelivery : handleFamilyDelivery,
+                onGrade: handleGradeSubmit,
+                onResponseCheckpoint: preview ? null : handleResponseCheckpoint,
+                onStepGrade: handleStepGrade,
+                onRequestNewQuestion: handleRequestNewQuestion,
+                onLoadScratchpad: handleLoadScratchpad,
+                onSaveScratchpad: handleSaveScratchpad,
+                onNextQuestion: engineNextEntry ? () => changeQuestion(engineNextEntry.index) : null,
+                onContinueSection: assignmentHandoff ? continueAfterSection : null,
+                onGoBackToQuestion: skippedQuestion ? () => changeQuestion(skippedQuestion.index) : null,
+                onSupportEvidence: preview || lifecycle.isPracticeOnly
+                  ? null
+                  : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole }),
+                onAskTeacher: preview || lifecycle.isPracticeOnly || user?.role !== 'student'
+                  ? null
+                  : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex })),
+              })}
+              // Not through stableCallbacks: a new identity is how the question
+              // learns of a Spotlight request (the student pressed Present
+              // Now), and it sends the frame on screen at once (its effect
+              // follows this prop). Null while there is none to send to.
+              onSpotlightFrame={preview ? null : studentSpotlightRequest && publishSpotlightWork}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
               familyContext={currentFamilyContext}
-              onFamilyDelivery={preview ? null : handleFamilyDelivery}
               adaptation={currentAdaptation}
-              onGrade={handleGradeSubmit}
-              onResponseCheckpoint={preview ? null : handleResponseCheckpoint}
-              onSpotlightFrame={preview ? null : publishSpotlightWork}
-              onStepGrade={handleStepGrade}
-              onRequestNewQuestion={handleRequestNewQuestion}
-              onLoadScratchpad={handleLoadScratchpad}
-              onSaveScratchpad={handleSaveScratchpad}
-              studentProfile={preview ? null : adaptiveStudentProfile || user?.profile}
+              // Rebuilt with every tracker change (the mastery profile under
+              // it); kept while it says the same.
+              studentProfile={preview ? null : renderMemo('studentProfile', [adaptiveStudentProfile || user?.profile], () => adaptiveStudentProfile || user?.profile, sameStableValue)}
               guidedMode={['classwork', 'practice'].includes(runtimeActivityRole) && currentGuidedNotesMode !== 'off'}
               guidedNotesMode={currentGuidedNotesMode}
               assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked)}
@@ -11198,7 +11459,7 @@ function App() {
                           : ''}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
               maximumAttempts={resolveQuestionMaximumAttempts({
-                question: questions[currentQuestionIndex],
+                question: countedQuestionFor(assignment, currentQuestionIndex, workingTracker?.[currentQuestionIndex], questions[currentQuestionIndex], preview),
                 maximumAttempts: runtimeQuestionActivityPolicy.attempts,
                 activityPolicy: runtimeQuestionActivityPolicy,
               })}
@@ -11223,37 +11484,15 @@ function App() {
               draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
               executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
-              onNextQuestion={engineNextEntry ? () => changeQuestion(engineNextEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
               sectionComplete={Boolean(currentNavigationSection?.complete)}
               sectionLabel={currentSectionMeta.label}
               sectionQuestionCount={currentSectionQuestionCount}
-              onContinueSection={assignmentHandoff ? continueAfterSection : null}
               continueSectionLabel={assignmentHandoff?.label || ''}
-              onGoBackToQuestion={skippedQuestion ? () => changeQuestion(skippedQuestion.index) : null}
               goBackLabel={skippedQuestion?.label || ''}
-              onSupportEvidence={preview || lifecycle.isPracticeOnly
-                ? null
-                : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
-              onAskTeacher={preview || lifecycle.isPracticeOnly || user?.role !== 'student'
-                ? null
-                : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }))}
               helpRequested={helpRequest?.assignmentId === activeAssignmentId && helpRequest?.questionIndex === currentQuestionIndex}
-              askTeacherContext={{
-                mode: askMyTeacher.mode,
-                acknowledgement: askMyTeacher.acknowledgement,
-                question: questionFor(askMyTeacher.questions, { assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }),
-                onSendQuestion: askMyTeacher.canLeaveQuestion
-                  ? ({ existing, text }) => askMyTeacher.sendQuestion({
-                    existing,
-                    text,
-                    questionIndex: currentQuestionIndex,
-                    questionLabel: `${currentSectionMeta.label} · Question ${currentSectionQuestionNumber}`,
-                    assignmentTitle: assignment?.title || '',
-                  })
-                  : null,
-              }}
+              askTeacherContext={askTeacherContext}
             />}
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
@@ -11364,7 +11603,7 @@ function App() {
       outboxDepth: studentOutboxDepth,
       pendingGradeCount: studentPendingGradeCount,
       needsReviewCount: studentNeedsReviewCount,
-      persistenceStatus: studentPersistenceStatus,
+      persistenceStatus: persistenceStatusWithUnstoredWork(studentPersistenceStatus, studentUnstoredAssignmentIds),
     });
     return (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>
@@ -11867,6 +12106,8 @@ function App() {
         assignmentHasHeldTeacherFeedback,
         // Same wrap as getAssignmentLifecycle above, and for the same reason.
         matchesSmartView: (assignment, viewId, options) => matchesSmartView(assignment, viewId, { ...options, studentId: user.id }),
+        // "Finished" counts a family slot on the question it dealt, as Start does.
+        terminalCounting: terminalCountingFor,
       },
     });
   }
@@ -12203,19 +12444,20 @@ function App() {
     const recoveryAssignment = assignments.find((item) => item.id === assignmentResultRoute.assignmentId) || null;
     // Decision 3: once the work is closed for this student and feedback is
     // released, their own answers beside the worked solutions. The callable
-    // re-checks every gate; this only decides whether to show the panel.
+    // re-checks every gate; this only decides whether to show the panel. The
+    // panel carries its own loading line and its own boundary: code that
+    // cannot arrive (offline) leaves the rest of the result page on screen
+    // (app/lazyScreens.js studentPanel).
     const resultReviewPanel = resultEntry && recoveryAssignment && resultEntry.frozen
       && !resultEntry.isTestCycle
       && !assignmentHasHeldTeacherFeedback(recoveryAssignment)
       ? (
-        <Suspense fallback={<p role="status" style={{ margin: '14px 0 0' }}>Loading your work…</p>}>
-          <ReviewMyWork
-            assignment={recoveryAssignment}
-            load={loadMyReviewWork}
-            studentProfile={user.profile}
-            teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
-          />
-        </Suspense>
+        <ReviewMyWork
+          assignment={recoveryAssignment}
+          load={loadMyReviewWork}
+          studentProfile={user.profile}
+          teacherAnswers={<TeacherAnswers studentId={user.id} assignmentId={recoveryAssignment.id} />}
+        />
       )
       : null;
     const resultSectionLabel = assignmentResultRoute.sectionKey && assignmentResultRoute.sectionKey !== 'whole'

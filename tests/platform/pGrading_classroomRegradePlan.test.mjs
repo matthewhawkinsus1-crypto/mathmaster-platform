@@ -10,6 +10,7 @@ import {
   planClassroomAttempt,
 } from '../../scripts/lib/classroomRegradePlan.mjs';
 import { storedAttempt } from './helpers/classroomRegradeFixtures.mjs';
+import { candidatesFromReports } from '../../scripts/lib/upwardRegrade.mjs';
 
 /*
  * JOB P — K's read-only classroom re-grade report, extended to Job P's
@@ -121,4 +122,21 @@ test('item 8: a vertex asked of an exponential is listed for the owner, with the
   // keyed at (h, k): the right answer stays right, and nothing is listed.
   const rational = { type: 'graphAnalysis', prompt: 'Find the key point.', functionSpec: { type: 'rational', a: 2, h: 1, k: 2 }, graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 } };
   assert.equal(toolAttempt('graphAnalysis', rational, { analysis: { selections: { feature: [[1, 2]] } } }, true, 'rational-center').classification, REGRADE_CLASS.UNCHANGED);
+});
+
+test('a pasted x² a simplest-form box refused before #536 is listed, and the upward re-grade raises it', () => {
+  // Before #536 the simplest-form check read a pasted "x²+3x+2" as not
+  // simplified, so a right answer was recorded wrong. The report replays the
+  // stored answer with today's grader and lists it apart from K's and P's
+  // defects; the upward re-grade (decision D8) raises that class too. So the
+  // operator's run (report, then apply) reaches these students.
+  const question = { type: 'multiAnswer', prompt: 'Multiply and simplify (x + 1)(x + 2).', answerFields: [{ id: 'p', label: 'Simplified', answer: 'x^2+3x+2', answerForm: 'simplifiedPolynomial' }] };
+  const pasted = fieldsAttempt(question, 'x²+3x+2', false, 'pasted-square');
+  assert.equal(pasted.classification, REGRADE_CLASS.CHANGED_OUTSIDE_K);
+  assert.equal(pasted.reason, 'higher');
+  const report = { tool: 'report-classroom-regrade-candidates', assignments: [{ assignmentId: ASSIGNMENT.id, questions: [{ questionIndex: 0, attempts: [{ studentId: 'student-pasted-square', classification: pasted.classification }] }] }] };
+  assert.deepEqual(candidatesFromReports([report]).candidates.map(({ studentId, assignmentId, questionIndex }) => [studentId, assignmentId, questionIndex]), [['student-pasted-square', ASSIGNMENT.id, 0]]);
+  // Negative controls: pasted but not simplified, and pasted but wrong, stay as recorded.
+  assert.equal(fieldsAttempt(question, 'x²+x+2x+2', false, 'pasted-unsimplified').classification, REGRADE_CLASS.UNCHANGED);
+  assert.equal(fieldsAttempt(question, 'x²+3x+3', false, 'pasted-wrong').classification, REGRADE_CLASS.UNCHANGED);
 });

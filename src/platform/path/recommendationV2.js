@@ -26,7 +26,8 @@
 import {
   GAP, INSTRUCTIONAL_BAND, diagnoseGaps,
 } from '../profile/studentLearningProfile.js';
-import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+// The lookup alone: Home reads the index, the server builds it (PF01).
+import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverageLookup.mjs';
 import {
   chooseTransferFramework, resolveTransferFrameworkPreference, transferExplanationFor,
 } from './weeklyTransferFramework.js';

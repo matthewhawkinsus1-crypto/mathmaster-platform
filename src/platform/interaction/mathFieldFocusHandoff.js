@@ -41,6 +41,14 @@
  *      `directions`). That focus is now refused when the latest press or
  *      focus on the page belongs to another element. Refused, not undone:
  *      nothing is blurred, nothing flickers.
+ *
+ *      Focus that left the box for no element at all is the same: a blur
+ *      inside those 60 ms (Escape in a row with no keypad button, a closing
+ *      question blurring whatever has focus) was pulled back into the box,
+ *      3 times in 3 in Chromium, because nothing arrived anywhere for the
+ *      guard to see (tests/browser/mathBoxFocus.mjs). And a field MathLive
+ *      rebuilds when its element is moved in the page gets a new sink, which
+ *      is guarded again on its `mount`.
  */
 
 // The MathLive internals this relies on (the sink, hasFocus) live in
@@ -72,23 +80,44 @@ const guardedSinks = new WeakMap();
  * the student, a screen reader, a dialog opening, the platform. MathLive's
  * deferred focus was asked for before it; when that intent belongs to another
  * element, the deferred focus is stale.
+ *
+ * Focus can also leave for nowhere: a blur arrives at no element, so it has no
+ * focusin. `leftForNowhere` says the latest thing focus did was leave an
+ * element for none (a trusted focusout with no element after it); any later
+ * press or focus clears it. A window losing focus looks the same, so it counts
+ * only while focus really is nowhere when the deferred focus fires: in another
+ * window, or the browser's own bar, the page keeps its focused element.
+ * MathLive's own focusout (synthetic, when it blurs a field in its model) is
+ * not a blur.
  */
 const intentTracking = new WeakMap();
+const intend = (tracker, target) => {
+  if (!tracker) return;
+  tracker.target = target;
+  tracker.leftForNowhere = false;
+};
 const trackFocusIntent = (documentObject) => {
   if (!documentObject?.addEventListener) return null;
   let tracker = intentTracking.get(documentObject);
   if (tracker) return tracker;
-  tracker = { target: null };
+  tracker = { target: null, leftForNowhere: false };
   const record = (event) => {
     if (event.type !== 'focusin' && event.isTrusted !== true) return;
-    tracker.target = lightDomOwner(event.composedPath?.()?.[0] || event.target || null);
+    intend(tracker, lightDomOwner(event.composedPath?.()?.[0] || event.target || null));
+  };
+  const recordLeaving = (event) => {
+    if (event.isTrusted === true && !event.relatedTarget) tracker.leftForNowhere = true;
   };
   ['pointerdown', 'mousedown', 'touchstart', 'focusin'].forEach((type) => {
     documentObject.addEventListener(type, record, { capture: true, passive: true });
   });
+  documentObject.addEventListener('focusout', recordLeaving, { capture: true, passive: true });
   intentTracking.set(documentObject, tracker);
   return tracker;
 };
+const isPageBackground = (element, documentObject) => (
+  !element || element === documentObject?.body || element === documentObject?.documentElement
+);
 // Recorded as the element in the page that owns the event's target: MathLive
 // re-renders its shadow tree on a press, so the node pressed inside a field
 // may be gone by the time anyone asks which field it was in.
@@ -112,13 +141,17 @@ const belongsTo = (target, mathField) => Boolean(target) && (target === mathFiel
  *   - MathMaster is not the caller (its own focus was decided just now);
  *   - focus is not already on this sink (then the call changes nothing);
  *   - the page's latest focus intent — a trusted press, or focus arriving
- *     anywhere — belongs to something other than this field.
+ *     anywhere — belongs to something other than this field, or focus has
+ *     since left for nowhere and is nowhere still (a blur).
  *
  * So a click, tap or Tab to another box, a screen reader moving focus, Work
- * View opening its dialog, or a press on the page around the question all
- * outrank MathLive's late focus of the box before. MathLive refocusing its
- * own field (an IME composition cancelled; its own keyboard toggle) and app
- * code calling the field's focus() (recorded as an intent for it) do not.
+ * View opening its dialog, a press on the page around the question, or a
+ * blur all outrank MathLive's late focus of the box before. MathLive
+ * refocusing its own field (its own keyboard toggle) and app code calling the
+ * field's focus() (recorded as an intent for it, and so after any blur) do
+ * not. (MathLive 0.110's composition cancel, which blurs its own sink and
+ * focuses it a frame later, is never reached: its key handler ignores every
+ * key while a composition is open. IME typing itself moves no focus.)
  *
  * Idempotent; returns the cleanup, or null while the field has no sink yet.
  */
@@ -135,8 +168,11 @@ export const guardStaleMathFieldFocus = (mathField, { documentObject = typeof do
   const nativeFieldFocus = mathField.focus;
 
   const guardedSinkFocus = function focus(...args) {
-    if (platformFocusDepth === 0 && tracker?.target && deepActiveElement(documentObject) !== sink
-      && !belongsTo(tracker.target, mathField)) {
+    const active = deepActiveElement(documentObject);
+    if (platformFocusDepth === 0 && active !== sink && (
+      (tracker?.target && !belongsTo(tracker.target, mathField))
+      || (tracker?.leftForNowhere && isPageBackground(active, documentObject))
+    )) {
       // Refused. MathLive ignored the real blur while it waited to focus, so
       // its model still calls this field focused; once its timer has
       // finished, give it that blur (no DOM focus moves).
@@ -149,7 +185,7 @@ export const guardStaleMathFieldFocus = (mathField, { documentObject = typeof do
   };
   // Code that focuses the field itself (a keypad key, Undo) means this field.
   const guardedFieldFocus = function focus(...args) {
-    if (tracker) tracker.target = mathField;
+    intend(tracker, mathField);
     return nativeFieldFocus.apply(this, args);
   };
   sink.focus = guardedSinkFocus;
@@ -187,8 +223,7 @@ export const focusMathFieldWithoutScroll = (mathField) => {
   // Guarded before the focus starts MathLive's 60 ms timer, so that timer can
   // never fire into a field the student has left by then.
   guardStaleMathFieldFocus(mathField);
-  const tracker = trackFocusIntent(typeof document !== 'undefined' ? document : null);
-  if (tracker) tracker.target = mathField;
+  intend(trackFocusIntent(typeof document !== 'undefined' ? document : null), mathField);
   platformFocusDepth += 1;
   try {
     sink.focus({ preventScroll: true });
@@ -220,9 +255,17 @@ export const bindMathFieldFocusHandoff = (mathField, { documentObject = typeof d
 
   // The sink exists once MathLive has upgraded the element — normally before
   // this runs; if not, the first press, focus or MathLive's `mount` does it.
+  // An element moved in the page (React reordering a list of boxes) is
+  // disconnected and connected again, and MathLive builds it a new sink then:
+  // the guard follows it there, or that box's late focus would go unguarded.
   let releaseGuard = null;
+  let guardedSink = null;
   const guard = () => {
-    if (!releaseGuard) releaseGuard = guardStaleMathFieldFocus(mathField, { documentObject });
+    const sink = mathFieldKeyboardSink(mathField);
+    if (!sink || sink === guardedSink) return;
+    releaseGuard?.();
+    releaseGuard = guardStaleMathFieldFocus(mathField, { documentObject });
+    guardedSink = releaseGuard ? sink : null;
   };
   guard();
 
@@ -288,6 +331,7 @@ export const bindMathFieldFocusHandoff = (mathField, { documentObject = typeof d
     mathField.removeEventListener('mount', guard);
     releaseGuard?.();
     releaseGuard = null;
+    guardedSink = null;
   };
 };
 

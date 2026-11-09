@@ -11,11 +11,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  SCREEN_HEADING_WAIT_MS,
+  SCREEN_NAME_WAIT_MS,
   focusAlreadyPlaced,
   focusScreenHeading,
+  focusWhereChangeLeftIt,
   screenAnnouncement,
   screenChangeMovesFocus,
   screenHeadingTarget,
+  settleScreenChange,
   studentScreenKey,
 } from '../../src/app/shell/screenChange.js';
 import { MAIN_CONTENT_ID } from '../../src/components/common/skipTarget.js';
@@ -124,6 +128,19 @@ test('NAV-3: a screen still loading has no target yet; a main with no h1 is the 
   assert.equal(screenHeadingTarget(doc), main);
 });
 
+test('NAV-3, PF01: a screen whose code is on its way inside the shell\'s main (aria-busy) waits for its heading', () => {
+  // Grades, Assignments and Rewards draw in the shell's own main; until their
+  // code is here it holds a busy "Opening …" status (app/lazyScreens.js).
+  const opening = el('div', { 'aria-busy': 'true' }, el('p', { role: 'status' }));
+  const main = el('main', { id: MAIN_CONTENT_ID, tabindex: '-1' }, opening);
+  const loading = fakeDocument(el('body', {}, main));
+  assert.equal(screenHeadingTarget(loading), null, 'not the landmark: the shell keeps looking, and the h1 is focused when it lands');
+  assert.equal(focusScreenHeading(loading), null);
+  // Only a busy region on screen holds it up.
+  opening.visible = false;
+  assert.equal(screenHeadingTarget(loading), main);
+});
+
 test('NAV-3: focus the student or the screen already put inside the new screen is left alone', () => {
   const screen = gradesScreen();
   screen.doc.activeElement = screen.navButton; // inside main
@@ -140,18 +157,130 @@ test('NAV-3: focus the student or the screen already put inside the new screen i
   assert.equal(focusAlreadyPlaced(screen.doc), false);
 });
 
+// ------------------------------------------------------------ the wait
+// A screen still loading draws neither a main nor an h1 (My Math Path's
+// "Loading My Math Path…"): both hidden until its data arrives.
+const slowScreen = () => {
+  const link = el('a', {});
+  const other = el('a', {});
+  const h1 = el('h1', {});
+  const main = el('main', {}, h1);
+  const doc = fakeDocument(el('body', {}, el('nav', {}, link, other), main));
+  main.visible = false;
+  h1.visible = false;
+  const land = () => { main.visible = true; h1.visible = true; };
+  return { doc, link, other, h1, land };
+};
+
+test('NAV-3: a slow screen is named at 2 s, and its heading still takes focus when it lands', () => {
+  const screen = slowScreen();
+  const pending = { startedAt: 0, from: null, said: false };
+  const said = [];
+  const look = (now) => settleScreenChange(screen.doc, pending, { now, announce: () => said.push(now) });
+  assert.equal(look(50), 100, 'keeps looking; nothing said yet');
+  assert.deepEqual(said, []);
+  assert.equal(look(SCREEN_NAME_WAIT_MS), 250, 'named at 2 s, and still looking');
+  assert.deepEqual(said, [SCREEN_NAME_WAIT_MS]);
+  assert.equal(screen.doc.activeElement, screen.doc.body);
+  screen.land();
+  assert.equal(look(3500), null, 'settled once the heading has focus');
+  assert.equal(screen.doc.activeElement, screen.h1);
+  assert.deepEqual(said, [SCREEN_NAME_WAIT_MS], 'the name is said once');
+  // A quick screen is named when its heading takes focus.
+  const quick = slowScreen();
+  quick.land();
+  const quickSaid = [];
+  assert.equal(settleScreenChange(quick.doc, { startedAt: 0, from: null, said: false }, { now: 50, announce: () => quickSaid.push(50) }), null);
+  assert.equal(quick.doc.activeElement, quick.h1);
+  assert.deepEqual(quickSaid, [50]);
+});
+
+test('NAV-3: after 2 s the look ends where the student moved focus, and at 15 s in any case', () => {
+  const screen = slowScreen();
+  screen.link.focus(); // the place the student pressed, kept by the shell
+  const pending = { startedAt: 0, from: screen.link, said: false };
+  assert.equal(focusWhereChangeLeftIt(screen.doc, screen.link), true);
+  assert.equal(settleScreenChange(screen.doc, pending, { now: 2500 }), 250, 'focus still on the pressed place');
+  screen.other.focus(); // the student moves on
+  assert.equal(focusWhereChangeLeftIt(screen.doc, screen.link), false);
+  assert.equal(settleScreenChange(screen.doc, pending, { now: 2750 }), null, 'the look ends');
+  screen.land();
+  assert.equal(screen.doc.activeElement, screen.other, 'and the heading never takes it');
+  // Focus left alone: the look ends at 15 s.
+  const late = slowScreen();
+  const latePending = { startedAt: 0, from: null, said: true };
+  assert.equal(settleScreenChange(late.doc, latePending, { now: SCREEN_HEADING_WAIT_MS - 1 }), 250);
+  assert.equal(settleScreenChange(late.doc, latePending, { now: SCREEN_HEADING_WAIT_MS }), null);
+  // A node that unmounted is not the student's.
+  screen.other.isConnected = false;
+  assert.equal(focusWhereChangeLeftIt(screen.doc, screen.link), true);
+});
+
+test('NAV-3: a heading that lands as the student moves on does not take their focus', () => {
+  // After 2 s the name has been said. The student Tabs to a place outside
+  // the screen's main (the navigation) in the same moment the heading lands:
+  // the next look ends there, and focus stays where they put it.
+  const screen = slowScreen();
+  const pending = { startedAt: 0, from: null, said: true };
+  screen.other.focus();
+  screen.land();
+  assert.equal(settleScreenChange(screen.doc, pending, { now: 3000 }), null);
+  assert.equal(screen.doc.activeElement, screen.other);
+});
+
+test('NAV-3: a screen that places its own focus, or only speaks, is named and left alone', () => {
+  // Focus the screen put inside its main: named at 2 s, never moved.
+  const screen = gradesScreen();
+  screen.doc.activeElement = screen.navButton;
+  const pending = { startedAt: 0, from: null, said: false };
+  let said = 0;
+  const look = (now) => settleScreenChange(screen.doc, pending, { now, announce: () => { said += 1; } });
+  assert.equal(look(50), 100);
+  assert.equal(look(SCREEN_NAME_WAIT_MS), null);
+  assert.equal(screen.doc.activeElement, screen.navButton);
+  assert.equal(said, 1);
+  // Inside an assignment the change only speaks, at once.
+  const speakOnly = slowScreen();
+  let spoken = 0;
+  assert.equal(settleScreenChange(speakOnly.doc, { startedAt: 0, from: null, said: false }, { now: 50, movesFocus: false, announce: () => { spoken += 1; } }), null);
+  assert.equal(spoken, 1);
+  assert.equal(speakOnly.doc.activeElement, speakOnly.doc.body);
+});
+
 // ------------------------------------------------------------ App wiring
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
 
 test('NAV-3: App imports the module and runs it on every student screen-key change, and the shell has the live region', () => {
-  assert.match(app, /^import \{ focusScreenHeading, screenAnnouncement, screenChangeMovesFocus, studentScreenKey \} from '\.\/app\/shell\/screenChange\.js';$/m);
+  assert.match(app, /^import \{ screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey \} from '\.\/app\/shell\/screenChange\.js';$/m);
   const effect = region(app, 'const pendingStudentScreenRef = useRef(null);', '}, [currentStudentScreenKey]);');
   // Only a change from an earlier student screen starts one (never the first screen after sign-in).
-  assert.match(effect, /if \(previous && previous !== currentStudentScreenKey\) \{\s*pendingStudentScreenRef\.current = \{ key: currentStudentScreenKey/);
-  assert.match(effect, /screenChangeMovesFocus\(pending\.key\) \? focusScreenHeading\(document\) : true/);
-  assert.match(effect, /setStudentScreenAnnouncement\(screenAnnouncement\(documentTitleRef\.current\)\);/);
+  assert.match(effect, /if \(previous && previous !== currentStudentScreenKey\) \{\s*pendingStudentScreenRef\.current = \{\s*key: currentStudentScreenKey,/);
+  // What had focus as the change began: a later look leaves the student's own focus alone.
+  assert.match(effect, /from: typeof document === 'undefined' \? null : document\.activeElement,\s*said: false,/);
+  assert.match(effect, /settleScreenChange\(document, pending, \{\s*movesFocus: screenChangeMovesFocus\(pending\.key\),\s*announce: \(\) => setStudentScreenAnnouncement\(screenAnnouncement\(documentTitleRef\.current\)\),\s*\}\);/);
+  assert.match(effect, /if \(next != null\) \{\s*timer = window\.setTimeout\(settle, next\);/);
   const shell = region(app, 'const renderStudentIdentityShell = (', '\n  };');
   assert.match(shell, /role="status" aria-live="polite"[^>]*data-screen-announcement[^>]*>\s*\{studentScreenAnnouncement\}/);
+});
+
+test('NAV-3: a reload of My Math Path keeps the screen, and the heading a screen change focused', () => {
+  // My Math Path draws its h1 once the student's Path has loaded, and loads
+  // again when its assignments or the student's profile change: just after a
+  // screen change, in a development build, as React runs App's effects again
+  // when the screen's code arrives. For a student with no profile yet each
+  // load swapped the whole screen for "Loading My Math Path…" and back, the
+  // focused h1 with it, and focus fell to the page (CI on #541). Only the
+  // first load of a student's Path says "Loading …".
+  const path = executableSource(readFileSync(new URL('../../src/components/student/MyMathPathApp.jsx', import.meta.url), 'utf8'));
+  const gate = region(path, 'const sessionOnScreen', 'Loading My Math Path…', 'the loading gate');
+  assert.match(gate, /if \(loading && firstLoad && !sessionOnScreen && /);
+  // The view's default keeps the Teacher Path Simulator, which loads nothing, as it was.
+  assert.match(path, /^  firstLoad = true,$/m);
+  // The container records whose Path it loaded; only another student's is a first load.
+  const container = region(path, 'export const MyMathPathApp = (props) => {', 'export default MyMathPathApp;', 'the container');
+  assert.match(container, /const \[loadedStudentId, setLoadedStudentId\] = useState\(null\);/);
+  assert.match(container, /setLoading\(false\);\s*setLoadedStudentId\(studentId\);\s*\}, \[studentId, assignments\]\);/);
+  assert.match(container, /\bloading=\{loading\}\s*firstLoad=\{loadedStudentId !== studentId\}/);
 });
 
 test('NAV-15: the shell gives a screen with no main of its own one main, and never a second to a screen that has one', () => {

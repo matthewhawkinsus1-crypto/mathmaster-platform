@@ -357,8 +357,11 @@ const reportTagsOf = (receipt) => Object.entries(receipt?.reportTags && typeof r
  * totals, and the same counts broken down by the tags each attempt recorded
  * (the feature asked, the function family, the difficulty tier — and any
  * report tags of the mode's own, `byTag`). `mistakes` counts the diagnosis a
- * wrong attempt recorded, when the mode records one. Built from the receipt
- * log alone; a mode without report tags or diagnoses gets them empty.
+ * wrong attempt recorded, when the mode records one. A wrong TAP's diagnosis
+ * is another feature of the graph it landed on (Graph Feature Rush, N42), so
+ * `wrongTaps` counts those by the feature asked and the feature tapped:
+ * `{ xIntercept: { yIntercept: 7 } }`. Built from the receipt log alone; a
+ * mode without report tags or diagnoses gets them empty.
  *
  * It describes the student's WORK, so it reads all of it: what a student with
  * extended time did after the class's buzzer counts here
@@ -384,12 +387,13 @@ export const questionSetMatchSummary = (player = {}) => {
       });
     }
   });
-  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0, extraTimeCompleted: 0 };
+  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0, offScreenPresses: 0, offScreenCorrect: 0, extraTimeCompleted: 0 };
   const byFeature = {};
   const byFamily = {};
   const byTier = {};
   const byTag = {};
   const mistakes = {};
+  const wrongTaps = {};
   const bump = (bucket, key, progress) => {
     if (!key) return;
     const entry = bucket[key] || tally();
@@ -423,14 +427,30 @@ export const questionSetMatchSummary = (player = {}) => {
     // A wrong answer's diagnosis counts even on the miss that used up the
     // last try (it ends the item: forfeit); a skip records no diagnosis.
     if (receipt.isCorrect !== true && typeof receipt.diagnosis === 'string' && REPORT_TAG_NAME.test(receipt.diagnosis)) {
-      mistakes[receipt.diagnosis] = (mistakes[receipt.diagnosis] || 0) + 1;
+      if (receipt.attemptKind === 'tap') {
+        // Where a wrong tap landed: under the feature that was asked.
+        const asked = typeof receipt.feature === 'string' && REPORT_TAG_NAME.test(receipt.feature) ? receipt.feature : null;
+        if (asked && asked !== receipt.diagnosis) {
+          wrongTaps[asked] = wrongTaps[asked] || {};
+          wrongTaps[asked][receipt.diagnosis] = (wrongTaps[asked][receipt.diagnosis] || 0) + 1;
+        }
+      } else {
+        mistakes[receipt.diagnosis] = (mistakes[receipt.diagnosis] || 0) + 1;
+      }
     }
     if (receipt.extraTime === true && receipt.isCorrect === true && receipt.completesQuestion === true) totals.extraTimeCompleted += 1;
-    if (receipt.attemptKind !== 'dne') return;
-    totals.dnePresses += 1;
-    if (receipt.isCorrect === true) totals.dneCorrect += 1;
+    // "Does Not Exist" and, in a game with off-screen features, "Off screen":
+    // the two presses that answer without a tap, each counted with how many
+    // were right.
+    if (receipt.attemptKind === 'dne') {
+      totals.dnePresses += 1;
+      if (receipt.isCorrect === true) totals.dneCorrect += 1;
+    } else if (receipt.attemptKind === 'offScreen') {
+      totals.offScreenPresses += 1;
+      if (receipt.isCorrect === true) totals.offScreenCorrect += 1;
+    }
   });
-  return Object.freeze({ ...totals, byFeature, byFamily, byTier, byTag, mistakes });
+  return Object.freeze({ ...totals, byFeature, byFamily, byTier, byTag, mistakes, wrongTaps });
 };
 
 /** Hits over attempts across the whole match, or null with no attempts. */

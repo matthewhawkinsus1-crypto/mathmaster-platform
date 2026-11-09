@@ -323,9 +323,11 @@
   border-right:1px solid var(--mm-border);
   color:var(--mm-text-muted);
 }
+/* The selected row's number on the theme's primary pair: white on #3d78d8 was 4.3:1 (the Math Tools Lab's scenes,
+   student-keyboard-ci). */
 .regression-rows > li.is-selected .regression-row-gutter {
-  background:#3d78d8;
-  color:#fff;
+  background:var(--mm-primary);
+  color:var(--mm-on-primary);
 }
 .regression-row-number {
   position:absolute;
@@ -642,14 +644,16 @@
   gap:12px;
   margin-top:12px;
 }
+/* The theme's primary pair, as the other primary buttons have it: white on #3f78d7 was 4.3:1, under the 4.5:1 its
+   18px label needs, in both themes (axe, the Math Tools Lab's scenes, student-keyboard-ci). */
 .regression-submit {
   width:min(100%, 240px);
   min-height:44px;
   padding:0 16px;
-  border:1px solid #2f65b8;
+  border:1px solid var(--mm-primary-text);
   border-radius:4px;
-  background:#3f78d7;
-  color:#fff;
+  background:var(--mm-primary);
+  color:var(--mm-on-primary);
   font-weight:800;
 }
 .regression-submit-row p {

@@ -44,6 +44,15 @@ const ATTEMPTS = getEffectiveActivityPolicy('warmup').attempts;
 before(async () => { await loadRenderer(); });
 after(async () => { await closeRenderer(); });
 
+// Version 2 of the representation families writes its whole task — cards,
+// stories, meanings (RC01) — so it renders from a slot with no wording at all,
+// the way Recovery deals it.
+const WRITTEN_BOARDS = Object.freeze([
+  { id: 'linear.representationSort', tool: 'representationMatch', constraints: { deck: 'equationForms' } },
+  { id: 'linear.representationSort', tool: 'representationMatch', constraints: { deck: 'situations', slopeRange: [2, 6], interceptRange: [10, 40] } },
+  { id: 'linear.multipleRepresentations', tool: 'representationBridge', constraints: { given: 'scenario', board: 'drainingTank' } },
+]);
+
 /** Every registered family version × every tool it can be delivered as, in one Warm-Up. */
 const registryAssignment = () => {
   const questions = allRegisteredQuestionFamilies().flatMap((family) => Object.keys(family.tools || {})
@@ -54,6 +63,11 @@ const registryAssignment = () => {
       prompt: 'Work the problem.',
       questionFamily: { id: family.id, version: family.version },
     })));
+  WRITTEN_BOARDS.forEach(({ id, tool, constraints }, index) => questions.push({
+    questionId: `family-${id}-v2-${tool}-${index}`,
+    type: tool,
+    questionFamily: { id, version: 2, constraints },
+  }));
   const base = {
     id: 'family-closed-render',
     title: 'Every family, closed',

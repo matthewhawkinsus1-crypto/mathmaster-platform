@@ -1,3 +1,6 @@
+import { choiceShowsMixedMath } from '../../labelFormat.js';
+import { toPlainMath } from '../../components/common/mathSegments.js';
+
 const clean = (value) => String(value ?? '');
 
 const hashString = (value) => {
@@ -111,15 +114,18 @@ export const choiceSeed = (...parts) => parts.map(clean).filter(Boolean).join(':
 /*
  * THE NAME A SCREEN READER ANNOUNCES FOR A CHOICE.
  *
- * A choice written as delimited mathematics ("$\frac{1}{2}$", "\(y \le 4\)")
- * is named by the mathematics inside. A dollar sign that opens no span is a
- * price: "$20 grocery cards" stays "$20 grocery cards", never "20 grocery
- * cards", which names twenty cards instead of the $20 card.
+ * A choice written as delimited mathematics ("$4x-5y=19$", "$$x = 3$$") is
+ * named by the mathematics inside. One the screen draws as MathText, words and
+ * mathematics together or LaTeX ("$y\ge 2x+1$ and $y\le -x+3$",
+ * "$\frac{1}{2}$"), is named by its mathematics as characters: "y≥ 2x+1 and
+ * y≤ -x+3", "1/2", never its dollar signs or backslashes. A dollar sign that
+ * opens no span is a price: "$20 grocery cards" stays "$20 grocery cards",
+ * never "20 grocery cards", which names twenty cards instead of the $20 card.
  */
 export const choiceAccessibleLabel = (value, { dimensions = false } = {}) => {
   const text = String(value ?? '').trim();
   const wrapped = text.match(/^\$+([\s\S]*?)\$+$/) || text.match(/^\\\(([\s\S]*)\\\)$/);
-  const label = (wrapped && text.length > 1 ? wrapped[1] : text).trim();
+  const label = (choiceShowsMixedMath(text) ? toPlainMath(text) : (wrapped && text.length > 1 ? wrapped[1] : text)).trim();
   // "2 × 3" answering a question about a matrix's dimensions is "2 by 3", as
   // Read aloud says it (speechText.js); a screen reader heard "2 times 3"
   // (AX30). Anywhere else it is a product and keeps its reading.

@@ -1,7 +1,8 @@
 // The emulator's "Transaction is invalid or closed" is re-run the way the
 // Firestore SDK re-runs production's "transaction has expired"
 // (tests/integration/support/emulatorTransactions.mjs), for every integration
-// suite and for nothing else.
+// suite and every browser driver CI runs against the emulator, and for nothing
+// else.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -15,6 +16,7 @@ import {
   retryEmulatorClosedTransactions,
 } from '../integration/support/emulatorTransactions.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { readWorkflow, workflowFiles } from './helpers/ciWorkflows.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const closed = () => Object.assign(new Error('3 INVALID_ARGUMENT: Transaction is invalid or closed.'), { code: 3 });
@@ -116,4 +118,74 @@ test('outside the emulator nothing is patched', () => {
   assert.equal(process.env.FIRESTORE_EMULATOR_HOST, undefined, 'this file runs without the emulator');
   const source = readFileSync(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'), 'utf8');
   assert.match(executableSource(source), /if \(process\.env\.FIRESTORE_EMULATOR_HOST\) \{\s*retryEmulatorClosedTransactions\(functionsFirestoreClass\(\)/);
+});
+
+// The browser drivers CI runs against the emulator answer their pages from a
+// bridge in their own process: the real handlers (or the server's own stores,
+// which the callables call), against the emulator. Two Live Challenge host tabs
+// pressing Start or Next Round at once lost a press to the closed transaction
+// there (a 400 where production answers "already applied"), so each loads the
+// same re-run before the server's Firestore is loaded: the Live Challenge
+// drivers, the Test Cycle's (a Test written, saved and graded through the real
+// callables), class rewards (the reward store's transactions) and the teacher
+// journeys' accommodation review (its bridge, which accommodationReviewQa.mjs
+// starts, approves a correction in one transaction).
+const EMULATOR_BRIDGE_DRIVERS = [
+  'liveChallengeShellQa.mjs',
+  'liveChallengeProjectorPrivacyQa.mjs',
+  'liveChallengeTeachingQa.mjs',
+  'graphFeatureRushGame.mjs',
+  'lineGraphGame.mjs',
+  'testCycleRichToolQa.mjs',
+  'testCycleLifecycleQa.mjs',
+  'classRewardsQa.mjs',
+  'accommodationReviewBridge.mjs',
+];
+// The server's Firestore: the deployed entry's callables, firebase-admin from
+// functions/ (the server's own stores), or the canonical persistence harness.
+const loadsServer = /require\(path\.join\(repo, 'functions\/(?:platformEntry\.js|node_modules\/firebase-admin)'\)\)|await import\('\.\.\/integration\/canonicalPersistenceHarness\.mjs'\)/;
+const loadsRetry = /await import\((?:path\.join\(repo, 'tests\/integration\/support\/emulatorTransactions\.mjs'\)|'\.\.\/integration\/support\/emulatorTransactions\.mjs')\);/;
+const sources = new Map();
+const driverSource = (file) => {
+  if (!sources.has(file)) sources.set(file, executableSource(readFileSync(path.join(repo, 'tests/browser', file), 'utf8')));
+  return sources.get(file);
+};
+
+test('the browser drivers CI runs against the emulator re-run it in their bridges, before the server loads', () => {
+  for (const driver of EMULATOR_BRIDGE_DRIVERS) {
+    const source = driverSource(driver);
+    const server = source.search(loadsServer);
+    const retry = source.search(loadsRetry);
+    assert.ok(server > 0, `${driver} runs the server's Firestore`);
+    assert.ok(retry > 0 && retry < server, `${driver} loads the emulator transaction re-run before the server's Firestore`);
+  }
+});
+
+test('every browser driver CI runs against the emulator is on that list', () => {
+  // What CI runs: the workflows, and the npm scripts they run.
+  const workflows = workflowFiles().map(readWorkflow).join('\n');
+  const { scripts } = JSON.parse(readFileSync(path.join(repo, 'package.json'), 'utf8'));
+  const ci = [workflows, ...[...workflows.matchAll(/npm run ([\w:.-]+)/g)].map(([, name]) => scripts[name] || '')].join('\n');
+  const browserFiles = readdirSync(path.join(repo, 'tests/browser'), { recursive: true }).map(String)
+    .filter((file) => file.endsWith('.mjs') && !file.startsWith('artifacts'));
+  const ciDrivers = browserFiles.filter((file) => ci.includes(`tests/browser/${file}`));
+  // And what those start beside them (accommodationReviewQa.mjs launches its bridge).
+  const started = browserFiles.filter((file) => ciDrivers.some((driver) => driver !== file && driverSource(driver).includes(`tests/browser/${file}`)));
+  const onTheServer = [...new Set([...ciDrivers, ...started])].filter((file) => loadsServer.test(driverSource(file)));
+  assert.deepEqual(onTheServer.sort(), [...EMULATOR_BRIDGE_DRIVERS].sort());
+});
+
+// A platform test a workflow runs under `firebase emulators:exec` (the
+// accommodation review's, beside its driver) runs the real callable as well.
+test('a platform test CI runs against the emulator loads it before the server, as the drivers do', () => {
+  const commands = [...workflowFiles().map(readWorkflow).join('\n').matchAll(/emulators:exec[^"]*"([^"]+)"/g)].map(([, command]) => command);
+  const files = [...new Set(commands.flatMap((command) => [...command.matchAll(/tests\/platform\/([\w.-]+\.test\.mjs)/g)].map(([, file]) => file)))];
+  assert.ok(files.length >= 1, 'the accommodation-review job runs one');
+  for (const file of files) {
+    const source = executableSource(readFileSync(path.join(repo, 'tests/platform', file), 'utf8'));
+    const server = source.search(loadsServer);
+    const retry = source.search(loadsRetry);
+    assert.ok(server > 0, `${file} runs the server's Firestore`);
+    assert.ok(retry > 0 && retry < server, `${file} loads the emulator transaction re-run before the server's Firestore`);
+  }
 });

@@ -111,9 +111,11 @@ const type = async (page, text) => { await page.keyboard.type(text, { delay: 60 
 }
 
 // INTERVAL NUMBER LINE: MathLive's own undo agrees with the platform's.
+const NOTATION_BOX = 'math-field[aria-label^="Interval notation"]';
 {
   const page = await open('intervalNumberLine');
-  const field = page.locator('math-field').first();
+  // The notation box: the exact-endpoint box above it is a math box too.
+  const field = page.locator(NOTATION_BOX).first();
   const value = () => field.evaluate((element) => element.value);
   await field.click();
   await type(page, '[-3');
@@ -136,11 +138,11 @@ const type = async (page, text) => { await page.keyboard.type(text, { delay: 60 
 // A REFRESH: the restored answer is where the field's history starts.
 {
   const page = await open('intervalNumberLine');
-  await page.locator('math-field').first().click();
+  await page.locator(NOTATION_BOX).first().click();
   await type(page, '(1,2]');
   await page.waitForTimeout(800);
   await open('intervalNumberLine', { reuse: page });
-  const restored = page.locator('math-field').first();
+  const restored = page.locator(NOTATION_BOX).first();
   check(await restored.evaluate((element) => element.value) === '(1,2]', 'math field: a refresh restores the draft', JSON.stringify(await restored.evaluate((element) => element.value)));
   await restored.click();
   await page.keyboard.press('End');

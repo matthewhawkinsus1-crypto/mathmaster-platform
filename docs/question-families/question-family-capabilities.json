@@ -4,6 +4,47 @@
   "referenceClass": 30,
   "families": [
     {
+      "id": "absoluteValue.analyzeTransformed",
+      "version": 1,
+      "title": "Analyze a reflected, stretched and translated absolute value",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 576,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "absoluteValue.solveEquation",
       "version": 1,
       "title": "Absolute value equation",
@@ -172,6 +213,349 @@
       "declared": {}
     },
     {
+      "id": "exponential.sortGrowthDecay",
+      "version": 1,
+      "title": "Sort exponential graphs by growth or decay",
+      "alignments": [
+        "A.9D"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "figureMatch",
+          "default": true,
+          "mode": "workflow",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 4400,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.composeQuadraticLinear",
+      "version": 1,
+      "title": "Compose a quadratic and a linear function both ways",
+      "alignments": [
+        "A2.2D"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 960,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.compositionFromValues",
+      "version": 1,
+      "title": "Evaluate a composition f(g(a)) from function values",
+      "alignments": [
+        "A2.2D"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 504,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.conjugateProductQuotient",
+      "version": 1,
+      "title": "The product of x + p and x − p, and the input their quotient excludes",
+      "alignments": [
+        "A2.2D"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 40,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.domainRangeFromGraph",
+      "version": 1,
+      "title": "State the domain and range of a graphed parabola or absolute value",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "parent",
+          "label": "Parent function",
+          "kind": "choice",
+          "default": "quadratic",
+          "concept": true,
+          "values": [
+            "quadratic",
+            "absolute"
+          ]
+        },
+        {
+          "name": "opens",
+          "label": "Opens",
+          "kind": "choice",
+          "default": "up",
+          "concept": true,
+          "values": [
+            "up",
+            "down"
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Vertex coordinates: sizes",
+          "kind": "range",
+          "default": [
+            1,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            8
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "parent",
+        "opens"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "graphAnalysis",
+          "default": true,
+          "mode": "analysis",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 144,
+          "exact": true
+        },
+        {
+          "label": "parent: \"absolute\"",
+          "constraints": {
+            "parent": "absolute"
+          },
+          "capacity": 144,
+          "exact": true
+        },
+        {
+          "label": "opens: \"down\"",
+          "constraints": {
+            "opens": "down"
+          },
+          "capacity": 144,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.familySortFromGraphs",
+      "version": 1,
+      "title": "Sort graphs into the linear, quadratic and exponential families",
+      "alignments": [
+        "A.3C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "figureMatch",
+          "default": true,
+          "mode": "workflow",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 4704,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.fillingTankAttributes",
+      "version": 1,
+      "title": "The attributes of a tank filled at a steady rate",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 123,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "functions.identifyIntercepts",
       "version": 1,
       "title": "Intercepts of a line in standard form",
@@ -289,6 +673,233 @@
           "constraints": {},
           "capacity": 162,
           "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.intervalsFromGraph",
+      "version": 1,
+      "title": "State where a graphed parabola increases, decreases, and is positive and negative",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "graphAnalysis",
+          "default": true,
+          "mode": "analysis",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 42,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.inverseInContext",
+      "version": 1,
+      "title": "Use the inverse of a linear cost function to find the input for a total",
+      "alignments": [
+        "A2.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 32948,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.inverseOfLinear",
+      "version": 1,
+      "title": "Find the inverse of a linear function and check it with one value",
+      "alignments": [
+        "A2.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "task",
+          "label": "Find it (an exit ticket) or review it (a Warm-Up)",
+          "kind": "choice",
+          "default": "find",
+          "concept": true,
+          "values": [
+            "find",
+            "review"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "task"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 1219,
+          "exact": true
+        },
+        {
+          "label": "task: \"review\"",
+          "constraints": {
+            "task": "review"
+          },
+          "capacity": 1219,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.pointwiseFromValues",
+      "version": 1,
+      "title": "Add and subtract two functions at one input, from their values",
+      "alignments": [
+        "A2.2D"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 384,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "functions.swapPairAndEvaluate",
+      "version": 1,
+      "title": "Swap an ordered pair and evaluate a linear function",
+      "alignments": [
+        "A2.7I"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 30976,
+          "exact": false
         }
       ],
       "classOf30": "every student unique",
@@ -1610,6 +2221,280 @@
       "declared": {}
     },
     {
+      "id": "linear.multipleRepresentations",
+      "version": 2,
+      "title": "One linear relationship in every representation",
+      "alignments": [
+        "A.2B",
+        "A.2C",
+        "A.3A",
+        "A.3B",
+        "A.3C"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "given",
+          "label": "Given representation",
+          "kind": "choice",
+          "default": "slopeIntercept",
+          "concept": false,
+          "values": [
+            "standardForm",
+            "slopeIntercept",
+            "pointSlope",
+            "twoPoints",
+            "table",
+            "scenario"
+          ]
+        },
+        {
+          "name": "slope",
+          "label": "Slope",
+          "kind": "choice",
+          "default": "integer",
+          "concept": false,
+          "values": [
+            "integer",
+            "fraction"
+          ]
+        },
+        {
+          "name": "slopeSign",
+          "label": "Slope sign",
+          "kind": "choice",
+          "default": "any",
+          "concept": false,
+          "values": [
+            "any",
+            "positive",
+            "negative"
+          ]
+        },
+        {
+          "name": "slopeRange",
+          "label": "Slope size (numerator)",
+          "kind": "range",
+          "default": [
+            1,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        },
+        {
+          "name": "denominatorRange",
+          "label": "Slope denominator (fractional slopes)",
+          "kind": "range",
+          "default": [
+            2,
+            3
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            6
+          ]
+        },
+        {
+          "name": "interceptRange",
+          "label": "y-intercept range",
+          "kind": "range",
+          "default": [
+            -8,
+            8
+          ],
+          "concept": false,
+          "limits": [
+            -60,
+            60
+          ]
+        },
+        {
+          "name": "xInterceptRange",
+          "label": "x-intercept range",
+          "kind": "range",
+          "default": [
+            -8,
+            8
+          ],
+          "concept": false,
+          "limits": [
+            -60,
+            60
+          ]
+        },
+        {
+          "name": "standardScale",
+          "label": "Given standard form multiplied by",
+          "kind": "choice",
+          "default": 1,
+          "concept": false,
+          "values": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "tablePattern",
+          "label": "Given table x-values",
+          "kind": "choice",
+          "default": "spread",
+          "concept": false,
+          "values": [
+            "spread",
+            "consecutive"
+          ]
+        },
+        {
+          "name": "rateRange",
+          "label": "Story: amount lost per step",
+          "kind": "range",
+          "default": [
+            2,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            20
+          ]
+        },
+        {
+          "name": "durationRange",
+          "label": "Story: steps until it runs out",
+          "kind": "range",
+          "default": [
+            3,
+            15
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            30
+          ]
+        },
+        {
+          "name": "startRange",
+          "label": "Story: starting amount",
+          "kind": "range",
+          "default": [
+            6,
+            36
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            200
+          ]
+        },
+        {
+          "name": "scenarioStart",
+          "label": "Story: starting amount stated, or found from a later reading",
+          "kind": "choice",
+          "default": "stated",
+          "concept": false,
+          "values": [
+            "stated",
+            "fromReading"
+          ]
+        },
+        {
+          "name": "coordinateRange",
+          "label": "Given and plotted points: coordinate range",
+          "kind": "range",
+          "default": [
+            -10,
+            10
+          ],
+          "concept": false,
+          "limits": [
+            -60,
+            60
+          ]
+        },
+        {
+          "name": "integerXIntercept",
+          "label": "Whole-number x-intercept",
+          "kind": "boolean",
+          "default": true,
+          "concept": false,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "board",
+          "label": "Board: the slot's own cards and meanings, or a board the family writes (drainingTank: a story, with given \"scenario\")",
+          "kind": "choice",
+          "default": "authored",
+          "concept": true,
+          "values": [
+            "authored",
+            "drainingTank"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "board"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "representationBridge",
+          "default": true,
+          "mode": "linearMultipleRepresentations",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 62,
+          "exact": true
+        },
+        {
+          "label": "board: \"drainingTank\"",
+          "constraints": {
+            "board": "drainingTank"
+          },
+          "capacity": 0,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [
+        {
+          "support": "reduce-complexity",
+          "narrows": {
+            "slope": "integer",
+            "standardScale": 1
+          },
+          "keeps": [
+            "board"
+          ],
+          "capacity": 62
+        }
+      ],
+      "declared": {}
+    },
+    {
       "id": "linear.multiStepEquation",
       "version": 1,
       "title": "Linear equation with variables on both sides",
@@ -2775,6 +3660,119 @@
       "declared": {}
     },
     {
+      "id": "linear.representationSort",
+      "version": 2,
+      "title": "Sort the representations of two lines",
+      "alignments": [
+        "A.3B",
+        "A.3C",
+        "A.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "slopeRange",
+          "label": "Slope size",
+          "kind": "range",
+          "default": [
+            1,
+            3
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            12
+          ]
+        },
+        {
+          "name": "interceptRange",
+          "label": "y-intercept range",
+          "kind": "range",
+          "default": [
+            -6,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            -100,
+            100
+          ]
+        },
+        {
+          "name": "integerXIntercepts",
+          "label": "Whole-number x-intercepts",
+          "kind": "boolean",
+          "default": true,
+          "concept": false,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "deck",
+          "label": "Deck: the slot's own cards, or a deck the family writes",
+          "kind": "choice",
+          "default": "authored",
+          "concept": true,
+          "values": [
+            "authored",
+            "equationForms",
+            "situations"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "deck"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "representationMatch",
+          "default": true,
+          "mode": "linearConnections",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 236,
+          "exact": true
+        },
+        {
+          "label": "deck: \"equationForms\"",
+          "constraints": {
+            "deck": "equationForms"
+          },
+          "capacity": 236,
+          "exact": true
+        },
+        {
+          "label": "deck: \"situations\"",
+          "constraints": {
+            "deck": "situations"
+          },
+          "capacity": 10,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "linear.slopeFromPoints",
       "version": 1,
       "title": "Slope from two points",
@@ -3866,6 +4864,50 @@
       "declared": {}
     },
     {
+      "id": "matrices.arrayRecordTotals",
+      "version": 2,
+      "title": "Read two arrays of data: totals over both and the smallest",
+      "alignments": [
+        "A2.3B"
+      ],
+      "unpinnedReferenceMeansThisVersion": false,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": [],
+        "replaces": [
+          1
+        ]
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 906562,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "matrices.multiplication",
       "version": 1,
       "title": "Is a matrix product defined? Its size and its entries",
@@ -4725,6 +5767,224 @@
           "constraints": {},
           "capacity": 884,
           "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "quadratics.vertexChoiceFromGraph",
+      "version": 1,
+      "title": "Choose the vertex of a graphed parabola",
+      "alignments": [
+        "A.7A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "graphChoicePreview",
+          "default": true,
+          "mode": "workflow",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 47,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "relations.inverseOfSet",
+      "version": 1,
+      "title": "Find the inverse of a relation given as ordered pairs",
+      "alignments": [
+        "A2.2B"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 741522,
+          "exact": false
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "relations.mappingDiagram",
+      "version": 1,
+      "title": "Map a relation, state its domain and range, and decide whether it is a function",
+      "alignments": [
+        "A2.7I",
+        "A.12A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "ask",
+          "label": "What the diagram asks for",
+          "kind": "choice",
+          "default": "mappingDomainRange",
+          "concept": true,
+          "values": [
+            "mappingDomainRange",
+            "mappingDomainRangeFunction",
+            "mappingFunction"
+          ]
+        },
+        {
+          "name": "relation",
+          "label": "Kind of relation",
+          "kind": "choice",
+          "default": "oneToOne",
+          "concept": true,
+          "values": [
+            "oneToOne",
+            "sharedOutput",
+            "repeatedInput"
+          ]
+        },
+        {
+          "name": "pairCount",
+          "label": "Ordered pairs",
+          "kind": "choice",
+          "default": 4,
+          "concept": true,
+          "values": [
+            3,
+            4
+          ]
+        },
+        {
+          "name": "valueRange",
+          "label": "Inputs and outputs",
+          "kind": "range",
+          "default": [
+            -6,
+            10
+          ],
+          "concept": false,
+          "limits": [
+            -12,
+            12
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "ask",
+        "relation",
+        "pairCount"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "relationMapping",
+          "default": true,
+          "mode": "default",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 33366639,
+          "exact": false
+        },
+        {
+          "label": "ask: \"mappingDomainRangeFunction\"",
+          "constraints": {
+            "ask": "mappingDomainRangeFunction"
+          },
+          "capacity": 33366639,
+          "exact": false
+        },
+        {
+          "label": "ask: \"mappingFunction\"",
+          "constraints": {
+            "ask": "mappingFunction"
+          },
+          "capacity": 33366639,
+          "exact": false
+        },
+        {
+          "label": "relation: \"sharedOutput\"",
+          "constraints": {
+            "relation": "sharedOutput"
+          },
+          "capacity": 14420422,
+          "exact": false
+        },
+        {
+          "label": "relation: \"repeatedInput\"",
+          "constraints": {
+            "relation": "repeatedInput"
+          },
+          "capacity": 31717996,
+          "exact": false
+        },
+        {
+          "label": "pairCount: 3",
+          "constraints": {
+            "pairCount": 3
+          },
+          "capacity": 803237,
+          "exact": false
         }
       ],
       "classOf30": "every student unique",
@@ -6082,6 +7342,310 @@
       }
     },
     {
+      "id": "transformations.describeEveryChange",
+      "version": 1,
+      "title": "Describe every change in g(x) = ±f(±B(x − C)) + D",
+      "alignments": [
+        "A2.2A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "reflections",
+          "label": "Which reflections g(x) makes",
+          "kind": "choice",
+          "default": "vertical",
+          "concept": true,
+          "values": [
+            "vertical",
+            "horizontal",
+            "both",
+            "none"
+          ]
+        },
+        {
+          "name": "scaleRange",
+          "label": "Horizontal factor B",
+          "kind": "range",
+          "default": [
+            2,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            9
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Shift sizes |C| and |D|",
+          "kind": "range",
+          "default": [
+            1,
+            6
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            9
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "reflections"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 576,
+          "exact": true
+        },
+        {
+          "label": "reflections: \"horizontal\"",
+          "constraints": {
+            "reflections": "horizontal"
+          },
+          "capacity": 576,
+          "exact": true
+        },
+        {
+          "label": "reflections: \"both\"",
+          "constraints": {
+            "reflections": "both"
+          },
+          "capacity": 576,
+          "exact": true
+        },
+        {
+          "label": "reflections: \"none\"",
+          "constraints": {
+            "reflections": "none"
+          },
+          "capacity": 576,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.describeScaleChange",
+      "version": 1,
+      "title": "Describe a reflection and a scale by the class rule, g(x) = f(−bx) or −a·f(x) + D",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "side",
+          "label": "The factor inside f (horizontal) or outside f (vertical)",
+          "kind": "choice",
+          "default": "outside",
+          "concept": true,
+          "values": [
+            "outside",
+            "inside"
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "side"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 288,
+          "exact": true
+        },
+        {
+          "label": "side: \"inside\"",
+          "constraints": {
+            "side": "inside"
+          },
+          "capacity": 16,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.describeTranslations",
+      "version": 1,
+      "title": "Describe the translations in g(x) = f(x − C) + D",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "multiAnswer",
+          "default": true,
+          "mode": null,
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 324,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.identifyCubeRoot",
+      "version": 1,
+      "title": "Read a transformed cube-root graph and determine a, h and k",
+      "alignments": [
+        "A2.2A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "reflected",
+          "label": "The graph is reflected across the x-axis (a < 0)",
+          "kind": "boolean",
+          "default": true,
+          "concept": true,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "stretchRange",
+          "label": "Vertical stretch |a|",
+          "kind": "range",
+          "default": [
+            2,
+            3
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            3
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Shift sizes |h| and |k|",
+          "kind": "range",
+          "default": [
+            1,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            5
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "reflected"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "transformationsLab",
+          "default": true,
+          "mode": "identify",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 120,
+          "exact": true
+        },
+        {
+          "label": "reflected: false",
+          "constraints": {
+            "reflected": false
+          },
+          "capacity": 120,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
       "id": "transformations.linearCompareEffects",
       "version": 1,
       "title": "Compare horizontal and vertical transformations of f(x) = x",
@@ -6407,6 +7971,138 @@
           "capacity": 33
         }
       ],
+      "declared": {}
+    },
+    {
+      "id": "transformations.mapExponentialPoint",
+      "version": 1,
+      "title": "Map the point (0, 1) of y = 2^x through y = a·2^(x − h) + k",
+      "alignments": [
+        "A2.2A"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "strict",
+      "constraints": [
+        {
+          "name": "reflected",
+          "label": "The graph is reflected across the x-axis (a < 0)",
+          "kind": "boolean",
+          "default": true,
+          "concept": true,
+          "values": [
+            true,
+            false
+          ]
+        },
+        {
+          "name": "stretchRange",
+          "label": "Vertical stretch |a|",
+          "kind": "range",
+          "default": [
+            2,
+            4
+          ],
+          "concept": false,
+          "limits": [
+            2,
+            5
+          ]
+        },
+        {
+          "name": "shiftRange",
+          "label": "Shift sizes |h| and |k|",
+          "kind": "range",
+          "default": [
+            1,
+            5
+          ],
+          "concept": false,
+          "limits": [
+            1,
+            6
+          ]
+        }
+      ],
+      "conceptConstraints": [
+        "reflected"
+      ],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "transformationsLab",
+          "default": true,
+          "mode": "pointMap",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 270,
+          "exact": true
+        },
+        {
+          "label": "reflected: false",
+          "constraints": {
+            "reflected": false
+          },
+          "capacity": 270,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
+      "declared": {}
+    },
+    {
+      "id": "transformations.matchAbsoluteValue",
+      "version": 1,
+      "title": "Match a compressed, translated absolute value in the Transformations Lab",
+      "alignments": [
+        "A2.6C"
+      ],
+      "unpinnedReferenceMeansThisVersion": true,
+      "constraintPolicy": "fallback",
+      "constraints": [],
+      "conceptConstraints": [],
+      "solutionCases": null,
+      "solutionForms": null,
+      "coefficientForms": null,
+      "tools": [
+        {
+          "tool": "transformationsLab",
+          "default": true,
+          "mode": "match",
+          "serverGraded": true,
+          "authority": "shared-server-authoritative",
+          "reason": null
+        }
+      ],
+      "recovery": {
+        "eligible": true,
+        "ready": true,
+        "issues": []
+      },
+      "capacity": [
+        {
+          "label": "default",
+          "constraints": {},
+          "capacity": 300,
+          "exact": true
+        }
+      ],
+      "classOf30": "every student unique",
+      "reducedComplexity": [],
       "declared": {}
     }
   ]

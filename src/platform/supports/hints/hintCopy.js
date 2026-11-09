@@ -28,3 +28,7 @@ export const hintCostSentence = (override = null) => {
 
 // The graph's "Check my points" is recorded exactly like a hint, so it says so.
 export const selfCheckCostSentence = (override = null) => `This counts as a hint. ${hintCostSentence(override)}`;
+
+// What a rung asked for before its tool's own rungs arrived says in its place
+// while the tool loads (hint-ladder timing, HintPanel.jsx).
+export const PENDING_RUNG_TEXT = 'Loading the hint for this question…';

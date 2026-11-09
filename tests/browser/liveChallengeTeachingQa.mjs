@@ -122,6 +122,10 @@ await fetch(`http://${EMULATOR}/emulator/v1/projects/${PROJECT}/databases/(defau
 
 /* -------------------- the real server, behind a bridge -------------------- */
 
+// Transactions are re-run as production re-runs them: the emulator closes a
+// contended one that production would re-run, and the command fails instead
+// (liveChallengeShellQa.mjs; the integration suites load the same re-run).
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 const functionsIndex = require(path.join(repo, 'functions/platformEntry.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();

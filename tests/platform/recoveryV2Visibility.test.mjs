@@ -27,6 +27,13 @@ import {
   recoveryRowLabel,
   recoveryVerdict,
 } from '../../src/platform/recovery/recoveryReadinessCopy.js';
+import {
+  canApproveRecoveryUpgrade,
+  countOf,
+  recoveryChangeDetail,
+  recoveryUpgradeAlert,
+  studentRecordsSentence,
+} from '../../src/platform/recovery/recoveryUpgradeCopy.js';
 
 /* ---------------------------------------------------------------------------
  * The words.
@@ -118,6 +125,19 @@ test('the assignment details show Recovery as students have it now, its version,
   assert.match(hub, /const recoverySection = !isTestCycleAssignment\(assignment\) && \(\s*<AssignmentRecoverySection/);
 });
 
+test('after Prepare Recovery adds everything, closing it leaves focus on the Recovery heading, not the page', () => {
+  // Approving makes nothing preparable, so the "Prepare Recovery…" button that
+  // opened the dialog is gone when it closes and Dialog has no opener to give
+  // focus back to: a keyboard or screen reader teacher was left on the page.
+  const section = executableSource(region(hub, 'function AssignmentRecoverySection({', '\nexport default function AssignmentHub', 'hub Recovery section'));
+  assert.match(section, /<h3 id="assignment-hub-recovery" ref=\{headingRef\} tabIndex=\{-1\}/, 'the heading can take focus');
+  const effect = region(section, 'useEffect(() => {', '}, [upgradeOpen]);', 'the close effect');
+  assert.match(effect, /const closed = upgradeWasOpen\.current && !upgradeOpen;/, 'only when the dialog has just closed');
+  assert.match(effect, /if \(!active \|\| active === document\.body\) headingRef\.current\?\.focus\(\);/, 'only when focus fell to the page (a Cancel returns it to the button)');
+  // Before the early returns, so the hooks run on every render.
+  assert.ok(section.indexOf('}, [upgradeOpen]);') < section.indexOf('if (!plan) return null;'));
+});
+
 test('who can recover is read when the teacher asks, from the class\'s grade records, with the server\'s reasons', () => {
   const section = region(hub, 'function AssignmentRecoverySection({', '\nexport default function AssignmentHub', 'hub Recovery section');
   const read = region(section, 'const readRoster = async () => {', '\n  };', 'read roster');
@@ -134,7 +154,9 @@ test('Prepare Recovery shows the server\'s dry run and approves exactly that pla
   const approve = region(modal, 'const approve = async () => {', '\n  };', 'approve');
   assert.match(approve, /if \(!canApprove\) return;/);
   assert.match(approve, /teacherAdmin\.commitRecoveryContentUpgrade\(\{\s*assignmentId: assignment\.id,\s*expectedPlanHash: preview\.planHash,\s*\}\)/, 'the approval is bound to the plan the teacher read');
-  assert.match(modal, /const canApprove = Boolean\(report\?\.changed && preview\?\.planHash && !result && !committing && !loading\);/);
+  // Approve follows the rule below, with the refusal the dialog holds, and the button shows it.
+  assert.match(modal, /const canApprove = canApproveRecoveryUpgrade\(\{ preview, result, committing, loading, error \}\);/);
+  assert.match(modal, /data-recovery-upgrade-approve="true"\s*disabled=\{!canApprove\}/);
   // The report's halves: what changes, what does not, and what is still not ready.
   assert.match(modal, /aria-label="What this adds"/);
   assert.match(modal, /aria-label="What stays exactly the same"/);
@@ -149,6 +171,63 @@ test('Prepare Recovery shows the server\'s dry run and approves exactly that pla
   const index = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   assert.match(index, /^exports\.previewRecoveryContentUpgrade = onCall\(/m);
   assert.match(index, /^exports\.commitRecoveryContentUpgrade = onCall\(/m);
+});
+
+// Teacher features walk, item 2: the counts were printed raw ("31717993 fresh versions").
+test('Prepare Recovery reads its counts as numbers: grouped, and "1 fresh version"', () => {
+  assert.equal(
+    recoveryChangeDetail({ freshVersions: 31717993, excludedFromAssignment: 1500, standards: ['A.3(C)'], rigor: { dok: 2 } }),
+    '31,717,993 fresh versions · never a problem already in this assignment (1,500 set aside) · same TEKS (A.3(C)) · same DOK 2 · the same tool, graded by MathMaster',
+  );
+  assert.equal(recoveryChangeDetail({ freshVersions: 1 }), '1 fresh version · the same tool, graded by MathMaster');
+  assert.equal(recoveryChangeDetail({}), 'the same tool, graded by MathMaster', 'no count, no number');
+  assert.equal(
+    studentRecordsSentence({ students: 1204, withAnyWork: 1100, withDolWork: 950, withCompletedDol: 900, withRecoveryRecords: 12 }),
+    '1,204 student records (1,100 with saved work, 950 with DOL answers, 900 who finished the DOL, 12 with a Recovery already under way). None of them is written.',
+  );
+  assert.equal(studentRecordsSentence({ students: 1, withAnyWork: 1 }), '1 student record (1 with saved work, 0 with DOL answers, 0 who finished the DOL). None of them is written.');
+  assert.equal(studentRecordsSentence({}), 'No student has a record for this assignment yet.');
+  assert.equal(countOf(0, 'question'), '0 questions');
+  // The dialog prints these, and no count of its own.
+  const modal = executableSource(componentSource('src/components/teacher/RecoveryUpgradeModal.jsx'));
+  assert.match(modal, /\{recoveryChangeDetail\(change\)\}/);
+  assert.match(modal, /\{studentRecordsSentence\(report\.untouched\?\.studentRecords\)\}/);
+  assert.match(modal, /\{countOf\(report\.untouched\?\.questionCount \?\? 0, 'question'\)\}, each with an unchanged content signature/);
+  assert.doesNotMatch(modal, /change\.freshVersions|records\.with/, 'no raw count is printed in the dialog itself');
+});
+
+// Teacher features walk, item 4: after "assignment changed", Approve stayed enabled (a press could only be
+// refused again) and the alert said it twice, its own words and then the server's.
+test('after "assignment changed", Approve waits for Check again, and the alert says it once', () => {
+  const preview = { planHash: 'plan-1', report: { changed: true } };
+  const planChanged = {
+    message: 'This assignment changed after the preview, so nothing was changed. Preview the Recovery upgrade again.',
+    errorCode: 'functions/failed-precondition', reason: 'recovery-upgrade-plan-changed', planChanged: true,
+  };
+  assert.equal(canApproveRecoveryUpgrade({ preview }), true, 'a plan to approve');
+  assert.equal(canApproveRecoveryUpgrade({ preview, error: planChanged }), false, 'that plan is gone: Approve waits');
+  assert.equal(canApproveRecoveryUpgrade({ preview: { ...preview, planHash: 'plan-2' } }), true, 'Check again loads the plan as it stands, and clears the refusal');
+  const refused = { message: 'MathMaster could not finish that. Try again in a moment.', errorCode: 'functions/internal', reason: '', planChanged: false };
+  assert.equal(canApproveRecoveryUpgrade({ preview, error: refused }), true, 'any other refusal leaves the same plan to try again');
+  for (const state of [{ loading: true }, { committing: true }, { result: { alreadyCurrent: false } }]) {
+    assert.equal(canApproveRecoveryUpgrade({ preview, ...state }), false, JSON.stringify(state));
+  }
+  assert.equal(canApproveRecoveryUpgrade({ preview: { planHash: 'plan-1', report: { changed: false } } }), false, 'nothing to add');
+  assert.equal(canApproveRecoveryUpgrade({ preview: { report: { changed: true } } }), false, 'no plan to bind the approval to');
+  // The alert says it once, with the step in the dialog's own words, and no error code for an expected moment.
+  const words = recoveryUpgradeAlert(planChanged);
+  const said = `${words.lead} ${words.detail}`;
+  assert.equal((said.match(/changed after/g) || []).length, 1, said);
+  assert.match(said, /Nothing was changed\. Check again/);
+  assert.equal(words.code, null);
+  assert.deepEqual(recoveryUpgradeAlert(refused), { lead: 'Nothing was changed.', detail: refused.message, code: 'functions/internal' }, 'any other refusal: the server\'s words and its code');
+  assert.equal(recoveryUpgradeAlert(null), null);
+  // The dialog shows exactly that alert, and nothing else prints the server's sentence.
+  const modal = executableSource(componentSource('src/components/teacher/RecoveryUpgradeModal.jsx'));
+  assert.match(modal, /const alertWords = recoveryUpgradeAlert\(error\);/);
+  const alert = region(modal, '{alertWords && (', 'Check again</button>', 'the alert');
+  assert.match(alert, /<div role="alert"[^>]*>\s*<strong>\{alertWords\.lead\}<\/strong> \{alertWords\.detail\}\s*\{alertWords\.code && <div[^>]*>Error code: \{alertWords\.code\}<\/div>\}/);
+  assert.doesNotMatch(modal, /\{error\.message\}/);
 });
 
 test('an assignment card offers Prepare Recovery only where a static Warm-Up or DOL question can gain it, and the details refresh after', () => {

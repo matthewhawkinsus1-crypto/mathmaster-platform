@@ -41,6 +41,8 @@ const effects = new Function(
   'lineGraphEvidenceEventsFor',
   `"use strict";\n${[
     'liveChallengeEffectRecipients', 'questionSetModeReport', 'writeLiveChallengeReportFromResult',
+    // The classic report the writer stores (and a Solver Race's class memory reads).
+    'classicChallengeReportFromResult',
     'writeWarmupCreditFromResult', 'writeChallengeEvidenceFromResult',
   ].map(topLevelFunction).join('\n')}\nreturn { writeLiveChallengeReportFromResult, writeWarmupCreditFromResult, writeChallengeEvidenceFromResult };`,
 )(

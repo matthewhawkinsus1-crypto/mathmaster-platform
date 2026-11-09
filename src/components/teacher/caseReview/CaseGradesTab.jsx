@@ -36,7 +36,7 @@ export default function CaseGradesTab({ model, onOpenAssignment }) {
           One row per assignment given to this student (library copies are excluded). Grades are MathMaster grade contributions — what Grade
           Export sends — not the official average. * changed since it was exported. Open a row for its questions and attempts.
         </p>
-        <div className="cr-scroll-x">
+        <div className="cr-scroll-x" role="region" aria-label="Grades by assignment" tabIndex={0}>
           <table className="cr-table" data-case-grades>
             <thead>
               <tr>
@@ -86,7 +86,7 @@ export default function CaseGradesTab({ model, onOpenAssignment }) {
               <div><dt>Attempts recorded</dt><dd>{row.attempts}</dd></div>
             </dl>
             {row.condition.note && <p className="cr-note">{row.condition.note}</p>}
-            <div className="cr-scroll-x">
+            <div className="cr-scroll-x" role="region" aria-label="Gradebook items and MathMaster grades" tabIndex={0}>
               <table className="cr-table">
                 <thead><tr><th>Gradebook item</th><th>MathMaster grade contribution</th><th>Export status</th></tr></thead>
                 <tbody>

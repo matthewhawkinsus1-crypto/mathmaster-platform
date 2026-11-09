@@ -36,6 +36,7 @@
  * no work is unanswered.
  */
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
+import { looksLikeFiniteSetNotation } from '../../answerUtils.mjs';
 import { LINE_FORMS, isVerticalLine, requestedLineForm, sameLine, writtenLineForm } from '../../linearEquationForm.mjs';
 import { studentMisconceptionMessage } from '../../misconceptionStudentMessages.mjs';
 import { buildToolResponse, isToolResponse, readToolWork } from '../toolResponseContract.mjs';
@@ -123,7 +124,10 @@ const withGraphStageVerdicts = ({ composed, responses, outcomesWithheld = false 
  *   coordinatePlot, functionGraph  the workspace's own fixed lines; a count of
  *     plotted pairs becomes one sentence.
  *   mappingDiagram, valueSet, domainInput, rangeInput  their single fixed
- *     line for any miss.
+ *     line for any miss. A set step keyed as a braced set and answered with a
+ *     plain list says to write a set (F-SET-NOTATION-UNSAID): fixed text about
+ *     the braces, the same whatever the values, as a plain list is refused
+ *     whatever its values are.
  *   figureMatch  the count, which the step already turns into named figures
  *     (P2-4, an owner decision).
  *   equationInput  the FORM, never the value (FB08, an owner decision). The
@@ -208,6 +212,33 @@ const equationStepSentence = (stage, rule, response) => {
   return studentMisconceptionMessage(LINE_FORM_CODES[form]) || '';
 };
 
+/*
+ * A SET STEP SAYS IT WANTS A SET (F-SET-NOTATION-UNSAID, 2026-11-06
+ * walkthrough). A step keyed as a set in braces refuses a plain list: `-1, 5`
+ * is not `{-1, 5}`, because writing a set as a set is part of what the step
+ * assesses (answerUtils.mjs). Nothing said so, and the step only turned red.
+ *
+ * So a miss written as a plain list, where every key is a braced set, says to
+ * write a set: one fixed sentence, as an equation step says "with an = sign"
+ * (FB08). It reads only how the answer is written. A plain list of two or more
+ * values is refused whatever the values are, so the sentence comes for a list
+ * of the right values and for a list of wrong ones alike, and tells nothing
+ * about them. What the grader takes without braces hears nothing: one value
+ * (`3` for {3}) and a list with an ellipsis (`0, 1, 2, ..., 48`) are marked by
+ * their values, never by their form. A choice step is not written at all.
+ */
+const NOT_A_SET = 'Write this step as a set, with the values inside braces { }.';
+const ELLIPSIS = /\.\.\.|…|\\[lc]dots/;
+const setStepSentence = (stage, rule, response) => {
+  if (Array.isArray(stage?.choices) && stage.choices.length) return '';
+  const written = typeof response === 'string' ? response.trim() : '';
+  const keys = equationKeys(rule);
+  if (!written || !keys.length || !keys.every((key) => looksLikeFiniteSetNotation(key))) return '';
+  if (looksLikeFiniteSetNotation(written) || ELLIPSIS.test(written) || !written.includes(',')) return '';
+  return NOT_A_SET;
+};
+const SET_STEP = [...SET_LINE, [/^Not correct yet\.$/, (detail, stage, rule, response) => setStepSentence(stage, rule, response)]];
+
 export const STAGE_REASON_ALLOWLIST = Object.freeze({
   graphFeatureSelect: [],
   pointInput: [],
@@ -220,9 +251,9 @@ export const STAGE_REASON_ALLOWLIST = Object.freeze({
   coordinatePlot: PLOT_LINES,
   functionGraph: PLOT_LINES,
   mappingDiagram: [[/^The arrows do not match the relation — check which value each one is joined to\.$/, PASS]],
-  valueSet: SET_LINE,
-  domainInput: SET_LINE,
-  rangeInput: SET_LINE,
+  valueSet: SET_STEP,
+  domainInput: SET_STEP,
+  rangeInput: SET_STEP,
   figureMatch: [[/^\d+ of \d+ figures are in the right category\.$/, PASS]],
   equationInput: [[/^Not correct yet\.$/, (detail, stage, rule, response) => equationStepSentence(stage, rule, response)]],
 });

@@ -61,6 +61,8 @@ test('a 3x3 matrix fits the box of a 344px phone and of a 320px phone, and nothi
 });
 
 test('a matrix wider than its box still scrolls, as a long one must', () => {
-  assert.match(grid, /data-matrix-scroll="true" style=\{\{[^}]*overflowX: 'auto'/);
+  // The scroll box's own style, whatever props stand between (student-a11y-3
+  // spreads its keyboard region there: matrixScrollRegion.test.mjs).
+  assert.match(grid, /data-matrix-scroll="true"[^\n]*? style=\{\{[^}]*overflowX: 'auto'/);
   assert.match(grid, /minWidth: 0/, 'so it scrolls instead of widening its panel');
 });

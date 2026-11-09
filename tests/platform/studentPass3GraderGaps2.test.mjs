@@ -96,8 +96,11 @@ test('an expression key keeps today\'s reading: 3\\frac{x}{2} is (3x)/2, and a m
   assert.equal(matchesFieldAnswer('3\\frac{x}{2}', { answer: '3x/2', inputProfile: 'expression' }), true);
   // `2\frac{1}{2}x` could mean (5/2)x; it is left as the owner's decision.
   assert.equal(sameValue('2\\frac{1}{2}x', '5x/2'), false);
-  // A mixed number inside a pair stays refused (wave 6 review B2).
-  assert.equal(matchesFieldAnswer('(1\\frac{1}{2},4)', { answer: '(\\frac{3}{2},4)', answerFormat: 'orderedPair' }), false);
+  // A mixed number inside a pair is read as a number box reads one
+  // (platform-polish-3: orderedPairMixedNumbers.test.mjs); review B2's
+  // product reading, (1½, 4) for (½, 4), stays wrong (pass3GraderGaps).
+  assert.equal(matchesFieldAnswer('(1\\frac{1}{2},4)', { answer: '(\\frac{3}{2},4)', answerFormat: 'orderedPair' }), true);
+  assert.equal(matchesFieldAnswer('(1\\frac{1}{2},4)', { answer: '(\\frac{1}{2},4)', answerFormat: 'orderedPair' }), false);
 });
 
 test('a lowest-terms fraction question takes a mixed number in lowest terms, and says why before a try is spent when it is not', () => {
@@ -184,10 +187,14 @@ test('0.0005 and 1/2000 are 10^{-3}/2 in a number field; 0.005 is not', async ()
 
 test('every field grader asks fieldValueOptions, so a number box reads the same on Path, a test, Live Challenge, the simulation and an assignment', () => {
   // `arithmetic`: whether the field takes a calculation (GR01) — a number box
-  // only when it opts in.
-  assert.deepEqual(fieldValueOptions({ inputProfile: 'number' }), { thousandsSeparators: true, exactNumber: true, arithmetic: false });
-  assert.deepEqual(fieldValueOptions({ inputProfile: 'number', allowArithmetic: true }), { thousandsSeparators: true, exactNumber: true, arithmetic: true });
-  assert.deepEqual(fieldValueOptions({ inputProfile: 'orderedPair' }), { thousandsSeparators: false, exactNumber: false, arithmetic: true });
+  // only when it opts in. `typed`: a typed field's ², · and × are read as the
+  // editor writes them (grader spellings); a choice's options never are.
+  // `orderedPair`: a pair box reads a mixed number in a coordinate
+  // (platform-polish-3, orderedPairMixedNumbers.test.mjs).
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'number' }), { thousandsSeparators: true, exactNumber: true, arithmetic: false, typed: true });
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'number', allowArithmetic: true }), { thousandsSeparators: true, exactNumber: true, arithmetic: true, typed: true });
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'orderedPair' }), { thousandsSeparators: false, exactNumber: false, arithmetic: true, typed: true, orderedPair: true });
+  assert.deepEqual(fieldValueOptions({ inputProfile: 'choice' }), { thousandsSeparators: true, exactNumber: false, arithmetic: true });
   const pathSource = executableSource(readFileSync(new URL('../../functions/lib/mathPath.js', import.meta.url), 'utf8'));
   assert.match(pathSource, /return equivalence\.sameValue\(actual, expected, tolerance, equivalence\.fieldValueOptions\(field\)\);/);
   const simulation = executableSource(readFileSync(new URL('../../src/platform/simulation/teacherPathRuntime.js', import.meta.url), 'utf8'));

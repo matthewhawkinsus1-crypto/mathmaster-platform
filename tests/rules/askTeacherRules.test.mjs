@@ -427,3 +427,29 @@ test('after the class changes hands, the student\'s current teacher reads and an
   await assertFails(sendTeacherQuestion(studentA(), ask({ questionIndex: 5, classId: 'class-b', teacherEmail: TEACHER_A })));
   await assertSucceeds(sendTeacherQuestion(studentA(), ask({ questionIndex: 5, classId: 'class-b', teacherEmail: TEACHER_B })));
 });
+
+test('a follow-up after the class changed hands goes to the current teacher, and only to the roster\'s teacher (P2 on PR 525)', async () => {
+  const id = 'AQ_STUDENT_C__A1__1';
+  const FIRST = 'How do I start?';
+  const ANSWER = 'Find two points first.';
+  const ref = (db) => questionRef(db, id);
+  const studentC = () => env.authenticatedContext('uid-sc', { role: 'student', studentId: 'AQ_STUDENT_C' }).firestore();
+  const follow = (extra = {}) => ({ status: 'open', text: 'Which two?', earlierText: FIRST, earlierAnswer: ANSWER, updatedAt: serverTimestamp(), ...extra });
+  await assertSucceeds(sendTeacherQuestion(studentC(), ask({ studentId: 'AQ_STUDENT_C', questionIndex: 1, text: FIRST })));
+  await assertSucceeds(answerTeacherQuestion(teacherA(), { questionId: id, answer: ANSWER, teacherEmail: TEACHER_A }));
+  // The class moves to teacher B after the answer.
+  await env.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), 'grades/AQ_STUDENT_C'), { assignedTeacherEmail: TEACHER_B, classId: 'class-b' });
+  });
+  // Not to a teacher who is not theirs, nor a class that is not theirs.
+  await assertFails(updateDoc(ref(studentC()), follow({ teacherEmail: ROOT_ADMIN, classId: 'class-b' })));
+  await assertFails(updateDoc(ref(studentC()), follow({ teacherEmail: TEACHER_B, classId: 'class-z' })));
+  await assertFails(updateDoc(ref(studentC()), follow({ teacherEmail: TEACHER_A, classId: 'class-b' })));
+  // Another student cannot redirect it.
+  await assertFails(updateDoc(ref(studentA()), follow({ teacherEmail: TEACHER_B, classId: 'class-b' })));
+  await assertSucceeds(updateDoc(ref(studentC()), follow({ teacherEmail: TEACHER_B, classId: 'class-b' })));
+  // Teacher Home's query for the new teacher lists it; the former teacher's does not.
+  const listed = async (db, email) => (await getDocs(openTeacherQuestionsQuery(db, { teacherEmail: email }))).docs.map((d) => d.id);
+  assert.ok((await listed(teacherB(), TEACHER_B)).includes(id));
+  assert.ok(!(await listed(teacherA(), TEACHER_A)).includes(id));
+});

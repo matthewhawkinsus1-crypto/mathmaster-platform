@@ -7,6 +7,7 @@ import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
 import { NoTryCostScope, useHostSubmitLabel, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { inequalitySolutionRepresentationStages, solutionRepresentationStageStatus } from './platform/curriculum/inequalityRepresentationPolicy.js';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { placementInstruction } from './relationOperationPlacement.js';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import {
   expressionToLatex,
@@ -273,6 +274,14 @@ function AdditiveExpressionRegion({
   operandLatex,
 }) {
   const [placementTargetIndex, setPlacementTargetIndex] = useState(null);
+  // The term each Before / Under / After menu opened from, so a choice made
+  // from the keyboard leaves focus on that term instead of the page (the
+  // line under the operations names this route, F-SW-PLACEMENT-HOW).
+  const termButtonRefs = useRef([]);
+  const closePlacementMenu = (termIndex) => {
+    setPlacementTargetIndex(null);
+    window.requestAnimationFrame(() => termButtonRefs.current[termIndex]?.focus?.());
+  };
 
   const terms = useMemo(() => splitAdditiveTerms(expression), [expression]);
   const cancellationModel = useMemo(
@@ -367,6 +376,7 @@ function AdditiveExpressionRegion({
 
               <button
                 type="button"
+                ref={(element) => { termButtonRefs.current[termIndex] = element; }}
                 data-cancel-key={expressionKey(branchIndex, expressionIndex)}
                 data-cancel-index={termIndex}
                 onClick={(event) => {
@@ -390,8 +400,9 @@ function AdditiveExpressionRegion({
                   event.stopPropagation();
                   onCancellationDragStart(termIndex, event);
                 }}
+                // A term is a button, so Enter chooses it as a tap does (AX32).
                 title={placementMode
-                  ? 'Click this term to choose Before, Under, or After'
+                  ? 'Select this term to choose Before, Under, or After (click or tap, or press Enter)'
                   : canCancel && cancellationCues
                     ? 'Matching opposite terms can be cancelled directly'
                     : 'Term'}
@@ -464,9 +475,9 @@ function AdditiveExpressionRegion({
               <PlacementMiniMenu
                 onChoose={(kind) => {
                   onPlacement({ kind, termIndex });
-                  setPlacementTargetIndex(null);
+                  closePlacementMenu(termIndex);
                 }}
-                onClose={() => setPlacementTargetIndex(null)}
+                onClose={() => closePlacementMenu(termIndex)}
               />
             )}
           </div>
@@ -1090,6 +1101,12 @@ export default function MultiRelationAlgebra({
   const explicitPlacementComplete = explicitOperationPlacementMode
     && stagedBranchStats.length > 0
     && stagedBranchStats.every((item) => item.complete);
+  // F-SW-PLACEMENT-HOW: with an operation and its value chosen and nothing
+  // placed yet, the line under the operations says how to place it, with the
+  // keyboard route (relationOperationPlacement.js). It was only in a tooltip.
+  const placementHowTo = explicitOperationPlacementMode && !stagedBranchStats.length && relationState.branches.length <= 1
+    ? placementInstruction({ operation, regions: relationState.branches?.[activeBranch]?.expressions?.length || 2 })
+    : null;
 
   const applyOperation = async () => {
     if (!operation || !String(operand || '').trim() || disabled) return;
@@ -1893,15 +1910,18 @@ export default function MultiRelationAlgebra({
         </div>
 
         <div
+          data-placement-how={placementHowTo ? 'true' : undefined}
           style={{
             marginTop: 5,
             textAlign: 'center',
-            fontSize: 'calc(10.5 * var(--mm-px))',
-            color: 'var(--mm-text-muted)',
+            // The step the student is stuck on reads at the size of a step's own line.
+            fontSize: placementHowTo ? 'calc(13 * var(--mm-px))' : 'calc(10.5 * var(--mm-px))',
+            fontWeight: placementHowTo ? 700 : undefined,
+            color: placementHowTo ? 'var(--mm-text-strong)' : 'var(--mm-text-muted)',
             lineHeight: 1.3,
           }}
         >
-          {explicitOperationPlacementMode
+          {placementHowTo || (explicitOperationPlacementMode
             ? stagedBranchStats.length
               ? operation === 'divide'
                 ? `${stagedPlacementCount}/${stagedPlacementTotal} divisors placed across ${stagedBranchStats.length} branch${stagedBranchStats.length === 1 ? '' : 'es'}`
@@ -1917,7 +1937,7 @@ export default function MultiRelationAlgebra({
               ? 'Choose an operation, then stage one branch or several split branches.'
               : active?.expressions?.length === 3
                 ? 'Place the same balanced operation in all three regions.'
-                : 'Place the balanced operation on both sides.'}
+                : 'Place the balanced operation on both sides.')}
         </div>
       </div>
     )
@@ -2626,7 +2646,7 @@ export default function MultiRelationAlgebra({
       {showCancellationCues && (
         <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', lineHeight: 1.35 }}>
           Cancellation works directly on visible matching opposite terms and common numerator/denominator factors.
-          Click two items, or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
+          Select two items (click or tap, or Tab to each and press Enter), or press and drag from one item into its matching partner. Turn on Cancellation hints only when you want visual cues.
         </div>
       )}
 
@@ -2851,6 +2871,9 @@ export default function MultiRelationAlgebra({
             pointerEvents: 'none',
             zIndex: 9999,
           }}
+          // Over the whole page, so it keeps no background; under a contrast theme
+          // the line being dragged is Highlight (src/theme/forcedColors.css).
+          data-mm-drawing="overlay"
         >
           <line
             x1={dragStroke.startX}
@@ -2861,6 +2884,7 @@ export default function MultiRelationAlgebra({
             strokeWidth="4"
             strokeLinecap="round"
             opacity="0.78"
+            data-mm-plane-part="cursor"
           />
         </svg>
       )}

@@ -1,12 +1,12 @@
+// The pinch-zoom check lives on its own (pinchZoomScale.js), so the sign-in
+// path reads it without this module; the same bindings, re-exported here.
+import { PINCH_ZOOM_THRESHOLD, isBrowserPinchZoomed } from './pinchZoomScale.js';
+
+export { PINCH_ZOOM_THRESHOLD, isBrowserPinchZoomed };
 export const MOBILE_INTERACTION_BREAKPOINT = 768;
 export const COMPACT_PHONE_BREAKPOINT = 620;
 export const MIN_TOUCH_TARGET_PX = 44;
 export const MOBILE_VIEWPORT_MARGIN_PX = 8;
-export const PINCH_ZOOM_THRESHOLD = 1.02;
-
-export const isBrowserPinchZoomed = (windowObject = typeof window !== 'undefined' ? window : null) => (
-  Number(windowObject?.visualViewport?.scale || 1) > PINCH_ZOOM_THRESHOLD
-);
 
 // Layout should react to keyboard/browser-chrome changes, but NOT to page pinch
 // zoom. When the student zooms the page, the page must behave like paper under
@@ -61,12 +61,19 @@ export const prefersTapPlacement = ({ width, pointerCoarse = false } = {}) => (
   isMobileInteractionViewport({ width, pointerCoarse })
 );
 
+// The keyboard's way to the same place (AX32). While an operation is in hand each
+// side of the equation is a button: Enter or Space places it, as a tap does. The two
+// sides come BEFORE the "Pick up" button in the page, so a keyboard goes back to
+// them with Shift+Tab (Tab would carry it on, away from them). Every line that
+// names the tap names this in the same sentence.
+export const KEYBOARD_PLACEMENT_ROUTE = 'Shift+Tab back to a side and press Enter';
+
 export const placementInstructionForOperation = (operation) => {
-  if (operation === 'divide') return 'Tap beneath the side where the divisor belongs.';
-  if (operation === 'multiply') return 'Tap beside the side where the factor belongs.';
-  if (operation === 'add') return 'Tap the side where the addend belongs.';
-  if (operation === 'subtract') return 'Tap the side where the subtracted term belongs.';
-  return 'Tap the mathematical destination.';
+  if (operation === 'divide') return `Click or tap beneath the side where the divisor belongs, or ${KEYBOARD_PLACEMENT_ROUTE}.`;
+  if (operation === 'multiply') return `Click or tap beside the side where the factor belongs, or ${KEYBOARD_PLACEMENT_ROUTE}.`;
+  if (operation === 'add') return `Click or tap the side where the addend belongs, or ${KEYBOARD_PLACEMENT_ROUTE}.`;
+  if (operation === 'subtract') return `Click or tap the side where the subtracted term belongs, or ${KEYBOARD_PLACEMENT_ROUTE}.`;
+  return `Click or tap the mathematical destination, or ${KEYBOARD_PLACEMENT_ROUTE}.`;
 };
 
 // A phone tap should still require a mathematical decision. Multiplication can

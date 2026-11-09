@@ -109,3 +109,16 @@ Beyond the #516 follow-ups (see the PR):
 - **Systems graphs** use the item's letters (s and a) on the axes and in every box, and name the wrong line.
 - **Figure cards** break a long equation at its equals sign.
 - **Circle cards** are drawn with equal units.
+
+## Status of the rest, 2026-11-06
+Each finding above that the list does not name, checked against the code of `helper/walkthrough-leftovers`:
+
+| Finding | Status | How it was checked |
+| --- | --- | --- |
+| Read aloud: a blank power, 2^(…), kept its caret | Fixed in the fix PR's read-aloud commit, `df8169d7`: it is read "2 to the power …". | `speechWalkthroughReadings.test.mjs` |
+| Read aloud: powers above 3 written as characters, and √, ∛, ∜ and index roots | Fixed in `df8169d7` (the list's "radicals and powers in words"). | the same test |
+| Checked, not changed: "Simplify first (optional)" for an expression already in simplest form | Kept: the owner confirmed it as built (TL05, [OWNER_DECISIONS_2026-10.md](../handoffs/OWNER_DECISIONS_2026-10.md)). | — |
+| Checked, not changed: Controlled Sort gives no count | Kept: the owner confirmed it as built (TL05). | — |
+| Checked, not changed: the phone task panel's Vocabulary and Read aloud buttons clipped until the panel is scrolled | Kept as the panel's own scroll, which is now rarer and visible. `fa3a3d87` (PH03) took the scrolling task card from 11 of 14 questions to 2, and `9b8e2a76` (PH09) shows a soft edge on the side that has more, and gives an open Vocabulary panel room to be read. At 200% text the Support tools row is still not pinned (PH09's note). | `phoneFirstScreen.test.mjs`, `taskCardRoom.test.mjs` |
+
+The rows marked "#516 fix holds" re-checked fixes for the 2026-10-22 findings; their status is in [that log](2026-10-22-student-walkthroughs.md#fix-status). The four-column Add & Subtract items were not among them: see that log's Add & Subtract row.

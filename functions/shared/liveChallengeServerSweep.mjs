@@ -25,12 +25,44 @@
  *     A teacher still on the results, talking the round through, keeps
  *     calibrating their console's clock, and that heartbeat holds the finish
  *     off. Never a game that writes a grade (a Warm-Up), and never one whose
- *     host the server has not heard.
+ *     host the server has not heard;
+ *   - (N73) a Pace Race round has no deadline, so nothing above ever closes
+ *     it. One open HOST_AWAY_FINISH_MS since its start, with no host heard for
+ *     as long, is finished by the same Finish: the answers already given
+ *     count, exactly as if the teacher had pressed End Game;
+ *   - (N73) a lobby nobody started, with no host heard for HOST_AWAY_FINISH_MS
+ *     since it opened, is CANCELLED by the console's own Cancel Session, not
+ *     finished: no round was played, so there is nothing to finish and
+ *     nothing to record.
+ * The last three are one rule — "no teacher screen on a game that is waiting
+ * for its teacher" — under the same guards: the heartbeat, the switch, never
+ * a game that writes a grade, and the same re-check inside the transaction.
+ *
+ * WHY THE SAME 30 MINUTES FOR ALL THREE (N73). HOST_AWAY_FINISH_MS is the
+ * window the owner already chose for results (LC05), measured from the later
+ * of the moment the game started waiting and the last heartbeat:
+ *   - a lobby: the console calibrates in the lobby exactly as in a round
+ *     (LiveChallengeTeacher.jsx: lobby and running), so a teacher with the
+ *     console open in any tab — the projector, a background tab — is heard
+ *     every minute and never loses the lobby. A lobby left open is not
+ *     harmless: every invited student carries "Your teacher opened the Live
+ *     Challenge lobby" on every page until it ends, and the teacher's next
+ *     game reopens it. Cancelling one loses nothing (nobody has answered) and
+ *     the teacher's next create invites the class again. The other constant
+ *     that measures a stale lobby — the late invite's 12 hours
+ *     (LIVE_CHALLENGE_LATE_INVITE_MAX_AGE_MS in functions/index.js) — would
+ *     leave that banner up for the rest of the school day;
+ *   - a Pace Race round (Standard Challenge or Solver Race): one question
+ *     each, so half an hour from its start is far longer than any answer
+ *     takes, and with no teacher screen for as long the class is waiting on a
+ *     teacher who is not there. Its start is the moment to measure from: it
+ *     has no deadline.
  *
  * WHEN THE SWEEP LOOKS. Each room's private state carries `serverSweepDueAt`:
- * set when a round opens (its deadline plus the grace) and when a round
- * closes (the close plus the host-away window), cleared when the match ends
- * or there is nothing left for the server to do.
+ * set when a lobby opens (the host-away window), when a round opens (its
+ * deadline plus the grace, or for a Pace Race round the host-away window) and
+ * when a round closes (the close plus the host-away window), cleared when the
+ * match ends or there is nothing left for the server to do.
  * The sweep reads only rooms that are due — one single-field range query, no
  * composite index, and nothing the class's screens listen to — so an idle
  * minute costs one read. A room opened before this field existed is never
@@ -43,12 +75,13 @@
 // (ROUND_CLOSE_AFTER_DEADLINE_MS, 1.5 s) and the arrival grace (0.75 s), so a
 // console that is open always closes first and an answer sent at 0:00 counts.
 export const SERVER_CLOSE_GRACE_MS = 10_000;
-// A round's results with no host heard for this long end the game, unless the
-// switch turns that off (SWEEP_SETTINGS_FLAG, finishAbandonedGames). Longer
-// than a class's discussion of a round, and than a laptop's nap.
+// A round's results, a Pace Race round or a lobby with no host heard for this
+// long end the game, unless the switch turns that off (SWEEP_SETTINGS_FLAG,
+// finishAbandonedGames). Longer than a class's discussion of a round, and than
+// a laptop's nap.
 export const HOST_AWAY_FINISH_MS = 30 * 60_000;
-// What the finish records on the room (`endedBy`) when the server ended it, so
-// the teacher's console can say why the game is over.
+// What the finish (or a lobby's cancel) records on the room (`endedBy`) when
+// the server ended it, so the teacher's console can say why the game is over.
 export const HOST_AWAY_ENDED_BY = 'hostAway';
 // How often a console's calibration may refresh `hostHeardAt` (a console
 // calibrates five times every 30 s; a background tab about once a minute).
@@ -74,13 +107,15 @@ export const SERVER_SWEEP_LIMIT = 25;
  *                         missing field (or document) means the default, on.
  *                         It fails CLOSED: a console's "Add field" defaults to
  *                         a string, and a rollback must not silently not take.
- *   finishAbandonedGames  abandoned results are ended (End Game). Default ON,
- *                         the owner's decision (LC05, 2026-10-23: games that
- *                         write no grade, after HOST_AWAY_FINISH_MS with no
- *                         host heard). It fails closed like `enabled`: any
- *                         value but the boolean true turns it off, and only a
- *                         missing field (or document) means the default.
- *                         Read again inside each finish's transaction.
+ *   finishAbandonedGames  abandoned results and Pace Race rounds are ended
+ *                         (End Game) and abandoned lobbies cancelled (N73).
+ *                         Default ON, the owner's decision (LC05, 2026-10-23:
+ *                         games that write no grade, after HOST_AWAY_FINISH_MS
+ *                         with no host heard). It fails closed like `enabled`:
+ *                         any value but the boolean true turns it off, and
+ *                         only a missing field (or document) means the
+ *                         default. Read again inside each finish's (and
+ *                         cancel's) transaction.
  */
 export const SWEEP_SETTINGS_COLLECTION = 'platformFlags';
 export const SWEEP_SETTINGS_FLAG = 'liveChallengeServerSweep';
@@ -98,6 +133,8 @@ export const sweepSettingsFrom = (stored = null) => Object.freeze({
 export const SWEEP_ACTION = Object.freeze({
   CLOSE: 'close',
   FINISH: 'finish',
+  // A lobby nobody started: the console's Cancel Session (N73).
+  CANCEL: 'cancel',
   RESCHEDULE: 'reschedule',
   CLEAR: 'clear',
 });
@@ -114,14 +151,23 @@ const millisOf = (value) => {
   return null;
 };
 
-/** When the sweep should first look at a round that just opened, or null (no deadline: a Pace Race). */
-export const sweepDueAfterOpeningMs = ({ endsAtMs }) => {
+/**
+ * When the sweep should first look at a round that just opened: its deadline
+ * plus the grace — or, for a Pace Race round (no deadline to close on), the
+ * host-away window from its start (N73). Null when neither is known.
+ */
+export const sweepDueAfterOpeningMs = ({ endsAtMs, startsAtMs = null }) => {
   const endsMs = millisOf(endsAtMs);
-  return endsMs == null ? null : endsMs + SERVER_CLOSE_GRACE_MS;
+  if (endsMs != null) return endsMs + SERVER_CLOSE_GRACE_MS;
+  const startsMs = millisOf(startsAtMs);
+  return startsMs == null ? null : startsMs + HOST_AWAY_FINISH_MS;
 };
 
 /** When the sweep should look at a round that just closed. */
 export const sweepDueAfterCloseMs = ({ nowMs }) => Number(nowMs) + HOST_AWAY_FINISH_MS;
+
+/** When the sweep should look at a lobby that just opened (N73). */
+export const sweepDueForLobbyMs = ({ nowMs }) => Number(nowMs) + HOST_AWAY_FINISH_MS;
 
 /** Whether a console's calibration should refresh the host heartbeat. */
 export const hostHeartbeatDue = ({ hostHeardAt, nowMs }) => {
@@ -150,6 +196,42 @@ export const finishAllowed = ({ room = {}, privateState = {}, settings = sweepSe
   && !room?.assignmentId
 );
 
+/** The round a sweep decision is about, as the lifecycle's commands name it (a lobby: round -1). */
+const roundIdentityOf = (room = {}) => ({
+  roundIndex: Number.isInteger(Number(room?.currentRound)) ? Number(room.currentRound) : -1,
+  roundVersion: Math.max(0, Number(room?.roundVersion) || 0),
+});
+
+export const WAITING_ON_HOST = Object.freeze({
+  LOBBY: 'lobby',
+  RESULTS: 'results',
+  OPEN_ROUND: 'openRound',
+});
+
+/**
+ * What a game is waiting on its teacher for, and since when — or null when it
+ * is not waiting on them: a timed round runs on its own clock (the close
+ * above), a paused round is the host's to resume or end, and a finished or
+ * cancelled game waits on nobody.
+ *
+ *   lobby      nobody has pressed Start; since the lobby opened
+ *   results    nobody has pressed Next Round; since the round closed
+ *   openRound  a Pace Race round, which only the host ends; since its start
+ *
+ * Every way out of one of these either moves the round's identity (Start, Next
+ * Round) or starts the clock again (a close is a new `roundClosedAt`), so a
+ * decision about one is never mistaken, in the re-check, for another.
+ */
+export const waitingOnHost = (room = {}) => {
+  if (room?.status === 'lobby') return { kind: WAITING_ON_HOST.LOBBY, sinceMs: millisOf(room.createdAt) };
+  if (room?.status !== 'running') return null;
+  if (room.roundState === 'closed') return { kind: WAITING_ON_HOST.RESULTS, sinceMs: millisOf(room.roundClosedAt) };
+  if (room.roundState === 'open' && !room.pausedAt && millisOf(room.endsAt || room.roundEndsAt) == null) {
+    return { kind: WAITING_ON_HOST.OPEN_ROUND, sinceMs: millisOf(room.startsAt || room.roundStartedAt) };
+  }
+  return null;
+};
+
 /**
  * What the sweep does with one due room.
  *
@@ -161,47 +243,47 @@ export const finishAllowed = ({ room = {}, privateState = {}, settings = sweepSe
  */
 export const planServerSweep = ({ room = null, privateState = {}, nowMs, settings = sweepSettingsFrom() }) => {
   const now = Number(nowMs);
-  if (!room || room.status !== 'running') return { action: SWEEP_ACTION.CLEAR };
-  const expected = {
-    roundIndex: Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1,
-    roundVersion: Math.max(0, Number(room.roundVersion) || 0),
-  };
-  if (room.roundState === 'open') {
+  if (!room) return { action: SWEEP_ACTION.CLEAR };
+  const expected = roundIdentityOf(room);
+  if (room.status === 'running' && room.roundState === 'open') {
+    // A paused round is the host's to resume or end.
+    if (room.pausedAt) return { action: SWEEP_ACTION.CLEAR };
     const endsAtMs = millisOf(room.endsAt || room.roundEndsAt);
-    // A Pace Race round (no deadline) or a paused one is the host's to end.
-    if (endsAtMs == null || room.pausedAt) return { action: SWEEP_ACTION.CLEAR };
-    const dueMs = endsAtMs + SERVER_CLOSE_GRACE_MS;
-    // The deadline moved later since the due time was set.
-    if (now < dueMs) return { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: dueMs };
-    return { action: SWEEP_ACTION.CLOSE, expected };
-  }
-  if (room.roundState === 'closed') {
-    // Results the server will never end stay with the teacher, as before.
-    if (!finishAllowed({ room, privateState, settings })) return { action: SWEEP_ACTION.CLEAR };
-    const closedAtMs = millisOf(room.roundClosedAt);
-    const heardMs = millisOf(privateState?.hostHeardAt);
-    const since = Math.max(closedAtMs ?? 0, heardMs ?? 0);
-    const dueMs = since + HOST_AWAY_FINISH_MS;
-    if (closedAtMs == null || now < dueMs) {
-      return { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: Math.max(dueMs, now + SERVER_RECHECK_MS) };
+    if (endsAtMs != null) {
+      const dueMs = endsAtMs + SERVER_CLOSE_GRACE_MS;
+      // The deadline moved later since the due time was set.
+      if (now < dueMs) return { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: dueMs };
+      return { action: SWEEP_ACTION.CLOSE, expected };
     }
-    return { action: SWEEP_ACTION.FINISH, expected };
+    // No deadline: a Pace Race round, which waits on its host like results.
   }
-  return { action: SWEEP_ACTION.CLEAR };
+  const waiting = waitingOnHost(room);
+  if (!waiting) return { action: SWEEP_ACTION.CLEAR };
+  // A game the server will never end stays with the teacher, as before.
+  if (!finishAllowed({ room, privateState, settings })) return { action: SWEEP_ACTION.CLEAR };
+  const heardMs = millisOf(privateState?.hostHeardAt);
+  const dueMs = Math.max(waiting.sinceMs ?? 0, heardMs ?? 0) + HOST_AWAY_FINISH_MS;
+  if (waiting.sinceMs == null || now < dueMs) {
+    return { action: SWEEP_ACTION.RESCHEDULE, nextDueMs: Math.max(dueMs, now + SERVER_RECHECK_MS) };
+  }
+  // A lobby never started: nothing to finish, nothing to record (N73).
+  return { action: waiting.kind === WAITING_ON_HOST.LOBBY ? SWEEP_ACTION.CANCEL : SWEEP_ACTION.FINISH, expected };
 };
 
 /**
- * Whether the room the finishing transaction read is still the abandoned
- * results the sweep decided to end — not a round the teacher has opened since,
- * nor results a host screen has been heard on.
+ * Whether the room the finishing (or cancelling) transaction read is still
+ * the abandoned game the sweep decided to end — not a lobby the teacher has
+ * started since, nor a round they opened or closed, nor a game a host screen
+ * has been heard on.
  */
-export const stillAbandoned = ({ room = {}, privateState = {}, expected, nowMs, settings = sweepSettingsFrom() }) => (
-  finishAllowed({ room, privateState, settings })
-  && room.status === 'running'
-  && room.roundState === 'closed'
-  && Number(room.currentRound) === Number(expected?.roundIndex)
-  && Math.max(0, Number(room.roundVersion) || 0) === Number(expected?.roundVersion)
-  && hostAway({ hostHeardAt: privateState?.hostHeardAt, nowMs })
-  && millisOf(room.roundClosedAt) != null
-  && Number(nowMs) - millisOf(room.roundClosedAt) >= HOST_AWAY_FINISH_MS
-);
+export const stillAbandoned = ({ room = {}, privateState = {}, expected, nowMs, settings = sweepSettingsFrom() }) => {
+  const waiting = waitingOnHost(room);
+  const identity = roundIdentityOf(room);
+  return Boolean(waiting)
+    && finishAllowed({ room, privateState, settings })
+    && identity.roundIndex === Number(expected?.roundIndex)
+    && identity.roundVersion === Number(expected?.roundVersion)
+    && hostAway({ hostHeardAt: privateState?.hostHeardAt, nowMs })
+    && waiting.sinceMs != null
+    && Number(nowMs) - waiting.sinceMs >= HOST_AWAY_FINISH_MS;
+};

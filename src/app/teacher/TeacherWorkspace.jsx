@@ -13,6 +13,12 @@
 import { Suspense } from 'react';
 // Shared with App so the sheets form their own chunk that links before App.css.
 import '../shell/leadingStyles.js';
+// The teacher's own sheets, here and not on a student's first load (PF01). The
+// workspace loads before any screen inside it, so they link before every
+// teacher screen's own CSS, as they did when App carried them. App.css's touch
+// rules beat theirs by weight (app/shell/leadingStyles.js says how).
+import '../../components/teacher/supportEvidence.css';
+import '../../components/teacher/teacherWorkspace.css';
 import { addDoc, collection, deleteField, doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';
@@ -72,6 +78,27 @@ import { creationRecoveryContent } from '../../platform/recovery/recoveryContent
 import { recoveryPreparationAvailable } from '../../../functions/shared/recoveryContentPlan.mjs';
 import StudentPerformanceBadge from '../../components/common/StudentPerformanceBadge.jsx';
 import { MAIN_CONTENT_ID, SkipToContent } from '../../components/common/pageChrome.jsx';
+import { tabKeyTarget } from '../../platform/interaction/tabListKeys.js';
+
+// The administrator's five sections, as a tab list (TT27): the selected tab is
+// the one Tab stop, the arrow keys, Home and End move focus between the tabs
+// (selecting is Enter or Space, a native button's click), and the content under
+// them is a tab panel named by the selected tab. Same keys as Live Class. On a
+// phone they are one row that scrolls sideways (App.css, .mm-admin-tabs).
+const ADMIN_SECTIONS =[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['reset', 'Pre-production reset']];
+const ADMIN_PANEL_ID = 'admin-section-panel';
+const adminTabId = (id) => `admin-tab-${id}`;
+const moveBetweenAdminTabs = (event) => {
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+  const from = tabs.indexOf(event.target);
+  if (from < 0) return;
+  const to = tabKeyTarget(event.key, from, tabs.length);
+  if (to === null) return;
+  event.preventDefault();
+  tabs[to].focus();
+};
+
 
 export default function TeacherWorkspace({
   SCHOOL_NON_INSTRUCTIONAL_KEYS,
@@ -1300,7 +1327,7 @@ export default function TeacherWorkspace({
           }))
           : [];
 
-        gradeEntries.forEach(({ studentRef, snapshot }) => {
+        gradeEntries.forEach(({ student, studentRef, snapshot }) => {
           if (!snapshot.exists()) return;
           const studentData = snapshot.data() || {};
           const gradesByAssignment = studentData.gradesByAssignment || {};
@@ -1315,6 +1342,10 @@ export default function TeacherWorkspace({
               questions: persistedQuestions,
               repairs: liveRepairs,
               correctedAt,
+              // A repair retry is counted as this student's screen counts it.
+              assignment: liveAssignment,
+              studentId: student.id,
+              classId: studentData.classId || student.classId || null,
             });
           }
           if (weightChanges.length > 0) {
@@ -1856,18 +1887,21 @@ export default function TeacherWorkspace({
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-control)', minHeight: '100vh', padding: '20px' }}>
         <SkipToContent />
-        <div style={{ maxWidth: 1260, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden' }}>
-          <header style={{ padding: '22px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid var(--mm-border-soft)', background: '#202124', color: '#fff' }}>
+        <div style={{ maxWidth: 1260, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,.06)', overflow: 'hidden', overflowWrap: 'anywhere' }}>
+          <header style={{ padding: '22px clamp(14px, 4vw, 28px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: '1px solid var(--mm-border-soft)', background: '#202124', color: '#fff' }}>
             <div><div style={{ fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, letterSpacing: '.08em', color: '#c6dafc' }}>ROOT ADMINISTRATOR</div><h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', color: 'inherit' }}>MathMaster Administration</h1><p style={{ margin: '4px 0 0', color: '#dadce0', fontSize: 'calc(13 * var(--mm-px))' }}>{user.email}</p></div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid var(--mm-error-border-soft)', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><div role="group" aria-label="Root administrator workspace" style={{ display: 'inline-flex', flexWrap: 'wrap', padding: 3, borderRadius: 9, background: '#3c4043', border: '1px solid #5f6368' }}><button type="button" aria-pressed="false" onClick={() => setTeacherWorkspaceMode('teacher')} style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: '#e8eaed', fontWeight: 900 }}>Teacher View</button><button type="button" aria-pressed="true" style={{ padding: '6px 10px', border: 0, borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900 }}>Administration</button></div><button type="button" onClick={() => { setTeacherWorkspaceMode('teacher'); setTeacherTab('demo'); }} style={{ padding: '9px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Open Demo Experience</button><button onClick={handleLogout} style={{ padding: '9px 13px', background: 'transparent', color: '#f28b82', border: '1px solid var(--mm-error-border-soft)', borderRadius: 8, fontWeight: 900 }}>Log Out</button></div>
           </header>
-          <div role="tablist" aria-label="Administration sections" style={{ display: 'flex', gap: 8, padding: '14px 28px 0', flexWrap: 'wrap' }}>
-            {[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['reset', 'Pre-production reset']].map(([id, label]) => (
+          <div role="tablist" aria-label="Administration sections" className="mm-admin-tabs" onKeyDown={moveBetweenAdminTabs} style={{ display: 'flex', gap: 8, padding: '14px clamp(14px, 4vw, 28px) 0', flexWrap: 'wrap' }}>
+            {ADMIN_SECTIONS.map(([id, label]) => (
               <button
                 key={id}
                 type="button"
                 role="tab"
+                id={adminTabId(id)}
                 aria-selected={adminTab === id}
+                aria-controls={ADMIN_PANEL_ID}
+                tabIndex={adminTab === id ? 0 : -1}
                 onClick={() => setAdminTab(id)}
                 style={{ minHeight: 40, padding: '8px 16px', borderRadius: '9px 9px 0 0', cursor: 'pointer', border: '1px solid var(--mm-border)', borderBottom: 0, background: adminTab === id ? 'var(--mm-surface)' : 'var(--mm-surface-control)', color: adminTab === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 900, fontSize: 'calc(14 * var(--mm-px))' }}
               >
@@ -1875,7 +1909,8 @@ export default function TeacherWorkspace({
               </button>
             ))}
           </div>
-          <main id={MAIN_CONTENT_ID} tabIndex={-1} style={{ padding: 28 }}>
+          <main id={MAIN_CONTENT_ID} tabIndex={-1} style={{ padding: 'clamp(14px, 4vw, 28px)' }}>
+            <div id={ADMIN_PANEL_ID} role="tabpanel" aria-labelledby={adminTabId(adminTab)}>
             {adminTab === 'classes' && <ClassesAdmin />}
             {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
             {adminTab === 'coverage' && <PathCoverageAudit />}
@@ -1902,6 +1937,7 @@ export default function TeacherWorkspace({
                 }}
               />
             )}
+            </div>
           </main>
         </div>
       </div>
@@ -2468,7 +2504,7 @@ export default function TeacherWorkspace({
                         checked={isSelected}
                         onChange={() => toggleAssignmentSelected(assignment.id)}
                         aria-label={`Select ${assignment.title}`}
-                        style={{ flex: '0 0 auto', width: '18px', height: '18px', cursor: 'pointer' }}
+                        style={{ flex: '0 0 auto', width: '24px', height: '24px', cursor: 'pointer' }}
                       />
                       <div style={{ flex: '1 1 440px', textAlign: 'left' }}>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -2971,7 +3007,7 @@ export default function TeacherWorkspace({
               )}
 
               {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: 'var(--mm-surface-sunken)' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const supportProfile = student.profile || null; const testCycleRow = isTestCycleAssignment(selectedAssignment); /* A Test Cycle's grade is its RECORDED grade (released Test, capped retest), not its Review tracker. */ const score = testCycleRow ? canonicalPresentedAssignmentGrade({ student, assignment: selectedAssignment }) : assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed, supportProfile }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const heldSections = heldRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>R</span> : null}{heldSections.has(section) ? <span data-held-recovery-section={section} title="A Practice-based Recovery is held for you: MathMaster could not grade one or more of its questions. The original shows until you resolve it in Details; Classroom and Grade Transfer wait." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>Held</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>ID {student.id}</div></td><td><strong style={{ color: modified ? 'var(--mm-accent-text)' : score >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 900, fontSize: 'calc(11 * var(--mm-px))' }}>MOD</span>}
+                <div role="region" aria-label="Gradebook scores by student" tabIndex={0} style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: 'var(--mm-surface-sunken)' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const supportProfile = student.profile || null; const testCycleRow = isTestCycleAssignment(selectedAssignment); /* A Test Cycle's grade is its RECORDED grade (released Test, capped retest), not its Review tracker. */ const score = testCycleRow ? canonicalPresentedAssignmentGrade({ student, assignment: selectedAssignment }) : assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed, supportProfile }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const heldSections = heldRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>R</span> : null}{heldSections.has(section) ? <span data-held-recovery-section={section} title="A Practice-based Recovery is held for you: MathMaster could not grade one or more of its questions. The original shows until you resolve it in Details; Classroom and Grade Transfer wait." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 'calc(10 * var(--mm-px))', fontWeight: 900 }}>Held</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))' }}>ID {student.id}</div></td><td><strong style={{ color: modified ? 'var(--mm-accent-text)' : score >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 900, fontSize: 'calc(11 * var(--mm-px))' }}>MOD</span>}
                   {/*
                     COMPLETION AND PERFORMANCE, VISUALLY APART.
                     The grade above is unchanged. These two lines are what a

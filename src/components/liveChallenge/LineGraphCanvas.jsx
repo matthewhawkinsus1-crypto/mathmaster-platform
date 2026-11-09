@@ -82,6 +82,7 @@ function FullLine({ line, view, side, stroke, width = 4, dash = null, opacity = 
       strokeLinecap="round"
       strokeDasharray={dash || undefined}
       opacity={opacity}
+      data-mm-plane-part="line"
     />
   );
 }
@@ -100,10 +101,10 @@ function VerdictBadge({ line, points, view, side, right }) {
   const fill = right ? 'var(--mm-line-right)' : 'var(--mm-line-wrong)';
   return (
     <g aria-hidden="true">
-      <circle cx={cx} cy={cy} r={13} fill={fill} stroke="var(--mm-graph-bg)" strokeWidth={2.5} />
+      <circle cx={cx} cy={cy} r={13} fill={fill} stroke="var(--mm-graph-bg)" strokeWidth={2.5} data-mm-plane-part="point" />
       {right
-        ? <path d={`M${cx - 6} ${cy + 0.5} L${cx - 1.5} ${cy + 5} L${cx + 6.5} ${cy - 5}`} fill="none" stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
-        : <path d={`M${cx - 5} ${cy - 5} L${cx + 5} ${cy + 5} M${cx + 5} ${cy - 5} L${cx - 5} ${cy + 5}`} stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" />}
+        ? <path d={`M${cx - 6} ${cy + 0.5} L${cx - 1.5} ${cy + 5} L${cx + 6.5} ${cy - 5}`} fill="none" stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" data-mm-plane-part="halo" />
+        : <path d={`M${cx - 5} ${cy - 5} L${cx + 5} ${cy + 5} M${cx + 5} ${cy - 5} L${cx - 5} ${cy + 5}`} stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" data-mm-plane-part="halo" />}
     </g>
   );
 }
@@ -119,7 +120,7 @@ function SlopeSteps({ from, to, view, side }) {
   const labelHalo = { ...halo, strokeWidth: 4 };
   return (
     <g aria-hidden="true" pointerEvents="none">
-      <path d={`M${a.x} ${a.y} L${corner.x} ${corner.y} L${b.x} ${b.y}`} fill="none" stroke="var(--mm-line-helper)" strokeWidth={2.5} strokeDasharray="6 5" />
+      <path d={`M${a.x} ${a.y} L${corner.x} ${corner.y} L${b.x} ${b.y}`} fill="none" stroke="var(--mm-line-helper)" strokeWidth={2.5} strokeDasharray="6 5" data-mm-plane-part="line" />
       <g fontSize={13} fontWeight={900} fill="var(--mm-line-helper)">
         {run !== 0 && <text x={(a.x + corner.x) / 2} y={corner.y + (rise > 0 ? 18 : -9)} textAnchor="middle" style={labelHalo}>{`${run > 0 ? 'right' : 'left'} ${Math.abs(run)}`}</text>}
         {rise !== 0 && <text x={corner.x + (run >= 0 ? 8 : -8)} y={(corner.y + b.y) / 2 + 4} textAnchor={run >= 0 ? 'start' : 'end'} style={labelHalo}>{`${rise > 0 ? 'up' : 'down'} ${Math.abs(rise)}`}</text>}
@@ -134,8 +135,8 @@ function PointMark({ point, view, side, held = false, label = true }) {
   const spot = pointLabelSpot({ at, side, text });
   return (
     <g pointerEvents="none">
-      {held && <circle cx={at.x} cy={at.y} r={20} fill="var(--mm-line-draw)" opacity={0.18} />}
-      <circle cx={at.x} cy={at.y} r={held ? 10 : 8} fill="var(--mm-line-draw)" stroke="var(--mm-graph-bg)" strokeWidth={3} />
+      {held && <circle cx={at.x} cy={at.y} r={20} fill="var(--mm-line-draw)" opacity={0.18} data-mm-plane-part="cursor" />}
+      <circle cx={at.x} cy={at.y} r={held ? 10 : 8} fill="var(--mm-line-draw)" stroke="var(--mm-graph-bg)" strokeWidth={3} data-mm-plane-part={held ? 'held' : 'point'} />
       {label && !held && (
         <text
           x={spot.x}
@@ -161,7 +162,7 @@ function HeldLabel({ point, view, side, holder }) {
   const { x: cx, y: cy } = heldLabelSpot({ at: toScreen(view, side, point), side, holder, width, height: 30 });
   return (
     <g className="mm-line-held" pointerEvents="none" aria-hidden="true">
-      <rect x={cx - width / 2} y={cy - 15} width={width} height={30} rx={15} fill="var(--mm-line-label-bg)" stroke="var(--mm-line-draw)" strokeWidth={2} />
+      <rect x={cx - width / 2} y={cy - 15} width={width} height={30} rx={15} fill="var(--mm-line-label-bg)" stroke="var(--mm-line-draw)" strokeWidth={2} data-mm-plane-part="chip" />
       <text x={cx} y={cy + 6} textAnchor="middle" fontSize={17} fontWeight={900} fill="var(--mm-line-label-text)" style={{ fontVariantNumeric: 'tabular-nums' }}>{text}</text>
     </g>
   );
@@ -354,18 +355,19 @@ function LineGraphCanvas({
           outline: cursorVisible ? '3px solid var(--mm-focus)' : 'none',
           outlineOffset: 3,
         }}
+        data-mm-plane=""
       >
         <LineGridLayer view={view} side={side} />
         {!drawing && <FullLine line={question.line} view={view} side={side} stroke="var(--mm-line-given)" width={4} />}
         {!drawing && question.marked && (
-          <circle cx={toScreen(view, side, question.marked).x} cy={toScreen(view, side, question.marked).y} r={7} fill="var(--mm-line-given)" stroke="var(--mm-graph-bg)" strokeWidth={3} />
+          <circle cx={toScreen(view, side, question.marked).x} cy={toScreen(view, side, question.marked).y} r={7} fill="var(--mm-line-given)" stroke="var(--mm-graph-bg)" strokeWidth={3} data-mm-plane-part="point" />
         )}
         {drawing && studentLine && <FullLine line={studentLine} view={view} side={side} stroke={stroke} width={judged ? 5 : 4} opacity={answerLine ? 0.35 : 1} />}
         {drawing && slopeHelper && points.length === 2 && !answerLine && judged !== 'correct' && <SlopeSteps from={points[0]} to={points[1]} view={view} side={side} />}
         {answerLine && <FullLine line={answerLine} view={view} side={side} stroke="var(--mm-line-right)" width={5} dash="12 9" className="mm-line-reveal" />}
         {answerLine && question.reveal.points.map((point) => {
           const at = toScreen(view, side, point);
-          return <circle key={`r${point.x},${point.y}`} cx={at.x} cy={at.y} r={7} fill="var(--mm-line-right)" stroke="var(--mm-graph-bg)" strokeWidth={3} />;
+          return <circle key={`r${point.x},${point.y}`} cx={at.x} cy={at.y} r={7} fill="var(--mm-line-right)" stroke="var(--mm-graph-bg)" strokeWidth={3} data-mm-plane-part="point" />;
         })}
         {drawing && points.map((point, index) => (
           // eslint-disable-next-line react/no-array-index-key
@@ -377,9 +379,9 @@ function LineGraphCanvas({
         {held && <HeldLabel point={held.point} view={view} side={side} holder={holder} />}
         {cursorVisible && (
           <g aria-hidden="true" pointerEvents="none">
-            <line x1={cursorAt.x} x2={cursorAt.x} y1={0} y2={side} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" />
-            <line x1={0} x2={side} y1={cursorAt.y} y2={cursorAt.y} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" />
-            <circle cx={cursorAt.x} cy={cursorAt.y} r={11} fill="none" stroke="var(--mm-focus)" strokeWidth={3} />
+            <line x1={cursorAt.x} x2={cursorAt.x} y1={0} y2={side} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" data-mm-plane-part="cursor" />
+            <line x1={0} x2={side} y1={cursorAt.y} y2={cursorAt.y} stroke="var(--mm-focus)" strokeWidth={1.5} strokeDasharray="4 4" data-mm-plane-part="cursor" />
+            <circle cx={cursorAt.x} cy={cursorAt.y} r={11} fill="none" stroke="var(--mm-focus)" strokeWidth={3} data-mm-plane-part="cursor" />
           </g>
         )}
       </svg>

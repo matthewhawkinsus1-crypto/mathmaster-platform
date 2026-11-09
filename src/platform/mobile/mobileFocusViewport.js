@@ -171,6 +171,39 @@ const visibleBand = (windowObject) => {
   return { top, bottom: top + height };
 };
 
+/*
+ * WHAT THE LOCAL SCROLLER CANNOT DO, THE PAGE DOES (WCAG 2.4.11).
+ *
+ * The phone's question frame is a screen tall. Where a page puts something
+ * above it (My Math Path's session, under its own header), the frame's last
+ * rows are below the screen until the page itself scrolls. With the number
+ * keypad up, Tab past the last box reached Submit and "Show a hint" at the end
+ * of the work, and the work was already scrolled to its end: "Show a hint"
+ * stayed under the keys, measured at 390x844 (the button at y 678 to 722, the
+ * keys from 570). So after the local scroll, whatever still sits under the
+ * keypad or below the screen is brought up by scrolling the page, vertically
+ * only and never past the control's own top edge. Nothing moves when the local
+ * scroll was enough, which is every question on the assignment screen (its
+ * frame fits the screen). A control in a fixed layer (Work View, a tool's
+ * drawer) does not move with the page, and the page beneath one must not move
+ * (review of #463), so it is left alone, and so is a pinch-zoomed page (a
+ * magnifying glass).
+ */
+const revealBelowByPage = (target, { screenBottom, screenTop, windowObject }) => {
+  if (typeof windowObject?.scrollBy !== 'function' || pinchZoomed(windowObject)) return false;
+  for (let node = target; node; node = node.parentElement) {
+    if (windowObject.getComputedStyle?.(node)?.position === 'fixed') return false;
+  }
+  const rect = target.getBoundingClientRect?.();
+  if (!rect) return false;
+  const short = numberOrZero(rect.bottom) - screenBottom;
+  if (!(short > 0.5)) return false;
+  const step = Math.min(short, Math.max(0, numberOrZero(rect.top) - screenTop));
+  if (!(step > 0.5)) return false;
+  windowObject.scrollBy({ top: step, left: 0, behavior: 'auto' });
+  return true;
+};
+
 export const scrollFocusedControlVertically = (
   target,
   {
@@ -233,6 +266,14 @@ export const scrollFocusedControlVertically = (
       scroller.scrollTop = numberOrZero(scroller.scrollTop) + deltaY;
       scroller.scrollLeft = originalLeft;
     }
+    if (deltaY > 0) {
+      const screenBottom = Math.min(
+        keypadCoversColumn ? keypadRect.top : Infinity,
+        band.bottom,
+        numberOrZero(windowObject?.innerHeight) || Infinity,
+      ) - safeMargin;
+      revealBelowByPage(target, { screenBottom, screenTop: Math.max(0, band.top) + safeMargin, windowObject });
+    }
   }
 
   stabilizeHorizontalViewport({ root, windowObject, documentObject });
@@ -260,5 +301,97 @@ export const revealFocusedControlAfterResize = ({
   if (!active || !root?.contains?.(active) || !active.matches?.(TYPING_SURFACE)) return false;
   return scrollFocusedControlVertically(active, { root, windowObject, documentObject });
 };
+
+/*
+ * FOCUS THAT LEAVES THE QUESTION CLOSES THE NUMBER KEYPAD (student-a11y-3).
+ *
+ * The keypad is a software keyboard for the box that has focus, and it stays
+ * up while focus moves on to a button inside the question: Step Algebra
+ * commits a move from its number box to "Apply to both sides", and closing it
+ * on the way re-rendered the editor before the press counted
+ * (MobileViewportContainer handleFocusCapture). But it stayed up when focus left
+ * the question altogether, for a control the question does not hold and no
+ * reveal of the question's scrolls: after a My Math Path question was
+ * submitted, Tab went on from it to the session's "Next question", which sat
+ * under the keypad (WCAG 2.4.11). Focus moving to an element outside the
+ * question's root is leaving the question, and a software keyboard closes
+ * when its box is left. Focus going nowhere (to the page or the browser)
+ * leaves the keypad as it was.
+ */
+export const focusLeavesQuestion = (root, nextFocus) => Boolean(
+  root && nextFocus && nextFocus.nodeType === 1 && typeof root.contains === 'function' && !root.contains(nextFocus),
+);
+
+/*
+ * TAB OFF THE NUMBER KEYPAD GOES ON TO THE WORK BAR (student-keyboard-ci).
+ *
+ * On a phone held upright the open keypad takes the work bar's place: the bar
+ * is hidden under it (MathToolMobileLayout.css), which suits a finger, since
+ * the keys sit where the bar was, and Done brings the bar back. By keyboard,
+ * Tab from the keypad's last key went on past the hidden bar, out of the
+ * question, and the keypad then closed behind it: going forward, Tab never
+ * stopped on Submit once an answer was typed, nor on Start over, the
+ * Scratchpad, the Calculator or the hint button (the keyboard sweep on a
+ * phone: a table, a graph, a function graph and a function investigation).
+ * Only Shift+Tab, once the keypad had gone, came back to them. Tab off the
+ * keypad's last key now closes the keypad, as Done does, and goes on to the
+ * bar's first control, which is what follows the work.
+ *
+ * This picks that control. Null leaves Tab to the browser, as before: another
+ * key, Shift+Tab or a key held with another, a key of the keypad that is not
+ * its last, or a bar with nothing that takes focus.
+ */
+const BAR_CONTROL = 'button, a[href], input, select, textarea, [tabindex]';
+// The bar's first control that takes focus: enabled, in the tab order, and not in a hidden or inert part of the bar.
+const firstBarControl = (bar) => [...(bar?.querySelectorAll?.(BAR_CONTROL) || [])]
+  .find((control) => !control.disabled && Number(control.tabIndex) >= 0 && !control.closest?.('[inert], [aria-hidden="true"]')) || null;
+export const workBarControlAfterKeypad = (event, keypad, bar) => {
+  if (!event || event.key !== 'Tab' || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return null;
+  const keys = [...(keypad?.querySelectorAll?.('button') || [])];
+  if (!keys.length || event.target !== keys[keys.length - 1]) return null;
+  return firstBarControl(bar);
+};
+
+/*
+ * DONE, PRESSED FROM THE KEYBOARD, GOES ON (keypad-done; WCAG 2.4.3, 2.1.1).
+ *
+ * Done closes the number keypad by taking it off the page, Done included. A
+ * finger's press leaves focus on the page, which suits a finger: no ring shows,
+ * no keypad comes back and no screen keyboard opens. A student who reached Done
+ * with Tab and pressed Enter or Space was left there too (a touch-screen
+ * Chromebook with a keyboard shows the keypad and takes keys), with nothing
+ * focused and the next Tab starting again from the top of the page.
+ *
+ * Pressed from the keyboard (a click no pointer made: `detail` 0), Done goes on
+ * where Tab off it goes, to the work bar's first control
+ * (workBarControlAfterKeypad above): Done is the keypad's last key, the bar is
+ * what follows the work, and Submit is on it. Where no bar is under the keys (a
+ * phone on its side, whose bar is in the task panel before the work; a solver
+ * workspace; a box inside a dialog), Tab off the keypad leaves the question, so
+ * Done goes back to the box it served, which keeps its keypad closed until the
+ * student touches it again (`keepClosed`; keypadTargetOnFocus below).
+ *
+ * Null leaves Done as it was: a press of a finger, a pen or a mouse, or nowhere
+ * to go (no control in the bar and no box still on the page).
+ */
+export const focusAfterKeypadDone = (event, { bar = null, box = null } = {}) => {
+  if (!event || event.detail !== 0) return null;
+  const control = firstBarControl(bar);
+  if (control) return { focus: control, keepClosed: null };
+  return box?.isConnected ? { focus: box, keepClosed: box } : null;
+};
+
+/*
+ * THE BOX DONE CLOSED FROM THE KEYBOARD (focusAfterKeypadDone, `keepClosed`).
+ *
+ * Focus coming back to it, from Done or by Tab, opens no keypad: the keypad that
+ * was open for another box closes, as it does for any control that is not a key
+ * or a button. A press on the box (a finger, a pen, a mouse) opens it again, as a
+ * tap on any box does.
+ */
+export const keypadTargetOnFocus = (box, keptClosed) => (box && box === keptClosed ? null : box);
+export const pressReopensKeypad = (keptClosed, pressed) => Boolean(
+  keptClosed && pressed && (pressed === keptClosed || keptClosed.contains?.(pressed)),
+);
 
 export const mobileViewportLockSelector = LOCKED_CONTAINER_SELECTOR;

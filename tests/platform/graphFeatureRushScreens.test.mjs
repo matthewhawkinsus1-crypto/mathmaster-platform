@@ -151,7 +151,9 @@ test('the student screen plays a rush on its own surface, loaded only for a rush
   assert.equal(isRushGame(questionSetGameOf({ challengeMode: 'standard' })), false);
   assert.match(student, /const rushRoundOpen = rushRoom && questionSetRoundOpen;/);
   assert.match(student, /const questionSetRoom = questionSetGame !== null;/);
-  assert.match(student, /\{!questionSetRoom && room\.status === 'running' && room\.currentQuestion[^\n]*\n\s*<ChallengeRound/);
+  // The classic round renders only where no game has its own surface.
+  assert.match(student, /const classicRoundShown = Boolean\(!questionSetRoom && room\.status === 'running' && room\.currentQuestion[^\n]*\);/);
+  assert.match(student, /\{classicRoundShown && \(\n\s*<ChallengeRound/);
   assert.equal(questionSetGameOf({ challengeMode: RUSH_MODE_ID }), QUESTION_SET_GAME.GRAPH_FEATURE_RUSH);
   assert.equal(questionSetGameOf({ challengeMode: 'standard' }), null);
 });

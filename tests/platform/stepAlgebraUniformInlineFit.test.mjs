@@ -42,13 +42,20 @@ test('substitution token remains compact and only the live dragged-over variable
 });
 
 
-test('equation auto-fit is stable and cannot observe its own font-size changes', () => {
+test('equation auto-fit is stable and does not react to its own font-size changes', () => {
   const start = core.indexOf('function AutoFitEquationExpression');
   const end = core.indexOf('function OperationChip', start);
   const region = core.slice(start, end);
-  assert.match(region, /widthAtBase/);
+  // One stable size from the width per unit of size (equationSideFit.js), not
+  // the current font times a fresh ratio, which made the size chase its width.
+  assert.match(region, /const next = fitEquationSide\(\{/);
   assert.match(region, /observer\?\.observe\(viewport\)/);
-  assert.doesNotMatch(region, /observer\?\.observe\(content\)/);
+  // The expression is watched too, for mathematics typeset after the first fit
+  // (P-6), but only through the gate that passes over a resize of the fit's
+  // own making; the settling itself is simulated in stepAlgebraPhoneFit.test.mjs.
+  assert.match(region, /new ResizeObserverClass\(\(\) => \{\s*if \(expressionWidthChanged\(\{ fittedWidthPerUnit, rendered: content\.scrollWidth, units: Number\(content\.dataset\.fitSize\) \|\| base \}\)\) scheduleFit\(\);\s*\}\)/);
+  assert.equal(region.match(/\.observe\(content\)/g)?.length, 1, 'the content is observed once, through the gate');
+  assert.match(region, /contentObserver\?\.observe\(content\)/);
   assert.doesNotMatch(region, /\[base, cacheKey, fontSize\]/);
   assert.doesNotMatch(css, /\.algebra-expression-fit-content[\s\S]{0,300}transition:\s*font-size/);
 });

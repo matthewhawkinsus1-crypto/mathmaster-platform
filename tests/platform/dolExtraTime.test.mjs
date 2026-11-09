@@ -394,8 +394,13 @@ test('the assignment screen hands the student\'s own window to the DOL copy', ()
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   const call = region(app, 'const currentDolCopy = currentIsDOL && !preview', ': null;', 'the DOL copy call');
   assert.match(call, /describeDolClose\(\{[^}]*extendedTime: dolState\.extendedTime[^}]*endsAt: dolState\.endsAt[^}]*\}\)/);
-  // …and dolState there is the student's: getDOLState on the projected assignment.
-  assert.match(app, /const dolState = getDOLState\(\{ assignment, schedule: classSchedule, classId: user\?\.classId \|\| null, classPeriod: user\?\.classPeriod, nowValue: now \}\);\s*\n[^\n]*\n?[\s\S]{0,4000}const currentDolCopy/);
+  // …and dolState there is the student's: getDOLState on the projected
+  // assignment, worked out once per tick of App's clock as activeDOLState
+  // (the workspace's `assignment` is that same activeAssignmentData).
+  assert.match(app, /const activeDOLState = useMemo\(\(\) => getDOLState\(\{ assignment: activeAssignmentData, schedule: classSchedule, classId: user\?\.classId \|\| null, classPeriod: user\?\.classPeriod, nowValue: now \}\), \[activeAssignmentData, classSchedule, user\?\.classId, user\?\.classPeriod, now\]\);/);
+  const workspace = region(app, 'const renderAssignmentWorkspace = (preview = false) => {', 'const currentDolCopy', 'the workspace up to the DOL copy');
+  assert.match(workspace, /\n\s*const assignment = activeAssignmentData;\n/);
+  assert.match(workspace, /\n\s*const dolState = activeDOLState;\n/);
   assert.match(app, /import \{ describeDolClose, DOL_OPEN_NOTICE \} from '\.\/platform\/assessment\/dolCloseCopy\.js';/);
 });
 

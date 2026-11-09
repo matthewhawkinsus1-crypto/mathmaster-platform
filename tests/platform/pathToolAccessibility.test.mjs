@@ -94,7 +94,13 @@ test('an armed operation makes both equation sides keyboard-reachable', () => {
     'the side tap target follows the armed operation, on every device');
   assert.match(algebra, /tabIndex=\{sideTapReady \? 0 : undefined\}/,
     'once an operation is armed, the sides must be tabbable on every device');
-  assert.match(algebra, /if \(tapPlacementArmed && \(event\.key === 'Enter' \|\| event\.key === ' '\)\)/,
+  // The side's keys go to placementKeyDown (student-a11y-3, which added the arrow
+  // keys there): while an operation is armed, Enter or Space stages it on that side.
+  assert.match(algebra, /onKeyDown=\{sideTapReady \? \(event\) => placementKeyDown\(side, event\) : undefined\}/,
+    'a focused side must take the keys while an operation is armed');
+  const keys = algebra.slice(algebra.indexOf('const placementKeyDown = (side, event) => {'), algebra.indexOf('const suggestedMove = getSuggestedMove(equation);'));
+  assert.match(keys, /if \(!tapPlacementArmed \|\| !armedTile\) return;/, 'only while an operation is armed');
+  assert.match(keys, /if \(event\.key === 'Enter' \|\| event\.key === ' '\) \{\s*event\.preventDefault\(\);\s*stagePlacement\(side, /,
     'Enter or Space must apply the armed operation to the focused side');
 });
 

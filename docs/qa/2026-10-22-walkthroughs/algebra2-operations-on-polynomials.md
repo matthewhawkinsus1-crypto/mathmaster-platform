@@ -1,5 +1,7 @@
 # Algebra II Honors — Operations on Polynomials (claude/a2h-operations-on-polynomials-20261022 @ 2589df75, PR #514)
 
+**Fix status, 2026-11-06:** each finding below has a row in the main log's [table of findings](../2026-10-22-student-walkthroughs.md#every-p1p3-finding-in-the-detail-files): fixed in which commit, kept by which decision, or still open.
+
 Environment: same harness, 1366×768 and 390×844. 32 questions: WU 3 · CW 11 · PR 15 · DOL 3.
 Baseline: check-teacher-import valid, 0 errors, 2 informational warnings (PR 14 SAT-style item not from the audited CCMR bank; all items A2.7B across 3 question types); algebra2OperationsOnPolynomialsLesson.test.mjs 13/13.
 Screen of all 32: no unresolved templates, raw LaTeX, undefined/NaN or page errors. F-WEIGHT-BANNER and F-FIRST-SCREEN (see the DOL #2 report) apply here too.

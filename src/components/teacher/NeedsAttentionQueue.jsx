@@ -229,7 +229,7 @@ export default function NeedsAttentionQueue({
 
                 {alert.students?.length > 0 && (
                   <details open={openList === alert.id} onToggle={(event) => setOpenList(event.currentTarget.open ? alert.id : null)} style={{ marginTop: 7 }}>
-                    <summary style={{ cursor: 'pointer', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(12.5 * var(--mm-px))' }}>
+                    <summary style={{ cursor: 'pointer', minHeight: 24, color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(12.5 * var(--mm-px))' }}>
                       Who is in this ({alert.students.length})
                     </summary>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>

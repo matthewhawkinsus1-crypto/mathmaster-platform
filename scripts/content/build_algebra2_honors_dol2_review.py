@@ -86,7 +86,11 @@ def scaffold(prompt, right, wrong):
 
 
 def review(headline, reasoning, summary, common_error):
-    return {'headline': headline, 'reasoning': reasoning, 'answerSummary': summary, 'commonError': common_error}
+    """A worked solution. A summary of None is left out: the item's tool states the answer instead."""
+    out = {'headline': headline, 'reasoning': reasoning, 'answerSummary': summary, 'commonError': common_error}
+    if summary is None:
+        del out['answerSummary']
+    return out
 
 
 def det3(m):
@@ -717,7 +721,8 @@ practice = [
             'Find the vertex first; every other attribute follows from it.',
             [
                 'The vertex is ({{h}}, {{k}}) and the V opens upward, so f has a minimum value of {{k}} at x = {{h}}; the axis of symmetry is x = {{h}}.',
-                'The x-intercepts ({{x1}}, 0) and ({{x2}}, 0) are each {{d}} units from the axis; the y-intercept is (0, {{yint}}).',
+                # d can be 1: "a distance of 1", never "1 units".
+                'The x-intercepts ({{x1}}, 0) and ({{x2}}, 0) are each a distance of {{d}} from the axis; the y-intercept is (0, {{yint}}).',
                 'f decreases on (−∞, {{h}}) and increases on ({{h}}, ∞).',
                 'Domain (−∞, ∞); range [{{k}}, ∞).',
             ],
@@ -786,7 +791,9 @@ practice = [
             'The vertex of the V is (h, k).',
             'From the vertex, move 1 unit right and count how far the graph rises or falls: that change is a.',
         ],
-        'attemptFeedback': ['Check the sign of a: a V that opens downward has a negative a.'],
+        # Read on every miss the lab names no slip for, so it speaks to each value it marks (a, h, k),
+        # not to a's sign alone: with a right and h wrong it said "Check the sign of a… Focus on: h."
+        'attemptFeedback': ['Check each value against the graph: the vertex is (h, k), and a is how far the graph rises or falls one unit right of the vertex, negative when the V opens downward.'],
         'scaffold': scaffold('Which point on the graph gives you h and k?', 'The vertex — the corner of the V', 'The y-intercept'),
         'solutionReview': review(
             'Read h and k at the vertex, then a from the steepness.',
@@ -1123,7 +1130,8 @@ practice = [
         'solutionReview': review(
             'Eliminate one variable twice, solve the 2×2 system, back-substitute.',
             [
-                'z has coefficient ±1 in every equation, so eliminating z is efficient: add equations 1 and 3, and add equation 1 to equation 2 after scaling.',
+                # Equation 2's z has coefficient c2 (never ±1), so the step names the multiple that clears it.
+                'z has coefficient −1 in equation 1 and 1 in equation 3, so adding those two equations eliminates z. Adding {{c2}} times equation 1 to equation 2 eliminates it again.',
                 'Solve the resulting 2×2 system for x and y, then back-substitute for z.',
                 'The solution is ({{x0}}, {{y0}}, {{z0}}); it satisfies all three original equations.',
             ],
@@ -1157,7 +1165,13 @@ practice = [
                 'Row i of A holds the x-, y-, and z-coefficients of equation i (0 for a missing variable); X is the column (x, y, z); B holds the constants in the same order.',
                 'With technology, X = A⁻¹ · B. Read x, y, and z from the column, top to bottom, and check them in the original equations.',
             ],
-            'The ordered triple (x, y, z) read from A⁻¹ · B.',
+            # No summary (2026-11-06 walkthrough). The system is the platform
+            # family's, so this text cannot hold a version's numbers, and its
+            # summary, "The ordered triple (x, y, z) read from A⁻¹ · B.", sat in
+            # the answer's place stating none. The Matrix Lab's own steps follow
+            # this text with the version's A, B and X = A⁻¹ · B, and end with its
+            # (x, y, z) and the check.
+            None,
             'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
         ),
         'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
@@ -1396,16 +1410,21 @@ dol = [
         'questionWeight': 1,
         'prompt': 'Write the system as a matrix equation and solve it using technology with matrices.',
         'studentActions': ['solveMatrixEquation'],
-        'solutionReview': review(
-            'Standard form first, then A · X = B, then X = A⁻¹ · B.',
-            [
+        # No summary (2026-11-06), as PR 17 has none. The system is the platform
+        # family's, so this text cannot hold a version's numbers, and its
+        # summary, "The ordered triple (x, y, z) read from A⁻¹ · B.", sat in the
+        # answer's place stating none. The Matrix Lab's own steps follow this
+        # text with the version's A, B and X = A⁻¹ · B, and end with its
+        # (x, y, z) and the check.
+        'solutionReview': {
+            'headline': 'Standard form first, then A · X = B, then X = A⁻¹ · B.',
+            'reasoning': [
                 'Rewrite every equation as ax + by + cz = d: move each variable term to the left side and each constant to the right, changing the sign of anything that crosses the equal sign.',
                 'Row i of A holds the x-, y-, and z-coefficients of equation i (0 for a missing variable); X is the column (x, y, z); B holds the constants in the same order.',
                 'With technology, X = A⁻¹ · B. Read x, y, and z from the column, top to bottom, and check them in the original equations.',
             ],
-            'The ordered triple (x, y, z) read from A⁻¹ · B.',
-            'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
-        ),
+            'commonError': 'Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign.',
+        },
         'questionFamily': {'id': 'matrices.solveSystem3x3', 'version': 2},
     },
 ]

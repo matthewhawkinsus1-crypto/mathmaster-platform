@@ -50,7 +50,7 @@
 /* The task is the header's heading (PQ-026) and its height is WHOLE LINES:
    3.2em was two lines and a third cut through the middle of its words. Longer
    tasks scroll inside it, and the Task button opens the full text. */
-.mathmaster-work-view-persistent-task { max-height: calc(1.35em * 4); overflow-y: auto; }
+.mathmaster-work-view-persistent-task { max-height: calc(1.35em * 4); overflow-y: auto; overflow-wrap: anywhere; }
 .mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 44px; padding: 0 12px; border: 1px solid var(--mm-border); border-radius: 8px; background: var(--mm-surface); color: var(--mm-primary); font-weight: 800; }
 .mathmaster-work-view-header button[disabled], .mathmaster-work-view-actions button[disabled], .mathmaster-work-view-actions button[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 /* The action that finishes the work (Submit / Check) reads as the primary one once it is available. */
@@ -272,6 +272,28 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
 }
 
 [data-open="true"][data-layout="mobile"] > .mathmaster-work-view-header { min-height: 44px; }
+
+/*
+ * A HEADER THAT CANNOT HOLD THE TASK AND ITS BUTTONS ON ONE LINE PUTS THE
+ * BUTTONS UNDER THE TASK (student walkthrough, large text on a phone).
+ *
+ * Task, Help and Close sit beside the task text. At 150-200% text on a 360-390
+ * px phone each button was squeezed to its 44px minimum and its label ran over
+ * its neighbour ("Tas", "He", "Clo"), while the task text beside them was
+ * left a 184px column. When the screen is narrower than 22em the task now has
+ * the whole first row, with all of its text, and the buttons share the row
+ * under it at their own width, 44px tall at least. An `em` in a media query is
+ * the browser's own text size, not this page's, so the same rule that leaves a
+ * 100% phone (360px is 22.5em) as it was wraps it at 125% and over, and
+ * leaves a laptop alone at every size. A phone on its side (data-height
+ * "short") keeps its one row: its height is the scarce thing there.
+ */
+@media (max-width: 22em) {
+  [data-open="true"]:not([data-height="short"]) > .mathmaster-work-view-header { flex-wrap: wrap; }
+  /* The heading's own inline `flex: 1 1 auto` would otherwise keep it beside them. */
+  [data-open="true"]:not([data-height="short"]) > .mathmaster-work-view-header > .mathmaster-work-view-heading { flex: 1 1 100% !important; }
+  [data-open="true"]:not([data-height="short"]) > .mathmaster-work-view-header > button { flex: 1 1 auto; min-width: 44px; min-height: 44px; }
+}
 [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface { margin: 6px; padding: 8px; }
 [data-open="true"][data-layout="mobile"] .mathmaster-work-view-capabilities { display: none; }
 
@@ -446,10 +468,27 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
  * permanently reachable at the bottom. This is presentation only: no stage,
  * graph, response or undo state is remounted.
  */
-[data-open="true"] .mathmaster-question-tool-workspace,
+[data-open="true"] .mathmaster-question-tool-workspace:has(.workflow-focus),
 [data-open="true"] .workflow-focus {
   height: 100%;
   min-height: 0;
+}
+
+/*
+ * ANY OTHER TOOL GROWS WITH ITS WORK. The bounded height above is a staged
+ * workflow's, whose step body scrolls inside it. Given to every tool, it made
+ * the workspace exactly as tall as the view while a taller tool ran on past it,
+ * and the attempt results that come next in the view (the hint offer, and after
+ * a Submit the outcome, the worked solution and the way on) were laid out at
+ * that height, under the tool's overflow: the workspace is positioned, so it is
+ * painted over them. A keyboard student's hint button was a Tab stop under the
+ * tool's own text at 1366x768 and 390x844 (Graphing, the Linear Table
+ * Workbench, Step Algebra with Help open; WCAG 2.4.11). The view scrolls as it
+ * did; the results now follow the work. At least the view's height, so a short
+ * tool's results stay where they were.
+ */
+[data-open="true"] .mathmaster-question-tool-workspace:not(:has(.workflow-focus)) {
+  min-height: 100%;
 }
 
 [data-open="true"] .workflow-focus {

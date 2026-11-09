@@ -84,7 +84,7 @@ export const groupNameInputLabel = (index) => `Name this group (Group ${index + 
  * TOOLS_KEYBOARD_UNDO "Not done"). The name starts with the words on screen
  * and says which group.
  */
-export const rationaleInputLabel = (group, index) => `Why do these belong together? (${groupName(group, index)})`;
+export const rationaleInputLabel = (group, index, { controlled = false } = {}) => `Why do these belong together? (${groupName(group, index, { controlled })})`;
 
 export const placementAnnouncement = ({ card, group, index, remaining, controlled = false }) => (
   `${card} placed in ${groupName(group, index, { controlled })}. ${remaining

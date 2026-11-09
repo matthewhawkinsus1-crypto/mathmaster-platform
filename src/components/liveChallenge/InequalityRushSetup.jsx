@@ -42,15 +42,16 @@ const field = { display: 'block', width: '100%', boxSizing: 'border-box', margin
 const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' };
 
 // `memory`: what this class did the last time it played this game, if it has
-// (liveChallengeClassMemory.mjs).
-export default function InequalityRushSetup({ setup, onChange, classSize = 0, onPractice = null, memory = null }) {
+// (liveChallengeClassMemory.mjs). `onAnnounce` is the console's live region,
+// which says when the card fills in the setup.
+export default function InequalityRushSetup({ setup, onChange, classSize = 0, onPractice = null, memory = null, onAnnounce = null }) {
   const problem = useMemo(() => inequalitySetupProblem(setup), [setup]);
   const update = (patch) => onChange(changeInequalitySetup(setup, patch));
   const ladder = grandPrixLadder(classSize || 24);
 
   return (
     <div style={{ gridColumn: '1 / -1', display: 'grid', gap: 16 }}>
-      {memory && <ClassMemoryCard memory={memory} onUse={onChange} />}
+      {memory && <ClassMemoryCard memory={memory} onUse={onChange} onAnnounce={onAnnounce} />}
       <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
         <legend style={{ fontWeight: 900, marginBottom: 8 }}>Start from a preset</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

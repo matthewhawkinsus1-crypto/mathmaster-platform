@@ -26,6 +26,7 @@ import { gradeMultiAnswerResponse, gradeTableResponse } from '../../functions/sh
 import { gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { mapParentPoint } from '../../functions/shared/toolMath/transformations/transformationsMath.mjs';
 import { buildFigureMatchResponse } from '../../src/platform/workflow/figureMatch.js';
+import { evaluateModelAt } from '../../src/platform/workflow/modelExpression.js';
 import { gradeWorkflow } from '../../src/platform/workflow/workflowGrading.js';
 
 after(closeEngine);
@@ -249,6 +250,42 @@ test('L2: the graph-sort matches each line to the equation that draws it', () =>
   assert.deepEqual(slopeAndIntercept, { plus8: [1, 8], times2: [2, 0], half: [0.5, 0], minus7: [1, -7] });
 });
 
+/*
+ * CT04, PR 10: "Where does the point (2, 2) on f(x) land on g(x)?" The point
+ * map drew g(x) dashed beside f(x), so once x was mapped, y could be read off
+ * the line instead of worked out (the walkthrough's P2, "narrows where (2, 2)
+ * lands to a point on that line"). The figure now shows what the item asks
+ * about: f(x) and the point to map.
+ */
+test('L2 PR 10: the point map shows f(x) and the point (2, 2), not the g(x) its answer lies on (CT04)', async () => {
+  const question = compiled('L2', 'l2-pr-10');
+  assert.equal(question.mode, 'pointMap');
+  assert.equal(question.showTransformedGraph, false);
+  // The key and the words still match: g(x) = 2f(x − 1) + 3 carries (2, 2) to (3, 7).
+  assert.match(question.prompt, /g\(x\) = 2f\(x − 1\) \+ 3, where f\(x\) = x\. Where does the point \(2, 2\) on f\(x\) land on g\(x\)\?/);
+  assert.deepEqual(mapParentPoint(question.parentPoint, { type: 'linear', ...question.function }), [3, 7]);
+  assert.equal(gradeToolWork({ toolId: 'transformationsLab', question, work: { mappedX: '3', mappedY: '7' } }).isCorrect, true);
+  // Reading y off g(x) above the unmoved x is the answer the dashed line invited.
+  assert.equal(gradeToolWork({ toolId: 'transformationsLab', question, work: { mappedX: '2', mappedY: '5' } }).isCorrect, false);
+
+  const { server } = await loadEngine();
+  const registry = await server.ssrLoadModule('/src/tools/toolRegistry.js');
+  const { ToolRuntimeProvider } = await server.ssrLoadModule('/src/tools/shared/ToolRuntimeContext.jsx');
+  const lab = registry.getToolDefinition(question.type).component;
+  const drawn = async (questionData) => {
+    const markup = await withBrowser(() => render(React.createElement(ToolRuntimeProvider, { submitCost: null }, React.createElement(lab, { questionData, onAction() {}, attemptRecord: null }))));
+    const description = /<p id="mm-plane-desc-[^"]*"[^>]*>([^<]*)<\/p>/.exec(markup)?.[1] || '';
+    return { description, dashedCurves: (markup.match(/<path\b[^>]*stroke="#d93025"[^>]*stroke-dasharray="10 6"/g) || []).length };
+  };
+  const shown = await drawn(question);
+  assert.match(shown.description, /1 curve\. 1 point labelled parent\./, shown.description);
+  assert.equal(shown.dashedCurves, 0, 'no dashed g(x)');
+  // The same item without the field draws g(x) dashed, as every other point map does.
+  const before = await drawn({ ...question, showTransformedGraph: undefined });
+  assert.match(before.description, /2 curves, the first solid and the others dashed\./);
+  assert.equal(before.dashedCurves, 1);
+});
+
 /* ------------------------------------------------------------------ L3 */
 
 // '−4/3', '5', '-0.25' → a number (a lone numerator must not stay a string).
@@ -342,6 +379,42 @@ test('L3: graph-preview choices and the slope-pair sort are keyed to the mathema
   }
   const [stage] = sort.workflow;
   assert.equal(gradeWorkflow({ stages: sort.workflow, grading: sort.grading, responses: { sort: buildFigureMatchResponse(stage, sort.grading.sort.match) } }).isCorrect, true);
+});
+
+/*
+ * CT04, PR 9: "The reference line is y = 2x + 1. Sort each line: parallel to
+ * the reference line, perpendicular to it, or neither?" Each graph showed only
+ * its own line. Every graph now draws the reference line too (dashed, in the
+ * plane's guide colour, with one unit the same length both ways so a right
+ * angle looks like one), and the key above the cards names it.
+ */
+test('L3 PR 9: every graph in the sort shows the reference line its categories name, and each graph\'s key is its slope against it (CT04)', async () => {
+  const question = compiled('L3', 'l3-pr-9');
+  const [stage] = question.workflow;
+  const named = /^Parallel to y = (-?\d*)x \+ (\d+)$/.exec(stage.categories.find((category) => category.id === 'par').label);
+  const reference = { m: Number(named[1]), b: Number(named[2]) };
+  assert.match(question.prompt, /^The reference line is y = 2x \+ 1\./);
+  const graphs = stage.items.filter((item) => item.graph);
+  assert.equal(graphs.length, 3);
+  graphs.forEach((item) => {
+    assert.deepEqual({ m: item.graph.referenceLine.m, b: item.graph.referenceLine.b }, reference, `${item.id} draws the line its categories name`);
+    assert.equal(item.graph.equalUnits, true);
+    // Its key, from its own slope against the reference line's.
+    const slope = evaluateModelAt(item.graph.model, 1) - evaluateModelAt(item.graph.model, 0);
+    const expected = close(slope * reference.m, -1) ? 'perp' : close(slope, reference.m) ? 'par' : 'neither';
+    assert.equal(question.grading.sort.match[item.id], expected, `${item.id}: ${item.graph.model}`);
+  });
+  assert.equal(stage.items.filter((item) => item.math).every((item) => !item.graph), true, 'an equation card draws no plane');
+
+  const { server } = await loadEngine();
+  const { default: FigureMatchStage } = await server.ssrLoadModule('/src/platform/workflow/FigureMatchStage.jsx');
+  const markup = await withBrowser(() => render(React.createElement(FigureMatchStage, { stage, value: null, onChange() {} })));
+  const lines = [...markup.matchAll(/<line x1="([^"]+)"[^>]*stroke="#8a3ffc" stroke-width="3" stroke-dasharray="7 5"/g)].filter(([, x1]) => x1 !== '1');
+  assert.equal(lines.length, 3, 'the reference line on each graph');
+  assert.match(markup, /The dashed line on each graph is the reference line, y = 2x \+ 1\./);
+  const descriptions = [...markup.matchAll(/<p id="mm-plane-desc-[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
+  assert.equal(descriptions.length, 3);
+  descriptions.forEach((description) => assert.match(description, /1 reference line\./, description));
 });
 
 test('L3: the quadrilateral is a rectangle by its slopes', () => {

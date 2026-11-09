@@ -23,6 +23,10 @@
 //                      text with Isolate x and with R₁ simplifying; 390×844 at
 //                      100%, 125% and 200% text, both too: PH07/C2-139 found no
 //                      cut equation on the phone, and this keeps it so)
+//   diagonal-3x3-*     TL43: 2x = 2, 3y = 6, z = 3 (student's choice of method)
+//                      opens with no method to choose, each equation solved on
+//                      its own (z = 3 as written), checked in all three
+//                      equations and graded correct, at 1366×768 and 390×844
 //   no-preview/*       Step Algebra -9x + 21 = 1 in Student View and Teacher
 //                      Preview: selecting/typing does not preview; an actual
 //                      drag and one-sided drop DO show a layout-neutral ghost
@@ -562,6 +566,86 @@ const runFull3x3 = async (context, scope) => {
   await page.close();
 };
 
+/**
+ * TL43 (C2-138): equations that each hold one different variable used to strand
+ * both methods; the student now solves each equation on its own and checks the
+ * three values, with nothing chosen for a method.
+ */
+const runDiagonal3x3 = async (browserInstance, name, viewport) => {
+  const journey = `diagonal-3x3-${name}`;
+  const observed = { journey };
+  const scoped = await browserInstance.newContext({ viewport });
+  const page = await scoped.newPage();
+  page.on('pageerror', (error) => note(journey, `uncaught page error: ${error.message}`));
+  await open(page, { scope: 'student', q: 5 });
+  const board = page.locator('[data-by-equation]');
+  if (!(await step(page, journey, 'the board opens with no method to choose', async () => {
+    await board.waitFor({ timeout: 20000 });
+    expect(journey, !(await page.locator('button', { hasText: /^(Substitution|Elimination)$/ }).count()), 'a method was offered for equations that share no variable');
+    expect(journey, /Each equation has only one variable: x in Equation 1, y in Equation 2 and z in Equation 3/.test(await workflow(page).innerText()), 'the board does not say why there is no method');
+    expect(journey, !(await page.locator('[data-no-shared-variable]').count()), 'the old "cannot be finished" box is still shown');
+    const rowText = await page.locator('[data-by-equation-row]').allInnerTexts();
+    expect(journey, rowText.length === 3 && /as written/.test(rowText[2]) && !/as written/.test(rowText[0] + rowText[1]), `only z = 3 is read as written: ${JSON.stringify(rowText)}`);
+    expect(journey, /solve for x/.test(rowText[0]) && /solve for y/.test(rowText[1]), `Equations 1 and 2 are the student's to solve: ${JSON.stringify(rowText)}`);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(journey, overflow <= 1, `page scrolls horizontally by ${overflow}px`);
+    await shoot(page, `${journey}-01-open`);
+  }))) { report.push(observed); await scoped.close(); return; }
+
+  if (!(await step(page, journey, 'solve each equation for its variable', async () => {
+    // 2x = 2: divide by 2, and both sides' factors cancel. 3y = 6: divide by
+    // 3, cancel on the left, simplify 6/3 on the right.
+    let host = solver(page);
+    await host.waitFor({ timeout: 15000 });
+    await balancedMove(page, host, 'Divide by', '2');
+    await cancelFactor(page, host);
+    // 2/2 on the right is a cancelling pair of its own.
+    await host.locator('.algebra-equation-box').nth(1).locator('[aria-label$="mark this factor for cancellation"]').first().click();
+    await settle(page, 800);
+    await page.waitForFunction(() => !/solve for x/.test(document.querySelector('[data-by-equation-row="0"]')?.innerText || 'solve for x'), null, { timeout: 10000 });
+    host = solver(page);
+    await host.waitFor({ timeout: 15000 });
+    await balancedMove(page, host, 'Divide by', '3');
+    await cancelFactor(page, host);
+    await simplifySide(page, host, 'right', '2');
+    await page.waitForFunction(() => !/solve for y/.test(document.querySelector('[data-by-equation-row="1"]')?.innerText || 'solve for y'), null, { timeout: 10000 });
+    await page.locator('.mathmaster-systems-verification-stage').waitFor({ timeout: 10000 });
+    observed.triple = await page.locator('.mathmaster-reduction-ordered-triple').innerText();
+    expect(journey, /\(1, 2, 3\)/.test(observed.triple), `ordered triple not shown as (1, 2, 3): ${observed.triple}`);
+    await shoot(page, `${journey}-02-solved`);
+  }))) { report.push(observed); await scoped.close(); return; }
+
+  if (!(await step(page, journey, 'check the three values in all three equations', async () => {
+    const verify = page.locator('.mathmaster-systems-verification-stage');
+    const tokenFor = (variable) => verify.locator(`.mathmaster-systems-substitution-token[aria-label$="for ${variable}"]`);
+    const card = (id) => verify.locator(`[data-verify-id="${id}"]`);
+    for (const [variable, id] of [['x', 'E1'], ['y', 'E2'], ['z', 'E3']]) {
+      await placeValue(page, 'click', tokenFor(variable), card(id).locator(`[data-variable="${variable}"]`));
+    }
+    for (const [id, left] of Object.entries({ E1: '2', E2: '6', E3: '3' })) {
+      const n = id.slice(1);
+      await setMathField(page, page.locator(`math-field[aria-label="Equation ${n} left side value"]`), left);
+      await card(id).locator('button', { hasText: `Check equation ${n}` }).click();
+      await settle(page, 300);
+      expect(journey, /Both sides check out/.test(await card(id).innerText()), `${id} did not verify`);
+    }
+    await shoot(page, `${journey}-03-verified`);
+  }))) { report.push(observed); await scoped.close(); return; }
+
+  await step(page, journey, 'submit: graded correct', async () => {
+    await workflow(page).locator('button', { hasText: /^Submit — / }).first().click();
+    await settle(page, 800);
+    // The harness records onGrade's first argument: the verdict.
+    const grades = await page.evaluate(() => window.__mm341.grades());
+    observed.grade = grades.at(-1) ?? null;
+    expect(journey, observed.grade === true, `the finished system was not graded correct: ${JSON.stringify(grades)}`);
+    expect(journey, (await page.locator('text=Correct').count()) > 0, 'no Correct shown after the submission');
+    await shoot(page, `${journey}-04-graded`);
+  });
+  report.push(observed);
+  await scoped.close();
+};
+
 /** Start question over clears the whole 3×3 workflow, nested drafts included. */
 const runReset = async (context) => {
   const journey = 'student-reset';
@@ -750,6 +834,11 @@ if (wanted('student-3x3')) await runFull3x3(context, 'student');
 if (wanted('teacherPreview-3x3')) await runFull3x3(context, 'teacherPreview');
 if (wanted('student-reset')) await runReset(context);
 await context.close();
+
+if (wanted('diagonal-3x3')) {
+  await runDiagonal3x3(browser, 'laptop', { width: 1366, height: 768 });
+  await runDiagonal3x3(browser, 'phone', { width: 390, height: 844 });
+}
 
 // Q-24: the strip of originals above an open solver shows every equation
 // whole — at 1366×768 with 100% and 125% browser text, and on a phone.

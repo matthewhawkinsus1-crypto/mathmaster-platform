@@ -54,7 +54,17 @@ import {
 } from './classroomGradeSyncUi';
 
 const card = { background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 16 };
+// A field's label, tied to its field (htmlFor and id). Untied, the field had no name a screen reader could say: the
+// first audit of the connected screen found six choosers and the instructions box so (the November build's section 6).
 const label = { display: 'block', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text-muted)', marginBottom: 6 };
+// A section's title is a heading, one level under the screen's own (h2), and drawn as the bold line it was, at the size
+// of the text around it and with no margin of its own. As bold text a screen reader could neither list the sections nor
+// move from one to the next (WCAG 1.3.1, 2.4.6; the connected screen's first audit, the November build's section 6).
+const sectionTitle = { margin: 0, fontSize: 'inherit' };
+// The bold line that titles a box of controls inside a section is a heading one level under the section's, in the
+// screen's order, drawn exactly as the line it was (its own styles, with no margin of its own); as bold text a screen
+// reader could not find it (WCAG 1.3.1, 2.4.6; the connected screen's audit, the November build's section 6).
+const boxTitle = { margin: 0, fontSize: 'inherit' };
 const input = { width: '100%', padding: '10px 12px', fontSize: 'calc(14 * var(--mm-px))', borderRadius: 8, border: '1px solid var(--mm-border)', boxSizing: 'border-box', background: 'var(--mm-surface)' };
 const btn = { padding: '10px 15px', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, borderRadius: 8, border: 0, cursor: 'pointer' };
 const primary = { ...btn, background: '#1a73e8', color: '#fff' };
@@ -621,7 +631,7 @@ export default function ClassroomManagerV2({
       <section style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div>
-            <strong>1. Classroom connection</strong>
+            <h3 style={sectionTitle}>1. Classroom connection</h3>
             <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: 4 }}>
               {connection.connected ? 'Connected' : 'Not connected'}
               {connection.needsReconnect ? ' · reconnect required for current permissions' : ''}
@@ -657,30 +667,38 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>2. Map Google Classroom courses to MathMaster classes</strong>
+          <h3 style={sectionTitle}>2. Map Google Classroom courses to MathMaster classes</h3>
           <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
             This mapping is the guardrail that keeps Algebra I students, assignments and grades out of an Algebra II Classroom.
           </p>
           <div style={{ display: 'grid', gap: 10 }}>
             {mappedCourseCards.map(({ course, mapping }) => (
-              <div key={course.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 220px),1fr) minmax(min(100%, 240px),1fr) auto', gap: 10, alignItems: 'center' }}>
-                <div>
+              // A row that wraps: the course, its class and its pill side by side where they fit, as the two equal
+              // columns they were, and one under another on a phone, where those columns ran 170px and more past the
+              // card and the screen's edge (the connected screen's first audit, the November build's section 6).
+              <div key={course.id} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                <div style={{ flex: '1 1 0', minWidth: 'min(100%, 220px)' }}>
                   <strong>{course.name}</strong>
                   <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{[course.section, course.room].filter(Boolean).join(' · ')}</div>
                 </div>
-                <select
-                  style={input}
-                  value={mapping?.classId || ''}
-                  onChange={(event) => handleSaveMapping(course, event.target.value)}
-                  disabled={busy}
-                >
-                  <option value="">Choose MathMaster class…</option>
-                  {classes.map((record) => (
-                    <option key={classIdOf(record)} value={classIdOf(record)}>
-                      {classNameOf(record)}{classPeriodOf(record) ? ` · ${classPeriodOf(record)}` : ''}
-                    </option>
-                  ))}
-                </select>
+                {/* The chooser in a box of its own, so that the course and it share the row equally (its padding
+                    would count against it). Named by the course it maps: the row's words are the course's. */}
+                <div style={{ flex: '1 1 0', minWidth: 'min(100%, 240px)' }}>
+                  <select
+                    style={{ ...input, display: 'block' }}
+                    aria-label={`MathMaster class for ${courseLabel(course)}`}
+                    value={mapping?.classId || ''}
+                    onChange={(event) => handleSaveMapping(course, event.target.value)}
+                    disabled={busy}
+                  >
+                    <option value="">Choose MathMaster class…</option>
+                    {classes.map((record) => (
+                      <option key={classIdOf(record)} value={classIdOf(record)}>
+                        {classNameOf(record)}{classPeriodOf(record) ? ` · ${classPeriodOf(record)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <span style={mapping ? okPill : warnPill}>{mapping ? 'MAPPED' : 'NOT MAPPED'}</span>
               </div>
             ))}
@@ -690,11 +708,11 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>3. Link the Google roster for grade passback</strong>
+          <h3 style={sectionTitle}>3. Link the Google roster for grade passback</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginTop: 12 }}>
             <div style={{ flex: '1 1 320px' }}>
-              <label style={label}>Google Classroom course</label>
-              <select style={input} value={rosterCourseId} onChange={(event) => { setRosterCourseId(event.target.value); setRoster([]); setRosterLinks([]); setManualMatches({}); setIdentityRows([]); setIdentityRejected([]); }} disabled={busy}>
+              <label style={label} htmlFor="classroom-roster-course">Google Classroom course</label>
+              <select id="classroom-roster-course" style={input} value={rosterCourseId} onChange={(event) => { setRosterCourseId(event.target.value); setRoster([]); setRosterLinks([]); setManualMatches({}); setIdentityRows([]); setIdentityRejected([]); }} disabled={busy}>
                 <option value="">Choose a course…</option>
                 {courses.map((course) => <option key={course.id} value={course.id}>{courseLabel(course)}</option>)}
               </select>
@@ -707,13 +725,16 @@ export default function ClassroomManagerV2({
           {rosterCourseId && !rosterMapping && <p style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))' }}>Map this course to a MathMaster class first.</p>}
           {rosterCourseId && rosterMapping && (
             <div style={{ marginTop: 12, padding: 12, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
-              <strong style={{ fontSize: 'calc(13 * var(--mm-px))' }}>ID-only students: paste an identity list (optional)</strong>
+              {/* The list's title, in the same bold, is its field's label: the field was named only by its example rows.
+                  It titles the box's buttons too, so it is a heading of its own as well. */}
+              <h4 style={boxTitle}><label htmlFor="classroom-identity-list" style={{ fontSize: 'calc(13 * var(--mm-px))', fontWeight: 700 }}>ID-only students: paste an identity list (optional)</label></h4>
               <p style={{ margin: '6px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
                 Google already supplies the name, school email, and Google user ID shown below. If MathMaster only knows district IDs,
                 paste one student per line as <code>ID, Name, Email</code> or <code>ID, Name</code>. You can copy rows from a spreadsheet
                 or have an AI convert a roster picture into that text first. MathMaster only links students after teacher confirmation.
               </p>
               <textarea
+                id="classroom-identity-list"
                 value={identityText}
                 onChange={(event) => setIdentityText(event.target.value)}
                 placeholder={'123456, Jane Doe, jane.doe@district.org\n123457, John Smith'}
@@ -739,27 +760,36 @@ export default function ClassroomManagerV2({
               <datalist id="mathmaster-roster-id-options">
                 {identityAugmentedStudents.map((student) => <option key={student.id} value={student.id}>{mathMasterStudentLabel(student)} · ID {student.id}</option>)}
               </datalist>
-              <div style={{ overflowX: 'auto', marginTop: 12 }}>
+              <div role="region" aria-label="Google Classroom roster matches" tabIndex={0} style={{ overflowX: 'auto', marginTop: 12 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
                 <thead><tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
-                  <th style={{ padding: 8 }}>Google Classroom</th><th style={{ padding: 8 }}>MathMaster match</th><th style={{ padding: 8 }}>Match</th><th></th>
+                  <th style={{ padding: 8 }}>Google Classroom</th><th id="classroom-roster-match-column" style={{ padding: 8 }}>MathMaster match</th><th style={{ padding: 8 }}>Match</th><th></th>
                 </tr></thead>
                 <tbody>
-                  {matchPlan.map((item) => {
+                  {matchPlan.map((item, index) => {
                     const google = item.classroomStudent;
+                    // A row's ID box is named by what labels it on screen: its column and its Classroom student (the
+                    // name, or the email when Google has no name). Its placeholder was its only name.
+                    const rowId = `classroom-roster-${index}`;
                     const linked = rosterLinkByGoogleUserId.get(String(google.googleUserId));
                     const selected = manualMatches[google.googleUserId] || linked?.studentId || item.suggestedStudent?.id || '';
                     const alreadyLinked = Boolean(linked && String(linked.studentId) === String(selected));
+                    // The row's button says what it does, and is named by its row as well: the words on it, then the
+                    // Classroom student it links, as the row and the status after it name them. Every row's button was
+                    // named "Confirm link" alone (WCAG 2.4.6; 2.5.3, the visible words first).
+                    const linkWords = linked && !alreadyLinked ? 'Change link' : alreadyLinked ? 'Linked' : 'Confirm link';
+                    const linkName = `${linkWords} for ${google.name || google.email || 'this Classroom student'}`;
                     return (
                       <tr key={google.googleUserId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                         <td style={{ padding: 8 }}>
-                          <strong>{google.name}</strong>
-                          <div style={{ color: 'var(--mm-text-muted)' }}>{google.email}</div>
+                          <strong id={`${rowId}-name`}>{google.name}</strong>
+                          <div id={`${rowId}-email`} style={{ color: 'var(--mm-text-muted)' }}>{google.email}</div>
                           <div style={{ color: 'var(--mm-text-subtle)', fontSize: 'calc(11 * var(--mm-px))' }}>Google ID {google.googleUserId}</div>
                         </td>
                         <td style={{ padding: 8, minWidth: 220 }}>
                           <input
                             list="mathmaster-roster-id-options"
+                            aria-labelledby={`classroom-roster-match-column ${rowId}-${google.name ? 'name' : 'email'}`}
                             style={input}
                             value={selected}
                             placeholder="Type MathMaster ID…"
@@ -782,10 +812,11 @@ export default function ClassroomManagerV2({
                         <td style={{ padding: 8 }}>
                           <button
                             style={secondary}
+                            aria-label={linkName}
                             disabled={busy || !selected || alreadyLinked}
                             onClick={() => handleLinkOne(item)}
                           >
-                            {linked && !alreadyLinked ? 'Change link' : alreadyLinked ? 'Linked' : 'Confirm link'}
+                            {linkWords}
                           </button>
                         </td>
                       </tr>
@@ -801,14 +832,15 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>4. Classroom destinations and organization</strong>
+          <h3 style={sectionTitle}>4. Classroom destinations and organization</h3>
           <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>Choose where the next assignment/material should go. Mapped courses are safer than “select all.”</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {courses.map((course) => {
               const selected = selectedCourseIds.includes(String(course.id));
               const mapping = mappingByCourse.get(String(course.id));
+              // At least 220px of course, as always, but never wider than the card: at 320px it ran 11px past it.
               return (
-                <label key={course.id} style={{ border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 8, padding: '9px 11px', minWidth: 220 }}>
+                <label key={course.id} style={{ border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 8, padding: '9px 11px', minWidth: 'min(220px, 100% - 26px)' }}>
                   <input type="checkbox" checked={selected} onChange={() => toggleCourse(course.id)} />{' '}
                   <strong>{course.name}</strong>
                   <div style={{ fontSize: 'calc(11 * var(--mm-px))', color: mapping ? 'var(--mm-success-text)' : 'var(--mm-error-text)', marginLeft: 18 }}>{mapping ? `→ ${classNameOf(classById.get(String(mapping.classId)))}` : 'Not mapped'}</div>
@@ -816,10 +848,13 @@ export default function ClassroomManagerV2({
               );
             })}
           </div>
-          <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
-            <div>
-              <label style={label}>Topic names, one per line</label>
-              <textarea style={{ ...input, minHeight: 90 }} value={topicNamesText} onChange={(e) => setTopicNamesText(e.target.value)} placeholder="Module 1 • Functions&#10;Module 2 • Linear Functions" />
+          {/* A row that wraps: the topics' box and its button side by side, the box taking what the button leaves, as
+              the two columns did, and the button under the box where the box would be narrower than the 220px the
+              screen's other fields keep. At 320px the button's column left the box about 45px. */}
+          <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 0', minWidth: 'min(100%, 220px)' }}>
+              <label style={label} htmlFor="classroom-topic-names">Topic names, one per line</label>
+              <textarea id="classroom-topic-names" style={{ ...input, minHeight: 90 }} value={topicNamesText} onChange={(e) => setTopicNamesText(e.target.value)} placeholder="Module 1 • Functions&#10;Module 2 • Linear Functions" />
             </div>
             <button style={secondary} disabled={busy} onClick={handleCreateTopics}>Create / ensure topics</button>
           </div>
@@ -839,10 +874,10 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>5. Publish a MathMaster assignment</strong>
+          <h3 style={sectionTitle}>5. Publish a MathMaster assignment</h3>
           <div style={{ marginTop: 12 }}>
-            <label style={label}>MathMaster assignment</label>
-            <select style={input} value={assignmentId} onChange={(e) => handleAssignmentChange(e.target.value)}>
+            <label style={label} htmlFor="classroom-assignment">MathMaster assignment</label>
+            <select id="classroom-assignment" style={input} value={assignmentId} onChange={(e) => handleAssignmentChange(e.target.value)}>
               <option value="">Choose an assignment…</option>
               {assignments.map((assignment) => (
                 <option key={assignment.id} value={assignment.id}>
@@ -863,7 +898,8 @@ export default function ClassroomManagerV2({
               </div>
             );
           })()}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 220px),1fr) minmax(min(100%, 220px),1fr)', gap: 10, marginTop: 10 }}>
+          {/* Two equal columns where two fit, else one: two fixed ones ran past the card on a phone. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 10, marginTop: 10 }}>
             <div>
               <label style={label} htmlFor="classroom-topic-style">Name Classroom topics</label>
               <select
@@ -888,8 +924,8 @@ export default function ClassroomManagerV2({
               )}
             </div>
             <div>
-              <label style={label}>Notes/material delivery</label>
-              <select style={input} value={resourceMode} onChange={(e) => setResourceMode(e.target.value)}>
+              <label style={label} htmlFor="classroom-resource-mode">Notes/material delivery</label>
+              <select id="classroom-resource-mode" style={input} value={resourceMode} onChange={(e) => setResourceMode(e.target.value)}>
                 <option value="separate">Separate Notes & Resources post (recommended)</option>
                 <option value="attach">Attach links inside the graded assignment post</option>
                 <option value="none">Do not publish a resources post</option>
@@ -897,22 +933,33 @@ export default function ClassroomManagerV2({
             </div>
           </div>
           <div style={{ marginTop: 10 }}>
-            <label style={label}>Student instructions</label>
-            <textarea style={{ ...input, minHeight: 80 }} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+            <label style={label} htmlFor="classroom-instructions">Student instructions</label>
+            <textarea id="classroom-instructions" style={{ ...input, minHeight: 80 }} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
           </div>
-          <div style={{ marginTop: 10 }}>
-            <label style={label}>Links / notes / resources</label>
+          {/* A group named by its heading: the label above the links named nothing, since it is no one field's. */}
+          <div role="group" aria-labelledby="classroom-resource-links" style={{ marginTop: 10 }}>
+            <div id="classroom-resource-links" style={label}>Links / notes / resources</div>
             {materials.map((material, index) => (
+              // Each of a link's two fields under a label of its own. They were named only by their placeholders, which
+              // go once a field holds text: "Title" is the label now, and "https://…" stays as the link's example.
               <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8, marginBottom: 7 }}>
-                <input style={input} placeholder="Title" value={material.title} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, title: e.target.value } : item))} />
-                <input style={input} placeholder="https://…" value={material.url} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, url: e.target.value } : item))} />
+                <div>
+                  <label style={label} htmlFor={`classroom-resource-link-${index}-title`}>Title</label>
+                  <input id={`classroom-resource-link-${index}-title`} style={input} value={material.title} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, title: e.target.value } : item))} />
+                </div>
+                <div>
+                  <label style={label} htmlFor={`classroom-resource-link-${index}-url`}>Link</label>
+                  <input id={`classroom-resource-link-${index}-url`} style={input} placeholder="https://…" value={material.url} onChange={(e) => setMaterials((current) => current.map((item, i) => i === index ? { ...item, url: e.target.value } : item))} />
+                </div>
               </div>
             ))}
             <button style={secondary} onClick={() => setMaterials((current) => [...current, { title: '', url: '' }])}>+ Add resource link</button>
           </div>
           {selectedAssignment && (
-            <div style={{ marginTop: 12, padding: '12px 14px', border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
-              <div style={{ ...label, marginBottom: 8 }}>Google Classroom grade represents</div>
+            // The grade's checkboxes are a group named by the title above them, which named nothing (WCAG 1.3.1), as the
+            // links' fields are by theirs.
+            <div role="group" aria-labelledby="classroom-grade-represents" style={{ marginTop: 12, padding: '12px 14px', border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)' }}>
+              <div id="classroom-grade-represents" style={{ ...label, marginBottom: 8 }}>Google Classroom grade represents</div>
               <ClassroomSectionGradeSelector
                 assignment={selectedAssignment}
                 selectedKeys={selectedClassroomSectionKeys}
@@ -922,7 +969,7 @@ export default function ClassroomManagerV2({
           )}
           <button style={{ ...primary, marginTop: 12 }} disabled={busy || !selectedAssignment} onClick={handlePublishAssignment}>Publish assignment package</button>
           <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '2px solid #f9ab00', color: 'var(--mm-warning-text)' }}>
-            <strong>Post missing but MathMaster says it exists?</strong>
+            <h4 style={boxTitle}>Post missing but MathMaster says it exists?</h4>
             <div style={{ marginTop: 5, fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>
               Select the exact Google Classroom course(s) and grade target(s) above. The preview below is what Force NEW post will create. This intentionally bypasses duplicate protection. Your MathMaster assignment and student progress stay intact; each newly created post becomes the grade-passback destination for the section it represents.
             </div>
@@ -950,10 +997,18 @@ export default function ClassroomManagerV2({
 
       {courses.length > 0 && (
         <section style={card}>
-          <strong>6. Publish a standalone notes/material post</strong>
+          <h3 style={sectionTitle}>6. Publish a standalone notes/material post</h3>
+          {/* Each field under a label of its own: their placeholders were their only names, and the title's never shows,
+              since it always holds one. The description's label is its placeholder's words; the title keeps its example. */}
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-            <input style={input} value={materialTitle} onChange={(e) => setMaterialTitle(e.target.value)} placeholder="Lesson 3 — Notes & Resources" />
-            <textarea style={{ ...input, minHeight: 70 }} value={materialDescription} onChange={(e) => setMaterialDescription(e.target.value)} placeholder="What students should know about these resources…" />
+            <div>
+              <label style={label} htmlFor="classroom-material-title">Title</label>
+              <input id="classroom-material-title" style={input} value={materialTitle} onChange={(e) => setMaterialTitle(e.target.value)} placeholder="Lesson 3 — Notes & Resources" />
+            </div>
+            <div>
+              <label style={label} htmlFor="classroom-material-description">What students should know about these resources</label>
+              <textarea id="classroom-material-description" style={{ ...input, minHeight: 70 }} value={materialDescription} onChange={(e) => setMaterialDescription(e.target.value)} />
+            </div>
           </div>
           <button style={{ ...primary, marginTop: 10 }} disabled={busy} onClick={handlePublishMaterial}>Publish material post</button>
         </section>
@@ -961,12 +1016,14 @@ export default function ClassroomManagerV2({
 
       {syncByAssignment.length > 0 && (
         <section style={card}>
-          <strong>7. Published assignment health</strong>
+          <h3 style={sectionTitle}>7. Published assignment health</h3>
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
             {syncByAssignment.map(({ assignment, sync }) => (
-              <div key={assignment.id} style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 8, padding: 10 }}>
+              // Each assignment's buttons are a group named by its title, the bold line that titles them: the buttons
+              // read the same on every assignment.
+              <div key={assignment.id} role="group" aria-labelledby={`classroom-health-${assignment.id}`} style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 8, padding: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <span><strong>{assignment.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{sync.message}</div></span>
+                  <span><strong id={`classroom-health-${assignment.id}`}>{assignment.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' }}>{sync.message}</div></span>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button style={secondary} disabled={busy} onClick={() => run(async () => {
                       const response = await repairClassroomAssignmentPublications({
@@ -1060,7 +1117,7 @@ export default function ClassroomManagerV2({
       )}
 
       <section style={card}>
-        <strong>8. Grade passback monitor</strong>
+        <h3 style={sectionTitle}>8. Grade passback monitor</h3>
         <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
           MathMaster sends progress checkpoints while students work, a due-date checkpoint, and a final grade at completion or the final cutoff. Failures stay visible instead of disappearing silently.
         </p>
@@ -1071,9 +1128,9 @@ export default function ClassroomManagerV2({
         )}
         {retryableGradeSyncs.length > 0 && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-error-bg)', border: '1px solid var(--mm-error-border-soft)' }}>
-            <div style={{ color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
+            <h4 style={{ ...boxTitle, color: 'var(--mm-error-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               {retryableGradeSyncs.length} grade passback failure{retryableGradeSyncs.length === 1 ? '' : 's'} can be retried now.
-            </div>
+            </h4>
             <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
               Rows marked Needs roster link are intentionally excluded until the student is linked to Google Classroom.
             </div>
@@ -1095,9 +1152,9 @@ export default function ClassroomManagerV2({
         )}
         {selectedAssignment && (
           <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)' }}>
-            <div style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
+            <h4 style={{ ...boxTitle, color: 'var(--mm-primary-text)', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>
               Regrade an assignment that is already closed
-            </div>
+            </h4>
             <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.45 }}>
               This independently recalculates every published section grade from canonical saved MathMaster work and repairs stale or false-zero Classroom columns. Students do not need to reopen or redo the assignment.
             </div>
@@ -1126,7 +1183,7 @@ export default function ClassroomManagerV2({
         {gradeSyncs.length === 0 ? (
           <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>No grade-sync events yet.</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div role="region" aria-label="Recent grade syncs to Google Classroom" tabIndex={0} style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(12 * var(--mm-px))' }}>
               <thead><tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
                 <th style={{ padding: 7 }}>Student</th><th style={{ padding: 7 }}>Assignment</th><th style={{ padding: 7 }}>Course</th><th style={{ padding: 7 }}>Grade / progress</th><th style={{ padding: 7 }}>Stage</th><th style={{ padding: 7 }}>Status</th><th></th>

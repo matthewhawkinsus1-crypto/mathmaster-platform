@@ -27,13 +27,18 @@ import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tool
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
 import { choiceKeyTarget, choiceTabStop, dragCamera, keyRotateCamera, keyRotationDrag, recordChoice, viewAngleText } from './threePlaneControls.js';
-import { describeThreePlaneModel } from './threePlaneDescription.js';
-import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { threePlaneModelReading } from './threePlaneDescription.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
+import { namedIn } from '../../platform/language/figureNames.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
+// Under a Windows contrast theme the model is drawn in the theme's own colours,
+// where these three would be one: each plane is hatched its own way instead,
+// and keeps its label (src/theme/forcedColors.css).
+const PLANE_FILLS = ['hatch-rise', 'hatch-fall', 'hatch-level'];
 const DEFAULT_CAMERA = { azimuth: -0.7, elevation: 0.5 };
 const VIEW_SIZE = 560;
 const AXIS_LABEL_OFFSET = 18;
@@ -298,9 +303,10 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   // equations, which are shown, the dashed crossings and a marked point. While
   // the question can be answered it never says which planes cross or classifies
   // the system (threePlaneDescription.js); a closed question names each pair.
+  // `modelSay`: the same reading as messages, for Read aloud in Spanish (AX05).
   const modelDescriptionId = `${instructionId}-model`;
   const { positionsReadable: questionClosed } = useQuestionLifecycle();
-  const modelDescription = useMemo(() => describeThreePlaneModel({
+  const { text: modelDescription, say: modelSay } = useMemo(() => threePlaneModelReading({
     variables,
     equations,
     visible: visiblePlanes,
@@ -308,6 +314,13 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
     detail: questionClosed ? 'features' : 'kinds',
     markedPoint: solutionMarker ? orderedTripleText(shownSolution, variables) : null,
   }), [variables, equations, visiblePlanes, intersectionLines, questionClosed, solutionMarker, shownSolution]);
+  // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = useMemo(() => describedIn(figureWords, modelDescription, modelSay), [figureWords, modelDescription, modelSay]);
+  // The model's names in the same language, marked with it (AX05, slice 4):
+  // the control's, and the drawing's inside it, which takes the control's lang.
+  const modelName = namedIn(figureWords, 'Three planes in 3D');
+  const viewName = namedIn(figureWords, '3D view of the three planes');
 
   // Painter's algorithm: farthest (most negative screen depth toward the
   // viewer's back) first, nearest last, so overlapping translucent planes
@@ -392,26 +405,28 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
           <span id={instructionId} className="mathmaster-threeplane-sr-only">
             Arrow keys rotate the model: Left and Right turn it, Up and Down tilt it. Hold Shift for larger steps. Home returns to the opening view.
           </span>
-          <PublishFigureReading entry={{ kind: 'figure', label: '3D model', text: modelDescription }} />
-          <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true">{modelDescription}</span>
+          <PublishFigureReading entry={{ kind: 'figure', label: '3D model', text: modelDescription, say: modelSay }} />
+          <span id={modelDescriptionId} className="mathmaster-threeplane-sr-only" data-threeplane-description="" aria-hidden="true" lang={described.lang}>{describedContent(described)}</span>
           <span className="mathmaster-threeplane-sr-only" role="status" aria-live="polite">{viewAnnouncement}</span>
           <svg
             ref={modelRef}
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="application"
             tabIndex={0}
-            aria-label="Three planes in 3D"
+            aria-label={modelName.text}
             aria-describedby={`${modelDescriptionId} ${instructionId}`}
+            lang={modelName.lang}
             onKeyDown={handleModelKeyDown}
             style={{ touchAction: 'none', background: 'var(--mm-surface-sunken)', borderRadius: 12, border: '1px solid var(--mm-border)', cursor: 'grab', width: '100%', height: 'auto', maxWidth: 560, aspectRatio: '1 / 1' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
+            data-mm-drawing=""
           >
             {/* The drawing itself, named as the image it is and described by
                 what it shows; the svg around it is the focusable control. */}
-            <g role="img" aria-label="3D view of the three planes" aria-describedby={modelDescriptionId}>
+            <g role="img" aria-label={viewName.text} aria-describedby={modelDescriptionId}>
             <defs>
               <marker id="mathmaster-threeplane-axis-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
                 <path d="M0,0 L7,3.5 L0,7 z" style={{ fill: 'var(--mm-graph-axis)' }} />
@@ -423,6 +438,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 x1={toScreen(edge.from, scale, [0, 0])[0]} y1={toScreen(edge.from, scale, [0, 0])[1]}
                 x2={toScreen(edge.to, scale, [0, 0])[0]} y2={toScreen(edge.to, scale, [0, 0])[1]}
                 className="mathmaster-threeplane-frame-edge"
+                data-mm-plane-part="grid"
               />
             ))}
             {axisEnds.map((axis) => (
@@ -443,6 +459,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   fontSize={16} fontWeight={700} textAnchor="middle"
                   data-axis-name=""
                   style={{ fill: 'var(--mm-graph-label)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
+                  data-mm-plane-part="halo"
                 >
                   {axis.name}
                 </text>
@@ -454,6 +471,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
               r={3.5}
               style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }}
               strokeWidth={1.5}
+              data-mm-plane-part="point"
             />
             {orderedPolygons.map((plane) => {
               const centroid = plane.points.reduce(
@@ -470,12 +488,14 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                     fillOpacity={0.28}
                     stroke={plane.color}
                     strokeWidth={2}
+                    data-mm-plane-part={PLANE_FILLS[plane.index % PLANE_FILLS.length]}
                   />
                   <text
                     x={clampLabel(screen[0] + offset[0], 24)}
                     y={clampLabel(screen[1] + offset[1], 20)}
                     className="mathmaster-threeplane-plane-label"
                     textAnchor="middle"
+                    data-mm-plane-part="halo"
                   >
                     {'P' + String(plane.index + 1)}
                   </text>
@@ -491,11 +511,12 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 // The legend promises these: drawn in the strongest text
                 // colour, which the dark theme turns light (#202124 vanished).
                 style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth={2.5} strokeDasharray="6 4"
+                data-mm-plane-part="line"
               />
             ))}
             {solutionMarker ? (
               <g>
-                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }} strokeWidth={2} />
+                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }} strokeWidth={2} data-mm-plane-part="point" />
                 {/* The coordinates sit on the point itself, so the ordered
                     triple and the place in space are read together. */}
                 <text
@@ -504,6 +525,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   fontSize={15}
                   fontWeight={800}
                   style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
+                  data-mm-plane-part="halo"
                 >
                   {orderedTripleText(shownSolution, variables)}
                 </text>

@@ -87,6 +87,19 @@ const familyLessonSections = (id) => realLessonSections(id).map((section) => (se
   ],
 }));
 
+// `?questions=familyChoice`: the `family` lesson with its second Classwork
+// question a family slot too, inequalities.translatePhrase (Algebra I M3 T1 L3
+// Warm-Up 2's family): stored with no answer fields, three tries; dealt as four
+// choices, one try. For the journeys that reload straight into the assignment
+// before the family engine has loaded (familyListReloadJourneys.mjs).
+const familyChoiceLessonSections = (id) => familyLessonSections(id).map((section) => (section.role !== 'classwork' ? section : {
+  ...section,
+  questions: [
+    section.questions[0],
+    { questionId: `${id}-c2`, activityRole: 'classwork', type: 'multiAnswer', prompt: 'Words to symbols. Write each statement as an inequality, using the variable it names.', standards: { primary: ['A.5B'] }, questionFamily: { id: 'inequalities.translatePhrase' } },
+  ],
+}));
+
 // `?questions=lmr`: today's Warm-Up is the production lmr-wu-1 / lmr-wu-2 card
 // sorts (family-backed), then a Linear Multiple Representations board, so the
 // Warm-Up close / reopen journeys run on the questions of the incident.
@@ -223,15 +236,17 @@ export const DISTRICT_ID_CORRECTION = Object.freeze({
 });
 
 // `compiledSections`: the lesson compiled by lessonFixtures.js, which the page
-// loads (fakeFirestore.js) only for `?questions=matrices` or `=dividing`; a
-// Vite `?raw` import cannot be reached from node.
+// loads (fakeFirestore.js) only for `?questions=matrices` or `=dividing` (and
+// by studentRuntimeLesson.js for `=runtime`); a Vite `?raw` import cannot be
+// reached from node.
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null, compiledSections = null } = {}) => {
   const questionSet = params?.get?.('questions');
   const sectionsFor = questionSet === 'real' ? realLessonSections
     : questionSet === 'family' ? familyLessonSections
+    : questionSet === 'familyChoice' ? familyChoiceLessonSections
     : questionSet === 'lmr' ? lmrLessonSections
       : questionSet === 'systems' ? systemsLessonSections
-        : (questionSet === 'matrices' || questionSet === 'dividing') && compiledSections ? compiledSections
+        : ['matrices', 'dividing', 'runtime'].includes(questionSet) && compiledSections ? compiledSections
           : lessonSections;
   // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 0: it begins
   // now). Under 10, the Warm-Up is still inside its default ten-minute window,

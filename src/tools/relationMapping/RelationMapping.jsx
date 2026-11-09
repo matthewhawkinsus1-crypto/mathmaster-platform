@@ -45,7 +45,10 @@ const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid var
 
 const WIDTH = 420;
 const ROW = 46;
-const PAD_Y = 34;
+// Room above the first value for the "Domain (x)" and "Range (y)" titles (y = 18): at 34 the titles sat on the
+// oval's top edge and the first value's circle, 1.1 to 1.5:1 against the stroke in both themes (the contrast review,
+// the Math Tools Lab's scenes, student-keyboard-ci).
+const PAD_Y = 46;
 const LEFT_X = 118;
 const RIGHT_X = WIDTH - 118;
 
@@ -150,27 +153,28 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         aria-label="Coordinate plane for plotting the relation"
         aria-describedby={helpId}
         style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 12, cursor: 'crosshair' }}
+        data-mm-plane=""
       >
         {/* The shared graph tokens (src/theme/tokens.css), as the coordinate
             plane uses: fixed colours failed dark-mode contrast (TL33, VH-27). */}
-        {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
-        {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
-        {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
-        {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
+        {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" data-mm-plane-part="grid" />)}
+        {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" data-mm-plane-part="grid" />)}
+        {xMin <= 0 && xMax >= 0 ? <line x1={xToPx(0)} x2={xToPx(0)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" data-mm-plane-part="axis" /> : null}
+        {yMin <= 0 && yMax >= 0 ? <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(0)} y2={yToPx(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" data-mm-plane-part="axis" /> : null}
         {xTicks.map((x) => (x === 0 ? null : <text key={`tx${x}`} x={xToPx(x)} y={yToPx(0) + 17} textAnchor="middle" fontSize="10" style={{ fill: 'var(--mm-graph-label)' }}>{x}</text>))}
         {yTicks.map((y) => (y === 0 ? null : <text key={`ty${y}`} x={xToPx(0) - 9} y={yToPx(y) + 4} textAnchor="end" fontSize="10" style={{ fill: 'var(--mm-graph-label)' }}>{y}</text>))}
 
         {guidePoint ? (
           <g pointerEvents="none" data-relation-crosshair={keyboardCursor && !hoverPoint ? 'keyboard' : 'pointer'}>
-            <line x1={xToPx(guidePoint[0])} x2={xToPx(guidePoint[0])} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
-            <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(guidePoint[1])} y2={yToPx(guidePoint[1])} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" />
-            <circle cx={xToPx(guidePoint[0])} cy={yToPx(guidePoint[1])} r="9" fill="#fff4ce" stroke="#f9ab00" strokeWidth="3" />
-            <rect x={Math.min(PLOT_SIZE - 112, xToPx(guidePoint[0]) + 12)} y={Math.max(PLOT_PAD, yToPx(guidePoint[1]) - 34)} width="96" height="27" rx="7" fill="#202124" opacity="0.9" />
+            <line x1={xToPx(guidePoint[0])} x2={xToPx(guidePoint[0])} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" data-mm-plane-part="cursor" />
+            <line x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(guidePoint[1])} y2={yToPx(guidePoint[1])} stroke="#f9ab00" strokeWidth="2" strokeDasharray="5 5" data-mm-plane-part="cursor" />
+            <circle cx={xToPx(guidePoint[0])} cy={yToPx(guidePoint[1])} r="9" fill="#fff4ce" stroke="#f9ab00" strokeWidth="3" data-mm-plane-part="cursor" />
+            <rect x={Math.min(PLOT_SIZE - 112, xToPx(guidePoint[0]) + 12)} y={Math.max(PLOT_PAD, yToPx(guidePoint[1]) - 34)} width="96" height="27" rx="7" fill="#202124" opacity="0.9" data-mm-plane-part="chip" />
             <text x={Math.min(PLOT_SIZE - 64, xToPx(guidePoint[0]) + 60)} y={Math.max(PLOT_PAD + 18, yToPx(guidePoint[1]) - 16)} textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">({guidePoint[0]}, {guidePoint[1]})</text>
           </g>
         ) : null}
 
-        {points.map(([x, y]) => <circle key={`${x}|${y}`} cx={xToPx(x)} cy={yToPx(y)} r="7" fill="#1a73e8" stroke="#fff" strokeWidth="2" pointerEvents="none" />)}
+        {points.map(([x, y]) => <circle key={`${x}|${y}`} cx={xToPx(x)} cy={yToPx(y)} r="7" fill="#1a73e8" stroke="#fff" strokeWidth="2" pointerEvents="none" data-mm-plane-part="point" />)}
         <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
         <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
       </svg>
@@ -479,14 +483,17 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
       }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
-          <svg ref={diagramRef} viewBox={`0 0 ${WIDTH} ${height}`} role="group" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
+          {/* Drawn in the theme's colours under a contrast theme: the chosen domain
+              value Highlight, the range values faint (GrayText) until one is chosen
+              (src/theme/forcedColors.css). */}
+          <svg ref={diagramRef} viewBox={`0 0 ${WIDTH} ${height}`} role="group" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }} data-mm-drawing="">
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.rangeLabel || 'Range (y)'}</text>
 
             {/* The domain and range groupings, outlined at 3:1 or more in both
                 themes (AX29: the border tokens were 1.65:1 and 2.0:1 in light). */}
-            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
-            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent)' }} strokeWidth="2" />
+            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary)' }} strokeWidth="2" data-mm-plane-part="ring" />
+            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent)' }} strokeWidth="2" data-mm-plane-part="ring" />
 
             {arrows.map(([x, y], index) => {
               const from = domainValues.indexOf(x);
@@ -498,6 +505,7 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
                   x1={LEFT_X + 40} y1={yFor(from, domainValues.length)}
                   x2={RIGHT_X - 40} y2={yFor(to, rangeValues.length)}
                   style={{ stroke: 'var(--mm-primary)' }} strokeWidth="2.5" markerEnd="url(#arrowhead)"
+                  data-mm-plane-part="line"
                 />
               );
             })}
@@ -519,9 +527,9 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); clearFeedback(); setSelectedDomain(selectedDomain === value ? null : value); } }}
                 style={{ cursor: 'pointer' }}
               >
-                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" style={{ fill: selectedDomain === value ? 'var(--mm-primary)' : 'var(--mm-surface)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
+                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" style={{ fill: selectedDomain === value ? 'var(--mm-primary)' : 'var(--mm-surface)', stroke: 'var(--mm-primary)' }} strokeWidth="2" data-mm-plane-part={selectedDomain === value ? 'held' : 'open'} />
                 {/* The label must not swallow the click aimed at its circle. */}
-                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: selectedDomain === value ? 'var(--mm-on-primary)' : 'var(--mm-primary-text)' }}>{value}</text>
+                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: selectedDomain === value ? 'var(--mm-on-primary)' : 'var(--mm-primary-text)' }} data-mm-plane-part={selectedDomain === value ? 'held-text' : undefined}>{value}</text>
               </g>
             ))}
 
@@ -536,7 +544,7 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleRangeClick(value); } }}
                 style={{ cursor: selectedDomain == null ? 'default' : 'pointer' }}
               >
-                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-accent)' }} strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} />
+                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-accent)' }} strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} data-mm-plane-part={selectedDomain == null ? 'muted' : 'open'} />
                 <text pointerEvents="none" x={RIGHT_X} y={yFor(index, rangeValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: 'var(--mm-accent-text)' }}>{value}</text>
               </g>
             ))}

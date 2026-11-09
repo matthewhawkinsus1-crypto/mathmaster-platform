@@ -321,7 +321,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   // legend, so "given" never rests on colour alone (A11Y-4).
   const referenceLines = reference ? [{ m: reference.m, b: reference.b, stroke: '#5f6b7a', dash: '9 6' }] : [];
   const verticalStudentLine = studentLine?.kind === 'vertical'
-    ? ({ sx, pad, height }) => <line x1={sx(studentLine.x)} x2={sx(studentLine.x)} y1={pad} y2={height - pad} stroke="#1a73e8" strokeWidth="3" />
+    ? ({ sx, pad, height }) => <line x1={sx(studentLine.x)} x2={sx(studentLine.x)} y1={pad} y2={height - pad} stroke="#1a73e8" strokeWidth="3" data-mm-plane-part="line" />
     : null;
 
   // Name what actually went wrong instead of restating the task. "Both points
@@ -344,7 +344,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
     const { category, pointChecks: checks } = readConstructionFeedback({ isCorrect: feedback.isCorrect, parts: feedback.metadata?.parts });
     if (feedback.metadata?.strategy === 'formAware' && category) return formAwareFeedback(category);
     const onLine = checks.filter(Boolean).length;
-    if (!studentLine) return 'Those two clicks landed on the same spot. Two different points are needed to determine a line.';
+    if (!studentLine) return 'Those two points landed on the same spot. Two different points are needed to determine a line.';
     const turned = orientationMissMessage(target, studentLine);
     if (turned) return turned;
     if (onLine === 0) return 'Neither point is on the target line yet. Find one point you are certain about — the y-intercept is usually easiest — and start there.';
@@ -464,7 +464,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
           ) : null}
           {reference ? (
             <p data-graphing-reference-legend="" style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginBottom: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px' }}>
-              <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 6 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#5f6b7a" strokeWidth="3" strokeDasharray="9 6" /></svg>The dashed grey line is the given line, {lineReadoutText(reference)}.</span>
+              <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 6 }} aria-hidden="true" data-mm-plane-key=""><line x1="0" y1="4" x2="26" y2="4" stroke="#5f6b7a" strokeWidth="3" strokeDasharray="9 6" /></svg>The dashed grey line is the given line, {lineReadoutText(reference)}.</span>
               <span><span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#1a73e8', marginRight: 6, verticalAlign: 'middle' }} />Your line goes through your blue points.</span>
             </p>
           ) : null}

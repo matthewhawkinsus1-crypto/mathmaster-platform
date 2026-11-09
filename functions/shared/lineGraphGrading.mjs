@@ -85,7 +85,9 @@ export const checkChoiceAnswer = ({ question, choiceId } = {}) => {
   return Object.freeze({ ...wrong(question, choice.line, LINE_ITEM_TYPE.NAME), answerKey: `choice:${choice.id}` });
 };
 
-const FORM_MESSAGES = Object.freeze({
+// Exported for the round's feedback line, which keeps room for the longest
+// (lineGraphSession.lineFeedbackReserve).
+export const FORM_MESSAGES = Object.freeze({
   [BUILD_PROBLEM.UNREADABLE]: 'Fill in every box with a number — a whole number, a fraction like 2/3, or a decimal.',
   [BUILD_PROBLEM.WHOLE_NUMBERS]: 'Standard form uses whole numbers for A, B and C.',
   [BUILD_PROBLEM.NOT_A_LINE]: 'A and B cannot both be 0.',

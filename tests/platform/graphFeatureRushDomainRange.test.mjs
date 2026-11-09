@@ -31,6 +31,7 @@ import {
   recordSetTap,
   recordSkip,
   recordTap,
+  rushItemKind,
   settle,
   toggleAxisArrow,
 } from '../../src/platform/liveChallenge/rushSession.js';
@@ -408,12 +409,17 @@ test('the round shows the set as drawn, its notation and ✓ Check — "keeps go
   assert.doesNotMatch(executableSource(round), /onArrow/, 'nothing left wired to one');
   assert.match(setControls, /disabled=\{buttonsDisabled \|\| !drawingReady\(session\)\} onClick=\{onCheck\}>✓ Check</);
   // The "none" button: an inequality's No Solution, an interval's Does Not
-  // Exist — only on a set that can be empty, never on a domain or range.
-  assert.match(setControls, /\{inequalityItem && \(\s*<button type="button" className="mm-rush-dne"[^>]*>No Solution<\/button>\s*\)\}/);
-  assert.match(setControls, /\{setCanBeEmpty && !inequalityItem && \(\s*<button type="button" className="mm-rush-dne"[^>]*>Does Not Exist<\/button>\s*\)\}/);
-  assert.match(round, /const setCanBeEmpty = setQuestion && \(inequalityItem \|\| getGraphFeature\(question\?\.feature\)\?\.canNotExist === true\);/);
+  // Exist — only on a set that can be empty, never on a domain or range. The
+  // controls are the item's kind from GO (rushSession.rushItemKind).
+  assert.match(setControls, /\{shownKind\.inequality && \(\s*<button type="button" className="mm-rush-dne"[^>]*>No Solution<\/button>\s*\)\}/);
+  assert.match(setControls, /\{shownKind\.canBeEmpty && !shownKind\.inequality && \(\s*<button type="button" className="mm-rush-dne"[^>]*>Does Not Exist<\/button>\s*\)\}/);
+  assert.match(round, /const shownKind = started && question\s*\? rushItemKind\(question, \{ offScreen: offScreenGame \}\)/);
   for (const feature of ['domain', 'range']) assert.equal(getGraphFeature(feature).canNotExist, false, `${feature}: never empty`);
-  assert.match(round, /\{setQuestion \? \(\s*\/\/[^\n]*\n[^\n]*\n\s*<div className="mm-rush-buttons" data-set="1"/);
+  const domainKind = rushItemKind(publicRushQuestion(slotQuestion('squareRoot', GRAPH_FEATURE.DOMAIN, 'endpoint', QUESTION_TIER.EASY)));
+  const rangeKind = rushItemKind(publicRushQuestion(slotQuestion('exponential', GRAPH_FEATURE.RANGE, 'asymptote', QUESTION_TIER.STANDARD)));
+  assert.deepEqual([domainKind.set, domainKind.canBeEmpty, domainKind.vertical], [true, false, false], 'a domain: a set on x, never empty');
+  assert.deepEqual([rangeKind.set, rangeKind.canBeEmpty, rangeKind.vertical], [true, false, true], 'a range: a set on y, never empty');
+  assert.match(round, /\{shownKind\.set \? \(\s*(?:\/\/[^\n]*\n\s*)*<div className="mm-rush-buttons" data-set="1"/);
   // A tap on a set question is read by the set tap model; on an inequality,
   // a number or one of the line's end arrows.
   assert.match(round, /if \(isInequalityQuestion\(tapped\)\) \{\s*return end \? toggleAxisArrow\(current, end, context\) : recordAxisTap\(current, \{ \.\.\.context, x, y \}\);/);
@@ -422,7 +428,9 @@ test('the round shows the set as drawn, its notation and ✓ Check — "keeps go
   // the session), with a prompt to start while nothing is drawn.
   assert.match(round, /const notation = setQuestion \? lineNotation\(question, studentDrawing, \{ revealing \}\) : null;/);
   assert.match(round, /\{notation\s*\? notation\.map\(\(form, index\) => \(/);
-  assert.match(round, /: \(inequalityItem \? 'Tap the number line to place a dot\.' : 'Tap the graph to place a dot\.'\)\}/);
+  // (The prompt has its own helper: the notation keeps its room as well.)
+  assert.match(round, /: notationPrompt\(shownKind\.inequality\)\}/);
+  assert.match(region(round, 'const notationPrompt = (inequality) => (inequality', ');', 'the notation prompt'), /\? 'Tap the number line, or use the arrow keys and Enter, to place a dot\.'\s*: 'Tap the graph, or use the arrow keys and Enter, to place a dot\.'$/);
   const graph = read('src/components/liveChallenge/GraphFeatureRushGraph.jsx');
   assert.match(graph, /\{revealSet\s*\? <AxisSet shape=\{revealSet\} side=\{side\} tone="var\(--mm-rush-found\)" \/>\s*: <AxisSet shape=\{axisSet\} side=\{side\} tone="var\(--mm-rush-curve\)" \/>\}/);
 });

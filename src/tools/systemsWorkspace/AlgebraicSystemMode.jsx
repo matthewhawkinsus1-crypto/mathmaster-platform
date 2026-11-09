@@ -285,7 +285,7 @@ export const solvedNumberFor = (latexResponse, variable) => {
   }
 };
 
-const solvedRecordFor = (latexResponse, variable) => {
+export const solvedRecordFor = (latexResponse, variable) => {
   const expression = solvedExpressionFor(latexResponse, variable);
   if (expression == null) return null;
   try {
@@ -296,7 +296,7 @@ const solvedRecordFor = (latexResponse, variable) => {
   }
 };
 
-const solvedRecordExpression = (record) => {
+export const solvedRecordExpression = (record) => {
   const exact = String(record?.expression || '').trim();
   if (exact && expressionIsSimplified(exact)) {
     return presentableExpression(exact);

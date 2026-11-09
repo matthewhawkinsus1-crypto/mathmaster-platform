@@ -42,7 +42,68 @@ const LINE_HINTS = Object.freeze({
   describe: ['A line slides along itself: "left 3" and "up 3" can draw the same line. Any point on it can be (h, k).', 'The slope is a: |a| more than 1 is a vertical stretch, less than 1 a compression, and a negative slope is a reflection across the x-axis.', 'Keep b = 1 (no horizontal scale, no y-axis reflection) and describe the shifts that move (0, 0) to the point you chose.'],
 });
 
-/** The steps and hints the lab shows for this family, by mode. */
-export const labGuidanceFor = (family) => (family === 'linear'
-  ? { steps: { ...MODE_STEPS, ...LINE_STEPS }, hints: { ...HINTS, ...LINE_HINTS } }
-  : { steps: MODE_STEPS, hints: HINTS });
+/*
+ * NO b BOX, NO b (walkthrough 2026-11-06, P-4). An item keeps b = 1 unless it
+ * asks for a horizontal scale (resolveTransformationsQuestion's showB), and
+ * then the lab shows three boxes: a, h and k. Its words were written for four:
+ * after a miss it said "Change only a, then b, then h, then k", and its task,
+ * steps and hints sent the student to a b box that is not there ("Enter all
+ * four"). Without a b box they name only a, h and k, and the model is
+ * y = a·f(x − h) + k. What b would do (the bridge, the other modes) is
+ * unchanged.
+ */
+export const MODE_TASKS = Object.freeze({
+  match: 'Change a, b, h and k until your graph sits exactly on the dashed target.',
+  identify: 'Read the graph and recover the values of a, b, h and k that produced it.',
+  pointMap: 'Send a point from the parent function through the transformation and give where it lands.',
+  plotTransform: 'Transform the entire source graph by moving each defining point to its new location.',
+  describe: 'Describe every change this graph makes to its parent function.',
+  anchor: 'Find the coordinates of the transformed defining feature.',
+});
+
+const WITHOUT_B_TASKS = Object.freeze({
+  match: 'Change a, h and k until your graph sits exactly on the dashed target.',
+  identify: 'Read the graph and recover the values of a, h and k that produced it.',
+});
+
+const WITHOUT_B_STEPS = Object.freeze({
+  match: ['Change one parameter at a time and watch what moves.', 'Use h and k for position, then a for reflections/scales.', 'When the two graphs overlap, press {action}.'],
+  identify: ['Find the defining feature of the graph — that gives you h and k.', 'Use one or more additional points to recover a.', 'Enter all three, then press {action}.'],
+});
+
+const WITHOUT_B_HINTS = Object.freeze({
+  match: ['Start with h and k to put the graph in the right place, then fix reflections/scales with a.', 'Use y = a·f(x − h) + k. Inside changes control x; outside changes control y.', HINTS.match[2]],
+  identify: [HINTS.identify[0], 'Then compare another point. Outside a acts directly on y.', 'Negative a reflects across the x-axis.'],
+});
+
+// A line read without a b box: the same steps, with three boxes to fill.
+const WITHOUT_B_LINE_STEPS = Object.freeze({
+  identify: [...LINE_STEPS.identify.slice(0, -1), 'Enter all three, then press {action}.'],
+});
+
+/** The parameter boxes the lab shows. */
+export const parameterKeysFor = ({ showB = true } = {}) => (showB ? ['a', 'b', 'h', 'k'] : ['a', 'h', 'k']);
+
+/** The steps and hints the lab shows for this family, by mode, for the boxes it shows. */
+export const labGuidanceFor = (family, { showB = true } = {}) => {
+  const line = family === 'linear';
+  if (showB) {
+    return line
+      ? { steps: { ...MODE_STEPS, ...LINE_STEPS }, hints: { ...HINTS, ...LINE_HINTS } }
+      : { steps: MODE_STEPS, hints: HINTS };
+  }
+  return {
+    steps: { ...MODE_STEPS, ...WITHOUT_B_STEPS, ...(line ? { ...LINE_STEPS, ...WITHOUT_B_LINE_STEPS } : {}) },
+    hints: { ...HINTS, ...WITHOUT_B_HINTS, ...(line ? LINE_HINTS : {}) },
+  };
+};
+
+/** The task line for a mode, naming only the boxes the lab shows. */
+export const labTaskFor = (mode, { showB = true } = {}) => (
+  (!showB && WITHOUT_B_TASKS[mode]) || MODE_TASKS[mode] || MODE_TASKS.match
+);
+
+/** What a miss on match or identify says: one box at a time, the boxes there are. */
+export const parameterMissMessage = ({ showB = true } = {}) => (
+  `Compare one parameter at a time. Change only ${parameterKeysFor({ showB }).join(', then ')}, and watch what each one changes.`
+);

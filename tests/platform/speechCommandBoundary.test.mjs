@@ -33,7 +33,10 @@ const COMMANDS = [
   ['angle', 'angle'], ['triangle', 'triangle'], ['in', 'is in'],
   ['pm', 'plus or minus'], ['infty', 'infinity'], ['cdot', 'times'], ['times', 'times'], ['div', 'divided by'],
   ['pi', 'pi'], ['theta', 'theta'], ['circ', 'degrees'],
-  ['sin', 'sin'], ['cos', 'cos'], ['tan', 'tan'], ['ln', 'ln'], ['log', 'log'],
+  // \ln is said "natural log" (math-speech-2: ln(x) is "natural log of x"),
+  // and \sin, \cos and \tan by name (platform-polish-3: "sine of x"); what
+  // this list checks is that each is said at all.
+  ['sin', 'sine'], ['cos', 'cosine'], ['tan', 'tangent'], ['ln', 'natural log'], ['log', 'log'],
 ];
 const said = (speech, words) => new RegExp(`(?:^| )${words}(?: |$)`).test(speech);
 
@@ -68,7 +71,7 @@ test('a letter after a command name makes it a different command, never the shor
   assert.equal(mathToSpeech('x\\leq5'), 'x is less than or equal to 5');
   assert.equal(mathToSpeech('x\\neq5'), 'x is not equal to 5');
   assert.equal(mathToSpeech('\\infty'), 'infinity', '\\infty is not \\in');
-  assert.equal(mathToSpeech('\\left(x\\right)'), 'the quantity x', '\\left is not \\le');
+  assert.equal(mathToSpeech('\\left(x\\right)'), 'x', '\\left is not \\le');
 });
 
 test('commands that take an argument also end at a non-letter', () => {
@@ -77,7 +80,8 @@ test('commands that take an argument also end at a non-letter', () => {
   assert.equal(mathToSpeech('\\dfrac34'), '3 over 4');
   // `\textbf` is not `\text` with an argument of "b".
   assert.equal(mathToSpeech('\\textbf{Area} = 5'), 'Area equals 5');
-  assert.equal(mathToSpeech('\\sin2x'), 'sin 2x');
+  // sin by name, of its argument (platform-polish-3).
+  assert.equal(mathToSpeech('\\sin2x'), 'sine of 2x');
 });
 
 // AX16: the slanted relations and "not" were silent ('x 3', 'Write and and p.').

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 /*
  * App.jsx WIRING FOR THE ONE "TODAY" RULE.
@@ -32,6 +33,13 @@ test('the dashboard model receives the student, their Recovery states and the te
   assert.match(call, /recoveryStateByAssignment:\s*recoveryStatesFromSummaries\(studentRecoverySummariesByAssignment\)/);
   assert.match(call, /\bgetSectionAccessState,/);
   assert.match(app, /import\s*\{[^}]*\bgetSectionAccessState\b/);
+  // "Finished" counts a family slot on the question it dealt, from what this
+  // page knows: the same counting Start hands questionIsTerminal (P-7).
+  assert.match(region(app, 'buildStudentDashboardModel({', '\n    });', 'the dashboard model call'), /\n\s*terminalCounting: terminalCountingFor,\n/);
+  const counting = region(app, 'const terminalCountingFor = ', '\n  });', 'terminalCountingFor');
+  assert.match(counting, /=> \(\{\s*questionIndex,\s*shown: familyDeliveriesRef\.current,\s*deal: dealFor\(assignment, questionIndex, record\),\s*$/);
+  // The same deal every count in the question list reads.
+  assert.match(region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /\bdeal: dealFor\(assignment, questionIndex, record\),/);
 });
 
 test('Start/Continue lands on the first unfinished open question, and never on a dead end', () => {
@@ -43,6 +51,9 @@ test('Start/Continue lands on the first unfinished open question, and never on a
   assert.match(start, /const keepRequested = Boolean\(options\?\.returnToResult\)\s*\|\| Boolean\(options\?\.keepRequestedQuestion && roleIsActionable\(requestedRole\)\);/);
   // The same "finished" as Home: questionIsTerminal (extra DOL tries reopen).
   assert.match(entry, /: \(index\) => questionIsTerminal\(\{\s*record: tracker\?\.\[assignmentId\]\?\.\[index\]/);
+  // Counted, as Home counts it, on the question a family slot dealt (P-7).
+  const finished = region(entry, ': (index) => questionIsTerminal({', '}),', 'the finished test');
+  assert.match(finished, /\.\.\.terminalCountingFor\(assignmentData, index, tracker\?\.\[assignmentId\]\?\.\[index\]\),\s*$/);
   // With nothing open for a whole-assignment start, the student is taken to
   // the result page (what opens when), not left on a toast.
   assert.match(entry, /if \(actionableIndex === null && user\?\.role === 'student' && !scopedSectionKey\) \{\s*openStudentAssignmentResult\(assignmentId/);
@@ -121,9 +132,11 @@ test('Grades gets Start, ways to raise and What changed; Home gets the count —
 
 test('Review My Work shows only for closed, released, non-Test-Cycle work — with imports', () => {
   // Lazy, so MathLive (pulled by the solution renderers) stays out of the first load.
-  // Declared in app/lazyScreens.js since the App split; App imports it from there.
-  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /export const ReviewMyWork = lazy\(\(\) => import\('\.\.\/components\/student\/ReviewMyWork\.jsx'\)\)/);
+  // Declared in app/lazyScreens.js since the App split, as a panel with its own
+  // boundary (lazyStudentScreens.test.mjs); App imports it from there.
+  assert.match(readFileSync(new URL('../../src/app/lazyScreens.js', import.meta.url), 'utf8'), /^export const ReviewMyWork = studentPanel\(\(\) => import\('\.\.\/components\/student\/ReviewMyWork\.jsx'\), \{/m);
   assert.match(app, /\bReviewMyWork,\n[\s\S]*?\} from '\.\/app\/lazyScreens\.js';/);
+  assert.equal(importsComponent('src/App.jsx', 'ReviewMyWork', 'src/components/student/ReviewMyWork.jsx'), 'onDemand');
   assert.match(app, /import \{ loadMyReviewWork \} from '\.\/services\/reviewMyWorkService\.js'/);
   const panel = region(app, 'const resultReviewPanel =', ': null;', 'review panel');
   assert.match(app, /reviewPanel=\{resultReviewPanel\}/);
@@ -133,7 +146,8 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
   // The panel is THIS assignment's review, loaded through the server callable
   // (prop order and any further props — the student's questions for their
   // teacher, D6 — are not the contract).
-  const mount = region(panel, '<ReviewMyWork', '</Suspense>', 'the Review My Work mount');
+  // (To the mount's own closing "/>": the one inside teacherAnswers is followed by "}".)
+  const mount = region(panel, '<ReviewMyWork', '/>\n', 'the Review My Work mount');
   assert.match(mount, /\bassignment=\{recoveryAssignment\}/);
   assert.match(mount, /\bload=\{loadMyReviewWork\}/);
   // The student's own profile rides along for Read aloud and Translate beside
@@ -164,8 +178,9 @@ test('entry shares the Today rule\'s predicates, with their imports (review find
 
 test('the Warm-Up banner never recommends excused or unopened work (review finding 6)', () => {
   // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
-  // status chip offers the same Warm-Up); the banner renders its answer.
-  const banner = region(app, 'const studentActiveWarmup = () => {', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
+  // status chip offers the same Warm-Up; worked out once per change of what
+  // it reads); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => ', 'const questions = getStoredAssignmentQuestions(assignment);', 'banner filter');
   assert.match(app, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);/);
   assert.match(banner, /if \(assignmentIsExcusedForStudent\(assignment, user\.id\)\) return null;/);
   assert.match(banner, /if \(!getAssignmentLifecycle\(assignment, now, \{ studentId: user\.id \}\)\.isOpen\) return null;/);

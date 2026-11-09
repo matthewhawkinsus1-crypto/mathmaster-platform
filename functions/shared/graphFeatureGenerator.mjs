@@ -224,6 +224,90 @@ export const setLandmarksFor = ({ family, params, graph, view }) => {
   return Object.freeze([...byPlace.values()].sort((left, right) => left.x - right.x || left.y - right.y));
 };
 
+/*
+ * EVERY POINT AND LINE FEATURE THE GRAPH HAS (N42), whatever the question
+ * asks: its zeros, its y-intercept, its vertex, its maximum and minimum and
+ * its asymptotes, each where the family's exact analysis puts it. A zero or a
+ * y-intercept that is not a rational number (a parabola's √3, an
+ * exponential's logarithm, a square root's y-intercept) is where the drawn
+ * curve meets the axis, found on the curve itself. Only the server's copy of
+ * a question carries them (publicRushQuestion leaves them out): the
+ * teacher's report names the feature a wrong tap landed on
+ * (graphFeatureRush.rushTapDiagnosis), and nothing that grades a tap or that
+ * a student sees reads them.
+ */
+const TAPPABLE_FEATURE_IDS = Object.freeze([
+  GRAPH_FEATURE.X_INTERCEPT,
+  GRAPH_FEATURE.Y_INTERCEPT,
+  GRAPH_FEATURE.VERTEX,
+  GRAPH_FEATURE.MAXIMUM,
+  GRAPH_FEATURE.MINIMUM,
+  GRAPH_FEATURE.ASYMPTOTE,
+]);
+
+const ZERO_SAMPLES = 400;
+
+// Where the drawn curve crosses the x-axis inside the view: a change of sign
+// between two samples of one continuous stretch, narrowed by bisection.
+const curveZeros = (graph, view) => {
+  const zeros = [];
+  curveSegments(graph, view).forEach((segment) => {
+    const nudge = Math.min(1e-6 * (view.xMax - view.xMin), (segment.to - segment.from) / 1000);
+    const start = segment.fromClosed ? segment.from : segment.from + nudge;
+    const end = segment.toClosed ? segment.to : segment.to - nudge;
+    let previous = null;
+    for (let index = 0; index <= ZERO_SAMPLES; index += 1) {
+      const x = start + ((end - start) * index) / ZERO_SAMPLES;
+      const y = evaluateGraph(graph, x);
+      if (!Number.isFinite(y)) {
+        previous = null;
+        continue;
+      }
+      if (y === 0) zeros.push(x);
+      else if (previous && previous.y !== 0 && Math.sign(previous.y) !== Math.sign(y)) {
+        let [low, high] = [previous.x, x];
+        for (let step = 0; step < 60; step += 1) {
+          const mid = (low + high) / 2;
+          if (Math.sign(evaluateGraph(graph, mid)) === Math.sign(previous.y)) low = mid;
+          else high = mid;
+        }
+        zeros.push((low + high) / 2);
+      }
+      previous = { x, y };
+    }
+  });
+  return zeros.filter((x, index) => zeros.findIndex((other) => Math.abs(other - x) < 1e-9) === index);
+};
+
+const featureTargetOf = (exact) => {
+  if (exact.orientation) {
+    return exact.orientation === LINE_ORIENTATION.VERTICAL
+      ? Object.freeze({ geometry: 'line', orientation: exact.orientation, x: Q.toNumber(exact.x) })
+      : Object.freeze({ geometry: 'line', orientation: exact.orientation, y: Q.toNumber(exact.y) });
+  }
+  return Object.freeze({ x: Q.toNumber(exact.x), y: Q.toNumber(exact.y) });
+};
+
+/** A graph's point and line features, by feature id: `{ xIntercept: [{ x, y }], asymptote: [{ geometry: 'line', … }], … }`. */
+export const graphFeaturesFor = ({ analysis = {}, graph, view }) => {
+  const features = {};
+  TAPPABLE_FEATURE_IDS.forEach((featureId) => {
+    const entry = analysis[featureId];
+    let targets = [];
+    if (entry?.status === FEATURE_STATUS.EXISTS) {
+      targets = entry.points.filter((exact) => exact && (exact.orientation || (exact.x !== undefined && exact.y !== undefined))).map(featureTargetOf);
+    } else if (entry?.status === FEATURE_STATUS.INEXACT && graph && view) {
+      if (featureId === GRAPH_FEATURE.X_INTERCEPT) targets = curveZeros(graph, view).map((x) => Object.freeze({ x, y: 0 }));
+      if (featureId === GRAPH_FEATURE.Y_INTERCEPT) {
+        const y = evaluateGraph(graph, 0);
+        if (Number.isFinite(y)) targets = [Object.freeze({ x: 0, y })];
+      }
+    }
+    if (targets.length) features[featureId] = Object.freeze(targets);
+  });
+  return Object.freeze(features);
+};
+
 /** The tick step for a span: the smallest of 1, 2, 5, 10 giving ≤ 14 lines. */
 export const tickStep = (span) => [1, 2, 5, 10, 20].find((step) => span / step <= 14) || 20;
 
@@ -637,7 +721,10 @@ const attemptSlot = ({ slot, rng }) => {
   if (!family || !variant) return { problems: ['unknown slot'] };
   const params = family.build(rng, { feature: slot.feature, variant: slot.variant, tier: slot.tier });
   if (!params) return { problems: ['no parameters'] };
-  const analysis = family.analyze(params)[slot.feature];
+  // Every feature of the graph, worked out once: the one asked, and the rest
+  // for the server's own copy (graphFeaturesFor).
+  const features = family.analyze(params);
+  const analysis = features[slot.feature];
   const wanted = variant.exists ? FEATURE_STATUS.EXISTS : FEATURE_STATUS.NONE;
   if (analysis?.status !== wanted) return { problems: [`analysis says ${analysis?.status}`] };
   const expected = variant.exists ? expectedTargetCount(slot.family, slot.variant, slot.feature) : 0;
@@ -658,7 +745,7 @@ const attemptSlot = ({ slot, rng }) => {
     let problems = ['no window leaves the feature off the screen'];
     for (const view of offScreenViews({ anchors, hidden: pointTargets, tier: slot.tier })) {
       problems = viewProblems({ family, feature: slot.feature, variant, graph, view, targets, tier: slot.tier });
-      if (!problems.length) return { question: { graph, view, targets, offScreen: true } };
+      if (!problems.length) return { question: { graph, view, targets, offScreen: true, graphFeatures: graphFeaturesFor({ analysis: features, graph, view }) } };
     }
     return { problems };
   }
@@ -676,7 +763,7 @@ const attemptSlot = ({ slot, rng }) => {
   const landmarks = view && isSetFeature(slot.feature) ? setLandmarksFor({ family, params, graph, view }) : null;
   const problems = viewProblems({ family, feature: slot.feature, variant, graph, view, targets, tier: slot.tier, landmarks: landmarks || [] });
   if (problems.length) return { problems };
-  return { question: { graph, view, targets, ...(landmarks ? { landmarks } : {}) } };
+  return { question: { graph, view, targets, ...(landmarks ? { landmarks } : {}), graphFeatures: graphFeaturesFor({ analysis: features, graph, view }) } };
 };
 
 const FALLBACKS = Object.freeze({
@@ -799,6 +886,9 @@ export const generateQuestionForSlot = ({ slot, seedText, questionIndex = 0, avo
     ...(question.landmarks ? { landmarks: Object.freeze(question.landmarks) } : {}),
     ...(isSetFeature(slot.feature) ? { setAxis: SET_FEATURE_AXIS[slot.feature] } : {}),
     ...(offScreen ? { offScreenTargets: Object.freeze(question.targets.map(({ x, y }) => Object.freeze({ x, y }))) } : {}),
+    // Every point and line feature of the graph, for the teacher's report
+    // only (graphFeaturesFor). Never on the device's copy.
+    ...(question.graphFeatures ? { graphFeatures: question.graphFeatures } : {}),
     fallback,
     attempts,
   });

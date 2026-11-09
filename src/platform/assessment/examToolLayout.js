@@ -58,6 +58,66 @@ export const EXAM_TOOL_NARROW_QUERY = `(max-width: ${EXAM_TOOL_DRAWERS.dockFrom 
 /** Fired on window when a tool opens: `detail.tool` is one of EXAM_TOOL_IDS. */
 export const EXAM_TOOL_OPEN_EVENT = 'mathmaster:exam-tool-open';
 
+/*
+ * THE TEST'S TAB ROUND GOES THROUGH ITS OPEN TOOLS.
+ *
+ * A drawer is portalled to the end of the body (so no toolbar's stacking
+ * context holds it under Work View), which put it outside the two guards that
+ * send Tab round the secure exam instead of off the page. Tab past the
+ * calculator's last control walked out of the test to the page and then the
+ * browser (in a real browser the window losing focus is what the integrity
+ * logger records as leaving the test), and the open drawer was never reached
+ * by Tab again. So an open drawer is a region of the exam's round: region 0 is
+ * the test itself, then each open drawer in the order it sits in the page. Tab
+ * past a region's last control goes to the next region's first control, and
+ * Shift+Tab before a region's first control to the previous region's last;
+ * with no drawer open the test comes round to itself, as its guards always
+ * made it. A drawer in the round carries data-exam-tool-panel and puts an
+ * empty stop before and after itself (examToolDrawerHooks.js examToolTabEdge).
+ * Nothing holds focus inside a drawer: it stays a panel beside the question,
+ * not a modal.
+ */
+export const EXAM_TOOL_PANEL_SELECTOR = '[data-exam-tool-panel]';
+
+/**
+ * The regions to try, in order, when focus leaves region `from` (of `count`;
+ * 0 is the test) forward (Tab) or backward (Shift+Tab): the next one (or the
+ * previous one), round, and `from` itself last. Focus arriving from outside
+ * the round (`from` is no region) starts with the test going forward, and
+ * with the last region going backward.
+ */
+export const examTabRound = ({ count = 1, from = 0, forward = true } = {}) => {
+  const total = Math.max(1, Math.floor(Number(count)) || 1);
+  const known = Number.isInteger(from) && from >= 0 && from < total;
+  const start = known ? from : (forward ? total - 1 : 0);
+  const step = forward ? 1 : -1;
+  return Array.from({ length: total }, (_, index) => (((start + step * (index + 1)) % total) + total) % total);
+};
+
+/*
+ * COMING INTO THE ROUND FROM OUTSIDE IT (student-a11y-3).
+ *
+ * Each region of the round has an empty stop at either end: the test's two
+ * guards, and the two around each open drawer. Focus that reaches one from
+ * inside the round is leaving that region the way the stop faces: past its end
+ * going forward, before its start going back. But Tab from the student
+ * navigation above a running test lands on the test's start guard too, which
+ * read it as Shift+Tab before the test's first control and sent it round to
+ * the last: a student who Tabbed into the test came in at the end of its round.
+ * Focus that reaches a stop from outside the round (the page around the test,
+ * the browser, or nowhere) is coming in, the way the key went: through a start
+ * going forward, to the round's first control, the one Tab past its last
+ * reaches; through an end going back, to its last, after any open drawer.
+ *
+ * `edge` is 'start' or 'end'; the move is { into, forward }, `into` true when
+ * the round is entered from outside it (examTabRound's `from` is then no region).
+ */
+export const examTabEdgeMove = ({ edge = 'start', fromInsideRound = false } = {}) => (
+  fromInsideRound
+    ? { into: false, forward: edge === 'end' }
+    : { into: true, forward: edge !== 'end' }
+);
+
 const width = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 
 /** Can both drawers sit beside a usable question at this width? */

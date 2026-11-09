@@ -152,7 +152,10 @@ test('every student-runtime site reads the closure', () => {
   assert.match(workspace, /\.filter\(\(entry\) => !studentRequiredSet \|\| studentRequiredSet\.has\(entry\.storageIndex\)\)/);
   // Only the student's own profile is added: a Practice Pass keeps its
   // existing workspace treatment (no waiver here, exactly as before).
-  assert.match(workspace, /calculateGrade\(recordedTracker, assignment, \{ supportProfile: officialSupportProfile \}\)/);
+  // The recorded grade is calculateGrade's answer, from the workspace's one
+  // split over the official profile (worked out once per change of what it reads).
+  assert.match(workspace, /\bsplitGrade\(\{ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile \}\)/);
+  assert.match(workspace, /const recordedGrade = questions\.length \? gradeSplit\.score \?\? 0 : 0;/);
   // The recorded grade is the real grade in post-deadline Practice Mode too.
   assert.match(workspace, /const officialSupportProfile = !preview && user\?\.role === 'student' \? user\.profile : null;/);
   assert.match(code, /const sectionPosition = studentRequiredSet \? requiredSectionPosition\.get\(index\) : entry\.logicalPosition;/, 'numbering inside a reduced section');

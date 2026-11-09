@@ -29,8 +29,15 @@
  *   solutions       "x = -5 or x = -3"                 the same set of numbers, in any order
  *   asymptotes      "g: asymptotes vertical x = -3, horizontal y = 2"   the same set of lines
  *   a shift         "4 units to the right"             the same distance and the same direction
+ *   a case          "No solution", "All real numbers"  the same case ("no solutions", "∅", "every real
+ *                                                       number", "infinitely many"); a single value is
+ *                                                       one solution, so not that case
  * and the graph of a linear function, named by collinear points ("The graph
- * through (0, -12), (1, -8), (2, -4)"), is checked as that line. Whatever the
+ * through (0, -12), (1, -8), (2, -4)"), is checked as that line. A part the
+ * variant asks in one of the item's own boxes (`fields`: a factoring, whose
+ * form is the answer) is checked by that box, keyed to the variant: the
+ * platform's multi-answer grader with the box's own form rule, so a
+ * polynomial retyped unfactored is not yet a factoring, as on the item. Whatever the
  * reader cannot take apart completely (a word it does not know, a sign in
  * front of a distance, two directions, a bracket left open) is COMPARE, never
  * INCORRECT: it says the student wrote something it cannot judge, not that it is
@@ -58,6 +65,9 @@ import { compareMathAnswer } from '../../../../functions/shared/answerUtils.mjs'
 import { sameNumberWithThousandsSeparators } from '../../../../functions/shared/answerEquivalence.mjs';
 import { sameEquivalentExpression } from '../../../../functions/shared/equivalentExpression.mjs';
 import { latexToExpression } from '../../../../functions/shared/algebra/latexToExpression.mjs';
+import { gradeMultiAnswerResponse } from '../../../../functions/shared/ordinaryResponseGrading.mjs';
+// A part asked in one of the item's boxes is graded as that box (its form-specific comparator included).
+import '../../../../functions/shared/formSpecificFieldGrading.mjs';
 import { parse } from '../../math/mathjs.js';
 import { NUMERIC_VARIANT_SOURCE, buildNumericVariant } from './numericVariant.js';
 import { buildSimilarWorkedExample } from './similarProblem.js';
@@ -175,13 +185,17 @@ const equalsIndex = (value) => {
 
 const capitalise = (value) => (value ? value[0].toUpperCase() + value.slice(1) : value);
 
-/** Can a verdict on this value be trusted at all? */
-const valueCheckable = (value) => {
+/**
+ * Can a verdict on this value be trusted at all? `math`: the value was written
+ * as mathematics ($…$), so a run of letters in it ("8ab", "3np²") is a product
+ * of variables, never a word.
+ */
+const valueCheckable = (value, { math = false } = {}) => {
   if (!value) return false;
   if (/→|->|\.\.\.|…/.test(value)) return false; // a mapping, a roster with an ellipsis
   if (NONE_WORDS.test(value)) return true;
   // Prose with a number in it ("6 units to the left"): words, not a value.
-  if (words(value).length) return false;
+  if (!math && words(value).length) return false;
   try {
     return compareMathAnswer(value, value);
   } catch {
@@ -194,6 +208,11 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
   const id = `part-${position + 1}`;
   const prose = { id, label: null, expected: raw, kind: 'words', checkable: false };
   if (!raw) return null;
+
+  // An equation's case, "No solution" or "All real numbers" (a same-case
+  // sibling, linearEquations.js): a closed pair, read in that shape.
+  const special = /^(?:no solution|all real numbers)$/i.test(raw) ? caseOf(raw) : null;
+  if (special) return { id, label: null, expected: raw, kind: 'case', case: special, checkable: true };
 
   // Several solutions, "x = -5 or x = -3": one box, and the set of numbers is the answer (CT13).
   const solutions = orSolutions(raw);
@@ -210,6 +229,14 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
     if (!rhs) return prose;
     if (/:/.test(lhs)) return prose;
     if (nameLike(lhs)) {
+      // "First product = $8ab + 10a$" (a polynomial variant): a value written
+      // whole as mathematics is mathematics. Its letters are variables, so it
+      // is checked by value like any expression; read as text, "ab" was a word
+      // and the box could not be checked.
+      if (/^\$[^$]+\$$/.test(rhs)) {
+        const value = text(rhs.slice(1, -1));
+        return { id, label: `${lhs} =`, expected: value, kind: 'value', math: true, checkable: valueCheckable(value, { math: true }) || expressionKind(value, { math: true }) };
+      }
       return { id, label: `${lhs} =`, expected: rhs, kind: 'value', checkable: valueCheckable(rhs) || expressionKind(rhs) };
     }
     return { id, label: 'Equation', expected: raw, kind: 'equation', checkable: valueCheckable(raw) };
@@ -236,6 +263,13 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
   // value ("≥ 3") below, it was words, and a sibling inequality was never
   // checked.
   if (SOLVED_INEQUALITY.test(raw)) return { id, label: null, expected: raw, kind: 'value', checkable: valueCheckable(raw) };
+  // The same after a label, "range y ≥ -12": the label's words, then the
+  // inequality (read as below, the label swallowed the y and it was words).
+  const labelledInequality = /^([A-Za-z][A-Za-z-]*(?:\s+[A-Za-z][A-Za-z-]*)*?)\s*:?\s+([A-Za-z]\s*(?:<=|>=|[<>≤≥]).*)$/.exec(raw);
+  if (labelledInequality && SOLVED_INEQUALITY.test(text(labelledInequality[2]))) {
+    const value = text(labelledInequality[2]);
+    return { id, label: capitalise(labelledInequality[1]), expected: value, kind: 'value', checkable: valueCheckable(value) };
+  }
 
   // A label, then a value: "domain [-1, 4]", "Horizontal: 6 units left".
   const labelled = /^([A-Za-z][A-Za-z-]*(?:\s+[A-Za-z][A-Za-z-]*)*)\s*:?\s+(.+)$/.exec(raw);
@@ -267,8 +301,8 @@ const readPart = (chunk, position, { ordered = false } = {}) => {
 };
 
 /* An expression or equation in letters (checked by value), not a number, pair, set or interval. */
-function expressionKind(value) {
-  if (words(value).length) return false; // "1 unit to the left" parses in mathjs (units): words are not an expression
+function expressionKind(value, { math = false } = {}) {
+  if (!math && words(value).length) return false; // "1 unit to the left" parses in mathjs (units): words are not an expression
   if (/[[{]/.test(value) || /^\(.*\)$/.test(value) && pointList(value)) return false;
   if (!/[a-z]/i.test(value.replace(/inf|∞/gi, ''))) return false;
   return sampleable(value);
@@ -410,6 +444,23 @@ const typedSolutions = (typed, variable) => {
   return values;
 };
 
+/*
+ * An equation's case, as a student types it: "no solution", "no solutions",
+ * "none", "∅", "{ }" for none; "all real numbers", "every real number",
+ * "infinitely many solutions", "ℝ", "(−∞, ∞)" for every one. Read with the
+ * spaces run together, as a math box sends words. Anything else is null.
+ */
+const CASE_NONE = /^(?:no(?:real)?solutions?|none|novalues?|∅|\{\}|emptyset|varnothing|theemptyset)$/;
+const CASE_ALL = /^(?:allrealnumbers|allreals|everyrealnumber|allnumbers|everynumber|infinitelymany(?:solutions)?|ℝ|mathbbr|\(-∞,∞\)|\(-infty,infty\))$/;
+function caseOf(value) {
+  const squashed = typedPlain(value).toLowerCase().replace(/\\/g, '').replace(/\s+/g, '').replace(/\.$/, '');
+  if (CASE_NONE.test(squashed)) return 'none';
+  if (CASE_ALL.test(squashed)) return 'all';
+  return null;
+}
+// One value ("x = 3", "-2/5"): a complete reading of one solution.
+const ONE_VALUE = /^(?:[a-z]=)?-?(?:\d+(?:\.\d+)?|\.\d+)(?:\/\d+)?$/i;
+
 /* Asymptotes: a vertical one is x = a number, a horizontal one y = a number. */
 const AXIS_OF = Object.freeze({ vertical: 'x', horizontal: 'y' });
 
@@ -521,16 +572,30 @@ export const PRACTICE_SOURCE = Object.freeze({ FAMILY: 'family', NUMERIC_VARIANT
 export const buildPracticeLikeThis = (question, { seed = 0, avoidPrompts = [] } = {}) => {
   const avoid = new Set(list(avoidPrompts).map(text).filter(Boolean));
   for (let offset = 1; offset <= 12; offset += 1) {
-    const example = buildSimilarWorkedExample(question, { seed: Number(seed) + 97 * offset });
+    // In the item's own case (keepCase): the item has closed, so a student who
+    // missed "no solution" practises one with no solution (similarProblem.js).
+    const example = buildSimilarWorkedExample(question, { seed: Number(seed) + 97 * offset, keepCase: true });
     if (!example || avoid.has(example.prompt)) continue;
     return { ...example, source: PRACTICE_SOURCE.FAMILY, ...readPracticeAnswer(example.answer) };
   }
   for (let offset = 1; offset <= 12; offset += 1) {
     const variant = buildNumericVariant(question, { seed: Number(seed) + 97 * offset });
     if (!variant || avoid.has(variant.prompt)) continue;
-    return { ...variant, ...readPracticeAnswer(variant.answer) };
+    return { ...variant, ...withBoxes(readPracticeAnswer(variant.answer), variant.fields) };
   }
   return null;
+};
+
+/*
+ * A variant that asks the item's own boxes (`fields`, one per part of its
+ * answer, in order) has each part checked by its box. Read otherwise: the
+ * parts as the answer line gives them.
+ */
+const withBoxes = (read, fields) => {
+  if (!Array.isArray(fields) || !fields.length) return read;
+  if (fields.length !== read.parts.length) return read;
+  const parts = read.parts.map((part, index) => ({ ...part, field: fields[index], checkable: true }));
+  return { parts, checkable: true, wordsOnly: [] };
 };
 
 /** The parts of a sibling's answer line. */
@@ -712,12 +777,27 @@ export const checkPracticePart = (part, response) => {
   if (!typed) return PRACTICE_VERDICT.BLANK;
   const { expected } = part;
 
+  // Asked in one of the item's boxes: that box decides, form and all.
+  if (part.field && typeof part.field === 'object') {
+    const box = { ...part.field, id: text(part.field.id) || part.id };
+    const graded = safely(() => gradeMultiAnswerResponse({ type: 'multiAnswer', answerFields: [box] }, { [box.id]: typed }).parts?.[0]?.isCorrect === true);
+    return graded ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  }
+
   if (part.kind === 'none') {
     const answer = typed.replace(/\\emptyset|\\varnothing/g, '∅').replace(/\\\{\s*\\\}/g, '{}');
     return NONE_WORDS.test(answer) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
   }
 
   if (part.kind === 'line') return checkLine(part.through, typed);
+
+  // A case: the other case, or one value, is a complete reading that differs;
+  // words the reader does not know are compared, never marked wrong.
+  if (part.kind === 'case') {
+    const got = caseOf(typed);
+    if (got) return got === part.case ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+    return ONE_VALUE.test(typedPlain(typed).replace(/\s+/g, '')) ? PRACTICE_VERDICT.INCORRECT : PRACTICE_VERDICT.COMPARE;
+  }
 
   // The four answers with a fixed shape (CT13): a complete reading that differs
   // is INCORRECT; anything the reader cannot take apart completely is COMPARE.
@@ -776,7 +856,7 @@ export const checkPracticePart = (part, response) => {
   if (boxName && safely(() => compareMathAnswer(typed, `${part.label} ${expected}`))) return PRACTICE_VERDICT.CORRECT;
   // 8,050 for 8050, as on every number box (student pass 3, Batch 2).
   if (NUMBER.test(text(expected).replace(/[−]/g, '-')) && safely(() => sameNumberWithThousandsSeparators(answer, expected))) return PRACTICE_VERDICT.CORRECT;
-  if (expressionKind(expected)) {
+  if (expressionKind(expected, { math: part.math === true })) {
     if (safely(() => sameEquivalentExpression(answer, expected))) return PRACTICE_VERDICT.CORRECT;
     return compareBySampling(answer, expected);
   }
@@ -784,6 +864,16 @@ export const checkPracticePart = (part, response) => {
   // the other way. Compared once rewritten; a mismatch is then a real one.
   const rewritten = intervalAsInequality(answer, expected) || inequalityAsInterval(answer, expected);
   if (rewritten) return safely(() => compareMathAnswer(rewritten, expected)) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  // A ray for a one-sided inequality, or the other way round: [-12, ∞) is
+  // y ≥ -12 and (-∞, 6] is y ≤ 6 (a range on the whole real line). The
+  // variable is the key's, else the box's (a range is in y), else the student's.
+  const variable = text(expected).match(/^([A-Za-z])\s*(?:<=|>=|[<>≤≥])/)?.[1]
+    || (/^range\b/i.test(text(part.label)) ? 'y' : /^domain\b/i.test(text(part.label)) ? 'x' : null)
+    || typedPlain(answer).match(/^([A-Za-z])\s*(?:\\[lg]eq?|\\[lg]t|<=|>=|[<>≤≥])/)?.[1];
+  const keyRay = variable && rayAsInequality(expected, variable);
+  if (keyRay) return safely(() => compareMathAnswer(answer, keyRay)) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
+  const typedRay = variable && SOLVED_INEQUALITY.test(text(expected)) && rayAsInequality(typedPlain(answer), variable);
+  if (typedRay) return safely(() => compareMathAnswer(typedRay, expected)) ? PRACTICE_VERDICT.CORRECT : PRACTICE_VERDICT.INCORRECT;
   // A number, pair, set, interval or inequality: the matcher already reads
   // every way of writing one, so a mismatch is a different answer.
   return PRACTICE_VERDICT.INCORRECT;
@@ -800,6 +890,20 @@ const intervalAsInequality = (typed, expected) => {
   if (!key || !interval) return null;
   const [, open, low, high, close] = interval;
   return `${low} ${open === '(' ? '<' : '≤'} ${key[3]} ${close === ')' ? '<' : '≤'} ${high}`;
+};
+
+// One end infinite: "(-∞, 6]", "[-12, ∞)", or as MathLive writes them.
+const INFINITE = '(?:\\\\infty|∞|inf(?:inity)?)';
+const RAY = new RegExp(`^\\s*(?:\\\\left)?\\s*(\\[|\\(|\\\\lbrack)\\s*(?:(-\\s*${INFINITE})|([-−]?[\\d.]+(?:\\/\\d+)?))\\s*,\\s*(?:(\\+?\\s*${INFINITE})|([-−]?[\\d.]+(?:\\/\\d+)?))\\s*(?:\\\\right)?\\s*(\\]|\\)|\\\\rbrack)\\s*$`);
+
+/** A ray as the one-sided inequality in `variable` it is ("(-∞, 6]" → "y ≤ 6"), or null. */
+const rayAsInequality = (value, variable) => {
+  const match = RAY.exec(text(value).replace(/−/g, '-'));
+  if (!match) return null;
+  const [, open, lowInfinite, low, highInfinite, high, close] = match;
+  if (lowInfinite && high !== undefined) return `${variable} ${close === ')' ? '<' : '≤'} ${high}`;
+  if (highInfinite && low !== undefined) return `${variable} ${open === '(' ? '>' : '≥'} ${low}`;
+  return null;
 };
 
 /** A typed compound inequality as the interval the key is written as, or null. */

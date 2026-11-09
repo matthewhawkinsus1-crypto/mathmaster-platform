@@ -22,7 +22,7 @@ test('the loading gate never unmounts a session on screen', () => {
   const app = read('src/components/student/MyMathPathApp.jsx');
   assert.match(app, /const sessionOnScreen = activeTab === 'session' && Boolean\(sessionConfig\);/);
   const gate = region(app, 'const sessionOnScreen', 'return <div', 'loading gate');
-  assert.match(gate, /if \(loading && !sessionOnScreen && !Object\.keys\(masteryData\.masteryProfilesByTEKS\)\.length\)/);
+  assert.match(gate, /if \(loading && firstLoad && !sessionOnScreen && !Object\.keys\(masteryData\.masteryProfilesByTEKS\)\.length\)/);
   // And the end of a session still reloads (the weekly panel needs it).
   assert.match(app, /onSessionComplete=\{\(finished\) => \{ setFinishedSession\(finished \|\| null\); setWeeklyRefreshKey\(\(value\) => value \+ 1\); onReload\?\.\(\); \}\}/);
 });

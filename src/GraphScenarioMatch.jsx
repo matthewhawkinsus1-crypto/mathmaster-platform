@@ -250,7 +250,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
       <div className="graph-scenario-match-instructions" aria-live="polite">
         <div>
           <strong>{selectedGraph ? `${selectedGraph.label || selectedGraph.id} selected` : '1. Select a graph'}</strong>
-          <span>{selectedGraph ? '2. Now select the scenario that tells its story.' : 'Select a graph, or drag it directly onto a scenario.'}</span>
+          <span>{selectedGraph ? '2. Now select the scenario that tells its story.' : 'Select a graph (click or tap, or Tab to it and press Enter), or drag it directly onto a scenario.'}</span>
         </div>
         <div className="graph-scenario-match-actions">
           {selectedGraph && (
@@ -276,12 +276,15 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
           aria-hidden="true"
           viewBox={`0 0 ${connectorSize.width} ${connectorSize.height}`}
           preserveAspectRatio="none"
+          // Over the board, so it keeps no background; its lines and ends drawn in
+          // the theme's colours under a contrast theme (src/theme/forcedColors.css).
+          data-mm-drawing="overlay"
         >
           {connectors.map((connector) => (
             <g key={connector.id}>
-              <path d={connector.path} className="graph-scenario-connector-path" />
-              <circle cx={connector.startX} cy={connector.startY} r="5" className="graph-scenario-connector-dot" />
-              <circle cx={connector.endX} cy={connector.endY} r="5" className="graph-scenario-connector-dot" />
+              <path d={connector.path} className="graph-scenario-connector-path" data-mm-plane-part="line" />
+              <circle cx={connector.startX} cy={connector.startY} r="5" className="graph-scenario-connector-dot" data-mm-plane-part="open" />
+              <circle cx={connector.endX} cy={connector.endY} r="5" className="graph-scenario-connector-dot" data-mm-plane-part="open" />
             </g>
           ))}
         </svg>

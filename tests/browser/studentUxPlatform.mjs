@@ -26,6 +26,11 @@
 //   phone         390×844 touch: one-row bar with Submit; −2/3 typed with the
 //                 keypad's fraction key into a box that stays above the keys;
 //                 one math keypad at a time; group names; no sideways scroll.
+//   keypad-done   390×844 and 844×390 touch: a tap on the number keypad's
+//                 Done closes it and leaves focus on the page, as it always
+//                 has: no ring, no keypad back, no keyboard handed, and the box
+//                 opens it again on the next tap. Done from the keyboard is the
+//                 keyboard sweep's (keyboardSweep.mjs, keypadDoneProbe).
 //   graphs        lines clipped to the plot; the directions shown once; the
 //                 board's platform Undo; enlarge and drag.
 //   sort          the table-card sort done correctly on a phone, then checked.
@@ -321,6 +326,56 @@ const JOURNEYS = {
     }
   },
 
+  // DONE ON THE NUMBER KEYPAD, BY TOUCH (keypad-done). A tap on Done closes the keypad and leaves focus on the page,
+  // as it always has, upright and on its side: no ring, no keypad back, no keyboard handed, and a tap on the box opens
+  // it again. Done pressed from the keyboard now goes on (to the work bar's first control, or on its side back to the
+  // box): this question's keypad is not reached by Tab, since the equation box after the slope closes it, so that is
+  // the keyboard sweep's, on the phone's keypad scenes (keyboardSweep.mjs keypadDoneProbe).
+  async 'keypad-done'(browser) {
+    const slopeBox = 'input[aria-label="Slope m"]';
+    // What the screen shows after the tap: the keypad, what has focus and whether it shows a ring, the bar, and the
+    // keyboards a student could be handed.
+    const seen = (page) => page.evaluate((selector) => {
+      const nameOf = (element) => (!element || element === document.body ? 'page' : (element.getAttribute('aria-label') || element.textContent.trim().slice(0, 40) || element.localName));
+      const bar = document.querySelector('.portrait-action-bar');
+      const ring = document.querySelector(':focus-visible');
+      return {
+        keypad: Boolean(document.querySelector('.mathmaster-mobile-numeric-keypad')),
+        focus: nameOf(document.activeElement),
+        ring: ring ? nameOf(ring) : null,
+        bar: Boolean(bar && bar.getClientRects().length),
+        mathKeyboard: Boolean(window.mathVirtualKeyboard?.visible),
+        inputmode: document.querySelector(selector)?.getAttribute('inputmode'),
+      };
+    }, slopeBox);
+    const key = (page, label) => page.locator('.mathmaster-mobile-numeric-keypad button', { hasText: new RegExp(`^${label}$`) }).first();
+    for (const [at, viewport] of [['390x844', { width: 390, height: 844 }], ['844x390', { width: 844, height: 390 }]]) {
+      const page = await (await browser.newContext({ ...PHONE, viewport })).newPage();
+      await open(page, 'ux-ltw');
+      const slope = page.locator(slopeBox);
+      await slope.scrollIntoViewIfNeeded();
+      await slope.tap();
+      await page.waitForSelector('.mathmaster-mobile-numeric-keypad', { timeout: 10000 });
+      await settle(page, 400);
+      await key(page, '3').tap();
+      await page.locator('.mathmaster-keypad-done').tap();
+      await settle(page, 600);
+      const after = await seen(page);
+      check(!after.keypad, `${at}: a tap on Done left the keypad open`);
+      if (at === '390x844') check(after.bar, `${at}: the bar did not come back after a tap on Done`);
+      check(after.focus === 'page' && !after.ring, `${at}: a tap on Done moved focus to "${after.focus}" (ring on ${after.ring}); it leaves focus on the page, with no ring`);
+      check(!after.mathKeyboard && after.inputmode === 'none', `${at}: a tap on Done handed a keyboard (MathLive's ${after.mathKeyboard ? 'showing' : 'hidden'}, the box's inputmode "${after.inputmode}")`);
+      await settle(page, 800);
+      check(!(await seen(page)).keypad, `${at}: the keypad came back after a tap on Done`);
+      if (at === '390x844') await shot(page, 'keypad-done-tap-390x844');
+      // And the box opens it again on the next tap, as before.
+      await slope.tap();
+      await settle(page, 500);
+      check((await seen(page)).keypad, `${at}: a tap on the box after Done did not open the keypad`);
+      check(await slope.inputValue() === '3', `${at}: the keypad typed "${await slope.inputValue()}" for 3`);
+    }
+  },
+
   async graphs(browser) {
     const page = await (await browser.newContext(LAPTOP)).newPage();
     await open(page, 'ux-graph2');
@@ -409,7 +464,8 @@ const JOURNEYS = {
     // using a screen reader can do this task now.
     // The names are spoken math (pass 3, A11Y-3: "2x plus 10", "m equals 2"),
     // which is what a screen reader reads and a voice-control student says.
-    const planFacts = /10 a month|2x plus 10|m equals 2\.|values 0, 10;|through the point 0, 10\b/;
+    // A price is said as money ("10 dollars a month": platform-polish-3).
+    const planFacts = /10 (?:dollars )?a month|2x plus 10|m equals 2\.|values 0, 10;|through the point 0, 10\b/;
     for (const slot of [0, 1]) {
       await page.locator('[role="radiogroup"] [role="radio"]').nth(slot).tap();
       const cards = page.locator('.mathmaster-line-card');

@@ -247,12 +247,20 @@ export default function StudentAssignmentsCenter({
           className="mm-assignments-filters__toggle"
           aria-expanded={filtersOpen || Boolean(search)}
           aria-controls="assignments-filters"
-          onClick={() => {
+          onClick={(event) => {
             if (search) return; // a search in progress stays open
             const opening = !filtersOpen;
             setFiltersOpen(opening);
             if (opening && typeof window !== 'undefined') {
-              window.requestAnimationFrame(() => document.getElementById('assignments-search')?.focus());
+              const toggleButton = event.currentTarget;
+              window.requestAnimationFrame(() => {
+                // Only while the student is still on the toggle: on a slow
+                // device the frame can come after they have moved on (a tab
+                // lost its focus to the search in CI).
+                const active = document.activeElement;
+                if (active && active !== toggleButton && active !== document.body) return;
+                document.getElementById('assignments-search')?.focus();
+              });
             }
           }}
           style={{

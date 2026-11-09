@@ -16,6 +16,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PRINT_ONLY, runCodemod, scaleFluidClamps } from '../../scripts/codemods/px-to-rem.mjs';
 import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
+import { region } from './helpers/sourceContract.mjs';
+import { LIVE_CHALLENGE_ROUND_SCREENS } from '../browser/accessibilityCertification.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -144,9 +146,19 @@ test('CI measures every swept surface at 200% text', () => {
   assert.ok(runs.some((checks) => checks.includes('text')), 'a CI step runs studentShellLargeText --check=text');
   const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
   const screens = harness.slice(harness.indexOf('export const LARGE_TEXT_SCREENS'), harness.indexOf('const runScenes'));
-  for (const id of ['more-tools', 'recovery', 'teacher', 'graph-feature-rush', 'registry-tools']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
+  for (const id of ['more-tools', 'recovery', 'teacher', 'registry-tools']) assert.match(screens, new RegExp(`id: '${id}'`), `the ${id} screen is measured`);
+  // The Graph Feature Rush round (and Graph the Line's): the rounds' own screens, which the certification module keeps.
+  assert.match(screens, /^\s*\.\.\.LIVE_CHALLENGE_ROUND_SCREENS,$/m, 'the rounds\' own screens are measured');
+  assert.ok(LIVE_CHALLENGE_ROUND_SCREENS.some((screen) => screen.id === 'graph-feature-rush'), 'among them, the Graph Feature Rush round');
   assert.match(screens, /^\s*\.\.\.SCREENS,/m, "the certification's student screens are measured too");
-  assert.match(harness, /for \(const screen of LARGE_TEXT_SCREENS\)/, 'runScenes walks the extended list');
+  // The default run walks the extended list; only --teacher (TT27) swaps it for the teacher's scenes.
+  // (runScenes takes another list only when a check passes one: the 2.4.11 walk adds Work View and
+  // the session hosts. The text check passes none.)
+  assert.match(harness, /const runScenes = async \(setting, callback, screens = TEACHER_SWEEP \? TEACHER_SCREENS : LARGE_TEXT_SCREENS\) => \{\s*for \(const screen of screens\)/, 'runScenes walks the extended list unless it is given another');
+  const textCheck = harness.slice(harness.indexOf("if (CHECKS.has('text'))"), harness.indexOf("if (CHECKS.has('targetsize'))"));
+  const textRuns = [...textCheck.matchAll(/await runScenes\(/g)].length;
+  assert.equal(textRuns, 1, 'the text check walks the scenes once per setting');
+  assert.match(textCheck, /\n {4}\}\);\n {2}\}\n {2}writeFileSync\(path\.join\(artifacts, 'report\.json'\)/, 'and gives runScenes no list of its own');
 });
 
 // CI01 (VH-29): the registry tools the large-text run adds to the scenes the
@@ -158,16 +170,14 @@ test('the registry tools the large-text run measures are real tools, listed once
   const harness = readFileSync(path.join(root, 'tests/browser/studentShellLargeText.mjs'), 'utf8');
   const listOf = (name) => [...(new RegExp(`const ${name} = \\[([^\\]]*)\\]`).exec(harness)?.[1] || '').matchAll(/'(\w+)'/g)].map((match) => match[1]);
   const everyTool = listOf('ALL_REGISTRY_TOOLS');
-  const inCi = listOf('CI_REGISTRY_TOOLS');
-  // Measured green on 2026-10-25: all 21 by hand, eight of them in CI.
+  // Measured green on 2026-10-25: all 21 by hand, eight of them in CI. Since
+  // student-a11y-2 CI measures every one: its list is the full list itself.
   assert.ok(everyTool.length >= 21, `the full list names ${everyTool.length} registry tools; 21 were measured, so a tool taken out needs its reason here`);
-  assert.ok(inCi.length >= 8, `CI measures ${inCi.length} registry tools; it was given 8, so one taken out needs its reason here`);
-  for (const [name, list] of [['ALL_REGISTRY_TOOLS', everyTool], ['CI_REGISTRY_TOOLS', inCi]]) {
-    assert.equal(new Set(list).size, list.length, `${name}: a tool is listed once`);
-    for (const id of list) assert.ok(TOOL_CATALOG_IDS.includes(id), `${name}: ${id} is not a registered tool (renamed or removed?): the large-text run would stop at it`);
-  }
-  for (const id of inCi) assert.ok(everyTool.includes(id), `${id} is run in CI but missing from the full list`);
-  assert.match(harness, /process\.env\.LARGE_TEXT_REGISTRY_TOOLS/, 'a person can still measure the others by hand');
+  assert.match(harness, /^const CI_REGISTRY_TOOLS = ALL_REGISTRY_TOOLS;$/m, 'CI measures every registry tool of the full list; a tool left out of CI needs its reason here');
+  assert.match(region(harness, 'const REGISTRY_TOOLS = (() => {', '})();', 'the tools a run measures'), /return asked \? asked\.split\(','\)\.filter\(Boolean\) : CI_REGISTRY_TOOLS;/, 'with no list asked for, a run measures CI\'s');
+  assert.equal(new Set(everyTool).size, everyTool.length, 'ALL_REGISTRY_TOOLS: a tool is listed once');
+  for (const id of everyTool) assert.ok(TOOL_CATALOG_IDS.includes(id), `ALL_REGISTRY_TOOLS: ${id} is not a registered tool (renamed or removed?): the large-text run would stop at it`);
+  assert.match(harness, /process\.env\.LARGE_TEXT_REGISTRY_TOOLS/, 'a person can still measure some of them by hand');
   // A tool sits under Work View's `display: contents` body, which reads 0x0: without
   // this skip all of the tool's text counted as visually hidden and was never
   // measured (browser proof: a tool title cut to 24 px passed before, fails now).

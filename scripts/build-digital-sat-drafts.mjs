@@ -28,9 +28,9 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const normalizeMathEncoding = (value) => {
   if (typeof value === 'string') {
     return value
-      .replace(/\u0009imes/g, '\\\\times')
-      .replace(/\u0009ext\{/g, '\\\\text{')
-      .replace(/ ext\{/g, ' \\\\text{');
+      .replace(/\u0009imes/g, '\\times')
+      .replace(/\u0009ext\{/g, '\\text{')
+      .replace(/ ext\{/g, ' \\text{');
   }
   if (Array.isArray(value)) return value.map(normalizeMathEncoding);
   if (value && typeof value === 'object') {

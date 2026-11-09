@@ -5,7 +5,7 @@ import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
 import { instructionalIntegrityProblems } from './instructionalIntegrity.js';
-import { labelHasDelimitedMath, resolveLabelFormat } from '../../labelFormat.js';
+import { choiceShowsMixedMath, labelHasDelimitedMath, resolveLabelFormat } from '../../labelFormat.js';
 import {
   familyResolutionMessage,
   isFamilyBackedQuestion,
@@ -51,7 +51,8 @@ const looksLikeFiniteCategoryField = (field) => {
   if (!accepted.length || accepted.length > 6) return false;
   return accepted.every((value) => {
     const text = String(value ?? '').trim();
-    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/.test(text) || ALGEBRAIC_TERM.test(text) || MONOMIAL.test(text)) return false;
+    // Absolute value bars are mathematics too: |t| is not the word "t".
+    if (!text || /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩|]/.test(text) || ALGEBRAIC_TERM.test(text) || MONOMIAL.test(text)) return false;
     const words = text.match(/[A-Za-z]+/g) || [];
     return words.length >= 1 && words.length <= 3;
   });
@@ -306,6 +307,7 @@ const auditQuestionGraphs = (question, type, label, errors, warnings, composedQu
   if (isObject(question.graph)) {
     const graphHasOwnDrawing = nonEmptyArray(question.graph.functions) || nonEmptyArray(question.graph.points)
       || nonEmptyArray(question.graph.segments) || isObject(question.graph.line)
+      || nonEmptyArray(question.graph.verticalLines) || nonEmptyArray(question.graph.shading)
       || has(question.graph.m) || has(question.graph.b);
     // Not every `graph` object is a GraphDisplay card. functionGraph and
     // graphAnalysis take their curve from `functionSpec`, and an interactive
@@ -407,13 +409,14 @@ const NON_UI_TEXT_FIELDS = new Set(['solutionKey']);
 // mathematics when it holds no ordinary word (resolveLabelFormat), after
 // MathDisplay removes the ONE outer $…$ pair. Every option of an audited bank
 // item is written that way ("$4x-5y=19$"), so reading it as plain UI text warned
-// "raw LaTeX" on each of them, a warning no teacher could act on. An option with
-// a word in it ("$x$ or $y$", "$\frac{1}{2}$") is drawn as plain text, dollar
-// signs and all, and is still warned about.
+// "raw LaTeX" on each of them, a warning no teacher could act on. An option
+// with words and mathematics together, or LaTeX the word test leaves as words
+// ("$x$ or $y$", "$\frac{1}{2}$"), is drawn as MathText (choiceShowsMixedMath):
+// the words as words, each span typeset, so it is not raw either. LaTeX outside
+// every span ("\theta or $x$") is still shown raw and still warned about.
 const WRAPPED_MATH = /^(?:\$\$[^$]+\$\$|\$[^$\n]+\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\])$/;
 const isTypesetChoiceOption = (option) => typeof option === 'string'
-  && WRAPPED_MATH.test(option.trim())
-  && resolveLabelFormat(option) !== null;
+  && ((WRAPPED_MATH.test(option.trim()) && resolveLabelFormat(option) !== null) || choiceShowsMixedMath(option));
 
 const checkPlainTextMath = (question, label, errors, warnings) => {
   const strings = collectStrings(isObject(question)

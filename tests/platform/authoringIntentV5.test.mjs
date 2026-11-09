@@ -175,6 +175,23 @@ assert.deepEqual(controlledSortQuestion.categories.map((category) => category.id
 assert.equal(controlledSortQuestion.requireGroupNames, false);
 assert.equal(controlledSortQuestion.requireRationale, false);
 
+// F-SORT-NO-REASON: a fixed-category sort keeps a reason per category when the
+// author asks for one, and only then.
+const controlledSortWithReasons = compileAuthoringIntentV5({
+  schemaVersion: 5,
+  assignment: { title: 'Controlled sort with reasons', courseId: 'algebra1' },
+  sections: [{
+    role: 'warmup',
+    questions: [{
+      ...controlledSortIntent.package.sections[0].questions[0],
+      requireRationale: true,
+    }],
+  }],
+}).package.sections[0].questions[0];
+assert.equal(controlledSortWithReasons.mode, 'controlled');
+assert.equal(controlledSortWithReasons.requireRationale, true);
+assert.equal(controlledSortWithReasons.requireGroupNames, false, 'fixed categories are never named by the student');
+
 // PR 303 follow-up: the systemsWorkspace compiler case only preserved
 // `mode`, `system`, `inequalities`, `matrix`, and `linearQuadratic`, so the
 // PR 303 student-build inequality workflow (authored `sourceConstraints` ->

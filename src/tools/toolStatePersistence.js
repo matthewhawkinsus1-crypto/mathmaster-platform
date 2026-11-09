@@ -42,6 +42,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     addMenuOpen: 'Add menu open/closed.',
     collapsed: 'Whether the list is collapsed.',
     notice: 'Transient status line, regenerated from the action that raised it.',
+    overflowing: 'Whether the source-data row is wider than its box, measured from the page: it makes the row a keyboard-scrollable region. Layout, not an answer.',
   }),
   inverseCompositionLab: entry([
     'inverseComposition/InverseCompositionLabRouter.jsx',
@@ -139,6 +140,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     selectedId: 'Which card is picked up. Selection, not a placement.',
     announcement: 'The polite screen-reader read-out of the last placement ("Graph C placed in Group 2 · Linear. 2 cards left to place."). Speech, not work.',
     focusRequest: 'Where keyboard focus goes after a placement or a removed group (the next card, or a group heading). Consumed in the next effect; focus, never mathematics.',
+    wrongCardIds: 'Which cards the last Check found in the wrong fixed category (F-SORT-WHICH-CARD). Feedback on that Check, shown only with its verdict and cleared with it when the work changes; recomputed by the next Check, never an answer.',
   }),
   constraintFunctionBuilder: entry(['constraintFunctionBuilder/ConstraintFunctionBuilder.jsx']),
   linearTableWorkbench: entry(['linearTableWorkbench/LinearTableWorkbench.jsx'], {
@@ -213,6 +215,7 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
     dragIndex: 'Which point the current gesture is moving. Gone at pointer-up.',
     keyboardHeldIndex: 'Which point the keyboard has picked up to move. Gone at Enter or Escape.',
     gestureActive: 'Whether a pointer gesture is in progress.',
+    previewByTouch: 'Whether the pointer preview is a finger\'s, so its coordinate chip sits above the fingertip (N60, planeTouch.js). Set at each pointer press or move; the point a lift lands is the one the chip showed, and the points themselves are the tool\'s.',
     keyboardHelpVisible: 'Whether the fuller keyboard plotting help is shown (it replaces the short keyboard line that is there before): from the plane’s first keyboard focus until the question changes.',
     renderedWidth: 'How wide the plane is drawn, measured, so its text stays readable on a phone (pass 3, TOOL-11). Layout.',
     dataTableOpen: 'Whether the "Show data table" disclosure under a read-only plane is open. The table restates the drawn graph; it is not an answer.',

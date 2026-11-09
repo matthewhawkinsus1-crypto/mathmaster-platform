@@ -5,6 +5,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import MathInput from '../../MathInput';
+import { keysForConstants, useKeypadConstants } from '../../platform/interaction/keypadConstants.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -14,7 +15,9 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { describeNumberLinePiece, numberLineReading } from '../../platform/language/numberLineDescription.js';
 import { isAlgebraOneQuestion } from '../../platform/curriculum/inequalityRepresentationPolicy.js';
-import { PublishFigureReading } from '../../platform/language/figureReadings.js';
+import { PublishFigureReading, describedContent, describedIn, useFigureWords } from '../../platform/language/figureReadings.js';
+import { FIGURE_NAME_WORDS, nameFrom, namedIn } from '../../platform/language/figureNames.js';
+import { say } from '../../platform/language/figureSay.js';
 import { intervalTickSteps, niceTickStep } from './intervalTicks.js';
 import { intervalGraphMissMessage } from './intervalFeedback.js';
 import {
@@ -71,6 +74,14 @@ const secondaryButton = {
   color: 'var(--mm-primary-text)',
   border: '1px solid var(--mm-primary-border)',
 };
+
+// A typed endpoint is a number, a root or π (parseExactNumberLineValue, and
+// the words under the box), so its number pad has √, and π where the item's
+// mathematics uses it, as every pad does (TL23).
+const ENDPOINT_KEYS = Object.freeze([
+  { label: '√', command: '\\sqrt{#0}', ariaLabel: 'Insert square root' },
+  { label: 'π', command: '\\pi', ariaLabel: 'Insert pi', constant: 'pi' },
+]);
 
 const tidyNumber = (value) => Number(Number(value).toFixed(10));
 
@@ -239,6 +250,14 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const [inequality, setInequality] = usePersistentToolState('inequality', '');
   const [exactEndpoint, setExactEndpoint] = usePersistentToolState('exactEndpoint', '');
   const [endpointError, setEndpointError] = useState('');
+  const keypadConstants = useKeypadConstants();
+  const endpointKeys = useMemo(() => keysForConstants(ENDPOINT_KEYS, keypadConstants), [keypadConstants]);
+  // What the endpoint box holds, as last rendered. MathLive reports a key a
+  // beat after it shows it, and Enter reports the box at once (MathInput), so
+  // after "13/8x" and Enter the last key is reported again: that report
+  // changes nothing, and must not clear the error Enter has just shown.
+  const shownEndpointRef = useRef(exactEndpoint);
+  shownEndpointRef.current = exactEndpoint;
   const endpointHelpId = useId();
   const lineDescriptionId = useId();
   const lineInstructionsId = useId();
@@ -562,6 +581,13 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   // `lineSay` is the same reading as messages: Read aloud says it in Spanish
   // under an authored Spanish translation (AX05).
   const { text: lineDescription, say: lineSay } = numberLineReading({ min, max, labelStep: majorStep, pieces: drawn, pending });
+  // A screen reader hears it in Spanish (lang="es") under a translation (AX05, slice 2).
+  const figureWords = useFigureWords();
+  const described = describedIn(figureWords, lineDescription, lineSay);
+  // The line's name, from end to end, in the same language and marked with it
+  // (AX05, slice 4). Its endpoint buttons keep their English names, marked so.
+  const lineName = namedIn(figureWords, nameFrom(say('numberLineFromToName', lineEndLabel(min), lineEndLabel(max)), FIGURE_NAME_WORDS));
+  const englishInside = lineName.lang ? 'en' : undefined;
 
   return (
     <ToolShell
@@ -637,46 +663,44 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </span>
             </div>
 
+            {/* The box takes the row it needs, so its keypad opens full width
+                under it; "Place endpoint" stays beside the box's top, and on a
+                phone goes under the box (in a 120px column the pad stood two
+                keys wide, with the button halfway down it). */}
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(120px, 1fr) auto',
+                display: 'flex',
+                flexWrap: 'wrap',
                 gap: 8,
-                alignItems: 'center',
+                alignItems: 'flex-start',
               }}
             >
-              <input
-                type="text"
-                value={exactEndpoint}
-                onChange={(event) => {
-                  setExactEndpoint(event.target.value);
-                  setEndpointError('');
-                  clearFeedback();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    placeTypedEndpoint();
-                  }
-                }}
-                placeholder="Exact endpoint, e.g. -13/8"
-                aria-label="Exact endpoint value"
-                // The error (or the hint) under the box is its description, and
-                // a typed value it cannot read marks the box invalid (A11Y-8).
-                aria-invalid={endpointError ? 'true' : undefined}
-                aria-describedby={endpointHelpId}
-                style={{
-                  width: '100%',
-                  minHeight: 40,
-                  padding: '7px 10px',
-                  boxSizing: 'border-box',
-                  border: `2px solid ${endpointError ? '#d93025' : 'var(--mm-primary-border)'}`,
-                  borderRadius: 8,
-                  background: 'var(--mm-surface)',
-                  color: 'var(--mm-text-strong)',
-                  fontSize: 'calc(16 * var(--mm-px))',
-                                }}
-              />
+              {/* A math box, as the tool's notation boxes are: it was a plain
+                  text box, with the phone's letter keyboard and no math keys
+                  (2026-11-06 re-walk). Enter places the endpoint. */}
+              <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                <MathInput
+                  value={exactEndpoint}
+                  onChange={(value) => {
+                    if (value === shownEndpointRef.current) return;
+                    setExactEndpoint(value);
+                    setEndpointError('');
+                    clearFeedback();
+                  }}
+                  onSubmit={placeTypedEndpoint}
+                  placeholder="Exact endpoint, e.g. -13/8"
+                  ariaLabel="Exact endpoint value"
+                  // The error (or the hint) under the box is its description, and
+                  // a typed value it cannot read marks the box invalid (A11Y-8).
+                  ariaInvalid={Boolean(endpointError)}
+                  ariaDescribedBy={endpointHelpId}
+                  inputStatus={endpointError ? 'incorrect' : 'neutral'}
+                  toolProfile="number"
+                  extraKeys={endpointKeys}
+                  compact
+                  showToolsInitially={false}
+                />
+              </div>
 
               <button
                 type="button"
@@ -698,8 +722,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="application"
             tabIndex={0}
-            aria-label={`Number line from ${lineEndLabel(min)} to ${lineEndLabel(max)}`}
+            aria-label={lineName.text}
             aria-describedby={`${lineDescriptionId} ${lineInstructionsId}`}
+            lang={lineName.lang}
             onFocus={handleLineFocus}
             onBlur={handleLineBlur}
             onKeyDown={handleLineKeyDown}
@@ -721,6 +746,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               // global :focus-visible rule in index.css is !important.
               outline: 'none',
             }}
+            // Drawn in the theme's colours under a contrast theme: an open end an
+            // empty ring, a closed one solid, the end being placed Highlight
+            // (src/theme/forcedColors.css).
+            data-mm-drawing=""
           >
             <line
               x1={PAD - 14}
@@ -729,14 +758,17 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               y2={HEIGHT / 2}
               stroke="#5f6b7a"
               strokeWidth="2"
+              data-mm-plane-part="axis"
             />
             <polygon
               points={`${PAD - 14},${HEIGHT / 2} ${PAD - 4},${HEIGHT / 2 - 5} ${PAD - 4},${HEIGHT / 2 + 5}`}
               fill="#5f6b7a"
+              data-mm-plane-part="closed"
             />
             <polygon
               points={`${WIDTH - PAD + 14},${HEIGHT / 2} ${WIDTH - PAD + 4},${HEIGHT / 2 - 5} ${WIDTH - PAD + 4},${HEIGHT / 2 + 5}`}
               fill="#5f6b7a"
+              data-mm-plane-part="closed"
             />
 
             {minorTicks.map((value) => (
@@ -748,6 +780,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                 y2={HEIGHT / 2 + 4}
                 stroke="#c5ced9"
                 strokeWidth="1"
+                data-mm-plane-part="grid"
               />
             ))}
 
@@ -760,14 +793,17 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   y2={HEIGHT / 2 + 8}
                   stroke="#8793a3"
                   strokeWidth="1.5"
+                  data-mm-plane-part="axis"
                 />
+                {/* The graph's label colour in each theme: a fixed #4f5b6b read 2.4:1 on the dark
+                    theme's plane (the contrast review, the Math Tools Lab's scenes, student-keyboard-ci). */}
                 <text
                   pointerEvents="none"
                   x={sx(value)}
                   y={HEIGHT / 2 + 27}
                   textAnchor="middle"
                   fontSize="12"
-                  fill="#4f5b6b"
+                  style={{ fill: 'var(--mm-graph-label)' }}
                 >
                   {String(Number(value.toFixed(6))).replace('-', '−')}
                 </text>
@@ -806,12 +842,14 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     stroke="#1a73e8"
                     strokeWidth="6"
                     opacity="0.85"
+                    data-mm-plane-part="line"
                   />
 
                   {interval.min !== -INF && (
                     <g
                       role="button"
                       tabIndex="0"
+                      lang={englishInside}
                       aria-label={`${interval.minClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.min)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
                       onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'min' }, event)}
@@ -830,6 +868,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                         fill={interval.minClosed ? '#1a73e8' : '#fff'}
                         stroke="#1a73e8"
                         strokeWidth="3"
+                        data-mm-plane-part={interval.minClosed ? 'closed' : 'open'}
                       />
                       <text
                         pointerEvents="none"
@@ -849,6 +888,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     <g
                       role="button"
                       tabIndex="0"
+                      lang={englishInside}
                       aria-label={`${interval.maxClosed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(interval.max)}. Click to switch open or closed. Drag to move it. ${endpointKeyHelp}`}
                       onPointerDown={(event) => beginDrag({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
                       onKeyDown={(event) => handleEndpointKeyDown({ kind: 'built', intervalIndex: index, endpoint: 'max' }, event)}
@@ -867,6 +907,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                         fill={interval.maxClosed ? '#1a73e8' : '#fff'}
                         stroke="#1a73e8"
                         strokeWidth="3"
+                        data-mm-plane-part={interval.maxClosed ? 'closed' : 'open'}
                       />
                       <text
                         pointerEvents="none"
@@ -889,6 +930,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               <g
                 role="button"
                 tabIndex="0"
+                lang={englishInside}
                 aria-label={`${pending.closed ? 'Closed' : 'Open'} pending endpoint at ${rationalLabel(pending.value)}. Click to switch it. Drag to move it. ${endpointKeyHelp}`}
                 onPointerDown={(event) => beginDrag({ kind: 'pending' }, event)}
                 onKeyDown={(event) => handleEndpointKeyDown({ kind: 'pending' }, event)}
@@ -907,6 +949,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   fill={pending.closed ? '#8a3ffc' : '#fff'}
                   stroke="#8a3ffc"
                   strokeWidth="3"
+                  data-mm-plane-part={pending.closed ? 'held' : 'held-open'}
                 />
                 <text
                   pointerEvents="none"
@@ -955,7 +998,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           {/* Read through the line's aria-describedby, and hidden from browse
               mode so it is not heard a second time as a loose paragraph. */}
           <PublishFigureReading entry={{ kind: 'figure', label: 'Number line', text: lineDescription, say: lineSay }} />
-          <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly}>{lineDescription}</p>
+          <p id={lineDescriptionId} data-number-line-description="" aria-hidden="true" style={srOnly} lang={described.lang}>{describedContent(described)}</p>
           <p id={lineInstructionsId} aria-hidden="true" style={srOnly}>
             {`Click anywhere on the line to place an endpoint, or drag an existing endpoint. From the keyboard, use the left and right arrow keys to move the marker by ${snapLabel}, Shift for bigger steps, and press Enter or Space to place an endpoint at the marker. You can also type an exact endpoint above.`}
           </p>

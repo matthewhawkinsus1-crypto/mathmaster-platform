@@ -61,7 +61,7 @@ export default function SectionBalanceRigorAudit({ assignmentV5, lessonBundle = 
 
       {suggestions.length > 0 && (
         <details style={{ marginTop: 10 }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-text-muted)' }}>{suggestions.length} additional authoring suggestion{suggestions.length === 1 ? '' : 's'}</summary>
+          <summary style={{ cursor: 'pointer', minHeight: 24, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{suggestions.length} additional authoring suggestion{suggestions.length === 1 ? '' : 's'}</summary>
           <ul style={{ margin: '7px 0 0', paddingLeft: 20, lineHeight: 1.5, fontSize: 'calc(12 * var(--mm-px))' }}>
             {suggestions.map((entry) => <li key={entry.id}><strong>{entry.title}.</strong> {entry.message}</li>)}
           </ul>

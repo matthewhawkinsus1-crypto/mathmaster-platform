@@ -4,6 +4,8 @@ import { boundaryWithChosenSide, feasibleRegionPolygon, lineSegmentForBounds, si
 import { formatPoint } from './inequalityFormat.js';
 import { EyeIcon, LineStyleIcon, PLANE_KEYS, StepFeedback, YesNoQuestion } from './InequalityControls.jsx';
 import { constraintColor } from './constraintPalette.js';
+import { wordsFor } from './inequalitySystemWords.js';
+import { spokenMathValue } from '../shared/spokenMathValue.js';
 
 /*
  * WHAT THE STUDENT-BUILD STEPS LOOK LIKE (StudentBuildInequalityMode.jsx owns
@@ -202,8 +204,20 @@ export function PhaseCard({ phase, title, state, summary = '', doneMark, doneTon
   );
 }
 
-/** The questions about one test point: each inequality, the system, and (on a boundary) inclusion. */
-export function TestPointQuestions({ point, response, setResponse, count, inequalityLabels, showBoundaryProbe }) {
+/**
+ * The questions about one test point: each inequality, the system, and (on a
+ * boundary) inclusion. Each inequality asks for its value at the point first
+ * ("2(6) + 3(4) = [ ]", testPointSubstitution.js), then Yes / No: a click
+ * alone was a coin toss (F-SW-TEST-POINT-YESNO). `substitutions[i]` is null
+ * where there is nothing to work out, and only the Yes / No is asked.
+ */
+export function TestPointQuestions({ point, response, setResponse, count, inequalityLabels, substitutions = [], showBoundaryProbe }) {
+  // One inequality is not a system: "Is the point a solution?" (F-SW-SYSTEM-WORDS).
+  const said = wordsFor(count);
+  const setValue =(index, value) => setResponse((current) => ({
+    ...current,
+    values: Array.from({ length: count }, (_, i) => (i === index ? value : (current.values?.[i] ?? ''))),
+  }));
   return (
     <div style={{ display: 'grid', gap: 8 }} data-test-point={formatPoint(point[0], point[1])}>
       {Array.from({ length: count }).map((_, index) => (
@@ -213,11 +227,28 @@ export function TestPointQuestions({ point, response, setResponse, count, inequa
           legend={<>Does the point satisfy inequality {index + 1}? <span className="mm-ineq-math" style={{ fontSize: 'inherit' }}>{inequalityLabels[index] || ''}</span></>}
           value={response.perInequality[index] || ''}
           onChange={(value) => setResponse((current) => ({ ...current, perInequality: current.perInequality.map((entry, i) => (i === index ? value : entry)) }))}
-        />
+        >
+          {substitutions[index] ? (
+            <label className="mm-ineq-substitution" data-substitution={index + 1}>
+              <span className="mm-ineq-math" style={{ fontSize: 'inherit' }}>{substitutions[index].text} =</span>
+              <input
+                className="mm-ineq-input"
+                data-size="narrow"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                // Its name says the expression as words ("2 times the quantity 6 …"), not its symbols.
+                aria-label={`Inequality ${index + 1}: the value of ${spokenMathValue(substitutions[index].text)}`}
+                value={response.values?.[index] ?? ''}
+                onChange={(event) => setValue(index, event.target.value)}
+              />
+            </label>
+          ) : null}
+        </YesNoQuestion>
       ))}
       <YesNoQuestion
         name="system"
-        legend="Is the point a solution to the entire system?"
+        legend={said('Is the point a solution to the entire system?')}
         value={response.overall}
         onChange={(value) => setResponse((current) => ({ ...current, overall: value }))}
       />
@@ -225,7 +256,7 @@ export function TestPointQuestions({ point, response, setResponse, count, inequa
         <>
           <YesNoQuestion
             name="on-boundary"
-            legend="Does this point lie exactly on one of the boundary lines?"
+            legend={said('Does this point lie exactly on one of the boundary lines?')}
             value={response.onBoundary}
             onChange={(value) => setResponse((current) => ({ ...current, onBoundary: value }))}
           />
@@ -314,14 +345,14 @@ export function InequalityGraphLayers({
           if (shaded.length < 3) return null;
           return (
             <polygon key={`shade${index}`} points={shaded.map(([px, py]) => `${sx(px)},${sy(py)}`).join(' ')}
-              fill={constraintColor(index)} fillOpacity={emphasised(index) ? 0.16 : 0.08} stroke="none" />
+              fill={constraintColor(index)} fillOpacity={emphasised(index) ? 0.16 : 0.08} stroke="none" data-mm-plane-part="shade" />
           );
         })}
         {combined && studentPolygon.length >= 3 ? (
           <>
             <defs>
               <pattern id={hatchId} width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                <line x1="0" y1="0" x2="0" y2="9" style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth="2.2" strokeOpacity="0.42" />
+                <line x1="0" y1="0" x2="0" y2="9" style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth="2.2" strokeOpacity="0.42" data-mm-plane-part="line" />
               </pattern>
             </defs>
             <polygon data-overlap="true" points={studentPolygon.map(([px, py]) => `${sx(px)},${sy(py)}`).join(' ')} fill={`url(#${hatchId})`} stroke="none" />
@@ -340,6 +371,7 @@ export function InequalityGraphLayers({
               stroke={constraintColor(index)} strokeWidth={emphasised(index) ? 3.5 : 2.5}
               strokeDasharray={renderedStyle === 'dashed' ? '10 6' : renderedStyle === 'solid' ? undefined : '3 5'}
               strokeOpacity={renderedStyle ? (emphasised(index) ? 1 : 0.6) : 0.55}
+              data-mm-plane-part="line"
             />
           );
         })}

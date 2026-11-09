@@ -5,6 +5,9 @@
 //   node tests/browser/lineGraphGame.mjs
 //   LINE_SHOTS=/some/dir node tests/browser/lineGraphGame.mjs     # keep screenshots
 //   LINE_SCENARIOS=sprint,classic node tests/browser/lineGraphGame.mjs
+//   FIRESTORE_EMULATOR_HOST=127.0.0.1:9020 LINE_VITE_PORT=6281 LINE_BRIDGE_PORT=6282 \
+//     node tests/browser/lineGraphGame.mjs   # beside another suite, on ports of its own
+//   CHROMIUM_PATH=/path/to/chrome node tests/browser/lineGraphGame.mjs   # another Chromium
 //
 // WHAT IS REAL. The student and teacher screens (the same harness pages as
 // Graph Feature Rush's: graphFeatureRushStudent.html / Teacher.html), the
@@ -26,15 +29,28 @@
 //
 // NOTHING TOUCHES PRODUCTION: firebase.js is swapped for an emulator module,
 // the browsers block every non-local request, and the project id is throwaway.
-// This is a QA tool, not part of the CI gate.
+// It runs in CI: .github/workflows/student-pass3-emulator-journeys.yml, job
+// pass3-graph-the-line, on a pull request that touches what it loads, nightly
+// and on demand. About 4½ minutes on a loaded 4-core machine (255–274 s). It ran
+// by hand until its phone pass (a Rush on two phones: a streak, a dropped
+// connection, and the bar at 320 and 360 px with a four-digit count, the grid held
+// to a pixel) passed three times in a row in full Chromium and three in CI's
+// headless shell. Two more phone passes (about 1½ minutes) hold the grid through
+// a name-it item's answer (a wrong choice and its marks, a built equation being
+// typed, its hints) and across a Classic round's buzzer for students with extra
+// time, as the extra-time words arrive; in a round of lines to graph and lines
+// to name, they hold the countdown to the round's own kind, whatever comes
+// first.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { explainRefusedLoads } from './support/refusalsAfterGameEnd.mjs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { roundBarAtNarrowWidths, roundBarProblems } from './support/roundBarFit.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -108,6 +124,10 @@ if (!await waitForHttp(`http://${EMULATOR}/`, 2)) {
 
 /* -------------------- the real server, behind a bridge -------------------- */
 
+// Transactions are re-run as production re-runs them: the emulator closes a
+// contended one that production would re-run, and the command fails instead
+// (graphFeatureRushGame.mjs; the integration suites load the same re-run).
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 const functionsIndex = require(path.join(repo, 'functions/platformEntry.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
@@ -122,6 +142,11 @@ const authFor = (identity = {}) => (identity.as === 'teacher'
   : { uid: `${identity.studentId}-uid`, token: { role: 'student', studentId: identity.studentId, email: `${identity.studentId}@example.com`, email_verified: true } });
 
 const bridgeCalls = [];
+// When the teacher ended each game (the bridge's clock). A student's request
+// still in flight then (the round's coalesced batch of attempts, its prefetch)
+// is refused because the game is over, which the browser logs as a 400: the
+// rule working, not the page failing (run()).
+const gameEndedAt = [];
 const bridge = http.createServer(async (request, response) => {
   response.setHeader('access-control-allow-origin', '*');
   response.setHeader('access-control-allow-headers', 'content-type');
@@ -140,11 +165,11 @@ const bridge = http.createServer(async (request, response) => {
   }
   try {
     const result = await handler.run({ auth: authFor(identity), data, rawRequest: { headers: {} } });
-    bridgeCalls.push({ name, identity, ms: Date.now() - startedAt, ok: true });
+    bridgeCalls.push({ name, identity, at: startedAt, ms: Date.now() - startedAt, ok: true });
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ data: result ?? null }));
   } catch (error) {
-    bridgeCalls.push({ name, identity, ms: Date.now() - startedAt, ok: false, code: error?.code });
+    bridgeCalls.push({ name, identity, at: startedAt, ms: Date.now() - startedAt, ok: false, code: error?.code, message: String(error?.message || '').slice(0, 160) });
     response.writeHead(400, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ code: error?.code || 'internal', message: error?.message || String(error), details: error?.details ?? null }));
   }
@@ -171,6 +196,10 @@ const CLASSES = Object.freeze({
   pair: { classId: 'line-qa-pair', name: 'Period 1 Algebra I', period: 'P1', course: 'algebra1', size: 2 },
   trio: { classId: 'line-qa-trio', name: 'Period 3 Algebra I', period: 'P3', course: 'algebra1', size: 3 },
   solo: { classId: 'line-qa-solo', name: 'Period 6 Algebra II', period: 'P6', course: 'algebra2', size: 1 },
+  phones: { classId: 'line-qa-phones', name: 'Period 4 Algebra I', period: 'P4', course: 'algebra1', size: 2 },
+  namers: { classId: 'line-qa-namers', name: 'Period 5 Algebra I', period: 'P5', course: 'algebra1', size: 2 },
+  // Both on plans with extended time: their own deadline is after the class's buzzer.
+  extra: { classId: 'line-qa-extra', name: 'Period 7 Algebra I', period: 'P7', course: 'algebra1', size: 2, extraTime: true },
 });
 const studentsOf = (key) => Array.from({ length: CLASSES[key].size }, (_, index) => `${CLASSES[key].classId}-s${index + 1}`);
 
@@ -181,6 +210,7 @@ for (const key of Object.keys(CLASSES)) {
   const batch = db.batch();
   studentsOf(key).forEach((studentId, index) => batch.set(db.collection('grades').doc(studentId), {
     assignedTeacherEmail: TEACHER, classId: CLASSES[key].classId, classPeriod: CLASSES[key].period, firstName: `Student${index + 1}`, lastName: key,
+    ...(CLASSES[key].extraTime ? { profile: { accommodations: ['extra-time'] } } : {}),
   }));
   await batch.commit();
 }
@@ -196,10 +226,11 @@ const DEVICES = Object.freeze({
   chromebook: { viewport: { width: 1366, height: 768 } },
   ipad: { viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
   phone: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
-  smallPhone: { viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
+  smallPhone: { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
 });
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+// CI's browser is Playwright's own headless Chromium; CHROMIUM_PATH runs another.
+const browser = await chromium.launch({ args: ['--no-sandbox'], ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 const findings = [];
 const notes = [];
 const finding = (scenario, problem) => { findings.push({ scenario, problem }); log(`  ✗ ${scenario}: ${problem}`); };
@@ -220,7 +251,9 @@ const openPage = async ({ device = 'chromebook', url, init = null, colorScheme =
   const errors = [];
   page.on('console', (message) => { if (message.type() === 'error' && !IGNORABLE_CONSOLE.test(message.text())) errors.push(message.text()); });
   page.on('pageerror', (error) => errors.push(`pageerror: ${error?.message || error}`));
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  // A cold Vite dev server compiles the app on the first loads: 30 s
+  // (Playwright's default) is not always enough on a CI runner.
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   const handle = { page, context, errors, device, touch: Boolean(DEVICES[device].hasTouch) };
   handles.push(handle);
   return handle;
@@ -253,12 +286,24 @@ const waitForText = async (handle, needle, timeout = 15_000) => {
     return false;
   }
 };
+const waitForNoText = async (handle, needle, timeout = 15_000) => {
+  try {
+    await handle.page.waitForFunction((value) => !document.body.innerText.toLowerCase().includes(value.toLowerCase()), needle, { timeout });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /* ------------------------------ the server's view -------------------------- */
 
 const roomRef = (roomId) => db.collection('liveChallengeRooms').doc(roomId);
 const roomOf = async (roomId) => (await roomRef(roomId).get()).data() || {};
 const lineSecret = async (roomId) => (await db.collection('liveChallengePrivate').doc(roomId).get()).data()?.lineGraph || null;
+const privatePlayer = async (roomId, studentId) => (await db.collection('liveChallengePrivate').doc(roomId).collection('players').doc(studentId).get()).data() || {};
+// The lines the server recorded right in a round, for one student.
+const rightLinesRecorded = async (roomId, studentId, roundIndex) => Object.values((await privatePlayer(roomId, studentId)).submissionReceipts || {})
+  .filter((receipt) => receipt.roundIndex === roundIndex && receipt.completesQuestion === true && receipt.isCorrect === true).length;
 const activeRoomId = async () => (await db.collection('liveChallengeTeacherActive').doc(TEACHER).get()).data()?.roomId || null;
 
 const itemOnScreen = async (student, roomId) => {
@@ -401,7 +446,35 @@ const buildRowOnOneLine = async (student) => student.page.locator('.mm-line-buil
   };
 });
 
-const doneCount = async (student) => Number((await student.page.locator('.mm-line-done').innerText()).replace(/\D+/g, '')) || 0;
+// The count a student sees ("✓ 2"). The counter also holds a screen reader's
+// "2 right" (AX18), so reading every digit in it gave 22, and the invisible
+// reserve that keeps its slot ("✓ 0000").
+const doneCount = async (student) => Number((await student.page.locator('.mm-line-done > [aria-hidden="true"]:not(.mm-line-reserve)').innerText()).replace(/\D+/g, '')) || 0;
+
+// THE GRID AND THE BAR OVER IT, MEASURED. On a phone the bar must hold its size
+// through play: when it changed, the grid moved under the student's finger (65 px
+// as "Reconnecting…" came and went at 390 px, 34 px as 🔥 2 arrived at 320 px),
+// and a point dragged there landed off it. Held to a pixel.
+const gridBox = (student) => student.page.locator('svg.mm-line-graph').boundingBox();
+const barHeight = async (student) => (await student.page.locator('.mm-line-bar').boundingBox())?.height ?? null;
+const sameBox = (left, right) => Boolean(left && right) && ['x', 'y', 'width', 'height'].every((key) => Math.abs(left[key] - right[key]) <= 1);
+// Read at once: a streak that is not there is an answer, not something to wait for.
+const streakOf = (student) => student.page.evaluate(() => {
+  const node = document.querySelector('.mm-line-streak');
+  return { shown: node?.dataset.streak === '1', text: (node?.querySelector('.mm-gp-bump')?.textContent || '').trim() };
+});
+// The bar's own visible counts (each beside an invisible reserve and a screen
+// reader's words), for writing in a long game's numbers and putting them back.
+const VISIBLE_DONE = '.mm-line-done > [aria-hidden="true"]:not(.mm-line-reserve)';
+const VISIBLE_STREAK = '.mm-line-streak > .mm-gp-bump';
+const VISIBLE_PROGRESS = '.mm-line-progress > [aria-hidden="true"]:not(.mm-line-reserve)';
+const writeBar = (student, selector, text) => student.page.evaluate(({ at, value }) => {
+  const node = document.querySelector(at);
+  if (!node) return null;
+  const was = node.textContent;
+  node.textContent = value;
+  return was;
+}, { at: selector, value: text });
 
 /** Answer the item on screen the right way: a line, an option or the boxes. */
 const answerRight = async (student, roomId, { scenario, keyboard = false, afterFirst = null } = {}) => {
@@ -434,6 +507,16 @@ const buildFieldsFor = (item) => {
   if (item.build.form === 'standard') return { A: String(item.line.a), B: String(item.line.b), C: String(item.line.c) };
   if (item.build.form === 'pointSlope') return { x1: String(item.marked.x), y1: String(item.marked.y), m: text(slopeOf(item.line)) };
   return { m: text(slopeOf(item.line)), b: text(yInterceptOf(item.line)) };
+};
+// A whole equation that is not the line's: the line's own boxes with one changed so that the line differs (a parallel
+// line in standard form, another slope through the same point, another intercept). Every box 7 (B 1) was the line's
+// own equation when the round dealt y = 7x + 7, 7x + y = 7 or a line of slope 7 through (7, 7), and was graded right.
+const wrongFieldsFor = (item) => {
+  const right = buildFieldsFor(item);
+  const another = (value) => (value === '7' ? '8' : '7');
+  if (item.build.form === 'standard') return { ...right, C: String(Number(item.line.c) + 1) };
+  if (item.build.form === 'pointSlope') return { ...right, m: another(right.m) };
+  return { ...right, b: another(right.b) };
 };
 const FIELD_LABEL = Object.freeze({ m: /^m,/, b: /^b,/, A: /^A,/, B: /^B,/, C: /^C,/, x1: /^x₁,/, y1: /^y₁,/ });
 const typeBoxes = async (student, item, fields) => {
@@ -498,13 +581,19 @@ const run = async (name, scenario) => {
   if (ONLY.length && !ONLY.includes(name)) return;
   log(`▶ ${name}`);
   const before = findings.length;
+  const startedAt = Date.now();
   try {
     await scenario();
   } catch (error) {
     finding(name, `threw: ${error?.stack || error}`);
   }
   for (const handle of handles.splice(0)) {
-    if (handle.errors.length) finding(name, `${handle.studentId || 'teacher'} (${handle.device}): console errors ${JSON.stringify(handle.errors.slice(0, 3))}`);
+    // A student's 400 that the game's end explains is the rule working
+    // (support/refusalsAfterGameEnd.mjs); anything else stays a finding, with
+    // the student's refused calls beside it.
+    const { kept, explained, refusals } = explainRefusedLoads({ errors: handle.errors, calls: bridgeCalls, studentId: handle.studentId, since: startedAt, endedAt: gameEndedAt });
+    if (explained) notes.push({ scenario: name, student: handle.studentId, refusedAfterTheGameEnded: explained });
+    if (kept.length) finding(name, `${handle.studentId || 'teacher'} (${handle.device}): console errors ${JSON.stringify(kept.slice(0, 3))}${refusals.length ? `; refused: ${JSON.stringify(refusals.slice(0, 4))}` : ''}`);
     // eslint-disable-next-line no-await-in-loop
     await handle.context.close().catch(() => {});
   }
@@ -632,7 +721,18 @@ await run('sprint', async () => {
   check(S, (await b.page.locator('.mm-line-reveal').count()) === 1, 'B: no dashed answer line');
   await shot(b, 'sprint-revealed-phone');
   check(S, await waitForItemChange(b, stuck.questionIndex, 4_000), 'B: the shown line did not move on');
-  for (let index = 2; index < 5; index += 1) await answerRight(b, roomId, { scenario: S }); // eslint-disable-line no-await-in-loop
+  for (let index = 2; index < 5; index += 1) {
+    await answerRight(b, roomId, { scenario: S }); // eslint-disable-line no-await-in-loop
+    // Two right in a row (🔥 2): the bar at 320 and 360 px with a Sprint's largest
+    // counts written in (20 lines, its longest set), on one row.
+    if (index === 3) {
+      check(S, (await streakOf(b)).shown, 'B: no streak after two right lines'); // eslint-disable-line no-await-in-loop
+      // eslint-disable-next-line no-await-in-loop
+      const narrow = await roundBarAtNarrowWidths(b.page, { bar: '.mm-line-bar', counts: [[VISIBLE_PROGRESS, '20 / 20'], [VISIBLE_DONE, '✓ 20'], [VISIBLE_STREAK, '🔥 20']], restore: DEVICES.phone.viewport });
+      for (const result of narrow) for (const problem of roundBarProblems(result, { status: false })) finding(S, `B, a Sprint's bar: ${problem}`);
+      notes.push({ scenario: S, sprintBars: narrow.map(({ width, after }) => ({ width, height: after?.height, oneRow: after?.oneRow })) });
+    }
+  }
   const finishedAt = Date.now();
   const closed = await waitForRoundClosed(roomId, 0, 30_000);
   check(S, closed?.roundState === 'closed', 'the round did not close when both had finished');
@@ -788,6 +888,327 @@ await run('name-and-keyboard', async () => {
   await waitForRoundClosed(roomId, 0, 70_000);
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click().catch(() => {});
   await waitForRoom(roomId, (current) => current.status === 'finished', 20_000);
+});
+
+// PHONES: a Rush on two phones by touch, 390 × 844 and 360 × 740. The bar over the
+// grid holds its size through everything that comes and goes in it, and the grid
+// moves by no more than a pixel: the countdown giving way to the clock at GO, a
+// streak that begins and ends, a three-digit count, and "Reconnecting…" as both
+// phones go offline in round 2 and come back. At 320 and 360 px the bar holds a
+// four-digit count, a streak and the status on one row. Before the bar kept its
+// slots, "Reconnecting…" took it from 57 to 122 px at 390 and 360 px (the grid 65
+// px down, and back), and 🔥 2 wrapped it at 320 px.
+
+// Round 1 on one phone: two right lines (🔥 2 arrives), a wrong one (it ends), the
+// fix, and a three-digit count written into the bar; the grid and bar checked at each.
+const streakAndTotal = async (student, roomId, S, start) => {
+  const held = async (moment) => {
+    const grid = await gridBox(student);
+    check(S, sameBox(start.grid, grid), `${student.studentId} (${student.device}): ${moment} moved the grid (${JSON.stringify(start.grid)} → ${JSON.stringify(grid)})`);
+    const bar = await barHeight(student);
+    check(S, Math.abs(bar - start.bar) < 0.5, `${student.studentId} (${student.device}): ${moment} changed the bar (${start.bar} → ${bar} px)`);
+  };
+  await answerRight(student, roomId, { scenario: S });
+  await answerRight(student, roomId, { scenario: S });
+  const streak = await streakOf(student);
+  check(S, streak.shown && /🔥 2/.test(streak.text), `${student.studentId}: no 🔥 2 after two right lines (${JSON.stringify(streak)})`);
+  await held('🔥 2 arriving');
+  // A wrong line ends the streak; dragging its point onto the line finishes the item.
+  const item = await itemOnScreen(student, roomId);
+  const [p, wrong] = wrongPoints(item);
+  await placePoint(student, item.view, p);
+  await placePoint(student, item.view, wrong);
+  check(S, !(await streakOf(student)).shown, `${student.studentId}: a wrong line did not end the streak`);
+  await held('the streak ending');
+  await placePoint(student, item.view, rightPoints(item)[1], { from: wrong });
+  check(S, await waitForItemChange(student, item.questionIndex), `${student.studentId}: dragging the point onto the line did not complete the item`);
+  await held('the next line');
+  // A long game's count: no round here reaches three digits, so it is written in.
+  const was = await writeBar(student, VISIBLE_DONE, '✓ 125');
+  check(S, was !== null, `${student.studentId}: no count to write into`);
+  await wait(150);
+  await held('a three-digit count');
+  if (was !== null) await writeBar(student, VISIBLE_DONE, was);
+};
+
+await run('phones', async () => {
+  const S = 'phones';
+  const [idA, idB] = studentsOf('phones');
+  const teacher = await openTeacher('chromebook');
+  const a = await openStudent(idA, 'phone');
+  const b = await openStudent(idB, 'smallPhone');
+  const phones = [a, b];
+  const roomId = await createLine(teacher, { classKey: 'phones', format: 'Rush', preset: 'Slope-intercept start', rounds: 2, seconds: 45 });
+  check(S, roomId, 'no room was created');
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+
+  // ROUND 1. The bar through the countdown is the bar in play. Read as soon as
+  // the round shows: its countdown, or (on a page slower than the 3.5 s
+  // countdown) already its grid, which is noted and not waited for.
+  await startGame(teacher);
+  const countdownBars = await Promise.all(phones.map((student) => student.page.waitForFunction(
+    () => document.querySelector('.mm-line-clock[data-soon="1"]') || document.querySelector('svg.mm-line-graph'),
+    null,
+    { timeout: 30_000 },
+  ).then(async () => ((await student.page.locator('.mm-line-clock[data-soon="1"]').count()) ? barHeight(student) : null), () => null)));
+  let room = await waitForRoundOpen(roomId, 0);
+  check(S, room, 'round 1 never opened');
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid in round 1`);
+  const start = await Promise.all(phones.map(async (student) => ({ bar: await barHeight(student), grid: await gridBox(student) })));
+  phones.forEach((student, index) => {
+    if (countdownBars[index] === null) notes.push({ scenario: S, student: student.studentId, countdown: 'opened after GO: not measured' });
+    else check(S, Math.abs(countdownBars[index] - start[index].bar) < 0.5, `${student.studentId} (${student.device}): the bar changed at GO (${countdownBars[index]} → ${start[index].bar} px)`);
+  });
+  await Promise.all(phones.map((student, index) => streakAndTotal(student, roomId, S, start[index])));
+  await shot(a, 'phones-r1-390');
+  await shot(b, 'phones-r1-360');
+  room = await waitForRoundClosed(roomId, 0, 70_000);
+  check(S, room?.roundState === 'closed', 'round 1 did not close');
+  for (const student of phones) check(S, await waitForText(student, 'Round 1 results', 15_000), `${student.studentId}: no round 1 results`);
+
+  // ROUND 2: both phones go offline. Their lines still answer at once and queue
+  // up, "Reconnecting…" shows on the bar's edge, and the grid stays put; back
+  // online, the queue lands.
+  await teacher.page.getByRole('button', { name: 'Next Round' }).click();
+  room = await waitForRoundOpen(roomId, 1);
+  check(S, room, 'round 2 never opened');
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid in round 2`);
+  const second = await Promise.all(phones.map(async (student) => ({ bar: await barHeight(student), grid: await gridBox(student) })));
+  const offline = (on) => Promise.all(phones.map((student) => student.page.evaluate((value) => {
+    window.__mmBridgeOffline = value;
+    if (!value) window.dispatchEvent(new Event('online'));
+  }, on)));
+  await offline(true);
+  await Promise.all(phones.map(async (student) => {
+    await answerRight(student, roomId, { scenario: S });
+    await answerRight(student, roomId, { scenario: S });
+  }));
+  for (const [index, student] of phones.entries()) {
+    check(S, await waitForText(student, 'Reconnecting', 8_000), `${student.studentId}: offline lines did not show "Reconnecting…"`);
+    const grid = await gridBox(student);
+    check(S, sameBox(second[index].grid, grid), `${student.studentId} (${student.device}): "Reconnecting…" moved the grid (${JSON.stringify(second[index].grid)} → ${JSON.stringify(grid)})`);
+    const bar = await barHeight(student);
+    check(S, Math.abs(bar - second[index].bar) < 0.5, `${student.studentId} (${student.device}): "Reconnecting…" changed the bar (${second[index].bar} → ${bar} px)`);
+  }
+  await shot(a, 'phones-r2-offline-390');
+  await shot(b, 'phones-r2-offline-360');
+  // The bar at 320 and 360 px, beside "Reconnecting…", with a four-digit count and a
+  // two-digit streak written in: one row, nothing cut, the status one whole line.
+  check(S, (await streakOf(a)).shown, 'A: no streak beside "Reconnecting…" to measure');
+  const narrow = await roundBarAtNarrowWidths(a.page, { bar: '.mm-line-bar', counts: [[VISIBLE_DONE, '✓ 1250'], [VISIBLE_STREAK, '🔥 12']], restore: DEVICES.phone.viewport });
+  for (const result of narrow) for (const problem of roundBarProblems(result)) finding(S, `A, Graph the Line's bar: ${problem}`);
+  notes.push({ scenario: S, narrowBars: narrow.map(({ width, after }) => ({ width, height: after?.height, oneRow: after?.oneRow })) });
+  const restored = await gridBox(a);
+  check(S, sameBox(second[0].grid, restored), `A: the grid is not where it was after 320 and 360 px (${JSON.stringify(second[0].grid)} → ${JSON.stringify(restored)})`);
+  // Back online: the queue lands, the status goes, and the grid has not moved.
+  const shownRight = await Promise.all(phones.map((student) => doneCount(student)));
+  await offline(false);
+  for (const [index, student] of phones.entries()) {
+    check(S, await waitForNoText(student, 'Reconnecting', 10_000), `${student.studentId}: still "Reconnecting…" after the queue landed`);
+    const recorded = await rightLinesRecorded(roomId, student.studentId, 1);
+    check(S, recorded === shownRight[index], `${student.studentId}: after reconnecting the server has ${recorded} round-2 lines right, the screen ${shownRight[index]}`);
+    const grid = await gridBox(student);
+    check(S, sameBox(second[index].grid, grid), `${student.studentId} (${student.device}): the connection's return moved the grid (${JSON.stringify(second[index].grid)} → ${JSON.stringify(grid)})`);
+  }
+  room = await waitForRoundClosed(roomId, 1, 70_000);
+  check(S, room?.roundState === 'closed', 'round 2 did not close');
+  await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
+  check(S, await waitForRoom(roomId, (current) => current.status === 'finished', 20_000), 'Finish & Show Final Standings did not finish the game');
+});
+
+// WHAT COMES AND GOES UNDER THE GRID, AND THE EXTRA-TIME WORDS, ON TWO PHONES.
+// Measured in CI's fonts at the default text size, before the round kept their
+// room: on a 360 x 740 phone a name-it item's grid shrank 12 px as a wrong
+// choice's ✓ and ✗ arrived, 21 px as typing filled a built equation's preview,
+// and the line under the grid moved it as a hint came; and the extra-time words
+// pushed the grid 66 px down at 390 px and 90 px at 360 at the class's buzzer.
+// Each is held to a pixel here, on 390 x 844 and 360 x 740 phones by touch.
+const holdOf = (S, student) => {
+  let base = null;
+  return {
+    mark: async () => { base = await gridBox(student); },
+    held: async (moment) => {
+      const grid = await gridBox(student);
+      check(S, sameBox(base, grid), `${student.studentId} (${student.device}): ${moment} moved the grid (${JSON.stringify(base)} → ${JSON.stringify(grid)})`);
+    },
+  };
+};
+
+// Skip items until the one on screen is one to name (and, given `wanted`, of
+// that kind); null if none comes in time.
+const toNameItem = async (student, roomId, untilMs, wanted = () => true) => {
+  while (Date.now() < untilMs) {
+    // eslint-disable-next-line no-await-in-loop
+    const item = await itemOnScreen(student, roomId);
+    if (item?.itemType === 'name' && wanted(item)) return item;
+    // eslint-disable-next-line no-await-in-loop
+    if (item) await student.page.getByRole('button', { name: 'Skip', exact: true }).click().catch(() => {});
+    // eslint-disable-next-line no-await-in-loop
+    await waitForItemChange(student, item?.questionIndex ?? -1, 3_000);
+    // eslint-disable-next-line no-await-in-loop
+    await waitForItem(student, 5_000);
+  }
+  return null;
+};
+
+// THE COUNTDOWN SAYS NOTHING OF THE FIRST ITEM. The first item is on a phone
+// before GO, and the buttons under the empty grid followed it: Start over came
+// in mid-countdown when a line to graph came first, and never when a line to
+// name did; the feedback line's room took the first item's kind too. In a
+// round that deals lines to graph and lines to name, every frame of the
+// countdown now shows a line to graph's buttons, in one place, over one room
+// and one grid, and from GO the item's own. (From item to item the grid still
+// moves and resizes with the kind: holding the largest kind's room is the
+// owner's to choose.) Watched every frame, from before the teacher starts the
+// game until GO.
+const watchCountdown = (student) => student.page.evaluate(() => new Promise((resolve) => {
+  const seen = new Map();
+  const done = (late) => resolve({ seen: [...seen.values()], late });
+  const timer = setTimeout(() => done(true), 40_000);
+  const look = () => {
+    const grid = document.querySelector('.mm-line-graph-frame');
+    if (grid && grid.getAttribute('data-question-index') !== '') { clearTimeout(timer); done(false); return; }
+    if (grid) {
+      const tenth = (value) => Math.round(value * 10) / 10;
+      const box = grid.getBoundingClientRect();
+      const row = document.querySelector('.mm-line-buttons');
+      const room = document.querySelector('.mm-line-hold');
+      const state = {
+        buttons: [...(row?.querySelectorAll('button') || [])].map((button) => button.textContent.trim()),
+        // Where the buttons sit, and the height the feedback line keeps.
+        place: [row ? tenth(row.getBoundingClientRect().top + window.scrollY) : null, room ? tenth(room.getBoundingClientRect().height) : null],
+        frame: [tenth(box.top + window.scrollY), tenth(box.width)],
+      };
+      const key = JSON.stringify(state);
+      if (!seen.has(key)) seen.set(key, state);
+    }
+    requestAnimationFrame(look);
+  };
+  look();
+})).catch((error) => ({ seen: [], late: true, error: String(error) }));
+const kindOfLine = (item) => (item ? (item.itemType === 'graph' ? 'a line to graph' : `a line to name (${item.answerStyle})`) : 'none');
+const countdownHeld = async (S, student, watch, first) => {
+  const { seen, late, error } = await watch;
+  notes.push({ scenario: S, student: student.studentId, device: student.device, firstItem: kindOfLine(first), countdown: seen });
+  if (!check(S, !late && seen.length > 0, `${student.studentId} (${student.device}): no countdown seen before GO${error ? ` (${error})` : ''}`)) return;
+  check(S, seen.length === 1, `${student.studentId} (${student.device}): the countdown changed as the first item (${kindOfLine(first)}) arrived: ${JSON.stringify(seen)}`);
+  check(S, seen.every(({ buttons }) => buttons.includes('Start over')), `${student.studentId} (${student.device}): before GO the buttons were not a line to graph's (${JSON.stringify(seen.map(({ buttons }) => buttons))}; first item ${kindOfLine(first)})`);
+};
+const startOverShown = async (student) => (await student.page.getByRole('button', { name: 'Start over', exact: true }).count()) > 0;
+
+const endLineGame = async (S, teacher, roomId) => {
+  gameEndedAt.push(Date.now());
+  await teacher.page.getByRole('button', { name: 'End Game' }).click();
+  await teacher.page.getByRole('button', { name: 'End Game' }).last().click();
+  check(S, await waitForRoom(roomId, (room) => room.status === 'finished', 20_000), 'End Game did not finish the game');
+};
+
+await run('name-on-phones', async () => {
+  const S = 'name-on-phones';
+  const [idA, idB] = studentsOf('namers');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(idA, 'phone'), await openStudent(idB, 'smallPhone')];
+  // A chosen equation: a wrong tap, its ✓ and ✗, the answer shown.
+  let roomId = await createLine(teacher, { classKey: 'namers', format: 'Rush', preset: 'Graph it and name it', rounds: 1, seconds: 45 });
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+  let watches = phones.map((student) => watchCountdown(student));
+  await startGame(teacher);
+  let room = await waitForRoundOpen(roomId, 0);
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid`);
+  for (const [index, student] of phones.entries()) await countdownHeld(S, student, watches[index], await itemOnScreen(student, roomId));
+  await Promise.all(phones.map(async (student) => {
+    // A point-slope equation, the widest a choice holds: its ✓ before it wrapped it at 360 px.
+    const item = await toNameItem(student, roomId, endsAtOf(room) - 8_000, (candidate) => candidate.form === 'pointSlope' && candidate.answerStyle === 'choice')
+      || await toNameItem(student, roomId, endsAtOf(room) - 6_000);
+    if (!check(S, item?.answerStyle === 'choice', `${student.studentId}: no equation to choose came (${item?.answerStyle})`)) return;
+    notes.push({ scenario: S, student: student.studentId, device: student.device, choiceForm: item.form });
+    check(S, !(await startOverShown(student)), `${student.studentId}: a line to name shows Start over`);
+    const hold = holdOf(S, student);
+    await hold.mark();
+    await student.page.locator('.mm-line-choice').nth(item.choices.findIndex((choice) => choice.id !== item.answerChoice)).click();
+    await wait(250);
+    check(S, (await student.page.locator('.mm-line-choice[data-state]').count()) === 2, `${student.studentId}: a wrong choice did not mark the right and the wrong one`);
+    await hold.held('a wrong choice, its ✓ and ✗ and "Not that one"');
+    await shot(student, `name-choice-${student.device}`);
+  }));
+  await endLineGame(S, teacher, roomId);
+
+  // A built equation: typing, unfinished boxes, a wrong equation and its hint.
+  await teacher.page.getByRole('button', { name: 'New Challenge', exact: true }).click();
+  roomId = await createLine(teacher, {
+    classKey: 'namers', format: 'Rush', preset: 'Graph it and name it', rounds: 1, seconds: 45,
+    setup: async (handle) => { await handle.page.locator('label', { hasText: 'Name it: Build it' }).locator('input').check(); },
+  });
+  for (const student of phones) check(S, await waitForText(student, 'You are in as', 20_000), `${student.studentId}: no lobby for the built game`);
+  watches = phones.map((student) => watchCountdown(student));
+  await startGame(teacher);
+  room = await waitForRoundOpen(roomId, 0);
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid in the built game`);
+  for (const [index, student] of phones.entries()) await countdownHeld(S, student, watches[index], await itemOnScreen(student, roomId));
+  await Promise.all(phones.map(async (student) => {
+    const item = await toNameItem(student, roomId, endsAtOf(room) - 10_000);
+    if (!check(S, item?.answerStyle === 'build', `${student.studentId}: no equation to build came (${item?.answerStyle})`)) return;
+    check(S, !(await startOverShown(student)), `${student.studentId}: a line to build shows Start over`);
+    const hold = holdOf(S, student);
+    await hold.mark();
+    const fields = Object.keys(buildFieldsFor(item));
+    await typeBoxes(student, item, { [fields[0]]: '-19/7' });
+    await wait(200);
+    await hold.held('typing the first box');
+    await student.page.keyboard.press('Enter');
+    await wait(250);
+    check(S, (await feedbackOf(student)).kind === 'form', `${student.studentId}: unfinished boxes were not asked for (${JSON.stringify(await feedbackOf(student))})`);
+    await hold.held('"Fill in every box…"');
+    // A wrong equation: every box a number, and the line it names is not the item's.
+    await typeBoxes(student, item, wrongFieldsFor(item));
+    await wait(200);
+    await hold.held('the preview of a whole equation');
+    await student.page.keyboard.press('Enter');
+    await wait(300);
+    const miss = await feedbackOf(student);
+    check(S, miss.kind === 'miss' || miss.kind === 'repeated' || miss.kind === 'revealed', `${student.studentId}: a wrong equation was not answered (${JSON.stringify(miss)})`);
+    await hold.held(`a wrong equation's hint ("${miss.text}")`);
+    await shot(student, `name-build-${student.device}`);
+  }));
+  await endLineGame(S, teacher, roomId);
+});
+
+// EXTRA TIME on two phones: a Classic round played past the class's buzzer.
+await run('extra-time-on-phones', async () => {
+  const S = 'extra-time-on-phones';
+  const [idA, idB] = studentsOf('extra');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(idA, 'phone'), await openStudent(idB, 'smallPhone')];
+  const roomId = await createLine(teacher, { classKey: 'extra', format: 'Classic', preset: 'Slope-intercept start', rounds: 3, seconds: 20 });
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+  await startGame(teacher);
+  const room = await waitForRoundOpen(roomId, 0);
+  check(S, room, 'the round never opened');
+  for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid`);
+  const holds = await Promise.all(phones.map(async (student) => {
+    const hold = holdOf(S, student);
+    await hold.mark();
+    // Before the buzzer the words are not there to see, nor to hear.
+    check(S, (await student.page.locator('[data-mm-line-extra-time="1"]').count()) === 0, `${student.studentId}: extra-time words before the buzzer`);
+    return hold;
+  }));
+  // The class's buzzer: the race is over, their own time goes on.
+  while (Date.now() < endsAtOf(room) + 600) await wait(150); // eslint-disable-line no-await-in-loop
+  for (const [index, student] of phones.entries()) {
+    const shown = await student.page.waitForSelector('[data-mm-line-extra-time="1"]', { timeout: 6_000 }).then(() => true, () => false);
+    check(S, shown && await waitForText(student, 'Your extra time. The race is over', 2_000), `${student.studentId}: no extra-time words after the buzzer`);
+    await holds[index].held('the extra-time words at the buzzer');
+  }
+  await Promise.all(phones.map((student) => shot(student, `extra-time-${student.device}`)));
+  await endLineGame(S, teacher, roomId);
+  // The console asks to close the round at the class's buzzer and the server
+  // keeps it open for these students' own time: a refusal (failed-precondition,
+  // which the browser logs as a 400) that is the rule working, not the page failing.
+  const keptOpen = bridgeCalls.filter((call) => call.name === 'closeLiveChallengeRound' && !call.ok && call.code === 'failed-precondition').length;
+  if (keptOpen) {
+    notes.push({ scenario: S, closeRefusedForExtraTime: keptOpen });
+    teacher.errors.splice(0, teacher.errors.length, ...teacher.errors.filter((text) => !/status of 400/.test(text)));
+  }
 });
 
 /* --------------------------------- report --------------------------------- */

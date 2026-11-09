@@ -150,6 +150,29 @@
             "The group's money limits how many buckets they can buy, and they can only buy whole buckets. How many buckets can their money pay for?",
             "List every number of buckets that makes sense in this situation. Then find the total cost for each one."
           ],
+          "misconceptions": [
+            {
+              "field": "continuity",
+              "match": [
+                "continuous"
+              ],
+              "message": "A continuous graph would mean the friends could buy part of a bucket. Can they?"
+            },
+            {
+              "field": "domainDiscrete",
+              "match": [
+                "{1, 2, 3, 4, 5}"
+              ],
+              "message": "The friends might decide not to buy any popcorn. Is that number of buckets in your domain?"
+            },
+            {
+              "field": "rangeDiscrete",
+              "match": [
+                "{6, 12, 18, 24, 30}"
+              ],
+              "message": "The friends might buy no popcorn at all. What would that cost, and is it in your range?"
+            }
+          ],
           "solutionReview": {
             "headline": "The cost depends on how many buckets are bought, $6 each, and $30 pays for at most 5 whole buckets.",
             "reasoning": [
@@ -593,6 +616,15 @@
             "The x-intercept is where the graph meets the x-axis. There, the tank has 0 gallons left.",
             "The zero of the function is the x-value that makes y = 0.",
             "The y-intercept is where the graph meets the y-axis, the moment the draining starts."
+          ],
+          "misconceptions": [
+            {
+              "field": "zeros",
+              "match": [
+                "{48}"
+              ],
+              "message": "That mixes up the zero and the y-intercept. The zero is the x-value that makes y = 0: the time when the tank is empty."
+            }
           ],
           "solutionReview": {
             "commonError": "Mixing up the zero and the y-intercept; the zero is the x-value that makes y = 0 (12 minutes, when the tank is empty), and the y-intercept is the starting amount, 48 gallons."

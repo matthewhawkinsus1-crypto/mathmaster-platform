@@ -74,7 +74,7 @@ import {
 } from '../../scripts/lib/accessibilityRatchet.mjs';
 import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
-import { TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
+import { MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_SCREEN, TEACHER_SCREENS } from './accessibilityTeacherScreens.mjs';
 import { auditKeyboardReach } from './accessibilityKeyboardReach.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -106,9 +106,16 @@ const studentTab = (name, ready) => async (page) => {
   await page.waitForTimeout(900);
 };
 
+// A screen of the app harness reads the clock: the fixture builds Period 3's
+// bell schedule from it, with its Warm-Up and exit-ticket windows and their
+// reminders. On CI's own clock (UTC), from about 23:05 Period 3 was clamped to
+// end by 23:55, and the exit ticket's "open — start now" reminder covered a
+// phone's student navigation. So these open on the school's clock
+// (teacherWorkflow/schoolClock.mjs), as the teacher screens do.
 const studentAppScreen = (id, tab, ready) => ({
   id,
   harness: 'app',
+  schoolClock: true,
   open: openStudentApp,
   scenes: [{ id: null, run: studentTab(tab, ready) }],
 });
@@ -165,6 +172,32 @@ const openMathBoxPlaceholder = async (page, origins, state) => {
     null,
     { timeout: 30_000 },
   );
+};
+
+// THE EXAM-PRACTICE CHIP IN A QUESTION'S HEADING (student-a11y-2). An item
+// authored as Digital SAT practice shows "Digital SAT practice" beside its
+// learning goal; on a phone held upright both chips sit in the task panel's
+// heading row, where a stylesheet rule painted the chip's white text dark blue
+// over its purple fill (1.14:1) and no scene showed the chip. Opened on the
+// keyboard sweep's page in the assignment shell (an authored item's alignment
+// shape), in the light theme and the dark one.
+const EXAM_PRACTICE_SPEC = {
+  assessmentContext: { framework: 'digitalSAT', examStyle: true, domainId: 'algebra' },
+  alignments: [
+    { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+    { framework: 'digitalSAT', domainId: 'algebra', role: 'primary', evidenceMode: 'direct' },
+  ],
+  standard: 'A.5A',
+};
+const openExamPracticeChip = (theme) => async (page, origins) => {
+  const spec = encodeURIComponent(JSON.stringify(EXAM_PRACTICE_SPEC));
+  await page.goto(`${origins.audit}/tests/browser/keyboardSweep.html?tool=fraction&variant=exam-practice&spec=${spec}&shell=assignment`, { timeout: 180_000 });
+  await page.waitForSelector('[data-kb-sentinel="end"]', { timeout: 180_000 });
+  // The sweep's own two buttons around the page are not the student's.
+  await page.evaluate(() => document.querySelectorAll('[data-kb-sentinel]').forEach((button) => { button.tabIndex = -1; }));
+  if (theme === 'dark') await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  await page.getByRole('button', { name: /Digital SAT alignment details/ }).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
 };
 
 // A section the student has finished, as its tab shows it: the fixture's
@@ -224,6 +257,7 @@ export const SCREENS = [
   {
     id: 'live-challenge',
     harness: 'app',
+    schoolClock: true,
     open: openStudentApp,
     scenes: [
       { id: 'lobby', run: async (page) => {
@@ -264,10 +298,91 @@ export const SCREENS = [
   },
 ];
 
+// THE ROUNDS' OWN SCREENS, the student's arena: a Graph Feature Rush round (student push N, review of #487) and a
+// Graph the Line round (student-a11y-2, which no scene had reached), each a full-screen round over the student page,
+// staged on the live-challenge screen's lobby as the server stages one. A round's sizes are fluid
+// (clamp(28px, 7vmin, 56px) is 54px on a Chromebook, so a viewport term that ignored the text setting grew only to the
+// new minimum), and each opens on its own "Loading…" card (this harness serves no rush graphs and no lines), which
+// carries those sizes and the round's whole top bar. Not axe's scenes: the large-text runs measure them
+// (studentShellLargeText.mjs: 200% text, 320 px, target size and the 2.4.11 walk), and the forced-colours walk reads
+// them (forcedColorsCertification.mjs).
+const liveChallenge = SCREENS.find((screen) => screen.id === 'live-challenge');
+const questionSetRound = ({ challengeMode, token, prompt, shell: shellSelector, bar, ready, name }) => async (page, origins, context) => {
+  await liveChallenge.scenes[0].run(page, origins, context);
+  const question = { questionInstanceId: 'challenge_a11y-room_r1', prompt, challengeRound: 0 };
+  await page.evaluate(({ currentQuestion, mode, roundToken }) => {
+    const startsAt = Date.now() - 2000;
+    window.__mmHarnessStore.update('liveChallengeRooms/a11y-room', {
+      challengeMode: mode, status: 'running', currentRound: 0, currentQuestion, roundVersion: 1,
+      roundToken, roundState: 'open', phase: 'answering', startsAt, endsAt: startsAt + 600_000,
+      roundStartedAt: startsAt, roundEndsAt: startsAt + 600_000,
+    });
+  }, { currentQuestion: question, mode: challengeMode, roundToken: token });
+  await page.locator(ready).first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1500);
+  // The round's top row (alias, round, count, clock) must not sit under
+  // anything outside the round. The student identity bar draws on top of
+  // everything (z-index 21000), so the round starts at the bar's height.
+  const covered = await page.evaluate(({ shellAt, barAt }) => {
+    const shell = document.querySelector(shellAt);
+    const row = shell?.querySelector(barAt);
+    if (!row) return [`the round has no top row (${barAt})`];
+    return [...row.children].flatMap((item) => {
+      const box = item.getBoundingClientRect();
+      if (!box.width || !box.height) return [];
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return top && !shell.contains(top) ? [`"${item.textContent.trim().slice(0, 24)}" is under ${top.tagName.toLowerCase()}${top.className ? `.${String(top.className).split(' ')[0]}` : ''}`] : [];
+    });
+  }, { shellAt: shellSelector, barAt: bar });
+  if (covered.length) throw new Error(`the ${name} round's top row is covered: ${covered.join('; ')}`);
+};
+const rushRound = questionSetRound({ challengeMode: 'graphFeatureRush', token: 'a11y-rush-1', prompt: 'Tap each feature you are asked for.', shell: '.mm-rush-shell', bar: '.mm-rush-bar', ready: '.mm-rush-overlay strong', name: 'Rush' });
+const lineRound = questionSetRound({ challengeMode: 'lineGraphClassic', token: 'a11y-line-1', prompt: 'Graph the line.', shell: '.mm-line-shell', bar: '.mm-line-bar', ready: '.mm-line-overlay strong', name: 'Graph the Line' });
+
+// The two rounds open as the live-challenge screen does, on the school's clock.
+export const LIVE_CHALLENGE_ROUND_SCREENS = [
+  { id: 'graph-feature-rush', harness: liveChallenge.harness, schoolClock: liveChallenge.schoolClock, open: liveChallenge.open, scenes: [{ id: 'round', run: rushRound }] },
+  { id: 'graph-the-line', harness: liveChallenge.harness, schoolClock: liveChallenge.schoolClock, open: liveChallenge.open, scenes: [{ id: 'round', run: lineRound }] },
+];
+
 // The student screens above and the teacher's (accessibilityTeacherScreens.mjs):
 // what the run audits, and what the contrast review decides. SCREENS stays the
 // student list, which the other drivers import for their own checks.
-export const CERTIFIED_SCREENS = [...SCREENS, ...TEACHER_SCREENS];
+// The exam-practice chip's screen is audited by axe and replayed by the contrast review, but it is not one
+// of SCREENS, which the large-text runs (text, target size and the 2.4.11 walk) also take: the keyboard
+// sweep's page is a stand-in for the assignment screen, and on a phone its bottom bar covered five stops
+// that the assignment screen itself keeps clear (the assignment tools' scenes measure that screen).
+export const EXAM_PRACTICE_CHIP_SCREEN = {
+  id: 'exam-practice-chip',
+  harness: 'audit',
+  include: '.mathmaster-question-stage',
+  scenes: [
+    { id: 'light', run: openExamPracticeChip('light') },
+    { id: 'dark', run: openExamPracticeChip('dark') },
+  ],
+};
+
+// The Math Tools Lab's other 24 tools are certified too (accessibilityTeacherScreens.mjs MATH_TOOLS_LAB_SCREEN), and the
+// Work Views its tools open (MATH_TOOLS_LAB_WORK_VIEW_SCREEN), in a CI job of their own: see screensToRun.
+export const CERTIFIED_SCREENS = [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS, MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_SCREEN];
+
+/*
+ * The screens a run audits. ONLY=<id>[,<id>] names them. A run that names none audits every certified screen but those
+ * certified in a CI job of their own (`ownJob`: the Math Tools Lab's other tools and its Work Views, whose job names
+ * them), so the jobs that run every screen take no longer for them. The contrast review runs the same screens.
+ */
+export const screensToRun = (only, screens = CERTIFIED_SCREENS) => screens.filter((screen) => (only.size ? only.has(screen.id) : !screen.ownJob));
+
+/**
+ * What a run judges and writes: the ratchet keys of the screens it ran (a key's screen is the scene's label,
+ * `screen` or `screen/scene`), or null, every key, when it ran every certified screen. A run that left a screen out
+ * must not read that screen's keys as fixed, nor write them away.
+ */
+export const runScope = (ran, screens = CERTIFIED_SCREENS) => {
+  if (screens.every((screen) => ran.includes(screen))) return null;
+  const ids = ran.map((screen) => screen.id);
+  return (key) => ids.some((id) => key.screen === id || key.screen.startsWith(`${id}/`));
+};
 
 export const sceneLabel = (screen, scene) => (scene.id ? `${screen.id}/${scene.id}` : screen.id);
 
@@ -280,9 +395,10 @@ export const sceneScope = (screen, scene) => ({
   keyboard: scene.keyboard ?? screen.keyboard,
 });
 
-// A browser context for one screen. A teacher screen reads the clock (the bell
-// schedule, the DOL window), so it opens on the school's, as the dark-mode
-// certification does; the contrast review opens its screens the same way.
+// A browser context for one screen. A screen of the app harness, the teacher's
+// or the student's, reads the clock (the bell schedule, the DOL window), so it
+// opens on the school's, as the dark-mode certification does; the contrast
+// review opens its screens the same way.
 export const newScreenContext = (browser, screen, options) => (screen.schoolClock ? newSchoolContext(browser, options) : browser.newContext(options));
 
 // ------------------------------------------------------- the audit server
@@ -336,7 +452,7 @@ const main = async () => {
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((entry) => entry.trim()).filter(Boolean));
   const unknown = [...ONLY].filter((id) => !CERTIFIED_SCREENS.some((screen) => screen.id === id));
   if (unknown.length) throw new Error(`ONLY names unknown screen(s): ${unknown.join(', ')} (known: ${CERTIFIED_SCREENS.map((screen) => screen.id).join(', ')})`);
-  const screens = CERTIFIED_SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
+  const screens = screensToRun(ONLY);
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -450,7 +566,7 @@ const main = async () => {
   const current = mergeNormalized(...results);
   const labels = new Set(results.map((result) => result.label));
   // A partial run judges only the screens it ran.
-  const scope = ONLY.size ? (key) => [...ONLY].some((id) => key.screen === id || key.screen.startsWith(`${id}/`)) : null;
+  const scope = runScope(screens);
   const comparison = compare(baselineCounts, current.counts, { scope });
   const report = {
     axeVersion: AXE_VERSION,

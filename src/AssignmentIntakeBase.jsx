@@ -300,7 +300,7 @@ export default function AssignmentIntake({
   };
 
   return (
-    <section style={{ display: 'grid', gap: 16, marginBottom: 34 }}>
+    <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16, marginBottom: 34 }}>
       <nav
         aria-label="Assignment creator steps"
         style={{
@@ -454,7 +454,7 @@ export default function AssignmentIntake({
                         opacity: section.enabled ? 1 : 0.72,
                       }}
                     >
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 900, color: 'var(--mm-text-strong)', marginBottom: 10 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 24, fontWeight: 900, color: 'var(--mm-text-strong)', marginBottom: 10 }}>
                         <input
                           type="checkbox"
                           checked={section.enabled}
@@ -595,7 +595,7 @@ export default function AssignmentIntake({
                 📋 Copy Complete AI Build Request
               </button>
               <details>
-                <summary style={{ cursor: 'pointer', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
+                <summary style={{ cursor: 'pointer', minHeight: 24, color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 'calc(13 * var(--mm-px))' }}>
                   Advanced
                 </summary>
                 <button type="button" onClick={handleCopyContract} style={{ ...secondaryButton, marginTop: 8, minHeight: 38, fontSize: 'calc(13 * var(--mm-px))' }}>
@@ -678,7 +678,7 @@ export default function AssignmentIntake({
           </ul>
           {failure.warnings.length > 0 && (
             <details style={{ marginBottom: 14 }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
+              <summary style={{ cursor: 'pointer', minHeight: 24, fontWeight: 700, color: 'var(--mm-warning-text)', fontSize: 'calc(13 * var(--mm-px))' }}>
                 {failure.warnings.length} warning{failure.warnings.length === 1 ? '' : 's'}
               </summary>
               <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.6 }}>

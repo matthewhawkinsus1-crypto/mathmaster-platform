@@ -105,3 +105,16 @@ test('inequality keypad inserts complete relation symbols atomically', () => {
   assert.doesNotMatch(source, /label: '≤', command: '\\\\le'/);
   assert.doesNotMatch(source, /label: '≥', command: '\\\\ge'/);
 });
+
+// A key may spell a relation as it is typed. In practice the "Needed for this
+// answer" row listed "=" for "y >= x + 2" and never ≥, a key the answer needs.
+test('a typed relation needs its own key: <= is ≤, >= is ≥, != is ≠, and none of them asks for =', () => {
+  assert.deepEqual(inferRequiredAnswerSymbols(['y >= x + 2']), ['≥', 'y', 'x']);
+  assert.deepEqual(inferRequiredAnswerSymbols(['0 <= x <= 4']), ['≤', 'x']);
+  assert.deepEqual(inferRequiredAnswerSymbols(['2x+3y>=12']), ['≥', 'x', 'y']);
+  assert.deepEqual(inferRequiredAnswerSymbols(['x != 3']), ['≠', 'x']);
+  // An equals sign of its own still asks for =.
+  assert.deepEqual(inferRequiredAnswerSymbols(['x = 4']), ['=', 'x']);
+  assert.ok(inferRequiredAnswerSymbols(['y = 2x, y >= 1']).includes('='));
+  assert.ok(inferRequiredAnswerSymbols(['\\frac{a}{b}=c']).includes('='));
+});

@@ -1408,7 +1408,7 @@
             "headline": "Find the vertex first; every other attribute follows from it.",
             "reasoning": [
               "The vertex is ({{h}}, {{k}}) and the V opens upward, so f has a minimum value of {{k}} at x = {{h}}; the axis of symmetry is x = {{h}}.",
-              "The x-intercepts ({{x1}}, 0) and ({{x2}}, 0) are each {{d}} units from the axis; the y-intercept is (0, {{yint}}).",
+              "The x-intercepts ({{x1}}, 0) and ({{x2}}, 0) are each a distance of {{d}} from the axis; the y-intercept is (0, {{yint}}).",
               "f decreases on (−∞, {{h}}) and increases on ({{h}}, ∞).",
               "Domain (−∞, ∞); range [{{k}}, ∞)."
             ],
@@ -1605,7 +1605,7 @@
             "From the vertex, move 1 unit right and count how far the graph rises or falls: that change is a."
           ],
           "attemptFeedback": [
-            "Check the sign of a: a V that opens downward has a negative a."
+            "Check each value against the graph: the vertex is (h, k), and a is how far the graph rises or falls one unit right of the vertex, negative when the V opens downward."
           ],
           "scaffold": {
             "prompt": "Let’s back up. Which point on the graph gives you h and k?",
@@ -2886,7 +2886,7 @@
           "solutionReview": {
             "headline": "Eliminate one variable twice, solve the 2×2 system, back-substitute.",
             "reasoning": [
-              "z has coefficient ±1 in every equation, so eliminating z is efficient: add equations 1 and 3, and add equation 1 to equation 2 after scaling.",
+              "z has coefficient −1 in equation 1 and 1 in equation 3, so adding those two equations eliminates z. Adding {{c2}} times equation 1 to equation 2 eliminates it again.",
               "Solve the resulting 2×2 system for x and y, then back-substitute for z.",
               "The solution is ({{x0}}, {{y0}}, {{z0}}); it satisfies all three original equations."
             ],
@@ -2990,7 +2990,6 @@
               "Row i of A holds the x-, y-, and z-coefficients of equation i (0 for a missing variable); X is the column (x, y, z); B holds the constants in the same order.",
               "With technology, X = A⁻¹ · B. Read x, y, and z from the column, top to bottom, and check them in the original equations."
             ],
-            "answerSummary": "The ordered triple (x, y, z) read from A⁻¹ · B.",
             "commonError": "Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign."
           },
           "questionFamily": {
@@ -3583,7 +3582,6 @@
               "Row i of A holds the x-, y-, and z-coefficients of equation i (0 for a missing variable); X is the column (x, y, z); B holds the constants in the same order.",
               "With technology, X = A⁻¹ · B. Read x, y, and z from the column, top to bottom, and check them in the original equations."
             ],
-            "answerSummary": "The ordered triple (x, y, z) read from A⁻¹ · B.",
             "commonError": "Copying coefficients from an equation that is not yet in standard form, so a term moved across the equal sign keeps the wrong sign."
           },
           "questionFamily": {

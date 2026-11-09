@@ -126,7 +126,7 @@ test('an expression field holding an equation is held back with a reason; its ke
   assert.equal(formatProblemForResponse({ answerFormat: 'number', answer: '-9' }, '-9'), '');
 
   const multi = source('src/MultiAnswerGrader.jsx');
-  const completeness = region(multi, 'const graded = gradeMultiAnswerResponse', 'useEffect(', 'multi-answer completeness');
+  const completeness = region(multi, 'const graded = ', 'useEffect(', 'multi-answer completeness');
   assert.match(completeness, /formatProblemForResponse\(field, answers\[field\.id\]\)/);
   assert.match(completeness, /const isComplete = graded\.isComplete && !Object\.values\(formatProblems\)\.some\(Boolean\)/);
 });
@@ -320,8 +320,9 @@ test('the DOL "do this next" opens the first DOL question the student has not tr
 test('the Warm-Up banner leaves once every Warm-Up question is finished', () => {
   const app = source('src/App.jsx');
   // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
-  // status chip offers the same Warm-Up); the banner renders its answer.
-  const banner = region(app, 'const studentActiveWarmup = () => {', 'const renderIdleOverlay', 'warm-up banner');
+  // status chip offers the same Warm-Up; worked out once per change of what
+  // it reads); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => ', 'const renderIdleOverlay', 'warm-up banner');
   assert.match(banner, /const renderStudentWarmupBanner = \(\) => \{\n\s+const activeWarmup = studentActiveWarmup\(\);\n\s+if \(!activeWarmup\) return null;/);
   assert.match(banner, /const warmupFinished = questionIndices\.every/);
   assert.match(banner, /questionIndices\.length && !warmupFinished \?/);

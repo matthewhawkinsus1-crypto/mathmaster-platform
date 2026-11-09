@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import MyMathPathWheel from './MyMathPathWheel.jsx';
+import MyMathPathWheel, { RETENTION_CHECK_RECOMMENDED } from './MyMathPathWheel.jsx';
 import SkillDetailCardModal from './SkillDetailCardModal.jsx';
 import RetentionQuickCheckBanner from './RetentionQuickCheckBanner.jsx';
 import { evaluateStudentRetentionSchedule } from '../../platform/retention/retentionScheduler.js';
-import { DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, masteryCourseLabel } from '../../platform/mastery/strandConfig.js';
+import { DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, MASTERY_STATUS_FILLS, masteryCourseLabel } from '../../platform/mastery/strandConfig.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId } from '../../platform/path/skillGraph.js';
@@ -141,17 +141,23 @@ export const MyMathPathDashboard = ({
                 the wheel says "Needs Attention". It then drew Secure as a blue
                 circle beside a wheel that paints Secure light green: the key
                 is now drawn from the wheel's own colours and the shared
-                rule's own words. */}
+                rule's own words. Under a contrast theme the wheel is drawn in
+                the theme's colours, each level by its fill, a round done an
+                empty ring and a Level 3 round a solid dot; each swatch and dot
+                here is drawn as the part of the wheel it explains
+                (data-mm-swatch, theme/forcedColors.css). The red dot beside a
+                skill is a retention check recommended, in the skill card's
+                words; a contrast theme draws it solid, as a Level 3 round's. */}
             <strong>What the colours mean</strong>
             <ul data-mastery-key style={{ listStyle: 'none', margin: '4px 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
               {Object.entries(MASTERY_STATUS_COLORS).map(([status, color]) => (
                 <li key={status} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <span aria-hidden="true" style={{ width: 11, height: 11, borderRadius: 999, background: color, border: '1px solid var(--mm-border-strong)' }} />
+                  <span aria-hidden="true" data-mm-swatch={MASTERY_STATUS_FILLS[status]} style={{ width: 11, height: 11, borderRadius: 999, background: color, border: '1px solid var(--mm-border-strong)' }} />
                   {status}
                 </li>
               ))}
             </ul>
-            <span style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> practice round done · <span style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Level 3 (stretch) round done · numbers around the wheel are the topics listed under it
+            <span data-mm-swatch="ring" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> practice round done · <span data-mm-swatch="point" style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Level 3 (stretch) round done · <span data-mm-swatch="point" style={{ color: 'var(--mm-error-text)', fontWeight: 900 }}>●</span> {RETENTION_CHECK_RECOMMENDED.toLowerCase()} · numbers around the wheel are the topics listed under it
           </div>
         </div>
       </div>

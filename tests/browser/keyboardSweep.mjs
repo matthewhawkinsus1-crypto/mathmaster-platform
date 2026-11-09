@@ -10,6 +10,8 @@
 //   --no-shell                           the wrapper alone, without the navigator and the way on (see SHELL below)
 //   --out=<name>                         write report-<name>.json, not report.json
 //   --gate                               judge the report (keyboardSweepGate.mjs) and exit 1 if a scene fails
+//   --viewport=phone                     a 390x844 touch phone instead of the 1366x768 Chromebook (VIEWPORTS below)
+//   --shard=<i>/<n>                      only the i-th of n slices of the scenes, in order (support/sceneShards.mjs)
 //
 //   (PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
 //    when the defaults below are not installed.)
@@ -24,9 +26,11 @@
 // browser that cannot launch, or a run that measured nothing, fails it too.
 //
 // Every registered student tool is mounted through QuestionEngine with its
-// preview-bench question (keyboardSweepMain.jsx), at a 1366x768 Chromebook,
-// between two sentinel buttons. So is every LEGACY question type, the graders
-// in src/*.jsx that QuestionEngine's type switch mounts (StepByStepAlgebra,
+// preview-bench question (keyboardSweepMain.jsx), at a 1366x768 Chromebook
+// (or, with --viewport=phone, a 390x844 phone that answers touch, as the
+// certification's phone does), between two sentinel buttons. So is every
+// LEGACY question type, the graders in src/*.jsx that QuestionEngine's type
+// switch mounts (StepByStepAlgebra,
 // MultiRelationAlgebra and the intercepts orchestrator, the fraction, literal,
 // system, table, ordered-pair and multi-answer graders, the pick-a-point number
 // line, the graph workspaces, the relationship model with its axis editor, the
@@ -68,6 +72,12 @@
 //      `smallTargets` (the rest, for a reviewer: an equivalent control or an
 //      essential size may still excuse one). Read, never gated. The rules are
 //      in support/targetSize.mjs.
+//   9. THE NUMBER KEYPAD'S DONE FROM THE KEYBOARD (keypadDoneProbe). On a
+//      phone, where the forward walk went through the keypad to its Done:
+//      Enter, and Space, on Done, and Enter on it with the phone on its side,
+//      must leave focus in the question with the keypad closed
+//      (`focusLostAfterKeypadDone`, judged with the rest of focus lost). Where
+//      each lands, beside where Tab off Done went, is kept.
 //
 // A focused control counts as visibly focused only if something changed on
 // screen AND it is not under another element (elementFromPoint), so a ring
@@ -83,6 +93,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { gateLines, gateVerdict } from './support/keyboardSweepGate.mjs';
 import { collectTargetBoxes, smallTargetsOf } from './support/targetSize.mjs';
+import { itemsOfShard, parseShard } from './support/sceneShards.mjs';
+import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -100,8 +112,26 @@ const GATE = process.argv.includes('--gate');
 // and 2026-10-24 runs, to reproduce those numbers.
 const SHELL = HOST !== 'bare' && !process.argv.includes('--no-shell');
 const MAX_STOPS = 260;
-const VIEWPORT = { width: 1366, height: 768 };
-const OUT_DIR = HOST === 'bare' ? path.join(OUT_DIR_BASE, 'bare') : OUT_DIR_BASE;
+// The two screens the certification audits (accessibilityCertification.mjs VIEWPORTS): a Chromebook, and a
+// phone held upright that answers touch, `(pointer: coarse)`, as a student's does. On the phone a number box
+// opens the number keypad, the work bar is the screen's foot and the assignment screen is one screen tall
+// (keyboardSweepMain.jsx, THE SCREEN'S OWN LAYOUT), so the walk meets what a student with a keyboard on a
+// phone meets. `--viewport=phone` writes its reports into a folder of their own.
+const VIEWPORTS = {
+  chromebook: { width: 1366, height: 768, isMobile: false, hasTouch: false },
+  phone: { width: 390, height: 844, isMobile: true, hasTouch: true },
+};
+const VIEWPORT_ID = (process.argv.find((arg) => arg.startsWith('--viewport=')) || '').slice('--viewport='.length) || 'chromebook';
+if (!VIEWPORTS[VIEWPORT_ID]) {
+  console.error(`--viewport=${VIEWPORT_ID}: give ${Object.keys(VIEWPORTS).join(' or ')}`);
+  process.exit(2);
+}
+const DEVICE = VIEWPORTS[VIEWPORT_ID];
+const VIEWPORT = { width: DEVICE.width, height: DEVICE.height };
+// `--shard=i/n`: CI runs the sweep in slices, each its own job (accessibility-certification.yml). A wrong value
+// stops the run here, before a browser starts.
+const SHARD = parseShard((process.argv.find((arg) => arg.startsWith('--shard=')) || '').slice('--shard='.length) || null);
+const OUT_DIR = path.join(OUT_DIR_BASE, ...(HOST === 'bare' ? ['bare'] : []), ...(VIEWPORT_ID === 'phone' ? ['phone'] : []));
 // `--out=<name>` writes report-<name>.json instead of report.json, so a partial
 // run (one tool, `--extras-only`) does not replace the full report.
 const OUT_SUFFIX = (process.argv.find((arg) => arg.startsWith('--out=')) || '').slice('--out='.length);
@@ -411,7 +441,26 @@ const PAGE_HELPERS = () => {
       .map((el) => ({ id: kbId(el), name: (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 60), disabled: Boolean(el.disabled || el.getAttribute('aria-disabled') === 'true'), tabStop: el.tabIndex >= 0 && !el.disabled }));
   };
 
-  window.__kb = { kbId, describe, active, snapStyle, pointerAudit, openSurfaces, dialogs, feedbackText, svgMarks, byId, visible, checkButtons };
+  // Every control in the tool's tab order that the forward walk never stopped on (`visitedIds`), read as the walk
+  // ends: enabled, not inert, drawn, a tab index of 0 or more, and a radio group once (the Tab walk's own rule,
+  // accessibilityKeyboardReach.mjs `unreached`). A control that only Shift+Tab finds, behind the walk, is one Tab
+  // skipped: on a phone the open number keypad hid the work bar until Tab had gone past it (student-keyboard-ci).
+  const TABBABLE = 'button, a[href], input:not([type="hidden"]), select, textarea, summary, [tabindex], [contenteditable=""], [contenteditable="true"], math-field';
+  const unreached = (visitedIds) => {
+    const root = document.querySelector('[data-kb-root]') || document.body;
+    const visited = new Set(visitedIds);
+    const seen = (el) => visited.has(el.dataset.kbId);
+    const groupSeen = (el) => el.type === 'radio' && el.name
+      && [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(el.name)}"]`)].some(seen);
+    let disabled;
+    return [...root.querySelectorAll(TABBABLE)]
+      .filter((el) => { try { disabled = el.matches(':disabled'); } catch { disabled = false; } return el.tabIndex >= 0 && !disabled && !el.closest('[inert]'); })
+      .filter((el) => visible(el) && (typeof el.checkVisibility !== 'function' || el.checkVisibility()))
+      .filter((el) => !seen(el) && !groupSeen(el))
+      .map((el) => { const d = describe(el); return { id: d.id, tag: d.tag, roleAttr: d.roleAttr, name: d.ariaLabel || d.text, className: d.className, owners: d.owners }; });
+  };
+
+  window.__kb = { kbId, describe, active, snapStyle, pointerAudit, openSurfaces, dialogs, feedbackText, svgMarks, byId, visible, checkButtons, unreached };
 };
 
 /* ------------------------------------------------------------------------ */
@@ -435,7 +484,7 @@ try {
   // A gate that could not look has not passed.
   process.exit(GATE ? 1 : 0);
 }
-const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1 });
+const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 1, isMobile: DEVICE.isMobile, hasTouch: DEVICE.hasTouch });
 const diffPage = await context.newPage();
 await diffPage.setContent('<!doctype html><title>diff</title>');
 
@@ -563,7 +612,8 @@ const forwardWalk = async (page, cdp) => {
     const focusedStyle = await page.evaluate(() => window.__kb.snapStyle(window.__kb.active()));
     const clip = info.onScreen ? clipFor(info.rect) : null;
     let shotFocused = null;
-    if (clip && clip.width * clip.height < 1366 * 768) shotFocused = await page.screenshot({ clip }).catch(() => null);
+    // A clip inside the viewport (clipFor): on the phone, through the helper that keeps its touch (touchEmulation.mjs).
+    if (clip && clip.width * clip.height < VIEWPORT.width * VIEWPORT.height) shotFocused = await screenshotKeepingTouch(page, { clip }).catch(() => null);
     const blurred = await page.evaluate((id) => {
       const el = window.__kb.byId(id);
       el.blur();
@@ -571,7 +621,7 @@ const forwardWalk = async (page, cdp) => {
     }, info.id);
     await wait(page, 40);
     let shotBlurred = null;
-    if (shotFocused && blurred.scrollY === info.scrollY && blurred.rect.y === info.rect.y) shotBlurred = await page.screenshot({ clip }).catch(() => null);
+    if (shotFocused && blurred.scrollY === info.scrollY && blurred.rect.y === info.rect.y) shotBlurred = await screenshotKeepingTouch(page, { clip }).catch(() => null);
     // Put focus back where Tab left it; the next Tab continues from here.
     const refocused = await page.evaluate((id) => {
       const el = window.__kb.byId(id);
@@ -627,7 +677,9 @@ const forwardWalk = async (page, cdp) => {
       stops[stops.length - 1].note = 'element did not survive blur; walk continues from document start';
     }
   }
-  return { stops, reachedEnd, trap };
+  // Read where the walk ended (at the end sentinel, outside the question), as the student's screen then is.
+  const unreached = await page.evaluate((ids) => window.__kb.unreached(ids), [...visits.keys()]);
+  return { stops, reachedEnd, trap, unreached };
 };
 
 const reverseWalk = async (page) => {
@@ -995,6 +1047,112 @@ const ACTION_FOCUS_PROBES = {
   },
 };
 
+/*
+ * DONE ON THE NUMBER KEYPAD, PRESSED FROM THE KEYBOARD (keypad-done; 2.4.3). On a phone a number box opens the
+ * number keypad, and Done takes the keypad off the page, Done included: pressed with Enter or Space it left a
+ * keyboard student with nothing focused. Where the forward walk went through the keypad to its Done, the scene is
+ * opened again for each of Enter and Space: Tab from the start to Done, the key, and where focus is then. It must be
+ * in the question with the keypad closed, and it goes on where Tab off Done went in the walk (the work bar's first
+ * control). Then once more on its side (the phone turned to 844x390), where no bar is under the keys: Enter on Done
+ * goes back to the box the keypad served, which keeps its keypad closed for a typed digit until a tap opens it.
+ * `focusLost` counts the presses that left focus out of the question or the keypad open (support/keyboardSweepGate.mjs);
+ * the rest is read.
+ */
+const KEYPAD_DONE = 'mathmaster-keypad-done';
+const keypadDoneInWalk = (forward) => (forward?.stops || []).some((stop) => stop.id && String(stop.className || '').includes(KEYPAD_DONE));
+// A stop as both sides can name it: its tag and its words (the walk's `text`, and describe's in the page).
+const stopLabel = (stop) => (stop ? `${stop.tag}: ${String(stop.text || '').trim().slice(0, 60)}` : null);
+// Tab from the start sentinel to Done, keeping the last box that opens the keypad (the one Done serves).
+const tabToKeypadDone = async (page) => {
+  await focusSentinel(page, 'start');
+  let box = null;
+  for (let i = 0; i < MAX_STOPS; i += 1) {
+    await page.keyboard.press('Tab');
+    await wait(page, 70);
+    const at = await page.evaluate((done) => {
+      const el = document.activeElement;
+      return {
+        done: Boolean(el?.classList?.contains(done)),
+        end: el?.dataset?.kbSentinel === 'end',
+        box: el?.matches?.('input[data-mathmaster-mobile-keypad="true"]') ? window.__kb.kbId(el) : null,
+      };
+    }, KEYPAD_DONE);
+    if (at.box) box = at.box;
+    if (at.done) return { reached: true, box };
+    if (at.end) break;
+  }
+  return { reached: false, box };
+};
+const focusAfterKeypadDone = (page, box) => page.evaluate((boxId) => {
+  const el = document.activeElement;
+  const body = !el || el === document.body || el === document.documentElement;
+  const described = body ? null : window.__kb.describe(el);
+  return {
+    keypadOpen: Boolean(document.querySelector('.mathmaster-mobile-numeric-keypad')),
+    body,
+    inQuestion: Boolean(!body && document.querySelector('[data-kb-root]')?.contains(el)),
+    landed: described ? `${described.tag}: ${String(described.text || '').trim().slice(0, 60)}` : null,
+    onBox: Boolean(boxId) && el === window.__kb.byId(boxId),
+    focusVisible: Boolean(el?.matches?.(':focus-visible')),
+  };
+}, box);
+const keypadDoneProbe = async (open, forward) => {
+  // Where Tab off Done went in the forward walk: the next stop, or the end of the page.
+  const stops = forward.stops || [];
+  const doneAt = stops.findIndex((stop) => stop.id && String(stop.className || '').includes(KEYPAD_DONE));
+  const next = stops.slice(doneAt + 1).find((stop) => stop.id || stop.body);
+  const tabLanded = next?.body ? 'page' : (next ? stopLabel(next) : 'the end of the page');
+  const errors = [];
+  const presses = [];
+  for (const press of ['Enter', 'Space']) {
+    const { page, errors: pageErrors } = await open();
+    try {
+      const walk = await tabToKeypadDone(page);
+      if (!walk.reached) { presses.push({ press, reached: false }); continue; }
+      await page.keyboard.press(press);
+      await wait(page, 350);
+      const after = await focusAfterKeypadDone(page, walk.box);
+      presses.push({ press, reached: true, ...after, asTab: after.landed === tabLanded });
+    } finally {
+      errors.push(...pageErrors);
+      await page.close();
+    }
+  }
+  // On its side: no bar under the keys, so Enter on Done goes back to the box.
+  const side = await open();
+  let sideways = { reached: false };
+  try {
+    await side.page.setViewportSize({ width: VIEWPORT.height, height: VIEWPORT.width });
+    await wait(side.page, 900);
+    const walk = await tabToKeypadDone(side.page);
+    if (walk.reached) {
+      await side.page.keyboard.press('Enter');
+      await wait(side.page, 350);
+      sideways = { reached: true, ...(await focusAfterKeypadDone(side.page, walk.box)) };
+      if (sideways.onBox) {
+        await side.page.keyboard.press('7');
+        await wait(side.page, 300);
+        sideways.keptClosedWhileTyping = !(await focusAfterKeypadDone(side.page, walk.box)).keypadOpen;
+        await side.page.locator(`[data-kb-id="${walk.box}"]`).tap();
+        await wait(side.page, 500);
+        sideways.tapOpens = (await focusAfterKeypadDone(side.page, walk.box)).keypadOpen;
+      }
+    }
+  } finally {
+    errors.push(...side.errors);
+    await side.page.close();
+  }
+  const lost = (result) => result.reached && (result.body || !result.inQuestion || result.keypadOpen);
+  return {
+    tabLanded,
+    presses,
+    sideways,
+    errors,
+    // A press that could not reach Done although the walk did is not a pass either.
+    focusLost: presses.filter((result) => !result.reached || lost(result)).length + (lost(sideways) ? 1 : 0),
+  };
+};
+
 const idPage = await context.newPage();
 await idPage.goto(`${ORIGIN}/tests/browser/keyboardSweep.html`, { waitUntil: 'networkidle', timeout: 90000 });
 const allIds = await idPage.evaluate(() => window.__TOOL_IDS__ || []);
@@ -1062,11 +1220,15 @@ const NO_EXTRAS = process.argv.includes('--no-extras');
 const LEGACY_ONLY = process.argv.includes('--legacy-only');
 const NO_LEGACY = process.argv.includes('--no-legacy');
 const SAMPLES_WANTED = !(EXTRAS_ONLY || LEGACY_ONLY);
-const scenes = [
+const listed = [
   ...(SAMPLES_WANTED ? allIds.map((toolId) => ({ toolId, variant: 'sample', spec: null })) : []),
   ...(NO_EXTRAS || LEGACY_ONLY ? [] : EXTRA_SCENES),
   ...(NO_LEGACY || EXTRAS_ONLY ? [] : LEGACY_SCENES),
 ].filter((scene) => !ONLY || ONLY === scene.toolId || ONLY === `${scene.toolId}:${scene.variant}`);
+// --shard=i/n: a run of the list in its own order, about a 1/n of its scenes (each scene opens its own pages,
+// so any scene can start a slice); the n slices together are the list, every scene once.
+const scenes = itemsOfShard(listed, SHARD);
+if (SHARD) console.log(`shard ${SHARD.index}/${SHARD.count}: ${scenes.length} of ${listed.length} scenes (${scenes.map((scene) => (scene.variant === 'sample' ? scene.toolId : `${scene.toolId}:${scene.variant}`)).join(', ') || 'none'})`);
 const toolIds = [...new Set(scenes.map((scene) => scene.toolId))];
 
 const tools = [];
@@ -1105,6 +1267,12 @@ for (const scene of scenes) {
       entry.pageErrors.push(...third.errors);
       await third.page.close();
     }
+
+    // The number keypad's Done from the keyboard, where the walk went through the keypad (keypadDoneProbe).
+    if (keypadDoneInWalk(entry.forward)) {
+      entry.keypadDone = await keypadDoneProbe(open, entry.forward);
+      entry.pageErrors.push(...entry.keypadDone.errors);
+    }
   } catch (error) {
     entry.error = String(error?.stack || error).slice(0, 800);
   }
@@ -1118,6 +1286,8 @@ for (const scene of scenes) {
     reverseTrap: entry.reverse?.trap || null,
     noVisibleFocus: toolStops.filter((s) => !s.focusVisibleIndicator).map((s) => ({ id: s.id, tag: s.tag, role: s.role, name: s.name, className: s.className, indicator: s.indicator, changedPixels: s.changedPixels, hiddenUnderOverlay: s.hiddenUnderOverlay, obscured: s.obscured, owners: s.owners })),
     focusHiddenUnderOverlay: toolStops.filter((s) => s.hiddenUnderOverlay).map((s) => ({ id: s.id, tag: s.tag, name: s.name, by: s.obscured?.by })),
+    // In the tool's tab order, and Tab going forward never stopped on it. (A walk that threw is the `ran` criterion's.)
+    unreached: entry.forward?.unreached ?? [],
     unnamed: toolStops.filter((s) => !s.name).map((s) => ({ id: s.id, tag: s.tag, role: s.role, className: s.className, owners: s.owners })),
     offscreenStops: toolStops.filter((s) => !s.onScreen || !s.visible).map((s) => ({ id: s.id, tag: s.tag, role: s.role, name: s.name, className: s.className })),
     pointerNotReachable: (entry.pointerAudit || []).filter((p) => p.verdict === 'not-reachable'),
@@ -1131,6 +1301,8 @@ for (const scene of scenes) {
     focusLostAfterCheck: (entry.primary?.checks || []).filter((c) => c.focusLostToBody).map((c) => c.name),
     plotted: entry.primary ? entry.primary.plotMarksAfter !== entry.primary.plotMarksBefore : null,
     focusLostAfterAction: entry.actionFocus ? entry.actionFocus.focusLost : null,
+    // Enter and Space on the number keypad's Done, and Enter on it on its side, that left focus out of the question.
+    focusLostAfterKeypadDone: entry.keypadDone ? entry.keypadDone.focusLost : null,
     // WCAG 2.2 2.5.8: pointer targets measured, those under 24x24 CSS px, how many of those pass by spacing, and the rest.
     targetsMeasured: entry.targets?.measured ?? null,
     undersizedTargets: entry.targets?.undersized ?? null,
@@ -1143,7 +1315,7 @@ for (const scene of scenes) {
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, `tool-${sceneKey.replace(':', '--')}.json`), `${JSON.stringify(entry, null, 2)}\n`);
   const s = entry.summary;
-  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
+  console.log(`${sceneKey.padEnd(36)} stops=${String(s.tabStops).padStart(3)} end=${s.reachedEnd ? 'y' : 'N'} rev=${s.reverseReachedStart ? 'y' : 'N'} noFocusRing=${s.noVisibleFocus.length} unnamed=${s.unnamed.length} mouseOnly=${s.pointerNotReachable.length} notActivatable=${s.pointerNotActivatable.length} escFail=${s.escapeFailures.length} hidden=${s.focusHiddenUnderOverlay.length} unreached=${s.unreached.length} lateDrop=${s.focusDroppedAfterLoadMs ?? '-'} lostAfterCheck=${s.focusLostAfterCheck.length}${s.focusLostAfterAction === null ? '' : ` lostAfterAction=${s.focusLostAfterAction}/${entry.actionFocus.steps.length}`}${entry.keypadDone ? ` keypadDone=${entry.keypadDone.presses.map((press) => `${press.press}:${press.reached ? (press.asTab ? 'as-Tab' : press.landed || 'page') : 'unreached'}`).join(',')},side:${entry.keypadDone.sideways.reached ? (entry.keypadDone.sideways.onBox ? 'box' : entry.keypadDone.sideways.landed || 'page') : 'unreached'} lostAfterDone=${s.focusLostAfterKeypadDone}` : ''} targets=${s.targetsMeasured ?? '-'}/under24=${s.undersizedTargets ?? '-'}/small=${s.smallTargets.length} checks=${s.checks.map((c) => c.result).join(',') || '-'} grades=${entry.primary?.gradesTotal ?? '-'}${entry.error ? ` ERROR ${entry.error.split('\n')[0]}` : ''}`);
 }
 
 await browser.close();
@@ -1151,7 +1323,8 @@ await browser.close();
 const report = {
   generatedAt: new Date().toISOString(),
   origin: ORIGIN,
-  viewport: VIEWPORT,
+  viewport: { id: VIEWPORT_ID, ...DEVICE },
+  shard: SHARD,
   harness: 'tests/browser/keyboardSweep.html (QuestionEngine + SAMPLE_SPECS, sentinels)',
   host: HOST,
   shell: SHELL,

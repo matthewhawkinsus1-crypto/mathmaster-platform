@@ -16,6 +16,22 @@ export const SHELL_CSS = `
 .mm-shell-dialog { width: min(460px, 100%); box-sizing: border-box; border-radius: 14px; padding: 20px; background: var(--mm-surface); color: var(--mm-text-strong); border: 1px solid var(--mm-border); box-shadow: 0 24px 60px rgba(0,0,0,.35); text-align: left; }
 .mm-shell-button:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .mm-shell-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
+/* A student's "Reconnecting…" on their page's header: beside the score where
+   the header holds one row (a wide screen), and on the header's lower edge,
+   taking no room, wherever it could wrap. In the row on a phone it wrapped the
+   score and Exit onto rows of their own: the header grew 50 px (66 at 200%
+   text, 93 on a Chromebook at 200%) and the question below moved down under
+   the student's finger, and back as the connection returned. On the edge it
+   sits on the gap below the header (the header's 16 px margin), catches no
+   pointer, and where it needs more room grows up over the header's last row. */
+.mm-shell-pill-edge { margin-left: auto; }
+@media (max-width: 60em) {
+  .mm-shell-pill-edge {
+    position: absolute; left: 50%; bottom: -16px; z-index: 2; transform: translateX(-50%);
+    margin: 0; max-width: calc(100% - 16px); box-sizing: border-box; line-height: 1.25;
+    white-space: normal; text-wrap: balance; text-align: center; pointer-events: none;
+  }
+}
 .mm-shell-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .mm-shell-pulse { animation: mmShellPulse 1.4s ease-in-out infinite; }
 @keyframes mmShellCountPop { from { transform: scale(.55); opacity: .2; } to { transform: scale(1); opacity: 1; } }

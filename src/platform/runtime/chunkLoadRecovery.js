@@ -17,6 +17,7 @@
  *
  * A failed module import is not retried in place: browsers remember a failed
  * module URL for the life of the page, so the same import() rejects again.
+ * (A screen that loads on demand and offers Try again: retryableChunk.js.)
  */
 
 // Every spelling the major browsers and Vite use for "that chunk did not load".

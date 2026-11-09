@@ -42,6 +42,10 @@ import {
 // definition, so App takes it from here, with the engine (not its first load).
 export { canGenerateDistinctVariants } from '../../../functions/shared/questionVariability.mjs';
 
+// What a slot's pin dealt, for a try count where nothing has been shown on
+// this device (the question list after a reload, P-7): with the engine too.
+export { dealtFamilyQuestion } from './dealtFamilyQuestion.js';
+
 // Device pins live in their own module (no family engine); re-exported here
 // so every existing import keeps working.
 export {

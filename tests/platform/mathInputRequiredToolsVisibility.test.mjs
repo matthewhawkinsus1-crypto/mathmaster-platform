@@ -8,8 +8,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const source = fs.readFileSync(path.join(root, 'src/MathInput.jsx'), 'utf8');
 
 test('authored required answer tools are merged into the desktop keypad', () => {
-  assert.match(source, /if \(!isMobile\) return mergeToolKeys\(/);
-  assert.match(source, /requiredTools,/);
+  // The laptop's branch of the keypad: its last group is the answer's required tools.
+  const laptop = source.slice(source.indexOf('if (!isMobile) {'), source.indexOf('return buildMobileMathTools({'));
+  assert.ok(laptop.length > 0, 'the laptop branch');
+  assert.match(laptop, /return mergeToolKeys\(\s*withExtraKeys\([^\n]*\),\s*requiredTools,\s*\);/);
 });
 
 test('authored required symbols open the keypad automatically', () => {

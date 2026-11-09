@@ -322,7 +322,8 @@ test('the graphing calculator is given nothing about the question', () => {
 test('the secure test\'s graphing calculator keeps its own launcher and state; key points on practice tests only', () => {
   const container = source('src/components/assessment/SecureExamContainer.jsx');
   const element = region(container, '<GraphingCalculatorPanel', '/>', 'secure exam panel');
-  assert.doesNotMatch(element, /\b(open|showLauncher)\b/);
+  // What the container passes, not what its comments say about the drawer.
+  assert.doesNotMatch(executableSource(element), /\b(open|showLauncher)\b/);
   // TS04: zeros, minimum and maximum, as the Digital SAT's Desmos lists them,
   // on a practice test; never on a teacher's secure Test, where a listed point
   // could state an answer.

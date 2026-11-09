@@ -25,11 +25,12 @@ const CONFIDENCE_TONE = {
   [CONFIDENCE.ADEQUATE]: { bg: 'var(--mm-surface)', fg: 'var(--mm-text-strong)', border: 'var(--mm-border)' },
 };
 
+// Theme tokens, so a cell's accuracy reads on the dark theme's cells too.
 const accuracyColor = (accuracy, confidence) => {
-  if (confidence !== CONFIDENCE.ADEQUATE || accuracy == null) return '#5f6368';
-  if (accuracy >= 0.8) return '#12633a';
-  if (accuracy >= 0.55) return '#174ea6';
-  return '#9a3412';
+  if (confidence !== CONFIDENCE.ADEQUATE || accuracy == null) return 'var(--mm-text-muted)';
+  if (accuracy >= 0.8) return 'var(--mm-success-text)';
+  if (accuracy >= 0.55) return 'var(--mm-primary-text)';
+  return 'var(--mm-warning-text)';
 };
 
 function Cell({ label, sublabel, cell }) {

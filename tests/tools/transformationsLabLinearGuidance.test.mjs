@@ -48,8 +48,9 @@ test('every other family, and a line\'s other modes, keep the lab\'s own guidanc
 test('the lab shows the guidance for the family it draws', () => {
   const lab = readFileSync(new URL('../../src/tools/transformations/TransformationsLab.jsx', import.meta.url), 'utf8');
   const component = region(lab, 'export default function TransformationsLab(', '\n}\n', 'TransformationsLab');
-  // The family is the one the lab draws and the grader marks (resolveTransformationsQuestion).
-  assert.match(component, /\} = resolveTransformationsQuestion\(questionData\);\s*\/\/[^\n]*\n\s*const \{ steps: MODE_STEPS, hints: HINTS \} = labGuidanceFor\(family\);/);
+  // The family is the one the lab draws and the grader marks (resolveTransformationsQuestion),
+  // and so are the boxes it shows (showB: the guidance names only those, P-4).
+  assert.match(component, /\bshowB\b[^}]*\} = resolveTransformationsQuestion\(questionData\);(?:\s*\/\/[^\n]*\n)*\s*const \{ steps: MODE_STEPS, hints: HINTS \} = labGuidanceFor\(family, \{ showB \}\);/);
   assert.doesNotMatch(lab, /^const (?:MODE_STEPS|HINTS) = /m, 'no second copy of the guidance in the component file');
   assert.match(component, /steps=\{stepsNamingAction\(MODE_STEPS\[mode\] \|\| MODE_STEPS\.match, finishActionName\)\}/);
   assert.equal((component.match(/<HintPanel hints=\{HINTS\[mode\] \|\| HINTS\.match\}/g) || []).length, 2, 'the panel and Work View Help');

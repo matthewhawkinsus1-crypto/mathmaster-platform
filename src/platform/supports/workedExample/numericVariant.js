@@ -55,6 +55,37 @@
  * equation when the item requires it): the variant's solution must be graded
  * right, and a solution off by one graded wrong.
  *
+ * THE SECOND KIND: polynomial arithmetic — a sum or difference, a monomial or
+ * polynomial times a polynomial, a square or a cube, distributed and combined —
+ * worked in the Polynomial Workshop or typed in answer boxes (Algebra II Honors
+ * Operations on Polynomials). Its rules are in polynomialVariant.js: the same
+ * terms, letters, exponents and signs, never easier, never a give-away, and its
+ * keys confirmed by the item's own key and grader.
+ *
+ * THE THIRD KIND: a printed system solved with matrices in the Matrix Lab
+ * (write A · X = B, find A⁻¹ with technology, X = A⁻¹B), with exactly one
+ * solution. Its rules are in matrixSystemVariant.js: the same layout and the
+ * same kind of solution (whole, halves or quarters), never easier, and its
+ * steps the lab's own worked solution, written only once the lab's grader
+ * accepts it.
+ *
+ * THE FOURTH KIND: a polynomial factored over the integers (a common factor,
+ * a trinomial, a perfect square, a difference of squares, a sum or
+ * difference of cubes, four terms by grouping, and these in turn until every
+ * factor is prime), typed in boxes the item grades as a factoring (Algebra II
+ * Factoring Polynomials). Its rules are in factoringVariant.js: the item's own
+ * factoring with new numbers, taking exactly the item's path, never easier,
+ * and each key graded by the item's own box, which then checks the student's
+ * practice answer too (`fields`).
+ *
+ * THE FIFTH KIND: an nth root of a monomial in simplest radical form (√(25a⁴b⁹)
+ * = 5a²b⁴√b, ∛(−54a⁷), 3√12, with absolute value bars where an even root of a
+ * letter that may be negative needs them), and the boxes beside it (the
+ * largest perfect nth-power factor, the radicand as a perfect power): the
+ * Algebra II radicals lessons. Its rules are in radicalVariant.js: the index,
+ * the letters, what stays under the root and the bars kept, never easier, and
+ * each key graded and checked by the item's own simplest-radical-form box.
+ *
  * NOTHING HERE IS RECORDED. It returns values, like practiceLikeThis.js.
  */
 import algebraicGraders from '../../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
@@ -67,9 +98,13 @@ import {
 } from '../../../../functions/shared/toolMath/systemsWorkspace/algebraicSystemsEngine.mjs';
 import { resolveSystemsWorkspaceMode } from '../../../../functions/shared/toolMath/systemsWorkspace/systemsWorkspaceMode.mjs';
 import { similarExampleIsSafe } from './similarProblem.js';
+import { POLYNOMIAL_VARIANT_KIND, buildPolynomialVariant } from './polynomialVariant.js';
+import { MATRIX_SYSTEM_VARIANT_KIND, buildMatrixSystemVariant } from './matrixSystemVariant.js';
+import { FACTORING_VARIANT_KIND, buildFactoringVariant } from './factoringVariant.js';
+import { RADICAL_VARIANT_KIND, buildRadicalVariant } from './radicalVariant.js';
 
 export const NUMERIC_VARIANT_SOURCE = 'numericVariant';
-export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3' });
+export const NUMERIC_VARIANT_KIND = Object.freeze({ SYSTEM_3X3: 'system3x3', POLYNOMIAL: POLYNOMIAL_VARIANT_KIND, MATRIX_SYSTEM: MATRIX_SYSTEM_VARIANT_KIND, FACTORING: FACTORING_VARIANT_KIND, RADICAL: RADICAL_VARIANT_KIND });
 
 const text = (value) => String(value ?? '').trim();
 const gcd = (left, right) => {
@@ -499,7 +534,10 @@ const system3x3Variant = (question, item, seed) => {
 export const buildNumericVariant = (question, { seed = 0 } = {}) => {
   try {
     const system = readSystem3x3(question);
-    return system ? system3x3Variant(question, system, seed) : null;
+    if (system) return system3x3Variant(question, system, seed);
+    const other = buildPolynomialVariant(question, { seed }) || buildMatrixSystemVariant(question, { seed }) || buildFactoringVariant(question, { seed })
+      || buildRadicalVariant(question, { seed });
+    return other ? { ...other, source: NUMERIC_VARIANT_SOURCE } : null;
   } catch {
     return null;
   }

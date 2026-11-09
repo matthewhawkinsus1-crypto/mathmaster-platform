@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { ANSWER_FORMAT_IDS, describeAnswerFormat, describeBoxPlaceholder, exampleFor } from '../../src/platform/interaction/answerFormatHints.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 test('a declared format gives the box its example alone, and says the words above it', () => {
   const pair = describeBoxPlaceholder({ answerFormat: 'orderedPair' });
@@ -22,7 +23,8 @@ test('a declared format gives the box its example alone, and says the words abov
   assert.equal(describeBoxPlaceholder({ answerFormat: 'number' }).placeholder, '-4');
   assert.equal(describeBoxPlaceholder({ answerFormat: 'expression' }).placeholder, '2x + 1');
   assert.equal(describeBoxPlaceholder({ inputProfile: 'set' }).placeholder, '{1, 2, 3}');
-  assert.equal(describeBoxPlaceholder({ inputContract: { format: 'inequality' } }).example, '0 ≤ x ≤ 4');
+  // An inequality's example is letters (no item's answer: inequalityExample.test.mjs).
+  assert.equal(describeBoxPlaceholder({ inputContract: { format: 'inequality' } }).example, 'a ≤ x ≤ b');
 });
 
 test('no box says "for example": every example is short enough for the narrowest box', () => {
@@ -31,8 +33,10 @@ test('no box says "for example": every example is short enough for the narrowest
     assert.equal(box.placeholder, exampleFor(id), id);
     assert.doesNotMatch(box.placeholder, /for example/i, id);
     // 71px for "(2, -5)" (7 characters) against 127px of room in a four-to-a-row box:
-    // nine characters is the longest example, and it fits.
-    assert.ok(box.placeholder.length <= 10, `${id}: "${box.placeholder}" is ${box.placeholder.length} characters`);
+    // ten characters is the longest example ("y ≥ mx + b"), and it fits.
+    for (const example of [box.placeholder, exampleFor(id, { twoVariables: true })]) {
+      assert.ok(example.length <= 10, `${id}: "${example}" is ${example.length} characters`);
+    }
   }
   // The sentence the box used to carry is still there for anything that wants it.
   assert.equal(describeAnswerFormat({ answerFormat: 'orderedPair' }).placeholder, 'for example (2, -5)');
@@ -45,15 +49,20 @@ test('an author\'s own placeholder is kept word for word, with no example stated
 
 test('a box that declares no format has no example, unless its input kind implies one', () => {
   assert.deepEqual(describeBoxPlaceholder({ id: 'mystery' }), { placeholder: 'Type your answer', example: '' });
-  assert.deepEqual(describeBoxPlaceholder({ id: 'zeros' }, { inferredExample: '{1, 2, 3}' }), { placeholder: '{1, 2, 3}', example: '{1, 2, 3}' });
+  assert.deepEqual(describeBoxPlaceholder({ id: 'zeros' }, { inferredFormat: 'set' }), { placeholder: '{1, 2, 3}', example: '{1, 2, 3}' });
+  assert.equal(describeBoxPlaceholder({ id: 'solution' }, { inferredFormat: 'inequality' }).example, 'a ≤ x ≤ b');
   // What a field declares outranks what its input kind implies.
-  assert.equal(describeBoxPlaceholder({ answerFormat: 'number' }, { inferredExample: '{1, 2, 3}' }).example, '-4');
+  assert.equal(describeBoxPlaceholder({ answerFormat: 'number' }, { inferredFormat: 'set' }).example, '-4');
 });
 
 test('the multi-answer box takes its placeholder from that, and the line above it says "For example"', () => {
   const source = readFileSync(new URL('../../src/MultiAnswerGrader.jsx', import.meta.url), 'utf8');
-  assert.match(source, /const box = describeBoxPlaceholder\(field, \{/);
-  assert.match(source, /inferredExample: shouldUseSetInput\(field\) \? '\{1, 2, 3\}' : shouldUseInequalityInput\(field\) \? '0 ≤ x ≤ 4' : ''/);
+  // The box's example comes from answerFormatHints alone: the field, the
+  // format its input kind implies, and the prompt the student reads.
+  const call = region(source, 'const box = describeBoxPlaceholder(field, {', '});', 'the box\'s example');
+  assert.match(call, /inferredFormat: shouldUseSetInput\(field\) \? 'set' : shouldUseInequalityInput\(field\) \? 'inequality' : ''/);
+  assert.match(call, /\bprompt,?\n/);
+  assert.doesNotMatch(executableSource(source), /'0 ≤ x ≤ 4'|'\{1, 2, 3\}'/, 'no example written into the screen');
   assert.equal((source.match(/placeholder=\{box\.placeholder\}/g) || []).length, 2, 'the text box and the math box');
   assert.match(source, /\{box\.example \? <>\{answerShape\.hint \? ' ' : ''\}For example <strong[^>]*>\{box\.example\}<\/strong>\.<\/> : null\}/);
   assert.doesNotMatch(source, /'for example /, 'no sentence is written into a box');

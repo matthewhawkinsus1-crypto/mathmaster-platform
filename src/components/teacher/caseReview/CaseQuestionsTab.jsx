@@ -46,7 +46,7 @@ function Overview({ model, onDrill }) {
       </section>
       <section className="cr-section" aria-labelledby="cr-attempts-by-assignment">
         <h2 id="cr-attempts-by-assignment">By assignment</h2>
-        <div className="cr-scroll-x">
+        <div className="cr-scroll-x" role="region" aria-label="Attempts by assignment" tabIndex={0}>
           <table className="cr-table">
             <thead><tr><th>Assignment</th><th>Condition</th><th>Answered</th><th>First attempt</th><th>Corrected later</th><th>Not correct after all attempts</th><th>Left with attempts</th><th>Skipped / not attempted</th><th>Attempt record</th></tr></thead>
             <tbody>
@@ -94,7 +94,7 @@ function AssignmentQuestions({ entry, onDrill }) {
       <h2 id="cr-assignment-questions">{entry.title} — question evidence</h2>
       <p className="cr-note">{entry.questions.length} current question{entry.questions.length === 1 ? '' : 's'} · <ConditionTag value={entry.condition.value} /> · Open a question for its attempts. Responses and answer keys are not shown here.</p>
       {entry.isTestCycle && <EmptyNote>Secure test items are graded by the secure Test Cycle; MathMaster keeps the recorded grade, not question-level attempts, for them.</EmptyNote>}
-      <div className="cr-scroll-x">
+      <div className="cr-scroll-x" role="region" aria-label={`${entry.title} question evidence`} tabIndex={0}>
         <table className="cr-table">
           <thead><tr><th>Question</th><th>Standards</th><th>Type</th><th>Attempts</th><th>Outcome</th><th>Final credit</th><th>Last answer</th></tr></thead>
           <tbody>
@@ -143,7 +143,7 @@ function QuestionDetail({ entry, question, studentId, onInspectResponse }) {
       </dl>
       <h3>Attempts <span className="cr-note">· {ATTEMPTS_SOURCE_LABEL[question.attemptsSource]}</span></h3>
       {question.attempts.length ? (
-        <div className="cr-scroll-x">
+        <div className="cr-scroll-x" role="region" aria-label="Attempts on this question" tabIndex={0}>
           <table className="cr-table">
             <thead><tr><th>Attempt</th><th>Result</th><th>Partial credit</th><th>Time</th><th>Tools on this attempt</th><th>How known</th></tr></thead>
             <tbody>

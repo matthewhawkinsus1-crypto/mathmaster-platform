@@ -96,8 +96,10 @@ const normalizedMathText = (value) => String(value ?? '')
 // are template syntax, so a Digital SAT number box keyed `{{a}}` asked for the
 // `{`, `}` and `a` keys. A placeholder is read as a plain number here, which
 // keeps every symbol the surrounding key really needs (`{{a}}/{{b}}` still
-// needs a⁄b, `{{m}}x+{{b}}` still needs x).
-const TEMPLATE_PLACEHOLDER = /\{\{\s*[A-Za-z_][\w.]*\s*\}\}/g;
+// needs a⁄b, `{{m}}x+{{b}}` still needs x). So is one with a filter, which
+// the generator writes as a power, a sign or a coefficient: the radicals exit
+// ticket's `{{d}}|x{{m|pow}}|y^{{k}}` asked for the keys m, p, o and w (N56).
+const TEMPLATE_PLACEHOLDER = /\{\{\s*[A-Za-z_][\w.]*\s*(?:\|\s*[A-Za-z]+\s*)?\}\}/g;
 
 export const inferRequiredAnswerSymbols = (values = []) => {
   const text = flattenAnswerValues(values).join(' ').replace(TEMPLATE_PLACEHOLDER, '1');
@@ -117,12 +119,14 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   if (/∞|\\infty|\b(?:infinity|inf)\b/i.test(text)) add('∞');
   if (/∪|\\cup/.test(text)) add('∪');
   if (/∅|\\varnothing|\\emptyset/.test(text)) add('∅');
-  if (/≤|\\leq?\b/.test(text)) add('≤');
-  if (/≥|\\geq?\b/.test(text)) add('≥');
-  if (/≠|\\neq?\b/.test(text)) add('≠');
+  // A key may spell a relation as typed: <= is ≤, >= is ≥ and != is ≠. Their
+  // "=" is not an equals sign: "y >= x + 2" asked for = and never for ≥.
+  if (/≤|<=|\\leq?\b/.test(text)) add('≤');
+  if (/≥|>=|\\geq?\b/.test(text)) add('≥');
+  if (/≠|!=|\\neq?\b/.test(text)) add('≠');
   if (/(^|[^<])<([^=]|$)/.test(text)) add('<');
   if (/(^|[^>])>([^=]|$)/.test(text)) add('>');
-  if (/=/.test(text)) add('=');
+  if (/(^|[^<>!])=/.test(text)) add('=');
   if (/π|\\pi\b|\bpi\b/i.test(text)) add('π');
   if (/√|\\sqrt|(?<![A-Za-z])sqrt\b/i.test(text)) add('√');
   if (/\\sqrt\s*\[|[∛∜]|(?<![A-Za-z])(?:cbrt|root)\s*\(/.test(text)) add('ⁿ√');
@@ -143,6 +147,44 @@ export const inferRequiredAnswerSymbols = (values = []) => {
   const greekLetters = variableText.match(/[\u0370-\u03FF]/g) || [];
   greekLetters.forEach(add);
   return required;
+};
+
+/*
+ * THE "NEEDED FOR THIS ANSWER" ROW OF A TYPED BOX: WHAT ITS KEY SAYS.
+ *
+ *   neededAnswerSymbols({ key, accepted }) → the row's keys, in the order
+ *                                             inferRequiredAnswerSymbols gives
+ *
+ * `key` is the box's key (field.expected or field.answer), `accepted` every
+ * answer the box takes (answerCandidatesForField: the key and the other forms
+ * an author allows). The row used to be read from all of them, so a box keyed
+ * "b < 540" that also took "0 ≤ b < 540" would have shown ≤, a key the answer
+ * never uses: the row would point at a different inequality (2026-11-06 A1 M3
+ * T1 walkthrough, L3 CW 8). A relation (<, ≤, >, ≥, ≠, =) or a letter says
+ * what the answer is, so it is shown only when the key needs it. Every other
+ * key only spells an answer (a⁄b, brackets, a power, a root), and stays
+ * whichever accepted form needs it: the District DOL2 review's "s = 3c" box,
+ * which also takes "c = s/3", keeps its a⁄b. Read from the key alone, that box
+ * would have lost it; read this way, no box in any lesson file changes
+ * (neededForThisAnswerRow.test.mjs).
+ */
+const RELATION_KEYS = new Set(['<', '>', '≤', '≥', '≠', '=']);
+const saysWhatTheAnswerIs = (symbol) => RELATION_KEYS.has(symbol) || /^[A-Za-zͰ-Ͽ]$/.test(symbol);
+
+/** A box's key: its `expected` and `answer`, else the first answer it accepts. */
+export const fieldKeyValues = (field = {}, accepted = []) => {
+  const key = [field?.expected, field?.answer].filter((value) => value !== undefined && value !== null && value !== '');
+  return key.length ? key : (Array.isArray(accepted) ? accepted.slice(0, 1) : []);
+};
+
+export const neededAnswerSymbols = ({ key = [], accepted = [] } = {}) => {
+  const keyValues = flattenAnswerValues(key);
+  // Read exactly as the row always was (the accepted answers, the key among
+  // them), with a key the list leaves out added at its end.
+  const every = flattenAnswerValues(accepted);
+  keyValues.forEach((value) => { if (!every.includes(value)) every.push(value); });
+  const keyNeeds = new Set(inferRequiredAnswerSymbols(keyValues));
+  return inferRequiredAnswerSymbols(every).filter((symbol) => keyNeeds.has(symbol) || !saysWhatTheAnswerIs(symbol));
 };
 
 // Resolve the semantic answer-entry contract used by both Preflight and MathInput.

@@ -32,6 +32,15 @@
 //   H2  the teacher's live tile shows "Hand raised" with Seen / On my way;
 //       "On my way" is sent; the projector's Large room tiles show neither
 //   H3  the student, beside the raised hand, reads "Your teacher is on the way."
+//   T1  another Period 5 student stays signed in while the class is handed to
+//       another teacher (the class and the roster row restamped in the store,
+//       as the server does): their follow-up goes to the new teacher, with no
+//       reload (teacher features walk, item 10)
+//   T2  a third Period 5 student stays signed in while moved to Algebra II
+//       Period 3 (their roster row restamped as setStudentClass does): with no
+//       reload, Home offers Period 3's lessons and not Period 5's, and a
+//       question about a Period 3 lesson goes to Period 3's teacher, with
+//       Period 3 (the November build's section 6)
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/ask-my-teacher/ (git-ignored).
@@ -72,6 +81,12 @@ const FOLLOW_UP_TEXT = 'What if the number in front of x is negative?';
 const SECOND_ANSWER_TEXT = 'Divide by it all the same; a negative divisor flips the sign of every term.';
 const P5_STUDENT = '910020';
 const P3_STUDENT = '910001';
+// T1: a Period 5 classmate, and the teacher the class is handed to.
+const HANDOVER_STUDENT = '910021';
+// T2: another, moved to Algebra II Period 3 (taught by the harness teacher) while signed in.
+const MOVED_STUDENT = '910022';
+const HARNESS_TEACHER = 'teacher@harness.example';
+const NEXT_TEACHER = 'next.teacher@harness.example';
 
 const openPage = async (context, query, viewport) => {
   const page = await context.newPage();
@@ -320,6 +335,99 @@ for (const viewport of VIEWPORTS) {
   expect(`H3 ${tag} lowered: nothing left beside it`, (await page.locator('[data-help-acknowledgement]').count()) === 0, 'acknowledgement still shown after lowering');
   const lowered = await page.evaluate((id) => window.__mmHarnessStore?.get?.(`presence/${id}`)?.helpRequestedAt ?? null, P3_STUDENT);
   expect(`H3 ${tag} lowered in presence`, lowered === null, String(lowered));
+  await page.close();
+
+  /* ------------------ a class handed to another teacher, while signed in */
+  // The follow-up after a handover went to the teacher a fresh load reads
+  // (dc16bfa9), so a student who stayed signed in through the handover kept
+  // writing to the former teacher until they reloaded. Last in the loop: it
+  // hands Period 5 to someone else for the rest of this context.
+  page = await openPage(context, `as=student&studentId=${HANDOVER_STUDENT}`, viewport);
+  await openAssignmentHelp(page, 'Linear Equations — Lesson 5');
+  const handoverPanel = page.locator('[data-hint-panel]:visible').first();
+  await handoverPanel.getByRole('button', { name: /Leave a question for my teacher/ }).click();
+  await handoverPanel.getByLabel('Your question for your teacher').fill(QUESTION_TEXT);
+  await handoverPanel.getByRole('button', { name: 'Send to my teacher' }).click();
+  await handoverPanel.locator('[data-ask-teacher-status="waiting"]').waitFor({ timeout: 10000 });
+  const handoverPath = await page.evaluate((id) => window.__mmHarnessStore.paths('askTeacherQuestions/').find((entry) => entry.startsWith(`askTeacherQuestions/${id}__`)) || null, HANDOVER_STUDENT);
+  // The teacher's answer, as answerTeacherQuestion writes it; the open page follows it.
+  await page.evaluate(({ docPath, answer, teacher }) => {
+    const now = Date.now();
+    window.__mmHarnessStore.update(docPath, { status: 'answered', answer, answeredBy: teacher, answeredAt: now, updatedAt: now });
+  }, { docPath: handoverPath, answer: ANSWER_TEXT, teacher: HARNESS_TEACHER });
+  const askAfterHandover = handoverPanel.getByRole('button', { name: 'Ask a follow-up' });
+  await askAfterHandover.waitFor({ timeout: 10000 });
+  // Period 5 is handed to another teacher while the page stays open: the class
+  // and its students' roster rows are restamped (functions/index.js, the class update).
+  await page.evaluate(({ studentId, teacher }) => {
+    window.__mmStillThisPage = true;
+    const store = window.__mmHarnessStore;
+    store.update('classes/c-alg1-p5', { teacherOfRecord: teacher });
+    store.update(`grades/${studentId}`, { assignedTeacherEmail: teacher });
+  }, { studentId: HANDOVER_STUDENT, teacher: NEXT_TEACHER });
+  await page.waitForTimeout(500);
+  await askAfterHandover.click();
+  await handoverPanel.getByLabel('Your follow-up for your teacher').fill(FOLLOW_UP_TEXT);
+  await handoverPanel.getByRole('button', { name: 'Send follow-up' }).click();
+  await handoverPanel.locator('[data-ask-teacher-follow-up]').first().waitFor({ timeout: 10000 });
+  const handedOver = await page.evaluate((docPath) => ({ ...window.__mmHarnessStore.get(docPath), stillThisPage: window.__mmStillThisPage === true }), handoverPath);
+  expect(
+    `T1 ${tag} after a handover, the follow-up goes to the class's new teacher with no reload`,
+    handedOver.stillThisPage && handedOver.teacherEmail === NEXT_TEACHER && handedOver.classId === 'c-alg1-p5'
+      && handedOver.status === 'open' && handedOver.text === FOLLOW_UP_TEXT && handedOver.earlierAnswer === ANSWER_TEXT,
+    JSON.stringify(handedOver),
+  );
+  await shot(page, 't1-handover-follow-up', viewport);
+  await page.close();
+
+  /* ------------------------------ a move to another class, while signed in */
+  // Following the teacher was not following the class: a student moved to
+  // another class while signed in kept the class they left until they
+  // reloaded (its lessons, its bell times), and their questions named a class
+  // and a teacher the roster row no longer did, which the rules refuse. After
+  // T1 here, Period 5 is NEXT_TEACHER's; Period 3 is still the harness
+  // teacher's, and out of class for this step, so a question is left rather
+  // than a hand raised.
+  page = await openPage(context, `as=student&studentId=${MOVED_STUDENT}`, viewport);
+  await page.locator('[data-primary-action="true"]:visible').first().waitFor({ timeout: 20000 });
+  const homeBefore = await page.locator('main').first().innerText();
+  await endPeriodThree(page);
+  // Moved to Algebra II Period 3 while the page stays open: the roster row restamped (functions/index.js setStudentClass).
+  await page.evaluate((studentId) => {
+    window.__mmStillThisPage = true;
+    window.__mmHarnessStore.update(`grades/${studentId}`, { classId: 'c-alg2-p3', classPeriod: 'Period 3', assignedTeacherEmail: 'teacher@harness.example' });
+  }, MOVED_STUDENT);
+  const followed = await page.waitForFunction(() => {
+    const text = document.querySelector('main')?.innerText || '';
+    return text.includes('Systems of Equations') && !text.includes('Linear Equations — Lesson 5');
+  }, null, { timeout: 15000 }).then(() => true, () => false);
+  expect(
+    `T2 ${tag} after a move, Home offers the new class's lessons and not the old class's, with no reload`,
+    homeBefore.includes('Linear Equations — Lesson 5') && !homeBefore.includes('Systems of Equations') && followed
+      && await page.evaluate(() => window.__mmStillThisPage === true),
+    `before: ${homeBefore.slice(0, 200)} | after: ${(await page.locator('main').first().innerText()).slice(0, 200)}`,
+  );
+  await openAssignmentHelp(page, 'Systems of Equations');
+  const movedPanel = page.locator('[data-hint-panel]:visible').first();
+  await movedPanel.getByRole('button', { name: /Leave a question for my teacher/ }).click();
+  await movedPanel.getByLabel('Your question for your teacher').fill(QUESTION_TEXT);
+  await movedPanel.getByRole('button', { name: 'Send to my teacher' }).click();
+  await movedPanel.locator('[data-ask-teacher-status="waiting"]').waitFor({ timeout: 10000 });
+  const movedQuestion = await page.evaluate((id) => {
+    const store = window.__mmHarnessStore;
+    const path = store.paths('askTeacherQuestions/').find((entry) => entry.startsWith(`askTeacherQuestions/${id}__`));
+    const question = path ? store.get(path) : {};
+    const assignment = question.assignmentId ? store.get(`assignments/${question.assignmentId}`) : null;
+    return { ...question, assignedClassIds: assignment?.assignedClassIds || null, stillThisPage: window.__mmStillThisPage === true };
+  }, MOVED_STUDENT);
+  expect(
+    `T2 ${tag} after a move, a question goes to the new class's teacher, with the new class`,
+    movedQuestion.stillThisPage && movedQuestion.classId === 'c-alg2-p3' && movedQuestion.teacherEmail === HARNESS_TEACHER
+      && (movedQuestion.assignedClassIds || []).includes('c-alg2-p3') && movedQuestion.text === QUESTION_TEXT,
+    JSON.stringify(movedQuestion),
+  );
+  await shot(page, 't2-moved-question', viewport);
+  await resumePeriodThree(page);
   await page.close();
   await context.close();
 }

@@ -40,7 +40,7 @@ export default function CaseAttentionTab({ model, onOpenAssignment, onOpenQuesti
       <section className="cr-section" aria-labelledby="cr-attn-incomplete">
         <h2 id="cr-attn-incomplete">Incomplete or missing assignments ({attention.incomplete.length})</h2>
         {attention.incomplete.length ? (
-          <div className="cr-scroll-x">
+          <div className="cr-scroll-x" role="region" aria-label="Incomplete or missing assignments" tabIndex={0}>
             <table className="cr-table">
               <thead><tr><th>Assignment</th><th>Status</th><th>Answered</th><th>Final cutoff for this student</th></tr></thead>
               <tbody>
@@ -86,7 +86,7 @@ export default function CaseAttentionTab({ model, onOpenAssignment, onOpenQuesti
       <section className="cr-section" aria-labelledby="cr-attn-exhausted">
         <h2 id="cr-attn-exhausted">Questions not correct after all available attempts ({attention.exhaustedTotal})</h2>
         {attention.exhaustedQuestions.length ? (
-          <div className="cr-scroll-x">
+          <div className="cr-scroll-x" role="region" aria-label="Questions not correct after all attempts" tabIndex={0}>
             <table className="cr-table">
               <thead><tr><th>Assignment</th><th>Question</th><th>Standards</th><th>Attempts</th></tr></thead>
               <tbody>

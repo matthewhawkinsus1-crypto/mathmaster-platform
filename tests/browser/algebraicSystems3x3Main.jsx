@@ -12,6 +12,8 @@
  *   Q2  a different question, so "leave and come back" is a genuine remount
  *   Q3  standalone Step Algebra -9x + 21 = 1, for the no-staged-preview rule
  *   Q4, Q5  (indices 3, 4) the Day 2 / Day 1 systems with the widest equations (strip-fit)
+ *   Q6  (index 5) TL43: equations that each hold one different variable, student's
+ *       choice of method, solved equation by equation (diagonal-3x3)
  *
  * HOW TO RUN: see algebraicSystems3x3.mjs.
  */
@@ -40,6 +42,7 @@ const QUESTIONS = [
   // the strip of originals above an active solver (strip-fit journey).
   Object.freeze({ questionId: 'q24-day2-pr1', type: 'systemsWorkspace', prompt: 'Solve the system by substitution.', method: 'substitution', variables: ['x', 'y', 'z'], equations: ['x + y - z = -1', 'x + y + z = 3', '3x - 2y - z = -4'], requireVerification: true }),
   Object.freeze({ questionId: 'q24-day1-pr2', type: 'systemsWorkspace', prompt: 'Solve the system by substitution.', method: 'substitution', variables: ['x', 'y', 'z'], equations: ['5x + 3y + 2z = 2', '2x + y - z = 5', 'x + 4y + 2z = 16'], requireVerification: true }),
+  Object.freeze({ questionId: 'tl43-diagonal-3x3', type: 'systemsWorkspace', prompt: 'Solve the system.', method: 'studentChoice', variables: ['x', 'y', 'z'], equations: ['2x = 2', '3y = 6', 'z = 3'], requireVerification: true }),
 ];
 
 const SCOPES = {

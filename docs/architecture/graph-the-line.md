@@ -341,6 +341,13 @@ first** (`LineGraphPractice.jsx`, lazy) plays sample items from
 `previewLineGraph` on the student's own screen, checked on the device by the
 server's attempt pipeline; nothing is sent or recorded. A Classic practice is
 its first six lines in a row. **Play Again** carries every setting.
+**Last time** (N80): a finished game leaves its class one memory for all three
+formats, and the next setup opens with its card — "Period 5 last played this
+on Oct 28 at Standard, Sprint, 2 × 180 s, 64% accuracy → try Easy" — with
+**Use last settings** and **Use suggestion**; the format stays, the clock
+moves among the format's own choices, and at Easy the suggestion drops the
+weakest form ("try it without point-slope form"). See
+`live-challenge-engine.md` → Finalization effects.
 
 **Host** (`LineGraphHost.jsx`). The room's settings in one line; during a
 round, the race board (the rush's, with each student's lines right and, in

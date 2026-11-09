@@ -245,7 +245,7 @@ test('a part heard on its own still says the functions the question defines', ()
   assert.equal(readingFunctionNames(parts), 'c');
   const part = parts.find((entry) => entry.id === 'part-a');
   assert.equal(speechTextFor(part.text, { functionNames: part.functionNames }), 'Answer box: Find c of 4.');
-  assert.equal(speechTextFor(part.text), 'Answer box: Find c times the quantity 4.', 'without the question it would be a product');
+  assert.equal(speechTextFor(part.text), 'Answer box: Find c times 4.', 'without the question it would be a product');
 });
 
 test('in Spanish, the reader\'s own words are Spanish', () => {

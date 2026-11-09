@@ -26,12 +26,35 @@
 //                that it has no Spanish translation — no dead button.
 //   figures, es  under an authored Spanish prompt the real DOL graph is read
 //                in its own Spanish words, with the same numbers and still no
-//                position; the 3D model, which has no Spanish yet, is read in
-//                English after a sentence that says so (AX05).
+//                position; with the graph read-out (AX03) it is read in full,
+//                in Spanish, and the 3D model and the graph workspace (the
+//                student's own point) are read in Spanish too (AX05, slice 2).
+//   lang="es"    under that Spanish prompt each figure's screen-reader
+//                description is the same Spanish, marked lang="es", and is what
+//                Chromium's accessibility tree describes the figure with; in
+//                English it is unmarked (AX05, slice 2).
+//   tool, es     the Systems Workspace's own sentences about the student's
+//                inequality graph are read in Spanish with no "in English"
+//                note, and its description follows the boundary the student
+//                plots, in Spanish (AX05, slice 3).
+//   lang="en"    inside a Spanish description the item's own English words
+//                (the workspace's task) are marked lang="en", and nothing else
+//                is (AX05, slice 3).
+//   names, es    under that Spanish prompt each figure's name (its aria-label,
+//                and the name Read aloud says first) is Spanish too, and the
+//                element that holds it is marked lang="es": the DOL graph, the
+//                3D model, the graph workspace, the student's inequality graph
+//                as its task changes, and both number lines, whose English
+//                buttons stay marked lang="en"; in English every name is as
+//                before (AX05, slice 4).
 //   tool tables  the DOL #3 review's tools read the tables they draw: the
 //                workbench's rows, the residual table (and again once the
 //                model changes), the sequence table (what the student typed,
-//                never a term), and the board's given table (AX10).
+//                never a term), and the board's given table (AX10); the
+//                Regression Calculator's listed data and typed table, and the
+//                board's process-mode row chooser (AX10, slice 2); under an
+//                authored Spanish prompt the row chooser and the table to
+//                extend are read in Spanish (AX05, slice 2).
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/readAloudTranslate.
 import { mkdirSync } from 'node:fs';
@@ -83,6 +106,45 @@ const open = async (device, query) => {
   return { page, context };
 };
 const lastSpoken = (page) => page.evaluate(() => window.__mmSpoken[window.__mmSpoken.length - 1] || null);
+// The accessible description Chromium computes for an element: what a screen reader reads.
+const axDescription = async (page, selector) => {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+    if (!nodeId) return null;
+    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+    return nodes[0]?.description?.value || '';
+  } finally {
+    await cdp.detach();
+  }
+};
+// The accessible name Chromium computes for an element: what a screen reader says first.
+const axName = async (page, selector) => {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+    if (!nodeId) return null;
+    const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+    return nodes[0]?.name?.value || '';
+  } finally {
+    await cdp.detach();
+  }
+};
+// An element's name ({ label, lang, ax }): its aria-label, the language marked on it, and its accessible name.
+const nameOf = async (page, selector) => {
+  const element = page.locator(selector).first();
+  return { label: await element.getAttribute('aria-label'), lang: await element.getAttribute('lang'), ax: await axName(page, selector) };
+};
+// The name of what a figure's hidden description describes.
+const describedName = async (page, hidden, described) => nameOf(page, `${described}[aria-describedby~="${await page.locator(hidden).first().getAttribute('id')}"]`);
+// A figure's hidden description ({ text, lang }) and the accessible description of what it describes.
+const screenReaderDescription = async (page, hidden, described) => {
+  const element = page.locator(hidden).first();
+  const id = await element.getAttribute('id');
+  return { text: (await element.textContent()) || '', lang: await element.getAttribute('lang'), ax: await axDescription(page, `${described}[aria-describedby~="${id}"]`) };
+};
 const noSidewaysScroll = async (page, where) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(overflow <= 1, `${where}: nothing scrolls sideways`, `${overflow}px`);
@@ -158,6 +220,10 @@ for (const device of DEVICES) {
     check(!/\(\s*(?:negative )?\d|\bcrosses\b|\bthrough\b|\bbetween\b|\bcorners?\b|\bhigh point\b|\blow point\b/.test(said), `${device.name}: no position is read while the exit ticket is open`, said);
     const description = await page.locator('[data-graph-description]').first().textContent();
     check(said.includes(description.replace(/−/g, 'negative ').split('. ')[1] || '\u0000'), `${device.name}: what is read is the figure's own description`, description);
+    const english = await screenReaderDescription(page, '[data-graph-description]', 'svg');
+    check(english.lang === null && english.ax === english.text && english.text.startsWith('x from −4 to 7'), `${device.name}: in English the screen-reader description is English, unmarked`, JSON.stringify(english));
+    const named = await describedName(page, '[data-graph-description]', 'svg');
+    check(named.label === 'Graph' && named.lang === null && named.ax === 'Graph', `${device.name}: in English the graph's name is as before, unmarked`, JSON.stringify(named));
     await context.close();
   }
 
@@ -176,15 +242,170 @@ for (const device of DEVICES) {
     const description = await page.locator('[data-graph-description]').first().textContent();
     const numbers = (text) => (text.replace(/−|negativo /g, '-').match(/-?\d+(?:\.\d+)?/g) || []).join(' ');
     check(numbers(figure) === numbers(description), `${device.name}: the same numbers as the figure's description`, `${numbers(figure)} | ${numbers(description)}`);
+    // A screen reader hears the same Spanish, marked lang="es" (AX05, slice 2).
+    const hidden = await screenReaderDescription(page, '[data-graph-description]', 'svg');
+    check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 7 y el eje y, de −6 a 16. 1 curva. 1 círculo abierto y 1 círculo cerrado. Las posiciones no se leen mientras se pueda responder esta pregunta.', `${device.name}: the graph's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden));
+    check(hidden.ax === hidden.text, `${device.name}: and it is the graph's accessible description`, hidden.ax);
+    check(await page.locator('[data-graph-description] [lang]').count() === 0, `${device.name}: a description with no English words marks none`);
+    // Its name too, as Read aloud says it first (AX05, slice 4).
+    const named = await describedName(page, '[data-graph-description]', 'svg');
+    check(named.label === 'Gráfica' && named.lang === 'es' && named.ax === 'Gráfica', `${device.name}: the graph is named in Spanish, marked lang="es"`, JSON.stringify(named));
     await context.close();
   }
   {
-    // A figure with no Spanish words yet: its English, and the student is told.
+    // The graph read-out (AX03) under the same Spanish prompt: the full reading,
+    // positions and all, in Spanish (AX05, slice 2), as a closed question's is.
+    const { page, context } = await open(device, 'q=dolgraphes&role=dol&support=translatereadout');
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    const figure = said.slice(said.indexOf('Gráfica.'), said.indexOf('Paso 1 de 2'));
+    check(heard?.lang === 'es' && figure.startsWith('Gráfica. El eje x va de negativo 4 a 7 y el eje y, de negativo 6 a 16. 1 curva. La curva 1 ') && /círculo cerrado/.test(figure) && /círculo abierto/.test(figure), `${device.name}: the read-out reads the DOL's graph in full, in Spanish`, figure || said.slice(0, 400));
+    check(!/x from|Positions are not|inglés|no se leen/.test(said), `${device.name}: no English, no note, and no position held back`, said.slice(0, 400));
+    const description = await page.locator('[data-graph-description]').first().textContent();
+    const numbers = (text) => (text.replace(/−|negativo /g, '-').match(/-?\d+(?:\.\d+)?/g) || []).join(' ');
+    check(numbers(figure) === numbers(description), `${device.name}: the read-out says the numbers its description gives`, `${numbers(figure)} | ${numbers(description)}`);
+    await context.close();
+  }
+  {
+    // The 3D model in its own Spanish words, its equations said as Spanish
+    // mathematics, and no pair of planes while it can be answered (AX05, slice 2).
     const { page, context } = await open(device, 'q=planeses&role=classwork&support=translate');
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const heard = await lastSpoken(page);
     const said = heard?.text || '';
-    check(heard?.lang === 'es' && /Modelo 3D\. La descripción de esta figura está en inglés\. 3D model with the x, y and z axes\./.test(said), `${device.name}: the 3D model is read in English, after a sentence that says so`, said.slice(0, 400));
+    check(heard?.lang === 'es' && said.includes('Modelo 3D. Modelo 3D con los ejes x, y, z. Plano 1, azul: 2x menos y más 2z es igual a 15. Plano 2, rojo: negativo x más y más z es igual a 3. Plano 3, verde: 3x menos y más 2z es igual a 18.'), `${device.name}: the 3D model is read in Spanish`, said.slice(0, 400));
+    check(!/inglés|3D model with|planos \d y \d/.test(said), `${device.name}: no English, no note, and no pair of planes named`, said.slice(0, 400));
+    const hidden = await screenReaderDescription(page, '[data-threeplane-description]', 'svg[role="application"]');
+    check(hidden.lang === 'es' && hidden.text.startsWith('Modelo 3D con los ejes x, y, z. Plano 1, azul: 2x menos y más 2z es igual a 15.') && (hidden.ax || '').startsWith(hidden.text), `${device.name}: the model's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden).slice(0, 400));
+    // The model's names, the control's and the drawing's (AX05, slice 4).
+    const model = await describedName(page, '[data-threeplane-description]', 'svg[role="application"]');
+    const drawing = await nameOf(page, 'svg[role="application"] g[role="img"]');
+    check(model.label === 'Tres planos en 3D' && model.lang === 'es' && model.ax === model.label && drawing.ax === 'Vista 3D de los tres planos', `${device.name}: the model and its drawing are named in Spanish, marked lang="es"`, JSON.stringify([model, drawing]));
+    await context.close();
+  }
+  {
+    // The legacy graph workspace: the student's own point, read back in Spanish;
+    // the task's label is the item's own words (AX05, slice 2).
+    const { page, context } = await open(device, 'q=workspacees&role=practice&support=translate');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    await read.click();
+    const before = await lastSpoken(page);
+    check(before?.lang === 'es' && (before?.text || '').includes('Gráfica. El eje x va de negativo 4 a 4 y el eje y, de negativo 6 a 8. Todavía no hay nada colocado.'), `${device.name}: the graph workspace is read in Spanish`, (before?.text || '').slice(0, 300));
+    await page.getByRole('button', { name: /^Plot the point where x = 0/ }).click();
+    await page.getByRole('spinbutton', { name: 'x', exact: true }).fill('0');
+    await page.getByRole('spinbutton', { name: 'y', exact: true }).fill('1');
+    await page.getByRole('button', { name: 'Place at this coordinate' }).click();
+    await page.waitForTimeout(300);
+    // On a phone the keypad holds the work bar's place until "Done".
+    const done = page.locator('button:visible', { hasText: /^Done$/ });
+    if (await done.count()) await done.first().click();
+    else await page.evaluate(() => document.activeElement?.blur());
+    await page.waitForTimeout(300);
+    await read.click();
+    const after = (await lastSpoken(page))?.text || '';
+    check(after.includes('Colocaste 1 punto: Plot the point where x es igual a 0 en el punto 0, 1.') && !/inglés|You placed/.test(after), `${device.name}: the student's point is read back in Spanish`, after.slice(0, 300));
+    const hidden = await screenReaderDescription(page, '[data-graph-workspace-description]', 'svg[role="application"]');
+    check(hidden.lang === 'es' && hidden.text === 'El eje x va de −4 a 4 y el eje y, de −6 a 8. Colocaste 1 punto: Plot the point where x = 0 en (0, 1).' && (hidden.ax || '').startsWith(hidden.text), `${device.name}: the workspace's screen-reader description is Spanish, marked lang="es"`, JSON.stringify(hidden).slice(0, 400));
+    // The task's words are the item's own English: marked lang="en" where they
+    // sit in the Spanish description, so a screen reader says them in English
+    // (AX05, slice 3). Nothing else in it is marked.
+    const marked = await page.locator('[data-graph-workspace-description] [lang]').evaluateAll((spans) => spans.map((span) => [span.getAttribute('lang'), span.textContent]));
+    check(JSON.stringify(marked) === JSON.stringify([['en', 'Plot the point where x = 0']]), `${device.name}: the task's English words are marked lang="en", and nothing else`, JSON.stringify(marked));
+    const named = await describedName(page, '[data-graph-workspace-description]', 'svg[role="application"]');
+    check(named.label === 'Plano de coordenadas' && named.lang === 'es' && named.ax === named.label, `${device.name}: the workspace's plane is named in Spanish, marked lang="es" (AX05, slice 4)`, JSON.stringify(named));
+    await context.close();
+  }
+  {
+    // The Systems Workspace's own sentences (AX05, slice 3): the student's
+    // inequality graph (A1 M3 T2 L4 CW 9) is read in Spanish with no "in
+    // English" note, and its screen-reader description follows the student's
+    // work in Spanish as they build the boundary.
+    const { page, context } = await open(device, 'q=inequalityes&role=classwork&support=translate');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    // Named in Spanish (AX05, slice 4): whose graph, then what a tap does.
+    const plane = 'svg[aria-label^="Tu gráfica de la desigualdad"]';
+    const KEYS = 'Haz clic para marcar un punto, o mueve la cruz con las teclas de flecha y pulsa Enter para marcarlo. Pulsa Enter sobre un punto marcado para tomarlo y moverlo.';
+    await read.click();
+    const before = await lastSpoken(page);
+    check(before?.lang === 'es' && (before?.text || '').includes('El eje x va de negativo 10 a 10 y el eje y, de negativo 10 a 10. Todavía no hay ninguna recta frontera dibujada. Las posiciones no se leen mientras se pueda responder esta pregunta.') && !/inglés|boundary line|Positions are not/.test(before?.text || ''),
+      `${device.name}: the student's inequality graph is read in Spanish, with no note`, (before?.text || '').slice(0, 400));
+    check((before?.text || '').includes('Tu gráfica de la desigualdad. Marca el punto frontera 1 de la restricción 1. El eje x va de negativo 10 a 10') && !/Student|constructed|Plot |constraint/.test(before?.text || ''),
+      `${device.name}: Read aloud says the graph's name first, in Spanish`, (before?.text || '').slice(0, 400));
+    const named = await nameOf(page, plane);
+    check(named.label === `Tu gráfica de la desigualdad. Marca el punto frontera 1 de la restricción 1. ${KEYS}` && named.lang === 'es' && named.ax === named.label,
+      `${device.name}: the graph is named in Spanish, its keys too, marked lang="es"`, JSON.stringify(named));
+    const empty = await screenReaderDescription(page, 'p[id^="mm-plane-desc-"]', plane);
+    check(empty.lang === 'es' && empty.text === 'El eje x va de −10 a 10 y el eje y, de −10 a 10. Todavía no hay ninguna recta frontera dibujada. Las posiciones no se leen mientras se pueda responder esta pregunta.' && empty.ax === empty.text,
+      `${device.name}: the graph's screen-reader description is the same Spanish, marked lang="es"`, JSON.stringify(empty));
+    // Two boundary points, (0, 3) and (1, 4), tapped where the student sees them.
+    for (const [x, y] of [[0, 3], [1, 4]]) {
+      const at = await page.evaluate(([gx, gy, selector]) => {
+        const svg = document.querySelector(selector);
+        const [, , width, height] = svg.getAttribute('viewBox').split(/\s+/).map(Number);
+        const point = svg.createSVGPoint();
+        point.x = 42 + ((gx + 10) / 20) * (width - 84);
+        point.y = height - 42 - ((gy + 10) / 20) * (height - 84);
+        const screen = point.matrixTransform(svg.getScreenCTM());
+        return [screen.x, screen.y];
+      }, [x, y, plane]);
+      if (device.hasTouch) await page.touchscreen.tap(at[0], at[1]);
+      else await page.mouse.click(at[0], at[1]);
+      await page.waitForTimeout(300);
+    }
+    const built = await screenReaderDescription(page, 'p[id^="mm-plane-desc-"]', plane);
+    check(built.lang === 'es' && built.text.includes('Recta frontera 1: todavía no se ha elegido su estilo.') && built.ax === built.text && !/Boundary line/.test(built.text),
+      `${device.name}: once a boundary is plotted, the description says so in Spanish`, JSON.stringify(built));
+    await read.click();
+    const after = (await lastSpoken(page))?.text || '';
+    check(after.includes('Recta frontera 1: todavía no se ha elegido su estilo.') && !/inglés|Boundary line/.test(after), `${device.name}: and Read aloud says it in Spanish`, after.slice(0, 400));
+    // The name follows the next task, in Spanish.
+    const renamed = await nameOf(page, plane);
+    const renamedName = (renamed.label || '').replace(/\. Haz clic[\s\S]*$/, '');
+    check(renamed.lang === 'es' && renamed.label !== named.label && renamedName.startsWith('Tu gráfica de la desigualdad') && !/Student|Plot |constraint|Click/.test(renamed.label || '') && after.includes(`${renamedName}. El eje x`),
+      `${device.name}: once both points are placed the name follows the next step, in Spanish, and Read aloud says it`, JSON.stringify(renamed));
+    await noSidewaysScroll(page, `${device.name} Spanish inequality graph`);
+    await context.close();
+  }
+
+  {
+    // The pick-a-point number line (AX05, slice 4): its name is Spanish,
+    // marked lang="es", and its buttons keep their English names, marked
+    // lang="en", as the tool's own words are English.
+    const { page, context } = await open(device, 'q=numberlinees&role=practice&support=translate');
+    const group = '[data-number-line-choices]';
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    // The marks are the item's (the engine draws them around the target).
+    check(/Recta numérica\. Recta numérica con puntos en [^.]+\. Todavía no hay ningún punto seleccionado\./.test(said) && !/Number line/.test(said), `${device.name}: the number line is named and read in Spanish`, said.slice(0, 300));
+    const named = await nameOf(page, group);
+    check(named.label === 'Recta numérica' && named.lang === 'es' && named.ax === named.label, `${device.name}: the number line is named in Spanish, marked lang="es"`, JSON.stringify(named));
+    const buttons = await page.locator(`${group} button`).evaluateAll((list) => list.map((button) => [button.getAttribute('lang'), button.getAttribute('aria-label')]));
+    check(buttons.length === 5 && buttons.every(([lang, label]) => lang === 'en' && /^Select -?\d+$/.test(label)), `${device.name}: its buttons keep their English names, marked lang="en"`, JSON.stringify(buttons));
+    const hidden = await screenReaderDescription(page, `${group} span[aria-hidden="true"][id]`, group);
+    check(hidden.lang === 'es' && hidden.text.startsWith('Recta numérica con puntos en') && hidden.ax === hidden.text, `${device.name}: its description is Spanish, marked lang="es"`, JSON.stringify(hidden));
+    await noSidewaysScroll(page, `${device.name} Spanish number line`);
+    await context.close();
+  }
+  {
+    // The interval number line (AX05, slice 4): its name from end to end, in
+    // Spanish; an endpoint the student places keeps its English name.
+    const { page, context } = await open(device, 'q=intervales&role=practice&support=translate');
+    // Its window is the tool's own (it fits the key): read, not assumed.
+    const line = 'svg[role="application"][aria-label^="Recta numérica de "]';
+    await page.locator(line).waitFor();
+    const named = await nameOf(page, line);
+    check(/^Recta numérica de −?[\d.]+ a −?[\d.]+$/.test(named.label || '') && named.lang === 'es' && named.ax === named.label, `${device.name}: the interval line is named in Spanish, marked lang="es"`, JSON.stringify(named));
+    // An endpoint placed from the keyboard (before any press, so the focus is the keyboard's).
+    await page.locator(line).focus();
+    await page.keyboard.press('Enter');
+    await page.locator(`${line} g[role="button"]`).first().waitFor({ timeout: 4000 }).catch(() => {});
+    const endpoints = await page.locator(`${line} g[role="button"]`).evaluateAll((list) => list.map((button) => [button.getAttribute('lang'), button.getAttribute('aria-label')]));
+    check(endpoints.length === 1 && endpoints[0][0] === 'en' && /^(?:Closed|Open) pending endpoint at /.test(endpoints[0][1] || ''), `${device.name}: an endpoint keeps its English name, marked lang="en"`, JSON.stringify(endpoints));
+    await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
+    const said = (await lastSpoken(page))?.text || '';
+    check(said.includes('Recta numérica. Recta numérica de ') && !/Number line/.test(said), `${device.name}: Read aloud says its name in Spanish`, said.slice(0, 300));
+    await noSidewaysScroll(page, `${device.name} Spanish interval line`);
     await context.close();
   }
 
@@ -265,7 +486,8 @@ for (const device of DEVICES) {
     const { page, context } = await open(device, 'q=dml&role=practice&support=read');
     const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
     const drawnResiduals = () => page.locator('[data-residual-table-scroller] tbody tr').evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())));
-    const residualReading = (cells) => `Residual table, ${cells.length} rows. Columns: x, Hours studied; y, Quiz score (points); y hat; residual. ${cells.map(([x, y, fitted, residual], index) => `Row ${index + 1}: x, ${spokenValue(x)}; y, ${spokenValue(y)}; y hat, ${spokenValue(fitted)}; residual, ${spokenValue(residual)}.`).join(' ')}`;
+    // A unit in brackets is an aside, said between pauses (math-speech-4).
+    const residualReading = (cells) => `Residual table, ${cells.length} rows. Columns: x, Hours studied; y, Quiz score, points; y hat; residual. ${cells.map(([x, y, fitted, residual], index) => `Row ${index + 1}: x, ${spokenValue(x)}; y, ${spokenValue(y)}; y hat, ${spokenValue(fitted)}; residual, ${spokenValue(residual)}.`).join(' ')}`;
     const excerpt = (text) => text.slice(Math.max(0, text.indexOf('Residual table')), Math.max(0, text.indexOf('Residual table')) + 200);
     await read.click();
     const before = await drawnResiduals();
@@ -305,6 +527,89 @@ for (const device of DEVICES) {
     await page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]').click();
     const said = (await lastSpoken(page))?.text || '';
     check(said.includes('Given table of values, 4 rows. Columns: x; y. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3.'), `${device.name}: the board's given table is read`, said.slice(0, 300));
+    await context.close();
+  }
+
+  {
+    // The Regression Calculator (AX10, slice 2): its listed source data, then the table the student fills.
+    const { page, context } = await open(device, 'q=regression&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    await read.click();
+    const said = (await lastSpoken(page))?.text || '';
+    const listed = await page.locator('.regression-givens-list span').allInnerTexts();
+    check(listed.length === 4 && said.includes('Given table of values, 4 rows. Columns: x; y. Row 1: x, 1; y, 2. Row 2: x, 2; y, 4. Row 3: x, 3; y, 5. Row 4: x, 4; y, 8.'), `${device.name}: the calculator's listed source data is read (${listed.join(' ')})`, said.slice(0, 300));
+    check(!/Table of values, \d+ rows/.test(said), `${device.name}: no table of the student's own before they add one`);
+    await page.getByRole('button', { name: 'Add Item' }).click();
+    await page.getByRole('menuitem', { name: 'table' }).click();
+    const boxes = page.locator('.regression-table input');
+    await boxes.nth(0).fill('1');
+    await boxes.nth(1).fill('-2');
+    // On a phone the number keypad holds the bar's place until "Done", as in
+    // the Sequence Explorer case above.
+    const done = page.locator('button:visible', { hasText: /^Done$/ });
+    if (await done.count()) await done.first().click();
+    else await boxes.nth(1).blur();
+    await page.waitForTimeout(300);
+    const rowCount = await page.locator('.regression-table tbody tr').count();
+    await read.click();
+    const typed = (await lastSpoken(page))?.text || '';
+    const at = typed.indexOf('Table of values, ');
+    check(rowCount > 0 && typed.includes(`Table of values, ${rowCount} rows. Columns: x sub 1; y sub 1. Row 1: x sub 1, you wrote 1; y sub 1, you wrote negative 2.`), `${device.name}: the student's table is read as typed, under x1 and y1`, at >= 0 ? typed.slice(at, at + 260) : typed.slice(0, 200));
+    check(rowCount < 2 || typed.includes('Row 2: x sub 1, blank; y sub 1, blank.'), `${device.name}: an empty row is blank`);
+    await context.close();
+  }
+  {
+    // The board's process mode (AX10, slice 2): a row chooser says the rows and the picks, never the right row.
+    const { page, context } = await open(device, 'q=lmrtable&role=practice&support=read');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const touch = device.hasTouch;
+    const press = async (locator) => { await locator.scrollIntoViewIfNeeded(); if (touch) await locator.tap(); else await locator.click(); await page.waitForTimeout(300); };
+    await press(page.locator('[data-process-facts] [data-process-find="slope"]'));
+    const workspace = page.locator('[data-lmr-card="process"]');
+    await workspace.waitFor();
+    await press(workspace.locator('[data-process-choice="method:tableDelta"]'));
+    await read.click();
+    const none = (await lastSpoken(page))?.text || '';
+    check(none.includes('Rows to choose from. Choose two rows: row 1, then row 2. Row 1: x, negative 1; y, 9. Row 2: x, 1; y, 7. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3. None is chosen yet.'), `${device.name}: the row chooser is read, no row chosen`, none.slice(0, 360));
+    await press(workspace.locator('[data-process-row="1"]'));
+    await press(workspace.locator('[data-process-row="3"]'));
+    const buttons = await workspace.locator('[data-process-row]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
+    await read.click();
+    const picked = (await lastSpoken(page))?.text || '';
+    check(buttons[1] === 'Row 2, chosen as row 1' && buttons[3] === 'Row 4, chosen as row 2' && picked.includes('Row 2: x, 1; y, 7; chosen as row 1. Row 3: x, 3; y, 5. Row 4: x, 5; y, 3; chosen as row 2.'), `${device.name}: the picks are read as the buttons name them`, picked.slice(0, 360));
+    await context.close();
+  }
+  {
+    // The same chooser, and the table the student extends, under an authored
+    // Spanish prompt: in Spanish, with the rows' values as drawn (AX05, slice 2).
+    const { page, context } = await open(device, 'q=lmrtablees&role=practice&support=translate');
+    const read = page.locator('.mathmaster-work-bar-tool[aria-label="Read aloud"]');
+    const touch = device.hasTouch;
+    const press = async (locator) => { await locator.scrollIntoViewIfNeeded(); if (touch) await locator.tap(); else await locator.click(); await page.waitForTimeout(300); };
+    await press(page.locator('[data-process-facts] [data-process-find="slope"]'));
+    const workspace = page.locator('[data-lmr-card="process"]');
+    await workspace.waitFor();
+    await press(workspace.locator('[data-process-choice="method:tableDelta"]'));
+    await press(workspace.locator('[data-process-row="1"]'));
+    await press(workspace.locator('[data-process-row="3"]'));
+    await read.click();
+    const heard = await lastSpoken(page);
+    const said = heard?.text || '';
+    const at = said.indexOf('Filas para elegir');
+    // The rows as the board's given table draws them (this fixture's own variant), read before the chooser.
+    const rows = [...said.slice(said.indexOf('Tabla de valores dada'), at).matchAll(/Fila \d: x, ([^;]+); y, ([^;.]+)\./g)].map((match) => [match[1], match[2]]);
+    const chooser = `Filas para elegir. Elige dos filas: primero la fila 1 y luego la fila 2. ${rows.map(([x, y], index) => `Fila ${index + 1}: x, ${x}; y, ${y}${index === 1 ? '; elegida como fila 1' : index === 3 ? '; elegida como fila 2' : ''}.`).join(' ')}`;
+    check(heard?.lang === 'es' && rows.length === 4 && said.includes(chooser), `${device.name}: the row chooser and the picks are read in Spanish`, at >= 0 ? said.slice(at, at + 300) : said.slice(0, 300));
+    check(!/inglés|Rows to choose|Choose two|chosen/.test(said), `${device.name}: no English, and no note that it is`, said.slice(0, 300));
+    await press(page.locator('[data-process-facts] [data-process-find="yIntercept"]'));
+    await press(workspace.locator('[data-process-choice="method:extendTable"]'));
+    await workspace.locator('[data-process-extend="0:x"]').fill('0');
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.waitForTimeout(300);
+    await read.click();
+    const extended = (await lastSpoken(page))?.text || '';
+    const from = extended.indexOf('Tabla para continuar');
+    check(rows.length === 4 && extended.includes(`Tabla para continuar, de 5 filas. Columnas: x; y. ${rows.map(([x, y], index) => `Fila ${index + 1}: x, ${x}; y, ${y}.`).join(' ')} Fila 5: x, escribiste 0; y, en blanco.`), `${device.name}: the table to extend is read in Spanish, the student's box as typed`, from >= 0 ? extended.slice(from, from + 260) : extended.slice(0, 300));
     await context.close();
   }
 

@@ -28,3 +28,12 @@ test('the Work View dialog takes that name', () => {
   assert.match(view, /const toolName = getToolCatalogEntry\(toolId\)\?\.label \|\| 'This tool';/);
   assert.doesNotMatch(view, /\$\{toolId\} workspace/);
 });
+
+test('a sample with no prompt of its own is named by the tool too, not its id', () => {
+  const view = executableSource(componentSource('src/tools/shared/RegisteredToolWorkView.jsx'));
+  const task = region(view, 'const taskText = String(', ').trim();', 'the Work View task');
+  assert.match(view, /const catalogName = getToolCatalogEntry\(toolId\)\?\.label;/);
+  assert.match(task, /questionData\?\.prompt\s*\|\| questionData\?\.task\s*\|\| questionData\?\.scenario/, 'an authored prompt, task or scenario comes first');
+  assert.match(task, /\(catalogName \? `Complete the \$\{catalogName\} activity\.` : 'Complete this activity\.'\)/);
+  assert.doesNotMatch(view, /Complete the \$\{toolId\}/, 'never the program id');
+});

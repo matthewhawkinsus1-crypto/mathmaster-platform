@@ -7,7 +7,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import openSortBoardGrader from '../../../functions/shared/serverGrading/tools/openSortBoard.mjs';
-import { openSortProgress, openSortSettings, sortCardTable } from './openSortMath';
+import { controlledSortWrongItems, openSortProgress, openSortSettings, sortCardTable } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -133,6 +133,15 @@ const SortItemPreview = ({ item }) => {
 
 const srOnly = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
 
+// What a missed fixed-category sort says. The cards themselves carry the mark
+// (figure sort's wording, FigureMatchStage), so this says how many and what
+// to do, and keeps the old sentence where no card could be named.
+const controlledMissMessage = (wrongCount) => {
+  if (wrongCount === 1) return 'One card is not in the right category yet. It is marked above. Recheck its category, move it, and try again.';
+  if (wrongCount > 1) return `${wrongCount} cards are not in the right category yet. They are marked above. Recheck each one's category, move them, and try again.`;
+  return 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.';
+};
+
 const emptyGroups = (count) => Array.from({ length: count }, (_, index) => ({ id: `group-${index + 1}`, name: '', rationale: '', itemIds: [] }));
 
 export default function OpenSortBoard({ questionData = {}, onAction }) {
@@ -155,6 +164,11 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   const [announcement, setAnnouncement] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const { unassigned, usedGroups, namesComplete, rationaleComplete, ready } = openSortProgress({ settings, items, groups });
+  // The cards the last Check found in the wrong category (F-SORT-WHICH-CARD).
+  // Kept apart from the verdict and shown only while the verdict is: where the
+  // activity withholds it (an exit ticket, quiz or test before release) the
+  // tool gets no feedback to show, so no card is named either.
+  const [wrongCardIds, setWrongCardIds] = useState([]);
 
   /*
    * UNIVERSAL UNDO (TOOL-2). The board's whole answer is `groups`: placements,
@@ -282,14 +296,39 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
    * Only non-secret metadata rides along: never the matched scheme, which
    * names the answer key.
    */
+  // Local to the board, never sent with the attempt: the key names the answer.
+  const misplacedCards = () => controlledSortWrongItems({
+    items,
+    responseGroups: openSortProgress({ settings, items, groups }).placedGroups,
+    validSchemes: Array.isArray(questionData.validSchemes) ? questionData.validSchemes : [],
+  });
   const check = () => {
     const result = gradeToolCheck(openSortBoardGrader, questionData, work);
+    setWrongCardIds(controlled && !result.isCorrect ? misplacedCards() : []);
     submit(
       { isCorrect: result.isCorrect, score: result.score },
       work,
       { mode: controlled ? 'controlled' : 'open', parts: result.parts },
     );
   };
+
+  // The explanation is for the teacher, never marked right or wrong (GR16):
+  // the counter is only the length the Check waits for, and once that is met it
+  // says who reads it. One per group; in a fixed-category sort, one per
+  // category that holds cards, when the author asks for it (F-SORT-NO-REASON).
+  const rationaleField = (group, groupIndex, inFixedCategory) => (
+    <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
+      Why do these belong together? <span data-rationale-audience="" style={{ fontWeight: 600, color: 'var(--mm-text-muted)' }}>For your teacher</span>
+      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex, { controlled: inFixedCategory })} placeholder="Describe the feature every card in this group shares." rows={2} style={{ ...input, fontFamily: 'inherit', minHeight: 72, resize: 'vertical' }} />
+      <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{group.rationale.trim().length < rationaleMinLength
+        ? `${group.rationale.trim().length}/${rationaleMinLength} characters needed before checking`
+        : 'Saved for your teacher. It is not marked right or wrong.'}</span>
+    </label>
+  );
+
+  // Named only while this Check's verdict is on screen, and cleared with it
+  // the moment the student changes the work (clearFeedback).
+  const wrongShown = feedback && feedback.isCorrect === false ? wrongCardIds : [];
 
   // A PLACED CARD STILL SHOWS WHAT IT SAYS. It collapsed to "Card C ↩", so a
   // student checking their groups could not see the table, graph or sentence
@@ -298,9 +337,11 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   const placedCard = ({ id, group, groupIndex, controlled: inFixedCategory }) => {
     const item = itemById(id);
     const card = cardName(item, id);
+    const wrongCard = wrongShown.includes(String(id));
     return (
-      <div key={id} data-placed-card={id} style={{ flex: '1 1 170px', minWidth: 0, border: '1px solid var(--mm-primary-border)', borderRadius: 10, padding: 8, background: 'var(--mm-primary-subtle)' }}>
+      <div key={id} data-placed-card={id} data-sort-card-wrong={wrongCard ? '' : undefined} style={{ flex: '1 1 170px', minWidth: 0, border: wrongCard ? '2px solid var(--mm-error-border)' : '1px solid var(--mm-primary-border)', borderRadius: 10, padding: 8, background: 'var(--mm-primary-subtle)' }}>
         <strong style={{ display: 'block', marginBottom: 4, color: 'var(--mm-primary-text)' }}><MathText>{card}</MathText></strong>
+        {wrongCard ? <span style={{ display: 'block', marginBottom: 4, fontWeight: 800, color: 'var(--mm-danger)' }}>Not in the right category yet</span> : null}
         {item ? <SortItemPreview item={item} /> : null}
         <button type="button" onClick={() => returnItem(id)} aria-label={placedCardName({ card, group, index: groupIndex, controlled: inFixedCategory })} title="Select to move this card again" style={{ ...button, minHeight: 44, marginTop: 6, padding: '6px 10px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)' }}>
           Move <span aria-hidden="true">↩</span>
@@ -327,6 +368,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
           'Read or inspect one card.',
           'Select the category that best describes it.',
           'Select a placed card to move it back if you want to change your choice.',
+          ...(requireRationale ? ['Say why the cards in each category belong together.'] : []),
           'When every card is placed, submit your sort.',
         ] : [
           'Select a card, then select a group to place it there.',
@@ -336,7 +378,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
             ? 'Submit your sort when it is finished. More than one way of grouping can be right, as long as every card in a group shares the feature you named.'
             : 'Submit your sort when it is finished: every card in a group should share the feature you named.',
         ]}
-        note={controlled ? 'The categories are fixed, so the automatic grade checks the exact mathematical classification.' : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
+        note={controlled ? `The categories are fixed, so the automatic grade checks the exact mathematical classification.${requireRationale ? ' Your reasons are saved for your teacher; they are not marked.' : ''}` : 'Your explanations are saved for your teacher. The automatic grade checks the mathematics of the grouping; it does not pretend to judge the quality of your prose.'}
       />
 
       <p role="status" aria-live="polite" style={srOnly}>{announcement}</p>
@@ -384,6 +426,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                     {group.itemIds.map((id) => placedCard({ id, group, groupIndex, controlled: true }))}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards here yet.</span>}
                   </div>
+                  {requireRationale && group.itemIds.length > 0 && rationaleField(group, groupIndex, true)}
                 </Panel>
               </div>
             ))}
@@ -421,18 +464,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                     {group.itemIds.map((id) => placedCard({ id, group, groupIndex, controlled: false }))}
                     {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
                   </div>
-                  {/* The explanation is for the teacher, never marked right or
-                      wrong (GR16): the counter is only the length the Check
-                      waits for, and once that is met it says who reads it. */}
-                  {requireRationale && (
-                    <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
-                      Why do these belong together? <span data-rationale-audience="" style={{ fontWeight: 600, color: 'var(--mm-text-muted)' }}>For your teacher</span>
-                      <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} aria-label={rationaleInputLabel(group, groupIndex)} placeholder="Describe the feature every card in this group shares." rows={2} style={{ ...input, fontFamily: 'inherit', minHeight: 72, resize: 'vertical' }} />
-                      <span style={{ display: 'block', marginTop: 4, fontSize: 'calc(11 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{group.rationale.trim().length < rationaleMinLength
-                        ? `${group.rationale.trim().length}/${rationaleMinLength} characters needed before checking`
-                        : 'Saved for your teacher. It is not marked right or wrong.'}</span>
-                    </label>
-                  )}
+                  {requireRationale && rationaleField(group, groupIndex, false)}
                 </Panel>
               </div>
             );
@@ -444,8 +476,8 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <button type="button" data-work-view-check="true" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : 'var(--mm-text-muted)', border: 0, minHeight: 46 }}><SubmitText>Check my sort</SubmitText></button>
-        {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
-        {feedback && <ResultPill ok={feedback.isCorrect} message={feedback.isCorrect ? null : (controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Not every group holds together yet. A group needs one feature that every card in it has and the cards in your other groups do not. Check each card against its group\'s name.')}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
+        {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : !controlled && usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? (controlled ? 'Finish the explanation for each category that has cards.' : 'Finish the explanation for each used group.') : 'Finish the sort.'}</span>}
+        {feedback && <ResultPill ok={feedback.isCorrect} showFocus={!wrongShown.length} message={feedback.isCorrect ? null : (controlled ? controlledMissMessage(wrongShown.length) : 'Not every group holds together yet. A group needs one feature that every card in it has and the cards in your other groups do not. Check each card against its group\'s name.')}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
       </div>
       <HintPanel hints={questionData.hints || (controlled ? [
         'Use the category definitions as tests. A card should satisfy exactly one of them.',

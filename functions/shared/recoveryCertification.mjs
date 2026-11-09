@@ -330,8 +330,10 @@ export const certifyRecoveryBinding = ({
 /**
  * The family a static question should be recovered by: the first registered
  * family that recognizes it and certifies. Deterministic (the registry's own
- * order), and only ever version 1 of a family unless a caller pins another —
- * the registry's rule that an unpinned reference never moves.
+ * order), and only ever the first version of a family that can recognize, or
+ * a later one that declares it replaces that one (recoveryCandidateFamilies),
+ * unless a caller pins another; the binding stores that version, so an
+ * unpinned reference never moves.
  *
  * Returns { ok, binding, certification, issues, tried }.
  */

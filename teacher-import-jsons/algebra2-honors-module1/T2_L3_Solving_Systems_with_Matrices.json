@@ -108,8 +108,8 @@
               "type": "choice",
               "options": [
                 "Yes — the same numbers, organized in rows and columns",
-                "No — the arrays leave out the grocery cards",
-                "No — the arrays only show December"
+                "No — the arrays lose the card values, so 230 could be any card",
+                "No — the arrays show only December, so November is missing"
               ],
               "answer": "Yes — the same numbers, organized in rows and columns"
             },

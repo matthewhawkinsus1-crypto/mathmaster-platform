@@ -3,6 +3,11 @@ import QuestionPrompt from '../../QuestionPrompt';
 import './MathToolMobileLayout.css';
 import '../../platform/mobile/MobileInteractionFoundation.css';
 import {
+  focusAfterKeypadDone,
+  focusLeavesQuestion,
+  keypadTargetOnFocus,
+  pressReopensKeypad,
+  workBarControlAfterKeypad,
   revealFocusedControlAfterResize,
   scheduleHorizontalViewportStabilization,
   scrollFocusedControlVertically,
@@ -73,6 +78,11 @@ export const MobileViewportContainer = ({
 }) => {
   const rootRef = useRef(null);
   const keypadRef = useRef(null);
+  // Where focus goes once the keypad has closed: the work bar's first control, from Tab off the keypad's last key
+  // or Done pressed from the keyboard, or with no bar under the keys the box Done served (focusAfterKeypadDone).
+  const closeFocusRef = useRef(null);
+  // The box Done closed from the keyboard with no bar under the keys: it keeps its keypad closed until it is touched.
+  const keptClosedRef = useRef(null);
   const focusedScrollerLockRef = useRef({ element: null, left: 0 });
   // ONE MAIN LANDMARK (AX45). The work area was a <main> inside the
   // assignment screen's own <main>, and the same inside a secure test or Live
@@ -104,6 +114,7 @@ export const MobileViewportContainer = ({
       current?.blur?.();
       return null;
     });
+    keptClosedRef.current = null;
     window.mathVirtualKeyboard?.hide?.();
     focusedScrollerLockRef.current = { element: null, left: 0 };
   }, [questionTerminal]);
@@ -247,7 +258,8 @@ export const MobileViewportContainer = ({
     const target = event.target;
     if (isMobile) {
       if (target?.matches?.(NUMERIC_SELECTOR)) {
-        setNumericTarget(target);
+        // A box Done closed from the keyboard opens no keypad until it is touched again (keypadTargetOnFocus).
+        setNumericTarget(keypadTargetOnFocus(target, keptClosedRef.current));
       } else if (
         !target?.closest?.('.mathmaster-mobile-numeric-keypad')
         && !target?.closest?.('button')
@@ -311,6 +323,16 @@ export const MobileViewportContainer = ({
     restoreFocusedHorizontalPosition();
   };
 
+  const handlePointerDownCapture = (event) => {
+    pointerPressRef.current = event.target;
+    // Touched again, the box Done closed from the keyboard opens its keypad as any box does. One that already has
+    // focus gets no focus event to open it, so it opens here (pressReopensKeypad).
+    const keptClosed = keptClosedRef.current;
+    if (!pressReopensKeypad(keptClosed, event.target)) return;
+    keptClosedRef.current = null;
+    if (isMobile && document.activeElement === keptClosed) setNumericTarget(keptClosed);
+  };
+
   const handleKeyDownCapture = (event) => {
     pointerPressRef.current = null;
     if (event.key?.length === 1 || ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
@@ -320,6 +342,9 @@ export const MobileViewportContainer = ({
 
   const handleBlurCapture = (event) => {
     if (rootRef.current?.contains?.(event.relatedTarget)) return;
+    // Out of the question to a control it does not hold (the session's "Next
+    // question"): the keypad closes as a software keyboard does (student-a11y-3).
+    if (focusLeavesQuestion(rootRef.current, event.relatedTarget)) setNumericTarget(null);
     focusedScrollerLockRef.current = { element: null, left: 0 };
     scheduleHorizontalViewportStabilization({ root: rootRef.current });
   };
@@ -401,8 +426,45 @@ export const MobileViewportContainer = ({
     numericTarget.focus({ preventScroll: true });
   };
 
+  // The work bar the open keypad hides: the question's own, under the keys, on a phone held upright. None on its
+  // side (its bar is in the task panel, before the work), in a solver workspace, or from inside Work View, whose
+  // action row sits above the keys.
+  const barUnderKeys = () => (isLandscape || workspaceActive || numericTarget?.closest?.('[role="dialog"], [aria-modal="true"]')
+    ? null
+    : rootRef.current?.querySelector(':scope > .portrait-action-bar'));
+  // TAB OFF THE KEYPAD GOES ON TO THE WORK BAR (mobileFocusViewport.js workBarControlAfterKeypad): the bar is hidden
+  // under the open keypad, so Tab off its last key closes the keypad, as Done does, and focus goes on to the bar's
+  // first control once the bar is back. Only where the bar is the question's own, under the keys.
+  const handleKeypadKeyDown = (event) => {
+    const next = workBarControlAfterKeypad(event, keypadRef.current, barUnderKeys());
+    if (!next) return;
+    event.preventDefault();
+    closeFocusRef.current = next;
+    setNumericTarget(null);
+  };
+  // DONE PRESSED FROM THE KEYBOARD GOES ON (mobileFocusViewport.js focusAfterKeypadDone). Done closes the keypad by
+  // taking it off the page, Done included. A finger's press leaves focus on the page, as before: no ring, no keypad,
+  // no screen keyboard. Enter or Space on it left a keyboard student nowhere; now focus goes where Tab off it goes,
+  // the bar's first control, or with no bar under the keys back to the box, which keeps its keypad closed until touched.
+  const handleKeypadDone = (event) => {
+    const next = focusAfterKeypadDone(event, { bar: barUnderKeys(), box: numericTarget });
+    if (next) {
+      closeFocusRef.current = next.focus;
+      if (next.keepClosed) keptClosedRef.current = next.keepClosed;
+    } else {
+      numericTarget?.blur?.();
+    }
+    setNumericTarget(null);
+  };
+  useLayoutEffect(() => {
+    const next = closeFocusRef.current;
+    if (numericTarget || !next) return;
+    closeFocusRef.current = null;
+    if (next.isConnected) next.focus();
+  }, [numericTarget]);
+
   const numericKeypad = isMobile && numericTarget ? (
-    <div ref={keypadRef} className="mathmaster-mobile-numeric-keypad" role="group" aria-label="Number keypad">
+    <div ref={keypadRef} className="mathmaster-mobile-numeric-keypad" role="group" aria-label="Number keypad" onKeyDown={handleKeypadKeyDown}>
       <div className="mathmaster-mobile-keypad-grid">
         {KEYS.map((key) => <button key={key} type="button" aria-label={key === '±' ? 'Make negative or positive' : undefined} onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey(key)}>{key}</button>)}
       </div>
@@ -412,7 +474,7 @@ export const MobileViewportContainer = ({
         <button type="button" aria-label="Delete" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey('backspace')}>⌫</button>
         {fractionEntry ? <button type="button" className="mathmaster-keypad-fraction" aria-label="Fraction bar" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey('/')}>/</button> : null}
         <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={() => applyKey('clear')}>Clear</button>
-        <button type="button" className="mathmaster-keypad-done" onClick={() => { numericTarget.blur(); setNumericTarget(null); }}>Done</button>
+        <button type="button" className="mathmaster-keypad-done" onClick={handleKeypadDone}>Done</button>
       </div>
     </div>
   ) : null;
@@ -434,7 +496,7 @@ export const MobileViewportContainer = ({
     <div
       ref={rootRef}
       onFocusCapture={handleFocusCapture}
-      onPointerDownCapture={(event) => { pointerPressRef.current = event.target; }}
+      onPointerDownCapture={handlePointerDownCapture}
       onInputCapture={handleInputCapture}
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}

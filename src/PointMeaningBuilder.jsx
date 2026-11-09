@@ -21,7 +21,7 @@ const inputStyle = (border) => ({
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
   WebkitTextFillColor: 'var(--mm-text-strong)',
-  caretColor: '#202124',
+  caretColor: 'var(--mm-text-strong)',
   font: 'inherit',
 });
 

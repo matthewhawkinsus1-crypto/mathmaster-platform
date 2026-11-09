@@ -23,13 +23,17 @@
 //                  student, the round closing itself (deadline and everyone
 //                  answered), results that agree with the server everywhere,
 //                  a double-clicked Next Round, refreshes, End Game with its
-//                  confirmation, the podium, rewards delivered once, Play Again
+//                  confirmation, the game's report on the console without a
+//                  refresh (and its arrival said once in the console's live
+//                  region), the podium, rewards delivered once, Play Again
 //                  moving every screen into the new lobby
 //   B scoring      Grand Prix and Correct Count read as what they are; ties
 //   C rush         Graph Feature Rush inside the shell: countdown, no graph on
 //                  the projector, results from the round's own document
 //   D reconnect    offline and back, a second device, a student who goes quiet,
-//                  a late joiner, the teacher refreshing on the finished podium;
+//                  a late joiner, the teacher refreshing on the finished podium
+//                  (and the game's report, written after the console asked,
+//                  showing with no second refresh);
 //                  an answer over a slow link settles before the round is
 //                  force-closed (support/submissionSettled.mjs)
 //   L launch       a class of 40 launching (6 real screens, 34 bots): a 6×
@@ -48,6 +52,14 @@
 //                  with students solving in the browser: open listeners per
 //                  page, heap/listeners/DOM after a forced GC, names, board
 //                  against the stored result, rewards delivered exactly once
+//   P phone round  a Solver Race on two touch phones (390 x 844, 360 x 740):
+//                  the question held to a pixel, read every frame, as real
+//                  steps in the workspace bank points ("Points banked this
+//                  round") and a real Submit's verdict takes them away; as the
+//                  connection drops ("Offline — reconnecting…", the
+//                  slow-connection line) and a round closes without them; and
+//                  as they come back mid-round and are told so ("Round 2 closed
+//                  while you were away") and press "Got it"
 //   adversarial    double Start, two host tabs, End Round Now / End Game /
 //                  Cancel confirmations, End Game during the countdown, an
 //                  answer during the countdown, a refresh mid-countdown
@@ -137,6 +149,13 @@ await fetch(`http://${EMULATOR}/emulator/v1/projects/${PROJECT}/databases/(defau
 
 /* -------------------- the real server, behind a bridge -------------------- */
 
+// Transactions are re-run as production re-runs them. Under contention the
+// emulator closes a transaction ("Transaction is invalid or closed") that
+// production would re-run as expired, and the command fails instead: the
+// adversarial scenario presses Start and Next Round from two tabs at once, so
+// a press that lost the race was once answered 400, not "already applied".
+// The integration suites load the same re-run.
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 const functionsIndex = require(path.join(repo, 'functions/platformEntry.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
@@ -338,8 +357,10 @@ const DEVICES = Object.freeze({
   ipad: { viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
   phone: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
   smallPhone: { viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
+  phone360: { viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
 });
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+// CI's browser is Playwright's own headless Chromium; CHROMIUM_PATH runs another.
+const browser = await chromium.launch({ args: ['--no-sandbox'], ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 const findings = [];
 const notes = [];
 const finding = (scenario, problem) => { findings.push({ scenario, problem }); log(`  ✗ ${scenario}: ${problem}`); };
@@ -382,7 +403,13 @@ const openPage = async ({ device = 'chromebook', url, init = null, reducedMotion
   if (init) await context.addInitScript(init.fn, init.arg);
   const page = await context.newPage();
   const errors = [];
-  page.on('console', (message) => { if (message.type() === 'error' && !IGNORABLE_CONSOLE.test(message.text())) errors.push(message.text()); });
+  // "Failed to load resource" names its URL only in the message's location:
+  // kept, so a 400 says whether the bridge refused a call or something else did.
+  page.on('console', (message) => {
+    if (message.type() !== 'error' || IGNORABLE_CONSOLE.test(message.text())) return;
+    const failed = message.text().startsWith('Failed to load resource') ? message.location()?.url : '';
+    errors.push(failed ? `${message.text()} at ${failed}` : message.text());
+  });
   page.on('pageerror', (error) => errors.push(`pageerror: ${error?.message || error}`));
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   return { page, context, errors, device };
@@ -673,9 +700,13 @@ const watcherTotal = (open) => Object.values(open).reduce((sum, count) => sum + 
 
 /* ------------------------------ run a scenario ------------------------------ */
 
+// When the scenario now running began, so a console error can be matched to
+// the calls the bridge refused in it.
+let scenarioStartedAt = 0;
 const run = async (name, scenario) => {
   if (ONLY.length && !ONLY.includes(name)) return;
   log(`▶ ${name}`);
+  scenarioStartedAt = Date.now();
   const before = findings.length;
   try {
     await scenario(name);
@@ -689,8 +720,16 @@ const run = async (name, scenario) => {
   log(`${findings.length === before ? '✓' : '✗'} ${name}`);
 };
 
+// The bridge answers a refused callable with a 400, which the browser logs
+// only as "Failed to load resource": name the refusals behind such an error.
+const refusedSinceScenarioStart = () => bridgeCalls
+  .filter((call) => !call.ok && call.at >= scenarioStartedAt)
+  .map((call) => ({ name: call.name, code: call.code, lifecycle: call.lifecycle, who: call.identity?.studentId || call.identity?.role || 'teacher' }));
 const consoleErrors = (S, handles) => {
-  for (const handle of handles) check(S, handle.errors.length === 0, `console errors on ${handle.device}${handle.studentId ? ` (${handle.studentId})` : ''}: ${handle.errors.slice(0, 3).join(' | ')}`);
+  for (const handle of handles) {
+    const clean = check(S, handle.errors.length === 0, `console errors on ${handle.device}${handle.studentId ? ` (${handle.studentId})` : ''}: ${handle.errors.slice(0, 3).join(' | ')}`);
+    if (!clean && handle.errors.some((text) => /status of 400/.test(text))) note(S, 'calls the bridge refused in this scenario', refusedSinceScenarioStart());
+  }
 };
 
 /* ================================ scenarios ================================ */
@@ -869,9 +908,25 @@ await run('classic', async (S) => {
   check(S, (await roomOf(roomId)).status === 'running', '"Keep playing" ended the game anyway');
   await teacher.page.getByRole('button', { name: 'End Game' }).click();
   await shot(teacher, 'A09-console-end-game-confirm');
+  // Everything the console's live region says from here on (teacher features walk, item 8).
+  await teacher.page.evaluate(() => {
+    window.__mmConsoleSaid = [];
+    const region = document.querySelector('[data-mm-console-announcer]');
+    if (region) new MutationObserver(() => { const text = region.textContent.trim(); if (text) window.__mmConsoleSaid.push(text); }).observe(region, { childList: true, characterData: true, subtree: true });
+  });
   await confirmDialog(teacher, 'End Game');
   const finished = await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
   check(S, finished, 'End Game did not finish the game');
+  // THE REPORT, without a refresh, followed by one listener the console owns
+  // (released below, when Play Again leaves the room). That a report written
+  // after the console asked still shows is the reconnect scenario's.
+  check(S, await waitForText(teacher, 'After the game', 15_000), 'the finished console did not show the game\'s report without a refresh');
+  // ...and a screen reader is told it came, once.
+  await wait(400);
+  const said = await teacher.page.evaluate(() => window.__mmConsoleSaid || null);
+  check(S, JSON.stringify(said) === JSON.stringify(['The report is ready, under After the game.']), `the report's arrival was not said once in the console's live region: ${JSON.stringify(said)}`);
+  const reportWatch = () => teacher.page.evaluate(() => window.__mmWatchers?.open?.report || 0);
+  check(S, await reportWatch() === 1, `the finished room's report is followed by one listener (${await reportWatch()})`);
 
   // THE END: the podium, each student's place, rewards once.
   const result = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data();
@@ -908,6 +963,15 @@ await run('classic', async (S) => {
     return null;
   })();
   check(S, replayId, 'Play Again made no new room');
+  // The console leaves the finished room when its own room watch brings the
+  // new lobby, a moment after the write read above, and leaving it closes
+  // the report's listener. A read at the instant of the write raced that.
+  let reportOpen = await reportWatch();
+  for (let tries = 0; reportOpen && tries < 60; tries += 1) {
+    await wait(250);
+    reportOpen = await reportWatch();
+  }
+  check(S, reportOpen === 0, `the finished room's report listener stayed open after Play Again left it (${reportOpen} open 15 s after the new room)`);
   for (const student of [s1, s2, s3]) {
     check(S, await waitForStudentStage(student, 'lobby', 20_000), `${student.studentId}: did not move into the new lobby`);
     check(S, !(await textOf(student)).includes('Challenge complete'), `${student.studentId}: the last game's final screen carried over`);
@@ -1106,9 +1170,30 @@ await run('reconnect', async (S) => {
   await confirmDialog(teacher, 'End Game');
   await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
   check(S, await waitForConsole(teacher, 'completed', 10_000), 'the console is not on the finished game');
+  // A REPORT WRITTEN AFTER THE CONSOLE ASKED. The room finishes first and the
+  // report is written a moment after it; here that write is usually done
+  // before the console asks, so the report is taken away while the console is
+  // refreshed onto the finished game, and written back once it is there. The
+  // console read it once and showed it only after another refresh; it follows
+  // it until it is written.
+  const reportRef = db.collection('liveChallengeReports').doc(roomId);
+  let writtenReport = null;
+  for (let tries = 0; tries < 40 && !writtenReport; tries += 1) {
+    writtenReport = (await reportRef.get()).data() || null;
+    if (!writtenReport) await wait(250);
+  }
+  check(S, writtenReport, 'the finished game wrote no report');
+  await reportRef.delete();
   await teacher.page.reload({ waitUntil: 'domcontentloaded' });
   check(S, await waitForConsole(teacher, 'completed', 20_000), 'a refresh lost the finished game\'s results');
   check(S, await waitForText(teacher, 'Challenge complete', 5_000), 'the refreshed console does not show the finished game');
+  await wait(1_500);
+  check(S, !(await textOf(teacher)).includes('After the game'), 'a report not written yet was shown');
+  if (writtenReport) await reportRef.set(writtenReport);
+  check(S, await waitForText(teacher, 'After the game', 10_000), 'a report written after the console asked did not show without another refresh');
+  // A report already written is shown at once.
+  await teacher.page.reload({ waitUntil: 'domcontentloaded' });
+  check(S, await waitForConsole(teacher, 'completed', 20_000) && await waitForText(teacher, 'After the game', 10_000), 'the refreshed console does not show the game\'s report');
   await shot(teacher, 'D05-console-finished-after-refresh');
   // The heartbeat stops once the game is over.
   const callsBefore = bridgeCalls.filter((call) => call.name === 'calibrateLiveChallengeClock' && call.identity?.studentId === ids[0]).length;
@@ -1548,6 +1633,171 @@ await run('endurance', async (S) => {
   check(S, stale.length === 0, `games left open: ${stale.map((doc) => doc.id).join(', ')}`);
   consoleErrors(S, [teacher, s1, s2]);
   await closeAll(teacher, s1, s2);
+});
+
+// P — A CLASSIC ROUND ON TWO PHONES (390 x 844 and 360 x 740, touch): THE
+// QUESTION HOLDS ITS PLACE while what is above it comes and goes. Measured in
+// CI's fonts before it did: "Reconnecting…" in the page header wrapped the score
+// and Exit onto rows of their own and moved the question 50 px down (and back
+// as the connection returned); "Points banked this round", arriving in the
+// round's banner with the first right step, 83 px; "Your connection is slow
+// right now", which comes with a dropped connection, sat above it too; and a
+// phone that came back after a round had closed without it was told so above
+// the question, mid-round, which pushed the question down as the notice arrived
+// and up again at "Got it".
+//
+// A Solver Race: its workspace grades each step on the device as it is taken,
+// and the steps here are real ones, made by the shared workspace driver
+// (equationWorkspacePlanner.mjs), so the banked line arrives with a step's own
+// points and goes with the server's verdict on a real Submit. Where the question
+// is, is read every frame in the page (watchQuestion): a move that lasts one
+// frame is still a move under a finger.
+const { solveLinearInEquationWorkspace } = await import(path.join(here, 'equationWorkspacePlanner.mjs'));
+const watchQuestion = (handle) => handle.page.evaluate(() => {
+  const watch = { entries: [] };
+  window.__mmQuestionWatch = watch;
+  let engine = null;
+  const tick = () => {
+    if (window.__mmQuestionWatch !== watch) return;
+    const now = document.querySelector('[data-live-challenge-engine]');
+    if (now?.parentElement) {
+      const box = now.parentElement.getBoundingClientRect();
+      const top = Math.round((box.top + window.scrollY) * 10) / 10;
+      if (now !== engine) {
+        engine = now;
+        watch.entries.push({ tops: [top] });
+      } else {
+        const { tops } = watch.entries[watch.entries.length - 1];
+        if (tops[tops.length - 1] !== top) tops.push(top);
+      }
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+});
+// Every place the question on screen has been since the watch began (or since it
+// appeared): one, to a pixel, when nothing moved it.
+const questionPlaces = (handle) => handle.page.evaluate(() => window.__mmQuestionWatch?.entries.at(-1)?.tops || []);
+const heldSince = async (S, handle, moments) => {
+  const tops = await questionPlaces(handle);
+  const spread = tops.length ? Math.max(...tops) - Math.min(...tops) : null;
+  check(S, spread !== null && spread <= 1, `${handle.studentId} (${handle.device}): ${moments} moved the question (its top, in the page, was at ${JSON.stringify(tops)})`);
+};
+const bankedLine = (handle) => handle.page.evaluate(() => {
+  const line = document.querySelector('[data-mm-banked-line]');
+  return line ? { shown: line.getAttribute('data-mm-banked-line') === '1', words: (line.querySelector('[aria-live]')?.textContent || '').trim() } : null;
+});
+// The most a round's work can bank, written over the number a step banked (the
+// line's room holds it), then the number put back.
+const writeBankedNumber = (handle, value) => handle.page.evaluate((next) => {
+  const number = document.querySelector('[data-mm-banked-line="1"] [aria-live] > span:nth-child(2)');
+  if (!number) return null;
+  const was = number.textContent;
+  number.textContent = next;
+  return was;
+}, value);
+
+await run('phone-round', async (S) => {
+  const ids = studentsOf('p4');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(ids[0], 'phone'), await openStudent(ids[1], 'phone360')];
+  // Long enough for a clock check to fail while offline (one every 30 s), in round 2.
+  const roomId = await createSolverRace(teacher, { classKey: 'p4', rounds: 5, seconds: 90 });
+  for (const id of ids.slice(2)) await botJoin(roomId, id);
+  for (const student of phones) check(S, await waitForStudentStage(student, 'lobby', 20_000), `${student.studentId}: not in the lobby`);
+  await primary(teacher, 'start').click();
+  let room = await waitForRoom(roomId, (value) => value.status === 'running' && value.roundState !== 'closed', 20_000);
+  if (!check(S, room, 'the round never opened')) return;
+  await wait(Math.max(0, ms(room.startsAt) - Date.now()) + 600);
+  for (const student of phones) {
+    const shown = await student.page.locator('[data-live-challenge-engine] button').first().waitFor({ timeout: 15_000 }).then(() => true, () => false);
+    check(S, shown, `${student.studentId}: no question at GO`);
+    await watchQuestion(student);
+  }
+
+  // ROUND 1: the banked line, from real steps. Its room is there from GO; a step
+  // the workspace grades right banks its points, and the words arrive.
+  for (const student of phones) check(S, (await student.page.locator('[data-mm-banked-line="0"]').count()) === 1, `${student.studentId}: a step-graded round keeps no room for its banked points`);
+  await Promise.all(phones.map(async (student) => {
+    const steps = [];
+    const host = student.page.locator('[data-live-challenge-engine]').locator('..');
+    await solveLinearInEquationWorkspace(student.page, host, { variable: 'x', log: (line) => steps.push(line) }).catch((error) => steps.push(`threw: ${error?.message || error}`));
+    const line = await bankedLine(student);
+    note(S, `${student.studentId} (${student.device}): the steps taken, and the banked line after them`, { steps, line });
+    check(S, line?.shown && /Points banked this round\s*\+\d/.test(line.words), `${student.studentId}: no banked points after the workspace's graded steps (${JSON.stringify(line)})`);
+  }));
+  await heldSince(S, phones[0], 'the graded steps and "Points banked this round"');
+  await heldSince(S, phones[1], 'the graded steps and "Points banked this round"');
+  await Promise.all(phones.map((student) => shot(student, `P01-banked-${student.device}`)));
+  const real = await Promise.all(phones.map((student) => writeBankedNumber(student, '+1,000')));
+  phones.forEach((student, index) => check(S, real[index] !== null, `${student.studentId}: no banked number to write the most into`));
+  await wait(150);
+  for (const student of phones) await heldSince(S, student, 'the most a round can bank, "+1,000"');
+  await Promise.all(phones.map((student, index) => (real[index] === null ? null : writeBankedNumber(student, real[index]))));
+  // The answer, sent: the server's verdict arrives and the banked line goes.
+  for (const student of phones) {
+    await student.page.locator('[data-live-challenge-engine]').locator('..').getByRole('button', { name: 'Submit', exact: true }).first().click({ timeout: 5_000 }).catch(() => {});
+  }
+  for (const student of phones) {
+    const graded = await student.page.waitForFunction(() => document.querySelector('[data-mm-banked-line]')?.getAttribute('data-mm-banked-line') === '0' && /Correct!|% credit/.test(document.body.innerText), null, { timeout: 15_000 }).then(() => true, () => false);
+    check(S, graded, `${student.studentId}: no verdict for the answer, or the banked line stayed (${JSON.stringify(await bankedLine(student))})`);
+  }
+  await wait(300);
+  for (const student of phones) await heldSince(S, student, 'the verdict, and the banked line going');
+  await teacher.page.getByRole('button', { name: 'End Round Now' }).click({ timeout: 8_000 });
+  await confirmDialog(teacher, 'End Round Now');
+  check(S, await waitForRoom(roomId, (value) => value.roundState === 'closed', 15_000), 'End Round Now did not end round 1');
+  await primary(teacher, 'advance').click();
+
+  // ROUND 2: the connection drops. "Offline — reconnecting…", then the clock
+  // that cannot be read ("…slow right now"). The round closes while they are away.
+  room = await waitForRoom(roomId, (value) => Number(value.currentRound) === 1 && value.roundState !== 'closed', 20_000);
+  if (!check(S, room, 'round 2 never opened')) return;
+  await wait(Math.max(0, ms(room.startsAt) - Date.now()) + 600);
+  for (const student of phones) {
+    check(S, await student.page.locator('[data-live-challenge-engine] button').first().waitFor({ timeout: 15_000 }).then(() => true, () => false), `${student.studentId}: no question at round 2's GO`);
+    await watchQuestion(student);
+  }
+  await Promise.all(phones.map((student) => student.context.setOffline(true)));
+  for (const student of phones) check(S, await waitForText(student, 'Offline', 6_000), `${student.studentId}: an offline phone is not told`);
+  for (const student of phones) await heldSince(S, student, '"Offline — reconnecting…"');
+  const slow = await Promise.all(phones.map((student) => waitForText(student, 'Your connection is slow right now', 40_000)));
+  phones.forEach((student, index) => check(S, slow[index], `${student.studentId}: no slow-connection line while offline`));
+  for (const student of phones) await heldSince(S, student, '"Offline — reconnecting…" and "Your connection is slow right now"');
+  await Promise.all(phones.map((student) => shot(student, `P02-offline-${student.device}`)));
+  await teacher.page.getByRole('button', { name: 'End Round Now' }).click({ timeout: 8_000 });
+  await confirmDialog(teacher, 'End Round Now');
+  check(S, await waitForRoom(roomId, (value) => value.roundState === 'closed', 15_000), 'End Round Now did not end round 2');
+  await primary(teacher, 'advance').click();
+
+  // ROUND 3, already past GO when the phones come back: round 3's question,
+  // and then "Round 2 closed while you were away", which must not move it —
+  // neither as it arrives nor at "Got it".
+  room = await waitForRoom(roomId, (value) => Number(value.currentRound) === 2 && value.roundState !== 'closed', 20_000);
+  if (!check(S, room, 'round 3 never opened')) return;
+  await wait(Math.max(0, ms(room.startsAt) - Date.now()) + 1_500);
+  for (const student of phones) await watchQuestion(student);
+  await Promise.all(phones.map((student) => student.context.setOffline(false)));
+  for (const student of phones) {
+    const back = await student.page.waitForFunction(() => !/Offline/.test(document.body.innerText) && document.querySelector('[data-live-challenge-engine]'), null, { timeout: 20_000 }).then(() => true, () => false);
+    check(S, back, `${student.studentId}: still "Offline", or no question, after the connection returned`);
+    const told = await student.page.locator('[data-mm-missed-rounds]').first().waitFor({ timeout: 15_000 }).then(() => true, () => false);
+    check(S, told && /Round 2 closed while you were away/.test(await student.page.locator('[data-mm-missed-rounds]').first().innerText()), `${student.studentId}: back mid-round 3, not told that round 2 closed while it was away`);
+  }
+  await wait(500);
+  await Promise.all(phones.map((student) => shot(student, `P03-missed-round-${student.device}`)));
+  for (const student of phones) await heldSince(S, student, 'the connection returning and "Round 2 closed while you were away"');
+  for (const student of phones) await student.page.getByRole('button', { name: 'Got it' }).click({ timeout: 5_000 }).catch(() => {});
+  await wait(300);
+  for (const student of phones) {
+    check(S, (await student.page.locator('[data-mm-missed-rounds]').count()) === 0, `${student.studentId}: "Got it" did not dismiss the missed-round notice`);
+    await heldSince(S, student, '"Round 2 closed while you were away" and its "Got it"');
+  }
+  await teacher.page.getByRole('button', { name: 'End Game' }).click();
+  await confirmDialog(teacher, 'End Game');
+  check(S, await waitForRoom(roomId, (value) => value.status === 'finished', 30_000), 'End Game did not finish the game');
+  consoleErrors(S, [teacher, ...phones]);
+  await closeAll(teacher, ...phones);
 });
 
 // ADVERSARIAL — DOUBLE PRESSES, TWO HOST TABS, CONFIRMATIONS, EARLY ANSWERS.

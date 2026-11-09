@@ -110,6 +110,15 @@
  *                      family whose concept constraints change it (an integer
  *                      slope is DOK 1, a fractional one DOK 2). Absent: the
  *                      family's `difficulty` for every slot.
+ *   recovery.replaces  earlier versions of this family that a NEW Recovery
+ *                      binding of a static question takes this version in
+ *                      place of (recoveryContentPlan.recoveryCandidateFamilies):
+ *                      for a version written because an earlier one shows
+ *                      students something they must not be shown again
+ *                      (matrices.arrayRecordTotals v2: the choices the lesson
+ *                      itself rewrote). A stored binding keeps the version it
+ *                      was certified with, and an unpinned reference still
+ *                      means version 1. Absent: none.
  *
  * Pure by construction: no Firestore, no network, no clock.
  */
@@ -422,6 +431,15 @@ export const defineQuestionFamily = (spec = {}) => {
   });
 
   const recovery = isObject(spec.recovery) ? spec.recovery : {};
+  // Only an earlier version can be replaced, and only by a version that
+  // could itself be bound: one that recognizes static questions.
+  const replaces = recovery.replaces === undefined ? [] : recovery.replaces;
+  if (!Array.isArray(replaces) || replaces.some((earlier) => !Number.isInteger(earlier) || earlier < 1 || earlier >= version)) {
+    fail(id, '`recovery.replaces` lists earlier versions of the family (whole numbers below `version`).');
+  }
+  if (replaces.length && spec.recognize === undefined) {
+    fail(id, '`recovery.replaces` needs `recognize`: only a version that recognizes a static question is ever bound.');
+  }
 
   // Overrides applied for a student support modification (e.g. an IEP's
   // "reduce-complexity"). Validated like any assignment constraint, so a
@@ -490,6 +508,8 @@ export const defineQuestionFamily = (spec = {}) => {
       // Families that share an equivalence group may stand in for each other
       // in a Recovery assessment. Default: only the family itself.
       equivalenceGroup: clean(recovery.equivalenceGroup) || id,
+      // Earlier versions a new Recovery binding takes this one in place of.
+      replaces: Object.freeze([...new Set(replaces)].sort((a, b) => a - b)),
     }),
     supportConstraints: Object.freeze(Object.fromEntries(Object.entries(supportConstraints).map(
       ([modification, overrides]) => [modification, Object.freeze({ ...overrides })],

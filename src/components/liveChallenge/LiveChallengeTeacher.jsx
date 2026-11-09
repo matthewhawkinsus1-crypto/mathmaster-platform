@@ -1,12 +1,14 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeDryRun from './ChallengeDryRun.jsx';
 import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
 import { RushHostStatus, RushRaceBoard, RushReport, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import { LineGraphHostStatus, LineGraphReport, lineSettingsLine } from './LineGraphHost.jsx';
+import { GameReportTable } from './GameReportTable.jsx';
 import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
 import { ChallengeClockText, ChallengeCountdown, ChallengeShellStyles, ConfirmDialog, StandingsBoard, useLowTime } from './ChallengeShellParts.jsx';
 import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, HostSolutionPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
 import MathText from '../common/MathText.jsx';
+import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
 import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
@@ -17,7 +19,7 @@ import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeSc
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
-import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
+import { CLASSIC_SETUP_CHOICES, getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
 import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
 import { teacherErrorSentence } from '../../platform/teacher/teacherErrorWords.js';
@@ -28,6 +30,7 @@ import {
   roundWaitingOnExtendedTime,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { roundSolutionState, solutionRevealed } from '../../platform/liveChallenge/challengeSolutionModel.js';
+import { reportArrivalAnnouncement } from '../../platform/liveChallenge/consoleAnnouncements.js';
 import { STANDINGS_DISPLAY, normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
 import { defaultInequalitySetup, inequalityCreateRequest, inequalitySetupProblem } from '../../platform/liveChallenge/inequalitySetupModel.js';
@@ -82,8 +85,8 @@ import {
   finishLiveChallenge,
   getLiveChallengeHostRoster,
   publishLiveChallengeStandings,
-  readChallengeReport,
-  readClassGameMemory,
+  watchChallengeReport,
+  watchClassGameMemory,
   setWarmupChallengeDelivery,
   startLiveChallenge,
   updateLiveChallengePacing,
@@ -108,6 +111,9 @@ const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.j
 const InequalityRushSetup = lazy(() => import('./InequalityRushSetup.jsx'));
 // Graph the Line's the same way: loaded only when a teacher chooses it.
 const LineGraphSetup = lazy(() => import('./LineGraphSetup.jsx'));
+// The last-time card a Solver Race setup shows (the game setups above carry
+// their own): loaded only when the class has a memory of the game.
+const ClassMemoryCard = lazy(() => import('./ClassMemoryCard.jsx'));
 const LineGraphPractice = lazy(() => import('./LineGraphPractice.jsx'));
 // Whether Graph the Line's modes are offered to every teacher (not a preview).
 const LINE_GRAPH_LAUNCHED = LINE_GRAPH_MODE_IDS.every((id) => getChallengeMode(id).teacherSelectable);
@@ -139,7 +145,13 @@ const closeRoundOnTime = (payload) => closeLiveChallengeRound(payload).catch((er
   throw error;
 });
 
-function ChallengeReport({ report }) {
+/*
+ * "After the game": every game's report, and the classic game's own. Read by a screen reader as the
+ * rush report is (teacher features walk, item 11): the totals are a list, and "By standard, hardest
+ * first" a heading and a table named by it (GameReportTable), a row header for each standard. What the
+ * teacher sees is unchanged.
+ */
+export function ChallengeReport({ report }) {
   const roundSet = useMemo(() => buildChallengeExport(report), [report]);
   if (!report) return null;
   const pct = (value) => (value == null ? '—' : `${value}%`);
@@ -152,26 +164,26 @@ function ChallengeReport({ report }) {
           <strong style={{ display: 'block', marginTop: 4, fontSize: 'calc(17 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>{report.weakestStandard.standard} — {pct(report.weakestStandard.accuracyPercent)} correct</strong>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)', marginBottom: 14 }}>
-        <span><strong>{report.playedCount}</strong> of {report.eligibleCount} played</span>
-        <span>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></span>
-        <span>
+      <ul style={{ display: 'flex', gap: 18, flexWrap: 'wrap', margin: '0 0 14px', padding: 0, listStyle: 'none', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>
+        <li><strong>{report.playedCount}</strong> of {report.eligibleCount} played</li>
+        <li>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></li>
+        <li>
           {/* A game ended early says so: "3 of 10 rounds played", never "10 rounds". */}
           {Number.isInteger(report.playedRoundCount) && report.playedRoundCount < report.scheduledRoundCount
             ? <><strong>{report.playedRoundCount}</strong> of {report.scheduledRoundCount} rounds played</>
             : <><strong>{report.scheduledRoundCount}</strong> {report.scheduledRoundCount === 1 ? 'round' : 'rounds'}</>}
           {report.secondChanceRoundCount ? ` + ${report.secondChanceRoundCount} second chance` : ''}
-        </span>
-      </div>
+        </li>
+      </ul>
       {report.standards?.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>By standard, hardest first</div>
-          {report.standards.map((entry) => (
-            <div key={entry.standard} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 'calc(14 * var(--mm-px))' }}>
-              <span>{entry.standard}</span><span style={{ color: 'var(--mm-text-muted)' }}>{entry.correct}/{entry.answered} correct · {pct(entry.accuracyPercent)}</span>
-            </div>
-          ))}
-        </div>
+        <GameReportTable
+          style={{ marginBottom: 14 }}
+          title="By standard, hardest first"
+          columns={['Standard', 'Results']}
+          rows={report.standards.map((entry) => ({ ...entry, key: entry.standard, label: entry.standard }))}
+          value={(entry) => `${entry.correct}/${entry.answered} correct · ${pct(entry.accuracyPercent)}`}
+          rule="var(--mm-border-soft)"
+        />
       )}
       {roundSet && (
         <div style={{ marginBottom: 14 }}>
@@ -349,7 +361,7 @@ export default function LiveChallengeTeacher({
   const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
   const [inequalitySetup, setInequalitySetup] = useState(() => defaultInequalitySetup(courseId));
-  // What the chosen class did the last time it played the chosen rush, if it
+  // What the chosen class did the last time it played the chosen game, if it
   // has (liveChallengeClassMemory.mjs): the setup card's "last played … → try …".
   const [classMemory, setClassMemory] = useState(null);
   const [lineSetup, setLineSetup] = useState(() => defaultLineSetup(courseId));
@@ -401,6 +413,17 @@ export default function LiveChallengeTeacher({
   // Which destructive action is waiting for the teacher to confirm it.
   const [confirming, setConfirming] = useState(null);
   const [projector, setProjector] = useState(false);
+  // Leaving the projector (Exit Projector View, or Escape) puts focus back on the console's "Projector View", the
+  // control that opened it. The projector takes the console's place, so the button that was pressed is gone by then,
+  // and focus fell to the page: a keyboard teacher started again from the skip link (TT27, fifth slice).
+  const projectorButtonRef = useRef(null);
+  const projectorWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (projector) { projectorWasOpenRef.current = true; return; }
+    if (!projectorWasOpenRef.current) return;
+    projectorWasOpenRef.current = false;
+    projectorButtonRef.current?.focus();
+  }, [projector]);
   const [dryRunOpen, setDryRunOpen] = useState(false);
   const audioDirectorRef = useRef(null);
   if (!audioDirectorRef.current) audioDirectorRef.current = new LiveChallengeAudioDirector();
@@ -580,20 +603,37 @@ export default function LiveChallengeTeacher({
   const classicStrategyId = resolveClassicScoring(challengeMode, classicScoringId);
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
   const inequalityProblem = inequalityMode ? inequalitySetupProblem(inequalitySetup) : null;
+  // The games with a memory (N80). Standard Challenge has none: there is no
+  // easier or harder setting to suggest (liveChallengeClassMemory.mjs).
   let memoryGame = null;
   if (rushMode) memoryGame = 'graphFeatureRush';
   else if (inequalityMode) memoryGame = 'inequalityRush';
-  // Read again when the class or the game changes, and when a game ends — a
-  // finished game may just have written it. Nothing is shown while a game is
-  // open, and a class that has not played the game has no card.
+  else if (lineMode) memoryGame = LINE_GRAPH_GAME;
+  else if (challengeMode === 'solverRace') memoryGame = 'solverRace';
+  // "Use last settings" or "Use suggestion" on a Solver Race card: the race
+  // as the memory holds it (focus, difficulty, rounds, clock, scoring).
+  const takeSolverRaceSetup = (setup) => {
+    if (!setup) return;
+    setSolverRaceFocus(setup.focus);
+    setSolverRaceDifficulty(setup.difficulty);
+    setRoundCount(setup.roundCount);
+    setRoundSeconds(setup.roundSeconds);
+    setTimingMode(setup.timingMode);
+    setClassicScoringId(setup.scoringStrategyId);
+  };
+  // Followed while setup is open, not read once: New Challenge can be chosen
+  // before the game that just ended has written its memory (the room closes
+  // first), and the write then updates the card. Nothing is shown while a
+  // game is open, and a class that has not played the game has no card.
   useEffect(() => {
-    let alive = true;
     setClassMemory(null);
     if (!memoryGame || !classId || roomId) return undefined;
-    readClassGameMemory(classId, memoryGame)
-      .then((memory) => { if (alive) setClassMemory(memory); })
-      .catch((error) => console.warn('The last-time card could not be read:', error));
-    return () => { alive = false; };
+    return watchClassGameMemory(
+      classId,
+      memoryGame,
+      setClassMemory,
+      (error) => console.warn('The last-time card could not be read:', error),
+    );
   }, [memoryGame, classId, roomId]);
   const lineProblem = lineMode ? lineSetupProblem(lineSetup) : null;
   const questionSetGame = questionSetGameOf(room);
@@ -667,16 +707,55 @@ export default function LiveChallengeTeacher({
     return () => window.clearInterval(timer);
   }, [room, leaderboard, audioInputs]);
 
+  // THE REPORT is followed until it is written, not read once: the room turns
+  // finished first and the report is written a moment after it, so a read on
+  // finishing showed nothing until a refresh. The watch stops at the written
+  // report, and leaving the room (New Challenge, Play Again) closes it, as
+  // the class memory's does.
   const [report, setReport] = useState(null);
   useEffect(() => {
     const finishedRoomId = room?.roomId || room?.id;
-    if (room?.status !== 'finished' || !finishedRoomId) { setReport(null); return undefined; }
-    let cancelled = false;
-    readChallengeReport(finishedRoomId)
-      .then((value) => { if (!cancelled) setReport(value); })
-      .catch(() => { if (!cancelled) setReport(null); });
-    return () => { cancelled = true; };
+    setReport(null);
+    if (room?.status !== 'finished' || !finishedRoomId) return undefined;
+    return watchChallengeReport(
+      finishedRoomId,
+      setReport,
+      (error) => console.warn('The game report could not be read:', error),
+    );
   }, [room?.status, room?.roomId, room?.id]);
+
+  // THE CONSOLE'S LIVE REGION (consoleAnnouncements.js): one polite line for a
+  // screen reader, for what changes on the console without moving focus. It
+  // is emptied and filled a moment later, so the same words said twice are
+  // heard twice; leaving a room empties it.
+  const [announcement, setAnnouncement] = useState('');
+  const announceTimerRef = useRef(null);
+  const announce = useCallback((words) => {
+    window.clearTimeout(announceTimerRef.current);
+    setAnnouncement('');
+    announceTimerRef.current = window.setTimeout(() => {
+      announceTimerRef.current = null;
+      setAnnouncement(words);
+    }, 100);
+  }, []);
+  useEffect(() => () => window.clearTimeout(announceTimerRef.current), []);
+  useEffect(() => { setAnnouncement(''); }, [roomId]);
+  // "After the game" arrives a moment after the game ends (the watch above),
+  // with nothing to tell a screen reader it came: said once for each room
+  // (teacher features walk, item 8).
+  const reportAnnouncedForRef = useRef(null);
+  useEffect(() => {
+    const finishedRoomId = room?.roomId || room?.id || null;
+    const words = reportArrivalAnnouncement({ roomId: finishedRoomId, report, announcedRoomId: reportAnnouncedForRef.current });
+    if (!words) return;
+    reportAnnouncedForRef.current = finishedRoomId;
+    announce(words);
+    // The report decides; the room it belongs to is read with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report, announce]);
+  const consoleAnnouncer = (
+    <p role="status" aria-live="polite" aria-atomic="true" data-mm-console-announcer="" style={SR_ONLY_STYLE}>{announcement}</p>
+  );
 
   const warmupAssignmentOptions = useMemo(() => (Array.isArray(assignments) ? assignments : [])
     .filter((assignment) => assignment?.warmup?.enabled !== false)
@@ -1160,6 +1239,11 @@ export default function LiveChallengeTeacher({
                 {inequalityMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own inequalities and races the clock to graph each one on a number line — open or closed, which way, and "no solution".</span>}
                 {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn.{LINE_GRAPH_LAUNCHED ? '' : ' In preview: only you can launch it.'}</span>}
               </label>
+              {challengeMode === 'solverRace' && classMemory?.game === 'solverRace' && (
+                <Suspense fallback={null}>
+                  <ClassMemoryCard memory={classMemory} onUse={takeSolverRaceSetup} onAnnounce={announce} />
+                </Suspense>
+              )}
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
                   <option value="mixed">Mixed Solver Race</option>
@@ -1197,21 +1281,21 @@ export default function LiveChallengeTeacher({
               </label>}
               {rushMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph Feature Rush settings…</p>}>
-                  <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'graphFeatureRush' ? classMemory : null} />
+                  <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'graphFeatureRush' ? classMemory : null} onAnnounce={announce} />
                 </Suspense>
               )}
               {inequalityMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Inequality Graphing Rush settings…</p>}>
-                  <InequalityRushSetup setup={inequalitySetup} onChange={setInequalitySetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'inequalityRush' ? classMemory : null} />
+                  <InequalityRushSetup setup={inequalitySetup} onChange={setInequalitySetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'inequalityRush' ? classMemory : null} onAnnounce={announce} />
                 </Suspense>
               )}
               {lineMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph the Line settings…</p>}>
-                  <LineGraphSetup setup={lineSetup} onChange={setLineSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                  <LineGraphSetup setup={lineSetup} onChange={setLineSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === LINE_GRAPH_GAME ? classMemory : null} onAnnounce={announce} />
                 </Suspense>
               )}
               {!ownSettingsGame && <>
-              <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
+              <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{CLASSIC_SETUP_CHOICES.roundCounts.map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
               <label style={{ fontWeight: 800, opacity: timingMode === 'pace' ? 0.55 : 1 }}>Time per round
                 <select
                   value={roundSeconds}
@@ -1220,7 +1304,7 @@ export default function LiveChallengeTeacher({
                   onChange={(event) => setRoundSeconds(Number(event.target.value))}
                   style={{ ...field, cursor: timingMode === 'pace' ? 'not-allowed' : 'pointer' }}
                 >
-                  {[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
+                  {CLASSIC_SETUP_CHOICES.roundSeconds.map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
                 </select>
                 {timingMode === 'pace' && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Disabled in Pace Race. Students have unlimited solving time until the closing threshold starts the separate closing countdown.</span>}
               </label>
@@ -1309,6 +1393,7 @@ export default function LiveChallengeTeacher({
         </section>
         <AudioMixer director={audioDirectorRef.current} mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
         {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}>{message}</div>}
+        {consoleAnnouncer}
       </div>
     );
   }
@@ -1376,12 +1461,13 @@ export default function LiveChallengeTeacher({
           <h2 style={{ margin: '6px 0 0', fontSize: 'calc(26 * var(--mm-px))', lineHeight: 1.15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{room.title}</h2>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {!cancelled && <button type="button" onClick={() => setProjector(true)} style={primary}>Projector View</button>}
+          {!cancelled && <button ref={projectorButtonRef} type="button" onClick={() => setProjector(true)} style={primary}>Projector View</button>}
           {lobby && <button type="button" disabled={controlBusy} onClick={() => (joinedCount > 0 ? setConfirming('cancel') : control('cancel', cancelLiveChallenge))} style={{ ...secondary, color: 'var(--mm-error-text)', opacity: controlBusy ? 0.55 : 1 }}>Cancel Session</button>}
           {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && <button type="button" disabled={controlBusy} onClick={() => setConfirming('finish')} style={{ ...secondary, color: 'var(--mm-error-text)', opacity: controlBusy ? 0.55 : 1 }}>{busy === 'finish' ? 'Ending…' : 'End Game'}</button>}
         </div>
       </header>
       {recoveredNotice && <div role="status" style={{ padding: 12, borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', border: '1px solid var(--mm-info-border)', fontWeight: 800 }}>{recoveredNotice}</div>}
+      {consoleAnnouncer}
       {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}>{message}</div>}
 
       {lobby && (
@@ -1492,6 +1578,7 @@ export default function LiveChallengeTeacher({
       {cancelled && (
         <section style={{ ...panel, display: 'grid', gap: 12 }}>
           <h3 style={{ margin: 0 }}>Challenge cancelled</h3>
+          {hostEndedNote(room) && <p data-mm-host-ended-note="1" style={{ margin: 0, fontWeight: 800 }}>{hostEndedNote(room)}</p>}
           <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Nothing from this game is recorded, and nobody is rewarded.</p>
           <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={[{ key: 'sameAgain', label: 'Same Settings Again', onClick: playAgain }]} />
         </section>

@@ -415,6 +415,10 @@ const familyHints = [
   ['Start by naming the input and the output quantities; every later step (rule, table, graph, domain, range) builds on that choice.', 'Empieza por nombrar la cantidad de entrada y la de salida; cada paso siguiente (regla, tabla, gráfica, dominio, rango) se basa en esa elección.'],
   ['Decide whether an input in between makes sense here, for example one and a half of the input.', 'Decide si aquí tiene sentido una entrada intermedia, por ejemplo una y media de la entrada.'],
   ['If only whole-number inputs make sense, the graph is separate points; if every value in between makes sense, it is one connected piece.', 'Si solo tienen sentido las entradas que son números enteros, la gráfica son puntos separados; si tiene sentido cada valor intermedio, es un solo trazo continuo.'],
+  // A rule over a listed set of inputs, with no situation (F-CONTINUITY-HINT).
+  ['Which inputs belong to this relation: every number between the listed values, or only the listed ones?', '¿Qué entradas pertenecen a esta relación: todos los números entre los valores de la lista, o solo los de la lista?'],
+  ['If only the listed inputs belong, the graph is separate points; if every value between them belongs too, it is one connected piece.', 'Si solo pertenecen las entradas de la lista, la gráfica son puntos separados; si también pertenece cada valor intermedio, es un solo trazo continuo.'],
+  ['Plot each {1} pair from your table; connect the points only if the inputs between them belong to the relation too.', 'Marca cada par {1} de tu tabla; une los puntos solo si las entradas intermedias también pertenecen a la relación.'],
   ['This question asks about the x-intercepts, the y-intercept and how the graph behaves from left to right.', 'Esta pregunta trata de las intersecciones con el eje x, la intersección con el eje y y cómo se comporta la gráfica de izquierda a derecha.'],
   ['An x-intercept is a point on the x-axis, so its y-coordinate is zero: look for every place the graph meets that axis and write each as an ordered pair.', 'Una intersección con el eje x es un punto del eje x, así que su coordenada y es cero: busca cada lugar donde la gráfica toca ese eje y escribe cada uno como un par ordenado.'],
   ['The zeros are just the x-values of those points.', 'Los ceros son simplemente los valores de x de esos puntos.'],
@@ -733,6 +737,10 @@ const workedExamplePrompts = [
   ['Describe the x-intercepts, the y-intercept and how the graph behaves from left to right.', 'Describe las intersecciones con el eje x, la intersección con el eje y y cómo se comporta la gráfica de izquierda a derecha.'],
   ['Describe the x-intercepts, the y-intercept, how the graph behaves from left to right, the domain and the range.', 'Describe las intersecciones con el eje x, la intersección con el eje y, cómo se comporta la gráfica de izquierda a derecha, el dominio y el rango.'],
   ['Describe the x-intercepts, the y-intercept, the turning point, the axis of symmetry and how the graph behaves from left to right.', 'Describe las intersecciones con el eje x, la intersección con el eje y, el punto de giro, el eje de simetría y cómo se comporta la gráfica de izquierda a derecha.'],
+  // A graph on the whole real line, as the item's is: its domain is the item's
+  // own answer, so only the range is asked (functionFeatures.js, characteristicsSibling).
+  ['Describe the x-intercepts, the y-intercept, the turning point, the axis of symmetry, how the graph behaves from left to right and the range.', 'Describe las intersecciones con el eje x, la intersección con el eje y, el punto de giro, el eje de simetría, cómo se comporta la gráfica de izquierda a derecha y el rango.'],
+  ['Describe the range.', 'Describe el rango.'],
   ['Describe the x-intercepts, the y-intercept, the asymptote and how the graph behaves from left to right.', 'Describe las intersecciones con el eje x, la intersección con el eje y, la asíntota y cómo se comporta la gráfica de izquierda a derecha.'],
   ['The graph of {1} runs through {2}, {3}, {4}, in that order.', 'La gráfica de {1} pasa por {2}, {3}, {4}, en ese orden.'],
   ['Draw {1} by transforming each defining point.', 'Dibuja {1} transformando cada punto que la define.'],
@@ -812,6 +820,44 @@ const workedExamplePrompts = [
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ {3} for {4}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ {3} para {4}.'],
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ for {3}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ para {3}.'],
   ['Use the recursive rule to find the first five terms.', 'Usa la regla recursiva para hallar los primeros cinco términos.'],
+  // A polynomial item with new numbers (polynomialVariant.js). "Simplify {1}."
+  // and "Multiply {1}." are es.js's own direction sentences.
+  ['Write the answer in simplest form.', 'Escribe la respuesta en su forma más simple.'],
+  ['Write the product in simplest form.', 'Escribe el producto en su forma más simple.'],
+  ['Write each answer in simplest form.', 'Escribe cada respuesta en su forma más simple.'],
+  ['Write each product in simplest form.', 'Escribe cada producto en su forma más simple.'],
+  ['Simplify each difference.', 'Simplifica cada diferencia.'],
+  ['Simplify each expression.', 'Simplifica cada expresión.'],
+  ['Multiply.', 'Multiplica.'],
+  ['First difference: {1}.', 'Primera diferencia: {1}.'],
+  ['Second difference: {1}.', 'Segunda diferencia: {1}.'],
+  ['Third difference: {1}.', 'Tercera diferencia: {1}.'],
+  ['First product: {1}.', 'Primer producto: {1}.'],
+  ['Second product: {1}.', 'Segundo producto: {1}.'],
+  ['Third product: {1}.', 'Tercer producto: {1}.'],
+  ['Square: {1}.', 'Cuadrado: {1}.'],
+  ['Cube: {1}.', 'Cubo: {1}.'],
+  // A system solved with matrices, with new numbers (matrixSystemVariant.js).
+  ['Solve the system with technology and matrices: {1}, {2} and {3}.', 'Resuelve el sistema con tecnología y matrices: {1}, {2} y {3}.'],
+  ['Give exact answers.', 'Da respuestas exactas.'],
+  // A factoring item with new numbers (factoringVariant.js). "Factor {1}."
+  // and "Factor {1} completely." are es.js's own direction sentences.
+  ['Factor {1}: find the GCF of its terms, then factor it out.', 'Factoriza {1}: halla el máximo común divisor (MCD) de sus términos y luego sácalo como factor común.'],
+  ['Factor {1} by grouping: factor the first two terms and the last two terms, then factor out the common binomial.', 'Factoriza {1} por agrupación: factoriza los dos primeros términos y los dos últimos, y luego saca el binomio común como factor.'],
+  ['Factor {1} by grouping.', 'Factoriza {1} por agrupación.'],
+  ['Factor each polynomial.', 'Factoriza cada polinomio.'],
+  ['Factor each polynomial completely.', 'Factoriza cada polinomio por completo.'],
+  ['Factor each polynomial by grouping.', 'Factoriza cada polinomio por agrupación.'],
+  ['Factor each trinomial.', 'Factoriza cada trinomio.'],
+  ['Factor each trinomial completely.', 'Factoriza cada trinomio por completo.'],
+  ['First: {1}.', 'Primero: {1}.'],
+  ['Second: {1}.', 'Segundo: {1}.'],
+  ['Third: {1}.', 'Tercero: {1}.'],
+  ['Fourth: {1}.', 'Cuarto: {1}.'],
+  // An nth root with new numbers (radicalVariant.js). "Simplify {1}." is es.js's own.
+  ['Simplify each root.', 'Simplifica cada raíz.'],
+  ['Assume every variable is positive.', 'Supón que todas las variables son positivas.'],
+  ['The variables can be any real numbers: use absolute value where it is needed.', 'Las variables pueden ser cualquier número real: usa el valor absoluto donde haga falta.'],
 ];
 
 const workedExampleAnswers = [
@@ -822,6 +868,9 @@ const workedExampleAnswers = [
   ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}; rises everywhere; domain {4}; range {5}', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}; sube en todo su recorrido; dominio {4}; rango {5}'],
   ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; highest point {6}; axis {7}; rises, then falls', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más alto {6}; eje {7}; sube y luego baja'],
   ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; lowest point {6}; axis {7}; falls, then rises', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más bajo {6}; eje {7}; baja y luego sube'],
+  ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; highest point {6}; axis {7}; rises, then falls; range {8}', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más alto {6}; eje {7}; sube y luego baja; rango {8}'],
+  ['Answer: x-intercepts {1} and {2}, zeros {{3}, {4}}; y-intercept {5}; lowest point {6}; axis {7}; falls, then rises; range {8}', 'Respuesta: intersecciones con el eje x {1} y {2}, ceros {{3}, {4}}; intersección con el eje y {5}; punto más bajo {6}; eje {7}; baja y luego sube; rango {8}'],
+  ['Answer: range {1}', 'Respuesta: rango {1}'],
   ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}; asymptote {4}; falls everywhere', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}; asíntota {4}; baja en todo su recorrido'],
   ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}; asymptote {4}; rises everywhere', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}; asíntota {4}; sube en todo su recorrido'],
   ['Answer: separate points; domain {{1}, {2}, {3}, ..., {4}}; range {{5}, {6}, {7}, ..., {8}}', 'Respuesta: puntos separados; dominio {{1}, {2}, {3}, ..., {4}}; rango {{5}, {6}, {7}, ..., {8}}'],
@@ -883,6 +932,31 @@ const workedExampleAnswers = [
   ['Answer: input tickets sold, output money collected in dollars; {1}; table {2}, {3}, {4}, {5}, {6}; separate points; domain {{7}, {8}, {9}, ..., {10}}; range {{11}, {12}, {13}, ..., {14}}', 'Respuesta: entrada boletos vendidos, salida dinero recaudado en dólares; {1}; tabla {2}, {3}, {4}, {5}, {6}; puntos separados; dominio {{7}, {8}, {9}, ..., {10}}; rango {{11}, {12}, {13}, ..., {14}}'],
   ['Answer: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} at {8}', 'Respuesta: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} en {8}'],
   ['Answer: {1}, {2}, {3}, {4}, {5}', 'Respuesta: {1}, {2}, {3}, {4}, {5}'],
+  // A polynomial item with new numbers: each box's name, then "= " and its answer.
+  ['Answer: Difference {1}', 'Respuesta: diferencia {1}'],
+  ['Answer: Sum {1}', 'Respuesta: suma {1}'],
+  ['Answer: Product {1}', 'Respuesta: producto {1}'],
+  ['Answer: Simplified expression {1}', 'Respuesta: expresión simplificada {1}'],
+  ['Answer: First difference {1}; Second difference {2}', 'Respuesta: primera diferencia {1}; segunda diferencia {2}'],
+  ['Answer: First product {1}; Second product {2}', 'Respuesta: primer producto {1}; segundo producto {2}'],
+  ['Answer: First product {1}; Second product {2}; Third product {3}', 'Respuesta: primer producto {1}; segundo producto {2}; tercer producto {3}'],
+  ['Answer: Square {1}; Cube {2}', 'Respuesta: cuadrado {1}; cubo {2}'],
+  // A factoring item with new numbers: each box's name, then "= " and its answer.
+  ['Answer: Factored form {1}', 'Respuesta: forma factorizada {1}'],
+  ['Answer: GCF {1}; Factored form {2}', 'Respuesta: MCD {1}; forma factorizada {2}'],
+  ['Answer: First group {1}; Second group {2}; Factored form {3}', 'Respuesta: primer grupo {1}; segundo grupo {2}; forma factorizada {3}'],
+  ['Answer: First {1}; Second {2}', 'Respuesta: primero {1}; segundo {2}'],
+  ['Answer: First {1}; Second {2}; Third {3}', 'Respuesta: primero {1}; segundo {2}; tercero {3}'],
+  ['Answer: First {1}; Second {2}; Third {3}; Fourth {4}', 'Respuesta: primero {1}; segundo {2}; tercero {3}; cuarto {4}'],
+  // An nth root with new numbers: each box's name, then "= " and its answer.
+  ['Answer: Simplified {1}', 'Respuesta: forma simplificada {1}'],
+  ['Answer: Largest perfect square factor {1}; Simplified {2}', 'Respuesta: mayor factor cuadrado perfecto {1}; forma simplificada {2}'],
+  ['Answer: Largest perfect cube factor {1}; Simplified {2}', 'Respuesta: mayor factor cubo perfecto {1}; forma simplificada {2}'],
+  ['Answer: Largest perfect fourth power factor {1}; Simplified {2}', 'Respuesta: mayor factor que es una cuarta potencia perfecta {1}; forma simplificada {2}'],
+  ['Answer: First root {1}; Second root {2}', 'Respuesta: primera raíz {1}; segunda raíz {2}'],
+  ['Answer: First perfect square factor {1}; First root {2}; Second perfect cube factor {3}; Second root {4}', 'Respuesta: factor cuadrado perfecto de la primera {1}; primera raíz {2}; factor cubo perfecto de la segunda {3}; segunda raíz {4}'],
+  ['Answer: First base {1}; Second root {2}', 'Respuesta: base de la primera {1}; segunda raíz {2}'],
+  ['Answer: Base {1}; Simplified {2}', 'Respuesta: base {1}; forma simplificada {2}'],
 ];
 
 const workedExampleSteps = [
@@ -901,6 +975,12 @@ const workedExampleSteps = [
   ['Behavior: reading left to right, it rises the whole way.', 'Comportamiento: leyendo de izquierda a derecha, sube en todo su recorrido.'],
   ['{1} is in vertex form {2} with {3}, {4} and {5}: its vertex is {6} and it opens downward.', '{1} está en la forma de vértice {2} con {3}, {4} y {5}: su vértice es {6} y abre hacia abajo.'],
   ['Range: check the ends and the vertex: {1}, {2} at the vertex and {3}.', 'Rango: revisa los extremos y el vértice: {1}, {2} en el vértice y {3}.'],
+  // The range of a graph on the whole real line, read from its vertex or its asymptote.
+  ['Range: the vertex {1} is the highest point and the {2} keeps falling on both sides of it, so the range is {3}.', 'Rango: el vértice {1} es el punto más alto y la {2} sigue bajando a los dos lados, así que el rango es {3}.'],
+  ['Range: the vertex {1} is the lowest point and the {2} keeps rising on both sides of it, so the range is {3}.', 'Rango: el vértice {1} es el punto más bajo y la {2} sigue subiendo a los dos lados, así que el rango es {3}.'],
+  ['Range: the vertex {1} is the highest point and the parabola keeps falling on both sides of it, so the range is {2}.', 'Rango: el vértice {1} es el punto más alto y la parábola sigue bajando a los dos lados, así que el rango es {2}.'],
+  ['Range: the vertex {1} is the lowest point and the parabola keeps rising on both sides of it, so the range is {2}.', 'Rango: el vértice {1} es el punto más bajo y la parábola sigue subiendo a los dos lados, así que el rango es {2}.'],
+  ['Range: the outputs get closer and closer to the asymptote {1} without reaching it, and move away from it without end on the other side, so the range is {2}.', 'Rango: las salidas se acercan cada vez más a la asíntota {1} sin alcanzarla, y se alejan de ella sin fin del otro lado, así que el rango es {2}.'],
   ['{1} is in vertex form {2} with {3}, {4} and {5}: its vertex is {6} and it opens upward.', '{1} está en la forma de vértice {2} con {3}, {4} y {5}: su vértice es {6} y abre hacia arriba.'],
   ['x-intercepts: solving {1} gives {2} or {3}, so the graph meets the x-axis at {4} and {5} and the zeros are {{6}, {7}}.', 'Intersecciones con el eje x: al resolver {1} se obtiene {2} o {3}, así que la gráfica toca el eje x en {4} y {5} y los ceros son {{6}, {7}}.'],
   ['Turning point: the vertex {1} is the highest point of the graph.', 'Punto de giro: el vértice {1} es el punto más alto de la gráfica.'],
@@ -1113,12 +1193,67 @@ const workedExampleSteps = [
   ['Apply the rule to each term to get the next one: {1}, {2}, {3}, {4}.', 'Aplica la regla a cada término para obtener el siguiente: {1}, {2}, {3}, {4}.'],
   ['Each term comes from the one before it the same way, so the terms have a common difference of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una diferencia común de {1}.'],
   ['Each term comes from the one before it the same way, so the terms have a common ratio of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una razón común de {1}.'],
+  // A polynomial item with new numbers (polynomialVariant.js).
+  ['Subtracting a polynomial means adding its opposite: the opposite of {1} is {2}.', 'Restar un polinomio es sumar su opuesto: el opuesto de {1} es {2}.'],
+  ['Add the opposite to the first polynomial: {1}.', 'Suma el opuesto al primer polinomio: {1}.'],
+  ['Group like terms and combine them: {1}.', 'Agrupa los términos semejantes y combínalos: {1}.'],
+  ['Multiply {1} by each term of {2}: {3}.', 'Multiplica {1} por cada término de {2}: {3}.'],
+  ['Multiply each term of {1} by each term of {2}: {3}.', 'Multiplica cada término de {1} por cada término de {2}: {3}.'],
+  ['No two of the products are like terms, so {1}.', 'Ninguno de los productos es semejante a otro, así que {1}.'],
+  ['Add the products and combine like terms: {1}.', 'Suma los productos y combina los términos semejantes: {1}.'],
+  ['Distribute {1}: {2}.', 'Distribuye {1}: {2}.'],
+  ['Write the square as a product: {1}.', 'Escribe el cuadrado como un producto: {1}.'],
+  ['Write the cube as the square times {1}: {2}.', 'Escribe el cubo como el cuadrado por {1}: {2}.'],
+  // A factoring item with new numbers (factoringVariant.js).
+  ['The greatest common factor of the terms is {1}: {2} and {3}.', 'El máximo común divisor de los términos es {1}: {2} y {3}.'],
+  ['The greatest common factor of the terms is {1}: {2}, {3} and {4}.', 'El máximo común divisor de los términos es {1}: {2}, {3} y {4}.'],
+  ['The greatest common factor of the terms is {1}: {2}, {3}, {4} and {5}.', 'El máximo común divisor de los términos es {1}: {2}, {3}, {4} y {5}.'],
+  ['Factor it out: {1}.', 'Sácalo como factor común: {1}.'],
+  ['{1} is a difference of squares: {2}.', '{1} es una diferencia de cuadrados: {2}.'],
+  ['{1} is a sum of cubes: {2}.', '{1} es una suma de cubos: {2}.'],
+  ['{1} is a difference of cubes: {2}.', '{1} es una diferencia de cubos: {2}.'],
+  ['{1} does not factor over the integers.', '{1} no se puede factorizar con coeficientes enteros.'],
+  ['{1} and {2} do not factor over the integers.', '{1} y {2} no se pueden factorizar con coeficientes enteros.'],
+  ['{1}, {2} and {3} do not factor over the integers.', '{1}, {2} y {3} no se pueden factorizar con coeficientes enteros.'],
+  ['{1}, {2}, {3} and {4} do not factor over the integers.', '{1}, {2}, {3} y {4} no se pueden factorizar con coeficientes enteros.'],
+  ['{1}, so {2} is a perfect square trinomial: {3}.', '{1}, así que {2} es un trinomio cuadrado perfecto: {3}.'],
+  ['{1} and {2}, so {3} is a perfect square trinomial: {4}.', '{1} y {2}, así que {3} es un trinomio cuadrado perfecto: {4}.'],
+  ['{1}, {2} and {3}, so {4} is a perfect square trinomial: {5}.', '{1}, {2} y {3}, así que {4} es un trinomio cuadrado perfecto: {5}.'],
+  ['Find two numbers whose product is {1} and whose sum is {2}: {3} and {4}, since {5} and {6}.', 'Halla dos números cuyo producto sea {1} y cuya suma sea {2}: {3} y {4}, ya que {5} y {6}.'],
+  ['Multiply the first and last coefficients: {1}.', 'Multiplica el primer coeficiente por el último: {1}.'],
+  ['Split the middle term and group: {1}.', 'Separa el término del medio en dos y agrupa: {1}.'],
+  ['Factor out the common binomial: {1}.', 'Saca el binomio común como factor: {1}.'],
+  ['Group the first two terms and the last two terms: {1}.', 'Agrupa los dos primeros términos y los dos últimos: {1}.'],
+  ['Factor each group: {1} and {2}.', 'Factoriza cada grupo: {1} y {2}.'],
+  ['The binomials {1} and {2} are opposites: {3}.', 'Los binomios {1} y {2} son opuestos: {3}.'],
+  // An nth root with new numbers (radicalVariant.js).
+  ['The largest perfect square factor of {1} is {2}: {3}.', 'El mayor factor cuadrado perfecto de {1} es {2}: {3}.'],
+  ['The largest perfect cube factor of {1} is {2}: {3}.', 'El mayor factor cubo perfecto de {1} es {2}: {3}.'],
+  ['The largest perfect fourth power factor of {1} is {2}: {3}.', 'El mayor factor de {1} que es una cuarta potencia perfecta es {2}: {3}.'],
+  ['The largest perfect fifth power factor of {1} is {2}: {3}.', 'El mayor factor de {1} que es una quinta potencia perfecta es {2}: {3}.'],
+  ['The largest perfect sixth power factor of {1} is {2}: {3}.', 'El mayor factor de {1} que es una sexta potencia perfecta es {2}: {3}.'],
+  ['{1}, a perfect square.', '{1}, un cuadrado perfecto.'],
+  ['{1}, a perfect cube.', '{1}, un cubo perfecto.'],
+  ['{1}, a perfect fourth power.', '{1}, una cuarta potencia perfecta.'],
+  ['{1}, a perfect fifth power.', '{1}, una quinta potencia perfecta.'],
+  ['{1}, a perfect sixth power.', '{1}, una sexta potencia perfecta.'],
+  ['{1} can be negative and the index is even, so {2}.', '{1} puede ser negativo y el índice es par, así que {2}.'],
+  // The Matrix Lab's worked solution of a system (matrixLabReview.js), the
+  // steps of a matrices practice; the lab's own closed review reads them too.
+  ['Write each equation in standard form: {1}; {2}; {3}.', 'Escribe cada ecuación en forma estándar: {1}; {2}; {3}.'],
+  ['A holds the coefficients in order {1}, with {2} for a missing variable: {3}.', 'A contiene los coeficientes en orden {1}, con {2} para una variable que falta: {3}.'],
+  ['{1} holds the constants: {2}.', '{1} contiene las constantes: {2}.'],
+  ['The calculator gives A⁻¹ {1}.', 'La calculadora da A⁻¹ {1}.'],
+  ['{1} A⁻¹{2}, so {3}, {4}, {5}.', '{1} A⁻¹{2}, así que {3}, {4}, {5}.'],
+  ['Check: substitute {1}, {2}, {3} into each original equation; every one is true.', 'Comprobación: sustituye {1}, {2}, {3} en cada ecuación original; todas son verdaderas.'],
 ];
 
 // --- The platform's question families (functions/shared/questionFamily*):
 // hints, back-up steps and worked examples of every generated instance — the
 // families Recovery practice and "Try a similar one" use, beyond the lessons.
 const platformFamilySentences = [
+  // The excluded input of a quotient (functions.conjugateProductQuotient, RC01's next shapes).
+  ['For {1}, the excluded x-values make the denominator zero: solve {2}.', 'Para {1}, los valores de x excluidos son los que hacen cero el denominador: resuelve {2}.'],
   // hints
   ['Get {1} alone first: in {2}, subtract {3} from both sides, then divide both sides by {4}.', 'Primero deja sola {1}: en {2}, resta {3} en los dos lados y luego divide los dos lados entre {4}.'],
   ['An absolute value measures a distance, so it is never negative.', 'Un valor absoluto mide una distancia, así que nunca es negativo.'],
@@ -1274,6 +1409,16 @@ const platformFamilySentences = [
   ['{1} and {2} multiply to {3} and add to {4}, so {5}.', '{1} y {2} multiplicados dan {3} y sumados dan {4}, así que {5}.'],
   ['{1} is zero when {2}, and {3} is zero when {4}.', '{1} vale cero cuando {2}, y {3} vale cero cuando {4}.'],
   ['Check: with {1}, both sides of {2} equal {3}.', 'Comprueba: con {1}, los dos lados de {2} valen {3}.'],
+  // A sibling in a relation-workspace item's own case ("Practise one like
+  // this", linearEquations.js specialSibling), and the closed item's review.
+  ['If no value of {1} makes the equation true, or every value does, say so.', 'Si ningún valor de {1} hace verdadera la ecuación, o si todos la hacen verdadera, dilo.'],
+  ['The {1}-terms cancel, leaving {2}, which is never true: no value of {3} makes the equation true, so the equation has no solution.', 'Los términos en {1} se cancelan y queda {2}, que nunca es verdadero: ningún valor de {3} hace verdadera la ecuación, así que la ecuación no tiene solución.'],
+  ['The {1}-terms cancel, leaving {2}, which is always true: every value of {3} makes the equation true, so the solution is all real numbers.', 'Los términos en {1} se cancelan y queda {2}, que siempre es verdadero: todo valor de {3} hace verdadera la ecuación, así que la solución son todos los números reales.'],
+  ['Check: with {1}, the left side of {2} is {3} and the right side is {4}.', 'Comprueba: con {1}, el lado izquierdo de {2} vale {3} y el lado derecho vale {4}.'],
+  ['The two sides always differ by {1}, so they are never equal.', 'Los dos lados siempre difieren en {1}, así que nunca son iguales.'],
+  ['The two sides are the same expression, so they are equal for every value of {1}.', 'Los dos lados son la misma expresión, así que son iguales para todo valor de {1}.'],
+  ['Answer: No solution', 'Respuesta: No tiene solución'],
+  ['Answer: All real numbers', 'Respuesta: Todos los números reales'],
   ['You are given the slope-intercept equation {1}.', 'Te dan la ecuación en forma pendiente-intersección {1}.'],
   ['Find the slope, the y-intercept, the x-intercept, the slope-intercept equation and the standard form of the line.', 'Halla la pendiente, la intersección con el eje y, la intersección con el eje x, la ecuación en forma pendiente-intersección y la forma estándar de la recta.'],
   ['{1} is already in the form {2} mx {3}: {4} and {5}.', '{1} ya está en la forma {2} mx {3}: {4} y {5}.'],
@@ -1428,6 +1573,28 @@ const platformFamilySentences = [
   ['Solve the first equation for {1}: {2}.', 'Despeja {1} en la primera ecuación: {2}.'],
   ['Solve the second equation for {1}: {2}.', 'Despeja {1} en la segunda ecuación: {2}.'],
   ['Both equations give {1}, so set the right sides equal: {2}.', 'Las dos ecuaciones dan {1}, así que iguala los lados derechos: {2}.'],
+  // A transformed cube root read off its graph (transformations.identifyCubeRoot, RC01):
+  // the worked example's last step when a is 1.
+  ['So the graph is {1} ∛{2}.', 'Así que la gráfica es {1} ∛{2}.'],
+  // A relation's mapping, domain and range (relations.mappingDiagram, RC01).
+  ['Answer: arrows {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; domain {{9}, {10}, {11}, {12}}; range {{13}, {14}, {15}}', 'Respuesta: flechas {1} → {2}, {3} → {4}, {5} → {6}, {7} → {8}; dominio {{9}, {10}, {11}, {12}}; rango {{13}, {14}, {15}}'],
+  // The inverse boards (questionFamiliesInverses.mjs, RC01's next shapes): the
+  // hints and back-up question the inverse support writes for a version.
+  ['In {1}, the first number of each pair is an input and the second is an output.', 'En {1}, el primer número de cada par es una entrada y el segundo es una salida.'],
+  ['Let {1} stand for the output of {2}, and solve the rule for {3}.', 'Sea {1} la salida de {2}, y despeja {3} en la regla.'],
+  ['To get {1} alone: undo the added number first, then the multiplication.', 'Para dejar sola {1}: deshaz primero el número sumado y luego la multiplicación.'],
+  ['For months represented by a total cost of {1}, use {2} as the input of your inverse rule, or solve {3} for {4}.', 'Para los meses que representa un costo total de {1}, usa {2} como la entrada de tu regla inversa, o despeja {4} en {3}.'],
+  ['For the value in the last part, put the given total into your inverse rule.', 'Para el valor de la última parte, pon el total dado en tu regla inversa.'],
+  ['To solve for {1} after the swap, which do you undo first?', 'Para despejar {1} después del intercambio, ¿qué deshaces primero?'],
+  // Where a graphed parabola rises, falls, and is positive and negative
+  // (functions.intervalsFromGraph): the worked example's answer.
+  ['Answer: increasing {1}; decreasing {2}; positive {3}; negative {4} ∪ {5}', 'Respuesta: creciente {1}; decreciente {2}; positiva {3}; negativa {4} ∪ {5}'],
+  // The translations of g(x) = f(x − C) + D (transformations.describeTranslations):
+  // the singular and plural forms the lesson's own sentences do not reach.
+  ['Outside, y’s tell the truth: {1} moves the graph {2} unit down.', 'Afuera, lo vertical dice la verdad: {1} mueve la gráfica {2} unidad hacia abajo.'],
+  ['Answer: Horizontal: {1} units to the right; vertical: {2} unit down', 'Respuesta: horizontal: {1} unidades a la derecha; vertical: {2} unidad hacia abajo'],
+  ['Answer: Horizontal: {1} unit to the left; vertical: {2} units up', 'Respuesta: horizontal: {1} unidad a la izquierda; vertical: {2} unidades hacia arriba'],
+  ['Answer: Horizontal: {1} units to the left; vertical: {2} units up', 'Respuesta: horizontal: {1} unidades a la izquierda; vertical: {2} unidades hacia arriba'],
 ];
 
 // Their back-up choices.
@@ -1458,6 +1625,9 @@ const platformFamilyChoices = [
   ['It stays the same', 'Se queda igual'],
   ['Yes, both equations', 'Sí, las dos ecuaciones'],
   ['Only one of them', 'Solo una de ellas'],
+  // The inverse in context (functions.inverseInContext): what to undo first.
+  ['The multiplication', 'La multiplicación'],
+  ['The added number', 'El número sumado'],
 ];
 
 // --- Matrix Lab: one list of what to fix ----------------------------------
@@ -1519,5 +1689,48 @@ const matrixLabFixes = [
   ...['₁', '₂', '₃', '₄', '₅', '₆'].flatMap((row) => ['₁', '₂', '₃', '₄', '₅', '₆'].map((col) => [`Reconsider: Element {1}${row}${col}.`, `Revisa: el elemento {1}${row}${col}.`])),
 ];
 
-export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences];
+// "Practise one like this" for a model with a starting amount or one that goes
+// down (functionFeatures.js FORM_TEMPLATES): its scenarios, steps and answers.
+const modelFormSiblings = [
+  ['A club’s fund starts with {1}, and the club adds {2} for each car it washes, for up to {3} cars.', 'El fondo de un club empieza con {1}, y el club agrega {2} por cada carro que lava, hasta {3} carros.'],
+  ['Let {1} be the number of cars washed and {2} the money in the fund in dollars.', 'Sea {1} el número de carros lavados y {2} el dinero del fondo en dólares.'],
+  ['A pool already holds {1} gallons of water, and a hose adds {2} gallons per minute for up to {3} minutes.', 'Una piscina ya tiene {1} galones de agua, y una manguera agrega {2} galones por minuto durante hasta {3} minutos.'],
+  ['Let {1} be the time in minutes and {2} the gallons of water in the pool.', 'Sea {1} el tiempo en minutos y {2} los galones de agua en la piscina.'],
+  ['A water tank holds {1} gallons and drains at a steady {2} gallons per minute until it is empty.', 'Un tanque de agua tiene {1} galones y se vacía a un ritmo constante de {2} galones por minuto hasta quedar vacío.'],
+  ['Let {1} be the time in minutes and {2} the gallons of water left in the tank.', 'Sea {1} el tiempo en minutos y {2} los galones de agua que quedan en el tanque.'],
+  ['A gift card starts with {1}, and each smoothie costs {2}, until the card is used up.', 'Una tarjeta de regalo empieza con {1}, y cada licuado cuesta {2}, hasta que se acaba el saldo de la tarjeta.'],
+  ['Let {1} be the number of smoothies bought and {2} the money left on the card in dollars.', 'Sea {1} el número de licuados comprados y {2} el dinero que queda en la tarjeta en dólares.'],
+  ['The input (independent quantity) is cars washed; the output (dependent quantity) is money in the fund in dollars, because it depends on the input.', 'La entrada (cantidad independiente) son los carros lavados; la salida (cantidad dependiente) es el dinero del fondo en dólares, porque depende de la entrada.'],
+  ['The input (independent quantity) is time in minutes; the output (dependent quantity) is gallons of water in the pool, because it depends on the input.', 'La entrada (cantidad independiente) es el tiempo en minutos; la salida (cantidad dependiente) son los galones de agua en la piscina, porque depende de la entrada.'],
+  ['The input (independent quantity) is time in minutes; the output (dependent quantity) is gallons of water left in the tank, because it depends on the input.', 'La entrada (cantidad independiente) es el tiempo en minutos; la salida (cantidad dependiente) son los galones de agua que quedan en el tanque, porque depende de la entrada.'],
+  ['The input (independent quantity) is smoothies bought; the output (dependent quantity) is money left on the card in dollars, because it depends on the input.', 'La entrada (cantidad independiente) son los licuados comprados; la salida (cantidad dependiente) es el dinero que queda en la tarjeta en dólares, porque depende de la entrada.'],
+  ['The amount starts at {1}, and each car adds {2}, so {3}.', 'La cantidad empieza en {1}, y cada carro suma {2}, así que {3}.'],
+  ['The amount starts at {1}, and each minute adds {2}, so {3}.', 'La cantidad empieza en {1}, y cada minuto suma {2}, así que {3}.'],
+  ['The amount starts at {1}, and each minute takes away {2}, so {3}.', 'La cantidad empieza en {1}, y cada minuto resta {2}, así que {3}.'],
+  ['The amount starts at {1}, and each smoothie takes away {2}, so {3}.', 'La cantidad empieza en {1}, y cada licuado resta {2}, así que {3}.'],
+  ['Because only a whole number of cars can be washed, the graph is separate points, not a connected line.', 'Como solo se puede lavar un número entero de carros, la gráfica son puntos separados, no una recta continua.'],
+  ['Because only a whole number of smoothies can be bought, the graph is separate points, not a connected line.', 'Como solo se puede comprar un número entero de licuados, la gráfica son puntos separados, no una recta continua.'],
+  ['Because time can be any value in between, such as half a minute, the graph is one connected segment.', 'Como el tiempo puede tomar cualquier valor intermedio, como medio minuto, la gráfica es un solo segmento continuo.'],
+  ['Domain: every time from zero up to {1}, both ends included.', 'Dominio: todos los tiempos desde cero hasta {1}, con los dos extremos incluidos.'],
+  ['Domain: from zero until the amount runs out, at {1}, both ends included.', 'Dominio: desde cero hasta que la cantidad se acaba, en {1}, con los dos extremos incluidos.'],
+  ['Domain: from zero until the amount runs out, at {1}, in whole numbers.', 'Dominio: desde cero hasta que la cantidad se acaba, en {1}, en números enteros.'],
+  ['Range: the output starts at {1} and ends at {2}, with every value in between.', 'Rango: la salida empieza en {1} y termina en {2}, con todos los valores intermedios.'],
+  ['Range: the output starts at {1} and ends at {2}, {3} at a time.', 'Rango: la salida empieza en {1} y termina en {2}, aumentando {3} cada vez.'],
+  ['Range: the output starts at {1} and goes down to zero, with every value in between.', 'Rango: la salida empieza en {1} y baja hasta cero, con todos los valores intermedios.'],
+  ['Range: the output starts at {1} and goes down to zero, {2} at a time.', 'Rango: la salida empieza en {1} y baja hasta cero, disminuyendo {2} cada vez.'],
+  ['Axes: label the horizontal axis “Cars washed” and the vertical axis “Money in the fund in dollars”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Carros lavados” y el eje vertical “Dinero del fondo en dólares”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Axes: label the horizontal axis “Time in minutes” and the vertical axis “Gallons of water in the pool”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Tiempo en minutos” y el eje vertical “Galones de agua en la piscina”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Axes: label the horizontal axis “Time in minutes” and the vertical axis “Gallons of water left in the tank”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Tiempo en minutos” y el eje vertical “Galones de agua que quedan en el tanque”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Axes: label the horizontal axis “Smoothies bought” and the vertical axis “Money left on the card in dollars”, with scale steps that reach {1} across and {2} up.', 'Ejes: rotula el eje horizontal “Licuados comprados” y el eje vertical “Dinero que queda en la tarjeta en dólares”, con pasos de escala que lleguen a {1} a lo ancho y a {2} hacia arriba.'],
+  ['Starting point: when the input is zero the output is {1}: before any car is washed, the fund already holds {2}.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de lavar ningún carro, el fondo ya tiene {2}.'],
+  ['Starting point: when the input is zero the output is {1}: before the hose runs, the pool already holds {2} gallons.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de que corra la manguera, la piscina ya tiene {2} galones.'],
+  ['Starting point: when the input is zero the output is {1}: before the tank drains, it holds {2} gallons.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de que el tanque se vacíe, tiene {2} galones.'],
+  ['Starting point: when the input is zero the output is {1}: before any smoothie is bought, the card holds {2}.', 'Punto de partida: cuando la entrada es cero, la salida es {1}: antes de comprar ningún licuado, la tarjeta tiene {2}.'],
+  ['Answer: input cars washed, output money in the fund in dollars; {1}; table {2}, {3}, {4}, {5}', 'Respuesta: entrada, carros lavados; salida, dinero del fondo en dólares; {1}; tabla {2}, {3}, {4}, {5}'],
+  ['Answer: input time in minutes, output gallons of water in the pool; {1}; table {2}, {3}, {4}, {5}', 'Respuesta: entrada, tiempo en minutos; salida, galones de agua en la piscina; {1}; tabla {2}, {3}, {4}, {5}'],
+  ['Answer: input smoothies bought, output money left on the card in dollars; {1}; table {2}, {3}, {4}, {5}, {6}; separate points; domain {{7}, {8}, {9}, ..., {10}}; range {{11}, {12}, {13}, ..., {14}}', 'Respuesta: entrada, licuados comprados; salida, dinero que queda en la tarjeta en dólares; {1}; tabla {2}, {3}, {4}, {5}, {6}; puntos separados; dominio {{7}, {8}, {9}, ..., {10}}; rango {{11}, {12}, {13}, ..., {14}}'],
+  ['Answer: input time in minutes, output gallons of water left in the tank; {1}; table {2}, {3}, {4}, {5}, {6}; a connected graph; domain {7}; range {8}', 'Respuesta: entrada, tiempo en minutos; salida, galones de agua que quedan en el tanque; {1}; tabla {2}, {3}, {4}, {5}, {6}; una gráfica continua; dominio {7}; rango {8}'],
+];
+
+export const supportSentences = [...attemptOutcome, ...matrixLabFixes, ...missMessages, ...toolChecks, ...genericHints, ...backUpSteps, ...familyHints, ...workedExamplePrompts, ...workedExampleAnswers, ...workedExampleSteps, ...platformFamilySentences, ...modelFormSiblings];
 export const supportChoices = [...backUpChoices, ...platformFamilyChoices];

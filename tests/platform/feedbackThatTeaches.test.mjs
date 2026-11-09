@@ -579,7 +579,10 @@ test('6. "Ask my teacher" adds a time and a question position to the student\'s 
   // from a closed question, so nothing else could lower it).
   assert.match(app, /useEffect\(\(\) => \{\s*setHelpRequest\(\(current\) => helpRequestAfterClose\(current, activeWorkingTracker, \{ askingAllowed: !activeLifecycle\?\.isPracticeOnly \}\)\);\s*\}, \[activeWorkingTracker, activeLifecycle\?\.isPracticeOnly\]\);/);
   assert.match(app, /\.\.\.helpRequestFields\(helpRequest, \{ assignmentId: activeAssignmentId \}\),/);
-  assert.match(app, /onAskTeacher=\{preview \|\| lifecycle\.isPracticeOnly \|\| user\?\.role !== 'student'\s*\? null\s*: \(requested\) => setHelpRequest\(nextHelpRequest\(\{ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\)\)\}/);
+  // Among QuestionEngine's handlers, each one function for App's life that
+  // calls this render's (renderStability.js stableCallbacks).
+  const engineHandlers = region(app, '{...stableCallbacks({', '})}', "QuestionEngine's handlers");
+  assert.match(engineHandlers, /\n\s*onAskTeacher: preview \|\| lifecycle\.isPracticeOnly \|\| user\?\.role !== 'student'\s*\? null\s*: \(requested\) => setHelpRequest\(nextHelpRequest\(\{ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\)\),\n/);
   // Published only after the stale document is deleted (a write before it
   // would be deleted and archived as a session of its own).
   const start = region(app, 'const startPresence = async () => {', '};', 'starting presence');
@@ -692,7 +695,8 @@ test('6. "Ask my teacher" is never offered inside a secure Test or Test Cycle', 
     'src/components/question/RichQuestionRuntime.jsx', 'src/components/student/TestCycleCorrections.jsx',
     'src/components/student/TestCycleCard.jsx'].forEach((path) => assert.doesNotMatch(read(path), /onAskTeacher|helpRequested/, path));
   const app = read('src/App.jsx');
-  assert.equal((app.match(/onAskTeacher=/g) || []).length, 1, 'one host: the assignment workspace');
+  // (A prop, or a key of the handlers App hands it through stableCallbacks.)
+  assert.equal((app.match(/\bonAskTeacher(?:=|: )/g) || []).length, 1, 'one host: the assignment workspace');
   // And the secure host really is server-graded: the exam player renders
   // RichQuestionRuntime, which mounts QuestionEngine with serverGrading.
   assert.match(read('src/components/assessment/SecureExamQuestionPlayer.jsx'), /<RichQuestionRuntime/);

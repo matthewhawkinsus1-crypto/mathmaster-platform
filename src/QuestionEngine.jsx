@@ -38,7 +38,7 @@ import { READ_ONLY_WORK_AREA_LABEL, READ_ONLY_WORK_AREA_SELECTOR, bindReadOnlyWo
 import { GRAPH_READ_OUT_SUPPORT_ID, GraphReadOutProvider, graphReadOutEntitled } from './platform/supports/graphReadOut.js';
 import { questionModuleFailureKey } from './platform/runtime/questionModuleFailureKey.js';
 import { practiceLikeThisOffered } from './platform/supports/workedExample/practiceLikeThis.js';
-import { buildPartReviewRows, closedQuestionHasReview } from './platform/supports/review/closedQuestionReview.js';
+import { buildPartReviewRows, closedQuestionHasReview, responseIsProse } from './platform/supports/review/closedQuestionReview.js';
 import { closedAttemptText, feedbackOpenForItem, hintOfferedAfterMiss, missFeedback } from './platform/supports/feedback/attemptFeedbackPlan.js';
 import { attemptSupportUsageFrom, rememberSupportUse, restoredSupportUse } from './platform/supports/supportUseMemory.js';
 import { diagnoseMiss, displayFamilyValues } from './platform/supports/feedback/missDiagnosis.js';
@@ -56,6 +56,7 @@ import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
 import { composedReasonsNote } from './platform/workflow/workflowReviewState.js';
+import { withShuffledSortCards } from './platform/workflow/sortCardOrder.js';
 import { buildLiteralWorkspaceQuestion, usesLiteralWorkspace } from './literalWorkspace';
 import GraphScenarioMatch from './GraphScenarioMatch';
 import GraphComparison from './GraphComparison';
@@ -120,7 +121,7 @@ import { resolveTaskContextPresentation } from './platform/workflow/taskContextP
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
-import { FigureReadingPortProvider, figureReadingEntries, updateFigureReadings } from './platform/language/figureReadings.js';
+import { FigureReadingPortProvider, FigureWordsProvider, figureReadingEntries, updateFigureReadings } from './platform/language/figureReadings.js';
 import { loadFigureWords } from './platform/language/figureSay.js';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import { toolSubmissionParts } from './tools/shared/toolSubmissionParts.js';
@@ -156,6 +157,17 @@ const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
     span?.finish({ status: 'interactive' });
   }, [span]);
+  return null;
+};
+
+// THE REGISTRY TOOL HAS MOUNTED, WITH THIS QUESTION (hint-ladder timing). It
+// stands after the tool: a sibling's effect runs after the effects of the tool
+// before it, so by now every panel the tool mounted has published its rungs
+// (toolHintChannel.js), and the ladder holds them in the same render.
+const ToolRungsReadySignal = ({ question, onReady }) => {
+  useEffect(() => {
+    onReady(question);
+  }, [question, onReady]);
   return null;
 };
 
@@ -400,8 +412,10 @@ function QuestionEngineBody({
     () => prepareQuestionForRuntimeRouting(stableQuestion, { serverGraded }),
     [stableQuestion, serverGraded],
   );
+  // A sort's cards take a stable shuffled order here, once, so everything that
+  // names a card by its position names the same card (sortCardOrder.js, P-2).
   const processedQuestion = useMemo(
-    () => normalizeContextualQuestion(generateQuestion(runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext)),
+    () => withShuffledSortCards(normalizeContextualQuestion(generateQuestion(runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext))),
     [runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext],
   );
   const familyDelivery = processedQuestion?.familyDelivery || null;
@@ -637,6 +651,12 @@ function QuestionEngineBody({
   // by its HintPanels through ToolRuntimeContext (toolHintChannel.js).
   const [toolHints, setToolHints] = useState([]);
   const [toolHintChannel] = useState(() => createToolHintChannel((hints) => setToolHints(hints)));
+  // WHICH QUESTION THE REGISTRY TOOL HAS MOUNTED WITH (hint-ladder timing):
+  // set by ToolRungsReadySignal. Its chunk loads after the question, so until
+  // then its rungs are on their way (toolRungsPending below). A press made
+  // meanwhile is kept until they arrive (toolRungsAwaited).
+  const [toolRungsReadyFor, setToolRungsReadyFor] = useState(null);
+  const toolRungsAwaited = useRef(false);
   // "WHAT MIGHT HAVE GONE WRONG?" (HELP-2, D2): the diagnosis of the latest
   // miss, offered as a rung while the question is open — { attempt, hint,
   // shown }. It outlives the first keystroke (like "Your last try") and is
@@ -792,6 +812,7 @@ function QuestionEngineBody({
     setHintUsed(restored.hintUsed);
     setHintsRevealed(restored.hintsRevealed);
     setRevealedHintTexts([]);
+    toolRungsAwaited.current = false;
     setMissRung(null);
     setHintPanelOpen(false);
     setWorkedExampleUsed(restored.workedExampleUsed);
@@ -1221,6 +1242,8 @@ function QuestionEngineBody({
   // translation a figure is read in Spanish from the language's own figure
   // words (figureSay.js), loaded only then; until they arrive, or for a
   // figure they cannot say, it is read in English and the reader says so.
+  // The same words write each figure's screen-reader description, marked
+  // lang="es" (figureReadings.js FigureWordsProvider, slice 2).
   const [loadedFigureWords, setLoadedFigureWords] = useState(null);
   useEffect(() => {
     if (readAloudLanguage === 'en') return undefined;
@@ -1864,8 +1887,30 @@ function QuestionEngineBody({
    * counted as independent.
    */
   const hintControlAllowed = toolHintsAllowed && !serverGrading && ladderRoleKnown;
-  const questionHints = useMemo(() => (hintControlAllowed ? buildQuestionHints(processedQuestion, { toolHints }) : []), [hintControlAllowed, processedQuestion, toolHints]);
-  const hintLadder = hintLadderView({ ladder: questionHints, revealedTexts: revealedHintTexts, revealedCount: hintsRevealed });
+  /*
+   * A PRESS BEFORE THE TOOL'S RUNGS ARRIVE (hint-ladder timing). A registry
+   * tool loads after the question, and until it has mounted with this question
+   * (ToolRungsReadySignal) the ladder of an item with no hints of its own was
+   * only the fallbacks: a press in the first second or so opened the generic
+   * first rung, where a press a second later opened the tool's. Meanwhile a
+   * press counts at once, as every press does (the count, hintUsed, the cost),
+   * but a fallback it opens is pending (hintLadderView): the panel says the
+   * hint is loading, and once the tool's rungs are here it is the rung they
+   * give, kept as read from then on (the effect below). Until then no rung the
+   * channel holds is this question's tool's, so none is read. A tool that
+   * failed to load has no rungs to wait for.
+   */
+  const toolRungsPending = Boolean(missingToolDefinition) && hintControlAllowed && !moduleFailed && toolRungsReadyFor !== processedQuestion;
+  const questionHints = useMemo(
+    () => (hintControlAllowed ? buildQuestionHints(processedQuestion, { toolHints: toolRungsPending ? [] : toolHints }) : []),
+    [hintControlAllowed, processedQuestion, toolHints, toolRungsPending],
+  );
+  const hintLadder = hintLadderView({ ladder: questionHints, revealedTexts: revealedHintTexts, revealedCount: hintsRevealed, toolRungsPending });
+  useEffect(() => {
+    if (toolRungsPending || !toolRungsAwaited.current) return;
+    toolRungsAwaited.current = false;
+    setRevealedHintTexts(hintLadder.hints.slice(0, hintLadder.revealed));
+  }, [toolRungsPending]);
   const hintState = hintRelease({ hints: hintLadder.hints, revealed: hintLadder.revealed, attemptCount: record.attemptCount, hintsAllowed: hintControlAllowed, closed: locked });
   // Where the platform carries the ladder, a registry tool hands its rungs to
   // it instead of showing a second ladder (ToolShell HintPanel).
@@ -1896,7 +1941,10 @@ function QuestionEngineBody({
   const revealNextHint = (place) => {
     if (!hintState.canRevealNext || !hintLadder.next) return;
     const next = hintLadder.next;
-    setRevealedHintTexts(() => [...hintLadder.hints.slice(0, hintLadder.revealed), next]);
+    // A fallback opened while the tool's rungs are on their way is read when
+    // they arrive (above); every other rung is kept as read now.
+    if (toolRungsPending && next.source === 'generic') toolRungsAwaited.current = true;
+    else setRevealedHintTexts(() => [...hintLadder.hints.slice(0, hintLadder.revealed), next]);
     setHintsRevealed((count) => count + 1);
     recordHintUse();
     placeHintPanel(place);
@@ -1920,9 +1968,10 @@ function QuestionEngineBody({
   };
   useEffect(() => {
     if (!hintPanelOpen) return;
-    // Under a miss the page moves only as far as the newest hint needs.
+    // Under a miss the page moves only as far as the newest hint needs; a rung
+    // that was loading is that hint again once it is here.
     revealHintPanel(hintPanelRef.current, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
-  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen]);
+  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
     : null;
@@ -1945,6 +1994,7 @@ function QuestionEngineBody({
       onSupportEvidence={reportSupportedTextUse}
       costNote={hintCostNote}
       diagnosis={missRung && !locked ? { shown: missRung.shown ? missRung.hint : null, onShow: showMissDiagnosis } : null}
+      rungsPending={toolRungsPending}
     />
   ) : null;
   // The step-algebra solvers carry their own strategic hint: the same
@@ -2149,7 +2199,10 @@ function QuestionEngineBody({
     id: toolOutcomeOwner.id,
     slot: toolOutcomeSlot,
     text: attemptOutcomeText,
-    detail: [attemptOutcomeSpecific, attemptOutcomeFocus].filter(Boolean).join(' '),
+    detail: attemptOutcomeSpecific,
+    // Apart from the detail so a tool that already names what to revisit (a
+    // sort that marks its wrong cards) can leave the "Focus on" line out.
+    focus: attemptOutcomeFocus,
     tone: feedback.isCorrect ? 'correct' : 'incorrect',
     readAloud: supportedTextReadAloud,
     translation: supportedTextTranslation,
@@ -2282,6 +2335,8 @@ function QuestionEngineBody({
               <Suspense fallback={<p role="status" className="mathmaster-work-view-loading">Opening Work View…</p>}>
                 <WorkViewReadySignal span={workViewSpan} />
                 <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
+                {/* After the tool, so its rungs are published first (hint-ladder timing). */}
+                <ToolRungsReadySignal question={processedQuestion} onReady={setToolRungsReadyFor} />
               </Suspense>
             </AnswerFocusPolicyProvider>
           </ToolDraftScopeProvider>
@@ -2417,7 +2472,9 @@ function QuestionEngineBody({
       case 'orderedPair':
         return <OrderedPairGrader {...commonModuleProps} />;
       case 'multiAnswer':
-        return <MultiAnswerGrader {...commonModuleProps} />;
+        // An exit ticket, a quiz or a test before its release: the keypad says
+        // nothing about the answer (N56, withheldVerdictKeypad.js).
+        return <MultiAnswerGrader {...commonModuleProps} verdictsWithheld={!showOutcomeFeedback} />;
       case 'relationshipModel':
         return <RelationshipModel {...commonModuleProps} />;
       case 'graphScenarioMatch':
@@ -2719,7 +2776,7 @@ function QuestionEngineBody({
   const closedYourAnswer = isExpired && gradedForDisplay && gradedForDisplay.feedback === feedback
     ? (gradedForDisplay.grading?.parts || [])
       .filter((part) => typeof part?.response === 'string' && part.response.trim())
-      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isCorrect: part.graded !== false && typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
+      .map((part, index) => ({ key: String(part.id ?? part.label ?? index), label: String(part.label || ''), response: readableStoredResponseLatex(part.response, processedQuestion), isText: responseIsProse(part.response, (processedQuestion?.answerFields || []).find((field) => String(field?.id) === String(part.id))), isCorrect: part.graded !== false && typeof part.isCorrect === 'boolean' ? part.isCorrect : null }))
     : [];
   // HELP-18. Before the single try of a choice-only item, say so (and that a
   // hint is there — the hint control's own release rule decides that); after
@@ -3066,7 +3123,7 @@ function QuestionEngineBody({
               {closedYourAnswer.map((part) => (
                 <span key={part.key} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
                   {closedYourAnswer.length > 1 && part.label ? <span style={{ color: 'var(--mm-text-muted)', fontWeight: 700 }}>{part.label}</span> : null}
-                  <MathDisplay value={part.response} format="latex" />
+                  {part.isText ? <MathText>{part.response}</MathText> : <MathDisplay value={part.response} format="latex" />}
                   {part.isCorrect === true ? <span role="img" aria-label="correct" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>✓</span> : part.isCorrect === false ? <span role="img" aria-label="not correct" style={{ color: 'var(--mm-error-text)', fontWeight: 900 }}>✗</span> : null}
                 </span>
               ))}
@@ -3442,7 +3499,11 @@ function QuestionEngineBody({
               onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
               onFailureChange={(failed) => setFailedModule(failed ? { key: moduleFailureKey, question: processedQuestion } : null)}
             >
-              <FigureReadingPortProvider publish={publishFigureReading}>{renderModule()}</FigureReadingPortProvider>
+              {/* The figures publish what they say to Read aloud, and write their
+                  screen-reader descriptions in the reading's language (AX05). */}
+              <FigureReadingPortProvider publish={publishFigureReading}>
+                <FigureWordsProvider pack={figurePack}>{renderModule()}</FigureWordsProvider>
+              </FigureReadingPortProvider>
             </QuestionModuleBoundary>
           </div>
         </fieldset>

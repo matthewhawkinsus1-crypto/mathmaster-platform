@@ -1,0 +1,623 @@
+/*
+ * FORCED COLOURS: WINDOWS' CONTRAST THEMES.
+ *
+ * A student with low vision can turn on a contrast theme on a school laptop
+ * (Windows Settings > Accessibility > Contrast themes). The browser then draws
+ * every page in that theme's few system colours: text in CanvasText, every
+ * background as Canvas, links in LinkText, buttons in ButtonText, and no
+ * box-shadow and no gradient at all. What a screen showed only with a
+ * background, a shadow or a colour is gone there: a filled button is its words
+ * floating on the page, the selected tab looks like the others, a progress bar
+ * is not drawn.
+ *
+ * These rules give back what forced colours take, in the theme's own system
+ * colours, so it reads on a dark contrast theme and a light one alike. Every
+ * rule is inside the media query: nothing changes for anyone else. The sign-in
+ * screen has its own (LoginScreen.css). tests/browser/forcedColorsCertification.mjs
+ * opens the certified student and teacher scenes under forced colours, dark and
+ * light, and fails a Tab stop that draws no focus indicator, a selected or
+ * pressed control that looks like one that is not, and a control that lost its
+ * edge.
+ *
+ * !important: most controls are styled inline (an inline style beats any rule
+ * that is not), and the page's focus ring (index.css) is !important too. A
+ * button's edge is less specific than that ring, so a focused button shows the
+ * ring; the one rule here that must win over it (a selected control's ring
+ * colour) says so.
+ */
+@media (forced-colors: active) {
+  /*
+   * A BUTTON KEEPS ITS EDGE. Most buttons here are drawn by their fill (a blue
+   * Continue, a grey key) with `border: none`, and forced colours paint the
+   * fill as the page's own Canvas, so the button's edge went with it. The
+   * system draws its own buttons with a ButtonText border; these get the same
+   * line as an outline inset by its own width, so nothing moves and a button
+   * that has a border looks as it did. Items in a popup list are not buttons
+   * (the selected one is highlighted, below), nor are the shapes of a drawing,
+   * nor a control that draws its own focus ring (data-focus-ring="own": this
+   * outline would take that ring's place).
+   */
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"]):not(svg, svg *, [data-focus-ring="own"]) {
+    outline: 1px solid ButtonText !important;
+    outline-offset: -1px !important;
+  }
+
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"]):is(:disabled, [aria-disabled="true"]):not(svg, svg *, [data-focus-ring="own"]) {
+    outline-color: GrayText !important;
+  }
+
+  /*
+   * A SELECTED, PRESSED, CHECKED OR CURRENT CONTROL IS HIGHLIGHTED, as the
+   * system shows a selected item: Highlight behind HighlightText. The page you
+   * are on in the navigation, the open tab, the section and question you are
+   * on, a pressed toggle or chip, a chosen answer: each was a tint or a
+   * shadow, which forced colours do not draw.
+   *
+   * forced-color-adjust: none, with system colours only. Under forced colours
+   * Chromium paints a Canvas plate behind every line of text, whatever is
+   * behind it: HighlightText on a Highlight button sat on a black (or white)
+   * plate, invisible. Out of forced adjustment the control is painted with
+   * exactly the colours below, and nothing of its own: its shadow, gradient
+   * and border colour are set here too, and what is inside it takes the
+   * highlight's text colour and lets the highlight through (a badge's own fill
+   * and colours would otherwise come back).
+   */
+  :is(button, a, [role="button"], [role="link"], [role="tab"], [role="option"], [role="radio"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="gridcell"], [role="treeitem"]):is([aria-pressed="true"], [aria-pressed="mixed"], [aria-selected="true"], [aria-checked="true"], [aria-checked="mixed"], [aria-current]:not([aria-current="false"])):not(svg, svg *, input) {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+    outline-color: Highlight !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  :is(button, a, [role="button"], [role="link"], [role="tab"], [role="option"], [role="radio"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="gridcell"], [role="treeitem"]):is([aria-pressed="true"], [aria-pressed="mixed"], [aria-selected="true"], [aria-checked="true"], [aria-checked="mixed"], [aria-current]:not([aria-current="false"])):not(svg, svg *, input) :not(svg, svg *) {
+    color: inherit !important;
+    background: transparent !important;
+    border-color: currentColor !important;
+    outline-color: currentColor !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Its focus ring in the system's colour: out of forced adjustment the page's
+     ring (index.css) would keep the app's own --mm-focus. That ring sets the
+     whole outline at a specificity of (0,5,1); `html body` and the
+     data-focus-ring test make this one (0,5,3), so its colour wins. */
+  html body :is(button, a, [role="button"], [role="link"], [role="tab"], [role="option"], [role="radio"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="gridcell"], [role="treeitem"]):is([aria-pressed="true"], [aria-pressed="mixed"], [aria-selected="true"], [aria-checked="true"], [aria-checked="mixed"], [aria-current]:not([aria-current="false"])):not(svg, svg *, input):not([data-focus-ring="own"]):focus-visible {
+    outline-color: CanvasText !important;
+  }
+
+  /*
+   * A PROGRESS BAR: its track has an edge and the part done is filled with the
+   * highlight. Both were fills (the done part often a gradient), so the bar
+   * was not drawn at all. Live Challenge's too: the projector's "Locked in"
+   * bar, each racer's bar on the console, and a rush round's pause after
+   * misses, which drains as the pause runs out.
+   */
+  :is(.mm-progress, .workflow-focus__rail, [data-mm-progress-track], .mm-rush-cooldown, .mm-line-cooldown) {
+    outline: 1px solid CanvasText !important;
+  }
+
+  :is(.mm-progress__fill, .workflow-focus__rail-fill, [data-mm-progress-fill], .mm-rush-cooldown > span, .mm-line-cooldown > span) {
+    background-color: Highlight !important;
+  }
+
+  /* A bar of steps (a Path session's questions; a Live Challenge's rounds, on
+     the projector and on a student's round): each step is a box, the
+     ones done are filled, and the one the student is on is empty with a heavier
+     edge drawn around it. Inside a 6px step a heavy edge would fill it, and a
+     filled black step beside the light theme's navy Highlight told them apart
+     by shade only. */
+  [data-mm-progress-step] {
+    outline: 1px solid CanvasText !important;
+    outline-offset: -1px !important;
+  }
+
+  [data-mm-progress-step="done"] {
+    background-color: Highlight !important;
+  }
+
+  [data-mm-progress-step="current"] {
+    outline-width: 2px !important;
+    outline-offset: 1px !important;
+  }
+
+  /*
+   * A TEACHER'S QUESTION STRIP (Live Class, a tile per student): one bar per
+   * question, green right, red wrong, amber tried, grey not yet. The colour is
+   * the meaning, so it keeps its own (forced-color-adjust: none), and each bar
+   * gets a CanvasText edge: grey and amber are faint on a light theme's white,
+   * and every question still shows as a box on both.
+   */
+  [data-question-state] {
+    forced-color-adjust: none;
+    border: 1px solid CanvasText;
+  }
+
+  /*
+   * A COLOUR KEY (My Math Path's mastery wheel: Mastered, Secure, Developing,
+   * Needs Attention, Not Enough Evidence, and its two round-done dots; the
+   * CCMR wheel's readiness states). Its swatches were fills and its dots text
+   * colours, painted as the page, and the key no longer said which is which.
+   * A swatch is out of forced colours, with a CanvasText edge, and is drawn as
+   * the part of the wheel it explains (data-mm-swatch="<part>", with the
+   * drawings below): under a contrast theme a wheel tells its levels apart by
+   * their fills, not their colours.
+   */
+  [data-mm-swatch] {
+    forced-color-adjust: none;
+    border-color: CanvasText !important;
+  }
+
+  /* The balance scale's beam in Step Algebra: a bar drawn by its fill. */
+  .algebra-balance-beam {
+    background-color: CanvasText !important;
+  }
+
+  /*
+   * A BOX WHOSE EDGE WAS ITS FILL: the Regression Calculator's expression rows
+   * (the walk over the Math Tools Lab found them, in the tool and its Work
+   * View). Each row's box has no border; in the dark theme its edge is the
+   * field colour every box gets, which forced colours paint as the page, so
+   * the box a student types an expression in had no edge. It gets the
+   * buttons' line, inset, in the text colour; focused, the page's ring.
+   */
+  .regression-expression-row input {
+    outline: 1px solid CanvasText !important;
+    outline-offset: -1px !important;
+  }
+
+  /*
+   * A LAYER OVER THE WHOLE PAGE: the Live Challenge projector. Its cover is a
+   * gradient, which forced colours do not draw, so the teacher's console
+   * showed through it, and the projector's words sat on the console's
+   * navigation. It is painted the page's own Canvas.
+   */
+  [data-mm-arena-stage] {
+    background-color: Canvas !important;
+  }
+
+  /*
+   * MATHEMATICS ON THE LIVE CHALLENGE PROJECTOR AND A STUDENT'S LIVE
+   * CHALLENGE PAGE. Both paint their own dark look in colours of their own,
+   * not the app theme's: the projector writes its question in white, and a
+   * student's page is near-white. MathLive draws each formula in a shadow root
+   * of its own and has it take the colour of the words around it
+   * (forced-color-adjust: preserve-parent-color). Under a colour of the
+   * screen's own that held while the formula was drawn, but after a switch
+   * from a dark contrast theme to a light one, when the app restyles the page
+   * for its new theme, the formula took the screen's white again: white on the
+   * light theme's white page, its words black. Given the theme's text colour,
+   * the formula takes that. Not inside a link or a control: the theme draws
+   * their words in colours of their own (LinkText, ButtonText, GrayText when
+   * disabled, a selected choice's HighlightText), which their mathematics
+   * takes; the one control here with mathematics in it, a student's choice,
+   * is written in the app theme's colours, which the switch changes, and its
+   * formula follows them. tests/browser/forcedColorsAudit.mjs fails a formula
+   * not drawn in its words' colour.
+   */
+  :is([data-mm-arena-stage], .mm-gp-arena-page) :is(math-span, math-div):not(:is(a, button, select, summary, [role="button"], [role="link"], [role="tab"], [role="radio"], [role="checkbox"], [role="switch"], [role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]) *) {
+    color: CanvasText;
+  }
+
+  /*
+   * A STATUS DOT (Live Challenge: "Round live" on the teacher's console, each
+   * student's dot on its roster, a student's "Reconnecting…", the lobby's
+   * players-in dot, the projector's "Waiting for teacher to start"): a fill,
+   * painted as the page, so the dot was gone. On the roster its colour is
+   * what it says (connected, no signal, joined, not joined), so a dot keeps
+   * its own colour (forced-color-adjust: none) with a CanvasText ring, as the
+   * question strip keeps its colours: a pale one (a student's gold, a grey)
+   * still shows on a light theme. Each says it in words beside it too.
+   */
+  [data-mm-status-dot] {
+    forced-color-adjust: none;
+    outline: 1px solid CanvasText;
+  }
+
+  /*
+   * THE START LIGHTS over a round's countdown: a pod lit red each second of
+   * 3 · 2 · 1, all three green at GO. Each pod was a gradient, which forced
+   * colours do not draw, so the lights were an empty box. A pod is a ring in
+   * the theme's text colour, empty until it is lit; a lit one keeps its own
+   * red or green (forced-color-adjust: none), which is what it says. The
+   * countdown says it in words too.
+   */
+  [data-mm-start-lights] > * {
+    forced-color-adjust: none;
+    outline: 1px solid CanvasText;
+  }
+
+  [data-mm-start-lights] > :not([data-on]) {
+    background: Canvas !important;
+  }
+
+  /*
+   * THE CHECKERED FLAG on a student's Live Challenge (across a card's top
+   * corners, and beside the screen's name): a conic gradient, which forced
+   * colours do not draw. It is drawn again in the theme's own two colours.
+   */
+  .mm-gp-flagged::before,
+  .mm-gp-checker {
+    forced-color-adjust: none;
+    background: repeating-conic-gradient(CanvasText 0 25%, Canvas 0 50%) 0 0 / 14px 14px !important;
+  }
+
+  /*
+   * THE COORDINATE PLANE. A plane is an SVG drawing, and forced colours leave
+   * an SVG's paint alone (Chromium gives every <svg> forced-color-adjust:
+   * preserve-parent-color): its fills and strokes, and the board's own
+   * background, border and focus ring, kept the app theme's colours, a light
+   * graph paper on a black page in a dark contrast theme. Every plane
+   * (`data-mm-plane`) is drawn here in the theme's colours instead: the board
+   * the page's Canvas, its axes, ticks and words CanvasText, its grid GrayText
+   * (the minor lines dotted), and every line, curve, point and mark on it
+   * CanvasText, told apart by their dashes, shapes and labels as they already
+   * are. What is selected, held or dragged, the keyboard's crosshair and the
+   * board's focus ring are Highlight. A contrast theme draws no translucent
+   * fill reliably, so a shaded region is hatched (a mask of lines, a second
+   * region the other way, so an overlap is cross-hatched) and a translucent
+   * glow is left out. No rule here opts out of forced colours: the drawing is
+   * out of them already, and is given system colours only.
+   *
+   * The plane's own colours are tokens (src/theme/tokens.css; a Live Challenge
+   * round sets them on its shell), so the tokens first, !important over the
+   * theme's and the round's own. --mm-focus is the focus ring every plane
+   * draws, and the keyboard's crosshair on a round's grid.
+   */
+  :root,
+  .mm-rush-shell,
+  .mm-line-shell {
+    --mm-graph-bg: Canvas !important;
+    --mm-graph-axis: CanvasText !important;
+    --mm-graph-label: CanvasText !important;
+    --mm-graph-grid: GrayText !important;
+    --mm-graph-grid-minor: GrayText !important;
+    --mm-graph-highlight: Highlight !important;
+    --mm-focus: Highlight !important;
+  }
+
+  .mm-rush-shell {
+    --mm-rush-curve: CanvasText !important;
+    --mm-rush-found: CanvasText !important;
+    --mm-rush-miss: CanvasText !important;
+    --mm-rush-asymptote: CanvasText !important;
+  }
+
+  .mm-line-shell {
+    --mm-line-draw: CanvasText !important;
+    --mm-line-given: CanvasText !important;
+    --mm-line-right: CanvasText !important;
+    --mm-line-wrong: CanvasText !important;
+    --mm-line-method: CanvasText !important;
+    --mm-line-helper: CanvasText !important;
+    --mm-line-label-bg: Canvas !important;
+    --mm-line-label-text: CanvasText !important;
+  }
+
+  /* The board: the page's Canvas, with an edge in the text colour where it
+     has one, and no shadow. The other drawings' boards too (below); a drawing
+     over the page ("overlay") has none, and must stay clear. */
+  [data-mm-plane],
+  [data-mm-drawing=""] {
+    background-color: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+    color: CanvasText !important;
+  }
+
+  /* Every word on a plane or another drawing: tick numbers, axis names and
+     titles, point labels, a readout, a wheel's hub. A label's halo is the
+     board's colour (its token). The quadrant names are a background, in the
+     grid's colour. */
+  [data-mm-plane] text,
+  [data-mm-drawing] text {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane] [data-quadrant-label] {
+    fill: GrayText !important;
+  }
+
+  /* An arrowhead drawn as a marker (the graphing calculator's axes, a mapping
+     diagram's arrows). */
+  [data-mm-plane] marker > *,
+  [data-mm-drawing] marker > * {
+    fill: CanvasText !important;
+    stroke: CanvasText !important;
+  }
+
+  /* The parts of a plane (data-mm-plane-part), each in the theme's colours. */
+  [data-mm-plane-part="paper"] {
+    fill: Canvas !important;
+  }
+
+  [data-mm-plane-part="paper"][stroke] {
+    stroke: CanvasText !important;
+  }
+
+  [data-mm-plane-part="grid"] {
+    stroke: GrayText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="grid-minor"] {
+    stroke: GrayText !important;
+    stroke-opacity: 1 !important;
+    stroke-dasharray: 1 3 !important;
+  }
+
+  [data-mm-plane-part="axis"] {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+  }
+
+  /* A line, a curve, a segment, a boundary, a guide: drawn in the text colour,
+     solid, dashed or dotted as it is drawn. */
+  [data-mm-plane-part="line"] {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* A point: a dot in the text colour, ringed in the board's colour so a line
+     under it still shows; a closed end or an arrowhead, solid; an open end, a
+     ring around the board's colour; a ring that marks a place. */
+  [data-mm-plane-part="point"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: Canvas !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="closed"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: CanvasText !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="open"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: CanvasText !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="ring"] {
+    fill: none !important;
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* What sits under a mark to part it from what it crosses (an asymptote's
+     wide under-stroke), and under a label (its plate): the board's colour.
+     A readout's chip has an edge too. */
+  [data-mm-plane-part="halo"] {
+    stroke: Canvas !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="plate"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="chip"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: CanvasText !important;
+    opacity: 1 !important;
+  }
+
+  /* Selected, held or dragged: the point, the marker, the crosshair that says
+     where it lands, and the keyboard's crosshair. */
+  [data-mm-plane-part="held"] {
+    fill: Highlight !important;
+    fill-opacity: 1 !important;
+    stroke: Canvas !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="held-open"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: Highlight !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="cursor"] {
+    fill: none !important;
+    stroke: Highlight !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* A translucent glow (a hovered point's, a press's): not drawn. What it
+     stood beside says the same: the point grows, the crosshair is ringed. */
+  [data-mm-plane-part="glow"] {
+    display: none !important;
+  }
+
+  /* A shaded region: hatched in the text colour, one way, and a second region
+     the other way, so where two overlap is cross-hatched. A mask lets only
+     the lines through, so the grid and the lines under the region show. */
+  [data-mm-plane-part="shade"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: none !important;
+    opacity: 1 !important;
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1.25px, transparent 1.25px 8px);
+  }
+
+  [data-mm-plane-part="shade"]:nth-child(even of [data-mm-plane-part="shade"]) {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1.25px, transparent 1.25px 8px);
+  }
+
+  /* A set shaded along an axis (a rush round's band): a broad stroke, hatched
+     the same way. */
+  [data-mm-plane-part="band"] {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1.25px, transparent 1.25px 5px);
+  }
+
+  /* A key beside a plane (a short line for each kind of mark) draws its line
+     as the plane now draws it. */
+  [data-mm-plane-key] :is(line, path) {
+    stroke: CanvasText !important;
+    stroke-opacity: 1 !important;
+  }
+
+  /*
+   * EVERY OTHER DRAWING THAT SAYS SOMETHING. The number line (a tool's, and
+   * Inequality Graphing Rush's), the mapping diagram, the 3D model, My Math
+   * Path's mastery wheel, the CCMR readiness wheel, the line a graph-to-story
+   * match draws, and the ink of a student's stroke on an equation are SVG
+   * drawings too, and kept the app theme's paint under a contrast theme as a
+   * plane did. Each names itself (data-mm-drawing: "" for a drawing on a board
+   * of its own, "overlay" for one drawn over the page, which must stay clear)
+   * and its parts with the plane's words, so the rules above draw them as they
+   * draw a plane's: the board Canvas inside a CanvasText edge, every word,
+   * line, end and arrowhead CanvasText with its dashes, markers and shapes
+   * kept, an open end an empty ring and a closed one solid, and what is chosen,
+   * held or being placed Highlight. What only colour told apart is told apart
+   * by its fill:
+   *   a mastery level       Mastered solid, Secure hatched rising, Developing
+   *                         hatched falling, Needs Attention cross-hatched, Not
+   *                         Enough Evidence empty (strandConfig.js,
+   *                         MASTERY_STATUS_FILLS)
+   *   a readiness state     the same fills, a prerequisite to strengthen hatched
+   *                         level, and no alignment yet an empty GrayText ring
+   *                         (domainReadiness.js, DOMAIN_STATE_FILLS)
+   *   the 3D model's planes hatched rising, falling and level, each still
+   *                         labelled P1, P2, P3
+   *   a round done          an empty ring, a Level 3 round a solid dot
+   * A key's swatch (data-mm-swatch="<part>") is drawn as the part it explains.
+   */
+
+  /* Not there to choose yet: a mapping's range values before a domain value is
+     chosen (drawn faint), a readiness domain with no skill matched (greyed). */
+  [data-mm-plane-part="muted"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: GrayText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* The words on a part drawn in Highlight (a mapping's chosen domain value). */
+  [data-mm-drawing] [data-mm-plane-part="held-text"] {
+    fill: HighlightText !important;
+  }
+
+  /* A fill that says a level: solid, or a hatch one way, the other, both, or
+     level. A mask lets only the lines through, as a plane's shading does. */
+  [data-mm-plane-part="solid"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: Canvas !important;
+    opacity: 1 !important;
+  }
+
+  :is([data-mm-plane-part="hatch-rise"], [data-mm-plane-part="hatch-fall"], [data-mm-plane-part="hatch-cross"], [data-mm-plane-part="hatch-level"]) {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: none !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="hatch-rise"] {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  [data-mm-plane-part="hatch-fall"] {
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  [data-mm-plane-part="hatch-cross"] {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, transparent 1.5px 6px), repeating-linear-gradient(45deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  [data-mm-plane-part="hatch-level"] {
+    mask-image: repeating-linear-gradient(0deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  /* The 3D model's planes overlap over most of the model: hatched more thinly,
+     so where two or three cross, the lines, the point and the labels on them
+     still read. */
+  polygon[data-mm-plane-part="hatch-rise"] {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1px, transparent 1px 11px);
+  }
+
+  polygon[data-mm-plane-part="hatch-fall"] {
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1px, transparent 1px 11px);
+  }
+
+  polygon[data-mm-plane-part="hatch-level"] {
+    mask-image: repeating-linear-gradient(0deg, CanvasText 0 1px, transparent 1px 11px);
+  }
+
+  /* A drawing over the page draws no shadow of its own (a match's line). */
+  [data-mm-drawing="overlay"] * {
+    filter: none !important;
+  }
+
+  /* A key's swatch, drawn as its part. */
+  :is([data-mm-swatch="solid"], [data-mm-swatch^="hatch-"], [data-mm-swatch="open"]) {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+
+  [data-mm-swatch="solid"] {
+    background: CanvasText !important;
+  }
+
+  [data-mm-swatch="hatch-rise"] {
+    background: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="hatch-fall"] {
+    background: repeating-linear-gradient(45deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="hatch-cross"] {
+    background: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, transparent 1.5px 4px), repeating-linear-gradient(45deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="hatch-level"] {
+    background: repeating-linear-gradient(0deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="open"] {
+    background: Canvas !important;
+  }
+
+  [data-mm-swatch="muted"] {
+    background: Canvas !important;
+    border-color: GrayText !important;
+    outline: 1px solid GrayText;
+    outline-offset: -1px;
+    opacity: 1 !important;
+  }
+
+  /* The key's two rounds, words with a dot: a practice round's an empty ring,
+     a Level 3 round's solid, as the wheel draws them. */
+  [data-mm-swatch="point"] {
+    color: CanvasText !important;
+  }
+
+  [data-mm-swatch="ring"] {
+    color: Canvas !important;
+    -webkit-text-stroke: 1px CanvasText;
+  }
+}

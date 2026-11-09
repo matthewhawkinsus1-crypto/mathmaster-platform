@@ -78,6 +78,9 @@ const familySection = (family) => {
     `- **Pinning:** ${family.unpinnedReferenceMeansThisVersion
       ? 'an unpinned reference (`questionFamily` without `version`) means this version.'
       : `used only by a slot that says \`"version": ${family.version}\`; an unpinned reference still means v1, so no existing question changes.`}`,
+    ...(family.recovery.replaces?.length
+      ? [`- **Recovery binding:** a new Recovery binding of a static question takes this version in place of ${family.recovery.replaces.map((version) => `v${version}`).join(' and ')}; a stored binding keeps the version it was certified with.`]
+      : []),
     `- **Constraint policy:** ${family.constraintPolicy === 'strict' ? STRICT_TEXT : FALLBACK_TEXT}`,
     `- **Alignments:** ${listOrDash(family.alignments)}`,
     `- **Answered in:** ${toolsText(family)}${declared.targetTool?.workspaces ? ` — Step Algebra ${declared.targetTool.workspaces.join(' and ')} workspace${declared.targetTool.workspaces.length === 1 ? '' : 's'}` : ''}${declared.targetTool?.methods ? ` — methods ${declared.targetTool.methods.join(', ')} (default ${declared.targetTool.defaultMethod})` : ''}`,

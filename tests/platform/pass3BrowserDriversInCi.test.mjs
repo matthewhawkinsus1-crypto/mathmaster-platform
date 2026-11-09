@@ -44,14 +44,22 @@ const DRIVERS = [
   // Ran by hand only, and had gone stale: Graphing 2's plane stays put while
   // points are placed (it jumped 18px), and a point is dragged from its dot.
   ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['plotInteraction']],
+  // Focus that leaves a math box inside MathLive's 60 ms hand-over stays where
+  // it went (math-box-focus): a Tab, a held Tab, the page's moves, a blur.
+  ['student-runtime-browser-gates.yml', 'student-runtime-3', 'plain', ['mathBoxFocus']],
   // FB10: after a miss, the hint opens under it and Check stays in view.
   ['student-teacher-journeys.yml', 'student', 'plain', ['feedbackTeachesHintPlace']],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'stubbed', ['secureAccessParity']],
+  // The secure exam's reference sheet and graphing calculator stay in the
+  // test's Tab round, in the real app (student-a11y-2).
+  ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'a11yApp', ['secureExamToolFocus']],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'teacher', [
     'teacherWorkflow/assignmentChromeJourneys', 'teacherWorkflow/studentNameJourneys',
     'teacherWorkflow/draftSaveNoticeReloadJourneys', 'teacherWorkflow/phoneSaveLineJourneys',
     // LC23: the Practice Passes switch in the real Review, desktop and phone.
     'teacherWorkflow/practicePassSwitchJourneys',
+    // The matrices lesson on a phone in the real App (PH10, PH03, P-4), run by hand only until student-keyboard-ci.
+    'teacherWorkflow/matrixLabPhoneJourneys',
   ]],
   ['student-teacher-journeys.yml', 'pass3-student-journeys', 'a11yApp', ['teacherWorkflow/askMyTeacherJourneys']],
   // NV14: Back and a reload inside Recovery, Corrections and a Test review.
@@ -62,6 +70,9 @@ const DRIVERS = [
   ['student-pass3-emulator-journeys.yml', 'pass3-live-challenge-shell', 'self', ['liveChallengeShellQa']],
   // CI06: whole Graph Feature Rush games, ran by hand until it was green twice in a row.
   ['student-pass3-emulator-journeys.yml', 'pass3-graph-feature-rush', 'self', ['graphFeatureRushGame']],
+  // Whole Graph the Line games, with its phone pass (the bar and grid held still);
+  // ran by hand until it passed three times in a row in two Chromiums.
+  ['student-pass3-emulator-journeys.yml', 'pass3-graph-the-line', 'self', ['lineGraphGame']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -115,16 +126,24 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   ['submitNotQueued', 'toolDraftSyncSweep', 'toolOpenAudit', 'matrixLabFeedback', 'algebra2MatricesLesson',
     'afterLastMiss', 'day1Systems', 'day2Nonunique', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise',
     'studentResultUpNext', 'studentWhatChanged', 'gradeCenterMobile', 'secureResults', 'secureExamNavigation',
-    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups'].forEach((driver) => {
+    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups', 'mathBoxFocus'].forEach((driver) => {
     for (const file of [`tests/browser/${driver}.mjs`, `tests/browser/${driver}.html`]) {
       assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
     }
   });
   // toolChoiceGroups (W7-2) opens the keyboard sweep's page.
   assert.ok(runsOnPullRequest(gates, 'tests/browser/keyboardSweep.html'));
+  // secureExamToolFocus opens the app harness's practice test (no page of its own).
+  ['tests/browser/secureExamToolFocus.mjs', 'tests/browser/accessibilityAppHarness.vite.config.mjs',
+    'tests/browser/teacherWorkflow/innerScreensFixture.js', 'tests/browser/teacherWorkflow/fakeSecureExamService.js'].forEach((file) => {
+    assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
+  });
   const journeys = 'student-teacher-journeys.yml';
+  // The matrices lesson on a phone, and the helper it reads the Work View opener's cover with.
   ['tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs', 'tests/browser/teacherWorkflow/fixtures/school.js',
-    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js'].forEach((file) => {
+    'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js',
+    'tests/browser/teacherWorkflow/matrixLabPhoneJourneys.mjs', 'tests/browser/support/openerCover.mjs',
+    'src/components/common/MatrixGrid.jsx'].forEach((file) => {
     assert.ok(runsOnPullRequest(journeys, file), `a change to ${file} runs the journeys`);
   });
   const emulator = 'student-pass3-emulator-journeys.yml';
@@ -132,6 +151,7 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
     'tests/browser/support/anything.mjs', 'tests/browser/testCycleRichToolQa.mjs', 'tests/browser/liveChallengeShellQa.mjs',
     'tests/browser/testCycleLifecycleQa.mjs', 'tests/browser/testCycleLifecycleQa.html', 'tests/fixtures/testCycleCertificationFixture.mjs',
     'tests/browser/graphFeatureRushGame.mjs', 'src/components/liveChallenge/GraphFeatureRushGraph.jsx',
+    'tests/browser/lineGraphGame.mjs', 'src/components/liveChallenge/LineGraphRound.jsx', 'tests/browser/support/roundBarFit.mjs',
     'tests/fixtures/secureRichToolAnswers.mjs'].forEach((file) => {
     assert.ok(runsOnPullRequest(emulator, file), `a change to ${file} runs the emulator journeys`);
   });
@@ -151,7 +171,7 @@ test('the emulator journeys run on their own area, nightly and on demand; the ga
   ['mathPath', 'pathContentCompiler', 'pathFirestoreShape', 'secureItems', 'secureItemStorage'].forEach((name) => {
     assert.ok(runsOnPullRequest(gates, `functions/lib/${name}.js`), `${name}.js runs the gates (secureAccessParity)`);
   });
-  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|test-cycle-lifecycle|live-challenge-shell|graph-feature-rush):/, 'the long jobs left the gates');
+  assert.doesNotMatch(read(gates), /pass3-(test-cycle-rich-tools|test-cycle-lifecycle|live-challenge-shell|graph-feature-rush|graph-the-line):/, 'the long jobs left the gates');
 });
 
 // The emulator journeys' area (scripts/lib/ciAreas.mjs) is all of src/ minus the
@@ -175,7 +195,9 @@ test('the emulator journeys watch src/** with exclusions after it, and what the 
   // Loaded by both drivers (QuestionEngine, MultiRelationAlgebraCore): never excluded.
   ['src/platform/context/wordProblemLayer.js', 'src/platform/curriculum/inequalityRepresentationPolicy.js',
     'src/platform/rewards/challengeRewardPolicy.js', 'src/MathInput.jsx', 'src/QuestionEngine.jsx',
-    'tests/fixtures/secureRichToolAnswers.mjs', 'functions/platformEntry.js', 'tests/browser/emulator/vite.bridge.config.mjs']
+    'tests/fixtures/secureRichToolAnswers.mjs', 'functions/platformEntry.js', 'tests/browser/emulator/vite.bridge.config.mjs',
+    // Loaded in node by the Live Challenge drivers, before the server.
+    'tests/integration/support/emulatorTransactions.mjs']
     .forEach((file) => assert.ok(reachedBy(file, paths), `${file} runs the journeys`));
   assert.equal(reachedBy('src/platform/gradeTransfer/gradeTransferModel.js', paths), false, 'an excluded directory does not');
   // The matching rule itself: in order, the last match decides.

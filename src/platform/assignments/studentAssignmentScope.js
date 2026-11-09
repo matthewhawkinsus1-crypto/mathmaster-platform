@@ -113,6 +113,21 @@ export const markIndividuallyAssigned = (assignments = [], assignmentIds = []) =
   ));
 };
 
+/*
+ * A MOVE TO ANOTHER CLASS WHILE THE STUDENT STAYS SIGNED IN (platform/student/rosterMembership.js).
+ *
+ * The class listener follows the student to the new class, whose lessons replace the old class's. The old class's
+ * lessons the student has work on are prior work, as a fresh load reads them (by id, above): these are kept from the
+ * copies the old class's listener delivered, so none of them leaves the screen while the new class's first snapshot is
+ * on its way, and none of the old class's other lessons stays.
+ */
+export const priorWorkFromClassLeft = ({ classAssignments = [], classId = null, workedIds = [] } = {}) => {
+  const worked = new Set((workedIds || []).map(cleanId).filter(Boolean));
+  const current = cleanId(classId);
+  return (classAssignments || []).filter((assignment) => assignment?.id && worked.has(assignment.id)
+    && !(current && Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(current)));
+};
+
 /** One list, each assignment once (the class's live copy wins), sorted by due date like the old listener. */
 export const mergeStudentAssignments = (classAssignments = [], priorWorkAssignments = []) => {
   const merged = new Map();

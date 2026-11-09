@@ -14,9 +14,25 @@ const sourceFiles = ['src/main.jsx', 'src/App.jsx', 'src/QuestionEngine.jsx', 's
 const source = (await Promise.all(sourceFiles.map((file) => readFile(file, 'utf8')))).join('\n');
 requiredEvents.forEach((event) => assert.match(source, new RegExp(`['\"]${event}['\"]`), `missing ${event}`));
 
-let bundle = null;
+// The September 2026 certification's bundle (docs/handoffs/PERFORMANCE_CERTIFICATION.md).
+// Reported against, never silently: these were assertions inside a catch meant
+// for "no build yet", so once a limit was passed the report said `bundle: null`
+// as if nothing had been built. The student's first load has its own ratchet
+// (npm run check:first-load); whether these limits still apply is the owner's
+// call, so a limit passed is named here and does not fail the run.
+const SEPTEMBER_LIMITS = Object.freeze({ chunks: 140, totalJsBytes: 5_800_000, coreEntryBytes: 1_100_000, initialTransferBytes: 4_000_000 });
+
+let assets = null;
 try {
-  const assets = await readdir('dist/assets');
+  assets = await readdir('dist/assets');
+} catch (error) {
+  // Architecture certification can run before a build: the bundle is then
+  // reported as unavailable rather than as zero.
+  if (error?.code !== 'ENOENT') throw error;
+}
+let bundle = null;
+let septemberLimitsPassed = [];
+if (assets) {
   const js = await Promise.all(assets.filter((file) => file.endsWith('.js')).map(async (file) => ({ file, bytes: (await stat(`dist/assets/${file}`)).size })));
   const totalJsBytes = js.reduce((sum, item) => sum + item.bytes, 0);
   const coreEntryBytes = js.find((item) => /^index-[^.]+\.js$/.test(item.file))?.bytes || null;
@@ -26,14 +42,17 @@ try {
     ...[...html.matchAll(/rel="modulepreload"[^>]+href="\/assets\/([^"]+\.js)"/g)].map((match) => match[1]),
   ].filter(Boolean);
   const initialTransferBytes = initialFiles.reduce((sum, file) => sum + (js.find((item) => item.file === file)?.bytes || 0), 0);
-  assert.ok(js.length <= 140, `feature chunk count regressed to ${js.length}`);
-  assert.ok(totalJsBytes <= 5_800_000, `total JavaScript regressed to ${totalJsBytes} bytes`);
-  assert.ok(coreEntryBytes && coreEntryBytes <= 1_100_000, `core entry regressed to ${coreEntryBytes} bytes`);
-  assert.ok(initialTransferBytes <= 4_000_000, `initial module graph regressed to ${initialTransferBytes} bytes`);
   bundle = { chunks: js.length, totalJsBytes, coreEntryBytes, initialTransferBytes, initialRequests: initialFiles.length, largestChunks: js.sort((a, b) => b.bytes - a.bytes).slice(0, 8) };
-} catch {
-  // Architecture certification can run before build; bundle reporting is then
-  // intentionally marked unavailable rather than silently reported as zero.
+  septemberLimitsPassed = Object.entries(SEPTEMBER_LIMITS)
+    .filter(([key, limit]) => !(Number.isFinite(bundle[key]) && bundle[key] <= limit))
+    .map(([key, limit]) => ({ measure: key, now: bundle[key], septemberLimit: limit }));
 }
 
-console.log(JSON.stringify({ certifiedEvents: requiredEvents, bundle }, null, 2));
+console.log(JSON.stringify({
+  certifiedEvents: requiredEvents,
+  bundle,
+  septemberLimitsPassed,
+  // What a student's interactions cost, in a browser:
+  // tests/browser/teacherWorkflow/studentRuntimePerformance.mjs.
+}, null, 2));
+septemberLimitsPassed.forEach(({ measure, now, septemberLimit }) => console.error(`${measure} is ${now}, past September's limit of ${septemberLimit}.`));

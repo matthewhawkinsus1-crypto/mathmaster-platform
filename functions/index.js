@@ -12251,6 +12251,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     secondChanceOf: {},
     secondChancePlanned: false,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
+    // A lobby nobody starts, with no host screen heard for the host-away
+    // window, is cancelled by the server (liveChallengeServerSweep.mjs, N73).
+    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueForLobbyMs({ nowMs: Date.now() })),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -12773,8 +12776,9 @@ function applyLiveChallengeRoundOpening(transaction, {
     roundVersion,
     roundToken,
     // When the server closes this round if no host screen does
-    // (liveChallengeServerSweep.mjs). None for a Pace Race: no deadline.
-    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterOpeningMs({ endsAtMs: timer.endsAtMs })),
+    // (liveChallengeServerSweep.mjs) — or, for a Pace Race round, which has
+    // no deadline, when it first asks whether the host is still there (N73).
+    serverSweepDueAt: liveChallengeSweepDate(engine.serverSweep.sweepDueAfterOpeningMs({ endsAtMs: timer.endsAtMs, startsAtMs: timer.startsAtMs })),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   transaction.set(roomRef, {
@@ -13208,8 +13212,8 @@ function planNextLiveChallengeRound({ challenge, engine, room, privateState, pla
 }
 
 // Which finalization effects a match needs. Cancelled matches earn no rewards,
-// and leave their class no memory (only a finished rush game does; the effect
-// itself passes over every other game).
+// and leave their class no memory (only a finished game of a kind that has
+// one does; the effect itself passes over every other game).
 function liveChallengeFinalizationEffects(room = {}, status) {
   const challengeFinished = status === "finished";
   return {
@@ -13392,11 +13396,25 @@ async function liveChallengeEffectRecipients(transaction, db, studentIds = []) {
 }
 
 /*
+ * The report a game's class memory is read from (its `report`), built from
+ * the durable match result as the teacher's own report is: a rush's, Graph
+ * the Line's, or the classic one (Solver Race).
+ */
+async function classMemoryReportFromResult(game, result) {
+  if (game.report === "lineGraph") return (await lineGraphModules()).attempts.buildLineGraphReport(result);
+  if (game.report === "classic") return classicChallengeReportFromResult(result);
+  const labels = game.report === "inequalityRush" ? (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS : undefined;
+  return (await graphFeatureRushRules()).rush.buildRushReport(result, labels);
+}
+
+/*
  * CLASS MEMORY, written from the durable match result like the report: a
- * finished rush game leaves its class one small record — when, with which
- * settings (read from the room, which keeps them), and how the class did —
- * for the next setup's card (liveChallengeClassMemory.mjs). Class totals
- * only. A late or repeated run for an older game never replaces a newer one.
+ * finished game that has one (the rushes, Graph the Line, Solver Race —
+ * liveChallengeClassMemory.mjs says why Standard Challenge has none) leaves
+ * its class one small record — when, with which settings (read from the
+ * room, which keeps them), and how the class did — for the next setup's
+ * card. Class totals only. A late or repeated run for an older game never
+ * replaces a newer one.
  */
 async function writeClassMemoryFromResult(db, result) {
   const memoryRules = await liveChallengeClassMemoryRules();
@@ -13404,8 +13422,7 @@ async function writeClassMemoryFromResult(db, result) {
   if (!game || result.status !== "finished" || !result.classId) return;
   const roomSnapshot = await db.collection(LIVE_CHALLENGE_ROOMS).doc(String(result.roomId || "")).get();
   if (!roomSnapshot.exists) return;
-  const labels = game.id === "inequalityRush" ? (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS : undefined;
-  const report = (await graphFeatureRushRules()).rush.buildRushReport(result, labels);
+  const report = await classMemoryReportFromResult(game, result);
   const memory = memoryRules.buildClassMemory({ result, room: roomSnapshot.data() || {}, report });
   if (!memory) return;
   const memoryRef = db.collection(LIVE_CHALLENGE_CLASS_MEMORY).doc(memoryRules.classMemoryId(memory.classId, memory.game));
@@ -13418,27 +13435,8 @@ async function writeClassMemoryFromResult(db, result) {
 
 async function writeLiveChallengeReportFromResult(db, result) {
   const reportRules = await liveChallengeReportRules();
-  const challengeRules = await liveChallengeRules();
   const players = Array.isArray(result.standings) ? result.standings : [];
-  const secondChanceOf = result.secondChanceOf || {};
-  // Counted from the player records rather than read off a shared counter.
-  const derivedTallies = challengeRules.deriveRoundTallies({
-    players,
-    secondChanceOf,
-    storedRoundAnswers: result.legacyRoundAnswers || null,
-    storedRoundMisses: result.legacyRoundMisses || null,
-  });
-  const report = reportRules.buildChallengeReport({
-    room: result,
-    scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
-    playedRoundCount: typeof result.playedRoundCount === "number" ? result.playedRoundCount : null,
-    roundMisses: derivedTallies.roundMisses,
-    roundStandards: result.roundStandards || {},
-    answeredCounts: derivedTallies.roundAnswers,
-    secondChanceOf,
-    questionIds: Array.isArray(result.questionIds) ? result.questionIds : [],
-    players,
-  });
+  const report = await classicChallengeReportFromResult(result);
   const finishedAt = Number(result.finalizedAtMs) ? new Date(Number(result.finalizedAtMs)) : FieldValue.serverTimestamp();
   // A question-set game has no one question per round and no standard per
   // round: its report is its mode's own breakdown (by feature and family for
@@ -13477,6 +13475,36 @@ async function writeLiveChallengeReportFromResult(db, result) {
       ...document,
       ...reportRules.reportRowsWithout(document, (studentId) => !recipients.has(studentId)),
     });
+  });
+}
+
+/*
+ * THE CLASSIC REPORT — rounds, standards, the class by name — from the
+ * durable match result alone: what the teacher's report stores, and what a
+ * Solver Race's class memory reads (liveChallengeClassMemory.mjs).
+ */
+async function classicChallengeReportFromResult(result) {
+  const reportRules = await liveChallengeReportRules();
+  const challengeRules = await liveChallengeRules();
+  const players = Array.isArray(result.standings) ? result.standings : [];
+  const secondChanceOf = result.secondChanceOf || {};
+  // Counted from the player records rather than read off a shared counter.
+  const derivedTallies = challengeRules.deriveRoundTallies({
+    players,
+    secondChanceOf,
+    storedRoundAnswers: result.legacyRoundAnswers || null,
+    storedRoundMisses: result.legacyRoundMisses || null,
+  });
+  return reportRules.buildChallengeReport({
+    room: result,
+    scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
+    playedRoundCount: typeof result.playedRoundCount === "number" ? result.playedRoundCount : null,
+    roundMisses: derivedTallies.roundMisses,
+    roundStandards: result.roundStandards || {},
+    answeredCounts: derivedTallies.roundAnswers,
+    secondChanceOf,
+    questionIds: Array.isArray(result.questionIds) ? result.questionIds : [],
+    players,
   });
 }
 
@@ -14235,11 +14263,13 @@ async function closeLiveChallengeRoundForRoom(db, { roomRef, expected, force = f
  *
  * Every minute: the rooms whose private state says they are due. An open
  * round past its deadline (plus a grace no open console ever reaches) is
- * closed by the console's own close; results that have stood with no host
- * screen heard for the host-away window are ended by the console's own
- * Finish, which writes the match result, standings and rewards once. Each
- * decision is re-checked inside the command's own transaction, so a console,
- * a retry or a second run arriving at the same moment changes nothing twice.
+ * closed by the console's own close; results, or a Pace Race round, with no
+ * host screen heard for the host-away window are ended by the console's own
+ * Finish, which writes the match result, standings and rewards once; a lobby
+ * nobody started, with no host heard for as long, is cancelled by the
+ * console's own Cancel Session (N73). Each decision is re-checked inside the
+ * command's own transaction, so a console, a retry or a second run arriving
+ * at the same moment changes nothing twice.
  */
 async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
   const engine = await liveChallengeEngine();
@@ -14279,11 +14309,17 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
       }
       return closed.alreadyApplied ? "alreadyClosed" : "closed";
     }
+    // A lobby nobody started is cancelled — no round was played, so nothing
+    // is finished or recorded (N73); anything else waiting on its host is
+    // finished as End Game would finish it.
+    const cancelling = plan.action === serverSweep.SWEEP_ACTION.CANCEL;
+    const ending = cancelling
+      ? { command: lifecycle.LIFECYCLE_COMMAND.CANCEL, status: lifecycle.SESSION_STATUS.CANCELLED }
+      : { command: lifecycle.LIFECYCLE_COMMAND.FINISH, status: lifecycle.SESSION_STATUS.FINISHED };
     const finished = await finalizeLiveChallengeMatch(db, {
       roomRef,
       room,
-      command: lifecycle.LIFECYCLE_COMMAND.FINISH,
-      status: lifecycle.SESSION_STATUS.FINISHED,
+      ...ending,
       // The switch is read again here, in the finish's own transaction: a
       // flip during a long run is honoured by the very next finish.
       stillWanted: async ({ transaction, room: latestRoom, privateState: latestPrivate }) => {
@@ -14302,6 +14338,10 @@ async function sweepLiveChallengeRoom(db, privateDoc, nowMs, settings) {
       // The teacher came back (or moved on): look again after the window.
       await reschedule(nowMs + serverSweep.HOST_AWAY_FINISH_MS, "kept");
       return "kept";
+    }
+    if (cancelling) {
+      if (!finished.alreadyApplied) logger.info("liveChallenge.serverCancel", { roomId: roomRef.id });
+      return finished.alreadyApplied ? "alreadyCancelled" : "cancelled";
     }
     if (!finished.alreadyApplied) logger.info("liveChallenge.serverFinish", { roomId: roomRef.id, roundIndex: plan.expected.roundIndex });
     return finished.alreadyApplied ? "alreadyFinished" : "finished";

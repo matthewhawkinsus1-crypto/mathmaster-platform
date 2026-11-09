@@ -199,15 +199,18 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
 
 // Pass 3, A11Y-8: a typed endpoint the line cannot read is said, not only
 // shown in red. The box is invalid and described by the error; the error is
-// an alert; fixing the value clears both.
+// an alert; fixing the value clears both. The box is a math box (MathLive's
+// math-field, 2026-11-06 re-walk): the keys are typed into it, and Enter is
+// its own.
 {
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
   try {
     await page.goto(URL, { waitUntil: 'networkidle' });
-    const box = page.locator('input[aria-label="Exact endpoint value"]');
+    const box = page.locator('math-field[aria-label="Exact endpoint value"]');
     await box.waitFor();
-    await box.fill('13/8x');
-    await box.press('Enter');
+    await box.click();
+    await page.keyboard.type('13/8x');
+    await page.keyboard.press('Enter');
     await page.waitForSelector('[data-endpoint-help="error"]');
     const help = page.locator('[data-endpoint-help]');
     const errorText = (await help.textContent()).trim();
@@ -217,7 +220,8 @@ for (const [width, height] of [[1366, 768], [390, 844]]) {
     assert.equal(await alert.getAttribute('role'), 'alert');
     assert.equal((await alert.textContent()).trim(), errorText, 'the alert says the same words');
     assert.ok(errorText.length > 10, `the error says what to type (${errorText})`);
-    await box.fill('1');
+    await page.keyboard.press('Backspace');
+    await page.waitForFunction(() => !document.querySelector('math-field[aria-label="Exact endpoint value"]')?.hasAttribute('aria-invalid'), null, { timeout: 3000 }).catch(() => {});
     assert.equal(await box.getAttribute('aria-invalid'), null, 'typing again clears the invalid mark');
     assert.equal((await alert.textContent()).trim(), '', 'and the alert');
     console.log('ok 1366x768: a typed endpoint the line cannot read is announced and described');

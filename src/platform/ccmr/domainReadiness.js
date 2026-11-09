@@ -36,6 +36,23 @@ export const DOMAIN_STATE_PRESENTATION = Object.freeze({
   [DOMAIN_STATE.STRONG]: { label: 'Strong', color: '#1e8e3e', text: 'var(--mm-success-text)' },
 });
 
+// Each state as a fill, for a Windows contrast theme, which draws the wheel in
+// its own few colours (src/theme/forcedColors.css draws each, on the wheel and
+// beside its name in the list): strong solid, developing hatched falling and a
+// transfer gap cross-hatched, as the mastery wheel draws Mastered, Developing and
+// Needs Attention; recommended hatched rising, a prerequisite hatched level,
+// ready but not practised empty, and a domain with nothing matched yet an empty
+// ring in the theme's grey. Without a contrast theme nothing changes.
+export const DOMAIN_STATE_FILLS = Object.freeze({
+  [DOMAIN_STATE.NO_ALIGNMENT]: 'muted',
+  [DOMAIN_STATE.PREREQUISITE_NEEDED]: 'hatch-level',
+  [DOMAIN_STATE.TRANSFER_GAP]: 'hatch-cross',
+  [DOMAIN_STATE.RECOMMENDED]: 'hatch-rise',
+  [DOMAIN_STATE.READY_NOT_PRACTISED]: 'open',
+  [DOMAIN_STATE.DEVELOPING]: 'hatch-fall',
+  [DOMAIN_STATE.STRONG]: 'solid',
+});
+
 // A domain counts as strong when most of what has been practised in it is
 // strong. Not all of it: one shaky skill among six does not undo the picture.
 export const STRONG_SHARE = 0.6;

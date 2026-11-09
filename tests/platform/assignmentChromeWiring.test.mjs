@@ -21,7 +21,7 @@ const nav = region(app, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}',
 test('App imports what the navigator calls', () => {
   assert.match(app, /import SectionTimeLeft from '\.\/components\/student\/SectionTimeLeft\.jsx';/);
   const navigatorImport = region(app, 'import {\n  outcomeWithheld,', "} from './platform/student/assignmentNavigator.js';", 'the navigator import');
-  for (const name of ['QUESTION_STATUS', 'SECTION_ACCESS', 'describeNavigatorQuestion', 'describeNavigatorSectionProgress', 'describeSectionAccess', 'sectionLandingEntry']) {
+  for (const name of ['QUESTION_STATUS', 'SECTION_ACCESS', 'NAVIGATOR_PENDING_LABEL', 'describeNavigatorQuestion', 'describeNavigatorSectionProgress', 'describeSectionAccess', 'sectionLandingEntry']) {
     assert.match(navigatorImport, new RegExp(`\\n {2}${name},\\n`), name);
     assert.match(appCode, new RegExp(`\\b${name}\\b[.(]?`), `${name} is used`);
   }

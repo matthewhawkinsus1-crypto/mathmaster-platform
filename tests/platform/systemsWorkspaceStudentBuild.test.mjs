@@ -535,7 +535,8 @@ test('context modeling accepts mathematically equivalent scaled inequalities and
   assert.equal(modelingEntryCorrect({ coeffA: '-1', coeffB: '-1', relation: '>=', constant: '-10' }, expected), true, 'a negative multiple flips the relation');
   assert.equal(modelingEntryCorrect({ coeffA: '-1', coeffB: '-1', relation: '<=', constant: '-10' }, expected), false);
   assert.match(mode, /const modelingEntriesReady/);
-  assert.match(mode, /onClick=\{reopenModeling\}>Edit constraints</);
+  // "Edit constraints", or with one constraint "Edit the inequality" (inequalitySystemWords.js).
+  assert.match(mode, /onClick=\{reopenModeling\}>\{said\('Edit constraints'\)\}</);
   assert.match(region(mode, 'const reopenModeling = () => {', '\n  };', 'reopenModeling'), /setModelingSent\(false\);/);
 });
 

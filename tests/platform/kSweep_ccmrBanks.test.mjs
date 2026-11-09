@@ -176,7 +176,8 @@ test('My Math Path: every CCMR family, issued and served as a student meets it, 
     }
   }
   t.diagnostic(`path sweep: ${JSON.stringify(counts)}`);
-  assert.ok(counts.families >= 2176, `only ${counts.families} families swept`);
+  // Every active family: N54 retired one Digital SAT family (it printed its own answer).
+  assert.ok(counts.families >= 2175, `only ${counts.families} families swept`);
   assert.deepEqual(failures, []);
 });
 
@@ -223,7 +224,8 @@ test('Assignments: every hydrated CCMR family, generated as QuestionEngine gener
     });
   }
   t.diagnostic(`assignment sweep: ${JSON.stringify(counts)}`);
-  assert.ok(counts.families >= 1000, `only ${counts.families} hydrated families swept`);
+  // Every active audited family (N54 retired one Digital SAT family).
+  assert.ok(counts.families >= 999, `only ${counts.families} hydrated families swept`);
   assert.deepEqual(failures, []);
 });
 

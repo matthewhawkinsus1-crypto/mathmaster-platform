@@ -41,9 +41,9 @@ import {
   summarizeRoundProgress,
 } from './liveChallengeResponses.mjs';
 import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
-import { DOES_NOT_EXIST_TARGET_ID, OFF_SCREEN_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
-import { graphFamilyLabel } from './graphFeatureCatalog.mjs';
-import { POINTER_KIND, TAP_RESULT, clampTolerance, normalizePointerKind, resolveTap } from './graphFeatureHitTest.mjs';
+import { DOES_NOT_EXIST_TARGET_ID, GRAPH_FEATURE, OFF_SCREEN_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
+import { catalogSupportsFeature, graphFamilyLabel } from './graphFeatureCatalog.mjs';
+import { POINTER_KIND, TAP_RESULT, clampTolerance, normalizePointerKind, resolveTap, targetDistance } from './graphFeatureHitTest.mjs';
 import { SET_DIAGNOSIS_LABELS, diagnoseSet, drawingSet, drawingToPlain, normalizeDrawing, setFromPlain, setsEqual } from './numberLineSets.mjs';
 import {
   RUSH_ATTEMPT_KIND,
@@ -256,6 +256,66 @@ export const normalizeRushAttempt = (raw = {}) => {
   });
 };
 
+/*
+ * WHERE A WRONG TAP LANDED (N42), for the teacher's report: the feature of
+ * the same graph that the tap would have found had the question asked for
+ * it — within the round's own tolerance of it, by the same distance the hit
+ * test measures — such as the y-intercept tapped on a question that asked
+ * for the zeros. The features are the graph's own, from the server's copy of
+ * the question (graphFeatureGenerator.graphFeaturesFor); only those the
+ * feature catalog asks of the graph's family are named (a cubic's turning
+ * point is never "the maximum"), only those in view, and never the feature
+ * that was asked. The nearest wins; where two coincide (a parabola's vertex
+ * is also its minimum), the vertex is named, except that on a question
+ * asking for one extreme the other one is — the slip worth knowing about.
+ *
+ * Recorded on the miss's receipt as `diagnosis` and nowhere else: it changes
+ * no verdict, no points and no timing, the reply to the device never carries
+ * it, and only the teacher's report reads it. Null when the tap reached no
+ * other feature, or the question carries none (the device's copy, a
+ * practice round, an inequality).
+ */
+const DIAGNOSIS_ORDER = Object.freeze([
+  GRAPH_FEATURE.VERTEX,
+  GRAPH_FEATURE.MAXIMUM,
+  GRAPH_FEATURE.MINIMUM,
+  GRAPH_FEATURE.Y_INTERCEPT,
+  GRAPH_FEATURE.X_INTERCEPT,
+  GRAPH_FEATURE.ASYMPTOTE,
+]);
+const OTHER_EXTREME = Object.freeze({ [GRAPH_FEATURE.MAXIMUM]: GRAPH_FEATURE.MINIMUM, [GRAPH_FEATURE.MINIMUM]: GRAPH_FEATURE.MAXIMUM });
+
+const featureInView = (target, view) => {
+  const inX = (x) => Number.isFinite(x) && x >= view.xMin && x <= view.xMax;
+  const inY = (y) => Number.isFinite(y) && y >= view.yMin && y <= view.yMax;
+  if (target?.geometry === 'line') return target.orientation === 'vertical' ? inX(Number(target.x)) : inY(Number(target.y));
+  return inX(Number(target?.x)) && inY(Number(target?.y));
+};
+
+/** The other feature of the graph a wrong tap landed on, or null. */
+export const rushTapDiagnosis = ({ question, tap = {}, tolerance = {} } = {}) => {
+  const features = question?.graphFeatures;
+  const asked = String(question?.feature || '');
+  const view = question?.view;
+  const x = finiteOr(tap.x);
+  const y = finiteOr(tap.y);
+  if (!features || typeof features !== 'object' || !asked || !view || x === null || y === null) return null;
+  const limits = clampTolerance(tolerance, view);
+  const other = OTHER_EXTREME[asked];
+  const order = other ? [other, ...DIAGNOSIS_ORDER.filter((id) => id !== other)] : DIAGNOSIS_ORDER;
+  let nearest = null;
+  order.forEach((featureId) => {
+    if (featureId === asked || !catalogSupportsFeature(question.family, featureId)) return;
+    (Array.isArray(features[featureId]) ? features[featureId] : []).forEach((target) => {
+      if (!featureInView(target, view)) return;
+      const distance = targetDistance(target, { x, y }, limits);
+      // Strictly nearer: at an equal distance the feature named first stays.
+      if (distance !== null && distance <= 1 && (!nearest || distance < nearest.distance)) nearest = { featureId, distance };
+    });
+  });
+  return nearest ? nearest.featureId : null;
+};
+
 /** The verdict a recorded receipt stands for (a replayed attempt reports it again). */
 export const verdictOfReceipt = (receipt = {}) => {
   if (receipt.forfeit === true) return RUSH_VERDICT.SKIPPED;
@@ -418,6 +478,9 @@ export const applyRushAttempts = ({
       }
       isCorrect = tap.result === TAP_RESULT.HIT;
       targetId = isCorrect ? tap.targetId : 'miss';
+      // The verdict is decided; a miss is told, for the teacher alone, which
+      // other feature of the graph it landed on (rushTapDiagnosis).
+      if (!isCorrect) diagnosis = rushTapDiagnosis({ question, tap: { x: attempt.x, y: attempt.y }, tolerance: attempt.tolerance });
     }
 
     // The engine's own attempt rule has the last word (completed question,
@@ -481,8 +544,9 @@ export const applyRushAttempts = ({
       completesQuestion,
       // Where a tap landed, for analysing what students mistake for a feature.
       ...(attempt.kind === RUSH_ATTEMPT_KIND.TAP ? { x: round3(attempt.x), y: round3(attempt.y), pointer: attempt.pointer } : {}),
-      // What a checked set looked like, and what was off about a wrong one
-      // (the report counts the diagnoses).
+      // What a checked set looked like, and what was off about a wrong one;
+      // on a wrong tap, the other feature it landed on (the report counts
+      // the diagnoses).
       ...(attempt.kind === RUSH_ATTEMPT_KIND.CHECK ? { drawing: drawingToPlain(attempt.drawing) } : {}),
       ...(diagnosis ? { diagnosis } : {}),
       pointsAwarded: Math.max(0, Math.round(Number(score?.pointsAwarded) || 0)),
@@ -589,13 +653,42 @@ const mergeBuckets = (target, source) => {
   });
 };
 
+/*
+ * WHERE WRONG TAPS LANDED, in a teacher's words (N42): "Tapped the
+ * y-intercept when asked for zeros (x-intercepts)". One phrase for each
+ * feature a student taps (a point or a line), as tapped and as asked; a
+ * feature added to the registry needs both (a test holds it).
+ */
+export const WRONG_TAP_WORDS = Object.freeze({
+  tapped: Object.freeze({
+    [GRAPH_FEATURE.X_INTERCEPT]: 'a zero (x-intercept)',
+    [GRAPH_FEATURE.Y_INTERCEPT]: 'the y-intercept',
+    [GRAPH_FEATURE.VERTEX]: 'the vertex',
+    [GRAPH_FEATURE.MAXIMUM]: 'the maximum',
+    [GRAPH_FEATURE.MINIMUM]: 'the minimum',
+    [GRAPH_FEATURE.ASYMPTOTE]: 'an asymptote',
+  }),
+  asked: Object.freeze({
+    [GRAPH_FEATURE.X_INTERCEPT]: 'zeros (x-intercepts)',
+    [GRAPH_FEATURE.Y_INTERCEPT]: 'the y-intercept',
+    [GRAPH_FEATURE.VERTEX]: 'the vertex',
+    [GRAPH_FEATURE.MAXIMUM]: 'the maximum',
+    [GRAPH_FEATURE.MINIMUM]: 'the minimum',
+    [GRAPH_FEATURE.ASYMPTOTE]: 'asymptotes',
+  }),
+});
+
+/** "Tapped the y-intercept when asked for zeros (x-intercepts)". */
+export const wrongTapLabel = (asked, tapped) => `Tapped ${WRONG_TAP_WORDS.tapped[tapped] || getGraphFeature(tapped)?.shortLabel || tapped} when asked for ${WRONG_TAP_WORDS.asked[asked] || getGraphFeature(asked)?.shortLabel || asked}`;
+
 // How the report names its rows: Graph Feature Rush's features and families,
-// and the number-line diagnoses of wrong checks. Inequality Graphing Rush
-// passes its own (inequalityRush.INEQUALITY_REPORT_LABELS).
+// the number-line diagnoses of wrong checks, and where wrong taps landed.
+// Inequality Graphing Rush passes its own (inequalityRush.INEQUALITY_REPORT_LABELS).
 const GRAPH_REPORT_LABELS = Object.freeze({
   featureLabel: (key) => getGraphFeature(key)?.shortLabel || key,
   familyLabel: (key) => graphFamilyLabel(key) || key,
   mistakeLabel: (key) => SET_DIAGNOSIS_LABELS[key] || key,
+  wrongTapLabel,
 });
 
 /**
@@ -604,12 +697,13 @@ const GRAPH_REPORT_LABELS = Object.freeze({
  * and percentages only. `labels` names the rows (GRAPH_REPORT_LABELS).
  */
 export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) => {
-  const { featureLabel, familyLabel, mistakeLabel } = { ...GRAPH_REPORT_LABELS, ...labels };
+  const { featureLabel, familyLabel, mistakeLabel, wrongTapLabel: tapLabel } = { ...GRAPH_REPORT_LABELS, ...labels };
   const standings = Array.isArray(matchResult.standings) ? matchResult.standings : [];
-  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0 };
+  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0, offScreenPresses: 0, offScreenCorrect: 0 };
   const byFeature = {};
   const byFamily = {};
   const mistakes = {};
+  const wrongTaps = new Map();
   const players = standings.map((standing) => {
     const summary = standing.questionSetSummary || {};
     Object.keys(totals).forEach((key) => { totals[key] += Number(summary[key]) || 0; });
@@ -617,6 +711,16 @@ export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) 
     mergeBuckets(byFamily, summary.byFamily);
     // What wrong checks got wrong (a domain, a range, an inequality), counted.
     Object.entries(summary.mistakes || {}).forEach(([key, count]) => { mistakes[key] = (mistakes[key] || 0) + (Number(count) || 0); });
+    // Where wrong taps landed (N42), by what was asked and what was tapped,
+    // across the class. A match result from before it has none.
+    Object.entries(summary.wrongTaps || {}).forEach(([asked, tapped]) => {
+      Object.entries(tapped && typeof tapped === 'object' ? tapped : {}).forEach(([feature, count]) => {
+        const key = `${asked}:${feature}`;
+        const row = wrongTaps.get(key) || { key, asked, tapped: feature, count: 0 };
+        row.count += Number(count) || 0;
+        wrongTaps.set(key, row);
+      });
+    });
     return {
       studentId: standing.studentId || null,
       alias: String(standing.alias || 'Player'),
@@ -636,12 +740,22 @@ export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) 
     attempts: totals.attempts,
     accuracyPercent: percent(totals.hits, totals.attempts),
     doesNotExist: { presses: totals.dnePresses, correct: totals.dneCorrect, accuracyPercent: percent(totals.dneCorrect, totals.dnePresses) },
+    // "Off screen" presses, beside "Does Not Exist": the feature exists past
+    // the edge of the view. None in a game without off-screen features, or in
+    // a match result written before they were counted.
+    offScreen: { presses: totals.offScreenPresses, correct: totals.offScreenCorrect, accuracyPercent: percent(totals.offScreenCorrect, totals.offScreenPresses) },
     byFeature: breakdown(byFeature, featureLabel),
     byFamily: breakdown(byFamily, familyLabel),
     // Most common first.
     mistakes: Object.entries(mistakes)
       .filter(([, count]) => count > 0)
       .map(([key, count]) => ({ key, label: mistakeLabel(key), count }))
+      .sort((left, right) => right.count - left.count || (left.key < right.key ? -1 : 1)),
+    // Beside them, where wrong taps landed: "Tapped the y-intercept when
+    // asked for zeros (x-intercepts)", most common first. Class counts only.
+    wrongTaps: [...wrongTaps.values()]
+      .filter((row) => row.count > 0)
+      .map((row) => ({ ...row, label: tapLabel(row.asked, row.tapped) }))
       .sort((left, right) => right.count - left.count || (left.key < right.key ? -1 : 1)),
     players,
   });

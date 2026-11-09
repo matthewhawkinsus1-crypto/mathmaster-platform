@@ -64,12 +64,25 @@ test('every screen in lazyScreens.js is a lazy import, so none joins the first l
   const declarations = [...screens.matchAll(/^export const ([A-Za-z0-9]+) = (.*)$/gm)];
   assert.ok(declarations.length >= 30);
   for (const [, name, value] of declarations) {
-    // A screen (`lazy`), or a teacher-only panel (`teacherPanel`, the same
-    // lazy import inside its own Suspense boundary). GradebookClassChooser is
-    // a named export, so it is picked out of the loaded module.
-    assert.match(value, /^(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?\);$/, `${name} is not a lazy import`);
+    // A screen (`lazy`), a teacher-only panel (`teacherPanel`, the same
+    // lazy import inside its own Suspense boundary), a student screen
+    // (`studentScreen`, PF01: the same, with its own boundary for code that
+    // cannot load, and the words it shows while it loads), or a panel of a
+    // student screen (`studentPanel`: the same, in the screen's flow, with its
+    // words given by name). GradebookClassChooser is a named export, so it is
+    // picked out of the loaded module. QuestionEngine is App's lazy import
+    // memoised (`memo(lazy(…))`): still loaded on demand.
+    assert.match(value, /^(?:memo\(lazy\(\(\) => import\('\.\.\/[^']+\.jsx'\)\)|(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?|studentScreen\(\(\) => import\('\.\.\/[^']+\.jsx'\), '[^']+'|studentPanel\(\(\) => import\('\.\.\/[^']+\.jsx'\), \{ name: '[^']+', loading: '[^']+', codeTitle: '[^']+' \})\);$/, `${name} is not a lazy import`);
   }
-  assert.doesNotMatch(executableSource(screens), /^import (?!\{ Suspense, createElement, lazy \} from 'react')/m, 'lazyScreens.js imports a screen eagerly');
+  // Eagerly, React and what a student screen wraps itself in: never a screen.
+  const eager = [...executableSource(screens).matchAll(/^import\s+(?:[^;]*?\s+from\s+)?'([^']+)';$/gm)].map((match) => match[1]);
+  assert.deepEqual(eager, [
+    'react',
+    '../components/common/ScreenErrorBoundary.jsx',
+    '../platform/runtime/retryableChunk.js',
+    '../platform/student/navigationModel.js',
+    './shell/screenChange.js',
+  ], 'lazyScreens.js imports a screen eagerly');
 });
 
 /*
@@ -206,29 +219,32 @@ test('student Home prefetches the question runtime at idle, the chunk an assignm
   assert.match(effect, /user\?\.role !== 'student' \|\| activeView !== 'dashboard'/);
   assert.match(effect, /import\('\.\/QuestionEngine\.jsx'\)/, 'the same module app/lazyScreens.js loads lazily');
   assert.match(effect, /requestIdleCallback\(prefetch/);
-  assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\);/);
+  // The module App's QuestionEngine loads on demand (memoised there).
+  assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = (?:memo\()?lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\)\)?;/);
 });
 
 // G2 review: stylesheets App used to get through modules that moved with the
-// teacher's screen must still link BEFORE App.css, as at 805b69e2. App.css's
-// coarse-pointer `.mm-dashboard-content` rules (22px checkboxes, 12px cells,
-// 52px controls, large-screen headings) tie on specificity with rules in the
-// teacher sheets and win only by order. They reach App through one shared
-// module that App and the workspace both import, so the bundler gives it a
-// chunk of its own, linked before App's CSS. (Checked against the built
-// manifest at the time: the CSS App links, concatenated in order, equals
-// 805b69e2's.)
-test('the teacher and phone stylesheets link before App.css, in the order they had', () => {
+// teacher's screen must still link BEFORE App.css, as at 805b69e2, where
+// App.css's result depends on it. They reach App through one shared module
+// that App and the workspace both import, so the bundler gives it a chunk of
+// its own, linked before App's CSS. (Checked against the built manifest at the
+// time: the CSS App links, concatenated in order, equals 805b69e2's.)
+// PF01: the two teacher sheets left it. App.css's coarse-pointer
+// `.mm-dashboard-content` rules (22px checkboxes, 12px cells, large-screen
+// headings) used to tie with rules in them and win only by order; they win by
+// weight now (firstLoadTeacherStyles.test.mjs), so the sheets load with the
+// workspace and a student does not download them. What stays: the support
+// report's print rules, which reach every page, and the phone layout sheet.
+test('the print and phone stylesheets link before App.css, in the order they had', () => {
   const leading = read('src/app/shell/leadingStyles.js');
   const sheets = [...executableSource(leading).matchAll(/^import '([^']+\.css)';$/gm)].map((match) => match[1]);
   assert.deepEqual(sheets, [
-    '../../components/teacher/supportEvidence.css',
-    '../../components/teacher/teacherWorkspace.css',
+    '../../components/teacher/supportEvidencePrint.css',
     '../../platform/mobile/MobileInteractionFoundation.css',
   ]);
   const shared = "import './app/shell/leadingStyles.js';";
   assert.ok(app.indexOf(shared) > 0 && app.indexOf(shared) < app.indexOf("import './App.css';"), 'App imports them ahead of App.css');
   assert.match(teacherWorkspace, /^import '\.\.\/shell\/leadingStyles\.js';$/m, 'the workspace shares the module, so it is its own chunk');
-  assert.doesNotMatch(executableSource(app), /^import '\.\/(?:components\/teacher\/(?:supportEvidence|teacherWorkspace)|platform\/mobile\/MobileInteractionFoundation)\.css';$/m,
+  assert.doesNotMatch(executableSource(app), /^import '\.\/(?:components\/teacher\/(?:supportEvidence|supportEvidencePrint|teacherWorkspace)|platform\/mobile\/MobileInteractionFoundation)\.css';$/m,
     'imported straight from App they would link after App.css');
 });

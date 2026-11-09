@@ -17,6 +17,7 @@ export default defineConfig({
   plugins: [
     swapModules('mm-class-rewards-qa-swap', [
       [path.join(repo, 'src/firebase.js'), path.join(here, 'emulator/firebaseEmulator.js')],
+      [path.join(repo, 'src/firebaseApp.js'), path.join(here, 'emulator/firebaseEmulator.js')],
       [path.join(repo, 'src/platform/rewards/rewardsClient.js'), path.join(here, 'emulator/rewardsClientStub.js')],
       [path.join(repo, 'src/platform/rewards/classRewardsClient.js'), path.join(here, 'classRewardsQaClientStub.js')],
     ]),

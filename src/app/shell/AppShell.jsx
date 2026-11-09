@@ -28,6 +28,9 @@ const accountPresent = (status) => status === 'ready';
 export default function AppShell() {
   const auth = useAuth();
   const [appWanted, setAppWanted] = useState(() => accountPresent(auth.status));
+  // Whether the account has been read once (signed out, linking or signed in):
+  // from then on the page shows the sign-in screen or the app.
+  const [accountRead, setAccountRead] = useState(() => auth.status !== 'loading');
   const launchAssignment = useClassroomLaunchPreview(!appWanted);
   // WCAG 2.4.2 before App exists: the sign-in screen names itself (App's own
   // pageTitleFor call takes over once it is loaded).
@@ -35,12 +38,19 @@ export default function AppShell() {
 
   useEffect(() => {
     if (accountPresent(auth.status)) setAppWanted(true);
+    if (auth.status !== 'loading') setAccountRead(true);
   }, [auth.status]);
 
   // The likely next chunk: fetch App while the student is typing their
-  // sign-in, so Home does not wait on it afterwards.
+  // sign-in, so Home does not wait on it afterwards. Not before the account
+  // has been read: until then the sign-in screen has not drawn, and App's
+  // code arriving and running would hold it up. (With Firestore off this
+  // path, the first idle moment can come while Auth is still reading the
+  // device's session.) An account already signed in loads App at once
+  // (appWanted), and once the account has been read, a sign-in in progress
+  // ('loading' again) keeps the prefetch already scheduled.
   useEffect(() => {
-    if (appWanted) return undefined;
+    if (appWanted || !accountRead) return undefined;
     const prefetch = () => { loadApp().catch(() => { /* retried by the real load */ }); };
     if (typeof window.requestIdleCallback === 'function') {
       const id = window.requestIdleCallback(prefetch, { timeout: 2000 });
@@ -48,7 +58,7 @@ export default function AppShell() {
     }
     const timer = window.setTimeout(prefetch, 300);
     return () => window.clearTimeout(timer);
-  }, [appWanted]);
+  }, [appWanted, accountRead]);
 
   const gate = (
     <SessionGate

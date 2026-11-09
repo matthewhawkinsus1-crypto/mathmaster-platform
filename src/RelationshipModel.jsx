@@ -203,7 +203,7 @@ export default function RelationshipModel({
 
       {requirements.axes && axisInputMode === 'drag' && (
         <section style={{ marginTop: '18px', padding: '12px 14px', borderRadius: '10px', background: 'var(--mm-surface-tint)', color: 'var(--mm-text)' }}>
-          <strong>Axis setup:</strong> Drag the quantity and unit cards directly to the graph. Your choices appear on the graph immediately.
+          <strong>Axis setup:</strong> Place the quantity and unit cards on the graph. Your choices appear on the graph immediately.
         </section>
       )}
 

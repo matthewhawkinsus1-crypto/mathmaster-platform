@@ -40,7 +40,7 @@ concurrency:
 jobs:
   changes:
     name: Changed areas
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       areas: ${{ steps.areas.outputs.areas }}
@@ -163,7 +163,7 @@ jobs:
       - theme-certification
       - work-view-browser-matrix
       - work-view-stage-4-certification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6

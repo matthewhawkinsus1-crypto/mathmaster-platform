@@ -40,7 +40,7 @@
     "teks": "A.5C",
     "timeline": { "dueOffsetDays": -9, "lateOffsetDays": -8 },
     "questions": [
-      { "questionId": "systems-dol-q1", "type": "literal", "formula": "y=x+2 and y=3x-4", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "The two equations form a system. Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-dol-q1", "type": "literal", "formula": "y=x+2 and y=3x-4", "formulaLatex": "\\begin{cases} y=x+2 \\\\ y=3x-4 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "The two equations form a system. Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -53,7 +53,7 @@
           "answerSummary": "The x-coordinate of the solution is $x = 3$."
         }
       },
-      { "questionId": "systems-dol-q2", "type": "literal", "formula": "y=2x+1 and y=-x+10", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate where the two lines intersect.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-dol-q2", "type": "literal", "formula": "y=2x+1 and y=-x+10", "formulaLatex": "\\begin{cases} y=2x+1 \\\\ y=-x+10 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate where the two lines intersect.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -66,7 +66,7 @@
           "answerSummary": "The lines intersect where $x = 3$."
         }
       },
-      { "questionId": "systems-dol-q3", "type": "literal", "formula": "x+y=12 and y=x-2", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-dol-q3", "type": "literal", "formula": "x+y=12 and y=x-2", "formulaLatex": "\\begin{cases} x+y=12 \\\\ y=x-2 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
           "reasoning": [
@@ -79,7 +79,7 @@
           "answerSummary": "The solution of the system has $x = 7$."
         }
       },
-      { "questionId": "systems-dol-q4", "type": "literal", "formula": "2x+y=13 and y=1", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-dol-q4", "type": "literal", "formula": "2x+y=13 and y=1", "formulaLatex": "\\begin{cases} 2x+y=13 \\\\ y=1 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["6"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
           "reasoning": [
@@ -91,7 +91,7 @@
           "answerSummary": "The solution of the system has $x = 6$."
         }
       },
-      { "questionId": "systems-dol-q5", "type": "literal", "formula": "y=4x-7 and y=x+2", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-dol-q5", "type": "literal", "formula": "y=4x-7 and y=x+2", "formulaLatex": "\\begin{cases} y=4x-7 \\\\ y=x+2 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -237,7 +237,7 @@
     "teks": "A.5C",
     "timeline": { "dueOffsetDays": -5, "lateOffsetDays": -4 },
     "questions": [
-      { "questionId": "systems-quiz-q1", "type": "literal", "formula": "y=x+5 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-quiz-q1", "type": "literal", "formula": "y=x+5 and y=2x+1", "formulaLatex": "\\begin{cases} y=x+5 \\\\ y=2x+1 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -249,7 +249,7 @@
           "answerSummary": "The x-coordinate of the solution is $x = 4$."
         }
       },
-      { "questionId": "systems-quiz-q2", "type": "literal", "formula": "x+y=11 and y=x+1", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-quiz-q2", "type": "literal", "formula": "x+y=11 and y=x+1", "formulaLatex": "\\begin{cases} x+y=11 \\\\ y=x+1 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
           "reasoning": [
@@ -262,7 +262,7 @@
           "answerSummary": "The solution of the system has $x = 5$."
         }
       },
-      { "questionId": "systems-quiz-q3", "type": "literal", "formula": "y=5x-8 and y=2x+1", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-quiz-q3", "type": "literal", "formula": "y=5x-8 and y=2x+1", "formulaLatex": "\\begin{cases} y=5x-8 \\\\ y=2x+1 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["3"], "prompt": "Find the x-coordinate of the intersection.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -275,7 +275,7 @@
           "answerSummary": "The lines intersect where $x = 3$."
         }
       },
-      { "questionId": "systems-quiz-q4", "type": "literal", "formula": "3x+y=14 and y=2", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-quiz-q4", "type": "literal", "formula": "3x+y=14 and y=2", "formulaLatex": "\\begin{cases} 3x+y=14 \\\\ y=2 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Solve the system for x.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "One equation already says what $y$ is. Put that into the other equation, so it has only $x$ in it.",
           "reasoning": [
@@ -287,7 +287,7 @@
           "answerSummary": "The solution of the system has $x = 4$."
         }
       },
-      { "questionId": "systems-quiz-q5", "type": "literal", "formula": "y=-x+9 and y=x+1", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
+      { "questionId": "systems-quiz-q5", "type": "literal", "formula": "y=-x+9 and y=x+1", "formulaLatex": "\\begin{cases} y=-x+9 \\\\ y=x+1 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["4"], "prompt": "Find the x-coordinate of the solution.", "teks": ["A.5C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -360,7 +360,7 @@
           "answerSummary": "The models break even at $x = 6$."
         }
       },
-      { "questionId": "honors-modeling-q2", "type": "literal", "formula": "y=2x+9 and y=-x+24", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the intersection x-value for the competing models.", "teks": ["A.5C"], "dok": 3,
+      { "questionId": "honors-modeling-q2", "type": "literal", "formula": "y=2x+9 and y=-x+24", "formulaLatex": "\\begin{cases} y=2x+9 \\\\ y=-x+24 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["5"], "prompt": "Find the intersection x-value for the competing models.", "teks": ["A.5C"], "dok": 3,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -386,7 +386,7 @@
           "answerSummary": "The costs become equal at month $m = 9$."
         }
       },
-      { "questionId": "honors-modeling-q4", "type": "literal", "formula": "y=4x-13 and y=x+8", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the intersection x-value, then consider which representation made the solution most efficient.", "teks": ["A.5C"], "dok": 3,
+      { "questionId": "honors-modeling-q4", "type": "literal", "formula": "y=4x-13 and y=x+8", "formulaLatex": "\\begin{cases} y=4x-13 \\\\ y=x+8 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["7"], "prompt": "Find the intersection x-value, then consider which representation made the solution most efficient.", "teks": ["A.5C"], "dok": 3,
         "solutionReview": {
           "headline": "Where the two lines cross, both equations give the same $y$. Set the two expressions for $y$ equal and solve for $x$.",
           "reasoning": [
@@ -512,7 +512,7 @@
     "dok": 3,
     "timeline": { "dueOffsetDays": -4, "lateOffsetDays": -3 },
     "questions": [
-      { "questionId": "a2-lq-q1", "type": "literal", "formula": "y=x^2 and y=4", "solveFor": "x", "acceptedAnswers": ["2", "-2"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+      { "questionId": "a2-lq-q1", "type": "literal", "formula": "y=x^2 and y=4", "formulaLatex": "\\begin{cases} y=x^2 \\\\ y=4 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["2", "-2"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
           "reasoning": [
@@ -523,7 +523,7 @@
           "answerSummary": "The graphs intersect at $x = 2$ and at $x = -2$."
         }
       },
-      { "questionId": "a2-lq-q2", "type": "literal", "formula": "y=x^2 and y=9", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+      { "questionId": "a2-lq-q2", "type": "literal", "formula": "y=x^2 and y=9", "formulaLatex": "\\begin{cases} y=x^2 \\\\ y=9 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
           "reasoning": [
@@ -534,7 +534,7 @@
           "answerSummary": "The graphs intersect at $x = 3$ and at $x = -3$."
         }
       },
-      { "questionId": "a2-lq-q3", "type": "literal", "formula": "y=x^2-1 and y=8", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+      { "questionId": "a2-lq-q3", "type": "literal", "formula": "y=x^2-1 and y=8", "formulaLatex": "\\begin{cases} y=x^2-1 \\\\ y=8 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["3", "-3"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
           "reasoning": [
@@ -546,7 +546,7 @@
           "answerSummary": "The graphs intersect at $x = 3$ and at $x = -3$."
         }
       },
-      { "questionId": "a2-lq-q4", "type": "literal", "formula": "y=x^2+2 and y=18", "solveFor": "x", "acceptedAnswers": ["4", "-4"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+      { "questionId": "a2-lq-q4", "type": "literal", "formula": "y=x^2+2 and y=18", "formulaLatex": "\\begin{cases} y=x^2+2 \\\\ y=18 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["4", "-4"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
           "reasoning": [
@@ -558,7 +558,7 @@
           "answerSummary": "The graphs intersect at $x = 4$ and at $x = -4$."
         }
       },
-      { "questionId": "a2-lq-q5", "type": "literal", "formula": "y=x^2-5 and y=20", "solveFor": "x", "acceptedAnswers": ["5", "-5"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
+      { "questionId": "a2-lq-q5", "type": "literal", "formula": "y=x^2-5 and y=20", "formulaLatex": "\\begin{cases} y=x^2-5 \\\\ y=20 \\end{cases}", "solveFor": "x", "acceptedAnswers": ["5", "-5"], "prompt": "Give one x-value where the graphs intersect.", "teks": ["A2.3C"], "dok": 2,
         "solutionReview": {
           "headline": "Where the graphs meet, both give the same $y$. Set them equal and solve: a positive number has two square roots, one positive and one negative.",
           "reasoning": [

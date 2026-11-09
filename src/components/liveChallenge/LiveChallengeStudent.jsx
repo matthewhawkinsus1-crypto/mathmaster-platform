@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { BACK_TO_HOME } from '../../platform/student/studentWords.js';
 import QuestionEngineView from '../../QuestionEngine.jsx';
 import useActionBarFocusReveal from '../common/useActionBarFocusReveal.js';
-import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
+import { LIVE_PROVISIONAL_MAX_POINTS, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { getScoringStrategy, leaderboardOptionsFor, provisionalWorth, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { PROJECTION_KIND, standingsFromProjection } from '../../../functions/shared/liveChallengeStandingsProjection.mjs';
@@ -88,6 +88,42 @@ const writeStoredJson = (key, value) => {
   try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* the server still holds the answer */ }
 };
 
+// The tools that grade a student's steps as they go (QuestionEngine routes
+// their onStepGrade): only their rounds can bank points before the answer.
+const STEP_GRADED_TOOLS = new Set(['stepAlgebra', 'algebra', 'literal']);
+
+// Its words wrap as a row of words, not three narrow columns: the room it keeps
+// on a phone is two short rows (it was three columns, 73 px tall at 390 px).
+const BANKED_LINE = Object.freeze({ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8, fontWeight: 900 });
+function BankedPoints({ points }) {
+  return (
+    <>
+      <span style={{ fontSize: 'calc(13 * var(--mm-px))', opacity: .85 }}>Points banked this round</span>
+      <span style={{ fontSize: 'calc(22 * var(--mm-px))', fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>{points}</span>
+      <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: .8 }}>keep going — every correct step adds more</span>
+    </>
+  );
+}
+
+/*
+ * ROUNDS THAT CLOSED WHILE THIS DEVICE WAS AWAY (challengeMissedRounds.js): one
+ * plain notice, and "Got it". It arrives after the room does — a read of the
+ * student's own summary once a reconnect brings the room back — so a phone
+ * that came back mid-round met it above the question, which it pushed down
+ * 140 px as it arrived (82 px on a Chromebook) and back up at "Got it". Above
+ * the round between rounds; under the question while a classic round is on
+ * screen, where it moves nothing.
+ */
+const MISSED_NOTICE = Object.freeze({ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 });
+function MissedRoundsWords({ notice, onDismiss }) {
+  return (
+    <>
+      <span>{notice}</span>
+      <button type="button" onClick={onDismiss} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
+    </>
+  );
+}
+
 /*
  * A STABLE QUESTION ENGINE. The round around the question redraws its clock
  * four times a second and its board whenever a classmate makes progress; the
@@ -161,6 +197,8 @@ export function ChallengeRound({
   submitResponse = submitLiveChallengeResponse,
   reportProgress = reportLiveChallengeProgress,
   beforeQuestion = null,
+  // Under the question, where nothing that comes and goes can move it.
+  underQuestion = null,
   // EXTENDED TIME: this student's own multiplier (their invite; 1 for everyone
   // without it). Their clock, their buzzer and their lock all follow their own
   // deadline, which is the one the server judges their answer against.
@@ -269,6 +307,14 @@ export function ChallengeRound({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [question?.questionInstanceId, question?.pathToolId],
   );
+  // "Points banked this round" keeps its room in the banner from GO in a round
+  // that can bank points — a tool that grades steps as they go, under a
+  // scoring that pays for work in progress — so its arrival with the first
+  // right step never moves the question below it, nor its leaving with the
+  // answer. Its room holds the most a round's work can bank.
+  const canBankPoints = STEP_GRADED_TOOLS.has(secureQuestion?.type)
+    && provisionalWorth({ strategyId: scoringStrategyId, credit: 1, secondChance: replayRound }) > 0;
+  const banked = workingPoints > 0 && !result;
 
   pendingRef.current = pending;
   resultRef.current = result;
@@ -357,7 +403,7 @@ export function ChallengeRound({
     if (delayMs === null) {
       // Still locked and kept; the Retry button sends it.
       setWaitingForGo(false);
-      setSubmitError('Your answer is locked in but was not sent. Tap Retry locked answer to send it.');
+      setSubmitError('Your answer is locked in but was not sent. Press Retry locked answer to send it.');
       return;
     }
     resendsAtGoRef.current += 1;
@@ -587,6 +633,8 @@ export function ChallengeRound({
           {Array.from({ length: Math.max(1, Number(room.roundCount) || 1) }).map((_, pip) => (
             <span
               key={pip}
+              // Drawn from this under a contrast theme, which paints none of the fills (src/theme/forcedColors.css).
+              data-mm-progress-step={pip < roundIndex ? 'done' : pip === roundIndex ? 'current' : 'todo'}
               style={{
                 flex: 1,
                 height: 5,
@@ -598,11 +646,16 @@ export function ChallengeRound({
           ))}
         </div>
 
-        {workingPoints > 0 && !result && (
-          <div aria-live="polite" style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontWeight: 900 }}>
-            <span style={{ fontSize: 'calc(13 * var(--mm-px))', opacity: .85 }}>Points banked this round</span>
-            <span style={{ fontSize: 'calc(22 * var(--mm-px))', fontVariantNumeric: 'tabular-nums', color: '#fdd663' }}>+{workingPoints.toLocaleString()}</span>
-            <span style={{ fontSize: 'calc(12 * var(--mm-px))', opacity: .8 }}>keep going — every correct step adds more</span>
+        {canBankPoints && (
+          // The line, said as it arrives, over its room: the same words with the
+          // most it can bank, unseen and unread, in the same cell.
+          <div data-mm-banked-line={banked ? '1' : '0'} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+            <div aria-live="polite" style={{ ...BANKED_LINE, gridArea: '1 / 1' }}>
+              {banked && <BankedPoints points={`+${workingPoints.toLocaleString()}`} />}
+            </div>
+            <div aria-hidden="true" style={{ ...BANKED_LINE, gridArea: '1 / 1', visibility: 'hidden' }}>
+              <BankedPoints points={`+${LIVE_PROVISIONAL_MAX_POINTS.toLocaleString()}`} />
+            </div>
           </div>
         )}
       </section>
@@ -669,6 +722,8 @@ export function ChallengeRound({
       </div>
       )}
       </div>
+
+      {underQuestion}
 
       {lockedLine && (
         // A new node when it starts to be announced: a live region speaks what
@@ -1187,14 +1242,31 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+  // The room this screen has had in front of the student since the last
+  // server copy it compared: visible, and with no cached (offline) copy in
+  // between. Hidden (a sleeping phone, another tab) or offline, it is away.
+  // A game ended while its round was open — the teacher's End Game, or the
+  // server ending a Pace Race round (N73) — ended in front of a student who
+  // was watching, and "closed while you were away" would be false.
+  const watchingRef = useRef(null);
   useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const leave = () => { if (document.visibilityState === 'hidden') watchingRef.current = null; };
+    document.addEventListener('visibilitychange', leave);
+    return () => document.removeEventListener('visibilitychange', leave);
+  }, []);
+  useEffect(() => { if (!online) watchingRef.current = null; }, [online]);
+  useEffect(() => {
+    if (roomFromCache) watchingRef.current = null;
     if (!roomId || !playerKey || !room || room.roomId !== roomId || roomFromCache || !everInSync) return;
     const now = seenRoundOf(room);
     if (!now) return;
+    const present = watchingRef.current === roomId;
+    watchingRef.current = typeof document !== 'undefined' && document.visibilityState === 'hidden' ? null : roomId;
     const storage = tabStorage();
     const lastSeen = readLastSeenRound(storage, roomId);
     writeLastSeenRound(storage, roomId, now);
-    const rounds = roundsClosedWhileAway({ lastSeen, now, joinedAtRound, finished: room.status === 'finished' });
+    const rounds = roundsClosedWhileAway({ lastSeen, now, joinedAtRound, finished: room.status === 'finished', present });
     if (!rounds.length) return;
     const scheduledRoundCount = Number(room.scheduledRoundCount || room.roundCount) || 0;
     // Not cancelled by the next snapshot: the memory above has already moved
@@ -1287,6 +1359,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const lateJoinNote = joinedAtRound !== null && joinedAtRound === roundIndex && stage === CHALLENGE_STAGE.ROUND_ACTIVE
     ? <StudentGuidance compact guidance={guidance} />
     : null;
+  // A classic round (a Standard Challenge, a Solver Race) on screen: its
+  // question is in the page's flow, so what arrives above it moves it.
+  const classicRoundShown = Boolean(!questionSetRoom && room.status === 'running' && room.currentQuestion && roundOpen && clockReady);
+  const dismissMissed = () => setMissedNotice('');
   // THE FINAL STANDINGS AND PODIUM are the final snapshot's alone: written
   // from the match result in the commit that finished the match. A live
   // snapshot is never shown as the final one.
@@ -1311,13 +1387,16 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       <ChallengeShellStyles />
       <GrandPrixStyles />
       <div data-mm-student-stage={stage} style={{ maxWidth: 900, margin: '0 auto' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+        {/* data-mm-under-round: hidden while a full-screen round covers it (grandPrixTheme.js). */}
+        <header data-mm-under-round="" style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
             <div style={{ color: '#ffd23f', fontSize: 'calc(12 * var(--mm-px))', fontWeight: 1000, fontStyle: 'italic', textTransform: 'uppercase', letterSpacing: '.08em' }}><span className="mm-gp-checker" aria-hidden="true" style={{ marginRight: 8 }} />MathMaster Live Challenge</div>
             <h1 style={{ margin: '4px 0 0', fontSize: 'calc(25 * var(--mm-px))', fontStyle: 'italic', color: '#fff', overflowWrap: 'anywhere' }}>{room.title}</h1>
           </div>
+          {/* "Reconnecting…" beside the score on a wide screen; on the header's
+              lower edge, taking no room, where the header can wrap (SHELL_CSS). */}
+          <ConnectionPill state={connection} look="student" className="mm-shell-pill-edge" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <ConnectionPill state={connection} look="student" />
             {headerRow && (
               <div data-mm-student-score="1" style={{ textAlign: 'right', lineHeight: 1.2 }}>
                 <div style={{ fontSize: 'calc(11 * var(--mm-px))', textTransform: 'uppercase', letterSpacing: '.06em', color: '#9fb0cc', fontWeight: 900 }}>Your score</div>
@@ -1337,10 +1416,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </div>
         </header>
         {error && <div role="alert" style={{ marginBottom: 14, padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{error}</div>}
-        {missedNotice && (
-          <div role="status" data-mm-missed-rounds="1" style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14, padding: '11px 14px', borderRadius: 10, background: 'rgba(10,16,52,.88)', border: '1px solid rgba(53,227,255,.4)', color: '#dbe4ff', fontWeight: 800 }}>
-            <span>{missedNotice}</span>
-            <button type="button" onClick={() => setMissedNotice('')} style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.35)', background: 'transparent', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Got it</button>
+        {/* Between rounds, above them; during a classic round, under its question (MissedRoundsWords). */}
+        {missedNotice && !classicRoundShown && (
+          <div role="status" data-mm-missed-rounds="1" data-mm-under-round="" style={{ ...MISSED_NOTICE, marginBottom: 14 }}>
+            <MissedRoundsWords notice={missedNotice} onDismiss={dismissMissed} />
           </div>
         )}
 
@@ -1380,7 +1459,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </Suspense>
         )}
 
-        {!questionSetRoom && room.status === 'running' && room.currentQuestion && roundOpen && clockReady && (
+        {classicRoundShown && (
           <ChallengeRound
             key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
             room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
@@ -1392,9 +1471,14 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             onOwnAnswer={keepAnswerHere}
             timeMultiplier={timeMultiplier}
             readAloud={readAloud}
-            beforeQuestion={(
+            beforeQuestion={lateJoinNote}
+            // What comes and goes mid-question is said under it, where it moves
+            // nothing (above, each pushed the question down): rounds that closed
+            // while this device was away, told once it is back, and a dropped
+            // connection.
+            underQuestion={(
               <>
-                {lateJoinNote}
+                {missedNotice ? <div role="status" data-mm-missed-rounds="1" style={MISSED_NOTICE}><MissedRoundsWords notice={missedNotice} onDismiss={dismissMissed} /></div> : null}
                 {clock.quality === 'degraded' ? <div role="status">Your connection is slow right now. You can still answer — your time is taken when your answer arrives.</div> : null}
               </>
             )}

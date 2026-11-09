@@ -5,6 +5,9 @@
  *   node scripts/capture-question-family-golden.mjs            print a summary
  *   node scripts/capture-question-family-golden.mjs --write --note "<what shipped them>"
  *                                                              append new versions
+ *   ... --only <id@version>[,<id@version>…]                    only these versions
+ *                                                              (each registered and
+ *                                                              not yet recorded)
  *
  * The fixture is a RECORD of what shipped, not something to regenerate: it was
  * written from main at 9396a77, before any family gained special cases, and
@@ -40,9 +43,24 @@ const stringifyToDepth = (value, depth, indent = '') => {
 
 const existing = fs.existsSync(GOLDEN_FIXTURE) ? JSON.parse(fs.readFileSync(GOLDEN_FIXTURE, 'utf8')) : null;
 const recorded = new Set(Object.keys(existing?.families || {}));
-const pending = allRegisteredQuestionFamilies().filter((family) => (
-  family.scope === 'platform' && !recorded.has(`${family.id}@${family.version}`)
-));
+// Many family versions shipped after the record was started and were never
+// appended; --only records the versions one change ships (a family's frozen
+// version and the version that replaces it), not every one of those at once.
+const onlyAt = process.argv.indexOf('--only');
+const only = onlyAt > 0 ? String(process.argv[onlyAt + 1] || '').split(',').map((key) => key.trim()).filter(Boolean) : null;
+const registered = allRegisteredQuestionFamilies().filter((family) => family.scope === 'platform');
+if (only) {
+  const unknown = only.filter((key) => !registered.some((family) => `${family.id}@${family.version}` === key));
+  const already = only.filter((key) => recorded.has(key));
+  if (!only.length || unknown.length || already.length) {
+    console.error(`--only takes registered, unrecorded versions (id@version, comma-separated)${unknown.length ? `; not registered: ${unknown.join(', ')}` : ''}${already.length ? `; already recorded: ${already.join(', ')}` : ''}.`);
+    process.exit(1);
+  }
+}
+const pending = registered.filter((family) => {
+  const key = `${family.id}@${family.version}`;
+  return !recorded.has(key) && (!only || only.includes(key));
+});
 
 if (!pending.length) {
   console.log(`Every registered family version is already recorded in ${path.relative(ROOT, GOLDEN_FIXTURE)}.`);

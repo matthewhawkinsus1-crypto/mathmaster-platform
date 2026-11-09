@@ -1,5 +1,7 @@
 # Algebra II Honors — District DOL #2 Review (claude/funny-hawking-713zyn @ d6a4a8dd) — student walkthrough
 
+**Fix status, 2026-11-06:** each finding below has a row in the main log's [table of findings](../2026-10-22-student-walkthroughs.md#every-p1p3-finding-in-the-detail-files): fixed in which commit, kept by which decision, or still open.
+
 Environment: same harness (teacher-import chain → QuestionEngine with App's props), 1366×768. 40 questions: WU 4 · CW 11 · PR 18 · DOL 7. Per-student template values (e.g. this run: g(x) = −3|x − 3| − 3).
 Baseline: check-teacher-import valid, 0 errors, 0 warnings; algebra2HonorsDol2Review.test.mjs 11/11.
 Screen of all 40 (1366, first screen + contact sheets): no unresolved {{templates}}, no raw LaTeX, no undefined/NaN, no page errors. Dollar amounts ("$10 … $8") render as text, not math.

@@ -1,7 +1,8 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
-import { isSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+// The lookup alone: Home reads the index, the server builds it (PF01).
+import { isSkillLaunchable } from '../../../functions/shared/pathCoverageLookup.mjs';
 
 export const PATH_COVERAGE_COURSE_IDS = Object.freeze(['grade6', 'grade7', 'grade8', 'algebra1', 'algebra2']);
 

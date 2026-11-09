@@ -1,4 +1,9 @@
 import { focusMathFieldWithoutScroll } from './mathFieldFocusHandoff.js';
+// Which boxes a question shows, and which one holds the cursor, live on their
+// own: App asks only that, and must not load this contract to do it (PF01).
+import { answerFocusPosition, visibleAnswerControls, visiblyFocusable } from './answerFocusPosition.js';
+
+export { answerFocusPosition };
 
 const SINGLE_LINE_INPUT_TYPES = new Set([
   '', 'text', 'number', 'numeric', 'decimal', 'email', 'tel', 'url', 'search',
@@ -221,20 +226,6 @@ export const focusForEnter = (element) => {
 
 export const ENTER_TO_CONTINUE_HINT = 'Shortcut: press Enter again to continue.';
 
-const focusableAnswerSelector = [
-  'math-field:not([disabled])',
-  'input:not([disabled]):not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="file"])',
-  'textarea:not([disabled])',
-].join(',');
-
-const visiblyFocusable = (element) => {
-  if (!element || typeof element.focus !== 'function') return false;
-  if (element.hidden || element.getAttribute?.('aria-hidden') === 'true') return false;
-  const style = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(element) : null;
-  if (style && (style.display === 'none' || style.visibility === 'hidden')) return false;
-  return true;
-};
-
 /**
  * Should a question put the cursor in an answer field the moment it opens?
  *
@@ -282,30 +273,8 @@ export const isTouchPrimaryPointer = (windowObject = typeof window !== 'undefine
   }
 };
 
-const visibleAnswerControls = (root) => (
-  root?.querySelectorAll ? [...root.querySelectorAll(focusableAnswerSelector)].filter(visiblyFocusable) : []
-);
-
 /** How many answer-entry controls a workspace shows — "the" box only when it is one. */
 export const countAnswerControls = (root) => visibleAnswerControls(root).length;
-
-/**
- * Where the cursor is among a question's answer-entry controls: the box it is
- * in, by position, and how many boxes there are — or null when it is not in
- * one of them.
- *
- * A server copy that lands after a question opened remounts the question to
- * show the restored work (App.jsx, PQ-044), and a mount puts the cursor in the
- * FIRST box. A student who had clicked into the second box and started typing
- * then typed into the first, over the answer just restored there. Read before
- * the remount, this puts the cursor back where the student had it.
- */
-export const answerFocusPosition = (root, active = typeof document !== 'undefined' ? document.activeElement : null) => {
-  if (!active || typeof root?.contains !== 'function' || !root.contains(active)) return null;
-  const controls = visibleAnswerControls(root);
-  const index = controls.findIndex((control) => control === active || control.contains?.(active));
-  return index === -1 ? null : { index, count: controls.length };
-};
 
 /**
  * After a remount that only shows restored work: the cursor goes back to the

@@ -10,7 +10,8 @@ import '../../src/index.css';
 import '../../src/components/teacher/teacherWorkspace.css';
 import '../../src/components/teacher/supportEvidence.css';
 
-const bridge = 'http://127.0.0.1:5197';
+// The bridge the driver started (accommodationReviewQa.mjs): CI's port unless it says.
+const bridge = new URLSearchParams(window.location.search).get('bridge') || 'http://127.0.0.1:5197';
 function Harness() {
   const [state, setState] = useState(null);
   const [view, setView] = useState('Teacher review');

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { getToolDefinition, listTools } from '../tools/toolRegistry';
 import { ToolRuntimeProvider } from '../tools/shared/ToolRuntimeContext';
+import './MathToolsLab.css';
 
 // Exported so the browser open-audit can mount every tool with the same
 // realistic spec a teacher sees on the preview bench.
@@ -105,7 +106,9 @@ export default function MathToolsLab() {
         <h2 style={{fontSize:'calc(15 * var(--mm-px))',margin:'4px 6px 10px'}}>Tools</h2>
         <div style={{display:'grid',gap:6}}>{tools.map((tool)=><button key={tool.toolId} type="button" onClick={()=>{setToolId(tool.toolId);setEventLog([]);}} style={{textAlign:'left',padding:'10px 11px',borderRadius:9,border:toolId===tool.toolId?'1px solid #1a73e8':'1px solid transparent',background:toolId===tool.toolId?'var(--mm-primary-subtle)':'transparent',color:'var(--mm-text)',fontWeight:toolId===tool.toolId?800:600,cursor:'pointer'}}>{tool.label}</button>)}</div>
       </aside>
-      <section style={{flex:'999 1 420px', minWidth:0}}>
+      {/* The tool and what the bench says about it: the accessibility certification audits each tool here
+          (tests/browser/accessibilityTeacherScreens.mjs, the Lab's other tools). */}
+      <section className="mm-tools-lab-tool" style={{flex:'999 1 420px', minWidth:0}}>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}}>{definition.courses.map(course=><span key={course} style={{padding:'6px 9px',borderRadius:999,background:'var(--mm-surface)',border:'1px solid var(--mm-tint-border)',fontSize:'calc(12 * var(--mm-px))',fontWeight:800}}>{course}</span>)}</div>
         {/* The teacher bench is the one surface that may show worked answers:
             it exists to inspect a tool, not to be graded by it. */}

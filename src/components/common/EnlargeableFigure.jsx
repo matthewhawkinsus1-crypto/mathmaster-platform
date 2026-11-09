@@ -12,7 +12,7 @@ import {
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
-import { OPENER_GAP, openerSharesRow } from '../../platform/workView/openerPlacement.js';
+import { OPENER_GAP, observeOpenerRoom, openerSharesRow } from '../../platform/workView/openerPlacement.js';
 import { WorkViewPresentationContext } from '../../platform/workView/workViewPresentation.js';
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
@@ -21,6 +21,7 @@ import { useModalDialog } from '../../ui/Dialog.jsx';
 import { relabelToolPrimaryActions, useMethodWithheld, useToolRuntimeContext } from '../../tools/shared/ToolRuntimeContext.jsx';
 import { LANGUAGE_TOOLS, OPEN_WORK_VIEW, workViewCapabilityWord } from '../../platform/student/studentWords.js';
 import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
+import { overflowsDownward, overflowsSideways } from './matrixScrollRegion.js';
 import './WorkViewShell.css';
 
 // A graph a student can actually see.
@@ -497,13 +498,13 @@ export default function EnlargeableFigure({
       surface.style.setProperty('--mm-work-view-opener-space', stacked ? '0px' : `${width + OPENER_GAP}px`);
       surface.style.setProperty('--mm-work-view-opener-bottom', stacked ? '0px' : `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
     };
-    publishSpace();
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publishSpace) : null;
-    observer?.observe(opener);
-    // The room beside the button changes with the screen as well as with the button.
-    observer?.observe(surface);
+    // Measured now, and again when the button or the room beside it changes:
+    // in the frame after the observer reports it, never inside its callback,
+    // where these writes resized the work area it watches (P-5,
+    // openerPlacement.js observeOpenerRoom).
+    const stopObserving = observeOpenerRoom({ opener, surface, publish: publishSpace });
     return () => {
-      observer?.disconnect();
+      stopObserving();
       surface.removeAttribute('data-opener-stacked');
       surface.style.removeProperty('--mm-work-view-opener-space');
       surface.style.removeProperty('--mm-work-view-opener-bottom');
@@ -522,6 +523,48 @@ export default function EnlargeableFigure({
   // own words too.
   const shownTask = taskShown(registeredCapabilities.task, methodWithheld);
   const task = shownTask?.content || shownTask?.text || (methodWithheld ? '' : taskText);
+  // THE TASK IN THE HEADER, BY KEYBOARD (keypad-done). The header shows four whole lines of the task and scrolls the
+  // rest (WorkViewShell.css), and a longer one (Function Investigation's on a phone) was a box only a finger could
+  // scroll (axe: a scrollable region with no keyboard access, found by the Math Tools Lab's Work View scenes). While it
+  // is taller than its lines and scrolls, and only then, it is a Tab stop the arrow keys scroll, as a matrix wider than
+  // its box is (matrixScrollRegion.js); a task that fits adds no stop. The Task button still opens all of it. Measured
+  // again when the box or the header around it changes size (text size, width, turning the phone) and the task changes.
+  const taskRef = useRef(null);
+  const [taskScrolls, setTaskScrolls] = useState(false);
+  const taskWords = typeof task === 'string' ? task : Boolean(task);
+  useLayoutEffect(() => {
+    const box = taskRef.current;
+    if (!enlarged || !box) {
+      setTaskScrolls(false);
+      return undefined;
+    }
+    // Either way: a box that scrolls up and down scrolls sideways too (CSS makes its other axis auto), and a word
+    // longer than its line did so, a tool's id where an item has no prompt ("Complete the inverseCompositionLab
+    // activity.") in CI's wider font on a phone, a box only a finger could scroll. The task now wraps such a word
+    // (WorkViewShell.css), and a box that still scrolls either way is a Tab stop. Measured again when its
+    // words change after mounting (mathematics drawn late, a reading's language) and once the fonts have loaded, since
+    // neither changes the clamped box's own size, which is all a ResizeObserver sees.
+    const measure = () => setTaskScrolls(/^(auto|scroll)$/.test(window.getComputedStyle(box).overflowY) && (overflowsDownward(box) || overflowsSideways(box)));
+    measure();
+    let gone = false;
+    const observers = [];
+    if (typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(box);
+      if (box.parentElement) observer.observe(box.parentElement);
+      observers.push(observer);
+    }
+    if (typeof MutationObserver === 'function') {
+      const words = new MutationObserver(measure);
+      words.observe(box, { subtree: true, childList: true, characterData: true });
+      observers.push(words);
+    }
+    document.fonts?.ready?.then(() => { if (!gone) measure(); });
+    return () => {
+      gone = true;
+      observers.forEach((observer) => observer.disconnect());
+    };
+  }, [enlarged, taskWords]);
   // THE HELP DRAWER, IN THREE PARTS (student pass 3, TOOL-3): the tool's
   // description and steps (its TaskCard, which Work View hides), then the
   // platform's Help — the hint ladder and "Ask my teacher", never replaced —
@@ -726,11 +769,14 @@ export default function EnlargeableFigure({
           {task ? null : <strong className="mathmaster-work-view-title">{label}</strong>}
           {task ? (
             <div
+              ref={taskRef}
               className="mathmaster-work-view-persistent-task"
               // A group, so its name is read (a label on a bare div is not,
               // AX18); the group says "Your task", so the words are not said twice.
               role="group"
               aria-label="Your task"
+              // A Tab stop only while it scrolls (taskScrolls, above).
+              tabIndex={taskScrolls ? 0 : undefined}
               style={{
                 minWidth: 0,
                 paddingRight: 4,

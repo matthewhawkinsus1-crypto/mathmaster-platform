@@ -215,6 +215,18 @@ const DEFAULT_ROUND_LIMITS = Object.freeze({
   defaultSeconds: DEFAULT_ROUND_SECONDS,
 });
 
+/*
+ * What a Standard Challenge or Solver Race setup offers: the teacher
+ * console's Rounds and Time per round, inside the limits above. One list for
+ * the console and for the class memory that fills it in again
+ * (liveChallengeClassMemory.mjs), so a remembered game always shows as a
+ * choice the console has.
+ */
+export const CLASSIC_SETUP_CHOICES = Object.freeze({
+  roundCounts: Object.freeze([5, 8, 10, 12, 15, 20]),
+  roundSeconds: Object.freeze([20, 30, 45, 60, 90]),
+});
+
 const normalizeRoundLimits = (id, raw) => {
   if (!raw) return DEFAULT_ROUND_LIMITS;
   const int = (value, fallback) => (Number.isInteger(Number(value)) ? Number(value) : fallback);

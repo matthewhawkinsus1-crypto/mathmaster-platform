@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
 import { buildCancellationModel } from './algebraCancellationModel';
-import { stageOperationPlacement } from './algebraOperationPlacement';
+import { keyboardPlacementSlots, keyboardPlacementStart, moveKeyboardPlacement, placementSideName, stageOperationPlacement } from './algebraOperationPlacement';
 import {
   appendStrokePoint, createStroke, resolveStruckTerms, strokeLength, strokeToPath,
 } from './strokeGeometry';
@@ -15,7 +15,8 @@ import AlgebraTermRow from './AlgebraTermRow';
 import './StepByStepAlgebra.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import { workspaceNeedsReveal } from './platform/layout/workspaceReveal.js';
-import { extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
+import { expressionWidthChanged, fitEquationSide, phoneSideColumnWeight, sideScrolls } from './platform/algebra/equationSideFit.js';
+import { KEYBOARD_PLACEMENT_ROUTE, extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
   applyAdditiveOperationAtPlacement,
   describeOperation,
@@ -24,7 +25,6 @@ import {
   describeOperationToken,
   describePlacedOperation,
   getSuggestedMove,
-  isSolvedEquation,
   expressionsEquivalent,
   latexToExpression,
   parseEquationInput,
@@ -33,6 +33,7 @@ import {
 } from './algebraAstEngine';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
+import { committedCancellationModel, equationIsSolved } from './platform/algebra/committedEquationFacts.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -93,6 +94,7 @@ import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublish
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 import { START_OVER } from './platform/student/studentWords.js';
+import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
 const OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -100,6 +102,12 @@ const OPERATIONS = [
   { id: 'multiply', symbol: '×', label: 'Multiply by' },
   { id: 'divide', symbol: '÷', label: 'Divide by' },
 ];
+
+// How a pair is cancelled from the keyboard (AX32). Each term or factor of a pair is
+// a button (Tab reaches it; Enter or Space presses it as a tap does), and one press
+// crosses out its partner too, so a line that names the tap or the slash names this
+// in the same sentence.
+const CANCEL_KEYS = 'Tab to one and press Enter';
 
 /**
  * Returns `{ equation, error }` rather than throwing.
@@ -169,7 +177,9 @@ function FocusSafeButton({ available, onClick, children, ...props }) {
 
 const factorNeedsDot = (left, right) => /^-?\d+(?:\.\d+)?$/.test(left?.text || '') && /^-?\d+(?:\.\d+)?$/.test(right?.text || '');
 
-function CancellationFactorRow({
+// Exported so a test can press its tokens: each factor of a pair takes Enter or Space as a
+// tap does, which is what the cancellation cue names (AX32).
+export function CancellationFactorRow({
   factors,
   offset,
   model,
@@ -235,11 +245,13 @@ function CancellationFactorRow({
  * The chip a student drags. A fraction is stacked with a real horizontal rule
  * rather than written with a slash, because that is what a fraction looks like.
  */
-function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' }) {
+function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '', scrollLabel = '', scrollFocusable = true }) {
   const viewportRef = useRef(null);
   const contentRef = useRef(null);
   const base = Number(baseFontSize) || 34;
   const [fontSize, setFontSize] = useState(base);
+  // Wider than its room even at the floor: the side scrolls, never cut (P-6).
+  const [scrolls, setScrolls] = useState(false);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -247,27 +259,37 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
     if (!viewport || !content) return undefined;
 
     let frame = null;
+    // The expression's width per unit of size when it was last fitted
+    // (platform/algebra/equationSideFit.js): what tells a change in the
+    // mathematics from a change of the fit's own making.
+    let fittedWidthPerUnit = 0;
     const fit = () => {
-      const available = Math.max(1, viewport.clientWidth - 8);
+      frame = null;
       // Sizes are in --mm-px (one CSS pixel at the default text size), so the
       // equation grows with the student's text-size setting (WCAG 1.4.4).
       // `units` is the size now written on the content; `pxPerUnit` is what
-      // the text setting makes of one unit.
+      // the text setting makes of one unit. A phone caps the size (App.css,
+      // --algebra-side-max-size): that cap is the fit's, so a long side still
+      // shrinks below it instead of being drawn at it and cut off.
       const units = Number(content.dataset.fitSize) || base;
-      const pxPerUnit = (Number.parseFloat(window.getComputedStyle(content).fontSize) || units) / units;
-      const rendered = Math.max(1, content.scrollWidth);
-
-      // Estimate the width this exact expression would occupy at the base
-      // typography, then derive one stable target size from that measurement.
-      // The old code multiplied the *current* font by a fresh width ratio while
-      // also observing the content itself. Changing the font changed the
-      // observed width, which triggered another resize, producing the visible
-      // "pulsing" students saw near the fit boundary.
-      // Fitting wins over size: the floor stays 17 CSS pixels at any setting.
-      const widthAtBase = Math.max(1, rendered * (base / units));
-      const target = Math.max(17 / pxPerUnit, Math.min(base, base * (available / widthAtBase) * 0.975));
-
-      setFontSize((current) => (Math.abs(target - current) > 0.35 ? target : current));
+      const contentStyle = window.getComputedStyle(content);
+      const pxPerUnit = (Number.parseFloat(contentStyle.fontSize) || units) / units;
+      const available = Math.max(1, viewport.clientWidth - 8);
+      const next = fitEquationSide({
+        available,
+        rendered: Math.max(1, content.scrollWidth),
+        units,
+        base,
+        cap: Number.parseFloat(window.getComputedStyle(viewport).getPropertyValue('--algebra-side-max-size')),
+        pxPerUnit,
+        // Set where the side wraps its tokens instead (StepByStepAlgebra.css).
+        wraps: contentStyle.getPropertyValue('--algebra-side-wraps').trim() === '1',
+      });
+      fittedWidthPerUnit = next.widthPerUnit;
+      const size = Math.abs(next.size - units) > 0.35 ? next.size : units;
+      setFontSize(size);
+      // Only wider than its own box: the fit's few pixels of air are not a reason to scroll.
+      setScrolls(sideScrolls({ widthPerUnit: next.widthPerUnit, size, box: viewport.clientWidth }));
     };
     const scheduleFit = () => {
       if (frame) window.cancelAnimationFrame(frame);
@@ -275,21 +297,39 @@ function AutoFitEquationExpression({ children, baseFontSize = 34, cacheKey = '' 
     };
 
     scheduleFit();
-    // Observe only the space available to the equation. Observing the content
-    // itself creates a feedback loop because changing its font size changes its
-    // dimensions. Content changes already arrive through cacheKey.
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(scheduleFit) : null;
+    // The space available to the equation, and the expression's own width:
+    // its mathematics is typeset only once on screen, often after this first
+    // fit. A resize of the content that keeps its width per unit is the fit's
+    // own change of size and is ignored, so the two cannot feed each other.
+    const ResizeObserverClass = typeof ResizeObserver === 'function' ? ResizeObserver : null;
+    const observer = ResizeObserverClass ? new ResizeObserverClass(scheduleFit) : null;
     observer?.observe(viewport);
+    const contentObserver = ResizeObserverClass ? new ResizeObserverClass(() => {
+      if (expressionWidthChanged({ fittedWidthPerUnit, rendered: content.scrollWidth, units: Number(content.dataset.fitSize) || base })) scheduleFit();
+    }) : null;
+    contentObserver?.observe(content);
     window.addEventListener('resize', scheduleFit);
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
       observer?.disconnect();
+      contentObserver?.disconnect();
       window.removeEventListener('resize', scheduleFit);
     };
   }, [base, cacheKey]);
 
+  // A side that scrolls can be reached and scrolled from the keyboard, except
+  // inside a side that is itself a button (an operation in hand): a control
+  // inside a control is not allowed.
+  const focusable = scrolls && scrollFocusable;
   return (
-    <div ref={viewportRef} className="algebra-expression-fit-viewport">
+    <div
+      ref={viewportRef}
+      className="algebra-expression-fit-viewport"
+      data-scrolls={scrolls ? 'true' : undefined}
+      tabIndex={focusable ? 0 : undefined}
+      role={focusable ? 'group' : undefined}
+      aria-label={focusable && scrollLabel ? scrollLabel : undefined}
+    >
       <div ref={contentRef} className="algebra-expression-fit-content" data-fit-size={fontSize} style={{ fontSize: `calc(${fontSize} * var(--mm-px))` }}>
         {children}
       </div>
@@ -555,6 +595,11 @@ export default function StepByStepAlgebra({
     () => hintsAllowed && getSupportPolicy(resolveSupportLevel({ workspaceDifficulty: question.workspaceDifficulty ?? question.mode })).showCancellationHints,
   );
   const [factorZoneHint, setFactorZoneHint] = useState(null); // { side, position } | null
+  // The place the arrow keys chose on a focused side (student-a11y-3): { side, index } into keyboardPlacementSlots.
+  const [keyboardSlot, setKeyboardSlot] = useState(null);
+  const placementHintId = useId();
+  // Placed, cancelled or undone: the operation leaves the student's hand, and the place chosen for it goes too.
+  useEffect(() => { if (!tapPlacementArmed) setKeyboardSlot(null); }, [tapPlacementArmed]);
   const [selectedCancellationIndices, setSelectedCancellationIndices] = useState(savedDraft?.selectedCancellationIndices || {}); // { left: number[], right: number[] }
   const prefillAppliedRef = useRef(false);
   const dragRef = useRef(null); // { operation, label, pointerId }
@@ -987,7 +1032,8 @@ export default function StepByStepAlgebra({
         : resolution === 'keep'
           ? resolveEquationAfterKeepingMove(move, resolvedCrossedSides)
           : resolveEquationAfterMove(move, supportLevel, resolvedCrossedSides);
-      const nextSolved = isSolvedEquation(nextEquation);
+      // Through the cache, so the render that shows this equation does not ask again.
+      const nextSolved = equationIsSolved(nextEquation);
 
       // Persist the equation the student actually sees. A refresh should never
       // silently replace their intentionally-unsimplified work with the engine's
@@ -1290,7 +1336,7 @@ export default function StepByStepAlgebra({
     if (!equation || pendingMove) return [];
     return ['left', 'right'].filter((side) => {
       try {
-        return Boolean(buildCancellationModel(equation[side], null, equation.variable, [])?.pairs?.length);
+        return Boolean(committedCancellationModel(equation, side)?.pairs?.length);
       } catch {
         return false;
       }
@@ -1360,7 +1406,7 @@ export default function StepByStepAlgebra({
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
-      text: isSolvedEquation(nextEquation)
+      text: equationIsSolved(nextEquation)
         ? `${result.step.description}. The equation is now in the target form.`
         : `${result.step.description}. You did the algebra; MathMaster only checked it.`,
     });
@@ -1461,7 +1507,7 @@ export default function StepByStepAlgebra({
       setMessage({
         tone: cancellationHintsEnabled ? 'success' : 'growth',
         text: cancellationHintsEnabled
-          ? `The operation is balanced. Draw directly through the ${cancelledPieces} in the equation itself.`
+          ? `The operation is balanced. Draw directly through the ${cancelledPieces} in the equation itself, or ${CANCEL_KEYS}.`
           : `The operation is balanced. Find the ${cancelledPieces} in the equation and cancel them directly — hints are off.`,
       });
     }
@@ -1614,7 +1660,7 @@ export default function StepByStepAlgebra({
     } else if (progress.newlyCompletedPairIds.length === 1) {
       setMessage({ tone: 'success', text: `That cancellation pair is complete. ${remainingPairs} pair${remainingPairs === 1 ? '' : 's'} remain.` });
     } else {
-      setMessage({ tone: 'growth', text: 'Tap or slash one member of a valid cancellation pair. MathMaster will cross out its matching partner with it.' });
+      setMessage({ tone: 'growth', text: `Click, tap or slash one member of a valid cancellation pair, or ${CANCEL_KEYS}. MathMaster will cross out its matching partner with it.` });
     }
   };
 
@@ -2021,11 +2067,52 @@ export default function StepByStepAlgebra({
     });
     stagePlacement(side, position);
   };
+  /*
+   * THE SAME PLACES BY KEYBOARD (student-a11y-3). A tap chooses where on a side
+   * the operation goes; Enter on a side could only put it where a tap that says
+   * nothing does. While a side has keyboard focus the pointer's own hover cue
+   * shows where Enter will put it, Left and Right (Home, End) move it among the
+   * places a pointer can choose (algebraOperationPlacement.js), and the side's
+   * name says the place once one is chosen. Enter with no arrow pressed places
+   * exactly as before.
+   */
+  const placementSlotsFor = (side) => keyboardPlacementSlots({
+    operation: armedTile?.operation,
+    terms: splitAdditiveTerms(sideExpression(side)) || [],
+  });
+  const keyboardSlotIndex = (side, slots) => (keyboardSlot?.side === side ? keyboardSlot.index : keyboardPlacementStart(slots));
+  const showPlacementCue = (side, slot) => {
+    if (!slot) return;
+    setDragOverSide(side);
+    setFactorZoneHint({ side, position: slot.position });
+  };
+  const leavePlacementSide = (side) => {
+    setKeyboardSlot((current) => (current?.side === side ? null : current));
+    setDragOverSide((current) => (current === side ? null : current));
+    setFactorZoneHint((current) => (current?.side === side ? null : current));
+  };
+  const placementKeyDown = (side, event) => {
+    if (!tapPlacementArmed || !armedTile) return;
+    const slots = placementSlotsFor(side);
+    const index = keyboardSlotIndex(side, slots);
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      stagePlacement(side, slots[index]?.position);
+      return;
+    }
+    // A side that has the operation already keeps its place, as it does for a pointer.
+    const next = moveKeyboardPlacement({ key: event.key, index, count: slots.length });
+    if (next === null || slots.length < 2 || placedOperationSidesRef.current.includes(side)) return;
+    event.preventDefault();
+    setKeyboardSlot({ side, index: next });
+    showPlacementCue(side, slots[next]);
+  };
   const suggestedMove = getSuggestedMove(equation);
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
-  const solved = isSolvedEquation(equation);
+  // Once per equation, not once per render (committedEquationFacts.js).
+  const solved = equationIsSolved(equation);
   // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
   // hint control beside the work bar's Hint: it opened with no try at all and
   // was recorded only as "a hint was used". Inside a question it is now the
@@ -2074,6 +2161,13 @@ export default function StepByStepAlgebra({
   const adaptiveBalanceColumns = mobileInteraction.isMobile
     ? undefined
     : `minmax(0, ${sideColumnWeight(leftVisualLength)}fr) 56px minmax(0, ${sideColumnWeight(rightVisualLength)}fr)`;
+  // A phone's columns are set by its own rules (App.css, the tap layout below),
+  // which read each side's share from these, so a long side borrows the room a
+  // short one does not need instead of being cut at half the board (P-6).
+  const phoneBalanceShares = {
+    '--algebra-side-left': `minmax(0, ${phoneSideColumnWeight(leftVisualLength, rightVisualLength)}fr)`,
+    '--algebra-side-right': `minmax(0, ${phoneSideColumnWeight(rightVisualLength, leftVisualLength)}fr)`,
+  };
   // A structure tool writes one side out as tokens (primes, a fraction being
   // split); that side borrows most of the width, on a phone especially, so the
   // tokens are never clipped to the half-width the balance gives each side.
@@ -2096,7 +2190,10 @@ export default function StepByStepAlgebra({
         : null;
     if (!ink) return null;
     return (
-      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5, overflow: 'visible' }}>
+      // Over the equation, so it keeps no background. Under a contrast theme the
+      // stroke being drawn is Highlight, and a strike that holds the text colour
+      // (src/theme/forcedColors.css).
+      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5, overflow: 'visible' }} data-mm-drawing="overlay">
         <path
           className={ink.locked ? 'algebra-strike-lock' : ''}
           d={strokeToPath(ink.points)}
@@ -2106,6 +2203,7 @@ export default function StepByStepAlgebra({
           strokeLinecap="round"
           strokeLinejoin="round"
           opacity={ink.locked ? 1 : 0.85}
+          data-mm-plane-part={ink.locked ? 'line' : 'cursor'}
         />
       </svg>
     );
@@ -2691,7 +2789,7 @@ export default function StepByStepAlgebra({
           className={`algebra-equation-stage algebra-connected-balance ${balanceStagingSide ? `is-unbalanced is-unbalanced-${balanceStagingSide}` : ''}${structureFocusSides.length === 1 ? ` has-structure-focus-${structureFocusSides[0]}` : ''}`}
           style={structureFocusColumns
             ? { gridTemplateColumns: structureFocusColumns }
-            : adaptiveBalanceColumns ? { gridTemplateColumns: adaptiveBalanceColumns } : undefined}
+            : adaptiveBalanceColumns ? { gridTemplateColumns: adaptiveBalanceColumns } : phoneBalanceShares}
         >
           {['left', 'right'].map((side, index) => {
             const target = pendingMove?.cancellationTargets.find((item) => item.side === side);
@@ -2701,8 +2799,9 @@ export default function StepByStepAlgebra({
               equation.variable,
               target.cancellationPairs,
             ) : null;
+            // With no move staged the side is the committed equation's own.
             const visibleCancellationModel = !pendingMove
-              ? buildCancellationModel(sideExpression(side), null, equation.variable, [])
+              ? committedCancellationModel(equation, side)
               : null;
             const cancellationModel = pendingCancellationModel
               || (visibleCancellationModel?.pairs?.length ? visibleCancellationModel : null);
@@ -2712,6 +2811,9 @@ export default function StepByStepAlgebra({
             // the tile is spent (placed on this side) the side must stop
             // announcing "Place undefined 5 on both sides".
             const sideTapReady = tapPlacementArmed && Boolean(armedTile?.operation);
+            // Where on this side a pointer can put the operation, for the arrow keys (placementKeyDown).
+            const placementSlots = sideTapReady ? placementSlotsFor(side) : [];
+            const chosenPlace = sideTapReady && keyboardSlot?.side === side ? placementSlots[keyboardSlot.index]?.words : null;
             return (
               <div
                 key={side}
@@ -2719,17 +2821,22 @@ export default function StepByStepAlgebra({
                 className={`algebra-equation-box algebra-connected-side ${dragOverSide === side ? 'is-hovered' : ''} ${stagedHere ? 'has-staged-operation' : ''} ${mobileInteraction.isMobile && sideTapReady ? 'mathmaster-tap-placement-ready' : ''}`}
                 role={sideTapReady ? 'button' : undefined}
                 tabIndex={sideTapReady ? 0 : undefined}
-                aria-label={sideTapReady ? `Place ${spokenOperation(armedTile.operation, operandLabel)} on the ${side} side` : undefined}
-                onClick={(event) => tapPlacementOnSide(side, event)}
-                onKeyDown={(event) => {
-                  /* Not gated on isMobile any more. A student on a Chromebook
-                     with a keyboard is not a mobile user, and was the one group
-                     this workspace locked out entirely. */
-                  if (tapPlacementArmed && (event.key === 'Enter' || event.key === ' ')) {
-                    event.preventDefault();
-                    tapPlacementOnSide(side, event);
-                  }
-                }}
+                aria-label={sideTapReady ? placementSideName({ operationWords: spokenOperation(armedTile.operation, operandLabel), side, place: chosenPlace }) : undefined}
+                aria-describedby={sideTapReady && placementSlots.length > 1 ? `${placementHintId}-${side}` : undefined}
+                // A side takes a click only while an operation is in hand, and is
+                // then a named Tab stop that Enter and Space press as well. At
+                // rest it answers nothing, so it has no handler a keyboard could
+                // lack (the Tab walk counted the resting one, student-a11y-3).
+                onClick={sideTapReady ? (event) => tapPlacementOnSide(side, event) : undefined}
+                onFocus={sideTapReady ? (event) => {
+                  // Keyboard focus shows where Enter will put it; a click places at once.
+                  if (event.currentTarget.matches?.(':focus-visible')) showPlacementCue(side, placementSlots[keyboardSlotIndex(side, placementSlots)]);
+                } : undefined}
+                onBlur={sideTapReady ? () => leavePlacementSide(side) : undefined}
+                /* Not gated on isMobile any more. A student on a Chromebook
+                   with a keyboard is not a mobile user, and was the one group
+                   this workspace locked out entirely. */
+                onKeyDown={sideTapReady ? (event) => placementKeyDown(side, event) : undefined}
                 onDragOver={(event) => { event.preventDefault(); updatePointerVisuals(event.clientX, event.clientY); }}
                 onDragLeave={() => { setDragOverSide(null); setFactorZoneHint(null); }}
                 onDrop={(event) => {
@@ -2741,11 +2848,16 @@ export default function StepByStepAlgebra({
                 }}
                 style={{ gridColumn: index === 0 ? 1 : 3, gridRow: 1 }}
               >
+                {placementSlots.length > 1 ? (
+                  <span id={`${placementHintId}-${side}`} style={SR_ONLY_STYLE}>The left and right arrow keys choose where on this side it goes.</span>
+                ) : null}
                 <div className="algebra-side-label">{side} side</div>
                 <div ref={side === 'left' ? leftExpressionRef : rightExpressionRef} className="algebra-expression-anchor">
                   <AutoFitEquationExpression
                     baseFontSize={sideFontSize(side)}
                     cacheKey={`${sideExpression(side)}|${inlineToolActive ? 'inline' : 'balance'}|${distributionState?.placedIndices?.length || 0}|${structureToolFitKey(structureTool)}`}
+                    scrollLabel={`${side === 'left' ? 'Left' : 'Right'} side of the equation, scrolls sideways`}
+                    scrollFocusable={!sideTapReady}
                   >
                     {renderSide(side, cancellationModel)}
                   </AutoFitEquationExpression>
@@ -2811,11 +2923,11 @@ export default function StepByStepAlgebra({
                       {cancellationHintsEnabled
                         ? (cancellationModel.kind === 'additive'
                           ? (cancellationModel.pairs.length > 1
-                            ? `Cancel ${cancellationModel.pairs.length} opposite-term pairs. Tap or slash one term from each pair; its matching opposite is crossed out with it.`
-                            : 'Tap or slash either opposite term once. MathMaster crosses out the matching term with it.')
+                            ? `Cancel ${cancellationModel.pairs.length} opposite-term pairs. Click, tap or slash one term from each pair, or ${CANCEL_KEYS}; its matching opposite is crossed out with it.`
+                            : `Click, tap or slash either opposite term once, or ${CANCEL_KEYS}. MathMaster crosses out the matching term with it.`)
                           : (cancellationModel.pairs.length > 1
-                            ? `Cancel ${cancellationModel.pairs.length} matching factor pairs. Tap or slash one factor from each pair; its matching factor is crossed out with it.`
-                            : 'Tap or slash either matching factor once. MathMaster crosses out its partner with it.'))
+                            ? `Cancel ${cancellationModel.pairs.length} matching factor pairs. Click, tap or slash one factor from each pair, or ${CANCEL_KEYS}; its matching factor is crossed out with it.`
+                            : `Click, tap or slash either matching factor once, or ${CANCEL_KEYS}. MathMaster crosses out its partner with it.`))
                         : 'Cancellation is active directly on the equation.'}
                     </div>
                   </div>
@@ -2895,8 +3007,10 @@ export default function StepByStepAlgebra({
             onPointerUp={mobileInteraction.isMobile ? undefined : onDragPointerUp}
             onPointerCancel={mobileInteraction.isMobile ? undefined : onDragPointerCancel}
             disabled={disabled || savingStep || !String(operand || '').trim()}
+            // The button's description for a screen reader too (its name is the
+            // aria-label below), so the phone line names the keyboard's way to the sides (AX32).
             title={mobileInteraction.isMobile
-              ? 'Arm this operation, then tap the equation where it belongs'
+              ? `Arm this operation, then click or tap the equation where it belongs, or ${KEYBOARD_PLACEMENT_ROUTE}`
               : 'Drag this operation onto one side of the equation, or press Enter and then choose a side'}
             aria-pressed={tapPlacementArmed}
             aria-label={operandLabel

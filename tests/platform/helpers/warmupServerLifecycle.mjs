@@ -61,6 +61,7 @@ import { normalizeQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumA
 import { canonicalResponseSavedAt } from '../../../src/platform/persistence/canonicalResponseTime.js';
 import { getEffectiveActivityPolicy } from '../../../src/platform/policies/activityPolicies.js';
 import { attemptInputsFromGrading } from '../../../functions/shared/serverGrading/gradingResult.mjs';
+import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import { familySlotKey } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin, planSeatAdditions } from '../../../functions/shared/questionGenerationIdentity.mjs';
 import { applyWarmupTeacherControl, assignmentFinalCloseAt, resolveAuthoritativeClose } from '../../../functions/shared/sectionDeadline.mjs';
@@ -345,30 +346,28 @@ const checkpointIdentity = (device, opened) => ({
 
 let actionSerial = 0;
 
-/**
- * The student presses "Check groups": QuestionEngine grades the work with the
- * shared grader and records the attempt locally (App.jsx handleGradeSubmit
- * applyAttempt), queues it, and stamps the board's draft as current
- * (stampToolDraftSubmission). Returns the envelope the outbox sends
- * (App.jsx buildSubmissionEnvelopeForAction) and the session's new record.
+/*
+ * Work the screen has graded with the shared grader, submitted: App.jsx
+ * handleGradeSubmit records the attempt locally (applyAttempt) and queues it.
+ * Returns the envelope the outbox sends (App.jsx
+ * buildSubmissionEnvelopeForAction), the session's new record and the
+ * attempt's result (what QuestionEngine is handed back). Runs on the device.
  */
-export const checkSort = (device, opened, { sort, sessionRecord = undefined, capturedAt }) => device.run(async () => {
-  const sharedVerdict = await gradeRegistryToolWork({ toolId: 'representationMatch', question: opened.processed, work: workFor(sort) });
-  assert.equal(sharedVerdict.graded, true, 'the card sort is a server-graded mode');
-  const attemptInputs = attemptInputsFromGrading(sharedVerdict);
-  const responseKey = sharedVerdict.toolResponse?.value || JSON.stringify(workFor(sort));
+const submitGraded = (device, opened, { attemptInputs, responseKey, toolResponse = null, questionDetails, sessionRecord, capturedAt }) => {
   const policy = getEffectiveActivityPolicy('warmup');
   const current = normalizeQuestionRecord(sessionRecord);
   const outcome = recordQuestionAttempt({
     record: sessionRecord,
     isCorrect: attemptInputs.isCorrect,
-    questionDetails: 'Representation Match response submitted.',
+    questionDetails,
     timeSpent: 60,
     parts: attemptInputs.parts,
     supportUsage: null,
     responseKey,
     partialCreditPercent: attemptInputs.partialCreditPercent,
-    maximumAttempts: resolveQuestionMaximumAttempts({ question: opened.question, maximumAttempts: policy.attempts, activityPolicy: policy }),
+    // App.jsx counts tries on the question shown, a family slot's dealt
+    // instance (countedQuestionFor, P-7), as the server does.
+    maximumAttempts: resolveQuestionMaximumAttempts({ question: opened.processed, maximumAttempts: policy.attempts, activityPolicy: policy }),
   });
   const action = createDurableAction({
     kind: 'ordinarySubmission',
@@ -385,7 +384,7 @@ export const checkSort = (device, opened, { sort, sessionRecord = undefined, cap
         sectionAccess: getSectionAccessState({ assignment: opened.assignment, activityRole: 'warmup', classId: CLASS_ID, classPeriod: PERIOD, nowValue: capturedAt, studentId: device.studentId }),
         capturedAt,
       }),
-      response: normalizeCheckpointResponse(opened.processed, { parts: attemptInputs.parts, responseKey, isComplete: true, toolResponse: sharedVerdict.toolResponse }),
+      response: normalizeCheckpointResponse(opened.processed, { parts: attemptInputs.parts, responseKey, isComplete: true, toolResponse }),
       familyDelivery: pinFor(device, opened, sessionRecord),
       questionId: opened.question.questionId || null,
       variantIndex: current.variantIndex,
@@ -422,11 +421,50 @@ export const checkSort = (device, opened, { sort, sessionRecord = undefined, cap
     timeSpentSeconds: payload.timeSpentSeconds,
     deliveryAttempts: 0,
   });
+  return { envelope, sessionRecord: outcome.record, verdict: attemptInputs, result: outcome.result };
+};
+
+/**
+ * The student presses "Check groups": QuestionEngine grades the work with the
+ * shared grader and records the attempt locally (App.jsx handleGradeSubmit
+ * applyAttempt), queues it, and stamps the board's draft as current
+ * (stampToolDraftSubmission). Returns the envelope the outbox sends
+ * (App.jsx buildSubmissionEnvelopeForAction) and the session's new record.
+ */
+export const checkSort = (device, opened, { sort, sessionRecord = undefined, capturedAt }) => device.run(async () => {
+  const sharedVerdict = await gradeRegistryToolWork({ toolId: 'representationMatch', question: opened.processed, work: workFor(sort) });
+  assert.equal(sharedVerdict.graded, true, 'the card sort is a server-graded mode');
+  const submitted = submitGraded(device, opened, {
+    attemptInputs: attemptInputsFromGrading(sharedVerdict),
+    responseKey: sharedVerdict.toolResponse?.value || JSON.stringify(workFor(sort)),
+    toolResponse: sharedVerdict.toolResponse,
+    questionDetails: 'Representation Match response submitted.',
+    sessionRecord,
+    capturedAt,
+  });
   // The board's work is current, not stale (QuestionEngine handleMissingToolAction).
   readToolDraftRecord(opened.draftKey);
   stampToolDraftSubmission(opened.draftKey);
   forgetToolDrafts(opened.draftKey);
-  return { envelope, sessionRecord: outcome.record, verdict: attemptInputs };
+  return { envelope: submitted.envelope, sessionRecord: submitted.sessionRecord, verdict: submitted.verdict };
+});
+
+/**
+ * The student answers a multi-answer question's boxes ({ fieldId: response })
+ * and presses Submit: marked by the shared multi-answer grader, then recorded
+ * and queued as a Check is. Returns checkSort's shape plus the attempt's
+ * `result`, which QuestionEngine shows ("You have 0 tries left").
+ */
+export const submitFields = (device, opened, { responses, sessionRecord = undefined, capturedAt }) => device.run(() => {
+  const grading = gradeMultiAnswerResponse(opened.processed, responses);
+  assert.equal(grading.isComplete, true, 'every box is answered');
+  return submitGraded(device, opened, {
+    attemptInputs: attemptInputsFromGrading({ ...grading, graded: true }),
+    responseKey: JSON.stringify(responses),
+    questionDetails: String(opened.processed?.prompt || ''),
+    sessionRecord,
+    capturedAt,
+  });
 });
 
 /**
@@ -609,7 +647,8 @@ export const renderQuestion = async (device, opened, { record, nowMs }) => {
       onGrade: async () => null,
       activityRole: 'warmup',
       activityPolicy: policy,
-      maximumAttempts: resolveQuestionMaximumAttempts({ question: opened.question, maximumAttempts: policy.attempts, activityPolicy: policy }),
+      // App.jsx passes the count of the question shown (countedQuestionFor, P-7).
+      maximumAttempts: resolveQuestionMaximumAttempts({ question: opened.processed, maximumAttempts: policy.attempts, activityPolicy: policy }),
       assignmentLocked: state.status !== 'active',
       assignmentLockedMessage: state.status !== 'active' ? 'Your teacher closed the Warm-Up for this class.' : '',
       draftKey: opened.draftKey,

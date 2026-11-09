@@ -8,7 +8,7 @@
     "gradingPurpose": "classwork",
     "essentialQuestion": "Why can it be useful to simplify expressions?",
     "instructions": "nth roots. Every answer is entered in a step-by-step tool: write the radicand as a perfect power, take the root, and decide whether absolute value bars are needed — the tool checks each step. You have 3 tries on each Warm-Up, Classwork and Practice question, with hints. The Exit Ticket is one try with no hints.",
-    "teacherNotes": "Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; \"Simplify\" answers are graded by value AND form (simplest radical form, bars only where needed). Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the \"Simplify\" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches."
+    "teacherNotes": "Algebra II Honors, Radicals Lesson 1 (nth Roots), from the district slides, TEKS A2.7G. Warm-Up rebuilt as readiness: powers → perfect powers → √(x²) = |x|. Every Classwork item is a slide example with its Check Your Progress; \"Simplify\" answers are graded by value AND form (simplest radical form, bars only where needed). CW3, the numerical radicals √63 and 3√12, comes before the variable examples so students find the largest perfect-square factor with numbers first; the other items keep the slides’ order. Two audited Digital SAT items from the CCMR bank sit in Practice, and the Honors extension items (P12, P13, P11) are DOK 3–4, so the Honors version is ready as written. Warm-Up and Exit Ticket are generated per student and back Recovery. Slide note: the \"Simplify\" slide gives √(9x⁴y¹⁰z⁴) = 3x²y⁵z²; with y allowed to be negative it is 3x²|y⁵|z², which CW10 teaches. Slide note: CW9’s Check Your Progress is ∛(8(x + 2)¹⁵) = 2(x + 2)⁵, because the slide’s ∛(27(x + 2)⁹) is 3(x + 2)³, the example’s own answer, which a student could copy."
   },
   "variantPolicy": {
     "mode": "personalized",
@@ -92,9 +92,32 @@
             }
           ],
           "hints": [
-            "A power is repeated multiplication: (−{{c}})³ = (−{{c}})(−{{c}})(−{{c}}).",
+            "How many negative factors does each power have, and is that number odd or even?",
             "An odd number of negative factors gives a negative product; an even number gives a positive one.",
             "A root undoes a power: if r multiplied by itself n times is b, then r is an nth root of b."
+          ],
+          "misconceptions": [
+            {
+              "field": "negativeCube",
+              "match": [
+                "{{c3}}"
+              ],
+              "message": "A negative number cubed is negative: three negative factors make a negative product."
+            },
+            {
+              "field": "negativeFourth",
+              "match": [
+                "-{{d4}}"
+              ],
+              "message": "A negative number to the fourth power is positive: four negative factors make a positive product."
+            },
+            {
+              "field": "cubeRoot",
+              "match": [
+                "{{c}}"
+              ],
+              "message": "Check the sign: a positive number cubed is positive, so it is not a cube root of a negative number."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. An even power of a negative number is…",
@@ -192,7 +215,10 @@
               "id": "squareBase",
               "label": "{{p}}x^{{e2}} = ( ? )²",
               "answer": "{{b}}x^{{h}}",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "acceptedAnswers": [
+                "-{{b}}x^{{h}}"
+              ]
             },
             {
               "id": "cubeBase",
@@ -326,9 +352,18 @@
             }
           ],
           "hints": [
-            "Square the inside first: the square of a negative number is positive.",
+            "What number is under each radical once you work out the inside? Can it be negative?",
             "The radical sign √ means the principal (nonnegative) square root.",
             "Which rule gives a nonnegative answer for every x, including a negative x?"
+          ],
+          "misconceptions": [
+            {
+              "field": "negativeSquared",
+              "match": [
+                "-{{r}}"
+              ],
+              "message": "√ means the principal square root, which is never negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √ always gives a value that is…",
@@ -461,9 +496,18 @@
             }
           ],
           "hints": [
-            "The index is the small number tucked into the radical sign; the radicand is under it.",
+            "Which number is written small in the radical sign, and which is under it?",
             "Which number, used as a factor 4 times, gives 81? Its opposite works too.",
             "The principal root is the nonnegative one."
+          ],
+          "misconceptions": [
+            {
+              "field": "principal",
+              "match": [
+                "-3"
+              ],
+              "message": "The principal root is the one that is not negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. In ⁿ√b, the number under the radical sign is the…",
@@ -512,6 +556,7 @@
           "studentActions": [
             "sortIntoCategories"
           ],
+          "requireRationale": true,
           "dok": 2,
           "difficultyBand": 2,
           "prompt": "Real nth roots. Sort each set of roots by how many REAL roots it has. Use the index (even or odd) and the sign of the radicand. Then give a reason for each group.",
@@ -600,8 +645,8 @@
             }
           ],
           "hints": [
-            "An even index with a positive radicand gives a positive root and its opposite.",
-            "An odd index always gives exactly one real root, with the same sign as the radicand.",
+            "For each card: is the index even or odd, and is the radicand positive, negative or 0?",
+            "An odd index always gives exactly one real root. An even index gives two when the radicand is positive.",
             "No real number raised to an even power is negative. And 0 has only one root: 0."
           ],
           "scaffold": {
@@ -632,537 +677,6 @@
               "Even index, negative radicand: no real root, because an even power is never negative."
             ],
             "commonError": "Putting the cube roots of −64 under \"No real roots\": an odd index takes a negative radicand to a negative root, −4."
-          }
-        },
-        {
-          "questionId": "a2r1-cw-3",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 2,
-          "difficultyBand": 2,
-          "prompt": "Example A, then Check Your Progress A. Simplify $\\pm\\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\\pm\\sqrt{9x^8}$.",
-          "directionSteps": [
-            "Write the radicand as a perfect square.",
-            "Name the negative square root too.",
-            "Choose the simplified form of the second expression."
-          ],
-          "responses": [
-            {
-              "id": "square",
-              "label": "16x⁸ = ( ? )². This base is the positive square root.",
-              "answer": "4x^4",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "negative",
-              "label": "The negative square root of 16x⁸",
-              "answer": "-4x^4",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "cyp",
-              "label": "±√(9x⁸) =",
-              "type": "choice",
-              "options": [
-                "±3x⁶",
-                "±3x⁴",
-                "3x⁴",
-                "±3x²"
-              ],
-              "answer": "±3x⁴"
-            }
-          ],
-          "hints": [
-            "16 = 4² and x⁸ = (x⁴)².",
-            "± asks for both square roots: the positive one and its opposite.",
-            "For 9x⁸, take the square root of 9 and halve the exponent 8."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. √(x⁸) equals…",
-            "options": [
-              "x⁴",
-              "x⁶"
-            ],
-            "correct": "x⁴"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Find roots",
-                "instruction": "Write the radicand as a perfect power whose exponent is the index, then take the root."
-              },
-              {
-                "title": "±",
-                "instruction": "±√ means both square roots. 16x⁸ = (4x⁴)², so ±√(16x⁸) = ±4x⁴."
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "Perfect square first, then both roots.",
-            "reasoning": [
-              "16x⁸ = (4x⁴)².",
-              "The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.",
-              "9x⁸ = (3x⁴)², so ±√(9x⁸) = ±3x⁴."
-            ],
-            "answerSummary": "±4x⁴; ±3x⁴",
-            "commonError": "Taking the square root of the exponent (x⁸ → x^√8) or dividing it by 4: √(x⁸) halves the exponent, x⁴."
-          }
-        },
-        {
-          "questionId": "a2r1-cw-4",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 2,
-          "difficultyBand": 3,
-          "prompt": "Example B, then Check Your Progress B. Simplify $-\\sqrt{(q^3+5)^4}$. Decide whether absolute value bars are needed. Then simplify $-\\sqrt{(a^3+2)^8}$.",
-          "directionSteps": [
-            "Write the radicand as a perfect square.",
-            "Take the principal square root and keep the negative sign in front.",
-            "Decide whether absolute value bars are needed.",
-            "Choose the simplified form of the second expression."
-          ],
-          "responses": [
-            {
-              "id": "square",
-              "label": "(q³ + 5)⁴ = [ ? ]²",
-              "answer": "(q^3+5)^2",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "simplified",
-              "label": "−√((q³ + 5)⁴) =",
-              "answer": "-(q^3+5)^2",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "bars",
-              "label": "Why are absolute value bars not needed?",
-              "type": "choice",
-              "options": [
-                "(q³ + 5)² is never negative, so it is already the principal root",
-                "q is always positive",
-                "The index is odd",
-                "The radicand is negative"
-              ],
-              "answer": "(q³ + 5)² is never negative, so it is already the principal root"
-            },
-            {
-              "id": "cyp",
-              "label": "−√((a³ + 2)⁸) =",
-              "type": "choice",
-              "options": [
-                "−(a³ + 2)⁴",
-                "−(a³ + 2)⁸",
-                "(a³ + 2)⁴",
-                "(a + 2)⁴"
-              ],
-              "answer": "−(a³ + 2)⁴"
-            }
-          ],
-          "hints": [
-            "Treat q³ + 5 as one block: (q³ + 5)⁴ = [(q³ + 5)²]².",
-            "The negative sign is outside the radical. Take the principal root first, then make it the opposite.",
-            "A square is never negative, so no bars are needed around (q³ + 5)²."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. The negative sign in −√(…) is…",
-            "options": [
-              "part of the radicand",
-              "outside the radical"
-            ],
-            "correct": "outside the radical"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "A binomial base",
-                "instruction": "Treat (q³ + 5) as one quantity: (q³ + 5)⁴ = [(q³ + 5)²]²."
-              },
-              {
-                "title": "The opposite of a principal root",
-                "instruction": "−√b is the opposite of the principal square root of b."
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "One block, a perfect square, then the opposite.",
-            "reasoning": [
-              "(q³ + 5)⁴ = [(q³ + 5)²]², so √((q³ + 5)⁴) = (q³ + 5)², which is never negative.",
-              "The opposite of the principal root is −(q³ + 5)².",
-              "In the same way, −√((a³ + 2)⁸) = −(a³ + 2)⁴."
-            ],
-            "answerSummary": "−(q³ + 5)²; −(a³ + 2)⁴",
-            "commonError": "Dropping the negative sign, or halving the 3 inside the base: only the outside exponent is halved."
-          }
-        },
-        {
-          "questionId": "a2r1-cw-5",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 2,
-          "difficultyBand": 2,
-          "prompt": "Example C, then Check Your Progress C. Simplify $\\sqrt[5]{243a^{10}b^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[5]{32x^5y^{10}}$.",
-          "directionSteps": [
-            "Write the radicand as a fifth power.",
-            "Take the fifth root.",
-            "Decide whether absolute value bars are needed.",
-            "Simplify the second expression."
-          ],
-          "responses": [
-            {
-              "id": "fifthPower",
-              "label": "243a¹⁰b¹⁵ = ( ? )⁵",
-              "answer": "3a^2b^3",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "bars",
-              "label": "Does the answer need absolute value bars?",
-              "type": "choice",
-              "options": [
-                "No — the index is odd, so a fifth root keeps the sign of 3a²b³",
-                "Yes — b³ can be negative",
-                "Yes — every variable needs bars",
-                "No — because a and b are always positive"
-              ],
-              "answer": "No — the index is odd, so a fifth root keeps the sign of 3a²b³"
-            },
-            {
-              "id": "cyp",
-              "label": "⁵√(32x⁵y¹⁰) =",
-              "answer": "2xy^2",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            }
-          ],
-          "hints": [
-            "243 = 3⁵. Divide each exponent by 5: a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵.",
-            "An odd root of a negative number is negative, so an odd root never needs bars.",
-            "32 = 2⁵; x⁵ = (x)⁵; y¹⁰ = (y²)⁵."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. 243 equals…",
-            "options": [
-              "3⁵",
-              "5³"
-            ],
-            "correct": "3⁵"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Odd index",
-                "instruction": "ⁿ√(aⁿ) = a when n is odd: the root keeps the sign."
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "Write a fifth power; an odd root needs no bars.",
-            "reasoning": [
-              "243a¹⁰b¹⁵ = (3a²b³)⁵, so ⁵√(243a¹⁰b¹⁵) = 3a²b³.",
-              "The index is odd, so no absolute value bars are needed.",
-              "32x⁵y¹⁰ = (2xy²)⁵, so ⁵√(32x⁵y¹⁰) = 2xy²."
-            ],
-            "answerSummary": "3a²b³; 2xy²",
-            "commonError": "Writing ±2xy²: an odd index gives exactly one real root."
-          }
-        },
-        {
-          "questionId": "a2r1-cw-6",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 2,
-          "difficultyBand": 3,
-          "prompt": "Example D, then Check Your Progress D. Decide whether $\\sqrt{-4}$ is a real number, and name its two imaginary square roots. Then simplify $\\sqrt{-16}$.",
-          "directionSteps": [
-            "Decide whether the first root is a real number.",
-            "Name its two imaginary square roots.",
-            "Choose the simplified form of the second expression."
-          ],
-          "responses": [
-            {
-              "id": "real",
-              "label": "√(−4) is…",
-              "type": "choice",
-              "options": [
-                "not a real number: the index is even and the radicand is negative",
-                "−2, because (−2)² = −4",
-                "2",
-                "−2"
-              ],
-              "answer": "not a real number: the index is even and the radicand is negative"
-            },
-            {
-              "id": "rootPlus",
-              "label": "The two imaginary square roots of −4 are",
-              "answer": "2i",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "rootMinus",
-              "label": "and",
-              "answer": "-2i",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "cyp",
-              "label": "√(−16) (both roots) =",
-              "type": "choice",
-              "options": [
-                "−4",
-                "±4",
-                "−2",
-                "±4i"
-              ],
-              "answer": "±4i"
-            }
-          ],
-          "hints": [
-            "Is (−2)² equal to 4 or −4?",
-            "i is the imaginary unit, and i² = −1. Which multiple of i squares to −4?",
-            "Both 4i and −4i square to −16."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. A real number raised to an even power is…",
-            "options": [
-              "never negative",
-              "sometimes negative"
-            ],
-            "correct": "never negative"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Even index, negative radicand",
-                "instruction": "There is no real root. In the complex numbers there are roots: i = √(−1), so √(−4) = 2i, and −2i is the other square root."
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "No real root; two imaginary roots.",
-            "reasoning": [
-              "The index is even and −4 < 0, so √(−4) is not a real number.",
-              "(2i)² = 4i² = −4 and (−2i)² = −4, so the square roots are 2i and −2i.",
-              "Similarly, the square roots of −16 are ±4i."
-            ],
-            "answerSummary": "2i and −2i; ±4i",
-            "commonError": "Writing (−2)² = −4: the square of a negative number is positive."
-          }
-        },
-        {
-          "questionId": "a2r1-cw-7",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 3,
-          "difficultyBand": 3,
-          "prompt": "Simplify using absolute value (even index). Simplify $\\sqrt[6]{t^6}$ and $\\sqrt[4]{x^4}$, then $\\sqrt[4]{16x^4y^8}$. Here $t$, $x$ and $y$ can be any real numbers. Explain when absolute value bars are needed.",
-          "directionSteps": [
-            "Simplify the sixth root.",
-            "Simplify the fourth root of x to the fourth.",
-            "Simplify the third expression.",
-            "Explain when absolute value bars are needed."
-          ],
-          "responses": [
-            {
-              "id": "sixth",
-              "label": "⁶√(t⁶) =",
-              "type": "choice",
-              "options": [
-                "t",
-                "−t",
-                "|t|",
-                "t⁶"
-              ],
-              "answer": "|t|"
-            },
-            {
-              "id": "fourth",
-              "label": "⁴√(x⁴) =",
-              "type": "choice",
-              "options": [
-                "x",
-                "−x",
-                "|x|",
-                "1"
-              ],
-              "answer": "|x|"
-            },
-            {
-              "id": "mixed",
-              "label": "⁴√(16x⁴y⁸) =",
-              "answer": "2|x|y^2",
-              "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
-            },
-            {
-              "id": "why",
-              "label": "Why does x need bars in the last answer but y² does not?",
-              "type": "choice",
-              "options": [
-                "x may be negative, but a fourth root is never negative; y² is never negative",
-                "x is always negative",
-                "Every variable outside an even root needs bars",
-                "y² needs bars too, because y may be negative"
-              ],
-              "answer": "x may be negative, but a fourth root is never negative; y² is never negative"
-            }
-          ],
-          "hints": [
-            "t is a sixth root of t⁶, but t could be negative. The principal sixth root must be nonnegative.",
-            "16x⁴y⁸ = (2xy²)⁴.",
-            "Bars are needed only around a factor that can be negative."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. For an even index n, ⁿ√(aⁿ) equals…",
-            "options": [
-              "a",
-              "|a|"
-            ],
-            "correct": "|a|"
-          },
-          "guidedNotes": {
-            "steps": [
-              {
-                "title": "Even index",
-                "instruction": "ⁿ√(aⁿ) = |a| when n is even, because the principal root is nonnegative and a might not be."
-              },
-              {
-                "title": "Only where needed",
-                "instruction": "x², y⁴ and every even power are already nonnegative, so they need no bars."
-              }
-            ]
-          },
-          "solutionReview": {
-            "headline": "Even index: bars around anything that can be negative.",
-            "reasoning": [
-              "⁶√(t⁶) = |t| and ⁴√(x⁴) = |x|.",
-              "16x⁴y⁸ = (2xy²)⁴, so ⁴√(16x⁴y⁸) = |2xy²| = 2|x|y².",
-              "y² is never negative, so it needs no bars."
-            ],
-            "answerSummary": "|t|, |x|, 2|x|y²",
-            "commonError": "Writing 2xy²: if x = −1 and y = 1, the root is 2 but 2xy² is −2."
-          }
-        },
-        {
-          "questionId": "a2r1-cw-8",
-          "standard": "A2.7G",
-          "alignments": [
-            {
-              "framework": "teks",
-              "code": "A2.7G",
-              "role": "primary"
-            }
-          ],
-          "studentActions": [
-            "multipleResponses"
-          ],
-          "dok": 2,
-          "difficultyBand": 3,
-          "prompt": "Simplify using absolute value (odd index). Simplify $\\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[3]{27(x+2)^9}$.",
-          "directionSteps": [
-            "Write the radicand as a fifth power.",
-            "Decide whether absolute value bars are needed.",
-            "Choose the simplified form of the second expression."
-          ],
-          "responses": [
-            {
-              "id": "fifthPower",
-              "label": "243(x + 2)¹⁵ = [ ? ]⁵. This base is the fifth root.",
-              "answer": "3(x+2)^3",
-              "inputProfile": "expression"
-            },
-            {
-              "id": "bars",
-              "label": "Does ⁵√(243(x + 2)¹⁵) need absolute value bars?",
-              "type": "choice",
-              "options": [
-                "No — the index is odd, so the root keeps the sign of 3(x + 2)³",
-                "Yes — x + 2 can be negative",
-                "Yes — every binomial root needs bars",
-                "No — because x + 2 is always positive"
-              ],
-              "answer": "No — the index is odd, so the root keeps the sign of 3(x + 2)³"
-            },
-            {
-              "id": "cyp",
-              "label": "∛(27(x + 2)⁹) =",
-              "type": "choice",
-              "options": [
-                "|3(x + 2)³|",
-                "3(x + 2)³",
-                "|3(x + 2)⁶|",
-                "3(x + 2)⁶"
-              ],
-              "answer": "3(x + 2)³"
-            }
-          ],
-          "hints": [
-            "243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵.",
-            "The index is odd, so no absolute value bars are needed.",
-            "27 = 3³ and (x + 2)⁹ = [(x + 2)³]³."
-          ],
-          "scaffold": {
-            "prompt": "Let’s back up. For an odd index n, ⁿ√(aⁿ) equals…",
-            "options": [
-              "a",
-              "|a|"
-            ],
-            "correct": "a"
-          },
-          "solutionReview": {
-            "headline": "Write the fifth power; odd roots keep the sign.",
-            "reasoning": [
-              "243(x + 2)¹⁵ = [3(x + 2)³]⁵.",
-              "The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.",
-              "In the same way ∛(27(x + 2)⁹) = 3(x + 2)³."
-            ],
-            "answerSummary": "3(x + 2)³; 3(x + 2)³",
-            "commonError": "Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2."
           }
         },
         {
@@ -1215,9 +729,9 @@
             }
           ],
           "hints": [
-            "List the perfect squares in order and test which ones divide each radicand.",
-            "Split each radicand into a perfect square times what is left.",
-            "Multiply the outside coefficient by the square root of the perfect square."
+            "What is the largest perfect square that divides 63? That divides 12?",
+            "Write each radicand as a perfect square times a number with no square factor.",
+            "Take the square root of the perfect square, then multiply it by any coefficient outside."
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(ab) equals…",
@@ -1243,6 +757,656 @@
             ],
             "answerSummary": "3√7; 6√3",
             "commonError": "Splitting 12 as 2 · 6: neither factor is a perfect square, so nothing comes out."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-3",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example A, then Check Your Progress A. Simplify $\\pm\\sqrt{16x^8}$ by writing the radicand as a perfect square. Then simplify $\\pm\\sqrt{9x^8}$: give both square roots.",
+          "directionSteps": [
+            "Write the radicand as a perfect square.",
+            "Name the negative square root too.",
+            "Give both square roots of the second expression."
+          ],
+          "responses": [
+            {
+              "id": "square",
+              "label": "16x⁸ = ( ? )². This base is the positive square root.",
+              "answer": "4x^4",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "negative",
+              "label": "The negative square root of 16x⁸",
+              "answer": "-4x^4",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "cypPositive",
+              "label": "The positive square root of 9x⁸",
+              "answer": "3x^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "cypNegative",
+              "label": "The negative square root of 9x⁸",
+              "answer": "-3x^4",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Which number, squared, gives 16? Which power of x, squared, gives x⁸?",
+            "Squaring a power doubles its exponent. ± asks for both roots: the positive one and its opposite.",
+            "16 = 4² and x⁸ = (x⁴)². Do the same for 9x⁸."
+          ],
+          "misconceptions": [
+            {
+              "field": "square",
+              "match": [
+                "4x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            },
+            {
+              "field": "negative",
+              "match": [
+                "-4x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            },
+            {
+              "field": "cypPositive",
+              "match": [
+                "3x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            },
+            {
+              "field": "cypNegative",
+              "match": [
+                "-3x^2"
+              ],
+              "message": "Check by squaring your answer: squaring a power doubles its exponent."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. √(x⁸) equals…",
+            "options": [
+              "x⁴",
+              "x⁶"
+            ],
+            "correct": "x⁴"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Find roots",
+                "instruction": "Write the radicand as a perfect power whose exponent is the index, then take the root."
+              },
+              {
+                "title": "±",
+                "instruction": "±√ means both square roots. 16x⁸ = (4x⁴)², so ±√(16x⁸) = ±4x⁴."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Perfect square first, then both roots.",
+            "reasoning": [
+              "16x⁸ = (4x⁴)².",
+              "The square roots of 16x⁸ are 4x⁴ and −4x⁴, written ±4x⁴.",
+              "9x⁸ = (3x⁴)², so the square roots of 9x⁸ are 3x⁴ and −3x⁴: ±√(9x⁸) = ±3x⁴."
+            ],
+            "answerSummary": "±4x⁴; 3x⁴ and −3x⁴",
+            "commonError": "Taking the square root of the exponent (x⁸ → x^√8) or dividing it by 4: √(x⁸) halves the exponent, x⁴."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-4",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Example B, then Check Your Progress B. Simplify $-\\sqrt{(q^3+5)^4}$. Decide whether absolute value bars are needed. Then simplify $-\\sqrt{(a^3+2)^8}$.",
+          "directionSteps": [
+            "Write the radicand as a perfect square.",
+            "Take the principal square root and keep the negative sign in front.",
+            "Decide whether absolute value bars are needed.",
+            "Simplify the second expression the same way."
+          ],
+          "responses": [
+            {
+              "id": "square",
+              "label": "(q³ + 5)⁴ = [ ? ]²",
+              "answer": "(q^3+5)^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "simplified",
+              "label": "−√((q³ + 5)⁴) =",
+              "answer": "-(q^3+5)^2",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "bars",
+              "label": "Why are absolute value bars not needed?",
+              "type": "choice",
+              "options": [
+                "(q³ + 5)² is never negative, so it is already the principal root",
+                "q is never negative, so q³ + 5 and its square are positive",
+                "The index is odd, so the root keeps the sign of (q³ + 5)²",
+                "(q³ + 5)⁴ is never negative, so its root never needs bars"
+              ],
+              "answer": "(q³ + 5)² is never negative, so it is already the principal root"
+            },
+            {
+              "id": "cyp",
+              "label": "−√((a³ + 2)⁸) =",
+              "answer": "-(a^3+2)^4",
+              "inputProfile": "expression"
+            }
+          ],
+          "hints": [
+            "Treat q³ + 5 as one block. What power of that block, squared, gives (q³ + 5)⁴?",
+            "The negative sign is outside the radical. Take the principal root first, then make it the opposite.",
+            "(q³ + 5)⁴ = [(q³ + 5)²]². A square is never negative, so no bars are needed."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "(q^3+5)^2"
+              ],
+              "message": "The negative sign in front of the radical stays in your answer."
+            },
+            {
+              "field": "cyp",
+              "match": [
+                "(a^3+2)^4"
+              ],
+              "message": "The negative sign in front of the radical stays in your answer."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The negative sign in −√(…) is…",
+            "options": [
+              "part of the radicand",
+              "outside the radical"
+            ],
+            "correct": "outside the radical"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "A binomial base",
+                "instruction": "Treat (q³ + 5) as one quantity: (q³ + 5)⁴ = [(q³ + 5)²]²."
+              },
+              {
+                "title": "The opposite of a principal root",
+                "instruction": "−√b is the opposite of the principal square root of b."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "One block, a perfect square, then the opposite.",
+            "reasoning": [
+              "(q³ + 5)⁴ = [(q³ + 5)²]², so √((q³ + 5)⁴) = (q³ + 5)², which is never negative.",
+              "The opposite of the principal root is −(q³ + 5)².",
+              "In the same way, (a³ + 2)⁸ = [(a³ + 2)⁴]² and (a³ + 2)⁴ is never negative, so −√((a³ + 2)⁸) = −(a³ + 2)⁴."
+            ],
+            "answerSummary": "−(q³ + 5)²; −(a³ + 2)⁴",
+            "commonError": "Dropping the negative sign, or halving the 3 inside the base: only the outside exponent is halved."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-5",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Example C, then Check Your Progress C. Simplify $\\sqrt[5]{243a^{10}b^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[5]{32x^5y^{10}}$.",
+          "directionSteps": [
+            "Write the radicand as a fifth power.",
+            "Take the fifth root.",
+            "Decide whether absolute value bars are needed.",
+            "Simplify the second expression."
+          ],
+          "responses": [
+            {
+              "id": "fifthPower",
+              "label": "243a¹⁰b¹⁵ = ( ? )⁵",
+              "answer": "3a^2b^3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "bars",
+              "label": "Does the answer need absolute value bars?",
+              "type": "choice",
+              "options": [
+                "No — the index is odd, so the root keeps the sign of 3a²b³",
+                "Yes — b³ can be negative, so bars must go around the b³ factor",
+                "Yes — a fifth root is never negative, so 3a²b³ needs bars",
+                "No — a and b are always positive here, so 3a²b³ is too"
+              ],
+              "answer": "No — the index is odd, so the root keeps the sign of 3a²b³"
+            },
+            {
+              "id": "cyp",
+              "label": "⁵√(32x⁵y¹⁰) =",
+              "answer": "2xy^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            }
+          ],
+          "hints": [
+            "Which number to the fifth power is 243? Which power of a, to the fifth, gives a¹⁰?",
+            "Divide each exponent by 5. Is the index odd or even, and does an odd root keep the sign?",
+            "243 = 3⁵, a¹⁰ = (a²)⁵ and b¹⁵ = (b³)⁵, and an odd root needs no bars. Do the same for 32x⁵y¹⁰."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "±2xy^2"
+              ],
+              "message": "An odd index gives exactly one real root, so there is no ±."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. 243 equals…",
+            "options": [
+              "3⁵",
+              "5³"
+            ],
+            "correct": "3⁵"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Odd index",
+                "instruction": "ⁿ√(aⁿ) = a when n is odd: the root keeps the sign."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Write a fifth power; an odd root needs no bars.",
+            "reasoning": [
+              "243a¹⁰b¹⁵ = (3a²b³)⁵, so ⁵√(243a¹⁰b¹⁵) = 3a²b³.",
+              "The index is odd, so no absolute value bars are needed.",
+              "32x⁵y¹⁰ = (2xy²)⁵, so ⁵√(32x⁵y¹⁰) = 2xy²."
+            ],
+            "answerSummary": "3a²b³; 2xy²",
+            "commonError": "Writing ±2xy²: an odd index gives exactly one real root."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-6",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Example D, then Check Your Progress D. Decide whether $\\sqrt{-4}$ is a real number. Then simplify it using $i$, and name the other square root of $-4$. Do the same for $\\sqrt{-16}$.",
+          "directionSteps": [
+            "Decide whether the first root is a real number.",
+            "Simplify it using i, and name the other square root.",
+            "Do the same for the second root."
+          ],
+          "responses": [
+            {
+              "id": "real",
+              "label": "√(−4) is…",
+              "type": "choice",
+              "options": [
+                "not a real number: the index is even and the radicand is negative",
+                "−2: (−2)² = −4, so −2 is the square root of −4",
+                "a real number: −4 is negative, and an odd root of a negative is real",
+                "not a real number: every root of a negative number is imaginary"
+              ],
+              "answer": "not a real number: the index is even and the radicand is negative"
+            },
+            {
+              "id": "rootPlus",
+              "label": "√(−4) =",
+              "answer": "2i",
+              "inputProfile": "expression",
+              "type": "math"
+            },
+            {
+              "id": "rootMinus",
+              "label": "The other square root of −4 is",
+              "answer": "-2i",
+              "inputProfile": "expression",
+              "type": "math"
+            },
+            {
+              "id": "cypRoot",
+              "label": "√(−16) =",
+              "answer": "4i",
+              "inputProfile": "expression",
+              "type": "math"
+            },
+            {
+              "id": "cypOther",
+              "label": "The other square root of −16 is",
+              "answer": "-4i",
+              "inputProfile": "expression",
+              "type": "math"
+            }
+          ],
+          "hints": [
+            "Is (−2)² equal to 4 or −4?",
+            "i is the imaginary unit, and i² = −1. Which multiple of i squares to −4?",
+            "For b > 0, √(−b) = i√b, and the other square root is its opposite."
+          ],
+          "misconceptions": [
+            {
+              "field": "rootPlus",
+              "match": [
+                "-2i"
+              ],
+              "message": "That is the other square root. The radical sign names the principal one."
+            },
+            {
+              "field": "rootMinus",
+              "match": [
+                "2i"
+              ],
+              "message": "That is the principal root. The other square root is its opposite."
+            },
+            {
+              "field": "cypRoot",
+              "match": [
+                "-4i"
+              ],
+              "message": "That is the other square root. The radical sign names the principal one."
+            },
+            {
+              "field": "cypOther",
+              "match": [
+                "4i"
+              ],
+              "message": "That is the principal root. The other square root is its opposite."
+            },
+            {
+              "field": "cypRoot",
+              "match": [
+                "4",
+                "-4"
+              ],
+              "message": "A real number squared is never negative, so a square root of a negative number is imaginary."
+            },
+            {
+              "field": "cypOther",
+              "match": [
+                "4",
+                "-4"
+              ],
+              "message": "A real number squared is never negative, so a square root of a negative number is imaginary."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. A real number raised to an even power is…",
+            "options": [
+              "never negative",
+              "sometimes negative"
+            ],
+            "correct": "never negative"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Even index, negative radicand",
+                "instruction": "There is no real root. In the complex numbers there are roots: i = √(−1), so √(−4) = 2i, and −2i is the other square root."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "No real root; two imaginary roots.",
+            "reasoning": [
+              "The index is even and −4 < 0, so √(−4) is not a real number.",
+              "(2i)² = 4i² = −4 and (−2i)² = −4, so √(−4) = 2i, and the other square root is −2i.",
+              "In the same way, √(−16) = 4i, and the other square root of −16 is −4i."
+            ],
+            "answerSummary": "2i and −2i; 4i and −4i",
+            "commonError": "Writing (−2)² = −4: the square of a negative number is positive."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-7",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Simplify using absolute value (even index). Simplify $\\sqrt[6]{t^6}$ and $\\sqrt[4]{x^4}$, then $\\sqrt[4]{16x^4y^8}$. Here $t$, $x$ and $y$ can be any real numbers. Explain when absolute value bars are needed.",
+          "directionSteps": [
+            "Simplify the sixth root.",
+            "Simplify the fourth root of x to the fourth.",
+            "Simplify the third expression.",
+            "Explain when absolute value bars are needed."
+          ],
+          "responses": [
+            {
+              "id": "sixth",
+              "label": "⁶√(t⁶) =",
+              "answer": "|t|",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
+            },
+            {
+              "id": "fourth",
+              "label": "⁴√(x⁴) =",
+              "answer": "|x|",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
+            },
+            {
+              "id": "mixed",
+              "label": "⁴√(16x⁴y⁸) =",
+              "answer": "2|x|y^2",
+              "inputProfile": "expression",
+              "gradingMode": "simplestRadicalForm"
+            },
+            {
+              "id": "why",
+              "label": "Why does x need bars in the last answer but y² does not?",
+              "type": "choice",
+              "options": [
+                "x may be negative, but a fourth root is never negative; y² never is",
+                "x is always negative, so it needs bars; y² is never negative",
+                "A fourth root can be negative, so x needs bars; y² is never negative",
+                "Bars go on the variable with the smaller exponent: x has 1, y² has 2"
+              ],
+              "answer": "x may be negative, but a fourth root is never negative; y² never is"
+            }
+          ],
+          "hints": [
+            "If t = −2, what is t⁶, and what is its sixth root? Is that t, or something else?",
+            "What monomial, to the fourth power, gives 16x⁴y⁸? Which of its factors can be negative?",
+            "16x⁴y⁸ = (2xy²)⁴. Bars go only around a factor that can be negative: x can, y² cannot."
+          ],
+          "misconceptions": [
+            {
+              "field": "sixth",
+              "match": [
+                "t"
+              ],
+              "message": "Your answer is right when t ≥ 0. Try t = −1."
+            },
+            {
+              "field": "fourth",
+              "match": [
+                "x"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            },
+            {
+              "field": "mixed",
+              "match": [
+                "2xy^2"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For an even index n, ⁿ√(aⁿ) equals…",
+            "options": [
+              "a",
+              "|a|"
+            ],
+            "correct": "|a|"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Even index",
+                "instruction": "ⁿ√(aⁿ) = |a| when n is even, because the principal root is nonnegative and a might not be."
+              },
+              {
+                "title": "Only where needed",
+                "instruction": "x², y⁴ and every even power are already nonnegative, so they need no bars."
+              }
+            ]
+          },
+          "solutionReview": {
+            "headline": "Even index: bars around anything that can be negative.",
+            "reasoning": [
+              "⁶√(t⁶) = |t| and ⁴√(x⁴) = |x|.",
+              "16x⁴y⁸ = (2xy²)⁴, so ⁴√(16x⁴y⁸) = |2xy²| = 2|x|y².",
+              "y² is never negative, so it needs no bars."
+            ],
+            "answerSummary": "|t|, |x|, 2|x|y²",
+            "commonError": "Writing 2xy²: if x = −1 and y = 1, the root is 2 but 2xy² is −2."
+          }
+        },
+        {
+          "questionId": "a2r1-cw-8",
+          "standard": "A2.7G",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A2.7G",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Simplify using absolute value (odd index). Simplify $\\sqrt[5]{243(x+2)^{15}}$ by writing the radicand as a fifth power. Then simplify $\\sqrt[3]{8(x+2)^{15}}$.",
+          "directionSteps": [
+            "Write the radicand as a fifth power.",
+            "Decide whether absolute value bars are needed.",
+            "Simplify the second expression the same way."
+          ],
+          "responses": [
+            {
+              "id": "fifthPower",
+              "label": "243(x + 2)¹⁵ = [ ? ]⁵. This base is the fifth root.",
+              "answer": "3(x+2)^3",
+              "inputProfile": "expression"
+            },
+            {
+              "id": "bars",
+              "label": "Does ⁵√(243(x + 2)¹⁵) need absolute value bars?",
+              "type": "choice",
+              "options": [
+                "No — the index is odd, so the root keeps the sign of 3(x + 2)³",
+                "Yes — x + 2 can be negative, so the root needs bars around it",
+                "Yes — a root of a power of a binomial always needs bars around it",
+                "No — x + 2 is always positive here, so 3(x + 2)³ never needs them"
+              ],
+              "answer": "No — the index is odd, so the root keeps the sign of 3(x + 2)³"
+            },
+            {
+              "id": "cyp",
+              "label": "∛(8(x + 2)¹⁵) =",
+              "answer": "2(x+2)^5",
+              "inputProfile": "expression"
+            }
+          ],
+          "hints": [
+            "Which number to the fifth power is 243? Which power of (x + 2), to the fifth, gives (x + 2)¹⁵?",
+            "Treat x + 2 as one block and divide its exponent by the index. Is the index odd or even?",
+            "243 = 3⁵ and (x + 2)¹⁵ = [(x + 2)³]⁵. An odd root keeps the sign, so no bars. For the cube root, divide 15 by 3."
+          ],
+          "misconceptions": [
+            {
+              "field": "cyp",
+              "match": [
+                "|2(x+2)^5|"
+              ],
+              "message": "An odd root keeps the sign, so it needs no absolute value bars."
+            }
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. For an odd index n, ⁿ√(aⁿ) equals…",
+            "options": [
+              "a",
+              "|a|"
+            ],
+            "correct": "a"
+          },
+          "solutionReview": {
+            "headline": "Write the fifth power; odd roots keep the sign.",
+            "reasoning": [
+              "243(x + 2)¹⁵ = [3(x + 2)³]⁵.",
+              "The index is odd, so ⁵√(243(x + 2)¹⁵) = 3(x + 2)³, with no bars.",
+              "8(x + 2)¹⁵ = [2(x + 2)⁵]³, and the index is odd again, so ∛(8(x + 2)¹⁵) = 2(x + 2)⁵."
+            ],
+            "answerSummary": "3(x + 2)³; 2(x + 2)⁵",
+            "commonError": "Adding absolute value bars to an odd root: |3(x + 2)³| is wrong when x < −2."
           }
         },
         {
@@ -1285,18 +1449,27 @@
               "label": "Why does only y⁵ need bars?",
               "type": "choice",
               "options": [
-                "y⁵ is negative when y is negative; x² and z² never are",
-                "y has the largest exponent",
+                "y⁵ is negative whenever y is negative; x² and z² never are",
+                "y has the largest exponent, so y⁵ is the largest factor",
                 "x² and z² are always positive, and y⁵ is always negative",
-                "Only odd numbers need bars"
+                "5 is odd, and every odd number in an answer needs bars"
               ],
-              "answer": "y⁵ is negative when y is negative; x² and z² never are"
+              "answer": "y⁵ is negative whenever y is negative; x² and z² never are"
             }
           ],
           "hints": [
-            "Halve every exponent: x⁴ = (x²)², y¹⁰ = (y⁵)², z⁴ = (z²)².",
-            "The square root of a square is the absolute value of its base.",
-            "Which factor of 3x²y⁵z² can be negative?"
+            "Which number squared is 9? What power of each letter, squared, gives x⁴, y¹⁰ and z⁴?",
+            "The square root of a square is the absolute value of its base. Which factors of that base can be negative?",
+            "9x⁴y¹⁰z⁴ = (3x²y⁵z²)². Of 3x², y⁵ and z², only y⁵ can be negative."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "3x^2y^5z^2"
+              ],
+              "message": "Your answer is right when y ≥ 0. Try y = −1."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(y¹⁰) equals…",
@@ -1367,9 +1540,18 @@
             }
           ],
           "hints": [
-            "Use the Product Property backward: √m · √n = √(mn).",
-            "Multiply the numbers under the radicals, then add the exponents of a.",
-            "a² is never negative, so √(a⁴) = a² with no bars."
+            "How can you write a product of two square roots as one square root?",
+            "Multiply the coefficients outside and the radicands inside. What happens to the exponents of a?",
+            "√m · √n = √(mn), and a² is never negative, so √(a⁴) = a² with no bars."
+          ],
+          "misconceptions": [
+            {
+              "field": "radicand",
+              "match": [
+                "26a^2"
+              ],
+              "message": "The Product Property multiplies the radicands; it does not add them."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √m · √n equals…",
@@ -1429,7 +1611,8 @@
               "label": "(3√(3x))² =",
               "answer": "27x",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             },
             {
               "id": "radicand",
@@ -1446,9 +1629,9 @@
             }
           ],
           "hints": [
-            "Write the quotient under one radical and reduce the fraction there.",
-            "A radical left in a denominator is cleared by multiplying the top and the bottom by that radical.",
-            "Square the coefficient and the radical separately. For the product, find the largest perfect-square factor of the new radicand."
+            "What is √2/√6 as one square root, with its fraction reduced?",
+            "To clear a radical from a denominator, multiply the top and the bottom by that radical. To square a product, square each factor.",
+            "For the product, multiply the coefficients and the radicands, then take the largest perfect square out of the new radicand."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To rationalize 3/√3, multiply by…",
@@ -1532,9 +1715,9 @@
             }
           ],
           "hints": [
-            "On a calculator, ∛3.5 is 3.5^(1/3).",
-            "Order matters: cube root first, then multiply by 0.926, then subtract 0.169.",
-            "Undo the steps in reverse order: add 0.169, divide by 0.926, then cube."
+            "Which part of 0.926∛k − 0.169 do you work out first when you know k?",
+            "On a calculator, ∛3.5 is 3.5^(1/3). Find the cube root, multiply by 0.926, then subtract 0.169.",
+            "For (b), undo the steps in reverse order: add 0.169, divide by 0.926, then cube."
           ],
           "scaffold": {
             "prompt": "Let’s back up. To undo a cube root, you…",
@@ -1624,8 +1807,8 @@
             }
           ],
           "hints": [
-            "Divide the length by g first.",
-            "Take the square root of that quotient, then multiply by 2π.",
+            "In T = 2π√(L/g), which operation comes first when you know L?",
+            "Divide L by g, take the square root, then multiply by 2π. For (b), which of those steps do you undo first?",
             "For (b): 5 = 2π√(L/32). Divide by 2π, square both sides, then multiply by 32."
           ],
           "scaffold": {
@@ -1690,8 +1873,8 @@
             }
           ],
           "hints": [
-            "{{p}} = {{b}}², and halve the exponent of x.",
-            "± means the positive root and its opposite."
+            "Which number, squared, gives {{p}}? What power of x, squared, gives x^{{e}}?",
+            "{{p}} = {{b}}² and x^{{e}} = (x^{{h}})². ± means the positive root and its opposite."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ±√(25x⁶) equals…",
@@ -1717,15 +1900,16 @@
                 "min": 2,
                 "max": 13
               },
-              "h": {
+              "k": {
                 "type": "int",
-                "min": 2,
-                "max": 7
+                "min": 1,
+                "max": 3
               }
             },
             "derived": {
               "p": "b*b",
-              "e": "2*h"
+              "h": "2*k",
+              "e": "4*k"
             }
           },
           "questionFamily": {
@@ -1762,8 +1946,17 @@
             }
           ],
           "hints": [
-            "{{c3}} = {{c}}³. Divide each exponent by 3.",
-            "A cube root of a negative number is negative."
+            "Which number, cubed, gives {{c3}}? What power of a, cubed, gives a^{{e1}}?",
+            "{{c3}} = {{c}}³; divide each exponent by 3. A cube root of a negative number is negative."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{c}}a{{m|pow}}b{{n|pow}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the cube root of a negative number is negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(−8) equals…",
@@ -1776,10 +1969,10 @@
           "solutionReview": {
             "headline": "Write a cube; an odd root keeps the sign.",
             "reasoning": [
-              "−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{n}})³.",
-              "So the cube root is −{{c}}a^{{m}}b^{{n}}."
+              "−{{c3}}a^{{e1}}b^{{e2}} = (−{{c}}a{{m|pow}}b{{n|pow}})³.",
+              "So the cube root is −{{c}}a{{m|pow}}b{{n|pow}}."
             ],
-            "answerSummary": "−{{c}}a^{{m}}b^{{n}}",
+            "answerSummary": "−{{c}}a{{m|pow}}b{{n|pow}}",
             "commonError": "Saying a cube root of a negative number is not real: only even roots of negatives are not real."
           },
           "generator": {
@@ -1844,8 +2037,17 @@
             }
           ],
           "hints": [
-            "{{d4}} = {{d}}⁴; divide each exponent by 4.",
-            "x^{{m}} has an odd exponent, so it can be negative. y^{{n}} has an even exponent."
+            "Which number to the fourth power is {{d4}}? After you take the root, which factor can be negative?",
+            "{{d4}} = {{d}}⁴; divide each exponent by 4. x{{m|pow}} has an odd exponent, so it can be negative; y^{{n}} cannot."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{d}}x{{m|pow}}y^{{n}}"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ⁴√(x⁴) equals…",
@@ -1858,11 +2060,11 @@
           "solutionReview": {
             "headline": "A fourth power, then bars where a factor can be negative.",
             "reasoning": [
-              "{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{n}})⁴.",
-              "The principal fourth root is |{{d}}x^{{m}}y^{{n}}| = {{d}}|x^{{m}}|y^{{n}}: y^{{n}} is never negative, x^{{m}} can be."
+              "{{d4}}x^{{e1}}y^{{e2}} = ({{d}}x{{m|pow}}y^{{n}})⁴.",
+              "The principal fourth root is |{{d}}x{{m|pow}}y^{{n}}| = {{d}}|x{{m|pow}}|y^{{n}}: y^{{n}} is never negative, x{{m|pow}} can be."
             ],
-            "answerSummary": "{{d}}|x^{{m}}|y^{{n}}",
-            "commonError": "Leaving off the bars around x^{{m}}, or putting them around y^{{n}} too (harmless but not simplest)."
+            "answerSummary": "{{d}}|x{{m|pow}}|y^{{n}}",
+            "commonError": "Leaving off the bars around x{{m|pow}}, or putting them around y^{{n}} too (harmless but not simplest)."
           },
           "generator": {
             "parameters": {
@@ -1928,8 +2130,17 @@
             }
           ],
           "hints": [
-            "{{c5}} = {{c}}⁵.",
-            "(x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. Is the index odd or even?"
+            "Which number to the fifth power is {{c5}}? What power of (x + {{h}}), to the fifth, gives (x + {{h}})^{{e}}?",
+            "{{c5}} = {{c}}⁵ and (x + {{h}})^{{e}} = [(x + {{h}})^{{k}}]⁵. The index is odd, so no bars are needed."
+          ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "|{{c}}(x+{{h}})^{{k}}|"
+              ],
+              "message": "An odd root keeps the sign, so it needs no absolute value bars."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. An odd root of a negative number is…",
@@ -2013,7 +2224,7 @@
             }
           ],
           "hints": [
-            "Try the perfect squares 4, 9, 16, 25, 36, 49, 64, 81, … from the largest down.",
+            "Which perfect squares divide {{R}}? Which is the largest?",
             "Write the radicand as a perfect square times what is left, then take the square root of the perfect square."
           ],
           "scaffold": {
@@ -2101,12 +2312,22 @@
               "label": "Product",
               "answer": "{{r}}x",
               "inputProfile": "expression",
-              "gradingMode": "simplestRadicalForm"
+              "gradingMode": "simplestRadicalForm",
+              "type": "math"
             }
           ],
           "hints": [
-            "√m · √n = √(mn).",
-            "{{w}} is a perfect square: {{kj}}² = {{w}}."
+            "How can you write the product of the two square roots as one square root?",
+            "Multiply the coefficients, and multiply the radicands. The new radicand is a perfect square: what is its square root?"
+          ],
+          "misconceptions": [
+            {
+              "field": "product",
+              "match": [
+                "{{kj}}x"
+              ],
+              "message": "That is the square root alone: multiply it by the coefficients {{a}} and {{b}} too."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √(16x²) equals (x positive)…",
@@ -2198,15 +2419,17 @@
             },
             {
               "id": "rootPlus",
-              "label": "Its two imaginary square roots are",
+              "label": "√(−{{p}}) =",
               "answer": "{{n}}i",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "rootMinus",
-              "label": "and",
+              "label": "The other square root of −{{p}} is",
               "answer": "-{{n}}i",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "cube",
@@ -2216,9 +2439,18 @@
             }
           ],
           "hints": [
-            "No real number squared is negative.",
-            "i² = −1, so a multiple of i can square to a negative number.",
-            "An odd root keeps the sign of its radicand."
+            "Can a real number, squared, be negative? What about a multiple of i?",
+            "i² = −1, so a multiple of i can square to a negative number. Does an odd root keep the sign of its radicand?",
+            "Find the whole number whose square is {{p}}, then attach i. An odd root keeps the sign of its radicand."
+          ],
+          "misconceptions": [
+            {
+              "field": "cube",
+              "match": [
+                "{{m}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the cube root of a negative number is negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. An odd root of a negative number is…",
@@ -2313,9 +2545,26 @@
             }
           ],
           "hints": [
-            "Even index and a negative radicand: no real roots.",
-            "Which whole number to the sixth power is 64? Its opposite works too, because the power is even.",
-            "An odd index gives one real root with the radicand’s sign."
+            "For each one, is the index even or odd, and is the radicand positive or negative?",
+            "No real number to an even power is negative. Which whole number to the sixth power is 64?",
+            "An odd index gives one real root with the radicand’s sign; a positive radicand under an even index has two."
+          ],
+          "misconceptions": [
+            {
+              "field": "count1",
+              "match": [
+                "1",
+                "2"
+              ],
+              "message": "No real number to an even power is negative, so a negative number has no real fourth root."
+            },
+            {
+              "field": "root3",
+              "match": [
+                "3"
+              ],
+              "message": "An odd root keeps the sign of its radicand: the fifth root of a negative number is negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. How many real sixth roots does a positive number have?",
@@ -2379,8 +2628,8 @@
             }
           ],
           "hints": [
-            "Multiply 3 by the volume, then divide by 4π.",
-            "Take the cube root: the result raised to the 1/3 power."
+            "What is the value under the radical when V = {{V}}?",
+            "Multiply 3 by {{V}} and divide by 4π, then take the cube root: raise it to the 1/3 power."
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛125 equals…",
@@ -2457,12 +2706,12 @@
               "label": "k ≈ (joules, nearest tenth)",
               "answer": "{{k}}",
               "inputProfile": "number",
-              "numericTolerance": 0.1
+              "numericTolerance": 0.15
             }
           ],
           "hints": [
-            "Undo the operations in reverse order.",
-            "Cubing undoes a cube root."
+            "Which operation in d = 0.926∛k − 0.169 is done last, so you undo it first?",
+            "Add 0.169, divide by 0.926, then cube: cubing undoes a cube root."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The first step to undo is…",
@@ -2533,9 +2782,9 @@
               "type": "choice",
               "options": [
                 "wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|",
-                "right for every x",
-                "wrong: ⁴√(x⁴) = x²",
-                "wrong: ⁴√(x⁴) = −x"
+                "right: a fourth root undoes the power, so ⁴√(x⁴) = x",
+                "wrong: x⁴ = (x²)², so its fourth root is x²",
+                "wrong: x = −2 gives a root of −2, so ⁴√(x⁴) = −x"
               ],
               "answer": "wrong: a fourth root is never negative, so ⁴√(x⁴) = |x|"
             },
@@ -2551,17 +2800,33 @@
               "type": "choice",
               "options": [
                 "wrong: an odd root keeps the sign, so ∛(x³) = x",
-                "right for every x",
-                "wrong: ∛(x³) = x²",
-                "right, because roots are never negative"
+                "right: a root is never negative, so ∛(x³) = |x|",
+                "wrong: x = −2 gives ∛(−8) = 2, so ∛(x³) = −x",
+                "right: like a fourth root, a cube root is never negative"
               ],
               "answer": "wrong: an odd root keeps the sign, so ∛(x³) = x"
             }
           ],
           "hints": [
-            "Evaluate x⁴ at the test value first, then take the fourth root.",
-            "Evaluate x³ at the test value first, then take the cube root.",
-            "Compare each result with x itself and with |x|."
+            "What is x⁴ at the test value? What is the fourth root of that number?",
+            "Do the same with x³ and the cube root. Is each result x, or |x|?",
+            "A fourth root is never negative; a cube root keeps the sign. Compare each result with x and with |x|."
+          ],
+          "misconceptions": [
+            {
+              "field": "jamalValue",
+              "match": [
+                "-2"
+              ],
+              "message": "x⁴ is positive, and a fourth root is never negative."
+            },
+            {
+              "field": "priyaValue",
+              "match": [
+                "2"
+              ],
+              "message": "A cube root keeps the sign: the cube root of a negative number is negative."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. ∛(−27) equals…",
@@ -2656,9 +2921,18 @@
             }
           ],
           "hints": [
-            "Try a = −2 with n = 2 and with n = 3.",
-            "√(x²) = |x|. When is |x| = −x?",
+            "What is ⁿ√(aⁿ) when a = −2, for n = 2 and for n = 3?",
+            "√(x²) = |x|. When is |x| equal to −x? Which power of x, to the sixth, gives x¹⁸?",
             "x¹⁸ = (x³)⁶ and x¹² = (x²)⁶. Can x³ be negative? Can x²?"
+          ],
+          "misconceptions": [
+            {
+              "field": "eighteen",
+              "match": [
+                "x^3"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. |x| = −x when x is…",
@@ -2777,7 +3051,8 @@
               "id": "newPeriod",
               "label": "A pendulum of length L has period T. Written in terms of T, the period of a pendulum of length 4L is",
               "answer": "2T",
-              "inputProfile": "expression"
+              "inputProfile": "expression",
+              "type": "math"
             },
             {
               "id": "why",
@@ -2785,17 +3060,26 @@
               "type": "choice",
               "options": [
                 "T depends on √L, and √(4L) = 2√L",
-                "T is proportional to L",
-                "Multiplying L by 4 adds 2 to T",
-                "The period does not depend on the length"
+                "T depends on √L, and √(4L) = 4√L",
+                "T depends on √L, and √(4L) = 2 + √L",
+                "T is proportional to L, so the period doubles"
               ],
               "answer": "T depends on √L, and √(4L) = 2√L"
             }
           ],
           "hints": [
-            "√(2/32) = 1/4, √(8/32) = 1/2, √(18/32) = 3/4 and √(32/32) = 1.",
-            "Compare rows where the length is multiplied by the same factor.",
-            "Use the Product Property on the square root of a product."
+            "What is L/32 for each length in the table, and what is its square root?",
+            "Compare rows where the length is multiplied by the same factor. How does the period change?",
+            "Use the Product Property: the square root of a product is the product of the square roots."
+          ],
+          "misconceptions": [
+            {
+              "field": "doubleLength",
+              "match": [
+                "2"
+              ],
+              "message": "Doubling the length does not double the period: the period depends on √L."
+            }
           ],
           "scaffold": {
             "prompt": "Let’s back up. √4 · √L equals…",
@@ -2921,7 +3205,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "Which perfect square is a factor of {{radCoef}}? For x > 0, what is the square root of x²?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -3032,7 +3316,7 @@
             "Use the algebraic structure of the expression and preserve equivalence."
           ],
           "supportHints": [
-            "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
+            "How can you write the product of the two square roots as one square root? What is √(x²) for x ≥ 0?"
           ],
           "ccmrSource": {
             "source": "auditedBank",
@@ -3093,28 +3377,36 @@
               "gradingMode": "simplestRadicalForm"
             }
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{d}}x{{m|pow}}y^{{k}}"
+              ],
+              "message": "Your answer is right when x ≥ 0. Try x = −1."
+            }
+          ],
           "solutionReview": {
             "headline": "An even index: bars around any factor that can be negative.",
             "reasoning": [
-              "{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x^{{m}}y^{{k}})^{{n}}.",
-              "The index {{n}} is even, so the root is |{{d}}x^{{m}}y^{{k}}| = {{d}}|x^{{m}}|y^{{k}}."
+              "{{dn}}x^{{e1}}y^{{e2}} = ({{d}}x{{m|pow}}y^{{k}})^{{n}}.",
+              "The index {{n}} is even, so the root is |{{d}}x{{m|pow}}y^{{k}}| = {{d}}|x{{m|pow}}|y^{{k}}."
             ],
-            "answerSummary": "{{d}}|x^{{m}}|y^{{k}}",
-            "commonError": "Leaving off the bars around x^{{m}}: it is negative when x is."
+            "answerSummary": "{{d}}|x{{m|pow}}|y^{{k}}",
+            "commonError": "Leaving off the bars around x{{m|pow}}: it is negative when x is."
           },
           "generator": {
             "parameters": {
               "n": {
                 "type": "choice",
                 "values": [
-                  4,
-                  6
+                  4
                 ]
               },
               "d": {
                 "type": "int",
                 "min": 2,
-                "max": 4
+                "max": 5
               },
               "m": {
                 "type": "choice",
@@ -3128,7 +3420,8 @@
                 "type": "choice",
                 "values": [
                   2,
-                  4
+                  4,
+                  6
                 ]
               }
             },
@@ -3171,13 +3464,22 @@
               "gradingMode": "simplestRadicalForm"
             }
           ],
+          "misconceptions": [
+            {
+              "field": "simplified",
+              "match": [
+                "{{c}}a{{m|pow}}b{{k|pow}}"
+              ],
+              "message": "An odd root keeps the sign of its radicand, so the root of a negative number is negative."
+            }
+          ],
           "solutionReview": {
             "headline": "An odd index keeps the sign.",
             "reasoning": [
-              "−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a^{{m}}b^{{k}})^{{n}}.",
-              "The index {{n}} is odd, so the root is −{{c}}a^{{m}}b^{{k}}."
+              "−{{cn}}a^{{e1}}b^{{e2}} = (−{{c}}a{{m|pow}}b{{k|pow}})^{{n}}.",
+              "The index {{n}} is odd, so the root is −{{c}}a{{m|pow}}b{{k|pow}}."
             ],
-            "answerSummary": "−{{c}}a^{{m}}b^{{k}}",
+            "answerSummary": "−{{c}}a{{m|pow}}b{{k|pow}}",
             "commonError": "Calling an odd root of a negative number not real."
           },
           "generator": {
@@ -3258,7 +3560,7 @@
               "label": "T ≈ (seconds, nearest hundredth)",
               "answer": "{{T}}",
               "inputProfile": "number",
-              "numericTolerance": 0.01
+              "numericTolerance": 0.015
             }
           ],
           "solutionReview": {

@@ -37,3 +37,21 @@ export const polynomialReadoutText = (coefficients = [], { variable = 'x', keepZ
   });
   return terms.length ? terms.join(' ') : '0';
 };
+
+/*
+ * THE AREA MODEL'S FACTORS, AS THE PROMPT WRITES THEM (walkthrough
+ * 2026-11-06, P-5). Its header printed the binomials' coefficients as they
+ * came: Algebra II Honors L4 CW 3's (2x + 3)(x − 4) read "(2x +3)(1x -4)", with
+ * a "1x" column head, and L4 PR 2 "(1x +5)(2x -3)". The header and the row and
+ * column heads now write each factor and each term the way the workshop
+ * writes any polynomial.
+ */
+/** "(2x + 3)(x − 4)" from [2, 3] and [1, -4]. */
+export const binomialProductText = (left = [], right = []) => `(${polynomialReadoutText(left)})(${polynomialReadoutText(right)})`;
+
+/** A binomial's two terms as the area model heads its row or column: "x" and "−4" from [1, -4]. */
+export const binomialTermTexts = ([coefficient, constant] = []) => [polynomialReadoutText([coefficient, 0]), polynomialReadoutText([constant])];
+
+// A cell's product as the binomial view's narrow-panel list names it beside its
+// box, "2x · x", "3 · (−4)", and as its hints quote it (areaModelHints.js).
+export const areaProductText = (rowTerm, columnTerm) => `${rowTerm} · ${/^[−-]/.test(columnTerm) ? `(${columnTerm})` : columnTerm}`;

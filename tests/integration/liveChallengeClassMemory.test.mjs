@@ -1,5 +1,6 @@
-// Class memory end to end: a finished rush game leaves its class one record,
-// through the real finalization effects, in a real Firestore. Run through
+// Class memory end to end: a finished rush game, Graph the Line game or Solver
+// Race leaves its class one record, through the real finalization effects, in
+// a real Firestore — and a Standard Challenge leaves none. Run through
 // `npm run test:challenge-finish`.
 //
 // WHY. What to remember and what to suggest are pure and unit tested
@@ -22,6 +23,7 @@ assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'Run through npm run test:challen
 const functionsIndex = require(path.join(repo, 'functions/index.js'));
 const rush = await import('../../functions/shared/graphFeatureRush.mjs');
 const memoryRules = await import('../../functions/shared/liveChallengeClassMemory.mjs');
+const { latticePointsInView } = await import('../../functions/shared/lineGraphMath.mjs');
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
 
@@ -149,4 +151,77 @@ test('a cancelled game leaves no memory, and the next finished game of the same 
   assert.equal(memory.settings.presetId, 'interceptSprint');
   assert.equal(memory.settings.roundSeconds, 60);
   assert.equal(await memoryOf('inequalityRush'), null, 'one memory per class and game');
+});
+
+/* ----------------- Graph the Line and Solver Race (N80) ----------------- */
+
+const waitForStart = async (roomId) => {
+  const room = await roomOf(roomId);
+  await sleep(Math.max(0, (room.startsAt?.toMillis?.() || 0) - Date.now() + 30));
+};
+const finishGame = async (roomId) => {
+  const identity = await identityOf(roomId);
+  return call('finishLiveChallenge', teacher({ roomId, expectedRoundIndex: identity.roundIndex, expectedRoundVersion: identity.roundVersion }));
+};
+
+test('a finished Graph the Line Sprint leaves its class a memory with its format, read from its own report', async () => {
+  const created = await call('createLiveChallenge', teacher({
+    classId: CLASS_ID, courseId: 'algebra1', challengeMode: 'lineGraphSprint', lineGraph: { presetId: 'allThreeForms', sprintLength: 5 }, roundCount: 1, roundSeconds: 120,
+  }));
+  const roomId = created.roomId;
+  await call('joinLiveChallenge', student(A, { roomId }));
+  await call('joinLiveChallenge', student(B, { roomId }));
+  await call('startLiveChallenge', teacher({ roomId }));
+  await waitForStart(roomId);
+  // A draws their first line right; B skips theirs.
+  const { questions: [itemA] } = await call('getLineGraphRound', student(A, { ...(await identityOf(roomId)), count: 1 }));
+  const [p, q] = latticePointsInView(itemA.line, itemA.view);
+  const drawn = await call('submitLineGraphAttempts', student(A, { ...(await identityOf(roomId)), attempts: [{ attemptId: randomUUID(), questionIndex: itemA.questionIndex, kind: 'line', points: [p, q], clientElapsedMs: 4_000 }] }));
+  assert.equal(drawn.verdicts[0].verdict, 'correct');
+  const { questions: [itemB] } = await call('getLineGraphRound', student(B, { ...(await identityOf(roomId)), count: 1 }));
+  await call('submitLineGraphAttempts', student(B, { ...(await identityOf(roomId)), attempts: [{ attemptId: randomUUID(), questionIndex: itemB.questionIndex, kind: 'skip', clientElapsedMs: 4_000 }] }));
+  assert.equal((await finishGame(roomId)).status, 'finished');
+  const memory = await waitForMemory('lineGraph', roomId);
+  assert.ok(memory, 'the memory is written');
+  assert.equal(memory.modeId, 'lineGraphSprint');
+  assert.equal(memory.settings.format, 'sprint', 'the format is remembered with the rest');
+  assert.deepEqual([memory.settings.sprintLength, memory.settings.roundCount, memory.settings.roundSeconds], [5, 1, 120]);
+  assert.deepEqual(memory.settings.forms, ['slopeIntercept', 'standard', 'pointSlope']);
+  assert.equal(memory.results.players, 2);
+  const report = (await db.collection('liveChallengeReports').doc(roomId).get()).data();
+  assert.equal(memory.results.accuracyPercent, report.lineGraph.accuracyPercent, 'the accuracy the teacher\'s report shows');
+  assert.doesNotMatch(JSON.stringify(memory), new RegExp(`${A}|${B}`), 'no student is named');
+  const next = memoryRules.suggestNextSettings(memory);
+  assert.match(memoryRules.classMemorySentence(memory, next), /^Period 5 last played this on .+ at Standard, Sprint, 1 × 120 s, \d+% accuracy/);
+});
+
+test('a finished Solver Race leaves its class a memory of the race, read from the classic report', async () => {
+  const race = await call('createLiveChallenge', teacher({
+    classId: CLASS_ID, courseId: 'algebra1', challengeMode: 'solverRace', solverRaceFocus: 'linearEquation', solverRaceDifficulty: 'developing', roundCount: 5, roundSeconds: 45,
+  }));
+  const roomId = race.roomId;
+  await call('joinLiveChallenge', student(A, { roomId }));
+  await call('joinLiveChallenge', student(B, { roomId }));
+  await call('startLiveChallenge', teacher({ roomId }));
+  await waitForStart(roomId);
+  // A solves round 1; B answers it wrong.
+  const [question] = (await privateRef(roomId).get()).data().roundQuestions;
+  const answer = async (studentId, finalRelation) => call('submitLiveChallengeResponse', student(studentId, {
+    ...(await identityOf(roomId)), submissionId: randomUUID(), responsePayload: { raw: { finalRelation } }, humanElapsedMs: 8_000, connectionQuality: 'synchronized',
+  }));
+  await answer(A, question.expectedFinalRelation);
+  await answer(B, `${question.variable || 'x'} = 987654`);
+  assert.equal((await finishGame(roomId)).status, 'finished');
+  const memory = await waitForMemory('solverRace', roomId);
+  assert.ok(memory, 'the memory is written');
+  assert.deepEqual(
+    [memory.settings.focus, memory.settings.difficulty, memory.settings.timingMode, memory.settings.roundCount, memory.settings.roundSeconds],
+    ['linearEquation', 'developing', 'timed', 5, 45],
+  );
+  const report = (await db.collection('liveChallengeReports').doc(roomId).get()).data();
+  assert.equal(memory.results.accuracyPercent, report.classAccuracyPercent, 'the class accuracy the teacher\'s report shows');
+  assert.equal(memory.results.accuracyPercent, 50, 'one of two answers right');
+  assert.equal(memory.results.players, 2);
+  assert.equal(memoryRules.suggestNextSettings(memory).phrase, 'try Foundation', 'below 65%: an easier band');
+  assert.doesNotMatch(JSON.stringify(memory), new RegExp(`${A}|${B}`), 'no student is named');
 });

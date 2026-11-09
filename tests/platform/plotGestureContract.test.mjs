@@ -25,6 +25,25 @@ test('a point is committed on release, not on press', () => {
   assert.doesNotMatch(plane, /const handleClick = /);
 });
 
+test('a plane that only shows a graph answers no press, slide, lift or key', () => {
+  // Each of these returns at once on a plane without onPlot. Attached to a
+  // picture anyway, a press handler told the Tab walk's pointer audit that a
+  // pointer could do something there the keyboard could not, and every
+  // read-only plane (role "img", no Tab stop) was counted as a pointer-only
+  // control. So the plane carries them only when it plots.
+  const openTag = plane.slice(plane.indexOf('<svg'), plane.indexOf('>\n', plane.indexOf('<svg')));
+  assert.match(openTag, /role=\{interactive \? 'application' : 'img'\}/, 'the plane svg');
+  for (const [prop, handler] of [['onPointerDown', 'handlePointerDown'], ['onPointerMove', 'handlePointerMove'], ['onPointerUp', 'handlePointerUp'], ['onKeyDown', 'handleKeyDown']]) {
+    assert.match(openTag, new RegExp(`\\b${prop}=\\{interactive \\? ${handler} : undefined\\}`), `${prop} only on a plane that plots`);
+    // And the handler still refuses on its own, should a plane stop plotting mid-gesture.
+    assert.match(plane, new RegExp(`const ${handler} = \\(event\\) => \\{\\s*\\n\\s*if \\(!interactive[ )|]`), `${handler} still checks`);
+  }
+  // Leaving the plane puts a hovered point's readout away on every plane, and
+  // a cancelled gesture is put down wherever it started.
+  assert.match(openTag, /\bonPointerLeave=\{handlePointerLeave\}/);
+  assert.match(openTag, /\bonPointerCancel=\{handlePointerCancel\}/);
+});
+
 test('the gesture survives the finger leaving the plane', () => {
   // Without capture, dragging toward the edge stops updating and the point
   // lands wherever tracking gave up.

@@ -123,7 +123,12 @@ test('Spotlight wiring remains separate from presence, drafts, grades, attempts,
     readFile(new URL('../../src/components/teacher/StudentSpotlightView.jsx', import.meta.url), 'utf8'),
   ]);
   assert.match(app, /from '\.\/platform\/liveSpotlight\.js'/);
-  assert.match(app, /onSpotlightFrame=\{preview \? null : publishSpotlightWork\}/);
+  // The question's frames go to publishSpotlightWork, and only while a
+  // request exists: its identity follows the request, so the question sends
+  // the frame on screen the moment Present Now is pressed (a memoised
+  // QuestionEngine is drawn again only for a new prop).
+  assert.match(app, /onSpotlightFrame=\{preview \? null : studentSpotlightRequest && publishSpotlightWork\}/);
+  assert.match(app, /const publishSpotlightWork = useCallback\([\s\S]*?\}, \[studentSpotlightRequest, /);
   assert.match(app, /Present Now/);
   assert.match(app, /Stop Presenting/);
   assert.doesNotMatch(presence, /liveSpotlightFrames|studentWorkspaceDrafts/);

@@ -5,20 +5,28 @@ const processes = [];
 const launch = (args) => { const child = spawn(process.execPath, args, { stdio: ['ignore', 'inherit', 'inherit'] }); processes.push(child); return child; };
 const wait = async (url) => { for (let i = 0; i < 100; i++) { try { if ((await fetch(url)).ok) return; } catch { /* not ready */ } await new Promise((r) => setTimeout(r, 200)); } throw new Error(`Service failed: ${url}`); };
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+// CI's ports by default; beside another suite, ports of its own (the bridge and
+// the page are told theirs).
+const VITE_PORT = Number(process.env.ACCOMMODATION_QA_PORT || 5199);
+const BRIDGE_PORT = Number(process.env.ACCOMMODATION_QA_BRIDGE_PORT || 5197);
+const ORIGIN = `http://127.0.0.1:${VITE_PORT}`;
+const BRIDGE = `http://127.0.0.1:${BRIDGE_PORT}`;
+process.env.ACCOMMODATION_QA_BRIDGE_PORT = String(BRIDGE_PORT);
+process.env.ACCOMMODATION_QA_ORIGIN = ORIGIN;
 let browser;
 try {
   launch(['tests/browser/accommodationReviewBridge.mjs']);
-  launch(['node_modules/vite/bin/vite.js', '--config', 'tests/browser/emulator/vite.config.mjs', '--host', '127.0.0.1', '--port', '5199', '--strictPort']);
-  await wait('http://127.0.0.1:5197/seed');
-  await wait('http://127.0.0.1:5199/tests/browser/accommodationReview.html');
+  launch(['node_modules/vite/bin/vite.js', '--config', 'tests/browser/emulator/vite.config.mjs', '--host', '127.0.0.1', '--port', String(VITE_PORT), '--strictPort']);
+  await wait(`${BRIDGE}/seed`);
+  await wait(`${ORIGIN}/tests/browser/accommodationReview.html`);
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
   for (const width of [1366, 390]) {
-    await fetch('http://127.0.0.1:5197/seed');
+    await fetch(`${BRIDGE}/seed`);
     const context = await browser.newContext({ viewport: { width, height: 900 } });
     const page = await context.newPage(); const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.route('**/*', (route) => ['127.0.0.1', 'localhost'].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
-    await page.goto('http://127.0.0.1:5199/tests/browser/accommodationReview.html');
+    await page.goto(`${ORIGIN}/tests/browser/accommodationReview.html?bridge=${encodeURIComponent(BRIDGE)}`);
     await page.locator('[data-ready]').waitFor();
     await page.getByRole('button', { name: 'Student assignments', exact: true }).click();
     await page.getByRole('tab', { name: /Upcoming/ }).click();

@@ -2,10 +2,14 @@
 // the teacher's catalog editor and pending requests, and the student's My
 // Rewards — at a Chromebook (1366×768) and a phone (390×844).
 //
-// HOW TO RUN (one command, it starts everything; it uses the emulator's fixed
-// ports, so run one emulator suite at a time):
+// HOW TO RUN (one command, it starts everything; by default it uses the
+// emulator's fixed ports, so run one emulator suite at a time):
 //
 //   node tests/browser/classRewardsQa.mjs [screenshotDir]
+//
+// Beside another suite, give it ports of its own: FIRESTORE_EMULATOR_HOST
+// (an emulator already answering there is used, as the other drivers of its
+// CI job use one), CLASS_REWARDS_QA_PORT and CLASS_REWARDS_QA_API_PORT.
 //
 // What is real: the screens (the app's own components), every Firestore read
 // and listener (against the emulator), and every class reward transaction —
@@ -56,9 +60,11 @@ const stopAll = () => {
   }
 };
 process.on('exit', stopAll);
+// Whether this run started the emulator, and so waits for it to stop.
+let emulatorStarted = false;
 const shutdown = async () => {
   for (const child of started) { try { process.kill(-child.pid, 'SIGINT'); } catch { /* gone */ } }
-  for (let i = 0; i < 20; i += 1) {
+  for (let i = 0; emulatorStarted && i < 20; i += 1) {
     try { await fetch(`http://${EMULATOR}/`); } catch { break; }
     await wait(250);
   }
@@ -66,10 +72,16 @@ const shutdown = async () => {
 };
 
 process.env.FIRESTORE_EMULATOR_HOST = EMULATOR;
-const emulator = spawn('npx', ['firebase', 'emulators:start', '--only', 'firestore', '--project', 'mathmaster-game-harness', '--config', path.join(here, 'emulator/firebase.json')],
-  { cwd: path.join(here, 'emulator'), stdio: 'ignore', detached: true });
-started.push(emulator);
-if (!await waitForHttp(`http://${EMULATOR}/`)) { console.error('Firestore emulator did not start.'); process.exit(2); }
+// An emulator already answering at FIRESTORE_EMULATOR_HOST is used as it is.
+// Starting one from the fixed config whatever the host said bound the default
+// port beside it, or failed on it while another suite held it.
+if (!await waitForHttp(`http://${EMULATOR}/`, 2)) {
+  const emulator = spawn('npx', ['firebase', 'emulators:start', '--only', 'firestore', '--project', 'mathmaster-game-harness', '--config', path.join(here, 'emulator/firebase.json')],
+    { cwd: path.join(here, 'emulator'), stdio: 'ignore', detached: true });
+  started.push(emulator);
+  emulatorStarted = true;
+  if (!await waitForHttp(`http://${EMULATOR}/`)) { console.error('Firestore emulator did not start.'); process.exit(2); }
+}
 await fetch(`http://${EMULATOR}/emulator/v1/projects/mathmaster-game-harness/databases/(default)/documents`, { method: 'DELETE' });
 
 const vite = spawn('npx', ['vite', '--config', path.join(here, 'classRewardsQa.vite.config.mjs'), '--port', String(PORT), '--strictPort'],
@@ -77,6 +89,11 @@ const vite = spawn('npx', ['vite', '--config', path.join(here, 'classRewardsQa.v
 started.push(vite);
 if (!await waitForHttp(`${ORIGIN}/`)) { console.error('Vite did not start.'); process.exit(2); }
 
+// Transactions are re-run as production re-runs them: the emulator closes a
+// contended one that production would re-run, and the command fails instead
+// (liveChallengeShellQa.mjs; the integration suites load the same re-run). The
+// reward store's redeem, catalog and request writes are transactions.
+await import(path.join(repo, 'tests/integration/support/emulatorTransactions.mjs'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 if (!admin.apps.length) admin.initializeApp({ projectId: 'mathmaster-game-harness' });
 const db = admin.firestore();

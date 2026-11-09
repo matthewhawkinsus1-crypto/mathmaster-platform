@@ -36,11 +36,13 @@ function courseLabel(course) {
   return details ? `${course.name} — ${details}` : course.name;
 }
 
+// A publish result's status in theme tokens, so it holds its contrast on the
+// dark theme's rows too: the fixed light-theme colours read below 3:1 there.
 function statusColor(status) {
-  if (status === 'published' || status === 'already-published') return '#188038';
-  if (status === 'failed') return '#c5221f';
-  if (status === 'publishing' || status === 'in-progress') return '#b06000';
-  return '#5f6368';
+  if (status === 'published' || status === 'already-published') return 'var(--mm-success)';
+  if (status === 'failed') return 'var(--mm-danger)';
+  if (status === 'publishing' || status === 'in-progress') return 'var(--mm-warning-text)';
+  return 'var(--mm-text-muted)';
 }
 
 export default function ClassroomSync({ assignments = [] }) {
@@ -340,7 +342,7 @@ export default function ClassroomSync({ assignments = [] }) {
               <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))' }}>
                 Roster links are course-specific. Link the same student separately in every Classroom course that should receive grade passback.
               </p>
-              <div style={{ overflowX: 'auto' }}>
+              <div role="region" aria-label="Classroom roster links" tabIndex={0} style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(14 * var(--mm-px))' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
@@ -517,7 +519,7 @@ export default function ClassroomSync({ assignments = [] }) {
       {links.length > 0 && (
         <div style={{ marginTop: '25px' }}>
           <h3 style={{ fontSize: 'calc(15 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>Classroom Publications</h3>
-          <div style={{ overflowX: 'auto' }}>
+          <div role="region" aria-label="Classroom publications" tabIndex={0} style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(14 * var(--mm-px))' }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>

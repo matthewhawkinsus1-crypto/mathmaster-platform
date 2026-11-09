@@ -8,7 +8,11 @@
  *   Same environment as accessibilityCertification.mjs (AUDIT_ORIGIN,
  *   TEACHER_HARNESS_ORIGIN, ONLY=<screen id>[,...], PLAYWRIGHT_MODULE /
  *   CHROMIUM_PATH, ACCESSIBILITY_ARTIFACTS). Writes contrast-review.json
- *   next to the certification's report.json.
+ *   next to the certification's report.json. Light theme, as the
+ *   certification; COLOR_SCHEME=dark reads the same scenes on a dark device
+ *   (the app follows the device; a standalone harness, which does not, is put
+ *   in the dark theme as darkModeCertification.mjs puts its own). CI reads
+ *   both, each in a job of its own (accessibility-certification.yml).
  *
  * WHY. axe answers "needs review" for text it cannot place on one solid colour:
  * text over a gradient, an image, a pseudo-element, or a translucent layer, and
@@ -20,13 +24,33 @@
  * viewports (the certification's own drivers and contexts):
  *
  *   1. STOPS. Walk the element and its ancestors to the root, collecting every
- *      background-color and every colour stop of every background-image
- *      gradient. Composite back to front over white: each stop over every
- *      candidate colour beneath it (rgba is composited, never dropped). Opacity
- *      on the text's own chain fades the text toward its background.
+ *      background-color and every background-image gradient. At each of the
+ *      node's text boxes, cell by cell (16px), composite back to front over
+ *      white, each box's colour and images as layers, the first image on top
+ *      (support/backgroundLayers.mjs). A gradient is read where the text is: its
+ *      tile (background-size, -position, -repeat) and its line or ray give the
+ *      colours it paints over that cell, each composited over every candidate
+ *      colour beneath it, so a glow counts as bright as it is there, not at its
+ *      centre (checked against the pixels Chromium paints). One the review
+ *      cannot place (a conic gradient, a colour hint, a calc() size, a rotated
+ *      or skewed box, a box the text scrolls or is pinned across inside it) is
+ *      read whole: every stop, and one that fades to transparent over what
+ *      covers the box beneath it. A box that scrolls its own content is read
+ *      where it is scrolled to (its scroll shadows where they are drawn).
+ *      rgba is composited, never dropped. Opacity on the text's own chain
+ *      fades the text toward its background.
  *   2. PIXELS. Make the node's text (and its descendants', and SVG text fill)
  *      transparent, screenshot each of the node's text boxes, and take the
  *      darkest and the lightest background pixel (by relative luminance).
+ *      The node's own border is made transparent too (its width stays, so
+ *      nothing moves): a text box is the font's whole height, taller than
+ *      its glyphs, and where a line is shorter than that it reaches across
+ *      the node's padding into its border. The border frames the text and is
+ *      not behind it: read as its background, the Live Challenge lobby's
+ *      name plate (34px under the root's 26.1px line, inside a white border)
+ *      read 1.30:1 where it is 4.80:1. What the border hid is read instead,
+ *      the node's own background. An ancestor's border is still read: text
+ *      that runs over one is on it.
  *   3. The node's ratio is the WORST of text-vs-each-stop and text-vs-darkest /
  *      text-vs-lightest pixel. Required: 4.5:1, 3:1 for large text (>= 24px, or
  *      >= 18.66px bold), 3:1 for an icon glyph that is a control's only visible
@@ -41,14 +65,21 @@
  * Families group nodes by component: the node's own classes/tag plus its
  * nearest identified ancestor (a class, data-mm-*, aria-label or role).
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AXE_PATH, settleForAudit } from './accessibilityAudit.mjs';
-import { CERTIFIED_SCREENS, VIEWPORTS, newScreenContext, sceneLabel, sceneScope } from './accessibilityCertification.mjs';
+import { VIEWPORTS, newScreenContext, runScope, sceneLabel, sceneScope, screensToRun } from './accessibilityCertification.mjs';
+import { backgroundLayersInPage } from './support/backgroundLayers.mjs';
+import {
+  compare, describeFailures, mergeNormalized, normalizeViolations, parseRatchetKey, ratchetFailed, readBaselineCounts,
+} from '../../scripts/lib/accessibilityRatchet.mjs';
+import { DARK_CONTRAST_RULE, buildDarkContrastBaseline, darkContrastCounts, unexplainedKeys } from '../../scripts/lib/darkContrastRatchet.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
+// Axe's own contrast verdicts in the dark theme, ratcheted (scripts/lib/darkContrastRatchet.mjs).
+export const DARK_BASELINE_PATH = path.join(repo, 'scripts/accessibility-dark-contrast-baseline.json');
 
 // ------------------------------------------------------------------ colour maths (node side)
 const channel = (value) => {
@@ -77,15 +108,36 @@ export const worstRatio = (text, backgrounds) => {
 };
 
 // ------------------------------------------------------------------ in-page analysis
+/*
+ * Runs in the page: the nodes axe itself decided fail color-contrast, as the certification's audit returns them
+ * (accessibilityAudit.mjs), for the dark theme's ratchet. The light theme's are the certification's, which runs
+ * every WCAG rule. Read before the review touches the page (it hides text and borders to read pixels).
+ */
+export const collectViolationsInPage = async ({ include, exclude }) => {
+  const context = { include: include.length ? include.map((s) => [s]) : [['html']] };
+  if (exclude.length) context.exclude = exclude.map((s) => [s]);
+  const result = await window.axe.run(context, { runOnly: { type: 'rule', values: ['color-contrast'] }, resultTypes: ['violations'], elementRef: false });
+  return result.violations.map((violation) => ({
+    id: violation.id,
+    impact: violation.impact,
+    help: violation.help,
+    helpUrl: violation.helpUrl,
+    nodes: violation.nodes.map((node) => ({ target: node.target, html: node.html, failureSummary: node.failureSummary })),
+  }));
+};
+
 /* Runs in the page: axe's incomplete color-contrast nodes, each described. */
-const collectInPage = async ({ include, exclude }) => {
+export const collectInPage = async ({ include, exclude }) => {
   const context = { include: include.length ? include.map((s) => [s]) : [['html']] };
   if (exclude.length) context.exclude = exclude.map((s) => [s]);
   const result = await window.axe.run(context, { runOnly: { type: 'rule', values: ['color-contrast'] }, resultTypes: ['incomplete'], elementRef: true });
   const entry = result.incomplete.find((item) => item.id === 'color-contrast');
   const nodes = entry ? entry.nodes : [];
 
+  // A color-mix() computes to color(srgb …), which the shared parser reads.
   const parse = (value) => {
+    const exact = window.__crLayers.parseColour(value);
+    if (exact) return exact;
     const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)/.exec(value || '');
     if (!m) return null;
     let a = m[4] == null ? 1 : (m[4].endsWith('%') ? Number(m[4].slice(0, -1)) / 100 : Number(m[4]));
@@ -103,7 +155,6 @@ const collectInPage = async ({ include, exclude }) => {
     return stops.filter(Boolean);
   };
   const hasUrlImage = (image) => /url\(/.test(image || '');
-  const over = ([r, g, b, a], [br, bg, bb]) => [r * a + br * (1 - a), g * a + bg * (1 - a), b * a + bb * (1 - a)];
 
   const idOf = (el) => {
     const bits = [];
@@ -136,6 +187,38 @@ const collectInPage = async ({ include, exclude }) => {
   const CONTROL = 'button, a[href], [role="button"], [role="tab"], [role="radio"], [role="switch"], [role="link"], label, summary, [role="status"], [role="alert"]';
   const isEmoji = (text) => /\p{Extended_Pictographic}/u.test(text);
 
+  // The text's own boxes, the rectangles the pixels are read from too
+  // (measurePixels): each line box of its text, or the element's box.
+  const textBoxes = (el) => {
+    const boxes = [];
+    const add = (r) => { if (r.width > 0 && r.height > 0) boxes.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom }); };
+    if (el instanceof SVGElement) add(el.getBoundingClientRect());
+    else {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        for (const r of range.getClientRects()) add(r);
+      }
+      if (!boxes.length) add(el.getBoundingClientRect());
+    }
+    return boxes.slice(0, 12);
+  };
+  // Rotated, skewed or flipped: its background no longer lines up with the
+  // viewport's rectangles, so it is read whole.
+  const turned = (s) => {
+    if ((s.rotate && s.rotate !== 'none') || (s.scale && s.scale !== 'none' && s.scale.split(/\s+/).some((v) => !(parseFloat(v) > 0)))) return true;
+    if (!s.transform || s.transform === 'none') return false;
+    const m = /^matrix\(([^)]*)\)$/.exec(s.transform);
+    if (!m) return true;
+    const [a, b, c, d] = m[1].split(',').map(Number);
+    return Math.abs(b) > 1e-6 || Math.abs(c) > 1e-6 || !(a > 0) || !(d > 0);
+  };
+  const scrolls = (node, s) => (/auto|scroll/.test(s.overflowY) && node.scrollHeight > node.clientHeight + 1)
+    || (/auto|scroll/.test(s.overflowX) && node.scrollWidth > node.clientWidth + 1);
+  const px = (v) => parseFloat(v) || 0;
+
   const describe = (el) => {
     const style = getComputedStyle(el);
     const fontSize = parseFloat(style.fontSize);
@@ -150,36 +233,78 @@ const collectInPage = async ({ include, exclude }) => {
     const chain = [];
     for (let node = el; node && node.nodeType === 1; node = node.parentElement || node.getRootNode()?.host) chain.push(node);
     chain.reverse();
-    let candidates = [[255, 255, 255]];
+    const styles = chain.map((node) => getComputedStyle(node));
+    // Where each box paints, for reading its images at the text's boxes
+    // (support/backgroundLayers.mjs). The page's own background covers the
+    // canvas, placed on the root's box; the body's is the page's when the root
+    // has none. A box is read whole if it or a box around it is turned, or if
+    // the text can move across it: a box between it and the text scrolls or is
+    // fixed or sticky (each moves when scrolled). A box that scrolls its own
+    // content is placed by where it is scrolled to: an image attached `scroll`
+    // stays on its padding box, and one attached `local` moves with the content
+    // (`scroll` below). Read whole, a question panel's scroll shadows (a 10 px
+    // band of 28% grey at the top, under a cover that hides it at the top of
+    // the scroll) put that grey behind text the band never reaches.
+    const rootBare = !(parse(styles[0].backgroundColor)?.[3] > 0) && styles[0].backgroundImage === 'none';
+    let straight = true;
+    const boxes = chain.map((node, i) => {
+      straight = straight && !turned(styles[i]);
+      const moves = (k) => scrolls(chain[k], styles[k]) || /fixed|sticky/.test(styles[k].position);
+      const still = !chain.slice(i + 1).some((_, k) => moves(i + 1 + k));
+      const ownScroll = i > 0 && scrolls(node, styles[i]);
+      const canvas = i === 0 || (i === 1 && node === document.body && rootBare);
+      const s = canvas ? styles[0] : styles[i];
+      const r = (canvas ? chain[0] : node).getBoundingClientRect();
+      return {
+        border: { left: r.left, top: r.top, width: r.width, height: r.height },
+        borders: [px(s.borderTopWidth), px(s.borderRightWidth), px(s.borderBottomWidth), px(s.borderLeftWidth)],
+        paddings: [px(s.paddingTop), px(s.paddingRight), px(s.paddingBottom), px(s.paddingLeft)],
+        clip: canvas ? null : { left: r.left, top: r.top, width: r.width, height: r.height },
+        plain: straight && still,
+        scroll: ownScroll ? { left: node.scrollLeft, top: node.scrollTop, width: node.scrollWidth, height: node.scrollHeight } : null,
+      };
+    });
+    // One list of candidates per cell of each text box: a glow is read where
+    // each part of each line is.
+    const rects = textBoxes(el).flatMap((box) => window.__crLayers.cellsOf(box));
+    let perRect = (rects.length ? rects : [null]).map(() => [[255, 255, 255]]);
     const notes = new Set();
     let fade = 1; // opacity between the text and its nearest opaque layer
-    for (const node of chain) {
-      const s = getComputedStyle(node);
-      const layers = [];
+    chain.forEach((node, i) => {
+      const s = styles[i];
       const bg = parse(s.backgroundColor);
-      if (bg && bg[3] > 0 && !(node === el && gradientText.length)) layers.push([bg]);
-      const stops = node === el && gradientText.length ? [] : gradientStops(s.backgroundImage);
-      if (stops.length) { layers.push(stops); notes.add('gradient'); }
+      const colour = bg && bg[3] > 0 && !(node === el && gradientText.length) ? [bg] : null;
+      const background = {
+        image: node === el && gradientText.length ? 'none' : s.backgroundImage, size: s.backgroundSize,
+        positionX: s.backgroundPositionX, positionY: s.backgroundPositionY, repeat: s.backgroundRepeat,
+        origin: s.backgroundOrigin, attachment: s.backgroundAttachment,
+      };
+      // Each background image is a layer of its own, the first painted on top,
+      // read at the text's box where it can be placed: a transparent stop shows
+      // what is under that image, not the page, and a glow counts as bright as
+      // it is where the text is, not at its centre.
+      const layersByRect = perRect.map((_, k) => {
+        const layers = colour ? [colour] : [];
+        for (const image of window.__crLayers.imageLayersAt(background, boxes[i], rects[k] || null).reverse()) {
+          if (!image.stops.length) continue;
+          layers.push(image);
+          notes.add(image.placed ? 'gradient' : 'gradient read whole');
+        }
+        return layers;
+      });
       if (hasUrlImage(s.backgroundImage)) notes.add('image');
       for (const pseudo of ['::before', '::after']) {
         const p = getComputedStyle(node, pseudo);
         if (p.content && p.content !== 'none' && (parse(p.backgroundColor)?.[3] > 0 || gradientStops(p.backgroundImage).length)) notes.add(`pseudo ${pseudo}`);
       }
       if (s.mixBlendMode !== 'normal' || (s.filter && s.filter !== 'none') || (s.backdropFilter && s.backdropFilter !== 'none')) notes.add('blend/filter');
-      for (const stopsOfLayer of layers) {
-        const next = [];
-        for (const beneath of candidates) {
-          for (const stop of stopsOfLayer) next.push(over(stop, beneath));
-        }
-        // Keep the distinct candidates (rounded), bounded.
-        const seen = new Map();
-        for (const c of next) seen.set(c.map((v) => Math.round(v)).join(','), c.map((v) => Math.round(v)));
-        candidates = [...seen.values()].slice(0, 400);
-      }
+      // Keep the distinct candidates (rounded), bounded.
+      perRect = perRect.map((candidates, k) => window.__crLayers.compositeLayers(candidates, layersByRect[k]));
       const opacity = Number(s.opacity);
-      if (layers.some((l) => l.every((stop) => stop[3] >= 1))) fade = 1;
+      if (layersByRect.every((layers) => layers.some((l) => (Array.isArray(l) ? l : l.stops).every((stop) => stop[3] >= 1)))) fade = 1;
       if (opacity < 1) { fade *= opacity; notes.add(`opacity ${opacity}`); }
-    }
+    });
+    const candidates = [...new Map(perRect.flat().map((c) => [c.join(','), c])).values()];
     const textColours = texts.map((c) => [c[0], c[1], c[2], c[3] * fade]);
     const glyph = (el.textContent || '').trim();
     const ariaHidden = Boolean(el.closest('[aria-hidden="true"]'));
@@ -255,18 +380,26 @@ const pixelExtremes = async (b64) => {
   return { dark, light };
 };
 
-const HIDE_CSS = `
-  .__crHide, .__crHide * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; caret-color: transparent !important; }
-  .__crHide text, text.__crHide, .__crHide tspan, tspan.__crHide { fill: transparent !important; stroke: transparent !important; }
+// The hiding rules outrank every colour rule of the app's: each carries three
+// ids it never matches (:not(#…)), so a rule such as the dark theme's
+// ":root[data-theme='dark'] #root select { color: … !important }" cannot keep
+// the text in the shot, where its own pixels were read as its background (the
+// projector's threshold select, 1:1 in dark where it is about 13:1).
+const OUTRANK = ':not(#__cr):not(#__cr):not(#__cr)';
+export const HIDE_CSS = `
+  .__crHide${OUTRANK}, .__crHide *${OUTRANK} { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; caret-color: transparent !important; }
+  .__crHide text${OUTRANK}, text.__crHide${OUTRANK}, .__crHide tspan${OUTRANK}, tspan.__crHide${OUTRANK} { fill: transparent !important; stroke: transparent !important; }
   /* Gradient text (background-clip: text) is painted by its own background, so a
      transparent colour leaves the glyphs in the shot: take the paint away, and
      the drop-shadow glow that follows the glyphs with it (as text-shadow above). */
-  .__crHideClip { background-image: none !important; filter: none !important; }
+  .__crHideClip${OUTRANK} { background-image: none !important; filter: none !important; }
+  /* The node's own border, and only the node's (measurePixels). */
+  .__crHideBorder${OUTRANK} { border-color: transparent !important; border-image: none !important; }
   *, *::before, *::after { transition: none !important; animation-play-state: paused !important; }
 `;
 
 /* Screenshot each text box of target `index` with its text hidden. */
-const measurePixels = async (page, index) => {
+export const measurePixels = async (page, index) => {
   const rects = await page.evaluate(({ i, css }) => {
     const el = window.__crTargets[i];
     if (!el?.isConnected) return [];
@@ -281,7 +414,7 @@ const measurePixels = async (page, index) => {
       host.append(style);
     }
     el.scrollIntoView({ block: 'center', inline: 'center' });
-    el.classList.add('__crHide');
+    el.classList.add('__crHide', '__crHideBorder');
     for (const node of [el, ...el.querySelectorAll('*')]) {
       const clip = getComputedStyle(node);
       if (/text/.test(clip.backgroundClip || clip.webkitBackgroundClip || '')) node.classList.add('__crHideClip');
@@ -318,7 +451,7 @@ const measurePixels = async (page, index) => {
   await page.evaluate((i) => {
     const el = window.__crTargets[i];
     if (!el) return;
-    el.classList.remove('__crHide');
+    el.classList.remove('__crHide', '__crHideBorder');
     for (const node of [el, ...el.querySelectorAll('.__crHideClip')]) node.classList.remove('__crHideClip');
   }, index);
   const all = extremes.flatMap((e) => [e.dark, e.light]).filter(Boolean);
@@ -327,7 +460,7 @@ const measurePixels = async (page, index) => {
   return { dark: sorted[0], light: sorted[sorted.length - 1] };
 };
 
-const judge = (info, pixels) => {
+export const judge = (info, pixels) => {
   const backgrounds = [...info.stopCandidates];
   if (pixels) backgrounds.push(pixels.dark, pixels.light);
   let worst = { ratio: Infinity, against: null, text: null };
@@ -342,8 +475,15 @@ const hex = (c) => (c ? `#${c.slice(0, 3).map((v) => Math.round(v).toString(16).
 
 // ------------------------------------------------------------------ main
 const main = async () => {
+  const colorScheme = process.env.COLOR_SCHEME === 'dark' ? 'dark' : 'light';
+  // In the dark theme, axe's own color-contrast verdicts too, against their baseline (DARK_BASELINE_PATH). The light
+  // theme's are the certification's, which gates every rule.
+  const darkRatchet = colorScheme === 'dark';
+  const WRITE = process.argv.includes('--write-baseline');
+  if (WRITE && !darkRatchet) throw new Error('--write-baseline writes the dark theme\'s contrast baseline: run it with COLOR_SCHEME=dark (the light theme\'s is the certification\'s, npm run certify:accessibility -- --write-baseline)');
   const ONLY = new Set(String(process.env.ONLY || '').split(',').map((s) => s.trim()).filter(Boolean));
-  const screens = CERTIFIED_SCREENS.filter((screen) => !ONLY.size || ONLY.has(screen.id));
+  // The certification's screens (screensToRun): a run that names none leaves a screen with a job of its own to that job.
+  const screens = screensToRun(ONLY);
   const origins = {
     app: process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188',
     audit: process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199',
@@ -356,6 +496,7 @@ const main = async () => {
   else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
   const browser = await chromium.launch(launchOptions);
 
+  const verdicts = [];
   const nodes = [];
   const unreachable = [];
   for (const viewport of VIEWPORTS) {
@@ -363,8 +504,17 @@ const main = async () => {
       const context = await newScreenContext(browser, screen, {
         viewport: { width: viewport.width, height: viewport.height },
         isMobile: Boolean(viewport.isMobile), hasTouch: Boolean(viewport.hasTouch),
-        colorScheme: 'light', reducedMotion: 'reduce',
+        colorScheme, reducedMotion: 'reduce',
       });
+      // A harness that does not follow the device is put in the dark theme
+      // before its first paint, as the app's own script puts the app.
+      if (colorScheme === 'dark') {
+        await context.addInitScript(() => {
+          const dark = () => { document.documentElement.dataset.theme = 'dark'; document.documentElement.style.colorScheme = 'dark'; };
+          if (document.documentElement) dark();
+          else new MutationObserver((_, observer) => { if (document.documentElement) { dark(); observer.disconnect(); } }).observe(document, { childList: true });
+        });
+      }
       await context.route('**/*', (route) => {
         const url = route.request().url();
         if (/^(https?|wss?):\/\/(localhost|127\.0\.0\.1)[:/]/.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
@@ -392,6 +542,12 @@ const main = async () => {
         if (!(await page.evaluate(() => typeof window.axe?.run === 'function'))) await page.addScriptTag({ path: AXE_PATH });
         const asList = (v) => (v == null ? [] : (Array.isArray(v) ? v : [v]));
         const scope = sceneScope(screen, scene);
+        // What axe decided, before the review hides anything to read its pixels.
+        const decided = darkRatchet
+          ? normalizeViolations({ screen: label, viewport: viewport.id, violations: await page.evaluate(collectViolationsInPage, { include: asList(scope.include), exclude: asList(scope.exclude) }) })
+          : null;
+        if (decided) verdicts.push(decided);
+        await page.evaluate(backgroundLayersInPage);
         const described = await page.evaluate(collectInPage, { include: asList(scope.include), exclude: asList(scope.exclude) });
         for (const info of described) {
           // eslint-disable-next-line no-await-in-loop
@@ -440,7 +596,8 @@ const main = async () => {
             decision: decision || null, pass,
           });
         }
-        console.log(`     ${label.padEnd(32)} ${viewport.id.padEnd(8)} ${described.length} undecided node(s)`);
+        const failingByAxe = decided ? Object.values(decided.counts).reduce((sum, count) => sum + count, 0) : null;
+        console.log(`     ${label.padEnd(32)} ${viewport.id.padEnd(8)} ${described.length} undecided node(s)${decided ? `, ${failingByAxe} failing by axe` : ''}`);
       }
       await context.close();
     }
@@ -487,16 +644,55 @@ const main = async () => {
   const failing = nodes.filter((node) => !node.pass);
   const report = {
     generatedBy: 'tests/browser/contrastReview.mjs',
-    method: 'worst of text vs every composited background stop and vs the darkest/lightest background pixel with the text hidden',
+    method: 'worst of text vs every background colour composited at its text boxes (a gradient read where the text is, or whole where it cannot be placed) and vs the darkest/lightest background pixel with the text hidden',
+    colorScheme,
     unreachable, totals: { nodes: nodes.length, families: familyRows.length, failingNodes: failing.length, skippedDecorative: nodes.filter((n) => n.decision?.startsWith('skip')).length },
     families: familyRows, nodes,
   };
+  // AXE'S OWN VERDICTS IN THE DARK THEME, against their baseline (scripts/lib/darkContrastRatchet.mjs): a node axe
+  // decides fails where the baseline has no key for it, or more of them than it counts, fails the run. A partial run
+  // (ONLY) judges, and writes, only the screens it ran.
+  let darkFailed = false;
+  if (darkRatchet) {
+    const current = mergeNormalized(...verdicts);
+    const counts = darkContrastCounts(current.counts);
+    const baseline = (() => { try { return JSON.parse(readFileSync(DARK_BASELINE_PATH, 'utf8')); } catch { return { counts: {}, targets: {}, reasons: {} }; } })();
+    const inRun = runScope(screens);
+    const comparison = compare(readBaselineCounts(baseline), counts, { scope: inRun });
+    const baselineName = path.relative(repo, DARK_BASELINE_PATH);
+    report.darkContrast = { rule: DARK_CONTRAST_RULE, baseline: baselineName, comparison, counts, details: current.details };
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+    console.log(`\nIn the dark theme axe decides ${total} node(s) fail ${DARK_CONTRAST_RULE}, in ${Object.keys(counts).length} scene|viewport key(s) (baseline ${baselineName}).`);
+    if (WRITE) {
+      if (unreachable.length) {
+        console.error(`Not writing the dark baseline: ${unreachable.length} scene(s) could not be reached.`);
+        darkFailed = true;
+      } else {
+        const keep = (key) => Boolean(inRun) && !inRun(parseRatchetKey(key));
+        const kept = (map = {}) => Object.fromEntries(Object.entries(map).filter(([key]) => keep(key)));
+        const next = buildDarkContrastBaseline({ counts: { ...kept(baseline.counts), ...counts }, details: current.details, reasons: baseline.reasons || {} });
+        next.targets = Object.fromEntries(Object.entries({ ...kept(baseline.targets), ...next.targets }).filter(([key]) => key in next.counts).sort(([a], [b]) => a.localeCompare(b)));
+        writeFileSync(DARK_BASELINE_PATH, `${JSON.stringify(next, null, 2)}\n`);
+        const unexplained = unexplainedKeys(next);
+        console.log(`Wrote ${baselineName}: ${Object.keys(next.counts).length} key(s), ${Object.values(next.counts).reduce((sum, count) => sum + count, 0)} failing node(s).`);
+        if (unexplained.length) console.log(`Give each of these its reason in the file's "reasons" (tests/platform/darkContrastRatchet.test.mjs fails until then):\n  ${unexplained.join('\n  ')}`);
+      }
+    } else if (ratchetFailed(comparison)) {
+      darkFailed = true;
+      console.error(`\nNew color-contrast failures in the dark theme (axe-core's own verdicts). Fix them, or - only for a deliberate, reviewed exception, with its reason - run with COLOR_SCHEME=dark and --write-baseline:`);
+      describeFailures(comparison, { details: current.details, baselineTargets: baseline.targets || {} }).forEach((line) => console.error(`  ${line}`));
+    }
+    if (!WRITE && comparison.reduced.length) {
+      console.log(`\n${comparison.reduced.length} dark count(s) below the baseline - the baseline can be lowered: run with COLOR_SCHEME=dark and --write-baseline`);
+      comparison.reduced.forEach((row) => console.log(`  ${row.key}: ${row.count} (baseline ${row.baseline})`));
+    }
+  }
   writeFileSync(path.join(artifacts, 'contrast-review.json'), `${JSON.stringify(report, null, 2)}\n`);
   console.log(`\n${nodes.length} undecided color-contrast node(s) in ${familyRows.length} famil(ies); ${failing.length} fail, ${report.totals.skippedDecorative} skipped as decorative. Report: ${path.relative(repo, path.join(artifacts, 'contrast-review.json'))}`);
   if (unreachable.length) {
     console.error(`${unreachable.length} scene(s) could not be reached:\n  ${unreachable.join('\n  ')}`);
   }
-  if (failing.length || unreachable.length) process.exitCode = 1;
+  if (failing.length || unreachable.length || darkFailed) process.exitCode = 1;
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

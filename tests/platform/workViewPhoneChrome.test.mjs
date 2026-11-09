@@ -150,7 +150,9 @@ test('the Enlarge button says how big it is, and the rows it floats over leave i
   const effect = region(figure, 'const publishSpace = () => {', '}, [enlarged]);', 'the opener measurement');
   assert.match(effect, /opener\.offsetWidth/);
   assert.match(effect, /'--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`/);
-  assert.match(effect, /new ResizeObserver\(publishSpace\)/);
+  // Measured again when the button or the room beside it changes, in the
+  // frame after its observer reports it (P-5, openerRoomObserver.test.mjs).
+  assert.match(effect, /observeOpenerRoom\(\{ opener, surface, publish: publishSpace \}\)/);
   assert.match(effect, /removeProperty\('--mm-work-view-opener-space'\)/);
   assert.match(figure, /const surface = opener\?\.parentElement;\n\s*if \(enlarged \|\| !opener \|\| !surface\) return undefined;/, 'measured only while the button is shown');
 

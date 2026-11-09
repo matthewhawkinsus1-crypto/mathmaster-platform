@@ -13,7 +13,7 @@ function SectionTable({ sections, caption }) {
   const rows = SECTION_ORDER.map((key) => sections.find((entry) => entry.key === key)).filter(Boolean);
   if (!rows.length) return null;
   return (
-    <div className="cr-scroll-x">
+    <div className="cr-scroll-x" role="region" aria-label="Summary measures" tabIndex={0}>
       <table className="cr-table" aria-label={caption}>
         <thead><tr><th>{caption}</th><th>Items answered</th><th>Correct by final attempt</th><th>Mean credit</th><th>First-attempt correct</th></tr></thead>
         <tbody>

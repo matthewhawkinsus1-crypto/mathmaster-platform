@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
+// Auth from firebaseApp.js, not firebase.js: the sign-in screen does not wait
+// for the Firestore SDK (firebaseApp.js).
+import { auth } from '../firebaseApp.js';
 import {
   consumeRedirectResult,
   describeAuthError,
@@ -17,7 +19,10 @@ import {
 } from './authService';
 import { shouldPromoteClassroomStudentSession } from './classroomSession.js';
 import { clearAccountTabStorage } from './accountTabStorage.js';
-import { acceptStudentName } from '../platform/studentName.js';
+// From the shared resolver itself, which src/platform/studentName.js
+// re-exports to every screen: the same function, without the name formatting,
+// sorting and search the sign-in screen does not use.
+import { acceptStudentName } from '../../functions/shared/studentIdentity.mjs';
 
 const AuthContext = createContext(null);
 

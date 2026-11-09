@@ -228,12 +228,18 @@
     border-radius: 9px !important;
   }
 
-  .algebra-equation-side {
-    font-size: calc(20 * var(--mm-px)) !important;
+  /* A side is drawn at most 20 units here. The board's fit reads this cap
+     (StepByStepAlgebraCore.jsx AutoFitEquationExpression), so a long side
+     still shrinks, or scrolls, instead of being drawn at 20 and cut off: a
+     font size on the side itself overrode the fit (P-6). */
+  .algebra-expression-fit-viewport {
+    --algebra-side-max-size: 20;
   }
 
+  /* Each side's share comes from the board, so a long side borrows the room a
+     short one does not need (P-6); without one, the halves are equal. */
   .algebra-equation-stage {
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr) !important;
+    grid-template-columns: var(--algebra-side-left, minmax(0, 1fr)) 34px var(--algebra-side-right, minmax(0, 1fr)) !important;
     padding: 10px !important;
     gap: 6px !important;
   }
@@ -459,6 +465,48 @@
   }
 }
 
+/* The administrator's five section tabs (TT27) on a phone and a tablet: one
+   row that scrolls sideways, as the dashboard's strip above does from the same
+   width, instead of five stacked rows 246px tall on a phone (teacher features
+   walk, item 1) and two rows between 641 and 860px. Still one tab list: the
+   arrow keys move between the tabs and focus scrolls the one it reaches into
+   view. The room under the row and at its ends keeps a tab's focus ring inside
+   the scrolling box. A laptop's row is as it was. */
+@media (max-width: 860px) {
+  .mm-admin-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 12px;
+    scrollbar-width: thin;
+    padding-bottom: 6px !important;
+  }
+
+  .mm-admin-tabs > [role="tab"] {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+/* The same five tabs from 861 to 976px (a half-screen window on a 1920px
+   display): the laptop's row, which wrapped its fifth tab onto a second row
+   there, with tighter spacing so that all five fit on one: each tab's sides
+   8px instead of 16px, 4px between tabs instead of 8px, and the row's own
+   ends 14px, a phone's. Nothing scrolls. From 977px a laptop's row fits with
+   its own spacing, as it was; up to 860px the row above scrolls sideways. */
+@media (min-width: 861px) and (max-width: 976px) {
+  .mm-admin-tabs {
+    gap: 4px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .mm-admin-tabs > [role="tab"] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
 @media (max-width: 560px) {
   .mm-bulkbar {
     position: static;
@@ -607,6 +655,14 @@
     grid-template-columns: minmax(min(100%, 190px), 230px) minmax(0, 1fr) minmax(min(100%, 190px), 230px) !important;
     gap: 14px !important;
     align-items: start;
+  }
+
+  /* An interval's box fits the interval typed in it, as on the embedded rail
+     (InteractiveGraphWorkspace.jsx). A 230px column left 174px for a typed
+     (−∞, −1) ∪ (−1, ∞), which is 182px of math at the default text size and
+     twice that at 200%. 270 of the text's own px, so it grows with the text. */
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only.mathmaster-interval-answers {
+    grid-template-columns: minmax(min(100%, 190px), calc(270 * var(--mm-px))) minmax(0, 1fr) minmax(min(100%, 190px), calc(270 * var(--mm-px))) !important;
   }
 
   [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only > .mathmaster-function-workspace-sidebar {
@@ -1524,6 +1580,16 @@
   color: var(--mm-primary-text);
 }
 
+/* Answered, and how it stands is not known yet: the family engine is still
+   loading after a reload (P-7). No colour that says how it went; the dotted
+   ring tells it from "not started" and from closed. */
+.mathmaster-question-number.is-pending {
+  border-style: dotted;
+  border-color: var(--mm-border-strong);
+  background: var(--mm-surface);
+  color: var(--mm-text);
+}
+
 .mathmaster-question-number.is-locked,
 .mathmaster-question-number:disabled {
   border-color: var(--mm-border);
@@ -2320,6 +2386,22 @@
     padding-top: 12px;
     padding-bottom: 12px;
   }
+
+  /* The same sizes where a teacher sheet sets its own with a selector as
+     specific as the two above: supportEvidence.css's support options (18px)
+     and evidence tables (6px), teacherWorkspace.css's Grade Export rows (24px).
+     Those sheets load with the teacher's workspace, after this one, so these
+     name them and win by weight, whichever sheet comes last (PF01; the order
+     used to decide it, G2). */
+  .mm-dashboard-content :is(.se-option, .tw-export-row) input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mm-dashboard-content .se-table :is(td, th) {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
 }
 
 /* --- INTERACTIVE DISPLAY: two metres away ---------------------------------
@@ -2337,6 +2419,11 @@
 
   .mm-dashboard-content h2 { font-size: 1.9rem; }
   .mm-dashboard-content h3 { font-size: 1.45rem; }
+  /* The support evidence report sizes its own headings as specifically
+     (supportEvidence.css), and loads after this sheet: named, these win by
+     weight (PF01). */
+  .mm-dashboard-content .se-report h2 { font-size: 1.9rem; }
+  .mm-dashboard-content .se-report h3 { font-size: 1.45rem; }
 
   .mm-dashboard-content :is(button, select, input) {
     font-size: 1.05rem;

@@ -214,9 +214,9 @@
               "type": "choice",
               "options": [
                 "No — many different combinations raise exactly $3,000.",
-                "Yes — only one combination raises $3,000.",
-                "No — but only one combination is correct.",
-                "Yes — because there are two variables."
+                "Yes — only one pair of ticket numbers raises $3,000.",
+                "No — but only one of the pairs they found raises $3,000.",
+                "Yes — two variables means the equation has one solution."
               ],
               "answer": "No — many different combinations raise exactly $3,000."
             }
@@ -451,9 +451,9 @@
               "type": "choice",
               "options": [
                 "Whole numbers of student tickets from 0 to 600",
-                "All real numbers",
-                "Every number from 0 to 300",
-                "Any number of tickets greater than 600"
+                "All real numbers, since s can be any number of tickets",
+                "Whole numbers of student tickets from 0 to 300",
+                "Whole numbers of student tickets greater than 600"
               ],
               "answer": "Whole numbers of student tickets from 0 to 600"
             },
@@ -463,9 +463,9 @@
               "type": "choice",
               "options": [
                 "Whole numbers of adult tickets from 0 to 300",
-                "All real numbers",
-                "Every number from 0 to 600",
-                "Only 300"
+                "All real numbers, since a can be any number of tickets",
+                "Whole numbers of adult tickets from 0 to 600",
+                "Whole numbers of adult tickets greater than 300"
               ],
               "answer": "Whole numbers of adult tickets from 0 to 300"
             },
@@ -480,9 +480,9 @@
               "type": "choice",
               "options": [
                 "Every 2 more student tickets sold means 1 fewer adult ticket is needed.",
-                "Every 2 more adult tickets means 1 fewer student ticket.",
-                "Student tickets cost half as much as the goal.",
-                "Each ticket adds $0.50."
+                "Every 2 more adult tickets sold means 1 fewer student ticket is needed.",
+                "Every 2 more student tickets sold means 1 more adult ticket is needed.",
+                "Each student ticket sold adds $0.50 more toward the $3,000 goal."
               ],
               "answer": "Every 2 more student tickets sold means 1 fewer adult ticket is needed."
             }
@@ -558,9 +558,9 @@
               "type": "choice",
               "options": [
                 "Yes — each point is still a pair of ticket numbers that raises $3,000.",
-                "No — student tickets must be on the horizontal axis.",
-                "No — his line has the wrong intercepts.",
-                "Yes — but only because the slope is negative."
+                "No — student tickets must go on the horizontal axis, since s comes first.",
+                "No — his intercepts should be (600, 0) and (0, 300), as on the first graph.",
+                "Yes — but only because his line has a negative slope, like the first one."
               ],
               "answer": "Yes — each point is still a pair of ticket numbers that raises $3,000."
             },
@@ -587,9 +587,9 @@
               "type": "choice",
               "options": [
                 "Yes — every point on either line raises exactly $3,000.",
-                "No — neither graph shows money.",
-                "Only from Ethan’s graph.",
-                "Only at the intercepts."
+                "No — neither graph shows money, since both axes count tickets.",
+                "Only from Ethan’s graph, because his axes are switched.",
+                "Only at the intercepts, where one kind of ticket raises it all."
               ],
               "answer": "Yes — every point on either line raises exactly $3,000."
             }
@@ -756,9 +756,9 @@
           ],
           "snapStep": 50,
           "hints": [
-            "Find two points on each line: substitute two x-values into its equation. The y-intercept is often the easiest first point.",
+            "Find two points on each line: substitute two values of s into its equation. The a-intercept is often the easiest first point.",
             "The solution of a system is the point that makes BOTH equations true — on the graph, where the two lines cross.",
-            "Lines with the same slope never cross unless they are the same line. Compare the y-intercepts to decide which."
+            "Lines with the same slope never cross unless they are the same line. Compare the a-intercepts to decide which."
           ],
           "scaffold": {
             "prompt": "Let’s back up. The solution of a system is where the graphs…",
@@ -1203,9 +1203,9 @@
               "type": "choice",
               "options": [
                 "No — both save $10 a week, so their totals are always equal.",
-                "Yes — he saves $10 and Isabella saves only $4.",
-                "Yes — his line is above hers.",
-                "No — Isabella saves more each week."
+                "Yes — he saves $10 a week, but Isabella saves only $4.",
+                "Yes — his line is above hers, so his total is always larger.",
+                "No — Isabella saves more each week, since she makes two deposits."
               ],
               "answer": "No — both save $10 a week, so their totals are always equal."
             },
@@ -1344,7 +1344,7 @@
           "solutionReview": {
             "reasoning": [
               "Different slopes (2 and −1; 1 and −2): exactly one solution — consistent.",
-              "Same slope, different y-intercepts (4 and 4; −1 and −1): parallel, no solution — inconsistent.",
+              "Same slope (4 and 4; −1 and −1), different y-intercepts (−1 and 5; 6 and 2): parallel, no solution — inconsistent.",
               "6x + 2y = 4 is y = −3x + 2, and x − 2y = −8 is y = ½x + 4: the same lines, infinitely many solutions — consistent."
             ],
             "commonError": "Deciding from how the equations LOOK — rewrite standard form before comparing."
@@ -1388,9 +1388,9 @@
               "type": "choice",
               "options": [
                 "It lies on both lines, so it makes both equations true.",
-                "It lies on the first line only.",
-                "Its coordinates add to 9.",
-                "It is the y-intercept of both lines."
+                "It lies on the first line, so it solves the system.",
+                "Its coordinates add to 9, so it makes both equations true.",
+                "It is the y-intercept of both lines, so both equations share it."
               ],
               "answer": "It lies on both lines, so it makes both equations true."
             }
@@ -2131,9 +2131,9 @@
               "type": "choice",
               "options": [
                 "No — both equations are the same line, so there are infinitely many solutions.",
-                "Yes — different-looking equations never share a solution.",
-                "No — the lines cross at exactly one point.",
-                "Yes — the slopes are different."
+                "Yes — different-looking equations are different lines, so they never meet.",
+                "No — the lines have different slopes, so they cross at exactly one point.",
+                "Yes — the lines are parallel, so they never cross and there is no solution."
               ],
               "answer": "No — both equations are the same line, so there are infinitely many solutions."
             }

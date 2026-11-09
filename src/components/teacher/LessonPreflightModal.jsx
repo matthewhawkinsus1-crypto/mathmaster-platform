@@ -1822,7 +1822,7 @@ export const LessonPreflightModal = ({
             {draft.warmupEnabled !== false && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>The Warm-Up opens {draft.warmupMinutesBeforeStart ?? 7} minutes before that class begins, only on its instructional date. You can close it early from the Live Class Hub; students keep their saved work but the section becomes read-only.</p>}
             {draft.warmupEnabled !== false && draft.assignedClassPeriods.length > 0 && (
               <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different Warm-Up date for a specific class (optional)</summary>
+                <summary style={{ cursor: 'pointer', minHeight: 24, fontWeight: 900 }}>Different Warm-Up date for a specific class (optional)</summary>
                 <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>Useful for A-Day/B-Day sections that receive this same bundled lesson on different dates. Leaving a class unchanged uses the default Warm-Up date above.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
                   {draft.assignedClassPeriods.map((period) => (
@@ -1852,7 +1852,7 @@ export const LessonPreflightModal = ({
             {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>The DOL opens {dolOpensMinutesBeforeEnd} minutes before the bell, gives students {dolWorkMinutes} minutes to work, and closes {dolCloseMinutesBeforeEnd} minutes before class ends so technology can be returned. If you unlock it early from the live class controls, the same {dolWorkMinutes}-minute timer starts then but still cannot run into the final {dolCloseMinutesBeforeEnd}-minute pack-up window.</p>}
             {draft.dolEnabled && draft.assignedClassPeriods.length > 0 && (
               <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different DOL date for a specific class (optional)</summary>
+                <summary style={{ cursor: 'pointer', minHeight: 24, fontWeight: 900 }}>Different DOL date for a specific class (optional)</summary>
                 <p style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))', lineHeight: 1.5 }}>Use this when A-Day and B-Day sections receive the same bundled lesson on different calendar dates. Leaving a class unchanged uses the default DOL date above.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
                   {draft.assignedClassPeriods.map((period) => (
@@ -2088,7 +2088,7 @@ export const LessonPreflightModal = ({
             These Practice questions have no attempt feedback. A student who misses can ask "What might have gone wrong?", but a sentence you write for the next try says more. This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.attemptFeedback.warnings.length === 1 ? '1 question' : `${preflightModel.attemptFeedback.warnings.length} questions`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.attemptFeedback.warnings.length === 1 ? '1 question' : `${preflightModel.attemptFeedback.warnings.length} questions`}</summary>
             <ul data-attempt-feedback-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.attemptFeedback.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
@@ -2105,7 +2105,7 @@ export const LessonPreflightModal = ({
             These hints state what the student is asked to write, so after a few tries the hints have done the question. This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.hintAnswers.warnings.length === 1 ? '1 hint' : `${preflightModel.hintAnswers.warnings.length} hints`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.hintAnswers.warnings.length === 1 ? '1 hint' : `${preflightModel.hintAnswers.warnings.length} hints`}</summary>
             <ul data-hint-answer-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.hintAnswers.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
@@ -2123,7 +2123,7 @@ export const LessonPreflightModal = ({
             These options have the key's value. A student who picks one is marked wrong: check each question asks for a form, not just an equal value. This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.choiceOptions.warnings.length === 1 ? '1 question' : `${preflightModel.choiceOptions.warnings.length} questions`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.choiceOptions.warnings.length === 1 ? '1 question' : `${preflightModel.choiceOptions.warnings.length} questions`}</summary>
             <ul data-choice-option-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.choiceOptions.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
@@ -2141,7 +2141,7 @@ export const LessonPreflightModal = ({
             These keys may not be graded the way you mean them. Each one says what to change. This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.answerKeys.warnings.length === 1 ? '1 key' : `${preflightModel.answerKeys.warnings.length} keys`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.answerKeys.warnings.length === 1 ? '1 key' : `${preflightModel.answerKeys.warnings.length} keys`}</summary>
             <ul data-answer-key-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.answerKeys.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
@@ -2160,7 +2160,7 @@ export const LessonPreflightModal = ({
             These are written so that the answer may not be the one you expect: a system with no single solution, or a graph feature the function does not have. Each is marked correctly for students; check you meant it. This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.impossibleItems.warnings.length === 1 ? '1 note' : `${preflightModel.impossibleItems.warnings.length} notes`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.impossibleItems.warnings.length === 1 ? '1 note' : `${preflightModel.impossibleItems.warnings.length} notes`}</summary>
             <ul data-impossible-items-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.impossibleItems.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
@@ -2178,7 +2178,7 @@ export const LessonPreflightModal = ({
             MathMaster never shows a hint that names one of the question's answers, so these are skipped and the student gets the next hint instead. Reword one and it will be shown. This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.hiddenHints.warnings.length === 1 ? '1 hint' : `${preflightModel.hiddenHints.warnings.length} hints`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.hiddenHints.warnings.length === 1 ? '1 hint' : `${preflightModel.hiddenHints.warnings.length} hints`}</summary>
             <ul data-hidden-hint-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.hiddenHints.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
@@ -2196,7 +2196,7 @@ export const LessonPreflightModal = ({
             A student who reads in Spanish can press Translate beside a hint or a worked solution. MathMaster translates its own sentences, but only you can translate the ones you wrote: add them to the question as translations.es, with one line for each hint in the same order and a solutionReview with the same fields. A line that changes a number, letter or symbol is not used, and the student sees the English. In Spanish prose a lone y, o, a, e or u reads as a word, so write a variable like that inside $…$ (for example $y$). This does not stop you publishing.
           </p>
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.spanishVersions.warnings.length === 1 ? '1 note' : `${preflightModel.spanishVersions.warnings.length} notes`}</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.spanishVersions.warnings.length === 1 ? '1 note' : `${preflightModel.spanishVersions.warnings.length} notes`}</summary>
             <ul data-spanish-version-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.spanishVersions.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
@@ -2221,7 +2221,7 @@ export const LessonPreflightModal = ({
             </ul>
           )}
           <details>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>Every question's value</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>Every question's value</summary>
             <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
               {preflightModel.questionValues.rows.map((row) => (
                 <li key={`${row.questionIndex}-${row.questionId || ''}`} data-question-value-source={row.source}>
@@ -2254,7 +2254,7 @@ export const LessonPreflightModal = ({
             </button>
           )}
           <details style={{ marginTop: 10 }}>
-            <summary style={{ cursor: 'pointer', fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Developer details</summary>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Developer details</summary>
             <pre style={{ margin: '8px 0 0', padding: 10, borderRadius: 8, background: '#202124', color: '#e8eaed', fontSize: 'calc(11.5 * var(--mm-px))', whiteSpace: 'pre-wrap' }}>
               {JSON.stringify(preflightModel.toolContract.findings.map(({ questionId, questionNumber, rule, severity, expected, actual, recommendedRepair }) => ({
                 questionId, questionNumber, rule, severity, expected, actual,

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { importsComponent } from './helpers/componentImport.mjs';
 
 /*
  * WIRING THE REWARDS SYSTEM TOGETHER.
@@ -95,7 +96,9 @@ test('My Rewards is a student destination with its own screen, imported where it
   assert.match(branch, /<StudentRewardsCenter/);
   assert.match(branch, /onUsePracticePass=\{handleUsePracticePass\}/);
   assert.match(branch, /eligibleAssignments=\{studentPracticePassEligibleAssignments\}/);
-  assert.match(app, /import StudentRewardsCenter from '\.\/components\/student\/rewards\/StudentRewardsCenter\.jsx';/);
+  // Statically, or on demand from app/lazyScreens.js (PF01: the screen left
+  // the first load): either way a <StudentRewardsCenter> with no import is caught.
+  assert.ok(importsComponent('src/App.jsx', 'StudentRewardsCenter', 'src/components/student/rewards/StudentRewardsCenter.jsx'), 'App imports the Rewards screen it renders');
   assert.match(app, /import ChallengeRewardsEarned from '\.\/components\/student\/rewards\/ChallengeRewardsEarned\.jsx';/);
   assert.match(read('src/components/student/rewards/StudentRewardsCenter.jsx'), /current=\{STUDENT_DESTINATION\.REWARDS\}/);
 });

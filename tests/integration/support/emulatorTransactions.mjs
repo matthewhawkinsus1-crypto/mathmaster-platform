@@ -15,7 +15,11 @@
  * patched three times by resending commands from individual suites.
  *
  * This module closes that one gap and nothing else. It is loaded for every
- * integration suite through `node --import` (see package.json), and only when
+ * integration suite through `node --import` (see package.json), by every
+ * browser driver CI runs against the emulator, whose bridge runs the real
+ * callables or the server's own stores (in the Live Challenge drivers two host
+ * tabs pressing at once lost a press to it; the Test Cycle, class rewards and
+ * accommodation review drivers load it too), and only when
  * FIRESTORE_EMULATOR_HOST is set. On that exact error, a transaction is re-run
  * as a fresh one, which `runTransaction` already guarantees is safe: its update
  * function must tolerate being run more than once. Any other error, and the

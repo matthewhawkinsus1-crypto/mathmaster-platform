@@ -188,6 +188,50 @@ test('the rules are the ones the walk reports, none of them an axe rule id', () 
   }
 });
 
+// Two of the walk's own false reports (student-a11y-2). A math box's
+// <math-field> is a host: focus is in MathLive's keyboard sink inside its
+// shadow root, which carries the box's name, so the walk names that element,
+// read at the stop before the walk blurs it (named on the host, every math box
+// was "unnamed"). And the walk's refocus of a math box hands focus on to the
+// sink a moment later: the walk waits for it, or its next Tab starts from
+// <body> and comes back to the box (a phone walk saw "Slope" twice and
+// stopped with 12 controls unreached; plain Tab presses never loop there).
+test('the walk names the element focus is really on, and lets a math box take focus, and hand it on, before the next Tab', () => {
+  const walk = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReach.mjs', import.meta.url), 'utf8'));
+  const observe = region(walk, 'const observe = async (previousId) => {', '\n  };', 'observe');
+  const readAt = observe.search(/focusedAtStop = el;\s*while \(focusedAtStop\.shadowRoot\?\.activeElement\) focusedAtStop = focusedAtStop\.shadowRoot\.activeElement;/);
+  assert.ok(readAt >= 0 && readAt < observe.indexOf('el.blur();'), 'the focused element is read through shadow roots, before the blur');
+  const named = region(walk, 'const FOCUSED_ELEMENT = `', '`;', 'the element named');
+  assert.match(named, /let named = window\.__mmReach\?\.focusedAtStop\?\.\(\) \|\| document\.activeElement;/);
+  assert.match(named, /while \(named\?\.shadowRoot\?\.activeElement\) named = named\.shadowRoot\.activeElement;\s*return named;/);
+  assert.match(region(walk, 'const accessibleNameOfFocus = async (cdp) => {', '\n};', 'the naming'), /Runtime\.evaluate', \{ expression: FOCUSED_ELEMENT, awaitPromise: true \}/);
+  // A math box takes focus for 60 ms more than it seems to (MathLive refocuses
+  // its keyboard sink from a 60 ms timer): wherever a box takes focus, when Tab
+  // lands on it and after each refocus, the walk waits for the sink and then
+  // the timer, so its next Tab is not pulled back into the box.
+  const settle = region(walk, 'const settle = async (el) => {', '\n  };', 'the settle');
+  assert.match(settle, /if \(el\?\.localName !== 'math-field'\) return;/, 'only a math box is waited for');
+  assert.match(settle, /for \(let wait = 0; wait < \d+ && !el\.shadowRoot\?\.activeElement; wait \+= 1\) \{\s*await new Promise/, 'first its sink');
+  assert.match(settle, /await new Promise\(\(resolve\) => \{ setTimeout\(resolve, MATH_BOX_SETTLE_MS\); \}\);/, 'then MathLive\'s own timer');
+  const settleMs = Number(/const MATH_BOX_SETTLE_MS = (\d+);/.exec(walk)?.[1]);
+  assert.ok(settleMs > 60, `longer than MathLive's 60 ms (${settleMs})`);
+  const refocus = region(walk, 'const refocus = async (el) => {', '\n  };', 'the refocus');
+  assert.match(refocus, /el\.focus\(\{ preventScroll: true \}\);\s*await settle\(el\);\s*return document\.activeElement === el;/, 'a refocused math box settles before the walk goes on');
+  assert.ok(observe.indexOf('await settle(el);') >= 0 && observe.indexOf('await settle(el);') < observe.indexOf('focusedAtStop = el;'), 'a box Tab lands on settles before the stop is read');
+  assert.match(observe, /info\.refocused = await refocus\(el\);\s*return \{ \.\.\.info, focused, blurred \};/, 'a stop is recorded after the refocus');
+  assert.match(walk, /const focusById = async \(id\) => \{ const el = elements\[id\]; if \(!el\?\.isConnected\) return false; return refocus\(el\); \};/, 'the refocus after the ring\'s picture settles too');
+  assert.doesNotMatch(observe, /el\.focus\(/, 'observe refocuses only through the settle');
+  // Tab from one math box to the next hands focus over from the same timer:
+  // until it fires, focus is still in the box Tab left. A math box that seems
+  // to keep focus is given that time before it counts as the same stop, or a
+  // walk that reads focus quickly (CI's headless shell) calls the box a trap.
+  const handover = observe.search(/let el = document\.activeElement;\s*if \(el\?\.localName === 'math-field' && previousId != null && ids\.get\(el\) === previousId\) \{\s*for \(let waited = 0; waited < MATH_BOX_HANDOVER_MS && document\.activeElement === el; waited \+= 20\) \{\s*await new Promise\(\(resolve\) => \{ setTimeout\(resolve, 20\); \}\);\s*\}\s*el = document\.activeElement;\s*\}/);
+  assert.ok(handover >= 0, 'a math box that seems to keep focus after Tab is waited for, and focus read again');
+  assert.ok(handover < observe.indexOf('return { same: true'), 'before the walk counts Tab as staying put');
+  const handoverMs = Number(/const MATH_BOX_HANDOVER_MS = (\d+);/.exec(walk)?.[1]);
+  assert.ok(handoverMs > 60, `longer than MathLive's 60 ms (${handoverMs})`);
+});
+
 // The browser half is shown finding each defect on a page with only that defect
 // (tests/browser/accessibilityKeyboardReachSelfTest.mjs, run by the accessibility
 // workflow). A rule with no planted page there could stop working unseen.
@@ -201,4 +245,25 @@ test('the planted-defect self-test names a page for every rule, and the harness 
   assert.ok(plants.includes('clean') && plants.includes('dialog'), 'the right page and the real Dialog are checked for no findings');
   assert.ok(plants.includes('scrolling'), 'a page the walk has to scroll is checked to be left scrolled where it was found');
   for (const plant of plants) assert.match(harness, new RegExp(`\\b${plant}: \\(\\) =>`), `the harness renders the "${plant}" page`);
+});
+
+// THE SELF-TEST'S MATH BOXES ARE A STUDENT'S (keypad-done). They were bare <math-field> elements named by hand, with
+// neither MathInput's naming nor its guard on MathLive's late hand-over of focus, so the walk was shown against a
+// stand-in. The named boxes are the app's MathInput now, with its keypad button and in a row without; the box named
+// nowhere stays bare, since MathInput names every box it makes. The driver checks what each page holds, so a plant
+// that went back to a stand-in fails in the browser as well.
+test('the self-test\'s math boxes are the app\'s MathInput, and the one named nowhere is a box made without it', () => {
+  const harness = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReachSelfTestMain.jsx', import.meta.url), 'utf8'));
+  assert.match(harness, /^import MathInput from '\.\.\/\.\.\/src\/MathInput\.jsx';$/m);
+  const box = region(harness, 'function MathBox(', '\n}', 'the math box');
+  assert.match(box, /return <MathInput value=\{value\} onChange=\{setValue\} ariaLabel=\{name\} hideToolsToggle=\{!keypadButton\} \/>;/);
+  assert.match(harness, /mathBox: \(\) => \(<><Correct \/><MathBox \/><\/>\),/, 'one box, with its keypad button');
+  assert.match(region(harness, 'mathBoxesThenControl: () => (', '\n  ),', 'the row of boxes'), /<MathBox key=\{name\} name=\{name\} keypadButton=\{false\} \/>/, 'four in a row without');
+  assert.match(harness, /unnamedMathBox: \(\) => \(<><Correct \/><math-field /, 'the box named nowhere is bare');
+  assert.doesNotMatch(harness, /<math-field ref=/, 'no hand-named stand-in is left');
+  const driver = executableSource(readFileSync(new URL('../browser/accessibilityKeyboardReachSelfTest.mjs', import.meta.url), 'utf8'));
+  assert.match(driver, /assert\.deepEqual\(result\.mathBoxes, \{ mathInput: 1, bare: 0 \}, 'mathBox: the box is a MathInput'\);/);
+  assert.match(driver, /assert\.deepEqual\(names\.slice\(-2\), \['Slope', 'Show math tools'\]/, 'named where focus is, then its keypad button');
+  assert.match(driver, /assert\.deepEqual\(result\.mathBoxes, \{ mathInput: 4, bare: 0 \}, 'mathBoxesThenControl: the boxes are MathInputs'\);/);
+  assert.match(driver, /assert\.deepEqual\(result\.mathBoxes, \{ mathInput: 0, bare: 1 \}, 'unnamedMathBox: a box made without MathInput'\);/);
 });

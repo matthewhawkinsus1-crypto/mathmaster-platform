@@ -263,6 +263,9 @@ const PUBLIC_GRADER_READS = Object.freeze({
     'quantitiesPrompt', 'rangePrompt', 'tablePrompt', 'xInterceptExistsPrompt', 'xInterceptPrompt', 'xInterceptValuePrompt',
     'yInterceptExistsPrompt', 'yInterceptPrompt', 'yInterceptValuePrompt', 'zerosPrompt', 'groupNoun', 'leftLabel', 'rightLabel',
     'authoredPrompt',
+    // A system's two equations as the item writes them, the labels on the
+    // student's own graph (the Systems Workspace's worked solution names them).
+    'equationLabels',
   ],
   /*
    * Design P1-1: the options stay, the correct one goes. An answer box keeps

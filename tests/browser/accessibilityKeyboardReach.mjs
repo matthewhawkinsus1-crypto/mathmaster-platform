@@ -237,15 +237,72 @@ const INSTALL = ({ rootSelector }) => {
     return out;
   };
 
+  // What the stop is named by (accessibleNameOfFocus, in node): where focus
+  // really is when Tab lands, read before the walk blurs and refocuses it.
+  let focusedAtStop = null;
+
+  // A math box finishes taking focus 60 ms after it gets it: MathLive's
+  // Mathfield.onFocus refocuses the box's keyboard sink from a 60 ms timer, and
+  // ignores focus() until then. A Tab pressed inside those 60 ms moves on, and
+  // the timer then pulls focus back into the box: in Chromium a Tab 5 ms after
+  // a box took focus came back to it 5 times in 5, and 150 ms after, it moved
+  // on 5 times in 5. So wherever a math box takes focus, from Tab or from the
+  // walk's refocus, the walk waits for the sink and then the timer.
+  const MATH_BOX_SETTLE_MS = 100;
+  // The same timer makes Tab from one math box to the next hand focus over
+  // late. MathLive takes the Tab and calls focus() on the next box, which takes
+  // focus from its 60 ms timer, so until then focus is still in the box Tab
+  // left. Read a frame after the Tab, that looks like Tab staying put; the next
+  // Tab is taken by the same box and aims at the same next box, and three
+  // reads called the box a trap. CI's headless shell, whose frames come within
+  // a few ms, stopped on "Slope" this way 3 times in 3 (full Chromium's frames
+  // came after the timer). So a math box that seems to keep focus after Tab
+  // gets the timer's time before the walk counts it as the same stop.
+  //
+  // Both waits are for a box made without MathInput. The app's MathInput
+  // guards that hand-over itself (mathFieldFocusHandoff.js): measured on the
+  // self-test (keypad-done), a row of four MathInput boxes passes the walk
+  // with both waits taken out, 3 times in 3 in CI's headless shell and in full
+  // Chromium, while a row of bare boxes then loops on its first, 3 times in 3
+  // in the headless shell. They stay, so that a box made without MathInput
+  // (the self-test's box named nowhere is one) is read as the app's are, and
+  // they cost a MathInput box about a fifth of a second (two settles).
+  const MATH_BOX_HANDOVER_MS = 300;
+  const settle = async (el) => {
+    if (el?.localName !== 'math-field') return;
+    for (let wait = 0; wait < 75 && !el.shadowRoot?.activeElement; wait += 1) {
+      await new Promise((resolve) => { setTimeout(resolve, 20); });
+    }
+    await new Promise((resolve) => { setTimeout(resolve, MATH_BOX_SETTLE_MS); });
+  };
+  const refocus = async (el) => {
+    el.focus({ preventScroll: true });
+    await settle(el);
+    return document.activeElement === el;
+  };
+
   // The stop Tab just made: what it is, and what focusing it changed.
   const observe = async (previousId) => {
     await new Promise((resolve) => { requestAnimationFrame(() => resolve()); });
-    const el = document.activeElement;
+    let el = document.activeElement;
+    if (el?.localName === 'math-field' && previousId != null && ids.get(el) === previousId) {
+      for (let waited = 0; waited < MATH_BOX_HANDOVER_MS && document.activeElement === el; waited += 20) {
+        await new Promise((resolve) => { setTimeout(resolve, 20); });
+      }
+      el = document.activeElement;
+    }
     if (!el || el === document.body || el === document.documentElement) return { body: true };
     if (el.dataset?.mmReachSentinel) return { sentinel: el.dataset.mmReachSentinel };
     // Tab that stayed on the same element (the parts of a date box) is not a
     // new stop, and blurring it would send the next Tab back to its first part.
     if (ids.get(el) === previousId && previousId != null) return { same: true, id: previousId, type: el.getAttribute('type'), target: selectorOf(el) };
+    await settle(el);
+    // A math box's <math-field> is a host: focus is in MathLive's keyboard sink
+    // inside its shadow root, which is what a screen reader lands on and what
+    // carries the box's name. Refocusing the host below drops focus to <body>
+    // until MathLive hands it to the sink again, so the sink is read first.
+    focusedAtStop = el;
+    while (focusedAtStop.shadowRoot?.activeElement) focusedAtStop = focusedAtStop.shadowRoot.activeElement;
     const info = describe(el);
     info.insideRoot = root.contains(el);
     info.focusVisible = el.matches(':focus-visible');
@@ -254,13 +311,12 @@ const INSTALL = ({ rootSelector }) => {
     const blurred = snap(el);
     const rect = el.isConnected ? el.getBoundingClientRect() : null;
     info.sameBox = Boolean(rect) && Math.round(scrollY) === info.scrollY && Math.round(rect.y) === info.rect.y;
-    el.focus({ preventScroll: true });
-    info.refocused = document.activeElement === el;
+    info.refocused = await refocus(el);
     return { ...info, focused, blurred };
   };
 
   const blurById = (id) => { elements[id]?.blur(); };
-  const focusById = (id) => { const el = elements[id]; if (!el?.isConnected) return false; el.focus({ preventScroll: true }); return document.activeElement === el; };
+  const focusById = async (id) => { const el = elements[id]; if (!el?.isConnected) return false; return refocus(el); };
   const clipOf = (id) => {
     const rect = elements[id].getBoundingClientRect();
     const pad = 8;
@@ -310,6 +366,7 @@ const INSTALL = ({ rootSelector }) => {
     mode: modal ? 'modal' : 'page',
     rootTarget: root === document.body ? 'document' : selectorOf(root),
     observe, blurById, focusById, clipOf, unreached, pointerAudit, dispose, focusSentinel,
+    focusedAtStop: () => focusedAtStop,
     tabbableCount: () => tabbables().length,
   };
   return { mode: window.__mmReach.mode, rootTarget: window.__mmReach.rootTarget, tabbables: tabbables().length };
@@ -319,10 +376,29 @@ const INSTALL = ({ rootSelector }) => {
 /* In node                                                                   */
 /* ------------------------------------------------------------------------ */
 
-// Chromium's own role and name for the focused element.
+/*
+ * The element focus really landed on (observe's focusedAtStop). A math box's
+ * <math-field> is only the host: focus is in MathLive's keyboard sink inside
+ * the shadow root, which is what a screen reader lands on and what carries the
+ * box's name (src/platform/math/mathFieldName.js). Named on the host, as
+ * document.activeElement, every math box was reported as an unnamed stop,
+ * true or not. A host whose sink had not taken focus yet when the stop was
+ * read (MathLive can hand it over a moment later, MathfieldPrivate.onFocus)
+ * is given a moment for it.
+ */
+const FOCUSED_ELEMENT = `(async () => {
+  let named = window.__mmReach?.focusedAtStop?.() || document.activeElement;
+  for (let wait = 0; wait < 10 && named?.localName === 'math-field' && !named.shadowRoot?.activeElement; wait += 1) {
+    await new Promise((resolve) => { setTimeout(resolve, 30); });
+  }
+  while (named?.shadowRoot?.activeElement) named = named.shadowRoot.activeElement;
+  return named;
+})()`;
+
+// Chromium's own role and name for the focused element (FOCUSED_ELEMENT).
 const accessibleNameOfFocus = async (cdp) => {
   try {
-    const { result } = await cdp.send('Runtime.evaluate', { expression: 'document.activeElement' });
+    const { result } = await cdp.send('Runtime.evaluate', { expression: FOCUSED_ELEMENT, awaitPromise: true });
     if (!result.objectId) return { role: null, name: null };
     const { node } = await cdp.send('DOM.describeNode', { objectId: result.objectId });
     const { nodes } = await cdp.send('Accessibility.getPartialAXTree', { backendNodeId: node.backendNodeId, fetchRelatives: false });

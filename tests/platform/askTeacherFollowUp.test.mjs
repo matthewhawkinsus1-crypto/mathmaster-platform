@@ -17,7 +17,11 @@
  *   - that the store keeps ONE document per question: no second document;
  *   - what the student and the teacher read at each step;
  *   - that a waiting follow-up is a waiting question to the class-change
- *     handover and to the retention job (TT26).
+ *     handover and to the retention job (TT26);
+ *   - that after a handover the follow-up goes to the new teacher, also for a
+ *     student who stayed signed in through it, and that a student moved to
+ *     another class while signed in sends to that class's teacher, with that
+ *     class.
  *
  * Not built, by decision (docs/handoffs/STUDENT_PASS3_BATCH8.md, Open): email,
  * push or any other message outside the app, which is the owner's call on
@@ -38,10 +42,13 @@ import {
   buildFollowUp,
   buildQuestionEdit,
   buildTeacherAnswer,
+  buildTeacherQuestion,
   canAskFollowUp,
+  followRosterTeacher,
   hasFollowUp,
 } from '../../src/platform/supports/askTeacher.js';
 import { askTeacherQuestionExpired, openQuestionHandover } from '../../functions/shared/askTeacherLifecycle.mjs';
+import { followRosterClass } from '../../src/platform/student/rosterMembership.js';
 
 const ROOT = new URL('../../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), 'utf8');
@@ -64,6 +71,79 @@ const reopened = { ...answered, ...followUpWords };
 const closed = { ...reopened, ...buildTeacherAnswer({ answer: SECOND_ANSWER, teacherEmail: TEACHER, timestamp: 4 }) };
 
 /* ------------------------------------------------------------------ the model */
+
+test('a follow-up after a class handover is addressed to the current teacher, and only then', () => {
+  const NEW_TEACHER = 'new.teacher@example.org';
+  const moved = buildFollowUp({ existing: answered, text: SECOND, timestamp: 3, teacherEmail: NEW_TEACHER, classId: 'C2' });
+  assert.equal(moved.teacherEmail, NEW_TEACHER, 'Teacher Home lists by the address, so the new teacher sees it');
+  assert.equal(moved.classId, 'C2');
+  assert.equal(moved.status, QUESTION_STATUS.OPEN);
+  // Same teacher and class: nothing about the address is written.
+  const same = buildFollowUp({ existing: answered, text: SECOND, timestamp: 3, teacherEmail: TEACHER, classId: 'C1' });
+  assert.equal('teacherEmail' in same, false);
+  assert.equal('classId' in same, false);
+  // No current teacher known: the address is left alone rather than blanked.
+  assert.equal('teacherEmail' in buildFollowUp({ existing: answered, text: SECOND, timestamp: 3 }), false);
+});
+
+// Teacher features walk, item 10: the fix above read the teacher a fresh load
+// reads, so a student who stayed signed in across the handover kept sending to
+// the former teacher until they reloaded.
+test('a student signed in across a handover follows the class\'s new teacher at once, and a move takes the new class with its teacher', () => {
+  const NEW_TEACHER = 'new.teacher@example.org';
+  const student = { id: 'S1', role: 'student', classId: 'C1', assignedTeacherEmail: TEACHER, profile: { course: 'algebra1' } };
+  // The roster row as sign-in read it: nothing moves, and React keeps its render.
+  assert.equal(followRosterTeacher(student, { classId: 'C1', assignedTeacherEmail: TEACHER, profile: {} }), student);
+  // The class is handed to another teacher, and the row restamped, while the student works.
+  const handedOver = followRosterTeacher(student, { classId: 'C1', assignedTeacherEmail: NEW_TEACHER });
+  assert.equal(handedOver.assignedTeacherEmail, NEW_TEACHER);
+  assert.deepEqual({ ...handedOver, assignedTeacherEmail: TEACHER }, student, 'nothing else about the student changes');
+  // The next follow-up goes to the new teacher, with the class the rules check it against...
+  const followUp = buildFollowUp({
+    existing: answered, text: SECOND, timestamp: 3, teacherEmail: handedOver.assignedTeacherEmail, classId: handedOver.classId,
+  });
+  assert.equal(followUp.teacherEmail, NEW_TEACHER, 'Teacher Home lists it for the teacher who has the class now');
+  assert.equal(followUp.classId, 'C1');
+  // ...and so does a new question, which the rules refuse for anyone but the row's teacher.
+  const question = buildTeacherQuestion({
+    studentId: 'S1', classId: handedOver.classId, teacherEmail: handedOver.assignedTeacherEmail, assignmentId: 'A1', questionIndex: 4, text: FIRST, timestamp: 5,
+  });
+  assert.equal(question.data.teacherEmail, NEW_TEACHER);
+  // A row that names another class is a move, not a handover: followRosterTeacher leaves it alone, since a new
+  // teacher beside the old class fits no row. The move is followRosterClass's (rosterMembership.js; tested whole in
+  // studentRosterMembership.test.mjs): the class and its teacher together, the pair the rules accept, as a fresh load
+  // reads them. Before, the student kept the class they left until a reload, and the rules refused their questions.
+  const moveRow = { classId: 'C2', classPeriod: 'Period 2', assignedTeacherEmail: NEW_TEACHER };
+  assert.equal(followRosterTeacher(student, moveRow), student);
+  const moved = followRosterClass(student, moveRow, { classesById: { C2: { classId: 'C2', name: 'Algebra I — Period 2', period: 'Period 2', teacherOfRecord: NEW_TEACHER, course: 'algebra1' } } });
+  assert.deepEqual([moved.classId, moved.assignedTeacherEmail], ['C2', NEW_TEACHER]);
+  const movedQuestion = buildTeacherQuestion({
+    studentId: 'S1', classId: moved.classId, teacherEmail: moved.assignedTeacherEmail, assignmentId: 'A2', questionIndex: 0, text: FIRST, timestamp: 6,
+  });
+  assert.deepEqual([movedQuestion.data.classId, movedQuestion.data.teacherEmail], ['C2', NEW_TEACHER], 'a question after the move names the new class and its teacher');
+  // A class left with no teacher: none, as a fresh load reads it (there is nobody to send to).
+  assert.equal(followRosterTeacher(student, { classId: 'C1', assignedTeacherEmail: null }).assignedTeacherEmail, null);
+  // Nobody signed in, or no row yet: nothing to follow.
+  assert.equal(followRosterTeacher(null, { classId: 'C1', assignedTeacherEmail: NEW_TEACHER }), null);
+  assert.equal(followRosterTeacher(student, undefined), student);
+});
+
+test('the app passes every snapshot of the student\'s roster row on to be followed, and both ways to ask send with what it holds', () => {
+  const app = code('src/App.jsx');
+  const listener = region(app, 'const liveTimingProfile = snapshot.data()?.profile || null;', 'Object.entries(next).forEach', 'the student\'s grade document listener');
+  // Each snapshot of the row, as it arrives: its class, period and teacher, kept when they change.
+  assert.match(listener, /const membership = rosterMembershipOf\(snapshot\.data\(\)\);\s*setStudentRosterMembership\(\(current\) => \(sameRosterMembership\(current, membership\) \? current : membership\)\);/, 'each snapshot of the row, as it arrives');
+  // The session follows what it holds: a handover is followRosterTeacher's answer (the same class, the row's teacher).
+  const follower = region(app, 'const classReadForRosterRef = useRef(null);', '}, [user?.role, user?.classId, studentRosterMembership', 'the roster row\'s follower');
+  assert.match(follower, /setUser\(\(current\) => followRosterClass\(current, studentRosterMembership, \{ classesById: byId, courseProfiles \}\)\)/);
+  assert.match(app, /^import \{[^}]*\bfollowRosterClass\b[^}]*\} from '\.\/platform\/student\/rosterMembership\.js';$/m);
+  const student = { id: 'S1', role: 'student', classId: 'C1', assignedTeacherEmail: TEACHER, profile: { course: 'algebra1' } };
+  const handover = { classId: 'C1', assignedTeacherEmail: 'new.teacher@example.org' };
+  assert.deepEqual(followRosterClass(student, handover), followRosterTeacher(student, handover));
+  // The workspace's questions and a Recovery's "out of practice questions" screen both send to the teacher the user holds now.
+  const hooks = region(app, 'const askMyTeacher = useAskMyTeacher({', 'const publishPresenceNowRef', 'the Ask my teacher hooks');
+  assert.equal((hooks.match(/teacherEmail: askingStudentId \? user\.assignedTeacherEmail \|\| null : null,/g) || []).length, 2);
+});
 
 test('a follow-up is possible once, after the answer, and only with words', () => {
   assert.equal(canAskFollowUp(waiting), false, 'nobody has answered: that is rewording, not a follow-up');
@@ -132,7 +212,9 @@ test('a follow-up writes exactly the fields firestore.rules lets a student chang
   const named = block.match(/hasOnly\(\[([^\]]*'earlierText'[^\]]*)\]\)/);
   assert.ok(named, 'the rules name the fields a follow-up may change');
   assert.deepEqual(
-    Object.keys(buildFollowUp({ existing: answered, text: SECOND, timestamp: 'TS' })).sort(),
+    Object.keys(buildFollowUp({
+      existing: answered, text: SECOND, timestamp: 'TS', teacherEmail: 'new.teacher@example.org', classId: 'C2',
+    })).sort(),
     [...listIn(named[1])].sort(),
     'the app writes what the rule allows, and the rule allows nothing more',
   );
@@ -146,7 +228,7 @@ test('the store writes the follow-up to the same document, never a second one', 
   const store = code('src/platform/supports/askTeacherStore.js');
   const send = region(store, 'export const sendTeacherQuestion', '\n};', 'sendTeacherQuestion');
   const answeredCase = region(send, 'QUESTION_STATUS.ANSWERED', 'return existing.id;', 'the answered case');
-  assert.match(answeredCase, /buildFollowUp\(\{ existing, text, timestamp: serverTimestamp\(\) \}\)/);
+  assert.match(answeredCase, /buildFollowUp\(\{[^}]*existing,[^}]*text,[^}]*teacherEmail,[^}]*classId,[^}]*timestamp: serverTimestamp\(\)/);
   assert.match(answeredCase, /updateDoc\(doc\(db, TEACHER_QUESTION_COLLECTION, existing\.id\), followUp\)/);
   assert.doesNotMatch(answeredCase, /setDoc|addDoc|collection\(/, 'one document per question: no second document, no list');
   // With no room left (already followed up) or nothing to say, it throws instead of writing.
@@ -243,6 +325,28 @@ test('the teacher sees what the student was told before reading the follow-up (r
     assert.match(followUp, /data-student-follow-up/);
     inOrder(followUp, [FIRST, FIRST_ANSWER, SECOND]);
     assert.match(followUp, /<textarea/, 'and the same answer box');
+    assert.match(followUp, /Your earlier answer: /, 'the teacher who answered reads it as their own');
+
+    // The class changed teachers: the follow-up is addressed to the new teacher
+    // (buildFollowUp, or the handover of a waiting one), who did not write the
+    // answer above it and must not be told they did.
+    const NEW_TEACHER = 'new.teacher@example.org';
+    const handedOver = { ...answered, ...buildFollowUp({ existing: answered, text: SECOND, timestamp: 3, teacherEmail: NEW_TEACHER, classId: 'C2' }) };
+    const newTeachersRow = renderToStaticMarkup(React.createElement(QuestionRow, {
+      question: handedOver,
+      place: { title: 'Lesson 4: Slope', label: 'Classwork · Question 4' },
+      studentName: 'Sam Student',
+      studentIdText: '',
+      prompt: '',
+      teacherEmail: NEW_TEACHER,
+      onOpenStudent: null,
+      onAnswered: () => {},
+    }));
+    inOrder(newTeachersRow, [FIRST, FIRST_ANSWER, SECOND]);
+    assert.doesNotMatch(newTeachersRow, /Your earlier answer/, 'another teacher wrote it');
+    assert.match(newTeachersRow, /Earlier answer from another teacher: /);
+    // The same teacher, signed in with their address in another case, still wrote it.
+    assert.match(row({ ...reopened, answeredBy: TEACHER.toUpperCase() }), /Your earlier answer: /);
   });
 });
 

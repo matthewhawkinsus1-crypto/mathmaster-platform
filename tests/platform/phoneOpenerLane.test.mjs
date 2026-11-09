@@ -192,9 +192,11 @@ test('the figure moves the button and publishes no reserved space or height when
   assert.match(publish, /if \(stacked\) surface\.setAttribute\('data-opener-stacked', 'true'\);\s*else surface\.removeAttribute\('data-opener-stacked'\);/);
   assert.match(publish, /'--mm-work-view-opener-space', stacked \? '0px' : `\$\{width \+ OPENER_GAP\}px`/, 'nothing to keep clear of when it has a row of its own');
   assert.match(publish, /'--mm-work-view-opener-bottom', stacked \? '0px' :/);
-  // It looks again when the screen changes, not only when the button does, and leaves nothing behind.
-  assert.match(publish, /observer\?\.observe\(opener\);\s*observer\?\.observe\(surface\);/);
-  const cleanup = region(figure, 'return () => {\n      observer?.disconnect();\n      surface.removeAttribute', '}, [enlarged]', 'the cleanup');
+  // It looks again when the screen changes, not only when the button does
+  // (observeOpenerRoom watches both, after the observer has delivered:
+  // openerRoomObserver.test.mjs), and leaves nothing behind.
+  assert.match(publish, /observeOpenerRoom\(\{ opener, surface, publish: publishSpace \}\)/);
+  const cleanup = region(figure, 'return () => {\n      stopObserving();\n      surface.removeAttribute', '}, [enlarged]', 'the cleanup');
   assert.match(cleanup, /surface\.removeAttribute\('data-opener-stacked'\)/);
   assert.match(figure, /className="mm-button-neutral mathmaster-work-view-opener"/, 'the class the stylesheet names');
 });

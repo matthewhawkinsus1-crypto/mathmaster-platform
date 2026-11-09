@@ -194,6 +194,32 @@ const FIXTURES = {
       },
     },
   }),
+  // N56: the keypad of a typed box. The radicals exit ticket (L1 DOL 1, one
+  // version) as an assignment imported before the import read its template
+  // filter {{m|pow}} as a number stores it: m, p, o and w among the symbols
+  // it "needs".
+  'keypad-letters': () => ({
+    questionId: 'leak-gates-keypad-letters',
+    type: 'multiAnswer',
+    prompt: 'Simplify $\\sqrt[4]{ 81x^{ 12 }y^{ 16 } }$. The variables $x$ and $y$ can be any real numbers, so use absolute value bars where they are needed.',
+    answerFields: [{
+      id: 'simplified', label: 'Simplified', answer: '3|x^3|y^4', inputProfile: 'expression', gradingMode: 'simplestRadicalForm', answerFormat: 'expression',
+      requiredSymbols: ['{', '}', 'xⁿ', '|', 'x', 'm', 'p', 'o', 'w', 'y'],
+      inputContract: { format: 'expression', requiredSymbols: ['{', '}', 'xⁿ', '|', 'x', 'm', 'p', 'o', 'w', 'y'] },
+    }],
+  }),
+  // N56: "write the inequality for graphs a, b and c" (A1 M3 T2 L4 CW 13):
+  // b's and c's answers have a fraction, a's has none.
+  'keypad-graphs': () => ({
+    questionId: 'leak-gates-keypad-graphs',
+    type: 'multiAnswer',
+    prompt: 'Write a linear inequality for graphs a, b and c.',
+    answerFields: [
+      { id: 'a', label: 'Graph a', answer: 'y < 4x + 2', inputProfile: 'inequality', answerFormat: 'inequality', requiredSymbols: ['<', 'y', 'x'], inputContract: { format: 'inequality', requiredSymbols: ['<', 'y', 'x'] } },
+      { id: 'b', label: 'Graph b', answer: 'y >= 1/2x - 3', inputProfile: 'inequality', answerFormat: 'inequality', requiredSymbols: ['≥', 'a⁄b', 'y', 'x'], inputContract: { format: 'inequality', requiredSymbols: ['≥', 'a⁄b', 'y', 'x'] } },
+      { id: 'c', label: 'Graph c', answer: 'y < 3/4x - 2', inputProfile: 'inequality', answerFormat: 'inequality', requiredSymbols: ['<', 'a⁄b', 'y', 'x'], inputContract: { format: 'inequality', requiredSymbols: ['<', 'a⁄b', 'y', 'x'] } },
+    ],
+  }),
   // The three-plane model with an author-allowed reveal.
   'three-plane-reveal': () => ({
     questionId: 'leak-gates-three-plane',

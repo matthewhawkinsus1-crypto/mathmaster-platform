@@ -43,7 +43,7 @@ export default function CaseCompletionTab({ model }) {
       </section>
       <section className="cr-section" aria-labelledby="cr-completion-table">
         <h2 id="cr-completion-table">By assignment</h2>
-        <div className="cr-scroll-x">
+        <div className="cr-scroll-x" role="region" aria-label="Completion by assignment" tabIndex={0}>
           <table className="cr-table">
             <thead>
               <tr>

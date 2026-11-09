@@ -153,8 +153,8 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
   const gridLines = [];
   // Squares counted from the axes, so the keyboard crosshair sits on a drawn
   // gridline and can reach the x-axis itself.
-  for (let x = PAD; x <= WIDTH - PAD; x += GRID_STEP) gridLines.push(<line key={`vx-${x}`} x1={x} y1={PAD} x2={x} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-grid-minor)' }} />);
-  for (let y = HEIGHT - PAD; y >= PAD; y -= GRID_STEP) gridLines.push(<line key={`hy-${y}`} x1={PAD} y1={y} x2={WIDTH - PAD} y2={y} style={{ stroke: 'var(--mm-graph-grid-minor)' }} />);
+  for (let x = PAD; x <= WIDTH - PAD; x += GRID_STEP) gridLines.push(<line key={`vx-${x}`} x1={x} y1={PAD} x2={x} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-grid-minor)' }} data-mm-plane-part="grid" />);
+  for (let y = HEIGHT - PAD; y >= PAD; y -= GRID_STEP) gridLines.push(<line key={`hy-${y}`} x1={PAD} y1={y} x2={WIDTH - PAD} y2={y} style={{ stroke: 'var(--mm-graph-grid-minor)' }} data-mm-plane-part="grid" />);
   const crosshair = keyboardRoute && keyActive ? sketchCursorPoint(keyCursor || SKETCH_START, KEY_GRID) : null;
 
   // The sketch in words (student pass 3, Q-8): its axes as the student named
@@ -200,23 +200,24 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
           role={keyboardRoute ? 'application' : 'img'}
           aria-label="Graph story sketch"
           aria-describedby={keyboardRoute ? `${sketchDescriptionId} ${sketchDescriptionId}-keys` : sketchDescriptionId}
+          data-mm-plane=""
         >
-          <rect x={PAD} y={PAD} width={WIDTH - PAD * 2} height={HEIGHT - PAD * 2} style={{ fill: 'var(--mm-graph-bg)', stroke: 'var(--mm-graph-grid)' }} />
+          <rect x={PAD} y={PAD} width={WIDTH - PAD * 2} height={HEIGHT - PAD * 2} style={{ fill: 'var(--mm-graph-bg)', stroke: 'var(--mm-graph-grid)' }} data-mm-plane-part="paper" />
           {gridLines}
-          <line x1={PAD} y1={HEIGHT - PAD} x2={WIDTH - PAD} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="3" />
-          <line x1={PAD} y1={PAD} x2={PAD} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="3" />
+          <line x1={PAD} y1={HEIGHT - PAD} x2={WIDTH - PAD} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="3" data-mm-plane-part="axis" />
+          <line x1={PAD} y1={PAD} x2={PAD} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="3" data-mm-plane-part="axis" />
           <text x={WIDTH - PAD - 8} y={HEIGHT - PAD - 10} textAnchor="end" fontSize="17" style={{ fill: 'var(--mm-graph-label)' }}>{values.xLabel || 'x'}</text>
           <text x={PAD + 10} y={PAD + 20} fontSize="17" style={{ fill: 'var(--mm-graph-label)' }}>{values.yLabel || 'y'}</text>
           {/* A stroke of one point (a tap, or a line's first point placed by
               keyboard) is a dot: a polyline of one point draws nothing. */}
           {values.strokes.map((stroke, index) => (stroke.length === 1
-            ? <circle key={index} cx={stroke[0].x} cy={stroke[0].y} r="5" fill="#1a73e8" />
-            : <polyline key={index} points={stroke.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#1a73e8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />))}
+            ? <circle key={index} cx={stroke[0].x} cy={stroke[0].y} r="5" fill="#1a73e8" data-mm-plane-part="closed" />
+            : <polyline key={index} points={stroke.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#1a73e8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" data-mm-plane-part="line" />))}
           {crosshair ? (
             <g data-graph-story-crosshair="" pointerEvents="none">
-              <line x1={crosshair.x} y1={PAD} x2={crosshair.x} y2={HEIGHT - PAD} stroke={CROSSHAIR} strokeWidth="1.5" strokeDasharray="5 4" />
-              <line x1={PAD} y1={crosshair.y} x2={WIDTH - PAD} y2={crosshair.y} stroke={CROSSHAIR} strokeWidth="1.5" strokeDasharray="5 4" />
-              <circle cx={crosshair.x} cy={crosshair.y} r="8" fill="none" stroke={CROSSHAIR} strokeWidth="2.5" />
+              <line x1={crosshair.x} y1={PAD} x2={crosshair.x} y2={HEIGHT - PAD} stroke={CROSSHAIR} strokeWidth="1.5" strokeDasharray="5 4" data-mm-plane-part="cursor" />
+              <line x1={PAD} y1={crosshair.y} x2={WIDTH - PAD} y2={crosshair.y} stroke={CROSSHAIR} strokeWidth="1.5" strokeDasharray="5 4" data-mm-plane-part="cursor" />
+              <circle cx={crosshair.x} cy={crosshair.y} r="8" fill="none" stroke={CROSSHAIR} strokeWidth="2.5" data-mm-plane-part="cursor" />
             </g>
           ) : null}
         </svg>

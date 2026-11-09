@@ -125,7 +125,8 @@ test('the work bar\'s Hint control opens the panel at the top, and closing it le
 });
 
 test('the page follows the newest hint, and again when the panel moves', () => {
-  const effect = region(engine, 'revealHintPanel(hintPanelRef.current', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen]);', 'the reveal effect');
+  // ...and when a rung that was loading arrives (hint-ladder timing).
+  const effect = region(engine, 'revealHintPanel(hintPanelRef.current', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending]);', 'the reveal effect');
   assert.match(effect, /revealHintPanel\(hintPanelRef\.current, \{ place: hintPanelPlace, similarOpen, behavior: scrollMotion\(\) \}\);/);
   assert.match(engine, /import \{ requestedHintPanelPlace, revealHintPanel \} from '\.\/platform\/supports\/hints\/hintPanelReveal\.js';/);
 });

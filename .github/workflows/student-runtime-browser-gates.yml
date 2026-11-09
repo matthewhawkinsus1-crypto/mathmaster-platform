@@ -5,7 +5,9 @@ name: Student Runtime Browser Gates
 #
 #   mathEntryContract   types on a real keyboard into MathInput and the
 #                       calculator and checks the structure MathLive built
-#                       (src/platform/math/typedFractionEntry.js, PQ-040)
+#                       (src/platform/math/typedFractionEntry.js, PQ-040;
+#                       typedRootEntry.js, F-RADICAL-TYPING), and grades
+#                       typed radicals on the radicals lessons' own keys
 #   renderStability     mounts QuestionEngine the ways its hosts do and counts
 #                       React commits while nothing happens: a render loop
 #                       ("Maximum update depth exceeded") is hundreds of them;
@@ -52,6 +54,10 @@ name: Student Runtime Browser Gates
 #                       on a phone Undo and Reset keep their word (A11Y-10)
 #   mathKeypadToolbar   MathInput's keypads are one Tab stop each: arrows, Home,
 #                       End, named keys, focus back to the field (pass 3, PR-27)
+#   mathBoxFocus        focus that leaves a math box inside MathLive's 60 ms
+#                       hand-over stays where it went: a Tab, a held Tab, the
+#                       page's own moves and a blur, and a box React has moved;
+#                       click, tap, Tab, focus(), the keypad and IME unchanged
 #   workViewReference   "Information you need" is in Work View: its own drawer,
 #                       inside Task on a phone, on a DOL too (pass 3, TOOL-12)
 #   assessmentLeakGates nothing before Submit says whether work is right on a
@@ -136,7 +142,9 @@ name: Student Runtime Browser Gates
 #     (W7-2)
 #   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
 #     Firebase)
-#     secureResults, secureExamNavigation, secureAccessParity
+#     secureResults, secureExamNavigation, secureAccessParity; and
+#     secureExamToolFocus, on the accessibility App harness (the real app in
+#     memory, 5188): the exam's own tools stay in the test's Tab round
 #   (testCycleRichToolQa and liveChallengeShellQa, which run the real
 #   callables on the Firestore emulator, are in
 #   student-pass3-emulator-journeys.yml: their own paths, and nightly)
@@ -153,7 +161,7 @@ permissions:
 
 jobs:
   student-runtime:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -249,7 +257,7 @@ jobs:
 
   # The student-runtime gates, continued (see the header).
   student-runtime-2:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -304,7 +312,7 @@ jobs:
 
   # The student-runtime gates, continued (see the header).
   student-runtime-3:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -398,6 +406,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/mathKeypadToolbar.mjs
+      - name: Focus that leaves a math box stays where it went
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/mathBoxFocus.mjs
       - name: Information you need stays reachable in Work View
         if: ${{ !cancelled() }}
         env:
@@ -413,7 +427,7 @@ jobs:
   # Student pass 3's drivers on the plain dev server, in two jobs of about seven
   # minutes (one runner took 14 minutes for them all).
   pass3-student-screens:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -456,7 +470,7 @@ jobs:
 
   # Student pass 3's drivers, continued (see pass3-student-screens).
   pass3-student-screens-2:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -533,11 +547,13 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolChoiceGroups.mjs
 
-  # The secure screens (results, navigation, access parity) against stubbed
-  # services. secureResults and secureExamNavigation start their own Vite;
-  # secureAccessParity uses the emulator config's stubs. About 10 minutes.
+  # The secure screens (results, navigation, access parity, the tools' Tab
+  # round) against stubbed services. secureResults and secureExamNavigation
+  # start their own Vite; secureAccessParity uses the emulator config's stubs;
+  # secureExamToolFocus opens a practice test in the real app, in memory.
+  # About 13 minutes.
   pass3-secure-screens:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -564,3 +580,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5203"
         run: node tests/browser/secureAccessParity.mjs
+      # The real app in memory (firebase/* faked, the synthetic school), where a
+      # student's Digital SAT practice test has its reference sheet and graphing
+      # calculator in the toolbar.
+      - name: Start the accessibility App harness
+        if: ${{ !cancelled() }}
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/pass3-secure-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/pass3-secure-app-harness.log; exit 1
+      - name: The exam's own tools stay in the test's Tab round
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/secureExamToolFocus.mjs

@@ -10,6 +10,21 @@
 .mm-identity-name { overflow-wrap: anywhere; }
 
 /*
+ * WHAT FOCUS SCROLLS UP INTO VIEW STOPS BELOW THE BAR, NOT UNDER IT (WCAG
+ * 2.4.11). The bar sticks at the top, and only the assignment screen kept a
+ * focused control clear of it. Shift+Tab up Grades at 1366x768 left "See
+ * results" under the bar, and on a phone Tab coming round from a secure exam's
+ * last control to its first left the question list's button there (Tests &
+ * Exams, a practice test). The height is the bar's, with the pack-up line under
+ * it, as the bar measures it. :where() keeps this below any screen's own
+ * padding: the assignment screen's also clears its navigator and task card
+ * (App.css), and a pinch-zoomed page has none (index.css).
+ */
+:where(html:has(.mm-identity-bar)) {
+  scroll-padding-top: calc(var(--mm-student-identity-stack-offset, 0px) + 8px);
+}
+
+/*
  * ONE LINE ON A PHONE (PQ-021).
  *
  * "Claude QA Student • Period 3", the points chip and "Not you? Log Out"

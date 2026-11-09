@@ -20,6 +20,11 @@
 // everything outside it, so a keyboard student saw one line along the top edge
 // and the keyboard sweep read the stop as having no visible focus. After a Tab,
 // the ring is opaque and no ancestor's overflow cuts a side of it off.
+//
+// AX32 (slice 4): THE DIRECTIONS NAME THE KEYS THAT WORK. Graph Scenario Match,
+// the Graph Axis Editor and Sequence Explorer's plot step say how to do each thing
+// from the keyboard beside the click; each is read, and the keys it names are
+// then pressed with the mouse never touched.
 // Exits non-zero on any failure.
 import assert from 'node:assert/strict';
 
@@ -186,6 +191,77 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       assert.deepEqual(ring.cut, [], 'no ancestor cuts a side of the ring off');
     });
   }
+
+  // AX32 (slice 4). Tab and Shift+Tab walk the page from its first sentinel; Enter and Space press.
+  const walkTo = async (test, what, { back = false, limit = 60 } = {}) => {
+    for (let presses = 0; presses < limit; presses += 1) {
+      await page.keyboard.press(back ? 'Shift+Tab' : 'Tab');
+      const now = await page.evaluate(() => ({ label: document.activeElement?.getAttribute('aria-label') || '', text: (document.activeElement?.textContent || '').replace(/\s+/g, ' ').trim(), cls: String(document.activeElement?.className?.baseVal ?? document.activeElement?.className ?? ''), role: document.activeElement?.getAttribute('role') || '', pressed: document.activeElement?.getAttribute('aria-pressed') }));
+      if (test(now)) return now;
+    }
+    throw new Error(`${back ? 'Shift+Tab' : 'Tab'} never reached ${what}`);
+  };
+  const fromStart = () => page.evaluate(() => document.querySelector('[data-kb-sentinel="start"]').focus());
+
+  await check(`${at} graphScenarioMatch: the direction names Tab and Enter, and they match a graph to a scenario`, async () => {
+    await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=graphScenarioMatch`, { waitUntil: 'networkidle', timeout: 90000 });
+    await page.locator('.graph-scenario-match-instructions').waitFor({ timeout: 60000 });
+    const direction = (await page.locator('.graph-scenario-match-instructions').innerText()).replace(/\s+/g, ' ');
+    assert.ok(direction.includes('Select a graph (click or tap, or Tab to it and press Enter), or drag it directly onto a scenario.'), direction);
+    await fromStart();
+    await walkTo((now) => /graph-scenario-graph-select/.test(now.cls), 'a graph');
+    await page.keyboard.press('Enter');
+    assert.match((await page.locator('.graph-scenario-match-instructions').innerText()).replace(/\s+/g, ' '), /selected 2\. Now select the scenario/);
+    await walkTo((now) => /graph-scenario-story-select/.test(now.cls), 'a scenario');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(250);
+    assert.match(await page.locator('main').innerText(), /Disconnect/, 'the scenario shows its graph, with a Disconnect');
+  });
+
+  // The Graph Axis Editor: a card is selected with Enter, then the keyboard goes BACK UP to the box (Shift+Tab).
+  const axisSpec = encodeURIComponent(JSON.stringify({
+    axisSetup: { required: true, inputMode: 'drag', applyToGraph: true }, recipe: null, workflow: null,
+    quantities: [{ id: 'time', label: 'Time', unit: 'minutes' }, { id: 'volume', label: 'Water in the pool', unit: 'litres' }],
+  }));
+  await check(`${at} Graph Axis Editor: the direction names Tab, Shift+Tab and Enter, and they put a quantity and a unit on the graph`, async () => {
+    await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=relationshipModel&variant=axes-keys&spec=${axisSpec}`, { waitUntil: 'networkidle', timeout: 90000 });
+    await page.locator('.mathmaster-axis-editor-grid').waitFor({ timeout: 60000 });
+    const keys = 'Tab to a card and press Enter, then Shift+Tab back to the matching axis box and press Enter';
+    const direction = viewport.width <= 768 ? `Tap a card, then tap the matching axis box, or ${keys}.` : `Drag a card to the matching axis box. You can also click or tap a card and then the box, or ${keys}.`;
+    const panel = (await page.locator('.mathmaster-axis-editor-grid').evaluate((grid) => grid.parentElement.innerText)).replace(/\s+/g, ' ');
+    assert.ok(panel.includes(direction), panel);
+    assert.ok(panel.includes('Place the labels and units on the graph') && panel.includes('Place quantity here'), 'the heading and the empty boxes say what to do, not how');
+    await fromStart();
+    const card = await walkTo((now) => now.pressed === 'false' && now.text === 'Time', 'the Time card');
+    assert.equal(card.pressed, 'false');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-pressed')), 'true', 'Enter selected the card, and it says so');
+    await walkTo((now) => now.text.startsWith('X-axis quantity'), 'the X-axis quantity box', { back: true });
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent.replace(/\s+/g, ' ').trim()), 'X-axis quantityTime', 'Enter put the card in the box');
+    await walkTo((now) => now.pressed === 'false' && now.text === 'litres', 'the litres card');
+    await page.keyboard.press('Space');
+    await walkTo((now) => now.text.startsWith('Y-axis unit'), 'the Y-axis unit box', { back: true });
+    await page.keyboard.press('Space');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent.replace(/\s+/g, ' ').trim()), 'Y-axis unitlitres', 'Space put the unit in its box');
+  });
+
+  // Sequence Explorer's plot step: the line says to focus the grid and use the arrow keys and Enter.
+  await check(`${at} sequenceExplorer: the plot step names the arrow keys and Enter, and they plot a point`, async () => {
+    await page.goto(`${origin}/tests/browser/keyboardSweep.html?tool=sequenceExplorer`, { waitUntil: 'networkidle', timeout: 90000 });
+    const plane = page.locator('svg[role="application"]').first();
+    await plane.waitFor({ timeout: 60000 });
+    const step = (await page.locator('p', { hasText: /^Choose a sequence, then plot each ordered pair/ }).first().innerText()).replace(/\s+/g, ' ');
+    assert.equal(step, 'Choose a sequence, then plot each ordered pair on the graph (click or tap it, or focus the grid and use the arrow keys and Enter). Switching sequences changes which model receives the next point.');
+    await fromStart();
+    await walkTo((now) => now.role === 'application', 'the plane');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(250);
+    const said = await page.locator('[role="status"], [aria-live]').allInnerTexts();
+    assert.ok(said.some((text) => text.trim().startsWith('Plotted (')), `the keys the step names plotted a point (${JSON.stringify(said)})`);
+  });
 
   await check(`${at}: no page errors`, async () => assert.deepEqual(errors, []));
   await context.close();

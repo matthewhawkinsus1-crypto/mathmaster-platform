@@ -1,30 +1,17 @@
 // src/firebase.js
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+//
+// Firestore, on the app firebaseApp.js made, and the app's other services
+// beside it, under the names every caller imports: db, auth, functions, app.
+// The sign-in screen imports Auth and Functions from firebaseApp.js instead,
+// so this module, and the Firestore SDK with it, loads with App
+// (firebaseApp.js says why).
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
-import { getFunctions } from 'firebase/functions';
+import { app, auth, functions } from './firebaseApp.js';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyDRpBiB5X7OIzt5hy5nI_CHE3_BKJ6iRxc',
-  authDomain: 'mathmaster-aleks.firebaseapp.com',
-  projectId: 'mathmaster-aleks',
-  storageBucket: 'mathmaster-aleks.firebasestorage.app',
-  messagingSenderId: '769892730653',
-  appId: '1:769892730653:web:1d5a8503cf504fcfe243f4',
-  measurementId: 'G-3Y2XFPJB9Z',
-};
-
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-// Analytics is intentionally not initialized during application startup.
-// It is optional, and unsupported preview/browser environments should never
-// be allowed to prevent MathMaster from rendering.
 // IndexedDB-backed cache makes already-opened assignments and queued writes
 // available through short school-Wi-Fi interruptions. Multi-tab coordination
 // prevents each MathMaster tab from maintaining a competing persistence owner.
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
-export const auth = getAuth(app);
-export const functions = getFunctions(app);
-export { app };
+export { app, auth, functions };

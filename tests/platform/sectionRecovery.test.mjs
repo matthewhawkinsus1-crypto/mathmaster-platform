@@ -931,14 +931,16 @@ test('the Recovery runner requires the pinned question and keeps its drafts apar
   assert.doesNotMatch(assessmentPolicySource, /attempts:/, 'the section keeps its own attempt limit (a DOL keeps one try)');
   const assessmentRunner = region(runner, 'function AssessmentRunner(', 'export default function SectionRecoveryRunner', 'assessment runner');
   assert.match(assessmentRunner, /recordQuestionStep\(\{ record: stepRecords\[current\.itemId\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts \}\)/);
-  assert.match(assessmentRunner, /resolveQuestionMaximumAttempts\(\{ question: currentQuestion, activityPolicy: policy \}\)/);
+  // The section's own limit, counted on the question the item's pin dealt
+  // (recoveryPracticeAttempts.test.mjs, P-7).
+  assert.match(assessmentRunner, /recoveryAttemptLimit\(\{ dealt: dealtByPin\[current\?\.pin\?\.fingerprint\], stored: currentQuestion, activityPolicy: policy \}\)/);
   assert.match(assessmentRunner, /onStepGrade=\{handleStepGrade\}/);
   const practiceRunner = region(runner, 'function PracticeRunner(', 'function AssessmentRunner(', 'practice runner');
   // Practice: the step bookkeeping keeps the Practice policy's tries, even
   // though every practice question is shown one answer (HELP-19,
   // recoveryPracticeAttempts.test.mjs).
   assert.match(practiceRunner, /recordQuestionStep\(\{ record: stepRecords\[fingerprint\], stepGrade, countsAttempt, statePatch, supportUsage, maximumAttempts: stepMaximumAttempts \}\)/);
-  assert.match(practiceRunner, /const stepMaximumAttempts = resolveQuestionMaximumAttempts\(\{ question, activityPolicy: PRACTICE_POLICY \}\);/);
+  assert.match(practiceRunner, /const stepMaximumAttempts = recoveryAttemptLimit\(\{ dealt: dealtByPin\[fingerprint\], stored: question, activityPolicy: PRACTICE_POLICY \}\);/);
   assert.match(practiceRunner, /forfeit: true/);
   assert.doesNotMatch(runner, /onStepGrade=\{async \(\) => null\}/, 'a step tool must never get a no-op step grader');
 });

@@ -73,9 +73,17 @@ export const seenRoundOf = (room = {}) => {
  * student is not looking at its results (a finished game). A round open now is
  * still playable; a round closed now shows its own results card.
  *
+ * `present`: this screen had the room in front of the student — visible and
+ * connected — from what it last saw until now, so nothing closed while they
+ * were away. A game that ends while its round is open (the teacher's End
+ * Game, or the server ending a Pace Race round nobody came back to, N73) goes
+ * straight from that round to finished; a student watching it was not away,
+ * and the final card's recap already says "No answer" for the round.
+ *
  * @returns {number[]} round indices, ascending, at most MISSED_ROUNDS_LOOKBACK
  */
-export const roundsClosedWhileAway = ({ lastSeen = null, now = null, joinedAtRound = null, finished = false } = {}) => {
+export const roundsClosedWhileAway = ({ lastSeen = null, now = null, joinedAtRound = null, finished = false, present = false } = {}) => {
+  if (present === true) return [];
   const seenIndex = roundIndexOf(lastSeen?.roundIndex);
   const nowIndex = roundIndexOf(now?.roundIndex);
   if (seenIndex === null || nowIndex === null) return [];

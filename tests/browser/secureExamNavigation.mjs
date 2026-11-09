@@ -536,14 +536,23 @@ const courseJourney = async (context, device) => {
   await page.getByText('Write it in notation').waitFor({ timeout: 20000 });
   text = await bodyText(page);
   check(/Save answer/.test(text) && !/Record answer/.test(text), label('the tool\'s final action is "Save answer"'));
-  const endpoint = page.getByPlaceholder('Exact endpoint, e.g. -13/8');
-  await endpoint.fill('-3');
+  // The typed endpoint and the notation are both the tool's math boxes (the
+  // endpoint since the 2026-11-06 re-walk): each is found by its name, and
+  // typed into as a student types.
+  const typeEndpoint = async (value) => {
+    const field = page.locator('math-field[aria-label="Exact endpoint value"]:visible').first();
+    await field.focus();
+    await field.evaluate((element) => element.executeCommand?.('selectAll'));
+    if (value) await page.keyboard.type(value);
+    else await page.keyboard.press('Backspace');
+  };
+  await typeEndpoint('-3');
   await page.getByRole('button', { name: 'Place endpoint' }).click();
   // Not "⤢ Open Work View", which also has "Open" in it.
   await page.getByRole('button', { name: /Open/ }).filter({ hasNotText: 'Work View' }).first().click();
-  await endpoint.fill('5');
+  await typeEndpoint('5');
   await page.getByRole('button', { name: 'Place endpoint' }).click();
-  const notation = page.locator('math-field').first();
+  const notation = page.locator('math-field[aria-label="Interval notation"]').first();
   await notation.click();
   await page.keyboard.type('[-3,5)');
   const save = page.locator('[data-rich-question-runtime] button', { hasText: 'Save answer' }).first();
@@ -557,7 +566,7 @@ const courseJourney = async (context, device) => {
   check(await page.getByRole('button', { name: 'Place endpoint' }).isEnabled(), label('the tool stays open after Save answer'));
   await shot(page, device, 'course-02-tool-saved');
   await layout(page, label('tool item'));
-  const toolValue = () => page.locator('math-field').first().evaluate((element) => element.value);
+  const toolValue = () => page.locator('math-field[aria-label="Interval notation"]').first().evaluate((element) => element.value);
 
   // A pause must cover an enlarged question too (Work View is a fixed layer
   // above the page): typing there autosaves, the save is refused as paused,
@@ -567,7 +576,7 @@ const courseJourney = async (context, device) => {
     await enlarge.first().click();
     await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]', { timeout: 8000 });
     await page.evaluate(() => window.__secureHarness.proctor('lock'));
-    await page.getByPlaceholder('Exact endpoint, e.g. -13/8').fill('1');
+    await typeEndpoint('1');
     await page.waitForSelector('[data-secure-pause="teacher"]', { timeout: 8000 });
     const onTop = await page.evaluate(() => {
       const hit = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
@@ -581,7 +590,7 @@ const courseJourney = async (context, device) => {
     const close = page.getByRole('button', { name: /Close/ });
     if (await page.locator('.mathmaster-work-view-host[data-open="true"]').count() && await close.count()) await close.first().click();
     await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]', { state: 'detached', timeout: 8000 }).catch(() => {});
-    await page.getByPlaceholder('Exact endpoint, e.g. -13/8').fill('');
+    await typeEndpoint('');
   }
 
   // A teacher pause that lands on a move: the pause shows, not a dead question.

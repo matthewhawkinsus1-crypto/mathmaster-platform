@@ -1,7 +1,8 @@
 /*
  * TOOL-11 (pass 3): on a phone, plane text is readable and a missed drag keeps
  * the line (Graphing replaces the nearest point; a press is snapped to the grid
- * before any pick-up check, so a wider pick-up radius would change nothing). The browser half (rendered sizes at 390 px, a press beside P2
+ * before any pick-up check, and picks up only a point on its own grid point,
+ * planeTouch.js). The browser half (rendered sizes at 390 px, a press beside P2
  * picking it up, a third point keeping the line) is tests/browser/
  * planePhoneReach.mjs.
  */
@@ -166,6 +167,11 @@ test('every dot of a plane grows by one factor, so a tool\'s bigger and smaller 
   assert.doesNotMatch(plane, /pointRadius = Math\.max\(/);
   // The preview ring is a dot too.
   assert.match(plane, /r=\{dotRadius\(5\)\}/);
-  // How far a press reaches to pick a point up is not part of this.
-  assert.match(plane, /const HIT_RADIUS = 18;/);
+  // How far a press reaches to pick a point up is not part of this: it is the
+  // point's grid cell, whatever size its dot is drawn. (It was a fixed 18
+  // drawing units, which reached the rows above and below on a −10 to 10 grid;
+  // planeTouchPrecision.test.mjs, "what a press picks up", says why it changed.)
+  const pickUp = region(plane, 'const pointIndexNear = (graphPoint) => {', '\n  };', 'the pick-up');
+  assert.match(pickUp, /if \(!pressPicksUpPoint\(graphPoint, \[px, py\], minorStep\)\) return;/);
+  assert.doesNotMatch(pickUp, /dotRadius|dotGrowth|renderedWidth|resolvePointRadius/, 'not the dot\'s size');
 });

@@ -128,6 +128,21 @@
   overflow: hidden;
 }
 
+/* Wider than its room even at the smallest size the fit allows: the side
+   scrolls from its start rather than being cut off (P-6). Centred, its start
+   would sit out of reach to the left. */
+.algebra-expression-fit-viewport[data-scrolls="true"] {
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+.algebra-expression-fit-viewport[data-scrolls="true"]:focus-visible {
+  outline: 3px solid var(--mm-primary, #1a73e8);
+  outline-offset: 2px;
+}
+
 .algebra-expression-fit-content {
   width: max-content;
   max-width: none;
@@ -562,7 +577,8 @@
   .algebra-balance-workspace-shell.is-mobile-tap-layout .algebra-connected-balance {
     width: 100%;
     max-width: 100%;
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+    /* Each side's share from the board (P-6), as in App.css. */
+    grid-template-columns: var(--algebra-side-left, minmax(0, 1fr)) 34px var(--algebra-side-right, minmax(0, 1fr));
     min-height: 220px;
     padding: 9px 5px 28px;
     overflow: hidden;
@@ -660,7 +676,7 @@
   }
 
   .algebra-balance-workspace-shell.is-mobile-tap-layout .algebra-connected-balance {
-    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+    grid-template-columns: var(--algebra-side-left, minmax(0, 1fr)) 28px var(--algebra-side-right, minmax(0, 1fr));
     padding-inline: 3px;
   }
 }
@@ -1230,6 +1246,8 @@
   .algebra-expression-fit-content:has(> .is-inline-structure) {
     width: 100%;
     max-width: 100%;
+    /* Read by the fit (equationSideFit.js): wrapped tokens keep their size. */
+    --algebra-side-wraps: 1;
   }
 
   .is-inline-structure {

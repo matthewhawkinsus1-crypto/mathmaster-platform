@@ -126,6 +126,66 @@ test('RUN-9: a section tab lands on the next workable question, not an out-of-tr
   assert.equal(sectionLandingEntry({ entries: entries.map((entry) => ({ ...entry, viewable: false })) }), null);
 });
 
+// P-7, before the family engine: after a reload straight into an assignment
+// the question a family slot dealt, and whether a question can vary, are not
+// known until the engine lands. Counted on the stored slot, a Warm-Up 2 its one
+// try had closed read "2 tries left"; guessed "cannot vary", a question with a
+// new version waiting read "Closed" and counted as done.
+test('P-7: an answered question whose tries are not known yet is neither counted nor labelled', () => {
+  const closedAfterOneTry = { status: 'expired', attemptCount: 1, totalAttempts: 1, bestPartialCredit: 75 };
+  // The stored slot's count (three) stands in for the dealt one's (one).
+  const before = describeNavigatorQuestion({ record: closedAfterOneTry, maximumAttempts: 3, triesKnown: false });
+  assert.equal(before.status, QUESTION_STATUS.PENDING);
+  assert.equal(before.label, 'Loading…');
+  assert.equal(before.spoken, 'loading');
+  assert.equal(before.triesLeft, null, 'no count');
+  // What it said: a count, and a state, that were never the student's.
+  const counted = describeNavigatorQuestion({ record: closedAfterOneTry, maximumAttempts: 3 });
+  assert.equal(counted.label, '75% so far · 2 tries left');
+  // Once known, it says what it is.
+  assert.equal(describeNavigatorQuestion({ record: closedAfterOneTry, maximumAttempts: 1, triesKnown: true }).label, 'Closed · 75% credit');
+  // A missed try with tries left reads its count only once it is known.
+  assert.equal(describeNavigatorQuestion({ record: missedOnce, maximumAttempts: 3, triesKnown: false }).status, QUESTION_STATUS.PENDING);
+  // Nothing that does not read the tries waits: not started, correct, held, locked.
+  assert.equal(describeNavigatorQuestion({ record: null, maximumAttempts: 3, triesKnown: false }).status, QUESTION_STATUS.NOT_STARTED);
+  assert.equal(describeNavigatorQuestion({ record: null, maximumAttempts: 3, triesKnown: false, sectionClosed: true }).label, 'Closed · not started');
+  assert.equal(describeNavigatorQuestion({ record: correct, maximumAttempts: 3, triesKnown: false }).status, QUESTION_STATUS.CORRECT);
+  assert.equal(describeNavigatorQuestion({ record: missedOnce, maximumAttempts: 1, triesKnown: false, feedbackHeld: true }).status, QUESTION_STATUS.SUBMITTED);
+  assert.equal(describeNavigatorQuestion({ record: missedOnce, maximumAttempts: 3, triesKnown: false, available: false, lockedLabel: 'Opens 2:15 PM' }).status, QUESTION_STATUS.LOCKED);
+});
+
+test('P-7: out of tries, a question not known to vary yet is pending where its section could offer a new version', () => {
+  const before = describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 3, replacementAvailable: false, replacementKnown: false });
+  assert.equal(before.status, QUESTION_STATUS.PENDING);
+  // Guessed "no", it read closed, and closed counts as done.
+  assert.equal(describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 3, replacementAvailable: false }).status, QUESTION_STATUS.CLOSED);
+  // Known, either way.
+  assert.equal(describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 3, replacementAvailable: true }).status, QUESTION_STATUS.NEW_QUESTION);
+  // A closed section offers nothing, so it is closed whichever it is.
+  assert.equal(describeNavigatorQuestion({ record: outOfTries, maximumAttempts: 3, replacementKnown: false, sectionClosed: true }).status, QUESTION_STATUS.CLOSED);
+  // Tries left: the offer does not come into it.
+  assert.equal(describeNavigatorQuestion({ record: missedOnce, maximumAttempts: 3, replacementKnown: false }).label, '2 tries left');
+});
+
+test('P-7: a section waiting on a pending question shows no count, and a tab lands on known work first', () => {
+  const pending = describeNavigatorQuestion({ record: { status: 'expired', attemptCount: 1, totalAttempts: 1 }, maximumAttempts: 3, triesKnown: false });
+  const progress = describeNavigatorSectionProgress({ questions: [pending, { status: QUESTION_STATUS.CORRECT }] });
+  assert.equal(progress.pending, true);
+  assert.equal(progress.done, null, 'it may be one done of two, or two');
+  assert.equal(progress.label, 'Loading…');
+  assert.equal(progress.allCorrect, false);
+  const known = describeNavigatorSectionProgress({ questions: [{ status: QUESTION_STATUS.CLOSED }, { status: QUESTION_STATUS.CORRECT }] });
+  assert.deepEqual([known.pending, known.done, known.label], [false, 2, '2/2']);
+  // A question known to be unfinished comes before one that may be closed.
+  const entries = [
+    { index: 1, viewable: true, workable: true, status: QUESTION_STATUS.PENDING },
+    { index: 2, viewable: true, workable: true, status: QUESTION_STATUS.TRY_AGAIN },
+  ];
+  assert.equal(sectionLandingEntry({ entries }).index, 2);
+  // With nothing else to work, the pending one: it may still be open.
+  assert.equal(sectionLandingEntry({ entries: [entries[0], { index: 2, viewable: true, workable: true, status: QUESTION_STATUS.CORRECT }] }).index, 1);
+});
+
 const now = new Date(2026, 9, 14, 13, 0);
 const at = (hour, minute) => new Date(2026, 9, 14, hour, minute);
 const formatTime = (date) => `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;

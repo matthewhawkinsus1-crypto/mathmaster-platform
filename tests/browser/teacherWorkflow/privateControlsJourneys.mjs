@@ -43,6 +43,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+import { newSchoolContext } from './schoolClock.mjs';
 import { screenshotKeepingTouch } from '../support/touchEmulation.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -55,8 +56,11 @@ const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html`;
 const MODES = (process.env.MODES || 'mirror,retired').split(',').map((entry) => entry.trim()).filter(Boolean);
 const VIEWPORTS = (process.env.VIEWPORTS || '1440x900,390x844')
   .split(',').map((entry) => entry.split('x').map(Number)).map(([width, height]) => ({ width, height }));
-// A phone or an iPad is a touch device; a Chromebook or desktop is not.
-const deviceContext = (viewport) => browser.newContext({
+// A phone or an iPad is a touch device; a Chromebook or desktop is not. Every
+// device is on the school's clock (schoolClock.mjs): on CI's own, from about
+// 23:05 UTC Period 3 was clamped to end by 23:55, and the DOL journeys could
+// not finish after it ended.
+const deviceContext = (viewport) => newSchoolContext(browser, {
   viewport,
   ...(viewport.width < 1024 ? { hasTouch: true, isMobile: true } : {}),
 });

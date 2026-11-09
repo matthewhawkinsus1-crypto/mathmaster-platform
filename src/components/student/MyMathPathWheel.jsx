@@ -1,7 +1,7 @@
 import React, { useCallback, useId, useState } from 'react';
 import useEscapeToDismiss from '../../ui/useEscapeToDismiss.js';
 import {
-  DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, getMasteryStrands, masteryCourseLabel,
+  DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, MASTERY_STATUS_FILLS, getMasteryStrands, masteryCourseLabel,
 } from '../../platform/mastery/strandConfig.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { normalizeCoursePathPassProgress } from '../../platform/path/pathPassPresentation.js';
@@ -27,6 +27,14 @@ const describeArc = (cx, cy, innerRadius, outerRadius, startAngle, endAngle) => 
 };
 
 const NOT_ENOUGH_EVIDENCE = 'Not Enough Evidence';
+
+// The red dot beside a skill: a retention check is recommended (the scheduler's
+// concern, which an overdue check raises too). Its words are the skill card's
+// (SkillDetailCardModal.jsx), in the skill's name here and in the colour key
+// under the wheel (MyMathPathDashboard.jsx). Nothing writes a confirmed loss
+// today (legacyMasteryAdapter.js only reads one); it draws the same dot and is
+// named the same.
+export const RETENTION_CHECK_RECOMMENDED = 'Retention check recommended';
 
 // Room around the wheel for the topic ring and its numbers. The SVG scales to
 // its container, so this only changes proportions, never the page width.
@@ -113,14 +121,18 @@ export const MyMathPathWheel = ({
           role="group"
           aria-label={`Texas ${courseLabel} mastery wheel: ${entries.length} skills in ${strands.length} topics${showLegend ? ', listed by topic below the wheel' : ''}`}
           style={{ width: '100%', height: '100%', display: 'block', userSelect: 'none' }}
+          // Drawn in the theme's colours under a contrast theme, each level by its
+          // fill (MASTERY_STATUS_FILLS; src/theme/forcedColors.css).
+          data-mm-drawing=""
         >
           {strandArcs.map((arc) => (
             <g key={`ring-${arc.strand.id}`} aria-hidden="true">
               <path
                 d={describeArc(center, center, outerRadius + 13, outerRadius + 17, arc.startAngle, arc.endAngle)}
                 style={{ fill: arc.number % 2 ? 'var(--mm-text-muted)' : 'var(--mm-border-strong)' }}
+                data-mm-plane-part="solid"
               />
-              <circle cx={arc.label.x} cy={arc.label.y} r="9.5" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-text-muted)' }} strokeWidth="1.5" />
+              <circle cx={arc.label.x} cy={arc.label.y} r="9.5" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-text-muted)' }} strokeWidth="1.5" data-mm-plane-part="open" />
               <text x={arc.label.x} y={arc.label.y + 4} textAnchor="middle" style={{ fontSize: '11px', fontWeight: 900, fill: 'var(--mm-text-strong)' }}>{arc.number}</text>
             </g>
           ))}
@@ -137,17 +149,20 @@ export const MyMathPathWheel = ({
                 const badge = polarToCartesian(center, center, outerRadius + 7, (startAngle + endAngle) / 2);
                 const passBadge = polarToCartesian(center, center, outerRadius - 9, (startAngle + endAngle) / 2);
                 const passColor = passCount >= 3 ? '#5b21b6' : '#137333';
+                // Under a contrast theme the wedge is filled as its level is (Highlight
+                // while it is the one named in the hub), a round done is an empty ring
+                // and a Level 3 round a solid dot, as the key says.
                 return (
-                  <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)} (topic ${entry.strandNumber}, ${entry.strand.title}): ${status}${passCount ? ` · Level ${Math.min(passCount, 3)} round done` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
-                    <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE]} opacity={active ? 1 : 0.9} style={{ stroke: passCount ? passColor : 'var(--mm-surface)' }} strokeWidth={passCount ? 3 : 2} />
-                    {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} style={{ stroke: 'var(--mm-surface)' }} strokeWidth="1.5" />}
-                    {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" style={{ stroke: 'var(--mm-surface)' }} strokeWidth="2" />}
+                  <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)} (topic ${entry.strandNumber}, ${entry.strand.title}): ${status}${passCount ? ` · Level ${Math.min(passCount, 3)} round done` : ''}${retentionConcern ? ` · ${RETENTION_CHECK_RECOMMENDED}` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
+                    <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE]} opacity={active ? 1 : 0.9} style={{ stroke: passCount ? passColor : 'var(--mm-surface)' }} strokeWidth={passCount ? 3 : 2} data-mm-plane-part={active ? 'held' : MASTERY_STATUS_FILLS[status] || MASTERY_STATUS_FILLS[NOT_ENOUGH_EVIDENCE]} />
+                    {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} style={{ stroke: 'var(--mm-surface)' }} strokeWidth="1.5" data-mm-plane-part={passCount >= 3 ? 'point' : 'open'} />}
+                    {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" style={{ stroke: 'var(--mm-surface)' }} strokeWidth="2" data-mm-plane-part="point" />}
                   </g>
                 );
               })}
             </g>
           ))}
-          <circle cx={center} cy={center} r={innerRadius - 4} style={{ fill: 'var(--mm-surface)' }} />
+          <circle cx={center} cy={center} r={innerRadius - 4} style={{ fill: 'var(--mm-surface)' }} data-mm-plane-part="plate" />
           {/* The name of the mathematics, not its catalogue number. The code is
               still the wheel's internal key and still what `onSelectTEKS` hands
               back — it is simply not what a student is asked to read. */}
@@ -205,7 +220,8 @@ export const MyMathPathWheel = ({
                               onMouseLeave={() => setFocusedTeks(null)}
                               style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', gap: 9, padding: '6px 8px', border: 0, borderRadius: 8, background: focusedTeks === entry.code ? 'var(--mm-primary-soft)' : 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
                             >
-                              <span aria-hidden="true" style={{ flex: '0 0 auto', width: 12, height: 12, borderRadius: 999, background: MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE], border: '1px solid var(--mm-border-strong)' }} />
+                              {/* The wedge's colour; under a contrast theme, its fill (theme/forcedColors.css). */}
+                              <span aria-hidden="true" data-mm-swatch={MASTERY_STATUS_FILLS[status] || MASTERY_STATUS_FILLS[NOT_ENOUGH_EVIDENCE]} style={{ flex: '0 0 auto', width: 12, height: 12, borderRadius: 999, background: MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE], border: '1px solid var(--mm-border-strong)' }} />
                               <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{studentLabelForTeks(entry.code)}</span>
                               <span style={{ flex: '0 0 auto', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-muted)', textAlign: 'right' }}>{status}</span>
                             </button>

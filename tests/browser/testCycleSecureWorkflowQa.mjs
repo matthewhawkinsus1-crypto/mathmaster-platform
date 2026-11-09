@@ -121,6 +121,7 @@ const db = admin.firestore();
 const fixture = await import(path.join(repo, 'tests/fixtures/testCycleCertificationFixture.mjs'));
 const availabilityRules = await import(path.join(repo, 'functions/shared/testCycleAvailability.mjs'));
 const { zonedDateKey } = await import(path.join(repo, 'functions/shared/instructionalCalendar.mjs'));
+const { shiftDateKey } = await import(path.join(repo, 'src/platform/attendance/classMeetings.js'));
 const { SCHOOL_TIME_ZONE } = await import(path.join(repo, 'functions/shared/sectionDeadline.mjs'));
 
 const TEACHER = 'qa.teacher@desotoisd.org';
@@ -162,7 +163,8 @@ if (!await waitForHttp(`${ORIGIN}/`)) { console.error('Vite did not start.'); ki
 const PREFIX = 'qasw_';
 const QUESTIONS = 4;
 const DAY = 86400000;
-const dayKey = (offset = 0) => zonedDateKey(Date.now() + offset * DAY, SCHOOL_TIME_ZONE);
+// Whole calendar days: adding 24 hours to now lands on the wrong day across a clock change.
+const dayKey = (offset = 0) => shiftDateKey(zonedDateKey(Date.now(), SCHOOL_TIME_ZONE), offset);
 const families = fixture.certFamilies().map((family) => ({ ...family, id: family.id.replace(/^cert_/, PREFIX), familyId: String(family.familyId).replace(/^cert_/, PREFIX) }));
 
 // Each device runs the whole journey on its own classes, students and Tests.

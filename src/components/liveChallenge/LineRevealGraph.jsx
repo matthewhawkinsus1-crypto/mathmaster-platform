@@ -22,7 +22,7 @@ function SegmentLine({ line, view, side, stroke, width, dash = null }) {
   const segment = lineSegmentInView(line, view);
   if (!segment) return null;
   const [from, to] = segment.map((point) => ({ x: unitX(view, point.x) * side, y: unitY(view, point.y) * side }));
-  return <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={stroke} strokeWidth={width} strokeDasharray={dash || undefined} strokeLinecap="round" />;
+  return <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={stroke} strokeWidth={width} strokeDasharray={dash || undefined} strokeLinecap="round" data-mm-plane-part="line" />;
 }
 
 /** One sentence for the class's round: how many got it, and the common wrong answer. */
@@ -59,6 +59,7 @@ export default function LineRevealGraph({ lineGraph, size = 280, dark = false })
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         style={{ display: 'block', borderRadius: 12, flex: '0 0 auto', boxShadow: dark ? '0 8px 30px rgba(0,0,0,.35)' : 'none', border: dark ? 0 : '1px solid var(--mm-border)' }}
+        data-mm-plane=""
       >
         <LineGridLayer view={view} side={size} />
         {mistake && <SegmentLine line={mistake.line} view={view} side={size} stroke="#d93025" width={4} dash="10 8" />}
@@ -69,7 +70,7 @@ export default function LineRevealGraph({ lineGraph, size = 280, dark = false })
           const nearRight = cx > size - 70;
           return (
             <g key={`${point.x},${point.y}`}>
-              <circle cx={cx} cy={cy} r={6} fill="#1e8e3e" stroke="var(--mm-graph-bg)" strokeWidth={2.5} />
+              <circle cx={cx} cy={cy} r={6} fill="#1e8e3e" stroke="var(--mm-graph-bg)" strokeWidth={2.5} data-mm-plane-part="point" />
               <text x={nearRight ? cx - 10 : cx + 10} y={cy < 22 ? cy + 20 : cy - 10} textAnchor={nearRight ? 'end' : 'start'} fontSize={12} fontWeight={900} fill="var(--mm-graph-label)" style={halo} aria-hidden="true">
                 {formatPoint(point)}
               </text>
@@ -77,7 +78,7 @@ export default function LineRevealGraph({ lineGraph, size = 280, dark = false })
           );
         })}
         {lineGraph.marked && (
-          <circle cx={unitX(view, lineGraph.marked.x) * size} cy={unitY(view, lineGraph.marked.y) * size} r={6} fill="var(--mm-primary)" stroke="var(--mm-graph-bg)" strokeWidth={2.5} />
+          <circle cx={unitX(view, lineGraph.marked.x) * size} cy={unitY(view, lineGraph.marked.y) * size} r={6} fill="var(--mm-primary)" stroke="var(--mm-graph-bg)" strokeWidth={2.5} data-mm-plane-part="point" />
         )}
       </svg>
       <figcaption style={{ flex: '1 1 200px', minWidth: 0, display: 'grid', gap: 8, color: textColor }}>

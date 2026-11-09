@@ -24,6 +24,7 @@ export default defineConfig({
   plugins: [
     swapModules('mm-secure-results-swap', [
       [path.join(repo, 'src/firebase.js'), path.join(emulator, 'firebaseEmulator.js')],
+      [path.join(repo, 'src/firebaseApp.js'), path.join(emulator, 'firebaseEmulator.js')],
       [path.join(repo, 'src/services/secureExamService.js'), path.join(here, 'secureResultsSecureExamStub.js')],
       [path.join(repo, 'src/services/testCycleService.js'), path.join(here, 'secureResultsTestCycleStub.js')],
       [path.join(repo, 'src/platform/liveChallenge/liveChallengeService.js'), path.join(emulator, 'liveChallengeServiceStub.js')],

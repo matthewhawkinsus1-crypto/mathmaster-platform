@@ -31,6 +31,8 @@ import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { newSchoolContext } from './schoolClock.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -111,7 +113,9 @@ const sameSet = (left, right) => left.length === right.length && [...left].sort(
 
 for (const viewport of VIEWPORTS) {
   const tag = `${viewport.width}x${viewport.height}`;
-  const context = await browser.newContext({ viewport });
+  // On the school's clock (schoolClock.mjs): "Classes in session" reads the
+  // bell schedule, which the fixture builds from the clock.
+  const context = await newSchoolContext(browser, { viewport });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));

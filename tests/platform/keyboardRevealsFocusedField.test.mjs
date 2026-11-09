@@ -129,3 +129,106 @@ test('the container looks again when the visible height changes, and only then',
   assert.equal((update.match(/requestAnimationFrame/g) || []).length, 2);
   assert.match(update, /lastVisibleHeight = nextViewport\.height;/, 'the height it compares with is the last one seen');
 });
+
+/*
+ * WHAT THE LOCAL SCROLLER CANNOT DO, THE PAGE DOES (WCAG 2.4.11, Focus Not
+ * Obscured). My Math Path's phone frame starts under the session's header, so
+ * its last 156px were below the screen: with the number keypad up (keys from
+ * y 570), Tab past the last box reached "Show a hint" at 678 to 722 while the
+ * workspace was already scrolled to its end, and it stayed under the keys.
+ * Here the rects move as they would: the scroller stops at its end, and the
+ * page moves everything under it.
+ */
+const pageScene = ({ scrollTop, maxScroll, target, keypadTop = 570, fixedAncestor = false, scale = 1 }) => {
+  const pageCalls = [];
+  const localCalls = [];
+  const windowObject = {
+    scrollX: 0,
+    scrollY: 0,
+    innerHeight: 844,
+    visualViewport: { offsetTop: 0, offsetLeft: 0, height: 844, scale },
+    scrollTo() {},
+    scrollBy(options) { pageCalls.push(options); windowObject.scrollY += options.top; },
+    getComputedStyle: (node) => ({ position: node.position || 'static', overflowY: node.overflowY || 'visible' }),
+  };
+  const frame = { position: fixedAncestor ? 'fixed' : 'static', parentElement: null, matches: () => false };
+  const scrollerElement = {
+    scrollLeft: 0,
+    scrollTop,
+    overflowY: 'auto',
+    parentElement: frame,
+    matches: () => false,
+    // The workspace starts 386px down the page and runs past the screen to 1000.
+    getBoundingClientRect: () => ({ top: 386 - windowObject.scrollY, bottom: 1000 - windowObject.scrollY, left: 0, right: 390 }),
+    scrollBy: (options) => {
+      localCalls.push(options);
+      scrollerElement.scrollTop = Math.max(0, Math.min(maxScroll, scrollerElement.scrollTop + options.top));
+    },
+  };
+  // `target` is where the control is with the workspace at its end and the page at the top.
+  const offset = () => (scrollerElement.scrollTop - maxScroll) + windowObject.scrollY;
+  const targetElement = {
+    parentElement: scrollerElement,
+    closest: () => scrollerElement,
+    getBoundingClientRect: () => ({ top: target.top - offset(), bottom: target.bottom - offset(), left: 27, right: 313 }),
+  };
+  const documentObject = {
+    scrollingElement: { scrollLeft: 0, scrollTop: 0 },
+    documentElement: { scrollLeft: 0 },
+    body: { scrollLeft: 0 },
+    querySelector: (selector) => (selector.includes('numeric-keypad') ? { getBoundingClientRect: () => ({ top: keypadTop, bottom: 836, left: 8, right: 382, height: 836 - keypadTop }) } : null),
+  };
+  const run = () => scrollFocusedControlVertically(targetElement, { root: null, margin: 12, windowObject, documentObject });
+  return { run, pageCalls, localCalls, targetElement, windowObject };
+};
+
+test('a control under the keypad that its scroller cannot lift any further is brought up by the page', () => {
+  const { run, pageCalls, localCalls, targetElement } = pageScene({ scrollTop: 536, maxScroll: 536, target: { top: 678, bottom: 722 } });
+  assert.equal(run(), true);
+  assert.equal(localCalls.length, 1, 'the workspace is asked first');
+  assert.equal(pageCalls.length, 1, 'then the page does the rest');
+  assert.deepEqual(pageCalls[0], { top: 722 - (570 - 12), left: 0, behavior: 'auto' }, 'just above the keys, and never sideways');
+  const after = targetElement.getBoundingClientRect();
+  assert.equal(after.bottom, 570 - 12, 'its bottom edge is 12px above the keypad');
+});
+
+test('the page does not move when the scroller had the room', () => {
+  const { run, pageCalls, localCalls, targetElement } = pageScene({ scrollTop: 300, maxScroll: 536, target: { top: 678 - 236, bottom: 722 - 236 } });
+  // The workspace has 236px left, more than the 164 it needs.
+  assert.equal(targetElement.getBoundingClientRect().bottom, 722);
+  run();
+  assert.equal(localCalls.length, 1);
+  assert.equal(pageCalls.length, 0, 'the assignment screen\'s case: its frame fits the screen');
+  assert.equal(targetElement.getBoundingClientRect().bottom, 570 - 12);
+});
+
+test('a scroller with part of the room does what it can, and the page the rest', () => {
+  const { run, pageCalls, targetElement } = pageScene({ scrollTop: 486, maxScroll: 536, target: { top: 678 - 50, bottom: 722 - 50 } });
+  assert.equal(targetElement.getBoundingClientRect().bottom, 722);
+  run();
+  assert.equal(pageCalls.length, 1);
+  assert.equal(pageCalls[0].top, 164 - 50);
+  assert.equal(targetElement.getBoundingClientRect().bottom, 570 - 12);
+});
+
+test('a control in a fixed layer (Work View) never moves the page beneath it', () => {
+  const { run, pageCalls } = pageScene({ scrollTop: 536, maxScroll: 536, target: { top: 678, bottom: 722 }, fixedAncestor: true });
+  run();
+  assert.equal(pageCalls.length, 0);
+});
+
+test('the page never lifts a control past its own top edge', () => {
+  // 580px tall, starting inside the workspace: clearing the keys would take it
+  // 442px up, and its top has only 408 to give before it leaves the screen.
+  const { run, pageCalls, targetElement } = pageScene({ scrollTop: 536, maxScroll: 536, target: { top: 420, bottom: 1000 } });
+  run();
+  assert.equal(pageCalls.length, 1);
+  assert.equal(pageCalls[0].top, 420 - 12);
+  assert.equal(targetElement.getBoundingClientRect().top, 12);
+});
+
+test('a pinch-zoomed page is a magnifying glass: the page is not moved', () => {
+  const { run, pageCalls } = pageScene({ scrollTop: 536, maxScroll: 536, target: { top: 678, bottom: 722 }, scale: 2.5 });
+  run();
+  assert.equal(pageCalls.length, 0);
+});

@@ -171,6 +171,11 @@ export const buildStudentDashboardModel = ({
     // it every Classwork/Practice section reads as open, which is what they
     // showed before.
     getSectionAccessState = null,
+    // (assignment, questionIndex, record) -> { questionIndex, shown, deal }:
+    // what the signed-in student's page knows of the question a family slot
+    // dealt, so "finished" counts its tries as the question list does (App.jsx
+    // terminalCountingFor). Optional: without it, the stored slot.
+    terminalCounting = null,
   } = providers;
   const todayKey = localDateKey(nowValue);
   /*
@@ -195,13 +200,16 @@ export const buildStudentDashboardModel = ({
   // enforces (a teacher-granted extra DOL try reopens an expired DOL item).
   const terminalFor = (assignment, index) => {
     const questions = getStoredAssignmentQuestions(assignment);
+    const record = tracker?.[assignment?.id]?.[index];
     return questionIsTerminal({
-      record: tracker?.[assignment?.id]?.[index],
+      record,
       role: resolveQuestionActivityRole({ question: questions[index], assignment }),
       question: questions[index],
       assignment,
       classId,
       studentId,
+      questionIndex: index,
+      ...(typeof terminalCounting === 'function' ? terminalCounting(assignment, index, record) : {}),
     });
   };
   const isExcused = (assignment) => Boolean(studentId)

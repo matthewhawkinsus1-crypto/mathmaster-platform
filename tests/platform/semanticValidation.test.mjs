@@ -496,7 +496,8 @@ console.log('semanticValidation.test.mjs: all assertions passed');
     answerFields: answers.map((answer, index) => ({ id: `f${index}`, label: `Simplify part ${index + 1}`, answer })),
   }, { label: 'simplify question' }).warnings.filter((message) => /looks categorical/.test(message));
 
-  for (const expression of ['2x-5', 'x-3', '-x', '4x', '3x − 5', '−x', '2(x-1)', '6xy', '3ab', '−4ay']) {
+  // An absolute value is an expression too: ⁶√(t⁶) = |t| (radicals L1 CW 7).
+  for (const expression of ['2x-5', 'x-3', '-x', '4x', '3x − 5', '−x', '2(x-1)', '6xy', '3ab', '−4ay', '|t|', '|x|', '−|x|']) {
     assert.deepEqual(categoricalWarnings([expression]), [], `"${expression}" is an expression, not a category`);
   }
   for (const word of ['time', 'x-intercept', 'e-mail', 'Translation right', '3rd', '2nd']) {

@@ -26,7 +26,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { buildTeacherRosterSummaryRow } from '../../functions/shared/studentIdentity.mjs';
+import { acceptStudentName as resolverAcceptStudentName, buildTeacherRosterSummaryRow } from '../../functions/shared/studentIdentity.mjs';
 import {
   normalizeTeacherRosterSummary,
   rosterStudentLabel,
@@ -35,6 +35,7 @@ import {
 import {
   STUDENT_NAME_UNAVAILABLE,
   STUDENT_SELF_NEUTRAL_LABEL,
+  acceptStudentName as screensAcceptStudentName,
   buildStudentIdentityIndex,
   resolveStudentDisplayName,
 } from '../../src/platform/studentName.js';
@@ -349,7 +350,12 @@ test("a student's presence carries their roster name or null, and their session 
   const presence = region(app, 'const payload = {\n      studentId: user.id,', 'classId: user.classId', 'presence payload');
   assert.match(presence, /name: formatStudentName\(user, \{ lastFirst: false, fallbackToNeutral: false \}\) \|\| null,/);
   const auth = executableSource(read('src/auth/AuthProvider.jsx'));
-  assert.match(auth, /import \{ acceptStudentName \} from '\.\.\/platform\/studentName\.js';/);
+  // The session's check is the one resolver every screen's names come from,
+  // not a stand-in: imported from the shared module or from studentName.js,
+  // which re-exports it (the sign-in path takes it from the shared module,
+  // firstLoadSignInStudentName.test.mjs).
+  assert.match(auth, /^import \{ acceptStudentName \} from '(?:\.\.\/platform\/studentName\.js|\.\.\/\.\.\/functions\/shared\/studentIdentity\.mjs)';$/m);
+  assert.equal(screensAcceptStudentName, resolverAcceptStudentName);
   assert.match(auth, /claims\.role === 'student'[\s\S]*?return acceptStudentName\(firebaseUser\.displayName, \{ studentId: claims\.studentId \}\) \|\| null;/);
   assert.doesNotMatch(auth, /displayName \|\| claims\.studentId/);
 });

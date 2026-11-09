@@ -37,6 +37,12 @@ name: Student and Teacher Journeys
 #                          the class was seated shows the same numbers on the
 #                          next Chromebook, before any Submit; a slow read
 #                          waits, a stalled one does not hold the question)
+#   the question list      tests/browser/teacherWorkflow/familyListReloadJourneys.mjs
+#   after a reload         (P-7: reloaded straight into a question, before the
+#                          family engine lands, the list neither counts nor
+#                          labels a family slot, nor calls a question out of
+#                          tries closed: "Loading…", never "2 tries left";
+#                          Chromebook and phone)
 #   restored-draft focus   tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
 #                          (its own job: once the student clicks, taps or keys
 #                          after a cross-device restore, no late focus — the
@@ -131,7 +137,9 @@ name: Student and Teacher Journeys
 #                          practicePassSwitchJourneys.mjs (LC23: Review's
 #                          Practice Passes switch saved, reopened and changed,
 #                          desktop and phone; the review never scrolls
-#                          sideways). Ask my teacher and the
+#                          sideways), resizeLoopJourneys.mjs (no
+#                          ResizeObserver loop error on a phone in Work View
+#                          at 200% text or turned). Ask my teacher and the
 #                          lobby's way into the game run on the accessibility
 #                          App harness, on port 5189
 #
@@ -152,7 +160,7 @@ permissions:
 
 jobs:
   accommodation-review:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -169,7 +177,7 @@ jobs:
   # The teacher journeys, in three jobs of about ten minutes each: one runner
   # took 29 minutes for them all (PR #513), against a 40-minute limit.
   teacher:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -212,7 +220,7 @@ jobs:
 
   # Case review and held Recovery, on a runner of their own (see teacher).
   teacher-case-review:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -235,7 +243,7 @@ jobs:
 
   # Unfinished work across Chromebooks and the Warm-Up reopen (see teacher).
   teacher-drafts:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -255,6 +263,12 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/familyPinCrossDeviceJourneys.mjs
+      - name: The question list after a reload, before the family engine lands
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          VIEWPORTS: "1366x768,390x844"
+        run: node tests/browser/teacherWorkflow/familyListReloadJourneys.mjs
       - name: Warm-Up close and reopen under unfinished work
         if: ${{ !cancelled() }}
         env:
@@ -280,7 +294,7 @@ jobs:
   teacher-nightly-warmup:
     name: teacher-nightly-warmup (${{ matrix.shard.name }})
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -307,7 +321,7 @@ jobs:
 
   teacher-nightly-held-recovery:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -325,7 +339,7 @@ jobs:
 
   teacher-nightly-endurance:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
@@ -344,7 +358,7 @@ jobs:
   # Its own runner: the teacher job is near its time limit. About a minute:
   # one journey, desktop and phone.
   district-id:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -364,7 +378,7 @@ jobs:
   # Its own runner: the teacher job is near its time limit. About six
   # minutes: four journeys on desktop, Chromebook and phone.
   honors-ccmr:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -387,7 +401,7 @@ jobs:
   # Its own runner: the teacher job is near its time limit. One journey,
   # 1366x768 and 390x844.
   submit-and-finish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -406,7 +420,7 @@ jobs:
   # Its own runner: the teacher job is near its time limit, and these journeys
   # run every device size in both storage states (mirrored, retired).
   private-controls:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -428,7 +442,7 @@ jobs:
   # and the nightly run races the restore 50 times at normal speed and 20
   # times throttled.
   restored-draft-focus:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
@@ -456,7 +470,7 @@ jobs:
   # Its own runner: the teacher job is near its time limit. A few minutes:
   # every student screen reloaded, on a Chromebook and a phone.
   app-urls:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
@@ -493,7 +507,7 @@ jobs:
   # The student journeys on the plain dev server, in two jobs (one runner took
   # 17 minutes for them all).
   student:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -563,7 +577,7 @@ jobs:
 
   # The representations board, and its Process Mode (see student).
   student-representations:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -587,9 +601,10 @@ jobs:
         run: node tests/browser/lmrProcessMode.mjs
 
   # Student pass 3's journeys in the real App. Their own job: the teacher job
-  # is near its limit. About 7 minutes locally.
+  # is near its limit. About 7 minutes locally, and about 10 since the matrices
+  # lesson on a phone joined them (2.6 minutes of its own, 2026-11-08).
   pass3-student-journeys:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -639,3 +654,19 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/practicePassSwitchJourneys.mjs
+      # The matrices lesson on a 390×844 phone in the real App (PH10, PH03, P-4): the first screen's room, Check above
+      # the work bar, a matrix wider than its box scrolled by keyboard at 100% and 200% text, and no matrix scrolling
+      # on a 344 or 320 px phone. It ran by hand only (student-keyboard-ci).
+      - name: The matrices lesson on a phone, in the real App (first screen, Check, a wide matrix by keyboard)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/matrixLabPhoneJourneys.mjs
+      # On a 390×844 phone: Work View, 200% text, the phone turned, the keypad
+      # and the navigator raise no ResizeObserver loop error (the identity bar's
+      # height is published after its observer reports it).
+      - name: No ResizeObserver loop on a phone (Work View, 200% text, turned, keypad, navigator)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/resizeLoopJourneys.mjs

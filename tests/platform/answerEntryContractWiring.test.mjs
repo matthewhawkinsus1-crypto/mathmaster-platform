@@ -24,7 +24,15 @@ test('unknown required symbols fail open to the device keyboard instead of trapp
 });
 
 test('multi-answer fields infer required mobile keys and still honor authored semantic contracts', () => {
-  assert.match(multiAnswer, /inferRequiredAnswerSymbols\(acceptedAnswersForField\(field\)\)/);
+  // The row is read from the box's key and its accepted answers by the shared
+  // reader (answerEntryTools.js neededAnswerSymbols; neededForThisAnswerRow.test.mjs
+  // holds what it shows over every lesson file).
+  assert.match(multiAnswer, /const accepted = acceptedAnswersForField\(field\);\s*const inferredRequiredSymbols = neededAnswerSymbols\(\{ key: fieldKeyValues\(field, accepted\), accepted \}\);/);
+  assert.match(multiAnswer, /\.\.\.inferredRequiredSymbols,\s*\];/);
   assert.match(multiAnswer, /answerFormat=\{field\.answerFormat \|\| field\.inputContract\?\.format/);
-  assert.match(multiAnswer, /requiredSymbols=\{requiredSymbols\}/);
+  // They reach the keypad wherever outcomes are shown; on an exit ticket, a
+  // quiz or a test before release nothing read from the key does (N56,
+  // withheldVerdictKeypad.test.mjs holds both sides).
+  assert.match(multiAnswer, /requiredSymbols=\{withheldKeys \? NO_SYMBOLS : requiredSymbols\}/);
+  assert.match(multiAnswer, /const withheldKeys = verdictsWithheld \? withheldVerdictKeys\(field, \{ prompt, toolProfile \}\) : null;/);
 });

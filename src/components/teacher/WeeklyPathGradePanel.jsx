@@ -90,7 +90,7 @@ export default function WeeklyPathGradePanel({
           {readiness.reason}
         </div>
       )}
-      <div style={{ overflowX: 'auto' }}>
+      <div role="region" aria-label="Path grade by student" tabIndex={0} style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
@@ -137,7 +137,7 @@ export default function WeeklyPathGradePanel({
         <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900, background: 'var(--mm-surface)', color: tone.fg, border: `1px solid ${tone.border}` }}>
           GOOGLE CLASSROOM
         </span>
-        <span style={{ flex: 1, minWidth: 220, color: tone.fg, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>{readiness.reason}</span>
+        <span style={{ flex: 1, minWidth: 'min(220px, 100%)', color: tone.fg, fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.45 }}>{readiness.reason}</span>
         <button
           type="button"
           disabled={readiness.state !== SYNC_STATE.READY_FOR_REVIEW || !onReviewClassroomSync}

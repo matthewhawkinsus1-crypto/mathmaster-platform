@@ -7,7 +7,7 @@ import {
 import {
   EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_OPEN_EVENT, examToolYieldsTo,
 } from '../../platform/assessment/examToolLayout.js';
-import { useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
+import { examToolTabEdge, useExamToolbarOffset, useNarrowScreen } from './examToolDrawerHooks.js';
 import { readGraphingLines, writeGraphingLines } from '../calculator/graphingLineMemory.js';
 
 /*
@@ -160,6 +160,15 @@ const readToken = (element, name, fallback) => {
   }
 };
 
+/*
+ * The board's parts, named for a contrast theme (src/theme/forcedColors.css
+ * draws a plane's parts in the theme's colours): JSXGraph draws them, so each
+ * is named on the node it draws, once drawn. Its words are drawn as text.
+ */
+const markPlanePart = (element, part) => {
+  try { element?.rendNode?.setAttribute('data-mm-plane-part', part); } catch { /* not drawn */ }
+};
+
 /** Is the surface behind the graph dark? Decides the line palette. */
 const isDarkSurface = (element) => {
   try {
@@ -172,8 +181,9 @@ const isDarkSurface = (element) => {
   }
 };
 
+// A line's key beside the board: drawn as the board draws the line (data-mm-plane-key, under a contrast theme).
 const Swatch = ({ style, dark }) => (
-  <svg width="30" height="12" viewBox="0 0 30 12" aria-hidden="true" style={{ flex: '0 0 auto' }}>
+  <svg width="30" height="12" viewBox="0 0 30 12" aria-hidden="true" style={{ flex: '0 0 auto' }} data-mm-plane-key="">
     <line x1="1" y1="6" x2="29" y2="6" stroke={dark ? style.dark : style.light} strokeWidth="3" strokeDasharray={style.dashArray || undefined} strokeLinecap="round" />
   </svg>
 );
@@ -193,6 +203,10 @@ const describeEntry = (entry, style) => {
  * @param onOpenChange  optional: (open) => void on every open and close — the
  *                      container pads the question column (useExamToolRoom)
  * @param prefetch      start loading JSXGraph in the background (default on)
+ * @param onTabOut      optional: (panel, forward) => void, for a host that
+ *                      keeps Tab inside itself (the secure exam): Tab past the
+ *                      panel's last control, or Shift+Tab before its first,
+ *                      hands focus to the host (examToolDrawerHooks.js)
  */
 export default function GraphingCalculatorPanel({
   available = true,
@@ -213,6 +227,7 @@ export default function GraphingCalculatorPanel({
   // assignment (graphingLineMemory.js; an ordinary assignment's panel is
   // mounted per question).
   keepLinesKey = null,
+  onTabOut = null,
 }) {
   const baseId = `mm-graphing-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const narrow = useNarrowScreen();
@@ -368,6 +383,11 @@ export default function GraphingCalculatorPanel({
         keyboard: { enabled: false },
         resize: { enabled: true, throttle: 100 },
       });
+      ['x', 'y'].forEach((key) => {
+        markPlanePart(board.defaultAxes?.[key], 'axis');
+        // Ticks the height of the board: its grid.
+        markPlanePart(board.defaultAxes?.[key]?.defaultTicks, 'grid');
+      });
       board.on('boundingbox', () => {
         const next = board.getBoundingBox();
         if (Array.isArray(next) && next.every(Number.isFinite)) setView([...next]);
@@ -421,10 +441,14 @@ export default function GraphingCalculatorPanel({
           const value = entry.evaluate(x);
           return value === null ? NaN : value;
         };
-        drawnRef.current.push(board.create('functiongraph', [y], look));
+        const graph = board.create('functiongraph', [y], look);
+        markPlanePart(graph, 'line');
+        drawnRef.current.push(graph);
       } else if (entry.kind === ENTRY_KINDS.VERTICAL) {
         // c + a·x + b·y = 0 is the line x = entry.x.
-        drawnRef.current.push(board.create('line', [-entry.x, 1, 0], { ...look, straightFirst: true, straightLast: true }));
+        const graph = board.create('line', [-entry.x, 1, 0], { ...look, straightFirst: true, straightLast: true });
+        markPlanePart(graph, 'line');
+        drawnRef.current.push(graph);
       }
     });
     board.unsuspendUpdate();
@@ -446,9 +470,11 @@ export default function GraphingCalculatorPanel({
         if (y === null) return;
         const style = LINE_STYLES[index % LINE_STYLES.length];
         const color = dark ? style.dark : style.light;
-        tracedRef.current.push(board.create('point', [x, y], {
+        const traced = board.create('point', [x, y], {
           name: '', withLabel: false, fixed: true, highlight: false, showInfobox: false, size: 4, strokeColor: color, fillColor: color,
-        }));
+        });
+        markPlanePart(traced, 'closed');
+        tracedRef.current.push(traced);
       });
     }
     board.unsuspendUpdate();
@@ -586,6 +612,8 @@ export default function GraphingCalculatorPanel({
           in the toolbar's stacking context, under Work View whatever its own
           layer says. */}
       {open && typeof document !== 'undefined' && createPortal(
+        <>
+        {onTabOut && <span {...examToolTabEdge('start', panelRef, onTabOut)} />}
         <section
           ref={panelRef}
           id={`${baseId}-panel`}
@@ -593,6 +621,9 @@ export default function GraphingCalculatorPanel({
           aria-labelledby={`${baseId}-title`}
           tabIndex={-1}
           data-graphing-calculator={narrow ? 'sheet' : 'drawer'}
+          // A stop in the host's Tab round (the secure exam's), between the
+          // two stops around it.
+          data-exam-tool-panel={onTabOut ? TOOL : undefined}
           // Opened from a question's own control, it is a floating tool above
           // Work View, whose dialog then lets focus into it (src/ui/Dialog.jsx),
           // as it does the keypad drawer. Not in the secure exam: there no
@@ -731,6 +762,7 @@ export default function GraphingCalculatorPanel({
                   aria-label={graphDescription}
                   data-graphing-board={graphState}
                   style={{ width: '100%', height: narrow ? 250 : 300, position: 'relative', overflow: 'hidden', touchAction: 'none', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', boxSizing: 'border-box' }}
+                  data-mm-plane=""
                 />
                 {graphState !== 'ready' && (
                   <div role="status" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 16, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 'calc(14 * var(--mm-px))' }}>
@@ -899,7 +931,9 @@ export default function GraphingCalculatorPanel({
             </details>
           </div>
           <div aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{announcement}</div>
-        </section>,
+        </section>
+        {onTabOut && <span {...examToolTabEdge('end', panelRef, onTabOut)} />}
+        </>,
         document.body,
       )}
     </>

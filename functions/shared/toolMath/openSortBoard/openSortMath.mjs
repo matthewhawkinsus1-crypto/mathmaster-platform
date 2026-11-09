@@ -119,6 +119,35 @@ export const scoreControlledSort = ({ items = [], responseGroups = [], validSche
 };
 
 /*
+ * WHICH CARDS A FIXED-CATEGORY SORT HAS IN THE WRONG CATEGORY (F-SORT-WHICH-CARD).
+ *
+ * The cards, in the board's order, whose category differs from the one the
+ * closest authored scheme gives them. "Closest" is the scheme the score is
+ * taken from, so a sort with one card misplaced names that one card. Only
+ * placed cards are judged; an unplaced card is not "wrong", it is still to
+ * place. Empty for a right sort and without a scheme. Grading does not read
+ * this: it is only what the board says after a wrong try, and the board says
+ * it only where the verdict itself is shown.
+ */
+export const controlledSortWrongItems = ({ items = [], responseGroups = [], validSchemes = [] }) => {
+  const { best } = scoreControlledSort({ items, responseGroups, validSchemes });
+  if (!best?.scheme || best.exact) return [];
+  const categoryOf = (groups) => {
+    const owner = new Map();
+    groups.forEach((group, index) => {
+      const id = String(group?.id || group?.categoryId || `group-${index + 1}`);
+      (group?.itemIds || group?.items || []).forEach((itemId) => owner.set(String(itemId), id));
+    });
+    return owner;
+  };
+  const expected = categoryOf(best.scheme.groups || []);
+  const placed = categoryOf(responseGroups);
+  return items
+    .map((item) => String(item?.id ?? ''))
+    .filter((id) => id && placed.has(id) && placed.get(id) !== expected.get(id));
+};
+
+/*
  * WHAT THE BOARD ASKS FOR, AND WHEN THE STUDENT HAS FINISHED IT.
  *
  * OpenSortBoard.jsx gates its Check button on `openSortProgress(...).ready`,
@@ -139,7 +168,12 @@ export const openSortSettings = (question = {}) => {
     minGroups,
     maxGroups,
     rationaleMinLength: Math.max(0, Number(question?.rationaleMinLength ?? 12)),
-    requireRationale: controlled ? false : question?.requireRationale !== false,
+    // An open sort asks for a reason per group unless the author turns it off.
+    // A fixed-category sort asks for one per category only when the author
+    // turns it ON: a task that says "give a reason for each group" has no
+    // other way to get one (F-SORT-NO-REASON), and every controlled sort
+    // authored without it stays as it was.
+    requireRationale: controlled ? question?.requireRationale === true : question?.requireRationale !== false,
     requireGroupNames: controlled ? false : question?.requireGroupNames !== false,
   };
 };
@@ -180,7 +214,7 @@ export const openSortProgress = ({ settings, items = [], groups = [] }) => {
     || usedGroups.every((group) => group.rationale.trim().length >= settings.rationaleMinLength);
   const namesComplete = !settings.requireGroupNames || usedGroups.every((group) => group.name.trim().length >= 2);
   const ready = settings.controlled
-    ? unassigned.length === 0
+    ? unassigned.length === 0 && rationaleComplete
     : unassigned.length === 0 && usedGroups.length >= settings.minGroups && namesComplete && rationaleComplete;
   return { unassigned, usedGroups, placedGroups, namesComplete, rationaleComplete, ready };
 };

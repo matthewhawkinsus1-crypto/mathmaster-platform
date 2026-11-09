@@ -19,6 +19,16 @@
 //              offers the same system with new numbers: one box per
 //              variable, ✗ then ✓ typed with real keys, no grade, the worked
 //              solution, another one; nothing on a DOL or an unvouched host.
+//   polynomial, matrix   the same for Operations on Polynomials PR 3 (three
+//              products, two in two letters) and the matrices lesson's PR 7
+//              (a system solved with matrices, in fractions): one box per
+//              answer, ✗ then ✓ typed with real keys, no grade, the worked
+//              solution with every formula typeset once on screen, another
+//              one.
+//   factoring  the same for Factoring Polynomials PR 6 (three trinomials):
+//              each box is the item's own factored-form box, so each
+//              polynomial typed back unfactored is ✗ and its factoring,
+//              typed with real keys, ✓.
 //
 // Exits non-zero on any failure. Screenshots: tests/browser/artifacts/afterLastMiss.
 import { mkdirSync } from 'node:fs';
@@ -272,6 +282,88 @@ for (const device of DEVICES) {
   for (const query of ['q=system3&role=dol&closed=1', 'q=system3&role=practice&closed=1&host=0']) {
     const { page, context } = await open(device, query);
     check(await page.locator('[data-practice-like-this]').count() === 0, `${device.name} ${query}: no practice`);
+    await context.close();
+  }
+
+  /* ---- the item with new numbers: Operations on Polynomials PR 3, the matrices lesson's PR 7 */
+  // Typed with real keys on the desktop: an exponent is closed with the right
+  // arrow, as a student leaves a superscript, and "/" makes a fraction.
+  const typeMath = async (page, value) => {
+    for (const piece of String(value).replace(/\s+/g, '').split(/(\^\d+)/).filter(Boolean)) {
+      if (piece.startsWith('^')) {
+        await page.keyboard.type(piece, { delay: 8 });
+        await page.keyboard.press('ArrowRight');
+      } else {
+        await page.keyboard.type(piece, { delay: 8 });
+        if (piece.includes('/')) await page.keyboard.press('ArrowRight');
+      }
+    }
+  };
+  for (const { q, name, labels, shows, steps } of [
+    { q: 'polynomial', name: 'products', labels: 'First product =|Second product =|Third product =', shows: 'Multiply. Write each product in simplest form.', steps: 6 },
+    { q: 'matrix', name: 'matrices', labels: 'x =|y =|z =', shows: 'Solve the system with technology and matrices', steps: 4 },
+    { q: 'factoring', name: 'factorings', labels: 'First =|Second =|Third =', shows: 'Factor each trinomial.', steps: 6 },
+  ]) {
+    const { page, context } = await open(device, `q=${q}&role=practice&closed=1`);
+    const practice = await page.evaluate(() => window.__mmPractice);
+    check(practice?.source === 'numericVariant', `${device.name} ${name}: no family sibling, so the practice is the item with new numbers`, practice?.prompt);
+    const section = page.locator('[data-closed-question-card] [data-practice-like-this]');
+    check(await section.count() === 1, `${device.name} ${name}: the closed card offers the practice`);
+    const opener = section.getByRole('button', { name: 'Practise one like this (no score)' });
+    check(await reachable(page, opener), `${device.name} ${name}: the offer can be reached`);
+    await opener.click();
+    await page.waitForTimeout(300);
+    check((await section.textContent()).includes(shows), `${device.name} ${name}: the new problem is shown`);
+    const boxes = section.locator('[data-practice-part] math-field');
+    const found = await section.locator('[data-practice-part]').evaluateAll((nodes) => nodes.map((node) => node.firstElementChild?.textContent?.trim()));
+    check(found.join('|') === labels, `${device.name} ${name}: one box per answer`, found.join(' | '));
+    const graded = await page.evaluate(() => window.__mmGrades.length);
+    const typeAll = async (pick) => {
+      for (let index = 0; index < practice.parts.length; index += 1) {
+        if (device.name !== 'desktop') {
+          await setField(boxes.nth(index), pick(practice.parts[index]));
+          continue;
+        }
+        await boxes.nth(index).evaluate((element) => { element.setValue(''); element.focus(); });
+        await page.waitForTimeout(300);
+        await typeMath(page, pick(practice.parts[index]));
+      }
+      await section.getByRole('button', { name: 'Check my practice answer' }).click();
+      await page.waitForTimeout(400);
+      return {
+        marks: await section.locator('[data-practice-part]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-practice-verdict'))),
+        message: await section.locator('[data-practice-message]').textContent(),
+      };
+    };
+    // A wrong answer in every box (the polynomial one more, each value 1, each
+    // trinomial typed back unfactored: its value, not a factoring), then each box's answer.
+    const asked = (practice.prompt.match(/\$[^$]+\$/g) || []).map((piece) => piece.slice(1, -1));
+    const wrong = await typeAll((part) => (q === 'matrix' ? '1' : q === 'factoring' ? asked[practice.parts.indexOf(part)] : `${part.expected}+1`));
+    check(wrong.marks.every((mark) => mark === 'incorrect') && wrong.message.startsWith('Not quite'), `${device.name} ${name}: wrong answers are marked ✗`, `${wrong.marks.join(',')} · ${wrong.message}`);
+    const right = await typeAll((part) => part.expected);
+    check(right.marks.every((mark) => mark === 'correct') && /That matches/.test(right.message), `${device.name} ${name}: the answers are marked ✓`, `${right.marks.join(',')} · ${right.message}`);
+    check((await page.evaluate(() => window.__mmGrades.length)) === graded, `${device.name} ${name}: no attempt, grade or submission from the practice`);
+    await section.getByRole('button', { name: 'Show the worked solution' }).click();
+    const shown = await section.locator('[data-practice-solution] li').count();
+    check(shown >= steps, `${device.name} ${name}: the worked solution, step by step`, `${shown} steps`);
+    // A formula is typeset when it comes on screen (ensureMathElementRenders.js),
+    // so each one is brought on screen in turn, as a student reads down; one
+    // still without width did not typeset.
+    const blank = await section.locator('[data-practice-solution] :is(math-span, math-div)').evaluateAll(async (nodes) => {
+      for (const node of nodes) {
+        node.scrollIntoView({ block: 'center' });
+        await new Promise((resolve) => { setTimeout(resolve, 120); });
+      }
+      await new Promise((resolve) => { setTimeout(resolve, 500); });
+      return nodes.filter((node) => !node.getBoundingClientRect().width).length;
+    });
+    check(blank === 0, `${device.name} ${name}: every formula in the worked solution is typeset on screen`, `${blank} blank`);
+    await screenshotKeepingTouch(page, { path: path.join(ARTIFACTS, `${device.name}-${q}.png`), fullPage: true });
+    await noSidewaysScroll(page, `${device.name} ${name} practice`);
+    const before = await section.locator('p').first().textContent();
+    await section.getByRole('button', { name: 'Another one like this' }).click();
+    await page.waitForTimeout(300);
+    check((await section.locator('p').first().textContent()) !== before, `${device.name} ${name}: another one is a different problem`);
     await context.close();
   }
 

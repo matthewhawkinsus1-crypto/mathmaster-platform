@@ -102,7 +102,8 @@ test('a student\'s actions open as a full-width row pinned inside the visible ta
   assert.match(panel, /width: visibleTableWidth \? `\$\{visibleTableWidth\}px` : '100%'/);
   const measure = region(controls, 'const scrollerRef = useRef(null);', 'const load = useCallback(', 'scroller measure');
   assert.match(measure, /setVisibleTableWidth\(node\.clientWidth/);
-  assert.match(controls, /<div ref=\{scrollerRef\} style=\{\{ overflowX: 'auto'/);
+  // The ref'd box is the one that scrolls sideways (it is also a named region: TT27), whatever else is on its tag.
+  assert.match(controls, /<div ref=\{scrollerRef\}[^>]* style=\{\{ overflowX: 'auto'/);
   // What an action does is printed beside it, not only in a tooltip that
   // a Chromebook or iPad never shows.
   assert.match(panel, /\{item\.detail && <span[^>]*>\{item\.detail\}<\/span>\}/);

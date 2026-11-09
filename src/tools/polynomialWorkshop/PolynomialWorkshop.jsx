@@ -39,10 +39,12 @@ import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import { requiredAnswerToolForSymbol } from '../../platform/interaction/answerEntryTools.js';
 import './PolynomialWorkshop.css';
-import { polynomialReadoutText } from './polynomialReadout.js';
+import { areaProductText, binomialProductText, binomialTermTexts, polynomialReadoutText } from './polynomialReadout.js';
 import { SubmitText, useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { SYNTHETIC_TABLE_RETRY, SYNTHETIC_TABLE_WITHHELD, syntheticMissMessage, syntheticTableMissMessage } from './syntheticFeedback.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
+import { addSubtractHints } from './addSubtractHints.js';
+import { areaModelHints, coefficientAreaHints } from './areaModelHints.js';
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
@@ -97,6 +99,10 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
   </ToolShell>;
 }
 
+// A cell's product as the narrow-panel list names it beside its box: "2x · x",
+// "3 · (−4)" (areaProductText, polynomialReadout.js). The box's own name says
+// the same to a screen reader, so this is hidden from it.
+
 // The expanded polynomial is this mode's graded ANSWER (a coefficient list the
 // shared grader reads), not a step in an algebra workspace, so it does not use
 // the shared Simplify control (student push Q): that would change what is
@@ -104,6 +110,10 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
 function MultiplyArea({ questionData, feedback, submit, onAction }) {
   const left = questionData.leftBinomial || DEFAULTS.multiplyArea.leftBinomial;
   const right = questionData.rightBinomial || DEFAULTS.multiplyArea.rightBinomial;
+  // "(2x + 3)(x − 4)", with heads "x" and "−4": never "(1x -4)" (P-5).
+  const [leftTerms, rightTerms] = [binomialTermTexts(left), binomialTermTexts(right)];
+  // Written for these binomials (areaModelHints.js), not the same on every item.
+  const hints = useMemo(() => coefficientAreaHints(left, right), [left, right]);
   const cellDegrees = [2, 1, 1, 0];
   const [cells, setCells] = usePersistentToolState('cells', ['','','','']);
   const [expanded, setExpanded] = usePersistentToolState('expanded', '');
@@ -115,17 +125,26 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'multiplyArea',parts:result.parts});
   };
+  // The expanded box's example shows the format with letters, never numbers.
+  // It was "2, -5, -12": the answer to the default (2x + 3)(x - 4), which
+  // Algebra II Honors L4 CW 3 multiplies, so that item's empty box showed its
+  // own key (student walkthrough 2026-11-06).
   return <ToolShell title="Polynomial Workshop" subtitle="Multiply polynomials and see where every term comes from." badge="Algebra II · Area Model">
     <TaskCard question={questionData} task={'Fill in the area model, then write the expanded polynomial.'} steps={['Multiply each row term by each column term.', 'Each cell already shows the variable part; enter only the signed coefficient for that product.', 'Add the like terms and enter the final coefficients from highest degree down.']} />
     <ToolGrid min={330}>
-      <Panel title={`(${left[0]}x ${left[1]>=0?'+':''}${left[1]})(${right[0]}x ${right[1]>=0?'+':''}${right[1]})`}>
-        <div style={{display:'grid',gridTemplateColumns:'90px 1fr 1fr',gap:6,alignItems:'stretch'}}>
-          <div/><strong style={{padding:8,textAlign:'center'}}>{right[0]}x</strong><strong style={{padding:8,textAlign:'center'}}>{right[1]}</strong>
-          <strong style={{padding:8,textAlign:'right'}}>{left[0]}x</strong>{[0,1].map(i=><div key={i} style={{display:'flex',alignItems:'center',gap:5}}><input value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={{...inputStyle,minWidth:0}} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
-          <strong style={{padding:8,textAlign:'right'}}>{left[1]}</strong>{[2,3].map(i=><div key={i} style={{display:'flex',alignItems:'center',gap:5}}><input value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={{...inputStyle,minWidth:0}} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
+      <Panel title={binomialProductText(left, right)}>
+        {/* The grid and its narrow-panel list are PolynomialWorkshop.css's
+            .mm-coefficient-area rules (P-5: on a phone the boxes cut their
+            "coefficient" to "coefficie"). */}
+        <div className="mm-coefficient-area">
+        <div className="mm-coefficient-area-grid">
+          <div className="mm-coefficient-area-head"/><strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'center'}}>{rightTerms[0]}</strong><strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'center'}}>{rightTerms[1]}</strong>
+          <strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'right'}}>{leftTerms[0]}</strong>{[0,1].map(i=><div key={i} className="mm-coefficient-area-cell"><span className="mm-coefficient-area-label" aria-hidden="true">{areaProductText(leftTerms[0], rightTerms[i])}</span><input className="mm-coefficient-area-input" value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={inputStyle} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
+          <strong className="mm-coefficient-area-head" style={{padding:8,textAlign:'right'}}>{leftTerms[1]}</strong>{[2,3].map(i=><div key={i} className="mm-coefficient-area-cell"><span className="mm-coefficient-area-label" aria-hidden="true">{areaProductText(leftTerms[1], rightTerms[i - 2])}</span><input className="mm-coefficient-area-input" value={cells[i]} onChange={e=>setCell(i,e.target.value)} style={inputStyle} placeholder="coefficient" aria-label={`Coefficient of ${cellDegrees[i]===2?'x squared':cellDegrees[i]===1?'x':'constant'} product`}/>{cellDegrees[i]===2?<strong>x²</strong>:cellDegrees[i]===1?<strong>x</strong>:null}</div>)}
+        </div>
         </div>
       </Panel>
-      <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="2, -5, -12" aria-label="Expanded polynomial: coefficients from the highest degree to the constant"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={['An area model is just organised distribution — every cell is one of the products you would get from FOIL.', 'Cells on the same diagonal usually hold the like terms that combine.', 'Enter coefficients highest degree first, and include a 0 for any missing degree.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
+      <Panel title="Expanded polynomial"><p style={{color:'var(--mm-text-muted)'}}>Enter coefficients highest degree to constant, separated by commas.</p><input value={expanded} onChange={e=>setExpanded(e.target.value)} style={inputStyle} placeholder="a, b, c" aria-label="Expanded polynomial: coefficients from the highest degree to the constant"/><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button><Feedback feedback={feedback} success="Every area product and the expanded polynomial are correct." retry="Multiply each row/column pair, then combine the two x-terms."/><HintPanel hints={hints} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
   </ToolShell>;
 }
@@ -166,6 +185,7 @@ function MultiplyFactors({ questionData, feedback, submit, clearFeedback = () =>
   const setTerm = (index, value) => { clearFeedback(); setTerms((old) => listWith(size, old, index, value)); };
   const setProductText = (value) => { clearFeedback(); setProduct(value); };
   const keys = useMemo(() => (model ? keypadKeys([...model.rows, ...model.columns]) : []), [model]);
+  const hints = useMemo(() => areaModelHints(model), [model]);
   useFieldUndoHistory({questionData,fields:{terms:[terms,setTerms],product:[product,setProduct]}});
   const work={terms,product};
   useReportToolWork(work);
@@ -199,7 +219,9 @@ function MultiplyFactors({ questionData, feedback, submit, clearFeedback = () =>
         <MathInput value={product} onChange={setProductText} inputStatus={statusOf(wrong, 'product')} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="product" ariaLabel="Product in simplest form" />
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check area model</SubmitText></button>
         <Feedback feedback={feedback} success="Every cell and the product are correct." retry="Check each red cell: multiply the signs and the numbers, and add the exponents of the same letter. Then combine like terms."/>
-        <HintPanel hints={['Every term of the first factor multiplies every term of the second — that is what the area model shows: one cell for each pair.', 'Multiply the numbers and keep the letters: a² · 3a = 3a³, because a² · a = a³ (add the exponents).', 'Cells with the same letters and exponents are like terms. Add them to finish, and leave unlike terms separate.']} onHintUsed={() => onAction?.("HINT_USED")} />
+        {/* Written for this item's factors (areaModelHints.js): the same fixed
+            hints on every item gave CW 10's first cell before the last. */}
+        <HintPanel hints={hints} onHintUsed={() => onAction?.("HINT_USED")} />
       </Panel>
     </ToolGrid>
   </ToolShell>;
@@ -217,6 +239,7 @@ function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {},
   const setSum = (index, value) => { clearFeedback(); setSums((old) => listWith(count, old, index, value)); };
   const setResult = (value) => { clearFeedback(); setAnswer(value); };
   const keys = useMemo(() => (model ? keypadKeys([...model.first, ...model.second]) : []), [model]);
+  const hints = useMemo(() => addSubtractHints(model), [model]);
   useFieldUndoHistory({questionData,fields:{opposites:[opposites,setOpposites],sums:[sums,setSums],result:[answer,setAnswer]}});
   const work={opposites,sums,result:answer};
   useReportToolWork(work);
@@ -266,9 +289,9 @@ function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {},
       <MathInput value={answer} onChange={setResult} inputStatus={statusOf(wrong, 'result')} toolProfile="expression" extraKeys={keys} maxWidth={540} placeholder="result" ariaLabel="Result in simplest form" />
       <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}><SubmitText>Check my work</SubmitText></button>
       <Feedback feedback={feedback} success="Every step and the result are correct." retry={subtracting ? 'Check the sign of EVERY opposite, then combine each column.' : 'Combine only like terms: same letters, same exponents.'}/>
-      <HintPanel hints={subtracting
-        ? ['Subtracting a polynomial is adding its opposite. The minus sign in front of the parentheses changes the sign of every term inside.', 'The opposite of a³ is −a³, the opposite of −3a is +3a, and the opposite of 2 is −2.', 'Like terms have the same letters with the same exponents. Add their numbers; a column whose terms cancel combines to 0.']
-        : ['Adding polynomials means combining like terms.', 'Like terms have the same letters with the same exponents: 4x² and −2x² are like terms; 4x² and −9x are not.', 'Add the numbers in each column and keep the letters. A column whose terms cancel combines to 0.']} onHintUsed={() => onAction?.("HINT_USED")} />
+      {/* Written for this item's polynomials (addSubtractHints.js): the same
+          fixed hints on every item gave CW 3 its opposites before the last. */}
+      <HintPanel hints={hints} onHintUsed={() => onAction?.("HINT_USED")} />
     </Panel>
   </ToolShell>;
 }

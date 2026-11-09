@@ -10,12 +10,22 @@
  * (accessibilityKeyboardReachSelfTestMain.jsx, real React and the real Dialog)
  * is right for the keyboard in `clean`, and wrong in exactly one way in each
  * other plant: a control with no focus indicator, a Tab stop with no name, a
- * click handler with no key, a button that answers a click and not Enter, a
- * control under a sticky bar, a control Tab will not leave, a control Tab skips,
- * and a modal that lets focus out. Each must give exactly its own finding, and
- * `clean` and the real Dialog (a disclosure inside it, a closed one at its end, or
- * a single control that Tab has nowhere to leave) must give none; a dialog with
- * more than one control, one of which Tab will not leave, is still a trap.
+ * math box named nowhere, a click handler with no key, a button that answers a
+ * click and not Enter, a control under a sticky bar, a control Tab will not
+ * leave, a control Tab skips, and a modal that lets focus out. Each must give
+ * exactly its own finding, and `clean` and the real Dialog (a disclosure inside
+ * it, a closed one at its end, or a single control that Tab has nowhere to
+ * leave) must give none; a dialog with more than one control, one of which Tab
+ * will not leave, is still a trap. Two shapes the walk once reported wrongly
+ * must give none too: a student's math box (its name is on MathLive's keyboard
+ * sink, inside the shadow root, where focus lands; the walk read the host) and
+ * a read-only coordinate plane (it carried press handlers that did nothing).
+ * Math boxes with a control after them must give none as well: the walk's own
+ * refocus of a box once raced MathLive's hand-over of focus to its sink, and
+ * the next Tab came back to the box. Those boxes are the app's MathInput, as
+ * students get them (with its keypad button, and in a row without), so the
+ * walk is shown against the component it meets on every screen; the box named
+ * nowhere is a bare <math-field>, since MathInput names every box it makes.
  * `scrolling`, a page and a box in it that Tab has to scroll, must give none too,
  * and be left scrolled where the walk found it.
  */
@@ -40,9 +50,14 @@ const walk = async (plant, options = {}) => {
   const result = await auditKeyboardReach(page, { name: plant, viewport: 'desktop', ...options });
   // Where the page is scrolled to once the walk is over (the plant that scrolls starts at 40 and 10).
   const scrolledTo = await page.evaluate(() => ({ window: Math.round(scrollY), scroller: Math.round(document.querySelector('[data-scroller]')?.scrollTop ?? 0) }));
+  // The math boxes on the page: each a MathInput (its wrapper holds its <math-field>), or a bare one.
+  const mathBoxes = await page.evaluate(() => {
+    const fields = [...document.querySelectorAll('math-field')];
+    return { mathInput: fields.filter((field) => field.closest('.mathmaster-math-input')).length, bare: fields.filter((field) => !field.closest('.mathmaster-math-input')).length };
+  });
   await context.close();
   assert.deepEqual(errors, [], `${plant}: the page raised no error`);
-  return { ...result, scrolledTo };
+  return { ...result, scrolledTo, mathBoxes };
 };
 
 // Each plant's findings, exactly: nothing else may fire on the right parts of the page.
@@ -50,6 +65,10 @@ const EXPECTED = {
   clean: {},
   noRing: { 'mm-focus-not-visible': 1 },
   unnamed: { 'mm-unnamed-tab-stop': 1 },
+  mathBox: {},
+  mathBoxesThenControl: {},
+  unnamedMathBox: { 'mm-unnamed-tab-stop': 1 },
+  readOnlyPlane: {},
   pointerOnly: { 'mm-pointer-only-control': 1 },
   notActivatable: { 'mm-tab-stop-not-activatable': 1 },
   obscured: { 'mm-focus-obscured': 1 },
@@ -106,6 +125,24 @@ for (const [plant, expected] of Object.entries(EXPECTED)) {
   if (plant === 'dialogSwallowsTab') {
     assert.equal(result.summary.mode, 'modal');
     assert.equal(result.summary.trap.kind, 'tab-does-not-leave', 'dialogSwallowsTab: with another control in the dialog, a stop Tab will not leave is still a trap');
+  }
+  if (plant === 'mathBox') {
+    // A student's box: MathInput, named where focus is (the box's own name, as Chromium gives it to the sink), and then its keypad button.
+    assert.deepEqual(result.mathBoxes, { mathInput: 1, bare: 0 }, 'mathBox: the box is a MathInput');
+    const names = result.summary.stopNames.map((entry) => entry.replace(/^[^:]*: /, ''));
+    assert.deepEqual(names.slice(-2), ['Slope', 'Show math tools'], `mathBox: the math box is a stop named "Slope", and its keypad button follows (${result.summary.stopNames.join(' | ')})`);
+  }
+  if (plant === 'mathBoxesThenControl') {
+    // Tab goes from box to box and on to the control after them, once each, and the walk reaches the end.
+    assert.deepEqual(result.mathBoxes, { mathInput: 4, bare: 0 }, 'mathBoxesThenControl: the boxes are MathInputs');
+    const names = result.summary.stopNames.map((entry) => entry.replace(/^[^:]*: /, ''));
+    assert.deepEqual(names.slice(-5), ['Slope', 'y-intercept', 'x-intercept', 'Rate', 'After the boxes'], `mathBoxesThenControl: each box once, then the control after them (${names.join(' | ')})`);
+    assert.equal(result.summary.completed, true, 'mathBoxesThenControl: the walk reached the end of the page');
+  }
+  if (plant === 'unnamedMathBox') assert.deepEqual(result.mathBoxes, { mathInput: 0, bare: 1 }, 'unnamedMathBox: a box made without MathInput');
+  if (plant === 'readOnlyPlane') {
+    // The plane is drawn, and is no Tab stop: nothing about it was reached or missed.
+    assert.ok(!result.summary.stopNames.some((entry) => /Graph of the trip/.test(entry)), 'readOnlyPlane: the picture is not a Tab stop');
   }
   if (plant === 'trap') assert.equal(result.summary.trap.kind, 'tab-does-not-leave');
   if (plant === 'leakyDialog') assert.equal(result.summary.trap.kind, 'left-the-dialog');

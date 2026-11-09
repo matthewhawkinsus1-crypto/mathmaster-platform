@@ -24,11 +24,13 @@
 //
 // Pure. The clock is injected.
 
-import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+// The lookup alone: Home reads the index, the server builds it (PF01).
+import { isFrameworkSkillLaunchable } from '../../../functions/shared/pathCoverageLookup.mjs';
 import {
   ccmrPlanFrameworks, ccmrTestProximity, isCcmrFramework,
 } from '../../../functions/shared/ccmrPlan.mjs';
-import { FRAMEWORK_LABELS } from '../ccmr/assessmentCrosswalk.js';
+// The names alone, not the crosswalk they are re-exported from (PF01).
+import { FRAMEWORK_LABELS } from '../ccmr/frameworkLabels.js';
 
 export const TRANSFER_FRAMEWORK_REASON = Object.freeze({
   TEACHER: 'teacherFramework',

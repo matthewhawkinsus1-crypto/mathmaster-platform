@@ -38,6 +38,15 @@
 //                       terms open still open, without losing committed work.
 //   divide-negative     -2x = -10 ÷ -2 reads (-10)/(-2), and -2x has no gap
 //                       (pass 3, Q-13, Q-31).
+//   directions-*        AX32 (slice 4): the directions on the screen name keys,
+//                       and each journey then presses exactly those keys with
+//                       the mouse never touched: placing an operation and
+//                       cancelling by Tab, Shift+Tab, Enter and Space (a term
+//                       pair, a factor pair, and on a phone), and Factor, Split
+//                       fraction, Cancel factors and Arrange terms, and the
+//                       relation workspace's placement and cancellation.
+//   directions-places-* student-a11y-3: on a focused side the arrow keys choose
+//                       where the operation goes, as a tap does, at 1366 and 390.
 //
 // Exit code 1 on any finding. Screenshots land in
 // tests/browser/artifacts/stepAlgebraStructureTools/.
@@ -319,7 +328,7 @@ async function slopeFiveTwoSix(context) {
   await settle(page);
   const labels = await page.locator('[aria-label$="select to move"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
   await page.locator(`[data-term-text="${labels[0]}"][aria-label$="select to move"]`).last().click();
-  await page.locator('[aria-label$="tap to swap with the selected term"]').last().click();
+  await page.locator('[aria-label$="select to swap with the selected term"]').last().click();
   await page.getByRole('button', { name: 'Keep this order' }).click();
   await settle(page, 900);
   const final = compact(await state(page));
@@ -749,27 +758,297 @@ async function divideNegative(context) {
   await page.close();
 }
 
+/* ------------------------- AX32 (slice 4): the directions name keys that work */
+
+// The directions on the screen are read first, then exactly the keys they name are pressed,
+// with the mouse never touched. Tab and Shift+Tab walk the page as a keyboard student does.
+const focusNow = (page) => page.evaluate(() => {
+  const element = document.activeElement;
+  if (!element || element === document.body) return { label: '', text: '', term: '', cls: '', pressed: null };
+  return {
+    label: element.getAttribute('aria-label') || '',
+    text: (element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+    term: element.getAttribute('data-term-text') || '',
+    cls: String(element.className?.baseVal ?? element.className ?? ''),
+    pressed: element.getAttribute('aria-pressed'),
+    disabled: element.hasAttribute('disabled'),
+  };
+});
+const tabUntil = async (page, test, { back = false, limit = 40 } = {}) => {
+  for (let count = 0; count < limit; count += 1) {
+    await page.keyboard.press(back ? 'Shift+Tab' : 'Tab');
+    const now = await focusNow(page);
+    if (test(now)) return now;
+  }
+  return null;
+};
+// Forward first, then back: where a control sits relative to the one just pressed is not the point.
+const reach = async (page, test) => (await tabUntil(page, test)) || tabUntil(page, test, { back: true, limit: 80 });
+const sayings = async (page) => (await page.locator('[role="status"], .algebra-placement-progress, .algebra-inline-mode-status, .algebra-inline-mode-feedback').allInnerTexts()).map((text) => text.replace(/\s+/g, ' ').trim()).filter(Boolean);
+const said = async (page, pattern) => (await sayings(page)).some((text) => (typeof pattern === 'string' ? text.endsWith(pattern) : pattern.test(text)));
+const press = async (page, key, wait = 350) => { await page.keyboard.press(key); await settle(page, wait); };
+
+// An operation placed, then a pair cancelled: a term pair after ± and a factor pair after ×, ÷.
+async function directionsPlacementAndCancel(browserInstance, viewport) {
+  const at = `directions-placement-${viewport.width}`;
+  const phoneScreen = viewport.width < 500;
+  const context = await ownerContext(browserInstance, viewport);
+  const ROUTE = 'Shift+Tab back to a side and press Enter';
+  for (const scene of [
+    {
+      question: 4, operation: 'Subtract', operand: '6',
+      place: `Click or tap the side where the subtracted term belongs, or ${ROUTE}.`,
+      balanced: 'The operation is balanced. Draw directly through the opposite terms in the equation itself, or Tab to one and press Enter.',
+      cue: 'Click, tap or slash either opposite term once, or Tab to one and press Enter. MathMaster crosses out the matching term with it.',
+      piece: (now) => now.term === '+ 6' && now.label.endsWith('select to cancel'),
+    },
+    {
+      question: 8, operation: 'Divide by', operand: '-2',
+      place: `Click or tap beneath the side where the divisor belongs, or ${ROUTE}.`,
+      balanced: 'The operation is balanced. Draw directly through the matching factors in the equation itself, or Tab to one and press Enter.',
+      cue: 'Click, tap or slash either matching factor once, or Tab to one and press Enter. MathMaster crosses out its partner with it.',
+      piece: (now) => now.label.endsWith('mark this factor for cancellation'),
+    },
+  ]) {
+    const journey = `${at}-${scene.operation.split(' ')[0].toLowerCase()}`;
+    const page = await open(context, scene.question);
+    // Choose the operation and type its value: Tab to the tile, Enter, and the value box takes the focus.
+    expect(journey, await tabUntil(page, (now) => now.label === `Choose ${scene.operation} operation`, { limit: 80 }), 'Tab never reached the operation');
+    await press(page, 'Enter', 450);
+    await page.keyboard.type(scene.operand);
+    await settle(page, 450);
+    // The Pick up button: on a phone its description names the way to the sides; Enter arms the operation.
+    expect(journey, await tabUntil(page, (now) => /^(Pick up|Use|Ready to place) /.test(now.label), { limit: 30 }), 'Tab never reached Pick up');
+    if (phoneScreen) {
+      const title = await page.locator('button.algebra-pickup-button').getAttribute('title');
+      expect(journey, title === `Arm this operation, then click or tap the equation where it belongs, or ${ROUTE}`, `the phone's Pick up description: ${title}`);
+    }
+    await press(page, 'Enter', 600);
+    expect(journey, await said(page, scene.place), `after Pick up, no line says: ${scene.place} (${JSON.stringify(await sayings(page))})`);
+    if (phoneScreen) expect(journey, (await page.locator('.algebra-placement-progress').innerText()).trim() === scene.place, 'the phone line under the controls');
+    // The sides come before Pick up in the page: the keyboard goes back to them, as the line says.
+    const right = await tabUntil(page, (now) => now.label.endsWith('on the right side'), { back: true, limit: 40 });
+    expect(journey, right, 'Shift+Tab never reached the right side');
+    await press(page, 'Enter', 450);
+    const left = await tabUntil(page, (now) => now.label.endsWith('on the left side'), { back: true, limit: 40 });
+    expect(journey, left, 'Shift+Tab never reached the left side');
+    await press(page, 'Space', 1000);
+    expect(journey, await said(page, scene.balanced), `after both sides, no line says: ${scene.balanced} (${JSON.stringify(await sayings(page))})`);
+    const cues = (await page.locator('.algebra-cancellation-cue').allInnerTexts()).map((text) => text.trim());
+    expect(journey, cues.includes(scene.cue), `the cue under the equation: ${JSON.stringify(cues)}`);
+    // The cue's route: Tab to one of the pair and press Enter; its partner is crossed out with it.
+    const piece = await reach(page, scene.piece);
+    expect(journey, piece, 'Tab never reached a piece of the cancelling pair');
+    await press(page, 'Enter', 1000);
+    expect(journey, await said(page, /The cancellation is complete\./), `Enter did not cancel the pair (${JSON.stringify(await sayings(page))})`);
+    report.push({ journey, cue: cues[0], said: (await sayings(page)).slice(-2) });
+    await page.close();
+  }
+  await context.close();
+}
+
+// WHERE ON A SIDE, BY KEYBOARD (student-a11y-3). A tap chooses where on a side the
+// operation goes; on a focused side the arrow keys choose among the same places.
+// 3x + 6 = 21, subtract 6: keyboard focus on the right side shows where Enter puts
+// it (the end), Home moves it in front of 21 and the name says so, and Enter places
+// it there; the left side, with no arrow pressed, takes it at its end as before.
+// The move the student then sees is -6 + 21 on the right and 3x + 6 - 6 on the left.
+async function directionsPlacementPlaces(browserInstance, viewport) {
+  const journey = `directions-places-${viewport.width}`;
+  const context = await ownerContext(browserInstance, viewport);
+  const page = await open(context, 4);
+  const cueOn = (side) => page.evaluate((at) => [...document.querySelectorAll('.algebra-equation-box')][at === 'left' ? 0 : 1]
+    ?.querySelector('.algebra-term-placement-cue')?.className.replace(/.*algebra-term-placement-cue\s*/, '').trim() || '', side);
+  expect(journey, await tabUntil(page, (now) => now.label === 'Choose Subtract operation', { limit: 80 }), 'Tab never reached Subtract');
+  await press(page, 'Enter', 450);
+  await page.keyboard.type('6');
+  await settle(page, 450);
+  expect(journey, await tabUntil(page, (now) => /^(Pick up|Use|Ready to place) /.test(now.label), { limit: 30 }), 'Tab never reached Pick up');
+  await press(page, 'Enter', 600);
+  const right = await tabUntil(page, (now) => now.label.endsWith('on the right side'), { back: true, limit: 40 });
+  expect(journey, right?.label === 'Place subtract 6 on the right side', `the right side's name before an arrow: ${right?.label}`);
+  // Keyboard focus draws the place Enter would use: after 21, the side's end.
+  expect(journey, /\bis-after\b.*\bis-hover\b/.test(await cueOn('right')), `no cue at the end of the right side: "${await cueOn('right')}"`);
+  await press(page, 'Home', 300);
+  const moved = await focusNow(page);
+  expect(journey, moved.label === 'Place subtract 6 before 21 on the right side', `after Home the right side says: ${moved.label}`);
+  expect(journey, /\bis-before\b.*\bis-hover\b/.test(await cueOn('right')), `Home did not move the cue in front of 21: "${await cueOn('right')}"`);
+  await press(page, 'Enter', 450);
+  const left = await tabUntil(page, (now) => now.label.endsWith('on the left side'), { back: true, limit: 40 });
+  expect(journey, left?.label === 'Place subtract 6 on the left side', `the left side's name: ${left?.label}`);
+  await press(page, 'Enter', 1000);
+  const terms = await page.evaluate(() => [...document.querySelectorAll('.algebra-equation-box')]
+    .map((box) => [...box.querySelectorAll('[data-term-text]')].map((term) => term.getAttribute('data-term-text').replace(/\s+/g, ''))));
+  expect(journey, JSON.stringify(terms[1]) === JSON.stringify(['-6', '+21']), `the right side after the move: ${JSON.stringify(terms[1])}`);
+  expect(journey, JSON.stringify(terms[0]) === JSON.stringify(['3x', '+6', '-6']), `the left side after the move: ${JSON.stringify(terms[0])}`);
+  report.push({ journey, right: terms[1], left: terms[0] });
+  await page.close();
+  await context.close();
+}
+
+// Each Rewrite tool: its status line, then the keys it names.
+async function directionsStructureTools(context) {
+  const journey = 'directions-structure-tools';
+  const openTool = async (page, kind) => {
+    expect(journey, await tabUntil(page, (now) => /algebra-rewrite-toggle/.test(now.cls), { limit: 80 }), 'Tab never reached Rewrite');
+    await press(page, 'Enter', 250);
+    expect(journey, await tabUntil(page, (now) => new RegExp(`algebra-structure-toggle--${kind}`).test(now.cls), { limit: 6 }), `Tab never reached ${kind} in the Rewrite menu`);
+    await press(page, 'Enter', 400);
+  };
+  const statusIs = async (page, text, what) => {
+    const lines = await page.locator('.algebra-inline-mode-status, .algebra-inline-mode-feedback').allInnerTexts();
+    expect(journey, lines.map((line) => line.trim()).includes(text), `${what}: ${JSON.stringify(lines)}`);
+  };
+
+  // Factor: the terms, then the factors they share, then Pull out.
+  let page = await open(context, 1);
+  await openTool(page, 'factor');
+  await statusIs(page, 'Select the terms you are factoring (click or tap, or Tab to each and press Enter)', 'the Factor status line');
+  for (const [label, key] of [['15 x', 'Enter'], ['- 45', 'Space']]) {
+    expect(journey, await reach(page, (now) => now.term === label && /select as a term to factor/.test(now.label)), `Tab never reached the term ${label}`);
+    await press(page, key, 200);
+  }
+  expect(journey, await reach(page, (now) => now.text === 'Factor to primes'), 'Tab never reached Factor to primes');
+  await press(page, 'Enter', 450);
+  await statusIs(page, 'Select the factors every selected term shares (click or tap, or Tab to each and press Enter)', 'the Factor token line');
+  for (const label of ['Factor 3 of 15 x', 'Factor 5 of 15 x', 'Factor 3 of negative 45', 'Factor 5 of negative 45']) {
+    expect(journey, await reach(page, (now) => now.label.startsWith(label) && now.pressed === 'false'), `Tab never reached ${label}`);
+    await press(page, 'Enter', 150);
+  }
+  expect(journey, (await page.locator('.algebra-structure-chip').first().getAttribute('title')) === 'Drag out front, or Tab to Pull out and press Enter', 'the drag chip\'s description');
+  expect(journey, await reach(page, (now) => now.text.startsWith('Pull out') && /algebra-inline-commit/.test(now.cls)), 'Tab never reached Pull out');
+  await press(page, 'Enter', 500);
+  expect(journey, (await activeLabel(page)).startsWith('What is left of 15x'), `Pull out did not hand focus to the first remainder (${await activeLabel(page)})`);
+  await page.close();
+
+  // Split fraction: choose one of two fractions, pick up the denominator, place it under each term.
+  page = await open(context, 9);
+  await openTool(page, 'split');
+  await statusIs(page, 'Select the fraction to split (click or tap, or Tab to it and press Enter)', 'the Split status line');
+  expect(journey, await reach(page, (now) => now.label.endsWith('select to split')), 'Tab never reached a fraction to split');
+  await press(page, 'Enter', 400);
+  for (let guard = 0; guard < 4 && (await page.locator('button[aria-label^="Place the denominator under"]:not([disabled])').count()); guard += 1) {
+    if (!(await page.locator('button.algebra-inline-factor-token.is-armed').count())) {
+      expect(journey, await reach(page, (now) => now.label.startsWith('Pick up the denominator')), 'Tab never reached Pick up the denominator');
+      await press(page, 'Enter', 200);
+    }
+    expect(journey, await reach(page, (now) => now.label.startsWith('Place the denominator under') && !now.disabled), 'Tab never reached a numerator term');
+    await press(page, guard % 2 ? 'Enter' : 'Space', 300);
+  }
+  expect(journey, (await activeLabel(page)) === 'Commit split', `Commit split was not focused (${await activeLabel(page)})`);
+  await press(page, 'Enter', 900);
+  expect(journey, compact(await state(page)) === 'y=\\frac{6}{2}-\\frac{5x}{2}+\\frac{4-x}{3}', `the split: ${compact(await state(page))}`);
+  await page.close();
+
+  // Cancel factors: choose the fraction, hold a factor, then the equal one across the bar.
+  page = await open(context, 10);
+  await openTool(page, 'reduce');
+  await statusIs(page, 'Select a highlighted fraction to write it as primes (click or tap, or Tab to it and press Enter)', 'the Cancel factors status line');
+  expect(journey, await reach(page, (now) => now.label.endsWith('select to write as prime factors') && /6 x/.test(now.term)), 'Tab never reached the fraction');
+  await press(page, 'Enter', 400);
+  await statusIs(page, 'Select a factor, then an equal factor across the bar (click or tap, or Tab to each and press Enter)', 'the pairing line');
+  expect(journey, await reach(page, (now) => now.label.startsWith('Numerator factor 2')), 'Tab never reached the numerator 2');
+  await press(page, 'Enter', 200);
+  expect(journey, await reach(page, (now) => now.label.startsWith('Denominator factor 2') && !now.label.includes('cancelled')), 'Tab never reached a denominator 2');
+  await press(page, 'Space', 300);
+  expect(journey, await said(page, '1 pair cancelled'), 'the pair was not cancelled');
+  expect(journey, await reach(page, (now) => now.text === 'Apply cancellation'), 'Tab never reached Apply cancellation');
+  await press(page, 'Enter', 800);
+  expect(journey, compact(await state(page)) === 'y=\\frac{3x}{2}+3', `the cancellation: ${compact(await state(page))}`);
+  await page.close();
+
+  // Arrange terms: two terms swapped, each by the keys; the labels name what a press does.
+  page = await open(context, 11);
+  await openTool(page, 'arrange');
+  await statusIs(page, 'Select two terms to swap them (click or tap, or Tab to each and press Enter)', 'the Arrange status line');
+  expect(journey, await reach(page, (now) => now.term === '3' && now.label.endsWith('select to move')), 'Tab never reached the first term');
+  await press(page, 'Enter', 300);
+  await statusIs(page, 'Select another term to swap (click or tap, or Tab to it and press Enter)', 'the swap line');
+  const labels = await page.locator('[data-term-text][role="button"]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
+  expect(journey, labels.length === 2 && labels.every((label) => label.endsWith(', select to swap with the selected term')), `the terms' labels: ${JSON.stringify(labels)}`);
+  expect(journey, await reach(page, (now) => now.term === '- 5 x'), 'Tab never reached the other term');
+  await press(page, 'Space', 300);
+  expect(journey, await reach(page, (now) => now.text === 'Keep this order'), 'Tab never reached Keep this order');
+  await press(page, 'Enter', 800);
+  expect(journey, compact(await state(page)) === 'y=-5x+3', `the arrangement: ${compact(await state(page))}`);
+  await page.close();
+  report.push({ journey });
+}
+
+// The relation workspace (an inequality): its directions, then placement and cancellation by keys.
+async function directionsRelation(context) {
+  const journey = 'directions-relation';
+  const page = await open(context, 12);
+  const cue = (await page.locator('div', { hasText: /^Cancellation works directly/ }).last().innerText()).replace(/\s+/g, ' ').trim();
+  expect(journey, /Select two items \(click or tap, or Tab to each and press Enter\), or press and drag from one item into its matching partner\./.test(cue), `the cancellation line: ${cue}`);
+  expect(journey, await tabUntil(page, (now) => /Subtract/.test(now.text) && !now.cls, { limit: 80 }), 'Tab never reached Subtract');
+  await press(page, 'Enter', 450);
+  await page.keyboard.type('6');
+  await settle(page, 450);
+  const titles = await page.locator('button[title^="Select this term to choose Before, Under, or After"]').evaluateAll((elements) => elements.map((element) => element.title));
+  expect(journey, titles.length === 3 && titles.every((title) => title === 'Select this term to choose Before, Under, or After (click or tap, or press Enter)'), `the terms' descriptions: ${JSON.stringify(titles)}`);
+  // Enter on a term opens Before, Under and After (buttons); Enter or Space chooses one. Both sides, then the step.
+  for (const [term, key] of [['+ 6', 'Enter'], ['21', 'Space']]) {
+    expect(journey, await reach(page, (now) => now.text.startsWith(term)), `Tab never reached the term ${term}`);
+    await press(page, 'Enter', 300);
+    expect(journey, await reach(page, (now) => now.text === 'After'), 'Tab never reached After');
+    await press(page, key, 300);
+  }
+  expect(journey, await reach(page, (now) => now.text === 'Commit step'), 'Tab never reached Commit step');
+  await press(page, 'Enter', 1000);
+  // Cancelling: Enter on one of the pair, then on the other.
+  expect(journey, await reach(page, (now) => now.text.startsWith('+ 6')), 'Tab never reached + 6 after the step');
+  await press(page, 'Enter', 300);
+  expect(journey, await reach(page, (now) => now.text.startsWith('- 6')), 'Tab never reached − 6');
+  await press(page, 'Space', 1200);
+  expect(journey, await said(page, /^Cancellation complete\./), `the pair was not cancelled (${JSON.stringify(await sayings(page))})`);
+  report.push({ journey, cue });
+  await page.close();
+}
+
+// ONLY=directions (or a journey's name, comma-separated) runs just those journeys.
+const only = (process.env.ONLY || '').split(',').map((name) => name.trim()).filter(Boolean);
+const wants = (name) => !only.length || only.some((entry) => name.startsWith(entry));
+
 const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-for (const journey of [factored15x45, factoredPartial, factoredNegative, slopeFiveTwoSix, slopeTwoFourEight, keyboard, solveRegression, subtractedGroup, undoOneDecision, legacyDrafts, divideNegative]) {
+for (const journey of [factored15x45, factoredPartial, factoredNegative, slopeFiveTwoSix, slopeTwoFourEight, keyboard, solveRegression, subtractedGroup, undoOneDecision, legacyDrafts, divideNegative, directionsStructureTools, directionsRelation]) {
+  if (!wants(journey.name)) continue;
   try {
     await journey(context);
   } catch (error) {
     note(journey.name, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
   }
 }
-try {
-  await phone(browser);
-} catch (error) {
-  note('phone', `threw: ${error.message.split('\n')[0]}`);
+if (wants('phone')) {
+  try {
+    await phone(browser);
+  } catch (error) {
+    note('phone', `threw: ${error.message.split('\n')[0]}`);
+  }
 }
 // The owner's case at both required viewports, by pointer and by keyboard alone.
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
   for (const keyboardOnly of [false, true]) {
+    if (!wants('owner-case')) continue;
     try {
       await ownerCase(browser, viewport, { keyboardOnly });
     } catch (error) {
       note(`owner-case-${viewport.width}${keyboardOnly ? '-keyboard' : ''}`, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
     }
+  }
+}
+// AX32 (slice 4): placing an operation and cancelling by keys, on a computer and on a phone.
+for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
+  if (!wants('directions')) continue;
+  try {
+    await directionsPlacementAndCancel(browser, viewport);
+  } catch (error) {
+    note(`directions-placement-${viewport.width}`, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
+  }
+  try {
+    await directionsPlacementPlaces(browser, viewport);
+  } catch (error) {
+    note(`directions-places-${viewport.width}`, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
   }
 }
 await browser.close();

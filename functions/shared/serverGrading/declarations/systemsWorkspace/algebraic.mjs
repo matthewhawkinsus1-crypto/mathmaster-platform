@@ -14,7 +14,9 @@
  * Work shape v1 (the tool's contractVersion):
  *
  *   dimension     2 | 3 (informational; the question decides)
- *   method        'substitution' | 'elimination' | ''  (the route on screen)
+ *   method        'substitution' | 'elimination' | ''  (the route on screen);
+ *                 'byEquation' for a 3×3 whose equations each hold one
+ *                 different variable, solved equation by equation (TL43)
  *   values        { [variable]: number }  every value solved so far
  *   verification  { E1: { left, right }, E2: …, E3: … }  the sides typed in
  *                 the original-equation check (never a checked/valid flag)

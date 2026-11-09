@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import useEscapeToDismiss from '../../ui/useEscapeToDismiss.js';
-import { buildDomainReadiness, explainDomain } from '../../platform/ccmr/domainReadiness.js';
+import { DOMAIN_STATE_FILLS, buildDomainReadiness, explainDomain } from '../../platform/ccmr/domainReadiness.js';
 
 // One assessment's readiness, as a wheel.
 //
@@ -77,6 +77,9 @@ export const CCMRReadinessWheel = ({
           viewBox={`0 0 ${size} ${size}`}
           style={{ width: '100%', height: '100%', display: 'block', userSelect: 'none' }}
           aria-label={`${title} readiness by domain`}
+          // Drawn in the theme's colours under a contrast theme, each state by its
+          // fill (DOMAIN_STATE_FILLS; src/theme/forcedColors.css).
+          data-mm-drawing=""
         >
           {segments.map(({ entry, start, end }) => {
             const isActive = entry.domainId === (focused || selectedDomainId);
@@ -105,13 +108,15 @@ export const CCMRReadinessWheel = ({
                   // Segment gaps are cut in the card's own color.
                   style={{ stroke: 'var(--mm-surface)' }}
                   strokeWidth="2"
+                  // Highlight while it is the one described beside the wheel.
+                  data-mm-plane-part={isActive ? 'held' : DOMAIN_STATE_FILLS[entry.state]}
                 />
               </g>
             );
           })}
           {/* The hub is decoration. Without this it sits over the middle of
               every segment's hit area and swallows clicks aimed at the ring. */}
-          <circle cx={center} cy={center} r={inner - 4} style={{ fill: 'var(--mm-surface)' }} pointerEvents="none" />
+          <circle cx={center} cy={center} r={inner - 4} style={{ fill: 'var(--mm-surface)' }} pointerEvents="none" data-mm-plane-part="plate" />
           <text x={center} y={center - 6} textAnchor="middle" pointerEvents="none" style={{ fontSize: 14, fontWeight: 900, fill: 'var(--mm-text-strong)' }}>
             {active ? '' : title}
           </text>
@@ -142,7 +147,7 @@ export const CCMRReadinessWheel = ({
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             {domains.map((entry) => (
               <li key={entry.domainId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)' }}>
-                <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: entry.color, opacity: entry.selectable ? 1 : 0.45, flexShrink: 0 }} />
+                <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: entry.color, opacity: entry.selectable ? 1 : 0.45, flexShrink: 0 }} data-mm-swatch={DOMAIN_STATE_FILLS[entry.state]} />
                 <span style={{ minWidth: 0 }}>
                   <strong>{entry.title}</strong> — {entry.label}
                 </span>

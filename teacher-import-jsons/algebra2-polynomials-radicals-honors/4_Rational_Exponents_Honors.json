@@ -466,9 +466,9 @@
               "type": "choice",
               "options": [
                 "Both are x^((1/2)(1/3)) = x^(1/6), and the order of multiplication does not matter",
-                "They do not: one of them is x^(1/5)",
-                "Because square roots and cube roots are the same",
-                "Only when x = 1"
+                "They do not: the order of two roots matters, as the order of a subtraction does",
+                "Both are x^(1/2 + 1/3) = x^(5/6), and the order of addition does not matter",
+                "Only when x = 1: for any other x, a square root and a cube root differ"
               ],
               "answer": "Both are x^((1/2)(1/3)) = x^(1/6), and the order of multiplication does not matter"
             }
@@ -707,9 +707,9 @@
               "type": "choice",
               "options": [
                 "Rewriting 2/3 as 4/6 brings in an even root of a negative number, which is not real; with a negative base, keep the exponent in lowest terms",
-                "The cube root of a negative number is not real",
-                "A negative base can never have a rational exponent",
-                "Exponents must be whole numbers"
+                "The cube root of a negative number is not real, so (−8)^(2/3) is not real, however its exponent is written",
+                "Equal exponents always give equal powers, so (−8)^(2/3) = (⁶√(−8))⁴, and that is not a real number",
+                "An exponent can never be rewritten as an equal fraction: 2/3 and 4/6 give different values for every base, positive or negative"
               ],
               "answer": "Rewriting 2/3 as 4/6 brings in an even root of a negative number, which is not real; with a negative base, keep the exponent in lowest terms"
             }
@@ -773,9 +773,9 @@
               "type": "choice",
               "options": [
                 "the sum of cubes, a³ + b³ = (a + b)(a² − ab + b²), with a = x^(1/3) and b = 2",
-                "a difference of squares",
-                "a perfect square trinomial",
-                "no pattern: the terms just happen to cancel"
+                "a difference of squares, a² − b² = (a + b)(a − b), with a = x^(1/3) and b = 2",
+                "a perfect square trinomial, since x^(2/3) − 2x^(1/3) + 4 = (x^(1/3) − 2)²",
+                "no pattern: multiplied out term by term, its middle terms just happen to cancel"
               ],
               "answer": "the sum of cubes, a³ + b³ = (a + b)(a² − ab + b²), with a = x^(1/3) and b = 2"
             }
@@ -1522,9 +1522,9 @@
               "type": "choice",
               "options": [
                 "false: an exponent does not distribute over a sum",
-                "true for every x ≥ 0",
-                "true only when x is a perfect square",
-                "true because 9^(1/2) = 3"
+                "true: an exponent distributes over a sum, as over a product",
+                "true only when x is a perfect square, like 16",
+                "false only at x = 16; for every other x ≥ 0 it holds"
               ],
               "answer": "false: an exponent does not distribute over a sum"
             },
@@ -1904,9 +1904,9 @@
               "type": "choice",
               "options": [
                 "x = (x^(1/3))³ and 27 = 3³, so x − 27 is a difference of cubes",
-                "x − 27 is a difference of squares",
-                "Every binomial is a difference of cubes",
-                "Because 27 is odd"
+                "x = 3 · x^(1/3) and 27 = 3³, so x − 27 is a difference of cubes",
+                "x − 27 = (x^(1/3) − 3)³, so it is a difference of cubes",
+                "x − 27 is a difference of cubes only when x is a perfect cube, such as 8"
               ],
               "answer": "x = (x^(1/3))³ and 27 = 3³, so x − 27 is a difference of cubes"
             }

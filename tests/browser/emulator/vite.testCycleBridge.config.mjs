@@ -18,6 +18,7 @@ export default defineConfig({
   plugins: [
     swapModules('mm-test-cycle-bridge-swap', [
       [path.join(repo, 'src/firebase.js'), path.join(here, 'firebaseEmulator.js')],
+      [path.join(repo, 'src/firebaseApp.js'), path.join(here, 'firebaseEmulator.js')],
       [path.join(repo, 'src/services/testCycleService.js'), bridge],
       [path.join(repo, 'src/services/secureExamService.js'), bridge],
       [path.join(repo, 'src/services/assessmentLifecycleService.js'), bridge],

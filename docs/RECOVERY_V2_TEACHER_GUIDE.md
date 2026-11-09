@@ -141,6 +141,162 @@ at the same DOK and difficulty. Prepare Recovery makes both Warm-Ups ready. The
 DOLs stay "not ready": Day 1's DOL Q2 and Q3 and Day 2's DOL have questions no
 Recovery family writes yet.
 
+### The Algebra I Multiple Representations lesson
+
+"**Algebra I — Multiple Representations of Linear Equations**" (the version
+with fixed questions, not the one whose questions already change for every
+student) had no Recovery for its Warm-Up or its DOL. All three questions can
+now be recovered:
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q1 — sort the cards of y = 2x − 4 and y = −x + 3 | two new lines named in the prompt; each one's slope-intercept, standard and point-slope equation, graph and x-intercept to sort |
+| Warm-Up Q2 — sort Maya's savings and the draining tub | the same two stories with new numbers; each one's equation, graph, rate and starting value to sort |
+| DOL Q1 — the draining tank | a tank with a new size and drain rate: the same six cards and the same three meanings (slope, y-intercept, domain), submitted once |
+
+Every version is a new problem (never one already in the lesson), graded by
+MathMaster, in the same tool, at the same DOK and difficulty. Prepare Recovery
+makes both the Warm-Up and the DOL ready.
+
+### The Algebra II Honors transformations lesson
+
+"**Algebra II Honors — Lesson 2 Day 2: Transformations of Parent Functions**"
+(Module 1) had no Recovery for its exit ticket. All three DOL questions can now
+be recovered:
+
+| Question | Recovery versions |
+| --- | --- |
+| DOL Q1 — read y = −2∛(x − 1) − 3 off its graph | a new reflected, stretched and shifted cube-root graph; find a, h and k |
+| DOL Q2 — describe g(x) = −f(3(x + 2)) + 4 | a new g(x) with the same reflection, a new horizontal compression and new shifts; the same five choices |
+| DOL Q3 — map (0, 1) through y = −3·2^(x − 2) + 1 | map (0, 1) through a new reflected, stretched and shifted exponential |
+
+Every version is a new problem, graded by MathMaster, in the same tool, at the
+same DOK and difficulty. Prepare Recovery makes the DOL ready. The Warm-Up
+stays "not ready": its three questions review the parent functions |x|, √x
+and 2ˣ, and every new version of a review like that would have the same
+answer, so MathMaster does not make one.
+
+### Mapping diagrams (Algebra II Honors Lesson 1, and the District DOL 1 review)
+
+The Mapping Diagram questions that ask for the arrows of a short relation, and
+its domain and range or whether it is a function, can now be recovered:
+
+| Question | Recovery versions |
+| --- | --- |
+| Algebra II Honors Lesson 1 Day 1, DOL Q3 — {(−1, 3), (2, 0), (4, 3), (7, −2)} | a new relation of four pairs in which two inputs share an output: map it, state the domain and range, decide whether it is a function |
+| Lesson 1 Day 2, Warm-Up Q3 — {(−2, 1), (0, 3), (2, 5)} | a new relation of three pairs, every output used once: map it, state the domain and range |
+| Lesson 1 Day 2, DOL Q2 — {(−1, 2), (2, 5), (2, −3), (6, 1)} | a new relation of four pairs in which one input has two outputs: map it, state the domain and range, decide whether it is a function |
+| District DOL 1 review, Warm-Up Q1 | a new relation of four pairs in which two inputs share an output: map it, decide whether it is a function |
+
+Every version is a new relation (never one already in the lesson), graded by
+MathMaster, in the same tool, at the same DOK and difficulty. Prepare Recovery
+makes the review's Warm-Up ready. The review's DOL Q7 asks the same task as its
+Warm-Up Q1 but is set at DOK 2, difficulty 3, so it is not recovered at the
+Warm-Up's level.
+
+### Functions recognized from their graphs: the District DOL 1 review's Warm-Up
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q2 — sort four graphs: Linear, Quadratic, Exponential | two new lines (one rising, one falling), a new parabola opening up and a new growth curve, in a new order |
+| Warm-Up Q3 — the vertex of the parabola shown | a new parabola (it may open down) crossing the x-axis at two whole numbers |
+| Warm-Up Q4 — sort six exponential graphs: growth or decay | three new growth and three new decay curves, in a new order |
+
+Each version keeps its window and categories. The vertex's wrong choices are the
+lesson's: the vertex with both signs changed and the two x-intercepts. With Q1's
+mapping diagram, every question of the review's Warm-Up now has Recovery. Its
+exit ticket waits on its DOL Q7 (above) and on its graph boards.
+
+### Domain and range from a graph (Algebra II Honors Lesson 1)
+
+| Question | Recovery versions |
+| --- | --- |
+| Lesson 1 Day 1, DOL Q2 — the graph of f(x) = (x + 2)² − 5 | a parabola with a new vertex, opening the same way: its domain and range in interval notation |
+| Lesson 1 Day 2, Warm-Up Q1 — the graph of f(x) = \|x + 1\| − 2 | an absolute value with a new vertex, opening the same way: its domain and range |
+
+With the number-line and mapping-diagram families, Prepare Recovery now makes
+Lesson 1 Day 1's exit ticket ready as well as its Warm-Up.
+
+### Lesson 1 Day 2's exit ticket (Algebra II Honors)
+
+| Question | Recovery versions |
+| --- | --- |
+| DOL Q1 — where f(x) = −(x − 2)² + 9 increases, decreases, and is positive and negative | a new parabola opening down, with whole-number zeros, on the graph |
+| DOL Q3 — a tank filled at 4 gallons per minute for 12 minutes | a new rate and time: discrete or continuous, the domain and the range |
+
+With DOL Q2's mapping diagram, Prepare Recovery now makes Day 2's exit ticket
+ready as well as its Warm-Up.
+
+### Operations on functions from their values (Algebra II Honors Lesson 4)
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q2 — if f(2) = 7 and g(2) = −3, find (f + g)(2) and (f − g)(2) | new values (f's positive, g's negative) at a new input |
+| Warm-Up Q3 — if g(4) = 2 and f(2) = 9, find g(4) and f(g(4)) | three new whole numbers that chain the same way |
+
+Prepare Recovery makes Lesson 4's Warm-Up ready (its Q1 is in the next table).
+
+### Operations on functions and composition: Lesson 4's exit ticket (Algebra II Honors)
+
+| Question | Recovery versions |
+| --- | --- |
+| DOL Q1 — (f∘g)(x) and (g∘f)(x) for f(x) = x² − 2x + 3 and g(x) = 2x + 1 | a new x² + bx + c and a new mx + n, both compositions chosen |
+| DOL Q2 — the product of f(x) = x + 4 and g(x) = x − 4, and the input f/g excludes | a new pair x + p and x − p, either one as f, and the input f/g or g/f excludes |
+
+Each wrong choice is the same mistake as the lesson's, with the new numbers: the
+other order, a middle term of (mx + n)² taken once, only part of f multiplied,
+the sign of the constant slipped, f + g for f · g, and the zero of the numerator
+for the excluded input. Prepare Recovery adds both. The exit ticket becomes
+ready only with its Q3 ("are these inverses?"), whose answer is "yes" in every
+fresh version of the same pair, so it needs your decision first.
+
+### Inverses (Algebra II Honors Lessons 3 and 4)
+
+| Question | Recovery versions |
+| --- | --- |
+| Lesson 3 Warm-Up Q1 — swap (−3, 7); f(4) for f(x) = 2x − 5 | a new pair to swap and a new line to evaluate |
+| Lesson 3 DOL Q1 — the inverse of {(−2, 5), (1, 7), (4, 0)} | three new ordered pairs, with the same three kinds of choices |
+| Lesson 3 DOL Q2 — the inverse of f(x) = 4x − 9, and a check | a new line ax + b, with the same four kinds of choices and a new check |
+| Lesson 4 Warm-Up Q1 — the inverse of f(x) = 2x + 5, and a check | the same, at the Warm-Up's level |
+| Lesson 3 DOL Q3 — the subscription C(m) = 15m + 25 | a new monthly price, fee and total |
+
+Each wrong choice is the same mistake the lesson's choice is, with the new
+numbers: for example, an inverse that undoes the multiplication but repeats the
+constant. Prepare Recovery makes Lesson 3's exit ticket ready, and its Warm-Up
+ready from Q1. Its Warm-Up Q2 and Q3 (the slope of y = x and its role, and the
+domain and range of a line) have the same answers in every fresh version, so
+they need your decision first.
+
+### The ALEKS bridge lesson: absolute value (Algebra II Honors)
+
+| Question | Recovery versions |
+| --- | --- |
+| Warm-Up Q1 — the translations in g(x) = f(x − 4) + 3 | two new translations |
+| Warm-Up Q2 — g(x) = f(−2x) by the class rule | a new factor inside f, a whole number or its reciprocal |
+| Warm-Up Q3 — g(x) = −(1/2)f(x) + 2 by the class rule | a new factor outside f and a new translation |
+| DOL Q1 — analyze y = −2\|x + 3\| + 1 | a new V opening down: vertex, reflection, stretch, translations, range |
+| DOL Q2 — match y = (1/2)\|x − 4\| − 2 in the Transformations Lab | a new compressed, translated V, in the same window |
+
+Each wrong choice is the same mistake as the lesson's, with the new numbers: a
+change inside f read at face value, a change outside f reversed. Prepare
+Recovery makes both the Warm-Up and the exit ticket ready.
+
+### Solving Systems with Matrices (Algebra II Honors): Warm-Up Q1's choices
+
+Warm-Up Q1 asks whether Ms. Tanaka's arrays give the same information as Mr.
+Lopez's sentences. Its two wrong choices were rewritten, so the right one is no
+longer the longest: "No — the arrays lose the card values, so 230 could be any
+card" and "No — the arrays show only December, so November is missing". Its
+Recovery versions now have the same kind of choices, with each version's own
+numbers.
+
+- A new assignment of this lesson gets them when you create it.
+- An assignment whose Recovery you already prepared keeps its earlier versions,
+  with the old choices, until you import the rewritten lesson again. Warm-Up
+  Q1 then reads "not ready — the question changed after its Recovery was
+  prepared": press **Prepare Recovery…** and approve. The other five questions
+  keep the Recovery they have.
+
 ## Seeing who can recover
 
 In the assignment details, **Show who can recover in (class)** lists, for the

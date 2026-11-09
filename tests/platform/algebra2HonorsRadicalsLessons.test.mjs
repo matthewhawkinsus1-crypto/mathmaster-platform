@@ -63,6 +63,18 @@ for (const entry of ALGEBRA2_HONORS_RADICALS_LESSONS) {
     assert.ok(primary.has('A2.7G'), [...primary].join(', '));
   });
 
+  // F-SORT-NO-REASON: "give a reason for each group" was printed on sorts whose
+  // board never asked for one. A sort that asks for reasons in words asks in
+  // the board too.
+  test(`${name}: a sort whose task asks for a reason for each group asks the student for one`, () => {
+    const asking = compiled(text).questions.filter((question) => (
+      question.type === 'openSortBoard' && /reason for each group/i.test(`${question.prompt} ${(question.directionSteps || []).join(' ')}`)
+    ));
+    assert.deepEqual(asking.filter((question) => question.requireRationale !== true).map((question) => question.questionId), []);
+    assert.equal(asking.every((question) => question.mode === 'controlled'), true);
+    if (['a2r1-cw-2', 'a2r2-cw-1'].some((id) => text.includes(`"${id}"`))) assert.ok(asking.length >= 1, 'the sort that promised reasons is still checked');
+  });
+
   test(`${name}: Pre-Flight shows a teacher nothing to fix, and the Warm-Up and Exit Ticket back Recovery`, () => {
     assert.deepEqual(preflightFindings(text), []);
     const generation = reviewedModel(text).questionGeneration;

@@ -1558,7 +1558,7 @@ const numericMoveStep = (move, v, style) => {
   }
 };
 
-const numericSibling = (model, random, accept) => {
+const numericSibling = (model, random, accept, { saySoToo = false } = {}) => {
   const v = model.variable;
   const style = model.style;
   for (let attempt = 0; attempt < 600; attempt += 1) {
@@ -1583,10 +1583,145 @@ const numericSibling = (model, random, accept) => {
       `Check: with $${v} = ${numberLatex(value, style)}$, both sides of $${equation}$ equal $${numberLatex(leftValue, style)}$.`,
     ];
     const example = {
-      prompt: `Solve $${equation}$ for $${v}$.`,
+      prompt: saySoToo ? `Solve $${equation}$ for $${v}$. ${saySo(v)}` : `Solve $${equation}$ for $${v}$.`,
       steps,
       answer: `$${v} = ${numberLatex(value, style)}$`,
       value,
+    };
+    if (accept(example)) return example;
+  }
+  return null;
+};
+
+/* ---------------------------------------------------------------------------
+ * "Practise one like this": a sibling in THIS item's own case.
+ *
+ * numericSibling only ever works an equation with one solution, so "Try a
+ * similar one", shown while the item is open, never tells a relation-workspace
+ * student which case they drew. Once the item has closed on a miss, that
+ * student practises the case they missed: no solution for no solution, every
+ * real number for every real number (2026-11-06 A1 M3 T1 walkthrough: L1 CW 11
+ * and PR 14 were offered "Solve x + 8(x + 11) = 6x + 2(x + 3) + 79", x = −3).
+ * The sibling keeps the item's shape (its parentheses and terms on each side),
+ * asks to say so as the item does, and is never the item in disguise: other
+ * numbers, other sides, another statement once the variable cancels.
+ * ------------------------------------------------------------------------- */
+
+/** Every x-term, with the number its coefficient is multiplied by (a group's multiplier). */
+const xPaths = (terms, prefix = [], factor = ONE) => terms.flatMap((term, index) => {
+  if (term.kind === 'x') return [{ path: [...prefix, index], factor, coef: term.coef }];
+  if (term.kind === 'group') return xPaths(term.inner, [...prefix, index], multiply(factor, term.mult));
+  return [];
+});
+const replaceXAt = (terms, path, coef) => terms.map((term, index) => {
+  if (index !== path[0]) return term;
+  if (path.length === 1) return xTerm(coef);
+  return groupTerm(term.mult, replaceXAt(term.inner, path.slice(1), coef));
+});
+// A coefficient that looks like the one it replaces: an integer for an
+// integer, ±1 only where the item wrote no number, small and not zero.
+const coefficientLike = (value, original) => {
+  const { n, d } = toRational(value);
+  if (n === 0 || d > 6 || Math.abs(n) > 12 * d) return false;
+  if (isInteger(original) && d !== 1) return false;
+  if (sign(value) !== sign(original)) return false;
+  return equals(absolute(value), ONE) === equals(absolute(original), ONE);
+};
+
+/** The sides with one x-coefficient changed so both sides have the same x-coefficient, or null. */
+const matchXCoefficients = (left, right) => {
+  const L = expandLinearSide(left);
+  const R = expandLinearSide(right);
+  const choices = [
+    ...xPaths(right).map((slot) => ({ ...slot, side: 'right', target: L.a, total: R.a })),
+    ...xPaths(left).map((slot) => ({ ...slot, side: 'left', target: R.a, total: L.a })),
+  ];
+  for (const { path, factor, coef, side, target, total } of choices) {
+    const rest = subtract(total, multiply(factor, coef));
+    const needed = divide(subtract(target, rest), factor);
+    if (!coefficientLike(needed, coef)) continue;
+    return side === 'right' ? { left, right: replaceXAt(right, path, needed) } : { left: replaceXAt(left, path, needed), right };
+  }
+  return null;
+};
+
+/** The sides with one constant changed so that right − left constants is `difference`, or null. */
+const setConstantDifference = (left, right, difference, { keepSign = true } = {}) => {
+  const L = expandLinearSide(left);
+  const R = expandLinearSide(right);
+  const factorAt = (terms, path) => path.slice(0, -1).reduce(({ factor, list: level }, index) => ({
+    factor: multiply(factor, level[index].mult),
+    list: level[index].inner,
+  }), { factor: ONE, list: terms }).factor;
+  const valueAt = (terms, path) => path.slice(0, -1).reduce((level, index) => level[index].inner, terms)[path.at(-1)].value;
+  const choices = [
+    ...constantPaths(right).filter((path) => path.length === 1).reverse().map((path) => ['right', path]),
+    ...constantPaths(left).filter((path) => path.length === 1).reverse().map((path) => ['left', path]),
+    ...constantPaths(right).filter((path) => path.length > 1).map((path) => ['right', path]),
+    ...constantPaths(left).filter((path) => path.length > 1).map((path) => ['left', path]),
+  ];
+  for (const [side, path] of choices) {
+    const terms = side === 'right' ? right : left;
+    const factor = factorAt(terms, path);
+    const old = valueAt(terms, path);
+    // right.b − left.b = difference, solved for this one constant.
+    const others = side === 'right' ? subtract(R.b, multiply(factor, old)) : subtract(L.b, multiply(factor, old));
+    const needed = side === 'right'
+      ? divide(subtract(add(L.b, difference), others), factor)
+      : divide(subtract(subtract(R.b, difference), others), factor);
+    if (!isInteger(needed) || isZero(needed) || Math.abs(toNumber(needed)) > 99) continue;
+    // A constant keeps its sign (3(x − 2) + 2 stays "+ c") unless no draw can.
+    if (keepSign && sign(needed) !== sign(old)) continue;
+    return side === 'right' ? { left, right: replaceAt(right, path, needed) } : { left: replaceAt(left, path, needed), right };
+  }
+  return null;
+};
+
+const specialStatementStep = (move, v, style) => {
+  const statement = `${numberLatex(move.statement.left, style)} = ${numberLatex(move.statement.right, style)}`;
+  return move.outcome === 'allReals'
+    ? `The $${v}$-terms cancel, leaving $${statement}$, which is always true: every value of $${v}$ makes the equation true, so the solution is all real numbers.`
+    : `The $${v}$-terms cancel, leaving $${statement}$, which is never true: no value of $${v}$ makes the equation true, so the equation has no solution.`;
+};
+
+// The item's own instruction, as relation-workspace items write it.
+const saySo = (v) => `If no value of $${v}$ makes the equation true, or every value does, say so.`;
+
+const specialSibling = (model, random, accept) => {
+  const v = model.variable;
+  const style = model.style;
+  const original = { L: expandLinearSide(model.leftTerms), R: expandLinearSide(model.rightTerms) };
+  const originalMoves = numericMoves(model.leftTerms, model.rightTerms, { style });
+  const originalStatement = originalMoves.at(-1)?.statement;
+  for (let attempt = 0; attempt < 800; attempt += 1) {
+    const matched = matchXCoefficients(redrawTerms(model.leftTerms, random), redrawTerms(model.rightTerms, random));
+    if (!matched) continue;
+    // Every real number: the same constant on both sides. No solution: two
+    // different constants, a small whole number apart.
+    const difference = model.outcome === 'allReals' ? ZERO : rational(pick(random, [-9, -8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
+    const solved = setConstantDifference(matched.left, matched.right, difference, { keepSign: attempt < 600 });
+    if (!solved) continue;
+    const { left, right } = solved;
+    if (sideShape(left) !== sideShape(model.leftTerms) || sideShape(right) !== sideShape(model.rightTerms)) continue;
+    const L = expandLinearSide(left);
+    const R = expandLinearSide(right);
+    // Not the item: other sides, and another statement once the variable cancels.
+    if (equals(L.a, original.L.a) && equals(L.b, original.L.b) && equals(R.a, original.R.a) && equals(R.b, original.R.b)) continue;
+    const moves = numericMoves(left, right, { style });
+    const last = moves.at(-1);
+    if (!last || last.kind !== 'special' || last.outcome !== model.outcome) continue;
+    if (originalStatement && equals(last.statement.left, originalStatement.left) && equals(last.statement.right, originalStatement.right)) continue;
+    const equation = equationLatexOf(left, right, v, style);
+    const at = (side) => add(side.a, side.b);
+    const check = model.outcome === 'allReals'
+      ? [`Check: with $${v} = 1$, both sides of $${equation}$ equal $${numberLatex(at(L), style)}$.`, `The two sides are the same expression, so they are equal for every value of $${v}$.`]
+      : [`Check: with $${v} = 1$, the left side of $${equation}$ is $${numberLatex(at(L), style)}$ and the right side is $${numberLatex(at(R), style)}$.`,
+        `The two sides always differ by $${numberLatex(absolute(subtract(R.b, L.b)), style)}$, so they are never equal.`];
+    const example = {
+      prompt: `Solve $${equation}$ for $${v}$. ${saySo(v)}`,
+      steps: [...moves.map((move) => (move.kind === 'special' ? specialStatementStep(move, v, style) : numericMoveStep(move, v, style))).filter(Boolean), check.join(' ')],
+      answer: model.outcome === 'allReals' ? 'All real numbers' : 'No solution',
+      caseAnswers: [...SPECIAL_OUTCOME_TEXTS[model.outcome]],
     };
     if (accept(example)) return example;
   }
@@ -1704,12 +1839,20 @@ const lineSibling = (model, random, accept) => {
   return null;
 };
 
-export const similarProblem = (question, { seed = 0 } = {}) => {
+/*
+ * `keepCase`: "Practise one like this" asks, once the item has closed, for a
+ * sibling in the item's own case (specialSibling). Its case words ("No
+ * solution") are then its answer too, and are left out of the answers it may
+ * not show; every other check is the same.
+ */
+export const similarProblem = (question, { seed = 0, keepCase = false } = {}) => {
   try {
     if (!matches(question)) return null;
     const model = modelFor(question);
     if (!model) return null;
-    const answers = expectedValues(question);
+    const sameCase = keepCase && model.kind === 'numeric' && model.outcome !== 'value';
+    const shared = sameCase ? SPECIAL_OUTCOME_TEXTS[model.outcome].map((value) => value.toLowerCase()) : [];
+    const answers = expectedValues(question).filter((value) => !shared.includes(value.toLowerCase()));
     const fingerprint = model.kind === 'numeric'
       ? equationLatexOf(model.leftTerms, model.rightTerms, model.variable, 'fraction')
       : `${polyLatex(model.leftPoly)}=${polyLatex(model.rightPoly)}|${model.target}`;
@@ -1719,10 +1862,17 @@ export const similarProblem = (question, { seed = 0 } = {}) => {
     // line is replaced, not offered.
     const accept = (example) => siblingIsSafe(example, question, answers, model.kind === 'numeric' ? model.solution : null);
     let example = null;
-    if (model.kind === 'numeric') example = numericSibling(model, random, accept);
+    // An item that asks to say so when no value or every value works keeps that
+    // instruction in its practice, whichever case it is (CW 12 has one solution).
+    const saySoToo = keepCase && /\bsay so\b/i.test(String(question.prompt ?? ''));
+    // A shape no same-case draw fits (fractions that will not match) keeps
+    // the one-solution sibling it had, rather than offering none.
+    if (sameCase) example = specialSibling(model, random, accept) || numericSibling(model, random, accept, { saySoToo });
+    else if (model.kind === 'numeric') example = numericSibling(model, random, accept, { saySoToo });
     else if (model.lineForm) example = lineSibling(model, random, accept);
     else example = literalSibling(model, random, accept);
-    return example ? { prompt: example.prompt, steps: example.steps, answer: example.answer } : null;
+    if (!example) return null;
+    return { prompt: example.prompt, steps: example.steps, answer: example.answer, ...(example.caseAnswers ? { caseAnswers: example.caseAnswers } : {}) };
   } catch {
     return null;
   }

@@ -32,11 +32,15 @@ import { ALGEBRA1_M3_INEQUALITY_LESSONS, ALGEBRA1_M3_INEQUALITY_PAIRS, expectedF
 import { collectReviewBlockers, summarizePreflightReadiness } from '../../src/components/teacher/preflightSteps.js';
 import { inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
 import { HONORS_CCMR_STATUS, confirmHonorsCandidateForCreate } from '../../src/platform/assignments/canonicalCcmrHydration.js';
+import { describeBoxPlaceholder } from '../../src/platform/interaction/answerFormatHints.js';
+import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import { sameLinearInequality } from '../../functions/shared/linearInequalityEquivalence.mjs';
 import {
   VERSIONS,
   auditedItemFindings,
   backUpFindings,
   compiled,
+  constraintText,
   directionFindings,
   dolSupportFindings,
   honorsCandidateOf,
@@ -46,6 +50,7 @@ import {
   reviewedModel,
   supportFindings,
   toolFindings,
+  versionsOf,
 } from './helpers/lessonFileChecks.mjs';
 
 const SECTIONS = ['warmup', 'classwork', 'practice', 'dol'];
@@ -153,5 +158,148 @@ for (const { regular: regularEntry, honors: honorsEntry } of ALGEBRA1_M3_INEQUAL
     assert.equal(readiness.canCreate, true);
     const created = confirmHonorsCandidateForCreate({ honorsCandidate: candidate, reviewedAssignmentV5: model.assignmentV5, honorsEnrichmentQuestion: null });
     assert.deepEqual(created.assignmentV5, candidate.assignmentV5);
+  });
+}
+
+/*
+ * PACING, from the PR #537 student walkthrough
+ * (docs/qa/2026-11-03-pr537-walkthrough/findings.md, "A1 M3 T2 L4" and "L5").
+ * A student builds the plain case in the tool before a word problem asks for
+ * the same build. Items moved, but every id kept its number (the recovery and
+ * walkthrough tools find items by id), so the order is held here.
+ */
+const isBuild = (question) => (question.studentActions || []).includes('solveInequalitySystem');
+
+for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS) {
+  const name = entry.lesson.assignment.title;
+  const lesson = JSON.parse(readRepoFile(entry.file));
+  const P = lesson.sections[0].questions[0].questionId.replace(/-wu-1$/, '');
+  const classwork = questionsOf(lesson, 'classwork');
+  const ids = classwork.map((question) => question.questionId);
+  const at = (number) => ids.indexOf(`${P}-cw-${number}`);
+
+  test(`${name}: Classwork keeps every question id it had`, () => {
+    const expected = Array.from({ length: ids.length }, (_, index) => `${P}-cw-${index + 1}`);
+    assert.deepEqual([...ids].sort(), expected.sort());
+  });
+
+  if (lessonOf(entry) === 'Lesson 4') {
+    test(`${name}: the first graph is a bare inequality, right after CW 1 and before Kai's goal is modeled`, () => {
+      const first = classwork.find(isBuild);
+      assert.equal(first.modeling, undefined, `${first.questionId} is a word problem`);
+      assert.equal(first.sourceConstraints.length, 1);
+      assert.ok(ids.indexOf(first.questionId) < ids.indexOf(classwork.find((question) => question.modeling).questionId));
+      // The walkthrough's fix: Activity 4.2's y > 4x − 6 (CW 6) moves to just after CW 1.
+      assert.deepEqual([at(1), at(6), at(2)], [0, 1, 2]);
+    });
+  }
+
+  if (lessonOf(entry) === 'Lesson 5') {
+    test(`${name}: the first system built is the plain case, and Noah's word problem comes after Activity 5.2's system`, () => {
+      // Two boundaries the student reads with y alone and whole-number slopes,
+      // crossing, so the half-planes overlap: the case Practice 1 and Exit
+      // Ticket 1 test. It used to appear first at item 14 of 16.
+      const first = classwork.find(isBuild);
+      assert.equal(ids.indexOf(first.questionId), 0, 'Classwork opens with it');
+      assert.equal(first.modeling, undefined, `${first.questionId} is a word problem`);
+      assert.equal(first.studentBuild.rewrite, false, `${first.questionId} asks for a rewrite`);
+      assert.equal(first.expectedConstraints.length, 2);
+      first.expectedConstraints.forEach((constraint) => assert.ok(Number.isInteger(constraint.m) && Number.isInteger(constraint.b), JSON.stringify(constraint)));
+      assert.notEqual(first.expectedConstraints[0].m, first.expectedConstraints[1].m, 'the boundaries cross');
+      // Noah's items (Getting Started, Activity 5.1, his graph and its analysis)
+      // stay together and in order, after x + y > 1 and −x + y ≤ 3 (CW 5).
+      assert.deepEqual([1, 2, 3, 4].map(at), [0, 1, 2, 3].map((offset) => at(1) + offset));
+      assert.ok(at(1) > at(5), `Noah starts at item ${at(1) + 1}, CW 5 is item ${at(5) + 1}`);
+    });
+
+    test(`${name}: the first hint on Noah's graph asks for the intercepts and gives none of them`, () => {
+      // It used to list all four, which is the whole boundary step (F-HINT-GIVES-STEP).
+      const [hint] = classwork[at(3)].hints;
+      assert.match(hint, /intercept|cross/i);
+      assert.doesNotMatch(hint, /\(\s*-?\d|[1-9]/, hint);
+    });
+  }
+}
+
+/*
+ * THE EXAMPLE IN AN EMPTY "WRITE THE INEQUALITY THIS GRAPH SHOWS" BOX
+ * (F-GRAPH-IN-WORDS, the same walkthrough). The platform's example for any
+ * inequality box was "0 ≤ x ≤ 4", a compound inequality in one variable (it
+ * is "y ≥ mx + b" now where the prompt and label name x and y, and "a ≤ x ≤ b"
+ * elsewhere: inequalityExample.test.mjs). L4's graph items ask for one
+ * inequality in x and y, so their boxes show one, and it is nobody's answer:
+ * no key in any version accepts it, and no student builds its graph.
+ */
+const GRAPH_ITEMS = ['cw-7', 'cw-12', 'cw-13', 'cw-17', 'p-6', 'p-10', 'p-12', 'p-15'];
+
+for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS.filter((candidate) => lessonOf(candidate) === 'Lesson 4')) {
+  const name = entry.lesson.assignment.title;
+  const text = readRepoFile(entry.file);
+
+  test(`${name}: a box that asks for the inequality a graph shows has an example of that shape, which is no item's answer`, () => {
+    const { questions } = compiled(text);
+    const P = questions[0].questionId.replace(/-wu-1$/, '');
+    const boxes = questions
+      .filter((question) => GRAPH_ITEMS.some((suffix) => question.questionId === `${P}-${suffix}`))
+      .flatMap((question) => (question.answerFields || []).filter((field) => field.inputProfile === 'inequality').map((field) => ({ field, prompt: question.prompt })));
+    assert.ok(boxes.length >= 15, `${boxes.length} graph boxes`);
+    // What each empty box shows, asked as MultiAnswerGrader asks it.
+    const shown = new Set(boxes.map(({ field, prompt }) => describeBoxPlaceholder(field, { inferredFormat: 'inequality', prompt }).placeholder));
+    assert.equal(shown.size, 1, [...shown].join(' | '));
+    const [example] = shown;
+    // One relation between x and y, and no longer than the platform's own
+    // examples, which fit the narrowest box (answerPlaceholderFits).
+    assert.equal((example.match(/[<>≤≥]/g) || []).length, 1, example);
+    assert.match(example, /x/);
+    assert.match(example, /y/);
+    assert.ok(example.length <= 10, example);
+    questions.forEach((question) => versionsOf(question).forEach((version) => {
+      if (version.type === 'multiAnswer') {
+        (version.answerFields || []).filter((field) => field.inputProfile === 'inequality').forEach((field) => {
+          const part = gradeMultiAnswerResponse(version, { [field.id]: example }).parts.find((entry) => entry.id === field.id);
+          assert.equal(part.isCorrect, false, `${version.questionId} ${field.id} accepts the example "${example}"`);
+        });
+      }
+      if (version.type === 'systemsWorkspace') {
+        const constraints = version.expectedConstraints || version.modeling?.expectedConstraints || [];
+        [...(version.sourceConstraints || []), ...constraints.map(constraintText)].forEach((graphed) => {
+          assert.equal(sameLinearInequality(example, String(graphed)), false, `${version.questionId}: a student builds ${graphed}`);
+        });
+      }
+    }));
+  });
+}
+
+/*
+ * THE EXAMPLE IN EVERY BOX WHOSE ANSWER RELATES x AND y. The platform reads x
+ * and y in the prompt and the label to choose between "y ≥ mx + b" and the
+ * one-variable "a ≤ x ≤ b". Nine boxes showed the one-variable shape: a label
+ * that names only y ("With y alone", L4 Honors PR 16 and L5 CW 15), or a
+ * graph's boundary whose prompt names neither letter (L5 PR 10). They carry
+ * the two-variable example now (Y_ALONE_EXAMPLE), and no key in any version
+ * accepts what any box shows.
+ */
+for (const entry of ALGEBRA1_M3_INEQUALITY_LESSONS.filter((candidate) => ['Lesson 4', 'Lesson 5'].includes(lessonOf(candidate)))) {
+  const name = entry.lesson.assignment.title;
+  const text = readRepoFile(entry.file);
+
+  test(`${name}: every box whose answer relates x and y shows an example in x and y, which no key accepts`, () => {
+    const { questions } = compiled(text);
+    const problems = [];
+    let boxes = 0;
+    questions.forEach((question) => (question.answerFields || []).filter((field) => field.inputProfile === 'inequality').forEach((field) => {
+      const key = String(field.answer);
+      if (!(/x/.test(key) && /y/.test(key))) return;
+      boxes += 1;
+      // What the empty box shows, asked as MultiAnswerGrader asks it.
+      const shown = describeBoxPlaceholder(field, { inferredFormat: 'inequality', prompt: question.prompt }).placeholder || '';
+      if (!(/x/.test(shown) && /y/.test(shown))) problems.push(`${question.questionId} ${field.id} ("${field.label}") shows "${shown}"`);
+      versionsOf(question).filter((version) => version.type === 'multiAnswer').forEach((version) => {
+        const part = gradeMultiAnswerResponse(version, { [field.id]: shown }).parts.find((candidate) => candidate.id === field.id);
+        if (part?.isCorrect) problems.push(`${version.questionId} ${field.id} accepts its own example "${shown}"`);
+      });
+    }));
+    assert.ok(boxes >= 10, `${boxes} boxes`);
+    assert.deepEqual(problems, []);
   });
 }

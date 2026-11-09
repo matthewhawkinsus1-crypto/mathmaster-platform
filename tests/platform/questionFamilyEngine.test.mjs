@@ -40,7 +40,17 @@ import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serve
 import { buildLinearConnectionCards, linearConnectionsCardKinds, representationSetsFor } from '../../functions/shared/toolMath/representationMatch/representationMath.mjs';
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
-import { intervalNumberLineKeyWork, matrixLabKeyWork, polynomialWorkshopKeyWork } from '../../functions/shared/recoveryCertificationGrading.mjs';
+import {
+  composedWorkflowKeyWork,
+  domainRangeKeyWork,
+  graphIntervalsKeyWork,
+  intervalNumberLineKeyWork,
+  matrixLabKeyWork,
+  polynomialWorkshopKeyWork,
+  relationMappingKeyWork,
+  transformationsLabKeyWork,
+} from '../../functions/shared/recoveryCertificationGrading.mjs';
+import { gradeComposedWorkflowCheck } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
 
 const SAMPLE = 160;
 
@@ -109,11 +119,9 @@ const REGISTRY_TOOL_WORK = {
     const points = [[0, b], [run, b + m * run]];
     return { right: { points }, wrong: { points: points.map(([x, y]) => [x, y + 1]) } };
   },
-  // The Transformations Lab: each labeled point's image, and one image moved.
-  transformationsLab: (question, instance) => {
-    const images = instance.answer.value.map(([x, y]) => [x, y]);
-    return { right: { plottedPoints: images }, wrong: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) } };
-  },
+  // The Transformations Lab: each labeled point's image, and one image moved;
+  // the parameters read off a graph, or a mapped point (RC01), and one wrong.
+  transformationsLab: (question, instance) => transformationsLabKeyWork(instance.answer),
   // The Matrix Lab (matrices.*): the work the lab's Check sends, and one cell
   // (or one value, or the classification) wrong.
   matrixLab: (question, instance) => matrixLabKeyWork(instance.answer),
@@ -125,6 +133,14 @@ const REGISTRY_TOOL_WORK = {
   // notation as the tool's Check sends them, and the same work with one
   // endpoint's open or closed dot flipped.
   intervalNumberLine: (question, instance) => intervalNumberLineKeyWork(instance.answer),
+  // The Mapping Diagram (relations.*, RC01): every arrow, the domain and range,
+  // and the function choice — and the other verdict (or an output left out).
+  relationMapping: (question, instance) => relationMappingKeyWork(question, instance.answer),
+  // Graph Analysis's domain and range (functions.domainRangeFromGraph, RC01),
+  // typed in interval notation, and the range's closed end opened; or where a
+  // parabola rises, falls and is positive and negative
+  // (functions.intervalsFromGraph), and the rising and falling traded.
+  graphAnalysis: (question, instance) => domainRangeKeyWork(question, instance.answer) || graphIntervalsKeyWork(question, instance.answer),
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
     const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));
@@ -254,6 +270,17 @@ test('every family: the answer key is correct for its own question, on the serve
           assert.equal(browser.isCorrect, true, `${family.id}/${toolType}: a complete correct answer is credited`);
           assert.equal(gradeServerResponse({ question, response: browser.toolResponse }).isCorrect, true, `${family.id}/${toolType}: and the server agrees`);
           assert.equal(gradeToolWork({ toolId: question.type, question, work: wrong }).isCorrect, false, `${family.id}/${toolType}: wrong work rejected`);
+          return;
+        }
+        // A composed workflow (figure sorts, a choice read off a graph): the
+        // runner's work from certification's own responder, marked by the
+        // composed-workflow grader in the browser's Check and on the server.
+        const composed = composedWorkflowKeyWork(question, instance.answer);
+        if (composed) {
+          const browser = gradeComposedWorkflowCheck(question, composed.right);
+          assert.equal(browser.isCorrect, true, `${family.id}/${toolType}: a complete correct answer is credited`);
+          assert.equal(gradeServerResponse({ question, response: browser.toolResponse }).isCorrect, true, `${family.id}/${toolType}: and the server agrees`);
+          assert.equal(gradeComposedWorkflowCheck(question, composed.wrong).isCorrect, false, `${family.id}/${toolType}: wrong work rejected`);
           return;
         }
         assert.equal(serverGradingSupport(question).supported, true, `${family.id}/${toolType} is server-gradable`);

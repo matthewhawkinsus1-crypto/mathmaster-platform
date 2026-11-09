@@ -14,9 +14,10 @@ import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '..
 import { Panel } from '../shared/ToolShell';
 import MathDisplay from '../../MathDisplay';
 import useReportToolWork from '../shared/useReportToolWork.js';
-import { normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
+import { normalizeAlgebraicSystemConfig, separatedRows } from './algebraicSystemsEngine.js';
 import SubstitutionReductionMode from './SubstitutionReductionMode.jsx';
 import EliminationReductionMode from './EliminationReductionMode.jsx';
+import EquationByEquationMode from './EquationByEquationMode.jsx';
 
 const choiceButtonStyle = { padding: '11px 18px', border: 0, borderRadius: 9, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer', minHeight: 44, fontSize: 'calc(14 * var(--mm-px))' };
 const changeMethodButtonStyle = { padding: '7px 14px', border: '1px solid var(--mm-primary-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 700, cursor: 'pointer', minHeight: 36, fontSize: 'calc(13 * var(--mm-px))' };
@@ -30,9 +31,13 @@ const changeMethodButtonStyle = { padding: '7px 14px', border: '1px solid var(--
  */
 export default function Algebraic3SystemMode({ questionData = {}, onAction, draftKey = null }) {
   const config = useMemo(() => normalizeAlgebraicSystemConfig(questionData), [questionData]);
+  // Equations that each hold one different variable (2x = 2, 3y = 6, 4z = 12)
+  // leave nothing to substitute or eliminate, whichever method: they are
+  // solved equation by equation, with no method to choose (TL43, C2-138).
+  const separated = useMemo(() => separatedRows(config.equations, config.variables), [config.equations, config.variables]);
   const [method, setMethod] = usePersistentToolState('method3', config.method === 'studentChoice' ? '' : config.method);
   const effectiveMethod = config.method === 'studentChoice' ? method : config.method;
-  const isStudentChoice = config.method === 'studentChoice';
+  const isStudentChoice = config.method === 'studentChoice' && !separated;
 
   // A minimal, real Undo history over the method choice itself, so "change
   // method" is a registered, reversible edit rather than a side door around
@@ -66,6 +71,10 @@ export default function Algebraic3SystemMode({ questionData = {}, onAction, draf
   // stepped away from. Once a method is chosen, the mounted workspace reports
   // its own work (and owns Check).
   useReportToolWork({ dimension: config.dimension, method: '' }, { enabled: isStudentChoice && !effectiveMethod });
+
+  if (separated) {
+    return <EquationByEquationMode questionData={questionData} config={config} rows={separated.rows} onAction={onAction} draftKey={draftKey} />;
+  }
 
   if (isStudentChoice && !effectiveMethod) {
     return (

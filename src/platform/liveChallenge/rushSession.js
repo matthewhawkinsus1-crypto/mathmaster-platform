@@ -36,7 +36,7 @@
  */
 
 import { clampTolerance, resolveTap, TAP_RESULT } from '../../../functions/shared/graphFeatureHitTest.mjs';
-import { getGraphFeature, isIntervalFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
+import { SET_FEATURE_AXIS, getGraphFeature, isIntervalFeature, isSetFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import {
   EMPTY_DRAWING,
   drawingForSet,
@@ -63,8 +63,8 @@ import {
   rushLockoutMs,
   rushQuestionWeight,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
-import { SET_TAP_TIP, formatPoint, formatTarget, nearOpenDot, setAxisOf } from './rushGraphModel.js';
+import { INEQUALITY_ITEM, NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
+import { SET_TAP_TIP, formatCoordinate, formatPoint, formatTarget, nearOpenDot, setAxisOf } from './rushGraphModel.js';
 
 export const RUSH_FEEDBACK = Object.freeze({
   HIT: 'hit',
@@ -703,6 +703,187 @@ export const feedbackMessage = (feedback, question) => {
     default:
       return '';
   }
+};
+
+/*
+ * THE FEEDBACK LINE'S ROOM. On a phone the line sits under the graph, and the
+ * graph takes what is left of the screen: when a message took another line,
+ * the graph shrank (at 200% text a two-line miss took it from 279 to 234 px),
+ * and a number line, which sits in the middle of its area, moved down and
+ * back as the notation and the cooldown came and went (9 px at 390 px wide) —
+ * so a tap aimed at it landed off it. The round keeps the line's room for the
+ * longest things it can say (GraphFeatureRushRound draws these, invisible, in
+ * the line's own cell), so nothing it says moves the graph.
+ *
+ * What the round CAN say, never what this graph will: a line kept taller for
+ * a graph whose answer is "does not exist" would give that away, and a room
+ * that changed from graph to graph would move the graph between them. So the
+ * round's settings decide (its features, whether "Off screen" is offered, an
+ * inequality game), and wide numbers stand in for an item's own: no view
+ * reaches past ±10.5, and a set has at most two pieces where it has ends.
+ */
+const RESERVE_LINE_COUNT = 6;
+const WIDE = -10.5;
+const WIDE_SET = Object.freeze([[null, false, WIDE, false], [-WIDE, false, null, false]]);
+const WIDE_PLACES = Object.freeze([{ x: WIDE, y: 0 }, { x: -WIDE, y: 0 }, { x: WIDE, y: WIDE }]);
+
+// The messages of one kind of graph, from the same words a student reads.
+const pointLines = (featureId, { offScreen }) => {
+  const feature = getGraphFeature(featureId);
+  const target = feature?.geometry === 'line'
+    ? { id: 'w', geometry: 'line', orientation: 'vertical', x: WIDE, y: WIDE }
+    : { id: 'w', x: WIDE, y: WIDE };
+  const question = { feature: featureId, targets: [target], ...(offScreen ? { offScreen: true, offScreenTargets: WIDE_PLACES } : {}) };
+  const said = [
+    { kind: RUSH_FEEDBACK.HIT, targetId: 'w' },
+    { kind: RUSH_FEEDBACK.COMPLETE, targetId: 'w' },
+    { kind: RUSH_FEEDBACK.MISS },
+    { kind: RUSH_FEEDBACK.MISS, openDot: true },
+    { kind: RUSH_FEEDBACK.AUTO_SKIPPED },
+  ];
+  if (feature?.canNotExist !== false) {
+    said.push({ kind: RUSH_FEEDBACK.COMPLETE, doesNotExist: true }, { kind: RUSH_FEEDBACK.MISS, doesNotExist: true }, { kind: RUSH_FEEDBACK.MISS, doesNotExist: true, offScreen: true });
+  }
+  if (offScreen) said.push({ kind: RUSH_FEEDBACK.COMPLETE, offScreenPress: true }, { kind: RUSH_FEEDBACK.MISS, offScreenPress: true });
+  return said.map((feedback) => feedbackMessage(feedback, question));
+};
+
+const setLines = (featureId) => {
+  const axis = SET_FEATURE_AXIS[featureId] === 'y' ? 'y' : 'x';
+  const question = { feature: featureId, setAxis: axis, targets: [{ id: 'w', geometry: 'set', axis, set: WIDE_SET }] };
+  const wide = setFromPlain(WIDE_SET);
+  const said = [
+    { kind: RUSH_FEEDBACK.COMPLETE, checked: bothNotations(wide, setVariableOf(question)).join(' · ') },
+    { kind: RUSH_FEEDBACK.MISS },
+    { kind: RUSH_FEEDBACK.MISS, hint: checkHint(question, setFromPlain([[WIDE, true, null, false]]), wide) },
+    { kind: RUSH_FEEDBACK.AUTO_SKIPPED },
+    ...Object.values(SET_TAP_TIP).map((tip) => ({ kind: RUSH_FEEDBACK.TIP, tip, line: `${axis === 'y' ? 'x' : 'y'} = ${formatCoordinate(WIDE)}` })),
+    { kind: RUSH_FEEDBACK.TIP },
+  ];
+  if (getGraphFeature(featureId)?.canNotExist !== false) {
+    const never = { feature: featureId, setAxis: axis, targets: [] };
+    said.push({ kind: RUSH_FEEDBACK.COMPLETE, doesNotExist: true }, { kind: RUSH_FEEDBACK.MISS, doesNotExist: true });
+    return [...said.map((feedback) => feedbackMessage(feedback, question)), feedbackMessage({ kind: RUSH_FEEDBACK.AUTO_SKIPPED }, never), feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: checkHint(never, wide, null) }, never)];
+  }
+  return said.map((feedback) => feedbackMessage(feedback, question));
+};
+
+const inequalityLines = () => {
+  // Closed at its right end, drawn open there: the longest hint, "Open or closed at the right end? …".
+  const question = { kind: 'inequality', targets: [{ id: 'w', set: [[null, false, WIDE, true]] }] };
+  const open = setFromPlain([[null, false, WIDE, false]]);
+  const flipped = { ...question, flipSet: [[null, false, WIDE, false]] };
+  const wide = { kind: 'inequality', targets: [{ id: 'w', set: WIDE_SET }] };
+  return [
+    feedbackMessage({ kind: RUSH_FEEDBACK.COMPLETE, doesNotExist: true }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.COMPLETE, checked: bothNotations(setFromPlain(WIDE_SET), 'x').join(' · ') }, wide),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, doesNotExist: true }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: inequalityHint(question, open) }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: inequalityHint(flipped, open) }, flipped),
+    feedbackMessage({ kind: RUSH_FEEDBACK.MISS, hint: inequalityHint({ kind: 'inequality', targets: [] }, open) }, question),
+    feedbackMessage({ kind: RUSH_FEEDBACK.AUTO_SKIPPED }, wide),
+  ];
+};
+
+/**
+ * The longest things a round of these settings can say on its feedback line,
+ * longest first (a few: each is drawn, and the line keeps the room of the
+ * tallest at the screen's own width and text size).
+ */
+export const feedbackReserve = ({ features = [], offScreen = false, inequality = false } = {}) => {
+  const lines = [
+    feedbackMessage({ kind: RUSH_FEEDBACK.SKIPPED }, inequality ? { kind: 'inequality' } : {}),
+    feedbackMessage({ kind: RUSH_FEEDBACK.RESYNCED }, {}),
+    feedbackMessage({ kind: RUSH_FEEDBACK.ALREADY_FOUND }, {}),
+  ];
+  if (inequality) lines.push(...inequalityLines());
+  else {
+    for (const featureId of features) {
+      lines.push(...(isSetFeature(featureId) ? setLines(featureId) : pointLines(featureId, { offScreen })));
+    }
+  }
+  return Object.freeze([...new Set(lines.filter(Boolean))].sort((left, right) => right.length - left.length).slice(0, RESERVE_LINE_COUNT));
+};
+
+/**
+ * The widest set the notation under a set question can show, as its forms
+ * (two pieces, in both notations): with its prompt, the room the notation
+ * keeps, so a dot placed or taken away moves nothing.
+ */
+export const widestNotation = ({ axis = 'x' } = {}) => bothNotations(setFromPlain(WIDE_SET), axis === 'y' ? 'y' : 'x');
+
+/*
+ * THE KINDS OF ITEM A ROUND DEALS. A point to tap and a set to mark ask in
+ * other words and offer other controls: a set's hint is longer, and it brings
+ * its notation's line under the graph. In a round that deals both, the graph
+ * moved 23 px as the kind changed (on both phones, in CI's fonts), so
+ * the prompt, the hint and the notation each keep the room of every kind the
+ * round's settings can deal (GraphFeatureRushRound draws the others, unseen,
+ * in the same cell). An inequality game deals one kind.
+ */
+export const rushRoundKinds = ({ features = [], offScreen = false, inequality = false } = {}) => {
+  if (inequality) return Object.freeze([Object.freeze({ inequality: true, set: true, vertical: false, canBeEmpty: true, offScreen: false })]);
+  const kinds = new Map();
+  for (const featureId of features) {
+    const kind = isSetFeature(featureId)
+      ? { inequality: false, set: true, vertical: SET_FEATURE_AXIS[featureId] === 'y', canBeEmpty: getGraphFeature(featureId)?.canNotExist === true, offScreen: false }
+      : { inequality: false, set: false, vertical: false, canBeEmpty: true, offScreen: offScreen === true };
+    kinds.set(JSON.stringify(kind), Object.freeze(kind));
+  }
+  return Object.freeze([...kinds.values()]);
+};
+
+/** The kind of the item on screen, in rushRoundKinds' terms. */
+export const rushItemKind = (question, { offScreen = false } = {}) => {
+  if (isInequalityQuestion(question)) return Object.freeze({ inequality: true, set: true, vertical: false, canBeEmpty: true, offScreen: false });
+  if (isNumberLineQuestion(question)) {
+    return Object.freeze({ inequality: false, set: true, vertical: setAxisOf(question) === 'y', canBeEmpty: getGraphFeature(question?.feature)?.canNotExist === true, offScreen: false });
+  }
+  return Object.freeze({ inequality: false, set: false, vertical: false, canBeEmpty: true, offScreen: offScreen === true });
+};
+
+/*
+ * THE PROMPT'S ROOM. On a phone the number line sits in the middle of the
+ * space the prompt leaves it, so an inequality whose prompt took two lines
+ * where the last took one moved it 12 px as it appeared (half a line), and a
+ * finger aimed at it landed off it. The prompt keeps the room of the widest
+ * things the round can ask, as the feedback line keeps the room of the
+ * longest it can say: from the round's settings — its features, or its kinds
+ * of inequality and its difficulty — never an item's own words. Each kind of
+ * inequality stands here asked with the widest numbers its builder draws at a
+ * tier (inequalityRush.mjs ITEM_BUILDERS; liveChallengeKindsHoldStill.test.mjs
+ * holds every generated prompt to these): from that tier up, until the next.
+ */
+const ASK_TIERS = Object.freeze(['easy', 'standard', 'challenge']);
+const SOLVE_FIRST_LEAD = 'Solve, then graph';
+const WIDEST_INEQUALITY = Object.freeze({
+  [INEQUALITY_ITEM.SIMPLE]: { lead: 'Graph', easy: 'x ≥ −7' },
+  [INEQUALITY_ITEM.REVERSED]: { lead: 'Graph', easy: '−7 ≥ x' },
+  [INEQUALITY_ITEM.COMPOUND_AND]: { lead: 'Graph', easy: '−7 ≤ x ≤ −1', standard: 'x ≥ −7 and x ≤ −1' },
+  [INEQUALITY_ITEM.COMPOUND_OR]: { lead: 'Graph', easy: 'x ≤ −7 or x ≥ −1' },
+  [INEQUALITY_ITEM.ONE_STEP]: { lead: SOLVE_FIRST_LEAD, easy: 'x − 8 ≤ −14' },
+  [INEQUALITY_ITEM.TWO_STEP]: { lead: SOLVE_FIRST_LEAD, easy: '5x − 9 ≤ −39', standard: '−5x − 9 ≥ −39' },
+  [INEQUALITY_ITEM.ABSOLUTE]: { lead: SOLVE_FIRST_LEAD, easy: '|x| ≤ 5', standard: '|x − 5| ≤ −5', challenge: '|x − 5| − 6 ≥ −5' },
+});
+const RESERVE_ASK_COUNT = 6;
+
+/**
+ * The widest prompts a round of these settings can ask, each as an item
+ * carries it ({ prompt, inequality? }), widest first.
+ */
+export const promptReserve = ({ features = [], inequality = null } = {}) => {
+  if (inequality) {
+    const tiers = inequality.difficulty === 'mixed' ? ASK_TIERS : [ASK_TIERS.includes(inequality.difficulty) ? inequality.difficulty : 'standard'];
+    const top = Math.max(...tiers.map((tier) => ASK_TIERS.indexOf(tier)));
+    return Object.freeze((inequality.itemTypes || []).map((itemType) => {
+      const widest = WIDEST_INEQUALITY[itemType];
+      if (!widest) return null;
+      const text = ASK_TIERS.slice(0, top + 1).reduce((found, tier) => widest[tier] || found, null);
+      return Object.freeze({ prompt: `${widest.lead}: ${text}`, inequality: text });
+    }).filter(Boolean).sort((left, right) => right.prompt.length - left.prompt.length));
+  }
+  const prompts = [...new Set(features.flatMap((featureId) => (getGraphFeature(featureId)?.vocabulary || []).map((entry) => entry.prompt)))];
+  return Object.freeze(prompts.sort((left, right) => right.length - left.length).slice(0, RESERVE_ASK_COUNT).map((prompt) => Object.freeze({ prompt })));
 };
 
 /* ------------------------------ persistence ------------------------------ */

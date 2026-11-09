@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { buildTopicBrowser, TOPIC_GROUPING } from '../../platform/path/topicBrowser.js';
+import { MASTERY_STATUS_FILLS } from '../../platform/mastery/strandConfig.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // BROWSE ALL TOPICS.
@@ -54,7 +55,9 @@ function TopicSkill({ skill, grouping, onChooseSkill, disabled }) {
             {/* Two different facts, two chips: how the evidence stands (the
                 shared mastery rule's word) and whether the Path is open. */}
             <span data-mastery-status style={chip}>
-              <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 999, background: skill.masteryColor, border: '1px solid var(--mm-border-strong)' }} />
+              {/* The wheel's own colour for this status; under a contrast
+                  theme, the wheel's fill for it (theme/forcedColors.css). */}
+              <span aria-hidden="true" data-mm-swatch={MASTERY_STATUS_FILLS[skill.masteryStatus] || 'open'} style={{ width: 10, height: 10, borderRadius: 999, background: skill.masteryColor, border: '1px solid var(--mm-border-strong)' }} />
               <span><span style={VISUALLY_HIDDEN}>Mastery: </span>{skill.masteryStatus}</span>
             </span>
             <span data-path-status style={{ ...chip, color: toneTextColor(skill.tone) }}>

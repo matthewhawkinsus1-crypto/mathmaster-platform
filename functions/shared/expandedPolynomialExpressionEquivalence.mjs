@@ -10,8 +10,27 @@
 
 import { parsePolynomial, polynomialDegree, samePolynomial } from './algebraicForm.mjs';
 
+// The text inside brackets round the whole of it, `(7x^2 - 3x - 6)`: that
+// pair groups nothing, so it is no factored or vertex form's group (grader
+// spellings, 2026-11). Not a pair holding a comma, or one followed by more.
+const withoutWholeBrackets = (text) => {
+  let body = text;
+  for (let guard = 0; guard < 6 && body.startsWith('(') && body.endsWith(')'); guard += 1) {
+    let depth = 0;
+    let closesEarly = false;
+    for (let index = 0; index < body.length - 1; index += 1) {
+      if (body[index] === '(') depth += 1;
+      else if (body[index] === ')') depth -= 1;
+      if (depth === 0 || (depth === 1 && body[index] === ',')) { closesEarly = true; break; }
+    }
+    if (closesEarly) break;
+    body = body.slice(1, -1);
+  }
+  return body;
+};
+
 const hasVariableGrouping = (value) => {
-  const text = String(value ?? '').replace(/\\left|\\right/g, '').replace(/\s+/g, '');
+  const text = withoutWholeBrackets(String(value ?? '').replace(/\\left|\\right/g, '').replace(/\s+/g, ''));
   return /[\(\[][^)\]]*[A-Za-z][^)\]]*[+\-][^)\]]*[\)\]]/.test(text);
 };
 

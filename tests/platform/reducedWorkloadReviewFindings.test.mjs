@@ -23,6 +23,7 @@ import { buildAssignmentEvidenceRow, workloadFactFor } from '../../src/platform/
 import { launchSupportRecords, notApplicableReason, studentMayRecordSupport } from '../../src/platform/supportEvidence/studentSupportTelemetry.js';
 import { studentRequiredQuestions } from '../../src/assignmentLifecycle.js';
 import { normalizeStudentProfile, sameStudentProfile } from '../../src/studentSupport.js';
+import { followSupportProfile } from '../../src/platform/student/rosterMembership.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
 import { availabilityEventId, buildStudentEvidenceEvent, PLATFORM_EVALUATED_SUPPORT_IDS } from '../../functions/shared/supportEvidenceModel.mjs';
 import { buildSupportEvidenceReport, supportHeadline } from '../../src/platform/supportEvidence/supportEvidenceReport.js';
@@ -213,19 +214,25 @@ test('the evidence record and the report\'s recomputation agree for a student wi
 
 test('the App plans on the stored document, records the accommodation over the content, and follows a re-saved profile', () => {
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const launch = executableSource(region(app, 'const launchedSupportKeyRef = useRef(\'\');', 'const activeDOLState = getDOLState(', 'launch evidence'));
+  const launch = executableSource(region(app, 'const launchedSupportKeyRef = useRef(\'\');', 'const activeDOLState = ', 'launch evidence'));
   assert.match(launch, /accommodation = studentRequiredFor\(activeAssignmentData\);/);
   assert.match(launch, /workload: accommodation \}\)/);
   const listener = executableSource(region(app, "doc(db, 'grades', user.id),", 'Object.entries(next).forEach', 'student grades listener'));
   assert.match(listener, /const liveProfile = normalizeStudentProfile\(snapshot\.data\(\)\?\.profile \|\| snapshot\.data\(\)\);/);
-  assert.match(listener, /setUser\(\(current\) => \(current && !sameStudentProfile\(current\.profile, liveProfile\) \? \{ \.\.\.current, profile: liveProfile \} : current\)\);/);
-  assert.match(app, /\bsameStudentProfile,\n\} from '\.\/studentSupport';/);
+  // The session takes the re-saved profile through followSupportProfile (rosterMembership.js): its supports replace the
+  // session's when sameStudentProfile says they changed (below), and the course and level the class sets stay.
+  assert.match(listener, /setUser\(\(current\) => followSupportProfile\(current, liveProfile\)\);/);
+  assert.match(app, /^import \{[^}]*\bfollowSupportProfile\b[^}]*\} from '\.\/platform\/student\/rosterMembership\.js';$/m);
 
   const a = normalizeStudentProfile(profileAt(25), { nowValue: NOW });
   const b = normalizeStudentProfile(JSON.parse(JSON.stringify(profileAt(25))), { nowValue: NOW });
   b.supportPlan.updatedAt = a.supportPlan.updatedAt;
   assert.equal(sameStudentProfile(a, b), true);
   assert.equal(sameStudentProfile(a, normalizeStudentProfile(profileAt(40), { nowValue: NOW })), false);
+  const user = { id: 'S', role: 'student', profile: { ...a, course: 'algebra2', courseLevel: 'honors' } };
+  assert.equal(followSupportProfile(user, b), user, 'the same profile saved again: nothing moves');
+  const revised = normalizeStudentProfile(profileAt(40), { nowValue: NOW });
+  assert.deepEqual(followSupportProfile(user, revised).profile, { ...revised, course: 'algebra2', courseLevel: 'honors' }, 'the revision\'s supports, and the class\'s course and level');
 });
 
 // --- Evidence, report and privacy ---------------------------------------------------------------

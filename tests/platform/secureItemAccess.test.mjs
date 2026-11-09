@@ -9,7 +9,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { SECURE_ACCESS_TOOLS, SECURE_ACTIVITY_ROLE, releasedReviewAccessEntitlement, secureAccessEntitlement, securePromptOnly } from '../../src/platform/assessment/secureItemAccess.js';
+import { SECURE_ACCESS_TOOLS, SECURE_ACTIVITY_ROLE, releasedReviewAccessEntitlement, secureAccessEntitlement, secureFigureLanguage, securePromptOnly } from '../../src/platform/assessment/secureItemAccess.js';
+import { loadFigureWords } from '../../src/platform/language/figureSay.js';
 import { SUPPORT_TOOL } from '../../src/platform/language/supportToolsEntitlement.js';
 import { assessmentSupportProfile } from '../../src/studentSupport.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
@@ -104,4 +105,42 @@ test('a released Test\'s results follow the plan for a test or for practice', ()
   assert.deepEqual([translated.tools, translated.language], [[SUPPORT_TOOL.TRANSLATE, SUPPORT_TOOL.READ_ALOUD], 'es']);
   assert.deepEqual(releasedReviewAccessEntitlement(plan([{ id: 'chunked-directions', appliesTo: [] }, { id: 'sentence-frames', appliesTo: [] }])).tools, [], 'scaffolds give nothing');
   assert.deepEqual(releasedReviewAccessEntitlement(null).tools, []);
+});
+
+/*
+ * AX05, slice 3: a secure field item's figures describe themselves in the
+ * student's language where the item offers its authored translation — the
+ * student's plan gives Translate in that language, and the item carries an
+ * authored translation of its prompt that keeps the mathematics (the one the
+ * Translate panel shows). Only the prompt and that translation decide it.
+ */
+test('a secure item\'s figures are described in the student\'s language only where it offers its authored translation', async () => {
+  const item = {
+    questionInstanceId: 'q1',
+    prompt: 'What is the slope of the line through $(0, -2)$ and $(1, 0)$?',
+    translations: { es: { prompt: '¿Cuál es la pendiente de la recta que pasa por $(0, -2)$ y $(1, 0)$?' } },
+    stimulus: { graph: { xMin: -6, xMax: 6, yMin: -6, yMax: 6, lines: [{ points: [[0, -2], [1, 0]] }] } },
+    choices: [{ id: 'a', label: 'CHOICE' }],
+  };
+  const spanish = { accommodations: [], translationLanguage: 'es' };
+  assert.equal(secureFigureLanguage(item, spanish), 'es');
+  assert.equal(secureFigureLanguage(item, { accommodations: ['text-to-speech'], translationLanguage: 'es-MX' }), 'es-mx', 'a regional Spanish');
+  assert.equal(secureFigureLanguage(item, plan([], 'es')), 'es', 'from a support plan');
+  // No Translate on the plan, or English: no other language.
+  for (const profile of [null, {}, { accommodations: ['text-to-speech', 'glossary-lookup'] }, { accommodations: [], translationLanguage: 'en' }]) {
+    assert.equal(secureFigureLanguage(item, profile), null, JSON.stringify(profile));
+  }
+  // No authored translation of this prompt, a blank one, one in another
+  // language, or one whose mathematics differs: the figures stay English.
+  for (const translations of [undefined, {}, { es: { prompt: '   ' } }, { es: { hint: 'una pista' } }, { vi: { prompt: 'Độ dốc của đường thẳng qua $(0, -2)$ và $(1, 0)$ là bao nhiêu?' } },
+    { es: { prompt: '¿Cuál es la pendiente de la recta que pasa por $(0, -3)$ y $(1, 0)$?' } }]) {
+    assert.equal(secureFigureLanguage({ ...item, translations }, spanish), null, JSON.stringify(translations));
+  }
+  // What else the item carries never decides it.
+  assert.equal(secureFigureLanguage({ ...item, stimulus: null, choices: [] }, spanish), 'es');
+  // A language with an authored prompt but no figure words (French): its
+  // language is offered, and with no words for it the figures stay English.
+  const french = { ...item, translations: { fr: { prompt: 'Quelle est la pente de la droite qui passe par $(0, -2)$ et $(1, 0)$ ?' } } };
+  assert.equal(secureFigureLanguage(french, { accommodations: [], translationLanguage: 'fr' }), 'fr');
+  assert.equal(await loadFigureWords('fr'), null);
 });

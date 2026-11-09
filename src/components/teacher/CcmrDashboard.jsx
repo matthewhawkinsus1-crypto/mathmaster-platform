@@ -101,7 +101,7 @@ export default function CcmrDashboard({
         </div>
       )}
 
-      <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border)', borderRadius: 10 }}>
+      <div role="region" aria-label="College and career readiness by student" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--mm-border)', borderRadius: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'calc(13 * var(--mm-px))' }}>
           <thead>
             <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>

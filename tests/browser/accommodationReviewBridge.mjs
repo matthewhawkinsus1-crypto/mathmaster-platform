@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'Local Firestore emulator is required.');
+// Transactions are re-run as production re-runs them: the emulator closes a
+// contended one that production would re-run, and the command fails instead
+// (liveChallengeShellQa.mjs; the integration suites load the same re-run). An
+// approved correction is one transaction (functions/lib/retroactiveAccommodation.js).
+await import('../integration/support/emulatorTransactions.mjs');
 const { db, fns, teacherRequest } = await import('../integration/canonicalPersistenceHarness.mjs');
 const studentId = 'synthetic-review-student';
 const classId = 'synthetic-review-class';
@@ -18,7 +23,7 @@ const seed = async () => {
   return read();
 };
 const server = http.createServer(async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5199');
+  res.setHeader('Access-Control-Allow-Origin', process.env.ACCOMMODATION_QA_ORIGIN || 'http://127.0.0.1:5199');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') { res.writeHead(204).end(); return; }
@@ -31,4 +36,4 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(result));
   } catch (error) { res.writeHead(400).end(JSON.stringify({ error: error.message })); }
 });
-server.listen(5197, '127.0.0.1', () => console.log('Synthetic correction bridge ready'));
+server.listen(Number(process.env.ACCOMMODATION_QA_BRIDGE_PORT || 5197), '127.0.0.1', () => console.log('Synthetic correction bridge ready'));

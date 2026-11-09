@@ -62,7 +62,7 @@ export default function CaseSkillsTab({ model }) {
       <section className="cr-section" aria-labelledby="cr-skill-table">
         <h2 id="cr-skill-table">Standards encountered ({skills.length})</h2>
         {skills.length ? (
-          <div className="cr-scroll-x">
+          <div className="cr-scroll-x" role="region" aria-label="Standards encountered" tabIndex={0}>
             <table className="cr-table">
               <thead><tr><th>Standard</th><th>Answered</th><th>Final accuracy</th><th>First attempt</th><th>Classwork + Practice</th><th>DOL</th><th>Modified work</th><th>Trend</th></tr></thead>
               <tbody>

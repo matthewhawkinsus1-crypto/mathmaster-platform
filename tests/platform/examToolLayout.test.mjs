@@ -1,19 +1,23 @@
 // WHERE THE EXAM TOOLS SIT (src/platform/assessment/examToolLayout.js, used by
 // SatReferenceSheet.jsx, GraphingCalculatorPanel.jsx and examToolDrawerHooks.js).
 //
-// Three promises: a docked tool never covers the question (the container pads
+// Four promises: a docked tool never covers the question (the container pads
 // the question column by exactly how far each drawer reaches into it); where
 // two tools cannot both sit beside the question, opening one closes the
-// other; and a tool sits above "Enlarge question" but under every layer that
-// must cover it. The layer invariants are read from the files that own those
-// layers, so moving one of them fails here instead of hiding a tool.
+// other; a tool sits above "Enlarge question" but under every layer that
+// must cover it; and in the secure exam an open tool is a stop of the test's
+// Tab round, so Tab out of it comes back into the test, never to the page.
+// The layer invariants are read from the files that own those layers, so
+// moving one of them fails here instead of hiding a tool.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_NARROW_QUERY, examToolRoom, examToolYieldsTo, examToolsFitSideBySide,
+  EXAM_TOOL_DRAWERS, EXAM_TOOL_IDS, EXAM_TOOL_LAYERS, EXAM_TOOL_NARROW_QUERY, EXAM_TOOL_PANEL_SELECTOR,
+  examTabEdgeMove, examTabRound, examToolRoom, examToolYieldsTo, examToolsFitSideBySide,
 } from '../../src/platform/assessment/examToolLayout.js';
+import { examToolTabEdge } from '../../src/components/assessment/examToolDrawerHooks.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
@@ -76,8 +80,9 @@ test('each drawer is portalled to the body, at its shared layer and width, and r
   for (const [name, source, tool] of [['the reference sheet', SHEET, 'SatReferenceSheet'], ['the graphing calculator', PANEL, 'GraphingCalculatorPanel']]) {
     const code = executableSource(source);
     // A toolbar's stacking context held a drawer rendered inside it under Work View.
-    assert.match(code, /createPortal\(\s*<section/, `${name} renders its panel in a portal`);
-    assert.match(code, /<\/section>,\s*document\.body,\s*\)/, `${name} portals to the body`);
+    const portal = region(code, 'createPortal(', 'document.body,', `${name}'s portal`);
+    assert.match(portal, /<section\b[\s\S]*<\/section>/, `${name} renders its panel in a portal`);
+    assert.match(code, /<\/(?:section)?>,\s*document\.body,\s*\)/, `${name} portals to the body`);
     assert.match(code, /zIndex: EXAM_TOOL_LAYERS\[TOOL\],/, `${name} uses its shared layer`);
     assert.match(code, /width: `min\(\$\{EXAM_TOOL_DRAWERS\[TOOL\]\}px, 100vw\)`/, `${name} is as wide as the room the container makes`);
     const component = region(source, `export default function ${tool}`, '\n}\n', name);
@@ -91,7 +96,105 @@ test('each drawer is portalled to the body, at its shared layer and width, and r
   }
   assert.match(SHEET, /\.\.\.\(toolbarOffset \? \{ '--mm-exam-toolbar-offset': toolbarOffset \} : null\),/);
   assert.match(PANEL, /'--mm-exam-toolbar-offset': toolbarOffset,/);
-  assert.match(SHEET, /<SatReferenceSheetDialog open=\{open\} onClose=\{close\} id=\{dialogId\} toolbarOffset=\{toolbarOffset\} \/>/);
+  assert.match(SHEET, /<SatReferenceSheetDialog open=\{open\} onClose=\{close\} id=\{dialogId\} toolbarOffset=\{toolbarOffset\} onTabOut=\{onTabOut\} \/>/);
+});
+
+test('in the secure exam Tab goes round the test and its open tools, and never off the page', () => {
+  // Nothing open: the test comes round to itself, as its two guards always made it.
+  assert.deepEqual(examTabRound({ count: 1, from: 0, forward: true }), [0]);
+  assert.deepEqual(examTabRound({ count: 1, from: 0, forward: false }), [0]);
+  // The calculator open: Tab past the test's last control reaches the drawer's
+  // first, and Tab past the drawer's last comes back to the test's first.
+  assert.deepEqual(examTabRound({ count: 2, from: 0, forward: true }), [1, 0]);
+  assert.deepEqual(examTabRound({ count: 2, from: 1, forward: true }), [0, 1]);
+  // Shift+Tab before the test's first control reaches the drawer's last, and
+  // Shift+Tab before the drawer's first goes back to the test's last.
+  assert.deepEqual(examTabRound({ count: 2, from: 0, forward: false }), [1, 0]);
+  assert.deepEqual(examTabRound({ count: 2, from: 1, forward: false }), [0, 1]);
+  // Both drawers open on a wide screen: one after the other, in page order.
+  assert.deepEqual(examTabRound({ count: 3, from: 0, forward: true }), [1, 2, 0]);
+  assert.deepEqual(examTabRound({ count: 3, from: 1, forward: true }), [2, 0, 1]);
+  assert.deepEqual(examTabRound({ count: 3, from: 2, forward: true }), [0, 1, 2]);
+  assert.deepEqual(examTabRound({ count: 3, from: 0, forward: false }), [2, 1, 0]);
+  assert.deepEqual(examTabRound({ count: 3, from: 1, forward: false }), [0, 2, 1]);
+  // Every stop is tried once and the one focus left is tried last, so a stop
+  // with nothing that takes focus is passed over, and a lone stop comes round.
+  for (let count = 1; count <= 4; count += 1) {
+    for (let from = 0; from < count; from += 1) {
+      for (const forward of [true, false]) {
+        const order = examTabRound({ count, from, forward });
+        assert.deepEqual([...order].sort(), [...Array(count).keys()], `${count} stops from ${from}: each once`);
+        assert.equal(order.at(-1), from, `${count} stops from ${from}: back to itself last`);
+      }
+    }
+  }
+  // From outside the round (a drawer the round no longer counts): forward
+  // starts with the test, backward with the last stop.
+  assert.deepEqual(examTabRound({ count: 3, from: -1, forward: true }), [0, 1, 2]);
+  assert.deepEqual(examTabRound({ count: 3, from: -1, forward: false }), [2, 1, 0]);
+  assert.deepEqual(examTabRound({ count: 0, from: -1, forward: true }), [0], 'the test is always a stop');
+});
+
+test('Tab into the test from outside comes in at the start of its round, and Shift+Tab at its end', () => {
+  // From inside the round a stop is a way out, the way it faces: Shift+Tab onto a
+  // start is leaving before the first control, Tab onto an end leaving past the last.
+  assert.deepEqual(examTabEdgeMove({ edge: 'start', fromInsideRound: true }), { into: false, forward: false });
+  assert.deepEqual(examTabEdgeMove({ edge: 'end', fromInsideRound: true }), { into: false, forward: true });
+  // From outside (the student navigation above the test, the page, the browser,
+  // nowhere) it is a way in, the way the key went: Tab from above lands on the
+  // test's start guard and goes on into the round; it used to go back, round to
+  // the test's last control (student-a11y-3).
+  assert.deepEqual(examTabEdgeMove({ edge: 'start', fromInsideRound: false }), { into: true, forward: true });
+  assert.deepEqual(examTabEdgeMove({ edge: 'end', fromInsideRound: false }), { into: true, forward: false });
+  assert.deepEqual(examTabEdgeMove(), { into: true, forward: true }, 'focus from nowhere comes in at the start');
+  // Coming in, the round is tried from outside it: forward the test first (its
+  // first control is the one Tab past the round's last reaches), backward the
+  // last open drawer first, so the open drawer still comes after the test's last control.
+  const enter = (edge, count) => {
+    const move = examTabEdgeMove({ edge, fromInsideRound: false });
+    return examTabRound({ count, from: move.into ? -1 : 0, forward: move.forward });
+  };
+  assert.deepEqual(enter('start', 1), [0]);
+  assert.deepEqual(enter('start', 2), [0, 1], 'the test, then the open drawer');
+  assert.deepEqual(enter('end', 2), [1, 0], 'from below, the open drawer\'s last control first');
+  assert.deepEqual(enter('end', 3), [2, 1, 0]);
+  // Where Tab from above now lands is where Tab past the round's last control lands.
+  assert.deepEqual(enter('start', 3)[0], examTabRound({ count: 3, from: 2, forward: true })[0]);
+});
+
+test('a drawer joins its host\'s Tab round only when asked: a stop before it and after it hands focus back', () => {
+  // The stop itself: Tab onto the one after a drawer is leaving it forward,
+  // Shift+Tab onto the one before it is leaving it backward; either tells the
+  // host which drawer was left.
+  const panel = { id: 'drawer' };
+  const calls = [];
+  const after = examToolTabEdge('end', { current: panel }, (...args) => calls.push(args));
+  const before = examToolTabEdge('start', { current: panel }, (...args) => calls.push(args));
+  assert.equal(after.tabIndex, 0, 'Tab reaches the stop after the drawer');
+  assert.equal(before.tabIndex, 0, 'Shift+Tab reaches the stop before the drawer');
+  // And where focus came from (the event's relatedTarget, or null): from outside
+  // the round a stop is a way in (examTabEdgeMove, student-a11y-3).
+  const control = { id: 'a drawer control' };
+  after.onFocus({ relatedTarget: control });
+  before.onFocus();
+  assert.deepEqual(calls, [[panel, true, control], [panel, false, null]]);
+  assert.doesNotThrow(() => examToolTabEdge('end', { current: panel }, null).onFocus(), 'no host, no hand-off');
+  // Empty and out of sight, like the exam's own guards.
+  assert.equal(after.style.height, 0);
+  assert.equal(after.style.position, 'fixed');
+  // Each drawer: the stops sit in its portal, before and after the panel, and
+  // only a host that passes onTabOut gets them; the panel says it is in the
+  // round by the attribute the host looks for.
+  const attribute = EXAM_TOOL_PANEL_SELECTOR.match(/^\[([a-z-]+)\]$/)[1];
+  for (const [name, source] of [['the reference sheet', SHEET], ['the graphing calculator', PANEL]]) {
+    const portal = region(executableSource(source), 'createPortal(', 'document.body,', `${name}'s portal`);
+    assert.match(portal, /\{onTabOut && <span \{\.\.\.examToolTabEdge\('start', panelRef, onTabOut\)\} \/>\}\s*<section\b/, `${name}: a stop just before the panel`);
+    assert.match(portal, /<\/section>\s*\{onTabOut && <span \{\.\.\.examToolTabEdge\('end', panelRef, onTabOut\)\} \/>\}/, `${name}: a stop just after the panel`);
+    assert.match(region(portal, '<section', '>\n', `${name}'s panel`), /ref=\{panelRef\}/, `${name}: the stops name the panel itself`);
+    assert.match(portal, new RegExp(`${attribute}=\\{onTabOut \\? TOOL : undefined\\}`), `${name}: in the round only for a host that asks`);
+  }
+  // The calculator on an ordinary assignment is not in a round.
+  assert.doesNotMatch(read('src/components/calculator/AssignmentGraphingCalculator.jsx'), /onTabOut/);
 });
 
 test('the container hook measures the column it pads and asks the pure rule', () => {

@@ -1,4 +1,5 @@
 import { readGraphPointCoordinates, validateGraphPoint } from './graphPointUtils.js';
+import { readShadingBoundary } from './platform/graph/halfPlaneShading.js';
 import { MAX_MAJOR_TICKS } from './platform/graph/graphScaleService.js';
 const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
 const finite = (value) => Number.isFinite(Number(value));
@@ -736,10 +737,21 @@ export const auditStaticGraphViewport = (graph = {}, { label = 'graph', strictBo
       }
     });
   }
-  if (!functions.length && !points.length && !segments.length && !graph.line && !finite(graph.m) && !finite(graph.b)) {
+  // A vertical boundary line and a shaded side are drawings too (N38): x < 3
+  // is a vertical line and the side of it that is shaded, and nothing else.
+  const verticalLines = Array.isArray(graph.verticalLines) ? graph.verticalLines.filter((line) => finite(line?.x)) : [];
+  const shading = Array.isArray(graph.shading) ? graph.shading : [];
+  if (!functions.length && !points.length && !segments.length && !verticalLines.length && !shading.length
+    && !graph.line && !finite(graph.m) && !finite(graph.b)) {
     errors.push(`${label} contains no drawable function, points, or segments`);
     return { errors, warnings };
   }
+  shading.forEach((entry, index) => {
+    const inequalities = Array.isArray(entry?.inequalities) ? entry.inequalities : [entry];
+    if (!inequalities.length || inequalities.some((inequality) => !readShadingBoundary(inequality))) {
+      errors.push(`${label}.shading[${index}] must be a linear inequality with a relation ({ m, b, relation }, { A, B, C, relation } or { orientation: "vertical", x, relation }), or { inequalities: [ … ] }`);
+    }
+  });
 
   functions.forEach((spec, index) => {
     const fnLabel = `${label}.functions[${index}]`;

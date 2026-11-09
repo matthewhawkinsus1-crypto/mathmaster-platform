@@ -9,14 +9,22 @@
  *
  * It is not a full MathML reader. It turns the notation MathMaster actually
  * authors — LaTeX and plain-text equations, inequalities, fractions,
- * coordinates, function notation, powers, absolute value and roots — into
- * speech, and leaves prose alone. Math is found by mathSafeText.js, so a word
- * such as "y-intercept" is never read as "y minus intercept".
+ * coordinates, intervals, sets, function notation and composition, powers,
+ * logarithms, absolute value and roots — into speech, and leaves prose alone.
+ * Math is found by mathSafeText.js, so a word such as "y-intercept" is never
+ * read as "y minus intercept".
  *
  * `language` chooses the spoken math words; the browser's voice is chosen by
  * the caller (speakAloud sets the utterance language).
  */
-import { segmentMathText } from './mathSafeText.js';
+import { NOT_TWO_VARIABLES, SAID_CLOSE, SAID_OPEN, segmentMathText } from './mathSafeText.js';
+
+// Marks the "a" a phrase is said with in Spanish: an arrow's ("corresponde
+// a") and a relation's ("es igual a", "pertenece a", math-speech-3). That "a"
+// joins any "el" after it ("corresponde al punto", "es igual al valor
+// absoluto"); an "a" without it is the letter a, which never does. Removed by
+// `contract`.
+const PREPOSITION_A = '';
 
 const WORDS = {
   en: {
@@ -33,21 +41,127 @@ const WORDS = {
     approx: 'is approximately equal to', cong: 'is congruent to', sim: 'is similar to', parallel: 'is parallel to',
     perp: 'is perpendicular to', angle: 'angle', triangle: 'triangle', in: 'is in', theta: 'theta',
     setOpen: 'the set', setClose: 'end set', squareRootFn: 'the square root of', not: 'not', hat: 'hat',
+    union: 'union', interval: (from, to) => `the interval from ${from} to ${to}`, contract: (text) => text,
+    // Which ends an interval holds ("[2, 5)" includes 2 but not 5, as the
+    // glossary says it). `only(a, b)`: a is included and b is not.
+    ends: {
+      both: (a, b) => `including ${a} and ${b}`, neither: (a, b) => `not including ${a} or ${b}`,
+      only: (a, b) => `including ${a} but not ${b}`, one: (a) => `including ${a}`, none: (a) => `not including ${a}`,
+    },
+    // A log with no base is the common log, said as ln is said (math-speech-2).
+    commonLog: 'log', naturalLog: 'natural log',
+    // {y | y > 3}: "the set of y such that y is greater than 3".
+    setBuilder: { of: 'the set of', suchThat: 'such that' },
+    // What an arrow means where it stands (arrowWords below). Nested, so a
+    // short word here ("to") is never taken for a word in a denominator.
+    arrows: {
+      approaches: 'approaches', mapsTo: 'maps to', to: 'to', gives: 'gives', next: 'then', means: 'means',
+      goesInto: 'goes into', replacedBy: 'is replaced by', correspondsTo: 'corresponds to', iff: 'if and only if', implies: 'implies',
+    },
+    // A bare unit after a quantity: "Cost ($)" is "Cost in dollars".
+    units: { dollars: 'in dollars' },
+    // Where a bracket of more than one term closes, when more follows.
+    endQuantity: 'end quantity',
+    // A fraction written as one character (platform-polish-3): ½ is "one
+    // half", 2½ "2 and one half".
+    vulgarFractions: {
+      '½': 'one half', '⅓': 'one third', '⅔': 'two thirds', '¼': 'one fourth', '¾': 'three fourths',
+      '⅕': 'one fifth', '⅖': 'two fifths', '⅗': 'three fifths', '⅘': 'four fifths', '⅙': 'one sixth',
+      '⅚': 'five sixths', '⅐': 'one seventh', '⅛': 'one eighth', '⅜': 'three eighths', '⅝': 'five eighths',
+      '⅞': 'seven eighths', '⅑': 'one ninth', '⅒': 'one tenth',
+    },
+    mixedAnd: 'and',
+    // sin, cos and tan by name, as log and ln are (platform-polish-3).
+    trig: { sin: 'sine', cos: 'cosine', tan: 'tangent' },
+    // A blank to fill in, "4x + ___" (math-speech-3).
+    blank: 'blank',
+    // Greek letters by name (math-speech-3): \alpha, β and \Delta were silent
+    // or passed raw. A capital is said as its letter, "delta x" for Δx.
+    greek: {
+      alpha: 'alpha', beta: 'beta', gamma: 'gamma', delta: 'delta', epsilon: 'epsilon', lambda: 'lambda', mu: 'mu',
+      rho: 'rho', sigma: 'sigma', tau: 'tau', phi: 'phi', omega: 'omega',
+    },
+    // What the sweep of every lesson and bank text found passed raw
+    // (math-speech-3): ∓, a mean's bar (x̄) and a point's primes (B′, A″).
+    mp: 'minus or plus', bar: 'bar', primes: ['prime', 'double prime', 'triple prime'],
+    // A slash between words (math-speech-4): "left or right", "kcal per day".
+    slash: { or: 'or', per: 'per' },
+    // A list that goes on ("0, 1, 2, and so on, 48"), and brackets named in a
+    // sentence ("write intervals with parentheses or square brackets").
+    andSoOn: 'and so on', parentheses: 'parentheses', squareBrackets: 'square brackets',
+    // "p | 4": p divides 4 (the rational root theorem's candidates).
+    divides: 'divides',
   },
   es: {
     over: 'sobre', cubeRoot: 'la raíz cúbica de', squareRoot: 'la raíz cuadrada de', logBase: 'logaritmo en base', of: 'de',
     inverse: 'inversa', squared: 'al cuadrado', cubed: 'al cubo', power: 'a la potencia',
-    le: 'es menor o igual que', ge: 'es mayor o igual que', ne: 'no es igual a', lt: 'es menor que', gt: 'es mayor que',
-    eq: 'es igual a', pm: 'más o menos', infinity: 'infinito', times: 'por', divided: 'dividido entre', plus: 'más', minus: 'menos',
+    le: 'es menor o igual que', ge: 'es mayor o igual que', ne: `no es igual a${PREPOSITION_A}`, lt: 'es menor que', gt: 'es mayor que',
+    eq: `es igual a${PREPOSITION_A}`, pm: 'más o menos', infinity: 'infinito', times: 'por', divided: 'dividido entre', plus: 'más', minus: 'menos',
     negative: 'negativo', abs: 'el valor absoluto de', endAbs: 'fin del valor absoluto', point: 'el punto', pi: 'pi', percent: 'por ciento', dollars: 'dólares',
     dollar: 'dólar', cent: 'centavo', cents: 'centavos', moneyAnd: 'con', composed: 'compuesta con',
     matrix: (rows, columns) => `una matriz de ${rows} por ${columns}`, row: 'fila', endMatrix: 'fin de matriz', determinant: 'el determinante de',
     quantity: 'la cantidad', by: 'por',
     fraction: 'la fracción', endFraction: 'fin de fracción', endRoot: 'fin de raíz', root: (n) => `la raíz ${n} de`,
     degrees: 'grados', repeating: 'periódico', segment: 'segmento', ray: 'rayo', sub: 'sub', endSub: '',
-    approx: 'es aproximadamente igual a', cong: 'es congruente con', sim: 'es semejante a', parallel: 'es paralela a',
-    perp: 'es perpendicular a', angle: 'ángulo', triangle: 'triángulo', in: 'pertenece a', theta: 'theta',
+    approx: `es aproximadamente igual a${PREPOSITION_A}`, cong: 'es congruente con', sim: `es semejante a${PREPOSITION_A}`,
+    parallel: `es paralela a${PREPOSITION_A}`, perp: `es perpendicular a${PREPOSITION_A}`, angle: 'ángulo', triangle: 'triángulo',
+    in: `pertenece a${PREPOSITION_A}`, theta: 'theta',
     setOpen: 'el conjunto', setClose: 'fin de conjunto', squareRootFn: 'la raíz cuadrada de', not: 'no', hat: 'gorro',
+    // New with the interval reading (2026-11-06): for the Spanish review
+    // (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). "incluye" is the
+    // pack's verb for an endpoint ("{2} incluye {3}").
+    union: 'unión', interval: (from, to) => `el intervalo de ${from} a ${to}`,
+    // "pertenece al conjunto", "del intervalo": a and de join the article. A
+    // phrase's "a" (PREPOSITION_A) joins any "el" after it: "corresponde al
+    // punto", "es igual al valor absoluto" (math-speech-3; the November
+    // handoff, section 6: it was "es igual a el valor absoluto"). "de" joins
+    // every article the reader says: "la raíz cuadrada del valor absoluto",
+    // "del punto". The letter a is not a preposition: "a|x|" keeps "a el".
+    contract: (text) => text
+      .replace(new RegExp(`\\ba${PREPOSITION_A} el\\b`, 'g'), 'al')
+      .replace(new RegExp(PREPOSITION_A, 'g'), '')
+      .replace(/\bde el (valor absoluto|punto|determinante)\b/g, 'del $1')
+      .replace(/\b(a|de) el (conjunto|intervalo)\b/g, (match, word, noun) => `${word === 'a' ? 'al' : 'del'} ${noun}`),
+    ends: {
+      both: (a, b) => `que incluye ${a} y ${b}`, neither: (a, b) => `que no incluye ${a} ni ${b}`,
+      only: (a, b) => `que incluye ${a} pero no ${b}`, one: (a) => `que incluye ${a}`, none: (a) => `que no incluye ${a}`,
+    },
+    // New with math-speech-2, for the Spanish review (NOVEMBER_BUILD section
+    // 5). "se acerca a" and "corresponde a" are the pack's own words for
+    // "approaches" and "maps to" (esSupport.js).
+    commonLog: 'logaritmo', naturalLog: 'logaritmo natural',
+    setBuilder: { of: 'el conjunto de', suchThat: 'tal que' },
+    arrows: {
+      approaches: `se acerca a${PREPOSITION_A}`, mapsTo: `corresponde a${PREPOSITION_A}`, to: `a${PREPOSITION_A}`, gives: 'da', next: 'luego', means: 'significa',
+      goesInto: 'entra en', replacedBy: 'se reemplaza por', correspondsTo: `corresponde a${PREPOSITION_A}`, iff: 'si y solo si', implies: 'implica',
+    },
+    units: { dollars: 'en dólares' },
+    endQuantity: 'fin de la cantidad',
+    // New with platform-polish-3, for the Spanish review (NOVEMBER_BUILD
+    // section 5): a fraction written as one character, a mixed number's "y",
+    // and the names of sine, cosine and tangent.
+    vulgarFractions: {
+      '½': 'un medio', '⅓': 'un tercio', '⅔': 'dos tercios', '¼': 'un cuarto', '¾': 'tres cuartos',
+      '⅕': 'un quinto', '⅖': 'dos quintos', '⅗': 'tres quintos', '⅘': 'cuatro quintos', '⅙': 'un sexto',
+      '⅚': 'cinco sextos', '⅐': 'un séptimo', '⅛': 'un octavo', '⅜': 'tres octavos', '⅝': 'cinco octavos',
+      '⅞': 'siete octavos', '⅑': 'un noveno', '⅒': 'un décimo',
+    },
+    mixedAnd: 'y',
+    trig: { sin: 'seno', cos: 'coseno', tan: 'tangente' },
+    // New with math-speech-3, for the Spanish review: a blank to fill in is
+    // the pack's "espacio en blanco", and the Greek letters' Spanish names.
+    blank: 'espacio en blanco',
+    greek: {
+      alpha: 'alfa', beta: 'beta', gamma: 'gamma', delta: 'delta', epsilon: 'épsilon', lambda: 'lambda', mu: 'mu',
+      rho: 'ro', sigma: 'sigma', tau: 'tau', phi: 'fi', omega: 'omega',
+    },
+    mp: 'menos o más', bar: 'barra', primes: ['prima', 'doble prima', 'triple prima'],
+    // New with math-speech-4, for the Spanish review: a slash between words,
+    // "izquierda o derecha", and between units, "km por h"; a list that goes
+    // on, "0, 1, 2, y así sucesivamente, 48"; brackets named in a sentence.
+    slash: { or: 'o', per: 'por' },
+    andSoOn: 'y así sucesivamente', parentheses: 'paréntesis', squareBrackets: 'corchetes',
+    divides: 'divide a',
   },
 };
 
@@ -55,26 +169,95 @@ export const SPEECH_LANGUAGES = Object.freeze(Object.keys(WORDS));
 
 const wordsFor = (language) => WORDS[String(language || 'en').toLowerCase().split('-')[0]] || WORDS.en;
 
-// One-letter names that are functions when followed by "(": f(x), g(2), C(n).
-// x, y, a, b, c, n, k, m are left alone so x(x + 1) is still a product. j is a
-// function: Algebra I names a fourth function j(x) far more often than it
-// multiplies by a variable j (Oct 2026: "j times the quantity x equals 2x − 1").
+/*
+ * A LETTER BEFORE A BRACKET IS A FUNCTION ONLY WHEN THE TEXT MAKES IT ONE
+ * (math-speech-4). Every letter below was read as a function before any
+ * bracket, so "3p(p + 2)" was "3 p of the quantity p plus 2", "t(t + 2) = 15"
+ * "t of the quantity t plus 2", and "A = P(1 + rt)", "4p(y − k)", "w(x + 5)"
+ * and "(u + v)(u − v)" were functions too. A sweep of every lesson and bank
+ * text found these letters in two uses: applied to one input, p(x), P(500),
+ * V(2), t(r(1500)), they are functions, the notation itself naming them
+ * ("Compare the graphs of p(x) and s(x)"); before a bracket of more than one
+ * term they are factors (factoring, distributing, A = P(1 + rt), Heron's
+ * s(s − a)(s − b)(s − c)). So a letter of this list is a function applied to
+ * one term, or to a bracket that holds a relation (P(x ≤ 3)); before more
+ * than one term, only when the text makes it one (functionsNamedBy below) or
+ * it is a conventional name (CONVENTIONAL_FUNCTIONS). A bracket that holds the
+ * letter itself, t(t + 2), is a product unless the text defines that letter.
+ */
 const FUNCTION_LETTERS = 'fghjpqrstuvwCPAVRNTDHGF';
+// The conventional names, functions before any bracket: f, g and h, and j,
+// the fourth function Algebra I names (Oct 2026: "j times the quantity x
+// equals 2x − 1"; "Simplify r(x): j(x + 4) = 2(x + 4) − 1").
+const CONVENTIONAL_FUNCTIONS = 'fghj';
 
-// Any other letter is a function where the text itself DEFINES it as one:
+// Any letter is a function where the text itself DEFINES it as one:
 // "c(x) = 5x + 20", "Let m(t) = …" (Q-21 / PR-29: c, d, m and n were read as
 // products — "c times the quantity x"). A definition is a letter applied to
 // one other letter and followed by "=", so x(x + 1) = 6 and the point-slope
 // "y − 2 = m(x − 6)" stay products: neither defines a function.
 const DEFINITION = /(?<![A-Za-z\\])([A-Za-z])\s*\(\s*([A-Za-z])\s*\)\s*=(?!=)/g;
+// …or gives its value at a number, where a statement starts with it: "a(4) =
+// 15 + 4 = 19, so a(5) = 23", "Table: M(0) = 2 · 0 = 0", "y(0) = 3"
+// (math-speech-4: "a times 4 equals 15 plus 4"). After a sign or a relation
+// the bracket is a substitution's: "3 = k(3)", "(3)² + k(3) − 3".
+const VALUE_DEFINITION = /(?<![A-Za-z\\_])([A-Za-z])\(\s*[-−]?\d[\d,]*(?:\.\d+)?\s*\)\s*=(?!=)/g;
+const STARTS_STATEMENT = /(?:^|[\s,;:.([{$])$/;
+const AFTER_OPERATOR = /[=<>≤≥≠+\-−×·*/÷^]\s*$/;
 
-/** The one-letter function names a text defines ("c(x) = …"), as a string of letters. */
+// A letter whose inverse is applied is a function too: "E⁻¹(x)", "E(E⁻¹(x))"
+// (math-speech-3: "E inverse the quantity x", "E ( E inverse …"), and so with
+// a bare caret, "f^-1(x)", the Path banks' and the demo's spelling (display
+// and reading polish: "f inverse times x").
+const INVERSE_APPLIED = /(?<![A-Za-z\\])([A-Za-z])\s*(?:⁻¹|\^\{\s*-1\s*\}|\^\(\s*-1\s*\)|\^\s*[-−]1(?![0-9./]))\s*\(/g;
+
+// A letter written applied to one other letter names a function of it, as
+// "W(t)", "Q(x)" and "Look back at a(x), b(x), c(x), and d(x)" do (no lesson
+// or bank text writes a product so); a power on the bracket makes it a
+// product's, "a(b)^x" (math-speech-4).
+const APPLIED_TO_ONE_LETTER = /(?<![A-Za-z\\_])([A-Za-z])\(\s*([A-Za-z])\s*\)(?!\s*(?:\^|[²³⁴⁵⁶⁷⁸⁹ⁿˣ]))/g;
+
+// …and a text names one in words: "the function p", "functions p and q",
+// "p is a function", "la función p", or "P of d" written out (math-speech-4;
+// the brief's "h of t"). "Within d of c" and "a zero r of a cubic" are not
+// names: only a letter of the list, and "of a" before a word is the article.
+const NAMED_IN_WORDS = /\b(?:functions?|funci(?:ón|ones))\s+((?:\$?[A-Za-z]\$?(?![A-Za-z])(?:\s*\([^()]*\))?(?:\s*(?:,|and|or|y|o)\s*)?)+)/giu;
+const NAMED_A_FUNCTION = /(?<![A-Za-z\\])([A-Za-z])\$?\s+(?:is|es)\s+(?:a|an|una)\s+(?:\w+\s+)?(?:function|función)\b/gu;
+const SPELLED_APPLICATION = /(?<![A-Za-z\\])([A-Za-z]) of ([A-Za-z])(?![A-Za-z])(?!\s+[a-z]{2,})/g;
+// A text about a sequence names a(n) its terms, the conventional notation: "An
+// arithmetic sequence starts at 7 … Find the second, third and fifth terms"
+// over boxes labelled a(2), a(3), a(5) ("a times 2", math-speech-4). Only a
+// applied to n or a number: "y = a(b)^x" beside "not a geometric sequence"
+// is still a product.
+const NAMES_A_SEQUENCE = /\b(?:sequences?|sucesi(?:ón|ones))\b/iu;
+const SEQUENCE_TERM = /(?<![A-Za-z\\_])a\(\s*(?:n|\d+)\s*\)(?!\s*(?:\^|[²³⁴⁵⁶⁷⁸⁹ⁿˣ]))/;
+
+/**
+ * The one-letter function names a text makes ("c(x) = …", "a(4) = 19", "W(t)",
+ * "the function p"), as a string of letters.
+ */
 export const definedFunctionNames = (raw) => {
   const text = String(raw ?? '').replace(/\\(?:left|right)(?![A-Za-z])/g, '');
   const names = new Set();
   for (const match of text.matchAll(DEFINITION)) {
     if (match[1] !== match[2]) names.add(match[1]);
   }
+  for (const match of text.matchAll(INVERSE_APPLIED)) names.add(match[1]);
+  for (const match of text.matchAll(VALUE_DEFINITION)) {
+    const before = text.slice(0, match.index);
+    if (STARTS_STATEMENT.test(before) && !AFTER_OPERATOR.test(before)) names.add(match[1]);
+  }
+  for (const match of text.matchAll(APPLIED_TO_ONE_LETTER)) {
+    if (match[1] !== match[2]) names.add(match[1]);
+  }
+  for (const match of text.matchAll(NAMED_IN_WORDS)) {
+    for (const letter of match[1].replace(/\([^()]*\)/g, ' ').match(/(?<![A-Za-z])[A-Za-z](?![A-Za-z])/g) || []) names.add(letter);
+  }
+  for (const match of text.matchAll(NAMED_A_FUNCTION)) names.add(match[1]);
+  for (const match of text.matchAll(SPELLED_APPLICATION)) {
+    if (FUNCTION_LETTERS.includes(match[1]) && !/^[aAI]$/.test(match[1])) names.add(match[1]);
+  }
+  if (NAMES_A_SEQUENCE.test(text) && SEQUENCE_TERM.test(text)) names.add('a');
   return [...names].join('');
 };
 
@@ -118,6 +301,13 @@ const matrixSpeech = (body, environment, w) => {
   return ` ${lead}: ${spoken}; ${w.endMatrix} `;
 };
 const MATRIX_ENVIRONMENT = /\\begin\{([bpvBV]?matrix|smallmatrix|array)\}(?:\{[^{}]*\})?([\s\S]*?)\\end\{\1\}/g;
+// A system in a brace, \begin{cases}…\end{cases} (the Digital SAT bank's
+// systems), is its equations one after another, as the question reading says
+// a system: "y equals 3x plus 3; y equals 3x squared plus 3x". It was "cases
+// y equals 3x plus 3\\ equals …", the row break raw (math-speech-3). Read
+// before a text is split, so a brace written without $…$ is read whole too.
+const CASES_ENVIRONMENT = /\\begin\{cases\}([\s\S]*?)\\end\{cases\}/g;
+const casesSpeech = (body) => ` ${String(body).split(/\\\\(?:\[[^\]]*\])?/).map((row) => row.replace(/&/g, ' ').trim()).filter(Boolean).join('; ')} `;
 
 // f(x − 7) and f(x) − 7 are opposite transformations, so the words must differ:
 // an input of more than one term is "the quantity", as a bracket is everywhere
@@ -129,13 +319,126 @@ const MATRIX_ENVIRONMENT = /\\begin\{([bpvBV]?matrix|smallmatrix|array)\}(?:\{[^
 const PAUSE = '\uE003';
 const moreMathFollows = (offset, whole, match) => typeof whole === 'string'
   && /[^\s.,;:?!)\]]/.test(whole.slice(offset + match.length));
-const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
-  // An operator after the first character: f(−3) is one term, f(x − 3) is two.
-  // An inner application already read ("d of 2" in c(d(2))) is one term.
-  /.[\s+\-−*/·=<>]/.test(argument.trim()) && !new RegExp(`^[A-Za-z] ${w.of} (?!.*[+\\-−*/·=<>])`).test(argument.trim())
-    ? `${before} ${name} ${w.of} ${w.quantity} ${argument.trim()}${moreMathFollows(offset, whole, match) ? PAUSE : ''} `
+
+/*
+ * WHERE A QUANTITY ENDS (math-speech-2, item 10). "(0.002x\u00B2 + 4x + 350) \u2212 12x"
+ * sounded the same as "(0.002x\u00B2 + 4x + 350 \u2212 12x)": where the bracket closed
+ * was never said. A bracket of more than one term that more of the expression
+ * follows (a sign, "times", "over") now ends with "end quantity", as a
+ * fraction, a root and the bars already end. One that ends the expression, or
+ * that a relation ("= 0") or its own power (", squared") follows, is read as
+ * before, so plain speech is no longer than it was. Called just before every
+ * remaining "(" becomes "the quantity"; the mark is said at the very end, so
+ * a "\u2212" after it is still "minus".
+ */
+const QUANTITY_END = '\uE005';
+/*
+ * ONE NUMBER OR ONE LETTER IN BRACKETS IS NOT A QUANTITY (math-speech-3).
+ * "6(4) + 4 = 28" was "6 times the quantity 4 plus 4 equals 28", which is how
+ * 6(4 + 4) sounds (Algebra I M3 T1 Honors PR 13, walkthrough 2026-11-06). It
+ * is "6 times 4 plus 4 equals 28", and "(−3) + 2" "negative 3 plus 2": the
+ * bracket only keeps a sign apart. So is a number with its letter, "3(2x) +
+ * 1" ("3 times 2x plus 1"), except in a denominator: 1/(2x) is not (1/2)x.
+ * Its own power keeps a bracket a quantity, "(−3)²" is "the quantity negative
+ * 3, squared", and so does anything more ("(1/2)x", "(x + 1)").
+ */
+const ONE_TERM = /^\s*[-−]?\s*(?:\d[\d,]*(?:\.\d+)?|\p{L})\s*$/u;
+const ONE_TERM_WITH_LETTERS = /^\s*[-−]?\s*\d[\d,]*(?:\.\d+)?\p{L}{1,2}\s*$/u;
+const markQuantityEnds = (text, w, operatorWords) => {
+  const words = [w.times, w.plus, w.over, w.divided, w.pm].map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const continues = new RegExp(`^\\s*(?:[−\\-+×·÷*/]|(?:${words.join('|')})(?=\\s|$))`);
+  // More than one term: a "plus", or a minus between two terms (not a sign after an operator word).
+  const terms = new RegExp(`(?:^|\\s)${words[1]}(?=\\s|$)`);
+  const denominator = new RegExp(`(?:^|\\s)(?:${words[2]}|${words[3]})\\s*$`);
+  const binaryMinus = (inner) => [...inner.matchAll(/(\S+)\s*[\u2212-]\s*(?=\S)/g)]
+    .some(([, before]) => /[\p{L}\p{N})\]]$/u.test(before) && !operatorWords.includes(before));
+  const ends = [];
+  const open = [];
+  const dropped = new Set();
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') open.push(index);
+    else if (text[index] === ')' && open.length) {
+      const start = open.pop();
+      const inner = text.slice(start + 1, index);
+      // A power after a bracket stands after a pause (plainMathToSpeech).
+      const oneTerm = ONE_TERM.test(inner) || (ONE_TERM_WITH_LETTERS.test(inner) && !denominator.test(text.slice(0, start)));
+      if (oneTerm && !/^\s*/.test(text.slice(index + 1))) {
+        dropped.add(start).add(index);
+        continue;
+      }
+      if ((terms.test(inner) || binaryMinus(inner)) && continues.test(text.slice(index + 1))) ends.push(index + 1);
+    }
+  }
+  const kept = dropped.size ? text.split('').map((char, index) => (dropped.has(index) ? ' ' : char)).join('') : text;
+  return ends.reverse().reduce((out, at) => `${out.slice(0, at)}${QUANTITY_END}${out.slice(at)}`, kept);
+};
+// An operator after the first character: f(−3) is one term, f(x − 3) is two.
+// An inner application already read ("d of 2" in c(d(2))) is one term. A
+// power's own bracket is part of its term, f(x²); any other bracket inside
+// makes the input more than one term, f(2(x + 1)) (math-speech-4).
+const isMultiTerm = (argument, w) => {
+  const text = argument.trim().replace(/\^\([^()]*\)/g, '^1');
+  return /[()]/.test(text) || (/.[\s+\-−*/·=<>]/.test(text)
+    && !new RegExp(`^[A-Za-z](?: ${w.inverse})? ${w.of} (?!.*[+\\-−*/·=<>])`).test(text));
+};
+const applicationSpeech = (w, before, name, argument, follows) => (
+  isMultiTerm(argument, w)
+    ? `${before} ${name} ${w.of} ${w.quantity} ${argument.trim()}${follows ? PAUSE : ''} `
     : `${before} ${name} ${w.of} ${argument} `
 );
+const functionApplicationSpeech = (w) => (match, before, name, argument, offset, whole) => (
+  applicationSpeech(w, before, name, argument, moreMathFollows(offset, whole, match))
+);
+/*
+ * Is `name` before this bracket a function (math-speech-4)? `named` holds the
+ * letters the text or the caller makes functions (definedFunctionNames).
+ * A conventional name is one before any bracket but one that holds its own
+ * letter ("h(h + 2)"); any other letter of the list only before one term or a
+ * relation. Otherwise the bracket is a factor: "3p times the quantity p plus 2".
+ */
+// An inner application is already words here ("f inverse of x" in f(f⁻¹(x))).
+const holdsOwnLetter = (name, argument, w) => new RegExp(`(?<![A-Za-z\\\\])${name}(?![A-Za-z]|\\s+(?:${w.of}|${w.inverse})\\b)`).test(argument);
+const isFunctionBefore = (name, argument, named, w) => {
+  if (named.includes(name)) return true;
+  if (holdsOwnLetter(name, argument, w)) return false;
+  return CONVENTIONAL_FUNCTIONS.includes(name) || !isMultiTerm(argument, w) || /[=<>≤≥≠]/.test(argument);
+};
+const closingBracket = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    else if (text[index] === ')') { depth -= 1; if (depth === 0) return index; }
+  }
+  return -1;
+};
+/*
+ * f(g(2)) is applied from the inside out: an application inside a bracket is
+ * read before the bracket it stands in. An inverse applied, f⁻¹(x) or
+ * f^(-1)(x), is "f inverse of x"; it was "f inverse x" or "f inverse times x"
+ * (math-speech-3). The bracket is found whole (math-speech-4): f(x²),
+ * f(2(x + 1)) and f(√(x + 1)) were "f times the quantity …", a bracket with
+ * one inside it never read as an input. A bracket that is a factor is left as
+ * written, for the products below.
+ */
+const readApplications = (text, letters, named, w) => {
+  const head = new RegExp(`(?<![A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\)|\\^\\s*[-−]1(?![0-9./]))?\\(`, 'g');
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(head)) {
+    if (match.index < from) continue;
+    const open = match.index + match[0].length - 1;
+    const close = closingBracket(text, open);
+    if (close === -1) continue;
+    const [, name, inverse] = match;
+    const argument = readApplications(text.slice(open + 1, close), letters, named, w);
+    const follows = /[^\s.,;:?!)\]]/.test(text.slice(close + 1));
+    out += text.slice(from, match.index) + (inverse || isFunctionBefore(name, argument, named, w)
+      ? applicationSpeech(w, '', inverse ? `${name} ${w.inverse}` : name, argument, follows)
+      : `${name}(${argument})`);
+    from = close + 1;
+  }
+  return out + text.slice(from);
+};
 
 // The argument of a LaTeX command, braces balanced: `\frac{x^{2}+1}{3}` has
 // numerator `x^{2}+1`. Returns [argument, indexAfter] or null.
@@ -184,9 +487,71 @@ const rewriteCommand = (text, pattern, arity, speak) => {
   return out + text.slice(cursor);
 };
 
+// A LaTeX root after its coefficient multiplies it, as 5∛2 does (5 times the
+// cube root of 2): "3\sqrt{12}" was "3 the square root of 12" (display and
+// reading polish). A command before it is not a coefficient: \pm\sqrt{…}.
+const LATEX_COEFFICIENT = /[A-Za-z0-9)}]$/;
+const rewriteRoot = (text, pattern, w, speak) => rewriteCommand(text, pattern, 1, (body, match) => {
+  const before = text.slice(0, match.index);
+  const times = LATEX_COEFFICIENT.test(before) && !/\\[A-Za-z]+$/.test(before) ? ` ${w.times}` : '';
+  return `${times}${speak(body, match)}`;
+});
+
 // A fraction part that is more than one number or letter needs its edges said
 // aloud: "x² + 1 over 3" could be x² + (1/3).
 const isSimplePart = (part) => /^\s*-?\s*(?:\d+(?:\.\d+)?|[A-Za-z]|\\pi)\s*$/.test(part);
+
+// \log_{0.5}, \log_2: a braced base, or a bare number or letter.
+const LATEX_LOG_BASE = String.raw`\\log_(?:\{\s*([^{}]+?)\s*\}|(\d+(?:\.\d+)?|[A-Za-z]))`;
+
+/*
+ * \log(x), \ln x, \ln3, with no base: "log of x", "natural log of 3", as the
+ * typed forms are (plainLogsToWords, math-speech-2). A bracket is read whole,
+ * one inside it too ("\log(x-(-2))" was "log times the quantity x minus the
+ * quantity negative 2"), and is said as a quantity when it holds more than one
+ * term: "\log(x+2)" was "log x plus 2", which is also log(x) + 2.
+ */
+const LATEX_PLAIN_LOG = /\\(ln|log)(?![A-Za-z_])\s*/g;
+const latexLogsToWords = (text, w) => {
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(LATEX_PLAIN_LOG)) {
+    if (match.index < from) continue;
+    const at = match.index + match[0].length;
+    const bare = /^(?:\d+(?:\.\d+)?|[A-Za-z](?![A-Za-z])|\|[^|]+\|)/.exec(text.slice(at));
+    const group = text[at] === '(' ? rootArgument(text, at) : text[at] === '{' ? readGroup(text, at) : bare && [bare[0], at + bare[0].length];
+    const name = match[1] === 'ln' ? w.naturalLog : w.commonLog;
+    if (!group) {
+      out += `${text.slice(from, match.index)} ${name} `;
+      from = at;
+      continue;
+    }
+    const argument = group[0].trim();
+    const quantity = text[at] === '(' && !/^[A-Za-z0-9.]+$/.test(argument);
+    out += `${text.slice(from, match.index)} ${name} ${w.of} ${quantity ? `(${argument})` : argument} `;
+    from = group[1];
+  }
+  return out + text.slice(from);
+};
+
+/*
+ * GREEK LETTERS BY NAME (math-speech-3; platform-polish-3 logged it). LaTeX's
+ * \alpha, \beta and \Delta were silent: "\Delta y/\Delta x" was "y over x",
+ * "\cos\alpha" "cosine". The letters written as characters went to the voice
+ * raw, and "φ − 1" was "φ negative 1": the split took φ for prose (Read
+ * aloud's split now takes a Greek letter as mathematics, mathSafeText.js). π
+ * and θ were already said.
+ */
+const GREEK_NAMES = Object.freeze({
+  alpha: 'alpha', beta: 'beta', gamma: 'gamma', Gamma: 'gamma', delta: 'delta', Delta: 'delta', epsilon: 'epsilon',
+  varepsilon: 'epsilon', lambda: 'lambda', Lambda: 'lambda', mu: 'mu', rho: 'rho', varrho: 'rho', sigma: 'sigma',
+  Sigma: 'sigma', tau: 'tau', phi: 'phi', varphi: 'phi', Phi: 'phi', omega: 'omega', Omega: 'omega',
+  'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'Γ': 'gamma', 'δ': 'delta', 'Δ': 'delta', 'ε': 'epsilon', 'ϵ': 'epsilon',
+  'λ': 'lambda', 'Λ': 'lambda', 'μ': 'mu', 'ρ': 'rho', 'σ': 'sigma', 'Σ': 'sigma', 'τ': 'tau', 'φ': 'phi', 'ϕ': 'phi',
+  'Φ': 'phi', 'ω': 'omega', 'Ω': 'omega',
+});
+const LATEX_GREEK = new RegExp(`\\\\(${Object.keys(GREEK_NAMES).filter((name) => /^[A-Za-z]+$/.test(name)).join('|')})(?![A-Za-z])`, 'g');
+const UNICODE_GREEK = new RegExp(`[${Object.keys(GREEK_NAMES).filter((name) => !/^[A-Za-z]+$/.test(name)).join('')}]`, 'g');
 
 const latexToSpeech = (raw, w) => {
   let text = String(raw)
@@ -203,6 +568,13 @@ const latexToSpeech = (raw, w) => {
     .replace(/\\[,;:! ]/g, ' ')
     // `~` is a LaTeX non-breaking space, never a word.
     .replace(/~/g, ' ')
+    // Set-builder notation, \{y \mid y > 3\}: "the set of y such that y is
+    // greater than 3" (math-speech-2). It was "the set y y is greater than 3
+    // end set": \mid was dropped. A colon may stand for the bar.
+    .replace(/\\\{\s*([A-Za-z])\s*(?:\\middle\s*)?(?:\\mid(?![A-Za-z])|\\vert(?![A-Za-z])|\||:)\s*([\s\S]*?)\s*(?:\\middle\s*)?\\\}/g, ` ${w.setBuilder.of} $1 ${w.setBuilder.suchThat} $2 `)
+    // A first member's sign is said here: after "the set" the reader's later
+    // pass hears a subtraction ("the set minus 2, 0").
+    .replace(/\\\{\s*[-−]\s*/g, ` ${w.setOpen} ${w.negative} `)
     .replace(/\\\{/g, ` ${w.setOpen} `)
     .replace(/\\\}/g, ` ${w.setClose} `);
   text = rewriteCommand(text, String.raw`\\(?:text|mathrm|textbf|mathbf|operatorname)(?![A-Za-z])\s*`, 1, (body) => ` ${body} `);
@@ -215,9 +587,12 @@ const latexToSpeech = (raw, w) => {
     text = rewriteCommand(text, String.raw`\\[dt]?frac(?![A-Za-z])\s*`, 2, (top, bottom) => (isSimplePart(top) && isSimplePart(bottom)
       ? ` ${top} ${w.over} ${bottom} `
       : ` ${w.fraction} ${top} ${w.over} ${bottom} ${w.endFraction} `));
-    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*3\s*\]\s*`, 1, (body) => ` ${w.cubeRoot} ${body} `);
-    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*([^\]]+)\]\s*`, 1, (body, match) => ` ${w.root(match[1])} ${body} `);
-    text = rewriteCommand(text, String.raw`\\sqrt(?![A-Za-z])\s*`, 1, (body) => (isSimplePart(body)
+    // A root after its coefficient multiplies it, "3\sqrt{12}" as 3√12 is
+    // "3 times the square root of 12"; it was "3 the square root of 12"
+    // (display and reading polish). A command before it is not one: \pm\sqrt.
+    text = rewriteRoot(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*3\s*\]\s*`, w, (body) => ` ${w.cubeRoot} ${body} `);
+    text = rewriteRoot(text, String.raw`\\sqrt(?![A-Za-z])\s*\[\s*([^\]]+)\]\s*`, w, (body, match) => ` ${w.root(match[1])} ${body} `);
+    text = rewriteRoot(text, String.raw`\\sqrt(?![A-Za-z])\s*`, w, (body) => (isSimplePart(body)
       ? ` ${w.squareRoot} ${body} `
       : ` ${w.squareRoot} ${body} ${w.endRoot} `));
   }
@@ -225,11 +600,17 @@ const latexToSpeech = (raw, w) => {
   // boundary between a letter and a digit, so `\ge15`, `\pi2` and `\ne4`
   // fell through to the catch-all below and their words were lost (QA M4).
   // The lookahead also keeps a short name off a longer one (`\ln` / `\lnot`).
-  return text
-    // log base b of (x): the bracket is the argument, not a product.
-    .replace(/\\log_\{?(\w+)\}?\s*\(([^()]*)\)/g, ` ${w.logBase} $1 ${w.of} $2 `)
-    .replace(/\\log_\{?(\w+)\}?/g, ` ${w.logBase} $1 ${w.of} `)
-    .replace(/\\(sin|cos|tan|ln|log)\s*\(([^()]*)\)/g, ' $1 $2 ')
+  return latexLogsToWords(text, w)
+    // log base b of (x): the bracket is the argument, not a product. A base
+    // is a braced group or, bare, one number or one letter: \log_{0.5}(x) was
+    // "log base 0 of .5", \log_{ 3 }3 "log sub 3 3" and \log_3x "log base 3x
+    // of" (walkthrough 2026-11-06, P-1; the Path bank).
+    // An argument of more than one term is a quantity, as in the typed form
+    // (logBasesToWords): "\log_{0.5}(x - 3)" was "log base 0.5 of x minus 3",
+    // which is also log(x) − 3 (math-speech-2).
+    .replace(new RegExp(`${LATEX_LOG_BASE}\\s*\\(([^()]*)\\)`, 'g'), (match, braced, bare, argument) => ` ${w.logBase} ${braced ?? bare} ${w.of} ${/^\s*[A-Za-z0-9.]+\s*$/.test(argument) ? argument : `(${argument})`} `)
+    .replace(new RegExp(LATEX_LOG_BASE, 'g'), (match, braced, bare) => ` ${w.logBase} ${braced ?? bare} ${w.of} `)
+    .replace(/\\(sin|cos|tan)\s*\(([^()]*)\)/g, ' $1 $2 ')
     .replace(/\^\s*\{?\s*\\circ\s*\}?/g, ` ${w.degrees} `)
     .replace(/\\circ(?![A-Za-z])/g, ` ${w.degrees} `)
     .replace(/°/g, ` ${w.degrees} `)
@@ -250,10 +631,17 @@ const latexToSpeech = (raw, w) => {
     .replace(/\\in(?![A-Za-z])/g, ` ${w.in} `)
     .replace(/\\pm(?![A-Za-z])/g, ' ± ')
     .replace(/\\infty(?![A-Za-z])/g, ' ∞ ')
+    // A union is read with its intervals (plainMathToSpeech); it was dropped.
+    .replace(/\\cup(?![A-Za-z])/g, ' ∪ ')
     .replace(/\\(?:cdot|times)(?![A-Za-z])/g, ' × ')
     .replace(/\\div(?![A-Za-z])/g, ' ÷ ')
     .replace(/\\pi(?![A-Za-z])/g, ' π ')
-    .replace(/\\theta(?![A-Za-z])/g, ` ${w.theta} `)
+    // \ldots, \cdots: a list that goes on (math-speech-4). The catch-all below
+    // dropped them, so "$3, 6, 12, \ldots$" was heard as three numbers.
+    .replace(/\\(?:l|c)?dots[bc]?(?![A-Za-z])/g, ' … ')
+    .replace(/\\(?:var)?theta(?![A-Za-z])|[θϑ]/g, ` ${w.theta} `)
+    .replace(LATEX_GREEK, (match, name) => ` ${w.greek[GREEK_NAMES[name]]} `)
+    .replace(UNICODE_GREEK, (letter) => ` ${w.greek[GREEK_NAMES[letter]]} `)
     .replace(/\\%/g, '%')
     .replace(/\\(sin|cos|tan|ln|log)(?![A-Za-z])/g, ' $1 ')
     .replace(/\\[a-zA-Z]+/g, ' ')
@@ -274,20 +662,155 @@ const phraseWordsFor = (w) => new Set(Object.values(w).filter((value) => typeof 
 const phraseWordsCache = new WeakMap();
 const readsAsWord = (letters, w) => {
   if (DENOMINATOR_WORDS.has(letters.toLowerCase())) return true;
+  // A Greek letter's name, said already ("1/φ": "1 over phi", Spanish "fi").
+  if (Object.values(w.greek).includes(letters)) return true;
   if (!phraseWordsCache.has(w)) phraseWordsCache.set(w, phraseWordsFor(w));
   if (phraseWordsCache.get(w).has(letters)) return true;
   return letters.length >= 3 && /[aeiou]/i.test(letters);
 };
 
+/*
+ * INTERVALS, SAID AS INTERVALS (walkthrough 2026-11-06, P-1). (−∞, ∞) was
+ * read "the point negative infinity, infinity", and [0, ∞) "0, infinity": the
+ * brackets, which are the answer, were dropped. A pair is an interval when an
+ * end is infinite or a bracket is square (not a row of a matrix written in
+ * brackets). Two finite ends in round brackets are a point, unless the
+ * sentence says this is an interval (`intervals`: "increasing on (−2, 2)",
+ * a union). Each finite end says whether it is included; infinity never is,
+ * so at infinity only a square bracket, which is wrong there, is said.
+ */
+const INTERVAL_PAIR = /([[(])\s*([^()[\],;]+?)\s*,\s*([^()[\],;]+?)\s*([\])])/g;
+// A value's own sign is said here: after "from", "to", "including" or "the
+// set" the reader's later pass would hear a subtraction ("to minus 2").
+const leadingSignInWords = (value, w) => value.trim().replace(/^[-−]\s*/, `${w.negative} `).replace(/∞/g, w.infinity);
+const intervalSpeech = (open, left, right, close, w) => {
+  const [from, to] = [leadingSignInWords(left, w), leadingSignInWords(right, w)];
+  const [fromIn, toIn] = [open === '[', close === ']'];
+  const fromSaid = fromIn || !/∞/.test(left);
+  const toSaid = toIn || !/∞/.test(right);
+  let ends = '';
+  if (fromSaid && toSaid) {
+    if (fromIn === toIn) ends = fromIn ? w.ends.both(from, to) : w.ends.neither(from, to);
+    else ends = fromIn ? w.ends.only(from, to) : w.ends.only(to, from);
+  } else if (fromSaid || toSaid) {
+    const [included, end] = fromSaid ? [fromIn, from] : [toIn, to];
+    ends = included ? w.ends.one(end) : w.ends.none(end);
+  }
+  return ` ${w.interval(from, to)}${ends ? `, ${ends}` : ''} `;
+};
+
+// x^((3 + 3)/3): the exponent's own bracket is the power's, "x to the power
+// the quantity 3 plus 3 end quantity over 3"; the brackets inside it are read
+// as any are.
+const bracketedPowers = (raw, w) => {
+  let text = raw;
+  for (let at = text.indexOf('^('); at !== -1; at = text.indexOf('^(')) {
+    let depth = 0;
+    let close = -1;
+    for (let index = at + 1; index < text.length; index += 1) {
+      if (text[index] === '(') depth += 1;
+      else if (text[index] === ')') { depth -= 1; if (depth === 0) { close = index; break; } }
+    }
+    if (close === -1) break;
+    text = `${text.slice(0, at)} ${w.power} ${text.slice(at + 2, close)} ${text.slice(close + 1)}`;
+  }
+  return text;
+};
+
 /** Plain-text mathematics (after LaTeX is reduced) to words. */
-const plainMathToSpeech = (raw, w, functionNames = '') => {
-  let text = ` ${raw} `;
+/*
+ * A FRACTION WRITTEN AS ONE CHARACTER (platform-polish-3; F-READ-SYMBOLS in
+ * the 2026-11-06 Algebra I M3 T2 walkthrough). "y = ½x + 4" was "y equals ½
+ * x plus 4": the character went to the voice as it is. It is said as a
+ * fraction is: "one half", 2½ "2 and one half". Said first, so the rules
+ * below read it as any number: −½ is "negative one half" and ½(x − 4) "one
+ * half times the quantity x minus 4".
+ */
+const VULGAR_FRACTIONS = '½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒';
+const MIXED_VULGAR = new RegExp(`(\\d)([${VULGAR_FRACTIONS}])`, 'g');
+const LONE_VULGAR = new RegExp(`[${VULGAR_FRACTIONS}]`, 'g');
+const vulgarFractionsToWords = (text, w) => String(text)
+  .replace(MIXED_VULGAR, (match, whole, fraction) => `${whole} ${w.mixedAnd} ${w.vulgarFractions[fraction]} `)
+  .replace(LONE_VULGAR, (fraction) => ` ${w.vulgarFractions[fraction]} `);
+
+/*
+ * A BRACKET THAT HOLDS A RELATION IS AN ASIDE, NEVER A QUANTITY
+ * (math-speech-3). "…the greatest whole number is 153 (f(153) = 598.75)" was
+ * "…is 153 the quantity f of 153 equals 598.75" (Algebra I M3 T1 L3 CW 11
+ * and Honors CW 9, worked steps), and "a negative number (b = −2)" "… the
+ * quantity b equals negative 2". Its brackets are pauses: "is 153, f of 153
+ * equals 598.75". A bracket pressed against a name or a number, f(x = 2), is
+ * not an aside; nor is a relation inside a bracket inside it.
+ */
+const RELATION_SYMBOL = /[=<>≤≥≠≈]/;
+const asideSpans = (text) => {
+  const spans = [];
+  const open = [];
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '(') open.push(index);
+    else if (text[index] === ')' && open.length) {
+      const start = open.pop();
+      let own = text.slice(start + 1, index);
+      for (let pass = 0; pass < 4 && /\([^()]*\)/.test(own); pass += 1) own = own.replace(/\([^()]*\)/g, ' ');
+      if (RELATION_SYMBOL.test(own) && !/[\p{L}\p{N})\]]$/u.test(text.slice(0, start))) spans.push([start, index]);
+    }
+  }
+  // The outermost only: an aside inside an aside is read with it.
+  return spans.filter(([start, end]) => !spans.some(([from, to]) => from < start && to > end));
+};
+// A pause where something is said before or after it, and none against a
+// stop that is already there ("(b = −2), which").
+const PAUSES_BEFORE = /[\p{L}\p{N}%)\]’”"']\s*$/u;
+const PAUSES_AFTER = /^\s*[\p{L}\p{N}(]/u;
+const relationAsidesAsPauses = (text) => asideSpans(text)
+  .sort((a, b) => b[0] - a[0])
+  .reduce((out, [start, end]) => {
+    const [before, after] = [out.slice(0, start), out.slice(end + 1)];
+    return `${before}${PAUSES_BEFORE.test(before) ? PAUSE : ''} ${out.slice(start + 1, end)} ${PAUSES_AFTER.test(after) ? PAUSE : ''}${after}`;
+  }, text);
+// A run of mathematics that is one aside ("(f(153) = 598.75)" after a word):
+// speechTextFor gives it its pauses, which the run cannot see.
+const isWholeAside = (value) => {
+  const text = String(value).trim();
+  return asideSpans(text).some(([start, end]) => start === 0 && end === text.length - 1);
+};
+
+// A denominator: one number, one word, or one bracket, which may hold two
+// levels of brackets ("((x-(3))*(x-(3)))").
+const FRACTION_SLASH = /([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*)(\d+(?:\.\d+)?|[A-Za-z]+|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))/g;
+const fractionSlashes = (text, w) => {
+  let out = text;
+  // Each pass reads the slashes the one before left inside a denominator.
+  for (let pass = 0; pass < 4; pass += 1) {
+    const next = out.replace(FRACTION_SLASH, (match, numerator, sign, denominator) => (
+      ` ${numerator} ${w.over} ${sign}${/^[A-Za-z]+$/.test(denominator) && !readsAsWord(denominator, w) ? denominator.split('').join(' ') : denominator} `
+    ));
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+};
+const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {}) => {
+  let text = relationAsidesAsPauses(` ${vulgarFractionsToWords(raw, w)} `);
   const letters = functionLettersFor(functionNames);
   // The last word of every operator phrase: a bracket after one of these is a
   // new quantity, not a product ("x equals the quantity …", never "equals
   // times the quantity").
-  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power, w.quantity]
-    .map((word) => word.split(' ').pop());
+  // A Spanish phrase's marked "a" is one of them, and so, as before, is the
+  // letter a (a sign after it is read as after "es igual a"; the November
+  // handoff's section 5 holds that for the owner).
+  const operatorWords = [w.eq, w.plus, w.minus, w.times, w.over, w.lt, w.gt, w.le, w.ge, w.ne, w.pm, w.of, w.point, w.divided, w.power, w.quantity, w.union]
+    .flatMap((word) => { const last = word.split(' ').pop(); return [last, last.replace(PREPOSITION_A, '')]; });
+  // A bracket holding only the symbol names the symbol: "a union (∪)".
+  text = text.replace(/\(\s*([∘∪])\s*\)/g, ' $1 ');
+  const matrixRows = /\[\s*\[|\]\s*\]/.test(text);
+  text = text.replace(INTERVAL_PAIR, (match, open, left, right, close, offset, whole) => {
+    const square = open === '[' || close === ']';
+    // What follows "x ∈" is a set or an interval, never a point.
+    const afterIn = /∈\s*$/.test(whole.slice(0, offset));
+    const interval = square ? !matrixRows : (intervals || afterIn || /∞/.test(`${left}${right}`));
+    return interval ? intervalSpeech(open, left, right, close, w) : match;
+  });
   // Coordinates: a bracket group of two or three comma-separated values.
   text = text.replace(/\(\s*([^(),]+?)\s*,\s*([^(),]+?)\s*(?:,\s*([^(),]+?)\s*)?\)/g, (match, a, b, c) => (
     ` ${w.point} ${a}, ${b}${c ? `, ${c}` : ''} `
@@ -296,28 +819,46 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     // |x − 2|: "times" after a coefficient (2|x − 2| was "2 the absolute value
     // of"), and an end where more follows a multi-term inside, so 2|x − 2| − 4
     // is not heard as 2|x − 2 − 4| (walkthrough 2026-10-22).
+    // One term inside ends too where a sign, a product or a power follows:
+    // "|−3| − 3" was heard as |−3 − 3|, "|b|·|x|" as |b·|x|| (math-speech-2,
+    // item 11). A relation or the end needs none ("|x| = 3"). No "times"
+    // after a word already said: "log base 2 of |x|" was "of times …".
     .replace(/\|([^|]+)\|/g, (match, body, offset, whole) => {
-      const coefficient = /[A-Za-z0-9)]$/.test(whole.slice(0, offset).trimEnd());
-      const ends = /.[\s+\-−*/·=<>]/.test(body.trim()) && moreMathFollows(offset, whole, match);
+      const before = whole.slice(0, offset).trimEnd();
+      const coefficient = /[A-Za-z0-9)½⅓⅔¼¾]$/.test(before) && !operatorWords.includes(before.split(/\s+/).pop());
+      const ends = /.[\s+\-−*/·=<>]/.test(body.trim())
+        ? moreMathFollows(offset, whole, match)
+        : /^\s*(?:[+\-−*/·×÷^√∛∜(|]|[\p{L}\p{N}])/u.test(whole.slice(offset + match.length));
       return ` ${coefficient ? `${w.times} ` : ''}${w.abs} ${body} ${ends ? `${w.endAbs} ` : ''}`;
     })
+    // A bar that pairs with none (math-speech-4, item 4) was handed to the
+    // voice: "p | 4" is "p divides 4" (the rational root theorem), and the bar
+    // of an augmented row or a synthetic division, "[3, −2, −4 | −4]" and
+    // "1, −2, −3 | 0", is "bar" between pauses; its "−4" is negative 4, not
+    // "minus 4".
+    .replace(/(^|\s)([A-Za-z])\s+\|\s+(\d+|[A-Za-z])(?=\s|$)/g, `$1$2 ${w.divides} $3`)
+    .replace(/\s*\|\s*/g, (bar, offset, whole) => `${whole.slice(0, offset).trim() ? ', ' : ' '}${w.bar}${whole.slice(offset + bar.length).trim() ? ', ' : ' '}`)
     // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
     // applied — "f plus g of x", never "the quantity f plus g times x". Two
     // function names side by side, (fg)(x), are their product (AX20): "f
-    // times g of x", never "the quantity fg times the quantity x".
+    // times g of x", never "the quantity fg times the quantity x". Before
+    // more than one term, two letters the text does not make functions are
+    // a product of two brackets (math-speech-4): (u + v)(u − v) was "u plus v
+    // of the quantity u minus v", and (p + q)(x + 1) "p plus q of …".
     .replace(new RegExp(`\\(\\s*([${letters}])\\s*([-+−*·×/∘]?)\\s*([${letters}])\\s*\\)\\s*\\(([^()]+)\\)`, 'g'), (match, left, operator, right, argument) => {
+      const functions = [left, right].every((name) => functionNames.includes(name) || CONVENTIONAL_FUNCTIONS.includes(name));
+      if (!functions && operator !== '∘' && (isMultiTerm(argument, w) || [left, right].some((name) => holdsOwnLetter(name, argument, w)))) return match;
       const word = { '+': w.plus, '-': w.minus, '−': w.minus, '/': w.over, '∘': w.composed }[operator] || w.times;
       return functionApplicationSpeech(w)(match, ` ${left} ${word}`, right, argument);
     })
-    .replace(/∘/g, ` ${w.composed} `);
-  // f(g(2)) is applied from the inside out: each pass reads one level.
-  const application = new RegExp(`(^|[^A-Za-z])([${letters}])\\(([^()]+)\\)`, 'g');
-  for (let pass = 0; pass < 4; pass += 1) {
-    const next = text.replace(application, functionApplicationSpeech(w));
-    if (next === text) break;
-    text = next;
-  }
-  text = text
+    // "In (f ∘ g), g acts first": the bracket only names the composite.
+    .replace(new RegExp(`\\(\\s*([${letters}])\\s*∘\\s*([${letters}])\\s*\\)(?!\\s*\\()`, 'g'), ' $1 ∘ $2 ')
+    .replace(/∘/g, ` ${w.composed} `)
+    // A pause before "union", so a piece's "not including 0" is heard as its own.
+    .replace(/∪/g, (match, offset, whole) => `${/\S/.test(whole.slice(0, offset)) ? PAUSE : ''} ${w.union} `)
+    // "x ∈ {−2, 0, 2}" is "x is in the set …", as LaTeX's \in is.
+    .replace(/∈/g, ` ${w.in} `);
+  text = readApplications(text, letters, functionNames, w)
     .replace(/(?:√|\bsqrt)\s*\(([^()]+)\)/g, ` ${w.squareRoot} $1 `)
     .replace(/√\s*([A-Za-z0-9.]+)/g, ` ${w.squareRoot} $1 `)
     // A power after a bracket ends the bracket first: (27x⁶)^(1/3) is "the
@@ -330,13 +871,29 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     .replace(/\^\(\s*2\s*\)|\^2(?![0-9./])|²/g, ` ${w.squared} `)
     .replace(/\^\(\s*3\s*\)|\^3(?![0-9./])|³/g, ` ${w.cubed} `)
     .replace(/\^\(([^()]+)\)/g, ` ${w.power} $1 `)
+    // A whole-number exponent ends where its digits do, as it is drawn: x^10p
+    // is x¹⁰p (normalizePlainMathTypography), so "5m^10p^6" is "5m to the
+    // power 10 p to the power 6", as 5m¹⁰p⁶ is, and the grader reads it so; it
+    // was "to the power 10p", the exponent run into the next letter (hint-ladder
+    // timing, item 3). LaTeX ends an unbraced one at its digit too: $x^4y^{11}$
+    // was "x to the power 4y …". ² and ³ already stop at their digit, above.
+    .replace(/\^(-?\d+)(?=[A-Za-z])/g, ` ${w.power} $1 `)
     .replace(/\^(-?[A-Za-z0-9.]+)/g, ` ${w.power} $1 `)
+    // An exponent that holds a bracket, x^((3 + 3)/3), and a power whose
+    // exponent the reader has said in words (x^√8): the caret reached the
+    // voice, "x^ the quantity the quantity 3 plus 3 …" (math-speech-3).
+    .replace(/[\s\S]*/, (whole) => bracketedPowers(whole, w))
+    .replace(/\^\s*/g, ` ${w.power} `)
     .replace(/<=|≤/g, ` ${w.le} `)
     .replace(/>=|≥/g, ` ${w.ge} `)
     .replace(/!=|≠/g, ` ${w.ne} `)
     .replace(/</g, ` ${w.lt} `)
     .replace(/>/g, ` ${w.gt} `)
+    .replace(/∓/g, ` ${w.mp} `)
     .replace(/±/g, ` ${w.pm} `)
+    // ≈ as \approx is; it was passed raw (math-speech-3), and so was ⟂.
+    .replace(/≈/g, ` ${w.approx} `)
+    .replace(/[⟂⊥]/g, ` ${w.perp} `)
     .replace(/=/g, ` ${w.eq} `)
     .replace(/∞/g, ` ${w.infinity} `)
     .replace(/π/g, ` ${w.pi} `)
@@ -344,6 +901,10 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     .replace(/÷/g, ` ${w.divided} `)
     .replace(/(\d)\s*%/g, `$1 ${w.percent}`)
     .replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (match, amount) => priceSpeech(amount, w))
+    // A price written with a letter, "$\$m$ a month" (the ASVAB bank), is m
+    // dollars; it was "$m" (math-speech-4, item 4). Only a price's "$" is left
+    // here: latexToSpeech took out every delimiter.
+    .replace(/\$([A-Za-z])(?![A-Za-z])/g, (match, letter) => `${letter} ${w.dollars}`)
     // a/b — a fraction, read "a over b". The denominator is one number, one
     // word or one bracket, so "-2/3x" is "negative 2 over 3 x". It may carry
     // its own sign: a divided term "-10 / -2" is "negative 10 over negative 2"
@@ -354,14 +915,17 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     // (rise/run, miles/hour). Anything else is a product of variables, said
     // letter by letter: "V/lw" is "V over l w", "dy/dx" "dy over d x"
     // (review SF2).
-    .replace(/([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*)(\d+(?:\.\d+)?|[A-Za-z]+|\([^()]*\))/g, (match, numerator, sign, denominator) => (
-      ` ${numerator} ${w.over} ${sign}${/^[A-Za-z]+$/.test(denominator) && !readsAsWord(denominator, w) ? denominator.split('').join(' ') : denominator} `
-    ))
+    // A fraction inside a bracket the rule has read is read too, and a
+    // bracket may hold brackets (display and reading polish): "2/(y + 1/2)"
+    // was "2 over the quantity y plus 1/2", and "3/(x-(3))" "3/ the quantity
+    // x minus 3", the slash handed to the voice.
+    .replace(/[\s\S]*/, (whole) => fractionSlashes(whole, w))
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')
     .replace(/([\p{L}0-9]+)\s*\(/gu, (match, token) => (operatorWords.includes(token) ? `${token} (` : `${token}\uE000(`))
-    .replace(/\uE000/g, ` ${w.times} `)
+    .replace(/\uE000/g, ` ${w.times} `);
+  text = markQuantityEnds(text, w, operatorWords)
     .replace(/\(/g, ` ${w.quantity} `);
   // A minus sign is "negative" where it starts a quantity (start, after an
   // operator word or an opening bracket) and "minus" between two quantities.
@@ -373,7 +937,20 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
     const unary = !previous || /[(,[;:]$/.test(previous) || operatorWords.includes(previous);
     return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
   });
-  return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',');
+  // A sign the run ends with (math-speech-3). The split cuts it off from
+  // the words after it, "(starting amount) − (rate) · (variable)" (Algebra I
+  // M3 T1 L3 PR 6), "joined by + or −", "4x − ___", and it reached the voice
+  // as the symbol. After an operand, or alone, it is "minus"; after an
+  // operator word or an opening, "negative" ("x = −___": "negative blank").
+  // A hyphen pressed against what is before it is a word's: "the x- and
+  // y-values", "a 6-hour job".
+  text = text.replace(/([^\s\-−]*)(\s*)([-−])\s*$/, (match, before, space, sign) => {
+    if (sign === '-' && before && !space) return match;
+    const previous = before.trim();
+    const unary = Boolean(previous) && (/[(,[;:]$/.test(previous) || operatorWords.includes(previous));
+    return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
+  });
+  return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',').replace(new RegExp(QUANTITY_END, 'g'), ` ${w.endQuantity} `);
 };
 
 /*
@@ -385,9 +962,26 @@ const plainMathToSpeech = (raw, w, functionNames = '') => {
  * of 16" (walkthrough 2026-10-23, Polynomials and Radicals). A power becomes
  * ^(n); a root becomes its words in the reader's language, then its argument
  * (bracketed when it is more than one term, so where the root ends is said).
+ *
+ * A letter written as a superscript is a power too (walkthrough 2026-11-06,
+ * P-1): 2ˣ was read "2 ˣ", the raw character, while the typed 2^x was "2 to
+ * the power x". So were bⁿ, xᵃ⁺ᵇ and x⁻ᵃ, and ⁿ√b was "ⁿ the square root of
+ * b". A superscript ordinal (1ˢᵗ, 2ⁿᵈ) is still the word "1st".
  */
-const SUPERSCRIPT_MAP = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-', '⁺': '+' };
+const SUPERSCRIPT_MAP = {
+  // A minus sign, not a hyphen: "a-b" is one word to the segmenter.
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '−', '⁺': '+',
+  '⁼': '=', '⁽': '(', '⁾': ')',
+  'ᵃ': 'a', 'ᵇ': 'b', 'ᶜ': 'c', 'ᵈ': 'd', 'ᵉ': 'e', 'ᶠ': 'f', 'ᵍ': 'g', 'ʰ': 'h', 'ⁱ': 'i', 'ʲ': 'j', 'ᵏ': 'k', 'ˡ': 'l', 'ᵐ': 'm',
+  'ⁿ': 'n', 'ᵒ': 'o', 'ᵖ': 'p', 'ʳ': 'r', 'ˢ': 's', 'ᵗ': 't', 'ᵘ': 'u', 'ᵛ': 'v', 'ʷ': 'w', 'ˣ': 'x', 'ʸ': 'y', 'ᶻ': 'z',
+};
+const SUPERSCRIPTS = Object.keys(SUPERSCRIPT_MAP).join('');
+// The characters a power's exponent is written in, without a sign or a bracket.
+const EXPONENT_CHARACTERS = SUPERSCRIPTS.replace(/[⁻⁺⁼⁽⁾]/g, '');
 const fromSuperscript = (run) => [...run].map((char) => SUPERSCRIPT_MAP[char] ?? '').join('');
+const SUPERSCRIPT_ORDINAL = /(\d)(ˢᵗ|ⁿᵈ|ʳᵈ|ᵗʰ)(?![\p{L}\p{N}])/gu;
+const SIMPLE_ARGUMENT = new RegExp(`^[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*$`);
+const ROOT_OF_SIMPLE = new RegExp(`^(?:[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+√|[√∛∜])[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*$`);
 const rootArgument = (text, from) => {
   let index = from;
   while (text[index] === ' ') index += 1;
@@ -399,28 +993,344 @@ const rootArgument = (text, from) => {
     }
     return null;
   }
-  const run = /^[A-Za-z0-9.…]+(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?/.exec(text.slice(index));
+  const run = new RegExp(`^[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*`).exec(text.slice(index));
   return run ? [run[0], index + run[0].length] : null;
 };
-const unicodeMathToSpokenForm = (raw, w) => {
-  // A blank power, 2^(…), is "2 to the power …".
-  const text = String(raw ?? '').replace(/\^\s*\(\s*(…|\.\.\.)\s*\)/g, ` ${w.power} $1`);
-  if (!/[√∛∜⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]/.test(text)) return text;
+
+/*
+ * A LOGARITHM'S BASE WRITTEN AS TEXT: log₂(x), log₁⁄₂(x), log_0.5(x), log_b x.
+ * Only LaTeX's \log_2 was read as a base. A subscript base was "log sub 2
+ * times the quantity x", an underscore "log_ 0.5 times the quantity x" (the
+ * function family's own spelling of a base that is not 2 or 10), and the
+ * fraction base of log₁⁄₂(x) "log sub 1 ⁄₂ the quantity x" (walkthrough
+ * 2026-11-06, P-1). Each is said "log base 2 of x", in the reader's words, its
+ * argument bracketed when it is more than one term, as a root's is.
+ */
+const SUBSCRIPT_BASE = { '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9', 'ₐ': 'a', 'ₑ': 'e', 'ₓ': 'x', 'ₙ': 'n', 'ₖ': 'k', 'ₘ': 'm', '⁄': '/' };
+const LOG_BASE = /(?<![A-Za-z\\])log(?:([₀-₉ₐₑₓₙₖₘ]+(?:[⁄.][₀-₉]+)?)|_\{\s*([^{}]+?)\s*\}|_(\d+(?:\.\d+)?|[A-Za-z]))/g;
+const logArgument = (text, from) => {
+  let index = from;
+  while (text[index] === ' ') index += 1;
+  // A bracket is the argument; without one, a number or a lone letter
+  // ("log₂ 8", "log_b x"), never the next word ("log₂ is …").
+  if (text[index] === '(') return rootArgument(text, index);
+  const run = /^(?:\d+(?:\.\d+)?|[A-Za-z](?![A-Za-z]))/.exec(text.slice(index));
+  return run ? [run[0], index + run[0].length] : null;
+};
+const logBasesToWords = (text, w) => {
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(LOG_BASE)) {
+    if (match.index < from) continue;
+    const base = match[1] ? [...match[1]].map((char) => SUBSCRIPT_BASE[char] ?? char).join('') : (match[2] ?? match[3]);
+    const after = match.index + match[0].length;
+    const argument = logArgument(text, after);
+    const body = argument?.[0].trim();
+    const of = argument ? ` ${w.of} ${SIMPLE_ARGUMENT.test(body) ? body : `(${body})`}` : '';
+    out += `${text.slice(from, match.index)} ${w.logBase} ${base}${of} `;
+    from = argument ? argument[1] : after;
+  }
+  return out + text.slice(from);
+};
+
+/*
+ * A LOG WITH NO BASE, AND LN (math-speech-2). "log(x)" was "log times the
+ * quantity x" and "ln(x)" "ln times the quantity x": the bracket was read as
+ * a product. They are "log of x", the common log, as "log base 2 of x" is
+ * said, and "natural log of x". The argument is found as a base's is
+ * (logArgument), and only mathematics is one: the word "log" in prose ("a log
+ * (record) of every read", "log a question") is left alone.
+ */
+const PLAIN_LOG = /(?<![A-Za-z\\])(log|ln)(?![A-Za-z_₀-₉ₐₑₓₙₖₘ])/g;
+const FUNCTION_WORDS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs', 'exp']);
+const plainLogArgument = (text, from) => {
+  const argument = logArgument(text, from);
+  if (!argument || /^\s*[aAI]\s*$/.test(argument[0])) return null;
+  const words = argument[0].match(/[A-Za-z]{3,}/g) || [];
+  return words.every((word) => FUNCTION_WORDS.has(word.toLowerCase())) ? argument : null;
+};
+const plainLogsToWords = (text, w) => {
+  let out = '';
+  let from = 0;
+  for (const match of text.matchAll(PLAIN_LOG)) {
+    if (match.index < from) continue;
+    const argument = plainLogArgument(text, match.index + match[0].length);
+    if (!argument) {
+      // ln alone is still the natural log; "log" is a word as it stands.
+      if (match[1] === 'ln') {
+        out += `${text.slice(from, match.index)} ${w.naturalLog} `;
+        from = match.index + match[0].length;
+      }
+      continue;
+    }
+    const body = argument[0].trim();
+    out += `${text.slice(from, match.index)} ${match[1] === 'ln' ? w.naturalLog : w.commonLog} ${w.of} ${SIMPLE_ARGUMENT.test(body) ? body : `(${body})`} `;
+    from = argument[1];
+  }
+  return out + text.slice(from);
+};
+
+// A log or ln in prose before its argument ("ln x", "log 100 = 2"): the
+// segmenter keeps a name followed by a space as a word, so its "of" is said
+// here, before the mathematics that follows. Any other "ln" is the natural
+// log by name ("Take ln of both sides").
+const proseLogNames = (prose, next, w) => prose
+  .replace(/(?<![A-Za-z\\])(?<!\ban? )(log|ln)(\s+)$/, (match, name, space) => (
+    next?.kind === 'math' && /^\s*(?:\d|[A-Za-z](?![A-Za-z])|\()/.test(next.value) ? `${name === 'ln' ? w.naturalLog : w.commonLog} ${w.of}${space}` : match))
+  // …and sin, cos or tan before its own (platform-polish-3): "sin x" is
+  // "sine of x", and "sin2x" "sine of 2x".
+  .replace(/(?<![A-Za-z\\])(sin|cos|tan)(\s*)$/, (match, name, space) => (
+    next?.kind === 'math' && /^\s*(?:\d|[A-Za-z](?![A-Za-z])|\(|[θαβφ])/.test(next.value) ? `${w.trig[name]} ${w.of}${space}` : match))
+  // …or before an angle's name in the prose ("tan θ").
+  .replace(/(?<![A-Za-z\\])(sin|cos|tan)(\s*)(?=[θαβφ])/g, (match, name, space) => `${w.trig[name]} ${w.of}${space || ' '}`)
+  .replace(/(?<![A-Za-z\\])ln(?![A-Za-z])/g, w.naturalLog);
+
+/*
+ * A SET WRITTEN WITH PLAIN BRACES: {(−3, 26), (2, 11)}, {0, 1, 2, …, 48}.
+ * LaTeX's \{…\} is read "the set …, end set"; plain braces were left raw ("{
+ * the point negative 3, 26, … }", walkthrough 2026-11-06, P-1). They read the
+ * same now. A brace that groups LaTeX (\frac{1}{2}, x^{2}, a_{n},
+ * \sqrt[3]{x}), a template placeholder ({{n}}) or any brace inside a $…$
+ * span is not a set, and a set of one member holds one number, point or
+ * letter, never a word.
+ */
+const LATEX_SPAN = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/g;
+const PLAIN_SET = /(?<![\\^_{}\]\p{L}])\{([^{}$\\^_]*)\}(?!\})/gu;
+const isSetMembers = (members) => /[\p{L}\p{N}∞]/u.test(members) && !/\p{L}{2,}/u.test(members)
+  && (members.includes(',') || /^\s*(?:[-−+±]?\s*\d+(?:\.\d+)?|\([^()]*\)|\p{L})\s*$/u.test(members));
+// A bare unit after a quantity, "Money raised by 39 muffins and 25 smoothies
+// ($)", is said "in dollars", as a person reads a table's heading; the voice
+// was handed "($)" (lesson re-walk 2026-11-06). Taken out before the text is
+// split, so its "$" never opens a LaTeX span with a later one.
+const dollarUnits = (text, w) => text.replace(/\s*\(\s*\$\s*\)/g, ` ${w.units.dollars}`);
+
+/*
+ * A NAME'S MARKS, SAID (math-speech-3; the sweep of every lesson and bank
+ * text). A point's primes went to the voice raw and apart from their letter
+ * ("B ′", "A‴ B ‴"), and a mean's bar too ("x ̄"). They are "B prime", "A
+ * triple prime" and "x bar", held for Read aloud's split as a root's words
+ * are.
+ */
+const PRIMES = { '′': 0, '″': 1, '‴': 2 };
+const markedNames = (text, w, mark) => {
+  const said = (words) => (mark ? `${SAID_OPEN}${words}${SAID_CLOSE}` : ` ${words} `);
+  return text
+    .replace(/([A-Za-z])([′″‴])/g, (match, letter, prime) => `${letter}${said(w.primes[PRIMES[prime]])}`)
+    .replace(/([A-Za-z])\u0304/g, (match, letter) => `${letter}${said(w.bar)}`)
+    .replace(/ȳ/g, `y${said(w.bar)}`);
+};
+
+// A blank to fill in, "4(x − 2) + 3 = 4x + ___" (Algebra I M3 T1 L1 PR 11,
+// walkthrough 2026-11-06), reached the voice as underscores. It is "blank",
+// a word, so "___x + 1" is "blank x plus 1" (math-speech-3).
+const blanksToWords = (text, w) => text.replace(/_{3,}(?=([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ])?)/g, (match, power) => (power ? ` ${w.blank}` : ` ${w.blank} `));
+
+/*
+ * AN ELLIPSIS THAT STANDS FOR A BLANK IS "BLANK" (math-speech-4). The Radicals
+ * hints write the term a student finds as "…": "5∛(…), with … =", "a√2 − a =
+ * a(…)", "(a² + 4)² − (…)²". A voice says nothing for it (flite, measured), so
+ * these were "5 times the cube root of, with, equals". In a bracket of its own,
+ * or between a sign and more mathematics, it is a blank, said as "___" is; a
+ * factor before the bracket multiplies it ("a times blank"). An ellipsis that
+ * ends a sentence is heard as its stop, and one in a list goes on
+ * (ellipsesInWords). A "?" in a bracket of its own is the same blank: "3x³ =
+ * ( ? )²" and "243(x + 2)¹⁵ = [ ? ]⁵" (the Radicals lessons) were "equals
+ * question mark squared" or nothing (math-speech-4, item 4).
+ */
+const BRACKETED_ELLIPSIS = /([\p{L}\p{N})\]])?[([]\s*(?:…|\.{3}|\?)\s*[)\]]/gu;
+const OPERAND_ELLIPSIS = /((?:[=<>≤≥≠+\-−×·÷√∛∜]|\bwith|\bcon)\s*)(?:…|\.{3})(?=\s*(?:[,;)=<>≤≥≠]|(?:with|con)\b))/gu;
+const ellipsisBlanks = (text) => text
+  .replace(BRACKETED_ELLIPSIS, (match, factor) => (factor ? `${factor}·___` : '___'))
+  .replace(OPERAND_ELLIPSIS, '$1___');
+
+/*
+ * AN ESCAPED PERCENT SIGN IS "PERCENT" (math-speech-4, item 4). The grade 6
+ * bank writes "\%" outside LaTeX ("A benchmark share of 3\% participates") and
+ * in a span it never closes ("${{p}}\%", two answer summaries): the voice was
+ * handed "3 \%" and "3 dollars \%". It is a percent sign, and a "$" that opens
+ * its number, with no "$" after it, is LaTeX's, not a price's.
+ */
+const escapedPercents = (text) => (text.includes('\\%') ? text
+  .replace(/\$(?=\s*\d[\d,]*(?:\.\d+)?\s*\\%)(?![^$\n]*\$)/g, '')
+  .replace(/\\%/g, '%') : text);
+
+// "!=" typed for ≠, as the bank's set-builder examples write it ("{x|x!=3}"):
+// in prose the segmenter split the "!" off, and it was read "x! equals 3".
+const typedNotEqual = (text) => text.replace(/(?<=[\p{L}\p{N})\]}])\s*!=\s*/gu, ' ≠ ');
+
+// Set-builder notation in plain braces, {y | y > 3} or {x : x ≠ 2}, is read
+// as LaTeX's is: "the set of y such that y is greater than 3". It was "{ y |
+// y is greater than 3 }", braces and bar raw (math-speech-2).
+const SET_BUILDER = /^\s*([A-Za-z])\s*[|:]\s*(\S[\s\S]*?)\s*$/;
+const plainSetsToWords = (text, w) => {
+  const rewrite = (plain) => plain.replace(PLAIN_SET, (match, members) => {
+    const builder = SET_BUILDER.exec(members);
+    if (builder) return ` ${w.setBuilder.of} ${builder[1]} ${w.setBuilder.suchThat} ${builder[2]} `;
+    return isSetMembers(members) ? ` ${w.setOpen} ${leadingSignInWords(members, w)} ${w.setClose} ` : match;
+  });
+  let out = '';
+  let from = 0;
+  for (const span of text.matchAll(LATEX_SPAN)) {
+    out += rewrite(text.slice(from, span.index)) + span[0];
+    from = span.index + span[0].length;
+  }
+  return out + rewrite(text.slice(from));
+};
+
+/*
+ * A SLASH BETWEEN WORDS IS SAID AS THE WORDS MEAN IT (math-speech-4; 214
+ * lesson and bank texts). The split took the slash for mathematics, so
+ * "Left/right changes only the input" and "the solid/dashed style" handed the
+ * voice "Left / right". Between two words it is "or" ("left or right", "AND
+ * or OR"; "and/or" is "and or"); before a unit it is "per" ("kcal per day",
+ * "60 km per h"); between two named parts of a ratio it is the fraction bar
+ * it stands for, "over" ("rise over run", "opposite over hypotenuse",
+ * "quotient plus remainder over divisor", "Δvalue over Δtime"). A number on
+ * either side, two letters or fewer on both (dy/dx, a/b), a LaTeX span, a web
+ * address or a file path is left as it is: numbers and fractions keep their
+ * readings.
+ */
+// A unit written out is one after any word ("kcal/day", "miles/gallon").
+const PER_UNITS = new Set([
+  'hour', 'hours', 'minute', 'minutes', 'second', 'seconds', 'day', 'days', 'week', 'weeks', 'month', 'months', 'year', 'years',
+  'mile', 'miles', 'meter', 'meters', 'foot', 'feet', 'yard', 'yards', 'gallon', 'gallons', 'liter', 'liters', 'pound', 'pounds',
+  'ounce', 'ounces', 'item', 'items', 'unit', 'units', 'person', 'ticket', 'tickets', 'page', 'pages', 'serving', 'servings', 'cup', 'cups',
+  'hora', 'horas', 'minuto', 'minutos', 'segundo', 'segundos', 'día', 'días', 'semana', 'semanas', 'mes', 'meses', 'año', 'años',
+  'milla', 'millas', 'metro', 'metros', 'galón', 'galones', 'litro', 'litros', 'libra', 'libras', 'artículo', 'artículos', 'persona',
+]);
+// An abbreviation only after a unit, or a number and a unit (km/h, 3 m/s):
+// "Max/min on a closed interval" is "max or min".
+const PER_ABBREVIATIONS = new Set(['h', 'hr', 'hrs', 'min', 'mins', 's', 'sec', 'secs', 'wk', 'yr', 'yrs', 'mi', 'km', 'm', 'ft', 'yd', 'gal', 'lb', 'lbs', 'kg', 'g', 'oz', 'L']);
+const UNITS_BEFORE = new Set(['km', 'mi', 'm', 'cm', 'mm', 'ft', 'yd', 'kcal', 'cal', 'gal', 'mL', 'kg', 'g', 'lb', 'oz', 'miles', 'meters', 'feet',
+  'kilometers', 'gallons', 'liters', 'calories', 'dollars', 'cents', 'words', 'beats', 'pages']);
+const RATIO_PARTS = new Set(['rise', 'run', 'opposite', 'adjacent', 'hypotenuse', 'remainder', 'divisor', 'part', 'whole', 'distance', 'time']);
+const WORD_RUN = /[\p{L}'’-]+$/u;
+const NOT_PROSE_RUN = /:\/\/|www\.|[._\\{}$]/;
+const slashSaid = (before, after, numberBefore, w) => {
+  const [left, right] = [before.toLowerCase(), after.toLowerCase()];
+  // "and/or", "either/or", Spanish "y/o": the connective is already said.
+  if ((after === 'or' && before.length > 1) || (before === 'y' && after === 'o')) return ' ';
+  if (PER_UNITS.has(right)) return ` ${w.slash.per} `;
+  if (PER_ABBREVIATIONS.has(after) && UNITS_BEFORE.has(before) && (before.length > 1 || numberBefore)) return ` ${w.slash.per} `;
+  if ((RATIO_PARTS.has(left) && RATIO_PARTS.has(right)) || (/^[Δδ]/u.test(before) && /^[Δδ]/u.test(after))) return ` ${w.over} `;
+  const word = (side) => side.replace(/['’-]/g, '').length >= 3 || NOT_TWO_VARIABLES.has(side.toLowerCase()) || /^\p{Lu}{2}$/u.test(side);
+  return before.replace(/['’-]/g, '').length >= 2 && after.replace(/['’-]/g, '').length >= 2 && word(before) && word(after) ? ` ${w.slash.or} ` : null;
+};
+/*
+ * A number or one letter over a word that names a quantity is a fraction
+ * (display and reading polish): the Path banks' "1/base" and "a/base", and
+ * "the ratio I/reference", were "1/ base", the split taking the word for
+ * prose and leaving the slash to the voice. So is a slash before a blank:
+ * "x^(−2/3) = 1 / ?" was "1 /?". Another word after a number keeps its
+ * slash: "right 1/up 1" is two moves.
+ */
+const QUANTITY_WORDS = new Set([...RATIO_PARTS, 'base', 'reference', 'referencia']);
+const OPERAND_BEFORE = /(?:^|[\s(=+\-−×·*√∛∜])(?:\d+(?:\.\d+)?|\p{L})$/u;
+const BLANK_AFTER = /^(?:_{3,}|[([]\s*\?\s*[)\]])/;
+const slashesBetweenWords = (text, w) => {
+  const rewrite = (plain) => plain.replace(/(\/\s*)\?(?=\s*(?:[.,;:)\]]|$))/g, '$1___').replace(/\s*\/\s*/g, (slash, offset, whole) => {
+    const head = whole.slice(0, offset);
+    const tail = whole.slice(offset + slash.length);
+    const before = WORD_RUN.exec(head)?.[0] || '';
+    const after = /^[\p{L}'’-]+/u.exec(tail)?.[0] || '';
+    if (OPERAND_BEFORE.test(head) && (QUANTITY_WORDS.has(after.toLowerCase()) || BLANK_AFTER.test(tail))) return ` ${w.over} `;
+    if (!/^\p{L}/u.test(before) || !/^\p{L}/u.test(after)) return slash;
+    // The whole run of characters around the slash: a web address or a path.
+    const run = `${/\S*$/.exec(head)[0]}${slash.trim() ? slash : '/'}${/^\S*/.exec(tail)[0]}`;
+    if (!/\s/.test(slash) && NOT_PROSE_RUN.test(run.replace(/[.,;:!?)\]]+$/, ''))) return slash;
+    const said = slashSaid(before, after, /\d\s*\p{L}+$/u.test(head), w);
+    return said ?? slash;
+  });
+  let out = '';
+  let from = 0;
+  for (const span of text.matchAll(LATEX_SPAN)) {
+    out += rewrite(text.slice(from, span.index)) + span[0];
+    from = span.index + span[0].length;
+  }
+  return out + rewrite(text.slice(from));
+};
+
+// What a superscript straight after it is a power of, as MathDisplay draws it
+// (mathDisplayFormat.js): a letter, a digit, a closing bracket or a bar.
+const POWER_BASE = /[\p{L}\p{N})\]}|]/u;
+// The end of what a root after it multiplies: 5∛2, and x³√x.
+const ROOT_COEFFICIENT = new RegExp(`[A-Za-z0-9)⁾${EXPONENT_CHARACTERS}]$`);
+/*
+ * `mark`: Read aloud's own pass over a whole text, before it is split. A root
+ * is said in words there, and the split took its words for prose: a sign, a
+ * bracket or bars around the root were cut off from their mathematics and
+ * reached the voice raw ("|√x|" was "| the square root of x |", "(√3 + 1)/2"
+ * "( the square root of 3 plus 1 ) /2", math-speech-3). The words are held
+ * between two marks the split takes as mathematics (mathSafeText.js
+ * SAID_OPEN), and speechTextFor takes the marks out before anything is said.
+ */
+/*
+ * A RADICAL TYPED AS TEXT is a root too (display and reading polish): the
+ * radicals lessons key boxes "cbrt(9y)" and "root(7)(a)", the way the grader
+ * reads them, and every surface that draws a key read them as typed ("2 cbrt
+ * 9y", "root 7 times a"). Each is read as the radical it is, by the same rules
+ * as ∛ and ⁷√: "2 times the cube root of 9y", "the 7th root of a". A letter
+ * before one is a factor ("2xcbrt(3)"); never the tail of a word ("cuberoot").
+ * The Path banks' "sqrt(" is read here too, so its radicand may hold a
+ * bracket: "sqrt(x-(3))" was "sqrt times the quantity x minus 3", and "3sqrt(3)"
+ * "3sqrt times 3".
+ */
+const TYPED_ROOT = /^(?:cbrt|(sqrt)|root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/;
+const typedRootAt = (text, index) => {
+  if (text[index - 1] === '\\') return null;
+  const found = TYPED_ROOT.exec(text.slice(index));
+  return found && found[0].startsWith('root') && /[A-Za-z]{2}$/.test(text.slice(0, index)) ? null : found;
+};
+// Its radicand's powers are the drawing's, "p^2" as p²: "the cube root of p
+// squared", as for ∛(p²), not "of the quantity p squared".
+const caretPowersAsDrawn = (text) => text.replace(/\^(\d+)(?![\d.])/g, (match, digits) => [...digits].map((digit) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[digit]).join(''));
+// A term typed before it with a space between, "x root(12)(x)" and "−2a^2b
+// root(5)(2a)", multiplies it, as 5∛2 does; a word ("Simplify root(4)(16)") does not.
+const TYPED_ROOT_COEFFICIENT = /(?:^|[\s(=+\-−])[-−]?(?:\d+(?:\.\d+)?(?:[A-Za-z]|\^\d+|\|[^|\s]+\|)*|[A-Za-z](?:\^\d+|[A-Za-z]\^\d+|\|[^|\s]+\|)*|[A-Za-z]\^\d+[A-Za-z^\d]*)\)?\s+$/;
+const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
+  // A blank power, 2^(…), is "2 to the power …", and so is x^?, which kept
+  // its caret ("x^3 · x^4 = x^?", lesson re-walk 2026-11-06, Rational
+  // Exponents Warm-Up 1). Said "blank" since math-speech-4: a voice says
+  // nothing for "…" (ellipsisBlanks reads Read aloud's bracketed one first).
+  const text = String(raw ?? '').replace(/\^\s*\(\s*(…|\.\.\.)\s*\)/g, ` ${w.power} $1`)
+    .replace(/\^\s*\?/g, ` ${w.power} ${w.blank}`)
+    .replace(SUPERSCRIPT_ORDINAL, (match, digit, suffix) => `${digit}${fromSuperscript(suffix)}`);
+  if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]|cbrt|sqrt|root\\(`).test(text)) return text;
   let out = '';
   for (let index = 0; index < text.length;) {
-    const indexRun = /^([⁰¹²³⁴⁵⁶⁷⁸⁹]+)√/.exec(text.slice(index));
-    const symbol = indexRun ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
-    if (indexRun || symbol) {
-      const order = indexRun ? fromSuperscript(indexRun[1]) : symbol;
-      const argument = rootArgument(text, index + (indexRun ? indexRun[0].length : 1));
+    // A superscript straight after its base is a power, as it is drawn, so
+    // x³√x is x³ times √x, never "x times the cube root of x" (lesson re-walk
+    // 2026-11-06, Radical Operations CW 4 and its worked solutions). An index
+    // stands at the start, or after a space or an operator: ³√x, 2 + ⁴√x.
+    const indexRun = POWER_BASE.test(text[index - 1] || '') ? null : /^([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+)√/.exec(text.slice(index));
+    const typed = indexRun ? null : typedRootAt(text, index);
+    const symbol = indexRun || typed ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
+    if (indexRun || typed || symbol) {
+      const order = indexRun ? fromSuperscript(indexRun[1]) : typed ? (typed[1] ? '2' : typed[2] ?? '3') : symbol;
+      const argument = rootArgument(text, index + (indexRun || typed ? (indexRun || typed)[0].length : 1));
       if (argument) {
         const words = order === '2' ? w.squareRoot : order === '3' ? w.cubeRoot : w.root(order);
-        // A root inside a root (√(∛x)) is read the same way.
-        const simple = /^[A-Za-z0-9.…]+(?:[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?$/.test(argument[0].trim());
-        const body = unicodeMathToSpokenForm(argument[0].trim(), w).trim();
-        // 5∛2 is "5 times the cube root of 2".
-        const coefficient = /[A-Za-z0-9)]$/.test(out);
-        out += ` ${coefficient ? `${w.times} ` : ''}${words} ${simple ? body : `(${body})`} `;
+        // A root inside a root (√(∛x)) is read the same way, and a root of
+        // one number or letter is one term: "the square root of the cube
+        // root of x" needs no "quantity" (math-speech-3).
+        const radicand = typed ? caretPowersAsDrawn(argument[0].trim()) : argument[0].trim();
+        const simple = SIMPLE_ARGUMENT.test(radicand) || ROOT_OF_SIMPLE.test(radicand);
+        const body = unicodeMathToSpokenForm(radicand, w, { mark }).trim();
+        // A slash before a root is a fraction bar, "over": "√8/√2" and "3 /
+        // √6". The root is words from here on, so the slash was left to the
+        // voice as a symbol (platform-polish-3).
+        const over = /\/\s*$/.test(out);
+        if (over) out = out.replace(/\s*\/\s*$/, ' ');
+        // 5∛2 is "5 times the cube root of 2", and x³√x "x cubed times …".
+        const coefficient = !over && (ROOT_COEFFICIENT.test(out) || Boolean(typed && TYPED_ROOT_COEFFICIENT.test(out)));
+        // A root after absolute-value bars multiplies them, "|5b⁷k⁵| ⁴√(k³)",
+        // and is written so (×): the bars' end is then said where they close
+        // ("… end absolute value times the 4th root of k cubed"). It never was
+        // (platform-polish-3). Only after a closing bar: bars are counted.
+        const afterBars = !over && /\|\s*$/.test(out) && (out.match(/\|/g) || []).length % 2 === 0;
+        const said = `${over ? `${w.over} ` : afterBars ? '× ' : coefficient ? `${w.times} ` : ''}${words}`;
+        const argumentSaid = simple ? body : `(${body})`;
+        out += mark ? ` ${SAID_OPEN}${said}${SAID_CLOSE}${argumentSaid} ` : ` ${said} ${argumentSaid} `;
         index = argument[1];
         continue;
       }
@@ -428,18 +1338,269 @@ const unicodeMathToSpokenForm = (raw, w) => {
     out += text[index];
     index += 1;
   }
-  // x⁶ is x^(6); ⁻¹ stays, for the inverse rules below.
-  return out.replace(/([A-Za-z0-9)\]])([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+)/g, (match, base, run) => (run === '⁻¹' ? match : `${base}^(${fromSuperscript(run)})`));
+  // x⁶ is x^(6) and 2ˣ is 2^(x), after a bar too (|z|ⁿ); ⁻¹ stays, for the
+  // inverse rules below. A bracketed exponent, x⁽ⁿ⁺¹⁾, is one bracket. The
+  // letters of xᵃᵇ are said apart, "a b": "ab" would be read as a word. An
+  // exponent that holds a bracket (h⁶⁻⁽⁻²⁾) is said as a power here, since
+  // ^(…) is read only without one.
+  return out.replace(new RegExp(`([A-Za-z0-9)\\]|])([${SUPERSCRIPTS}]+)`, 'g'), (match, base, run) => {
+    if (run === '⁻¹') return match;
+    const exponent = fromSuperscript(run).replace(/^\(([^()]*)\)$/, '$1').replace(/([a-z])(?=[a-z])/g, '$1 ');
+    return /[()]/.test(exponent) ? `${base} ${w.power} (${exponent}) ` : `${base}^(${exponent})`;
+  });
 };
 
-/** Speech for one math segment. */
-export const mathToSpeech = (raw, { language = 'en', functionNames = '' } = {}) => {
+/*
+ * ARROWS, SAID BY WHAT THEY MEAN WHERE THEY STAND (math-speech-2). → and ←
+ * reached the voice as symbols ("x equals 2 → x plus 7 equals 9"), and
+ * LaTeX's \to was dropped ("the point x, y the point 3x, 3y"). One arrow means
+ * different things, so the words come from what stands on each side:
+ *   - a limit, "x → ∞", "as x → −∞, f(x) → 0": "approaches";
+ *   - a mapping, "2 → 5", "(x, y) → (3x, 3y)", "S1 → P1", "x → 3x", and a list
+ *     of pairs in words ("base → base, result → argument"): "maps to";
+ *   - a path of points or names, "A → B → C", and "Row 1 → Row 2": "to";
+ *   - a function machine, "5 → g → 1 → f → 5": "goes into", "gives";
+ *   - a step of work, "x = 2 → x + 7 = 9", "s = 600 → (600, 0)": "gives";
+ *   - steps in words, "eliminate … → solve … → back-substitute": "then";
+ *   - a rule in words, "Outside negative → x-axis reflection": "means".
+ * ← is "is replaced by" (a row operation, R₂ ← R₂ − 2R₁), ↔ "corresponds to",
+ * ⇔ "if and only if" and ⇒ "implies". Translate is unchanged: an arrow in
+ * prose stays prose to the segmenter, and the Spanish pack keeps its arrows.
+ */
+const LATEX_ARROWS = Object.freeze({
+  to: '→', rightarrow: '→', longrightarrow: '→', mapsto: '→', longmapsto: '→',
+  leftarrow: '←', longleftarrow: '←', gets: '←', leftrightarrow: '↔', longleftrightarrow: '↔',
+  Leftrightarrow: '⇔', Longleftrightarrow: '⇔', iff: '⇔', Rightarrow: '⇒', Longrightarrow: '⇒', implies: '⇒',
+});
+const LATEX_ARROW = new RegExp(`\\\\(${Object.keys(LATEX_ARROWS).join('|')})(?![A-Za-z])`, 'g');
+const ARROW = /[→←↔⇔⇒]/;
+const arrowsAsCharacters = (text) => text
+  .replace(LATEX_ARROW, (match, name) => ` ${LATEX_ARROWS[name]} `)
+  .replace(/[⟶↦⟼]/g, '→').replace(/⟵/g, '←').replace(/⟷/g, '↔').replace(/⟺/g, '⇔').replace(/⟹/g, '⇒');
+
+// One side of an arrow: nothing, prose, or mathematics of a kind. A value is
+// a number, a point or ordered pair, or one name ("x", "S1", "R_2", "A′").
+const ARROW_VALUE = /^(?:[-−+]?\s*\d[\d,]*(?:\.\d+)?|\([^()]*,[^()]*\)|[A-Za-z](?:_\{?[A-Za-z0-9]+\}?|[₀-₉]+|\d+)?['′’]*)$/;
+const mathSide = (raw, letters) => {
+  const text = String(raw).replace(/(?<!\\)\$\$?|\\[()[\]]|\\(?:left|right)(?![A-Za-z])/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return { kind: 'none' };
+  const type = /^[-−+]?\s*(?:∞|\\infty)$/.test(text) ? 'infinite'
+    : /[=<>≤≥≠]|\\(?:le|ge|ne|lt|gt)(?:q|qslant)?(?![A-Za-z])/.test(text) ? 'relation'
+      : new RegExp(`^[${letters}]$`).test(text) ? 'function'
+        // f(x), g(t): a function of a variable, which can approach a value.
+        : /^[A-Za-z]\s*\(\s*[A-Za-z]\s*\)$/.test(text) ? 'functionValue'
+          : ARROW_VALUE.test(text) ? 'value' : 'expression';
+  return { kind: 'math', type, text };
+};
+
+/**
+ * The words for one run of arrows: sides[i] → sides[i + 1] for each arrow.
+ * `limit`: the sentence is about a limit ("as x → …", or an arrow to ∞).
+ * `pairs`: the sentence lists several arrows, each its own pair. `labels[i]`:
+ * the arrow joins two names of the same kind ("Row 1 → Row 2").
+ */
+const arrowWords = (arrows, sides, w, { limit = false, pairs = false, labels = [] } = {}) => {
+  const say = w.arrows;
+  const valueLike = (side) => side.kind === 'math' && (side.type === 'value' || side.type === 'function');
+  // A function machine: a value, a function's name, a value, … ("5 → g → 1").
+  const machine = arrows.length > 1 && sides.length % 2 === 1 && arrows.every((arrow) => arrow === '→')
+    && sides.every((side, index) => side.kind === 'math'
+      && (index % 2 ? side.type === 'function' : side.type !== 'function' && side.type !== 'relation' && !/^[A-Za-z]/.test(side.text)));
+  return arrows.map((arrow, index) => {
+    const [left, right] = [sides[index], sides[index + 1]];
+    if (arrow === '←') return say.replacedBy;
+    if (arrow === '↔') return say.correspondsTo;
+    if (arrow === '⇔') return say.iff;
+    if (arrow === '⇒') return say.implies;
+    // Nothing after it: an arrow drawn as decoration, not said.
+    if (right.kind === 'none') return '';
+    const toward = right.kind === 'math' && right.type !== 'relation';
+    if (right.type === 'infinite' || (left.type === 'functionValue' && toward && right.type !== 'expression')
+      || (limit && left.kind === 'math' && ['value', 'function', 'functionValue'].includes(left.type) && toward)) return say.approaches;
+    if (machine) return index % 2 ? say.gives : `${index ? ',' : ''} ${say.goesInto}`;
+    // "Row 1 → Row 3", and a heading's "Transformations → Absolute Value
+    // Functions": from one named thing to the next.
+    const named = (side) => side.kind === 'prose' && /^(?:[A-Z][\p{L}'’-]*\s*)+$/u.test(side.text);
+    if (labels[index] || (named(left) && named(right))) return say.to;
+    // A coordinate rule whose image the segmenter left as prose ("−½·y").
+    if (left.kind === 'math' && /,/.test(left.text) && left.type === 'value' && right.kind === 'prose' && right.text.startsWith('(')) return say.mapsTo;
+    if (arrows.length > 1) {
+      if (sides.every(valueLike)) return say.to;
+      return sides.some((side) => side.kind !== 'math') ? say.next : say.gives;
+    }
+    if (valueLike(left) && toward) return say.mapsTo;
+    if (left.kind === 'math') return say.gives;
+    return pairs && right.kind === 'prose' ? say.mapsTo : say.means;
+  });
+};
+
+// An arrow inside one piece of mathematics ("$(x,y)\to(3x,3y)$"): each side
+// is read on its own and the arrow's words go between them. Null when there
+// is no arrow.
+const mathArrowSpeech = (raw, options, w, letters) => {
+  if (!ARROW.test(raw)) return null;
+  const parts = String(raw).replace(/(?<!\\)\$\$?|\\[()[\]]/g, ' ').split(/([→←↔⇔⇒])/);
+  const operands = parts.filter((part, index) => index % 2 === 0);
+  const arrows = parts.filter((part, index) => index % 2 === 1);
+  const words = arrowWords(arrows, operands.map((part) => mathSide(part, letters)), w);
+  return operands.map((part, index) => `${part.trim() ? mathToSpeech(part, options) : ''}${index < arrows.length ? ` ${words[index]} ` : ''}`)
+    .join('').replace(/\s+/g, ' ').trim();
+};
+
+/*
+ * Arrows in prose, between the pieces of a sentence ("x = 2 → x + 7 = 9",
+ * "Vertical axis → square x."): each arrow's words, from the piece next to it
+ * on each side (the mathematics or the words up to the comma, colon or
+ * stop). Arrows with nothing but one side between them are one run, a chain.
+ * Returns the segments with every arrow in prose said in words.
+ */
+const STOP = /^(?:[.;:!?\n]|,)$/;
+const SENTENCE_STOP = /^[.;!?\n]$/;
+const proseArrowsToWords = (segments, w, letters) => {
+  if (!segments.some((segment) => segment.kind !== 'math' && ARROW.test(segment.value))) return segments;
+  const pieces = [];
+  segments.forEach((segment, at) => {
+    if (segment.kind === 'math') { pieces.push({ type: 'math', value: segment.value, at }); return; }
+    segment.value.split(/([→←↔⇔⇒]|[.;:!?\n]|,)/).filter(Boolean).forEach((value) => pieces.push({
+      type: ARROW.test(value) ? 'arrow' : STOP.test(value) ? 'stop' : 'prose', value, at,
+    }));
+  });
+  const blank = (piece) => piece.type === 'prose' && !piece.value.trim();
+  const sideAt = (index, step) => {
+    let cursor = index + step;
+    while (pieces[cursor] && blank(pieces[cursor])) cursor += step;
+    const piece = pieces[cursor];
+    if (!piece || piece.type === 'stop' || piece.type === 'arrow') return { side: { kind: 'none' }, cursor };
+    // A lone letter beside an arrow is a variable, even where the segmenter
+    // kept it as the word "a" ("6x − 2(3x − 2) = a → 4 = a").
+    const math = piece.type === 'math' || /^[A-Za-z]$/.test(piece.value.trim());
+    return { side: math ? mathSide(piece.value, letters) : { kind: 'prose', text: piece.value.trim() }, cursor };
+  };
+  const wholeAt = (index, step) => {
+    let cursor = index + step;
+    const out = [];
+    while (pieces[cursor] && pieces[cursor].type !== 'stop' && pieces[cursor].type !== 'arrow') { out.push(pieces[cursor].value); cursor += step; }
+    return (step < 0 ? out.reverse() : out).join('').replace(/\s+/g, ' ').trim();
+  };
+  // Runs of arrows, and the sentences they stand in.
+  const runs = [];
+  let sentence = 0;
+  let linked = false;
+  pieces.forEach((piece, index) => {
+    if (piece.type === 'stop') { linked = false; if (SENTENCE_STOP.test(piece.value)) sentence += 1; return; }
+    if (piece.type !== 'arrow') return;
+    const run = linked ? runs[runs.length - 1] : { arrows: [], sentence };
+    if (!linked) runs.push(run);
+    run.arrows.push(index);
+    linked = true;
+  });
+  const words = new Map();
+  for (const run of runs) {
+    const lefts = run.arrows.map((index) => sideAt(index, -1));
+    const rights = run.arrows.map((index) => sideAt(index, 1));
+    // What stands between two arrows of a chain is one side: prose if any of
+    // it is ("→ solve the 2×2 system →").
+    const sides = [lefts[0].side, ...rights.map((right, position) => {
+      const next = lefts[position + 1];
+      if (!next || next.cursor === right.cursor) return right.side;
+      return right.side.kind === 'math' && next.side.kind === 'math' ? { kind: 'math', type: 'expression', text: '' } : { kind: 'prose', text: '' };
+    })];
+    const inSentence = runs.filter((other) => other.sentence === run.sentence);
+    const limit = inSentence.some((other) => other.arrows.some((index) => {
+      const { side: left, cursor } = sideAt(index, -1);
+      return sideAt(index, 1).side.type === 'infinite'
+        || (left.kind === 'math' && pieces[cursor - 1]?.type === 'prose' && /\b(?:as|when|cuando)\s*$/i.test(pieces[cursor - 1].value));
+    }));
+    // "Row 1 → Row 2": two names of one kind, each with its number.
+    const labels = run.arrows.map((index) => {
+      const before = /\b([A-Z][a-z]+) [-−]?\d+\b(?!.*\b[A-Z][a-z]+ \d)/.exec(wholeAt(index, -1));
+      return Boolean(before) && new RegExp(`^${before[1]} [-−]?\\d+\\b`).test(wholeAt(index, 1));
+    });
+    const said = arrowWords(run.arrows.map((index) => pieces[index].value), sides, w, { limit, pairs: inSentence.length > 1, labels });
+    run.arrows.forEach((index, position) => words.set(index, said[position]));
+  }
+  const rebuilt = segments.map((segment) => ({ ...segment, value: segment.kind === 'math' ? segment.value : '' }));
+  pieces.forEach((piece, index) => {
+    if (piece.type === 'math') return;
+    rebuilt[piece.at].value += piece.type === 'arrow' ? ` ${words.get(index)} ` : piece.value;
+  });
+  return rebuilt;
+};
+
+// What is written as text but said in words: an arrow written in LaTeX, a
+// logarithm's base and a set in braces, then the powers and roots above. (A
+// log with no base is read with the mathematics around it, in mathToSpeech:
+// said here, "1/-ln(x)" lost its fraction to the prose.)
+const writtenNotationToSpokenForm = (raw, w, { mark = false } = {}) => unicodeMathToSpokenForm(
+  plainSetsToWords(logBasesToWords(typedNotEqual(blanksToWords(ellipsisBlanks(dollarUnits(markedNames(slashesBetweenWords(arrowsAsCharacters(escapedPercents(String(raw ?? '').replace(CASES_ENVIRONMENT, (match, body) => casesSpeech(body)))), w), w, mark), w)), w)), w), w), w, { mark },
+);
+
+/**
+ * Speech for one math segment. `intervals`: the sentence says a pair in round
+ * brackets is an interval ("increasing on (−2, 2)"), not a point.
+ */
+/*
+ * SINE, COSINE AND TANGENT, BY NAME (platform-polish-3; F-READ-SYMBOLS).
+ * "sin(x)" was "sin times the quantity x": the bracket was read as a product,
+ * and the voice said the word "sin". They are "sine of x", "cosine of x",
+ * "tangent of x", as "log of x" is (plainLogsToWords), LaTeX's \sin too. A
+ * power on the name is said with it: sin²(x) is "sine squared of x". A name
+ * with no argument is still said by name.
+ */
+const TRIG_NAME = /(?<![A-Za-z])\\?(sin|cos|tan)(?:\^[({]?\s*(\d+)\s*[)}]?)?(?![A-Za-z_])\s*/g;
+// The argument: a bracket, or a number with its letter ("\sin2x" is sin(2x)),
+// a letter, or an angle's name (θ; \theta, the one the reader says).
+const TRIG_ARGUMENT = new RegExp(`^(?:\\d+(?:\\.\\d+)?[A-Za-z]?|[A-Za-z]|[θϑ]|${UNICODE_GREEK.source}|\\\\(?:var)?theta|${LATEX_GREEK.source.slice(0, -'(?![A-Za-z])'.length)})(?![A-Za-z])`);
+const trigArgument = (text, from) => {
+  if (text[from] === '(') return plainLogArgument(text, from);
+  const run = TRIG_ARGUMENT.exec(text.slice(from));
+  return run ? [run[0], from + run[0].length] : null;
+};
+const trigToWords = (text, w) => {
+  let out = '';
+  let from = 0;
+  for (const match of String(text).matchAll(TRIG_NAME)) {
+    if (match.index < from) continue;
+    const power = match[2] === '2' ? ` ${w.squared}` : match[2] === '3' ? ` ${w.cubed}` : match[2] ? ` ${w.power} ${match[2]}` : '';
+    const argument = trigArgument(text, match.index + match[0].length);
+    const body = argument?.[0].trim();
+    const simple = SIMPLE_ARGUMENT.test(body ?? '') || TRIG_ARGUMENT.test(body ?? '');
+    const of = argument ? ` ${w.of} ${simple ? body : `(${body})`}` : '';
+    out += `${text.slice(from, match.index)} ${w.trig[match[1]]}${power}${of} `;
+    from = argument ? argument[1] : match.index + match[0].length;
+  }
+  return out + text.slice(from);
+};
+
+/*
+ * TWO LETTERS SIDE BY SIDE ARE TWO VARIABLES (platform-polish-3;
+ * F-READ-SYMBOLS). "3x + my = 5" was "3x plus my equals 5", "my" said as the
+ * word, and "kx + 2y = 7" "kx" as one sound. Two lowercase letters beside an
+ * operator are said apart: "m y", "k x"; a word, a unit or a name the reader
+ * says is not (mathSafeText.js NOT_TWO_VARIABLES: "≤ or ≥", "ln"), nor a
+ * pair with only a sign pressed against a number after it ("de −5").
+ */
+const TWO_LETTERS = /(?<![A-Za-z\\])([a-z])([a-z])(?![A-Za-z])/g;
+const OPERATOR_BEFORE = /[=≠<>≤≥+−\-×·*±÷]$/;
+const OPERATOR_AFTER = /^\s*(?:[=≠<>≤≥×·*±÷]|[+\-−](?=\s))/;
+const twoLetterProductsApart = (text) => String(text).replace(TWO_LETTERS, (match, first, second, offset, whole) => {
+  if (NOT_TWO_VARIABLES.has(match)) return match;
+  const beside = OPERATOR_BEFORE.test(whole.slice(0, offset).trimEnd()) || OPERATOR_AFTER.test(whole.slice(offset + match.length));
+  return beside ? `${first} ${second}` : match;
+});
+
+export const mathToSpeech = (raw, { language = 'en', functionNames = '', intervals = false } = {}) => {
   const w = wordsFor(language);
   // A price is not a LaTeX span: "$4.50" is "4 dollars and 50 cents".
   const price = String(raw).trim().match(/^\$(\d[\d,]*(?:\.\d+)?)$/);
   if (price) return priceSpeech(price[1], w);
   const names = `${functionNames || ''}${definedFunctionNames(raw)}`;
-  return plainMathToSpeech(latexToSpeech(unicodeMathToSpokenForm(raw, w), w), w, names).replace(/\s+/g, ' ').trim();
+  const arrowed = mathArrowSpeech(arrowsAsCharacters(String(raw)), { language, functionNames: names, intervals }, w, functionLettersFor(names));
+  if (arrowed !== null) return w.contract(arrowed);
+  const reduced = latexToSpeech(trigToWords(plainLogsToWords(writtenNotationToSpokenForm(twoLetterProductsApart(raw), w), w), w), w);
+  // A union's pieces are intervals, (−3, 1) ∪ (2, 5) too; a union of sets is not.
+  const union = reduced.includes('∪') && !reduced.includes(w.setOpen);
+  return w.contract(ellipsesInWords(plainMathToSpeech(reduced, w, names, { intervals: intervals || union }), w).replace(/\s+/g, ' ').trim());
 };
 
 /**
@@ -469,7 +1630,11 @@ const spokenLineForms = (text, w) => text
     `y ${w.minus} y ${w.sub} 1 ${w.eq} m ${w.times} ${w.quantity} x ${w.minus} x ${w.sub} 1`)
   .replace(/\by\s*=\s*mx\s*\+\s*b\b/g, 'y = m x + b')
   .replace(/\bAx\s*\+\s*By\s*=\s*C\b/g, 'A x + B y = C')
-  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter} ${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}`)
+  // A subscript said in words is held for the split as a root's words are
+  // (math-speech-4): "(y₂ − y₁) ÷ (x₂ − x₁)" was prose to it, "sub" being a
+  // word, and its brackets, which group the slope formula, were left to the
+  // voice: "y sub 2 minus y sub 1 divided by x sub 2 minus x sub 1".
+  .replace(/([A-Za-z])([₀-₉]+)/g, (match, letter, digits) => `${letter}${SAID_OPEN}${w.sub} ${[...digits].map((digit) => SUBSCRIPT_DIGITS.indexOf(digit)).join('')}${SAID_CLOSE}`)
   // aₙ, aₙ₋₁, a₍₁₂₎: an engine gets the raw character and says nothing or
   // its name (walkthrough 2026-10-22). Letters, signs and brackets too.
   .replace(new RegExp(`([A-Za-z])([${SUBSCRIPT_SOURCE}]+)`, 'g'), (match, letter, marks) => (
@@ -477,14 +1642,230 @@ const spokenLineForms = (text, w) => text
     `${letter} ${w.sub} ${[...marks].map((mark) => SUBSCRIPT_SPOKEN[mark]?.(w) ?? '').join(' ').replace(/(\d) (?=\d)/g, '$1').replace(/\s+/g, ' ').trim()} `
   ));
 
+// Prose that says the pair after it is an interval, in English and Spanish:
+// "increasing on (−2, 2)", "negative (−2, 0)" (a worked summary), "the domain
+// is (0, 5)", "In interval notation:", "creciente en (−2, 2)". Anything else
+// keeps a round pair a point.
+const INTERVAL_CUE = /(?:\b(?:increasing|decreasing|positive|negative|constant)(?:\s+on)?|\bintervals?(?:\s+notation)?\s*:?|\b(?:domain|range)(?:\s+is|\s*[:=])?|\b(?:creciente|decreciente)(?:\s+en)?|\b(?:positiva|positivo|negativa|negativo|constante)\s+en|\bintervalos?\s*:?|\b(?:dominio|rango)(?:\s+es|\s*[:=])?)\s*$/i;
+
+/*
+ * A LINE BREAK THE AUTHOR WROTE IS A PAUSE (platform-polish-3; F-PROMPT-LINES
+ * in the 2026-11-06 Algebra I M3 T2 walkthrough). The task card now draws a
+ * prompt's line breaks (components/common/promptLines.js). A voice runs them
+ * together: "…6x − 2y = a⏎System B: …" was "…equals a System B…". A line that
+ * does not end in a stop gets a full stop, so each listed system or step is
+ * heard as its own sentence. Only where another line follows, and never
+ * inside display mathematics ($$…$$, \[…\], \(…\)), whose breaks are LaTeX
+ * spacing. Text with no line break is returned as it is.
+ */
+const DISPLAY_MATH = /\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/g;
+const SAID_MARKS = new RegExp(`[${SAID_OPEN}${SAID_CLOSE}]`, 'g');
+const ENDS_LINE = /[.;:!?,…][)\]"'”’]*\s*$/u;
+// A line that ends inside a $…$ span it opened (a broken one: a span never
+// holds a line break) is left as it was. Its LaTeX signs are odd in number
+// (a "$" before a digit is a price's).
+const opensSpan = (line) => (line.match(/(?<!\\)\$(?!\d)/g) || []).length % 2 === 1;
+export const lineBreaksAsPauses = (raw) => {
+  const text = String(raw ?? '');
+  if (!text.includes('\n')) return text;
+  // Display mathematics as one placeholder each, so its own breaks stay.
+  const spans = [];
+  const masked = text.replace(DISPLAY_MATH, (span) => `\uE010${spans.push(span) - 1}\uE010`);
+  const lines = masked.split('\n');
+  const last = lines.reduce((found, line, index) => (line.trim() ? index : found), -1);
+  return lines
+    .map((line, index) => (index < last && line.trim() && !ENDS_LINE.test(line) && !opensSpan(line) ? `${line.trimEnd()}.` : line))
+    .join('\n')
+    .replace(/\uE010(\d+)\uE010/g, (match, index) => spans[Number(index)]);
+};
+
+/*
+ * A PRICE IN A RUN OF MATHEMATICS IS MONEY (platform-polish-3; F-READ-PRICES).
+ * "After 6 weeks each has 10(6) + 40 = $100", "450 × $5" and "$4 + $6 = $10 a
+ * week" were said without "dollars": the reader dropped every "$" as a LaTeX
+ * delimiter. In a run the segmenter built from the sentence, one with no $…$
+ * span in it (mathSafeText.js `delimited`), a "$" before a number can only be
+ * a price's, so it is read as one ("10 times the quantity 6 plus 40 equals 100
+ * dollars").
+ */
+const withPriceSigns = (segment) => (segment.delimited || /^\s*\$\d[\d,]*(?:\.\d+)?\s*$/.test(segment.value)
+  ? segment.value
+  : segment.value.replace(/(?<!\\)\$(?=\d)/g, '\\$'));
+
+/*
+ * AN ASIDE IN BRACKETS IS SAID WITH ITS PAUSES (math-speech-4; 1,062 texts
+ * hand the voice a bracket of words). A voice takes a closing bracket for a
+ * pause but not an opening one (flite, measured): "Total cost (dollars)"
+ * sounded exactly as "Total cost dollars", and "Card A (each gallon pumped
+ * adds to the cost), Card C (…)" ran each label into its reason. A bracket of
+ * words after a word and a space is said between commas, as one that holds a
+ * relation already is. A bracket pressed against a word ("f(bx)", "(coefficient)x"),
+ * one after a stop ("… in order. (The grid snaps to halves.)"), and a
+ * quantity in a formula in words ("(starting amount) − (rate)", a sign beside
+ * it) keep their brackets, and the voice what it had.
+ *
+ * A bracket that says something in symbols, a relation or an arrow, is an
+ * aside as one of words is (after the seventh pass). "in order (S1 → P1, S2 →
+ * P2, …)" holds labels and arrows and no word; relationAsidesAsPauses, which
+ * makes a bracket that holds a relation an aside, reads only inside one run of
+ * mathematics, and the split ends the run at each arrow. So its opening
+ * bracket reached the voice, which says nothing for it, and the mapping ran on
+ * from "in order". A LaTeX command's letters counted as a word: "($\ge$)" was
+ * an aside and "($<$)" was not.
+ */
+const ASIDE_OPEN = '\uE022';
+const ASIDE_CLOSE = '\uE023';
+const ASIDE_MARKS = /[\uE022\uE023]/;
+const ASIDE_BEFORE = /[\p{L}\p{N}%’”"'$]\s+$/u;
+const SIGN_AFTER = /^\s*[=<>≤≥≠+\-−×·*/÷^²³]/;
+const ASIDE_STATEMENT = new RegExp(`${RELATION_SYMBOL.source}|${ARROW.source}`);
+const proseAsides = (text, segments) => {
+  const prose = new Set();
+  let at = 0;
+  for (const segment of segments) {
+    if (segment.kind !== 'math') for (let index = at; index < at + segment.value.length; index += 1) prose.add(index);
+    at += segment.value.length;
+  }
+  const marks = new Map();
+  for (let index = text.indexOf('('); index !== -1; index = text.indexOf('(', index + 1)) {
+    if (!prose.has(index)) continue;
+    let depth = 0;
+    let close = -1;
+    for (let cursor = index; cursor < text.length && text[cursor] !== '\n'; cursor += 1) {
+      if (text[cursor] === '(') depth += 1;
+      else if (text[cursor] === ')') { depth -= 1; if (depth === 0) { close = cursor; break; } }
+    }
+    if (close === -1 || !prose.has(close)) continue;
+    const inner = text.slice(index + 1, close);
+    if (!/\p{L}{2}/u.test(inner) && !ASIDE_STATEMENT.test(inner)) continue;
+    // "(coefficient)x": a bracket a letter or digit is pressed against is a factor.
+    if (!ASIDE_BEFORE.test(text.slice(0, index)) || SIGN_AFTER.test(text.slice(close + 1)) || /^[\p{L}\p{N}]/u.test(text.slice(close + 1))) continue;
+    marks.set(index, ASIDE_OPEN).set(close, ASIDE_CLOSE);
+  }
+  if (!marks.size) return segments;
+  let from = 0;
+  return segments.map((segment) => {
+    const start = from;
+    from += segment.value.length;
+    return { ...segment, value: [...segment.value].map((char, offset) => marks.get(start + offset) ?? char).join('') };
+  });
+};
+const asidesAsPauses = (text) => (ASIDE_MARKS.test(text) ? text
+  .replace(/\s*\uE022\s*/g, (mark, offset, whole) => (PAUSES_BEFORE.test(whole.slice(0, offset)) ? ', ' : ' '))
+  .replace(/\s*\uE023\s*/g, (mark, offset, whole) => (PAUSES_AFTER.test(whole.slice(offset + mark.length)) ? ', ' : ' ')) : text);
+
+/*
+ * AN ELLIPSIS IN A LIST IS "AND SO ON" (math-speech-4; 808 texts hand the
+ * voice an ellipsis). A voice says nothing for it (flite, measured): "the set
+ * 0, 1, 2, …, 48" sounded exactly as "the set 0, 1, 2, 48", four members, and
+ * "0, 1, 2, 3, …" as four numbers. After a list's comma it is "and so on", and
+ * after a decimal's digits too ("153.33, and so on"). An ellipsis that ends a
+ * sentence, as the back-up questions' "The rate of change is…" do, sounded as
+ * the stop it is, and is left. A bracket named in a sentence, "write
+ * intervals with ( ) or [ ]" or "inside f( )", was silent: it is named.
+ */
+const ellipsesInWords = (text, w) => text
+  .replace(/,\s*(?:…|\.{3})/g, (match, offset, whole) => `, ${w.andSoOn}${/^\s*[\p{L}\p{N}]/u.test(whole.slice(offset + match.length)) ? ',' : ''}`)
+  .replace(/(\d\.\d+)\s*(?:…|\.{3})/g, `$1, ${w.andSoOn}`);
+const emptyBracketsNamed = (text, w) => text
+  .replace(/\(\s*\)/g, ` ${w.parentheses} `)
+  .replace(/\[\s*\]/g, ` ${w.squareBrackets} `);
+
+/*
+ * LATEX WRITTEN WITHOUT ITS DELIMITERS (display and reading polish). A braced
+ * power or subscript, or a LaTeX root, outside a $…$ span was split at its
+ * braces, which the split takes for prose, and the voice was handed them:
+ * "g^{-1}(x)" was "g to the power { negative 1 } x", and the Path banks'
+ * "x^3*\sqrt[3]{x^3}" "x cubed times 3 { x cubed }". The run of mathematics
+ * around one, braces balanced and without the sentence's own punctuation, is
+ * read as the span it is written as: "g inverse of x", "the cube root of x
+ * cubed". A brace no power, subscript or root opens is left alone ("sets as
+ * {value, value}").
+ */
+const UNDELIMITED_LATEX = /[\^_]\{|\\sqrt(?![A-Za-z])/g;
+const closingCurly = (text, open) => {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '{') depth += 1;
+    else if (text[index] === '}' && (depth -= 1) === 0) return index;
+  }
+  return -1;
+};
+const latexRunsAsSpans = (plain) => {
+  const runs = [];
+  for (const match of plain.matchAll(UNDELIMITED_LATEX)) {
+    if (runs.length && match.index < runs[runs.length - 1][1]) continue;
+    let start = match.index;
+    while (start > 0 && /\S/.test(plain[start - 1])) start -= 1;
+    let end = match.index + match[0].length - (match[0].endsWith('{') ? 1 : 0);
+    // Through each group the run opens (a root's index too), then to the end of the word.
+    for (;;) {
+      while (end < plain.length && /[^\s{]/.test(plain[end])) end += 1;
+      if (plain[end] !== '{') break;
+      const close = closingCurly(plain, end);
+      if (close === -1) return plain;
+      end = close + 1;
+    }
+    while (end > start && /[.,;:!?]/.test(plain[end - 1])) end -= 1;
+    runs.push([start, end]);
+  }
+  let out = '';
+  let from = 0;
+  runs.forEach(([start, end]) => {
+    out += `${plain.slice(from, start)}$${plain.slice(start, end)}$`;
+    from = end;
+  });
+  return out + plain.slice(from);
+};
+/*
+ * A ROW OF NUMBERS WRITTEN WITH SPACES (display and reading polish): a
+ * synthetic division's coefficients, "1 | 1 −2 −5 6 gives 1 −1 −6 | 0". Its
+ * signs were read as subtractions, "1 minus 2 minus 5 6". Three numbers or more
+ * with only spaces between them, one with its sign pressed against it, are a
+ * list: "1, negative 2, negative 5, 6". A minus with a space on both sides is
+ * still a subtraction ("x² − x − 6").
+ */
+const NUMBER_ROW = /(?<![\p{L}\p{N}.,^_/])[-−]?\d+(?:\.\d+)?(?:[ \t]+[-−]?\d+(?:\.\d+)?){2,}(?![\p{L}\p{N}.,^/])/gu;
+const numberRowsAsLists = (plain) => plain.replace(NUMBER_ROW, (row) => (/[ \t][-−]\d/.test(row) ? row.replace(/[ \t]+/g, ', ') : row));
+const outsideSpans = (text, rewrite) => {
+  let out = '';
+  let from = 0;
+  for (const span of text.matchAll(LATEX_SPAN)) {
+    out += rewrite(text.slice(from, span.index)) + span[0];
+    from = span.index + span[0].length;
+  }
+  return out + rewrite(text.slice(from));
+};
+/*
+ * A SUBSCRIPT TYPED WITHOUT BRACES (hint-ladder timing, item 3): "x_1", "a_n",
+ * "P_0", "2R_1". Outside $…$ only a braced one was read ("x_{1}", a span then,
+ * above); at an unbraced one the split took the underscore for prose and the
+ * voice was handed it, with the brackets around it: "y - y_1 = m(x - x_1)" was
+ * "y minus y _ 1 equals m ( x minus x _ 1 )". It is "sub" and what follows,
+ * held for the split as a subscript digit's words are (spokenLineForms): a
+ * letter's subscript is its digits, all of them ("a_10" is a sub 10, as typed),
+ * one letter, or a bracket, as the Path banks' recursive rules write it
+ * ("P_n=3P_(n-1)" was "3P _ the quantity n minus 1"; now "3P sub n minus 1",
+ * as P_{n-1} is read). A word's underscore ("first_name", an id's
+ * "-y_v21", "log_2", read as a base by logBasesToWords), a blank ("x = ___")
+ * and LaTeX inside $…$, which has rules of its own, are left as they were.
+ */
+const TYPED_SUBSCRIPT = /(?<![A-Za-z\\_])([A-Za-z])_(?:(\d+|[A-Za-z](?![A-Za-z0-9]))|\(([^()]+)\))(?![_{])/g;
+const typedSubscriptsInWords = (plain, w) => plain.replace(TYPED_SUBSCRIPT, (match, letter, subscript, bracketed) => `${letter}${SAID_OPEN}${w.sub} ${subscript ?? bracketed.trim()}${SAID_CLOSE}`);
+const undelimitedLatexAsSpans = (text, w) => outsideSpans(text, (raw) => {
+  const plain = typedSubscriptsInWords(raw, w);
+  return numberRowsAsLists(/[\^_]\{|\\sqrt/.test(plain) ? latexRunsAsSpans(plain) : plain);
+});
+
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
-  const text = spokenLineForms(unicodeMathToSpokenForm(raw, w), w);
+  const text = spokenLineForms(writtenNotationToSpokenForm(undelimitedLatexAsSpans(lineBreaksAsPauses(raw), w), w, { mark: true }), w);
   if (!text.trim()) return '';
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
   const names = `${functionNames || ''}${definedFunctionNames(text)}`;
-  const segments = segmentMathText(text);
+  const split = proseAsides(text, segmentMathText(text, { speech: true }).map((segment) => ({ ...segment, value: segment.value.replace(SAID_MARKS, ' ') })));
+  const segments = proseArrowsToWords(split, w, functionLettersFor(names));
   const dimensionsText = /dimension|matri|dimensi/i.test(text);
   return segments
     .map((segment, index) => {
@@ -495,19 +1876,35 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
       if (segment.kind === 'math' && dimensionsText && /^\d+\s*[×x]\s*\d+$/.test(segment.value.trim())) {
         return ` ${segment.value.trim().replace(/\s*[×x]\s*/, ` ${w.by} `)} `;
       }
-      if (segment.kind === 'math') return ` ${mathToSpeech(segment.value, { language, functionNames: names })} `;
+      if (segment.kind === 'math') {
+        const intervals = segments[index - 1]?.kind === 'text' && INTERVAL_CUE.test(segments[index - 1].value);
+        const spoken = mathToSpeech(withPriceSigns(segment), { language, functionNames: names, intervals });
+        // An aside in brackets after a word is said between pauses: "is 153,
+        // f of 153 equals 598.75." (relationAsidesAsPauses).
+        if (!isWholeAside(segment.value)) return ` ${spoken} `;
+        const around = (from, to) => segments.slice(from, to).map((part) => part.value).join('');
+        return ` ${PAUSES_BEFORE.test(around(0, index)) ? ',' : ''} ${spoken}${PAUSES_AFTER.test(around(index + 1)) ? ',' : ''} `;
+      }
       // "A⁻¹" in prose is "A inverse"; a speech engine cannot say ⁻¹. An
       // escaped price ("\\$4.50" outside a span) loses its backslash.
       const prose = /^\$\d/.test(segments[index + 1]?.value || '') ? segment.value.replace(/\\$/, '') : segment.value;
       // "$x$-terms" is "x terms": the hyphen joins a word to the math.
       const joined = segments[index - 1]?.kind === 'math' ? prose.replace(/^[-‐‑](?=\p{L})/u, ' ') : prose;
-      return joined.replace(/⁻¹/g, ` ${w.inverse}`);
+      return proseLogNames(joined, segments[index + 1], w).replace(/⁻¹/g, ` ${w.inverse}`);
     })
     .join('')
+    .replace(/[\s\S]*/, (whole) => emptyBracketsNamed(ellipsesInWords(asidesAsPauses(whole), w), w))
+    // A "$" that no number follows is a delimiter whose pair was lost
+    // ("2{{b}}x={{A}}$", "Only factors of {{q}}$"), never a price: it was
+    // handed to the voice (math-speech-4, item 4).
+    .replace(/\$(?!\s*\d)/g, ' ')
     .replace(/\s+([,.;:?!])/g, '$1')
+    .replace(/,(?:\s*,)+/g, ',')
     .replace(/\s+/g, ' ')
-    // "name the point (0, 7)" — the prose already said "the point".
-    .replace(/\b(the point|el punto) \1\b/gi, '$1')
+    // "name the point (0, 7)" — the prose already said "the point"; so for
+    // "the set {1, 2}", "on the interval [0, 5)" and "a union (∪)".
+    .replace(/\b(the point|el punto|the set|el conjunto|the interval|el intervalo|union|unión) \1\b/gi, '$1')
+    .replace(/[\s\S]*/, w.contract)
     .trim();
 };
 

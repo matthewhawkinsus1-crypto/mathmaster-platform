@@ -30,6 +30,7 @@ import {
   dropQueue,
   inputState,
   lineFeedbackMessage,
+  lineFeedbackReserve,
   lineQueueKey,
   lockRemainingMs,
   newLineAttemptId,
@@ -42,6 +43,7 @@ import {
   recordSkip,
   settle,
   triesLeft,
+  widestAnswerEquation,
   withQuestions,
 } from '../../platform/liveChallenge/lineGraphSession.js';
 import { getLineGraphRound, submitLineGraphAttempts, timestampMillis } from '../../platform/liveChallenge/liveChallengeService.js';
@@ -146,7 +148,12 @@ function useElementSquare(ref) {
   return side;
 }
 
-/** The round clock: its own component, so its ticks redraw nothing else. */
+/*
+ * The round clock: its own component, so its ticks redraw nothing else. Its
+ * slot holds both its faces, "Starts in 3" before GO and 0:59 after, each with
+ * an invisible reserve of the other, so the bar keeps its size at GO, as the
+ * first line appears (GraphFeatureRushRound's RushClock).
+ */
 function LineClock({ startMono, endMono }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
@@ -155,12 +162,18 @@ function LineClock({ startMono, endMono }) {
   }, []);
   const before = startMono - now;
   if (before > 0) {
-    return <span className="mm-line-clock" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>Starts in {Math.ceil(before / 1000)}</span>;
+    return (
+      <span className="mm-line-clock" data-soon="1" role="timer" aria-label={`Starts in ${Math.ceil(before / 1000)} seconds`}>
+        <span className="mm-line-clock-face">Starts in {Math.ceil(before / 1000)}</span>
+        <span className="mm-line-reserve" aria-hidden="true">0:00</span>
+      </span>
+    );
   }
   const remaining = Math.max(0, endMono - now);
   return (
     <span className={remaining <= 10_000 ? 'mm-line-clock mm-line-clock-low' : 'mm-line-clock'} role="timer" aria-label={`${Math.ceil(remaining / 1000)} seconds left`}>
-      {formatClock(remaining)}
+      <span className="mm-line-clock-face">{formatClock(remaining)}</span>
+      <span className="mm-line-reserve mm-line-clock-soon" aria-hidden="true">Starts in 0</span>
     </span>
   );
 }
@@ -216,7 +229,7 @@ const LINE_CSS = `
 }
 ${arenaLayerCss('.mm-line-shell')}
 .mm-line-bar {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
   min-height: 52px; box-sizing: border-box;
   background: linear-gradient(90deg, rgba(42,15,92,.92), rgba(10,16,52,.92) 55%, rgba(42,15,92,.92));
@@ -225,14 +238,52 @@ ${arenaLayerCss('.mm-line-shell')}
 /* The student's name on a racing plate. */
 .mm-line-chip { padding: 3px 12px; border-radius: 7px; transform: skewX(-8deg); background: linear-gradient(180deg, #d92a48, #c8102e); border: 1px solid rgba(255,255,255,.85); color: #fff; font-weight: 1000; font-style: italic; font-size: calc(13 * var(--mm-px)); white-space: nowrap; }
 .mm-line-round { font-weight: 1000; font-style: italic; text-transform: uppercase; letter-spacing: .02em; color: #35e3ff; font-size: calc(15 * var(--mm-px)); white-space: nowrap; }
-.mm-line-progress { padding: 4px 10px; border-radius: 999px; background: rgba(10,16,52,.7); border: 1px solid rgba(53,227,255,.35); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.mm-line-done { font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.mm-line-streak { font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #ffb020; white-space: nowrap; }
+/* The round and its counts, one item of the bar: in its row on a wide screen;
+   on a phone where the student is (the round, a Sprint's progress) over the
+   score (the max-width: 480px rules). */
+.mm-line-tally, .mm-line-where, .mm-line-counts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.mm-line-progress { display: inline-grid; align-items: center; justify-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(10,16,52,.7); border: 1px solid rgba(53,227,255,.35); font-weight: 900; font-size: calc(13 * var(--mm-px)); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Before the round's first items say how long the Sprint is: an empty slot. */
+.mm-line-progress[data-progress="0"] { background: none; border-color: transparent; }
+/* A count and its reserve (the round's largest count, drawn invisible) share
+   one cell, so the slot is as wide as the largest count from the round's start
+   and a count that grows moves nothing (a three-digit count wrapped a 360 px
+   phone's bar onto a second row, 57 to 91 px). A screen reader reads only the
+   count. Wider than 60em (960 px at the default text size, 1920 at 200%) the
+   bar's longest row fits, so there the reserves take no room. */
+.mm-line-done { display: inline-grid; align-items: center; justify-items: start; font-weight: 1000; font-style: italic; font-size: calc(18 * var(--mm-px)); color: #ffd23f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The streak's slot, as wide as a two-digit streak, and kept while there is no
+   streak (none yet, or a miss or Skip ended it): 🔥 2 arrives and leaves inside
+   it. Where the bar could run out of room, its arrival wrapped the bar onto a
+   second row (57 to 91 px on a 320 px phone; a Sprint's to 98 at 390), and the
+   grid jumped 34 to 41 px under the student's finger as a streak began and back
+   as it ended. The reserve is drawn invisible in the same cell; a screen reader
+   reads only the streak itself. Wider than 60em the bar's longest row fits
+   (a Sprint's, with a long alias), so there it comes and goes as it always did. */
+.mm-line-streak { display: inline-grid; align-items: center; justify-items: start; font-weight: 1000; font-style: italic; font-size: calc(15 * var(--mm-px)); color: #ffb020; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mm-line-progress > *, .mm-line-done > *, .mm-line-streak > *, .mm-line-clock > * { grid-area: 1 / 1; }
+.mm-line-progress[data-progress="0"], .mm-line-streak[data-streak="0"], .mm-line-reserve { display: none; }
 /* The clock redraws every second: crisp edges only (a blur here would be redrawn with it). */
-.mm-line-clock { margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
+.mm-line-clock { display: inline-grid; align-items: center; justify-items: end; margin-left: auto; font-size: calc(30 * var(--mm-px)); font-weight: 1000; font-style: italic; line-height: 1; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 2px 2px 0 rgba(53,227,255,.45); }
 /* The last ten seconds: red, and a pulse (a transform: the compositor's). */
 .mm-line-clock-low { color: #ff5d73; text-shadow: 2px 2px 0 rgba(255,63,209,.4); animation: mmGpPulse 1s ease-in-out infinite; }
-.mm-line-sync { font-size: calc(12 * var(--mm-px)); font-weight: 900; color: #fdd663; }
+/* "Reconnecting…" sits on the bar's lower edge and takes no room in it, as in
+   Graph Feature Rush (.mm-rush-sync). In the bar's row it wrapped a phone's bar
+   onto three rows (57 to 122 px high at 390 and 360 px wide), so the grid jumped
+   65 px down under the student's finger as a send failed, and back up as it
+   landed: a point dragged there landed 65 px from where it was aimed. It catches
+   no pointer, so the stage under it stays the student's. Where the sentence does
+   not fit on one line (large text on a phone) it wraps, so every word is shown,
+   and grows up over the bar, never down over the line to graph: its bottom is
+   held half a line below the edge (half of 1.25em and its 4px of padding and
+   border), so one line sits centred on it. One line at 320 px in CI's fonts
+   (DejaVu Sans, the widest it is drawn in): 294 px wide. */
+.mm-line-sync {
+  position: absolute; left: 50%; bottom: calc(-0.625em - 2px); z-index: 2; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; text-align: center; text-wrap: balance;
+  padding: 1px 8px; border-radius: 999px; background: #4a3708; border: 1px solid #f9ab00; pointer-events: none;
+  font-size: calc(12 * var(--mm-px)); line-height: 1.25; font-weight: 900; color: #fdd663;
+}
 .mm-line-exit { min-height: 40px; padding: 6px 12px; border: 1px solid rgba(53,227,255,.45); border-radius: 8px; background: rgba(10,16,52,.6); color: #eef2ff; font-weight: 900; cursor: pointer; }
 .mm-line-stage {
   /* minmax(0, 1fr) here and in the grids inside: nothing may widen a column
@@ -250,7 +301,17 @@ ${arenaLayerCss('.mm-line-shell')}
 .mm-line-graph-frame { position: relative; border-radius: 12px; box-shadow: 0 0 0 1px rgba(53,227,255,.6), 0 0 0 5px rgba(53,227,255,.1), 0 8px 30px rgba(0,0,0,.35); }
 .mm-line-graph-frame[data-paused="1"] .mm-line-graph { opacity: .6; transition: opacity 120ms; }
 .mm-line-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
-.mm-line-feedback { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); line-height: 1.3; }
+.mm-line-feedback, .mm-line-feedback-held { min-height: 1.5em; font-weight: 900; font-size: calc(16 * var(--mm-px)); line-height: 1.3; }
+/* What comes and goes under the grid keeps its room, so nothing it says moves
+   the grid (GraphFeatureRushRound's rule; lineGraphSession.lineFeedbackReserve):
+   the feedback line is as tall as the longest things an item of this kind can
+   be told in this round, drawn invisible in the line's own cell, and the
+   pause's bar keeps its place between pauses. Only where the screen is tall
+   for its text (the min-height: 36em rules below). */
+.mm-line-hold { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mm-line-hold > * { grid-area: 1 / 1; min-width: 0; }
+.mm-line-feedback-held { display: none; }
+.mm-line-cooldown-slot:empty { display: none; }
 .mm-line-feedback[data-kind="correct"] { color: #45ff8a; }
 .mm-line-feedback[data-kind="miss"], .mm-line-feedback[data-kind="revealed"], .mm-line-feedback[data-kind="repeated"] { color: #ff8fa3; }
 .mm-line-feedback[data-kind="method"], .mm-line-feedback[data-kind="form"] { color: #fdd663; }
@@ -263,10 +324,17 @@ ${arenaLayerCss('.mm-line-shell')}
 .mm-line-button:focus-visible, .mm-line-exit:focus-visible, .mm-line-choice:focus-visible, .mm-line-box:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }
 .mm-line-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .mm-line-choice {
-  min-height: 60px; padding: 8px 10px; border-radius: 12px; cursor: pointer; text-align: center;
+  position: relative; min-height: 60px; padding: 8px 10px; border-radius: 12px; cursor: pointer; text-align: center;
   border: 2px solid rgba(53,227,255,.4); background: rgba(10,16,52,.6); color: #fff;
   font-size: clamp(calc(18 * var(--mm-px)), calc(3.6vmin * var(--mm-text-scale, 1)), calc(24 * var(--mm-px))); font-weight: 800;
 }
+/* A chosen equation's ✓ or ✗ sits on its corner and takes no room. Before
+   the equation it wrapped a phone's equation onto a second line as the answer
+   was shown (each choice 60 to 73 px tall at 360 px wide), and the grid above
+   shrank 12 px. Its colour is the choice's border; it catches no pointer. */
+.mm-line-mark { position: absolute; top: -.5em; left: -.45em; display: grid; place-items: center; width: 1.5em; height: 1.5em; box-sizing: border-box; border-radius: 50%; border: 2px solid currentColor; background: #070a22; font-size: calc(14 * var(--mm-px)); line-height: 1; font-weight: 1000; pointer-events: none; }
+.mm-line-choice[data-state="right"] .mm-line-mark { color: #45ff8a; }
+.mm-line-choice[data-state="wrong"] .mm-line-mark { color: #ff8fa3; }
 .mm-line-choice[data-state="right"] { border-color: #45ff8a; background: rgba(69,255,138,.16); }
 .mm-line-choice[data-state="wrong"] { border-color: #ff8fa3; background: rgba(255,93,115,.14); }
 .mm-line-choice:disabled { cursor: default; }
@@ -280,7 +348,8 @@ ${arenaLayerCss('.mm-line-shell')}
   border: 2px solid rgba(53,227,255,.5); background: #070a22; color: #fff; font: inherit; font-size: .8em;
 }
 .mm-line-box[aria-invalid="true"] { border-color: #fdd663; }
-.mm-line-preview { text-align: center; color: #c3d2ea; font-size: calc(15 * var(--mm-px)); min-height: 1.6em; }
+.mm-line-preview, .mm-line-preview-held { text-align: center; color: #c3d2ea; font-size: calc(15 * var(--mm-px)); min-height: 1.6em; }
+.mm-line-preview-held { display: none; }
 .mm-line-cooldown { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
 .mm-line-cooldown > span { display: block; height: 100%; background: #ff5d73; transform-origin: left; animation: mmLineDrain linear forwards; }
 .mm-line-overlay {
@@ -293,6 +362,15 @@ ${arenaLayerCss('.mm-line-shell')}
 .mm-line-count { font-size: clamp(calc(64 * var(--mm-px)), calc(18vmin * var(--mm-text-scale, 1)), calc(140 * var(--mm-px))); font-weight: 1000; font-style: italic; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 4px 4px 0 rgba(255,63,209,.7), 0 7px 0 rgba(10,16,52,.9); animation: mmLineCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
 .mm-line-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #45ff8a; animation: mmLineFlash 420ms ease-out forwards; }
 .mm-line-banner { padding: 6px 10px; border-radius: 8px; background: rgba(253,214,99,.14); border: 1px solid rgba(253,214,99,.45); color: #fdd663; font-weight: 800; font-size: calc(13 * var(--mm-px)); }
+/* The extra-time box: its words and, unseen in the same cell, the same words,
+   so it is the same size before the buzzer as after. It takes its room before
+   the buzzer only where the screen is tall for its text (the min-height: 36em
+   rules): on a phone at 150-200% text it is 200 px or more, and held from the
+   start it would leave the grid little or none. */
+.mm-line-extra { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mm-line-extra > * { grid-area: 1 / 1; }
+.mm-line-extra-held { visibility: hidden; }
+.mm-line-extra[data-mm-line-extra-time="0"] { display: none; }
 .mm-line-alert { padding: 9px 12px; border-radius: 9px; background: #4a3708; color: #ffe9a8; border: 1px solid #f9ab00; font-weight: 800; }
 .mm-line-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .mm-line-reveal { animation: mmLineReveal 500ms ease-out; }
@@ -316,10 +394,38 @@ ${GP_RACE_CSS}
   .mm-line-graph-area { grid-area: graph; place-items: center; }
   .mm-line-controls { grid-area: controls; align-self: end; }
 }
+/* Where the bar could run out of room (a phone, a tablet standing up, 200%
+   text): every slot is kept, empty or not, and "Starts in 3" is drawn small
+   enough to share the clock's. */
+@media (max-width: 60em) {
+  .mm-line-progress[data-progress="0"], .mm-line-streak[data-streak="0"] { display: inline-grid; }
+  .mm-line-reserve { display: block; visibility: hidden; }
+  .mm-line-clock[data-soon="1"] .mm-line-clock-face, .mm-line-clock-soon { font-size: calc(15 * var(--mm-px)); }
+}
+/* A phone: the round (and a Sprint's progress, as words) over the score, so a
+   four-digit count, the streak, the status (on the bar's edge), the clock and
+   Exit hold one row at 320 px in CI's fonts, where they took two or three. */
 @media (max-width: 480px) {
   .mm-line-chip { display: none; }
-  .mm-line-bar { gap: 8px; }
+  .mm-line-bar { gap: 6px; }
+  .mm-line-exit { padding-left: 10px; padding-right: 10px; }
+  .mm-line-tally { flex-direction: column; align-items: flex-start; gap: 0; }
+  .mm-line-where { gap: 6px; }
+  .mm-line-round { font-size: calc(12 * var(--mm-px)); line-height: 1.2; }
+  .mm-line-progress { padding: 0; border: 0; background: none; font-size: calc(12 * var(--mm-px)); line-height: 1.2; }
+  .mm-line-counts { gap: 8px; line-height: 1.2; }
   .mm-line-clock { font-size: calc(26 * var(--mm-px)); }
+  .mm-line-clock[data-soon="1"] .mm-line-clock-face, .mm-line-clock-soon { font-size: calc(12 * var(--mm-px)); }
+}
+/* A screen tall for its text: a phone held upright at the default text size
+   or 125% (36em is 576 px at the default size), a tablet, a Chromebook. On a
+   phone at 150% or 200% text the grid, the prompt and a held line do not all
+   fit (at 360 x 740 a held line left no grid at all): there the line takes
+   the room its words need, as before, until that layout is chosen. */
+@media (min-height: 36em) {
+  .mm-line-extra[data-mm-line-extra-time="0"] { display: grid; visibility: hidden; }
+  .mm-line-feedback-held, .mm-line-preview-held { display: block; visibility: hidden; }
+  .mm-line-cooldown-slot:empty { display: block; height: 6px; }
 }
 @media (max-height: 420px) {
   .mm-line-bar { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
@@ -340,6 +446,9 @@ const BUILD_LAYOUT = Object.freeze({
   [LINE_FORM.POINT_SLOPE]: ['y', '−', 'y1', '=', 'm', '(', 'x', '−', 'x1', ')'],
   [LINE_FORM.STANDARD]: ['A', 'x', '+', 'B', 'y', '=', 'C'],
 });
+
+const BUILD_PROMPT = 'Whole numbers, fractions like 2/3, or decimals.';
+const EXTRA_TIME_WORDS = 'Your extra time. The race is over — finish your lines. They count for your practice, not the race.';
 
 /** Name it, build: the form's boxes; Enter (or Check) checks them. */
 function BuildAnswer({ question, disabled, feedback, onCheck }) {
@@ -399,8 +508,15 @@ function BuildAnswer({ question, disabled, feedback, onCheck }) {
           );
         })}
       </form>
-      <div className="mm-line-preview" aria-live="polite">
-        {preview ? <>You wrote <LineEquation equation={preview} /></> : 'Whole numbers, fractions like 2/3, or decimals.'}
+      {/* What the boxes spell, over the room of its prompt and its widest equation:
+          typing never moves the grid (the prompt took two lines at 360 px, an
+          equation one, and the grid grew 21 px as the first box was filled). */}
+      <div className="mm-line-hold">
+        <div className="mm-line-preview" aria-live="polite">
+          {preview ? <>You wrote <LineEquation equation={preview} /></> : BUILD_PROMPT}
+        </div>
+        <div className="mm-line-preview-held" aria-hidden="true">{BUILD_PROMPT}</div>
+        <div className="mm-line-preview-held" aria-hidden="true">You wrote <LineEquation equation={widestAnswerEquation(question.build?.form)} /></div>
       </div>
       <button type="button" className="mm-line-button mm-line-button-primary" disabled={disabled} onClick={check}>Check (Enter)</button>
     </div>
@@ -427,8 +543,8 @@ function ChoiceAnswer({ question, disabled, feedback, onChoose }) {
             disabled={disabled || settled}
             onClick={() => onChoose(choice.id)}
           >
-            {state === 'right' && <><span aria-hidden="true">✓ </span><span style={SR_ONLY_STYLE}>Right answer: </span></>}
-            {state === 'wrong' && <><span aria-hidden="true">✗ </span><span style={SR_ONLY_STYLE}>Your answer: </span></>}
+            {state === 'right' && <><span className="mm-line-mark" aria-hidden="true">✓</span><span style={SR_ONLY_STYLE}>Right answer: </span></>}
+            {state === 'wrong' && <><span className="mm-line-mark" aria-hidden="true">✗</span><span style={SR_ONLY_STYLE}>Your answer: </span></>}
             <LineEquation equation={choice.equation} />
           </button>
         );
@@ -800,12 +916,44 @@ export default function LineGraphRound({
   const graphing = question?.itemType === LINE_ITEM_TYPE.GRAPH;
   const verdict = lineCheck && question && lineCheck.questionIndex === question.questionIndex ? lineCheck : null;
   const shownAnswer = revealed && question?.itemType === LINE_ITEM_TYPE.NAME && question.answerStyle !== LINE_ANSWER_STYLE.CHOICE ? answerEquation(question) : null;
+  // The room the feedback line keeps: what an item of this kind can be told
+  // in this round, never this item's own answer (lineFeedbackReserve). Before
+  // GO, the kind the round starts with, from its settings: the first item is
+  // on the device during the countdown, and neither this room nor the buttons
+  // (Start over, below) may say what kind it is before it is shown.
+  const startsDrawing = (config.itemTypes || []).includes(LINE_ITEM_TYPE.GRAPH) || !(config.itemTypes || []).length;
+  const kindItemType = started && question ? question.itemType : (startsDrawing ? LINE_ITEM_TYPE.GRAPH : LINE_ITEM_TYPE.NAME);
+  const kindAnswerStyle = started && question ? question.answerStyle : (startsDrawing ? LINE_ANSWER_STYLE.GRAPH : config.nameStyle || LINE_ANSWER_STYLE.CHOICE);
+  const drawsNow = started && question ? graphing : startsDrawing;
+  const roundForms = (config.forms || []).join(' ');
+  const feedbackRoom = useMemo(() => lineFeedbackReserve({
+    itemType: kindItemType,
+    answerStyle: kindAnswerStyle,
+    forms: roundForms ? roundForms.split(' ') : [],
+    specialLines: config.specialLines === true,
+    triesPerItem: config.triesPerItem,
+  }), [kindItemType, kindAnswerStyle, roundForms, config.specialLines, config.triesPerItem]);
+  // A built item's shown answer follows its words: the widest it can be, in
+  // each of the round's forms, keeps room too.
+  const shownAnswerRoom = kindItemType === LINE_ITEM_TYPE.NAME && kindAnswerStyle !== LINE_ANSWER_STYLE.CHOICE
+    ? (roundForms ? roundForms.split(' ') : []).map((form) => widestAnswerEquation(form)).filter(Boolean)
+    : [];
   // A Sprint counts through its set; a Classic round is one item.
   const progress = format === LINE_GRAPH_FORMAT.SPRINT && poolEnd ? `${Math.min(poolEnd, completed + ended)} / ${poolEnd}` : null;
   const doneLine = format === LINE_GRAPH_FORMAT.CLASSIC
     ? (completed ? 'You got it.' : 'This one is done.')
     : `${completed} of ${completed + ended} right.`;
   const streak = session?.streak || 0;
+  const streakShown = streak >= 2;
+  // A Classic round is one line, so it never has a streak; a Sprint or a Rush
+  // keeps the streak's slot from its first line.
+  const streakSlot = format !== LINE_GRAPH_FORMAT.CLASSIC || streakShown;
+  const progressSlot = format === LINE_GRAPH_FORMAT.SPRINT || Boolean(progress);
+  // The most lines the count can show, as its slot's digits: a Sprint's set (20
+  // at most), a Classic round's one line, a Rush's four digits (its pool is 150).
+  let doneReserve = '0000';
+  if (format === LINE_GRAPH_FORMAT.SPRINT) doneReserve = '00';
+  else if (format === LINE_GRAPH_FORMAT.CLASSIC) doneReserve = '0';
 
   let overlay = null;
   if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : 'Getting your lines ready.'}</span></>;
@@ -835,16 +983,43 @@ export default function LineGraphRound({
   // EXTRA TIME, past the class's buzzer and before this student's own
   // deadline: said to them, on their own screen, and nowhere else.
   const extraTime = playing && pastBuzzer;
+  // Its box is laid out from the round's start, unseen until then, for a
+  // student whose own deadline is after the buzzer: arriving above the prompt
+  // at the buzzer it pushed the grid 66 px down at 390 px wide and 90 px at
+  // 360, under a finger still drawing lines (.mm-line-extra in LINE_CSS).
+  const extraTimeAhead = timing.endMono > timing.buzzerMono;
   return (
     <div className="mm-line-shell" role="region" aria-label={practice ? 'Graph the Line practice' : `Graph the Line, round ${roundIndex + 1}`}>
       <style>{LINE_CSS}</style>
       <header className="mm-line-bar">
         {alias && <span className="mm-line-chip">{alias}</span>}
-        <span className="mm-line-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
-        {progress && <span className="mm-line-progress"><span aria-hidden="true">{progress}</span><span style={SR_ONLY_STYLE}>{`${progress.replace(' / ', ' of ')} done`}</span></span>}
-        {/* Each right line pops the count (and the streak) once, keyed to it. */}
-        <span className="mm-line-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
-        {streak >= 2 && <span className="mm-line-streak"><span key={streak} className="mm-gp-bump" aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></span>}
+        {/* The round and its counts: in the bar's row, and on a phone where the
+            student is (the round, a Sprint's progress) over the score. */}
+        <span className="mm-line-tally">
+          <span className="mm-line-where">
+            <span className="mm-line-round">{practice ? 'Practice' : `Round ${roundIndex + 1} of ${roundCount}`}</span>
+            {/* A Sprint's progress, its slot kept from the first render: it arrives with the round's first items. */}
+            {progressSlot && (
+              <span className="mm-line-progress" data-progress={progress ? '1' : '0'}>
+                {progress && <><span aria-hidden="true">{progress}</span><span style={SR_ONLY_STYLE}>{`${progress.replace(' / ', ' of ')} done`}</span></>}
+                <span className="mm-line-reserve" aria-hidden="true">00 / 00</span>
+              </span>
+            )}
+          </span>
+          <span className="mm-line-counts">
+            {/* Each right line pops the count (and the streak) once, keyed to it, in a slot that
+                holds the round's largest count (an invisible reserve), so a count that grows never
+                moves the bar. */}
+            <span className="mm-line-done"><span key={completed} className={completed > 0 ? 'mm-gp-bump' : undefined} aria-hidden="true">✓ {completed}</span><span className="mm-line-reserve" aria-hidden="true">✓ {doneReserve}</span><span style={SR_ONLY_STYLE}>{`${completed} right`}</span></span>
+            {/* The streak in its own slot: kept while there is none, so 🔥 coming and going never moves the bar. */}
+            {streakSlot && (
+              <span className="mm-line-streak" data-streak={streakShown ? '1' : '0'}>
+                {streakShown && <><span key={streak} className="mm-gp-bump" aria-hidden="true">🔥 {streak}</span><span style={SR_ONLY_STYLE}>{`${streak} right in a row`}</span></>}
+                <span className="mm-line-reserve" aria-hidden="true">🔥 00</span>
+              </span>
+            )}
+          </span>
+        </span>
         {connection === 'retrying' && <span className="mm-line-sync" role="status">Reconnecting… your answers are saved</span>}
         <LineClock startMono={timing.startMono} endMono={clockEndMono} />
         {typeof onExit === 'function' && <button type="button" className="mm-line-exit" onClick={onExit}>{exitLabel}</button>}
@@ -852,9 +1027,11 @@ export default function LineGraphRound({
       <div className="mm-line-stage">
         <section className="mm-line-prompt" aria-live="polite">
           {practice && <div className="mm-line-banner" style={{ marginBottom: 6 }}>Practice — nothing is recorded.</div>}
-          {extraTime && (
-            <div className="mm-line-banner" data-mm-line-extra-time="1" style={{ marginBottom: 6 }}>
-              Your extra time. The race is over — finish your lines. They count for your practice, not the race.
+          {extraTimeAhead && (
+            <div className="mm-line-banner mm-line-extra" data-mm-line-extra-time={extraTime ? '1' : '0'} style={{ marginBottom: 6 }}>
+              {/* The words arrive at the buzzer (the prompt's live region says them then); until then the same words, unseen and unread, give the box its size. */}
+              <span>{extraTime ? EXTRA_TIME_WORDS : null}</span>
+              <span className="mm-line-extra-held" aria-hidden="true">{EXTRA_TIME_WORDS}</span>
             </div>
           )}
           <h2>{prompt ? question.title : 'Graph the Line'}</h2>
@@ -901,15 +1078,27 @@ export default function LineGraphRound({
           )}
         </section>
         <section className="mm-line-controls">
-          <div className="mm-line-feedback" data-kind={feedback?.kind || ''} aria-live="polite">
-            {playing ? message : ''}
-            {playing && shownAnswer && <> <LineEquation equation={shownAnswer} /></>}
-          </div>
-          {input === LINE_INPUT.LOCKED && playing && (
-            <div className="mm-line-cooldown" role="status" aria-label="Short pause after misses">
-              <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
+          {/* The line and, invisible in its cell, the longest things it can say: its room. */}
+          <div className="mm-line-hold">
+            <div className="mm-line-feedback" data-kind={feedback?.kind || ''} aria-live="polite">
+              {playing ? message : ''}
+              {playing && shownAnswer && <> <LineEquation equation={shownAnswer} /></>}
             </div>
-          )}
+            {feedbackRoom.map((words) => <div key={words} className="mm-line-feedback-held" aria-hidden="true">{words}</div>)}
+            {shownAnswerRoom.map((equation) => (
+              <div key={equation.text} className="mm-line-feedback-held" aria-hidden="true">
+                {lineFeedbackMessage({ kind: LINE_FEEDBACK.REVEALED }, { itemType: kindItemType, answerStyle: kindAnswerStyle })} <LineEquation equation={equation} />
+              </div>
+            ))}
+          </div>
+          {/* The pause's place, kept between pauses. */}
+          <div className="mm-line-cooldown-slot">
+            {input === LINE_INPUT.LOCKED && playing && (
+              <div className="mm-line-cooldown" role="status" aria-label="Short pause after misses">
+                <span key={session.lockedUntil} style={{ animationDuration: `${lockMs}ms` }} />
+              </div>
+            )}
+          </div>
           {prompt && question.answerStyle === LINE_ANSWER_STYLE.CHOICE && (
             <ChoiceAnswer question={question} disabled={disabled} feedback={feedback} onChoose={onChoose} />
           )}
@@ -917,7 +1106,7 @@ export default function LineGraphRound({
             <BuildAnswer question={question} disabled={disabled} feedback={feedback} onCheck={onBuild} />
           )}
           <div className="mm-line-buttons">
-            {graphing && <button type="button" className="mm-line-button" disabled={disabled} onClick={() => { setStartOver((value) => value + 1); setLineCheck(null); }}>Start over</button>}
+            {drawsNow && <button type="button" className="mm-line-button" disabled={disabled} onClick={() => { setStartOver((value) => value + 1); setLineCheck(null); }}>Start over</button>}
             {canSkip && <button type="button" className="mm-line-button" disabled={disabled} onClick={onSkip}>Skip</button>}
           </div>
           {alert && <div role="alert" className="mm-line-alert">{alert}</div>}

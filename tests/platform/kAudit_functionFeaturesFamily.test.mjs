@@ -97,6 +97,12 @@ const parseInequality = (value, variable) => {
   const text = ascii(value);
   let match = new RegExp(`^(-?[\\d.]+) (≤|<) ${variable} (≤|<) (-?[\\d.]+)$`).exec(text);
   if (match) return [{ lo: Number(match[1]), hi: Number(match[4]), loIn: match[2] === '≤', hiIn: match[3] === '≤' }];
+  // One side: "y ≥ -2" (a graph on the whole real line, read from its vertex).
+  match = new RegExp(`^${variable} (≤|<|≥|>) (-?[\\d.]+)$`).exec(text);
+  if (match) {
+    const end = Number(match[2]);
+    return [/[≥>]/.test(match[1]) ? { lo: end, hi: Infinity, loIn: match[1] === '≥', hiIn: false } : { lo: -Infinity, hi: end, loIn: false, hiIn: match[1] === '≤' }];
+  }
   return parseIntervals(text);
 };
 const inSet = (x, set) => set.some((part) => (x > part.lo || (part.loIn && close(x, part.lo))) && (x < part.hi || (part.hiIn && close(x, part.hi))));
@@ -117,7 +123,14 @@ const verifyClause = (f, window, clause, where) => {
   if ((match = /^domain (.+)$/.exec(clause))) {
     const set = parseInequality(match[1], 'x');
     assert.ok(set.every(Boolean), `${where}: readable ${clause}`);
-    assert.ok(close(set[0].lo, points[0][0]) && close(set[set.length - 1].hi, points[points.length - 1][0]), `${where}: ${clause}`);
+    // An end at infinity: the graph runs to that edge of the window. An open
+    // end (an asymptote) is approached: the nearest sample is one step inside.
+    const [first, last] = [points[0][0], points[points.length - 1][0]];
+    const step = (window[1] - window[0]) / 2400 + 1e-6;
+    const { lo, loIn } = set[0];
+    const { hi, hiIn } = set[set.length - 1];
+    assert.ok(close(Number.isFinite(lo) ? lo : window[0], first, Number.isFinite(lo) && !loIn ? step : 1e-6)
+      && close(Number.isFinite(hi) ? hi : window[1], last, Number.isFinite(hi) && !hiIn ? step : 1e-6), `${where}: ${clause}`);
     return;
   }
   if ((match = /^range (.+)$/.exec(clause))) {
@@ -125,6 +138,11 @@ const verifyClause = (f, window, clause, where) => {
     assert.ok(set.every(Boolean), `${where}: readable ${clause}`);
     if (set.length === 1 && Number.isFinite(set[0].lo) && Number.isFinite(set[0].hi)) {
       assert.ok(close(set[0].lo, Math.min(...ys)) && close(set[0].hi, Math.max(...ys)), `${where}: ${clause}, sampled [${Math.min(...ys)}, ${Math.max(...ys)}]`);
+    }
+    // A ray: an end it includes is the lowest (or highest) value the graph reaches.
+    if (set.length === 1 && Number.isFinite(set[0].lo) !== Number.isFinite(set[0].hi)) {
+      const [end, included, reached] = Number.isFinite(set[0].lo) ? [set[0].lo, set[0].loIn, Math.min(...ys)] : [set[0].hi, set[0].hiIn, Math.max(...ys)];
+      assert.ok(!included || close(end, reached), `${where}: ${clause}, sampled ${reached}`);
     }
     ys.forEach((y) => assert.ok(inSet(y, set) || set.some((part) => close(y, part.lo, 1e-6) || close(y, part.hi, 1e-6)), `${where}: ${clause} misses y = ${y}`));
     return;

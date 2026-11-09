@@ -37,7 +37,7 @@ function ParabolaVisual({spec,point=null}){
     // A sideways curve is drawn below, not as a function: said by the plane, which way it opens only once values may be read.
     toolMarks={{ kinds: '1 curve.', features: `1 curve, opening to the ${spec.p>0?'right':'left'}.` }}>
     {/* Only a sideways parabola draws its own curve; an upright one is a function the plane draws and says itself. */}
-    {spec.orientation==='horizontal' ? ({sx,sy})=> <path d={`M ${sx(features.vertex[0])} ${sy(features.vertex[1]-5)} Q ${sx(features.vertex[0]+(spec.p>0?4:-4))} ${sy(features.vertex[1])} ${sx(features.vertex[0])} ${sy(features.vertex[1]+5)}`} fill="none" stroke="#1a73e8" strokeWidth="3"/> : null}
+    {spec.orientation==='horizontal' ? ({sx,sy})=> <path d={`M ${sx(features.vertex[0])} ${sy(features.vertex[1]-5)} Q ${sx(features.vertex[0]+(spec.p>0?4:-4))} ${sy(features.vertex[1])} ${sx(features.vertex[0])} ${sy(features.vertex[1]+5)}`} fill="none" stroke="#1a73e8" strokeWidth="3" data-mm-plane-part="line"/> : null}
   </CoordinatePlane>;
 }
 

@@ -3,16 +3,20 @@ name: Accessibility Certification (WCAG 2.1 AA)
 # axe-core over the student screens (Home, Assignments, Grades, an assignment
 # with rich tools open, My Math Path, a secure exam, Live Challenge) and the
 # teacher's (every destination of the navigation, a class's page, a student's
-# drawer, the Find palette, the Assignment Hub, the Pre-Flight review and the
-# administrator's workspace, which are also walked by Tab: TT27) at Chromebook and
-# phone sizes, ratcheted against
+# drawer and detail page, the Find palette, the Assignment Hub, the Pre-Flight
+# review, Create and Assign, Grade Export's and Secure Exams' flows, a Live
+# Challenge game with its projector and the administrator's workspace, which are
+# also walked by Tab: TT27) at Chromebook and phone sizes, ratcheted against
 # scripts/accessibility-baseline.json: a new or increased violation fails; a
 # reduction passes. Read-only: nothing is written back to the repository and
 # nothing reaches Firebase.
 #
 # ci.yml calls this when a pull request changes a file in its area
 # (scripts/lib/ciAreas.mjs), and on every push to main. The large-text sweep,
-# half of the browser time, runs in a job of its own.
+# half of the browser time, runs in a job of its own, and so does the contrast
+# review in the dark theme, beside the light one. So do the keyboard sweep of
+# every student tool, at both sizes, in shards, and the Math Tools Lab's other
+# tools (student-keyboard-ci) and the Work Views they open (keypad-done).
 
 on:
   workflow_call:
@@ -22,12 +26,13 @@ permissions:
   contents: read
 
 jobs:
-  browser-accessibility:
-    runs-on: ubuntu-latest
-    # 61 scenes at two sizes, 48 of them the teacher's and walked by Tab as well as audited (TT27), and the
-    # contrast review replays the same scenes: each took about twenty minutes on a busy two-core machine, and
-    # the job runs both and the drivers after them. A hung run is still stopped, later than it was at 35.
-    timeout-minutes: 70
+  # The certification: axe-core and the teacher screens' Tab walk over every scene, ratcheted (the header above), and
+  # the walk shown finding each kind of defect it counts. The certification's steps were one job of about forty
+  # minutes on CI, so a newer push often cancelled it before its last steps: they are three jobs now, each with the
+  # steps it had, in the order they had. This one took about thirteen minutes (2026-11-06).
+  browser-accessibility-ratchet:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -53,6 +58,143 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: npm run certify:accessibility
+      # The Tab walk of the teacher screens counts nothing unless it can be seen
+      # finding something: thirteen pages, each wrong in one way, or right.
+      - name: The Tab walk finds each planted keyboard defect (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/accessibilityKeyboardReachSelfTest.mjs
+      - name: Keep the report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification
+          path: tests/browser/artifacts/accessibility
+          retention-days: 14
+
+  # Every student target's size (with Log Out, the Work View header at large text and the Live Challenge round by
+  # keyboard), and the contrast review, which replays the certification's scenes to decide what axe left undecided:
+  # 4.5 and 10.4 minutes on CI (2026-11-06). The review writes contrast-review.json, kept here.
+  browser-accessibility-contrast-and-targets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      # Standalone harnesses (assignment tools, secure exam), served with
+      # src/firebase.js and the Test Cycle / secure exam services swapped for
+      # stubs (tests/browser/emulator/vite.config.mjs).
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      # The real app in memory (firebase/* faked, synthetic school), signed in
+      # as a student, and as the synthetic teacher for the teacher screens.
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: Log Out target size, every student target's size (WCAG 2.5.8), the Work View header at large text, and the Live Challenge host by keyboard
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5,targetsize,workviewheader
+      - name: Contrast over gradients (axe's undecided nodes, measured)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: npm run review:contrast
+      - name: Keep the contrast review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification-contrast
+          path: tests/browser/artifacts/accessibility
+          retention-days: 14
+
+  # The contrast review again, on a dark device (COLOR_SCHEME=dark): every scene of the light review, in the dark
+  # theme the app follows the device into (a standalone harness is put in it before it paints). The light review
+  # cannot see a light-theme colour on a dark surface: the live proctor monitor's status read 2.13:1 on its dark rows.
+  # A job of its own, beside the light one, with a report of its own. The review's pixel step is first shown on pages
+  # whose answer is known (contrastReviewSelfTest.mjs, which needs no server). In the same replay axe's own contrast
+  # verdicts in dark are held to scripts/accessibility-dark-contrast-baseline.json, today's dark failures, each with its
+  # reason: a new one fails (student-keyboard-ci; the light theme's are the certification's).
+  browser-accessibility-contrast-dark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      # Standalone harnesses (assignment tools, secure exam), served with
+      # src/firebase.js and the Test Cycle / secure exam services swapped for
+      # stubs (tests/browser/emulator/vite.config.mjs).
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      # The real app in memory (firebase/* faked, synthetic school), signed in
+      # as a student, and as the synthetic teacher for the teacher screens.
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: The contrast review's pixel step, on pages whose answer is known
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/contrastReviewSelfTest.mjs
+      - name: Contrast over gradients in the dark theme (axe's undecided nodes, measured on a dark device; its own verdicts against their baseline)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          COLOR_SCHEME: dark
+        run: npm run review:contrast
+      - name: Keep the dark contrast review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification-contrast-dark
+          path: tests/browser/artifacts/accessibility
+          retention-days: 14
+
+  # The drivers that press the keys a student or teacher presses and read what a screen reader is given, and the
+  # student QA checks after them: about fifteen minutes on CI (2026-11-06). None of them writes to the certification's
+  # report folder, so this job has no report to keep.
+  browser-accessibility-keyboard-and-names:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      # Standalone harnesses (assignment tools, secure exam), served with
+      # src/firebase.js and the Test Cycle / secure exam services swapped for
+      # stubs (tests/browser/emulator/vite.config.mjs).
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      # The real app in memory (firebase/* faked, synthetic school), signed in
+      # as a student, and as the synthetic teacher for the teacher screens.
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
       # What a screen reader is given, read from Chromium's accessibility tree
       # (these harnesses import no Firebase, so the standalone server serves them).
       - name: Math is spoken once, in words
@@ -73,14 +215,6 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/accessiblePrimitives.mjs
-      # The Tab walk of the teacher screens counts nothing unless it can be seen
-      # finding something: thirteen pages, each wrong in one way, or right.
-      - name: The Tab walk finds each planted keyboard defect (TT27)
-        if: ${{ !cancelled() }}
-        env:
-          PLAYWRIGHT_MODULE: playwright
-          AUDIT_ORIGIN: "http://127.0.0.1:5199"
-        run: node tests/browser/accessibilityKeyboardReachSelfTest.mjs
       # The two pop-ups of the teacher's Assignments screen, driven with the keys a keyboard
       # teacher presses (the ratchet's scenes open them; this presses what is in them).
       - name: The card menu and the class list by keyboard (TT27)
@@ -96,6 +230,20 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/accessibilityTeacherLiveClassTabs.mjs
+      # The administrator's five section tabs: one Tab stop, the arrow keys, and a panel.
+      - name: The administrator's tabs by keyboard (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherAdminTabs.mjs
+      # A student's detail page: its seven views are a tab list (TT27, fifth slice), with the same keys.
+      - name: A student's detail views by keyboard (TT27)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/accessibilityTeacherStudentDetailTabs.mjs
       # The teacher workspace's one main landmark and its skip link, over every screen and the dialogs on top,
       # and the three states where a student's own screen runs inside it (the Test Cycle preview, a Demo
       # Experience session, a Path Simulator session), which used to draw a second main.
@@ -117,20 +265,6 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/hostAccessibility.mjs
-      - name: Log Out target size, every student target's size (WCAG 2.5.8), and the Live Challenge host by keyboard
-        if: ${{ !cancelled() }}
-        env:
-          PLAYWRIGHT_MODULE: playwright
-          AUDIT_ORIGIN: "http://127.0.0.1:5199"
-          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
-        run: node tests/browser/studentShellLargeText.mjs --check=targets,s5,targetsize
-      - name: Contrast over gradients (axe's undecided nodes, measured)
-        if: ${{ !cancelled() }}
-        env:
-          PLAYWRIGHT_MODULE: playwright
-          AUDIT_ORIGIN: "http://127.0.0.1:5199"
-          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
-        run: npm run review:contrast
       - name: Mapping Diagram plot by keyboard (T1, T4)
         if: ${{ !cancelled() }}
         env:
@@ -143,6 +277,13 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/toolKeyboardThreePlane.mjs
+      # VPAT 2.5.7: where a pointer can only drag, the keys finish the task.
+      - name: A plotted point moved and a Graph Story sketch drawn by keys, and graded
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolKeyboardDragAlternatives.mjs
       - name: Number Line endpoints by keyboard (T3, T4)
         if: ${{ !cancelled() }}
         env:
@@ -216,18 +357,11 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/unchangedConfirmWorkView.mjs
-      - name: Keep the report and screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: accessibility-certification
-          path: tests/browser/artifacts/accessibility
-          retention-days: 14
 
   # WCAG 1.4.4 / 1.4.10 / 1.4.12 at 200% text, 320px and text spacing: half
   # the browser time, so a runner of its own.
   browser-large-text:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v6
@@ -263,5 +397,169 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: accessibility-certification-large-text
+          path: tests/browser/artifacts/accessibility
+          retention-days: 14
+
+  # The teacher's 66 scenes at 200% text, at 320px and with text spacing (WCAG 1.4.4 / 1.4.10 / 1.4.12), and every
+  # pointer target at 24px or the room the spacing exception asks for (2.5.8), at both viewports (TT27). Jobs of their
+  # own: as one job it took 36 minutes on CI for 48 scenes and about 42 for the 66 (2026-11-06). So the sweep runs in
+  # three shards, each a third of the screens, whole (studentShellLargeText.mjs --shard, tests/browser/support/
+  # sceneShards.mjs): 13 to 16 minutes each.
+  browser-teacher-large-text:
+    name: browser-teacher-large-text (${{ matrix.shard }}/3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: Teacher screens, large text and reflow
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentShellLargeText.mjs --check=text,targetsize --teacher --shard=${{ matrix.shard }}/3
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification-teacher-large-text-${{ matrix.shard }}
+          path: tests/browser/artifacts/large-text
+          retention-days: 14
+
+  # WCAG 2.2 2.4.11 (Focus Not Obscured) on the student's screens: the teacher screens' Tab walk through every student
+  # scene at 1366×768 and 390×844 (a touch phone), then back with Shift+Tab, Work View with each of its drawers, My Math
+  # Path's session and a DOL Recovery assessment; a stop mostly under something the page drew fails. A job of its own:
+  # the forward walks alone took about eight minutes on a busy four-core machine (2026-11-06). The Math Tools Lab's
+  # Work Views, all 24, walked there and back and judged by the keyboard rules too, add about five (keypad-done).
+  browser-focus-not-obscured:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/accessibilitySecureExam.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: No focused control under something the page drew (WCAG 2.4.11)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/studentShellLargeText.mjs --check=obscured
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification-focus-obscured
+          path: tests/browser/artifacts/large-text
+          retention-days: 14
+
+  # THE KEYBOARD SWEEP AS A GATE (student-keyboard-ci): every student tool on its preview-bench question, its other
+  # modes and the 21 legacy question types, each in the assignment shell, worked with the keys alone (Tab and Shift+Tab,
+  # every pop-up opened and closed, a keyboard-only attempt, focus watched for three seconds), at 1366×768 and on a
+  # 390×844 touch phone, and judged by tests/browser/support/keyboardSweepGate.mjs: a trap, a control the keyboard cannot
+  # reach or press, a stop hidden, unnamed or with no visible focus, focus thrown to <body>, a layer that will not close.
+  # The phone's legacy scenes are the legacy question walk that ran by hand (student-a11y-3). A whole size took 33 to 36
+  # minutes on a busy four-core machine (2026-11-08), so each runs in three shards of 18 scenes (keyboardSweep.mjs
+  # --shard, support/sceneShards.mjs): about 12 minutes a shard there.
+  browser-keyboard-sweep:
+    name: browser-keyboard-sweep (${{ matrix.viewport }} ${{ matrix.shard }}/3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        viewport: [chromebook, phone]
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      # The sweep's page (tests/browser/keyboardSweep.html) on the standalone harness server, with src/firebase.js and
+      # the Test Cycle / secure exam services swapped for stubs (tests/browser/emulator/vite.config.mjs).
+      - name: Start the standalone harness server
+        run: |
+          npx vite --config tests/browser/emulator/vite.config.mjs --host 127.0.0.1 --port 5199 --strictPort >/tmp/accessibility-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5199/tests/browser/keyboardSweep.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-vite.log; exit 1
+      - name: Every student tool and question type by keyboard alone, judged by the sweep's gate
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/keyboardSweep.mjs --gate --viewport=${{ matrix.viewport }} --shard=${{ matrix.shard }}/3
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyboard-sweep-${{ matrix.viewport }}-${{ matrix.shard }}
+          path: tests/browser/artifacts/keyboard
+          retention-days: 14
+
+  # THE MATH TOOLS LAB'S OTHER 24 TOOLS (student-keyboard-ci), AND THE WORK VIEWS ITS TOOLS OPEN (keypad-done). The
+  # certification and the contrast review saw only the Lab's first tool. Each other tool is a scene of its own
+  # (accessibilityTeacherScreens.mjs MATH_TOOLS_LAB_SCREEN), and so is each of the 24 Work Views the Lab's tools open
+  # (MATH_TOOLS_LAB_WORK_VIEW_SCREEN; all but Solution Review's, which has none), at 1366×768 and 390×844, here in a job
+  # of its own so the jobs above take no longer (a run that names no screen leaves them out): axe against the same
+  # baseline, then the contrast review, light and on a dark device, where axe's own dark verdicts are held to theirs.
+  # Each review keeps its report in a folder of its own. About 19 minutes on a busy four-core machine (2026-11-08): the
+  # certification six, each review between six and seven. The Work Views' Tab walk is the 2.4.11 job's.
+  browser-accessibility-math-tools-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      # The real app in memory (firebase/* faked, synthetic school), signed in as the synthetic teacher.
+      - name: Start the in-memory app harness
+        run: |
+          TEACHER_HARNESS_PORT=5188 npx vite --config tests/browser/accessibilityAppHarness.vite.config.mjs >/tmp/accessibility-app-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/accessibility-app-harness.log; exit 1
+      - name: Certify the Lab's other tools and their Work Views (WCAG 2.1 AA, ratchet)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          ONLY: teacher-math-tools-lab,teacher-math-tools-lab-work-view
+        run: npm run certify:accessibility
+      - name: Contrast over gradients in the Lab's other tools and their Work Views (axe's undecided nodes, measured)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          ONLY: teacher-math-tools-lab,teacher-math-tools-lab-work-view
+          ACCESSIBILITY_ARTIFACTS: tests/browser/artifacts/accessibility/math-tools-lab-light
+        run: npm run review:contrast
+      - name: Contrast in the Lab's other tools and their Work Views on a dark device (axe's verdicts against their baseline, the undecided measured)
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+          ONLY: teacher-math-tools-lab,teacher-math-tools-lab-work-view
+          ACCESSIBILITY_ARTIFACTS: tests/browser/artifacts/accessibility/math-tools-lab-dark
+          COLOR_SCHEME: dark
+        run: npm run review:contrast
+      - name: Keep the reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-certification-math-tools-lab
           path: tests/browser/artifacts/accessibility
           retention-days: 14

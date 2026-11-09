@@ -5,10 +5,14 @@
 //
 // React renders it because the walk reads React's own props to find controls that
 // answer a click and no key (a plain DOM page has none). The real Dialog is used
-// for the dialog plants, because the walk is judged on what that Dialog does.
+// for the dialog plants, because the walk is judged on what that Dialog does, and
+// the real MathInput for the math boxes, because a student's math box is one.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import Dialog from '../../src/ui/Dialog.jsx';
+import CoordinatePlane from '../../src/tools/shared/CoordinatePlane.jsx';
+import MathInput from '../../src/MathInput.jsx';
+import '../../src/platform/math/mathliveRuntime.js';
 
 const plant = new URLSearchParams(window.location.search).get('plant') || 'clean';
 const noop = () => {};
@@ -40,6 +44,16 @@ function Correct() {
   );
 }
 
+// A math box as a student gets one: the app's MathInput, which names the box on
+// MathLive's keyboard sink, inside the shadow root, where focus really lands
+// (mathFieldName.js), and guards MathLive's late hand-over of focus to it
+// (mathFieldFocusHandoff.js). With its keypad button beside it, as a laptop shows
+// it, or without (a row that hides it), so that Tab goes from box to box.
+function MathBox({ name = 'Slope', keypadButton = true }) {
+  const [value, setValue] = React.useState('');
+  return <MathInput value={value} onChange={setValue} ariaLabel={name} hideToolsToggle={!keypadButton} />;
+}
+
 const PLANTS = {
   clean: () => <Correct />,
   // A control with focus styling removed and nothing put in its place.
@@ -52,6 +66,29 @@ const PLANTS = {
   ),
   // A Tab stop that is announced as nothing.
   unnamed: () => (<><Correct /><button type="button" onClick={noop} /></>),
+  // A student's math box, with its keypad button: named on its keyboard sink,
+  // where focus is, a named stop (the walk once named the <math-field> host, and
+  // called every math box unnamed), and then its button.
+  mathBox: () => (<><Correct /><MathBox /></>),
+  // Math boxes in a row that hides their keypad buttons, with a control after
+  // them. MathLive gives a box focus from a 60 ms timer, and Tab from one box to
+  // the next leaves focus in the first for those 60 ms (CI's headless shell,
+  // reading focus a few ms after each Tab, once stopped on "Slope"). Four
+  // boxes, so the walk meets the hand-over three times. No findings.
+  mathBoxesThenControl: () => (
+    <>
+      <Correct />
+      {['Slope', 'y-intercept', 'x-intercept', 'Rate'].map((name) => <MathBox key={name} name={name} keypadButton={false} />)}
+      <button type="button">After the boxes</button>
+    </>
+  ),
+  // A math box named nowhere: its sink is announced as nothing, and the walk
+  // says so. A bare <math-field>, since MathInput names every box it makes
+  // ("Math answer" when it is given no name): this is a box made without it.
+  unnamedMathBox: () => (<><Correct /><math-field style={{ display: 'block', minWidth: 160, border: '1px solid #888' }} /></>),
+  // A plane that only shows a graph: no Tab stop, and nothing a pointer does
+  // there that a key cannot (the walk once counted it as pointer-only).
+  readOnlyPlane: () => (<><Correct /><CoordinatePlane xMin={-5} xMax={5} yMin={-5} yMax={5} points={[[1, 2]]} ariaLabel="Graph of the trip" /></>),
   // Something that answers a click and nothing else.
   pointerOnly: () => (<><Correct /><div onClick={noop} style={{ padding: 8 }}>Open the row</div></>),
   // A Tab stop with a click handler and no key handler (a div that says it is a button).

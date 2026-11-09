@@ -32,6 +32,15 @@ import { SYSTEMS_GRAPHING_FAMILIES } from './questionFamiliesSystemsGraphing.mjs
 import { SUBSTITUTION_FAMILIES } from './questionFamiliesSubstitution.mjs';
 import { SYSTEMS_CONTEXT_FAMILIES } from './questionFamiliesSystemsContext.mjs';
 import { INTERVAL_FAMILIES } from './questionFamiliesIntervals.mjs';
+import { PARENT_TRANSFORMATION_FAMILIES } from './questionFamiliesParentTransformations.mjs';
+import { RELATION_FAMILIES } from './questionFamiliesRelations.mjs';
+import { GRAPH_READING_FAMILIES } from './questionFamiliesGraphReading.mjs';
+import { FUNCTION_VALUE_FAMILIES } from './questionFamiliesFunctionValues.mjs';
+import { INVERSE_FAMILIES } from './questionFamiliesInverses.mjs';
+import { FUNCTION_CONTEXT_FAMILIES } from './questionFamiliesFunctionContexts.mjs';
+import { TRANSFORMATION_LANGUAGE_FAMILIES } from './questionFamiliesTransformationLanguage.mjs';
+import { FUNCTION_OPERATION_FAMILIES } from './questionFamiliesFunctionOperations.mjs';
+import { GRAPH_RECOGNITION_FAMILIES } from './questionFamiliesGraphRecognition.mjs';
 
 // Order matters only for listing. A family's later versions follow its first
 // (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
@@ -43,7 +52,15 @@ import { INTERVAL_FAMILIES } from './questionFamiliesIntervals.mjs';
 // and by substitution) back the Warm-Up and DOL slots of those lessons
 // directly: each lesson question references its family.
 // The interval family (RC01) recovers the static number-line Warm-Up and DOL
-// questions no other family recognized: it is a Recovery V2 family too.
+// questions no other family recognized: it is a Recovery V2 family too, as
+// are the parent-function transformation families (RC01, Algebra II Honors
+// Module 1 Lesson 2 Day 2's exit ticket), the Mapping Diagram family, the
+// graphed domain-and-range family and the function-values families (RC01),
+// and the inverse families, the graphed-intervals family and the filling-tank
+// family (RC01's next shapes: Lessons 1 Day 2, 3 and 4), the
+// transformation-language families (the ALEKS bridge lesson), the
+// function-operation families (Lesson 4's exit ticket Q1 and Q2), and the
+// graph-recognition families (the District DOL 1 review's Warm-Up Q2–Q4).
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...LINEAR_CASE_FAMILIES,
@@ -64,6 +81,15 @@ const REGISTERED = Object.freeze([
   ...SUBSTITUTION_FAMILIES,
   ...SYSTEMS_CONTEXT_FAMILIES,
   ...INTERVAL_FAMILIES,
+  ...PARENT_TRANSFORMATION_FAMILIES,
+  ...RELATION_FAMILIES,
+  ...GRAPH_READING_FAMILIES,
+  ...FUNCTION_VALUE_FAMILIES,
+  ...INVERSE_FAMILIES,
+  ...FUNCTION_CONTEXT_FAMILIES,
+  ...TRANSFORMATION_LANGUAGE_FAMILIES,
+  ...FUNCTION_OPERATION_FAMILIES,
+  ...GRAPH_RECOGNITION_FAMILIES,
 ]);
 
 const byKey = new Map();

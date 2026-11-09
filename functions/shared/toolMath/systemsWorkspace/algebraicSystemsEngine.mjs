@@ -810,11 +810,18 @@ export const noVariableStatementType = (text, variables) => {
  *
  *   { rows: [{ index, variable, given }] } in equation order, or null when the
  *   rows are not separated (or either is not linear in `variables`)
+ *
+ * separatedRows reads a 3×3 the same way (2x = 2, 3y = 6, 4z = 12), which
+ * Algebraic3SystemMode solves equation by equation (TL43, C2-138).
  */
 const WRITTEN_NUMBER = /^[+\-−]?\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/;
-export const separatedTwoByTwo = (equations = [], variables = ['x', 'y']) => {
+export const separatedTwoByTwo = (equations = [], variables = ['x', 'y']) => (
+  Array.isArray(equations) && equations.length === 2 ? separatedRows(equations, variables) : null
+);
+
+export const separatedRows = (equations = [], variables = []) => {
   const names = Array.isArray(variables) ? variables.map(String) : [];
-  if (!Array.isArray(equations) || equations.length !== 2 || names.length !== 2) return null;
+  if (!Array.isArray(equations) || ![2, 3].includes(equations.length) || names.length !== equations.length) return null;
   const rows = [];
   for (let index = 0; index < equations.length; index += 1) {
     const text = String(equations[index] ?? '');
@@ -835,11 +842,9 @@ export const separatedTwoByTwo = (equations = [], variables = ['x', 'y']) => {
  * substitute whichever variable is chosen (TL43, finding C2-138). Two equations
  * holding the same variable (x = 1, y = 2, x = 3) are not this: eliminating it
  * reaches a statement the student can classify. False when an equation is not
- * linear in `variables`.
+ * linear in `variables`. Such a 3×3 skips the method: Algebraic3SystemMode
+ * solves it equation by equation (separatedRows).
  */
-/** What a 3×3 with such a system says, at the start (both methods strand the student). */
-export const NO_SHARED_VARIABLE_TEXT = 'Every equation holds just one variable, so there is nothing to eliminate or substitute, whichever variable you start with. Nothing you did caused this. Let your teacher know so they can fix the question.';
-
 export const eachEquationHoldsOneVariable = (equations = [], variables = []) => {
   const names = Array.isArray(variables) ? variables.map(String) : [];
   if (!Array.isArray(equations) || !equations.length) return false;
@@ -1068,10 +1073,11 @@ export const validateAlgebraicSystemAuthoring = (questionData = {}) => {
         warnings.push(`systemsWorkspace 3×3 algebraic system: ${nowhere.join(' and ')} ${nowhere.length === 1 ? 'has' : 'have'} a zero coefficient in all three equations, so ${nowhere.length === 1 ? 'it is' : 'they are'} never determined and the system has no solution or infinitely many. Students can classify it by elimination; check this is the system you meant.`);
       } else if (eachEquationHoldsOneVariable(rawEquations, trimmed)) {
         // TL43 (C2-138): x = 1, y = 2, z = 3 or 2x = 2, 3y = 6, 4z = 12. No
-        // variable is shared, so elimination and substitution have nothing
-        // to combine whichever variable is chosen, and back-substitution has
-        // nothing to place: the workspace cannot carry it to an answer.
-        warnings.push('systemsWorkspace 3×3 algebraic system: every equation holds just one variable, so there is nothing to eliminate or substitute between them and a student cannot finish it in the workspace. Write a system whose equations share variables, or ask for each equation to be solved on its own.');
+        // variable is shared, so there is nothing to eliminate or substitute.
+        // The workspace has students solve each equation on its own and check
+        // the three values, whatever method is set: advice, because the item
+        // then practises no elimination or substitution.
+        warnings.push('systemsWorkspace 3×3 algebraic system: every equation holds just one variable, so there is nothing to eliminate or substitute between them. Students solve each equation on its own and check the three values, whatever method is set. If the question should practise elimination or substitution, write a system whose equations share variables.');
       }
     }
     // A system that is not exactly one solution is NOT refused for a method

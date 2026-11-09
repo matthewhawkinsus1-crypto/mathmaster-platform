@@ -342,3 +342,55 @@ test('both switches ON: the reads the student\'s app makes still work — sign-i
     assignmentTitle: 'Class B lesson', questionIndex: 0, questionLabel: 'Classwork · Question 1', text: 'Another class?',
   }));
 });
+
+// A student moved to another class while signed in (the November build's section 6): the app now follows the roster row
+// (src/platform/student/rosterMembership.js) instead of keeping the class left until a reload. Every read and write it
+// then makes for the new class is decided by the row, which the move restamps, and not by the sign-in token, so the
+// rules need no change: the new class's lessons (the live class query) and its record, its Class Points announcements,
+// the class left's lesson with the student's work (by id, as prior work), and a question to the new class's teacher, with
+// that class. What the class left gave is refused: its lesson list, its other lessons, and a question that names it or
+// its teacher, which is what a session that kept the class left would send.
+test('a student moved to another class while signed in reads what the new class needs, and of the class left only their work', async () => {
+  await setScopes({ list: true, get: true });
+  const lesson = (title, classId, questions = 1) => ({
+    schemaVersion: 5, title, assignedClassIds: [classId], sections: [{ id: 'cw', role: 'classwork', questions: Array.from({ length: questions }, (_, at) => ({ id: `q${at + 1}` })) }],
+  });
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'grades/S_MOVED'), {
+      classId: 'class-left', classPeriod: 'Period 5', assignedTeacherEmail: TEACHER_A, status: 'active',
+      gradesByAssignment: { 'm-left': { 0: { status: 'correct', totalAttempts: 1 } } },
+    });
+    await setDoc(doc(db, 'classes/class-joined'), { name: 'Algebra II — Period 3', period: 'Period 3', teacherOfRecord: TEACHER_B, course: 'algebra2', status: 'active' });
+    await setDoc(doc(db, 'assignments/m-left'), lesson('Lesson of the class left', 'class-left'));
+    await setDoc(doc(db, 'assignments/m-left-unworked'), lesson('Another lesson of the class left', 'class-left'));
+    await setDoc(doc(db, 'assignments/m-joined'), lesson('Lesson of the class joined', 'class-joined', 2));
+  });
+  const student = () => env.authenticatedContext('uid-smoved', { role: 'student', studentId: 'S_MOVED' }).firestore();
+  const ask = (db, fields) => sendTeacherQuestion(db, { studentId: 'S_MOVED', questionLabel: 'Classwork · Question 1', text: 'Do I eliminate x first?', ...fields });
+  await assertSucceeds(classList(student(), 'class-left'));
+  await assertFails(classList(student(), 'class-joined'));
+
+  // The move, as setStudentClass writes it (membershipFieldsFor), while the student stays signed in with the same token.
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'grades/S_MOVED'), { classId: 'class-joined', classPeriod: 'Period 3', assignedTeacherEmail: TEACHER_B }, { merge: true });
+  });
+  const db = student();
+  // What the student's screens read next: the new class's lessons, live, its record and its announcements...
+  await assertSucceeds(classList(db, 'class-joined'));
+  await assertSucceeds(getDoc(doc(db, 'classes/class-joined')));
+  await assertSucceeds(getDocs(collection(db, 'classes/class-joined/classPointAnnouncements')));
+  // ...the class left's lesson with their work, by id: with the new class's, what a fresh load after the move gathers...
+  await assertSucceeds(open(db, 'm-left'));
+  const afterMove = await fetchStudentAssignments({ db, studentId: 'S_MOVED', classId: 'class-joined', gradesByAssignment: { 'm-left': {} } });
+  assert.deepEqual(afterMove.map((entry) => entry.id).sort(), ['m-joined', 'm-left']);
+  // ...and a question about a lesson of the new class, to its teacher, with that class: the pair the app now sends.
+  await assertSucceeds(ask(db, { classId: 'class-joined', teacherEmail: TEACHER_B, assignmentId: 'm-joined', assignmentTitle: 'Lesson of the class joined', questionIndex: 0 }));
+  // What the class left gave is refused: its list, its other lessons and its announcements, and a question that names it
+  // or its teacher.
+  await assertFails(classList(db, 'class-left'));
+  await assertFails(open(db, 'm-left-unworked'));
+  await assertFails(getDocs(collection(db, 'classes/class-left/classPointAnnouncements')));
+  await assertFails(ask(db, { classId: 'class-left', teacherEmail: TEACHER_A, assignmentId: 'm-left', assignmentTitle: 'Lesson of the class left', questionIndex: 0 }));
+  await assertFails(ask(db, { classId: 'class-joined', teacherEmail: TEACHER_A, assignmentId: 'm-joined', assignmentTitle: 'Lesson of the class joined', questionIndex: 1 }));
+});

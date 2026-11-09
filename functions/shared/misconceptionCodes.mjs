@@ -429,7 +429,13 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   classifier('path:relationMapping', 1, ['domain-range-swapped']),
   classifier('path:graphing2', 1, ['slope-run-over-rise', 'slope-sign-reversed']),
   classifier('path:dataModelingLab', 1, ['correlation-direction-reversed', 'correlation-treated-as-causation']),
-  ...['multiAnswer', 'fields'].map((tool) => classifier(`path:${tool}`, 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard'])),
+  classifier('path:multiAnswer', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard']),
+  // A field item also names the two linear-equation slips where its prompt
+  // shows the one equation its key solves (TC05), as the workspaces do below.
+  classifier('path:fields', 1, ['line-wrong-form-slope-intercept', 'line-wrong-form-point-slope', 'line-wrong-form-standard', 'inverse-operation-sign', 'partial-division']),
+  // The balance workspaces: the value the finished equation gives, against
+  // the equation the item opened on (TC05).
+  ...['algebra', 'stepAlgebra'].map((tool) => classifier(`path:${tool}`, 1, ['inverse-operation-sign', 'partial-division'])),
 ]);
 const CLASSIFIER_BY_ID = new Map(MISCONCEPTION_CLASSIFIERS.map((entry) => [entry.id, entry]));
 

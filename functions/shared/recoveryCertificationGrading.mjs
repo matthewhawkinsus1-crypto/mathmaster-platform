@@ -16,6 +16,18 @@
  */
 import { gradeServerResponse } from './serverGrading/serverResponseGrading.mjs';
 import { buildToolResponse } from './serverGrading/toolResponseContract.mjs';
+import { canonicalFromEquationText, canonicalFromSlopeIntercept, linesEquivalent } from './toolMath/shared/linearEquations.mjs';
+import {
+  buildLinearConnectionCards,
+  linearConnectionsCardKinds,
+  linearConnectionsTask,
+  representationSetsFor,
+} from './toolMath/representationMatch/representationMath.mjs';
+import { gradedContextFields, resolveRequiredCards } from './toolMath/representationBridge/linearMultipleRepresentationsCards.mjs';
+import { correctFunctionChoice } from './relationFunctionChoice.mjs';
+import { gradeComposedWorkflowCheck } from './serverGrading/questionGraders/composedWorkflow.mjs';
+import { composedWorkflowWork } from './toolMath/workflow/composedWorkflowContract.mjs';
+import { buildFigureMatchResponse } from './toolMath/workflow/figureMatch.mjs';
 
 const fieldsResponse = (responses) => ({
   kind: 'fields',
@@ -124,6 +136,265 @@ export const intervalNumberLineKeyWork = (answer = {}) => {
   };
 };
 
+const clean = (value) => String(value ?? '').trim();
+const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * The Transformations Lab work a student who solved a transformations.*
+ * version would send (serverGrading/tools/transformationsLab.mjs): each
+ * labeled point's image in plotting order (plotTransform), the parameters
+ * typed into their boxes (identify, RC01), or the mapped point (pointMap,
+ * RC01) — and the same work with one image, one parameter or one coordinate
+ * wrong. Null for any other answer.
+ */
+export const transformationsLabKeyWork = (answer = {}) => {
+  if (answer.kind === 'images' && Array.isArray(answer.value)) {
+    const images = answer.value.map(([x, y]) => [x, y]);
+    return {
+      right: { plottedPoints: images },
+      wrong: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) },
+    };
+  }
+  if (answer.kind === 'parameters' && isObject(answer.value)) {
+    const { a, h, k } = answer.value;
+    if (![a, h, k].every(Number.isFinite)) return null;
+    // Another a draws another graph (the lab credits any a, h, k that draws the same one).
+    const boxes = (values) => ({ a: String(values.a), h: String(values.h), k: String(values.k) });
+    return { right: boxes({ a, h, k }), wrong: boxes({ a: a + 1, h, k }) };
+  }
+  if (answer.kind === 'point' && Array.isArray(answer.value) && answer.value.length === 2) {
+    const [x, y] = answer.value.map(Number);
+    if (![x, y].every(Number.isFinite)) return null;
+    return { right: { mappedX: String(x), mappedY: String(y) }, wrong: { mappedX: String(x), mappedY: String(y + 1) } };
+  }
+  return null;
+};
+
+/**
+ * The card sort a student who solved a linear.representationSort version
+ * would send (serverGrading/tools/representationMatch.mjs: every card placed
+ * in a group), placed by the KEY: each card goes with the one line of the
+ * family's answer it describes — an equation by the line it is, the graph by
+ * the line it draws, a slope, an intercept, a point or a table by its
+ * numbers, a story by the story the answer tells for that line (RC01). The
+ * grader marks the placement against the sets the question deals, so a card
+ * dealt into the wrong set cannot pass. The wrong sort moves one card into
+ * the other group. Null when the answer is not two lines, or a card is not on
+ * exactly one of them.
+ */
+export const representationSortKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'groups' || question?.mode !== 'linearConnections' || linearConnectionsTask(question) !== 'group') return null;
+  const lines = [answer.value?.first, answer.value?.second].map((line) => ({
+    m: Number(line?.slope),
+    b: Number(line?.yIntercept),
+    context: line?.context,
+  }));
+  if (lines.some(({ m, b }) => !Number.isFinite(m) || !Number.isFinite(b) || m === 0)) return null;
+  const on = ({ m, b }, point) => Array.isArray(point) && Math.abs(m * Number(point[0]) + b - Number(point[1])) < 1e-9;
+  const describes = ({ kind, value }, line) => {
+    if (['slopeIntercept', 'standard', 'pointSlope', 'factoredLinear'].includes(kind)) {
+      const read = canonicalFromEquationText(String(value));
+      return Boolean(read) && linesEquivalent(read, canonicalFromSlopeIntercept(line.m, line.b));
+    }
+    if (kind === 'graph') {
+      const a = Number(value?.a ?? 1);
+      return value?.type === 'linear' && a === line.m && Number(value?.k ?? 0) - a * Number(value?.h ?? 0) === line.b;
+    }
+    if (kind === 'slope') return Number(value) === line.m;
+    if (kind === 'xIntercept') return on(line, value) && Number(value[1]) === 0;
+    if (kind === 'yIntercept') return on(line, value) && Number(value[0]) === 0;
+    if (kind === 'point') return on(line, value);
+    if (kind === 'table') return Array.isArray(value) && value.length >= 2 && value.every((row) => on(line, row));
+    if (kind === 'context') return typeof line.context === 'string' && clean(line.context) === clean(value);
+    return false;
+  };
+  const cards = buildLinearConnectionCards(representationSetsFor(question), linearConnectionsCardKinds(question));
+  const assignments = [];
+  for (const card of cards) {
+    const slots = lines.map((line, slot) => (describes(card, line) ? slot : null)).filter((slot) => slot !== null);
+    if (slots.length !== 1) return null;
+    assignments.push({ cardId: card.id, slot: slots[0] });
+  }
+  if (!assignments.length) return null;
+  return {
+    right: { assignments },
+    wrong: { assignments: assignments.map((entry, index) => (index === 0 ? { ...entry, slot: 1 - entry.slot } : entry)) },
+  };
+};
+
+const gcdOf = (left, right) => {
+  let [a, b] = [Math.abs(left), Math.abs(right)];
+  while (b) [a, b] = [b, a % b];
+  return a;
+};
+const fractionOf = (num, den) => {
+  const divisor = gcdOf(num, den) || 1;
+  const sign = den < 0 ? -1 : 1;
+  return { p: (sign * num) / divisor + 0, q: Math.abs(den) / divisor };
+};
+const fractionText = ({ p, q }) => (q === 1 ? String(p) : `${p}/${q}`);
+const fractionLatex = ({ p, q }) => (q === 1 ? String(p) : `${p < 0 ? '-' : ''}\\frac{${Math.abs(p)}}{${q}}`);
+
+/**
+ * The Multiple Representations board a student who solved a
+ * linear.multipleRepresentations version would send — the board's own fields,
+ * typed the way the board takes them (whole numbers, LaTeX for a fractional
+ * slope, ordered pairs, graph points) — built from the KEY: the family's
+ * slope, intercepts and standard form, and, on a board whose meanings the
+ * family writes, each meaning's answer (RC01). Exactly the cards and meanings
+ * the question asks for. The wrong board has its slope (or its y-intercept)
+ * wrong. Null for a Process Mode board (its facts need their own process), a
+ * card the key alone cannot answer, or a meaning the key does not name.
+ */
+export const linearBoardKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'line' || question?.mode !== 'linearMultipleRepresentations') return null;
+  if (clean(question?.interactionMode) === 'process') return null;
+  const value = answer.value || {};
+  const slope = /^(-?\d+)(?:\/(\d+))?$/.exec(clean(value.slope));
+  const b = Number(value.yIntercept?.[1]);
+  const { A, B, C } = isObject(value.standard) ? value.standard : {};
+  if (!slope || ![b, A, B, C].every(Number.isInteger)) return null;
+  const m = fractionOf(Number(slope[1]), Number(slope[2] || 1));
+  if (!m.p || !m.q) return null;
+  const zero = fractionOf(-b * m.q, m.p);
+  if (Math.abs(zero.p / zero.q - Number(value.xIntercept?.[0])) > 1e-9) return null;
+  const required = new Set(resolveRequiredCards(question));
+  const signed = (number) => (number === 0 ? '' : ` ${number < 0 ? '-' : '+'} ${Math.abs(number)}`);
+  const slopeTerm = m.q === 1 && Math.abs(m.p) === 1 ? (m.p < 0 ? '-x' : 'x') : `${fractionLatex(m)}x`;
+  const work = {};
+  if (required.has('standardForm')) {
+    work.standardFormEquation = `${A === 1 ? '' : A}x ${B < 0 ? '-' : '+'} ${Math.abs(B) === 1 ? '' : Math.abs(B)}y = ${C}`;
+  }
+  if (required.has('slopeIntercept')) work.slopeInterceptEquation = `y = ${slopeTerm}${signed(b)}`;
+  // Point-slope form through the y-intercept, and the slope step from it.
+  if (required.has('pointSlope')) work.pointSlopeEquation = `y${signed(-b) || ' - 0'} = ${fractionLatex(m)}\\left(x - 0\\right)`;
+  if (required.has('slope')) work.featureSlope = fractionText(m);
+  if (required.has('xIntercept')) work.featureXIntercept = `(${fractionText(zero)}, 0)`;
+  if (required.has('yIntercept')) work.featureYIntercept = `(0, ${b})`;
+  if (required.has('twoPoints')) {
+    work.featurePoint1 = `(0, ${b})`;
+    work.featurePoint2 = `(${m.q}, ${b + m.p})`;
+  }
+  if (required.has('table')) work.tableRows = [0, 1, 2, 3].map((k) => ({ x: String(k * m.q), y: String(b + k * m.p) }));
+  if (required.has('graphIntercepts')) work.graph1Points = [[zero.p / zero.q, 0], [0, b]];
+  if (required.has('graphSlopeIntercept')) work.graph2Points = [[0, b], [m.q, b + m.p]];
+  if (required.has('graphPointSlope')) {
+    // Graph 3 starts from the GIVEN's own point when the GIVEN is point-slope form.
+    if (clean(question?.source?.kind) === 'pointSlope') return null;
+    work.graph3Points = [[0, b], [m.q, b + m.p]];
+  }
+  const meanings = isObject(value.meanings) ? value.meanings : {};
+  for (const { field, key } of gradedContextFields(question)) {
+    if (typeof meanings[key] !== 'string') return null;
+    work[field] = meanings[key];
+  }
+  if (!Object.keys(work).length) return null;
+  const wrong = { ...work };
+  if ('featureSlope' in wrong) wrong.featureSlope = fractionText({ p: m.p + 7 * m.q, q: m.q });
+  else if ('featureYIntercept' in wrong) wrong.featureYIntercept = `(0, ${b + 7})`;
+  else if ('slopeInterceptEquation' in wrong) wrong.slopeInterceptEquation = `y = ${m.p + 7 * m.q}x${signed(b)}`;
+  else return null;
+  return { right: work, wrong };
+};
+
+/**
+ * The Mapping Diagram work a student who solved a relations.* version would
+ * send (serverGrading/tools/relationMapping.mjs): an arrow for every pair of
+ * the key, its domain and range typed as lists, and — where the question asks
+ * — the function choice the definition gives (RC01). The wrong work chooses
+ * the other verdict, or, where none is asked, leaves an output out of the
+ * range. Null for any other answer.
+ */
+export const relationMappingKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'relation' || !isObject(answer.value)) return null;
+  const { pairs, domain, range, isFunction } = answer.value;
+  if (![pairs, domain, range].every((entry) => Array.isArray(entry) && entry.length) || typeof isFunction !== 'boolean') return null;
+  const ask = Array.isArray(question.ask) ? question.ask : ['mapping', 'domain', 'range'];
+  const right = {
+    plottedPoints: [],
+    arrows: pairs.map(([x, y]) => [x, y]),
+    domainText: domain.join(', '),
+    rangeText: range.join(', '),
+    domain: [...domain],
+    range: [...range],
+    isFunction: ask.includes('isFunction') ? correctFunctionChoice(isFunction) : '',
+    fields: [],
+  };
+  const wrong = ask.includes('isFunction')
+    ? { ...right, isFunction: correctFunctionChoice(!isFunction) }
+    : { ...right, rangeText: range.slice(0, -1).join(', '), range: range.slice(0, -1) };
+  return { right, wrong };
+};
+
+/**
+ * The Graph Analysis work a student who solved a functions.domainRangeFromGraph
+ * version would send (serverGrading/tools/graphWorkspace.mjs, analysis mode):
+ * the domain and the range typed in interval notation from the key, one per
+ * request the question makes (RC01). The wrong work opens the range's closed
+ * end. Null for any other answer.
+ */
+export const domainRangeKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'domainRange' || !isObject(answer.value)) return null;
+  const { domain, range } = answer.value;
+  if (typeof domain !== 'string' || typeof range !== 'string') return null;
+  const requests = Array.isArray(question.analysisRequests) ? question.analysisRequests : [];
+  const idOf = (kind) => clean(requests.find((request) => request?.kind === kind)?.id);
+  if (!idOf('domain') || !idOf('range')) return null;
+  const typed = (rangeTyped) => ({ analysis: { answers: { [idOf('domain')]: domain, [idOf('range')]: rangeTyped } } });
+  return { right: typed(range), wrong: typed(range.replace('[', '(').replace(']', ')')) };
+};
+
+/**
+ * The Graph Analysis work a student who solved a functions.intervalsFromGraph
+ * version would send (RC01's next shapes): each interval typed from the key,
+ * one per request the question makes. The wrong work trades the increasing
+ * and decreasing intervals. Null for any other answer.
+ */
+export const graphIntervalsKeyWork = (question = {}, answer = {}) => {
+  if (answer.kind !== 'graphIntervals' || !isObject(answer.value)) return null;
+  const requests = Array.isArray(question.analysisRequests) ? question.analysisRequests : [];
+  const idOf = (kind) => clean(requests.find((request) => request?.kind === kind)?.id);
+  const kinds = Object.keys(answer.value);
+  if (!kinds.length || kinds.some((kind) => !idOf(kind) || typeof answer.value[kind] !== 'string')) return null;
+  if (!idOf('increasing') || !idOf('decreasing')) return null;
+  const typed = (value) => ({ analysis: { answers: Object.fromEntries(kinds.map((kind) => [idOf(kind), value[kind]])) } });
+  return {
+    right: typed(answer.value),
+    wrong: typed({ ...answer.value, increasing: answer.value.decreasing, decreasing: answer.value.increasing }),
+  };
+};
+
+/**
+ * A composed workflow a family writes (RC01's next shapes: the District DOL 1
+ * review's figure sorts and its vertex read off a graph): the stage responses
+ * the runner sends, from the family's `stages` answer — a sort as the figure
+ * board's assignments, a choice as its id — and the same work with its first
+ * stage wrong: two cards of different categories swapped, or another choice.
+ * Null for any other answer, or a stage the answer does not cover.
+ */
+export const composedWorkflowKeyWork = (question = {}, answer = {}) => {
+  const stages = Array.isArray(question.workflow) ? question.workflow.filter(isObject) : [];
+  if (answer.kind !== 'stages' || !isObject(answer.value) || !stages.length) return null;
+  const responseOf = (stage, value) => (stage.kind === 'figureMatch' ? buildFigureMatchResponse(stage, value) : value);
+  if (stages.some((stage) => answer.value[stage.id] === undefined)) return null;
+  const right = Object.fromEntries(stages.map((stage) => [stage.id, responseOf(stage, answer.value[stage.id])]));
+  const [first] = stages;
+  const key = answer.value[first.id];
+  let wrong;
+  if (first.kind === 'figureMatch' && isObject(key)) {
+    const entries = Object.entries(key);
+    const other = entries.find(([, category]) => category !== entries[0]?.[1]);
+    if (other) wrong = { ...key, [entries[0][0]]: other[1], [other[0]]: entries[0][1] };
+  } else if (Array.isArray(first.choices)) {
+    wrong = first.choices.map((choice) => (isObject(choice) ? choice.id : choice)).find((id) => id !== key);
+  }
+  if (wrong === undefined) return null;
+  return {
+    right: composedWorkflowWork(right),
+    wrong: composedWorkflowWork({ ...right, [first.id]: responseOf(first, wrong) }),
+  };
+};
+
 /** The response a student who solved this version would send, and one wrong one. */
 export const recoveryKeyResponses = (question = {}, instance = {}) => {
   const answer = instance?.answer || {};
@@ -145,15 +416,12 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
       wrong: buildToolResponse({ question, toolId: 'graphing2', work: { points: points.map(([x, y]) => [x, y + 1]) } }),
     };
   }
-  if (question.type === 'transformationsLab' && answer.kind === 'images') {
-    const images = (answer.value || []).map(([x, y]) => [x, y]);
+  // The Transformations Lab (transformations.*): the work the lab's Check sends.
+  const labWork = question.type === 'transformationsLab' ? transformationsLabKeyWork(answer) : null;
+  if (labWork) {
     return {
-      right: buildToolResponse({ question, toolId: 'transformationsLab', work: { plottedPoints: images } }),
-      wrong: buildToolResponse({
-        question,
-        toolId: 'transformationsLab',
-        work: { plottedPoints: images.map(([x, y], index) => (index === 0 ? [x + 1, y] : [x, y])) },
-      }),
+      right: buildToolResponse({ question, toolId: 'transformationsLab', work: labWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'transformationsLab', work: labWork.wrong }),
     };
   }
   // Matrix Lab (matrices.*): the work the lab's Check sends.
@@ -178,6 +446,57 @@ export const recoveryKeyResponses = (question = {}, instance = {}) => {
     return {
       right: buildToolResponse({ question, toolId: 'intervalNumberLine', work: intervalWork.right }),
       wrong: buildToolResponse({ question, toolId: 'intervalNumberLine', work: intervalWork.wrong }),
+    };
+  }
+  // The two-line card sort (linear.representationSort, RC01): every card in its line's group.
+  const sortWork = question.type === 'representationMatch' ? representationSortKeyWork(question, answer) : null;
+  if (sortWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'representationMatch', work: sortWork.wrong }),
+    };
+  }
+  // Graph Analysis's domain and range (functions.domainRangeFromGraph, RC01):
+  // the graph workspace grades it, so the response names that tool.
+  const domainRangeWork = question.type === 'graphAnalysis' ? domainRangeKeyWork(question, answer) : null;
+  if (domainRangeWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'graphWorkspace', work: domainRangeWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'graphWorkspace', work: domainRangeWork.wrong }),
+    };
+  }
+  // Where a graphed parabola rises, falls, and is positive and negative
+  // (functions.intervalsFromGraph, RC01's next shapes): the same workspace.
+  const intervalsWork = question.type === 'graphAnalysis' ? graphIntervalsKeyWork(question, answer) : null;
+  if (intervalsWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'graphWorkspace', work: intervalsWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'graphWorkspace', work: intervalsWork.wrong }),
+    };
+  }
+  // The Mapping Diagram (relations.mappingDiagram, RC01).
+  const relationWork = question.type === 'relationMapping' ? relationMappingKeyWork(question, answer) : null;
+  if (relationWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'relationMapping', work: relationWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'relationMapping', work: relationWork.wrong }),
+    };
+  }
+  // The Multiple Representations board (linear.multipleRepresentations, RC01).
+  const boardWork = question.type === 'representationBridge' ? linearBoardKeyWork(question, answer) : null;
+  if (boardWork) {
+    return {
+      right: buildToolResponse({ question, toolId: 'representationBridge', work: boardWork.right }),
+      wrong: buildToolResponse({ question, toolId: 'representationBridge', work: boardWork.wrong }),
+    };
+  }
+  // A composed workflow (RC01's next shapes): the work the runner's Submit sends,
+  // serialized as the browser's Check serializes it.
+  const composedWork = Array.isArray(question.workflow) ? composedWorkflowKeyWork(question, answer) : null;
+  if (composedWork) {
+    return {
+      right: gradeComposedWorkflowCheck(question, composedWork.right).toolResponse,
+      wrong: gradeComposedWorkflowCheck(question, composedWork.wrong).toolResponse,
     };
   }
   return null;

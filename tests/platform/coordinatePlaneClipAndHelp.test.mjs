@@ -17,7 +17,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import React from 'react';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { figureCaptureServer } from './helpers/figureCapture.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const plane = read('src/tools/shared/CoordinatePlane.jsx');
@@ -91,8 +93,26 @@ test('plotting directions: one line, the keyboard route before focus and the ful
   // also provides the tool's description to its TaskCard, PQ-023.)
   const body = shell.slice(shell.indexOf('<div className="mathmaster-tool-shell-body"'));
   assert.match(body.slice(0, body.indexOf('</div>')), /^<div className="mathmaster-tool-shell-body"[^>]*>(?:<[A-Za-z.]+[^>]*>)*<PlotHelpScope>\{children\}<\/PlotHelpScope>/);
-  // A screen reader keeps its instructions on every plane, deduplicated or not.
-  assert.match(svg, /aria-label=\{interactive \? `\$\{ariaLabel\}\. Click to plot, or use the arrow keys to move the crosshair and Enter to plot\.(?:`|\$\{canMovePoints \? ' Enter on a plotted point picks it up to move it\.' : ''\}`)/);
+  // A screen reader keeps its instructions on every plane, deduplicated or
+  // not: held on the rendered plane in the next test.
+});
+
+test('a screen reader hears how to plot on every plane it can plot on, whatever directions the plane shows', async () => {
+  const capture = await figureCaptureServer();
+  try {
+    const { default: CoordinatePlane } = await capture.load('/src/tools/shared/CoordinatePlane.jsx');
+    const nameOf = (props) => /<svg\b[^>]*\baria-label="([^"]*)"/.exec(capture.render(React.createElement(CoordinatePlane, {
+      xMin: -5, xMax: 5, yMin: -5, yMax: 5, enlargeable: false, ariaLabel: 'Graph of your line', ...props,
+    })).markup)?.[1];
+    const KEYS = 'Click to plot, or use the arrow keys to move the crosshair and Enter to plot.';
+    for (const showPlotHelp of [true, 'keyboard', false]) {
+      assert.equal(nameOf({ onPlot: () => {}, showPlotHelp }), `Graph of your line. ${KEYS}`, `showPlotHelp ${showPlotHelp}`);
+      assert.equal(nameOf({ onPlot: () => {}, onMovePoint: () => {}, showPlotHelp }), `Graph of your line. ${KEYS} Enter on a plotted point picks it up to move it.`, `showPlotHelp ${showPlotHelp}, points that move`);
+    }
+    assert.equal(nameOf({}), 'Graph of your line', 'a plane that takes no point says no keys');
+  } finally {
+    await capture.close();
+  }
 });
 
 test('the help scope gives the directions to the first plane that asks, and passes them on', () => {

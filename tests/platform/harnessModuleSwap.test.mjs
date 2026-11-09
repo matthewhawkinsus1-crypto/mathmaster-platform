@@ -20,7 +20,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -30,6 +30,9 @@ const emulator = path.join(repo, 'tests/browser/emulator');
 
 const SWAPPED = [
   'src/firebase.js',
+  // The production config itself, which the sign-in path imports for Auth and
+  // Functions without Firestore (src/firebaseApp.js).
+  'src/firebaseApp.js',
   'src/platform/liveChallenge/liveChallengeService.js',
   'src/services/testCycleService.js',
   'src/services/secureExamService.js',
@@ -73,6 +76,8 @@ test('vite.config.mjs swaps every Firebase-reaching module, however it is import
     assert.equal(await harness.resolve('./firebase', 'src/App.jsx'), path.join(emulator, 'firebaseEmulator.js'));
     assert.equal(await harness.resolve('../../firebase.js', 'src/platform/liveChallenge/liveChallengeService.js'),
       path.join(emulator, 'firebaseEmulator.js'));
+    // ...and the way the sign-in path imports the production config.
+    assert.equal(await harness.resolve('../firebaseApp.js', 'src/auth/AuthProvider.jsx'), path.join(emulator, 'firebaseEmulator.js'));
     for (const target of SWAPPED) {
       const swapped = await harness.resolve(path.join(repo, target), 'src/App.jsx');
       assert.equal(path.dirname(swapped), emulator, `${target} must resolve to an emulator module, got ${swapped}`);
@@ -93,6 +98,63 @@ test('the bridge config swaps firebase.js and the Live Challenge service the sam
       path.join(emulator, 'liveChallengeBridgeService.js'));
   } finally {
     await harness.close();
+  }
+});
+
+// The production config is two modules since the sign-in screen stopped
+// loading Firestore: src/firebaseApp.js (the app, Auth and Functions, which the
+// sign-in path imports) and src/firebase.js (Firestore on that app, for App).
+// A harness that swapped only firebase.js would run the real firebaseApp.js
+// for every AuthProvider, authService and classroomApi import: the production
+// project, with real callables. So every harness that swaps one swaps both.
+const FIREBASE_SWAPPING_CONFIGS = [
+  'vite.config.mjs',
+  'vite.bridge.config.mjs',
+  'vite.testCycleBridge.config.mjs',
+  '../classRewardsQa.vite.config.mjs',
+  '../secureResults.vite.config.mjs',
+  '../secureExamNavigation.vite.config.mjs',
+  '../liveChallengeTeachingQa.vite.config.mjs',
+  '../forcedColors.vite.config.mjs',
+];
+
+test('every harness that swaps firebase.js swaps firebaseApp.js, however the sign-in path imports it', { timeout: 180_000 }, async () => {
+  for (const configFile of FIREBASE_SWAPPING_CONFIGS) {
+    const harness = await harnessResolver(configFile);
+    try {
+      const firebase = await harness.resolve('./firebase', 'src/App.jsx');
+      assert.equal(path.dirname(firebase), emulator, `${configFile}: firebase.js resolved to ${firebase}`);
+      for (const [specifier, importer] of [
+        ['../firebaseApp.js', 'src/auth/AuthProvider.jsx'],
+        ['../firebaseApp.js', 'src/auth/authService.js'],
+        ['./firebaseApp.js', 'src/classroomApi.js'],
+        [path.join(repo, 'src/firebaseApp.js'), 'src/App.jsx'],
+      ]) {
+        assert.equal(await harness.resolve(specifier, importer), firebase, `${configFile}: ${specifier} from ${importer} must resolve to the emulator module`);
+      }
+    } finally {
+      await harness.close();
+    }
+  }
+});
+
+test('no harness swaps firebase.js without firebaseApp.js (the inline server included)', () => {
+  const browser = path.join(repo, 'tests/browser');
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === 'artifacts' || entry.name === 'node_modules') return [];
+    const full = path.join(dir, entry.name);
+    return entry.isDirectory() ? walk(full) : [full];
+  });
+  const swapsFirebase = /path\.join\(repo, 'src\/firebase\.js'\)/;
+  const swappers = walk(browser).filter((file) => /\.m?js$/.test(file) && swapsFirebase.test(readFileSync(file, 'utf8')));
+  assert.ok(swappers.length >= FIREBASE_SWAPPING_CONFIGS.length, `only ${swappers.length} harness files swap firebase.js: the scan is not finding them`);
+  for (const file of swappers) {
+    const relative = path.relative(emulator, file);
+    // A config file is resolved through Vite above; the inline server
+    // (liveChallengeProjectorPrivacyQa.mjs) and any other file must name both.
+    if (FIREBASE_SWAPPING_CONFIGS.includes(relative)) continue;
+    assert.match(readFileSync(file, 'utf8'), /path\.join\(repo, 'src\/firebaseApp\.js'\)/, `${path.relative(repo, file)} swaps firebase.js but not firebaseApp.js`);
+    assert.ok(!/vite\.[\w.]*config\.mjs$/.test(file), `${path.relative(repo, file)} is a harness config: add it to FIREBASE_SWAPPING_CONFIGS`);
   }
 });
 

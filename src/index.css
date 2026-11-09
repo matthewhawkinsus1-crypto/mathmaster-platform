@@ -1,5 +1,8 @@
 /* Every color token lives in theme/tokens.css (light, dark, print). */
 @import './theme/tokens.css';
+/* Windows' contrast themes (forced colours): what they would erase, given back
+   in system colours. Inside its media query only. */
+@import './theme/forcedColors.css';
 
 :root {
   /* Vite-starter names some older styles still read; they follow the tokens. */
@@ -308,7 +311,12 @@ body :is(
 .mathmaster-theme-certification-fixtures :is(th, td) { border: 1px solid var(--mm-border); padding: 6px; }
 .mm-feedback-success { padding: 8px; border: 1px solid var(--mm-success-border); background: var(--mm-success-bg); color: var(--mm-success-text); }
 .mm-feedback-error { padding: 8px; border: 1px solid var(--mm-error-border); background: var(--mm-error-bg); color: var(--mm-error-text); }
-.question-prompt-heading button { color: var(--mm-primary-text) !important; }
+/* The heading's own show-and-hide control: its direct child. On a phone held
+   upright the question's learning-goal and exam-practice chips sit inside the
+   heading too (MobileViewportContainer), and each keeps its own palette: matched
+   by "any button in the heading", the exam-practice chip's white text was
+   painted this colour over its purple fill, 1.14:1 in the light theme. */
+.question-prompt-heading > button { color: var(--mm-primary-text) !important; }
 
 /* Opt-in compatibility primitive for neutral legacy actions. Stateful,
    selected, primary, destructive, and game controls must retain their own

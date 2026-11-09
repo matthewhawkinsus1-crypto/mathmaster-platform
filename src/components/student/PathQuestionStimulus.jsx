@@ -174,6 +174,7 @@ function StimulusGraph({ graph, describeFeatures = null }) {
             strokeLinejoin="round"
             strokeLinecap="round"
             aria-label={curve.label}
+            data-mm-plane-part="line"
           />
         ))}
       </CoordinatePlane>

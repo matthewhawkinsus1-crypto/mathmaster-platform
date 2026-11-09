@@ -22,6 +22,7 @@ import { getRushPreset, normalizeGraphFeatureRushConfig } from '../../functions/
 import { RUSH_ATTEMPT_KIND, RUSH_SET_AUTO_SKIP_MISSES, isNumberLineQuestion, rushAutoSkipMisses } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { correctCountStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
 import * as N from '../../functions/shared/numberLineSets.mjs';
+import { createRng } from '../../functions/shared/seededRandom.mjs';
 import { axisSetDrawing, graphDrawing, setLandmarks, setStops, setTapAt } from '../../src/platform/liveChallenge/rushGraphModel.js';
 import {
   RUSH_FEEDBACK,
@@ -42,6 +43,7 @@ import {
   recordDoesNotExist,
   recordSetTap,
   recordSkip,
+  rushItemKind,
   settle,
 } from '../../src/platform/liveChallenge/rushSession.js';
 import { rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
@@ -157,6 +159,45 @@ test('every family asks the intervals it has, the catalog says from which diffic
   for (const family of ['linear', 'quadratic', 'absolute', 'exponential']) {
     assert.ok(catalogSupportsFeature(family, GRAPH_FEATURE.INCREASING, QUESTION_TIER.EASY), family);
     assert.ok(catalogSupportsFeature(family, GRAPH_FEATURE.DECREASING, QUESTION_TIER.EASY), family);
+  }
+});
+
+// N64. #533's mutation check missed one break, which changed only which
+// piecewise graphs are drawn. The generator retries a graph that does not
+// answer as its slot promises, so a build that drew the wrong shape cost
+// attempts, never an answer, and nothing failed. Here each piecewise build is
+// held to its promise on its own, before any retry.
+test('a piecewise build draws what its slot promises without a retry: pieces going different ways, and signs asked of one zero and of two', () => {
+  const family = getGraphFamily('piecewise');
+  const way = (piece) => Q.sign(piece.m);
+  const ASKED = { [GRAPH_FEATURE.INCREASING]: 1, [GRAPH_FEATURE.DECREASING]: -1, [GRAPH_FEATURE.CONSTANT]: 0 };
+  let built = 0;
+  for (const [feature, asked] of Object.entries(ASKED)) {
+    for (const tier of QUESTION_TIER_ORDER) {
+      for (const variant of familyVariants('piecewise', feature, tier)) {
+        for (let seed = 0; seed < 40; seed += 1) {
+          const at = `${feature} ${variant.id} ${tier} #${seed}`;
+          const graph = family.build(createRng(`n64|${at}`), { feature, variant: variant.id, tier });
+          const ways = graph.pieces.map(way);
+          // Two pieces going the same way across a jump are one interval to some classes and two to others.
+          assert.notEqual(ways[0], ways[1], `${at}: the two pieces go different ways`);
+          assert.equal(ways.includes(asked), variant.exists, `${at}: ${variant.exists ? 'one piece goes' : 'neither piece goes'} the way asked`);
+          assert.equal(family.analyze(graph)[feature].status, variant.exists ? FEATURE_STATUS.EXISTS : FEATURE_STATUS.NONE, `${at}: its answer is plain`);
+          built += 1;
+        }
+      }
+    }
+  }
+  assert.ok(built >= 240, `${built} builds`);
+  // Above or below the axis: asked of graphs with one zero and of graphs with two.
+  for (const feature of [GRAPH_FEATURE.POSITIVE, GRAPH_FEATURE.NEGATIVE]) {
+    const zeros = new Set();
+    for (let seed = 0; seed < 40; seed += 1) {
+      const analysis = family.analyze(family.build(createRng(`n64|${feature}|${seed}`), { feature, variant: 'pieces', tier: QUESTION_TIER.STANDARD }));
+      assert.equal(analysis[feature].status, FEATURE_STATUS.EXISTS, `${feature} #${seed}`);
+      zeros.add(analysis[GRAPH_FEATURE.X_INTERCEPT].points.length);
+    }
+    assert.deepEqual([...zeros].sort(), [1, 2], `${feature}: graphs with one zero and graphs with two`);
   }
 });
 
@@ -371,9 +412,19 @@ test('the reading guide reads each interval in one short line, and names them al
 
 test('the round offers "Does Not Exist" on every interval question and says so in its hint; the setup lists the new features', () => {
   const round = executableSource(read('src/components/liveChallenge/GraphFeatureRushRound.jsx'));
-  assert.match(round, /const setCanBeEmpty = setQuestion && \(inequalityItem \|\| getGraphFeature\(question\?\.feature\)\?\.canNotExist === true\);/);
-  assert.match(round, /\$\{setCanBeEmpty \? ' Nowhere\? Does Not Exist\.' : ''\}/);
-  assert.match(round, /const vertical = setAxisOf\(question\) === 'y';/, 'the axis from the question, target or not');
+  // An interval question's kind (rushSession.rushItemKind) can be empty, so it
+  // offers Does Not Exist and its hint says so; its axis is read from the
+  // question, target or not (an empty answer has no target to read it from).
+  assert.match(round, /\$\{kind\.canBeEmpty \? ' Nowhere\? Does Not Exist\.' : ''\}/);
+  const config = normalizeGraphFeatureRushConfig({ presetId: 'intervals' });
+  let empty = 0;
+  for (let index = 0; index < 60; index += 1) {
+    const question = publicRushQuestion(generateRushQuestion({ seed: 'kinds', studentKey: 'a', roundIndex: 0, questionIndex: index, config }));
+    const kind = rushItemKind(question);
+    assert.deepEqual([kind.set, kind.canBeEmpty, kind.vertical], [true, true, false], `${question.feature}: a set on x that can be empty`);
+    if (!question.targets.length) empty += 1;
+  }
+  assert.ok(empty > 0, 'an interval that does not exist, its axis still x');
   assert.match(read('src/components/liveChallenge/GraphFeatureRushSetup.jsx'), /\{GRAPH_FEATURE_IDS\.map\(\(id\) => \(/, 'every registered feature is offered');
   assert.equal(RUSH_ATTEMPT_KIND.CHECK, 'check');
 });

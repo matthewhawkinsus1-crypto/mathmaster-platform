@@ -30,7 +30,7 @@ import {
   buildPracticeLikeThis,
   checkPracticeAnswers,
 } from '../../src/platform/supports/workedExample/practiceLikeThis.js';
-import { buildNumericVariant } from '../../src/platform/supports/workedExample/numericVariant.js';
+import { NUMERIC_VARIANT_KIND, buildNumericVariant } from '../../src/platform/supports/workedExample/numericVariant.js';
 import { buildSimilarWorkedExample, questionHasSimilarExample } from '../../src/platform/supports/workedExample/similarProblem.js';
 import { classifyLinearSystem, linearEquationForm } from '../../functions/shared/toolMath/systemsWorkspace/algebraicSystemsEngine.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
@@ -70,6 +70,8 @@ const NOT_VARIED = [
   [DOL2, 'dol2r-pr-16', 'a family slot: its other instances are classmates\' questions'],
   [DOL2, 'dol2r-cw-9', 'a word problem, solved with the matrix calculator'],
   [DOL2, 'dol2r-cw-11', 'an error analysis that quotes the system in its text'],
+  // Solved with the matrix calculator: the system with new numbers, worked as
+  // the lab works it (practiceLikeThisMatrixSystems.test.mjs), never by hand.
   [MATRICES, 'l3m-cw-9', 'solved with the matrix calculator'],
   [MATRICES, 'l3m-pr-6', 'solved with the matrix calculator, not in whole numbers'],
 ];
@@ -146,21 +148,24 @@ const workFor = (rows, variables, values) => ({
 
 /* ------------------------------------------------------------------- tests */
 
-test('FB19: exactly the static 3×3 systems solved by hand get a variant — no other real Classwork/Practice item, and none of the 3×3 items that must not', () => {
+test('FB19: exactly the static 3×3 systems solved by hand get a 3×3 variant — no other real Classwork/Practice item, and none of the 3×3 items that must not', () => {
   const varied = [];
   let classworkAndPractice = 0;
   lessonFiles().forEach((file) => itemsOf(file).forEach(({ role, question }) => {
     if (!PRACTICE_LIKE_THIS_ROLES.includes(role)) return;
     classworkAndPractice += 1;
     const practice = buildPracticeLikeThis(question, { seed: 0 });
-    if (practice?.source === PRACTICE_SOURCE.NUMERIC_VARIANT) varied.push(`${file}::${question.questionId}`);
+    // The polynomial kind has its own list (practiceLikeThisPolynomials.test.mjs).
+    if (practice?.source === PRACTICE_SOURCE.NUMERIC_VARIANT && practice.kind === NUMERIC_VARIANT_KIND.SYSTEM_3X3) varied.push(`${file}::${question.questionId}`);
   }));
   assert.ok(classworkAndPractice >= 859, `the real lessons are read (${classworkAndPractice})`);
   assert.deepEqual(varied.sort(), VARIED.map(([file, id]) => `${file}::${id}`).sort());
   VARIED.forEach(([file, id]) => assert.ok(PRACTICE_LIKE_THIS_ROLES.includes(lessonItem(file, id).role), `${id} is Classwork or Practice`));
   NOT_VARIED.forEach(([file, id, why]) => {
     const { question } = lessonItem(file, id);
-    assert.equal(buildNumericVariant(question, { seed: 0 }), null, `${id}: ${why}`);
+    const variant = buildNumericVariant(question, { seed: 0 });
+    if (file === MATRICES) assert.equal(variant?.kind, NUMERIC_VARIANT_KIND.MATRIX_SYSTEM, `${id}: ${why}`);
+    else assert.equal(variant, null, `${id}: ${why}`);
   });
   // The family slot as a student is shown it — a generated instance with whole-number equations — is still not varied.
   const slot = lessonItem(DOL2, 'dol2r-pr-16').question;
@@ -308,5 +313,6 @@ test('FB19: what is not varied — a word problem, a family slot, substitution, 
   not({ equations: ['x + y = 4 - z', '2x - y + z = 8', '3x + 2y - z = 1'] }, 'a term on the right');
   not({ equations: ['x + y + z = 4', '2x - y + z = 8', '3x + 2y - z = 2'] }, 'a solution that is not whole numbers');
   not({ equations: ['x + y = 4', '2x - y + z = 8', '3x + 2y - z = 1'] }, 'a variable missing from an equation');
-  not({ type: 'matrixLab', mode: 'solve' }, 'the matrix calculator');
+  // The matrix calculator: the lab's own way (matrixSystemVariant.js), never elimination by hand.
+  assert.equal(buildNumericVariant({ ...question, type: 'matrixLab', mode: 'solve' }, { seed: 0 })?.kind, NUMERIC_VARIANT_KIND.MATRIX_SYSTEM, 'the matrix calculator');
 });

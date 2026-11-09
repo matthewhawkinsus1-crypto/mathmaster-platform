@@ -1214,6 +1214,15 @@ service cloud.firestore {
         || teachesPresenceStudent(resource.data.studentId);
     }
 
+    function followUpAddressedToCurrentTeacher() {
+      let roster = get(/databases/$(database)/documents/grades/$(resource.data.studentId)).data;
+      let moved = request.resource.data.diff(resource.data).affectedKeys();
+      // Both move together, to both of the roster's values (as at creation).
+      return !moved.hasAny(['teacherEmail', 'classId'])
+        || (request.resource.data.teacherEmail == roster.get('assignedTeacherEmail', null)
+          && request.resource.data.get('classId', null) == roster.get('classId', null));
+    }
+
     match /askTeacherQuestions/{questionId} {
       allow read: if rootAdmin()
         || ownsStudent(resource.data.studentId)
@@ -1239,12 +1248,16 @@ service cloud.firestore {
         // again, the new words replace `text`, and the first exchange moves
         // beside it, copied from the document itself. (The status line is
         // implied by the copies below, which an unanswered document cannot
-        // match; it stays so the rule reads as it works.)
+        // match; it stays so the rule reads as it works.) If the class has
+        // changed teachers since the answer, the follow-up is addressed to the
+        // teacher on the student's roster row now, exactly as a new question
+        // is: `teacherEmail` and `classId` may change, only to those values.
         || (ownsStudent(resource.data.studentId)
           && resource.data.status == 'answered'
           && !resource.data.keys().hasAny(['earlierText', 'earlierAnswer'])
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'text', 'earlierText', 'earlierAnswer', 'updatedAt'])
+            .hasOnly(['status', 'text', 'earlierText', 'earlierAnswer', 'updatedAt', 'teacherEmail', 'classId'])
+          && followUpAddressedToCurrentTeacher()
           && request.resource.data.status == 'open'
           && teacherQuestionTextValid(request.resource.data.text, 500)
           && request.resource.data.earlierText == resource.data.text
@@ -1519,9 +1532,13 @@ service cloud.firestore {
     // never joined, and named per-student results. Students see aliases during
     // the game precisely so they are not ranked against each other by name, so
     // the report that does name them is readable only by the teacher who ran it.
+    // A report not written yet reads as nothing to a teacher, as a class's
+    // missing memory does: the room finishes first and the report is written a
+    // moment after it, so the console follows it from the moment the room
+    // finishes (liveChallengeService.js, watchChallengeReport).
     match /liveChallengeReports/{roomId} {
       allow read: if rootAdmin()
-        || (teacher() && resource.data.teacherEmail == request.auth.token.email);
+        || (teacher() && (resource == null || resource.data.teacherEmail == request.auth.token.email));
       allow create, update, delete: if false;
     }
 

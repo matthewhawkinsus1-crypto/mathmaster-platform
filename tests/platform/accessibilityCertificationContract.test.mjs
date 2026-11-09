@@ -9,9 +9,14 @@ import { region, executableSource } from './helpers/sourceContract.mjs';
 
 const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
 import {
-  CERTIFIED_SCREENS, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, servesStubbedServices,
+  CERTIFIED_SCREENS, EXAM_PRACTICE_CHIP_SCREEN, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, runScope, sceneLabel, sceneScope, screensToRun,
+  servesStubbedServices,
 } from '../browser/accessibilityCertification.mjs';
-import { TEACHER_SCREENS } from '../browser/accessibilityTeacherScreens.mjs';
+import {
+  MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_TOOLS, MATH_TOOLS_LAB_WORK_VIEW_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_TOOLS, TEACHER_SCREENS,
+} from '../browser/accessibilityTeacherScreens.mjs';
+import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
+import { WORK_VIEW_INVENTORY } from '../../src/tools/workViewInventory.js';
 
 const REQUIRED_SCREENS = [
   'student-home',
@@ -42,6 +47,26 @@ test('all seven student screens are certified, each with at least one driven sce
 
 // AX17: a math box's placeholder was 1.66:1 and no scene had a box that showed
 // one. The scene must keep waiting for the placeholder it audits.
+// THE EXAM-PRACTICE CHIP (student-a11y-2). On a phone held upright its white text was painted dark blue over
+// its purple fill (1.14:1) and no scene showed the chip. Its screen is audited by axe and replayed by the
+// contrast review (CERTIFIED_SCREENS), in both themes, on an item authored as exam practice; it is not one of
+// SCREENS, which the large-text runs take too, because it sits on the keyboard sweep's stand-in shell.
+test('the exam-practice chip is audited in both themes, on an item that shows it, and kept out of the large-text runs', () => {
+  assert.ok(CERTIFIED_SCREENS.includes(EXAM_PRACTICE_CHIP_SCREEN), 'the ratchet and the contrast review audit it');
+  assert.ok(!SCREENS.includes(EXAM_PRACTICE_CHIP_SCREEN), 'the large-text runs do not take it');
+  assert.deepEqual(EXAM_PRACTICE_CHIP_SCREEN.scenes.map((scene) => scene.id), ['light', 'dark']);
+  for (const scene of EXAM_PRACTICE_CHIP_SCREEN.scenes) assert.equal(typeof scene.run, 'function', `${sceneLabel(EXAM_PRACTICE_CHIP_SCREEN, scene)} has a driver`);
+  assert.equal(sceneScope(EXAM_PRACTICE_CHIP_SCREEN, EXAM_PRACTICE_CHIP_SCREEN.scenes[0]).keyboard, undefined, 'axe only: no Tab walk on the stand-in shell');
+  const source = executableSource(readFileSync(new URL('../browser/accessibilityCertification.mjs', import.meta.url), 'utf8'));
+  const spec = region(source, 'const EXAM_PRACTICE_SPEC = {', '\n};', 'the exam-practice item');
+  // What makes QuestionEngine show the chip (questionAssessmentFramework.js): exam style, and a direct alignment to that exam.
+  assert.match(spec, /assessmentContext: \{ framework: 'digitalSAT', examStyle: true/);
+  assert.match(spec, /\{ framework: 'digitalSAT', domainId: 'algebra', role: 'primary', evidenceMode: 'direct' \}/);
+  const scene = region(source, 'const openExamPracticeChip = (theme) => async', '\n};', 'the chip scene');
+  assert.match(scene, /if \(theme === 'dark'\) await page\.evaluate\(\(\) => \{ document\.documentElement\.dataset\.theme = 'dark'; \}\);/);
+  assert.match(scene, /getByRole\('button', \{ name: \/Digital SAT alignment details\/ \}\)\.first\(\)\.waitFor/, 'the scene waits for the chip itself');
+});
+
 test('an empty math box with its placeholder showing is among the audited scenes', () => {
   const tools = SCREENS.find((screen) => screen.id === 'assignment-tools');
   assert.ok(tools.scenes.some((scene) => scene.id === 'math-box-placeholder'), 'the assignment tools audit an empty math box');
@@ -57,20 +82,26 @@ test('an empty math box with its placeholder showing is among the audited scenes
 const REQUIRED_TEACHER_SCREENS = {
   'teacher-home': [null],
   'teacher-live-class': ['walkthrough', 'attention'],
-  'teacher-assignments': [null, 'class-list', 'card-menu'],
+  // The fifth slice added, here and below, states of these screens that no scene had opened (accessibilityTeacherScreens
+  // .mjs, THE FIFTH SLICE).
+  'teacher-assignments': [null, 'class-list', 'card-menu', 'create'],
   'teacher-assignment-hub': ['drawer', 'progress'],
   'teacher-gradebook': ['table'],
-  'teacher-preflight': ['details', 'delivery', 'check'],
-  'teacher-live-challenge': ['setup', 'lobby'],
+  'teacher-preflight': ['details', 'classes', 'delivery', 'check'],
+  // After the classic game's report, a Graph the Line game's: its blocks are headed tables (teacher features walk, item 11).
+  'teacher-live-challenge': ['setup', 'lobby', 'round', 'projector', 'results', 'final', 'line-final'],
   // The third slice: the rest of the navigation's destinations, a class's page, a student's drawer, the Find palette,
   // the TEKS screen's views, the Path Simulator's modes, and the administrator's five sections.
   'teacher-classes': [null, 'class'],
   'teacher-students': [null, 'drawer'],
+  // Not 'path' (the student's own My Math Path, read-only): its mastery wheel's targets are the student's; see
+  // accessibilityTeacherScreens.mjs.
+  'teacher-student-detail': ['overview', 'profile', 'progress', 'assignments', 'supports', 'account'],
   'teacher-library': [null],
   'teacher-weekly-path': [null],
   'teacher-action-center': [null],
-  'teacher-grade-export': [null],
-  'teacher-secure-exams': [null],
+  'teacher-grade-export': [null, 'review', 'selection', 'district-ids'],
+  'teacher-secure-exams': [null, 'session', 'delete', 'preview'],
   'teacher-pacing': [null],
   'teacher-attendance': [null],
   'teacher-parent-contacts': [null],
@@ -83,7 +114,10 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-find': [null, 'results'],
   'teacher-demo': [null],
   'teacher-schedule': [null],
-  'teacher-classroom': [null],
+  // Google Classroom as a teacher who has not connected it meets it, once connected (its courses: listGoogleCourses), its
+  // roster table after Import Roster (listClassroomStudents, listClassroomRosterLinks), and the table after a row's link
+  // is confirmed (linkClassroomRosterBatch).
+  'teacher-classroom': [null, 'connected', 'roster', 'linked'],
   'teacher-access': [null],
   'teacher-admin': ['classes', 'accounts', 'coverage', 'ai', 'reset'],
 };
@@ -102,7 +136,96 @@ test('the teacher screens are audited next to the student ones, each scene drive
   assert.deepEqual(TEACHER_SCREENS.map((screen) => screen.id).sort(), Object.keys(REQUIRED_TEACHER_SCREENS).sort(), 'no teacher screen is audited without being named here');
   // The student list is what the other drivers (large text, names, landmarks) import: it stays the student's.
   assert.ok(SCREENS.every((screen) => !screen.id.startsWith('teacher-')), 'SCREENS is the student list');
-  assert.ok(CERTIFIED_SCREENS.length === SCREENS.length + TEACHER_SCREENS.length);
+  // The run audits the student list, the exam-practice chip's screen (audited, but kept out of the large-text
+  // runs: see its own test), the teacher list, the Math Tools Lab's other tools and its Work Views (see theirs), and
+  // nothing else.
+  assert.deepEqual(CERTIFIED_SCREENS, [...SCREENS, EXAM_PRACTICE_CHIP_SCREEN, ...TEACHER_SCREENS, MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_SCREEN]);
+});
+
+// THE MATH TOOLS LAB'S OTHER TOOLS (student-keyboard-ci). Axe and the contrast review saw only the Lab's first tool. Each
+// of the other 24 is a scene of its own, chosen in the tool list, audited as the tool's region, at both sizes and (the
+// contrast review) in both themes, in a CI job of its own: a run that names no screen leaves it to that job.
+test('every tool of the Math Tools Lab but its first is a certified scene of its own, audited as the tool', () => {
+  const lab = executableSource(readFileSync(new URL('../../src/dev/MathToolsLab.jsx', import.meta.url), 'utf8'));
+  // The Lab lists every registry tool and opens on the Transformations Lab, which teacher-math-tools audits.
+  assert.match(lab, /const \[toolId, setToolId\] = useState\('transformationsLab'\);/, 'the first tool is the one teacher-math-tools audits');
+  assert.deepEqual(MATH_TOOLS_LAB_TOOLS.map((tool) => tool.toolId).sort(), Object.keys(TOOL_CATALOG).filter((id) => id !== 'transformationsLab').sort(), 'every other tool');
+  assert.equal(MATH_TOOLS_LAB_TOOLS.length, 24);
+  assert.deepEqual(MATH_TOOLS_LAB_SCREEN.scenes.map((scene) => scene.id), MATH_TOOLS_LAB_TOOLS.map((tool) => tool.toolId), 'a scene each, named for its tool');
+  for (const tool of MATH_TOOLS_LAB_TOOLS) assert.equal(tool.label, TOOL_CATALOG[tool.toolId].label, `${tool.toolId} is chosen by the label the list shows`);
+  for (const scene of MATH_TOOLS_LAB_SCREEN.scenes) assert.equal(typeof scene.run, 'function', `${sceneLabel(MATH_TOOLS_LAB_SCREEN, scene)} has a driver`);
+  assert.equal(MATH_TOOLS_LAB_SCREEN.harness, 'app');
+  assert.equal(MATH_TOOLS_LAB_SCREEN.schoolClock, true, 'the teacher harness reads the clock');
+  // The tool's region: the hook is on the element that holds the tool, and the scene audits it. The shared plane's text
+  // is left out, as the first scene leaves it out: the samples draw lines through its labels (accessibilityTeacherScreens.mjs).
+  assert.equal(MATH_TOOLS_LAB_SCREEN.include, '.mm-tools-lab-tool');
+  assert.deepEqual(MATH_TOOLS_LAB_SCREEN.exclude, ['svg.mathmaster-responsive-canvas text'], 'the plane\'s text, and nothing else');
+  const section = region(lab, '<section className="mm-tools-lab-tool"', '</section>', 'the tool\'s region');
+  assert.match(section, /<Tool questionData=\{SAMPLE_SPECS\[toolId\] \|\| \{\}\}/, 'which holds the tool');
+  assert.equal(sceneScope(MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_SCREEN.scenes[0]).keyboard, undefined, 'axe and the contrast review: the Tab walk of all 24 ran by hand');
+  // Kept out of the teacher list, which the large-text runs take too, and given to a job of its own.
+  assert.ok(!TEACHER_SCREENS.includes(MATH_TOOLS_LAB_SCREEN));
+  assert.equal(MATH_TOOLS_LAB_SCREEN.ownJob, true);
+  const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  const choose = region(scenes, 'const openLabTool = (label) => async (page) => {', '\n};', 'choosing a tool');
+  assert.match(choose, /locator\('aside\.mm-tools-lab-list'\)\.getByRole\('button', \{ name: label, exact: true \}\)/, 'in the tool list, by its label');
+  assert.match(choose, /await closeLabWorkView\(page\);\s*await page\.waitForLoadState/, 'a Work View the tool opened on its own is closed before the audit');
+});
+
+// THE LAB'S WORK VIEWS (keypad-done). The Lab's scenes close a Work View a tool opens on its own, so axe and the contrast
+// review had seen none of the Lab's. Each Work View the Lab's tools open is a scene of its own: every tool the Work View
+// inventory migrated (all but Solution Review, which it exempts), the Lab's first among them, audited as the dialog.
+test('every Work View the Math Tools Lab\'s tools open is a certified scene of its own, audited as the dialog', () => {
+  const migrated = Object.keys(TOOL_CATALOG).filter((toolId) => WORK_VIEW_INVENTORY[toolId]?.status === 'migrated');
+  assert.deepEqual(MATH_TOOLS_LAB_WORK_VIEW_TOOLS.map((tool) => tool.toolId), migrated, 'each tool with a Work View, in the Lab\'s order');
+  assert.equal(MATH_TOOLS_LAB_WORK_VIEW_TOOLS.length, 24);
+  assert.ok(MATH_TOOLS_LAB_WORK_VIEW_TOOLS.some((tool) => tool.toolId === 'transformationsLab'), 'the Lab\'s first tool\'s too');
+  assert.ok(!MATH_TOOLS_LAB_WORK_VIEW_TOOLS.some((tool) => tool.toolId === 'solutionReview2'), 'not Solution Review, which has none');
+  for (const tool of MATH_TOOLS_LAB_WORK_VIEW_TOOLS) assert.equal(tool.label, TOOL_CATALOG[tool.toolId].label, `${tool.toolId} is chosen by the label the list shows`);
+  const screen = MATH_TOOLS_LAB_WORK_VIEW_SCREEN;
+  assert.deepEqual(screen.scenes.map((scene) => scene.id), migrated, 'a scene each, named for its tool');
+  for (const scene of screen.scenes) assert.equal(typeof scene.run, 'function', `${sceneLabel(screen, scene)} has a driver`);
+  assert.deepEqual([screen.id, screen.harness, screen.schoolClock, screen.ownJob], ['teacher-math-tools-lab-work-view', 'app', true, true], 'the real app on the school\'s clock, in the Lab\'s job');
+  assert.equal(screen.open, MATH_TOOLS_LAB_SCREEN.open, 'opened as the Lab\'s tools are');
+  // The open Work View, a modal over the page, and the shared plane's text left out for the Lab's reason.
+  assert.equal(screen.include, '.mm-tools-lab-tool .mathmaster-work-view-host[data-open="true"][role="dialog"]');
+  assert.deepEqual(screen.exclude, MATH_TOOLS_LAB_SCREEN.exclude, 'the plane\'s text, as the Lab\'s tools leave it out');
+  assert.equal(sceneScope(screen, screen.scenes[0]).keyboard, undefined, 'axe and the contrast review here; the Tab walk is the 2.4.11 walk\'s');
+  assert.ok(!TEACHER_SCREENS.includes(screen), 'kept out of the teacher list the large-text runs take');
+  // Each scene chooses its tool as a teacher does, then opens the Work View with the tool's own button.
+  const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  const open = region(scenes, 'export const openLabWorkView = (label) => async (page) => {', '\n};', 'opening a Work View');
+  assert.match(open, /^export const openLabWorkView = \(label\) => async \(page\) => \{\s*await openLabTool\(label\)\(page\);/);
+  assert.match(open, /locator\('\.mm-tools-lab-tool button\.mathmaster-work-view-opener'\)\.first\(\)\.evaluate\(\(button\) => button\.click\(\)\);\s*await page\.locator\(LAB_WORK_VIEW\)\.waitFor/);
+  assert.match(scenes, /const LAB_WORK_VIEW = '\.mm-tools-lab-tool \.mathmaster-work-view-host\[data-open="true"\]\[role="dialog"\]';/);
+  assert.match(read('src/components/common/EnlargeableFigure.jsx'), /role=\{enlarged \? 'dialog' : undefined\}\s*aria-modal=\{enlarged \? 'true' : undefined\}/, 'the host is the dialog while it is open');
+});
+
+test('a run that names no screen audits every certified screen but those with a job of their own; ONLY names any', () => {
+  const all = screensToRun(new Set());
+  const ownJob = [MATH_TOOLS_LAB_SCREEN, MATH_TOOLS_LAB_WORK_VIEW_SCREEN];
+  assert.deepEqual(all, CERTIFIED_SCREENS.filter((screen) => !ownJob.includes(screen)), 'the Lab\'s tools and its Work Views are left to their job');
+  assert.deepEqual(CERTIFIED_SCREENS.filter((screen) => screen.ownJob), ownJob, 'and nothing else is');
+  assert.deepEqual(screensToRun(new Set(['teacher-math-tools-lab'])), [MATH_TOOLS_LAB_SCREEN]);
+  assert.deepEqual(screensToRun(new Set(['teacher-math-tools-lab', 'teacher-math-tools-lab-work-view'])), ownJob, 'the job names both');
+  assert.deepEqual(screensToRun(new Set(['student-home', 'teacher-math-tools'])).map((screen) => screen.id), ['student-home', 'teacher-math-tools']);
+  // What each run judges and writes: only the keys of what it ran, and every key when it ran everything.
+  assert.equal(runScope(CERTIFIED_SCREENS), null);
+  const defaultScope = runScope(all);
+  assert.equal(defaultScope({ screen: 'teacher-math-tools' }), true, 'the Lab\'s first tool is the default run\'s');
+  assert.equal(defaultScope({ screen: 'teacher-math-tools-lab/matrixLab' }), false, 'its other tools are not');
+  assert.equal(defaultScope({ screen: 'student-assignments/completed-section' }), true);
+  const labScope = runScope([MATH_TOOLS_LAB_SCREEN]);
+  assert.equal(labScope({ screen: 'teacher-math-tools-lab/representationMatch' }), true);
+  assert.equal(labScope({ screen: 'teacher-math-tools' }), false, 'a screen whose id begins another\'s is not it');
+  assert.equal(labScope({ screen: 'teacher-math-tools-lab-work-view/representationMatch' }), false, 'nor is the Lab\'s Work Views\' screen the Lab\'s tools\'');
+  assert.equal(defaultScope({ screen: 'teacher-math-tools-lab-work-view/matrixLab' }), false, 'which the default run leaves out too');
+  // Both drivers run the same screens and judge the same keys.
+  for (const file of ['accessibilityCertification.mjs', 'contrastReview.mjs']) {
+    const source = executableSource(readFileSync(new URL(`../browser/${file}`, import.meta.url), 'utf8'));
+    assert.match(source, /const screens = screensToRun\(ONLY\);/, `${file} runs screensToRun`);
+    assert.match(source, /runScope\(screens\)/, `${file} judges what it ran`);
+  }
 });
 
 // Every destination of the teacher's navigation has a scene (TT27, third slice). The list is read from the navigation itself, so a
@@ -128,6 +251,33 @@ test('the teacher\'s modals are audited as the dialog, and the Find palette is a
   assert.match(read('src/components/teacher/TeacherQuickSearch.jsx'), /aria-label="Find a student, class, assignment or standard"/, 'the palette carries the name');
 });
 
+// TT27, fifth slice. Three of the new scenes are a layer over the page: Grade Export's review and the Test Cycle's student
+// preview (modal dialogs), and the Live Challenge projector (a full-screen layer the class sees). Each is audited as
+// itself, as the earlier modals are; every other new scene audits the page whole.
+test('the fifth slice audits each layer as itself, and its other states as the whole page', () => {
+  const scope = (screenId, sceneId) => {
+    const screen = TEACHER_SCREENS.find((entry) => entry.id === screenId);
+    return sceneScope(screen, screen.scenes.find((scene) => scene.id === sceneId));
+  };
+  assert.equal(scope('teacher-grade-export', 'review').include, '[aria-labelledby="grade-export-review-title"]');
+  assert.match(read('src/components/teacher/GradeTransferCenter.jsx'), /<Dialog className="tw-review" [^\n]*aria-labelledby="grade-export-review-title">/, 'the review is the Dialog the scene names');
+  assert.equal(scope('teacher-secure-exams', 'preview').include, '[role="dialog"][aria-label^="Student preview of"]');
+  assert.match(read('src/components/teacher/TestCyclePreview.jsx'), /<Dialog onClose=\{onClose\} aria-label=\{`Student preview of \$\{title\}`\}/, 'the preview is the Dialog the scene names');
+  assert.equal(scope('teacher-live-challenge', 'projector').include, '.mm-arena-shell');
+  assert.match(read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx'), /className="mm-arena-shell"/, 'the projector carries the class the scene names');
+  const whole = [
+    ['teacher-assignments', 'create'], ['teacher-preflight', 'classes'], ['teacher-live-challenge', 'round'], ['teacher-live-challenge', 'results'],
+    ['teacher-live-challenge', 'final'], ['teacher-grade-export', 'selection'], ['teacher-grade-export', 'district-ids'], ['teacher-secure-exams', 'session'],
+    ['teacher-secure-exams', 'delete'], ...TEACHER_SCREENS.find((entry) => entry.id === 'teacher-student-detail').scenes.map((scene) => ['teacher-student-detail', scene.id]),
+  ];
+  for (const [screenId, sceneId] of whole) {
+    const { include, keyboard } = scope(screenId, sceneId);
+    // Pre-Flight's steps are inside its dialog, which the screen names; the others are pages.
+    assert.equal(include, screenId === 'teacher-preflight' ? '[aria-label="Lesson pre-flight review"]' : undefined, `${screenId}/${sceneId}`);
+    assert.equal(keyboard, true, `${screenId}/${sceneId} is walked by Tab`);
+  }
+});
+
 test('every teacher screen opens on the school clock and is walked by Tab; a modal is audited as the dialog, not the page behind its scrim', () => {
   for (const screen of TEACHER_SCREENS) {
     assert.equal(screen.schoolClock, true, `${screen.id}: its bell schedule reads the clock, so it opens on the school's`);
@@ -136,7 +286,16 @@ test('every teacher screen opens on the school clock and is walked by Tab; a mod
   // The two modal screens: axe and the contrast review read the page behind a scrim as covered, undecided text.
   assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-preflight').include, '[aria-label="Lesson pre-flight review"]');
   assert.equal(TEACHER_SCREENS.find((screen) => screen.id === 'teacher-assignment-hub').include, '[data-assignment-hub]');
-  assert.equal(SCREENS.some((screen) => screen.schoolClock || screen.keyboard), false, 'the student screens are unchanged');
+  assert.equal(SCREENS.some((screen) => screen.keyboard), false, 'the student screens are not walked by Tab here');
+});
+
+test('every student screen of the app harness opens on the school clock too; a standalone harness has no bell schedule', () => {
+  // The fixture builds Period 3 from the clock. On CI's (UTC), from about 23:05 the period was clamped to end
+  // by 23:55, and the exit ticket's "open — start now" reminder covered a phone's student navigation (2.4.11).
+  const app = SCREENS.filter((screen) => screen.harness === 'app');
+  assert.ok(app.length >= 5, 'the student app screens are found');
+  for (const screen of app) assert.equal(screen.schoolClock, true, `${screen.id}: the app harness reads the clock, so it opens on the school's`);
+  for (const screen of SCREENS.filter((entry) => entry.harness !== 'app')) assert.notEqual(screen.schoolClock, true, `${screen.id}: a standalone harness is left on the browser's clock`);
 });
 
 test('a scene audits and is walked as it says, and otherwise as its screen does', () => {
@@ -149,6 +308,23 @@ test('a scene audits and is walked as it says, and otherwise as its screen does'
   const review = executableSource(readFileSync(new URL('../browser/contrastReview.mjs', import.meta.url), 'utf8'));
   assert.match(review, /const scope = sceneScope\(screen, scene\);/);
   assert.match(review, /collectInPage, \{ include: asList\(scope\.include\), exclude: asList\(scope\.exclude\) \}/);
+});
+
+// The contrast review reads the scenes in the light theme, as the certification audits them. COLOR_SCHEME=dark reads
+// the same scenes on a dark device: the app follows the device, and a standalone harness, which does not, is put in
+// the dark theme before it paints. CI runs both, the light review in its job and the dark one in a job of its own
+// (accessibilityCiShards.test.mjs holds the jobs).
+test('the contrast review reads the scenes light, and on a dark device when asked, as CI runs it in both', () => {
+  const review = executableSource(readFileSync(new URL('../browser/contrastReview.mjs', import.meta.url), 'utf8'));
+  assert.match(review, /const colorScheme = process\.env\.COLOR_SCHEME === 'dark' \? 'dark' : 'light';/, 'light unless asked');
+  assert.match(review, /isMobile: Boolean\(viewport\.isMobile\), hasTouch: Boolean\(viewport\.hasTouch\),\s*colorScheme, reducedMotion: 'reduce',/, 'every context on that device');
+  const dark = region(review, "if (colorScheme === 'dark') {", 'await context.route(', 'the dark run');
+  assert.match(dark, /await context\.addInitScript\(\(\) => \{[\s\S]*document\.documentElement\.dataset\.theme = 'dark'; document\.documentElement\.style\.colorScheme = 'dark';/, 'a harness put in the dark theme');
+  const workflow = readFileSync(new URL('../../.github/workflows/accessibility-certification.yml', import.meta.url), 'utf8');
+  const step = region(workflow, '- name: Contrast over gradients (axe', 'run: npm run review:contrast', 'CI\'s light contrast step');
+  assert.doesNotMatch(step, /COLOR_SCHEME/, 'CI reads it light');
+  const darkStep = region(workflow, '- name: Contrast over gradients in the dark theme', 'run: npm run review:contrast', 'CI\'s dark contrast step');
+  assert.match(darkStep, /^ {10}COLOR_SCHEME: dark$/m, 'and on a dark device');
 });
 
 // TT27 slice 2: the class selector's list and a card's ⋮ menu are scenes of the Assignments screen, each
@@ -223,7 +399,7 @@ test('the run audits every viewport × every (selected) screen × every scene, i
   const run = region(source, 'const main = async', 'const current = mergeNormalized', 'certification main loop');
   assert.match(run, /for \(const viewport of VIEWPORTS\)/, 'the loop must cover every viewport');
   assert.match(run, /for \(const screen of screens\)/, 'the loop must cover the selected screens');
-  assert.match(run, /SCREENS\.filter\(\(screen\) => !ONLY\.size \|\| ONLY\.has\(screen\.id\)\)/, 'only ONLY may narrow the screens');
+  assert.match(run, /const screens = screensToRun\(ONLY\);/, 'only ONLY, and a screen\'s job of its own, narrow the screens (screensToRun)');
   assert.match(run, /for \(const scene of screen\.scenes\)/, 'every scene is audited');
   assert.match(run, /colorScheme: 'light'/, 'the certification runs in the light theme');
   assert.match(run, /auditAccessibility\(page,/, 'each scene is audited with axe');
@@ -294,7 +470,25 @@ test('the Math Tools Lab scene closes the Work View and leaves out only the plan
 // fakeFunctions.js implements itself.
 test('the Classroom and administrator callables are registered after the harness\'s own, and never over them', () => {
   const fakes = readFileSync(new URL('../browser/teacherWorkflow/fakeFunctions.js', import.meta.url), 'utf8');
-  assert.match(fakes, /import \{ adminScreenHandlers \} from '\.\/fakeAdminScreens\.js';/);
+  // (The same import also brings the connected Classroom teacher's course mappings, which the harness's own
+  // listClassroomCourseMappings reads.)
+  assert.match(fakes, /import \{ (?:[\w, ]+, )?adminScreenHandlers(?:, [\w, ]+)? \} from '\.\/fakeAdminScreens\.js';/);
   assert.match(fakes, /Object\.entries\(adminScreenHandlers\)\.forEach\(\(\[name, handler\]\) => \{ if \(!handlers\[name\]\) handlers\[name\] = handler; \}\);/);
 });
 
+
+// Google Classroom after a link (the November build's section 6): the scene presses a roster row's own button by the name
+// it has now, its row's ("Confirm link for <the student>"), and reads the screen once the link is made and drawn: the
+// status that names the student, and that row's button saying "Linked". So it audits the screen after a link, and it
+// fails if the rows' buttons lose their names.
+test('the Classroom "linked" scene confirms a row\'s link by its row\'s name and waits for the link to be drawn', () => {
+  const classroom = TEACHER_SCREENS.find((screen) => screen.id === 'teacher-classroom');
+  assert.deepEqual(classroom.scenes.map((scene) => scene.id), [null, 'connected', 'roster', 'linked'], 'after Import Roster, on the same page');
+  const scenes = executableSource(readFileSync(new URL('../browser/accessibilityTeacherScreens.mjs', import.meta.url), 'utf8'));
+  const open = region(scenes, 'const openClassroomLinked = async (page) => {', '\n};', 'the linked scene');
+  assert.match(open, /getByRole\('region', \{ name: 'Google Classroom roster matches' \}\)/, 'inside the roster table');
+  assert.match(open, /getByRole\('button', \{ name: \/\^Confirm link for \/ \}\)\.first\(\)/, 'the first row a link can be confirmed on, by its name');
+  assert.match(open, /\.evaluate\(\(button\) => button\.click\(\)\)/, 'pressed as the other scenes press');
+  assert.match(open, /getByText\(`Linked \$\{student\} to MathMaster ID `\)\.waitFor/, 'the screen says what it linked');
+  assert.match(open, /getByRole\('button', \{ name: `Linked for \$\{student\}`, exact: true \}\)\.waitFor/, 'and the row is drawn as linked');
+});

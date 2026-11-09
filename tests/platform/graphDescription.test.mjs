@@ -202,6 +202,12 @@ test('CoordinatePlane imports the describer it calls, and memoises it on the dat
   for (const bound of ['xMin', 'xMax', 'yMin', 'yMax', 'snapStep']) {
     assert.match(deps, new RegExp(`\\b${bound}\\b`), `memo deps must include ${bound}`);
   }
+  // A tool's words for what it draws re-run it when what they say changes:
+  // both details, by value, since a reading ({ text, say }, AX05 slice 3) is
+  // a new object on every render.
+  assert.match(call, /toolMarks: hasToolMarks \? toolMarks : null,/);
+  assert.match(planeCode, /const toolMarksKey = JSON\.stringify\(\[toolMarks\?\.kinds \?\? null, toolMarks\?\.features \?\? null\]\);/);
+  assert.match(deps, /\btoolMarksKey\b/, 'memo deps must include the tool\'s words');
 });
 
 test('the plane svg is described by the generated (or authored) summary paragraph', () => {
@@ -209,9 +215,13 @@ test('the plane svg is described by the generated (or authored) summary paragrap
   const openTag = svg.slice(0, svg.indexOf('>\n'));
   assert.match(openTag, /role=\{interactive \? 'application' : 'img'\}/);
   assert.match(openTag, /aria-describedby=\{descriptionId\}/, 'both the img and the application plane carry the description');
-  const paragraph = planeCode.match(/<p id=\{descriptionId\}[^>]*>\{spokenDescription\}<\/p>/);
+  // The spoken description, in the reading's language under a translation
+  // where its messages say it all (AX05, slice 2: figureReadingSpanish.test.mjs).
+  assert.match(planeCode, /const described = describedIn\(figureWords, spokenDescription, spokenSay\);/);
+  const paragraph = planeCode.match(/<p id=\{descriptionId\}[^>]*>\{describedContent\(described\)\}<\/p>/);
   assert.match(paragraph?.[0] || '', /style=\{SR_ONLY_STYLE\}/, 'hidden even where no UI kit CSS is loaded');
   assert.ok(paragraph, 'the described-by target holds the spoken description');
+  assert.match(paragraph[0], /lang=\{described\.lang\}/, 'marked with the language it is in');
   assert.match(paragraph[0], /className="mm-sr-only"/, 'visually hidden, not removed');
   // Kept out of browse mode (no second reading), except inside a card control
   // whose name it forms.
