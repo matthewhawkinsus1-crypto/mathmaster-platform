@@ -29,6 +29,11 @@
  *                               line, mark or word kept a colour of its own, is
  *                               translucent, or is under 3:1 against Canvas, or
  *                               its focus ring is not a colour of the theme.
+ *   mm-forced-drawing-paint     any other drawing that says something (a number
+ *                               line, a mapping diagram, the 3D model, a progress
+ *                               wheel, a line drawn over the page) is not drawn
+ *                               in the theme's colours, judged as a plane is,
+ *                               focused and with a part of it focused too.
  *
  * Each finding is shaped like an axe violation (id, impact, help, nodes), as the
  * Tab walk's are (scripts/lib/keyboardReach.mjs).
@@ -61,6 +66,11 @@ export const FORCED_COLORS_RULES = Object.freeze({
   'mm-forced-plane-paint': {
     impact: 'serious',
     help: 'Under forced colours a coordinate plane must be drawn in the theme\'s colours: its board Canvas, every line, mark and word an opaque colour of the theme at 3:1 or more against Canvas, and its focus ring a colour of the theme',
+    helpUrl: `${WCAG}/non-text-contrast.html`,
+  },
+  'mm-forced-drawing-paint': {
+    impact: 'serious',
+    help: 'Under forced colours every other drawing (a number line, a mapping diagram, the 3D model, a progress wheel, a line drawn over the page) must be drawn in the theme\'s colours, as a plane is: its board Canvas or clear, every line, mark and word an opaque colour of the theme at 3:1 or more against Canvas, and its focus ring a colour of the theme',
     helpUrl: `${WCAG}/non-text-contrast.html`,
   },
 });
@@ -292,6 +302,11 @@ export const mathColourKept = ({ colour, formulaColour } = {}) => {
  *
  * A fill or stroke that is a pattern (url(#…)) is judged by the pattern's own
  * lines, which the walk reads as parts too.
+ *
+ * Every other drawing that says something (data-mm-drawing: a number line, a
+ * mapping diagram, the 3D model, a progress wheel) is judged the same way, and
+ * one drawn over the page ("overlay": a match's line, a stroke's ink) by its
+ * parts alone, its board being clear.
  */
 export const PLANE_CONTRAST = 3;
 // The system colours a Windows contrast theme sets (Mark, AccentColor and
@@ -369,15 +384,18 @@ export const planePaintProblems = (plane, palette) => {
   return problems;
 };
 
-/** mm-forced-plane-paint, for one plane: its problems grouped (the same kind of part, the same colour, once). */
-export const planePaintSummary = (problems) => {
+/**
+ * mm-forced-plane-paint, for one plane, or mm-forced-drawing-paint for another drawing (`kind`): its problems grouped
+ * (the same kind of part, the same colour, once).
+ */
+export const planePaintSummary = (problems, kind = 'plane') => {
   const counts = new Map();
   for (const problem of problems) {
     const key = `${problem.what} ${problem.colour}`;
     counts.set(key, (counts.get(key) || 0) + 1);
   }
   const lines = [...counts].map(([key, count]) => (count > 1 ? `${key} ×${count}` : key));
-  return `Under forced colours the plane keeps paint of its own: ${lines.slice(0, 6).join('; ')}${lines.length > 6 ? `; and ${lines.length - 6} more` : ''}.`;
+  return `Under forced colours the ${kind} keeps paint of its own: ${lines.slice(0, 6).join('; ')}${lines.length > 6 ? `; and ${lines.length - 6} more` : ''}.`;
 };
 
 // ------------------------------------------------------------------ judging
@@ -395,8 +413,10 @@ const violation = (id, nodes) => ({ id, impact: FORCED_COLORS_RULES[id].impact, 
  *   math    [{ target, html, colour, formulaColour }]       every formula drawn
  *   planes  [{ target, html, board, parts, focusedParts, focusRing }]  every coordinate plane, read
  *           under forced colours, judged against `palette` (the page's system colours)
+ *   drawings  the same, for every other drawing (`focusedParts`: what it draws while it, or a part of
+ *           it, is focused)
  */
-export const judgeForcedColors = ({ edges = [], states = [], focus = [], math = [], planes = [], palette = null } = {}) => {
+export const judgeForcedColors = ({ edges = [], states = [], focus = [], math = [], planes = [], drawings = [], palette = null } = {}) => {
   const out = [];
   const edgeNodes = edges.filter(edgeLost).map((entry) => {
     const before = edgeOf(entry.normal);
@@ -422,5 +442,9 @@ export const judgeForcedColors = ({ edges = [], states = [], focus = [], math = 
     .filter(({ problems }) => problems.length)
     .map(({ entry, problems }) => node(entry.target, entry.html, planePaintSummary(problems)));
   if (planeNodes.length) out.push(violation('mm-forced-plane-paint', planeNodes));
+  const drawingNodes = drawings.map((entry) => ({ entry, problems: planePaintProblems(entry, palette) }))
+    .filter(({ problems }) => problems.length)
+    .map(({ entry, problems }) => node(entry.target, entry.html, planePaintSummary(problems, 'drawing')));
+  if (drawingNodes.length) out.push(violation('mm-forced-drawing-paint', drawingNodes));
   return out;
 };

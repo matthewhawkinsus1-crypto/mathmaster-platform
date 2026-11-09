@@ -5,8 +5,8 @@
  * forced colours, dark and light, read by tests/browser/forcedColorsAudit.mjs and
  * judged by scripts/lib/forcedColors.mjs: a Tab stop that draws no focus
  * indicator, a selected or pressed control shown only by colour or background,
- * a control that lost its edge, a formula not drawn in its words' colour, a coordinate plane not drawn in the theme's
- * colours. The browser half is shown finding each planted
+ * a control that lost its edge, a formula not drawn in its words' colour, a coordinate plane or any other drawing not
+ * drawn in the theme's colours. The browser half is shown finding each planted
  * defect by forcedColorsSelfTest.mjs; this file holds the judge to its verdicts
  * on readings shaped as Chromium reports them, and the theme job to running the
  * walk on the servers it needs. (The stylesheet the walk holds the screens to:
@@ -286,6 +286,94 @@ test('one finding per plane, naming what it paints in colours of its own, once p
   assert.deepEqual(judgeForcedColors({ planes: [kept], palette: null }), [], 'nothing judged without the theme\'s colours');
 });
 
+// ------------------------------------------------------------------ the other drawings
+// A number line, a mapping diagram, the 3D model, a progress wheel and a line drawn over the page are SVG drawings too,
+// and kept the app theme's paint under a contrast theme as a plane did. The walk reads each (data-mm-drawing) as it
+// reads a plane, and again whenever it or a part of it has focus; the judge holds it to the plane's terms under a rule of
+// its own.
+test('a drawing in the app theme\'s colours keeps paint of its own under forced colours; in the theme\'s colours it passes', () => {
+  // A number line on the app's dark surface, its ray and ends the app's blue, and a wheel's wedge in a level's green.
+  const kept = {
+    ...themedPlane(),
+    target: 'svg[aria-label="Number line"]',
+    board: { background: 'rgb(27, 30, 37)', border: { drawn: true, colour: 'rgb(52, 64, 90)' } },
+    parts: [
+      planePart({ part: 'axis', stroke: 'rgb(95, 107, 122)', strokeWidth: '2px' }),
+      planePart({ part: 'line', stroke: 'rgb(26, 115, 232)', strokeWidth: '6px', alpha: 0.85 }),
+      planePart({ tag: 'path', part: 'solid', fill: 'rgb(30, 142, 62)', stroke: 'none', alpha: 0.9 }),
+      planePart({ tag: 'circle', part: 'closed', fill: 'rgb(26, 115, 232)', stroke: 'rgb(26, 115, 232)', strokeWidth: '3px' }),
+    ],
+    focusedParts: [],
+    focusRing: null,
+  };
+  const [found, ...rest] = judgeForcedColors({ drawings: [kept, themedPlane()], palette: DARK_PALETTE });
+  assert.equal(rest.length, 0);
+  assert.equal(found.id, 'mm-forced-drawing-paint');
+  assert.ok(FORCED_COLORS_RULE_IDS.includes(found.id) && found.help && found.helpUrl && found.impact);
+  assert.deepEqual(found.nodes.map((entry) => entry.target[0]), ['svg[aria-label="Number line"]'], 'the drawing that keeps its paint, not the one drawn in the theme\'s colours');
+  assert.match(found.nodes[0].failureSummary, /^Under forced colours the drawing keeps paint of its own: the board's background not a colour of the theme/);
+  assert.match(found.nodes[0].failureSummary, /line \(line\) stroke translucent \(85%\)/);
+  assert.match(found.nodes[0].failureSummary, /path \(solid\) fill translucent \(90%\)/);
+  // A plane is still reported as a plane, under its own rule.
+  assert.deepEqual(judgeForcedColors({ planes: [kept], palette: DARK_PALETTE }).map((violation) => violation.id), ['mm-forced-plane-paint']);
+});
+
+test('a drawing over the page is judged by its parts, its board clear; focused, by what focus draws on it', () => {
+  // A match's line over the board: no background of its own, and its line and ends in the theme's colours.
+  const overlay = { target: 'svg.graph-scenario-connector-layer', html: '<svg data-mm-drawing="overlay">', board: { background: 'rgba(0, 0, 0, 0)', border: { drawn: false } }, parts: [planePart({ tag: 'path', part: 'line', fill: 'none', stroke: TEXT, strokeWidth: '4px' }), planePart({ tag: 'circle', part: 'open', fill: CANVAS, stroke: TEXT })], focusedParts: [], focusRing: null };
+  assert.deepEqual(planePaintProblems(overlay, DARK_PALETTE), []);
+  // A wheel whose wedge, named in the hub while it has focus, kept the app's blue.
+  const wheel = { ...overlay, target: 'svg[aria-label="mastery wheel"]', focusedParts: [planePart({ tag: 'path', part: 'held', fill: 'rgb(26, 115, 232)', stroke: CANVAS })] };
+  assert.deepEqual(planePaintProblems(wheel, DARK_PALETTE).map((problem) => problem.what), ['focused, path (held) fill not a colour of the theme']);
+  assert.deepEqual(planePaintProblems({ ...wheel, focusedParts: [planePart({ tag: 'path', part: 'held', fill: HIGHLIGHT, stroke: CANVAS })] }, DARK_PALETTE), [], 'Highlight is the theme\'s');
+});
+
+test('the walk reads every other drawing as it reads a plane, and again with it or a part of it focused', () => {
+  const audit = read('tests/browser/forcedColorsAudit.mjs');
+  const install = region(audit, 'export const INSTALL = ', '\n};\n', 'the in-page walk');
+  // Outermost boards only, planes and drawings alike, each read part by part.
+  assert.match(install, /const boardsOf = \(selector\) => [\s\S]*?!el\.parentElement\?\.closest\('\[data-mm-plane\], \[data-mm-drawing\]'\)/);
+  assert.match(install, /const drawings = boardsOf\('\[data-mm-drawing\]'\);/);
+  assert.match(region(install, 'read: () => ({', '}),', 'a reading'), /drawings: drawings\.map\(readPlane\),/);
+  // Focus on the drawing or inside it (a wedge, a value) reads the drawing as focus left it.
+  const focusPass = region(install, 'focusReadAll: async () => {', '\n    },\n', 'the focus pass');
+  assert.match(focusPass, /const board = drawings\.find\(\(drawing\) => drawing === el \|\| drawing\.contains\(el\)\) \|\| null;/);
+  assert.match(focusPass, /const drawing = board \? readPlane\(board\) : null;\s*el\.blur\(\);/);
+  // Judged from the forced reading, with what every focus drew on it, under the drawings' rule.
+  const run = region(audit, 'export const auditForcedColors = async', '\n};\n', 'a reading of a scene');
+  assert.match(run, /parts: forced\.drawings\[i\]\.parts,\s*focusedParts: \[\.\.\.\(focusedPartsOf\.get\(entry\.id\)\?\.values\(\) \|\| \[\]\)\],/);
+  assert.match(run, /judgeForcedColors\(\{ edges, states, focus, math, planes, drawings, palette: forced\.palette \}\)/);
+});
+
+test('the walk reads every other kind of drawing on the drawings\' page, beside the certified scenes and the Lab', async () => {
+  const { DRAWING_SCREENS, WALKED_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
+  const { sceneLabel } = await import('../browser/accessibilityCertification.mjs');
+  const labels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
+  assert.deepEqual(labels(DRAWING_SCREENS), ['drawings', 'drawings/chosen', 'my-math-path-wheel']);
+  for (const screen of DRAWING_SCREENS) {
+    assert.ok(WALKED_SCREENS.includes(screen), `${screen.id} is walked`);
+    // Read for its drawings alone.
+    assert.match(screen.include, /\[data-mm-drawing\]$/);
+  }
+  // The page on the stubbed server; the wheel in the app, where the certified my-math-path scene opens it.
+  assert.equal(DRAWING_SCREENS[0].harness, 'audit');
+  const { SCREENS } = await import('../browser/accessibilityCertification.mjs');
+  const myMathPath = SCREENS.find((screen) => screen.id === 'my-math-path');
+  assert.ok(DRAWING_SCREENS[1].harness === 'app' && DRAWING_SCREENS[1].open === myMathPath.open && DRAWING_SCREENS[1].schoolClock);
+  assert.match(read('tests/browser/forcedColorsCertification.mjs'), /filter\(\{ hasText: 'Mastery Overview' \}\)/);
+  assert.ok(labels(screensToWalk(new Set())).includes('drawings/chosen'), 'a run that names no screen walks them');
+  // The page mounts each kind with its real component, in the state a student sees.
+  const page = read('tests/browser/forcedColorsDrawingsMain.jsx');
+  for (const component of ['IntervalNumberLine', 'InequalityNumberLine', 'RelationMapping', 'ThreePlaneWorkspace', 'MyMathPathDashboard', 'CCMRReadinessWheel', 'GraphScenarioMatch']) {
+    assert.match(page, new RegExp(`<${component}\\b`), `${component} is drawn`);
+  }
+  // Ends of both kinds and one being placed; the answer a rush round shows; the planes' common point; every level.
+  assert.match(page, /pending: \{ value: 6, closed: false \}/);
+  assert.match(page, /reveal: \{ points: \[/);
+  assert.match(page, /spatialModel: \{ kind: 'threePlanes', revealSolution: true \}/);
+  assert.match(page, /const LEVELS = Object\.keys\(MASTERY_STATUS_COLORS\);/);
+});
+
 // ------------------------------------------------------------------ CI
 test('the theme readability job runs the forced-colours walk on the stubbed server and the app, after its self-test', () => {
   const workflow = 'theme-certification.yml';
@@ -336,7 +424,7 @@ test('the theme job walks the Math Tools Lab\'s tools and their Work Views too, 
 test('the walk reads the rounds\' own screens, the student\'s arena, beside the certified scenes', async () => {
   // A Graph Feature Rush round and a Graph the Line round are measured by the large-text runs and were read by no
   // forced-colours walk. The projector and the host console during a round are certified scenes it already reads.
-  const { PLANE_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
+  const { DRAWING_SCREENS, PLANE_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
   const { CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, SCREENS, sceneLabel, screensToRun } = await import('../browser/accessibilityCertification.mjs');
   const labels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
   // The run walks what screensToWalk gives it (ONLY, or nothing named).
@@ -346,9 +434,9 @@ test('the walk reads the rounds\' own screens, the student\'s arena, beside the 
     'teacher-live-challenge/round', 'teacher-live-challenge/projector', 'teacher-live-challenge/results']) {
     assert.ok(byDefault.includes(label), `${label} is read`);
   }
-  // Every certified scene still (beside the rounds' and the planes'), and the Lab's own-job screens left to the step
-  // that names them.
-  const added = labels([...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS]);
+  // Every certified scene still (beside the rounds', the planes' and the other drawings'), and the Lab's own-job screens
+  // left to the step that names them.
+  const added = labels([...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS, ...DRAWING_SCREENS]);
   assert.deepEqual(byDefault.filter((label) => !added.includes(label)), labels(screensToRun(new Set(), CERTIFIED_SCREENS)));
   assert.ok(!byDefault.some((label) => label.startsWith('teacher-math-tools-lab/')), 'the Lab\'s tools are their own step\'s');
   // ONLY can name a round, as it names a certified screen.
@@ -364,18 +452,19 @@ test('the walk reads the rounds\' own screens, the student\'s arena, beside the 
 test('the walk reads every coordinate plane under forced colours, focused too, and judges it against the page\'s system colours', () => {
   const audit = read('tests/browser/forcedColorsAudit.mjs');
   const install = region(audit, 'export const INSTALL = ', '\n};\n', 'the in-page walk');
-  // The planes in scope, outermost only, each read part by part.
-  assert.match(install, /const planes = \[\.\.\.new Set\(roots\.flatMap\(\(root\) => \[\.\.\.\(root\.matches\?\.\('\[data-mm-plane\]'\)/);
+  // The planes in scope, outermost only (boardsOf, which the other drawings share), each read part by part.
+  assert.match(install, /const boardsOf = \(selector\) => \[\.\.\.new Set\(roots\.flatMap\(\(root\) => \[\.\.\.\(root\.matches\?\.\(selector\)/);
+  assert.match(install, /const planes = boardsOf\('\[data-mm-plane\]'\);/);
   const readPlane = region(install, 'const readPlane = (plane) => {', '\n  };\n', 'readPlane');
   assert.match(readPlane, /for \(const el of plane\.querySelectorAll\(PAINTED\)\)/);
   assert.match(readPlane, /fill: c\.fill,\s*stroke: c\.stroke,\s*fillOpacity: c\.fillOpacity,\s*strokeOpacity: c\.strokeOpacity,\s*strokeWidth: c\.strokeWidth,\s*alpha: alphaOf,/);
   // Read in each reading, with the theme's colours; focused, read again.
-  assert.match(region(install, 'read: () => ({', '}),', 'a reading'), /planes: planes\.map\(readPlane\),\s*palette: paletteOf\(\),/);
-  assert.match(region(install, 'focusReadAll: async () => {', '\n    },\n', 'the focus pass'), /if \(planes\.includes\(el\)\) \{[\s\S]*plane = readPlane\(el\);[\s\S]*\}\s*el\.blur\(\);/);
+  assert.match(region(install, 'read: () => ({', '}),', 'a reading'), /planes: planes\.map\(readPlane\),\s*drawings: drawings\.map\(readPlane\),\s*palette: paletteOf\(\),/);
+  assert.match(region(install, 'focusReadAll: async () => {', '\n    },\n', 'the focus pass'), /if \(planes\.includes\(el\) \|\| board\) \{[\s\S]*?plane = planes\.includes\(el\) \? readPlane\(el\) : null;\s*\}\s*const drawing = board \? readPlane\(board\) : null;\s*el\.blur\(\);/);
   // Judged from the forced reading, with its palette.
   const run = region(audit, 'export const auditForcedColors = async', '\n};\n', 'a reading of a scene');
   assert.match(run, /parts: forced\.planes\[i\]\.parts,\s*focusedParts: focused\?\.plane\?\.parts \|\| \[\],/);
-  assert.match(run, /judgeForcedColors\(\{ edges, states, focus, math, planes, palette: forced\.palette \}\)/);
+  assert.match(run, /judgeForcedColors\(\{ edges, states, focus, math, planes, drawings, palette: forced\.palette \}\)/);
   // The colours of the theme it is judged by are the judge's own list.
   assert.match(run, /themeColours: \[\.\.\.PLANE_THEME_COLOURS\]/);
   assert.deepEqual([...PLANE_THEME_COLOURS].sort(), ['ActiveText', 'ButtonBorder', 'ButtonFace', 'ButtonText', 'Canvas', 'CanvasText', 'Field', 'FieldText', 'GrayText', 'Highlight', 'HighlightText', 'LinkText', 'VisitedText']);
@@ -408,6 +497,7 @@ test('a pull request that changes the walk, what it walks or a screen runs the t
     'tests/browser/forcedColorsCertification.mjs', 'tests/browser/forcedColorsAudit.mjs', 'tests/browser/forcedColorsSelfTest.mjs',
     'tests/browser/forcedColors.vite.config.mjs', 'scripts/lib/forcedColors.mjs', 'src/theme/forcedColors.css',
     'tests/browser/forcedColorsPlanes.html', 'tests/browser/forcedColorsPlanesMain.jsx', 'src/tools/shared/CoordinatePlane.jsx',
+    'tests/browser/forcedColorsDrawings.html', 'tests/browser/forcedColorsDrawingsMain.jsx', 'src/components/student/MyMathPathWheel.jsx',
     'tests/browser/accessibilityCertification.mjs', 'tests/browser/accessibilityTeacherScreens.mjs', 'tests/browser/accessibilityAudit.mjs',
     'tests/browser/accessibilityKeyboardReach.mjs', 'tests/browser/accessibilitySecureExamMain.jsx', 'tests/browser/support/touchEmulation.mjs',
     'tests/browser/emulator/vite.config.mjs', 'tests/browser/studentUxPlatformMain.jsx', 'tests/browser/keyboardSweep.html',

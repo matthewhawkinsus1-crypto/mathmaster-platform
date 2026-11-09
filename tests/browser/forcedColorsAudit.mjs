@@ -38,7 +38,12 @@
  *      and border; and the theme's system colours, as the page resolves them. A
  *      plane that is a Tab stop is read again focused (its ring, and what focus
  *      draws on it: the keyboard's crosshair). See readPlane.
- *   4. scripts/lib/forcedColors.mjs judges the readings.
+ *   4. Every other drawing that says something (data-mm-drawing: a number line,
+ *      a mapping diagram, the 3D model, a progress wheel, a line drawn over the
+ *      page), read the same way; and read again whenever focus is on it or on a
+ *      part of it (a wedge, a value, an endpoint), which draws that part as the
+ *      one named or held.
+ *   5. scripts/lib/forcedColors.mjs judges the readings.
  *
  * It leaves the page as it found it: focus dropped, every scroll position put
  * back, forced colours on.
@@ -309,13 +314,16 @@ export const INSTALL = ({ include, exclude, styleKeys, renderPart, themeColours 
   // contrast for where they sit on its lines, but under forced colours every word
   // on it is painted, and must be in the theme's colours.
   const PAINTED = 'path, line, polyline, polygon, rect, circle, ellipse, text, tspan';
-  const planes = [...new Set(roots.flatMap((root) => [...(root.matches?.('[data-mm-plane]') ? [root] : []), ...root.querySelectorAll('[data-mm-plane]')]))]
-    .filter((el) => inScope(el) && !el.parentElement?.closest('[data-mm-plane]'))
+  const boardsOf = (selector) => [...new Set(roots.flatMap((root) => [...(root.matches?.(selector) ? [root] : []), ...root.querySelectorAll(selector)]))]
+    .filter((el) => inScope(el) && !el.parentElement?.closest('[data-mm-plane], [data-mm-drawing]'))
     .filter((el) => {
       const rect = el.getBoundingClientRect();
       if (rect.width < 3 || rect.height < 3) return false;
       return typeof el.checkVisibility !== 'function' || el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
     });
+  const planes = boardsOf('[data-mm-plane]');
+  // Every other drawing, read as a plane is (the plane's part names are its parts' too).
+  const drawings = boardsOf('[data-mm-drawing]');
   // What one plane paints now. A part in a pattern or a marker is painted where
   // it is used, so it is read wherever it sits; a clip or a mask paints nothing.
   const readPlane = (plane) => {
@@ -384,6 +392,7 @@ export const INSTALL = ({ include, exclude, styleKeys, renderPart, themeColours 
       edges: controls.map((el) => ({ id: idOf(el), facts: { ...boxFacts(el), behind: behindOf(el), wrapped: wrappedBy(el) } })),
       states: pairs.map((pair) => ({ on: partsOf(pair.on), peers: pair.peers.map(partsOf) })),
       planes: planes.map(readPlane),
+      drawings: drawings.map(readPlane),
       palette: paletteOf(),
     }),
     describe: () => ({
@@ -391,6 +400,7 @@ export const INSTALL = ({ include, exclude, styleKeys, renderPart, themeColours 
       states: pairs.map((pair) => ({ id: idOf(pair.on), target: selectorOf(pair.on), html: html(pair.on), state: pair.state, peers: pair.peers.map(selectorOf) })),
       stops: stops.map((el) => ({ id: idOf(el), target: selectorOf(el), html: html(el) })),
       planes: planes.map((el) => ({ id: idOf(el), target: selectorOf(el), html: html(el) })),
+      drawings: drawings.map((el) => ({ id: idOf(el), target: selectorOf(el), html: html(el) })),
     }),
     // Every Tab stop focused as the keyboard focuses it, then blurred: the style
     // of both, and whether :focus-visible matched. A stop that focus does not
@@ -406,15 +416,18 @@ export const INSTALL = ({ include, exclude, styleKeys, renderPart, themeColours 
         if (!landed) continue;
         const focusVisible = el.matches(':focus-visible') || el.matches(':focus-within');
         const focused = snap(el);
-        // A plane focused draws more (the keyboard's crosshair): read it too, in a frame.
+        // A plane focused draws more (the keyboard's crosshair): read it too, in a frame. A drawing too, and one
+        // with a part of it focused (a wedge named in the hub, a value chosen): what focus draws there.
         let plane = null;
-        if (planes.includes(el)) {
+        const board = drawings.find((drawing) => drawing === el || drawing.contains(el)) || null;
+        if (planes.includes(el) || board) {
           // eslint-disable-next-line no-await-in-loop
           await new Promise((resolve) => { requestAnimationFrame(() => requestAnimationFrame(resolve)); });
-          plane = readPlane(el);
+          plane = planes.includes(el) ? readPlane(el) : null;
         }
+        const drawing = board ? readPlane(board) : null;
         el.blur();
-        out.push({ id: idOf(el), focusVisible, focused, blurred: snap(el), plane });
+        out.push({ id: idOf(el), focusVisible, focused, blurred: snap(el), plane, drawingId: board ? idOf(board) : null, drawing });
       }
       return out;
     },
@@ -442,7 +455,7 @@ export const INSTALL = ({ include, exclude, styleKeys, renderPart, themeColours 
       delete window.__mmForced;
     },
   };
-  return { controls: controls.length, states: pairs.length, stops: stops.length, planes: planes.length, formulas };
+  return { controls: controls.length, states: pairs.length, stops: stops.length, planes: planes.length, drawings: drawings.length, formulas };
 };
 
 /*
@@ -599,7 +612,28 @@ export const auditForcedColors = async (page, { name, viewport = 'default', incl
         focusRing: focused ? { drawn, colour: ring?.outlineColor } : null,
       };
     });
-    const violations = judgeForcedColors({ edges, states, focus, math, planes, palette: forced.palette });
+    // Each other drawing the same way; focused, what it drew while it or any part of it had focus (each kind of
+    // part once).
+    const focusedPartsOf = new Map();
+    for (const entry of focus) {
+      if (entry.drawingId == null || !entry.drawing) continue;
+      const parts = focusedPartsOf.get(entry.drawingId) || new Map();
+      entry.drawing.parts.forEach((part) => parts.set(JSON.stringify(part), part));
+      focusedPartsOf.set(entry.drawingId, parts);
+    }
+    const drawings = described.drawings.map((entry, i) => {
+      const focused = focusById.get(entry.id);
+      const ring = focused?.focused?.self;
+      const drawn = Boolean(ring) && ring.outlineStyle !== 'none' && parseFloat(ring.outlineWidth) >= 1;
+      return {
+        ...entry,
+        board: forced.drawings[i].board,
+        parts: forced.drawings[i].parts,
+        focusedParts: [...(focusedPartsOf.get(entry.id)?.values() || [])],
+        focusRing: focused ? { drawn, colour: ring?.outlineColor } : null,
+      };
+    });
+    const violations = judgeForcedColors({ edges, states, focus, math, planes, drawings, palette: forced.palette });
     const normalized = normalizeViolations({ screen: name, viewport, violations });
     return {
       name,
@@ -615,12 +649,14 @@ export const auditForcedColors = async (page, { name, viewport = 'default', incl
         formulas: math.length,
         planes: planes.length,
         planeParts: planes.reduce((sum, plane) => sum + plane.parts.length, 0),
+        drawings: drawings.length,
+        drawingParts: drawings.reduce((sum, drawing) => sum + drawing.parts.length, 0),
         stopsInScope: described.stops.length,
         stopsNotFocusVisible: focus.filter((entry) => !entry.focusVisible).length,
         stopsPhotographed: focus.filter((entry) => entry.changedPixels != null).length,
         minChangedPixels: MIN_CHANGED_PIXELS,
       },
-      readings: { edges, states, focus, math, planes, palette: forced.palette },
+      readings: { edges, states, focus, math, planes, drawings, palette: forced.palette },
     };
   } finally {
     await page.evaluate(() => window.__mmForced?.dispose()).catch(() => {});

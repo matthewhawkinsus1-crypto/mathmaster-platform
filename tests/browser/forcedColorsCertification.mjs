@@ -45,6 +45,11 @@
  *                                 word in a colour of its own, translucent, or
  *                                 under 3:1 against Canvas, or its focus ring
  *                                 not a colour of the theme
+ *   mm-forced-drawing-paint       any other drawing that says something (a
+ *                                 number line, a mapping diagram, the 3D model, a
+ *                                 progress wheel, a line drawn over the page) not
+ *                                 drawn in the theme's colours, judged as a plane
+ *                                 is, and again with it or a part of it focused
  *
  * THE PLANES. The certified scenes show the shared plane in a tool (Graphing, and
  * the Math Tools Lab's), and no other kind of plane. So the walk also reads
@@ -53,6 +58,16 @@
  * static graph with its dashed and vertical lines and shaded half-planes, Graph
  * Story's sketch, the Live Challenge rounds' graphs and a revealed line, and the
  * graphing calculator's board, each scene read for its planes alone.
+ *
+ * THE OTHER DRAWINGS. The Math Tools Lab shows the number line and the mapping
+ * diagram (in each tool and its Work View), and no certified scene the rest. So
+ * the walk reads every kind on a page of its own too (DRAWING_SCREENS,
+ * forcedColorsDrawings.html): both number lines with their ends, rays and an end
+ * being placed, the mapping diagram with its arrows, the 3D model with its
+ * planes and their common point, My Math Path's mastery wheel at every level,
+ * the CCMR readiness wheels in every state and a graph matched to a story, read
+ * as the page opens and again with a domain value chosen and a wedge named; and
+ * the mastery wheel in the app, on the student's My Math Path.
  *
  * HOW. Chromium draws forced colours when Playwright emulates them, and a
  * contrast theme sets prefers-color-scheme from its Canvas, as Windows tells
@@ -80,7 +95,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { settleForAudit } from './accessibilityAudit.mjs';
 import {
-  CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, screensToRun,
+  CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, SCREENS, STUBBED_PROBE, VIEWPORTS, newScreenContext, sceneLabel, sceneScope, screensToRun,
   servesStubbedServices,
 } from './accessibilityCertification.mjs';
 import { auditForcedColors, waitForFormulas } from './forcedColorsAudit.mjs';
@@ -115,10 +130,52 @@ export const PLANE_SCREENS = Object.freeze([
   },
 ]);
 
+// Every other drawing that says something, on the drawings' page (forcedColorsDrawings.html): read for its drawings
+// alone, as the page opens and with a mapping's domain value chosen and a wedge of the wheel named in its hub (each
+// reading reads them focused too, as it focuses every Tab stop in them).
+const DRAWINGS_PAGE = '/tests/browser/forcedColorsDrawings.html';
+const openDrawings = async (page, origins) => {
+  await page.goto(`${origins.audit}${DRAWINGS_PAGE}`, { timeout: 180_000 });
+  await page.locator('[data-drawing-gallery="scenario-match"] .graph-scenario-match-board').first().waitFor({ timeout: 180_000 });
+  await page.locator('[data-drawing-gallery="three-planes"] [data-mm-drawing]').first().waitFor({ timeout: 180_000 });
+  await page.waitForTimeout(1500);
+};
+const chooseOnDrawings = async (page) => {
+  await page.locator('[data-drawing-gallery="mapping"] [data-domain-node]').last().evaluate((node) => node.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await page.locator('[data-drawing-gallery="mastery-wheel"] [data-mm-drawing] g[role="button"]').nth(2).focus();
+  await page.locator('[data-drawing-gallery="mapping"] [data-domain-node] [data-mm-plane-part="held"]').first().waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+};
+// And the mastery wheel where a student meets it, in the app: My Math Path's Mastery Overview (the certified
+// my-math-path scene opens the Path, which shows no drawing), read for its drawings alone.
+const myMathPath = SCREENS.find((screen) => screen.id === 'my-math-path');
+const openMasteryOverview = async (page, origins, context) => {
+  await myMathPath.scenes[0].run(page, origins, context);
+  await page.locator('nav[aria-label="My Math Path navigation"] button').filter({ hasText: 'Mastery Overview' }).first().evaluate((button) => button.click());
+  await page.locator('[data-mm-drawing] g[role="button"]').first().waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(900);
+};
+export const DRAWING_SCREENS = Object.freeze([
+  {
+    id: 'drawings',
+    harness: 'audit',
+    include: '[data-drawing-gallery] [data-mm-drawing]',
+    scenes: [{ id: null, run: openDrawings }, { id: 'chosen', run: chooseOnDrawings }],
+  },
+  {
+    id: 'my-math-path-wheel',
+    harness: myMathPath.harness,
+    schoolClock: myMathPath.schoolClock,
+    open: myMathPath.open,
+    include: '[data-mm-drawing]',
+    scenes: [{ id: null, run: openMasteryOverview }],
+  },
+]);
+
 // What the walk reads: the certified screens, the rounds' own (the student's arena in a Graph Feature Rush and a
-// Graph the Line round, the rounds' certified scenes that are not axe's: the large-text runs measure them) and the
-// planes'.
-export const WALKED_SCREENS = Object.freeze([...CERTIFIED_SCREENS, ...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS]);
+// Graph the Line round, the rounds' certified scenes that are not axe's: the large-text runs measure them), the
+// planes' and the other drawings'.
+export const WALKED_SCREENS = Object.freeze([...CERTIFIED_SCREENS, ...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS, ...DRAWING_SCREENS]);
 
 /** The screens a run walks: those ONLY names, or every one of WALKED_SCREENS but those with a job of their own. */
 export const screensToWalk = (only) => {
@@ -244,7 +301,7 @@ const main = async () => {
             const result = await auditForcedColors(page, { name: label, viewport: key, include: scope.include, exclude: scope.exclude });
             results.push({ label, viewport: viewport.id, scheme, counts: result.counts, details: result.details, summary: result.summary });
             const total = Object.values(result.counts).reduce((sum, count) => sum + count, 0);
-            console.log(`${total ? 'FAIL' : 'ok  '} ${label.padEnd(40)} ${viewport.id.padEnd(8)} ${scheme.padEnd(6)} ${result.summary.controls} controls, ${result.summary.statesCompared} states, ${result.summary.stops} stops, ${result.summary.formulas} formulas, ${result.summary.planes} planes (${result.summary.planeParts} parts)${total ? `: ${total} finding(s)` : ''}`);
+            console.log(`${total ? 'FAIL' : 'ok  '} ${label.padEnd(40)} ${viewport.id.padEnd(8)} ${scheme.padEnd(6)} ${result.summary.controls} controls, ${result.summary.statesCompared} states, ${result.summary.stops} stops, ${result.summary.formulas} formulas, ${result.summary.planes} planes (${result.summary.planeParts} parts), ${result.summary.drawings} drawings (${result.summary.drawingParts} parts)${total ? `: ${total} finding(s)` : ''}`);
           } catch (error) {
             unreachable.push(`${label}|${key}: the forced-colours reading failed: ${error.message.split('\n')[0]}`);
           }
