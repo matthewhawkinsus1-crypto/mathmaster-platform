@@ -19,7 +19,10 @@ import {
 } from './authService';
 import { shouldPromoteClassroomStudentSession } from './classroomSession.js';
 import { clearAccountTabStorage } from './accountTabStorage.js';
-import { acceptStudentName } from '../platform/studentName.js';
+// From the shared resolver itself, which src/platform/studentName.js
+// re-exports to every screen: the same function, without the name formatting,
+// sorting and search the sign-in screen does not use.
+import { acceptStudentName } from '../../functions/shared/studentIdentity.mjs';
 
 const AuthContext = createContext(null);
 
