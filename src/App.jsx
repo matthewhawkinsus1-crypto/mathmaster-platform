@@ -3938,9 +3938,10 @@ function App() {
       'This assignment was corrected by your teacher. Your previous work was preserved.',
     );
   }, [user?.role, activeView, activeAssignmentId, rawActiveAssignmentData?.contentUpgrade, toastInfo]);
-  const activeLifecycle = getAssignmentLifecycle(activeAssignmentData, now, {
-    studentId: user?.role === 'student' ? user.id : undefined,
-  });
+  const activeLifecycleStudentId = user?.role === 'student' ? user.id : undefined;
+  const activeLifecycle = useMemo(() => getAssignmentLifecycle(activeAssignmentData, now, {
+    studentId: activeLifecycleStudentId,
+  }), [activeAssignmentData, now, activeLifecycleStudentId]);
   const isTeacherPreview = user?.role === 'teacher' && activeView === 'teacherPreview';
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
   const isPracticeMode = isStudentAssignment && activeLifecycle.isPracticeOnly;
@@ -4021,7 +4022,8 @@ function App() {
     launchSupportRecords({ profile: user.profile, assignment: activeAssignmentData, roles, questions: presentedQuestions, workload: accommodation })
       .records.forEach((record) => recordStudentSupportEvidence(record));
   }, [isStudentAssignment, activeAssignmentId, activeAssignmentData, isPracticeMode, user?.profile?.supportRevisionId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
+  // The bell schedule's time-zone arithmetic, once per tick of the clock.
+  const activeDOLState = useMemo(() => getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now }), [activeAssignmentData, classSchedule, user?.classId, user?.classPeriod, now]);
   const activeQuestionRole = resolveQuestionActivityRole({
     question: activeQuestions[currentQuestionIndex],
     assignment: activeAssignmentData,
@@ -9583,8 +9585,10 @@ function App() {
 
   // The most urgent open Warm-Up this student has not finished, across their
   // lessons: the banner shows it, and on a phone (no banner) the assignment's
-  // status chip offers it when it belongs to another lesson.
-  const studentActiveWarmup = () => {
+  // status chip offers it when it belongs to another lesson. Asked twice a
+  // render, it walks every lesson's bell window: worked out once per change
+  // of what it reads.
+  const studentActiveWarmup = () => renderMemo('activeWarmup', [user, secureExamActive, assignments, classSchedule, now, tracker], () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
     // Its "Go to Warm-Up" would take a student out of a secure exam.
     if (secureExamActive) return null;
@@ -9624,7 +9628,7 @@ function App() {
       .filter(Boolean)
       .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
     return active[0] || null;
-  };
+  });
 
   const renderStudentWarmupBanner = () => {
     const activeWarmup = studentActiveWarmup();
@@ -10246,13 +10250,11 @@ function App() {
       );
     }
 
-    // Worked out above for this same assignment, once per copy of it: the
-    // question QuestionEngine is handed keeps its identity.
+    // Worked out above for this same assignment, once per change of what
+    // each reads (a preview is a teacher's, whose lifecycle names no student).
     const questions = activeQuestions;
     const currentContent = projectCurrentAssignmentContent(assignment);
-    const lifecycle = getAssignmentLifecycle(assignment, now, {
-      studentId: !preview && user?.role === 'student' ? user.id : undefined,
-    });
+    const lifecycle = activeLifecycle;
     /*
      * A GRANTED PRACTICE PASS EXCUSES PRACTICE FROM THIS RUNTIME.
      *
@@ -10287,8 +10289,17 @@ function App() {
       : lifecycle.isPracticeOnly
         ? practiceTracker[activeAssignmentId] || renderMemo('practiceTracker', [questions, recordedTracker], () => createPracticeAssignmentTracker(questions, recordedTracker))
         : recordedTracker;
-    const recordedGrade = calculateGrade(recordedTracker, assignment, { supportProfile: officialSupportProfile });
-    const gradeSplit = splitGrade({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
+    // The grade lines: worked out once per change of the trackers, the
+    // assignment and the profiles they read (and of the clock, for the
+    // reduced-workload revision in effect today), not on each of a Submit's
+    // renders. recordedGrade is calculateGrade's own answer from the split.
+    const [gradeSplit, progress, currentSectionGrades, currentSectionOfficialGrades] = renderMemo('grades', [recordedTracker, workingTracker, assignment, officialSupportProfile, workspaceSupportProfile, hasPracticePass, now], () => [
+      splitGrade({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile }),
+      calculatePracticeProgress(workingTracker, assignment, { hasPracticePass }),
+      splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile }),
+      splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile }),
+    ]);
+    const recordedGrade = questions.length ? gradeSplit.score ?? 0 : 0;
     const classroomReceipt = !preview ? classroomSyncStatusByAssignment?.[assignment.id] || null : null;
     const classroomReceiptStage = String(classroomReceipt?.stage || '');
     const classroomReceiptFinal = classroomReceipt?.isFinal === true || classroomReceiptStage.startsWith('final-');
@@ -10297,9 +10308,8 @@ function App() {
       ? Number(classroomReceipt.grade)
       : null;
     const classroomReceiptCurrent = classroomReceiptGrade != null && classroomReceiptGrade === recordedGrade;
-    const progress = calculatePracticeProgress(workingTracker, assignment, { hasPracticePass });
-    const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
-    const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
+    const dolState = activeDOLState;
+    const warmupState = renderMemo('warmupState', [assignment, classSchedule, user?.classId, user?.classPeriod, now], () => getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now }));
     // A teacher previewing an assignment is never handed into a live game.
     const warmupChallengeDecision = preview ? null : resolveWarmupChallenge({
       assignment,
@@ -10493,8 +10503,6 @@ function App() {
     const currentSectionQuestionCount = currentNavigationSection?.entries.length || 1;
     const currentSectionCompletedCount = currentNavigationSection?.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length || 0;
     const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
-    const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile });
-    const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
     /*
      * WHAT EACH SECTION AND QUESTION IS DOING NOW, SAID ONE WAY (pass 3,
      * RUN-5 / RUN-8 / RUN-9; platform/student/assignmentNavigator.js).

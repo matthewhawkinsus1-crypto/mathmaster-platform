@@ -32,8 +32,9 @@ test('completed Warm-Up no longer keeps the active banner on screen', () => {
   // withholding the banner — not either side's variable names.
   const app = fs.readFileSync('src/App.jsx', 'utf8');
   // The banner's choice lives in studentActiveWarmup (pass 3: the phone's
-  // status chip offers the same Warm-Up); the banner renders its answer.
-  const banner = region(app, 'const studentActiveWarmup = () => {', 'const renderIdleOverlay', 'warm-up banner');
+  // status chip offers the same Warm-Up; worked out once per change of what
+  // it reads); the banner renders its answer.
+  const banner = region(app, 'const studentActiveWarmup = () => ', 'const renderIdleOverlay', 'warm-up banner');
   assert.match(banner, /const activeWarmup = studentActiveWarmup\(\);\n\s+if \(!activeWarmup\) return null;/);
   assert.match(
     banner,

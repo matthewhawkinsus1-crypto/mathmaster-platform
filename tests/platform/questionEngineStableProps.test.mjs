@@ -262,3 +262,41 @@ test('App mounts a memoised QuestionEngine, still its own chunk', () => {
   assert.match(screens, /export const QuestionEngine = memo\(lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\)\);/);
   assert.match(screens, /import \{[^}]*\bmemo\b[^}]*\} from 'react';/);
 });
+
+/*
+ * THE SHARED FUNCTIONS APP'S RENDER WORKS OUT, ONCE PER CHANGE OF WHAT THEY
+ * READ. The bell schedule's time-zone arithmetic (getDOLState, getWarmupState,
+ * the lifecycle), the stored questions and the grades (normalizeQuestionRecord
+ * and the reduced workload under them) ran again on every one of the seven to
+ * thirteen renders of a Submit or Next, 10 to 30 ms each at 4× CPU. Each is
+ * now keyed on its arguments: App's clock (`now`) moves every 30 seconds, the
+ * trackers on a save, and the renders between them reuse the result.
+ */
+test('App works out the bell windows, the lifecycle and the grades once per change of their inputs', () => {
+  const app = executableSource(read('src/App.jsx'));
+  // At the top of App, beside the other derived state: React's useMemo, on
+  // exactly what each reads.
+  assert.match(app, /const activeLifecycle = useMemo\(\(\) => getAssignmentLifecycle\(activeAssignmentData, now, \{\s*studentId: activeLifecycleStudentId,\s*\}\), \[activeAssignmentData, now, activeLifecycleStudentId\]\);/);
+  assert.match(app, /const activeLifecycleStudentId = user\?\.role === 'student' \? user\.id : undefined;/);
+  assert.match(app, /const activeDOLState = useMemo\(\(\) => getDOLState\(\{ assignment: activeAssignmentData, schedule: classSchedule, classId: user\?\.classId \|\| null, classPeriod: user\?\.classPeriod, nowValue: now \}\), \[activeAssignmentData, classSchedule, user\?\.classId, user\?\.classPeriod, now\]\);/);
+  // The workspace reads those, for the same assignment, instead of working
+  // them out again (a preview is a teacher's: its lifecycle names no student,
+  // as activeLifecycle's does not for a teacher).
+  const workspace = app.slice(app.indexOf('const renderAssignmentWorkspace'), app.indexOf('const lifecycleBadge'));
+  assert.match(workspace, /\n\s*const assignment = activeAssignmentData;\n/);
+  assert.match(workspace, /\n\s*const lifecycle = activeLifecycle;\n/);
+  assert.match(workspace, /\n\s*const dolState = activeDOLState;\n/);
+  assert.match(app, /const isTeacherPreview = user\?\.role === 'teacher' && activeView === 'teacherPreview';/);
+  assert.match(app, /if \(isTeacherPreview\) \{\s*return renderStudentIdentityShell\(renderAssignmentWorkspace\(true\), \{ preview: true \}\);/);
+  assert.match(workspace, /const warmupState = renderMemo\('warmupState', \[assignment, classSchedule, user\?\.classId, user\?\.classPeriod, now\], \(\) => getWarmupState\(\{ assignment, schedule: classSchedule, classId: user\?\.classId \|\| null, classPeriod: user\?\.classPeriod, nowValue: now \}\)\);/);
+  // The grade lines, on the trackers, the assignment, the two profiles, the
+  // Practice Pass and the clock (the reduced workload's revision in effect today).
+  assert.match(workspace, /const \[gradeSplit, progress, currentSectionGrades, currentSectionOfficialGrades\] = renderMemo\('grades', \[recordedTracker, workingTracker, assignment, officialSupportProfile, workspaceSupportProfile, hasPracticePass, now\], \(\) => \[/);
+  assert.equal((workspace.match(/\bsplitGrade(?:sBySection)?\(|calculatePracticeProgress\(|calculateGrade\(/g) || []).length, 4, 'worked out only inside that memo');
+  // No records yet: one object, so the memos above are not defeated by a
+  // fresh `{}` on every render.
+  assert.match(app, /\nconst NO_RECORDS = Object\.freeze\(\{\}\);\n/);
+  // Every lesson's Warm-Up window, asked twice a render (the banner and the
+  // workspace's status chip), worked out once per change of what it reads.
+  assert.match(app, /const studentActiveWarmup = \(\) => renderMemo\('activeWarmup', \[user, secureExamActive, assignments, classSchedule, now, tracker\], \(\) => \{/);
+});

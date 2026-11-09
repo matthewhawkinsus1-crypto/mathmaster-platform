@@ -214,7 +214,7 @@ test('the evidence record and the report\'s recomputation agree for a student wi
 
 test('the App plans on the stored document, records the accommodation over the content, and follows a re-saved profile', () => {
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const launch = executableSource(region(app, 'const launchedSupportKeyRef = useRef(\'\');', 'const activeDOLState = getDOLState(', 'launch evidence'));
+  const launch = executableSource(region(app, 'const launchedSupportKeyRef = useRef(\'\');', 'const activeDOLState = ', 'launch evidence'));
   assert.match(launch, /accommodation = studentRequiredFor\(activeAssignmentData\);/);
   assert.match(launch, /workload: accommodation \}\)/);
   const listener = executableSource(region(app, "doc(db, 'grades', user.id),", 'Object.entries(next).forEach', 'student grades listener'));
