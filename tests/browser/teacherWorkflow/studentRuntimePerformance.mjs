@@ -51,6 +51,7 @@
 
 import { writeFileSync } from 'node:fs';
 import { componentNamer, createProfileReader } from '../support/cpuProfileNames.mjs';
+import { countWhere, createCallCounter } from '../support/functionCallCounts.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -179,6 +180,29 @@ const median = (values) => {
 const nameComponent = componentNamer(DIST);
 const profileReader = DIST ? createProfileReader(DIST) : null;
 const findings = [];
+
+// ------------------------------------------------- Step Algebra's first render
+// What Next to the Step Algebra question (3x − 5 = 10) asks of mathjs, in a
+// counts run with PERF_DIST: how many times it simplifies (each run of
+// mathjs's simplify rebuilds its rules, about 30 ms at 4x on a Chromebook) and
+// how many expressions MathMaster's code parses, through either instance
+// (src/platform/math/mathjs.js, functions/shared/algebra/safeMath.mjs).
+// Counted with precise coverage (../support/functionCallCounts.mjs), so the
+// numbers do not depend on the machine. The board reads whether the equation
+// is solved (2 simplifies) and each side's cancellation pairs (1), and the
+// shared grader decides the same question (2): five. Before the board was set
+// up once and read its equation once, the first render ran 10 and parsed 264
+// expressions.
+const STEP_ALGEBRA_FIRST_RENDER_BUDGET = { simplify: 5, parse: 120 };
+const MATHJS_CALLS = {
+  simplify: [{ source: /node_modules\/mathjs\/lib\/esm\/function\/algebra\/simplify\.js$/, text: /^function _simplify\(/ }],
+  parse: [
+    { source: /^functions\/shared\/algebra\/safeMath\.mjs$/, text: /^export const parse = / },
+    { source: /^src\/platform\/math\/mathjs\.js$/, text: /^export const parse = / },
+  ],
+};
+const mathjsCallsIn = (ran) => Object.fromEntries(Object.entries(MATHJS_CALLS)
+  .map(([name, functions]) => [name, functions.reduce((sum, where) => sum + countWhere(ran, where), 0)]));
 
 const runFlow = async (browser, device, mode) => {
   const context = await newSchoolContext(browser, DEVICE_OPTIONS[device]);
@@ -421,10 +445,21 @@ const runFlow = async (browser, device, mode) => {
   const typed = await answerBox().evaluate((element) => element.value).catch(() => null);
   if (typed !== '2x+6') findings.push(`${device} ${mode}: the expression box holds ${JSON.stringify(typed)}, not "2x+6"`);
   await measure('expression-submit', { prepare: press(submit()), action: pressAt, ready: graded });
-  await measure('next-to-tool', {
-    prepare: async () => pointAt(await wayOn()), action: pressAt,
+  // Counted from the press to the end of the window (STEP_ALGEBRA_FIRST_RENDER_BUDGET).
+  const stepAlgebraCalls = mode === 'counts' && DIST ? createCallCounter(cdp, DIST) : null;
+  const toStepAlgebra = await measure('next-to-tool', {
+    prepare: async () => {
+      const point = await pointAt(await wayOn());
+      await stepAlgebraCalls?.start();
+      return point;
+    },
+    action: pressAt,
     ready: () => until('.mathmaster-question-engine', 'Target: isolate x'), quietMs: 600, maxMs: 15_000,
   });
+  if (stepAlgebraCalls) {
+    toStepAlgebra.mathjs = mathjsCallsIn(await stepAlgebraCalls.take());
+    console.log(`  ${device} next-to-tool: mathjs simplify ${toStepAlgebra.mathjs.simplify} times, parse ${toStepAlgebra.mathjs.parse} times`);
+  }
   // Work View: an older build named its opener "Enlarge …"; where something
   // covers Close (an older phone layout) it is closed with Escape.
   const open = '.mathmaster-work-view-host[data-open="true"]';
@@ -518,6 +553,16 @@ for (const { device, mode, interactions = [] } of results.runs) {
   const bell = interactions.find((entry) => entry.name === 'clock-tick-class-ends');
   if (bell && !bell.skipped && !(bell.telemetry?.react_render_count > 0)) findings.push(`${device}: the tick that ends the class did not draw the question again`);
 }
+
+// Step Algebra's first render, in mathjs calls (counts runs with PERF_DIST).
+for (const { device, mode, interactions = [] } of results.runs) {
+  const entry = mode === 'counts' ? interactions.find((interaction) => interaction.name === 'next-to-tool') : null;
+  if (!entry?.mathjs) continue;
+  for (const [name, limit] of Object.entries(STEP_ALGEBRA_FIRST_RENDER_BUDGET)) {
+    if (entry.mathjs[name] > limit) findings.push(`${device}: Next to Step Algebra ran mathjs ${name} ${entry.mathjs[name]} times (budget ${limit})`);
+  }
+}
+if (MODES.includes('counts') && !DIST) console.log('Step Algebra\'s mathjs budget needs PERF_DIST (source maps); not counted.');
 
 // Medians over the runs, per device, interaction and measure.
 const table = [];
