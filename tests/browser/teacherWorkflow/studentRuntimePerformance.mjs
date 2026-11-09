@@ -182,24 +182,29 @@ const profileReader = DIST ? createProfileReader(DIST) : null;
 const findings = [];
 
 // ------------------------------------------------- Step Algebra's first render
-// What Next to the Step Algebra question (3x − 5 = 10) asks of mathjs, in a
-// counts run with PERF_DIST: how many times it simplifies (each run of
-// mathjs's simplify rebuilds its rules, about 30 ms at 4x on a Chromebook) and
-// how many expressions MathMaster's code parses, through either instance
-// (src/platform/math/mathjs.js, functions/shared/algebra/safeMath.mjs).
-// Counted with precise coverage (../support/functionCallCounts.mjs), so the
-// numbers do not depend on the machine. The board reads whether the equation
-// is solved (2 simplifies) and each side's cancellation pairs (1), and the
-// shared grader decides the same question (2): five. Before the board was set
-// up once and read its equation once, the first render ran 10 and parsed 264
-// expressions.
-const STEP_ALGEBRA_FIRST_RENDER_BUDGET = { simplify: 5, parse: 120 };
+// What Next to the Step Algebra question (3x − 5 = 10) asks of mathjs until
+// the question is on screen, in a counts run with PERF_DIST: how many times it
+// simplifies (each run of mathjs's simplify rebuilds its rules, about 30 ms at
+// 4x on a Chromebook), how many expressions MathMaster's code parses through
+// either instance (functions/shared/algebra/safeMath.mjs, src/platform/math/
+// mathjs.js), and how many of those go through the client's instance, whose
+// first parse builds its parser (85-130 ms at 4x). Counted with precise
+// coverage (../support/functionCallCounts.mjs), so the numbers do not depend
+// on the machine. The board reads whether the equation is solved (2
+// simplifies) and whether the left side's opposite terms cancel (1), and the
+// shared grader decides the same question (2): five. Before the board was set up
+// once, read its equation once and left Simplify's parts and the client's
+// parser to idle time, the first render ran 10, parsed 264 expressions and
+// 28 of them through the client's instance. What the window does after the
+// question is on screen (the idle steps) is reported beside it.
+const STEP_ALGEBRA_FIRST_RENDER_BUDGET = { simplify: 5, parse: 100, clientParse: 0 };
 const MATHJS_CALLS = {
   simplify: [{ source: /node_modules\/mathjs\/lib\/esm\/function\/algebra\/simplify\.js$/, text: /^function _simplify\(/ }],
   parse: [
     { source: /^functions\/shared\/algebra\/safeMath\.mjs$/, text: /^export const parse = / },
     { source: /^src\/platform\/math\/mathjs\.js$/, text: /^export const parse = / },
   ],
+  clientParse: [{ source: /^src\/platform\/math\/mathjs\.js$/, text: /^export const parse = / }],
 };
 const mathjsCallsIn = (ran) => Object.fromEntries(Object.entries(MATHJS_CALLS)
   .map(([name, functions]) => [name, functions.reduce((sum, where) => sum + countWhere(ran, where), 0)]));
@@ -445,8 +450,10 @@ const runFlow = async (browser, device, mode) => {
   const typed = await answerBox().evaluate((element) => element.value).catch(() => null);
   if (typed !== '2x+6') findings.push(`${device} ${mode}: the expression box holds ${JSON.stringify(typed)}, not "2x+6"`);
   await measure('expression-submit', { prepare: press(submit()), action: pressAt, ready: graded });
-  // Counted from the press to the end of the window (STEP_ALGEBRA_FIRST_RENDER_BUDGET).
+  // Counted from the press until the question is on screen, then to the end
+  // of the window (STEP_ALGEBRA_FIRST_RENDER_BUDGET).
   const stepAlgebraCalls = mode === 'counts' && DIST ? createCallCounter(cdp, DIST) : null;
+  let firstRenderCalls = null;
   const toStepAlgebra = await measure('next-to-tool', {
     prepare: async () => {
       const point = await pointAt(await wayOn());
@@ -454,11 +461,18 @@ const runFlow = async (browser, device, mode) => {
       return point;
     },
     action: pressAt,
-    ready: () => until('.mathmaster-question-engine', 'Target: isolate x'), quietMs: 600, maxMs: 15_000,
+    ready: async () => {
+      await until('.mathmaster-question-engine', 'Target: isolate x');
+      if (stepAlgebraCalls) firstRenderCalls = await stepAlgebraCalls.take({ stop: false });
+    },
+    quietMs: 600,
+    maxMs: 15_000,
   });
   if (stepAlgebraCalls) {
-    toStepAlgebra.mathjs = mathjsCallsIn(await stepAlgebraCalls.take());
-    console.log(`  ${device} next-to-tool: mathjs simplify ${toStepAlgebra.mathjs.simplify} times, parse ${toStepAlgebra.mathjs.parse} times`);
+    toStepAlgebra.mathjs = mathjsCallsIn(firstRenderCalls);
+    toStepAlgebra.mathjsAfter = mathjsCallsIn(await stepAlgebraCalls.take());
+    const said = (calls) => `simplify ${calls.simplify}, parse ${calls.parse} (${calls.clientParse} through the client's instance)`;
+    console.log(`  ${device} next-to-tool mathjs: on screen ${said(toStepAlgebra.mathjs)}; after it ${said(toStepAlgebra.mathjsAfter)}`);
   }
   // Work View: an older build named its opener "Enlarge …"; where something
   // covers Close (an older phone layout) it is closed with Escape.

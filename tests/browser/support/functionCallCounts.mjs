@@ -15,9 +15,11 @@
 //
 //   const counter = createCallCounter(cdp, dist);
 //   await counter.start();
-//   ... the window ...
-//   const ran = await counter.take();    // [{ source, line, text, count }]
-//   countWhere(ran, { source: /safeMath\.mjs$/, text: /^export const parse = / })
+//   ... part of the window ...
+//   const first = await counter.take({ stop: false });  // [{ source, line, text, count }]
+//   ... the rest ...
+//   const rest = await counter.take();                  // counted since the last take
+//   countWhere(first, { source: /safeMath\.mjs$/, text: /^export const parse = / })
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -66,9 +68,11 @@ export const createCallCounter = (cdp, dist) => {
       // Counts start from the first take.
       await cdp.send('Profiler.takePreciseCoverage');
     },
-    async take() {
+    // The counts since the last take, which sets them to zero: with { stop:
+    // false } counting goes on, so no call falls between two takes.
+    async take({ stop = true } = {}) {
       const { result } = await cdp.send('Profiler.takePreciseCoverage');
-      await cdp.send('Profiler.stopPreciseCoverage');
+      if (stop) await cdp.send('Profiler.stopPreciseCoverage');
       const ran = [];
       for (const script of result) {
         const chunk = chunkFor(script.url);
