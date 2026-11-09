@@ -224,7 +224,7 @@ import { SR_ONLY_STYLE } from './ui/srOnly.js';
 import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
 import { measurePerformanceOperation, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
-import { sameStableValue, useRenderStability } from './platform/performance/renderStability.js';
+import { keepSame, sameData, sameStableValue, useRenderStability } from './platform/performance/renderStability.js';
 import {
   createDurableAction,
   drainDurableActions,
@@ -917,6 +917,15 @@ function App() {
     draftHealthAccountRef.current = account;
   }, [user?.id]);
   const [studentReportingError, setStudentReportingError] = useState(null);
+  // Set only when it says something new: every Submit and Next reports the
+  // device's queue twice, and "nothing went wrong" again, the same null, drew
+  // App each time. The ref is the value last set (it is set nowhere else).
+  const studentReportingErrorRef = useRef(null);
+  const showStudentReportingError = (reason) => {
+    if (studentReportingErrorRef.current === reason) return;
+    studentReportingErrorRef.current = reason;
+    setStudentReportingError(reason);
+  };
   // What the deadline finalizer did with each checkpointed question, read back
   // from the server's own receipt. A student who was not in the tab when time
   // ended finds out here what happened, and never reads "submitted" for a
@@ -3401,9 +3410,11 @@ function App() {
     setStudentOutboxDepth(result.remaining);
     setStudentPendingGradeCount(result.remainingGrade);
     setStudentNeedsReviewCount(result.tally.needsReview);
-    setStudentNeedsReviewAssignmentIds([...new Set((result.retained || [])
+    // The same list while it names the same assignments: a new empty one on
+    // each drain (the reconcile drains every 10 seconds) drew App every time.
+    setStudentNeedsReviewAssignmentIds(keepSame([...new Set((result.retained || [])
       .filter((entry) => entry.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW && entry.assignmentId)
-      .map((entry) => entry.assignmentId))]);
+      .map((entry) => entry.assignmentId))]));
     const online = navigator.onLine;
     setStudentPersistenceStatus((status) => persistenceStatusAfterDrain({
       status,
@@ -3480,11 +3491,11 @@ function App() {
           report: () => reportDeviceQueueState({ studentId }),
           onSettled: ({ ok, error }) => {
             if (ok) {
-              setStudentReportingError(null);
+              showStudentReportingError(null);
               return;
             }
             const diagnostic = callableDeliveryDiagnostic(error);
-            setStudentReportingError(diagnostic.safeReason);
+            showStudentReportingError(diagnostic.safeReason);
             console.warn('Device queue report unavailable:', diagnostic.safeReason);
           },
         }),
@@ -5347,17 +5358,22 @@ function App() {
           return grades;
         });
         const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
-        setClassroomSyncStatusByAssignment(next);
+        // Each map is kept while the snapshot says the same (keepSame,
+        // renderStability.js). Every Submit and Next brings two snapshots, the
+        // record and the time on task, whose maps say what they said: as new
+        // objects they drew App again and worked out again everything read
+        // from them (the grades, the Recoveries, the sections' locks).
+        setClassroomSyncStatusByAssignment(keepSame(next));
         // A teacher releasing a secure Test or Retest changes this map, and the
         // student's card and Grade Center have to follow without a reload.
-        setTestCycleGrades(snapshot.data()?.testCycleGrades || {});
-        setTeacherGradeOverridesByAssignment(snapshot.data()?.teacherGradeOverridesByAssignment || {});
+        setTestCycleGrades(keepSame(snapshot.data()?.testCycleGrades || {}));
+        setTeacherGradeOverridesByAssignment(keepSame(snapshot.data()?.teacherGradeOverridesByAssignment || {}));
         // A Recovery the server just recorded must reach the student's grade
         // and Recovery panel without a reload.
-        setSectionRecoveryByAssignment(snapshot.data()?.sectionRecoveryByAssignment || {});
-        setWarmupChallengeByAssignment(snapshot.data()?.warmupChallengeByAssignment || {});
-        setDolGradesByAssignment(snapshot.data()?.dolGradesByAssignment || {});
-        setClassworkGradesByAssignment(snapshot.data()?.classworkGradesByAssignment || {});
+        setSectionRecoveryByAssignment(keepSame(snapshot.data()?.sectionRecoveryByAssignment || {}));
+        setWarmupChallengeByAssignment(keepSame(snapshot.data()?.warmupChallengeByAssignment || {}));
+        setDolGradesByAssignment(keepSame(snapshot.data()?.dolGradesByAssignment || {}));
+        setClassworkGradesByAssignment(keepSame(snapshot.data()?.classworkGradesByAssignment || {}));
         // The profile the server grades with: a revision a teacher saves while
         // this student is working reaches their required items now, not at
         // the next sign-in.
@@ -5671,7 +5687,10 @@ function App() {
       variantIndex: normalizeQuestionRecord(tracker?.[activeAssignmentId]?.[currentQuestionIndex]).variantIndex,
       updatedAt: Date.now(),
     });
-    setResumeAction(action);
+    // Every Submit changes the tracker and brings this effect back with the
+    // same place to resume: the one this render committed stands, and App is
+    // not drawn again for it.
+    if (!sameData(resumeAction, action)) setResumeAction(action);
   }, [user, activeView, activeAssignmentId, currentQuestionIndex, assignments, activeQuestionRole, tracker]);
 
   useEffect(() => {

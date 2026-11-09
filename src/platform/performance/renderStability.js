@@ -43,6 +43,16 @@ import { stableStringify } from '../../utils/idUtils.js';
  *
  * sameStableValue(a, b): the same content, as QuestionEngine's own
  * deep-stable props compare it (stableStringify).
+ *
+ * sameData(a, b): the same data, as a document snapshot or a stored record
+ * holds it: lists and plain maps by content, any other object (a Timestamp)
+ * by its class and own fields, a Date by its time (stableStringify reads
+ * every Date as {}). keepSame(next): a state update that keeps the current
+ * value while `next` says the same. A snapshot hands over new objects every
+ * time; kept, what is worked out from them (memos and effects keyed on them)
+ * is not worked out again, and an update that changes nothing renders
+ * nothing. (React still calls the host once, without drawing anything, for
+ * the first such update after a render.)
  */
 export const createStableCallbacks = () => {
   const latest = new Map();
@@ -91,6 +101,18 @@ export const createRenderFold = () => {
 };
 
 export const sameStableValue = (a, b) => a === b || stableStringify(a) === stableStringify(b);
+
+export const sameData = (a, b) => {
+  if (Object.is(a, b)) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+  if (a instanceof Date || b instanceof Date) return a instanceof Date && b instanceof Date && Object.is(a.getTime(), b.getTime());
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, index) => sameData(item, b[index]));
+  if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameData(a[key], b[key]));
+};
+
+export const keepSame = (next) => (current) => (sameData(current, next) ? current : next);
 
 // Made on the host's first render and kept for its life.
 export const useRenderStability = () => useState(() => [createStableCallbacks(), createRenderMemo(), createRenderFold()])[0];

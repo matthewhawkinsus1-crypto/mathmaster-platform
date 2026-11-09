@@ -10,6 +10,11 @@
  *   - the save line's subject followed the status through an effect, so every
  *     change of the status cost App a render of its own after the one that
  *     showed it (three on each Submit and each Next);
+ *   - updates that changed nothing drew it again: the grade document's two
+ *     snapshots after each save, whose maps say what they said, as new
+ *     objects; the place to resume, the same after a Submit; the device
+ *     report's "nothing went wrong", the same null, twice; an empty list of
+ *     answers needing review, new on every drain (every 10 seconds);
  *
  * Node cannot render App.jsx; this file holds the pieces it can check: the
  * helpers, a model of the save line before and after, and where App wires them.
@@ -17,7 +22,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createRenderFold, FOLD_STEPS } from '../../src/platform/performance/renderStability.js';
+import { createRenderFold, FOLD_STEPS, keepSame, sameData } from '../../src/platform/performance/renderStability.js';
 import {
   describeRuntimeSaveLine, initialSaveSubject, nextSaveSubject, persistenceStatusAfterDrain,
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, saveLineIsAboutDrafts,
@@ -205,4 +210,64 @@ test('App folds the save line\'s subject in render, and no effect commits it', (
   assert.match(code, /const markAnswerSent = \(\) => setStudentSaveSubject\(\(current\) => nextSaveSubject\(renderFold\.from\('saveSubject', current\), \{ type: 'answer-sent' \}\)\);/);
   assert.match(code, /useEffect\(\(\) => \{\s*setStudentSaveSubject\(initialSaveSubject\(\)\);\s*\}, \[activeAssignmentId, user\?\.id\]\);/);
   assert.doesNotMatch(code, /studentSaveSubject !== studentSaveSubjectState/);
+});
+
+/* ------------------------------------------------- what changes nothing */
+
+test('sameData compares what a snapshot holds by content, a Timestamp by its fields and a Date by its time', () => {
+  class Timestamp { constructor(seconds, nanoseconds) { this.seconds = seconds; this.nanoseconds = nanoseconds; } }
+  class Other { constructor(seconds, nanoseconds) { this.seconds = seconds; this.nanoseconds = nanoseconds; } }
+  const receipt = (overrides = {}) => ({ 'lesson-3': { grade: 90, stage: 'draft', sentAt: new Timestamp(10, 5), log: [1, { at: new Date(1000) }], ...overrides } });
+  assert.ok(sameData(receipt(), receipt()), 'two snapshots of one map');
+  assert.ok(sameData({ a: 1, b: 2 }, { b: 2, a: 1 }), 'key order is not content');
+  assert.ok(!sameData(receipt(), receipt({ grade: 91 })));
+  assert.ok(!sameData(receipt(), receipt({ sentAt: new Timestamp(10, 6) })), 'a Timestamp by its fields');
+  assert.ok(!sameData(receipt(), receipt({ log: [1, { at: new Date(1001) }] })), 'a Date by its time, not as {}');
+  assert.ok(!sameData(new Timestamp(1, 2), new Other(1, 2)), 'another class is another value');
+  assert.ok(!sameData(new Date(5), { }), 'a Date is not an empty map');
+  assert.ok(!sameData([1, 2], { 0: 1, 1: 2 }), 'a list is not a map');
+  assert.ok(!sameData({ a: 1 }, { a: 1, b: undefined }), 'a key more');
+  assert.ok(!sameData({ a: 1, c: undefined }, { a: 1, b: undefined }), 'another key');
+  assert.ok(sameData(Number.NaN, Number.NaN));
+  assert.ok(!sameData(null, {}));
+  assert.ok(!sameData(0, '0'));
+});
+
+test('keepSame keeps the value a state holds while the new one says the same', () => {
+  const held = { 'lesson-3': { score: 100 } };
+  assert.equal(keepSame({ 'lesson-3': { score: 100 } })(held), held, 'the same identity: nothing keyed on it is worked out again');
+  const changed = { 'lesson-3': { score: 90 } };
+  assert.equal(keepSame(changed)(held), changed);
+  const empty = [];
+  assert.equal(keepSame([])(empty), empty, 'an empty list stays the list it was');
+});
+
+test('App renders nothing for a snapshot, a resume, a report or a drain that changes nothing', () => {
+  const code = app();
+  // The grade document's listener: every map it sets is kept while it says the same.
+  const listener = region(code, "doc(db, 'grades', user.id),\n      (snapshot) => {", 'const liveProfile = ', 'the grade document listener');
+  const maps = ['classroomSyncStatusByAssignment', 'testCycleGrades', 'teacherGradeOverridesByAssignment', 'sectionRecoveryByAssignment', 'warmupChallengeByAssignment', 'dolGradesByAssignment', 'classworkGradesByAssignment'];
+  for (const map of maps) {
+    const setter = `set${map[0].toUpperCase()}${map.slice(1)}(`;
+    const calls = listener.split(setter).slice(1);
+    assert.equal(calls.length, 1, `${map}: set once`);
+    assert.match(calls[0], /^keepSame\(/, `${map}: kept while it says the same`);
+  }
+  assert.match(listener, /setClassroomSyncStatusByAssignment\(keepSame\(next\)\);/);
+  // What else it sets is already kept while it says the same.
+  assert.match(listener, /setTracker\(\(current\) => \{[\s\S]*adoptCanonicalAdvances\(current, serverGrades\)[\s\S]*return grades;/);
+  // The place to resume: set only when it is another place.
+  const resume = region(code, 'const action = {\n      assignmentId: activeAssignmentId,', '}, [user, activeView, activeAssignmentId, currentQuestionIndex, assignments, activeQuestionRole, tracker]);', 'the resume effect');
+  assert.match(resume, /if \(!sameData\(resumeAction, action\)\) setResumeAction\(action\);\s*$/);
+  assert.equal((resume.match(/setResumeAction\(/g) || []).length, 1);
+  // The device report's error: set only when it says something new, and only through that.
+  assert.match(code, /const showStudentReportingError = \(reason\) => \{\s*if \(studentReportingErrorRef\.current === reason\) return;\s*studentReportingErrorRef\.current = reason;\s*setStudentReportingError\(reason\);\s*\};/);
+  assert.equal((code.match(/setStudentReportingError\(/g) || []).length, 1, 'set nowhere else');
+  assert.equal((code.match(/studentReportingErrorRef\.current = /g) || []).length, 1, 'the ref is the value last set');
+  const settled = region(code, 'onSettled: ({ ok, error }) => {', "console.warn('Device queue report unavailable:'", 'the report settled');
+  assert.match(settled, /if \(ok\) \{\s*showStudentReportingError\(null\);\s*return;\s*\}/);
+  assert.match(settled, /showStudentReportingError\(diagnostic\.safeReason\);/);
+  // The answers needing review: the same list while it names the same assignments.
+  const drain = region(code, 'const drainStudentOutbox = async', 'return result;', 'the drain');
+  assert.match(drain, /setStudentNeedsReviewAssignmentIds\(keepSame\(\[\.\.\.new Set\(/);
 });

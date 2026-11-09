@@ -881,7 +881,8 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
   // omits), and a change to it recomputes the display.
   assert.match(display, /projectSectionRecoveriesForDisplay\([\s\S]*warmupChallengeByAssignment,\s*(\/\/[^\n]*\n\s*)*(user\?\.role === 'student' \? user\.profile \|\| null : null,\s*)?\)/);
   assert.match(display, /\[tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment(, [^\]]+)?\]/);
-  assert.match(app, /setWarmupChallengeByAssignment\(snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\);/, 'a finished match reaches the Grade Center without a reload');
+  // (Kept as it was while the snapshot says the same: keepSame, appRenderWork.test.mjs.)
+  assert.match(app, /setWarmupChallengeByAssignment\((?:keepSame\()?snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\)\)?;/, 'a finished match reaches the Grade Center without a reload');
   const index = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const sync = region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback');
   assert.match(sync, /challengeCredit: afterData\.warmupChallengeByAssignment\?\.\[assignmentId\] \|\| null,/);
