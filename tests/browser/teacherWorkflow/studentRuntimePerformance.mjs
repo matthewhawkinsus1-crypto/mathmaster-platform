@@ -39,7 +39,9 @@
 //            each forced one in order (layout.forced), with its stack, the
 //            first of the platform's frames on it, and the writes that made
 //            it necessary (TRACE_DIR=<dir> also saves each window's trace,
-//            for DevTools' Performance panel)
+//            for DevTools' Performance panel). A trace run fails when opening
+//            the assignment, a Next or opening Work View forces more layouts,
+//            not counting MathLive's own, than FORCED_LAYOUT_BUDGET allows
 //
 // At the end, App's 30-second clock on the Step Algebra question, fired on
 // demand (clock-tick), and again with the page's clock moved past the end of
@@ -588,6 +590,44 @@ for (let run = 1; run <= RUNS; run += 1) {
   }
 }
 await browser.close();
+
+// FORCED LAYOUTS, A TRACE RUN'S BUDGET. A read that needs layout, made after a
+// write in the same task, makes the browser lay the page out early, once per
+// read. Opening the assignment, each Next and each Work View open may do that
+// at most this many times on each device, the counts five runs of each gave
+// without varying. MathLive's own are not counted (a layout forced with only
+// MathLive's frames on the stack: as a field connects, renders in its own
+// frame or runs its timers), since its timers land inside or outside a window
+// from run to run (4 or 5 opening an assignment on a Chromebook). What is left
+// is the first measurement after React has changed the page (the identity
+// bar's, a sticky bar's, the Work View button's, the dialog's first focus
+// check), the opening focus reaching a math field, App's animation frames, and
+// the browser removing the pressed button. Before the platform's measurements
+// were all made ahead of their writes (src/platform/layout/layoutWrites.js)
+// and the viewport read once per change (mobileInteractionFoundation.js), ten
+// runs of the code before forced, Chromebook / phone: opening 6 / 3-4, Next
+// 3-4 / 2-4 (a choice), 5 / 1 (an expression), 6-9 / 4-5 (a tool), Work View
+// 4 / 4. A run over budget names the stack that forced each layout. Stacks are
+// named from the build's source maps, so the budget needs PERF_DIST.
+const FORCED_LAYOUT_BUDGET = {
+  'open-assignment': { chromebook: 3, phone: 1 },
+  'next-to-choice': { chromebook: 2, phone: 1 },
+  'next-to-expression': { chromebook: 4, phone: 0 },
+  'next-to-tool': { chromebook: 3, phone: 2 },
+  'workview-open': { chromebook: 1, phone: 1 },
+  'workview-reopen': { chromebook: 1, phone: 1 },
+};
+const mathLiveOwn = (read) => !read.platform && /\bmathlive\b/.test(read.stack[0] || '');
+if (MODES.includes('trace') && !DIST) console.log('\nThe forced-layout budget is not checked without PERF_DIST (it tells MathLive\'s own layouts by their source).');
+for (const { device, mode, run, interactions = [] } of results.runs) {
+  if (mode !== 'trace' || !DIST) continue;
+  for (const entry of interactions) {
+    const budget = FORCED_LAYOUT_BUDGET[entry.name]?.[device];
+    if (budget == null || !entry.layout) continue;
+    const counted = entry.layout.forced.filter((read) => read.kind === 'layout' && !mathLiveOwn(read));
+    if (counted.length > budget) findings.push(`${device} run ${run}: ${entry.name} forced ${counted.length} layouts, not counting MathLive's own (budget ${budget}): ${counted.map((read) => read.platform || read.stack[0]).join(' | ')}`);
+  }
+}
 
 // The deterministic budgets. A key after the first (Undo is possible from
 // then on) draws QuestionEngine once: the smallest over the three such keys,
