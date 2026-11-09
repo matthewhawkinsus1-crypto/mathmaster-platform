@@ -2871,6 +2871,9 @@ export default function MultiRelationAlgebra({
             pointerEvents: 'none',
             zIndex: 9999,
           }}
+          // Over the whole page, so it keeps no background; under a contrast theme
+          // the line being dragged is Highlight (src/theme/forcedColors.css).
+          data-mm-drawing="overlay"
         >
           <line
             x1={dragStroke.startX}
@@ -2881,6 +2884,7 @@ export default function MultiRelationAlgebra({
             strokeWidth="4"
             strokeLinecap="round"
             opacity="0.78"
+            data-mm-plane-part="cursor"
           />
         </svg>
       )}

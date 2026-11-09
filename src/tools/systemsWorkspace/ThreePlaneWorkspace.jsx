@@ -35,6 +35,10 @@ import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvai
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
+// Under a Windows contrast theme the model is drawn in the theme's own colours,
+// where these three would be one: each plane is hatched its own way instead,
+// and keeps its label (src/theme/forcedColors.css).
+const PLANE_FILLS = ['hatch-rise', 'hatch-fall', 'hatch-level'];
 const DEFAULT_CAMERA = { azimuth: -0.7, elevation: 0.5 };
 const VIEW_SIZE = 560;
 const AXIS_LABEL_OFFSET = 18;
@@ -418,6 +422,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
+            data-mm-drawing=""
           >
             {/* The drawing itself, named as the image it is and described by
                 what it shows; the svg around it is the focusable control. */}
@@ -433,6 +438,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 x1={toScreen(edge.from, scale, [0, 0])[0]} y1={toScreen(edge.from, scale, [0, 0])[1]}
                 x2={toScreen(edge.to, scale, [0, 0])[0]} y2={toScreen(edge.to, scale, [0, 0])[1]}
                 className="mathmaster-threeplane-frame-edge"
+                data-mm-plane-part="grid"
               />
             ))}
             {axisEnds.map((axis) => (
@@ -453,6 +459,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   fontSize={16} fontWeight={700} textAnchor="middle"
                   data-axis-name=""
                   style={{ fill: 'var(--mm-graph-label)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
+                  data-mm-plane-part="halo"
                 >
                   {axis.name}
                 </text>
@@ -464,6 +471,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
               r={3.5}
               style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }}
               strokeWidth={1.5}
+              data-mm-plane-part="point"
             />
             {orderedPolygons.map((plane) => {
               const centroid = plane.points.reduce(
@@ -480,12 +488,14 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                     fillOpacity={0.28}
                     stroke={plane.color}
                     strokeWidth={2}
+                    data-mm-plane-part={PLANE_FILLS[plane.index % PLANE_FILLS.length]}
                   />
                   <text
                     x={clampLabel(screen[0] + offset[0], 24)}
                     y={clampLabel(screen[1] + offset[1], 20)}
                     className="mathmaster-threeplane-plane-label"
                     textAnchor="middle"
+                    data-mm-plane-part="halo"
                   >
                     {'P' + String(plane.index + 1)}
                   </text>
@@ -501,11 +511,12 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                 // The legend promises these: drawn in the strongest text
                 // colour, which the dark theme turns light (#202124 vanished).
                 style={{ stroke: 'var(--mm-text-strong)' }} strokeWidth={2.5} strokeDasharray="6 4"
+                data-mm-plane-part="line"
               />
             ))}
             {solutionMarker ? (
               <g>
-                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }} strokeWidth={2} />
+                <circle cx={toScreen(solutionMarker, scale, [0, 0])[0]} cy={toScreen(solutionMarker, scale, [0, 0])[1]} r={6} style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)' }} strokeWidth={2} data-mm-plane-part="point" />
                 {/* The coordinates sit on the point itself, so the ordered
                     triple and the place in space are read together. */}
                 <text
@@ -514,6 +525,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   fontSize={15}
                   fontWeight={800}
                   style={{ fill: 'var(--mm-text-strong)', stroke: 'var(--mm-surface-sunken)', strokeWidth: 4, paintOrder: 'stroke' }}
+                  data-mm-plane-part="halo"
                 >
                   {orderedTripleText(shownSolution, variables)}
                 </text>

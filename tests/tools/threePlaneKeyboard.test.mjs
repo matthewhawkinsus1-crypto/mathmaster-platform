@@ -181,7 +181,8 @@ test('the model is a focusable, named application wired to the keys', () => {
   // Inside the control, the drawing keeps the image role (the assessment-leak
   // and Day 2 browser gates find it by "3D view of the three planes") and is
   // described by the same text as the control.
-  assert.match(component, /onPointerLeave=\{handlePointerUp\}\s*>\s*\{ \}\s*<g role="img" aria-label=\{viewName\.text\} aria-describedby=\{modelDescriptionId\}>/);
+  // (After the svg's own attributes, whatever follows its pointer handlers: its forced-colours hook.)
+  assert.match(component, /onPointerLeave=\{handlePointerUp\}[^>]*>\s*\{ \}\s*<g role="img" aria-label=\{viewName\.text\} aria-describedby=\{modelDescriptionId\}>/);
   assert.match(component, /const viewName = namedIn\(figureWords, '3D view of the three planes'\);/);
   assert.match(component, /<span id=\{instructionId\} className="mathmaster-threeplane-sr-only">\s*Arrow keys rotate/);
   const imports = component.match(/import \{([^}]*)\} from '\.\/threePlaneControls\.js';/);

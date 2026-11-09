@@ -138,12 +138,13 @@
 
   /*
    * A COLOUR KEY (My Math Path's mastery wheel: Mastered, Secure, Developing,
-   * Needs Attention, Not Enough Evidence; the two round-done dots). The wheel
-   * is an SVG, whose paint forced colours leave alone, so its wedges keep
-   * their colours; its key's swatches were fills and its dots text colours,
-   * painted as the page, and the key no longer said which colour is which. A
-   * swatch keeps its own colour, with a CanvasText edge, so the pale ones (Not
-   * Enough Evidence's grey, Developing's amber) still show on a light theme.
+   * Needs Attention, Not Enough Evidence, and its two round-done dots; the
+   * CCMR wheel's readiness states). Its swatches were fills and its dots text
+   * colours, painted as the page, and the key no longer said which is which.
+   * A swatch is out of forced colours, with a CanvasText edge, and is drawn as
+   * the part of the wheel it explains (data-mm-swatch="<part>", with the
+   * drawings below): under a contrast theme a wheel tells its levels apart by
+   * their fills, not their colours.
    */
   [data-mm-swatch] {
     forced-color-adjust: none;
@@ -297,18 +298,22 @@
   }
 
   /* The board: the page's Canvas, with an edge in the text colour where it
-     has one, and no shadow. */
-  [data-mm-plane] {
+     has one, and no shadow. The other drawings' boards too (below); a drawing
+     over the page ("overlay") has none, and must stay clear. */
+  [data-mm-plane],
+  [data-mm-drawing=""] {
     background-color: Canvas !important;
     border-color: CanvasText !important;
     box-shadow: none !important;
     color: CanvasText !important;
   }
 
-  /* Every word on a plane: tick numbers, axis names and titles, point labels,
-     a readout. A label's halo is the board's colour (its token). The quadrant
-     names are a background, in the grid's colour. */
-  [data-mm-plane] text {
+  /* Every word on a plane or another drawing: tick numbers, axis names and
+     titles, point labels, a readout, a wheel's hub. A label's halo is the
+     board's colour (its token). The quadrant names are a background, in the
+     grid's colour. */
+  [data-mm-plane] text,
+  [data-mm-drawing] text {
     fill: CanvasText !important;
     fill-opacity: 1 !important;
     opacity: 1 !important;
@@ -318,8 +323,10 @@
     fill: GrayText !important;
   }
 
-  /* An arrowhead drawn as a marker (the graphing calculator's axes). */
-  [data-mm-plane] marker > * {
+  /* An arrowhead drawn as a marker (the graphing calculator's axes, a mapping
+     diagram's arrows). */
+  [data-mm-plane] marker > *,
+  [data-mm-drawing] marker > * {
     fill: CanvasText !important;
     stroke: CanvasText !important;
   }
@@ -336,6 +343,7 @@
   [data-mm-plane-part="grid"] {
     stroke: GrayText !important;
     stroke-opacity: 1 !important;
+    opacity: 1 !important;
   }
 
   [data-mm-plane-part="grid-minor"] {
@@ -468,5 +476,148 @@
   [data-mm-plane-key] :is(line, path) {
     stroke: CanvasText !important;
     stroke-opacity: 1 !important;
+  }
+
+  /*
+   * EVERY OTHER DRAWING THAT SAYS SOMETHING. The number line (a tool's, and
+   * Inequality Graphing Rush's), the mapping diagram, the 3D model, My Math
+   * Path's mastery wheel, the CCMR readiness wheel, the line a graph-to-story
+   * match draws, and the ink of a student's stroke on an equation are SVG
+   * drawings too, and kept the app theme's paint under a contrast theme as a
+   * plane did. Each names itself (data-mm-drawing: "" for a drawing on a board
+   * of its own, "overlay" for one drawn over the page, which must stay clear)
+   * and its parts with the plane's words, so the rules above draw them as they
+   * draw a plane's: the board Canvas inside a CanvasText edge, every word,
+   * line, end and arrowhead CanvasText with its dashes, markers and shapes
+   * kept, an open end an empty ring and a closed one solid, and what is chosen,
+   * held or being placed Highlight. What only colour told apart is told apart
+   * by its fill:
+   *   a mastery level       Mastered solid, Secure hatched rising, Developing
+   *                         hatched falling, Needs Attention cross-hatched, Not
+   *                         Enough Evidence empty (strandConfig.js,
+   *                         MASTERY_STATUS_FILLS)
+   *   a readiness state     the same fills, a prerequisite to strengthen hatched
+   *                         level, and no alignment yet an empty GrayText ring
+   *                         (domainReadiness.js, DOMAIN_STATE_FILLS)
+   *   the 3D model's planes hatched rising, falling and level, each still
+   *                         labelled P1, P2, P3
+   *   a round done          an empty ring, a Level 3 round a solid dot
+   * A key's swatch (data-mm-swatch="<part>") is drawn as the part it explains.
+   */
+
+  /* Not there to choose yet: a mapping's range values before a domain value is
+     chosen (drawn faint), a readiness domain with no skill matched (greyed). */
+  [data-mm-plane-part="muted"] {
+    fill: Canvas !important;
+    fill-opacity: 1 !important;
+    stroke: GrayText !important;
+    stroke-opacity: 1 !important;
+    opacity: 1 !important;
+  }
+
+  /* The words on a part drawn in Highlight (a mapping's chosen domain value). */
+  [data-mm-drawing] [data-mm-plane-part="held-text"] {
+    fill: HighlightText !important;
+  }
+
+  /* A fill that says a level: solid, or a hatch one way, the other, both, or
+     level. A mask lets only the lines through, as a plane's shading does. */
+  [data-mm-plane-part="solid"] {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: Canvas !important;
+    opacity: 1 !important;
+  }
+
+  :is([data-mm-plane-part="hatch-rise"], [data-mm-plane-part="hatch-fall"], [data-mm-plane-part="hatch-cross"], [data-mm-plane-part="hatch-level"]) {
+    fill: CanvasText !important;
+    fill-opacity: 1 !important;
+    stroke: none !important;
+    opacity: 1 !important;
+  }
+
+  [data-mm-plane-part="hatch-rise"] {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  [data-mm-plane-part="hatch-fall"] {
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  [data-mm-plane-part="hatch-cross"] {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, transparent 1.5px 6px), repeating-linear-gradient(45deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  [data-mm-plane-part="hatch-level"] {
+    mask-image: repeating-linear-gradient(0deg, CanvasText 0 1.5px, transparent 1.5px 6px);
+  }
+
+  /* The 3D model's planes overlap over most of the model: hatched more thinly,
+     so where two or three cross, the lines, the point and the labels on them
+     still read. */
+  polygon[data-mm-plane-part="hatch-rise"] {
+    mask-image: repeating-linear-gradient(-45deg, CanvasText 0 1px, transparent 1px 11px);
+  }
+
+  polygon[data-mm-plane-part="hatch-fall"] {
+    mask-image: repeating-linear-gradient(45deg, CanvasText 0 1px, transparent 1px 11px);
+  }
+
+  polygon[data-mm-plane-part="hatch-level"] {
+    mask-image: repeating-linear-gradient(0deg, CanvasText 0 1px, transparent 1px 11px);
+  }
+
+  /* A drawing over the page draws no shadow of its own (a match's line). */
+  [data-mm-drawing="overlay"] * {
+    filter: none !important;
+  }
+
+  /* A key's swatch, drawn as its part. */
+  :is([data-mm-swatch="solid"], [data-mm-swatch^="hatch-"], [data-mm-swatch="open"]) {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+
+  [data-mm-swatch="solid"] {
+    background: CanvasText !important;
+  }
+
+  [data-mm-swatch="hatch-rise"] {
+    background: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="hatch-fall"] {
+    background: repeating-linear-gradient(45deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="hatch-cross"] {
+    background: repeating-linear-gradient(-45deg, CanvasText 0 1.5px, transparent 1.5px 4px), repeating-linear-gradient(45deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="hatch-level"] {
+    background: repeating-linear-gradient(0deg, CanvasText 0 1.5px, Canvas 1.5px 4px) !important;
+  }
+
+  [data-mm-swatch="open"] {
+    background: Canvas !important;
+  }
+
+  [data-mm-swatch="muted"] {
+    background: Canvas !important;
+    border-color: GrayText !important;
+    outline: 1px solid GrayText;
+    outline-offset: -1px;
+    opacity: 1 !important;
+  }
+
+  /* The key's two rounds, words with a dot: a practice round's an empty ring,
+     a Level 3 round's solid, as the wheel draws them. */
+  [data-mm-swatch="point"] {
+    color: CanvasText !important;
+  }
+
+  [data-mm-swatch="ring"] {
+    color: Canvas !important;
+    -webkit-text-stroke: 1px CanvasText;
   }
 }

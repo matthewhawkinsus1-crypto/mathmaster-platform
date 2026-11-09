@@ -2190,7 +2190,10 @@ export default function StepByStepAlgebra({
         : null;
     if (!ink) return null;
     return (
-      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5, overflow: 'visible' }}>
+      // Over the equation, so it keeps no background. Under a contrast theme the
+      // stroke being drawn is Highlight, and a strike that holds the text colour
+      // (src/theme/forcedColors.css).
+      <svg aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5, overflow: 'visible' }} data-mm-drawing="overlay">
         <path
           className={ink.locked ? 'algebra-strike-lock' : ''}
           d={strokeToPath(ink.points)}
@@ -2200,6 +2203,7 @@ export default function StepByStepAlgebra({
           strokeLinecap="round"
           strokeLinejoin="round"
           opacity={ink.locked ? 1 : 0.85}
+          data-mm-plane-part={ink.locked ? 'line' : 'cursor'}
         />
       </svg>
     );

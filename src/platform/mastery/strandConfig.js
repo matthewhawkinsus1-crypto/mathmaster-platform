@@ -182,6 +182,22 @@ export const MASTERY_STATUS_COLORS = Object.freeze({
   'Not Enough Evidence': '#dadce0',
 });
 
+/*
+ * Each level as a fill, for a Windows contrast theme. The theme draws the wheel
+ * in its own few colours, where these five would be one, so each level is told
+ * apart by how its wedge is filled (src/theme/forcedColors.css draws each, on
+ * the wheel and in its key): the most ink for Mastered, hatches running opposite
+ * ways for Secure and Developing, a cross-hatch for Needs Attention, and an
+ * empty wedge for Not Enough Evidence. Without a contrast theme nothing changes.
+ */
+export const MASTERY_STATUS_FILLS = Object.freeze({
+  Mastered: 'solid',
+  Secure: 'hatch-rise',
+  Developing: 'hatch-fall',
+  'Needs Attention': 'hatch-cross',
+  'Not Enough Evidence': 'open',
+});
+
 /**
  * The course title a student should see above their wheel — "Algebra II", not
  * "algebra2-honors".

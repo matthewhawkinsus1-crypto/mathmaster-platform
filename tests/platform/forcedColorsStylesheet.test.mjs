@@ -5,8 +5,10 @@
  * as Canvas, no box-shadow, no gradient. src/theme/forcedColors.css gives back
  * what that takes from MathMaster's screens: an edge for every button, the
  * system's highlight for a selected, pressed or current control, a drawn
- * progress bar, the Live Class question strip's colours and the mastery key's,
- * and every coordinate plane in the theme's colours.
+ * progress bar, the Live Class question strip's colours, and every coordinate
+ * plane and every other drawing that says something in the theme's colours,
+ * with what only colour told apart told apart by its fill, on a wheel and in
+ * its key.
  * This file holds the stylesheet to "nothing changes without forced colours,
  * and only system colours", its two kinds of rule to their place against the
  * page's focus ring, and the screens to the hooks it styles. What the rules do
@@ -26,7 +28,7 @@ const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), '
 const SHEET = 'src/theme/forcedColors.css';
 const rules = parseCss(read(SHEET));
 const SYSTEM_COLOURS = new Set(['Canvas', 'CanvasText', 'Highlight', 'HighlightText', 'ButtonText', 'ButtonFace', 'ButtonBorder', 'LinkText', 'GrayText', 'Field', 'FieldText', 'Mark', 'MarkText', 'AccentColor', 'AccentColorText', 'SelectedItem', 'SelectedItemText', 'VisitedText', 'ActiveText']);
-const COLOUR_PROPERTIES = /^(color|background(-color)?|border(-(top|right|bottom|left))?(-color)?|outline(-color)?|fill|stroke|text-decoration-color|caret-color|accent-color|column-rule(-color)?)$/;
+const COLOUR_PROPERTIES = /^(color|background(-color)?|border(-(top|right|bottom|left))?(-color)?|outline(-color)?|fill|stroke|text-decoration-color|caret-color|accent-color|column-rule(-color)?|mask(-image)?|-webkit-text-stroke(-color)?)$/;
 
 test('nothing changes without forced colours: every rule of the stylesheet is inside its media query', () => {
   assert.ok(rules.length >= 8, `${SHEET} is expected to hold the forced-colours rules`);
@@ -55,7 +57,8 @@ test('forced-color-adjust: none only where a control must be painted in system c
   //   a selected / pressed / current control: Chromium paints a Canvas plate behind text under forced colours, so
   //     HighlightText on Highlight is only readable out of forced adjustment, painted in system colours only;
   //   the Live Class question strip: its colours are what each question's bar means;
-  //   a colour key's swatch: the wheel it explains keeps its colours;
+  //   a colour key's swatch: drawn as the part of the wheel it explains, in system colours (a fill or a hatch, which
+  //     forced colours drop unless the swatch opts out);
   //   a Live Challenge status dot (a student's presence on the roster, "Reconnecting…"): its colour is what it says;
   //   the start lights: a lit pod's red or green is what it says;
   //   the checkered flag: a gradient, which forced colours drop unless the drawing opts out (painted in system colours).
@@ -163,14 +166,18 @@ test('a Live Class strip bar carries the state the projector may show, never the
   assert.match(strip, /\[\.\.\.states\]\.map\(\(character, index\) =>[\s\S]*data-question-state=\{character\}/);
 });
 
-test('the mastery wheel\'s colour key, its topic list and the topic browser mark their swatches', () => {
+test('the mastery wheel\'s colour key, its topic list and the topic browser mark their swatches with the fill of the level each explains', () => {
+  // Under a contrast theme the wheel tells its levels apart by their fills (below), so a swatch is drawn as its level's
+  // wedge is: the key names the fill of the very status whose colour it shows.
   const key = region(read('src/components/student/MyMathPathDashboard.jsx'), '<strong>What the colours mean</strong>', 'numbers around the wheel', 'the colour key');
-  assert.match(key, /data-mm-swatch="" style=\{\{ width: 11, height: 11, borderRadius: 999, background: color/);
-  assert.equal((key.match(/<span data-mm-swatch="" style=\{\{ color: /g) || []).length, 2, 'both round-done dots');
+  assert.match(key, /\{Object\.entries\(MASTERY_STATUS_COLORS\)\.map\(\(\[status, color\]\) => \([\s\S]*data-mm-swatch=\{MASTERY_STATUS_FILLS\[status\]\} style=\{\{ width: 11, height: 11, borderRadius: 999, background: color/);
+  // The two round-done dots: a practice round's an empty ring, a Level 3 round's solid, as the wheel's badges.
+  assert.match(key, /<span data-mm-swatch="ring" style=\{\{ color: 'var\(--mm-success-text\)'[^}]*\}\}>●<\/span> practice round done/);
+  assert.match(key, /<span data-mm-swatch="point" style=\{\{ color: 'var\(--mm-accent-text\)'[^}]*\}\}>●<\/span> Level 3 \(stretch\) round done/);
   const list = region(read('src/components/student/MyMathPathWheel.jsx'), '{arc.members.map((entry) => {', '</ul>', 'the topic list');
-  assert.match(list, /data-mm-swatch="" style=\{\{[^}]*background: MASTERY_STATUS_COLORS\[status\]/);
+  assert.match(list, /data-mm-swatch=\{MASTERY_STATUS_FILLS\[status\] \|\| MASTERY_STATUS_FILLS\[NOT_ENOUGH_EVIDENCE\]\} style=\{\{[^}]*background: MASTERY_STATUS_COLORS\[status\]/);
   const browser = read('src/components/student/MyMathPathTopicBrowser.jsx');
-  assert.match(region(browser, '<span data-mastery-status', '</span>', 'the mastery chip'), /data-mm-swatch="" style=\{\{[^}]*background: skill\.masteryColor/);
+  assert.match(region(browser, '<span data-mastery-status', '</span>', 'the mastery chip'), /data-mm-swatch=\{MASTERY_STATUS_FILLS\[skill\.masteryStatus\] \|\| 'open'\} style=\{\{[^}]*background: skill\.masteryColor/);
 });
 
 // ------------------------------------------------------------------ Live Challenge
@@ -334,7 +341,7 @@ test('a plane\'s own colours, under forced colours, are the theme\'s: the graph 
 });
 
 test('the board is the page\'s Canvas and every word on a plane the text colour; nothing a plane paints is left to its own colours', () => {
-  const board = rules.find((rule) => rule.selectors.length === 1 && rule.selectors[0] === '[data-mm-plane]');
+  const board = rules.find((rule) => rule.selectors.includes('[data-mm-plane]') && rule.declarations['background-color']);
   assert.equal(board?.declarations['background-color']?.value, 'Canvas');
   assert.ok(board.declarations['background-color'].important, 'over the board\'s own background, set inline');
   assert.equal(board.declarations['box-shadow']?.value, 'none');
@@ -347,12 +354,14 @@ test('the board is the page\'s Canvas and every word on a plane the text colour;
 // The parts the stylesheet draws, and the parts the planes name: each named part is drawn, and each drawn part is named.
 const PART = /\[data-mm-plane-part="([\w-]+)"\]/g;
 const styledParts = () => new Set(rules.flatMap((rule) => [...rule.selectors.join(' ').matchAll(PART)].map((match) => match[1])));
+// A part's name is written in the markup, chosen in it (`{held ? 'held' : 'point'}`), or taken from a drawing's fills
+// (`PLANE_FILLS`, `MASTERY_STATUS_FILLS`: a level's or a plane's fill under a contrast theme).
 const namedParts = () => {
   const found = new Map();
   for (const file of walk('src')) {
     const source = read(file);
-    if (!/data-mm-plane-part|markPlanePart\(/.test(source)) continue;
-    for (const match of source.matchAll(/data-mm-plane-part=(?:"([\w-]+)"|\{([^}]*)\})|markPlanePart\([^,]+,\s*'([\w-]+)'\)|const planePart = ([^;]+);/g)) {
+    if (!/data-mm-plane-part|markPlanePart\(|const [A-Z_]+_FILLS = /.test(source)) continue;
+    for (const match of source.matchAll(/data-mm-plane-part=(?:"([\w-]+)"|\{([^}]*)\})|markPlanePart\([^,]+,\s*'([\w-]+)'\)|const (?:planePart|[A-Z_]+_FILLS) = ([^;]+);/g)) {
       const words = match[1] || match[3] ? [match[1] || match[3]] : [...String(match[2] || match[4]).matchAll(/'([\w-]+)'/g)].map((word) => word[1]);
       words.forEach((word) => found.set(word, [...(found.get(word) || []), file]));
     }
@@ -366,9 +375,10 @@ test('every part of a plane the stylesheet draws is one a plane names, and every
   assert.ok(styled.size >= 12, `parts drawn: ${[...styled].join(', ')}`);
   assert.deepEqual([...styled].filter((part) => !named.has(part)), [], 'drawn by the stylesheet, named by no plane');
   assert.deepEqual([...named.keys()].filter((part) => !styled.has(part)).map((part) => `${part} (${named.get(part).join(', ')})`), [], 'named by a plane, drawn by no rule');
-  // Each part's rule paints in system colours (or hides a glow): the parts the stylesheet draws as the theme's.
+  // Each part's rule paints in system colours (or hides a glow): the parts the stylesheet draws as the theme's. A part
+  // drawn only inside a drawing (the words on a chosen value) is named last in its selector.
   for (const part of styled) {
-    const own = rules.filter((rule) => rule.selectors.some((selector) => selector === `[data-mm-plane-part="${part}"]`));
+    const own = rules.filter((rule) => rule.selectors.some((selector) => selector.endsWith(`[data-mm-plane-part="${part}"]`)));
     assert.ok(own.length, `${part} has a rule of its own`);
   }
 });
@@ -428,8 +438,8 @@ const PLANE_DRAWERS = [
 const NOT_A_BOARD = {
   'src/components/liveChallenge/LineGridLayer.jsx': 'the grid under Graph the Line\'s planes, drawn inside their boards',
   'src/tools/systemsWorkspace/InequalityBuildPanels.jsx': 'the Systems Workspace\'s marks, drawn inside the shared plane',
-  'src/components/liveChallenge/InequalityNumberLine.jsx': 'a number line, not a plane',
-  'src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx': 'three planes in a 3D model, not a coordinate plane',
+  'src/components/liveChallenge/InequalityNumberLine.jsx': 'a number line, not a plane: one of the other drawings (DRAWINGS, below)',
+  'src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx': 'three planes in a 3D model, not a coordinate plane: one of the other drawings (DRAWINGS, below)',
   'src/components/liveChallenge/GraphFeatureRushRound.jsx': 'the rush round\'s shell, which sets the tokens',
   'src/components/liveChallenge/LineGraphRound.jsx': 'the line round\'s shell, which sets the tokens',
   'src/components/liveChallenge/grandPrixTheme.js': 'the rounds\' tokens',
@@ -458,4 +468,188 @@ test('a key beside a plane draws its sample line as the plane draws it', () => {
     .map((match) => ({ file, named: /data-mm-plane-key=""/.test(match[1]) })));
   assert.ok(samples.length >= 8, `${samples.length} keys`);
   assert.deepEqual(samples.filter((sample) => !sample.named).map((sample) => sample.file), [], 'a key whose line keeps its own colour');
+});
+
+// ------------------------------------------------------------------ the other drawings
+// A number line, the mapping diagram, the 3D model, the two progress wheels, a match's line and a stroke's ink are SVG
+// drawings too, and kept the app theme's paint under a contrast theme as a plane did. Each names itself
+// (data-mm-drawing) and its parts with the plane's words, so the plane's rules draw it; the forced-colours walk reads
+// what each paints (mm-forced-drawing-paint). These hold the drawings, the rules and the keys to each other.
+const DRAWINGS = [
+  // [file, tag, what tells the drawing from the file's other tags of its kind, '' a board of its own | 'overlay' over the page]
+  ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', 'svg', 'onKeyDown={handleLineKeyDown}', ''],
+  ['src/components/liveChallenge/InequalityNumberLine.jsx', 'svg', 'mm-rush-line', ''],
+  ['src/tools/relationMapping/RelationMapping.jsx', 'svg', 'aria-label="Mapping diagram"', ''],
+  ['src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx', 'svg', 'ref={modelRef}', ''],
+  ['src/components/student/MyMathPathWheel.jsx', 'svg', 'mastery wheel', ''],
+  ['src/components/student/CCMRReadinessWheel.jsx', 'svg', 'readiness by domain', ''],
+  ['src/GraphScenarioMatch.jsx', 'svg', 'graph-scenario-connector-layer', 'overlay'],
+  ['src/StepByStepAlgebraCore.jsx', 'svg', 'zIndex: 5', 'overlay'],
+  ['src/MultiRelationAlgebraCore.jsx', 'svg', 'zIndex: 9999', 'overlay'],
+];
+// Every other <svg> a screen draws, and why it is neither a plane, a drawing nor a plane's key: drawn in currentColor
+// (the words' or the button's colour, which forced colours give the theme's), decoration beside its words, or used by
+// no screen. (A printed worksheet's figures are built in code, off the screen, for a PDF: assignmentWorksheetVisuals.js.)
+const NOT_A_DRAWING = [
+  ['src/LoginScreen.jsx', 'viewBox="0 0 48 48"', 'the Google mark: a logo in its own colours, beside its words'],
+  ['src/MathInput.jsx', 'data-math-tools-icon="keypad"', 'the keypad icon, in currentColor'],
+  ['src/components/common/CalculatorIcon.jsx', 'mathmaster-calculator-icon', 'the calculator icon, in currentColor'],
+  ['src/components/common/StarIcon.jsx', 'mathmaster-star-icon', 'the Class Points star: decoration beside its words, in its own colours as the emoji was'],
+  ['src/components/assessment/SatReferenceSheet.jsx', '<svg', 'the reference sheet\'s figures, in currentColor'],
+  ['src/components/common/ResponsiveMathCanvas.jsx', '<svg', 'used by no screen'],
+  ['src/tools/regressionCalculator/RegressionCalculator.jsx', 'viewBox="0 0 28 28"', 'the add-regression icon, in currentColor'],
+  ['src/tools/systemsWorkspace/InequalityControls.jsx', 'viewBox="0 0 30 10"', 'a line style\'s icon, in currentColor'],
+  ['src/tools/systemsWorkspace/InequalityControls.jsx', 'viewBox="0 0 24 24"', 'the show and hide icon, in currentColor'],
+];
+
+test('every other drawing names itself as the last attribute of its tag, and one drawn over the page as an overlay', () => {
+  for (const [file, tagName, marker, kind] of DRAWINGS) {
+    const tags = openingTags(read(file), tagName).filter((tag) => tag.includes(marker));
+    assert.equal(tags.length, 1, `${file}: one drawing`);
+    assert.match(tags[0], new RegExp(`\\sdata-mm-drawing="${kind}"\\s*>$`), `${file}: named "${kind}", last`);
+  }
+  // A board is the page's Canvas, as a plane's; one over the page keeps no background, which would hide the page.
+  const board = rules.find((rule) => rule.selectors.includes('[data-mm-plane]') && rule.declarations['background-color']);
+  assert.ok(board.selectors.includes('[data-mm-drawing=""]'), 'a drawing\'s own board');
+  const painted = rules.filter((rule) => rule.selectors.some((selector) => /^\[data-mm-drawing(="overlay")?\]$/.test(selector)) && Object.keys(rule.declarations).some((name) => name.startsWith('background')));
+  assert.deepEqual(painted.map((rule) => rule.selectors.join(', ')), [], 'nothing paints a drawing over the page');
+  // Its words and markers as a plane's.
+  assert.ok(rules.find((rule) => rule.selectors.includes('[data-mm-plane] text'))?.selectors.includes('[data-mm-drawing] text'));
+  assert.ok(rules.find((rule) => rule.selectors.includes('[data-mm-plane] marker > *'))?.selectors.includes('[data-mm-drawing] marker > *'));
+});
+
+test('every <svg> a screen draws is a plane, another drawing, a plane\'s key, or said to be an icon or decoration', () => {
+  const accounted = (file, tag) => /\sdata-mm-(plane|drawing|plane-key)=/.test(tag)
+    || NOT_A_DRAWING.some(([listed, marker]) => listed === file && tag.includes(marker));
+  const unaccounted = walk('src').flatMap((file) => openingTags(read(file), 'svg').filter((tag) => !accounted(file, tag)).map((tag) => `${file}: ${tag.slice(0, 90)}`));
+  assert.deepEqual(unaccounted, [], 'an <svg> a contrast theme would leave in its own paint, with no word on how it is drawn there');
+  // Each listed one is still there (a stale entry would excuse a new drawing).
+  for (const [file, marker] of NOT_A_DRAWING) assert.ok(openingTags(read(file), 'svg').some((tag) => tag.includes(marker)), `${file}: ${marker}`);
+});
+
+// What a part looks like under forced colours: its fill, stroke and mask, from every rule that draws exactly it (a part
+// alone, or one of an :is() list of parts), but not a rule for one kind of element.
+const partLook = (part) => {
+  const own = `[data-mm-plane-part="${part}"]`;
+  const merged = {};
+  for (const rule of rules.filter((entry) => entry.selectors.some((selector) => selector === own || (selector.startsWith(':is(') && selector.includes(own) && !/\)\S/.test(selector))))) {
+    Object.assign(merged, Object.fromEntries(Object.entries(rule.declarations).map(([name, { value }]) => [name, value])));
+  }
+  return merged;
+};
+const angles = (value) => [...String(value || '').matchAll(/(-?\d+)deg/g)].map((match) => Number(match[1])).sort((a, b) => a - b);
+
+test('under a contrast theme a wheel tells its levels apart by their fills, each its own, and its key draws each the same way', async () => {
+  const { MASTERY_STATUS_COLORS, MASTERY_STATUS_FILLS } = await import('../../src/platform/mastery/strandConfig.js');
+  const { DOMAIN_STATE, DOMAIN_STATE_FILLS } = await import('../../src/platform/ccmr/domainReadiness.js');
+  // Every mastery level and every readiness state has a fill, and no two of one wheel the same.
+  assert.deepEqual(Object.keys(MASTERY_STATUS_FILLS).sort(), Object.keys(MASTERY_STATUS_COLORS).sort());
+  assert.equal(new Set(Object.values(MASTERY_STATUS_FILLS)).size, Object.keys(MASTERY_STATUS_COLORS).length);
+  assert.deepEqual(Object.keys(DOMAIN_STATE_FILLS).sort(), Object.values(DOMAIN_STATE).sort());
+  assert.equal(new Set(Object.values(DOMAIN_STATE_FILLS)).size, Object.values(DOMAIN_STATE).length);
+  // Each fill is drawn by the stylesheet in system colours, and no two alike: solid, empty, a hatch one way, the other,
+  // both, or level.
+  const fills = [...new Set([...Object.values(MASTERY_STATUS_FILLS), ...Object.values(DOMAIN_STATE_FILLS)])];
+  const looks = fills.map((fill) => {
+    const look = partLook(fill);
+    assert.ok(look.fill && look.stroke, `${fill}: drawn (${JSON.stringify(look)})`);
+    return JSON.stringify([look.fill, look.stroke, angles(look['mask-image'])]);
+  });
+  assert.equal(new Set(looks).size, fills.length, `every fill looks different: ${looks.join(' ')}`);
+  // Its key's swatch shows the same fill: solid, empty or hatched the same way.
+  for (const fill of fills) {
+    const swatch = rules.find((rule) => rule.selectors.includes(`[data-mm-swatch="${fill}"]`) && rule.declarations.background)?.declarations.background.value;
+    assert.ok(swatch, `a swatch for ${fill}`);
+    assert.deepEqual(angles(swatch), angles(partLook(fill)['mask-image']), `${fill}: the swatch's hatch runs as the wedge's`);
+  }
+  // The wheel's wedge takes its level's fill, and Highlight while it is the one named in the hub; a round done is an
+  // empty ring and a Level 3 round a solid dot, which the key's two dots say.
+  const wheel = read('src/components/student/MyMathPathWheel.jsx');
+  assert.match(wheel, /data-mm-plane-part=\{active \? 'held' : MASTERY_STATUS_FILLS\[status\] \|\| MASTERY_STATUS_FILLS\[NOT_ENOUGH_EVIDENCE\]\} \/>/);
+  assert.match(wheel, /\{passCount > 0 && <circle [^>]*fill=\{passColor\}[^>]*data-mm-plane-part=\{passCount >= 3 \? 'point' : 'open'\} \/>\}/);
+  const key = region(read('src/components/student/MyMathPathDashboard.jsx'), '<strong>What the colours mean</strong>', 'numbers around the wheel', 'the colour key');
+  assert.match(key, /data-mm-swatch="ring"[^>]*>●<\/span> practice round done/);
+  assert.match(key, /data-mm-swatch="point"[^>]*>●<\/span> Level 3 \(stretch\) round done/);
+  assert.equal(partLook('open').fill, 'Canvas', 'a ring is empty');
+  assert.equal(partLook('point').fill, 'CanvasText', 'a dot is solid');
+  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-swatch="ring"]'))?.declarations.color?.value, 'Canvas', 'the key\'s ring is empty');
+  assert.match(rules.find((rule) => rule.selectors.includes('[data-mm-swatch="ring"]'))?.declarations['-webkit-text-stroke']?.value || '', /CanvasText$/, 'inside an edge');
+  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-swatch="point"]'))?.declarations.color?.value, 'CanvasText', 'the key\'s dot is solid');
+  // The readiness wheel the same way, beside each domain's name in its list.
+  const ccmr = read('src/components/student/CCMRReadinessWheel.jsx');
+  assert.match(ccmr, /data-mm-plane-part=\{isActive \? 'held' : DOMAIN_STATE_FILLS\[entry\.state\]\}/);
+  assert.match(region(ccmr, '{domains.map((entry) => (', '</li>', 'the list'), /data-mm-swatch=\{DOMAIN_STATE_FILLS\[entry\.state\]\} \/>/);
+  assert.equal(partLook('held').fill, 'Highlight');
+});
+
+test('the 3D model\'s three planes are hatched three ways, each keeping its label', () => {
+  const model = read('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx');
+  const fills = JSON.parse(/const PLANE_FILLS = (\[[^\]]*\]);/.exec(model)?.[1].replace(/'/g, '"') || '[]');
+  assert.equal(new Set(fills).size, 3, 'three different hatches');
+  assert.equal(new Set(fills.map((fill) => JSON.stringify(angles(partLook(fill)['mask-image'])))).size, 3, 'running three ways');
+  assert.match(model, /fill=\{plane\.color\}\s*fillOpacity=\{0\.28\}\s*stroke=\{plane\.color\}\s*strokeWidth=\{2\}\s*data-mm-plane-part=\{PLANE_FILLS\[plane\.index % PLANE_FILLS\.length\]\}/);
+  assert.match(model, /className="mathmaster-threeplane-plane-label"\s*textAnchor="middle"\s*data-mm-plane-part="halo"/, 'its label on a halo of the page');
+  // Hatched more thinly than a wheel's wedge, so where three cross, the lines and labels on them still read.
+  for (const fill of fills) {
+    const thin = rules.find((rule) => rule.selectors.includes(`polygon[data-mm-plane-part="${fill}"]`))?.declarations['mask-image']?.value || '';
+    assert.deepEqual(angles(thin), angles(partLook(fill)['mask-image']), `${fill}: the same way`);
+    assert.ok(Number(/transparent [\d.]+px ([\d.]+)px/.exec(thin)?.[1]) > Number(/transparent [\d.]+px ([\d.]+)px/.exec(partLook(fill)['mask-image'])?.[1]), `${fill}: farther apart`);
+  }
+});
+
+test('a number line draws its ends by their fill, the one being placed in Highlight, and its shading solid', () => {
+  const tool = read('src/tools/intervalNumberLine/IntervalNumberLine.jsx');
+  assert.match(tool, /fill=\{interval\.minClosed \? '#1a73e8' : '#fff'\}[^>]*data-mm-plane-part=\{interval\.minClosed \? 'closed' : 'open'\}/);
+  assert.match(tool, /fill=\{interval\.maxClosed \? '#1a73e8' : '#fff'\}[^>]*data-mm-plane-part=\{interval\.maxClosed \? 'closed' : 'open'\}/);
+  assert.match(tool, /fill=\{pending\.closed \? '#8a3ffc' : '#fff'\}[^>]*data-mm-plane-part=\{pending\.closed \? 'held' : 'held-open'\}/);
+  assert.match(tool, /stroke="#1a73e8"\s*strokeWidth="6"\s*opacity="0\.85"\s*data-mm-plane-part="line"/);
+  const rush = read('src/components/liveChallenge/InequalityNumberLine.jsx');
+  assert.match(rush, /strokeOpacity=\{0\.5\} strokeWidth=\{BAND\}[^>]*data-mm-plane-part="line" \/>/, 'the shading, translucent on screen, solid there');
+  assert.match(rush, /fill=\{dot\.closed \? tone : 'var\(--mm-graph-bg\)'\}[^>]*data-mm-plane-part=\{dot\.closed \? 'closed' : 'open'\} \/>/);
+  assert.equal(partLook('line')['opacity'], '1');
+  assert.equal(partLook('held-open').stroke, 'Highlight');
+});
+
+test('a mapping diagram draws its chosen value in Highlight, and the values it can map to faint until one is chosen', () => {
+  const mapping = read('src/tools/relationMapping/RelationMapping.jsx');
+  assert.match(mapping, /data-mm-plane-part=\{selectedDomain === value \? 'held' : 'open'\} \/>/);
+  assert.match(mapping, /data-mm-plane-part=\{selectedDomain === value \? 'held-text' : undefined\}>\{value\}<\/text>/);
+  assert.match(mapping, /opacity=\{selectedDomain == null \? 0\.55 : 1\} data-mm-plane-part=\{selectedDomain == null \? 'muted' : 'open'\} \/>/, 'faint on screen, the theme\'s grey there');
+  assert.equal(partLook('muted').stroke, 'GrayText');
+  // The words on the chosen value are the highlight's own, over the drawing's words rule.
+  const words = rules.find((rule) => rule.selectors.includes('[data-mm-drawing] [data-mm-plane-part="held-text"]'));
+  assert.equal(words?.declarations.fill?.value, 'HighlightText');
+  assert.ok(above(specificity(words.selectors[0]), specificity('[data-mm-drawing] text')) > 0, 'over every word\'s CanvasText');
+});
+
+test('a line drawn over the page as a student drags is Highlight, a strike that holds the text colour', () => {
+  assert.match(read('src/StepByStepAlgebraCore.jsx'), /opacity=\{ink\.locked \? 1 : 0\.85\}\s*data-mm-plane-part=\{ink\.locked \? 'line' : 'cursor'\}/);
+  assert.match(read('src/MultiRelationAlgebraCore.jsx'), /stroke="#7b61ff"[\s\S]{0,120}opacity="0\.78"\s*data-mm-plane-part="cursor"/);
+  assert.equal(partLook('cursor').stroke, 'Highlight');
+  assert.match(read('src/GraphScenarioMatch.jsx'), /className="graph-scenario-connector-path" data-mm-plane-part="line" \/>/);
+});
+
+// A canvas is pixels a page paints itself, which forced colours never repaint, so what each draws under a contrast
+// theme is the script's to choose. Every canvas the student's or teacher's screens paint, and what it draws there.
+const CANVASES = {
+  'src/InteractiveGraphWorkspace.jsx': 'the graph workspace\'s drag images: drawn in the theme\'s Highlight (forcedHeldColour)',
+  'src/ScratchpadOverlay.jsx': 'the scratchpad: the student\'s paper and ink, kept as they are (white paper, saved as an image a teacher sees)',
+  'src/platform/preflight/teacherReviewScreenshotCapture.js': 'a teacher\'s screenshot, captured and never drawn on a screen',
+};
+
+test('every canvas a screen paints is listed, and the graph workspace\'s drag images are drawn in the theme\'s Highlight', () => {
+  const painted = walk('src').filter((file) => /getContext\(['"]2d['"]\)/.test(read(file)));
+  assert.deepEqual(painted.sort(), Object.keys(CANVASES).sort(), 'a canvas a contrast theme leaves in its own paint, with no word on what it draws there');
+  const workspace = read('src/InteractiveGraphWorkspace.jsx');
+  const held = region(workspace, 'const forcedHeldColour = () => {', '\n};', 'forcedHeldColour');
+  assert.match(held, /window\.matchMedia\?\.\('\(forced-colors: active\)'\)\.matches\) return null;/, 'only under a contrast theme');
+  assert.match(held, /probe\.style\.color = 'Highlight';/, 'the theme\'s own Highlight');
+  for (const name of ['makePointDragImage', 'makeMarkerDragImage']) {
+    const image = region(workspace, `const ${name} = `, '\n};', name);
+    assert.match(image, /const held = forcedHeldColour\(\);/, `${name} asks for it`);
+    assert.match(image, /context\.fillStyle = held \|\| /, `${name} fills in it`);
+  }
+  // Opaque, and no translucent halo: a glow the plane leaves out too.
+  assert.match(region(workspace, 'const makeMarkerDragImage = ', '\n};'), /context\.globalAlpha = held \? 1 : 0\.62;/);
+  assert.match(region(workspace, 'const makePointDragImage = ', '\n};'), /if \(!held\) \{\s*context\.fillStyle = 'rgba\(0,166,166,0\.28\)';/);
 });

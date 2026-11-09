@@ -53,12 +53,12 @@ function LineMarks({ marks, cy, tone }) {
   return (
     <g pointerEvents="none" aria-hidden="true">
       {marks.bands.map((band) => (
-        <line key={`band${band.from}-${band.to}`} x1={band.from} x2={band.to} y1={cy} y2={cy} stroke={tone} strokeOpacity={0.5} strokeWidth={BAND} strokeLinecap={band.single ? 'round' : 'butt'} />
+        <line key={`band${band.from}-${band.to}`} x1={band.from} x2={band.to} y1={cy} y2={cy} stroke={tone} strokeOpacity={0.5} strokeWidth={BAND} strokeLinecap={band.single ? 'round' : 'butt'} data-mm-plane-part="line" />
       ))}
-      {marks.arrows.left !== null && <polygon points={arrowHead(marks.arrows.left, cy, -1)} fill={tone} />}
-      {marks.arrows.right !== null && <polygon points={arrowHead(marks.arrows.right, cy, 1)} fill={tone} />}
+      {marks.arrows.left !== null && <polygon points={arrowHead(marks.arrows.left, cy, -1)} fill={tone} data-mm-plane-part="closed" />}
+      {marks.arrows.right !== null && <polygon points={arrowHead(marks.arrows.right, cy, 1)} fill={tone} data-mm-plane-part="closed" />}
       {marks.dots.map((dot) => (
-        <circle key={`dot${dot.value}`} cx={dot.x} cy={cy} r={DOT_RADIUS} fill={dot.closed ? tone : 'var(--mm-graph-bg)'} stroke={tone} strokeWidth={3} />
+        <circle key={`dot${dot.value}`} cx={dot.x} cy={cy} r={DOT_RADIUS} fill={dot.closed ? tone : 'var(--mm-graph-bg)'} stroke={tone} strokeWidth={3} data-mm-plane-part={dot.closed ? 'closed' : 'open'} />
       ))}
     </g>
   );
@@ -178,15 +178,18 @@ function InequalityNumberLine({ question, drawing = null, reveal = null, width, 
           outline: cursorVisible ? '3px solid var(--mm-focus)' : 'none',
           outlineOffset: 3,
         }}
+        // Drawn in the theme's colours under a contrast theme: the shading a solid
+        // band, an open end an empty ring (src/theme/forcedColors.css).
+        data-mm-drawing=""
       >
-        <rect width={width} height={height} fill="var(--mm-graph-bg)" />
+        <rect width={width} height={height} fill="var(--mm-graph-bg)" data-mm-plane-part="paper" />
         <g aria-hidden="true">
-          <line x1={layout.left + ARROW_LENGTH - 2} x2={layout.right - ARROW_LENGTH + 2} y1={cy} y2={cy} stroke="var(--mm-graph-axis)" strokeWidth={2.5} />
-          <polygon points={arrowHead(layout.left, cy, -1)} fill="var(--mm-graph-axis)" opacity={0.7} />
-          <polygon points={arrowHead(layout.right, cy, 1)} fill="var(--mm-graph-axis)" opacity={0.7} />
+          <line x1={layout.left + ARROW_LENGTH - 2} x2={layout.right - ARROW_LENGTH + 2} y1={cy} y2={cy} stroke="var(--mm-graph-axis)" strokeWidth={2.5} data-mm-plane-part="axis" />
+          <polygon points={arrowHead(layout.left, cy, -1)} fill="var(--mm-graph-axis)" opacity={0.7} data-mm-plane-part="closed" />
+          <polygon points={arrowHead(layout.right, cy, 1)} fill="var(--mm-graph-axis)" opacity={0.7} data-mm-plane-part="closed" />
           {layout.ticks.map((tick) => (
             <g key={tick.value}>
-              <line x1={tick.x} x2={tick.x} y1={cy - (tick.labeled ? tickHalf : tickHalf * 0.6)} y2={cy + (tick.labeled ? tickHalf : tickHalf * 0.6)} stroke="var(--mm-graph-axis)" strokeWidth={tick.value === 0 ? 2.5 : 1.5} />
+              <line x1={tick.x} x2={tick.x} y1={cy - (tick.labeled ? tickHalf : tickHalf * 0.6)} y2={cy + (tick.labeled ? tickHalf : tickHalf * 0.6)} stroke="var(--mm-graph-axis)" strokeWidth={tick.value === 0 ? 2.5 : 1.5} data-mm-plane-part="axis" />
               {tick.labeled && (
                 <text x={tick.x} y={cy + tickHalf + font + 6} textAnchor="middle" fontSize={font} fontWeight={tick.value === 0 ? 900 : 700} fill="var(--mm-graph-label)">
                   {formatLineNumber(tick.value)}

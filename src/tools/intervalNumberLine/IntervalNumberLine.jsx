@@ -746,6 +746,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               // global :focus-visible rule in index.css is !important.
               outline: 'none',
             }}
+            // Drawn in the theme's colours under a contrast theme: an open end an
+            // empty ring, a closed one solid, the end being placed Highlight
+            // (src/theme/forcedColors.css).
+            data-mm-drawing=""
           >
             <line
               x1={PAD - 14}
@@ -754,14 +758,17 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               y2={HEIGHT / 2}
               stroke="#5f6b7a"
               strokeWidth="2"
+              data-mm-plane-part="axis"
             />
             <polygon
               points={`${PAD - 14},${HEIGHT / 2} ${PAD - 4},${HEIGHT / 2 - 5} ${PAD - 4},${HEIGHT / 2 + 5}`}
               fill="#5f6b7a"
+              data-mm-plane-part="closed"
             />
             <polygon
               points={`${WIDTH - PAD + 14},${HEIGHT / 2} ${WIDTH - PAD + 4},${HEIGHT / 2 - 5} ${WIDTH - PAD + 4},${HEIGHT / 2 + 5}`}
               fill="#5f6b7a"
+              data-mm-plane-part="closed"
             />
 
             {minorTicks.map((value) => (
@@ -773,6 +780,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                 y2={HEIGHT / 2 + 4}
                 stroke="#c5ced9"
                 strokeWidth="1"
+                data-mm-plane-part="grid"
               />
             ))}
 
@@ -785,6 +793,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   y2={HEIGHT / 2 + 8}
                   stroke="#8793a3"
                   strokeWidth="1.5"
+                  data-mm-plane-part="axis"
                 />
                 {/* The graph's label colour in each theme: a fixed #4f5b6b read 2.4:1 on the dark
                     theme's plane (the contrast review, the Math Tools Lab's scenes, student-keyboard-ci). */}
@@ -833,6 +842,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                     stroke="#1a73e8"
                     strokeWidth="6"
                     opacity="0.85"
+                    data-mm-plane-part="line"
                   />
 
                   {interval.min !== -INF && (
@@ -858,6 +868,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                         fill={interval.minClosed ? '#1a73e8' : '#fff'}
                         stroke="#1a73e8"
                         strokeWidth="3"
+                        data-mm-plane-part={interval.minClosed ? 'closed' : 'open'}
                       />
                       <text
                         pointerEvents="none"
@@ -896,6 +907,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                         fill={interval.maxClosed ? '#1a73e8' : '#fff'}
                         stroke="#1a73e8"
                         strokeWidth="3"
+                        data-mm-plane-part={interval.maxClosed ? 'closed' : 'open'}
                       />
                       <text
                         pointerEvents="none"
@@ -937,6 +949,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   fill={pending.closed ? '#8a3ffc' : '#fff'}
                   stroke="#8a3ffc"
                   strokeWidth="3"
+                  data-mm-plane-part={pending.closed ? 'held' : 'held-open'}
                 />
                 <text
                   pointerEvents="none"

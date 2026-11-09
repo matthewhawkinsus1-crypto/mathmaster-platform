@@ -126,16 +126,37 @@ function EndpointMarker({ type, x, y, angle = 0, color = '#1a73e8', opacity = 1,
   return <g transform={`translate(${x} ${y}) rotate(${angle}) scale(${scale})`} opacity={opacity} data-mm-plane-part={planePart}><polygon points="14,0 -6,-9 -6,9" fill={color} data-mm-plane-part={planePart} /></g>;
 }
 
+/*
+ * What a drag image is drawn in under a Windows contrast theme: the theme's
+ * Highlight, what is held, as the plane draws a held point. A canvas is pixels
+ * the page paints itself, which forced colours never repaint, so it asks the
+ * page for the system colour. Null without a contrast theme: the drag images
+ * are drawn as they always were.
+ */
+const forcedHeldColour = () => {
+  if (typeof window === 'undefined' || !window.matchMedia?.('(forced-colors: active)').matches) return null;
+  const probe = document.createElement('span');
+  probe.style.color = 'Highlight';
+  document.body.appendChild(probe);
+  const colour = getComputedStyle(probe).color;
+  probe.remove();
+  return colour;
+};
+
 const makePointDragImage = () => {
   const canvas = document.createElement('canvas');
   canvas.width = 44;
   canvas.height = 44;
   const context = canvas.getContext('2d');
-  context.fillStyle = 'rgba(0,166,166,0.28)';
-  context.beginPath();
-  context.arc(22, 22, 17, 0, Math.PI * 2);
-  context.fill();
-  context.fillStyle = POINT_GUIDE_COLOR;
+  const held = forcedHeldColour();
+  // The halo is a translucent glow, which the plane leaves out under a contrast theme too.
+  if (!held) {
+    context.fillStyle = 'rgba(0,166,166,0.28)';
+    context.beginPath();
+    context.arc(22, 22, 17, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.fillStyle = held || POINT_GUIDE_COLOR;
   context.beginPath();
   context.arc(22, 22, 8, 0, Math.PI * 2);
   context.fill();
@@ -147,9 +168,10 @@ const makeMarkerDragImage = (type) => {
   canvas.width = 52;
   canvas.height = 52;
   const context = canvas.getContext('2d');
-  context.globalAlpha = 0.62;
-  context.strokeStyle = '#1a73e8';
-  context.fillStyle = '#1a73e8';
+  const held = forcedHeldColour();
+  context.globalAlpha = held ? 1 : 0.62;
+  context.strokeStyle = held || '#1a73e8';
+  context.fillStyle = held || '#1a73e8';
   context.lineWidth = 4;
   if (type === 'arrow') {
     context.beginPath();

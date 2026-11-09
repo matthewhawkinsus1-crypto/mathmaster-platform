@@ -483,14 +483,17 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
       }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
-          <svg ref={diagramRef} viewBox={`0 0 ${WIDTH} ${height}`} role="group" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
+          {/* Drawn in the theme's colours under a contrast theme: the chosen domain
+              value Highlight, the range values faint (GrayText) until one is chosen
+              (src/theme/forcedColors.css). */}
+          <svg ref={diagramRef} viewBox={`0 0 ${WIDTH} ${height}`} role="group" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }} data-mm-drawing="">
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-text-muted)' }}>{questionData.rangeLabel || 'Range (y)'}</text>
 
             {/* The domain and range groupings, outlined at 3:1 or more in both
                 themes (AX29: the border tokens were 1.65:1 and 2.0:1 in light). */}
-            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
-            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent)' }} strokeWidth="2" />
+            <ellipse cx={LEFT_X} cy={height / 2} rx="58" ry={domainValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-primary-subtle)', stroke: 'var(--mm-primary)' }} strokeWidth="2" data-mm-plane-part="ring" />
+            <ellipse cx={RIGHT_X} cy={height / 2} rx="58" ry={rangeValues.length * ROW / 2 + 18} style={{ fill: 'var(--mm-accent-subtle)', stroke: 'var(--mm-accent)' }} strokeWidth="2" data-mm-plane-part="ring" />
 
             {arrows.map(([x, y], index) => {
               const from = domainValues.indexOf(x);
@@ -502,6 +505,7 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
                   x1={LEFT_X + 40} y1={yFor(from, domainValues.length)}
                   x2={RIGHT_X - 40} y2={yFor(to, rangeValues.length)}
                   style={{ stroke: 'var(--mm-primary)' }} strokeWidth="2.5" markerEnd="url(#arrowhead)"
+                  data-mm-plane-part="line"
                 />
               );
             })}
@@ -523,9 +527,9 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); clearFeedback(); setSelectedDomain(selectedDomain === value ? null : value); } }}
                 style={{ cursor: 'pointer' }}
               >
-                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" style={{ fill: selectedDomain === value ? 'var(--mm-primary)' : 'var(--mm-surface)', stroke: 'var(--mm-primary)' }} strokeWidth="2" />
+                <circle cx={LEFT_X} cy={yFor(index, domainValues.length)} r="17" style={{ fill: selectedDomain === value ? 'var(--mm-primary)' : 'var(--mm-surface)', stroke: 'var(--mm-primary)' }} strokeWidth="2" data-mm-plane-part={selectedDomain === value ? 'held' : 'open'} />
                 {/* The label must not swallow the click aimed at its circle. */}
-                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: selectedDomain === value ? 'var(--mm-on-primary)' : 'var(--mm-primary-text)' }}>{value}</text>
+                <text pointerEvents="none" x={LEFT_X} y={yFor(index, domainValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: selectedDomain === value ? 'var(--mm-on-primary)' : 'var(--mm-primary-text)' }} data-mm-plane-part={selectedDomain === value ? 'held-text' : undefined}>{value}</text>
               </g>
             ))}
 
@@ -540,7 +544,7 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
                 onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleRangeClick(value); } }}
                 style={{ cursor: selectedDomain == null ? 'default' : 'pointer' }}
               >
-                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-accent)' }} strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} />
+                <circle cx={RIGHT_X} cy={yFor(index, rangeValues.length)} r="17" style={{ fill: 'var(--mm-surface)', stroke: 'var(--mm-accent)' }} strokeWidth="2" opacity={selectedDomain == null ? 0.55 : 1} data-mm-plane-part={selectedDomain == null ? 'muted' : 'open'} />
                 <text pointerEvents="none" x={RIGHT_X} y={yFor(index, rangeValues.length) + 5} textAnchor="middle" fontSize="14" fontWeight="700" style={{ fill: 'var(--mm-accent-text)' }}>{value}</text>
               </g>
             ))}
