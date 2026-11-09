@@ -2,7 +2,7 @@
 /*
  * CHECK A TEACHER-IMPORT JSON THE WAY A TEACHER'S IMPORT READS IT.
  *
- *   node scripts/check-teacher-import.mjs <file.json> [more.json …] [--verbose]
+ *   node scripts/check-teacher-import.mjs <file.json> [more.json …] [--verbose] [--honors]
  *
  * Runs each file through the same chain the browser harnesses use
  * (tests/browser/linearMultipleRepresentationsMain.jsx): parse the blueprint,
@@ -12,7 +12,16 @@
  * compiled to, so an author sees what a student will actually be given before
  * the file reaches the import screen.
  *
- * Exit code 1 when any file has a preflight error or fails validation.
+ * An Honors file (its title, folder or name says Honors; --honors checks any
+ * file) is also checked the way Review checks it when a teacher selects an
+ * Honors class: the Honors version with its audited CCMR Practice, and the
+ * blocker Review would show (scripts/lib/honorsImportReview.mjs). It prints
+ * which questions supply each depth area and, when it is blocked, how to
+ * supply what is missing. Before this, an Honors lesson could pass here and
+ * be blocked the first time it was assigned.
+ *
+ * Exit code 1 when any file has a preflight error, fails validation, or, for
+ * an Honors file, would be blocked for an Honors class.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,15 +39,29 @@ export const compileTeacherImport = (text) => {
   return { parsed, model, questions, semantic };
 };
 
+// One line for the Honors version's audited CCMR Practice, by its status.
+const ccmrSummary = (verdict) => {
+  switch (verdict.status) {
+    case 'ready': return `audited CCMR Practice ${verdict.sourcedCount} of ${verdict.targetCount}`;
+    case 'notRequired': return verdict.narrowCheckpoint ? 'a short checkpoint: only its Core TEKS is required' : 'no audited CCMR Practice needed (short Practice)';
+    case 'needsDecision': return 'no audited CCMR Practice item passed: the teacher will have to choose how to continue';
+    case 'invalid': return 'the Honors version does not pass Pre-Flight';
+    default: return `audited CCMR Practice: ${verdict.status}`;
+  }
+};
+
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
 if (isMain) {
   const args = process.argv.slice(2);
   const verbose = args.includes('--verbose');
+  const forceHonors = args.includes('--honors');
   const files = args.filter((arg) => !arg.startsWith('--'));
   if (!files.length) {
-    console.error('usage: node scripts/check-teacher-import.mjs <file.json> [more.json …] [--verbose]');
+    console.error('usage: node scripts/check-teacher-import.mjs <file.json> [more.json …] [--verbose] [--honors]');
     process.exit(2);
   }
+  // Loaded here, not at the top: tests import compileTeacherImport and do not need it.
+  const { HONORS_AREA_LABELS, isHonorsImport, reviewImportForHonors } = await import('./lib/honorsImportReview.mjs');
   let failed = false;
   for (const file of files) {
     const text = fs.readFileSync(file, 'utf8');
@@ -57,6 +80,25 @@ if (isMain) {
         });
       }
       if (!model.isValid || semantic.errors.length) failed = true;
+
+      if (forceHonors || isHonorsImport({ filePath: file, title: model.assignmentV5?.assignment?.title })) {
+        const verdict = reviewImportForHonors(model);
+        if (!verdict) {
+          console.log('honors: not checked until Pre-Flight passes');
+        } else {
+          const depth = verdict.narrowCheckpoint ? '' : ` · depth ${verdict.report.depthCount} of ${verdict.depthAreaCount}`;
+          console.log(`honors: ${verdict.ready ? 'ready' : 'BLOCKED'} for an Honors class${depth} · ${ccmrSummary(verdict)}`);
+          verdict.blockers.forEach((message) => console.log(`  HONORS  ${message}`));
+          verdict.hints.forEach((hint) => console.log(`  how     ${hint}`));
+          if (!verdict.narrowCheckpoint && (verbose || !verdict.ready)) {
+            Object.entries(HONORS_AREA_LABELS).forEach(([area, label]) => {
+              const ids = verdict.evidence[area];
+              console.log(`  ${label.padEnd(28)} ${ids.length ? ids.join(' ') : '—'}`);
+            });
+          }
+          if (!verdict.ready) failed = true;
+        }
+      }
     } catch (error) {
       failed = true;
       console.log(`  THREW ${error?.stack || error}`);
