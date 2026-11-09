@@ -43,7 +43,9 @@ recorded by the device/emulator harness described below.
    representative flow.
 3. Certify Chromebook `1366x768` and phone `390x844`: dashboard, assignment,
    basic/choice/expression/tool questions, Submit, Next, Work View reopen, and
-   offline/reconnect.
+   offline/reconnect. Since November 2026 this flow is a driver,
+   `tests/browser/teacherWorkflow/studentRuntimePerformance.mjs`; see the last
+   section for how to run it and what it found.
 4. For class-size load, run 30 isolated emulator clients with distinct student
    identities and submission ids. Never reuse production student accounts.
 
@@ -193,3 +195,84 @@ runs Test Cycle at 1366×768 and 390×844, executes the rendered Work View matri
 and reloads a real browser page between IndexedDB enqueue and reconciliation.
 This keeps browser recovery executable immediately in CI even when a local
 agent image does not ship Playwright.
+
+## November 2026: what a student's interactions cost
+
+This certification recorded no browser timings. After 3,443 commits it was
+measured as a student for the first time, on a production build, with
+`tests/browser/teacherWorkflow/studentRuntimePerformance.mjs`:
+
+```
+OUT_DIR=dist-harness/runtime npx vite build --config tests/browser/teacherWorkflow/vite.production.config.mjs
+node scripts/serve-static-spa.mjs dist-harness/runtime 5303 &
+PERF_ORIGIN=http://127.0.0.1:5303 PERF_DIST=dist-harness/runtime MODES=timing,counts RUNS=7 \
+  node tests/browser/teacherWorkflow/studentRuntimePerformance.mjs
+```
+
+It builds the teacher-workflow harness (the real App over the in-memory
+Firebase fakes) with `vite build`, signs in a synthetic student and works
+through one question of each kind (`?questions=runtime`): Home, opening the
+assignment, a basic answer, a choice, a typed expression and a Step Algebra
+question, keys, Submit, Next, Work View opened twice, a hint, Read aloud,
+offline and back, on a Chromebook (1366x768) and a phone (390x844, touch,
+the number keypad), at 4x CPU. A `counts` run is deterministic and fails when
+a key typed after the first draws QuestionEngine more than once or more than
+60 components; `profile` reads a CPU profile back to source names and `trace`
+counts forced layouts.
+
+The September build (`6d49d878`) still builds with today's dependencies (its
+bundle matches the table above to within 268 bytes) and runs the same flow
+over today's fakes; its tool question had no hint and no Read aloud.
+Medians of seven interleaved runs on a shared 4-core machine (load 12-21),
+milliseconds, Chromebook / phone, each September → 2026-11-08 → with the
+fixes below. Component renders are one counts run, Chromebook where one
+value is given:
+
+| Interaction | Ready (screen there) | Long tasks | Component renders (counts) |
+| --- | --- | --- | --- |
+| Open the assignment | 841 → 1439 → 1474 / 848 → 1362 → 1328 | 521 → 1114 → 1045 / 479 → 1022 → 1013 | – → 360 → 325 |
+| A key after the first | latency 48 → 40 → 32 / 56 → 80 → 80 | none | 37 → 89 → 43 / 53 → 130 → 48 |
+| Submit (expression) | 185 → 288 → 345 / 241 → 338 → 308 | 0 → 203 → 139 / 57 → 196 → 201 | 90 → 350-650 (with when the save returns) |
+| Next (to the expression) | 194 → 515 → 429 / 326 → 370 → 455 | 50 → 407 → 344 / 64 → 252 → 309 | 110 → 413 → 366 |
+| Next (to Step Algebra) | 428 → 884 → 1065 / 475 → 1111 → 954 | 261 → 817 → 914 / 474 → 1126 → 796 | 172 → 504 → 486 |
+| Work View open | 121 → 157 → 152 / 86 → 163 → 223 | 72 → 106 → 81 / 0 → 74 → 82 | 4 → 9 → 9 |
+| Hint (Step Algebra) | – → 131 → 106 / – → 144 → 95 | – → 90 → 0 / – → 71 → 51 | – → 59-128 → 59 |
+| Back online | – | 0 → 71 → 0 / 0 → 56 → 0 | 0 → 138 → 138 |
+
+Wall-clock numbers on that machine move by 100-200 ms between runs; the
+render counts and the profiles are the evidence for the fixes:
+
+- A key typed into an answer box drew the question twice (the grader handed
+  QuestionEngine a new Undo on every key) and graded each box's example on
+  every render: 89 → 43 component renders a key on a Chromebook, 130 → 48 on
+  a phone; grading in a key's profile 18-43 ms → under 1 ms.
+- Step Algebra worked out whether the equation was solved (mathjs) and its
+  cancellation models on every render: in the profile of opening it,
+  isSolvedEquation 182 → 58 ms and the models 162 → 36 ms (Chromebook), and
+  nothing of either on a hint or back online.
+- An assignment's due dates built a date formatter per call, on each of
+  App's seven renders a Submit: formatDateTime 16-23 ms of a Submit → under
+  1 ms.
+
+Left open, each a decision beyond a performance pass:
+
+- Since September, Submit, Next and opening an assignment do three to four
+  times the rendering: App renders seven to ten times for each, and each of
+  its renders draws the whole question again (about 45 components where
+  September drew 18). QuestionEngine is not memoised, and App hands it new
+  functions and objects on every render (handleGradeSubmit, inline arrows,
+  askTeacherContext), so memoising it needs those made stable in App.jsx.
+- Opening the first assignment of a visit hides the whole app behind
+  AppShell's "Loading your MathMaster workspace…" for React's minimum
+  fallback time (about 300 ms), though Home has fetched QuestionEngine's
+  code: a lazy suspends on its first render however its module arrived, and
+  coming back runs every layout effect on the page again. Drawing the loaded
+  module at once removed the screen but moved about a second of rendering
+  into the press (its Event Timing duration went from 104-192 ms to
+  1.1-1.4 s at 4x), so it wants the open to become a transition, which
+  changes what the student sees while it loads.
+- Measuring the sticky bars and the viewport forces layouts: 9 forced
+  layouts opening an assignment, 4-10 on Next (stickyHeightRef.js,
+  mobileInteractionFoundation.js's viewport reads, MathLive's own), and Work
+  View's open forces 4 layouts and 8 style recalculations
+  (EnlargeableFigure.jsx, matrixScrollRegion.js).
