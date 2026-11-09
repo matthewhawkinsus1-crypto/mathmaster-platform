@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import MyMathPathWheel from './MyMathPathWheel.jsx';
+import MyMathPathWheel, { RETENTION_CHECK_RECOMMENDED } from './MyMathPathWheel.jsx';
 import SkillDetailCardModal from './SkillDetailCardModal.jsx';
 import RetentionQuickCheckBanner from './RetentionQuickCheckBanner.jsx';
 import { evaluateStudentRetentionSchedule } from '../../platform/retention/retentionScheduler.js';
@@ -145,7 +145,9 @@ export const MyMathPathDashboard = ({
                 the theme's colours, each level by its fill, a round done an
                 empty ring and a Level 3 round a solid dot; each swatch and dot
                 here is drawn as the part of the wheel it explains
-                (data-mm-swatch, theme/forcedColors.css). */}
+                (data-mm-swatch, theme/forcedColors.css). The red dot beside a
+                skill is a retention check recommended, in the skill card's
+                words; a contrast theme draws it solid, as a Level 3 round's. */}
             <strong>What the colours mean</strong>
             <ul data-mastery-key style={{ listStyle: 'none', margin: '4px 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
               {Object.entries(MASTERY_STATUS_COLORS).map(([status, color]) => (
@@ -155,7 +157,7 @@ export const MyMathPathDashboard = ({
                 </li>
               ))}
             </ul>
-            <span data-mm-swatch="ring" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> practice round done · <span data-mm-swatch="point" style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Level 3 (stretch) round done · numbers around the wheel are the topics listed under it
+            <span data-mm-swatch="ring" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>●</span> practice round done · <span data-mm-swatch="point" style={{ color: 'var(--mm-accent-text)', fontWeight: 900 }}>●</span> Level 3 (stretch) round done · <span data-mm-swatch="point" style={{ color: 'var(--mm-error-text)', fontWeight: 900 }}>●</span> {RETENTION_CHECK_RECOMMENDED.toLowerCase()} · numbers around the wheel are the topics listed under it
           </div>
         </div>
       </div>

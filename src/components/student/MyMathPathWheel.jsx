@@ -28,6 +28,14 @@ const describeArc = (cx, cy, innerRadius, outerRadius, startAngle, endAngle) => 
 
 const NOT_ENOUGH_EVIDENCE = 'Not Enough Evidence';
 
+// The red dot beside a skill: a retention check is recommended (the scheduler's
+// concern, which an overdue check raises too). Its words are the skill card's
+// (SkillDetailCardModal.jsx), in the skill's name here and in the colour key
+// under the wheel (MyMathPathDashboard.jsx). Nothing writes a confirmed loss
+// today (legacyMasteryAdapter.js only reads one); it draws the same dot and is
+// named the same.
+export const RETENTION_CHECK_RECOMMENDED = 'Retention check recommended';
+
 // Room around the wheel for the topic ring and its numbers. The SVG scales to
 // its container, so this only changes proportions, never the page width.
 const RING_PADDING = 22;
@@ -145,7 +153,7 @@ export const MyMathPathWheel = ({
                 // while it is the one named in the hub), a round done is an empty ring
                 // and a Level 3 round a solid dot, as the key says.
                 return (
-                  <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)} (topic ${entry.strandNumber}, ${entry.strand.title}): ${status}${passCount ? ` · Level ${Math.min(passCount, 3)} round done` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
+                  <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)} (topic ${entry.strandNumber}, ${entry.strand.title}): ${status}${passCount ? ` · Level ${Math.min(passCount, 3)} round done` : ''}${retentionConcern ? ` · ${RETENTION_CHECK_RECOMMENDED}` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
                     <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE]} opacity={active ? 1 : 0.9} style={{ stroke: passCount ? passColor : 'var(--mm-surface)' }} strokeWidth={passCount ? 3 : 2} data-mm-plane-part={active ? 'held' : MASTERY_STATUS_FILLS[status] || MASTERY_STATUS_FILLS[NOT_ENOUGH_EVIDENCE]} />
                     {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} style={{ stroke: 'var(--mm-surface)' }} strokeWidth="1.5" data-mm-plane-part={passCount >= 3 ? 'point' : 'open'} />}
                     {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" style={{ stroke: 'var(--mm-surface)' }} strokeWidth="2" data-mm-plane-part="point" />}
