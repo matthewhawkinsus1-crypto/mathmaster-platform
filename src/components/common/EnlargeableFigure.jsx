@@ -348,18 +348,6 @@ export default function EnlargeableFigure({
     if (!shouldForceClose || reviewed) openerRef.current?.focus?.({ preventScroll: true });
   }, [enlarged, shouldForceClose]);
 
-  useEffect(() => {
-    if (!enlarged || typeof document === 'undefined') return undefined;
-    const root = document.documentElement;
-    const previousOverflow = root.style.overflow;
-    root.style.overflow = 'hidden';
-    root.dataset.workViewOpen = 'true';
-    return () => {
-      root.style.overflow = previousOverflow;
-      delete root.dataset.workViewOpen;
-    };
-  }, [enlarged]);
-
   // A new question decides its initial presentation, but a responsive resize
   // must not override the student's current Work View state. In particular, an
   // aiming tool can move from a wide viewport (auto-open policy true) to a
@@ -437,8 +425,7 @@ export default function EnlargeableFigure({
   useEffect(() => {
     if (!enlarged || typeof document === 'undefined') return undefined;
     const root = document.documentElement;
-    const apply = () => {
-      const rect = actionsRef.current?.getBoundingClientRect?.();
+    const apply = (rect = actionsRef.current?.getBoundingClientRect?.()) => {
       const height = viewport.controlsPlacement === 'bottom' ? (rect?.height || 0) : 0;
       const width = viewport.controlsPlacement === 'side' ? (rect?.width || 0) : 0;
       root.style.setProperty('--mm-work-view-actions', `${Math.round(height)}px`);
@@ -450,8 +437,18 @@ export default function EnlargeableFigure({
       root.style.setProperty('--mm-work-view-calculator-bottom', `${Math.round(height) + 12}px`);
       root.style.setProperty('--mm-work-view-calculator-right', `${Math.round(width) + 12}px`);
     };
+    // Measured as Work View opens, before the page behind it is locked (the
+    // effect below writes the document element, and a measurement after it
+    // laid the page out again), and from then on from what the observer
+    // reports: the row's border box, the rectangle measured here, so its
+    // callback reads nothing after the other observers have written.
     apply();
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(apply) : null;
+    const observer = typeof ResizeObserver === 'function'
+      ? new ResizeObserver((entries) => {
+        const box = entries[entries.length - 1]?.borderBoxSize?.[0];
+        apply(box ? { width: box.inlineSize, height: box.blockSize } : undefined);
+      })
+      : null;
     if (observer && actionsRef.current) observer.observe(actionsRef.current);
     return () => {
       observer?.disconnect();
@@ -461,6 +458,21 @@ export default function EnlargeableFigure({
       root.style.removeProperty('--mm-work-view-calculator-right');
     };
   }, [enlarged, viewport.controlsPlacement]);
+
+  // The page behind Work View is locked while it is open. Declared after the
+  // measuring above (passive effects run in the order they are declared), so
+  // that runs first and does not lay out the restyle the lock causes.
+  useEffect(() => {
+    if (!enlarged || typeof document === 'undefined') return undefined;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = 'hidden';
+    root.dataset.workViewOpen = 'true';
+    return () => {
+      root.style.overflow = previousOverflow;
+      delete root.dataset.workViewOpen;
+    };
+  }, [enlarged]);
 
   /*
    * THE OPENER FLOATS OVER THE TOP-RIGHT CORNER, SO IT SAYS HOW WIDE IT IS.
@@ -558,24 +570,38 @@ export default function EnlargeableFigure({
     // (WorkViewShell.css), and a box that still scrolls either way is a Tab stop. Measured again when its
     // words change after mounting (mathematics drawn late, a reading's language) and once the fonts have loaded, since
     // neither changes the clamped box's own size, which is all a ResizeObserver sees.
+    // What it decides is a Tab stop, which is not drawn, so it is measured in the animation frame after an observer
+    // reports the box laid out or its words changed. Measured here as well, and inside the observers' delivery (after
+    // the sticky bars' observers had written: the bars under Work View hide as it opens), each read laid the page out
+    // again on every open. The fonts are waited for only while some are still loading (ready had always resolved).
     const measure = () => setTaskScrolls(/^(auto|scroll)$/.test(window.getComputedStyle(box).overflowY) && (overflowsDownward(box) || overflowsSideways(box)));
-    measure();
     let gone = false;
+    let frame = null;
+    const measureNextFrame = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        if (!gone) measure();
+      });
+    };
     const observers = [];
     if (typeof ResizeObserver === 'function') {
-      const observer = new ResizeObserver(measure);
+      const observer = new ResizeObserver(measureNextFrame);
       observer.observe(box);
       if (box.parentElement) observer.observe(box.parentElement);
       observers.push(observer);
+    } else {
+      measure();
     }
     if (typeof MutationObserver === 'function') {
-      const words = new MutationObserver(measure);
+      const words = new MutationObserver(measureNextFrame);
       words.observe(box, { subtree: true, childList: true, characterData: true });
       observers.push(words);
     }
-    document.fonts?.ready?.then(() => { if (!gone) measure(); });
+    if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready?.then(() => { if (!gone) measureNextFrame(); });
     return () => {
       gone = true;
+      if (frame !== null) window.cancelAnimationFrame(frame);
       observers.forEach((observer) => observer.disconnect());
     };
   }, [enlarged, taskWords]);
