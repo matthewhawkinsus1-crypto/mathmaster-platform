@@ -19,6 +19,8 @@
  *     Grade Center, the Recovery summaries, My Math Path's options, the
  *     Practice Pass list) ran again on each of a Submit's tracker changes,
  *     about 60 ms of a Submit at 4x;
+ *   - the navigator's section access and question lines ran on every render,
+ *     8 to 13 ms of a Submit.
  *
  * Node cannot render App.jsx; this file holds the pieces it can check: the
  * helpers, a model of the save line before and after, and where App wires them.
@@ -339,4 +341,85 @@ test('App works out the Grade Center, the Recovery summaries, the Path options a
   }
   // Pacing follows the options it is read from.
   assert.match(code, /const studentPacingNow = \(\) => studentPathOptionsNow\(\)\?\.pacing \|\| studentStoredPacing;/);
+});
+
+/* ------------------------------------------------------- the navigator */
+
+// The names an expression reads (not property names, object keys, or the
+// words inside its strings): what a memo of it must be keyed on.
+const freeNames = (text) => {
+  const code = text
+    .replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, '""')
+    .replace(/`(?:\\.|\$\{([^{}]*)\}|[^`\\])*`/g, (literal) => [...literal.matchAll(/\$\{([^{}]*)\}/g)].map((match) => ` (${match[1]}) `).join(''));
+  const names = new Set();
+  for (const match of code.matchAll(/[A-Za-z_$][\w$]*/g)) {
+    const before = code.slice(0, match.index).trimEnd();
+    const after = code.slice(match.index + match[0].length).trimStart();
+    if (/(\?\.|\.)$/.test(before)) continue; // a property
+    if (/(^|[{,])$/.test(before) && after.startsWith(':')) continue; // an object key
+    names.add(match[0]);
+  }
+  return names;
+};
+const only = (text, allowed, label) => {
+  const extra = [...freeNames(text)].filter((name) => !allowed.has(name));
+  assert.deepEqual(extra, [], `${label} reads what its memo is not keyed on`);
+};
+const JS = new Set(['const', 'return', 'undefined', 'null', 'true', 'false', 'Boolean']);
+
+test('the navigator works out a section\'s access once per change of what it reads', () => {
+  const code = app();
+  const access = region(code, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'sectionAccessFor');
+  const memo = /renderMemo\(`navigatorSection\|\$\{cacheKey\}`, \[([^\]]*)\], \(\) => describeSectionAccess\(\{([\s\S]*)\}\)\);\s*$/.exec(access);
+  assert.ok(memo, 'describeSectionAccess, through renderMemo, per role and timing');
+  const inputs = memo[1].split(',').map((input) => input.trim());
+  assert.deepEqual(inputs, ['preview', 'lifecycle', 'warmupState', 'dolState', 'getSectionAccessState', 'assignment', 'user?.classId', 'user?.classPeriod', 'user?.role', 'user?.id', 'now', 'hasWork']);
+  // The slot's name carries the rest: the entry's role and whether it is the timed exit ticket.
+  assert.match(access, /const cacheKey = `\$\{entry\?\.role\}\|\$\{entry\?\.isTimedDOLQuestion \? 'timed' : ''\}`;/);
+  assert.match(access, /const hasWork = sectionHasWork\(entry\?\.role\);/);
+  // What it reads: those inputs, the entry's role and timing, and constants.
+  only(memo[2], new Set([...JS, 'entry', 'preview', 'lifecycle', 'warmupState', 'dolState', 'getSectionAccessState', 'assignment', 'user', 'now', 'hasWork', 'exitTicketInSentence', 'activitySectionMeta']), 'the section access');
+  const users = [...memo[2].matchAll(/\buser(?:\?\.|\.)(\w+)/g)].map((match) => match[1]);
+  assert.deepEqual([...new Set(users)].sort(), ['classId', 'classPeriod', 'id', 'role']);
+  const entries = [...memo[2].matchAll(/\bentry\?\.(\w+)/g)].map((match) => match[1]);
+  assert.deepEqual([...new Set(entries)].sort(), ['isTimedDOLQuestion', 'role']);
+  // activitySectionMeta is made in the render, of constant labels.
+  assert.match(code, /const activitySectionMeta = \{\n\s*warmup: \{ label: 'Warm-Up', /);
+});
+
+test('the navigator works out a question\'s line once per change of what it reads, but a family slot\'s every time', () => {
+  const code = app();
+  const question = region(code, 'const navigatorQuestionFor = (entry) => {', '\n    };', 'navigatorQuestionFor');
+  const describe = region(question, 'const describe = () => describeNavigatorQuestion({', '\n      });', 'the description');
+  const memo = /\n\s*if \(isFamilyBackedQuestion\(questions\[entry\.index\]\)\) return describe\(\);\n\s*return renderMemo\(`navigatorQuestion\|\$\{entry\.index\}`, \[([\s\S]*?)\], describe\);\s*$/.exec(question);
+  assert.ok(memo, 'a family slot every time; any other through renderMemo, per question');
+  const inputs = memo[1].split(',').map((input) => input.trim());
+  assert.deepEqual(inputs, ['entry.role', 'workingTracker?.[entry.index]', 'questions[entry.index]', 'assignment', 'preview', 'lifecycle.isPracticeOnly', 'access', 'user?.classId', 'user?.role', 'user?.id', 'familyDelivery']);
+  // What the line and the helpers it calls read, all of it among those inputs.
+  const helpers = {
+    entryMaximumAttempts: region(code, 'const entryMaximumAttempts = (entry) => {', '\n    };', 'entryMaximumAttempts'),
+    entryRuntimePolicy: region(code, 'const entryRuntimePolicy = (entry) => ', ';\n', 'entryRuntimePolicy'),
+    entryFeedbackHeld: region(code, 'const entryFeedbackHeld = (entry) => ', '});\n', 'entryFeedbackHeld'),
+  };
+  const PURE = ['describeNavigatorQuestion', 'getEffectiveActivityPolicy', 'resolveQuestionMaximumAttempts', 'resolveTeacherGrantedExtraAttempts', 'outcomeWithheld', 'assignmentFeedbackWasReleased', 'resolveQuestionReplacementAllowed', 'SECTION_ACCESS',
+    // On a stored slot that is not a family slot these hand back the stored
+    // question and `true` without reading what the page was shown
+    // (shownFamilyQuestion.js); isPersonalizedBlueprint asks familyDelivery.
+    'countedQuestionFor', 'countedQuestionKnownFor', 'isPersonalizedBlueprint'];
+  const allowed = new Set([...JS, ...PURE, ...Object.keys(helpers), 'entry', 'access', 'policy', 'workingTracker', 'questions', 'assignment', 'preview', 'lifecycle', 'user', 'familyDelivery']);
+  only(describe.slice(describe.indexOf('=>') + 2), allowed, 'the question line');
+  for (const [name, body] of Object.entries(helpers)) only(body.slice(body.indexOf('=>') + 2), allowed, name);
+  // The record and the question only of this entry; the lifecycle only for post-deadline practice.
+  const all = [describe, ...Object.values(helpers)].join('\n');
+  for (const match of all.matchAll(/\bworkingTracker\b(.{0,15})/g)) assert.match(match[1], /^\?\.\[entry\.index\]/, `workingTracker${match[1]}`);
+  for (const match of all.matchAll(/\bquestions\b(.{0,13})/g)) assert.match(match[1], /^\[entry\.index\]/, `questions${match[1]}`);
+  for (const match of all.matchAll(/\blifecycle\.(\w+)/g)) assert.equal(match[1], 'isPracticeOnly');
+  for (const match of all.matchAll(/\buser(?:\?\.|\.)(\w+)/g)) assert.ok(['classId', 'role', 'id'].includes(match[1]), `user.${match[1]}`);
+  for (const match of all.matchAll(/\bentry\.(\w+)/g)) assert.ok(['index', 'role'].includes(match[1]), `entry.${match[1]}`);
+  assert.match(code, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
+  // What the page was shown is read only for a family slot.
+  const counting = region(read('src/platform/generation/shownFamilyQuestion.js'), 'export const countedQuestion = ({', 'export const countedQuestionKnown', 'countedQuestion');
+  assert.match(counting, /if \(!assignmentId \|\| !isFamilyBackedQuestion\(storedQuestion\)\) return fallback;/);
+  const known = region(read('src/platform/generation/shownFamilyQuestion.js'), 'export const countedQuestionKnown = ({', null, 'countedQuestionKnown');
+  assert.match(known, /if \(!assignmentId \|\| !isFamilyBackedQuestion\(storedQuestion\) \|\| preview \|\| typeof deal === 'function'\) return true;/);
 });

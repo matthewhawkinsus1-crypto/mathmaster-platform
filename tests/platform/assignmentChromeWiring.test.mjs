@@ -57,9 +57,12 @@ test('RUN-8: a closed section is viewable, and a locked one says why', () => {
   const available = region(app, 'const entryIsAvailable = (entry) =>', ';\n', 'entryIsAvailable');
   assert.match(available, /sectionAccessFor\(entry\)\.viewable/);
   const access = region(app, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'sectionAccessFor');
-  for (const input of ['warmupState,', 'dolState,', 'hasWork: sectionHasWork(entry?.role),', 'unrestricted: preview || lifecycle.isPracticeOnly,']) {
+  for (const input of ['warmupState,', 'dolState,', 'unrestricted: preview || lifecycle.isPracticeOnly,']) {
     assert.ok(access.includes(input), input);
   }
+  // The section's own work, for the section's role (kept with it: the
+  // navigator's lines are worked out once per change, appRenderWork.test.mjs).
+  assert.match(access, /const hasWork = sectionHasWork\(entry\?\.role\);[\s\S]*\n\s*hasWork,\n/);
   // A locked section never opens: viewable is the only gate, the tab opens
   // only its landing question, and every other way in asks the same gate.
   assert.match(app, /const entryIsAvailable = \(entry\) => sectionAccessFor\(entry\)\.viewable;\n/);

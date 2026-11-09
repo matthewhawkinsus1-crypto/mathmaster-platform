@@ -10557,11 +10557,26 @@ function App() {
      */
     const sectionHasWork = (role) => projectedEntries.some((entry) => entry.logicalRole === role
       && normalizeQuestionRecord(workingTracker?.[entry.storageIndex]).totalAttempts > 0);
+    /*
+     * WHAT THE NAVIGATOR SAYS, ONCE PER CHANGE OF WHAT IT READS.
+     *
+     * A section's access (with the dates and times in its reason) and each
+     * question's line were worked out again on every one of App's renders,
+     * 8 to 13 ms of a Submit at 4x CPU, though a Submit changes one
+     * question's record. Each is kept (renderMemo) until something it reads
+     * changes: a section, on the windows, the lifecycle, the teacher's lock,
+     * the clock and whether the section has work; a question, on its record,
+     * its question, its section's access and the policy and the student its
+     * tries are counted for. A family slot's tries are counted on what this
+     * page was shown and the pin on this device, which no React input
+     * announces, so its line is worked out on every render, as before.
+     */
     const sectionAccessCache = new Map();
     const sectionAccessFor = (entry) => {
       const cacheKey = `${entry?.role}|${entry?.isTimedDOLQuestion ? 'timed' : ''}`;
       if (sectionAccessCache.has(cacheKey)) return sectionAccessCache.get(cacheKey);
-      const access = describeSectionAccess({
+      const hasWork = sectionHasWork(entry?.role);
+      const access = renderMemo(`navigatorSection|${cacheKey}`, [preview, lifecycle, warmupState, dolState, getSectionAccessState, assignment, user?.classId, user?.classPeriod, user?.role, user?.id, now, hasWork], () => describeSectionAccess({
         role: entry?.role,
         // Read mid-sentence ("Time is up for the exit ticket."); the model
         // capitalises a sentence that starts with it. The section tab above
@@ -10580,9 +10595,9 @@ function App() {
           nowValue: now,
           studentId: user?.role === 'student' ? user.id : undefined,
         }),
-        hasWork: sectionHasWork(entry?.role),
+        hasWork,
         nowValue: now,
-      });
+      }));
       sectionAccessCache.set(cacheKey, access);
       return access;
     };
@@ -10617,7 +10632,7 @@ function App() {
     const navigatorQuestionFor = (entry) => {
       const access = sectionAccessFor(entry);
       const policy = entryRuntimePolicy(entry);
-      return describeNavigatorQuestion({
+      const describe = () => describeNavigatorQuestion({
         record: workingTracker?.[entry.index],
         maximumAttempts: entryMaximumAttempts(entry),
         // A family slot's tries are counted on the question it dealt; before
@@ -10639,6 +10654,8 @@ function App() {
         // engine: until then an offer its policy would make is not known.
         replacementKnown: Boolean(familyDelivery) || !resolveQuestionReplacementAllowed({ activityPolicy: policy, canGenerateFresh: true }),
       });
+      if (isFamilyBackedQuestion(questions[entry.index])) return describe();
+      return renderMemo(`navigatorQuestion|${entry.index}`, [entry.role, workingTracker?.[entry.index], questions[entry.index], assignment, preview, lifecycle.isPracticeOnly, access, user?.classId, user?.role, user?.id, familyDelivery], describe);
     };
     const compactSectionLabel = (section) => section?.role === 'dol'
       ? EXIT_TICKET_SPELLED_OUT
