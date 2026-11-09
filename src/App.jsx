@@ -308,7 +308,7 @@ import {
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
 import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
-import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, saveLineIsAboutDrafts, saveLineIsRoutine } from './platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, persistenceStatusAfterDrain, persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, persistenceStatusWithUnstoredWork, saveLineIsAboutDrafts, saveLineIsRoutine, withUnstoredWork, withoutUnstoredWork } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
 import { recoveryStatesFromSummaries } from './platform/student/recoveryStates.js';
@@ -896,6 +896,10 @@ function App() {
   // The assignments those answers are on, for Home to name (NV10).
   const [studentNeedsReviewAssignmentIds, setStudentNeedsReviewAssignmentIds] = useState([]);
   const [studentPersistenceStatus, setStudentPersistenceStatus] = useState('idle');
+  // The assignments with a change this device could not store, until a later
+  // save of that assignment's work is stored: Home and Log Out go on saying
+  // it after the line has moved on (saveStatusModel.js, withUnstoredWork).
+  const [studentUnstoredAssignmentIds, setStudentUnstoredAssignmentIds] = useState([]);
   // Unfinished work this device could not save, or the backup could not take
   // (draftSaveHealth.js). Bumped on every change; the line below reads it.
   const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
@@ -3374,6 +3378,12 @@ function App() {
    * this device's queue — that is the difference the incident turned on, and it
    * is why the queued state names the count and the retry state is distinct
    * from the "not eligible" one.
+   *
+   * And only for work that was delivered (RUN-3): the reconcile drains an
+   * empty queue at sign-in and every 10 seconds, and that is not a save. The
+   * status is decided from the one the line shows when the drain returns, so a
+   * save refused meanwhile is never written over (saveStatusModel.js,
+   * persistenceStatusAfterDrain).
    */
   const drainStudentOutbox = async ({ successStatus = 'durable' } = {}) => {
     if (user?.role !== 'student' || !user.id) return;
@@ -3384,13 +3394,14 @@ function App() {
     setStudentNeedsReviewAssignmentIds([...new Set((result.retained || [])
       .filter((entry) => entry.disposition === SUBMISSION_DISPOSITION.NEEDS_REVIEW && entry.assignmentId)
       .map((entry) => entry.assignmentId))]);
-    setStudentPersistenceStatus(
-      result.remaining
-        ? (result.tally.needsReview ? 'needs-review' : (navigator.onLine ? 'syncing' : 'offline'))
-        : result.tally.permanentlyInvalid
-          ? 'rejected'
-          : successStatus,
-    );
+    const online = navigator.onLine;
+    setStudentPersistenceStatus((status) => persistenceStatusAfterDrain({
+      status,
+      remaining: result.remaining,
+      tally: result.tally,
+      online,
+      successStatus,
+    }));
     return result;
   };
 
@@ -3423,6 +3434,20 @@ function App() {
   useEffect(() => {
     setStudentSaveSubject(initialSaveSubject());
   }, [activeAssignmentId, user?.id]);
+  // So does what it said about one save: "Draft saved." or "Not saved · …" on
+  // the last assignment is not about this one's work. A change the device
+  // could not store stays on Home (studentUnstoredAssignmentIds) until it is
+  // (saveStatusModel.persistenceStatusOnAssignmentChange).
+  useEffect(() => {
+    setStudentPersistenceStatus(persistenceStatusOnAssignmentChange);
+  }, [activeAssignmentId]);
+  // Another account on this Chromebook starts with no line and no unstored
+  // work of the last one's: Log Out asked first while any was left. Before a
+  // drain stopped saying "saved" for nothing, its false success did this.
+  useEffect(() => {
+    setStudentPersistenceStatus('idle');
+    setStudentUnstoredAssignmentIds([]);
+  }, [user?.id]);
   /*
    * THE DEVICE'S OWN INCIDENT REPORT — COALESCED, AND OFF THE GRADE PATH.
    *
@@ -4334,7 +4359,9 @@ function App() {
       if (actions.length) {
         // After a reload, an answer still in the queue is still an answer.
         if (actions.some(isGradeBearingAction)) markAnswerSent();
-        setStudentPersistenceStatus('queued');
+        // Every tick finds it again: never over a save in progress or one the
+        // device refused, which that queued work is not (saveStatusModel.js).
+        setStudentPersistenceStatus(persistenceStatusWithQueuedWork);
         // A reload must restore the same visible score state immediately even
         // before Wi-Fi returns. The server remains canonical; this is only the
         // durable local envelope being overlaid until reconciliation succeeds.
@@ -5964,12 +5991,17 @@ function App() {
       setStudentPersistenceStatus('queued');
     } catch (error) {
       console.error('Could not queue question progress:', error);
+      // Not stored: Home says so until this assignment's work is (RUN-3).
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       toastWarning('Progress not queued', 'Keep this tab open and try Next again. Your current work is still on screen.');
       return;
     }
 
     setTracker(updatedTracker);
+    // Stored: a change this assignment could not store before is not the
+    // only copy of its work any more (saveStatusModel.withoutUnstoredWork).
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     setCurrentQuestionIndex(newIndex);
     window.requestAnimationFrame(() => transitionSpan.finish({ status: 'interactive' }));
 
@@ -7434,10 +7466,12 @@ function App() {
       checkpointFingerprintRef.current.set(documentId, fingerprint);
       setStudentOutboxDepth((depth) => depth + 1);
       setStudentPersistenceStatus('queued');
+      setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
       // Reconciliation happens in the background. The student keeps working.
       void drainStudentOutbox();
     } catch (error) {
       console.error('Response checkpoint remains local:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
     }
   }, [activeAssignmentId, user, isTeacherPreview, assignments, currentQuestionIndex, tracker, classSchedule, activeQuestionRole]);
@@ -7679,11 +7713,13 @@ function App() {
       // question's own alert (SUBMISSION_NOT_QUEUED.message), where Submit is:
       // no toast repeats it.
       console.error('Could not durably queue this response:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       return SUBMISSION_NOT_QUEUED;
     }
 
     setTracker(updatedTracker);
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     setSupportUsageByAssignment(updatedSupportUsage);
     setDolGradesByAssignment(updatedDOLGrades);
 
@@ -7834,10 +7870,12 @@ function App() {
       // where the student is (STEP_NOT_QUEUED). A toast here sat under Work
       // View, and `null` let the solver apply the step as if it were saved.
       console.error('Could not durably queue this algebra step:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       return STEP_NOT_QUEUED;
     }
     setTracker(updatedTracker);
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     setSupportUsageByAssignment(updatedSupportUsage);
     void (async () => {
       try {
@@ -7932,10 +7970,12 @@ function App() {
       // Nothing was recorded: the question and its work stay, and the engine
       // says so under its own button (REPLACEMENT_NOT_QUEUED). No toast.
       console.error('Could not durably queue a replacement question:', error);
+      setStudentUnstoredAssignmentIds((ids) => withUnstoredWork(ids, activeAssignmentId));
       setStudentPersistenceStatus('volatile');
       return REPLACEMENT_NOT_QUEUED;
     }
     setTracker(updatedTracker);
+    setStudentUnstoredAssignmentIds((ids) => withoutUnstoredWork(ids, activeAssignmentId));
     if (options.clearHistory) setDolGradesByAssignment(updatedDOLGrades);
     void reconcileAndReportStudentOutbox().catch((error) => console.error('Question replacement remains queued for retry:', error));
   };
@@ -9452,7 +9492,9 @@ function App() {
     .map((id) => assignments.find((assignment) => assignment.id === id)?.title)
     .filter(Boolean);
   const studentSaveStatusNow = () => describeSaveStatus({
-    persistenceStatus: studentPersistenceStatus,
+    // A change this device could not store stays said here after the line
+    // has moved on (saveStatusModel.persistenceStatusWithUnstoredWork).
+    persistenceStatus: persistenceStatusWithUnstoredWork(studentPersistenceStatus, studentUnstoredAssignmentIds),
     outboxDepth: studentOutboxDepth,
     pendingGradeCount: studentPendingGradeCount,
     online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
@@ -11518,7 +11560,7 @@ function App() {
       outboxDepth: studentOutboxDepth,
       pendingGradeCount: studentPendingGradeCount,
       needsReviewCount: studentNeedsReviewCount,
-      persistenceStatus: studentPersistenceStatus,
+      persistenceStatus: persistenceStatusWithUnstoredWork(studentPersistenceStatus, studentUnstoredAssignmentIds),
     });
     return (
     <div data-authenticated-student-shell={preview ? 'teacher-preview' : 'student'} style={{ minHeight: '100vh' }}>

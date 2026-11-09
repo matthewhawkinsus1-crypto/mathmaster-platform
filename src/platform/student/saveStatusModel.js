@@ -106,6 +106,128 @@ export const describeSaveStatus = ({
 };
 
 /*
+ * WHAT A DRAIN OF THE DEVICE QUEUE MAY SAY (RUN-3: a student is never told
+ * their work was saved when it was not).
+ *
+ * App.jsx drains the queue after each save, and its queued-work reconcile
+ * drains it at sign-in, on a reconnect and every 10 seconds, whether or not
+ * anything is waiting. A drain that left nothing owed used to say "saved"
+ * (`successStatus`) every time: "Draft saved." under a question nobody had
+ * touched since sign-in, and "Draft saved." within 10 seconds over a save the
+ * device had just refused, with nothing stored.
+ *
+ * Now a drain that leaves nothing owed says saved (or recorded) only for work
+ * that was delivered:
+ *   - by this drain: its tally shows work accepted, a duplicate or superseded;
+ *   - or work the line was already waiting on in the queue (queued, syncing,
+ *     offline, needs review) that is owed nothing now: another drain, or
+ *     another tab, delivered it.
+ * Anything else stays as it is: nothing has happened ('idle'), the last
+ * delivery ('durable', 'submitted'), work MathMaster refused ('rejected'), and
+ * "Saving…" ('capturing'): that write has not reached the queue, so the drain
+ * cannot have delivered it, and that save's own outcome comes next.
+ *
+ * A save the device refused ('volatile') stays, whatever the drain finds,
+ * unless MathMaster refused queued work for good ('rejected', which says "not
+ * accepted" too). A drain cannot store a change the device never queued, and a
+ * line about other work ("Draft saved on this device", "Draft saved.") over it
+ * reads as that change being saved. The student's next save, or the line
+ * starting over, moves it.
+ *
+ * Work still owed is said as before: needs review, syncing, or offline.
+ *
+ * Before it drains, the reconcile reads the queue, and when it holds work it
+ * says so ('queued': after a reload, the student's queued answer is still
+ * theirs to see). That is not over a save in progress or one the device
+ * refused either (`persistenceStatusWithQueuedWork`): the work in the queue is
+ * not the change the student just made.
+ */
+const WAITING_ON_THE_QUEUE = new Set(['queued', 'syncing', 'offline', 'needs-review']);
+const ABOUT_THE_LATEST_CHANGE = new Set(['capturing', 'volatile']);
+
+export const persistenceStatusWithQueuedWork = (status) => {
+  const current = String(status || 'idle');
+  return ABOUT_THE_LATEST_CHANGE.has(current) ? current : 'queued';
+};
+
+/** Work this drain delivered: accepted, already recorded, or replaced by newer work. */
+export const drainDelivered = (tally = {}) => count(tally?.accepted) + count(tally?.duplicate) + count(tally?.superseded);
+
+export const persistenceStatusAfterDrain = ({
+  status = 'idle',
+  remaining = 0,
+  tally = {},
+  online = true,
+  successStatus = 'durable',
+} = {}) => {
+  const current = String(status || 'idle');
+  const owed = count(remaining) > 0;
+  const refused = count(tally?.permanentlyInvalid) > 0;
+  if (current === 'volatile' && (owed || !refused)) return 'volatile';
+  if (owed) return count(tally?.needsReview) ? 'needs-review' : (online ? 'syncing' : 'offline');
+  if (refused) return 'rejected';
+  if (drainDelivered(tally) > 0 || WAITING_ON_THE_QUEUE.has(current)) return successStatus;
+  return current;
+};
+
+/*
+ * WHEN THE STUDENT MOVES ON FROM A SAVE (RUN-3).
+ *
+ * The persistence status is the whole app's, and the line under a question
+ * reads it. Until a drain stopped saying "saved" for nothing, its false
+ * successes were also what cleared a stale "Not saved" or "not accepted" line
+ * once the student had moved on. Now, as the line's subject does on the same
+ * change (App.jsx, `initialSaveSubject` on `activeAssignmentId`), the line
+ * starts over on another assignment: a status about one save ("Draft saved.",
+ * "Answer recorded by MathMaster.", "Not saved · …", "This change was not
+ * accepted…") would be read there as about that assignment's work, so it goes
+ * back to 'idle'. A status about the queue as a whole (saving, sending,
+ * offline, needs review) is still true there, and stays. Home is not an
+ * assignment, and leaving one for it is a change too.
+ *
+ * A change the device could not store does not stop existing when the student
+ * moves on. The engine keeps the work on screen and in the question's draft
+ * (questionDraftStorage.js) across navigation, says what to do again in its
+ * own alert (submissionNotQueued.js), and offers a refused checkpoint again
+ * when the student leaves the question, but the device queue never got it.
+ * So App.jsx keeps the assignments with such a change (`withUnstoredWork`) until
+ * a later save of that assignment's work is stored (`withoutUnstoredWork`) or
+ * the account changes, and Home, the pack-up line and Log Out read the
+ * student's status through `persistenceStatusWithUnstoredWork`: "an answer is
+ * only on this screen" until then, whatever else was saved meanwhile. MathMaster
+ * refusing work ('rejected') is not kept: that work was retired, and nothing
+ * the student does now stores it.
+ */
+const ABOUT_ONE_SAVE = new Set(['durable', 'submitted', 'volatile', 'rejected']);
+
+export const persistenceStatusOnAssignmentChange = (status) => {
+  const current = String(status || 'idle');
+  return ABOUT_ONE_SAVE.has(current) ? 'idle' : current;
+};
+
+const unstoredKey = (assignmentId) => (assignmentId === null || assignmentId === undefined ? '' : String(assignmentId));
+const unstoredList = (assignmentIds) => (Array.isArray(assignmentIds) ? assignmentIds : []);
+
+/** The assignments with a change this device could not store, with this one. The same list when nothing changes. */
+export const withUnstoredWork = (assignmentIds = [], assignmentId) => {
+  const ids = unstoredList(assignmentIds);
+  const id = unstoredKey(assignmentId);
+  return !id || ids.includes(id) ? ids : [...ids, id];
+};
+
+/** A later save of this assignment's work was stored: it has none left. */
+export const withoutUnstoredWork = (assignmentIds = [], assignmentId) => {
+  const ids = unstoredList(assignmentIds);
+  const id = unstoredKey(assignmentId);
+  return ids.includes(id) ? ids.filter((each) => each !== id) : ids;
+};
+
+/** The status Home, the pack-up line and Log Out read: unstored work first. */
+export const persistenceStatusWithUnstoredWork = (status, assignmentIds = []) => (
+  unstoredList(assignmentIds).length ? 'volatile' : String(status || 'idle')
+);
+
+/*
  * THE LINE UNDER A QUESTION SAYS WHAT WAS SAVED: A DRAFT OR AN ANSWER
  * (student pass 3, RUN-11).
  *

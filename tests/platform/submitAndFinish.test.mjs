@@ -30,7 +30,7 @@ import { missOutcomeText, submitActionLabel, submitLabelForCost, submitTryCost, 
 import { ACTIVITY_POLICIES } from '../../src/platform/policies/activityPolicies.js';
 import { resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
 import { closedAttemptText } from '../../src/platform/supports/feedback/attemptFeedbackPlan.js';
-import { describeRuntimeSaveLine, initialSaveSubject, nextSaveSubject } from '../../src/platform/student/saveStatusModel.js';
+import { describeRuntimeSaveLine, initialSaveSubject, nextSaveSubject, persistenceStatusWithQueuedWork } from '../../src/platform/student/saveStatusModel.js';
 import { resolveAssignmentHandoff, resolveSkippedQuestion } from '../../src/platform/student/assignmentHandoff.js';
 import { closedQuestionEnterAction } from '../../src/platform/interaction/closedQuestionEnter.js';
 import { questionModuleFailureKey } from '../../src/platform/runtime/questionModuleFailureKey.js';
@@ -262,7 +262,10 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   assert.match(queuedAnswer, /\}\)\);\s*(\/\/[^\n]*\n\s*)*markAnswerSent\(\);\s*setStudentOutboxDepth\(\(depth\) => depth \+ 1\);\s*setStudentPersistenceStatus\('queued'\);\s*$/);
   const queuedStep = region(app, "kind: 'stepSubmission'", '} catch (error) {', 'the step enqueue');
   assert.match(queuedStep, /markAnswerSent\(\);\s*setStudentOutboxDepth\(\(depth\) => depth \+ 1\);\s*setStudentPersistenceStatus\('queued'\);\s*$/);
-  assert.match(app, /if \(actions\.some\(isGradeBearingAction\)\) markAnswerSent\(\);\s*setStudentPersistenceStatus\('queued'\);/, 'after a reload, a queued answer is an answer');
+  // The reconcile's queued work: the status goes through the model now, so a
+  // save in progress or refused is not written over (saveLineHonesty.test.mjs).
+  assert.match(app, /if \(actions\.some\(isGradeBearingAction\)\) markAnswerSent\(\);\s*setStudentPersistenceStatus\(persistenceStatusWithQueuedWork\);/, 'after a reload, a queued answer is an answer');
+  assert.equal(persistenceStatusWithQueuedWork('idle'), 'queued', 'and, after a reload, the line says it is queued');
   assert.match(app, /import \{[^}]*\bisGradeBearingAction\b[^}]*\} from '\.\/platform\/performance\/durableActionOutbox\.js';/);
   assert.match(app, /useEffect\(\(\) => \{\s*setStudentSaveSubject\(initialSaveSubject\(\)\);\s*\}, \[activeAssignmentId, user\?\.id\]\);/, 'per assignment and student');
   // Shown whenever there is a status (and not as a draft line beside Batch 3's
