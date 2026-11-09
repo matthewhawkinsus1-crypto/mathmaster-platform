@@ -236,8 +236,9 @@ export const DISTRICT_ID_CORRECTION = Object.freeze({
 });
 
 // `compiledSections`: the lesson compiled by lessonFixtures.js, which the page
-// loads (fakeFirestore.js) only for `?questions=matrices` or `=dividing`; a
-// Vite `?raw` import cannot be reached from node.
+// loads (fakeFirestore.js) only for `?questions=matrices` or `=dividing` (and
+// by studentRuntimeLesson.js for `=runtime`); a Vite `?raw` import cannot be
+// reached from node.
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null, compiledSections = null } = {}) => {
   const questionSet = params?.get?.('questions');
   const sectionsFor = questionSet === 'real' ? realLessonSections
@@ -245,7 +246,7 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     : questionSet === 'familyChoice' ? familyChoiceLessonSections
     : questionSet === 'lmr' ? lmrLessonSections
       : questionSet === 'systems' ? systemsLessonSections
-        : (questionSet === 'matrices' || questionSet === 'dividing') && compiledSections ? compiledSections
+        : ['matrices', 'dividing', 'runtime'].includes(questionSet) && compiledSections ? compiledSections
           : lessonSections;
   // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 0: it begins
   // now). Under 10, the Warm-Up is still inside its default ten-minute window,

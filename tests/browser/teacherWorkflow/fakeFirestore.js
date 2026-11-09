@@ -152,13 +152,14 @@ const persist = () => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...store.entries()].map(([path, data]) => [path, serialize(data)]))); } catch { /* quota: harness only */ }
 };
 // `?questions=matrices` and `?questions=dividing` (PH10, PH06): a real Algebra II
-// lesson, compiled by the real import chain. Loaded only when asked for: it
-// pulls in the lesson files and the compile modules every other page does not
-// need.
+// lesson, compiled by the real import chain; `?questions=runtime`, the
+// performance certification's flow compiled the same way
+// (studentRuntimeLesson.js). Loaded only when asked for: it pulls in the
+// lesson files and the compile modules every other page does not need.
 const requestedLesson = new URLSearchParams(window.location.search).get('questions');
 const lessonFixtures = requestedLesson === 'matrices' || requestedLesson === 'dividing'
   ? await import('./lessonFixtures.js')
-  : null;
+  : requestedLesson === 'runtime' ? await import('./studentRuntimeLesson.js') : null;
 const compiledSections = lessonFixtures ? () => lessonFixtures.lessonSectionsFor(requestedLesson) : null;
 
 const loadOrSeed = () => {
