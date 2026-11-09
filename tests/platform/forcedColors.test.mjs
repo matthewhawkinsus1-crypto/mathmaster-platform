@@ -5,7 +5,8 @@
  * forced colours, dark and light, read by tests/browser/forcedColorsAudit.mjs and
  * judged by scripts/lib/forcedColors.mjs: a Tab stop that draws no focus
  * indicator, a selected or pressed control shown only by colour or background,
- * a control that lost its edge, a formula not drawn in its words' colour. The browser half is shown finding each planted
+ * a control that lost its edge, a formula not drawn in its words' colour, a coordinate plane not drawn in the theme's
+ * colours. The browser half is shown finding each planted
  * defect by forcedColorsSelfTest.mjs; this file holds the judge to its verdicts
  * on readings shaped as Chromium reports them, and the theme job to running the
  * walk on the servers it needs. (The stylesheet the walk holds the screens to:
@@ -14,8 +15,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  EDGE_RATIO, FORCED_COLORS_RULE_IDS, contrastRatio, edgeLost, edgeOf, forcedFocusIndicator, judgeForcedColors,
-  mathColourKept, parseColour, stateVerdict, traitDifference,
+  EDGE_RATIO, FORCED_COLORS_RULE_IDS, PLANE_THEME_COLOURS, contrastRatio, edgeLost, edgeOf, forcedFocusIndicator, judgeForcedColors,
+  mathColourKept, parseColour, planePaintProblems, stateVerdict, traitDifference,
 } from '../../scripts/lib/forcedColors.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
 import { region } from './helpers/sourceContract.mjs';
@@ -180,6 +181,111 @@ test('a standalone page is renamed once drawn in the new contrast theme, and eve
   assert.match(region(audit, 'export const auditForcedColors = async', 'const setup = await page.evaluate(INSTALL', 'a reading'), /await waitForFormulas\(page, \{ include, exclude \}\);\s*$/);
 });
 
+// ------------------------------------------------------------------ the coordinate plane
+// A plane is an SVG drawing, whose paint forced colours leave alone: under a contrast theme it kept the app theme's
+// colours. The walk reads what it paints (forcedColorsAudit.mjs readPlane) and the page's system colours, as Chromium
+// resolves them in its emulated dark contrast theme: Canvas black, CanvasText white, GrayText green, Highlight a
+// translucent cyan.
+const DARK_PALETTE = {
+  Canvas: CANVAS, CanvasText: TEXT, LinkText: 'rgb(255, 255, 0)', VisitedText: 'rgb(255, 255, 0)', ActiveText: 'rgb(255, 255, 0)',
+  ButtonFace: CANVAS, ButtonText: TEXT, ButtonBorder: TEXT, Field: CANVAS, FieldText: TEXT, Highlight: HIGHLIGHT, HighlightText: CANVAS,
+  GrayText: 'rgb(63, 242, 63)',
+};
+const GRAY = 'rgb(63, 242, 63)';
+const planePart = (overrides = {}) => ({ tag: 'line', part: '', fill: 'rgb(0, 0, 0)', stroke: TEXT, fillOpacity: '1', strokeOpacity: '1', strokeWidth: '1px', alpha: 1, ...overrides });
+// A plane as the platform draws it under forced colours (src/theme/forcedColors.css).
+const themedPlane = () => ({
+  target: 'svg[aria-label="Coordinate plane"]',
+  html: '<svg data-mm-plane="">',
+  board: { background: CANVAS, border: { drawn: true, colour: TEXT } },
+  parts: [
+    planePart({ tag: 'rect', part: 'paper', fill: CANVAS, stroke: 'none' }),
+    planePart({ part: 'grid', stroke: GRAY }),
+    planePart({ part: 'axis', stroke: TEXT, strokeWidth: '2px' }),
+    planePart({ tag: 'text', fill: TEXT, stroke: CANVAS, strokeWidth: '3px' }),
+    planePart({ tag: 'path', part: 'line', fill: 'none', stroke: TEXT, strokeWidth: '3px' }),
+    planePart({ tag: 'circle', part: 'point', fill: TEXT, stroke: CANVAS }),
+    planePart({ tag: 'circle', part: 'open', fill: CANVAS, stroke: TEXT }),
+    planePart({ tag: 'polygon', part: 'shade', fill: TEXT, stroke: 'none' }),
+  ],
+  focusedParts: [planePart({ part: 'cursor', stroke: HIGHLIGHT })],
+  focusRing: { drawn: true, colour: HIGHLIGHT },
+});
+
+test('a plane drawn in the app theme\'s colours under forced colours keeps paint of its own; in the theme\'s colours it passes', () => {
+  assert.deepEqual(planePaintProblems(themedPlane(), DARK_PALETTE), [], 'the platform\'s plane, and Chromium\'s own translucent Highlight is the theme\'s');
+  // As the app theme drew it, which forced colours leave alone: the dark theme's tokens and fixed blues.
+  const kept = {
+    ...themedPlane(),
+    board: { background: 'rgb(27, 30, 37)', border: { drawn: true, colour: 'rgb(46, 58, 80)' } },
+    parts: [
+      planePart({ tag: 'rect', part: 'paper', fill: 'rgb(23, 26, 32)', stroke: 'none' }),
+      planePart({ part: 'grid', stroke: 'rgb(74, 82, 96)' }),
+      planePart({ tag: 'path', part: 'line', fill: 'none', stroke: 'rgb(26, 115, 232)' }),
+    ],
+    focusRing: { drawn: true, colour: 'rgb(168, 199, 250)' },
+  };
+  const problems = planePaintProblems(kept, DARK_PALETTE).map((problem) => problem.what);
+  assert.deepEqual(problems, [
+    'the board\'s background not a colour of the theme', 'the board\'s border not a colour of the theme', 'rect (paper) fill not a colour of the theme',
+    'line (grid) stroke not a colour of the theme', 'path (line) stroke not a colour of the theme', 'its focus ring not a colour of the theme',
+  ]);
+});
+
+test('a translucent paint is not drawn reliably by a contrast theme; a pattern is judged by its lines, and paint that is not drawn is not paint', () => {
+  // A board that paints nothing of its own and is not focused: only its parts are judged, in whichever theme.
+  const plane = (parts) => ({ ...themedPlane(), board: { background: 'rgba(0, 0, 0, 0)', border: { drawn: false } }, parts, focusedParts: [], focusRing: null });
+  // A region tinted with the text colour at a quarter, as an app draws a shaded half-plane: a grey of no theme.
+  assert.match(planePaintProblems(plane([planePart({ tag: 'polygon', part: 'shade', fill: TEXT, fillOpacity: '0.25', stroke: 'none' })]), DARK_PALETTE)[0]?.what || '', /translucent \(25%\)/);
+  // A group's opacity counts too (a dragged marker's ghost).
+  assert.match(planePaintProblems(plane([planePart({ tag: 'polygon', fill: TEXT, stroke: 'none', alpha: 0.55 })]), DARK_PALETTE)[0]?.what || '', /translucent \(55%\)/);
+  // A pattern's lines are parts of their own; an invisible fill, a stroke no wider than nothing, and a <line>'s fill
+  // (black by default, which is no colour of a light theme of cream and grey) are not drawn.
+  const DESERT = {
+    Canvas: 'rgb(255, 250, 239)', CanvasText: 'rgb(61, 61, 61)', LinkText: 'rgb(28, 94, 117)', VisitedText: 'rgb(28, 94, 117)', ActiveText: 'rgb(28, 94, 117)',
+    ButtonFace: 'rgb(255, 250, 239)', ButtonText: 'rgb(61, 61, 61)', ButtonBorder: 'rgb(61, 61, 61)', Field: 'rgb(255, 250, 239)', FieldText: 'rgb(61, 61, 61)',
+    Highlight: 'rgb(144, 57, 9)', HighlightText: 'rgb(255, 250, 239)', GrayText: 'rgb(103, 103, 103)',
+  };
+  assert.deepEqual(planePaintProblems(plane([
+    planePart({ tag: 'polygon', fill: 'url("#hatch")', stroke: 'none' }),
+    planePart({ tag: 'path', fill: 'rgb(0, 0, 0)', fillOpacity: '0', stroke: 'none' }),
+    planePart({ tag: 'path', fill: 'none', stroke: 'rgb(26, 115, 232)', strokeWidth: '0px' }),
+    planePart({ tag: 'line', fill: 'rgb(0, 0, 0)', stroke: 'rgb(61, 61, 61)' }),
+  ]), DESERT), []);
+  assert.equal(planePaintProblems(plane([planePart({ tag: 'circle', fill: 'rgb(0, 0, 0)', stroke: 'none' })]), DESERT).length, 1, 'a circle\'s black fill is drawn, and is no colour of that theme');
+  // A plate of the page's own colour, translucent over the page, is still the page.
+  assert.deepEqual(planePaintProblems(plane([planePart({ tag: 'rect', part: 'plate', fill: CANVAS, fillOpacity: '0.58', stroke: 'none' })]), DARK_PALETTE), []);
+});
+
+test('the paper is the page\'s Canvas, every mark is at 3:1 or more against it, and a focus ring is a colour of the theme other than Canvas', () => {
+  const plane = (overrides) => ({ ...themedPlane(), focusedParts: [], ...overrides });
+  assert.deepEqual(planePaintProblems(plane({ parts: [planePart({ tag: 'rect', part: 'paper', fill: TEXT, stroke: 'none' })] }), DARK_PALETTE).map((problem) => problem.what), ['rect (paper) fill CanvasText, not Canvas']);
+  // A theme whose GrayText is faint on its Canvas: a grid drawn in it is a colour of the theme a student cannot see.
+  const faint = { ...DARK_PALETTE, GrayText: 'rgb(40, 40, 40)' };
+  assert.match(planePaintProblems(plane({ parts: [planePart({ part: 'grid', stroke: 'rgb(40, 40, 40)' })] }), faint)[0]?.what || '', /^line \(grid\) stroke 1\.\d\d:1 against Canvas$/);
+  assert.deepEqual(planePaintProblems(plane({ parts: [], focusRing: { drawn: true, colour: CANVAS } }), DARK_PALETTE).map((problem) => problem.what), ['its focus ring the page\'s own colour']);
+  assert.deepEqual(planePaintProblems(plane({ parts: [], focusRing: { drawn: false, colour: 'rgb(26, 115, 232)' } }), DARK_PALETTE), [], 'a ring not drawn is not judged');
+});
+
+test('focused, a plane is judged for what focus adds: its crosshair', () => {
+  const plane = themedPlane();
+  // What it shares with the plane at rest is said once; a crosshair in the app's purple is new.
+  const kept = { ...plane, parts: [planePart({ part: 'grid', stroke: 'rgb(74, 82, 96)' })], focusedParts: [planePart({ part: 'grid', stroke: 'rgb(74, 82, 96)' }), planePart({ part: 'cursor', stroke: 'rgb(147, 52, 230)' })] };
+  assert.deepEqual(planePaintProblems(kept, DARK_PALETTE).map((problem) => problem.what), ['line (grid) stroke not a colour of the theme', 'focused, line (cursor) stroke not a colour of the theme']);
+});
+
+test('one finding per plane, naming what it paints in colours of its own, once per kind', () => {
+  const kept = { ...themedPlane(), parts: Array.from({ length: 9 }, () => planePart({ part: 'grid', stroke: 'rgb(74, 82, 96)' })), focusedParts: [] };
+  const [found, ...rest] = judgeForcedColors({ planes: [kept, themedPlane()], palette: DARK_PALETTE });
+  assert.equal(rest.length, 0);
+  assert.equal(found.id, 'mm-forced-plane-paint');
+  assert.ok(FORCED_COLORS_RULE_IDS.includes(found.id) && found.help && found.helpUrl && found.impact);
+  assert.equal(found.nodes.length, 1, 'the plane that keeps its paint, not the one drawn in the theme\'s colours');
+  assert.equal(found.nodes[0].target[0], 'svg[aria-label="Coordinate plane"]');
+  assert.equal(found.nodes[0].failureSummary, 'Under forced colours the plane keeps paint of its own: line (grid) stroke not a colour of the theme rgb(74, 82, 96) ×9.');
+  assert.deepEqual(judgeForcedColors({ planes: [kept], palette: null }), [], 'nothing judged without the theme\'s colours');
+});
+
 // ------------------------------------------------------------------ CI
 test('the theme readability job runs the forced-colours walk on the stubbed server and the app, after its self-test', () => {
   const workflow = 'theme-certification.yml';
@@ -230,7 +336,7 @@ test('the theme job walks the Math Tools Lab\'s tools and their Work Views too, 
 test('the walk reads the rounds\' own screens, the student\'s arena, beside the certified scenes', async () => {
   // A Graph Feature Rush round and a Graph the Line round are measured by the large-text runs and were read by no
   // forced-colours walk. The projector and the host console during a round are certified scenes it already reads.
-  const { screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
+  const { PLANE_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
   const { CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, SCREENS, sceneLabel, screensToRun } = await import('../browser/accessibilityCertification.mjs');
   const labels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
   // The run walks what screensToWalk gives it (ONLY, or nothing named).
@@ -240,8 +346,10 @@ test('the walk reads the rounds\' own screens, the student\'s arena, beside the 
     'teacher-live-challenge/round', 'teacher-live-challenge/projector', 'teacher-live-challenge/results']) {
     assert.ok(byDefault.includes(label), `${label} is read`);
   }
-  // Every certified scene still, and the Lab's own-job screens left to the step that names them.
-  assert.deepEqual(byDefault.filter((label) => !labels(LIVE_CHALLENGE_ROUND_SCREENS).includes(label)), labels(screensToRun(new Set(), CERTIFIED_SCREENS)));
+  // Every certified scene still (beside the rounds' and the planes'), and the Lab's own-job screens left to the step
+  // that names them.
+  const added = labels([...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS]);
+  assert.deepEqual(byDefault.filter((label) => !added.includes(label)), labels(screensToRun(new Set(), CERTIFIED_SCREENS)));
   assert.ok(!byDefault.some((label) => label.startsWith('teacher-math-tools-lab/')), 'the Lab\'s tools are their own step\'s');
   // ONLY can name a round, as it names a certified screen.
   assert.deepEqual(labels(screensToWalk(new Set(['graph-the-line']))), ['graph-the-line/round']);
@@ -251,10 +359,55 @@ test('the walk reads the rounds\' own screens, the student\'s arena, beside the 
   for (const screen of LIVE_CHALLENGE_ROUND_SCREENS) assert.ok(screen.open === live.open && screen.harness === 'app' && screen.schoolClock, screen.id);
 });
 
+// The walk reads every plane in a scene under forced colours (readPlane), with the page's system colours, and the plane
+// focused where it is a Tab stop, and judges them (mm-forced-plane-paint). Each reading is from the page as it stands.
+test('the walk reads every coordinate plane under forced colours, focused too, and judges it against the page\'s system colours', () => {
+  const audit = read('tests/browser/forcedColorsAudit.mjs');
+  const install = region(audit, 'export const INSTALL = ', '\n};\n', 'the in-page walk');
+  // The planes in scope, outermost only, each read part by part.
+  assert.match(install, /const planes = \[\.\.\.new Set\(roots\.flatMap\(\(root\) => \[\.\.\.\(root\.matches\?\.\('\[data-mm-plane\]'\)/);
+  const readPlane = region(install, 'const readPlane = (plane) => {', '\n  };\n', 'readPlane');
+  assert.match(readPlane, /for \(const el of plane\.querySelectorAll\(PAINTED\)\)/);
+  assert.match(readPlane, /fill: c\.fill,\s*stroke: c\.stroke,\s*fillOpacity: c\.fillOpacity,\s*strokeOpacity: c\.strokeOpacity,\s*strokeWidth: c\.strokeWidth,\s*alpha: alphaOf,/);
+  // Read in each reading, with the theme's colours; focused, read again.
+  assert.match(region(install, 'read: () => ({', '}),', 'a reading'), /planes: planes\.map\(readPlane\),\s*palette: paletteOf\(\),/);
+  assert.match(region(install, 'focusReadAll: async () => {', '\n    },\n', 'the focus pass'), /if \(planes\.includes\(el\)\) \{[\s\S]*plane = readPlane\(el\);[\s\S]*\}\s*el\.blur\(\);/);
+  // Judged from the forced reading, with its palette.
+  const run = region(audit, 'export const auditForcedColors = async', '\n};\n', 'a reading of a scene');
+  assert.match(run, /parts: forced\.planes\[i\]\.parts,\s*focusedParts: focused\?\.plane\?\.parts \|\| \[\],/);
+  assert.match(run, /judgeForcedColors\(\{ edges, states, focus, math, planes, palette: forced\.palette \}\)/);
+  // The colours of the theme it is judged by are the judge's own list.
+  assert.match(run, /themeColours: \[\.\.\.PLANE_THEME_COLOURS\]/);
+  assert.deepEqual([...PLANE_THEME_COLOURS].sort(), ['ActiveText', 'ButtonBorder', 'ButtonFace', 'ButtonText', 'Canvas', 'CanvasText', 'Field', 'FieldText', 'GrayText', 'Highlight', 'HighlightText', 'LinkText', 'VisitedText']);
+});
+
+test('the walk reads every kind of plane on the planes\' page, beside the certified scenes', async () => {
+  const { PLANE_SCREENS, WALKED_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
+  const { sceneLabel } = await import('../browser/accessibilityCertification.mjs');
+  const labels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
+  assert.deepEqual(labels(PLANE_SCREENS), ['coordinate-planes', 'graphing-calculator']);
+  for (const screen of PLANE_SCREENS) {
+    assert.ok(WALKED_SCREENS.includes(screen), `${screen.id} is walked`);
+    // On the stubbed server, read for its planes alone.
+    assert.equal(screen.harness, 'audit');
+    assert.match(screen.include, /\[data-mm-plane\]$/);
+  }
+  assert.ok(labels(screensToWalk(new Set())).includes('coordinate-planes'), 'a run that names no screen walks them');
+  // The page mounts each kind of plane with its real component.
+  const page = read('tests/browser/forcedColorsPlanesMain.jsx');
+  for (const component of ['CoordinatePlane', 'GraphDisplay', 'FunctionGraphBuilder', 'GraphAnalysis', 'GraphStory', 'GraphFeatureRushGraph', 'LineGraphCanvas', 'LineRevealGraph', 'GraphingCalculatorPanel']) {
+    assert.match(page, new RegExp(`<${component}\\b`), `${component} is drawn`);
+  }
+  // In the state a student sees: points placed and a curve connected, a region shaded, two regions overlapping.
+  assert.match(page, /markerPlacements: \{ 'endpoint-0-start': 'closed' \}/);
+  assert.match(page, /shading: \[\{ m: 0\.6, b: 1, relation: '<=' \}, \{ m: -0\.6, b: 1, relation: '<' \}\]/);
+});
+
 test('a pull request that changes the walk, what it walks or a screen runs the theme certification', () => {
   for (const file of [
     'tests/browser/forcedColorsCertification.mjs', 'tests/browser/forcedColorsAudit.mjs', 'tests/browser/forcedColorsSelfTest.mjs',
     'tests/browser/forcedColors.vite.config.mjs', 'scripts/lib/forcedColors.mjs', 'src/theme/forcedColors.css',
+    'tests/browser/forcedColorsPlanes.html', 'tests/browser/forcedColorsPlanesMain.jsx', 'src/tools/shared/CoordinatePlane.jsx',
     'tests/browser/accessibilityCertification.mjs', 'tests/browser/accessibilityTeacherScreens.mjs', 'tests/browser/accessibilityAudit.mjs',
     'tests/browser/accessibilityKeyboardReach.mjs', 'tests/browser/accessibilitySecureExamMain.jsx', 'tests/browser/support/touchEmulation.mjs',
     'tests/browser/emulator/vite.config.mjs', 'tests/browser/studentUxPlatformMain.jsx', 'tests/browser/keyboardSweep.html',

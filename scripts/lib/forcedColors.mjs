@@ -23,6 +23,12 @@
  *                               left, so its edge is gone.
  *   mm-forced-math-colour-kept  a formula is not drawn in the colour the theme
  *                               gives the text around it: it kept another one.
+ *   mm-forced-plane-paint       a coordinate plane (an SVG drawing, whose paint
+ *                               forced colours leave alone) is not drawn in the
+ *                               theme's colours: its board is not Canvas, or a
+ *                               line, mark or word kept a colour of its own, is
+ *                               translucent, or is under 3:1 against Canvas, or
+ *                               its focus ring is not a colour of the theme.
  *
  * Each finding is shaped like an axe violation (id, impact, help, nodes), as the
  * Tab walk's are (scripts/lib/keyboardReach.mjs).
@@ -51,6 +57,11 @@ export const FORCED_COLORS_RULES = Object.freeze({
     impact: 'serious',
     help: 'Under forced colours a formula must be drawn in the colour the theme gives the text around it, after a switch of contrast theme too, not in a colour it kept',
     helpUrl: `${WCAG}/contrast-minimum.html`,
+  },
+  'mm-forced-plane-paint': {
+    impact: 'serious',
+    help: 'Under forced colours a coordinate plane must be drawn in the theme\'s colours: its board Canvas, every line, mark and word an opaque colour of the theme at 3:1 or more against Canvas, and its focus ring a colour of the theme',
+    helpUrl: `${WCAG}/non-text-contrast.html`,
   },
 });
 
@@ -258,6 +269,117 @@ export const mathColourKept = ({ colour, formulaColour } = {}) => {
   return host.some((value, index) => Math.abs(value - formula[index]) > (index === 3 ? 0.02 : 1.5));
 };
 
+// ------------------------------------------------------------------ the coordinate plane
+/*
+ * A plane is an SVG drawing (data-mm-plane), and forced colours leave its paint
+ * alone: Chromium gives every <svg> forced-color-adjust: preserve-parent-color,
+ * so its fills and strokes, and the board's own background, border and focus
+ * ring, keep whatever the page gave them. Under a contrast theme the plane is
+ * judged by what it paints:
+ *
+ *   the board            transparent or the page's Canvas; a drawn border in a
+ *                        colour of the theme
+ *   every fill, stroke   an opaque colour of the theme (`palette`: the system
+ *                        colours a contrast theme sets, as the page resolves
+ *                        them now), and, unless it is Canvas itself (a halo, a
+ *                        label's plate, an open point's middle), at 3:1 or more
+ *                        against Canvas. A translucent paint is not drawn
+ *                        reliably by a contrast theme (and is a colour of no
+ *                        theme), so it fails too; one that is hardly drawn at
+ *                        all (an invisible fill) is not paint.
+ *   the paper            (data-mm-plane-part="paper") Canvas
+ *   its focus ring       a colour of the theme other than Canvas
+ *
+ * A fill or stroke that is a pattern (url(#…)) is judged by the pattern's own
+ * lines, which the walk reads as parts too.
+ */
+export const PLANE_CONTRAST = 3;
+// The system colours a Windows contrast theme sets (Mark, AccentColor and
+// SelectedItem are not among them: Chromium's emulation keeps them fixed).
+export const PLANE_THEME_COLOURS = Object.freeze(['Canvas', 'CanvasText', 'LinkText', 'VisitedText', 'ActiveText', 'ButtonFace', 'ButtonText', 'ButtonBorder', 'Field', 'FieldText', 'Highlight', 'HighlightText', 'GrayText']);
+const NOT_DRAWN = 0.05;
+const OPAQUE = 0.99;
+// A channel's rounding apart.
+const sameColour = (a, b) => a.every((value, index) => Math.abs(value - b[index]) <= 2);
+
+/**
+ * The theme's colours as painted on its Canvas: { name: [r, g, b] } (a
+ * translucent system colour, as Chromium's Highlight is, composited over Canvas,
+ * as a part painted in it is).
+ */
+export const planePalette = (palette) => {
+  const canvas = parseColour(palette?.Canvas);
+  if (!canvas || canvas[3] < OPAQUE) return null;
+  const base = canvas.slice(0, 3);
+  return Object.fromEntries(PLANE_THEME_COLOURS
+    .map((name) => [name, parseColour(palette?.[name])])
+    .filter(([, colour]) => colour && colour[3] > NOT_DRAWN)
+    .map(([name, colour]) => [name, over(colour, base)]));
+};
+
+/**
+ * What is wrong with one plane under forced colours: a list of { what, colour }
+ * (empty when it is drawn in the theme's colours). `plane` is the walk's reading
+ * (forcedColorsAudit.mjs readPlane), `palette` the page's system colours.
+ */
+export const planePaintProblems = (plane, palette) => {
+  const colours = planePalette(palette);
+  if (!colours || !plane) return [];
+  const canvas = colours.Canvas;
+  const named = (rgb) => Object.entries(colours).find(([, value]) => sameColour(value, rgb))?.[0] || null;
+  const problems = [];
+  // `alpha`: the part's own opacity and its fill's or stroke's (a system colour
+  // may itself be translucent: Chromium's emulated Highlight is 80%, and is the
+  // theme's colour as given).
+  const judge = (what, value, alpha, { mustBe = null, notCanvas = false } = {}) => {
+    const text = String(value || '').trim();
+    if (!text || text === 'none' || text.startsWith('url(')) return;
+    const colour = parseColour(text);
+    if (!colour || colour[3] * alpha <= NOT_DRAWN) return;
+    const painted = over([colour[0], colour[1], colour[2], colour[3] * alpha], canvas);
+    const name = named(painted);
+    if (alpha < OPAQUE && !(name === 'Canvas' && !notCanvas)) problems.push({ what: `${what} translucent (${Math.round(alpha * 100)}%)`, colour: text });
+    else if (!name) problems.push({ what: `${what} not a colour of the theme${colour[3] < OPAQUE ? ' (translucent)' : ''}`, colour: text });
+    else if (mustBe && name !== mustBe) problems.push({ what: `${what} ${name}, not ${mustBe}`, colour: text });
+    else if (notCanvas && name === 'Canvas') problems.push({ what: `${what} the page's own colour`, colour: text });
+    else if (name !== 'Canvas' && contrastRatio(painted, canvas) < PLANE_CONTRAST) {
+      problems.push({ what: `${what} ${contrastRatio(painted, canvas).toFixed(2)}:1 against Canvas`, colour: text });
+    }
+  };
+  const board = plane.board || {};
+  judge('the board\'s background', board.background, 1, { mustBe: 'Canvas' });
+  if (board.border?.drawn) judge('the board\'s border', board.border.colour, 1);
+  const judgeParts = (parts) => parts.forEach((part) => {
+    const name = `${part.tag}${part.part ? ` (${part.part})` : ''}`;
+    const alpha = Number.isFinite(Number(part.alpha)) ? Number(part.alpha) : 1;
+    const fillAlpha = alpha * (Number.isFinite(Number(part.fillOpacity)) ? Number(part.fillOpacity) : 1);
+    const strokeAlpha = alpha * (Number.isFinite(Number(part.strokeOpacity)) ? Number(part.strokeOpacity) : 1);
+    // A <line> has no inside: its fill (black by default) is never drawn.
+    if (part.tag !== 'line') judge(`${name} fill`, part.fill, fillAlpha, { mustBe: part.part === 'paper' ? 'Canvas' : null });
+    if (parseFloat(part.strokeWidth) > 0) judge(`${name} stroke`, part.stroke, strokeAlpha);
+  });
+  judgeParts(plane.parts || []);
+  // Focused, only what focus adds (its crosshair): the parts it shares with the plane at rest were judged there.
+  const atRest = new Set(problems.map((problem) => `${problem.what} ${problem.colour}`));
+  const before = problems.length;
+  judgeParts(plane.focusedParts || []);
+  const added = problems.splice(before).filter((problem) => !atRest.has(`${problem.what} ${problem.colour}`));
+  problems.push(...added.map((problem) => ({ ...problem, what: `focused, ${problem.what}` })));
+  if (plane.focusRing?.drawn) judge('its focus ring', plane.focusRing.colour, 1, { notCanvas: true });
+  return problems;
+};
+
+/** mm-forced-plane-paint, for one plane: its problems grouped (the same kind of part, the same colour, once). */
+export const planePaintSummary = (problems) => {
+  const counts = new Map();
+  for (const problem of problems) {
+    const key = `${problem.what} ${problem.colour}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const lines = [...counts].map(([key, count]) => (count > 1 ? `${key} ×${count}` : key));
+  return `Under forced colours the plane keeps paint of its own: ${lines.slice(0, 6).join('; ')}${lines.length > 6 ? `; and ${lines.length - 6} more` : ''}.`;
+};
+
 // ------------------------------------------------------------------ judging
 const node = (target, html, summary) => ({ target: [target], html: String(html || '').slice(0, 240), failureSummary: summary });
 const violation = (id, nodes) => ({ id, impact: FORCED_COLORS_RULES[id].impact, help: FORCED_COLORS_RULES[id].help, helpUrl: FORCED_COLORS_RULES[id].helpUrl, nodes });
@@ -271,8 +393,10 @@ const violation = (id, nodes) => ({ id, impact: FORCED_COLORS_RULES[id].impact, 
  *           control): the control is reported once, when any peer looks the same
  *   focus   [{ target, html, focusVisible, focused, blurred, changedPixels }]
  *   math    [{ target, html, colour, formulaColour }]       every formula drawn
+ *   planes  [{ target, html, board, parts, focusedParts, focusRing }]  every coordinate plane, read
+ *           under forced colours, judged against `palette` (the page's system colours)
  */
-export const judgeForcedColors = ({ edges = [], states = [], focus = [], math = [] } = {}) => {
+export const judgeForcedColors = ({ edges = [], states = [], focus = [], math = [], planes = [], palette = null } = {}) => {
   const out = [];
   const edgeNodes = edges.filter(edgeLost).map((entry) => {
     const before = edgeOf(entry.normal);
@@ -294,5 +418,9 @@ export const judgeForcedColors = ({ edges = [], states = [], focus = [], math = 
   const mathNodes = math.filter(mathColourKept)
     .map((entry) => node(entry.target, entry.html, `The formula is drawn in ${entry.formulaColour}, the text around it in ${entry.colour}: under forced colours it kept a colour the theme does not give it.`));
   if (mathNodes.length) out.push(violation('mm-forced-math-colour-kept', mathNodes));
+  const planeNodes = planes.map((entry) => ({ entry, problems: planePaintProblems(entry, palette) }))
+    .filter(({ problems }) => problems.length)
+    .map(({ entry, problems }) => node(entry.target, entry.html, planePaintSummary(problems)));
+  if (planeNodes.length) out.push(violation('mm-forced-plane-paint', planeNodes));
   return out;
 };

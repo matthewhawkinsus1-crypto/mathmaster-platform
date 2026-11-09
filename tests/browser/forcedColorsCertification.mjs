@@ -40,6 +40,19 @@
  *   mm-forced-math-colour-kept    a formula not drawn in the colour the theme
  *                                 gives the text around it (one the switch to
  *                                 the light theme left white on its white page)
+ *   mm-forced-plane-paint         a coordinate plane not drawn in the theme's
+ *                                 colours: its board not Canvas, a line, mark or
+ *                                 word in a colour of its own, translucent, or
+ *                                 under 3:1 against Canvas, or its focus ring
+ *                                 not a colour of the theme
+ *
+ * THE PLANES. The certified scenes show the shared plane in a tool (Graphing, and
+ * the Math Tools Lab's), and no other kind of plane. So the walk also reads
+ * every kind on one page (PLANE_SCREENS, forcedColorsPlanes.html, on the stubbed
+ * server): the graph workspace with points placed and a curve drawn, a figure's
+ * static graph with its dashed and vertical lines and shaded half-planes, Graph
+ * Story's sketch, the Live Challenge rounds' graphs and a revealed line, and the
+ * graphing calculator's board, each scene read for its planes alone.
  *
  * HOW. Chromium draws forced colours when Playwright emulates them, and a
  * contrast theme sets prefers-color-scheme from its Canvas, as Windows tells
@@ -79,9 +92,33 @@ const repo = path.resolve(here, '../..');
 // The dark contrast theme first: the scene is driven in it, then read in both.
 export const CONTRAST_THEMES = Object.freeze(['dark', 'light']);
 
-// What the walk reads: the certified screens and the rounds' own (the student's arena in a Graph Feature Rush and a
-// Graph the Line round, the rounds' certified scenes that are not axe's: the large-text runs measure them).
-export const WALKED_SCREENS = Object.freeze([...CERTIFIED_SCREENS, ...LIVE_CHALLENGE_ROUND_SCREENS]);
+// Every kind of coordinate plane, on the planes' page (forcedColorsPlanes.html): read for its planes alone (their
+// tools' controls are the certified scenes'), the page and the calculator's board, which opens over it.
+const PLANES_PAGE = '/tests/browser/forcedColorsPlanes.html';
+const openPlanes = ({ query = '', ready }) => async (page, origins) => {
+  await page.goto(`${origins.audit}${PLANES_PAGE}${query}`, { timeout: 180_000 });
+  await page.locator(ready).first().waitFor({ timeout: 180_000 });
+  await page.waitForTimeout(1500);
+};
+export const PLANE_SCREENS = Object.freeze([
+  {
+    id: 'coordinate-planes',
+    harness: 'audit',
+    include: '[data-plane-gallery] [data-mm-plane]',
+    scenes: [{ id: null, run: openPlanes({ ready: '[data-plane-gallery="line-reveal"] [data-mm-plane]' }) }],
+  },
+  {
+    id: 'graphing-calculator',
+    harness: 'audit',
+    include: '[data-graphing-board][data-mm-plane]',
+    scenes: [{ id: null, run: openPlanes({ query: '?view=calculator', ready: '[data-graphing-board="ready"] svg' }) }],
+  },
+]);
+
+// What the walk reads: the certified screens, the rounds' own (the student's arena in a Graph Feature Rush and a
+// Graph the Line round, the rounds' certified scenes that are not axe's: the large-text runs measure them) and the
+// planes'.
+export const WALKED_SCREENS = Object.freeze([...CERTIFIED_SCREENS, ...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS]);
 
 /** The screens a run walks: those ONLY names, or every one of WALKED_SCREENS but those with a job of their own. */
 export const screensToWalk = (only) => {
@@ -207,7 +244,7 @@ const main = async () => {
             const result = await auditForcedColors(page, { name: label, viewport: key, include: scope.include, exclude: scope.exclude });
             results.push({ label, viewport: viewport.id, scheme, counts: result.counts, details: result.details, summary: result.summary });
             const total = Object.values(result.counts).reduce((sum, count) => sum + count, 0);
-            console.log(`${total ? 'FAIL' : 'ok  '} ${label.padEnd(40)} ${viewport.id.padEnd(8)} ${scheme.padEnd(6)} ${result.summary.controls} controls, ${result.summary.statesCompared} states, ${result.summary.stops} stops, ${result.summary.formulas} formulas${total ? `: ${total} finding(s)` : ''}`);
+            console.log(`${total ? 'FAIL' : 'ok  '} ${label.padEnd(40)} ${viewport.id.padEnd(8)} ${scheme.padEnd(6)} ${result.summary.controls} controls, ${result.summary.statesCompared} states, ${result.summary.stops} stops, ${result.summary.formulas} formulas, ${result.summary.planes} planes (${result.summary.planeParts} parts)${total ? `: ${total} finding(s)` : ''}`);
           } catch (error) {
             unreachable.push(`${label}|${key}: the forced-colours reading failed: ${error.message.split('\n')[0]}`);
           }

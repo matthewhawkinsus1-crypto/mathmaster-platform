@@ -43,6 +43,15 @@
  *                        text colour under forced colours
  *   math-theme-colour    fixed: words in the theme's own colour, which the switch
  *                        changes, and the formula follows them
+ *   plane-own-paint      a coordinate plane as the app draws it: an SVG drawing,
+ *                        whose paint forced colours leave alone, so its board,
+ *                        grid, axes, words, lines, points and shaded region keep
+ *                        the app theme's colours, and its focus ring the app's
+ *   plane-tinted-region  the plane in the theme's colours, its region shaded by a
+ *                        translucent tint (which a contrast theme does not draw
+ *                        reliably) instead of hatched
+ *   plane-focus-ring     the plane in the theme's colours, its focus ring the app's
+ *   plane-theme          fixed: the plane under src/theme/forcedColors.css itself
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -59,6 +68,24 @@ const TAB = '[role="tab"] { border: 1px solid #5f6368; border-radius: 8px; backg
 // root names, and a switch of contrast theme renames it (useContrastTheme). MathLive is the installed one.
 const THEMED = ':root[data-theme="dark"] { --page-text: #e8eaed; --page-bg: #111318; } :root[data-theme="light"] { --page-text: #202124; --page-bg: #fff; } body { color: var(--page-text); background: var(--page-bg); } math-span { color: inherit; }';
 const MATHLIVE = readFileSync(createRequire(import.meta.url).resolve('mathlive'), 'utf8');
+// A coordinate plane marked up as the app's planes are (data-mm-plane, data-mm-plane-part), painted as the app paints
+// one: its tokens per theme (src/theme/tokens.css), fixed colours for its marks, a translucent region, the page's own
+// focus ring. `PLANE_FIXED` is the platform's stylesheet for forced colours, read from src/theme/forcedColors.css.
+const PLANE_CSS = ':root { --mm-graph-bg: #ffffff; --mm-graph-axis: #5f6368; --mm-graph-grid: #dfe3e7; --mm-graph-label: #3c4043; --mm-focus: #1a73e8; } :root[data-theme="dark"] { --mm-graph-bg: #171a20; --mm-graph-axis: #d3d9e3; --mm-graph-grid: #4a5260; --mm-graph-label: #f1f4f9; --mm-focus: #a8c7fa; } :root[data-theme="dark"] body { background: #111318; color: #f3f5f9; } #planted { display: block; width: 360px; height: 240px; background: #fff; border: 1px solid #d9e2f1; border-radius: 12px; } :root[data-theme="dark"] #planted { background: #1b1e25; border-color: #2e3a50; } #planted:focus { outline: none; } #planted:focus-visible { outline: 3px solid var(--mm-focus); outline-offset: 2px; }';
+const PLANE_FIXED = readFileSync(new URL('../../src/theme/forcedColors.css', import.meta.url), 'utf8');
+const PLANE = `<svg id="planted" data-mm-plane="" role="application" tabindex="0" aria-label="Coordinate plane" viewBox="0 0 360 240">
+  <rect data-mm-plane-part="paper" x="20" y="20" width="320" height="200" style="fill: var(--mm-graph-bg)" />
+  ${[60, 100, 140, 220, 260, 300].map((x) => `<line data-mm-plane-part="grid" x1="${x}" y1="20" x2="${x}" y2="220" style="stroke: var(--mm-graph-grid)" />`).join('')}
+  ${[60, 160, 200].map((y) => `<line data-mm-plane-part="grid" x1="20" y1="${y}" x2="340" y2="${y}" style="stroke: var(--mm-graph-grid)" />`).join('')}
+  <polygon data-mm-plane-part="shade" points="20,220 340,220 340,60 20,180" fill="#1a73e8" fill-opacity="0.2" stroke="none" />
+  <line data-mm-plane-part="axis" x1="20" y1="120" x2="340" y2="120" style="stroke: var(--mm-graph-axis)" stroke-width="2" />
+  <line data-mm-plane-part="axis" x1="180" y1="20" x2="180" y2="220" style="stroke: var(--mm-graph-axis)" stroke-width="2" />
+  <text x="300" y="136" font-size="12" style="fill: var(--mm-graph-label)">3</text><text x="186" y="64" font-size="12" style="fill: var(--mm-graph-label)">2</text>
+  <line data-mm-plane-part="line" x1="20" y1="180" x2="340" y2="60" stroke="#1a73e8" stroke-width="3" />
+  <line data-mm-plane-part="line" x1="20" y1="40" x2="340" y2="200" stroke="#d93025" stroke-width="3" stroke-dasharray="10 6" />
+  <circle data-mm-plane-part="point" cx="260" cy="90" r="6" fill="#1a73e8" stroke="#fff" stroke-width="2" />
+  <circle data-mm-plane-part="open" cx="100" cy="80" r="7" fill="#fff" stroke="#d93025" stroke-width="3" />
+</svg>`;
 const CARD = '.card { display: inline-block; padding: 10px 18px; border: 1px solid #5f6368; border-radius: 10px; } .card input { position: absolute; opacity: 0; width: 1px; height: 1px; } .card:has(input:checked) { background: #1a73e8; color: #fff; }';
 
 export const PAGES = {
@@ -147,6 +174,30 @@ export const PAGES = {
     math: true,
     expect: [],
   },
+  'plane-own-paint': {
+    css: PLANE_CSS,
+    html: PLANE,
+    plane: true,
+    expect: ['mm-forced-plane-paint'],
+  },
+  'plane-tinted-region': {
+    css: `${PLANE_CSS} ${PLANE_FIXED} @media (forced-colors: active) { #planted [data-mm-plane-part="shade"] { fill-opacity: 0.25 !important; mask-image: none !important; } }`,
+    html: PLANE,
+    plane: true,
+    expect: ['mm-forced-plane-paint'],
+  },
+  'plane-focus-ring': {
+    css: `${PLANE_CSS} ${PLANE_FIXED} @media (forced-colors: active) { #planted:focus-visible { outline-color: #1a73e8 !important; } }`,
+    html: PLANE,
+    plane: true,
+    expect: ['mm-forced-plane-paint'],
+  },
+  'plane-theme': {
+    css: `${PLANE_CSS} ${PLANE_FIXED}`,
+    html: PLANE,
+    plane: true,
+    expect: [],
+  },
 };
 
 // A page of formulas opens as every scene does, in the walk's first contrast theme, and is switched to the other.
@@ -200,15 +251,20 @@ try {
       const targets = result.violations.flatMap((violation) => violation.nodes.map((node) => node.target[0]));
       const expected = expectedFor(name, scheme);
       // A page of mathematics whose formula was not read says so, never "found nothing".
-      const unread = PAGES[name].math && result.summary.formulas !== 1;
+      const unread = (PAGES[name].math && result.summary.formulas !== 1) || (PAGES[name].plane && result.summary.planes !== 1);
       const line = unread
-        ? `${name.padEnd(20)} ${scheme.padEnd(6)} read ${result.summary.formulas} formula(s), not the 1 on the page`
+        ? `${name.padEnd(20)} ${scheme.padEnd(6)} read ${PAGES[name].plane ? `${result.summary.planes} plane(s)` : `${result.summary.formulas} formula(s)`}, not the 1 on the page`
         : `${name.padEnd(20)} ${scheme.padEnd(6)} found ${found.length ? found.join(', ') : 'nothing'}${targets.length ? ` on ${targets.join(' | ')}` : ''}`;
       console.log(`${!unread && JSON.stringify(found) === JSON.stringify(expected) ? 'ok  ' : 'FAIL'} ${line}`);
       try {
-        // The walk read what it judges, first: a control, and a Tab stop; a page of mathematics, its formula.
+        // The walk read what it judges, first: a control, and a Tab stop; a page of mathematics, its formula; a page
+        // with a plane, the plane, its parts, and the plane focused.
         if (PAGES[name].math) assert.equal(result.summary.formulas, 1, `${name} (${scheme}): the formula was not read`);
-        else assert.ok(result.summary.controls > 0 || name.startsWith('state-choice'), `${name} (${scheme}): no control was read`);
+        else if (PAGES[name].plane) {
+          assert.equal(result.summary.planes, 1, `${name} (${scheme}): the plane was not read`);
+          assert.ok(result.summary.planeParts >= 10, `${name} (${scheme}): ${result.summary.planeParts} of the plane's parts read`);
+          assert.ok(result.readings.focus.some((entry) => entry.plane), `${name} (${scheme}): the plane was not read focused`);
+        } else assert.ok(result.summary.controls > 0 || name.startsWith('state-choice'), `${name} (${scheme}): no control was read`);
         assert.deepEqual(found, expected, `${name} (${scheme}): expected ${expected.join(', ') || 'nothing'}`);
         // A planted defect is found on the planted control, not somewhere near it.
         if (expected.length) assert.ok(targets.every((target) => /#planted\b/.test(target)), `${name} (${scheme}): reported on ${targets.join(' | ')}, not on #planted`);
