@@ -1,4 +1,7 @@
-import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '../assignments/assignmentRuntimeRepair.js';
+// The runtime's own copy of the repair's version, not the repair itself:
+// main.jsx publishes this build's info before the sign-in screen draws, which
+// needs the number only (assignmentRuntimeRepairVersion.js).
+import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from './assignmentRuntimeRepairVersion.js';
 
 const clean = (value) => String(value ?? '').trim();
 const version = (value, fallback = 0) => {
