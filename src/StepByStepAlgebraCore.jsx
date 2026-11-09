@@ -25,7 +25,6 @@ import {
   describeOperationToken,
   describePlacedOperation,
   getSuggestedMove,
-  isSolvedEquation,
   expressionsEquivalent,
   latexToExpression,
   parseEquationInput,
@@ -34,6 +33,7 @@ import {
 } from './algebraAstEngine';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
+import { committedCancellationModel, equationIsSolved } from './platform/algebra/committedEquationFacts.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -1032,7 +1032,8 @@ export default function StepByStepAlgebra({
         : resolution === 'keep'
           ? resolveEquationAfterKeepingMove(move, resolvedCrossedSides)
           : resolveEquationAfterMove(move, supportLevel, resolvedCrossedSides);
-      const nextSolved = isSolvedEquation(nextEquation);
+      // Through the cache, so the render that shows this equation does not ask again.
+      const nextSolved = equationIsSolved(nextEquation);
 
       // Persist the equation the student actually sees. A refresh should never
       // silently replace their intentionally-unsimplified work with the engine's
@@ -1335,7 +1336,7 @@ export default function StepByStepAlgebra({
     if (!equation || pendingMove) return [];
     return ['left', 'right'].filter((side) => {
       try {
-        return Boolean(buildCancellationModel(equation[side], null, equation.variable, [])?.pairs?.length);
+        return Boolean(committedCancellationModel(equation, side)?.pairs?.length);
       } catch {
         return false;
       }
@@ -1405,7 +1406,7 @@ export default function StepByStepAlgebra({
     window.setTimeout(() => setBalancePulse(false), motionDuration(650, reducedMotion, { floor: 60 }));
     setMessage({
       tone: 'success',
-      text: isSolvedEquation(nextEquation)
+      text: equationIsSolved(nextEquation)
         ? `${result.step.description}. The equation is now in the target form.`
         : `${result.step.description}. You did the algebra; MathMaster only checked it.`,
     });
@@ -2110,7 +2111,8 @@ export default function StepByStepAlgebra({
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
-  const solved = isSolvedEquation(equation);
+  // Once per equation, not once per render (committedEquationFacts.js).
+  const solved = equationIsSolved(equation);
   // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
   // hint control beside the work bar's Hint: it opened with no try at all and
   // was recorded only as "a hint was used". Inside a question it is now the
@@ -2793,8 +2795,9 @@ export default function StepByStepAlgebra({
               equation.variable,
               target.cancellationPairs,
             ) : null;
+            // With no move staged the side is the committed equation's own.
             const visibleCancellationModel = !pendingMove
-              ? buildCancellationModel(sideExpression(side), null, equation.variable, [])
+              ? committedCancellationModel(equation, side)
               : null;
             const cancellationModel = pendingCancellationModel
               || (visibleCancellationModel?.pairs?.length ? visibleCancellationModel : null);
