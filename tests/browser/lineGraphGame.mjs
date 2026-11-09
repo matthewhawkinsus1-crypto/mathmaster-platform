@@ -45,6 +45,7 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { explainRefusedLoads } from './support/refusalsAfterGameEnd.mjs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -141,6 +142,11 @@ const authFor = (identity = {}) => (identity.as === 'teacher'
   : { uid: `${identity.studentId}-uid`, token: { role: 'student', studentId: identity.studentId, email: `${identity.studentId}@example.com`, email_verified: true } });
 
 const bridgeCalls = [];
+// When the teacher ended each game (the bridge's clock). A student's request
+// still in flight then (the round's coalesced batch of attempts, its prefetch)
+// is refused because the game is over, which the browser logs as a 400: the
+// rule working, not the page failing (run()).
+const gameEndedAt = [];
 const bridge = http.createServer(async (request, response) => {
   response.setHeader('access-control-allow-origin', '*');
   response.setHeader('access-control-allow-headers', 'content-type');
@@ -159,11 +165,11 @@ const bridge = http.createServer(async (request, response) => {
   }
   try {
     const result = await handler.run({ auth: authFor(identity), data, rawRequest: { headers: {} } });
-    bridgeCalls.push({ name, identity, ms: Date.now() - startedAt, ok: true });
+    bridgeCalls.push({ name, identity, at: startedAt, ms: Date.now() - startedAt, ok: true });
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ data: result ?? null }));
   } catch (error) {
-    bridgeCalls.push({ name, identity, ms: Date.now() - startedAt, ok: false, code: error?.code });
+    bridgeCalls.push({ name, identity, at: startedAt, ms: Date.now() - startedAt, ok: false, code: error?.code, message: String(error?.message || '').slice(0, 160) });
     response.writeHead(400, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ code: error?.code || 'internal', message: error?.message || String(error), details: error?.details ?? null }));
   }
@@ -575,13 +581,19 @@ const run = async (name, scenario) => {
   if (ONLY.length && !ONLY.includes(name)) return;
   log(`▶ ${name}`);
   const before = findings.length;
+  const startedAt = Date.now();
   try {
     await scenario();
   } catch (error) {
     finding(name, `threw: ${error?.stack || error}`);
   }
   for (const handle of handles.splice(0)) {
-    if (handle.errors.length) finding(name, `${handle.studentId || 'teacher'} (${handle.device}): console errors ${JSON.stringify(handle.errors.slice(0, 3))}`);
+    // A student's 400 that the game's end explains is the rule working
+    // (support/refusalsAfterGameEnd.mjs); anything else stays a finding, with
+    // the student's refused calls beside it.
+    const { kept, explained, refusals } = explainRefusedLoads({ errors: handle.errors, calls: bridgeCalls, studentId: handle.studentId, since: startedAt, endedAt: gameEndedAt });
+    if (explained) notes.push({ scenario: name, student: handle.studentId, refusedAfterTheGameEnded: explained });
+    if (kept.length) finding(name, `${handle.studentId || 'teacher'} (${handle.device}): console errors ${JSON.stringify(kept.slice(0, 3))}${refusals.length ? `; refused: ${JSON.stringify(refusals.slice(0, 4))}` : ''}`);
     // eslint-disable-next-line no-await-in-loop
     await handle.context.close().catch(() => {});
   }
@@ -1085,6 +1097,7 @@ const countdownHeld = async (S, student, watch, first) => {
 const startOverShown = async (student) => (await student.page.getByRole('button', { name: 'Start over', exact: true }).count()) > 0;
 
 const endLineGame = async (S, teacher, roomId) => {
+  gameEndedAt.push(Date.now());
   await teacher.page.getByRole('button', { name: 'End Game' }).click();
   await teacher.page.getByRole('button', { name: 'End Game' }).last().click();
   check(S, await waitForRoom(roomId, (room) => room.status === 'finished', 20_000), 'End Game did not finish the game');
