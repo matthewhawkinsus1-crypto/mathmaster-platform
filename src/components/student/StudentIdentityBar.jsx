@@ -3,6 +3,7 @@ import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoun
 import { LOGOUT_RISK_MESSAGE } from '../../platform/student/logoutGuard.js';
 import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../platform/studentName.js';
 import { observeThenPublish } from '../../platform/layout/publishAfterResize.js';
+import { deferLayoutWrite, writeStyleVariable } from '../../platform/layout/layoutWrites.js';
 import StarIcon from '../common/StarIcon.jsx';
 import Dialog from '../../ui/Dialog.jsx';
 import './StudentIdentityBar.css';
@@ -74,10 +75,15 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
   useLayoutEffect(() => {
     const bar = barRef.current;
     if (!bar || typeof document === 'undefined') return undefined;
+    const { style } = document.documentElement;
+    // Both heights are read before either is written (read again after the
+    // first write, the bar laid the page out a second time), and written with
+    // what the rest of the commit measured (platform/layout/layoutWrites.js).
     const publishHeight = () => {
+      const barHeight = bar.offsetHeight;
       const noticeHeight = noticeRef.current?.offsetHeight || 0;
-      document.documentElement.style.setProperty(STUDENT_IDENTITY_BAR_HEIGHT, `${bar.offsetHeight}px`);
-      document.documentElement.style.setProperty(STUDENT_IDENTITY_STACK_OFFSET, `${bar.offsetHeight + noticeHeight}px`);
+      deferLayoutWrite(STUDENT_IDENTITY_BAR_HEIGHT, () => writeStyleVariable(style, STUDENT_IDENTITY_BAR_HEIGHT, `${barHeight}px`));
+      deferLayoutWrite(STUDENT_IDENTITY_STACK_OFFSET, () => writeStyleVariable(style, STUDENT_IDENTITY_STACK_OFFSET, `${barHeight + noticeHeight}px`));
     };
     // Measured now, before the first paint, and again when the bar or its
     // notice changes size: in the frame after the observer reports it, never
@@ -86,10 +92,13 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
     // were being delivered (a ResizeObserver loop error in Work View at 200%
     // text and when the phone turned: platform/layout/publishAfterResize.js).
     const stopObserving = observeThenPublish({ targets: [bar, noticeRef.current], publish: publishHeight });
+    // Each screen draws its own bar, so opening an assignment unmounts one and
+    // mounts the next in the same commit: removed only if no bar is back by
+    // then, and a bar of the same height changes nothing.
     return () => {
       stopObserving();
-      document.documentElement.style.removeProperty(STUDENT_IDENTITY_STACK_OFFSET);
-      document.documentElement.style.removeProperty(STUDENT_IDENTITY_BAR_HEIGHT);
+      deferLayoutWrite(STUDENT_IDENTITY_STACK_OFFSET, () => writeStyleVariable(style, STUDENT_IDENTITY_STACK_OFFSET, null));
+      deferLayoutWrite(STUDENT_IDENTITY_BAR_HEIGHT, () => writeStyleVariable(style, STUDENT_IDENTITY_BAR_HEIGHT, null));
     };
   }, [hasNotice]);
 

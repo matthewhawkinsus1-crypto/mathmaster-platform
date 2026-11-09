@@ -13,6 +13,7 @@ import {
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
 import { OPENER_GAP, observeOpenerRoom, openerSharesRow } from '../../platform/workView/openerPlacement.js';
+import { cancelLayoutWrite, deferLayoutWrite, writeStyleVariable } from '../../platform/layout/layoutWrites.js';
 import { WorkViewPresentationContext } from '../../platform/workView/workViewPresentation.js';
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
@@ -486,6 +487,10 @@ export default function EnlargeableFigure({
     const opener = openerRef.current;
     const surface = opener?.parentElement;
     if (enlarged || !opener || !surface) return undefined;
+    // Everything is read before anything is written, and written with what the
+    // rest of the commit measured (platform/layout/layoutWrites.js): read after
+    // these writes, the button's bottom edge laid the page out a second time,
+    // and the sticky bars' measurements after them a third.
     const publishSpace = () => {
       const width = Math.ceil(opener.offsetWidth);
       const stacked = !openerSharesRow({
@@ -493,10 +498,18 @@ export default function EnlargeableFigure({
         openerWidth: width,
         fontSize: Number.parseFloat(window.getComputedStyle(opener).fontSize),
       });
-      if (stacked) surface.setAttribute('data-opener-stacked', 'true');
-      else surface.removeAttribute('data-opener-stacked');
-      surface.style.setProperty('--mm-work-view-opener-space', stacked ? '0px' : `${width + OPENER_GAP}px`);
-      surface.style.setProperty('--mm-work-view-opener-bottom', stacked ? '0px' : `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
+      // The button's bottom edge is read with the rest: the writes move it only
+      // when it leaves a row of its own for the corner, and then it is read
+      // there, once the row has gone.
+      const bottomEdge = () => Math.ceil(opener.offsetTop + opener.offsetHeight);
+      const leavesItsRow = !stacked && surface.hasAttribute('data-opener-stacked');
+      const bottom = stacked || leavesItsRow ? 0 : bottomEdge();
+      deferLayoutWrite(surface, () => {
+        if (stacked) surface.setAttribute('data-opener-stacked', 'true');
+        else surface.removeAttribute('data-opener-stacked');
+        writeStyleVariable(surface.style, '--mm-work-view-opener-space', stacked ? '0px' : `${width + OPENER_GAP}px`);
+        writeStyleVariable(surface.style, '--mm-work-view-opener-bottom', stacked ? '0px' : `${leavesItsRow ? bottomEdge() : bottom}px`);
+      });
     };
     // Measured now, and again when the button or the room beside it changes:
     // in the frame after the observer reports it, never inside its callback,
@@ -505,6 +518,7 @@ export default function EnlargeableFigure({
     const stopObserving = observeOpenerRoom({ opener, surface, publish: publishSpace });
     return () => {
       stopObserving();
+      cancelLayoutWrite(surface);
       surface.removeAttribute('data-opener-stacked');
       surface.style.removeProperty('--mm-work-view-opener-space');
       surface.style.removeProperty('--mm-work-view-opener-bottom');
