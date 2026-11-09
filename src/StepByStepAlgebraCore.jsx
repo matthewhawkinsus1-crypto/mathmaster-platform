@@ -24,16 +24,14 @@ import {
   expressionToLatex,
   describeOperationToken,
   describePlacedOperation,
-  getSuggestedMove,
   expressionsEquivalent,
   latexToExpression,
   parseEquationInput,
   parseOperationOperand,
-  splitAdditiveTerms,
 } from './algebraAstEngine';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
-import { committedCancellationModel, equationIsSolved } from './platform/algebra/committedEquationFacts.js';
+import { boardTerms, committedCancellationModel, equationIsSolved, strategicHintReadings } from './platform/algebra/committedEquationFacts.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -109,6 +107,12 @@ const OPERATIONS = [
 // in the same sentence.
 const CANCEL_KEYS = 'Tab to one and press Enter';
 
+// A record that holds the student's saved equation (both sides).
+const recordHoldsEquation = (record) => {
+  const saved = record?.algebraState?.equation;
+  return Boolean(saved?.left && saved?.right);
+};
+
 /**
  * Returns `{ equation, error }` rather than throwing.
  *
@@ -120,7 +124,7 @@ const CANCEL_KEYS = 'Tab to one and press Enter';
  */
 export const getInitialEquation = (question, record) => {
   const saved = record?.algebraState?.equation;
-  if (saved?.left && saved?.right) return { equation: saved, error: null };
+  if (recordHoldsEquation(record)) return { equation: saved, error: null };
   try {
     return { equation: parseEquationInput(question), error: null };
   } catch (error) {
@@ -465,8 +469,12 @@ export default function StepByStepAlgebra({
   const initialEquation = initialParse.equation;
   const parseError = initialParse.error;
   // Reset Work must return to the authored equation for this variant, not to
-  // the latest saved server-side algebraState.
-  const pristineEquation = useMemo(() => getInitialEquation(question, null).equation, [question]);
+  // the latest saved server-side algebraState. With no equation saved on the
+  // record the initial reading above is that authored one, so it is not read twice.
+  const pristineEquation = useMemo(
+    () => (recordHoldsEquation(normalizedRecord) ? getInitialEquation(question, null).equation : initialEquation),
+    [question],
+  );
   const localDraftKey = draftKey ? `${draftKey}:step-algebra` : null;
   const rawSavedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
   // Pending moves are derived engine state. Never trust an old serialized copy
@@ -622,13 +630,16 @@ export default function StepByStepAlgebra({
     placedOperationPositionsRef.current = placedOperationPositions;
   }, [placedOperationPositions]);
 
+  // The committed equation as LaTeX, once per equation: the board's
+  // data-math-state, the operand keyboard's letters and the reported work all read it.
+  const equationLatex = useMemo(() => (equation ? equationToLatex(equation) : ''), [equation]);
   const operationContextSymbols = useMemo(() => extractEquationSymbols(
     question?.equation,
     question?.formula,
-    equation ? equationToLatex(equation) : '',
+    equationLatex,
     question?.solveFor,
     equation?.variable,
-  ), [question?.equation, question?.formula, question?.solveFor, equation]);
+  ), [question?.equation, question?.formula, question?.solveFor, equation, equationLatex]);
 
   // THE PROBLEM THE RESET BELOW SETS UP, NOT EVERY FIELD OF THE QUESTION
   // (TL16, A2-117). The question's content also changes when the problem does
@@ -642,7 +653,11 @@ export default function StepByStepAlgebra({
     () => JSON.stringify([localDraftKey, pristineEquation, question.workspaceDifficulty ?? question.mode ?? null, Boolean(question.prefillFirstStep)]),
     [localDraftKey, pristineEquation, question.workspaceDifficulty, question.mode, question.prefillFirstStep],
   );
-  const problemSetUpRef = useRef(null);
+  // With no draft the board starts as this problem set up (the state above is
+  // read from the question), so the first render is not set up again: that
+  // drew the whole solver a second time with an equal equation, a new object,
+  // and worked out every reading of it twice, mathjs included.
+  const problemSetUpRef = useRef(savedDraft ? null : problemKey);
 
   useEffect(() => {
     if (savedDraft) return;
@@ -737,7 +752,6 @@ export default function StepByStepAlgebra({
     // stepAlgebraWorkspaceGrading.mjs): solved for the question's objective,
     // the same solutions as the question's original equation, every prompt.
     const result = gradeToolCheck(workGraderForQuestion(question), question, gradingWork);
-    const equationLatex = equationToLatex(equation);
     const objective = result.parts.find((part) => part.id === 'algebra-objective');
     const promptParts = result.parts.filter((part) => part.id !== 'algebra-objective');
     const shared = answerStateFromSharedGrading(result, {
@@ -757,7 +771,7 @@ export default function StepByStepAlgebra({
         ? shared.parts.map((part) => (part.id === 'algebra-objective' ? { ...part, response: equationLatex } : part))
         : [{ id: 'algebra-objective', label: question.objective?.label || 'Solve the equation', isComplete: false, isCorrect: false, response: equationLatex }],
     });
-  }, [equation, gradingWork, question, promptAnswers, onStateChange]);
+  }, [equation, gradingWork, question, promptAnswers, onStateChange, equationLatex]);
 
   useEffect(() => {
     onWorkStepsChange?.(workSteps);
@@ -2078,7 +2092,7 @@ export default function StepByStepAlgebra({
    */
   const placementSlotsFor = (side) => keyboardPlacementSlots({
     operation: armedTile?.operation,
-    terms: splitAdditiveTerms(sideExpression(side)) || [],
+    terms: boardTerms(sideExpression(side)) || [],
   });
   const keyboardSlotIndex = (side, slots) => (keyboardSlot?.side === side ? keyboardSlot.index : keyboardPlacementStart(slots));
   const showPlacementCue = (side, slot) => {
@@ -2107,12 +2121,13 @@ export default function StepByStepAlgebra({
     setKeyboardSlot({ side, index: next });
     showPlacementCue(side, slots[next]);
   };
-  const suggestedMove = getSuggestedMove(equation);
+  // The strategic hint's two readings, once per equation and only where the
+  // hint can be offered (committedEquationFacts.js).
+  const hintOffered = hintsAllowed && question.showHint !== false;
+  const { suggestedMove, solved } = strategicHintReadings(equation, { offered: hintOffered });
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
-  // Once per equation, not once per render (committedEquationFacts.js).
-  const solved = equationIsSolved(equation);
   // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
   // hint control beside the work bar's Hint: it opened with no try at all and
   // was recorded only as "a hint was used". Inside a question it is now the
@@ -2358,7 +2373,8 @@ export default function StepByStepAlgebra({
     const inlineDistribution = renderInlineDistributionSide(side);
     if (inlineDistribution) return equationSide(inlineDistribution, 'is-inline-distribution');
 
-    const terms = splitAdditiveTerms(sideExpression(side));
+    // Once per side's text, not once per render (committedEquationFacts.js).
+    const terms = boardTerms(sideExpression(side));
     // Simplify highlights every part it can act on, directly on the equation.
     // A tap on a highlighted term chooses its part; the parts are also one
     // keyboard toolbar in the Simplify panel, in this same reading order, so
@@ -2456,7 +2472,7 @@ export default function StepByStepAlgebra({
     } else {
       const additivePosition = position && typeof position === 'object'
         ? position
-        : { kind: 'end', termIndex: Math.max(0, (splitAdditiveTerms(sideExpression(side))?.length || 1) - 1) };
+        : { kind: 'end', termIndex: Math.max(0, (boardTerms(sideExpression(side))?.length || 1) - 1) };
       try {
         previewLatex = expressionToLatex(applyAdditiveOperationAtPlacement(
           sideExpression(side),
@@ -2782,7 +2798,7 @@ export default function StepByStepAlgebra({
         </div>}
 
         <div
-          data-math-state={equationToLatex(equation)}
+          data-math-state={equationLatex}
           // A named group (axe: aria-label on a role-less div is prohibited).
           role="group"
           aria-label="Interactive algebra balance scale"
