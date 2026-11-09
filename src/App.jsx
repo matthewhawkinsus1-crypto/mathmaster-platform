@@ -224,6 +224,7 @@ import { SR_ONLY_STYLE } from './ui/srOnly.js';
 import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
 import { measurePerformanceOperation, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
+import { sameStableValue, useRenderStability } from './platform/performance/renderStability.js';
 import {
   createDurableAction,
   drainDurableActions,
@@ -517,6 +518,9 @@ import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
 // not per-render or per-teacher state (see the identical constant in
 // LiveClassMonitor.jsx, which needs the same calendar for the same reason).
 const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
+// An assignment with no records yet: one object, so what is worked out from
+// it is not worked out again on every render.
+const NO_RECORDS = Object.freeze({});
 
 function App() {
   const auth = useAuth();
@@ -1025,6 +1029,11 @@ function App() {
 
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
+  // What App's render works out, made to change only when what it means
+  // changes: QuestionEngine is memoised (app/lazyScreens.js), and App renders
+  // seven to thirteen times on a Submit or Next and every 30 seconds for this
+  // clock (platform/performance/renderStability.js).
+  const [stableCallbacks, renderMemo] = useRenderStability();
   const [classSchedule, setClassSchedule] = useState(DEFAULT_CLASS_SCHEDULE);
   const [courseProfiles, setCourseProfiles] = useState(() => defaultCourseProfiles(CLASS_PERIODS));
   const [courseProfilesSaving, setCourseProfilesSaving] = useState(false);
@@ -3908,7 +3917,9 @@ function App() {
     [rawActiveAssignmentData],
   );
   const activeAssignmentData = activeRuntimeRepair?.assignment || null;
-  const activeQuestions = getStoredAssignmentQuestions(activeAssignmentData);
+  // A new object per question on every call: worked out once per copy of the
+  // assignment, and so the same question QuestionEngine was handed before.
+  const activeQuestions = useMemo(() => getStoredAssignmentQuestions(activeAssignmentData), [activeAssignmentData]);
 
   useEffect(() => {
     if (user?.role !== 'student' || activeView !== 'assignment' || !rawActiveAssignmentData?.contentUpgrade) return;
@@ -10235,7 +10246,9 @@ function App() {
       );
     }
 
-    const questions = getStoredAssignmentQuestions(assignment);
+    // Worked out above for this same assignment, once per copy of it: the
+    // question QuestionEngine is handed keeps its identity.
+    const questions = activeQuestions;
     const currentContent = projectCurrentAssignmentContent(assignment);
     const lifecycle = getAssignmentLifecycle(assignment, now, {
       studentId: !preview && user?.role === 'student' ? user.id : undefined,
@@ -10268,11 +10281,11 @@ function App() {
     // over their own required items even in post-deadline Practice Mode — the
     // number the Grade Center and Classroom show.
     const officialSupportProfile = !preview && user?.role === 'student' ? user.profile : null;
-    const recordedTracker = tracker[activeAssignmentId] || {};
+    const recordedTracker = tracker[activeAssignmentId] || NO_RECORDS;
     const workingTracker = preview
       ? previewTracker
       : lifecycle.isPracticeOnly
-        ? practiceTracker[activeAssignmentId] || createPracticeAssignmentTracker(questions, recordedTracker)
+        ? practiceTracker[activeAssignmentId] || renderMemo('practiceTracker', [questions, recordedTracker], () => createPracticeAssignmentTracker(questions, recordedTracker))
         : recordedTracker;
     const recordedGrade = calculateGrade(recordedTracker, assignment, { supportProfile: officialSupportProfile });
     const gradeSplit = splitGrade({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
@@ -10334,7 +10347,7 @@ function App() {
     });
     const runtimeQuestionActivityPolicy = currentReplacementAllowed === runtimeActivityPolicy.allowReplacement
       ? runtimeActivityPolicy
-      : { ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed };
+      : renderMemo('activityPolicy', [runtimeActivityPolicy, currentReplacementAllowed], () => ({ ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed }));
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
@@ -10349,7 +10362,10 @@ function App() {
     const familyEngineLoading = !familyDelivery;
     // The server's pins, once read, for this assignment only (RT15).
     const serverPinsRead = serverDeliveryPins.assignmentId === assignment.id && serverDeliveryPins.known;
-    const currentFamilyContext = !familyDelivery ? null : familyDelivery.buildStudentFamilyContext({
+    // Built on every render, as it always was: it reads this device's delivery
+    // pins from storage, which no React input says has changed (a pin written
+    // when the question reports what it showed). Kept while it says the same.
+    const currentFamilyContext = !familyDelivery ? null : renderMemo('familyContext', null, () => familyDelivery.buildStudentFamilyContext({
       assignment,
       question: questions[currentQuestionIndex],
       storageIndex: currentQuestionIndex,
@@ -10359,7 +10375,7 @@ function App() {
       record: workingTracker?.[currentQuestionIndex],
       preview,
       serverPins: serverPinsRead ? serverDeliveryPins.pins : null,
-    });
+    }), sameStableValue);
     // A FRESH ALLOCATION WAITS FOR THE SERVER'S PINS (RT15). A personalized
     // question with no pin on this device — none from its record, none of its
     // own — would be dealt numbers here that another Chromebook may already
@@ -10382,13 +10398,15 @@ function App() {
     // record what was actually delivered. Resolving it in two places would let
     // the evidence disagree with the question the student answered — which is
     // the defect this whole seam exists to close.
-    const currentAdaptation = preview ? null : resolveDeliveredQuestionMetadata({
+    // Pure in its inputs; the learning profile is rebuilt with every tracker
+    // change, so a result that says the same keeps its identity.
+    const currentAdaptation = preview ? null : renderMemo('adaptation', [questions[currentQuestionIndex], studentLearningProfile, runtimeActivityRole, currentSectionVariantMode, user?.profile?.courseLevel], () => resolveDeliveredQuestionMetadata({
       question: questions[currentQuestionIndex],
       learningProfile: studentLearningProfile,
       activityRole: runtimeActivityRole,
       variationMode: currentSectionVariantMode,
       honors: String(user?.profile?.courseLevel || '').toLowerCase() === 'honors',
-    });
+    }), sameStableValue);
     const draftSessionMode = preview ? 'preview' : lifecycle.isPracticeOnly ? 'post-deadline-practice' : lifecycle.isLate ? 'late' : 'graded';
     const supportPresentation = preview ? getStudentSupportPresentation({}) : activeSupportPresentation;
     const replacementWarning = currentIsDOL && dolState.status === 'active'
@@ -10672,6 +10690,26 @@ function App() {
         sectionLabelOf: (role) => (role === 'dol' ? EXIT_TICKET : activitySectionMeta[role]?.label || ''),
       })
       : null;
+    // "Ask my teacher" on this question: rebuilt only when what it says does
+    // (the mode turns at the bell, a question is left or answered).
+    const askTeacherQuestion = questionFor(askMyTeacher.questions, { assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex });
+    const { onSendQuestion } = stableCallbacks({
+      onSendQuestion: askMyTeacher.canLeaveQuestion
+        ? ({ existing, text }) => askMyTeacher.sendQuestion({
+          existing,
+          text,
+          questionIndex: currentQuestionIndex,
+          questionLabel: `${currentSectionMeta.label} · Question ${currentSectionQuestionNumber}`,
+          assignmentTitle: assignment?.title || '',
+        })
+        : null,
+    });
+    const askTeacherContext = renderMemo('askTeacherContext', [askMyTeacher.mode, askMyTeacher.acknowledgement, askTeacherQuestion, onSendQuestion], () => ({
+      mode: askMyTeacher.mode,
+      acknowledgement: askMyTeacher.acknowledgement,
+      question: askTeacherQuestion,
+      onSendQuestion,
+    }));
     const returnsToAssignmentResult = !preview
       && assignmentResultRoute?.assignmentId === activeAssignmentId;
     // Name the destination, not the direction. A student who opened this from
@@ -11361,21 +11399,40 @@ function App() {
             {!preview && <TeacherAnswersList questions={askMyTeacher.questions} compact />}
             {familyEngineLoading || familyPinPending ? <p role="status" style={{ padding: 24, margin: 0 }}>Loading this question…</p> : <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
+              // Each one function for App's life, calling this render's
+              // handler; null where the question offers no such action.
+              {...stableCallbacks({
+                onFamilyDelivery: preview ? handlePreviewFamilyDelivery : handleFamilyDelivery,
+                onGrade: handleGradeSubmit,
+                onResponseCheckpoint: preview ? null : handleResponseCheckpoint,
+                onStepGrade: handleStepGrade,
+                onRequestNewQuestion: handleRequestNewQuestion,
+                onLoadScratchpad: handleLoadScratchpad,
+                onSaveScratchpad: handleSaveScratchpad,
+                onNextQuestion: engineNextEntry ? () => changeQuestion(engineNextEntry.index) : null,
+                onContinueSection: assignmentHandoff ? continueAfterSection : null,
+                onGoBackToQuestion: skippedQuestion ? () => changeQuestion(skippedQuestion.index) : null,
+                onSupportEvidence: preview || lifecycle.isPracticeOnly
+                  ? null
+                  : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole }),
+                onAskTeacher: preview || lifecycle.isPracticeOnly || user?.role !== 'student'
+                  ? null
+                  : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex })),
+              })}
+              // Not through stableCallbacks: a new identity is how the question
+              // learns of a Spotlight request (the student pressed Present
+              // Now), and it sends the frame on screen at once (its effect
+              // follows this prop). Null while there is none to send to.
+              onSpotlightFrame={preview ? null : studentSpotlightRequest && publishSpotlightWork}
               draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
               familyContext={currentFamilyContext}
-              onFamilyDelivery={preview ? handlePreviewFamilyDelivery : handleFamilyDelivery}
               adaptation={currentAdaptation}
-              onGrade={handleGradeSubmit}
-              onResponseCheckpoint={preview ? null : handleResponseCheckpoint}
-              onSpotlightFrame={preview ? null : publishSpotlightWork}
-              onStepGrade={handleStepGrade}
-              onRequestNewQuestion={handleRequestNewQuestion}
-              onLoadScratchpad={handleLoadScratchpad}
-              onSaveScratchpad={handleSaveScratchpad}
-              studentProfile={preview ? null : adaptiveStudentProfile || user?.profile}
+              // Rebuilt with every tracker change (the mastery profile under
+              // it); kept while it says the same.
+              studentProfile={preview ? null : renderMemo('studentProfile', [adaptiveStudentProfile || user?.profile], () => adaptiveStudentProfile || user?.profile, sameStableValue)}
               guidedMode={['classwork', 'practice'].includes(runtimeActivityRole) && currentGuidedNotesMode !== 'off'}
               guidedNotesMode={currentGuidedNotesMode}
               assignmentLocked={!preview && ((currentIsDOL && dolState.status === 'ended') || (currentIsWarmup && warmupState.status !== 'active') || currentSectionManuallyLocked)}
@@ -11419,37 +11476,15 @@ function App() {
               draftKey={buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
               assignmentId={activeAssignmentId}
               executionScope={preview ? 'teacherPreview' : lifecycle.isPracticeOnly ? 'postDuePractice' : 'student'}
-              onNextQuestion={engineNextEntry ? () => changeQuestion(engineNextEntry.index) : null}
               nextQuestionLabel={nextQuestionDestinationLabel}
               nextQuestionSectionLabel={nextQuestionSectionMeta?.label || ''}
               sectionComplete={Boolean(currentNavigationSection?.complete)}
               sectionLabel={currentSectionMeta.label}
               sectionQuestionCount={currentSectionQuestionCount}
-              onContinueSection={assignmentHandoff ? continueAfterSection : null}
               continueSectionLabel={assignmentHandoff?.label || ''}
-              onGoBackToQuestion={skippedQuestion ? () => changeQuestion(skippedQuestion.index) : null}
               goBackLabel={skippedQuestion?.label || ''}
-              onSupportEvidence={preview || lifecycle.isPracticeOnly
-                ? null
-                : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
-              onAskTeacher={preview || lifecycle.isPracticeOnly || user?.role !== 'student'
-                ? null
-                : (requested) => setHelpRequest(nextHelpRequest({ requested, assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }))}
               helpRequested={helpRequest?.assignmentId === activeAssignmentId && helpRequest?.questionIndex === currentQuestionIndex}
-              askTeacherContext={{
-                mode: askMyTeacher.mode,
-                acknowledgement: askMyTeacher.acknowledgement,
-                question: questionFor(askMyTeacher.questions, { assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex }),
-                onSendQuestion: askMyTeacher.canLeaveQuestion
-                  ? ({ existing, text }) => askMyTeacher.sendQuestion({
-                    existing,
-                    text,
-                    questionIndex: currentQuestionIndex,
-                    questionLabel: `${currentSectionMeta.label} · Question ${currentSectionQuestionNumber}`,
-                    assignmentTitle: assignment?.title || '',
-                  })
-                  : null,
-              }}
+              askTeacherContext={askTeacherContext}
             />}
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.

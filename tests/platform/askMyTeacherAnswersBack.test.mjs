@@ -282,12 +282,17 @@ test('the hook owns the hand: restored on entering an assignment, forgotten on l
   // The old reset on every assignment change is gone: it ran after the
   // restore and lowered the hand a reload had just brought back.
   assert.doesNotMatch(app, /useEffect\(\(\) => \{ setHelpRequest\(null\); \}, \[activeAssignmentId\]\);/);
-  // The host hands the engine this question's asking state.
-  const context = region(app, 'askTeacherContext={{', '}}', 'the ask context');
+  // The host hands the engine this question's asking state: built in the
+  // workspace once per change of what it says (renderStability.js), and
+  // handed to the engine as itself.
+  const context = region(app, 'const askTeacherQuestion = questionFor(', '}));', 'the ask context');
+  assert.match(context, /^const askTeacherQuestion = questionFor\(askMyTeacher\.questions, \{ assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\);/);
+  assert.match(context, /onSendQuestion: askMyTeacher\.canLeaveQuestion\s*\? \(\{ existing, text \}\) => askMyTeacher\.sendQuestion\(\{[^}]*questionIndex: currentQuestionIndex,/);
   assert.match(context, /mode: askMyTeacher\.mode,/);
   assert.match(context, /acknowledgement: askMyTeacher\.acknowledgement,/);
-  assert.match(context, /question: questionFor\(askMyTeacher\.questions, \{ assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex \}\),/);
-  assert.match(context, /questionIndex: currentQuestionIndex,/);
+  assert.match(context, /question: askTeacherQuestion,/);
+  assert.match(context, /onSendQuestion,\s*$/);
+  assert.match(app, /\n\s*askTeacherContext=\{askTeacherContext\}\n/);
   assert.match(app, /\{!preview && <TeacherAnswersList questions=\{askMyTeacher\.questions\} compact \/>\}/);
 });
 

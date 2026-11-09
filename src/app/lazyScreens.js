@@ -4,7 +4,7 @@
  * downloads a screen when they first open it, never at sign-in
  * (tests/platform/initialBundleBoundary.test.mjs).
  */
-import { Suspense, createElement, lazy, useEffect, useState } from 'react';
+import { Suspense, createElement, lazy, memo, useEffect, useState } from 'react';
 // Not screens: what a student screen below wraps itself in (PF01).
 import ScreenErrorBoundary from '../components/common/ScreenErrorBoundary.jsx';
 import { CHUNK_RETRY, retryableChunk } from '../platform/runtime/retryableChunk.js';
@@ -13,7 +13,12 @@ import { focusAlreadyPlaced, focusScreenHeading } from './shell/screenChange.js'
 
 export const ClassroomManagerV2 = lazy(() => import('../ClassroomManagerV2.jsx'));
 export const AssignmentQuestionEditor = lazy(() => import('../AssignmentQuestionEditor.jsx'));
-export const QuestionEngine = lazy(() => import('../QuestionEngine.jsx'));
+// App's question, drawn again only when one of its props changes: App renders
+// seven to thirteen times on a Submit or Next and every 30 seconds for its
+// clock, and keeps each prop the same until what it means changes
+// (platform/performance/renderStability.js). Every other host imports the
+// module itself, unmemoised.
+export const QuestionEngine = memo(lazy(() => import('../QuestionEngine.jsx')));
 export const AssignmentIntake = lazy(() => import('../AssignmentIntake.jsx'));
 export const TeacherQuestionReviewPanel = lazy(() => import('../components/teacher/TeacherQuestionReviewPanel.jsx'));
 // The teacher's whole screen (student push G2): App's teacher branch, moved

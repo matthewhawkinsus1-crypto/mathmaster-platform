@@ -47,7 +47,9 @@ test('the question engine reports read-aloud use at the button and calculator us
 
 test('only real student credit work records evidence; previews and post-deadline practice never do', () => {
   const mount = region(app, '<QuestionEngine', '/>', 'QuestionEngine mount');
-  assert.match(mount, /onSupportEvidence=\{preview \|\| lifecycle\.isPracticeOnly\s*\? null/);
+  // Among the engine's handlers (renderStability.js stableCallbacks): null in
+  // a preview and in post-deadline practice, so nothing there is recorded.
+  assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onSupportEvidence: preview \|\| lifecycle\.isPracticeOnly\s*\? null/);
   const recorder = region(app, 'const recordStudentSupportEvidence = (', '\n  };', 'student recorder');
   assert.match(recorder, /if \(user\?\.role !== 'student' \|\| !user\.id \|\| !activeAssignmentId \|\| isPracticeMode\) return;/);
   assert.match(recorder, /if \(!studentMayRecordSupport\(user\.profile, supportId\)\) return;/);

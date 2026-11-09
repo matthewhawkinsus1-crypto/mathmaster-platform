@@ -256,8 +256,8 @@ test('App wires the save line: the model it imports, an answer marked as sent on
   // An answer is marked as sent only once it is in the device queue — the
   // submit and step paths, right after their enqueue — never by pressing
   // Submit (a no-credit practice submit queues nothing).
-  assert.match(mount, /onGrade=\{handleGradeSubmit\}/);
-  assert.match(mount, /onStepGrade=\{handleStepGrade\}/);
+  // (Handed among the engine's handlers, renderStability.js stableCallbacks.)
+  assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onGrade: handleGradeSubmit,\n[\s\S]*\n\s*onStepGrade: handleStepGrade,\n/);
   const queuedAnswer = region(app, "kind: 'ordinarySubmission'", '} catch (error) {', 'the answer enqueue');
   assert.match(queuedAnswer, /\}\)\);\s*(\/\/[^\n]*\n\s*)*markAnswerSent\(\);\s*setStudentOutboxDepth\(\(depth\) => depth \+ 1\);\s*setStudentPersistenceStatus\('queued'\);\s*$/);
   const queuedStep = region(app, "kind: 'stepSubmission'", '} catch (error) {', 'the step enqueue');
@@ -326,7 +326,9 @@ test('a skipped question is the way back, named in the student\'s words', () => 
   assert.match(skipped, /^const skippedQuestion = !nextQuestionEntry && !currentNavigationSection\?\.complete\s*\? resolveSkippedQuestion\(\{/);
   assert.match(skipped, /isWorkable: entryIsWorkableNow,/);
   const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
-  assert.match(mount, /onGoBackToQuestion=\{skippedQuestion \? \(\) => changeQuestion\(skippedQuestion\.index\) : null\}/);
+  // Among the engine's handlers (renderStability.js stableCallbacks): a
+  // call always reaches this render's way back.
+  assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onGoBackToQuestion: skippedQuestion \? \(\) => changeQuestion\(skippedQuestion\.index\) : null,\n/);
   assert.match(mount, /goBackLabel=\{skippedQuestion\?\.label \|\| ''\}/);
 });
 

@@ -33,8 +33,10 @@ test('App offers only an INCOMPLETE later section, then the results (with its im
   assert.doesNotMatch(workspace, /resolveUpNext\(|startAssignment\(/);
   assert.match(workspace, /: \(\) => openStudentAssignmentResult\(activeAssignmentId, \{ origin: 'assignments' \}\);/);
   assert.match(app, /import \{[^}]*\bresolveAssignmentHandoff\b[^}]*\} from '\.\/platform\/student\/assignmentHandoff\.js'/);
-  const engine = region(app, 'onContinueSection={', 'continueSectionLabel=', 'QuestionEngine hand-off prop');
-  assert.match(engine, /assignmentHandoff/);
+  // Handed to QuestionEngine among its handlers (each a stable function
+  // calling this render's, renderStability.js).
+  const engine = region(app, '{...stableCallbacks({', '})}', "QuestionEngine's handlers");
+  assert.match(engine, /\n\s*onContinueSection: assignmentHandoff \? continueAfterSection : null,\n/);
 });
 
 test('the continue button only leads to a question workable NOW — never a closed Warm-Up or ended DOL', () => {

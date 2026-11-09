@@ -70,8 +70,9 @@ test('every screen in lazyScreens.js is a lazy import, so none joins the first l
     // cannot load, and the words it shows while it loads), or a panel of a
     // student screen (`studentPanel`: the same, in the screen's flow, with its
     // words given by name). GradebookClassChooser is a named export, so it is
-    // picked out of the loaded module.
-    assert.match(value, /^(?:(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?|studentScreen\(\(\) => import\('\.\.\/[^']+\.jsx'\), '[^']+'|studentPanel\(\(\) => import\('\.\.\/[^']+\.jsx'\), \{ name: '[^']+', loading: '[^']+', codeTitle: '[^']+' \})\);$/, `${name} is not a lazy import`);
+    // picked out of the loaded module. QuestionEngine is App's lazy import
+    // memoised (`memo(lazy(…))`): still loaded on demand.
+    assert.match(value, /^(?:memo\(lazy\(\(\) => import\('\.\.\/[^']+\.jsx'\)\)|(?:lazy|teacherPanel)\(\(\) => import\('\.\.\/[^']+\.jsx'\)(?:\.then\(\(module\) => \(\{ default: module\.[A-Za-z]+ \}\)\))?|studentScreen\(\(\) => import\('\.\.\/[^']+\.jsx'\), '[^']+'|studentPanel\(\(\) => import\('\.\.\/[^']+\.jsx'\), \{ name: '[^']+', loading: '[^']+', codeTitle: '[^']+' \})\);$/, `${name} is not a lazy import`);
   }
   // Eagerly, React and what a student screen wraps itself in: never a screen.
   const eager = [...executableSource(screens).matchAll(/^import\s+(?:[^;]*?\s+from\s+)?'([^']+)';$/gm)].map((match) => match[1]);
@@ -218,7 +219,8 @@ test('student Home prefetches the question runtime at idle, the chunk an assignm
   assert.match(effect, /user\?\.role !== 'student' \|\| activeView !== 'dashboard'/);
   assert.match(effect, /import\('\.\/QuestionEngine\.jsx'\)/, 'the same module app/lazyScreens.js loads lazily');
   assert.match(effect, /requestIdleCallback\(prefetch/);
-  assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\);/);
+  // The module App's QuestionEngine loads on demand (memoised there).
+  assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = (?:memo\()?lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\)\)?;/);
 });
 
 // G2 review: stylesheets App used to get through modules that moved with the

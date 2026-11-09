@@ -51,7 +51,9 @@ test('finishing a section shows a milestone card and next available section acti
   // The action continues to the next section with work left, or — with none
   // left — hands off to Up next / results (assignmentHandoff.js); it is wired
   // whenever a hand-off exists, which includes the next-section case.
-  assert.match(app, /onContinueSection=\{assignmentHandoff \? continueAfterSection : null\}/);
+  // (Among QuestionEngine's handlers, each a stable function calling this
+  // render's, renderStability.js.)
+  assert.match(region(app, '{...stableCallbacks({', '})}', "QuestionEngine's handlers"), /\n\s*onContinueSection: assignmentHandoff \? continueAfterSection : null,\n/);
   assert.match(app, /assignmentHandoff\.kind === 'section'\s*\?\s*\(\) => changeQuestion\(nextAvailableSectionTarget\.index\)/);
 });
 

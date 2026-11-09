@@ -219,7 +219,9 @@ test('App.jsx counts every try on the question shown', () => {
   assert.match(region(app, 'const handlePreviewFamilyDelivery = useCallback(', '}, []);', 'the preview keeper'),
     /familyDeliveriesRef\.current\.set\(shownDeliveryKey\(\{ \.\.\.delivery, preview: true \}\), \{ delivery, question: renderedQuestion \|\| null \}\);/);
   const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
-  assert.match(mount, /onFamilyDelivery=\{preview \? handlePreviewFamilyDelivery : handleFamilyDelivery\}/);
+  // Among the engine's handlers, each a stable function calling this
+  // render's handler (renderStability.js stableCallbacks).
+  assert.match(region(mount, '{...stableCallbacks({', '})}', 'the engine handlers'), /\n\s*onFamilyDelivery: preview \? handlePreviewFamilyDelivery : handleFamilyDelivery,\n/);
   // The count reads that map: countedQuestionFor takes its input, the map
   // first, from triesCountingFor (familyDealtTriesCounted.test.mjs holds the rest).
   assert.match(region(app, 'const triesCountingFor = ', '\n  });', 'triesCountingFor'), /=> \(\{\s*shown: familyDeliveriesRef\.current,/);
