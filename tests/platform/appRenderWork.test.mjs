@@ -27,13 +27,19 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { createRenderFold, createRenderMemo, FOLD_STEPS, keepSame, sameData } from '../../src/platform/performance/renderStability.js';
 import {
   describeRuntimeSaveLine, initialSaveSubject, nextSaveSubject, persistenceStatusAfterDrain,
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, saveLineIsAboutDrafts,
 } from '../../src/platform/student/saveStatusModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { createProfileReader } from '../browser/support/cpuProfileNames.mjs';
+import {
+  APP_RENDER_BUDGET, DEFERRED_BUILDERS, DEFERRED_MEMO_BUDGET_MS, appComponentLine, createAppRenderMeasures, definitionLine, timeUnder,
+} from '../browser/support/appRenderMeasures.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = () => executableSource(read('src/App.jsx'));
@@ -422,4 +428,114 @@ test('the navigator works out a question\'s line once per change of what it read
   assert.match(counting, /if \(!assignmentId \|\| !isFamilyBackedQuestion\(storedQuestion\)\) return fallback;/);
   const known = region(read('src/platform/generation/shownFamilyQuestion.js'), 'export const countedQuestionKnown = ({', null, 'countedQuestionKnown');
   assert.match(known, /if \(!assignmentId \|\| !isFamilyBackedQuestion\(storedQuestion\) \|\| preview \|\| typeof deal === 'function'\) return true;/);
+});
+
+/* ------------------------------------------- what the runtime driver counts */
+/*
+ * studentRuntimePerformance.mjs hands each interaction to appRenderMeasures.mjs,
+ * which fails a counts run when a Submit renders App more than 4 times or a
+ * Next more than 5, and a profile when App's render spends any time on a
+ * Submit or a Next in the deferred memos' builders. App and the builders are
+ * told apart by the line their function starts on, read from the build's
+ * source maps; the time is the samples with App on the stack and, for a
+ * group, one of its frames below App.
+ */
+const withMaps = (run) => {
+  const dist = mkdtempSync(path.join(os.tmpdir(), 'runtime-driver-maps-'));
+  try {
+    mkdirSync(path.join(dist, 'assets'));
+    writeFileSync(path.join(dist, 'assets', 'App-abc.js.map'), JSON.stringify({
+      version: 3,
+      sources: ['../../src/App.jsx', '../../src/platform/student/studentGradeCenterModel.js'],
+      sourcesContent: ['import x from "y";\n\nfunction AppShell() {}\nfunction App() {\n  return null;\n}\n', 'const a = 1;\nexport const buildStudentGradeCenter = ({\n'],
+      mappings: '',
+      names: [],
+    }));
+    return run(dist);
+  } finally {
+    rmSync(dist, { recursive: true, force: true });
+  }
+};
+
+test('the measures find where App and the builders start, from the build\'s source maps', () => withMaps((dist) => {
+  assert.equal(appComponentLine(dist), 4, 'the line App\'s function starts on, not another component\'s');
+  assert.equal(definitionLine(dist, 'src/platform/student/studentGradeCenterModel.js', /^export const buildStudentGradeCenter = /), 2);
+  assert.equal(definitionLine(dist, 'src/platform/path/studentPathOptions.js', /^export const buildStudentPathOptions = /), null, 'a file the build does not hold');
+  assert.equal(appComponentLine(null), null, 'without PERF_DIST: not counted');
+}));
+
+test('App\'s render time, and the part of it in a group, from the stacks a profile sampled', () => {
+  // No maps: a frame is named "function · file", as the driver names it.
+  const frame = (id, functionName, file, children = []) => ({ id, callFrame: { functionName, url: `http://127.0.0.1/assets/${file}`, lineNumber: 0, columnNumber: 0 }, children });
+  const profile = {
+    nodes: [
+      frame(1, '(root)', '', [2, 6]),
+      frame(2, 'renderWithHooks', 'react-dom.js', [3]),
+      frame(3, 'App', 'App.js', [4, 5]),
+      frame(4, 'buildStudentGradeCenter', 'studentGradeCenterModel.js', [7]),
+      frame(5, 'assignmentIsExcusedForStudent', 'studentGradeCenterModel.js'),
+      frame(6, 'buildStudentGradeCenter', 'studentGradeCenterModel.js'),
+      frame(7, 'resolveGradeStatus', 'studentGradeCenterModel.js'),
+    ],
+    // 1 ms at App itself, 2 under the builder (one deeper), 1 in another
+    // export of its module, 3 in the builder outside App.
+    samples: [3, 4, 7, 5, 6, 6, 6],
+    // timeDeltas[i + 1] is sample i's time, as cpuProfileNames reads every profile.
+    timeDeltas: [0, 1000, 1000, 1000, 1000, 1000, 1000, 1000],
+  };
+  const reader = createProfileReader(null);
+  const builder = { test: (name) => name === 'buildStudentGradeCenter · studentGradeCenterModel.js' };
+  const module = /studentGradeCenterModel\.js/;
+  const timed = timeUnder(reader, profile, (name) => name === 'App · App.js', { deferredMemos: builder, wholeModule: module });
+  assert.deepEqual(timed, { total: 4, deferredMemos: 2, wholeModule: 3 }, 'only under App; the builder, and what it calls, not the module\'s other exports');
+  assert.deepEqual(timeUnder(reader, profile, () => false, { deferredMemos: builder }), { total: 0, deferredMemos: 0 });
+});
+
+test('the middle Submit or Next over App\'s budgets is a finding, and nothing else is', () => withMaps((dist) => {
+  assert.deepEqual({ ...APP_RENDER_BUDGET }, { submit: 4, next: 5 }, 'one to spare (3 and 4 now)');
+  assert.equal(DEFERRED_MEMO_BUDGET_MS, 0);
+  const measures = createAppRenderMeasures(dist);
+  assert.equal(measures.appLine, 4);
+  const counts = (name, appRenders) => ({ name, appRenders });
+  const profiled = (name, deferredMemos) => ({ name, appTime: { total: 30, deferredMemos, navigator: 0 } });
+  const check = (runs) => {
+    const findings = [];
+    const app = measures.check(runs, findings, { log: () => {} });
+    return { findings, app };
+  };
+  // A Submit that a timer of the app's own lands in (the key's checkpoint
+  // saved in its window) does not count; two Nexts over the budget do.
+  const { findings, app } = check([
+    { device: 'chromebook', mode: 'counts', interactions: [counts('basic-submit', 3), counts('choice-submit', 3), counts('expression-submit', 6), counts('next-to-choice', 4), counts('next-to-expression', 6), counts('next-to-tool', 6), counts('open-assignment', 9), { name: 'hint', skipped: 'no hint' }] },
+    { device: 'phone', mode: 'profile', interactions: [profiled('expression-submit', 0.2), profiled('next-to-expression', 0), profiled('clock-tick', 5)] },
+  ]);
+  assert.deepEqual(findings, [
+    'chromebook: the middle Next rendered App 6 times (next-to-choice 4, next-to-expression 6, next-to-tool 6; budget 5)',
+    'phone: expression-submit spent 0.2 ms of App\'s render in the memos no screen inside an assignment shows (budget 0 ms)',
+  ]);
+  assert.equal(app.rows.length, 10, 'every counted or profiled interaction is reported');
+  // The code before: App rendered 7 times on every Submit and Next.
+  const before = check([{ device: 'phone', mode: 'counts', interactions: ['basic-submit', 'choice-submit', 'expression-submit', 'next-to-choice', 'next-to-expression', 'next-to-tool'].map((name) => counts(name, 7)) }]);
+  assert.deepEqual(before.findings.map((finding) => finding.split(' (')[0]), ['phone: the middle Submit rendered App 7 times', 'phone: the middle Next rendered App 7 times']);
+  // Without the build's maps nothing is counted, and nothing fails.
+  const none = [];
+  assert.equal(createAppRenderMeasures(null).check([{ device: 'phone', mode: 'counts', interactions: [counts('basic-submit', 9)] }], none, { log: () => {} }), null);
+  assert.deepEqual(none, []);
+}));
+
+test('the driver hands every interaction to the measures, which time exactly the builders App\'s deferred accessors call', () => {
+  const driver = executableSource(read('tests/browser/teacherWorkflow/studentRuntimePerformance.mjs'));
+  assert.match(driver, /^import \{ createAppRenderMeasures \} from '\.\.\/support\/appRenderMeasures\.mjs';$/m);
+  assert.match(driver, /\nconst appMeasures = createAppRenderMeasures\(DIST\);\n/);
+  const profiled = region(driver, "if (mode === 'profile') {\n      const { profile } = await cdp.send('Profiler.stop');", '\n    }', 'the profile of a window');
+  assert.match(profiled, /\n\s*record\.appTime = appMeasures\.appTime\(profile\);$/);
+  assert.match(driver, /\n\s*if \(mode === 'counts'\) record\.appRenders = await appMeasures\.appRenders\(page\);\n\s*interactions\.push\(record\);/);
+  // Its findings join the driver's before they are written and reported.
+  const end = region(driver, 'results.medians = table;', 'if (findings.length) {', 'the end of the run');
+  assert.match(end, /\nresults\.app = appMeasures\.check\(results\.runs, findings\);\nif \(process\.env\.OUT\) writeFileSync\(/);
+  // The four builders App's accessors build with (DEFERRED, above), each defined where the measures look.
+  const called = Object.values(DEFERRED).map(([, , builder]) => builder.replace(/^studentRecoveryKit\./, '').replace(/\($/, '')).sort();
+  const timed = DEFERRED_BUILDERS.map(([, pattern]) => /export const (\w+) = /.exec(pattern.source)[1]).sort();
+  assert.deepEqual(timed, called);
+  for (const [file, pattern] of DEFERRED_BUILDERS) assert.match(read(file), new RegExp(pattern.source, 'm'), `${pattern.source} in ${file}`);
 });

@@ -59,6 +59,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { componentNamer, createProfileReader } from '../support/cpuProfileNames.mjs';
 import { countWhere, createCallCounter } from '../support/functionCallCounts.mjs';
+// App's own renders and its render time, and their budgets.
+import { createAppRenderMeasures } from '../support/appRenderMeasures.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -187,6 +189,7 @@ const median = (values) => {
 const nameComponent = componentNamer(DIST);
 const profileReader = DIST ? createProfileReader(DIST) : null;
 const findings = [];
+const appMeasures = createAppRenderMeasures(DIST);
 
 // ------------------------------------------------- Step Algebra's first render
 // What Next to the Step Algebra question (3x − 5 = 10) asks of mathjs until
@@ -353,6 +356,7 @@ const runFlow = async (browser, device, mode) => {
     if (mode === 'profile') {
       const { profile } = await cdp.send('Profiler.stop');
       if (profileReader) record.profile = { ...profileReader.summarize(profile), inclusive: profileReader.inclusive(profile) };
+      record.appTime = appMeasures.appTime(profile);
     }
     if (mode === 'trace') {
       const complete = new Promise((resolve) => cdp.once('Tracing.tracingComplete', resolve));
@@ -418,6 +422,7 @@ const runFlow = async (browser, device, mode) => {
       record.renders = counted.renders - hookBefore.renders;
       record.components = counted.types.map((type) => [nameComponent(type.source) || type.name, type.added]);
     }
+    if (mode === 'counts') record.appRenders = await appMeasures.appRenders(page);
     interactions.push(record);
     const parts = [
       `latency ${record.latency ?? '<16'} ms`,
@@ -686,6 +691,7 @@ for (const device of DEVICES) {
 results.medians = table;
 console.log('\nmedians (timing: latency, ready, long-task ms; counts: QuestionEngine/tool renders, component renders)');
 table.forEach((row) => console.log(`  ${row.device.padEnd(10)} ${row.interaction.padEnd(22)} ${String(row.latencyMs ?? '-').padStart(6)} ${String(row.readyMs ?? '-').padStart(6)} ${String(row.longTaskMs ?? '-').padStart(6)} ${String(row.engineRenders ?? '-').padStart(4)} ${String(row.componentRenders ?? '-').padStart(5)}`));
+results.app = appMeasures.check(results.runs, findings);
 if (process.env.OUT) writeFileSync(process.env.OUT, `${JSON.stringify(results, null, 1)}\n`);
 
 if (findings.length) {
