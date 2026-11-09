@@ -38,7 +38,9 @@
 // headless shell. Two more phone passes (about 1½ minutes) hold the grid through
 // a name-it item's answer (a wrong choice and its marks, a built equation being
 // typed, its hints) and across a Classic round's buzzer for students with extra
-// time, as the extra-time words arrive.
+// time, as the extra-time words arrive; in a round of lines to graph and lines
+// to name, they hold the countdown to the round's own kind, whatever comes
+// first.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -1027,6 +1029,51 @@ const toNameItem = async (student, roomId, untilMs, wanted = () => true) => {
   return null;
 };
 
+// THE COUNTDOWN SAYS NOTHING OF THE FIRST ITEM. The first item is on a phone
+// before GO, and the buttons under the empty grid followed it: Start over came
+// in mid-countdown when a line to graph came first, and never when a line to
+// name did; the feedback line's room took the first item's kind too. In a
+// round that deals lines to graph and lines to name, every frame of the
+// countdown now shows a line to graph's buttons, in one place, over one room
+// and one grid, and from GO the item's own. (From item to item the grid still
+// moves and resizes with the kind: holding the largest kind's room is the
+// owner's to choose.) Watched every frame, from before the teacher starts the
+// game until GO.
+const watchCountdown = (student) => student.page.evaluate(() => new Promise((resolve) => {
+  const seen = new Map();
+  const done = (late) => resolve({ seen: [...seen.values()], late });
+  const timer = setTimeout(() => done(true), 40_000);
+  const look = () => {
+    const grid = document.querySelector('.mm-line-graph-frame');
+    if (grid && grid.getAttribute('data-question-index') !== '') { clearTimeout(timer); done(false); return; }
+    if (grid) {
+      const tenth = (value) => Math.round(value * 10) / 10;
+      const box = grid.getBoundingClientRect();
+      const row = document.querySelector('.mm-line-buttons');
+      const room = document.querySelector('.mm-line-hold');
+      const state = {
+        buttons: [...(row?.querySelectorAll('button') || [])].map((button) => button.textContent.trim()),
+        // Where the buttons sit, and the height the feedback line keeps.
+        place: [row ? tenth(row.getBoundingClientRect().top + window.scrollY) : null, room ? tenth(room.getBoundingClientRect().height) : null],
+        frame: [tenth(box.top + window.scrollY), tenth(box.width)],
+      };
+      const key = JSON.stringify(state);
+      if (!seen.has(key)) seen.set(key, state);
+    }
+    requestAnimationFrame(look);
+  };
+  look();
+})).catch((error) => ({ seen: [], late: true, error: String(error) }));
+const kindOfLine = (item) => (item ? (item.itemType === 'graph' ? 'a line to graph' : `a line to name (${item.answerStyle})`) : 'none');
+const countdownHeld = async (S, student, watch, first) => {
+  const { seen, late, error } = await watch;
+  notes.push({ scenario: S, student: student.studentId, device: student.device, firstItem: kindOfLine(first), countdown: seen });
+  if (!check(S, !late && seen.length > 0, `${student.studentId} (${student.device}): no countdown seen before GO${error ? ` (${error})` : ''}`)) return;
+  check(S, seen.length === 1, `${student.studentId} (${student.device}): the countdown changed as the first item (${kindOfLine(first)}) arrived: ${JSON.stringify(seen)}`);
+  check(S, seen.every(({ buttons }) => buttons.includes('Start over')), `${student.studentId} (${student.device}): before GO the buttons were not a line to graph's (${JSON.stringify(seen.map(({ buttons }) => buttons))}; first item ${kindOfLine(first)})`);
+};
+const startOverShown = async (student) => (await student.page.getByRole('button', { name: 'Start over', exact: true }).count()) > 0;
+
 const endLineGame = async (S, teacher, roomId) => {
   await teacher.page.getByRole('button', { name: 'End Game' }).click();
   await teacher.page.getByRole('button', { name: 'End Game' }).last().click();
@@ -1041,15 +1088,18 @@ await run('name-on-phones', async () => {
   // A chosen equation: a wrong tap, its ✓ and ✗, the answer shown.
   let roomId = await createLine(teacher, { classKey: 'namers', format: 'Rush', preset: 'Graph it and name it', rounds: 1, seconds: 45 });
   for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+  let watches = phones.map((student) => watchCountdown(student));
   await startGame(teacher);
   let room = await waitForRoundOpen(roomId, 0);
   for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid`);
+  for (const [index, student] of phones.entries()) await countdownHeld(S, student, watches[index], await itemOnScreen(student, roomId));
   await Promise.all(phones.map(async (student) => {
     // A point-slope equation, the widest a choice holds: its ✓ before it wrapped it at 360 px.
     const item = await toNameItem(student, roomId, endsAtOf(room) - 8_000, (candidate) => candidate.form === 'pointSlope' && candidate.answerStyle === 'choice')
       || await toNameItem(student, roomId, endsAtOf(room) - 6_000);
     if (!check(S, item?.answerStyle === 'choice', `${student.studentId}: no equation to choose came (${item?.answerStyle})`)) return;
     notes.push({ scenario: S, student: student.studentId, device: student.device, choiceForm: item.form });
+    check(S, !(await startOverShown(student)), `${student.studentId}: a line to name shows Start over`);
     const hold = holdOf(S, student);
     await hold.mark();
     await student.page.locator('.mm-line-choice').nth(item.choices.findIndex((choice) => choice.id !== item.answerChoice)).click();
@@ -1067,12 +1117,15 @@ await run('name-on-phones', async () => {
     setup: async (handle) => { await handle.page.locator('label', { hasText: 'Name it: Build it' }).locator('input').check(); },
   });
   for (const student of phones) check(S, await waitForText(student, 'You are in as', 20_000), `${student.studentId}: no lobby for the built game`);
+  watches = phones.map((student) => watchCountdown(student));
   await startGame(teacher);
   room = await waitForRoundOpen(roomId, 0);
   for (const student of phones) check(S, await waitForItem(student), `${student.studentId}: no grid in the built game`);
+  for (const [index, student] of phones.entries()) await countdownHeld(S, student, watches[index], await itemOnScreen(student, roomId));
   await Promise.all(phones.map(async (student) => {
     const item = await toNameItem(student, roomId, endsAtOf(room) - 10_000);
     if (!check(S, item?.answerStyle === 'build', `${student.studentId}: no equation to build came (${item?.answerStyle})`)) return;
+    check(S, !(await startOverShown(student)), `${student.studentId}: a line to build shows Start over`);
     const hold = holdOf(S, student);
     await hold.mark();
     const fields = Object.keys(buildFieldsFor(item));

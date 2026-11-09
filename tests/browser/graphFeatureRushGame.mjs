@@ -26,9 +26,14 @@
 // nightly and on demand. About 7 minutes. It was added once it passed twice in a
 // row on a loaded 4-core machine; its one real failure there was a keyboard
 // press lost to GraphFeatureRushGraph's late reset effect (a layout effect now).
-// Its phone pass (inequality-phones, about 70 s more) plays Inequality Graphing
-// Rush on two touch phones and holds the number line to a pixel through what
-// comes and goes under it. CHROMIUM_PATH runs another Chromium.
+// Its phone passes (about 2 minutes more) play on two touch phones and hold
+// the graph to a pixel: inequality-phones, Inequality Graphing Rush's number
+// line through what comes and goes under it and from item to item (a prompt of
+// one line, then of two); kinds-on-phones, a round that deals both points to
+// tap and sets to mark, from kind to kind. CHROMIUM_PATH runs another Chromium.
+//
+//   FIRESTORE_EMULATOR_HOST=127.0.0.1:9050 RUSH_VITE_PORT=6580 RUSH_BRIDGE_PORT=6581 \
+//     RUSH_SCENARIOS=inequality-phones,kinds-on-phones node tests/browser/graphFeatureRushGame.mjs
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -124,6 +129,7 @@ const functionsIndex = require(path.join(repo, 'functions/platformEntry.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
 const { generateRushQuestion } = await import(path.join(repo, 'functions/shared/graphFeatureGenerator.mjs'));
+const { getGraphFeature } = await import(path.join(repo, 'functions/shared/graphFeatureRegistry.mjs'));
 const { unitX, unitY } = await import(path.join(repo, 'src/platform/liveChallenge/rushGraphModel.js'));
 const { rushLockoutMs } = await import(path.join(repo, 'functions/shared/graphFeatureRushRules.mjs'));
 
@@ -389,12 +395,14 @@ const selectInLabel = async (handle, labelStart, value) => {
   await select.selectOption(String(value));
 };
 
-const createRush = async (teacher, { classKey, game = 'graphFeatureRush', preset = null, rounds = 3, seconds = 30, scoring = 'grandPrix', passPlaces = 0 }) => {
+// `setup(teacher)`, when given, changes the preset's settings before the lobby opens.
+const createRush = async (teacher, { classKey, game = 'graphFeatureRush', preset = null, setup = null, rounds = 3, seconds = 30, scoring = 'grandPrix', passPlaces = 0 }) => {
   await teacher.page.waitForSelector('text=Create a challenge', { timeout: 20_000 });
   await selectInLabel(teacher, 'Class', CLASSES[classKey].classId);
   await selectInLabel(teacher, 'Game type', game);
   await teacher.page.waitForSelector('text=Start from a preset', { timeout: 15_000 });
   if (preset) await teacher.page.getByRole('button', { name: preset, exact: true }).click();
+  if (setup) await setup(teacher);
   await selectInLabel(teacher, 'Rounds', rounds);
   await selectInLabel(teacher, 'Time per round', seconds);
   await selectInLabel(teacher, 'Scoring', scoring);
@@ -957,9 +965,62 @@ const tapFrame = async (student, fx, fy) => {
   const frame = await frameBox(student);
   await student.page.touchscreen.tap(frame.x + frame.width * fx, frame.y + frame.height * fy);
 };
-const inequalityItemHolds = async (S, student, { last }) => {
+// THE NEXT ITEM, AND THE NEXT KIND. What is asked above the graph came and went
+// with each item: an inequality's prompt that took two lines where the last took
+// one moved the number line 12 px as the item appeared (half a line: the line is
+// in the middle of its area), and in a round that mixes points to tap with sets
+// to mark, a set's longer prompt and its notation's line moved and shrank the
+// graph as the kind changed. Every item a phone shows is held to the frame it
+// had at the countdown (or, opened later, at its first item).
+// How many lines the prompt the student reads takes (never the room it keeps,
+// unseen): the distinct tops of its words.
+const promptLines = (student) => student.page.evaluate(() => {
+  const heading = [...document.querySelectorAll('.mm-rush-prompt h2')].find((node) => !node.closest('[aria-hidden="true"]'));
+  if (!heading) return 0;
+  const range = document.createRange();
+  range.selectNodeContents(heading);
+  const tops = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0).map((rect) => rect.top);
+  return tops.reduce((lines, top) => (lines.some((seen) => Math.abs(seen - top) < 6) ? lines : [...lines, top]), []).length;
+});
+const itemsHold = (S, student, what) => {
+  let first = null;
+  const seen = [];
+  return {
+    seen,
+    countdown: async () => {
+      const index = await student.page.locator('.mm-rush-graph-frame').getAttribute('data-question-index', { timeout: 4_000 }).catch(() => null);
+      if (index === '' && !first) first = { box: await frameBox(student), item: 'the countdown', lines: await promptLines(student) };
+    },
+    arrived: async (kind = '') => {
+      const index = await student.page.locator('.mm-rush-graph-frame').getAttribute('data-question-index');
+      const box = await frameBox(student);
+      const lines = await promptLines(student);
+      seen.push({ item: Number(index), lines, ...(kind ? { kind } : {}), frame: box && [box.y, box.width, box.height].map((value) => Math.round(value * 10) / 10) });
+      const item = `item ${index}${kind ? ` (${kind})` : ''}, its prompt on ${lines} line${lines === 1 ? '' : 's'}`;
+      if (!first) { first = { box, item, lines }; return; }
+      check(S, sameFrame(first.box, box), `${student.studentId} (${student.device}): ${item}, moved the ${what} from where ${first.item}${first.item === 'the countdown' ? ` (${first.lines} line${first.lines === 1 ? '' : 's'})` : ''} had it (${JSON.stringify(first.box)} → ${JSON.stringify(box)})`);
+    },
+  };
+};
+// Skip through items, each held to the first: as many as `items`, or until `untilMs`.
+const skipThrough = async (student, hold, { items, untilMs, kindOf = null }) => {
+  for (let step = 0; step < items && Date.now() < untilMs; step += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    if (!await waitForPlay(student, 6_000)) return;
+    // eslint-disable-next-line no-await-in-loop
+    const index = Number(await student.page.locator('.mm-rush-graph-frame').getAttribute('data-question-index'));
+    // eslint-disable-next-line no-await-in-loop
+    await hold.arrived(kindOf ? await kindOf() : '');
+    // eslint-disable-next-line no-await-in-loop
+    await student.page.getByRole('button', { name: 'Skip', exact: true }).click();
+    // eslint-disable-next-line no-await-in-loop
+    if (!await waitForQuestionChange(student, index, 5_000)) return;
+  }
+};
+const inequalityItemHolds = async (S, student, { last, hold = null }) => {
   const index = await student.page.locator('.mm-rush-graph-frame').getAttribute('data-question-index');
   const base = await frameBox(student);
+  if (hold) await hold.arrived();
   const held = async (moment) => {
     const box = await frameBox(student);
     check(S, sameFrame(base, box), `${student.studentId} (${student.device}), item ${index}: ${moment} moved the number line (${JSON.stringify(base)} → ${JSON.stringify(box)})`);
@@ -1003,18 +1064,68 @@ await run('inequality-phones', async () => {
   const [idA, idB] = studentsOf('phones');
   const teacher = await openTeacher('chromebook');
   const phones = [await openStudent(idA, 'phone'), await openStudent(idB, 'phone360')];
-  const roomId = await createRush(teacher, { classKey: 'phones', game: 'inequalityRush', preset: 'Solve and Graph', rounds: 1, seconds: 45, scoring: 'correctCount' });
+  // One- and two-step inequalities, and simple ones: every block of six deals each
+  // kind, and in CI's fonts at 360 px a simple prompt ("Graph: x ≥ −2") takes one
+  // line and a two-step one ("Solve, then graph: 2x − 3 > 5") two.
+  const roomId = await createRush(teacher, {
+    classKey: 'phones', game: 'inequalityRush', preset: 'Solve and Graph', rounds: 1, seconds: 45, scoring: 'correctCount',
+    setup: async (handle) => { await handle.page.locator('label', { hasText: /^Simple/ }).locator('input').check(); },
+  });
   check(S, roomId, 'no room was created');
   for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
   await startGame(teacher);
   const room = await waitForRoundOpen(roomId, 0);
   check(S, room?.challengeMode === 'inequalityRush', `the round is not an Inequality Graphing Rush (${room?.challengeMode})`);
+  const holds = phones.map((student) => itemsHold(S, student, 'number line'));
+  await Promise.all(holds.map((hold) => hold.countdown()));
   for (const student of phones) check(S, await waitForPlay(student), `${student.studentId}: no number line`);
-  await Promise.all(phones.map(async (student) => {
-    await inequalityItemHolds(S, student, { last: 'no solution' });
+  await Promise.all(phones.map(async (student, index) => {
+    await inequalityItemHolds(S, student, { last: 'no solution', hold: holds[index] });
     await shot(student, `inequality-${student.device}`);
     check(S, await waitForPlay(student, 8_000), `${student.studentId}: no second item`);
-    await inequalityItemHolds(S, student, { last: 'skip' });
+    await inequalityItemHolds(S, student, { last: 'skip', hold: holds[index] });
+    // The rest of the first block and into the next: a prompt of one line and one of two.
+    await skipThrough(student, holds[index], { items: 7, untilMs: endsAtOf(room) - 3_000 });
+    const lines = new Set(holds[index].seen.map((entry) => entry.lines));
+    notes.push({ scenario: S, student: student.studentId, device: student.device, promptLines: holds[index].seen });
+    if (student.device === 'phone360') check(S, lines.has(1) && lines.has(2), `${student.studentId} (${student.device}): no prompt of one line and one of two came (${JSON.stringify(holds[index].seen)}), so nothing held the line as the prompt changed`);
+  }));
+  await waitForRoundClosed(roomId, 0, 60_000);
+  await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
+  check(S, await finishedBy(roomId), 'Finish & Show Final Standings did not finish the game');
+  for (const handle of [teacher, ...phones]) check(S, handle.errors.length === 0, `console errors on ${handle.device}: ${handle.errors.slice(0, 3).join(' | ')}`);
+  await Promise.all([teacher, ...phones].map((handle) => handle.context.close()));
+});
+
+// A ROUND THAT MIXES KINDS, ON THE SAME TWO PHONES: intercepts to tap and a
+// domain or a range to mark, on the same graphs. A set's prompt says more, and
+// its notation takes a line under the graph that a point's item does not have,
+// so the graph moved and shrank as the kind changed. The round keeps the room of
+// the largest kind it can deal, from its settings: every item is held to the
+// countdown's frame, through at least one of each kind.
+await run('kinds-on-phones', async () => {
+  const S = 'kinds-on-phones';
+  const [idA, idB] = studentsOf('phones');
+  const teacher = await openTeacher('chromebook');
+  const phones = [await openStudent(idA, 'phone'), await openStudent(idB, 'phone360')];
+  const roomId = await createRush(teacher, { classKey: 'phones', preset: 'Domain, Range & Intercepts', rounds: 1, seconds: 45, scoring: 'correctCount' });
+  check(S, roomId, 'no room was created');
+  for (const student of phones) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
+  await startGame(teacher);
+  const room = await waitForRoundOpen(roomId, 0);
+  const holds = phones.map((student) => itemsHold(S, student, 'graph'));
+  await Promise.all(holds.map((hold) => hold.countdown()));
+  for (const student of phones) check(S, await waitForPlay(student), `${student.studentId}: no graph`);
+  await Promise.all(phones.map(async (student, index) => {
+    const kindOf = async () => {
+      const question = await questionOnScreen(student, roomId);
+      return `${question?.feature}, ${getGraphFeature(question?.feature)?.geometry === 'set' ? 'a set' : 'a point'}`;
+    };
+    await skipThrough(student, holds[index], { items: 10, untilMs: endsAtOf(room) - 3_000, kindOf });
+    const kinds = new Set(holds[index].seen.map((entry) => entry.kind?.split(', ')[1]));
+    notes.push({ scenario: S, student: student.studentId, device: student.device, items: holds[index].seen });
+    check(S, kinds.has('a set') && kinds.has('a point'), `${student.studentId} (${student.device}): the round dealt only ${[...kinds].join(' and ')} items (${JSON.stringify(holds[index].seen)})`);
+    await shot(student, `kinds-${student.device}`);
   }));
   await waitForRoundClosed(roomId, 0, 60_000);
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
