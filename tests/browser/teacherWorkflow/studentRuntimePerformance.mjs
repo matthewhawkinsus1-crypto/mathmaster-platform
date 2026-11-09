@@ -37,9 +37,17 @@
 //            (PERF_DIST; ../support/cpuProfileNames.mjs)
 //   trace    layouts and style recalculations, and which script forced them
 //
+// At the end, App's 30-second clock on the Step Algebra question, fired on
+// demand (clock-tick), and again with the page's clock moved past the end of
+// the class period (clock-tick-class-ends, whose hint panel then offers a
+// question for the teacher instead of a raised hand).
+//
 // Exit code 1 when the flow cannot be finished, or when a counts run breaks a
 // budget that does not depend on the machine: after the first key, a key typed
-// into an answer box draws QuestionEngine once and at most 60 components.
+// into an answer box draws QuestionEngine once and at most 60 components; a
+// Submit draws it at most 4 times and 260 components, a Next 5 and 320; a
+// clock tick that changes nothing draws it not at all, and the one that ends
+// the class draws it again.
 
 import { writeFileSync } from 'node:fs';
 import { componentNamer, createProfileReader } from '../support/cpuProfileNames.mjs';
@@ -57,6 +65,14 @@ const CPU = Number(process.env.CPU || 4);
 const LABEL = process.env.LABEL || '';
 const STUDENT = '910004';
 const KEY_BUDGET = { questionEngineRenders: 1, componentRenders: 60 };
+// App renders seven to thirteen times on a Submit or a Next. QuestionEngine is
+// memoised and App keeps its props the same until what they mean changes, so
+// the question is drawn for its own state and its record (2-3 times on a
+// Submit, 3-4 with a tool on a Next), not once per App render: 7-11 times and
+// 350-494 components before. Room is left for one more draw (a timer of the
+// app's own that lands in the window).
+const SUBMIT_BUDGET = { questionEngineRenders: 4, componentRenders: 260 };
+const NEXT_BUDGET = { questionEngineRenders: 5, componentRenders: 320 };
 
 const DEVICE_OPTIONS = {
   chromebook: { viewport: { width: 1366, height: 768 } },
@@ -91,6 +107,33 @@ const instrument = (withHook) => {
   perf.has = (selector, pattern) => {
     const re = pattern ? new RegExp(pattern) : null;
     return [...document.querySelectorAll(selector)].some((element) => !re || re.test(element.textContent || ''));
+  };
+  // APP'S 30-SECOND CLOCK, ON DEMAND. App ticks `setInterval(() =>
+  // setNow(Date.now()), 30000)`; `tick()` runs that callback now (the one
+  // 30-second interval that only reads the time: the activity flush is
+  // another), so a tick is measured without a 30-second wait. `advance(ms)`
+  // moves this page's clock on (over the school clock), for a tick that
+  // finds something changed. Timers keep the browser's own clock.
+  const ShiftedDate = Date;
+  let advancedMs = 0;
+  const nowMs = () => ShiftedDate.now() + advancedMs;
+  globalThis.Date = new Proxy(ShiftedDate, {
+    construct: (target, args, newTarget) => Reflect.construct(target, args.length ? args : [nowMs()], newTarget),
+    apply: () => new ShiftedDate(nowMs()).toString(),
+    get: (target, key) => (key === 'now' ? nowMs : Reflect.get(target, key)),
+  });
+  const thirtySecondTimers = [];
+  const setInterval = window.setInterval.bind(window);
+  window.setInterval = (callback, delay, ...rest) => {
+    if (Number(delay) === 30_000 && typeof callback === 'function') thirtySecondTimers.push(callback);
+    return setInterval(callback, delay, ...rest);
+  };
+  const appClocks = () => thirtySecondTimers.filter((callback) => /^\(\)\s*=>\s*[\w$]+\(Date\.now\(\)\)$/.test(Function.prototype.toString.call(callback)));
+  perf.advance = (ms) => { advancedMs += ms; };
+  perf.tick = () => {
+    const clocks = appClocks();
+    clocks.forEach((callback) => callback());
+    return clocks.length;
   };
   if (!withHook) return;
   const COMPONENTS = new Set([0, 1, 11, 15]); // function, class, forwardRef, simple memo
@@ -405,6 +448,25 @@ const runFlow = async (browser, device, mode) => {
   else skipped('read-aloud', 'no Read aloud on this question in this build');
   await measure('offline', { action: () => context.setOffline(true), quietMs: 600 });
   await measure('online', { action: () => context.setOffline(false), quietMs: 600 });
+  // App's clock with nothing on the question changed by it: the question is
+  // not drawn again. Then the bell: the class period ends (the harness's
+  // Period 3 ends 50 minutes after the page opened), and on the next tick the
+  // hint panel's "Ask my teacher" turns from a raised hand into a question
+  // left for the teacher, so the question is drawn again for it.
+  const clockTick = (advanceMs = 0) => async () => {
+    const clocks = await page.evaluate((ms) => { window.__studentRuntimePerf.advance(ms); return window.__studentRuntimePerf.tick(); }, advanceMs);
+    if (!clocks) throw new Error("App's 30-second clock was not found");
+  };
+  const handOffered = () => page.getByRole('button', { name: '✋ Ask my teacher', exact: true }).filter({ visible: true }).count();
+  await measure('clock-tick', { action: clockTick() });
+  if (await handOffered()) {
+    await measure('clock-tick-class-ends', {
+      action: clockTick(55 * 60_000),
+      ready: () => until('.mathmaster-question-engine button', 'Leave a question for my teacher').catch(() => {
+        throw new Error('the tick that ends the class did not turn the raised hand into a question for the teacher');
+      }),
+    });
+  } else skipped('clock-tick-class-ends', 'no raised hand on offer in the hint panel');
 
   await context.close();
   if (problems.length) findings.push(`${device} ${mode}: console errors: ${[...new Set(problems)].slice(0, 3).join(' | ')}`);
@@ -430,9 +492,12 @@ for (let run = 1; run <= RUNS; run += 1) {
 }
 await browser.close();
 
-// The deterministic budget: a key after the first (Undo is possible from then
-// on) draws QuestionEngine once. The smallest over the three such keys, so a
-// timer that happens to render inside one window does not count.
+// The deterministic budgets. A key after the first (Undo is possible from
+// then on) draws QuestionEngine once: the smallest over the three such keys,
+// so a timer that happens to render inside one window does not count. Each
+// Submit and each Next within SUBMIT_BUDGET / NEXT_BUDGET. App's clock: a
+// tick that changes nothing draws no question, and the tick that ends the
+// class draws it again.
 for (const { device, mode, interactions = [] } of results.runs) {
   if (mode !== 'counts') continue;
   const keys = interactions.filter((entry) => /^expression-key-[^2]/.test(entry.name));
@@ -441,6 +506,17 @@ for (const { device, mode, interactions = [] } of results.runs) {
   const components = Math.min(...keys.map((entry) => entry.renders));
   if (engine > KEY_BUDGET.questionEngineRenders) findings.push(`${device}: a key drew QuestionEngine ${engine} times (budget ${KEY_BUDGET.questionEngineRenders})`);
   if (components > KEY_BUDGET.componentRenders) findings.push(`${device}: a key rendered ${components} components (budget ${KEY_BUDGET.componentRenders})`);
+  for (const entry of interactions) {
+    const budget = /-submit$/.test(entry.name) ? SUBMIT_BUDGET : /^next-to-/.test(entry.name) ? NEXT_BUDGET : null;
+    if (!budget || entry.skipped || !Number.isFinite(entry.renders)) continue;
+    const drawn = entry.telemetry?.react_render_count || 0;
+    if (drawn > budget.questionEngineRenders) findings.push(`${device}: ${entry.name} drew QuestionEngine ${drawn} times (budget ${budget.questionEngineRenders})`);
+    if (entry.renders > budget.componentRenders) findings.push(`${device}: ${entry.name} rendered ${entry.renders} components (budget ${budget.componentRenders})`);
+  }
+  const tick = interactions.find((entry) => entry.name === 'clock-tick');
+  if (tick && !tick.skipped && (tick.telemetry?.react_render_count || 0) > 0) findings.push(`${device}: a clock tick that changes nothing drew the question ${tick.telemetry.react_render_count} times (budget 0)`);
+  const bell = interactions.find((entry) => entry.name === 'clock-tick-class-ends');
+  if (bell && !bell.skipped && !(bell.telemetry?.react_render_count > 0)) findings.push(`${device}: the tick that ends the class did not draw the question again`);
 }
 
 // Medians over the runs, per device, interaction and measure.
