@@ -10795,6 +10795,22 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
 
 const CLASSROOM_GRADE_CHECKPOINT_COLLECTION = "classroomGradeCheckpointState";
 const CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
+// The only fields the checkpoint scheduler reads from a publication and from
+// its assignment (issue #545). An assignment carries its questions (one was
+// 1.4 MB on Nov 11, 2026), and the scheduler read them all in full every 5
+// minutes to decide on four dates and a class list.
+const CLASSROOM_GRADE_CHECKPOINT_LINK_FIELDS = Object.freeze([
+  "assignmentId",
+  "courseworkId",
+  "gradePassbackEnabled",
+]);
+const CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS = Object.freeze([
+  "dueAt",
+  "dueDate",
+  "lateDueAt",
+  "lateDueDate",
+  "assignedClassIds",
+]);
 
 async function queueClassroomGradeSignalForAudience({
   db,
@@ -10843,9 +10859,18 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   // without asking the student to reopen or change an answer.
   const RECONCILE_VERSION = 2;
 
+  // Whole-assignment publications with passback on, asked of Firestore (issue
+  // #545). Every writer stores gradePassbackEnabled as a boolean: the publish's
+  // base record and the forced repost (`!== false`), and a split-section
+  // publication `false`, since it passes back through its own scheduler. So
+  // `== true` is the `!== false` below, read by the database: 35 of the 480
+  // published links on Nov 11, 2026, where this read all 480 in full every 5
+  // minutes (tests/platform/classroomCheckpointScans.test.mjs).
   const publicationsSnap = await db
     .collection("classroomLinks")
     .where("status", "==", "published")
+    .where("gradePassbackEnabled", "==", true)
+    .select(...CLASSROOM_GRADE_CHECKPOINT_LINK_FIELDS)
     .limit(1000)
     .get();
 
@@ -10862,9 +10887,13 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
 
   // Read only assignments that actually have a current Classroom publication.
   // This avoids an arbitrary 500-assignment collection cap silently skipping a
-  // live course when the library grows.
+  // live course when the library grows. Only the dates and classes are read,
+  // never the questions.
   const assignmentSnapshots = classroomAssignmentIds.length
-    ? await db.getAll(...classroomAssignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)))
+    ? await db.getAll(
+      ...classroomAssignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
+      { fieldMask: [...CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS] }
+    )
     : [];
 
   let dueAssignments = 0;

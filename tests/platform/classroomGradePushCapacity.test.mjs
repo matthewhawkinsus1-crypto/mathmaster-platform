@@ -24,6 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { listDeployableFunctions } from '../../scripts/lib/functionsInventory.mjs';
+import { checkpointSchedulerFirestore } from './helpers/checkpointSchedulerFirestore.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const requireFromFunctions = createRequire(path.join(root, 'functions/classroomSectionEntry.js'));
@@ -58,85 +59,7 @@ test('the checkpoint scheduler has time to finish a catch-up before the next run
 
 /* --- a Firestore that returns only what was asked for -------------------- */
 
-const pathSegments = (field) => (typeof field === 'string' ? field.split('.') : String(field).split('.'));
-
-const project = (data, fields) => {
-  if (fields === null) return structuredClone(data);
-  const out = {};
-  for (const segments of fields) {
-    let from = data;
-    for (const segment of segments) from = from?.[segment];
-    if (from === undefined) continue;
-    let to = out;
-    segments.slice(0, -1).forEach((segment) => { to = (to[segment] ||= {}); });
-    to[segments[segments.length - 1]] = structuredClone(from);
-  }
-  return out;
-};
-
-const fakeFirestore = (collections) => {
-  const reads = [];
-  const updates = [];
-  const sets = [];
-  const queued = [];
-  const ref = (docPath) => {
-    const [collection, id] = docPath.split('/');
-    return {
-      path: docPath,
-      id,
-      async get() {
-        reads.push({ kind: 'doc', path: docPath, fields: null });
-        const data = collections[collection]?.[id];
-        return { id, ref: ref(docPath), exists: Boolean(data), data: () => (data ? structuredClone(data) : undefined) };
-      },
-      async set(data, options) { sets.push({ path: docPath, data, options }); },
-    };
-  };
-  const query = (collection, state = { filters: [], fields: null, limit: null }) => ({
-    where: (field, op, value) => query(collection, { ...state, filters: [...state.filters, { field, op, value }] }),
-    select: (...fields) => query(collection, { ...state, fields: fields.map(pathSegments) }),
-    limit: (limit) => query(collection, { ...state, limit }),
-    doc: (id) => ref(`${collection}/${id}`),
-    async get() {
-      reads.push({ kind: 'query', collection, filters: state.filters, fields: state.fields });
-      const docs = Object.entries(collections[collection] || {})
-        .filter(([, data]) => state.filters.every(({ field, op, value }) => {
-          assert.equal(op, '==', 'the fake supports equality only');
-          return data[field] === value;
-        }))
-        .slice(0, state.limit ?? undefined)
-        .map(([id, data]) => ({ id, ref: ref(`${collection}/${id}`), exists: true, data: () => project(data, state.fields) }));
-      return { docs, empty: docs.length === 0, size: docs.length };
-    },
-  });
-  return {
-    reads,
-    updates,
-    sets,
-    queued,
-    collection: (name) => query(name),
-    doc: ref,
-    async getAll(...args) {
-      const options = args.length && !args[args.length - 1]?.path ? args.pop() : null;
-      const fields = options?.fieldMask ? options.fieldMask.map(pathSegments) : null;
-      reads.push({ kind: 'getAll', paths: args.map((r) => r.path), fields });
-      return args.map((r) => {
-        const [collection, id] = r.path.split('/');
-        const data = collections[collection]?.[id];
-        return { id, ref: r, exists: Boolean(data), data: () => (data ? project(data, fields) : undefined) };
-      });
-    },
-    batch() {
-      const pending = [];
-      const pendingSets = [];
-      return {
-        update(docRef, fieldPath, value) { pending.push({ path: docRef.path, field: String(fieldPath), value }); },
-        set(docRef, data) { pendingSets.push({ path: docRef.path, data }); },
-        async commit() { updates.push(...pending); queued.push(...pendingSets); },
-      };
-    },
-  };
-};
+const fakeFirestore = checkpointSchedulerFirestore;
 
 const DAY = 24 * 60 * 60 * 1000;
 const iso = (offsetMs) => new Date(Date.now() + offsetMs).toISOString();
@@ -178,6 +101,11 @@ test('the checkpoint scheduler reads references and dates, and still flags every
   const links = db.reads.find((read) => read.kind === 'query' && read.collection === 'classroomLinks');
   assert.deepEqual(links.fields?.map((segments) => segments.join('.')).sort(),
     ['assignmentId', 'courseworkId', 'publicationKind', 'sectionGradePassbackEnabled']);
+  // Section publications only, asked of Firestore (issue #545).
+  assert.deepEqual(links.filters, [
+    { field: 'status', op: '==', value: 'published' },
+    { field: 'publicationKind', op: '==', value: 'section' },
+  ]);
 
   const assignments = db.reads.find((read) => read.kind === 'getAll');
   assert.deepEqual(assignments.paths.sort(), ['assignments/asg1', 'assignments/asg2'], 'section publications only');
