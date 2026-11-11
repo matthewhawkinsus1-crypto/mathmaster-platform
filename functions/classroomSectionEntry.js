@@ -1126,9 +1126,14 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
   const db = getFirestore();
   const now = Date.now();
   const cutoff = now - SECTION_CHECKPOINT_LOOKBACK_MS;
+  // Split-section publications only, asked of Firestore (issue #545): 445 of
+  // the 480 published links on Nov 11, 2026, where this read all 480 every 5
+  // minutes and dropped the whole-assignment ones itself
+  // (tests/platform/classroomCheckpointScans.test.mjs).
   const publicationSnapshot = await db
     .collection("classroomLinks")
     .where("status", "==", "published")
+    .where("publicationKind", "==", "section")
     .select("publicationKind", "courseworkId", "sectionGradePassbackEnabled", "assignmentId")
     .limit(1000)
     .get();
