@@ -329,9 +329,13 @@ const wake = async (student, signal) => {
 test('Classroom: the class\'s final wake-up is not returned to a student whose own cutoff is later; it is recorded for their own time', async () => {
   const { classroomExtra, classroomExtension, classroomPlain } = STUDENTS;
   await db.collection('assignments').doc(A_CLASSROOM).set(classroomAssignment());
+  // gradePassbackEnabled as publishOneCourse writes it: the checkpoint
+  // scheduler asks Firestore for `gradePassbackEnabled == true` (issue #545,
+  // tests/platform/classroomCheckpointScans.test.mjs).
   await db.collection('classroomLinks').doc(`${P}publication`).set({
     schemaVersion: 2, publicationId: `${P}publication`, assignmentId: A_CLASSROOM, courseId: COURSE, courseName: 'D7',
     courseworkId: `${P}coursework`, teacherUid: `uid-${TEACHER}`, status: 'published', maxPoints: 100, sectionKey: 'whole',
+    gradePassbackEnabled: true,
   });
   // An attendance extension that ends 20 seconds from now (their own cutoff
   // arrives during this test), and the extra-time student's due three days out.
