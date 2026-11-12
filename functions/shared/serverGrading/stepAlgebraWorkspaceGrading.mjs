@@ -85,6 +85,7 @@ import {
 import { expectedInterceptPoint, resolveStandardCoefficients } from '../toolMath/stepAlgebra2/linearInterceptsMath.mjs';
 import { withPromptRelationSource } from '../runtime/stepAlgebraRelationRouting.mjs';
 import { gradedResult, ungradedResult } from './gradingResult.mjs';
+import { gradeRadicalRelation, radicalGradingContext } from './stepAlgebraRadicalGrading.mjs';
 import {
   freeSymbols,
   isSafeStudentExpression,
@@ -125,12 +126,45 @@ export const equationWorkspaceWork = ({ equation = null, promptAnswers = {} } = 
     .map(([id, value]) => ({ id: text(id), value })),
 });
 
+/*
+ * A candidate check as the work carries it. An absolute-value check is the
+ * choice alone ("valid" / "extraneous"); a radical check also carries the two
+ * side values the student substituted and computed (stepAlgebraRadicalGrading).
+ * The keys are added only when present, so an absolute-value response is
+ * byte-for-byte what it always was.
+ */
+const MAX_CHECK_TEXT = 80;
+const candidateCheckWork = (candidate, entry) => {
+  if (typeof entry === 'string') return { candidate: text(candidate), choice: entry };
+  if (!isObject(entry) || typeof entry.choice !== 'string') return null;
+  return {
+    candidate: text(candidate),
+    choice: entry.choice,
+    ...(typeof entry.left === 'string' ? { left: entry.left.slice(0, MAX_CHECK_TEXT) } : {}),
+    ...(typeof entry.right === 'string' ? { right: entry.right.slice(0, MAX_CHECK_TEXT) } : {}),
+  };
+};
+
+/** The final solution set a radical solve reports: "no real solution", or the values, as typed. */
+const solutionSetWork = (solutionSet) => {
+  if (!isObject(solutionSet)) return null;
+  if (solutionSet.none === true) return { none: true, values: [] };
+  const values = (Array.isArray(solutionSet.values) ? solutionSet.values : [])
+    .filter((value) => typeof value === 'string')
+    .slice(0, MAX_CANDIDATES)
+    .map((value) => value.slice(0, MAX_CHECK_TEXT));
+  return { none: false, values };
+};
+
 /** Relation workspace: the relation, the open symbol decision, candidate choices, the checked number line. */
 export const relationWorkspaceWork = ({
   relationState = null,
   awaitingSymbolDecision = false,
   candidateChecks = {},
   representation = null,
+  // A radical solve's final answer (stepAlgebraRadicalGrading). Present only
+  // once the student has recorded it, so no other relation response changes.
+  solutionSet = null,
 } = {}) => ({
   relation: isObject(relationState)
     ? {
@@ -144,9 +178,9 @@ export const relationWorkspaceWork = ({
     : null,
   awaitingSymbolDecision: awaitingSymbolDecision === true,
   candidateChecks: Object.entries(isObject(candidateChecks) ? candidateChecks : {})
-    .filter(([, choice]) => typeof choice === 'string')
-    .slice(0, MAX_CANDIDATES)
-    .map(([candidate, choice]) => ({ candidate: text(candidate), choice })),
+    .map(([candidate, entry]) => candidateCheckWork(candidate, entry))
+    .filter(Boolean)
+    .slice(0, MAX_CANDIDATES),
   representation: isObject(representation)
     ? {
       intervals: Array.isArray(representation.intervals) ? representation.intervals : [],
@@ -154,6 +188,7 @@ export const relationWorkspaceWork = ({
       inequality: typed(representation.inequality),
     }
     : null,
+  ...(isObject(solutionSet) ? { solutionSet: solutionSetWork(solutionSet) } : {}),
 });
 
 /** Intercept orchestrator: the two ordered pairs the student typed. */
@@ -316,6 +351,21 @@ export const gradeRelationWorkspace = (question = {}, work = {}) => {
   const final = finalRelation(pristine, work?.relation);
   const awaitingSymbolDecision = work?.awaitingSymbolDecision === true;
   const summary = final ? relationSolutionSummary(final) : { solved: false };
+
+  // A radical equation the lesson verifies is judged exactly, against the
+  // candidates its original equation produces (stepAlgebraRadicalGrading.mjs).
+  // Any other relation takes the path below, unchanged.
+  const radical = radicalGradingContext(pristine);
+  if (radical) {
+    return gradedResult(gradeRadicalRelation({
+      context: radical,
+      final,
+      summary,
+      work,
+      awaitingSymbolDecision,
+      relationText: final ? relationStateToText(final) : '',
+    }));
+  }
   const sameSolutions = summary.solved && relationMatchesOriginal({ original: pristine, final, summary });
 
   // Candidate verification: the workspace's own rule, recomputed on the

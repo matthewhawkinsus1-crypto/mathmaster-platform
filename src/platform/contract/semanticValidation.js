@@ -13,6 +13,7 @@ import {
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { inequalitySolutionRepresentationStages } from '../../../functions/shared/toolMath/algebra-relations/inequalityRepresentationPolicy.mjs';
 import { relationSourceFromQuestion, usesRelationWorkspace } from '../../../functions/shared/serverGrading/stepAlgebraRouting.mjs';
+import { radicalAuthoringProblem } from './radicalEquationIntent.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -502,6 +503,16 @@ const validateBuiltQuestionSemantics = (question = {}, { label = 'Question' } = 
 
   const type = question.toolId || question.type;
   const composed = readComposedQuestion(question);
+  // A radical equation opened in the relation workspace is checked exactly (one
+  // square, cube, 4th or 5th root with a linear radicand). One outside that
+  // would open a workspace that cannot finish it, so it is refused here — for
+  // the item itself, a family's preview and every version Pre-Flight samples.
+  if (String(type) === 'stepAlgebra' && question.relationWorkspace === true) {
+    const problem = radicalAuthoringProblem(relationSourceFromQuestion(question), question.solveFor || question.variable || question.objective?.variable || null);
+    if (problem) {
+      errors.push(`${label} (stepAlgebra) has a radical equation the Step Algebra radical workspace cannot verify: ${problem}. It checks one square, cube, 4th or 5th root with a linear radicand (a cube, 4th or 5th root must equal a constant once isolated). Author it as a different question type instead.`);
+    }
+  }
   // Once a question has a workflow, the workflow is the renderer contract.
   // Applying legacy type-required fields on top of it recreates the exact V5
   // bug this layer is meant to prevent (for example, a functionGraph workflow

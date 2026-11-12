@@ -23,6 +23,7 @@ import {
 } from '../../algebra/algebraAstEngine.mjs';
 import { exactRationalFromExpression } from '../../algebra/algebraExactRational.mjs';
 import { needsMultiRelationWorkspace, relationSourceFromQuestion } from '../../serverGrading/stepAlgebraRouting.mjs';
+import { parseRadicalEquation, solveRadicalShape } from './radicalEquationShape.mjs';
 
 const RELATION_LATEX = { '=': '=', '<': '<', '<=': '\\le', '>': '>', '>=': '\\ge' };
 const REVERSED = { '=': '=', '<': '>', '<=': '>=', '>': '<', '>=': '<=' };
@@ -422,6 +423,58 @@ const validateAbsoluteSplitStructuralState = (expectedState, nextState) => {
   return validateExpectedStructuralState(reversedExpected, nextState);
 };
 
+/*
+ * THE RULES A VERIFIED RADICAL EQUATION ADDS TO EVERY STEP.
+ *
+ * Applied only where the relation's ORIGINAL equation is one the radical
+ * workspace verifies exactly (radicalEquationShape.mjs), so no absolute-value,
+ * inequality or completing-the-square work, and no radical equation outside
+ * that scope, takes either rule. The workspace and the server's replay read the
+ * same code, so a step one accepts the other does too.
+ *
+ *   - Multiplying or dividing both sides by an expression that holds the
+ *     variable is refused. Dividing x² = 5x by x "keeps the equation" and loses
+ *     the root x = 0; the equation then has fewer candidates than it owes. The
+ *     fix is the lesson: move every term to one side and factor.
+ *   - A long decimal the step introduces is refused. The final answer is judged
+ *     exactly, and the step gate compares numbers only to within 1e-9, so
+ *     -0.111111111111 passed as -1/9 and was then graded as a different value.
+ */
+export const RADICAL_VARIABLE_FACTOR_REASON = 'Multiplying or dividing both sides by an expression with the variable in it can lose a solution, or add one that is not real. Move every term to one side and factor instead.';
+export const RADICAL_ROUNDED_DECIMAL_REASON = 'Write the exact value, as a fraction such as -1/9. A long decimal is only a rounded approximation of it.';
+const LONG_DECIMAL = /\d*\.\d{7,}/g;
+
+/** Is this relation's ORIGINAL equation a radical equation the radical workspace verifies exactly? */
+export const relationStateIsVerifiedRadical = (state) => {
+  const source = state?.original;
+  if (typeof source !== 'string' || !/\b(?:sqrt|cbrt|nthRoot)\s*\(|\\sqrt/.test(source)) return false;
+  const parsed = parseRadicalEquation(source, { variable: state.variable || 'x' });
+  return parsed.ok && solveRadicalShape(parsed.shape).ok;
+};
+
+const longDecimalsIn = (state) => new Set(
+  (state?.branches || []).flatMap((branch) => (branch?.expressions || []).flatMap((expression) => String(expression).match(LONG_DECIMAL) || [])),
+);
+
+const operandHoldsNoVariable = (operandExpression) => {
+  try {
+    return parseOperationOperand(operandExpression).numericValue !== null;
+  } catch {
+    return false;
+  }
+};
+
+/** The sentence a verified radical equation refuses this step with, or null. */
+const radicalStepRefusal = (previousState, nextState, context) => {
+  if (!relationStateIsVerifiedRadical(previousState)) return null;
+  if ((context.operation === 'multiply' || context.operation === 'divide') && !operandHoldsNoVariable(context.operandExpression)) {
+    return RADICAL_VARIABLE_FACTOR_REASON;
+  }
+  const before = longDecimalsIn(previousState);
+  if ([...longDecimalsIn(nextState)].some((decimal) => !before.has(decimal))) return RADICAL_ROUNDED_DECIMAL_REASON;
+  return null;
+};
+
 export const validateRelationTransition = (
   previousState,
   nextState,
@@ -454,17 +507,29 @@ export const validateRelationTransition = (
         && nextState.special === context.claim
         && (nextState.branches?.length || 0) === 0
         && nextState.connective == null;
+    } else if (kind === 'radicalRaise') {
+      const expected = raiseRadicalRelation(previousState, Number(context.branchIndex) || 0, context.power);
+      valid = Boolean(expected?.ready && validateExpectedStructuralState(expected.state, nextState));
+    } else if (kind === 'factor') {
+      valid = validateFactorTransition(previousState, nextState, Number(context.branchIndex) || 0);
+    } else if (kind === 'zeroProduct') {
+      valid = validateZeroProductTransition(previousState, nextState, Number(context.branchIndex) || 0);
     }
   } catch {
     valid = false;
   }
 
-  return valid
-    ? { valid: true, reason: null }
-    : {
-        valid: false,
-        reason: 'That step did not preserve the relation. Your previous valid work was kept.',
-      };
+  if (valid) {
+    // A step that preserves the relation can still break a rule the radical
+    // equation adds (above); the sentence says which.
+    const refusal = radicalStepRefusal(previousState, nextState, context);
+    if (refusal) return { valid: false, reason: refusal };
+    return { valid: true, reason: null };
+  }
+  return {
+    valid: false,
+    reason: 'That step did not preserve the relation. Your previous valid work was kept.',
+  };
 };
 
 const operationExpression = (expression, operation, operand, placement = null) => {
@@ -498,6 +563,11 @@ export const applyBalancedOperationToRelation = (
     && operand.numericValue !== null
     && Math.abs(operand.numericValue) < 1e-12
   ) throw new Error('Multiplying or dividing a relation by zero is not allowed.');
+  if (
+    (operation === 'multiply' || operation === 'divide')
+    && operand.numericValue === null
+    && relationStateIsVerifiedRadical(state)
+  ) throw new Error(RADICAL_VARIABLE_FACTOR_REASON);
 
   const next = cloneRelationState(state);
   const branch = next.branches[branchIndex];
@@ -1412,6 +1482,29 @@ export const relationSolutionSummary = (state) => {
   return intervals.length ? { solved: true, kind: 'intervals', intervals } : { solved: false };
 };
 
+/**
+ * The values a solved relation states, one per branch exactly as written, and
+ * how its branches are joined; null unless every branch reads "variable = value".
+ *
+ * relationSolutionSummary answers "is it solved, and what are the values", but it
+ * folds values within 1e-10 of each other into one and says nothing of the
+ * connective, so x = 5 AND x = 0 and x = 5 OR x = 5.00000000001 read like a
+ * list of solutions. A grader that must be exact reads the branches here.
+ */
+export const relationIsolatedBranchValues = (state) => {
+  if (!state || state.special) return null;
+  const variable = state.variable || 'x';
+  const branches = state.branches || [];
+  if (!branches.length) return null;
+  const expressions = [];
+  for (const branch of branches) {
+    const isolated = isolatedEquationValue(branch, variable);
+    if (!isolated) return null;
+    expressions.push(isolated.expression);
+  }
+  return { expressions, connective: state.connective ?? null };
+};
+
 /*
  * A RELATION WITH NO VARIABLE LEFT IS A STATEMENT: TRUE OR FALSE.
  *
@@ -1470,6 +1563,8 @@ export const obviousSpecialClaim = (state) => {
   if (!state || state.branches?.length !== 1) return null;
   const statement = constantRelationTruth(state.branches[0]);
   if (statement !== null) return statement ? 'allReals' : 'noSolution';
+  // An isolated even root equal to a negative number (radicalNoSolutionClaim).
+  if (radicalNoSolutionClaim(state.branches[0])) return 'noSolution';
   const oriented = orientAbsoluteBranch(state.branches[0]);
   if (!oriented || Math.abs(oriented.abs.coefficient - 1) > 1e-12) return null;
   const value = numericValue(oriented.bound);
@@ -1736,3 +1831,323 @@ export const OTHER_ALGEBRA_OPERATIONS = Object.freeze([
   { id: 'noSolution', label: 'No solution' },
   { id: 'allReals', label: 'All real numbers' },
 ]);
+
+/*
+ * RADICAL EQUATIONS AND QUADRATIC FACTORING, IN THE SAME WORKSPACE.
+ *
+ * Three student-driven operations, each a validated transition exactly like
+ * the absolute-value split: the student authors the next line, the workspace
+ * and the server judge it with the SAME function (validateRelationTransition),
+ * and a step that does not follow is never committed or credited.
+ *
+ *   radicalRaise   "square both sides" / "cube both sides" / "raise to the 4th
+ *                  or 5th". Allowed only on an ISOLATED radical (one side is
+ *                  exactly ⁿ√(…), the other holds none) and only to the radical's
+ *                  own index. The result is judged structurally — the radical
+ *                  side must become the radicand and the other side its own
+ *                  n-th power — because generic equivalence cannot say that
+ *                  (sqrt(x+4)^2 is not x+4 where x+4 < 0).
+ *   factor         Write one side of  0 = quadratic  as a product of linear
+ *                  factors (a repeated factor and a leading constant included).
+ *   zeroProduct    From  (factor)(factor) = 0  write one equation per distinct
+ *                  factor. Unordered; a repeated factor may be written once.
+ *
+ * They are named tools a lesson opts into (RADICAL_ALGEBRA_TOOLS below), so no
+ * absolute-value or inequality lesson gains a button it did not have. They are
+ * not specific to radicals: a standalone quadratic lesson enables the same
+ * `factor` and `zeroProduct` tools.
+ */
+export const RADICAL_ALGEBRA_TOOLS = Object.freeze([
+  { id: 'raisePower', label: 'Raise both sides to a power' },
+  { id: 'factor', label: 'Factor' },
+  { id: 'zeroProduct', label: 'Zero-product property' },
+]);
+
+/** The powers the raise operation offers: the radical indices the lesson verifies. */
+export const RADICAL_POWER_CHOICES = Object.freeze([2, 3, 4, 5]);
+
+const RADICAL_FUNCTION_NAMES = new Set(['sqrt', 'cbrt', 'nthRoot']);
+
+const plainNode = (node) => {
+  let current = node;
+  while (current?.isParenthesisNode) current = current.content;
+  return current;
+};
+
+const nodeText = (node) => node.toString({ parenthesis: 'keep', implicit: 'hide' });
+
+/** { index, radicand } when the WHOLE expression is a single radical call. */
+export const radicalCallOf = (expression) => {
+  try {
+    const node = plainNode(parse(String(expression)));
+    if (!node?.isFunctionNode || !RADICAL_FUNCTION_NAMES.has(node.fn?.name)) return null;
+    if (node.fn.name === 'sqrt' && node.args.length === 1) return { index: 2, radicand: nodeText(node.args[0]) };
+    if (node.fn.name === 'cbrt' && node.args.length === 1) return { index: 3, radicand: nodeText(node.args[0]) };
+    if (node.fn.name === 'nthRoot' && node.args.length === 2) {
+      const index = constantNodeValue(plainNode(node.args[1]));
+      return Number.isInteger(index) && index >= 2 ? { index, radicand: nodeText(node.args[0]) } : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const expressionHasRadical = (expression) => {
+  try {
+    return parse(String(expression)).filter((child) => (
+      child?.isFunctionNode && RADICAL_FUNCTION_NAMES.has(child.fn?.name)
+    )).length > 0;
+  } catch {
+    return false;
+  }
+};
+
+/** Does the relation's ORIGINAL equation contain a radical? (Candidates must be checked in it.) */
+export const relationStateContainsRadical = (state) => (
+  /\b(?:sqrt|cbrt|nthRoot)\s*\(/.test(String(state?.original || ''))
+);
+
+/** Absolute value and radical equations both can gain an extraneous candidate. */
+export const relationStateNeedsCandidateCheck = (state) => (
+  relationStateContainsAbsoluteValue(state) || relationStateContainsRadical(state)
+);
+
+/** The radical a branch has isolated: one side is exactly ⁿ√(…), the other side holds no radical. */
+export const isolatedRadicalInBranch = (branch) => {
+  if (
+    !branch
+    || branch.expressions?.length !== 2
+    || branch.relations?.length !== 1
+    || branch.relations[0] !== '='
+  ) return null;
+  for (const side of [0, 1]) {
+    const call = radicalCallOf(branch.expressions[side]);
+    if (call && !expressionHasRadical(call.radicand) && !expressionHasRadical(branch.expressions[1 - side])) {
+      return { side, ...call };
+    }
+  }
+  return null;
+};
+
+/**
+ * The state "raise both sides to the power n" must produce from an isolated
+ * radical: the radical side becomes the radicand, the other side its n-th
+ * power. `ready: false` carries the sentence the student reads.
+ */
+export const raiseRadicalRelation = (state, branchIndex = 0, power = null) => {
+  if (!state || state.special) return { ready: false, reason: 'There is no active equation to raise to a power.' };
+  if ((state.branches?.length || 0) !== 1) {
+    return { ready: false, reason: 'Raise both sides to a power while the equation is still one equation, before it splits into branches.' };
+  }
+  const branch = state.branches[branchIndex];
+  const isolated = isolatedRadicalInBranch(branch);
+  if (!isolated) {
+    return { ready: false, reason: 'Isolate the radical on one side first. Raising to a power only removes a root that is alone on its side.' };
+  }
+  const exponent = Number(power);
+  if (!Number.isInteger(exponent) || !RADICAL_POWER_CHOICES.includes(exponent)) {
+    return { ready: false, reason: 'Choose a power from 2 to 5.' };
+  }
+  if (exponent !== isolated.index) {
+    return { ready: false, reason: 'That power does not undo this root. Raise both sides to the power that matches the root’s index.' };
+  }
+  const expressions = [...branch.expressions];
+  expressions[isolated.side] = isolated.radicand;
+  expressions[1 - isolated.side] = `(${branch.expressions[1 - isolated.side]})^${exponent}`;
+  const next = cloneRelationState(state);
+  next.branches[branchIndex] = { expressions, relations: ['='] };
+  return { ready: true, state: next, index: isolated.index };
+};
+
+// --- Polynomials the factoring tools read ---------------------------------------------
+
+const MAX_FACTOR_DEGREE = 6;
+const POLYNOMIAL_OPERATOR_FUNCTIONS = new Set(['add', 'subtract', 'multiply', 'unaryMinus', 'unaryPlus']);
+
+/** Is the node a polynomial in `variable` with numeric coefficients (division only by a number)? */
+const isPolynomialNode = (node, variable) => {
+  let polynomial = true;
+  node.traverse((child) => {
+    if (!polynomial) return;
+    if (child.isConstantNode) polynomial = typeof child.value === 'number';
+    else if (child.isSymbolNode) polynomial = child.name === variable;
+    else if (child.isParenthesisNode) polynomial = true;
+    else if (child.isOperatorNode && POLYNOMIAL_OPERATOR_FUNCTIONS.has(child.fn)) polynomial = true;
+    else if (child.isOperatorNode && child.fn === 'divide') {
+      polynomial = child.args[1].filter((part) => part?.isSymbolNode).length === 0;
+    } else if (child.isOperatorNode && child.fn === 'pow') {
+      const exponent = constantNodeValue(plainNode(child.args[1]));
+      polynomial = Number.isInteger(exponent) && exponent >= 0 && exponent <= MAX_FACTOR_DEGREE;
+    } else polynomial = false;
+  });
+  return polynomial;
+};
+
+/** Degree of a polynomial in `variable` (finite differences on integer points), or null. */
+const polynomialDegree = (expression, variable) => {
+  try {
+    const node = parse(String(expression));
+    if (!isPolynomialNode(node, variable)) return null;
+    let row = [];
+    for (let point = 0; point <= MAX_FACTOR_DEGREE + 1; point += 1) {
+      const value = Number(evaluate(String(expression), { [variable]: point }));
+      if (!Number.isFinite(value)) return null;
+      row.push(value);
+    }
+    const scale = Math.max(1, ...row.map(Math.abs));
+    let degree = 0;
+    for (let order = 0; order <= MAX_FACTOR_DEGREE + 1; order += 1) {
+      if (row.some((value) => Math.abs(value) > 1e-9 * scale)) degree = order;
+      row = row.slice(1).map((value, index) => value - row[index]);
+    }
+    return degree;
+  } catch {
+    return null;
+  }
+};
+
+const noSymbols = (node) => node.filter((child) => child?.isSymbolNode).length === 0;
+
+/** The factors of a product, parentheses and constant multipliers seen through. */
+const flattenProductFactors = (node) => {
+  const inner = plainNode(node);
+  if (inner?.isOperatorNode && inner.fn === 'multiply') {
+    return [...flattenProductFactors(inner.args[0]), ...flattenProductFactors(inner.args[1])];
+  }
+  if (inner?.isOperatorNode && (inner.fn === 'unaryMinus' || inner.fn === 'unaryPlus')) {
+    return flattenProductFactors(inner.args[0]);
+  }
+  if (inner?.isOperatorNode && inner.fn === 'divide' && noSymbols(inner.args[1])) {
+    return flattenProductFactors(inner.args[0]);
+  }
+  return [inner];
+};
+
+/**
+ * { ok, factors: [{ expression, multiplicity }], degree } for an expression
+ * written as a product of linear factors — a leading number, a repeated
+ * factor ((x - 3)^2 or (x - 3)(x - 3)) and a bare x included. A sum is not a
+ * product; neither is a lone linear factor or an irreducible quadratic factor.
+ */
+export const factoredProductOf = (expression, variable = 'x') => {
+  try {
+    const parts = flattenProductFactors(parse(String(expression)));
+    const factors = [];
+    for (const part of parts) {
+      if (noSymbols(part)) continue;
+      let base = part;
+      let multiplicity = 1;
+      if (part.isOperatorNode && part.fn === 'pow') {
+        const exponent = constantNodeValue(plainNode(part.args[1]));
+        if (!Number.isInteger(exponent) || exponent < 2) return { ok: false };
+        base = plainNode(part.args[0]);
+        multiplicity = exponent;
+      }
+      if (polynomialDegree(nodeText(base), variable) !== 1) return { ok: false };
+      factors.push({ expression: nodeText(base), multiplicity });
+    }
+    const degree = factors.reduce((sum, factor) => sum + factor.multiplicity, 0);
+    return degree >= 2 ? { ok: true, factors, degree } : { ok: false };
+  } catch {
+    return { ok: false };
+  }
+};
+
+/** [zero side, other side] of an equation branch that has a 0 on exactly one side, else null. */
+const zeroSideOf = (branch) => {
+  if (!branch || branch.expressions?.length !== 2 || branch.relations?.length !== 1 || branch.relations[0] !== '=') return null;
+  const values = branch.expressions.map(numericValue);
+  if (values[0] === 0 && values[1] !== 0) return { zero: 0, other: 1 };
+  if (values[1] === 0 && values[0] !== 0) return { zero: 1, other: 0 };
+  return null;
+};
+
+/** Factoring a polynomial needs it alone on one side of 0. */
+const factorTargetOf = (branch, variable) => {
+  const sides = zeroSideOf(branch);
+  if (!sides) return null;
+  const degree = polynomialDegree(branch.expressions[sides.other], variable);
+  return degree !== null && degree >= 2 ? sides : null;
+};
+
+/** For factoring: which expression of the branch is the 0 and which the polynomial, else null. */
+export const factorTargetOfBranch = (branch, variable = 'x') => factorTargetOf(branch, variable);
+
+const validateFactorTransition = (previousState, nextState, branchIndex) => {
+  if (!previousState || previousState.special || !nextState || nextState.special) return false;
+  if (!relationFramesMatch(previousState, nextState)) return false;
+  const variable = previousState.variable || 'x';
+  const target = factorTargetOf(previousState.branches[branchIndex], variable);
+  const after = nextState.branches[branchIndex];
+  if (!target || !after || after.expressions?.length !== 2 || after.relations?.[0] !== '=') return false;
+  const before = previousState.branches[branchIndex];
+  // The 0 stays 0; the polynomial becomes an equal product of linear factors.
+  if (numericValue(after.expressions[target.zero]) !== 0) return false;
+  const factored = after.expressions[target.other];
+  if (!expressionsEquivalent(before.expressions[target.other], factored, variable)) return false;
+  const product = factoredProductOf(factored, variable);
+  if (!product.ok || product.degree !== polynomialDegree(before.expressions[target.other], variable)) return false;
+  return previousState.branches.every((branch, index) => (
+    index === branchIndex || branchExpressionsEquivalent(branch, nextState.branches[index], variable)
+  ));
+};
+
+/** The distinct linear factors a zero product splits into (one equation each). */
+export const zeroProductFactors = (state, branchIndex = 0) => {
+  if (!state || state.special || state.connective === 'AND') return null;
+  const variable = state.variable || 'x';
+  const branch = state.branches?.[branchIndex];
+  const sides = zeroSideOf(branch);
+  if (!sides) return null;
+  const product = factoredProductOf(branch.expressions[sides.other], variable);
+  if (!product.ok) return null;
+  const distinct = [];
+  product.factors.forEach(({ expression }) => {
+    if (!distinct.some((known) => expressionsEquivalent(known, expression, variable))) distinct.push(expression);
+  });
+  return distinct;
+};
+
+const validateZeroProductTransition = (previousState, nextState, branchIndex) => {
+  const factors = zeroProductFactors(previousState, branchIndex);
+  if (!factors || !nextState || nextState.special) return false;
+  const variable = previousState.variable || 'x';
+  const before = previousState.branches;
+  const after = nextState.branches || [];
+  const written = after.length - before.length + 1;
+  if (written < 1 || (nextState.variable || 'x') !== variable) return false;
+  // Branches before and after the written ones are untouched.
+  const untouched = before.every((branch, index) => {
+    if (index === branchIndex) return true;
+    const position = index < branchIndex ? index : index + written - 1;
+    return branchExpressionsEquivalent(branch, after[position], variable);
+  });
+  if (!untouched) return false;
+  const expectedConnective = after.length > 1 ? 'OR' : null;
+  if ((nextState.connective ?? null) !== expectedConnective) return false;
+  const covered = new Set();
+  for (let offset = 0; offset < written; offset += 1) {
+    const branch = after[branchIndex + offset];
+    if (branch?.expressions?.length !== 2 || branch.relations?.[0] !== '=') return false;
+    const sides = zeroSideOf(branch);
+    if (!sides) return false;
+    const match = factors.findIndex((factor) => expressionsEquivalent(factor, branch.expressions[sides.other], variable));
+    if (match < 0) return false;
+    covered.add(match);
+  }
+  return covered.size === factors.length;
+};
+
+/*
+ * An isolated even root equal to a negative number has no real solution — no
+ * algebra needed. Only that shape: the radical alone on one side, a negative
+ * number on the other. (Any other "no real solution" is earned by checking
+ * every candidate in the original equation.)
+ */
+const radicalNoSolutionClaim = (branch) => {
+  const isolated = isolatedRadicalInBranch(branch);
+  if (!isolated || isolated.index % 2 !== 0) return false;
+  const value = numericValue(branch.expressions[1 - isolated.side]);
+  return value !== null && value < 0;
+};
