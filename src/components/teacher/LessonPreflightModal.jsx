@@ -47,6 +47,7 @@ import { hydrateAssignmentCcmr } from '../../services/assignmentCcmrService.js';
 import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import MathText from '../common/MathText.jsx';
 import {
+  CCMR_RELEASE_TARGET,
   HONORS_CCMR_STATUS,
   assignmentFingerprint,
   ccmrSelectionKey,
@@ -533,8 +534,35 @@ export const LessonPreflightModal = ({
   const ccmrRequestKey = useMemo(() => (
     honorsCcmrNeeded ? `${ccmrSourcingKey(honorsBaseAssignmentV5)}|${ccmrSetAside.join(',')}|${ccmrPlanRun}` : null
   ), [honorsCcmrNeeded, honorsBaseAssignmentV5, ccmrSetAside, ccmrPlanRun]);
+  // An already-audited Honors lesson does not need a second bank lookup. The
+  // source's two certified Practice questions are still checked below by the
+  // exact same final Honors Pre-Flight model as remotely sourced questions.
+  // This also keeps a temporary bank/Firestore outage from blocking a valid,
+  // self-contained teacher import (and avoids a needless audit write).
+  const authoredCcmrHydration = useMemo(() => {
+    if (!honorsCcmrNeeded || !honorsReport.checks.ccmrEnrichment || ccmrSetAside.length) return null;
+    const practice = (Array.isArray(honorsBaseAssignmentV5?.sections) ? honorsBaseAssignmentV5.sections : [])
+      .filter((section) => String(section?.role || '').toLowerCase() === 'practice')
+      .flatMap((section) => Array.isArray(section?.questions) ? section.questions : []);
+    if (practice.length < 5) return null;
+    const targetCount = Math.max(1, Math.round(practice.length * 0.15));
+    const audited = (question) => question?.teacherExcluded !== true
+      && question?.ccmrSource?.source === 'auditedBank'
+      && question?.ccmrSource?.releaseTarget === CCMR_RELEASE_TARGET
+      && Boolean(question?.ccmrSource?.documentId);
+    if (practice.filter(audited).length < targetCount) return null;
+    if (practice.some((question) => question?.assessmentContext?.examStyle === true && !audited(question))) return null;
+    return {
+      assignment: honorsBaseAssignmentV5,
+      audit: { targetCount, plan: { targetCount, slots: [] } },
+    };
+  }, [honorsCcmrNeeded, honorsReport, honorsBaseAssignmentV5, ccmrSetAside]);
   useEffect(() => {
     if (!ccmrRequestKey) return undefined;
+    if (authoredCcmrHydration) {
+      setCcmrPlan({ key: ccmrRequestKey, status: 'ready', hydration: authoredCcmrHydration, error: '' });
+      return undefined;
+    }
     let active = true;
     const requested = honorsBaseAssignmentV5;
     const excludeDocumentIds = ccmrSetAside;
@@ -553,7 +581,7 @@ export const LessonPreflightModal = ({
       active = false;
       clearTimeout(timer);
     };
-  }, [ccmrRequestKey]);
+  }, [ccmrRequestKey, authoredCcmrHydration]);
   const honorsSelectionKey = useMemo(() => (honorsCcmrNeeded ? ccmrSelectionKey(honorsBaseAssignmentV5) : null), [honorsCcmrNeeded, honorsBaseAssignmentV5]);
   const ccmrPlanReady = honorsCcmrNeeded && ccmrPlan.status === 'ready' && ccmrPlan.key === ccmrRequestKey;
   // Stage 1 — which audited item goes where — re-runs only when something the
