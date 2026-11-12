@@ -52,6 +52,7 @@ import {
   rationalToText,
   solveRadicalShape,
 } from '../toolMath/algebra-relations/radicalEquationShape.mjs';
+import { relationIsolatedBranchValues } from '../toolMath/algebra-relations/algebraRelationFoundation.mjs';
 import { isSafeStudentExpression } from './stepAlgebraEquivalence.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -163,19 +164,26 @@ const readSolutionSet = (solutionSet) => {
 };
 
 /**
- * Grade a radical equation's final work. `summary` is relationSolutionSummary
- * of the student's final relation; `work` the relation workspace's work.
- * Returns { parts, isComplete, isCorrect, detail }.
+ * Grade a radical equation's final work. `final` is the student's final
+ * relation and `summary` its relationSolutionSummary; `work` the relation
+ * workspace's work. Returns { parts, isComplete, isCorrect }.
  */
-export const gradeRadicalRelation = ({ context, summary, work, awaitingSymbolDecision, relationText }) => {
+export const gradeRadicalRelation = ({ context, final, summary, work, awaitingSymbolDecision, relationText }) => {
   const { shape, expected } = context;
   const claimsNoSolution = summary.solved === true && summary.kind === 'special' && summary.special === 'noSolution';
 
-  // The candidates the student's algebra reached, as exact numbers.
+  // The candidates the student's algebra reached, as exact numbers, read from
+  // the branches themselves. The summary folds values within 1e-10 into one
+  // and ignores how the branches are joined, so "x = 0 AND x = 5" and an extra
+  // branch x = 5.00000000001 would read as the right list. Several branches are
+  // a list of candidates only when they are joined by OR.
   let reached = null;
   if (summary.solved === true && summary.kind === 'values') {
-    const read = (summary.valueExpressions || []).map(readExactValue);
-    reached = read.length > 0 && read.every(Boolean) ? distinct(read) : null;
+    const stated = relationIsolatedBranchValues(final);
+    if (stated && (stated.expressions.length === 1 || stated.connective === 'OR')) {
+      const read = stated.expressions.map(readExactValue);
+      reached = read.every(Boolean) ? distinct(read) : null;
+    }
   }
   const reachedCandidates = reached !== null && sameSet(reached, expected.candidates);
   const relationCorrect = reachedCandidates || (claimsNoSolution && expected.structuralNoSolution);

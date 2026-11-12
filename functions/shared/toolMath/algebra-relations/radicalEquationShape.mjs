@@ -206,15 +206,22 @@ const addValues = (a, b, subtract = false) => {
     else if (sameRadical(rad, incoming)) rad = { ...rad, coef: plus(rad.coef, incoming.coef) };
     else fail('two-radicals');
   }
-  if (rad && isZero(rad.coef)) rad = null;
+  // Like radicals that cancel (√x − √x) leave no radical behind, and with it go the domain
+  // restriction and the candidate check the original equation owes: refused, never read as the
+  // equation that is left.
+  if (rad && isZero(rad.coef)) fail('cancelled-radical');
   return { c1: subtract ? minus(a.c1, b.c1) : plus(a.c1, b.c1), c0: subtract ? minus(a.c0, b.c0) : plus(a.c0, b.c0), rad };
 };
 
-const scaleValue = (value, factor) => ({
-  c1: times(value.c1, factor),
-  c0: times(value.c0, factor),
-  rad: value.rad && !isZero(factor) ? { ...value.rad, coef: times(value.rad.coef, factor) } : null,
-});
+const scaleValue = (value, factor) => {
+  // 0·√(x − 10) is not "nothing": the equation it came from still needs x − 10 ≥ 0.
+  if (value.rad && isZero(factor)) fail('cancelled-radical');
+  return {
+    c1: times(value.c1, factor),
+    c0: times(value.c0, factor),
+    rad: value.rad ? { ...value.rad, coef: times(value.rad.coef, factor) } : null,
+  };
+};
 
 const multiplyValues = (a, b) => {
   if (isPlainConstant(a)) return scaleValue(b, a.c0);

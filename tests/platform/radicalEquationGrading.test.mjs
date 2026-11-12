@@ -20,6 +20,9 @@ import {
   stepAlgebraWorkGrader,
 } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import {
+  RADICAL_ROUNDED_DECIMAL_REASON,
+  RADICAL_VARIABLE_FACTOR_REASON,
+  applyBalancedOperationToRelation,
   parseRelationSource,
   validateRelationTransition,
 } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
@@ -468,4 +471,111 @@ test('the transitions the workspace validates are the ones the server validates'
     });
     assert.equal(server.verified === true, workspace, `power ${power}`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Independent review (2026-11-12): the final relation is read as written, and
+// each step is held to the radical equation's own rules
+// ---------------------------------------------------------------------------
+
+test('the final relation is read as written: AND states no x, and a branch a hair off is a value of its own', () => {
+  const checks = { 0: check('extraneous', '4', '0'), 5: check('valid', '5', '5') };
+  const set = { none: false, values: ['5'] };
+  assert.equal(verdict(parity(SQRT_PLUS, attempt(SQRT_PLUS, { reached: [0, 5], checks, set }), 'x = 0 OR x = 5')), 'complete/correct');
+
+  // Joined by AND the branches say x = 0 and x = 5 at once: no x, so not the list of candidates.
+  const and = { ...solvedState(SQRT_PLUS, [0, 5]), connective: 'AND' };
+  const joined = parity(SQRT_PLUS, attempt(SQRT_PLUS, { state: and, checks, set }), 'x = 0 AND x = 5');
+  assert.equal(part(joined, 'relation-work').isCorrect, false);
+  assert.notEqual(verdict(joined), 'complete/correct');
+  // Two branches with no connective are not a list either.
+  const bare = { ...solvedState(SQRT_PLUS, [0, 5]), connective: null };
+  assert.equal(part(parity(SQRT_PLUS, attempt(SQRT_PLUS, { state: bare, checks, set }), 'no connective'), 'relation-work').isCorrect, false);
+
+  // relationSolutionSummary folds values within 1e-10 into one; the grade must not.
+  for (const hair of ['5.00000000001', '4.99999999999']) {
+    const near = { ...solvedState(SQRT_PLUS, [0, 5, hair]) };
+    const result = parity(SQRT_PLUS, attempt(SQRT_PLUS, { state: near, checks, set }), `a third branch x = ${hair}`);
+    assert.equal(part(result, 'relation-work').isCorrect, false, hair);
+    assert.notEqual(verdict(result), 'complete/correct', hair);
+  }
+
+  // What is the same value written another way stays one value: order, 5 = x, 5.0, a repeated branch.
+  const reversed = { ...solvedState(SQRT_PLUS, [5, 0]), branches: [{ expressions: ['5', 'x'], relations: ['='] }, { expressions: ['x', '0'], relations: ['='] }], connective: 'OR' };
+  assert.equal(verdict(parity(SQRT_PLUS, attempt(SQRT_PLUS, { state: reversed, checks, set }), '5 = x OR x = 0')), 'complete/correct');
+  const repeated = solvedState(SQRT_PLUS, [0, 5, '5.0']);
+  assert.equal(verdict(parity(SQRT_PLUS, attempt(SQRT_PLUS, { state: repeated, checks, set }), 'x = 5.0 beside x = 5')), 'complete/correct');
+});
+
+test('a radical equation refuses to multiply or divide both sides by an expression with the variable (it loses a root)', () => {
+  // 0 = x² − 5x: dividing by x "keeps" the equation and loses x = 0.
+  const run = session(SQRT_PLUS);
+  const honest = [
+    [fromState(run.state, ['sqrt(x+4)', 'x-2']), { label: 'Subtract 2', transition: { kind: 'balancedOperation', operation: 'subtract', operandExpression: '2', branchIndices: [0] } }],
+    [fromState(run.state, ['x+4', 'x^2-4*x+4']), { kind: 'radical-raise', label: 'Raise both sides to the power 2', transition: { kind: 'radicalRaise', branchIndex: 0, power: 2 } }],
+    [fromState(run.state, ['0', 'x^2-5*x']), { label: 'Subtract x + 4', transition: { kind: 'balancedOperation', operation: 'subtract', operandExpression: 'x+4', branchIndices: [0] } }],
+  ];
+  for (const [after, options] of honest) assert.equal(replay(run, after, options).verified, true, options.label);
+
+  const divideByX = { kind: 'balancedOperation', operation: 'divide', operandExpression: 'x', branchIndices: [0] };
+  const lossy = fromState(run.state, ['0', 'x-5']);
+  const verdictOf = validateRelationTransition(run.state, lossy, divideByX);
+  assert.equal(verdictOf.valid, false);
+  assert.equal(verdictOf.reason, RADICAL_VARIABLE_FACTOR_REASON);
+  const server = replay(run, lossy, { label: 'Divide by x', transition: divideByX });
+  assert.equal(server.verified, false, 'the server replay refuses what the workspace refuses');
+  // Multiplying by the variable can add a root that is not there, so it is refused too.
+  assert.equal(validateRelationTransition(run.state, fromState(run.state, ['0', 'x^3-5*x^2']), { kind: 'balancedOperation', operation: 'multiply', operandExpression: 'x', branchIndices: [0] }).reason, RADICAL_VARIABLE_FACTOR_REASON);
+  // The workspace says so before the line is typed.
+  assert.throws(() => applyBalancedOperationToRelation(run.state, 'divide', 'x'), (error) => error.message === RADICAL_VARIABLE_FACTOR_REASON);
+  assert.throws(() => applyBalancedOperationToRelation(run.state, 'multiply', '(x-5)'), (error) => error.message === RADICAL_VARIABLE_FACTOR_REASON);
+
+  // Numbers are fine, and adding or subtracting an expression with the variable always was.
+  assert.doesNotThrow(() => applyBalancedOperationToRelation(run.state, 'divide', '2'));
+  assert.doesNotThrow(() => applyBalancedOperationToRelation(run.state, 'multiply', '-1'));
+  assert.doesNotThrow(() => applyBalancedOperationToRelation(run.state, 'subtract', 'x+4'));
+  assert.equal(validateRelationTransition(run.state, fromState(run.state, ['0', 'x^2-5*x']), { kind: 'balancedOperation', operation: 'add', operandExpression: 'x', branchIndices: [0] }).reason === RADICAL_VARIABLE_FACTOR_REASON, false);
+
+  // Nothing else gains the rule: the same move on a relation that is not a verified radical equation is what it was.
+  const plain = { ...parseRelationSource('x^2 = 5x', 'x'), branches: [{ expressions: ['0', 'x^2-5*x'], relations: ['='] }] };
+  assert.equal(validateRelationTransition(plain, { ...plain, branches: [{ expressions: ['0', 'x-5'], relations: ['='] }] }, divideByX).valid, true);
+  const absolute = { ...parseRelationSource('abs(x-1) = 3', 'x'), branches: [{ expressions: ['x^2', '5*x'], relations: ['='] }] };
+  assert.equal(validateRelationTransition(absolute, { ...absolute, branches: [{ expressions: ['x', '5'], relations: ['='] }] }, divideByX).valid, true);
+  const twoRadicals = { ...parseRelationSource('sqrt(x+1)+sqrt(x) = 3', 'x'), branches: [{ expressions: ['x^2', '5*x'], relations: ['='] }] };
+  assert.equal(validateRelationTransition(twoRadicals, { ...twoRadicals, branches: [{ expressions: ['x', '5'], relations: ['='] }] }, divideByX).valid, true, 'outside the verified scope, nothing changes');
+});
+
+test('a radical equation refuses a rounded decimal the step introduces, because the answer is judged exactly', () => {
+  // sqrt(2x+2) = 3x-1, candidates -1/9 and 1: the lesson's one candidate that is not a terminating decimal.
+  const start = parseRelationSource('sqrt(2x+2) = 3x-1', 'x');
+  const before = { ...start, branches: [{ expressions: ['9*x', '-1'], relations: ['='] }, { expressions: ['x-1', '0'], relations: ['='] }], connective: 'OR' };
+  const divide = { kind: 'balancedOperation', operation: 'divide', operandExpression: '9', branchIndices: [0] };
+  const written = (value) => ({ ...before, branches: [{ expressions: ['x', value], relations: ['='] }, before.branches[1]] });
+
+  // The step gate's own tolerance is 1e-9, so these two pass it as -1/9: this rule is what refuses them.
+  for (const rounded of ['-0.111111111111', '-0.1111111111']) {
+    const refused = validateRelationTransition(before, written(rounded), divide);
+    assert.equal(refused.valid, false, rounded);
+    assert.equal(refused.reason, RADICAL_ROUNDED_DECIMAL_REASON, rounded);
+  }
+  assert.equal(validateRelationTransition(before, written('-0.11111111'), divide).valid, false, 'outside the tolerance it was never equivalent');
+  assert.equal(validateRelationTransition(before, written('-1/9'), divide).valid, true, 'the exact value');
+  assert.equal(validateRelationTransition(before, written('(-1)/(9)'), divide).valid, true, 'the exact value, another way');
+  assert.equal(validateRelationTransition(before, written('-0.111'), divide).valid, false, 'a short rounded decimal was never equivalent');
+  // The server replay and the workspace agree on it.
+  const run = session(radical('sqrt(2x+2) = 3x-1'));
+  run.state = before;
+  run.record.algebraState = { relationState: before };   // the state the verified steps so far arrive at
+  assert.equal(replay(run, written('-0.111111111111'), { label: 'Divide by 9', transition: divide }).verified, false);
+  assert.equal(replay(run, written('-1/9'), { label: 'Divide by 9', transition: divide }).verified, true);
+
+  // A decimal that is exact stays fine, and so does one the equation itself was written with.
+  const quarter = { ...parseRelationSource('sqrt(4x) = 3', 'x'), branches: [{ expressions: ['4*x', '9'], relations: ['='] }] };
+  assert.equal(validateRelationTransition(quarter, { ...quarter, branches: [{ expressions: ['x', '2.25'], relations: ['='] }] }, { kind: 'balancedOperation', operation: 'divide', operandExpression: '4', branchIndices: [0] }).valid, true);
+  const long = { ...parseRelationSource('sqrt(1.23456789x) = 3', 'x'), branches: [{ expressions: ['1.23456789*x', '9'], relations: ['='] }] };
+  assert.equal(validateRelationTransition(long, { ...long }, { kind: 'equivalentRewrite' }).valid, true, 'a long decimal already in the equation is not the step\'s');
+
+  // Elsewhere nothing changes: the same rounded step on a relation that is not a radical equation is accepted, as it was.
+  const linear = { ...parseRelationSource('9x + 1 = 0', 'x'), branches: [{ expressions: ['9*x', '-1'], relations: ['='] }] };
+  assert.equal(validateRelationTransition(linear, { ...linear, branches: [{ expressions: ['x', '-0.111111111111'], relations: ['='] }] }, divide).valid, true);
 });

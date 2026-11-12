@@ -284,9 +284,14 @@ journeys.misses = async (browser) => {
     await settle(page, 600);
     check(/did not preserve/i.test(await relationStatus(page)), 'a wrong resulting line is refused in words');
     check((await stepCount()) === before, 'neither refused raise recorded a step');
+    await page.locator('button:visible', { hasText: /^Cancel$/ }).first().click();
+
+    // Dividing both sides by an expression with the variable would lose a root: refused in words, nothing recorded.
+    await branchBalanced(page, 0, 'divide', 'x');
+    check(/lose a solution/i.test(await relationStatus(page)), `dividing both sides by an expression with x is refused in words (${(await relationStatus(page)).slice(0, 110)})`);
+    check((await stepCount()) === before, 'the refused division recorded no step');
 
     // Work that is not finished cannot be submitted, and the later stages are not there to skip to.
-    await page.locator('button:visible', { hasText: /^Cancel$/ }).first().click();
     check(!(await submitAvailable(page)), 'Submit is not available before the candidates are checked');
     check((await page.locator('.radical-candidate-verification').count()) === 0, 'the candidate stage is not offered before the algebra is done');
     check((await page.locator('.radical-solution-set').count()) === 0, 'the final solution set is not offered before the candidates are checked');

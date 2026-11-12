@@ -88,6 +88,41 @@ on the server** — and new step kinds in `RELATION_STEP_KINDS`.
 `graderVersion` (`step-algebra-workspace-v2`) is intentionally unchanged: nothing
 already graded changes, and regrade tooling reports on it.
 
+### Two rules a verified radical equation adds to every step
+
+Both live in `validateRelationTransition` (so the workspace and the server's
+replay read the same code) and apply only where the relation's ORIGINAL
+equation is one `radicalEquationShape.mjs` verifies — never to absolute value,
+inequalities, completing the square, or a radical outside the scope:
+
+- **No multiplying or dividing both sides by an expression with the variable.**
+  Dividing `x² = 5x` by `x` "keeps the equation" and loses the root `x = 0`; the
+  step used to be accepted and credited, and the final grade then marked the
+  work wrong. The workspace says so when the operation is applied (move
+  everything to one side and factor).
+- **No new long decimal (7+ fractional digits).** The step gate compares
+  numbers to within 1e-9, so `-0.111111111111` passed as `-1/9`, while the final
+  answer is judged exactly. A long decimal already in the equation is not the
+  step's.
+
+The final relation is read from its own branches
+(`relationIsolatedBranchValues`), not from `relationSolutionSummary`, which folds
+values within 1e-10 into one and ignores the connective: `x = 0 AND x = 5` and
+an extra branch `x = 5.00000000001` do not read as the list of candidates.
+
+### What this does not do (found in review, true of every Step Algebra item)
+
+- The final grade is the graded *final work*; it is not compared with the
+  replayed step chain. A hand-built response with the right final relation and
+  no steps is graded like one that has them (absolute value is the same today).
+  Tying `gradeServerResponse` to the record's verified `algebraState` would be a
+  platform-wide change in ingestion.
+- The three parts (`relation-work`, `candidate-verification`, `solution-set`) are
+  independent rows of the score; none of them completes or passes the question
+  alone.
+- `factor` and `zeroProduct` steps are validated by the mathematics, not by
+  whether the item opted into the tools; the buttons are what is opt-in.
+
 ## Reusable for quadratic lessons
 
 *Factor* and *Zero-product property* are not tied to radicals. A lesson turns

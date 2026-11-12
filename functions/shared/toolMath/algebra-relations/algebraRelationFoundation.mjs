@@ -23,6 +23,7 @@ import {
 } from '../../algebra/algebraAstEngine.mjs';
 import { exactRationalFromExpression } from '../../algebra/algebraExactRational.mjs';
 import { needsMultiRelationWorkspace, relationSourceFromQuestion } from '../../serverGrading/stepAlgebraRouting.mjs';
+import { parseRadicalEquation, solveRadicalShape } from './radicalEquationShape.mjs';
 
 const RELATION_LATEX = { '=': '=', '<': '<', '<=': '\\le', '>': '>', '>=': '\\ge' };
 const REVERSED = { '=': '=', '<': '>', '<=': '>=', '>': '<', '>=': '<=' };
@@ -422,6 +423,58 @@ const validateAbsoluteSplitStructuralState = (expectedState, nextState) => {
   return validateExpectedStructuralState(reversedExpected, nextState);
 };
 
+/*
+ * THE RULES A VERIFIED RADICAL EQUATION ADDS TO EVERY STEP.
+ *
+ * Applied only where the relation's ORIGINAL equation is one the radical
+ * workspace verifies exactly (radicalEquationShape.mjs), so no absolute-value,
+ * inequality or completing-the-square work, and no radical equation outside
+ * that scope, takes either rule. The workspace and the server's replay read the
+ * same code, so a step one accepts the other does too.
+ *
+ *   - Multiplying or dividing both sides by an expression that holds the
+ *     variable is refused. Dividing x² = 5x by x "keeps the equation" and loses
+ *     the root x = 0; the equation then has fewer candidates than it owes. The
+ *     fix is the lesson: move every term to one side and factor.
+ *   - A long decimal the step introduces is refused. The final answer is judged
+ *     exactly, and the step gate compares numbers only to within 1e-9, so
+ *     -0.111111111111 passed as -1/9 and was then graded as a different value.
+ */
+export const RADICAL_VARIABLE_FACTOR_REASON = 'Multiplying or dividing both sides by an expression with the variable in it can lose a solution, or add one that is not real. Move every term to one side and factor instead.';
+export const RADICAL_ROUNDED_DECIMAL_REASON = 'Write the exact value, as a fraction such as -1/9. A long decimal is only a rounded approximation of it.';
+const LONG_DECIMAL = /\d*\.\d{7,}/g;
+
+/** Is this relation's ORIGINAL equation a radical equation the radical workspace verifies exactly? */
+export const relationStateIsVerifiedRadical = (state) => {
+  const source = state?.original;
+  if (typeof source !== 'string' || !/\b(?:sqrt|cbrt|nthRoot)\s*\(|\\sqrt/.test(source)) return false;
+  const parsed = parseRadicalEquation(source, { variable: state.variable || 'x' });
+  return parsed.ok && solveRadicalShape(parsed.shape).ok;
+};
+
+const longDecimalsIn = (state) => new Set(
+  (state?.branches || []).flatMap((branch) => (branch?.expressions || []).flatMap((expression) => String(expression).match(LONG_DECIMAL) || [])),
+);
+
+const operandHoldsNoVariable = (operandExpression) => {
+  try {
+    return parseOperationOperand(operandExpression).numericValue !== null;
+  } catch {
+    return false;
+  }
+};
+
+/** The sentence a verified radical equation refuses this step with, or null. */
+const radicalStepRefusal = (previousState, nextState, context) => {
+  if (!relationStateIsVerifiedRadical(previousState)) return null;
+  if ((context.operation === 'multiply' || context.operation === 'divide') && !operandHoldsNoVariable(context.operandExpression)) {
+    return RADICAL_VARIABLE_FACTOR_REASON;
+  }
+  const before = longDecimalsIn(previousState);
+  if ([...longDecimalsIn(nextState)].some((decimal) => !before.has(decimal))) return RADICAL_ROUNDED_DECIMAL_REASON;
+  return null;
+};
+
 export const validateRelationTransition = (
   previousState,
   nextState,
@@ -466,12 +519,17 @@ export const validateRelationTransition = (
     valid = false;
   }
 
-  return valid
-    ? { valid: true, reason: null }
-    : {
-        valid: false,
-        reason: 'That step did not preserve the relation. Your previous valid work was kept.',
-      };
+  if (valid) {
+    // A step that preserves the relation can still break a rule the radical
+    // equation adds (above); the sentence says which.
+    const refusal = radicalStepRefusal(previousState, nextState, context);
+    if (refusal) return { valid: false, reason: refusal };
+    return { valid: true, reason: null };
+  }
+  return {
+    valid: false,
+    reason: 'That step did not preserve the relation. Your previous valid work was kept.',
+  };
 };
 
 const operationExpression = (expression, operation, operand, placement = null) => {
@@ -505,6 +563,11 @@ export const applyBalancedOperationToRelation = (
     && operand.numericValue !== null
     && Math.abs(operand.numericValue) < 1e-12
   ) throw new Error('Multiplying or dividing a relation by zero is not allowed.');
+  if (
+    (operation === 'multiply' || operation === 'divide')
+    && operand.numericValue === null
+    && relationStateIsVerifiedRadical(state)
+  ) throw new Error(RADICAL_VARIABLE_FACTOR_REASON);
 
   const next = cloneRelationState(state);
   const branch = next.branches[branchIndex];
@@ -1417,6 +1480,29 @@ export const relationSolutionSummary = (state) => {
     intervals.push(interval);
   }
   return intervals.length ? { solved: true, kind: 'intervals', intervals } : { solved: false };
+};
+
+/**
+ * The values a solved relation states, one per branch exactly as written, and
+ * how its branches are joined; null unless every branch reads "variable = value".
+ *
+ * relationSolutionSummary answers "is it solved, and what are the values", but it
+ * folds values within 1e-10 of each other into one and says nothing of the
+ * connective, so x = 5 AND x = 0 and x = 5 OR x = 5.00000000001 read like a
+ * list of solutions. A grader that must be exact reads the branches here.
+ */
+export const relationIsolatedBranchValues = (state) => {
+  if (!state || state.special) return null;
+  const variable = state.variable || 'x';
+  const branches = state.branches || [];
+  if (!branches.length) return null;
+  const expressions = [];
+  for (const branch of branches) {
+    const isolated = isolatedEquationValue(branch, variable);
+    if (!isolated) return null;
+    expressions.push(isolated.expression);
+  }
+  return { expressions, connective: state.connective ?? null };
 };
 
 /*

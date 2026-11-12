@@ -63,6 +63,7 @@ export const radicalEquationOpensRelationWorkspace = (equation, solveFor = null)
 const REASON_TEXT = Object.freeze({
   'two-radicals': 'it has more than one radical',
   'nested-radical': 'it has a radical inside a radical',
+  'cancelled-radical': 'a radical in it cancels out, which would drop the restriction on its radicand',
   nonlinear: 'a radicand or a term is not linear in the variable',
   'variable-beyond-square-root': 'a cube, 4th or 5th root has a variable on its other side, which makes the raised equation nonlinear (only a square root may)',
   index: 'its root index is outside 2 to 5',

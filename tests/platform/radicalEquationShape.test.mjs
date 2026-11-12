@@ -128,6 +128,10 @@ test('outside the verified scope the model says so instead of guessing', () => {
     '3x+1=7': 'no-radical',
     'sqrt(7)=x': 'constant-radicand',
     'sqrt(sqrt(x)+1)=2': 'nested-radical',
+    // A radical that cancels would take its domain restriction with it.
+    '0*sqrt(x-10)+sqrt(x+4)=x-2': 'cancelled-radical',
+    'sqrt(x)-sqrt(x)+sqrt(x+9)=x-3': 'cancelled-radical',
+    '2sqrt(x+4)-2sqrt(x+4)=0': 'cancelled-radical',
     'sqrt(x+1)': 'not-an-equation',
     'sqrt(x+1)=2=2': 'not-an-equation',
     'sqrt(3x 1)+1=x': 'syntax',

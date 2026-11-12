@@ -117,6 +117,11 @@ test('Pre-Flight refuses a radical the workspace was told to open but cannot ver
   assert.match(validateQuestionSemantics({ ...base, equationLatex: 'sqrt(x + 1) + sqrt(x) = 3' }).errors[0], /more than one radical/);
   assert.match(validateQuestionSemantics({ ...base, equationLatex: 'cbrt(x) = x' }).errors[0], /cube, 4th or 5th root has a variable/);
   assert.equal(radicalAuthoringProblem('nthRoot(x, 6) = 2'), 'its root index is outside 2 to 5');
+  // A radical that cancels (0·√(x − 10), √x − √x) would take its domain restriction with it: the equation
+  // that is left is a different one, so it is refused rather than read as that one.
+  for (const equationLatex of ['0*sqrt(x - 10) + sqrt(x + 4) = x - 2', 'sqrt(x) - sqrt(x) + sqrt(x + 9) = x - 3']) {
+    assert.match(validateQuestionSemantics({ ...base, equationLatex }).errors[0], /a radical in it cancels out/, equationLatex);
+  }
   // A verified one, and equations that are not radical equations at all, pass untouched.
   for (const equationLatex of ['sqrt(x + 4) + 2 = x', '2 nthRoot(x + 3, 5) + 1 = 7', '|2x - 3| = 7', '3x + 1 = 7']) {
     assert.deepEqual(validateQuestionSemantics({ ...base, equationLatex }).errors, [], equationLatex);

@@ -359,6 +359,7 @@ export const gradeRelationWorkspace = (question = {}, work = {}) => {
   if (radical) {
     return gradedResult(gradeRadicalRelation({
       context: radical,
+      final,
       summary,
       work,
       awaitingSymbolDecision,
