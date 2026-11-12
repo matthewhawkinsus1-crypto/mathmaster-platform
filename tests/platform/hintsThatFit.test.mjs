@@ -230,9 +230,11 @@ test('over every real lesson, every teacher-written hint is shown, and none of t
   // Honors files 370 (87, 95, 88 and 100, with three on Lesson 5's plain first
   // system, CW 17), and the 2026-11-06 walkthrough's 21 (three each on the
   // District DOL 1 review's WU 2, WU 3, WU 4, CW 12, PR 7 and PR 8, and the
-  // ALEKS bridge's PR 3, which showed only fallbacks), every one shown (none is
+  // ALEKS bridge's PR 3, which showed only fallbacks), and the Step Algebra
+  // version of Solving Radical Equations — Honors 51 (the same hints as the
+  // analyzer version's, which is among the 272), every one shown (none is
   // in BASE_DROPPED, and nowDropped is unchanged).
-  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370 + 21);
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370 + 21 + 51);
   assert.equal(BASE_DROPPED.length, 32);
   // The Lesson 3 Honors file repeats the Regular lesson's questions (and their
   // ids), so each hint that is shown now is listed once, not once per file.

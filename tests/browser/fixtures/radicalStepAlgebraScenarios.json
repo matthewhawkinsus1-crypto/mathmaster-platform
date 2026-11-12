@@ -1,0 +1,92 @@
+[
+  {
+    "questionId": "qa-cube",
+    "standard": "A2.4G",
+    "studentActions": [
+      "solveStepByStep"
+    ],
+    "dok": 2,
+    "difficultyBand": 3,
+    "prompt": "Solve $\\sqrt[3]{2x - 1} = 3$ and check.",
+    "equation": "nthRoot(2x - 1, 3) = 3",
+    "solveFor": "x",
+    "hints": [
+      "The root is already alone: undo it with the matching power."
+    ]
+  },
+  {
+    "questionId": "qa-repeated",
+    "standard": "A2.4G",
+    "studentActions": [
+      "solveStepByStep"
+    ],
+    "dok": 3,
+    "difficultyBand": 4,
+    "prompt": "Solve $\\sqrt{4x - 4} = x$. Check every candidate.",
+    "equation": "sqrt(4x - 4) = x",
+    "solveFor": "x",
+    "hints": [
+      "Square both sides; the quadratic has a repeated root."
+    ]
+  },
+  {
+    "questionId": "qa-two",
+    "standard": "A2.4G",
+    "studentActions": [
+      "solveStepByStep"
+    ],
+    "dok": 3,
+    "difficultyBand": 4,
+    "prompt": "Solve $\\sqrt{5x - 6} = x$. Check every candidate.",
+    "equation": "sqrt(5x - 6) = x",
+    "solveFor": "x",
+    "hints": [
+      "Square both sides, then factor."
+    ]
+  },
+  {
+    "questionId": "qa-none",
+    "standard": "A2.4G",
+    "studentActions": [
+      "solveStepByStep"
+    ],
+    "dok": 3,
+    "difficultyBand": 4,
+    "prompt": "Solve $\\sqrt{-7x + 23} = x - 5$. Check every candidate.",
+    "equation": "sqrt(-7x + 23) = x - 5",
+    "solveFor": "x",
+    "hints": [
+      "Square both sides, then factor. Check each candidate in the original."
+    ]
+  },
+  {
+    "questionId": "qa-structural",
+    "standard": "A2.4G",
+    "studentActions": [
+      "solveStepByStep"
+    ],
+    "dok": 2,
+    "difficultyBand": 3,
+    "prompt": "Solve $\\sqrt{x + 1} = -3$.",
+    "equation": "sqrt(x + 1) = -3",
+    "solveFor": "x",
+    "hints": [
+      "Look at the radical and what it equals before doing any algebra."
+    ]
+  },
+  {
+    "questionId": "qa-abs",
+    "standard": "A2.6E",
+    "studentActions": [
+      "solveStepByStep"
+    ],
+    "dok": 2,
+    "difficultyBand": 3,
+    "prompt": "Solve $|x - 2| = 3$ and check.",
+    "equation": "|x - 2| = 3",
+    "solveFor": "x",
+    "hints": [
+      "Split the absolute value into two equations."
+    ]
+  }
+]

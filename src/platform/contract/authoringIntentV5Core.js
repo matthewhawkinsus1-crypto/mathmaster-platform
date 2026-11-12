@@ -18,6 +18,7 @@ import { normalizeQuestionFamilyReference } from '../../../functions/shared/ques
 import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../functions/shared/questionFamilyTemplate.mjs';
 import { isValidLogBase } from '../../../functions/shared/toolMath/exponentialLog/exponentialLogMath.mjs';
 import { asksSingularReasonByDefault } from '../../../functions/shared/toolMath/matrixLab/matrixLabModel.mjs';
+import { radicalEquationOpensRelationWorkspace } from './radicalEquationIntent.js';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -620,7 +621,8 @@ const normalizeGraphChoices = (choices = []) => asArray(choices).map((item, inde
 
 
 const inferSingleEquationVariable = (equation = '') => {
-  const symbols = [...new Set(String(equation || '').match(/[A-Za-z]/g) || [])]
+  // The names of a radical's function (sqrt, cbrt, nthRoot) are not variables.
+  const symbols = [...new Set(String(equation || '').replace(/\b(?:sqrt|cbrt|nthRoot)\b/g, '').match(/[A-Za-z]/g) || [])]
     .filter((symbol) => !['e'].includes(symbol.toLowerCase()));
   return symbols.length === 1 ? symbols[0] : null;
 };
@@ -1697,7 +1699,17 @@ const compileOne = (q, index, repairs) => {
     // numbers" conclusions. An author opens an equation there on purpose —
     // for a one-solution equation too, so the workspace never tells a student
     // which equations are the special cases. Copied only when it is asked for.
-    relationWorkspace: q.relationWorkspace === true ? true : undefined,
+    // A radical equation the relation workspace verifies opens there BY DEFAULT
+    // (radicalEquationIntent.js): solveStepByStep stays the one way to author it.
+    // The flag is explicit on the compiled item, so nothing already assigned is
+    // re-routed; an author's own `relationWorkspace: false` is honoured.
+    relationWorkspace: q.relationWorkspace === true
+      || (q.relationWorkspace == null && radicalEquationOpensRelationWorkspace(equation, q.solveFor || inferSingleEquationVariable(equation)))
+      ? true
+      : undefined,
+    // Tools a lesson turns on for the relation workspace beyond its radical default
+    // (a standalone quadratic lesson asks for ["factor", "zeroProduct"]).
+    algebraTools: Array.isArray(q.algebraTools) && q.algebraTools.length ? q.algebraTools : undefined,
     solveFor: q.solveFor || inferSingleEquationVariable(equation),
     targetForm: isRewriteToSlopeIntercept ? 'slopeIntercept' : q.targetForm,
     requireSimplifiedFinalForm: isRewriteToSlopeIntercept ? true : q.requireSimplifiedFinalForm,

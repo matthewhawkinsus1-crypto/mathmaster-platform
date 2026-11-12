@@ -41,6 +41,22 @@ import {
   validateRelationTransition,
 } from './algebraRelationFoundation.js';
 import { RelationDistributionPanel } from './RelationStructureTools.jsx';
+import {
+  RadicalCandidateChecks,
+  RadicalSolutionSet,
+  RelationFactorPanel,
+  RelationRaisePowerPanel,
+  RelationZeroProductPanel,
+} from './RelationRadicalTools.jsx';
+import {
+  checkChoiceOf,
+  isRecordedCheck,
+  radicalCandidateList,
+  radicalContextOf,
+  relationToolsFor,
+  restorableSolutionSet,
+} from './relationRadicalToolsModel.js';
+import { radicalDomainText, radicalHoldsAt } from '../functions/shared/toolMath/algebra-relations/radicalEquationShape.mjs';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
 import { chooseSimplifyPart, openSimplify, simplifyHasDecisions, undoSimplify } from './platform/algebra/simplify/simplifyState.js';
@@ -83,6 +99,18 @@ const buttonStyle = (active = false) => ({
   cursor: 'pointer',
 });
 
+// The look of an "Algebra tools" button, for the tools a lesson opts into.
+const ALGEBRA_TOOL_BUTTON_STYLE = {
+  minHeight: 32,
+  padding: '5px 9px',
+  border: '1px solid var(--mm-primary-border)',
+  borderRadius: 8,
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-primary-text)',
+  fontSize: 'calc(12 * var(--mm-px))',
+  fontWeight: 800,
+};
+
 const branchLabel = (index) => String.fromCharCode(65 + index);
 const expressionKey = (branchIndex, expressionIndex) => `${branchIndex}:${expressionIndex}`;
 const draftKeyFor = (draftKey) => (draftKey ? `${draftKey}:multi-relation` : null);
@@ -110,7 +138,7 @@ const pendingFlipForBranch = (pending, branchIndex) => (
 const readRelationDraft = (draftKey) => {
   const saved = readQuestionDraft(draftKeyFor(draftKey), null);
   if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
-    return { relationState: null, pendingRelationFlip: null, candidateChecks: {} };
+    return { relationState: null, pendingRelationFlip: null, candidateChecks: {}, solutionSet: null };
   }
   const relationState = restorableRelationState(saved.relationState);
   // Saved without its expected symbols; they are derived again here
@@ -132,6 +160,9 @@ const readRelationDraft = (draftKey) => {
     relationState,
     pendingRelationFlip: pendingSound ? pending : null,
     candidateChecks: checks && typeof checks === 'object' && !Array.isArray(checks) ? checks : {},
+    // A radical solve's recorded final answer; a saved one that cannot be
+    // read is dropped, and the student records it again.
+    solutionSet: relationState ? restorableSolutionSet(saved.solutionSet) : null,
   };
 };
 
@@ -157,6 +188,8 @@ const initialStateFor = (question, draftKey) => {
 const initialPendingRelationFlipFor = (draftKey) => readRelationDraft(draftKey).pendingRelationFlip;
 
 const initialCandidateChecksFor = (draftKey) => readRelationDraft(draftKey).candidateChecks;
+
+const initialSolutionSetFor = (draftKey) => readRelationDraft(draftKey).solutionSet;
 
 function StagedAdditivePreview({
   operation,
@@ -718,6 +751,11 @@ export default function MultiRelationAlgebra({
   // host does not teach cancelling at all (TL34).
   const cancellationHintsOffered = showCancellationCues && contextHintsAllowed !== false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
+  // A radical solve's final answer, recorded by the student once every
+  // candidate is checked (null until then, and cleared with the checks).
+  const [solutionSet, setSolutionSet] = useState(() => initialSolutionSetFor(draftKey));
+  // The radical / quadratic tool that is open: 'raisePower' | 'factor' | 'zeroProduct' | null.
+  const [radicalTool, setRadicalTool] = useState(null);
 
   // The problem the reset below sets up: this draft and the relation the
   // question asks about. The same problem generated again — a support-plan
@@ -759,6 +797,8 @@ export default function MultiRelationAlgebra({
     setMessage(null);
     setRepresentationWork(null);
     setCandidateChecks(initialCandidateChecksFor(draftKey));
+    setSolutionSet(initialSolutionSetFor(draftKey));
+    setRadicalTool(null);
   }, [question, draftKey]);
 
   useEffect(() => {
@@ -768,8 +808,10 @@ export default function MultiRelationAlgebra({
       // What the student did, never the symbols the open step expects.
       pendingRelationFlip: persistablePendingFlip(pendingRelationFlip),
       candidateChecks,
+      // Only a RECORDED answer is state; nothing typed toward one is saved.
+      solutionSet,
     });
-  }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
+  }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks, solutionSet]);
 
   const summary = useMemo(() => relationSolutionSummary(relationState), [relationState]);
   const absoluteSplitModel = useMemo(
@@ -787,13 +829,27 @@ export default function MultiRelationAlgebra({
     absoluteSplitStructure,
     absoluteSplitValues,
   ]);
+  // A radical equation the lesson verifies (raise both sides, factor, check each
+  // candidate): the exact shape and solution of the ORIGINAL relation.
+  const radicalContext = useMemo(() => radicalContextOf(pristine), [pristine]);
+  const radicalTools = useMemo(() => relationToolsFor(question, pristine), [question, pristine]);
   const candidateVerification = useMemo(() => {
-    if (summary.kind !== 'values' || !relationStateContainsAbsoluteValue(pristine)) return [];
+    if (summary.kind !== 'values') return [];
+    if (radicalContext) {
+      // Checked by exact value: x = 0.25 and x = 1/4 are one candidate, one check.
+      return radicalCandidateList(summary).map((candidate) => ({
+        value: candidate.value,
+        key: candidate.key,
+        expression: candidate.expression,
+        valid: radicalHoldsAt(radicalContext.shape, candidate.exact),
+      }));
+    }
+    if (!relationStateContainsAbsoluteValue(pristine)) return [];
     return verifyRelationCandidates(pristine, summary.values, pristine.variable).map((candidate, index) => ({
       ...candidate,
       expression: summary.valueExpressions?.[index] || String(candidate.value),
     }));
-  }, [pristine, summary]);
+  }, [pristine, summary, radicalContext]);
   const requireCandidateVerification = candidateVerification.length > 0;
 
   /*
@@ -808,7 +864,8 @@ export default function MultiRelationAlgebra({
     awaitingSymbolDecision: Boolean(pendingRelationFlip),
     candidateChecks,
     representation: representationWork,
-  }), [relationState, pendingRelationFlip, candidateChecks, representationWork]);
+    solutionSet,
+  }), [relationState, pendingRelationFlip, candidateChecks, representationWork, solutionSet]);
   const sharedResult = useMemo(
     () => gradeToolCheck(workGraderForQuestion(question), question, gradingWork),
     [question, gradingWork],
@@ -831,6 +888,7 @@ export default function MultiRelationAlgebra({
       setOperation(null);
       setOperand('');
       setPlacementByKey({});
+      setRadicalTool(null);
     }
   }, [pendingRelationFlip, summary.solved]);
 
@@ -861,7 +919,7 @@ export default function MultiRelationAlgebra({
   useEffect(() => {
     const relationText = relationStateToText(relationState);
     const candidateDetail = requireCandidateVerification
-      ? ` Candidate checks: ${candidateVerification.map(({ value }) => `${relationState.variable}=${value}:${candidateChecks[String(value)] || 'unchecked'}`).join(', ')}.`
+      ? ` Candidate checks: ${candidateVerification.map(({ value, key }) => `${relationState.variable}=${value}:${checkChoiceOf(candidateChecks[key ?? String(value)]) || 'unchecked'}`).join(', ')}.`
       : '';
     const shared = answerStateFromSharedGrading(sharedResult, {
       questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationText}.${candidateDetail}`,
@@ -907,6 +965,7 @@ export default function MultiRelationAlgebra({
     || String(completeSquareValue || '').trim()
     || Object.keys(cancellationSelection).length
     || relationPicker
+    || radicalTool
     || absoluteSplitOpen
     || absoluteSplitStructure
     || absoluteSplitValues.some((value) => String(value || '').trim())
@@ -940,6 +999,7 @@ export default function MultiRelationAlgebra({
           dragStrokeRef.current = null;
           setPendingRelationFlip(null);
           setRelationPicker(null);
+          setRadicalTool(null);
           setAbsoluteSplitOpen(false);
           setAbsoluteSplitStructure(null);
           setAbsoluteSplitValues(['', '']);
@@ -959,7 +1019,9 @@ export default function MultiRelationAlgebra({
           setRelationState(previous.relationState || previous);
           setActiveBranch(previous.relationState ? previous.activeBranch : 0);
           setRepresentationWork(null);
+          // Everything that depended on the step taken back goes with it.
           setCandidateChecks({});
+          setSolutionSet(null);
           setCancellationSelection({});
           setPlacementByKey({});
           setPendingRelationFlip(null);
@@ -989,6 +1051,7 @@ export default function MultiRelationAlgebra({
     operation,
     pendingRelationFlip,
     placementByKey,
+    radicalTool,
     relationPicker,
     simplifyTool,
   ]);
@@ -1042,7 +1105,9 @@ export default function MultiRelationAlgebra({
     setHistory((current) => [...current.slice(-59), { relationState: before, activeBranch }]);
     setRelationState(next);
     setRepresentationWork(null);
+    // Any committed step changes what a check or a final answer rested on.
     setCandidateChecks({});
+    setSolutionSet(null);
     setCancellationSelection({});
     setDragCancellationKey(null);
     setDragStroke(null);
@@ -1571,9 +1636,56 @@ export default function MultiRelationAlgebra({
     });
   };
 
+  // A step from one of the radical / quadratic tools goes through the same
+  // validated commit as every other step (validateRelationTransition, the saved
+  // draft, Undo, the server's step check). Its one line to the student says
+  // what the step did, never what to do next.
+  const RADICAL_STEP_NOTES = {
+    'radical-raise': 'Your line follows. Raising both sides to a power can add a candidate that does not work in the original equation, so every candidate gets checked at the end.',
+    factor: 'Your product equals the expression you started with.',
+    'zero-product': 'The product is 0 only if a factor is 0. Solve each equation you wrote.',
+  };
+  const commitRadicalStep = async (next, label, kind, transition) => {
+    const committed = await commitState(next, label, kind, transition);
+    if (committed) setMessage({ tone: 'success', text: RADICAL_STEP_NOTES[kind] || 'Step recorded.' });
+    return committed;
+  };
+
+  // A candidate's check, recorded by the student; changing one withdraws the
+  // final answer, which rested on it.
+  const recordRadicalCheck = (key, entry) => {
+    setCandidateChecks((current) => ({ ...current, [key]: entry }));
+    setSolutionSet(null);
+    setMessage(null);
+  };
+  const withdrawRadicalCheck = (key) => {
+    setCandidateChecks((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    setSolutionSet(null);
+  };
+
   const chooseOtherOperation = async (id) => {
     setOtherOpen(false);
     setSimplifyTool(null);
+
+    if (id === 'raisePower' || id === 'factor' || id === 'zeroProduct') {
+      if (pendingRelationFlip) {
+        setMessage({ tone: 'growth', text: 'Finish the relation symbols from the last operation first.' });
+        return;
+      }
+      setOperation(null);
+      setOperand('');
+      setPlacementByKey({});
+      setCompleteSquareOpen(false);
+      setAbsoluteSplitOpen(false);
+      setStructurePanel(null);
+      setMessage(null);
+      setRadicalTool(id);
+      return;
+    }
 
     if (id === 'completeSquare') {
       // Completing the square is a strategy choice, not an automatic algebra
@@ -1720,6 +1832,8 @@ export default function MultiRelationAlgebra({
     setMessage(null);
     setRepresentationWork(null);
     setCandidateChecks({});
+    setSolutionSet(null);
+    setRadicalTool(null);
   };
 
   const active = relationState.branches?.[activeBranch] || null;
@@ -2074,6 +2188,7 @@ export default function MultiRelationAlgebra({
             <button
               type="button"
               key={item.id}
+              data-algebra-tool={item.id}
               onClick={() => chooseOtherOperation(item.id)}
               disabled={disabled || relationState.special}
               style={{
@@ -2085,6 +2200,25 @@ export default function MultiRelationAlgebra({
                 color: 'var(--mm-primary-text)',
                 fontSize: 'calc(12 * var(--mm-px))',
                 fontWeight: 800,
+                cursor: disabled || relationState.special ? 'not-allowed' : 'pointer',
+                opacity: disabled || relationState.special ? 0.6 : 1,
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          {/* The radical / quadratic tools, only where the lesson turned them on
+              (relationToolsFor): no other lesson gains a button. */}
+          {radicalTools.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              data-algebra-tool={item.id}
+              onClick={() => chooseOtherOperation(item.id)}
+              disabled={disabled || relationState.special}
+              style={{
+                ...ALGEBRA_TOOL_BUTTON_STYLE,
                 cursor: disabled || relationState.special ? 'not-allowed' : 'pointer',
                 opacity: disabled || relationState.special ? 0.6 : 1,
               }}
@@ -2135,6 +2269,37 @@ export default function MultiRelationAlgebra({
           focusSignal={simplifyFocusSignal}
           onFocusConsumed={() => setSimplifyFocusSignal(0)}
           idPrefix={`${draftKey || 'relation'}-simplify`.replace(/[^a-zA-Z0-9_-]/g, '-')}
+        />
+      )}
+
+      {radicalTool === 'raisePower' && active && !pendingRelationFlip && !summary.solved && (
+        <RelationRaisePowerPanel
+          state={relationState}
+          branchIndex={activeBranch}
+          onCommit={commitRadicalStep}
+          onClose={() => setRadicalTool(null)}
+          notify={setMessage}
+          disabled={disabled}
+        />
+      )}
+      {radicalTool === 'factor' && active && !pendingRelationFlip && !summary.solved && (
+        <RelationFactorPanel
+          state={relationState}
+          branchIndex={activeBranch}
+          onCommit={commitRadicalStep}
+          onClose={() => setRadicalTool(null)}
+          notify={setMessage}
+          disabled={disabled}
+        />
+      )}
+      {radicalTool === 'zeroProduct' && active && !pendingRelationFlip && !summary.solved && (
+        <RelationZeroProductPanel
+          state={relationState}
+          branchIndex={activeBranch}
+          onCommit={commitRadicalStep}
+          onClose={() => setRadicalTool(null)}
+          notify={setMessage}
+          disabled={disabled}
         />
       )}
 
@@ -2778,7 +2943,49 @@ export default function MultiRelationAlgebra({
         </div>
       )}
 
-      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && requireCandidateVerification && (
+      {/* A radical solve: each candidate is substituted into BOTH sides of the
+          ORIGINAL equation, then the final solution set is stated. */}
+      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && requireCandidateVerification && radicalContext && (
+        <>
+          <RadicalCandidateChecks
+            candidates={candidateVerification}
+            checks={candidateChecks}
+            variable={relationState.variable}
+            originalLatex={relationStateToLatex(pristine)}
+            sideLatex={{
+              left: relationExpressionToLatex(pristine.branches?.[0]?.expressions?.[0] || ''),
+              right: relationExpressionToLatex(pristine.branches?.[0]?.expressions?.[1] || ''),
+            }}
+            domainText={radicalDomainText(radicalContext.shape)}
+            onRecord={recordRadicalCheck}
+            onEdit={withdrawRadicalCheck}
+            disabled={disabled}
+            notify={setMessage}
+          />
+          {candidateVerification.every(({ key }) => isRecordedCheck(candidateChecks[key])) && (
+            <RadicalSolutionSet
+              variable={relationState.variable}
+              recorded={solutionSet}
+              onRecord={setSolutionSet}
+              onEdit={() => setSolutionSet(null)}
+              disabled={disabled}
+              notify={setMessage}
+            />
+          )}
+          {/* Shown only when the work was judged right, so it is a verdict: on a
+              DOL, quiz or test the work is locked after Submit but its outcome
+              is still withheld. */}
+          {!representationsWithheld && disabled && sharedResult.isComplete && sharedResult.isCorrect && (
+            <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
+              {verifiedSolutions.length
+                ? `Verified solution${verifiedSolutions.length === 1 ? '' : 's'}: ${verifiedSolutions.join(', ')}`
+                : 'Verified: no real solution'}
+            </div>
+          )}
+        </>
+      )}
+
+      {!pendingRelationFlip && summary.solved && summary.kind === 'values' && requireCandidateVerification && !radicalContext && (
         <div
           className="absolute-candidate-verification"
           style={{

@@ -151,7 +151,15 @@ const STEP_WORK_ACTIONS = Object.freeze([
   'balanced-move', 'inefficient-move', 'rejected-move', 'rewrite', 'relation-step', 'intercept-check',
 ]);
 const STEP_OPERATIONS = Object.freeze(['add', 'subtract', 'multiply', 'divide']);
-const RELATION_TRANSITION_KINDS = Object.freeze(['equivalentRewrite', 'balancedOperation', 'absoluteSplit', 'squareRoot', 'solutionClaim']);
+// radicalRaise / factor / zeroProduct: the radical-equation and quadratic tools
+// (algebraRelationFoundation.mjs). A kind missing from this list makes the
+// WHOLE step unreadable here, so every transition the workspace can report is
+// named, with only the fields validateRelationTransition reads.
+const RELATION_TRANSITION_KINDS = Object.freeze([
+  'equivalentRewrite', 'balancedOperation', 'absoluteSplit', 'squareRoot', 'solutionClaim',
+  'radicalRaise', 'factor', 'zeroProduct',
+]);
+const RADICAL_POWERS = Object.freeze([2, 3, 4, 5]);
 const RELATION_SYMBOLS = Object.freeze(['=', '<', '<=', '>', '>=']);
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -234,6 +242,13 @@ const stepTransition = (value) => {
     return { kind: value.kind, branchIndex: branchIndex(value.branchIndex), structure: value.structure === 'and' ? 'and' : value.structure === 'or' ? 'or' : null };
   }
   if (value.kind === 'squareRoot') return { kind: value.kind, branchIndex: branchIndex(value.branchIndex) };
+  if (value.kind === 'factor' || value.kind === 'zeroProduct') return { kind: value.kind, branchIndex: branchIndex(value.branchIndex) };
+  if (value.kind === 'radicalRaise') {
+    const power = Number(value.power);
+    // An unreadable power is not a step: the whole work is refused, never half-read.
+    if (!RADICAL_POWERS.includes(power)) return null;
+    return { kind: value.kind, branchIndex: branchIndex(value.branchIndex), power };
+  }
   if (value.kind === 'solutionClaim') {
     return { kind: value.kind, claim: value.claim === 'noSolution' || value.claim === 'allReals' ? value.claim : null };
   }

@@ -140,6 +140,18 @@ const AFTER_THE_DESIGN = Object.freeze({
     practice: { questions: 18, withStoredKey: 17, serverGradable: 0, familySlots: 18, deviceOnly: 0, withHints: 18 },
     dol: { questions: 7, withStoredKey: 6, serverGradable: 0, familySlots: 7, deviceOnly: 0, withHints: 0 },
   },
+  // Solving Radical Equations — Honors, with its nine single-radical items on
+  // the Step Algebra relation workspace instead of the Sign & Solution
+  // Analyzer. The rows are the analyzer version's own, exactly: the new items
+  // store no answer key (the server derives it from each student's own
+  // equation), Warm-Up and DOL are family slots graded from the delivery pin,
+  // and nothing is device-only.
+  '5_Solving_Radical_Equations_Honors_Step_Algebra.json': {
+    warmup: { questions: 3, withStoredKey: 3, serverGradable: 0, familySlots: 3, deviceOnly: 0, withHints: 3 },
+    classwork: { questions: 10, withStoredKey: 6, serverGradable: 10, familySlots: 0, deviceOnly: 0, withHints: 10 },
+    practice: { questions: 14, withStoredKey: 11, serverGradable: 9, familySlots: 5, deviceOnly: 0, withHints: 14 },
+    dol: { questions: 3, withStoredKey: 3, serverGradable: 0, familySlots: 3, deviceOnly: 0, withHints: 0 },
+  },
 });
 
 // The Algebra II Polynomials and Radicals lessons and their Honors versions
@@ -212,7 +224,8 @@ test('the five Algebra II Polynomials and Radicals lessons: every template is a 
 });
 
 test('their five Honors versions: the audited SAT items are family slots too, and nothing is device-only', () => {
-  const files = lessonFiles().filter((file) => file.startsWith(LATER_HONORS));
+  // The five lessons' Honors versions; a lesson added beside them later has its own rows above.
+  const files = lessonFiles().filter((file) => file.startsWith(LATER_HONORS) && !(path.basename(file) in AFTER_THE_DESIGN));
   assert.equal(files.length, 5);
   // Warm-Up and DOL are the assignment's own templates, as in the regular
   // lessons. In Practice, 20 more templates and the 10 audited SAT items (two

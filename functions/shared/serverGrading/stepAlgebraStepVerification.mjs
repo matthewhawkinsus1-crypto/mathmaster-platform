@@ -156,6 +156,8 @@ export const RELATION_STEP_KINDS = Object.freeze([
   'relation-step', 'multi-branch-relation-step', 'student-relation-direction', 'student-rewrite',
   'student-cancellation', 'absolute-value-split', 'square-root', 'solution-claim', 'complete-square',
   'distribution', 'combine-like-terms',
+  // The radical-equation and quadratic tools (algebraRelationFoundation.mjs).
+  'radical-raise', 'factor', 'zero-product',
 ]);
 
 export const UNVERIFIED_STEP_KIND = 'unverified-step';
