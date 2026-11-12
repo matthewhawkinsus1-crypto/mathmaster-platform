@@ -155,6 +155,7 @@ export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
 export const previewInequalityRush = call('previewInequalityRush');
+export const previewSystemsRush = call('previewSystemsRush');
 export const getLineGraphRound = call('getLineGraphRound');
 export const submitLineGraphAttempts = call('submitLineGraphAttempts');
 export const previewLineGraph = call('previewLineGraph');

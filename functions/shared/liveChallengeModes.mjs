@@ -24,7 +24,9 @@
  * `solverRace` (generated algebra-workspace races with milestone speed),
  * `graphFeatureRush` (individually generated graphs; tap every feature
  * against the round clock), `inequalityRush` (individually generated
- * inequalities graphed on a number line, on the rush's machinery) and Graph
+ * inequalities graphed on a number line, on the rush's machinery),
+ * `systemsRush` (individually generated systems of two lines, on the rush's
+ * machinery: their intercepts and their solutions) and Graph
  * the Line's three formats, `lineGraphClassic`, `lineGraphSprint` and
  * `lineGraphRush` (draw the line of an equation, or name the equation of a
  * line; checked the moment the answer is complete).
@@ -55,6 +57,7 @@ import { PLACEMENT_CURVE, SCORING_STRATEGY_ID, getScoringStrategy, isRegisteredS
 import { canonicalSolverRaceDifficulty, canonicalSolverRaceFocus } from './solverRace.mjs';
 import { RUSH_ROUND_LIMITS, normalizeGraphFeatureRushConfig } from './graphFeatureRushConfig.mjs';
 import { INEQUALITY_ROUND_LIMITS, normalizeInequalityRushConfig } from './inequalityRush.mjs';
+import { SYSTEMS_ROUND_LIMITS, normalizeSystemsRushConfig } from './systemsRush.mjs';
 import { LINE_ROUND_LIMITS, LINE_RUSH_POOL, LINE_SPRINT_MAX_POOL, normalizeLineGraphConfig } from './lineGraphConfig.mjs';
 import { LINE_GRAPH_FORMAT, lineFormatGivesExtraTime } from './lineGraphRules.mjs';
 
@@ -70,6 +73,7 @@ export const CHALLENGE_MODE_ID = Object.freeze({
   SOLVER_RACE: 'solverRace',
   GRAPH_FEATURE_RUSH: 'graphFeatureRush',
   INEQUALITY_RUSH: 'inequalityRush',
+  SYSTEMS_RUSH: 'systemsRush',
   LINE_GRAPH_CLASSIC: 'lineGraphClassic',
   LINE_GRAPH_SPRINT: 'lineGraphSprint',
   LINE_GRAPH_RUSH: 'lineGraphRush',
@@ -80,6 +84,7 @@ export const QUESTION_SOURCE = Object.freeze({
   SOLVER_RACE_GENERATOR: 'solverRaceGenerator',
   GRAPH_FEATURE_GENERATOR: 'graphFeatureGenerator',
   INEQUALITY_GENERATOR: 'inequalityGenerator',
+  SYSTEMS_GENERATOR: 'systemsGenerator',
   LINE_GRAPH_GENERATOR: 'lineGraphGenerator',
 });
 
@@ -417,6 +422,38 @@ export const inequalityRushMode = defineChallengeMode({
 });
 
 /*
+ * SYSTEMS OF EQUATIONS RUSH. Graph Feature Rush's race with a system of two
+ * lines on every graph: each student's own systems (systemsGenerator.mjs),
+ * tapped for their intercepts or their solution with the rush's own hit
+ * test, or answered No Solution, Infinitely Many or Can't Be Determined. An
+ * item's targets are points, as a graph's are, so the rush's attempts,
+ * receipts, ranking and screen apply unchanged — the same pool, the same
+ * Grand Prix field curve. See docs/architecture/systems-rush.md.
+ */
+export const systemsRushMode = defineChallengeMode({
+  id: CHALLENGE_MODE_ID.SYSTEMS_RUSH,
+  label: 'Systems of Equations Rush',
+  projectorLabel: 'Systems of Equations Rush',
+  description: 'Every student gets their own systems of two lines and races the clock to find their intercepts and solutions — or to say there is no solution, infinitely many, or one the graph cannot show.',
+  roundStructure: ROUND_STRUCTURE.QUESTION_SET,
+  questionsPerRound: GRAPH_FEATURE_RUSH_QUESTION_POOL,
+  questionSource: QUESTION_SOURCE.SYSTEMS_GENERATOR,
+  questionIssue: QUESTION_ISSUE.PER_PLAYER,
+  questionSpec: { completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount: 1 },
+  defaultScoringStrategy: SCORING_STRATEGY_ID.GRAND_PRIX,
+  scoringStrategies: [SCORING_STRATEGY_ID.GRAND_PRIX, SCORING_STRATEGY_ID.CORRECT_COUNT],
+  scoringDefaults: { [SCORING_STRATEGY_ID.GRAND_PRIX]: { placementCurve: PLACEMENT_CURVE.FIELD } },
+  roundLimits: SYSTEMS_ROUND_LIMITS,
+  capabilities: { secondChance: false, progressMilestones: false, paceTiming: false, closingThreshold: false, dryRun: false, warmupLink: false },
+  normalizeConfig: (raw = {}) => Object.freeze({
+    questionStyle: 'any',
+    solverRaceFocus: null,
+    solverRaceDifficulty: null,
+    systemsRush: normalizeSystemsRushConfig(raw?.systemsRush),
+  }),
+});
+
+/*
  * GRAPH THE LINE. Students draw the line of an equation (slope-intercept,
  * standard form by its intercepts, point-slope) or name the equation of a
  * line; an answer is checked the moment it is complete. Each FORMAT is its
@@ -505,6 +542,7 @@ const REGISTRY = new Map([
   [solverRaceMode.id, solverRaceMode],
   [graphFeatureRushMode.id, graphFeatureRushMode],
   [inequalityRushMode.id, inequalityRushMode],
+  [systemsRushMode.id, systemsRushMode],
   [lineGraphClassicMode.id, lineGraphClassicMode],
   [lineGraphSprintMode.id, lineGraphSprintMode],
   [lineGraphRushMode.id, lineGraphRushMode],

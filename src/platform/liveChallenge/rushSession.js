@@ -29,6 +29,12 @@
  * Inequality Graphing Rush plays on this same session: its items are number
  * line questions (inequalityRush.mjs) — a tap on the line drops a dot, ✓ Check
  * grades the drawing, and "No solution" is the "Does Not Exist" press.
+ *
+ * So does Systems of Equations Rush (systemsRush.mjs): its items are two
+ * lines, tapped for their intercepts or their solution with the rush's own
+ * hit test; "No Solution" is the "Does Not Exist" press, and
+ *   recordInfinitelyMany / recordCannotDetermine   its own two presses
+ * are graded by the rule the server grades them by (rushPressAnswer).
  *   settle                                        a completion flash or skip
  *                                                 pause ending: next graph
  *   acknowledge                                   the server's reply to a batch
@@ -59,11 +65,23 @@ import {
   RUSH_REVEAL_PAUSE_MS,
   RUSH_SKIP_PAUSE_MS,
   isNumberLineQuestion,
+  isSystemQuestion,
   rushAutoSkipMisses,
   rushLockoutMs,
+  rushPressAnswer,
   rushQuestionWeight,
 } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { INEQUALITY_ITEM, NO_SOLUTION_MISS, inequalityAnswerText, inequalityHint, isInequalityQuestion } from '../../../functions/shared/inequalityRush.mjs';
+import {
+  SYSTEM_QUESTION,
+  systemMissWords,
+  systemPressHint,
+  systemRevealWords,
+  systemRightWords,
+  systemTapNote,
+  systemsFeedbackLines,
+  systemsPrompts,
+} from '../../../functions/shared/systemsRush.mjs';
 import { SET_TAP_TIP, formatCoordinate, formatPoint, formatTarget, nearOpenDot, setAxisOf } from './rushGraphModel.js';
 
 export const RUSH_FEEDBACK = Object.freeze({
@@ -153,7 +171,7 @@ export const createRushSession = ({ roundIndex = 0, serverState = {}, questions 
 /** The set target of a domain, range or interval question, or null. */
 export const setTargetOf = (question) => (question?.targets || []).find((target) => target?.geometry === 'set') || null;
 
-export { isInequalityQuestion, isNumberLineQuestion };
+export { isInequalityQuestion, isNumberLineQuestion, isSystemQuestion };
 /**
  * Whether a question is answered by drawing a set on an axis — also an
  * interval question whose answer is "Does Not Exist" (no target, its axis
@@ -263,8 +281,9 @@ const applyMiss = (session, nowMs, extra = {}) => {
   const missesInARow = session.missesInARow + 1;
   const missesOnGraph = session.missesOnGraph + 1;
   const autoSkip = missesOnGraph >= rushAutoSkipMisses(question);
-  // A number line shows its answer as it moves on: long enough to read.
-  const skipPause = isNumberLineQuestion(question) ? RUSH_REVEAL_PAUSE_MS : RUSH_SKIP_PAUSE_MS;
+  // A number line shows its answer as it moves on: long enough to read. So
+  // does a system: its reveal says where the solution, or the intercepts, were.
+  const skipPause = isNumberLineQuestion(question) || isSystemQuestion(question) ? RUSH_REVEAL_PAUSE_MS : RUSH_SKIP_PAUSE_MS;
   const counts = Object.freeze({
     ...session.counts,
     // The server's skip is a record of its own.
@@ -313,13 +332,16 @@ export const recordTap = (session, { x, y, tolerance, pointer, nowMs, elapsedMs,
     pointer,
     clientElapsedMs: elapsedOf(elapsedMs),
   });
-  // A miss on an open dot is told why: that point is not on the graph.
+  // A miss on an open dot is told why: that point is not on the graph. One on
+  // a system's solution is told what it landed on (a line, both, the crossing).
+  const note = tap.result === TAP_RESULT.HIT ? null : systemTapNote(question, { x, y }, limits);
   const next = tap.result === TAP_RESULT.HIT
     ? applyHit(session, question, tap.targetId, nowMs)
     : applyMiss(session, nowMs, {
       x: Number(x),
       y: Number(y),
       ...(nearOpenDot({ question, x, y, tolerance: limits }) ? { openDot: true } : {}),
+      ...(note ? { note } : {}),
     });
   return { session: queued(next, attempt), attempt };
 };
@@ -340,7 +362,10 @@ export const recordDoesNotExist = (session, { nowMs, elapsedMs, attemptId }) => 
     kind: RUSH_ATTEMPT_KIND.DOES_NOT_EXIST,
     clientElapsedMs: elapsedOf(elapsedMs),
   });
-  const absent = (!Array.isArray(question.targets) || question.targets.length === 0) && !isOffScreen(question);
+  // The server's rule (rushPressAnswer): nothing to find, and no other press
+  // answers it — a system that is one line twice, or that crosses where its
+  // graph cannot show, has its own.
+  const absent = rushPressAnswer(question) === RUSH_ATTEMPT_KIND.DOES_NOT_EXIST;
   // On an inequality the press is "No solution": the same rule, its own words.
   const noSolution = isInequalityQuestion(question) ? { noSolution: true } : {};
   const next = absent
@@ -348,6 +373,28 @@ export const recordDoesNotExist = (session, { nowMs, elapsedMs, attemptId }) => 
     : applyMiss(session, nowMs, { doesNotExist: true, offScreen: isOffScreen(question), ...noSolution });
   return { session: queued(next, attempt), attempt };
 };
+
+/*
+ * A SYSTEM'S OWN PRESSES (Systems of Equations Rush): "Infinitely Many" and
+ * "Can't Be Determined", each right exactly where the system names it
+ * (rushPressAnswer), a miss everywhere else — the server's rule.
+ */
+const recordNamedPress = (kind) => (session, { nowMs, elapsedMs, attemptId }) => {
+  if (inputState(session, nowMs) !== RUSH_INPUT.READY) return refused(session, nowMs);
+  const question = currentQuestion(session);
+  const attempt = Object.freeze({
+    attemptId: String(attemptId),
+    questionIndex: session.cursor,
+    kind,
+    clientElapsedMs: elapsedOf(elapsedMs),
+  });
+  const next = rushPressAnswer(question) === kind
+    ? applyHit(session, question, kind, nowMs, { press: kind })
+    : applyMiss(session, nowMs, { press: kind });
+  return { session: queued(next, attempt), attempt };
+};
+export const recordInfinitelyMany = recordNamedPress(RUSH_ATTEMPT_KIND.INFINITELY_MANY);
+export const recordCannotDetermine = recordNamedPress(RUSH_ATTEMPT_KIND.CANNOT_DETERMINE);
 
 /**
  * "Off screen" (a game with off-screen features): right when the feature
@@ -652,8 +699,37 @@ export const setTapTipMessage = (feedback, question) => {
 
 export const NO_SOLUTION_RIGHT = 'Correct — no solution: no number makes it true.';
 
+/*
+ * A SYSTEM'S WORDS (systemsRush.mjs): a found intercept or solution named, a
+ * right press said in the system's own language ("parallel lines never meet:
+ * no solution"), a wrong press asked back about what is there, a wrong tap
+ * told what it landed on, and — as the item moves on — its answer. Null for
+ * what the rush says the same way for every item (already found, skipped).
+ */
+const systemFeedbackMessage = (feedback, question) => {
+  const target = (question?.targets || []).find((entry) => entry.id === feedback.targetId);
+  const press = feedback.press || (feedback.doesNotExist ? RUSH_ATTEMPT_KIND.DOES_NOT_EXIST : null);
+  switch (feedback.kind) {
+    case RUSH_FEEDBACK.HIT:
+      return target ? `Found ${formatTarget(target)}.` : 'Found one.';
+    case RUSH_FEEDBACK.COMPLETE:
+      return systemRightWords(question, { press, target }) || (target ? `Found ${formatTarget(target)}. Graph complete!` : 'Graph complete!');
+    case RUSH_FEEDBACK.MISS:
+      if (press) return systemPressHint(question, press) || systemMissWords(question);
+      return feedback.note || systemMissWords(question);
+    case RUSH_FEEDBACK.AUTO_SKIPPED:
+      return systemRevealWords(question);
+    default:
+      return null;
+  }
+};
+
 export const feedbackMessage = (feedback, question) => {
   if (!feedback) return '';
+  if (isSystemQuestion(question)) {
+    const said = systemFeedbackMessage(feedback, question);
+    if (said !== null) return said;
+  }
   const feature = featureOf(question);
   const target = (question?.targets || []).find((entry) => entry.id === feedback.targetId);
   const inequality = isInequalityQuestion(question);
@@ -785,18 +861,35 @@ const inequalityLines = () => {
   ];
 };
 
+// A system round's messages: what the rush says of a found or missed point,
+// with the widest numbers, and every sentence of the system's own
+// (systemsRush.systemsFeedbackLines).
+const systemLines = (systems) => {
+  const said = [];
+  (systems?.questions || []).forEach((feature) => {
+    const question = { kind: 'system', feature, lines: [], targets: [{ id: 'w', x: WIDE, y: WIDE }] };
+    said.push(
+      feedbackMessage({ kind: RUSH_FEEDBACK.HIT, targetId: 'w' }, question),
+      feedbackMessage({ kind: RUSH_FEEDBACK.COMPLETE, targetId: 'w' }, question),
+      feedbackMessage({ kind: RUSH_FEEDBACK.MISS }, question),
+    );
+  });
+  return [...said, ...systemsFeedbackLines(systems)];
+};
+
 /**
  * The longest things a round of these settings can say on its feedback line,
  * longest first (a few: each is drawn, and the line keeps the room of the
  * tallest at the screen's own width and text size).
  */
-export const feedbackReserve = ({ features = [], offScreen = false, inequality = false } = {}) => {
+export const feedbackReserve = ({ features = [], offScreen = false, inequality = false, systems = null } = {}) => {
   const lines = [
     feedbackMessage({ kind: RUSH_FEEDBACK.SKIPPED }, inequality ? { kind: 'inequality' } : {}),
     feedbackMessage({ kind: RUSH_FEEDBACK.RESYNCED }, {}),
     feedbackMessage({ kind: RUSH_FEEDBACK.ALREADY_FOUND }, {}),
   ];
   if (inequality) lines.push(...inequalityLines());
+  else if (systems) lines.push(...systemLines(systems));
   else {
     for (const featureId of features) {
       lines.push(...(isSetFeature(featureId) ? setLines(featureId) : pointLines(featureId, { offScreen })));
@@ -821,8 +914,23 @@ export const widestNotation = ({ axis = 'x' } = {}) => bothNotations(setFromPlai
  * round's settings can deal (GraphFeatureRushRound draws the others, unseen,
  * in the same cell). An inequality game deals one kind.
  */
-export const rushRoundKinds = ({ features = [], offScreen = false, inequality = false } = {}) => {
+/*
+ * A system's two kinds: an intercept to tap ("Does Not Exist" when neither
+ * line crosses that axis), and its solution to tap or answer with the game's
+ * own buttons (systemsRush.systemAnswerButtons).
+ */
+export const SYSTEM_INTERCEPT_KIND = Object.freeze({ inequality: false, set: false, vertical: false, canBeEmpty: true, offScreen: false, system: true, solution: false });
+export const SYSTEM_SOLUTION_KIND = Object.freeze({ inequality: false, set: false, vertical: false, canBeEmpty: false, offScreen: false, system: true, solution: true });
+
+export const rushRoundKinds = ({ features = [], offScreen = false, inequality = false, systems = null } = {}) => {
   if (inequality) return Object.freeze([Object.freeze({ inequality: true, set: true, vertical: false, canBeEmpty: true, offScreen: false })]);
+  if (systems) {
+    const asked = Array.isArray(systems.questions) ? systems.questions : [];
+    return Object.freeze([
+      ...(asked.some((question) => question !== SYSTEM_QUESTION.SOLUTION) ? [SYSTEM_INTERCEPT_KIND] : []),
+      ...(asked.includes(SYSTEM_QUESTION.SOLUTION) ? [SYSTEM_SOLUTION_KIND] : []),
+    ]);
+  }
   const kinds = new Map();
   for (const featureId of features) {
     const kind = isSetFeature(featureId)
@@ -836,6 +944,7 @@ export const rushRoundKinds = ({ features = [], offScreen = false, inequality = 
 /** The kind of the item on screen, in rushRoundKinds' terms. */
 export const rushItemKind = (question, { offScreen = false } = {}) => {
   if (isInequalityQuestion(question)) return Object.freeze({ inequality: true, set: true, vertical: false, canBeEmpty: true, offScreen: false });
+  if (isSystemQuestion(question)) return question.feature === SYSTEM_QUESTION.SOLUTION ? SYSTEM_SOLUTION_KIND : SYSTEM_INTERCEPT_KIND;
   if (isNumberLineQuestion(question)) {
     return Object.freeze({ inequality: false, set: true, vertical: setAxisOf(question) === 'y', canBeEmpty: getGraphFeature(question?.feature)?.canNotExist === true, offScreen: false });
   }
@@ -871,7 +980,9 @@ const RESERVE_ASK_COUNT = 6;
  * The widest prompts a round of these settings can ask, each as an item
  * carries it ({ prompt, inequality? }), widest first.
  */
-export const promptReserve = ({ features = [], inequality = null } = {}) => {
+export const promptReserve = ({ features = [], inequality = null, systems = null } = {}) => {
+  // A system's prompts are the same few words at every tier (systemsRush.systemsPrompts).
+  if (systems) return Object.freeze(systemsPrompts(systems).map((prompt) => Object.freeze({ prompt })).sort((left, right) => right.prompt.length - left.prompt.length));
   if (inequality) {
     const tiers = inequality.difficulty === 'mixed' ? ASK_TIERS : [ASK_TIERS.includes(inequality.difficulty) ? inequality.difficulty : 'standard'];
     const top = Math.max(...tiers.map((tier) => ASK_TIERS.indexOf(tier)));

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import GraphFeatureRushRound from './GraphFeatureRushRound.jsx';
 import { applyRushAttempts, rushRoundState } from '../../../functions/shared/graphFeatureRush.mjs';
-import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID, SYSTEMS_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { correctCountStrategy } from '../../../functions/shared/liveChallengeScoring.mjs';
-import { previewGraphFeatureRush, previewInequalityRush } from '../../platform/liveChallenge/liveChallengeService.js';
+import { previewGraphFeatureRush, previewInequalityRush, previewSystemsRush } from '../../platform/liveChallenge/liveChallengeService.js';
 import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
 
 /*
@@ -15,13 +15,15 @@ import { studentErrorSentence } from '../../platform/student/studentErrorWords.j
  * the same verdicts a class gets — and nothing is sent or recorded.
  *
  * Inequality Graphing Rush practises the same way (`game`): sample
- * inequalities from its own preview, on the same screen.
+ * inequalities from its own preview, on the same screen. So does Systems of
+ * Equations Rush, with sample systems of two lines.
  */
 
 // Each game's preview call, and where its room carries its settings.
 const PRACTICE_GAMES = Object.freeze({
   [RUSH_MODE_ID]: Object.freeze({ key: 'graphFeatureRush', preview: (config, count) => previewGraphFeatureRush({ graphFeatureRush: config, count }), noun: 'graphs' }),
   [INEQUALITY_RUSH_MODE_ID]: Object.freeze({ key: 'inequalityRush', preview: (config, count) => previewInequalityRush({ inequalityRush: config, count }), noun: 'inequalities' }),
+  [SYSTEMS_RUSH_MODE_ID]: Object.freeze({ key: 'systemsRush', preview: (config, count) => previewSystemsRush({ systemsRush: config, count }), noun: 'systems' }),
 });
 
 const PRACTICE_GRAPHS = 18;

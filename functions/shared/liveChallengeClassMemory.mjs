@@ -23,7 +23,7 @@
  * Every suggestion is a game the server would create: each candidate passes
  * the game's own settings rule before it is offered.
  *
- * THE GAMES WITH A MEMORY (N80): the two rushes, Graph the Line (one memory
+ * THE GAMES WITH A MEMORY (N80): the three rushes, Graph the Line (one memory
  * for its three formats: the format is one of its settings) and Solver Race
  * (by its difficulty bands; a Pace Race has no clock to shorten or lengthen).
  * Each is played on a difficulty ladder that its report's accuracy can be
@@ -44,8 +44,9 @@
 
 import { getGraphFeature } from './graphFeatureRegistry.mjs';
 import { RUSH_ROUND_LIMITS, normalizeGraphFeatureRushConfig } from './graphFeatureRushConfig.mjs';
-import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from './graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID, SYSTEMS_RUSH_MODE_ID } from './graphFeatureRushRules.mjs';
 import { INEQUALITY_ROUND_LIMITS, normalizeInequalityRushConfig } from './inequalityRush.mjs';
+import { SYSTEMS_ROUND_LIMITS, normalizeSystemsRushConfig } from './systemsRush.mjs';
 import { DEFAULT_SPRINT_LENGTH, LINE_ROUND_LIMITS, LINE_SPRINT_LENGTHS, normalizeLineGraphConfig } from './lineGraphConfig.mjs';
 import { DEFAULT_LINE_TRIES, LINE_FORM_LABELS, LINE_GRAPH_FORMAT, LINE_GRAPH_FORMAT_IDS, LINE_GRAPH_MODE_IDS, lineGraphFormatOfMode } from './lineGraphRules.mjs';
 import { CHALLENGE_MODE_ID, CLASSIC_SETUP_CHOICES } from './liveChallengeModes.mjs';
@@ -112,6 +113,15 @@ const INEQUALITY_SHORT = Object.freeze({
   oneStep: 'one-step solving',
   twoStep: 'two-step solving',
   absolute: 'absolute value',
+});
+
+// What a dropped kind of system is called in a suggestion.
+const SYSTEM_KIND_SHORT = Object.freeze({
+  slanted: 'two slanted lines',
+  levelUpright: 'horizontal and vertical lines',
+  cannotDetermine: 'can\'t-be-determined systems',
+  parallel: 'parallel lines',
+  sameLine: 'the same line twice',
 });
 
 const LINE_FORMAT_LABEL = Object.freeze({ [LINE_GRAPH_FORMAT.CLASSIC]: 'Classic', [LINE_GRAPH_FORMAT.SPRINT]: 'Sprint', [LINE_GRAPH_FORMAT.RUSH]: 'Rush' });
@@ -182,6 +192,32 @@ const GAMES = Object.freeze({
     settingsOf: (config) => ({
       presetId: String(config.presetId || 'custom'),
       itemTypes: list(config.itemTypes),
+      difficulty: String(config.difficulty || 'standard'),
+    }),
+    atDifficulty: (settings, difficulty) => ({ ...settings, difficulty }),
+  }),
+  /*
+   * SYSTEMS OF EQUATIONS RUSH: the rush's report, its rows by kind of system
+   * hardest first — what "drop the weakest" takes from (never a kind the
+   * settings' own rule needs: a solution question keeps a system to tap).
+   */
+  systemsRush: Object.freeze({
+    id: 'systemsRush',
+    modeIds: Object.freeze([SYSTEMS_RUSH_MODE_ID]),
+    label: 'Systems of Equations Rush',
+    report: 'systemsRush',
+    listKey: 'kinds',
+    units: Object.freeze({ one: 'system', many: 'systems' }),
+    ladder: LADDER,
+    limitsOf: () => SYSTEMS_ROUND_LIMITS,
+    configOf: ({ room }) => room?.systemsRush?.config,
+    facts: rushFacts((report) => report?.byFamily),
+    dropped: (id) => SYSTEM_KIND_SHORT[id] || id,
+    normalize: normalizeSystemsRushConfig,
+    settingsOf: (config) => ({
+      presetId: String(config.presetId || 'custom'),
+      questions: list(config.questions),
+      kinds: list(config.kinds),
       difficulty: String(config.difficulty || 'standard'),
     }),
     atDifficulty: (settings, difficulty) => ({ ...settings, difficulty }),

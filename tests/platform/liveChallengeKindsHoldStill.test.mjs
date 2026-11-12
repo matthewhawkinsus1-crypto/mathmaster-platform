@@ -138,7 +138,10 @@ test('the rush\'s prompt and hint keep the room of what the round can ask, drawn
   // The room is the round's settings: its features, or its kinds of inequality and difficulty.
   assert.match(rush.source, /const inequalityKinds = \(room\.inequalityRush\?\.config\?\.itemTypes \|\| \[\]\)\.join\(' '\);/);
   assert.match(rush.source, /promptReserve\(inequalityGame\s*\? \{ inequality: \{ itemTypes: inequalityKinds \? inequalityKinds\.split\(' '\) : \[\], difficulty: inequalityDifficulty \} \}\s*: \{ features: roundFeatures \? roundFeatures\.split\(' '\) : \[\] \}\)/);
-  assert.match(rush.source, /const hintRoom = useMemo\(\(\) => \[\.\.\.new Set\(roundKinds\.map\(rushHint\)\)\], \[roundKinds\]\);/);
+  // Every kind's hint the round deals, in its words — a systems game's
+  // solution kind naming the game's own buttons, from the room's settings.
+  assert.match(rush.source, /const hintRoom = useMemo\(\(\) => \[\.\.\.new Set\(roundKinds\.map\(\(kind\) => rushHint\(kind, systemButtons\)\)\)\], \[roundKinds, systemButtons\]\);/);
+  assert.match(rush.source, /const systemButtons = useMemo\(\(\) => \(systemsConfig \? systemAnswerButtons\(systemsConfig\) : \[\]\), \[systemsConfig\]\);/);
   // Drawn as the heading is; kept, unseen, where the screen is tall for its text.
   for (const property of ['font-size', 'line-height', 'font-weight', 'margin']) assert.ok(rush.shares('.mm-rush-prompt h2', '.mm-rush-ask-held', property), `the room's ${property}`);
   for (const held of ['.mm-rush-ask-held', '.mm-rush-hint-held']) {
@@ -150,7 +153,7 @@ test('the rush\'s prompt and hint keep the room of what the round can ask, drawn
 
 test('before GO the rush shows the round\'s own kind, from GO the item\'s', () => {
   assert.match(rush.source, /const shownKind = started && question\s*\? rushItemKind\(question, \{ offScreen: offScreenGame \}\)\s*: roundKinds\.find\(\(kind\) => !kind\.set\) \|\| roundKinds\[0\] \|\| rushItemKind\(null, \{ offScreen: offScreenGame \}\);/);
-  assert.match(rush.source, /const promptHint = rushHint\(shownKind\);/);
+  assert.match(rush.source, /const promptHint = rushHint\(shownKind, systemButtons\);/);
   assert.match(rush.source, /\{shownKind\.set \? \(/, 'the controls');
   // An inequality game's countdown says the number line's words (it said a graph's "Does Not Exist").
   assert.equal(rushRoundKinds({ inequality: true })[0].inequality, true);

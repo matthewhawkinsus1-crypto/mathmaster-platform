@@ -1,6 +1,7 @@
 import { graphFamilyLabel } from '../../../functions/shared/graphFeatureCatalog.mjs';
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { inequalityItemLabel } from '../../../functions/shared/inequalityRush.mjs';
+import { systemKindLabel, systemQuestionLabel } from '../../../functions/shared/systemsRush.mjs';
 import { QUESTION_SET_GAME, questionSetGameOf, rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
 import { rushPlayingCount, rushRaceRows, rushRoundResultRows, rushScoreUnit } from '../../platform/liveChallenge/rushStandingsModel.js';
 import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
@@ -50,19 +51,26 @@ const LOOKS = Object.freeze({
 });
 
 const inequalityRoom = (room) => questionSetGameOf(room) === QUESTION_SET_GAME.INEQUALITY_RUSH;
-const configOf = (room = {}) => (inequalityRoom(room) ? room.inequalityRush?.config : room.graphFeatureRush?.config) || {};
+const systemsRoom = (room) => questionSetGameOf(room) === QUESTION_SET_GAME.SYSTEMS_RUSH;
+const configOf = (room = {}) => {
+  if (inequalityRoom(room)) return room.inequalityRush?.config || {};
+  if (systemsRoom(room)) return room.systemsRush?.config || {};
+  return room.graphFeatureRush?.config || {};
+};
 
-/** What the room asks for, as short labels: its features, or its kinds of inequality. */
+/** What the room asks for, as short labels: its features, its kinds of inequality, or a system's questions. */
 export function rushBadges(room = {}) {
   const config = configOf(room);
   if (inequalityRoom(room)) return (config.itemTypes || []).map((id) => inequalityItemLabel(id) || id);
+  if (systemsRoom(room)) return (config.questions || []).map((id) => systemQuestionLabel(id) || id);
   return (config.features || []).map((id) => getGraphFeature(id)?.shortLabel || id);
 }
 
-/** The settings a rush room runs with, in one line. */
+/** The settings a rush room runs with, in one line (a systems room adds its kinds of system). */
 export function rushSettingsLine(room = {}) {
   const config = configOf(room);
   const asks = rushBadges(room);
+  const kinds = systemsRoom(room) ? (config.kinds || []).map((id) => systemKindLabel(id) || id) : [];
   const difficulty = config.difficulty ? `${config.difficulty[0].toUpperCase()}${config.difficulty.slice(1)}` : null;
   return [
     `${room.roundCount || 1} round${Number(room.roundCount) === 1 ? '' : 's'}`,
@@ -70,6 +78,7 @@ export function rushSettingsLine(room = {}) {
     room.scoringStrategyId === 'grandPrix' ? 'Grand Prix' : 'Correct Count',
     difficulty,
     asks.length ? asks.join(', ') : null,
+    kinds.length ? kinds.join(', ') : null,
   ].filter(Boolean).join(' · ');
 }
 
@@ -170,34 +179,46 @@ function RushReportTable({ block, ...table }) {
  * when asked for zeros (x-intercepts)", N42) — the teacher's console only,
  * class counts, never on the projector. An Inequality Graphing Rush report
  * (`inequalityRush`) has the same shape, its rows named by kind of
- * inequality, and one feature and no taps, so no feature or tap table.
+ * inequality, and one feature and no taps, so no feature or tap table. A
+ * Systems of Equations Rush report (`systemsRush`) does too, its rows by
+ * question and by kind of system, with its own presses beside "No Solution".
  * The totals are a list and each breakdown a headed table (RushReportTable).
  */
 export function RushReport({ report }) {
   const inequality = Boolean(report?.inequalityRush);
-  const rush = report?.graphFeatureRush || report?.inequalityRush;
+  const systems = Boolean(report?.systemsRush);
+  const rush = report?.graphFeatureRush || report?.inequalityRush || report?.systemsRush;
   if (!rush) return null;
   const answers = inequality ? 'answers' : 'taps';
   const progress = (row) => `${row.completed}/${row.questions} completed · ${pct(row.accuracyPercent)} of ${answers} right`;
   const count = (row) => row.count;
+  let completedWords = 'graphs';
+  if (inequality) completedWords = 'inequalities';
+  if (systems) completedWords = 'systems';
+  let familyTitle = 'By kind of graph, hardest first';
+  let familyColumn = 'Kind of graph';
+  if (inequality) [familyTitle, familyColumn] = ['By kind of inequality, hardest first', 'Kind of inequality'];
+  if (systems) [familyTitle, familyColumn] = ['By kind of system, hardest first', 'Kind of system'];
   return (
     <section style={{ display: 'grid', gap: 14 }}>
       <ul style={{ display: 'flex', gap: 18, flexWrap: 'wrap', margin: 0, padding: 0, listStyle: 'none', fontSize: 'calc(14 * var(--mm-px))', color: 'var(--mm-text)' }}>
-        <li><strong>{rush.graphsCompleted}</strong> {inequality ? 'inequalities' : 'graphs'} completed</li>
+        <li><strong>{rush.graphsCompleted}</strong> {completedWords} completed</li>
         <li>{inequality ? 'Accuracy' : 'Tap accuracy'} <strong>{pct(rush.accuracyPercent)}</strong></li>
         <li><strong>{rush.skipped}</strong> skipped</li>
-        <li>{inequality ? '"No Solution"' : '"Does Not Exist"'} right <strong>{pct(rush.doesNotExist?.accuracyPercent)}</strong> of {presses(rush.doesNotExist?.presses || 0)}</li>
+        <li>{inequality ? '"No Solution"' : systems ? '"No Solution" or "Does Not Exist"' : '"Does Not Exist"'} right <strong>{pct(rush.doesNotExist?.accuracyPercent)}</strong> of {presses(rush.doesNotExist?.presses || 0)}</li>
         {!inequality && rush.offScreen?.presses > 0 && <li>"Off screen" right <strong>{pct(rush.offScreen.accuracyPercent)}</strong> of {presses(rush.offScreen.presses)}</li>}
+        {systems && rush.infinitelyMany?.presses > 0 && <li>"Infinitely Many" right <strong>{pct(rush.infinitelyMany.accuracyPercent)}</strong> of {presses(rush.infinitelyMany.presses)}</li>}
+        {systems && rush.cannotDetermine?.presses > 0 && <li>"Can't Be Determined" right <strong>{pct(rush.cannotDetermine.accuracyPercent)}</strong> of {presses(rush.cannotDetermine.presses)}</li>}
       </ul>
       {!inequality && rush.byFeature?.length > 0 && (
-        <RushReportTable block="byFeature" title="By feature, hardest first" columns={['Feature', 'Results']} rows={rush.byFeature} value={progress} />
+        <RushReportTable block="byFeature" title={systems ? 'By question, hardest first' : 'By feature, hardest first'} columns={[systems ? 'Question' : 'Feature', 'Results']} rows={rush.byFeature} value={progress} />
       )}
       {rush.byFamily?.length > 0 && (
         <RushReportTable
           block="byFamily"
-          title={inequality ? 'By kind of inequality, hardest first' : 'By kind of graph, hardest first'}
-          columns={[inequality ? 'Kind of inequality' : 'Kind of graph', 'Results']}
-          rows={inequality ? rush.byFamily : rush.byFamily.map((row) => ({ ...row, label: graphFamilyLabel(row.key) || row.label }))}
+          title={familyTitle}
+          columns={[familyColumn, 'Results']}
+          rows={inequality || systems ? rush.byFamily : rush.byFamily.map((row) => ({ ...row, label: graphFamilyLabel(row.key) || row.label }))}
           value={progress}
         />
       )}

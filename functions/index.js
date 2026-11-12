@@ -11115,6 +11115,21 @@ async function inequalityRushRules() {
   return inequalityRushModules;
 }
 
+// SYSTEMS OF EQUATIONS RUSH: the mode's settings and words, its generator
+// (server only), and its reading guide. Its attempts are Graph Feature Rush's.
+let systemsRushModules = null;
+async function systemsRushRules() {
+  if (!systemsRushModules) {
+    const [rules, generator, reading] = await Promise.all([
+      import("./shared/systemsRush.mjs"),
+      import("./shared/systemsGenerator.mjs"),
+      import("./shared/systemsReading.mjs"),
+    ]);
+    systemsRushModules = { rules, generator, reading };
+  }
+  return systemsRushModules;
+}
+
 // GRAPH THE LINE: the mode's own pure rules (attempts, generation, config).
 let lineGraphModuleSet = null;
 async function lineGraphModules() {
@@ -11540,6 +11555,58 @@ const INEQUALITY_RUSH_PLANNER = Object.freeze({
 });
 
 /*
+ * SYSTEMS OF EQUATIONS RUSH draws nothing up front either: Graph Feature
+ * Rush's planner with a system of two lines on every graph. Each student's
+ * systems are generated from the room's private seed as they reach them (the
+ * rush's getGraphFeatureRushRound) and regenerated to grade an attempt; a
+ * round is a placeholder id; its results carry a guide to reading a system
+ * (systemsReading.mjs), the same for everyone.
+ */
+const SYSTEMS_RUSH_PLANNER = Object.freeze({
+  async plan({ modeConfig, roundCount }) {
+    const { generator } = await systemsRushRules();
+    const config = modeConfig.systemsRush;
+    const generatorVersion = generator.SYSTEMS_GENERATOR_VERSION;
+    return {
+      candidateCount: roundCount,
+      selected: Array.from({ length: roundCount }, (_, index) => ({
+        question: { id: `systemsRush:round:${index + 1}`, alignmentKeys: [] },
+      })),
+      roundQuestions: null,
+      seed: null,
+      // The seed never leaves the server: it makes a student's systems theirs.
+      privateFields: { systemsRush: { seed: crypto.randomUUID(), config, generatorVersion } },
+      roomFields: { systemsRush: { config, generatorVersion } },
+    };
+  },
+  async swap() {
+    throw new HttpsError("failed-precondition", "Systems of Equations Rush systems are generated for each student; there is no shared round to swap.");
+  },
+  async openRound({ room, privateState, roundIndex, mode, engine }) {
+    const questionId = privateState.questionIds?.[roundIndex];
+    if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+    const config = privateState.systemsRush?.config || room.systemsRush?.config || {};
+    const { reading } = await systemsRushRules();
+    return {
+      roundIndex,
+      questionId,
+      currentQuestion: {
+        kind: "systemsRush",
+        challengeRound: roundIndex,
+        prompt: "Find the intercepts and solutions on your own systems",
+        questions: Array.isArray(config.questions) ? config.questions : [],
+        kinds: Array.isArray(config.kinds) ? config.kinds : [],
+        difficulty: config.difficulty || null,
+        teksCode: null,
+      },
+      roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+      // The round's guide, kept privately until the round has closed.
+      solution: reading.systemsRoundSolutionRecord({ questions: config.questions, kinds: config.kinds, difficulty: config.difficulty }),
+    };
+  },
+});
+
+/*
  * GRAPH THE LINE draws nothing up front either: each student's items are
  * generated from the room's private seed as they reach them
  * (getLineGraphRound) and regenerated to grade an attempt. A round is a
@@ -11631,6 +11698,7 @@ const LINE_GRAPH_PLANNER = Object.freeze({
 const GENERATED_QUESTION_PLANNERS = Object.freeze({
   graphFeatureGenerator: GRAPH_FEATURE_RUSH_PLANNER,
   inequalityGenerator: INEQUALITY_RUSH_PLANNER,
+  systemsGenerator: SYSTEMS_RUSH_PLANNER,
   lineGraphGenerator: LINE_GRAPH_PLANNER,
 });
 
@@ -11985,7 +12053,7 @@ async function requireOwnedChallenge(db, request, roomId) {
 }
 
 // A mode's own settings errors: each carries a sentence a teacher can act on.
-const LIVE_CHALLENGE_CONFIG_ERRORS = new Set(["GraphFeatureRushConfigError", "InequalityRushConfigError", "LineGraphConfigError"]);
+const LIVE_CHALLENGE_CONFIG_ERRORS = new Set(["GraphFeatureRushConfigError", "InequalityRushConfigError", "SystemsRushConfigError", "LineGraphConfigError"]);
 
 exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   await requireTeacher(request);
@@ -13109,10 +13177,11 @@ function liveChallengeRevealableRounds({ challenge, engine, room, privateState, 
     // (LC07): the same for every student and about no graph, so nothing holds
     // it back, and no Second Chance replays a Rush round. Only a round whose
     // guide was captured when it opened (a game already running before this
-    // existed has none, and publishes none). An Inequality Graphing Rush
-    // round's guide is published the same way.
+    // existed has none, and publishes none). An Inequality Graphing Rush or a
+    // Systems of Equations Rush round's guide is published the same way.
     if (mode.questionSource === engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR
-      || mode.questionSource === engine.modes.QUESTION_SOURCE.INEQUALITY_GENERATOR) {
+      || mode.questionSource === engine.modes.QUESTION_SOURCE.INEQUALITY_GENERATOR
+      || mode.questionSource === engine.modes.QUESTION_SOURCE.SYSTEMS_GENERATOR) {
       const scheduled = Number(privateState.scheduledRoundCount) || (Array.isArray(privateState.questionIds) ? privateState.questionIds.length : 0);
       return engine.solutionReveal.revealableRounds({
         closedThrough, scheduledRoundCount: scheduled, secondChancePossible: false, replayOf: {}, finished,
@@ -13401,6 +13470,11 @@ async function questionSetModeReport(mode, result) {
     const { generator } = await inequalityRushRules();
     return { key: "inequalityRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result, generator.INEQUALITY_REPORT_LABELS) };
   }
+  if (mode.questionSource === "systemsGenerator") {
+    // The rush's report, its rows named for systems.
+    const { rules } = await systemsRushRules();
+    return { key: "systemsRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result, rules.SYSTEMS_REPORT_LABELS) };
+  }
   return { key: "graphFeatureRush", report: (await graphFeatureRushRules()).rush.buildRushReport(result) };
 }
 
@@ -13432,7 +13506,9 @@ async function liveChallengeEffectRecipients(transaction, db, studentIds = []) {
 async function classMemoryReportFromResult(game, result) {
   if (game.report === "lineGraph") return (await lineGraphModules()).attempts.buildLineGraphReport(result);
   if (game.report === "classic") return classicChallengeReportFromResult(result);
-  const labels = game.report === "inequalityRush" ? (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS : undefined;
+  let labels;
+  if (game.report === "inequalityRush") labels = (await inequalityRushRules()).generator.INEQUALITY_REPORT_LABELS;
+  if (game.report === "systemsRush") labels = (await systemsRushRules()).rules.SYSTEMS_REPORT_LABELS;
   return (await graphFeatureRushRules()).rush.buildRushReport(result, labels);
 }
 
@@ -15455,6 +15531,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
 //                                   once.
 //   previewGraphFeatureRush         sample graphs for a teacher's settings.
 //   previewInequalityRush           sample inequalities, likewise.
+//   previewSystemsRush              sample systems of two lines, likewise.
 //
 // The device grades each tap instantly with the same hit test; the server's
 // verdict is the one that counts, and the device resynchronizes to it.
@@ -15462,7 +15539,10 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
 // INEQUALITY GRAPHING RUSH plays on the same two callables: its items are
 // rush questions (one target, a solution set, checked like a domain), so a
 // room of either game is played, graded and recorded by the same code, with
-// its questions from its own generator (RUSH_QUESTION_SOURCES).
+// its questions from its own generator (RUSH_QUESTION_SOURCES). So does
+// SYSTEMS OF EQUATIONS RUSH: its items are two lines, their targets points
+// tapped with the rush's hit test, or a press ("No Solution", "Infinitely
+// Many", "Can't Be Determined").
 // ---------------------------------------------------------------------------
 
 /*
@@ -15486,6 +15566,14 @@ const RUSH_QUESTION_SOURCES = Object.freeze({
     async generator() {
       const { generator } = await inequalityRushRules();
       return { version: generator.INEQUALITY_GENERATOR_VERSION, generate: generator.generateInequalityQuestion, publicQuestion: generator.publicInequalityQuestion };
+    },
+  }),
+  systemsGenerator: Object.freeze({
+    label: "Systems of Equations Rush",
+    stateKey: "systemsRush",
+    async generator() {
+      const { generator } = await systemsRushRules();
+      return { version: generator.SYSTEMS_GENERATOR_VERSION, generate: generator.generateSystemsQuestion, publicQuestion: generator.publicSystemsQuestion };
     },
   }),
 });
@@ -15718,6 +15806,25 @@ exports.previewInequalityRush = onCall(async (request) => {
   const seed = crypto.randomUUID();
   const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
   const questions = Array.from({ length: count }, (_, questionIndex) => generator.publicInequalityQuestion(generator.generateInequalityQuestion({
+    seed, studentKey: "preview", roundIndex: 0, questionIndex, config: normalized,
+  })));
+  return { config: normalized, questions };
+});
+
+exports.previewSystemsRush = onCall(async (request) => {
+  await requireTeacher(request);
+  const { rules, generator } = await systemsRushRules();
+  let normalized;
+  try {
+    normalized = rules.normalizeSystemsRushConfig(request.data?.systemsRush || {});
+  } catch (error) {
+    if (error?.name === "SystemsRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  // A fresh seed every time, as for graphs: nothing is written anywhere.
+  const seed = crypto.randomUUID();
+  const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
+  const questions = Array.from({ length: count }, (_, questionIndex) => generator.publicSystemsQuestion(generator.generateSystemsQuestion({
     seed, studentKey: "preview", roundIndex: 0, questionIndex, config: normalized,
   })));
   return { config: normalized, questions };

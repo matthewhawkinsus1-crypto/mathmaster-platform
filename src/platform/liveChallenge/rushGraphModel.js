@@ -222,6 +222,13 @@ const DRAWINGS = new WeakMap();
 
 /** Everything a question draws, computed once per question. */
 export const graphDrawing = (question) => {
+  if (isSystemQuestion(question)) {
+    const cachedSystem = DRAWINGS.get(question);
+    if (cachedSystem) return cachedSystem;
+    const system = systemDrawing(question);
+    if (system) DRAWINGS.set(question, system);
+    return system;
+  }
   if (!question?.graph || !question?.view) return null;
   const cached = DRAWINGS.get(question);
   if (cached) return cached;
@@ -236,6 +243,146 @@ export const graphDrawing = (question) => {
   });
   DRAWINGS.set(question, drawing);
   return drawing;
+};
+
+/*
+ * A SYSTEM OF TWO LINES (Systems of Equations Rush, systemsRush.mjs), drawn
+ * so the two can always be told apart. Each line crosses the plot from edge
+ * to edge and keeps going both ways, so each of its two exits gets an
+ * arrowhead, as a curve's does. Each line gets a label: line 1 near its exit
+ * furthest right (the top, for a vertical line), line 2 near its exit
+ * furthest left (the bottom) — so the same line drawn twice is labelled 1 at
+ * one end and 2 at the other, and reads as two lines lying on each other. A
+ * label moves to its line's other end when it would sit on something a
+ * student taps (a target, the crossing) or on the other label. Every system
+ * is drawn by the same rules, so the drawing never says which kind it is.
+ */
+export const isSystemQuestion = (question) => question?.kind === 'system';
+
+// How far in from its exit a line's label sits, along the line (unit space),
+// how close it may come to something a student taps or to the other label,
+// how far beside its line it may step to keep clear, and how far inside the
+// plot it stays whole.
+export const SYSTEM_LABEL_INSET = 0.075;
+export const SYSTEM_LABEL_CLEARANCE = 0.075;
+const SYSTEM_LABEL_ASIDE = 0.055;
+const SYSTEM_LABEL_MARGIN = 0.035;
+const LINE_EDGE_EPSILON = 1e-9;
+
+/**
+ * Where a system's line crosses the plot, in unit space: its two exits, the
+ * first the left one (the bottom, for a vertical line). Null for a line the
+ * view does not show.
+ */
+export const systemLineExits = (view, line) => {
+  const xMin = finite(view?.xMin, -10);
+  const xMax = finite(view?.xMax, 10);
+  const yMin = finite(view?.yMin, -10);
+  const yMax = finite(view?.yMax, 10);
+  const toUnit = (point) => ({ u: unitX(view, point.x), v: unitY(view, point.y) });
+  if (line?.orientation === 'vertical') {
+    const x = finite(line.x, Number.NaN);
+    return x > xMin && x < xMax ? [{ x, y: yMin }, { x, y: yMax }].map(toUnit) : null;
+  }
+  if (line?.orientation === 'horizontal') {
+    const y = finite(line.y, Number.NaN);
+    return y > yMin && y < yMax ? [{ x: xMin, y }, { x: xMax, y }].map(toUnit) : null;
+  }
+  const m = finite(line?.m, Number.NaN);
+  const b = finite(line?.b, Number.NaN);
+  if (!Number.isFinite(m) || !Number.isFinite(b) || m === 0) return null;
+  const hits = [];
+  [xMin, xMax].forEach((x) => {
+    const y = m * x + b;
+    if (y >= yMin - LINE_EDGE_EPSILON && y <= yMax + LINE_EDGE_EPSILON) hits.push({ x, y });
+  });
+  [yMin, yMax].forEach((y) => {
+    const x = (y - b) / m;
+    if (x >= xMin - LINE_EDGE_EPSILON && x <= xMax + LINE_EDGE_EPSILON) hits.push({ x, y });
+  });
+  const sorted = hits.sort((left, right) => left.x - right.x);
+  if (sorted.length < 2 || sorted[sorted.length - 1].x - sorted[0].x < LINE_EDGE_EPSILON) return null;
+  return [sorted[0], sorted[sorted.length - 1]].map(toUnit);
+};
+
+// The arrowhead at an exit, pointing out of the plot along the line.
+const exitArrow = (exit, other) => {
+  const length = Math.hypot(exit.u - other.u, exit.v - other.v);
+  return Object.freeze({ u: exit.u, v: exit.v, dx: (exit.u - other.u) / length, dy: (exit.v - other.v) / length });
+};
+
+// Where a label may sit by one end of its line, best first: on the line a
+// little in from its exit; beside the line there, either side; then the same
+// further in. Each whole inside the plot.
+const labelSpotsBy = (exit, other) => {
+  const length = Math.hypot(other.u - exit.u, other.v - exit.v);
+  const [du, dv] = [(other.u - exit.u) / length, (other.v - exit.v) / length];
+  const spots = [];
+  [SYSTEM_LABEL_INSET, SYSTEM_LABEL_INSET * 2].forEach((inset) => {
+    const on = { u: exit.u + du * inset, v: exit.v + dv * inset };
+    spots.push(on, { u: on.u - dv * SYSTEM_LABEL_ASIDE, v: on.v + du * SYSTEM_LABEL_ASIDE }, { u: on.u + dv * SYSTEM_LABEL_ASIDE, v: on.v - du * SYSTEM_LABEL_ASIDE });
+  });
+  return spots.filter((spot) => spot.u >= SYSTEM_LABEL_MARGIN && spot.u <= 1 - SYSTEM_LABEL_MARGIN && spot.v >= SYSTEM_LABEL_MARGIN && spot.v <= 1 - SYSTEM_LABEL_MARGIN);
+};
+
+/** Everything a system question draws: its grid, and its two lines with their arrows and labels. */
+export const systemDrawing = (question) => {
+  const view = question?.view;
+  const lines = Array.isArray(question?.lines) ? question.lines : [];
+  if (!view || !lines.length) return null;
+  // What a label keeps clear of: every point a student taps, and the crossing.
+  const taps = [...(question.targets || []), ...(question.crossing ? [question.crossing] : [])]
+    .filter((point) => Number.isFinite(Number(point?.x)) && Number.isFinite(Number(point?.y)))
+    .map((point) => ({ u: unitX(view, point.x), v: unitY(view, point.y) }));
+  const placed = [];
+  const clear = (spot) => [...taps, ...placed].every((other) => Math.hypot(spot.u - other.u, spot.v - other.v) >= SYSTEM_LABEL_CLEARANCE);
+  const drawn = lines.map((line, index) => {
+    const exits = systemLineExits(view, line);
+    if (!exits) return null;
+    const [low, high] = exits;
+    // Line 1's label by its right (or top) exit, line 2's by its left (or
+    // bottom) one — every spot by that end before any by the other.
+    const spots = index === 0
+      ? [...labelSpotsBy(high, low), ...labelSpotsBy(low, high)]
+      : [...labelSpotsBy(low, high), ...labelSpotsBy(high, low)];
+    const label = spots.find(clear) || spots[0];
+    placed.push(label);
+    return Object.freeze({
+      id: Number(line.id) || index + 1,
+      from: Object.freeze({ ...low }),
+      to: Object.freeze({ ...high }),
+      arrows: Object.freeze([exitArrow(low, high), exitArrow(high, low)]),
+      label: Object.freeze({ u: label.u, v: label.v }),
+    });
+  }).filter(Boolean);
+  return Object.freeze({
+    paths: Object.freeze([]),
+    grid: gridLines(view),
+    asymptotes: Object.freeze({ vertical: [], horizontal: [] }),
+    dots: Object.freeze([]),
+    arrows: Object.freeze([]),
+    system: Object.freeze(drawn),
+  });
+};
+
+/*
+ * What a screen reader hears at the keyboard cursor on a system: where it
+ * is, and where each line is at that x — what a sighted student reads off the
+ * graph. Two lines that are one line are heard at the same place everywhere;
+ * nothing says what that means for the answer.
+ */
+const describeSystemCursor = (question, cursor) => {
+  const parts = (question.lines || []).map((line, index) => {
+    const name = `Line ${Number(line.id) || index + 1}`;
+    if (line.orientation === 'vertical') {
+      return Math.abs(finite(cursor.x) - finite(line.x)) < 1e-9
+        ? `${name} runs straight up and down through this x.`
+        : `${name} is the vertical line x = ${formatCoordinate(line.x)}.`;
+    }
+    const y = line.orientation === 'horizontal' ? finite(line.y) : finite(line.m) * finite(cursor.x) + finite(line.b);
+    return `${name} is at y ${formatCoordinate(Math.round(y * 100) / 100)}.`;
+  });
+  return `Pointer at ${formatPoint(cursor)}. ${parts.join(' ')}`;
 };
 
 /** A line target (an asymptote) in unit space: where it crosses the plot. */
@@ -539,6 +686,7 @@ export const moveCursor = (view = {}, cursor = {}, key, { large = false } = {}) 
  * graph, so the game can be played without seeing it.
  */
 export const describeCursor = (question, cursor) => {
+  if (isSystemQuestion(question)) return describeSystemCursor(question, cursor);
   if (!question?.graph) return '';
   const curveY = evaluateGraph(question.graph, cursor.x);
   const rounded = Math.round(curveY * 100) / 100;

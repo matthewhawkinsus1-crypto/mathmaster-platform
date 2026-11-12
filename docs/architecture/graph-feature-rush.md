@@ -30,6 +30,13 @@ set, checked like a domain), issued and graded by the same callables
 (`RUSH_QUESTION_SOURCES` in `functions/index.js` names each game's generator
 and private state) and played on the same round screen with a number line.
 
+**Systems of Equations Rush** (`systems-rush.md`) is a third: every graph is
+two lines, and its items ask for the y-intercepts, the x-intercepts or the
+solution of the system. A system with no point to tap is answered by a press
+of its own — "No Solution" (the rush's "Does Not Exist"), "Infinitely Many"
+or "Can't Be Determined" — graded where the question names it
+(`rushPressAnswer`).
+
 ```
  teacher setup ─► createLiveChallenge (mode: graphFeatureRush) ─► lobby ─► start
                                                                             │

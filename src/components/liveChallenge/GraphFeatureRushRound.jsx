@@ -3,7 +3,8 @@ import GraphFeatureRushGraph from './GraphFeatureRushGraph.jsx';
 import InequalityNumberLine from './InequalityNumberLine.jsx';
 import StartLights from './StartLights.jsx';
 import { ARENA_RUSH_VARS, GP_RACE_CSS, arenaLayerCss } from './grandPrixTheme.js';
-import { INEQUALITY_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_ATTEMPT_KIND, SYSTEMS_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { systemAnswerButtons } from '../../../functions/shared/systemsRush.mjs';
 import { monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { rushRefusalIsTimeUp } from '../../platform/liveChallenge/challengeAnswerRefusal.js';
 import { rushGameWords } from '../../platform/liveChallenge/challengeShellModel.js';
@@ -30,12 +31,15 @@ import {
   feedbackReserve,
   isInequalityQuestion,
   isNumberLineQuestion,
+  isSystemQuestion,
   lineNotation,
   rushItemKind,
   rushRoundKinds,
   recordAxisTap,
+  recordCannotDetermine,
   recordCheck,
   recordDoesNotExist,
+  recordInfinitelyMany,
   recordOffScreen,
   recordSetTap,
   recordSkip,
@@ -160,7 +164,13 @@ const notationPrompt = (inequality) => (inequality
 // graph takes focus when play begins, its arrow keys move a crosshair and
 // Enter presses where it is; a set question's Page Up and Page Down step to
 // each arrow and point. The graph's own name says the same.
-const rushHint = (kind) => {
+// A system's solution kind names the game's own buttons (systemsRush
+// systemAnswerButtons): the same words on every solution item of the game.
+const rushHint = (kind, systemButtons = []) => {
+  if (kind.system && kind.solution) {
+    return ['Tap where the two lines intersect, or use the arrow keys and Enter.', ...systemButtons.map((button) => button.hint)].join(' ');
+  }
+  if (kind.system) return 'Tap each one on the graph, or use the arrow keys and Enter. Neither line crosses that axis? Does Not Exist.';
   if (kind.inequality) return 'Tap the number line, or use the arrow keys and Enter: once for a closed dot, twice for open, three times to take it away. Tap an end arrow, or arrow past the last number onto it, for "keeps going". Nothing works? No Solution.';
   // Two lines on a phone: the tip a wrong tap gets says the rest.
   if (kind.set) return `Tap the graph, or use Page Up, Page Down and Enter: an arrow for "keeps going", a point for its ${kind.vertical ? 'y' : 'x'}-value — twice for an open dot.${kind.canBeEmpty ? ' Nowhere? Does Not Exist.' : ''}`;
@@ -353,6 +363,21 @@ ${arenaLayerCss('.mm-rush-shell')}
    empty. "Keeps going" is the graph's own arrows: no arrow buttons. */
 .mm-rush-buttons[data-set="1"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .mm-rush-buttons[data-set="1"][data-dne="1"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) minmax(0, 1fr); }
+/* A system's solution question: the game's own buttons (No Solution,
+   Infinitely Many, Can't Be Determined) and Skip, in one row, each label on
+   at most two lines — as tall as an intercept question's row. */
+.mm-rush-buttons[data-system="1"] { grid-template-columns: repeat(var(--mm-rush-presses, 1), minmax(0, 1.4fr)) minmax(0, 1fr); }
+.mm-rush-buttons[data-system="1"] > * { font-size: calc(15 * var(--mm-px)); line-height: 1.1; padding: 4px 6px; }
+.mm-rush-buttons[data-system="1"][data-presses="0"] { grid-template-columns: minmax(0, 1fr); }
+/* What the round's other kind of item shows there, unseen (rushRoundKinds):
+   its room, so the controls never change height from one item to the next.
+   The live row keeps its own height at the foot of that room (stretched to
+   it, two buttons stood twice as tall as their words). */
+.mm-rush-buttons-held { display: none; }
+.mm-rush-hold > .mm-rush-buttons[data-system="1"] { align-self: end; }
+/* Which line is which: line 1 solid and wide, line 2 dashed and narrow. */
+.mm-rush-legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 6px 0 0; font-size: calc(13 * var(--mm-px)); font-weight: 900; color: #b8c4ef; }
+.mm-rush-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 /* The arena is dark in both themes, so ✓ Check keeps fixed colors, as Does Not
    Exist does: dark text on its green (recorded in scripts/theme-color-baseline.json
    and theme-token-baseline.json). */
@@ -403,7 +428,8 @@ ${GP_RACE_CSS}
   .mm-rush-prompt { grid-area: prompt; padding-top: 6px; }
   .mm-rush-graph-area { grid-area: graph; place-items: center; }
   .mm-rush-controls { grid-area: controls; align-self: end; }
-  .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"], .mm-rush-buttons[data-set="1"], .mm-rush-buttons[data-set="1"][data-dne="1"] { grid-template-columns: 1fr; }
+  .mm-rush-buttons, .mm-rush-buttons[data-off-screen="1"], .mm-rush-buttons[data-set="1"], .mm-rush-buttons[data-set="1"][data-dne="1"], .mm-rush-buttons[data-system="1"] { grid-template-columns: 1fr; }
+  .mm-rush-buttons[data-system="1"] > * { font-size: calc(17 * var(--mm-px)); }
 }
 /* Where the bar could run out of room (a phone, a tablet standing up, 200%
    text): every count keeps its slot, and "Starts in 3" is drawn small enough to
@@ -411,6 +437,11 @@ ${GP_RACE_CSS}
 @media (max-width: 60em) {
   .mm-rush-reserve { display: block; visibility: hidden; }
   .mm-rush-clock[data-soon="1"] .mm-rush-clock-face, .mm-rush-clock-soon { font-size: calc(15 * var(--mm-px)); }
+}
+/* A narrow phone: a system's three buttons and Skip two by two (its other
+   kind's row, held in the same cell, keeps the room either way). */
+@media (max-width: 420px) {
+  .mm-rush-buttons[data-system="1"][data-presses="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* A phone: the round over its counts, so a four-digit total, the items done,
    the status (on the bar's edge), the clock and Exit hold one row at 320 px in
@@ -441,6 +472,7 @@ ${GP_RACE_CSS}
    is chosen. */
 @media (min-height: 36em) {
   .mm-rush-feedback-held, .mm-rush-notation-held, .mm-rush-ask-held, .mm-rush-hint-held { display: block; visibility: hidden; }
+  .mm-rush-buttons-held { display: grid; visibility: hidden; }
   .mm-rush-cooldown-slot:empty { display: block; height: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -719,6 +751,12 @@ export default function GraphFeatureRushRound({
   const side = Math.min(area.width, area.height);
   // Inequality Graphing Rush: the same race, its words and its number line.
   const inequalityGame = room.challengeMode === INEQUALITY_RUSH_MODE_ID;
+  // Systems of Equations Rush: two lines on every graph, and the game's own
+  // answer buttons on every solution question (systemsRush.systemAnswerButtons).
+  const systemsGame = room.challengeMode === SYSTEMS_RUSH_MODE_ID;
+  const systemsKey = systemsGame ? JSON.stringify(room.systemsRush?.config || {}) : '';
+  const systemsConfig = useMemo(() => (systemsKey ? JSON.parse(systemsKey) : null), [systemsKey]);
+  const systemButtons = useMemo(() => (systemsConfig ? systemAnswerButtons(systemsConfig) : []), [systemsConfig]);
   const noun = rushGameWords(room);
   const frame = inequalityGame ? lineFrame(area) : { width: side, height: side };
   const question = session ? currentQuestion(session) : null;
@@ -762,6 +800,14 @@ export default function GraphFeatureRushRound({
   }, [commit, scheduleFlush]);
   const onDoesNotExist = () => act(recordDoesNotExist);
   const onOffScreen = () => act(recordOffScreen);
+  const onInfinitelyMany = () => act(recordInfinitelyMany);
+  const onCannotDetermine = () => act(recordCannotDetermine);
+  // A system's button for each press: "No Solution" is the "Does Not Exist" press.
+  const pressHandlers = {
+    [RUSH_ATTEMPT_KIND.DOES_NOT_EXIST]: onDoesNotExist,
+    [RUSH_ATTEMPT_KIND.INFINITELY_MANY]: onInfinitelyMany,
+    [RUSH_ATTEMPT_KIND.CANNOT_DETERMINE]: onCannotDetermine,
+  };
   const onSkip = () => act(recordSkip);
   const onCheck = () => act(recordCheck);
   // A game with off-screen features offers "Off screen" on every graph, so
@@ -803,8 +849,8 @@ export default function GraphFeatureRushRound({
   // this graph will (rushSession.feedbackReserve).
   const roundFeatures = (room.graphFeatureRush?.config?.features || []).join(' ');
   const feedbackRoom = useMemo(
-    () => feedbackReserve({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame }),
-    [roundFeatures, offScreenGame, inequalityGame],
+    () => feedbackReserve({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame, systems: systemsConfig }),
+    [roundFeatures, offScreenGame, inequalityGame, systemsConfig],
   );
   // The kinds of item this round deals and the widest it can ask, from its
   // settings: the prompt, the hint and the notation keep the room of every
@@ -813,13 +859,16 @@ export default function GraphFeatureRushRound({
   const inequalityKinds = (room.inequalityRush?.config?.itemTypes || []).join(' ');
   const inequalityDifficulty = room.inequalityRush?.config?.difficulty || '';
   const roundKinds = useMemo(
-    () => rushRoundKinds({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame }),
-    [roundFeatures, offScreenGame, inequalityGame],
+    () => rushRoundKinds({ features: roundFeatures ? roundFeatures.split(' ') : [], offScreen: offScreenGame, inequality: inequalityGame, systems: systemsConfig }),
+    [roundFeatures, offScreenGame, inequalityGame, systemsConfig],
   );
-  const promptRoom = useMemo(() => promptReserve(inequalityGame
-    ? { inequality: { itemTypes: inequalityKinds ? inequalityKinds.split(' ') : [], difficulty: inequalityDifficulty } }
-    : { features: roundFeatures ? roundFeatures.split(' ') : [] }), [inequalityGame, inequalityKinds, inequalityDifficulty, roundFeatures]);
-  const hintRoom = useMemo(() => [...new Set(roundKinds.map(rushHint))], [roundKinds]);
+  const promptRoom = useMemo(() => {
+    if (systemsConfig) return promptReserve({ systems: systemsConfig });
+    return promptReserve(inequalityGame
+      ? { inequality: { itemTypes: inequalityKinds ? inequalityKinds.split(' ') : [], difficulty: inequalityDifficulty } }
+      : { features: roundFeatures ? roundFeatures.split(' ') : [] });
+  }, [systemsConfig, inequalityGame, inequalityKinds, inequalityDifficulty, roundFeatures]);
+  const hintRoom = useMemo(() => [...new Set(roundKinds.map((kind) => rushHint(kind, systemButtons)))], [roundKinds, systemButtons]);
   const roundSets = roundKinds.filter((kind) => kind.set);
   const notationAxes = [...new Set(roundSets.map((kind) => (kind.vertical ? 'y' : 'x')))];
   // What the hint and the controls show: the item's kind from GO; before it,
@@ -833,7 +882,12 @@ export default function GraphFeatureRushRound({
   let overlay = null;
   if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : `Getting your ${noun.many} ready.`}</span></>;
   else if (phase === 'closed' || roundClosed) overlay = <><strong>Round over</strong><span>Waiting for the results…</span></>;
-  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>{inequalityGame ? 'Graph each inequality on the number line.' : 'Tap each feature you are asked for, or use the arrow keys and Enter.'}</span></>;
+  else if (!started) {
+    let ready = 'Tap each feature you are asked for, or use the arrow keys and Enter.';
+    if (inequalityGame) ready = 'Graph each inequality on the number line.';
+    if (systemsGame) ready = 'Two lines on every graph: tap what you are asked for, or use the arrow keys and Enter.';
+    overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>{ready}</span></>;
+  }
   else if (over) {
     overlay = practice
       ? (
@@ -847,7 +901,42 @@ export default function GraphFeatureRushRound({
   } else if (input === RUSH_INPUT.EXHAUSTED) overlay = <><strong>All done!</strong><span>You finished every {noun.one} in this round.</span></>;
   else if (!question) overlay = <><strong>Loading…</strong><span>Getting your next {noun.one}.</span></>;
 
-  const promptHint = rushHint(shownKind);
+  const promptHint = rushHint(shownKind, systemButtons);
+  // A system's row of buttons for one kind of item (rushSession.SYSTEM_*_KIND):
+  // live, or — `live` false — the same row drawn unseen, keeping its room. The
+  // unseen row is buttons too (disabled, out of the tab order, in a hidden
+  // cell), so its words wrap exactly as the live row's do: a button's own
+  // font is not the page's, and a row of spans wrapped "Can't Be Determined"
+  // onto a third line, and the graph moved 15 px between kinds of item.
+  const systemButtonRow = (kind, live) => {
+    const press = (className, onClick, extra = {}) => (live
+      ? { type: 'button', className, disabled: buttonsDisabled, onClick, ...extra }
+      : { type: 'button', className, disabled: true, tabIndex: -1 });
+    const presses = kind.solution ? systemButtons : [{ press: RUSH_ATTEMPT_KIND.DOES_NOT_EXIST, label: 'Does Not Exist' }];
+    return (
+      <div
+        key={kind.solution ? 'solution' : 'intercepts'}
+        className={live ? 'mm-rush-buttons' : 'mm-rush-buttons mm-rush-buttons-held'}
+        data-system="1"
+        data-presses={String(presses.length)}
+        style={{ '--mm-rush-presses': Math.max(1, presses.length) }}
+        {...(live ? {} : { 'aria-hidden': 'true' })}
+      >
+        {presses.map((button) => (
+          <button key={button.press} data-press={button.press} {...press('mm-rush-dne', pressHandlers[button.press], button.ariaLabel ? { 'aria-label': button.ariaLabel } : {})}>{button.label}</button>
+        ))}
+        <button {...press('mm-rush-skip', onSkip)}>Skip</button>
+      </div>
+    );
+  };
+  // A system item: its graph's words, and — as it moves on after its last
+  // allowed miss — its answer marked on it (every target, found).
+  const systemItem = isSystemQuestion(question);
+  const revealingSystem = systemItem && transition?.kind === RUSH_FEEDBACK.AUTO_SKIPPED && transition.questionIndex === question?.questionIndex;
+  const shownFound = revealingSystem ? (question.targets || []).map((target) => String(target.id)) : session?.found;
+  let graphLabel = `${question?.prompt}. Tap the graph, or use the arrow keys and Enter.`;
+  if (setQuestion) graphLabel = `${question.prompt}. Tap the graph's arrows and points; or use Page Up and Page Down to step through them, and Enter.`;
+  if (systemItem) graphLabel = `${question.prompt}. Two lines: line 1 solid, line 2 dashed. Tap the graph, or use the arrow keys and Enter.`;
 
   return (
     <div className="mm-rush-shell" role="region" aria-label={practice ? `${noun.game} practice` : `${noun.game}, round ${roundIndex + 1}`}>
@@ -882,6 +971,20 @@ export default function GraphFeatureRushRound({
             <p className="mm-rush-hint">{promptHint}</p>
             {hintRoom.map((words) => <p key={words} className="mm-rush-hint mm-rush-hint-held" aria-hidden="true">{words}</p>)}
           </div>
+          {/* A system's key, the same on every graph of the game: which line is which. The graph's
+              own name says it to a screen reader. */}
+          {systemsGame && (
+            <p className="mm-rush-legend" aria-hidden="true">
+              <span>
+                <svg width="34" height="14" viewBox="0 0 34 14" data-mm-plane-key=""><line x1="2" y1="7" x2="32" y2="7" stroke="var(--mm-rush-line1)" strokeWidth="7" /></svg>
+                Line 1
+              </span>
+              <span>
+                <svg width="34" height="14" viewBox="0 0 34 14" data-mm-plane-key=""><line x1="2" y1="7" x2="32" y2="7" stroke="var(--mm-rush-line2)" strokeWidth="3" strokeDasharray="8 5" /></svg>
+                Line 2
+              </span>
+            </p>
+          )}
         </section>
         <section className="mm-rush-graph-area" ref={graphAreaRef} data-line={inequalityGame ? '1' : '0'}>
           {frame.width > 0 && frame.height > 0 && (
@@ -911,13 +1014,11 @@ export default function GraphFeatureRushRound({
                     question={question}
                     drawing={drawing}
                     side={side}
-                    found={session.found}
+                    found={shownFound}
                     feedback={feedback}
                     paused={input === RUSH_INPUT.LOCKED || over}
                     onTap={onTap}
-                    label={setQuestion
-                      ? `${question.prompt}. Tap the graph's arrows and points; or use Page Up and Page Down to step through them, and Enter.`
-                      : `${question.prompt}. Tap the graph, or use the arrow keys and Enter.`}
+                    label={graphLabel}
                     axisSet={axisSet}
                     revealSet={revealSet}
                     picks={setQuestion ? session.arrowPicks : null}
@@ -991,6 +1092,17 @@ export default function GraphFeatureRushRound({
                 <button type="button" className="mm-rush-dne" disabled={buttonsDisabled} onClick={onDoesNotExist}>Does Not Exist</button>
               )}
               <button type="button" className="mm-rush-skip" disabled={buttonsDisabled} onClick={onSkip}>Skip</button>
+            </div>
+          ) : shownKind.system ? (
+            // A SYSTEM: the row its kind of item offers — on an intercept
+            // question "Does Not Exist" and Skip; on a solution question the
+            // game's own buttons and Skip, on every solution question of the
+            // game, so a button never says anything about the graph — with
+            // the round's other kind's row unseen in the same cell, so the
+            // controls never change height from one item to the next.
+            <div className="mm-rush-hold">
+              {systemButtonRow(shownKind, true)}
+              {roundKinds.filter((kind) => kind.system && kind.solution !== shownKind.solution).map((kind) => systemButtonRow(kind, false))}
             </div>
           ) : (
             <div className="mm-rush-buttons" data-off-screen={offScreenGame ? '1' : '0'}>

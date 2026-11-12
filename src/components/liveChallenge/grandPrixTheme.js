@@ -131,7 +131,10 @@ export const ARENA_GRAPH = Object.freeze({
  * What a game draws on it, each in its own colour: the curve (and the
  * student's line) cyan, a found point (a right line) green, a miss red, an
  * asymptote magenta, a slip in method orange, a helper purple — and the
- * keyboard cursor and focus ring white, which none of them is.
+ * keyboard cursor and focus ring white, which none of them is. A system's
+ * two lines (Systems of Equations Rush) are the curve's cyan and an amber of
+ * their own: blue and orange, apart for every kind of colour vision, and
+ * told apart by their stroke too (line 1 solid and wide, line 2 dashed).
  */
 export const ARENA_MARKS = Object.freeze({
   curve: '#35e3ff',
@@ -140,6 +143,7 @@ export const ARENA_MARKS = Object.freeze({
   asymptote: '#ff7ae0',
   method: '#ffb020',
   helper: '#c58af9',
+  second: '#ffa630',
   focus: '#ffffff',
 });
 
@@ -154,13 +158,16 @@ export const ARENA_GRAPH_VARS = [
   `--mm-focus: ${ARENA_MARKS.focus}`,
 ].join('; ');
 
-// Graph Feature Rush and Inequality Graphing Rush (GraphFeatureRushRound).
+// Graph Feature Rush, Inequality Graphing Rush and Systems of Equations Rush
+// (GraphFeatureRushRound).
 export const ARENA_RUSH_VARS = [
   ARENA_GRAPH_VARS,
   `--mm-rush-curve: ${ARENA_MARKS.curve}`,
   `--mm-rush-found: ${ARENA_MARKS.found}`,
   `--mm-rush-miss: ${ARENA_MARKS.miss}`,
   `--mm-rush-asymptote: ${ARENA_MARKS.asymptote}`,
+  `--mm-rush-line1: ${ARENA_MARKS.curve}`,
+  `--mm-rush-line2: ${ARENA_MARKS.second}`,
 ].join('; ');
 
 // Graph the Line (LineGraphRound).

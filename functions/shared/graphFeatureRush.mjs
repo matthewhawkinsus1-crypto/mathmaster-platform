@@ -56,7 +56,9 @@ import {
   RUSH_SIGN_FLIP,
   RUSH_SKIP_PAUSE_MS,
   RUSH_VERDICT,
+  isSystemQuestion,
   rushLockoutMs,
+  rushPressAnswer,
   rushQuestionWeight,
 } from './graphFeatureRushRules.mjs';
 
@@ -283,6 +285,9 @@ const DIAGNOSIS_ORDER = Object.freeze([
   GRAPH_FEATURE.X_INTERCEPT,
   GRAPH_FEATURE.ASYMPTOTE,
 ]);
+// A system of two lines (systemsRush.mjs) has its intercepts and its crossing,
+// each asked of every system: the crossing first, where it is an intercept too.
+const SYSTEM_DIAGNOSIS_ORDER = Object.freeze(['solution', GRAPH_FEATURE.Y_INTERCEPT, GRAPH_FEATURE.X_INTERCEPT]);
 const OTHER_EXTREME = Object.freeze({ [GRAPH_FEATURE.MAXIMUM]: GRAPH_FEATURE.MINIMUM, [GRAPH_FEATURE.MINIMUM]: GRAPH_FEATURE.MAXIMUM });
 
 const featureInView = (target, view) => {
@@ -301,11 +306,14 @@ export const rushTapDiagnosis = ({ question, tap = {}, tolerance = {} } = {}) =>
   const y = finiteOr(tap.y);
   if (!features || typeof features !== 'object' || !asked || !view || x === null || y === null) return null;
   const limits = clampTolerance(tolerance, view);
+  const system = isSystemQuestion(question);
   const other = OTHER_EXTREME[asked];
-  const order = other ? [other, ...DIAGNOSIS_ORDER.filter((id) => id !== other)] : DIAGNOSIS_ORDER;
+  let order = other ? [other, ...DIAGNOSIS_ORDER.filter((id) => id !== other)] : DIAGNOSIS_ORDER;
+  if (system) order = SYSTEM_DIAGNOSIS_ORDER;
   let nearest = null;
   order.forEach((featureId) => {
-    if (featureId === asked || !catalogSupportsFeature(question.family, featureId)) return;
+    // A graph's family names the features asked of it; a system's are all asked.
+    if (featureId === asked || (!system && !catalogSupportsFeature(question.family, featureId))) return;
     (Array.isArray(features[featureId]) ? features[featureId] : []).forEach((target) => {
       if (!featureInView(target, view)) return;
       const distance = targetDistance(target, { x, y }, limits);
@@ -459,11 +467,20 @@ export const applyRushAttempts = ({
       forfeit = true;
     } else if (attempt.kind === RUSH_ATTEMPT_KIND.DOES_NOT_EXIST) {
       targetId = DOES_NOT_EXIST_TARGET_ID;
-      // A feature past the edge of the view exists: "Does Not Exist" is wrong there.
-      isCorrect = question.targets.length === 0 && question.offScreen !== true;
+      // Right only where there is nothing to find: a feature past the edge of
+      // the view exists, and a system that is one line twice, or whose one
+      // solution its graph cannot show, has a press of its own
+      // (graphFeatureRushRules.rushPressAnswer).
+      isCorrect = rushPressAnswer(question) === RUSH_ATTEMPT_KIND.DOES_NOT_EXIST;
     } else if (attempt.kind === RUSH_ATTEMPT_KIND.OFF_SCREEN) {
       targetId = OFF_SCREEN_TARGET_ID;
       isCorrect = question.offScreen === true;
+    } else if (attempt.kind === RUSH_ATTEMPT_KIND.INFINITELY_MANY || attempt.kind === RUSH_ATTEMPT_KIND.CANNOT_DETERMINE) {
+      // A system's "Infinitely Many" or "Can't Be Determined": right exactly
+      // where the question names that press, a miss everywhere else (a graph
+      // and an inequality never name one).
+      targetId = attempt.kind;
+      isCorrect = rushPressAnswer(question) === attempt.kind;
     } else {
       const tap = resolveTap({
         targets: question.targets,
@@ -699,7 +716,21 @@ const GRAPH_REPORT_LABELS = Object.freeze({
 export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) => {
   const { featureLabel, familyLabel, mistakeLabel, wrongTapLabel: tapLabel } = { ...GRAPH_REPORT_LABELS, ...labels };
   const standings = Array.isArray(matchResult.standings) ? matchResult.standings : [];
-  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0, offScreenPresses: 0, offScreenCorrect: 0 };
+  const totals = {
+    questions: 0,
+    completed: 0,
+    skipped: 0,
+    attempts: 0,
+    hits: 0,
+    dnePresses: 0,
+    dneCorrect: 0,
+    offScreenPresses: 0,
+    offScreenCorrect: 0,
+    infinitePresses: 0,
+    infiniteCorrect: 0,
+    undeterminedPresses: 0,
+    undeterminedCorrect: 0,
+  };
   const byFeature = {};
   const byFamily = {};
   const mistakes = {};
@@ -744,6 +775,10 @@ export const buildRushReport = (matchResult = {}, labels = GRAPH_REPORT_LABELS) 
     // the edge of the view. None in a game without off-screen features, or in
     // a match result written before they were counted.
     offScreen: { presses: totals.offScreenPresses, correct: totals.offScreenCorrect, accuracyPercent: percent(totals.offScreenCorrect, totals.offScreenPresses) },
+    // A system's own presses (systemsRush.mjs), beside them: "Infinitely Many"
+    // and "Can't Be Determined". None in any other game.
+    infinitelyMany: { presses: totals.infinitePresses, correct: totals.infiniteCorrect, accuracyPercent: percent(totals.infiniteCorrect, totals.infinitePresses) },
+    cannotDetermine: { presses: totals.undeterminedPresses, correct: totals.undeterminedCorrect, accuracyPercent: percent(totals.undeterminedCorrect, totals.undeterminedPresses) },
     byFeature: breakdown(byFeature, featureLabel),
     byFamily: breakdown(byFamily, familyLabel),
     // Most common first.
