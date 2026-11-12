@@ -284,6 +284,11 @@
     --mm-rush-found: CanvasText !important;
     --mm-rush-miss: CanvasText !important;
     --mm-rush-asymptote: CanvasText !important;
+    /* A system's two lines: one colour here, apart by their strokes — line 1
+       solid and wide, line 2 dashed inside a Canvas casing, so even lying on
+       line 1 it shows. */
+    --mm-rush-line1: CanvasText !important;
+    --mm-rush-line2: CanvasText !important;
   }
 
   .mm-line-shell {

@@ -599,9 +599,13 @@ test('the server plans, issues, grades, reveals and reports an inequality room t
   const context = region(index, 'async function loadGraphFeatureRushContext(', '\n}\n', 'the rush context');
   assert.match(context, /Object\.hasOwn\(RUSH_QUESTION_SOURCES, mode\.questionSource\)/);
   assert.match(context, /const rushState = \(privateSnapshot\.data\(\) \|\| \{\}\)\[source\.stateKey\] \|\| \{\};/);
-  // Its guide is published at the round's close, as a rush's is.
+  // Its guide is published at the round's close, as a rush's is: its source
+  // is one of those the guide-publishing branch takes (with the rush's own).
   const revealable = region(index, 'function liveChallengeRevealableRounds(', '\n}\n', 'revealable rounds');
-  assert.match(revealable, /mode\.questionSource === engine\.modes\.QUESTION_SOURCE\.INEQUALITY_GENERATOR\) \{/);
+  const guideSources = /if \(((?:\s*(?:\|\|\s*)?mode\.questionSource === engine\.modes\.QUESTION_SOURCE\.[A-Z_]+)+)\) \{\s*const scheduled = /.exec(revealable);
+  assert.ok(guideSources, 'the branch that publishes a rush round\'s guide');
+  assert.match(guideSources[1], /QUESTION_SOURCE\.GRAPH_FEATURE_GENERATOR\b/);
+  assert.match(guideSources[1], /QUESTION_SOURCE\.INEQUALITY_GENERATOR\b/);
   // Its report: the rush's, named for inequalities, under its own key.
   const report = region(index, 'async function questionSetModeReport(', '\n}\n', 'the mode report');
   assert.match(report, /if \(mode\.questionSource === "inequalityGenerator"\) \{[\s\S]*?return \{ key: "inequalityRush", report: \(await graphFeatureRushRules\(\)\)\.rush\.buildRushReport\(result, generator\.INEQUALITY_REPORT_LABELS\) \};/);
@@ -649,7 +653,10 @@ test('the teacher sets it up from presets and toggles, practises it, and plays i
   const practice = region(teacher, 'if (dryRunOpen && inequalityMode) {', '\n    }', 'practice');
   assert.match(practice, /<GraphFeatureRushPractice\s+game=\{INEQUALITY_RUSH_MODE_ID\}\s+config=\{inequalityCreateRequest\(inequalitySetup\)\.inequalityRush\}/);
   assert.match(read('src/components/liveChallenge/GraphFeatureRushPractice.jsx'), /\[INEQUALITY_RUSH_MODE_ID\]: Object\.freeze\(\{ key: 'inequalityRush', preview: \(config, count\) => previewInequalityRush\(\{ inequalityRush: config, count \}\)/);
-  assert.match(teacher, /\{\(report\.graphFeatureRush \|\| report\.inequalityRush\) && <RushReport report=\{report\} \/>\}/);
+  // Its report is drawn by the rush's report (with every rush game's).
+  const rushReport = /\{\(([^)]*)\) && <RushReport report=\{report\} \/>\}/.exec(teacher);
+  assert.ok(rushReport, 'the console draws a rush game\'s report');
+  assert.match(rushReport[1], /\breport\.inequalityRush\b/);
   // A class's course picks the starting preset, as for graphs: Algebra II opens on absolute value.
   assert.match(teacher, /useEffect\(\(\) => \{ setInequalitySetup\(defaultInequalitySetup\(courseId\)\); \}, \[courseId\]\);/);
   assert.equal(defaultInequalitySetup('algebra2').presetId, 'absoluteValue');

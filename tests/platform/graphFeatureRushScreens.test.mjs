@@ -311,7 +311,8 @@ test('the teacher console offers the rush and creates it with its own settings',
   // own-settings game is one, the rush among them.
   const ownSettings = /const ownSettingsGame = ([^;]+);/.exec(teacher);
   assert.ok(ownSettings, 'the console names the games with their own settings');
-  assert.deepEqual(ownSettings[1].split('||').map((name) => name.trim()).sort(), ['inequalityMode', 'lineMode', 'rushMode']);
+  // Systems of Equations Rush is one more such game, on the rush's machinery.
+  assert.deepEqual(ownSettings[1].split('||').map((name) => name.trim()).sort(), ['inequalityMode', 'lineMode', 'rushMode', 'systemsMode']);
   assert.match(teacher, /\{!ownSettingsGame && <ScoringCompetitionCard [^\n]*\n\s*<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
   assert.doesNotMatch(executableSource(create), /assignmentId/, 'a rush is never linked to a Warm-Up');
   assert.match(teacher, /\{!ownSettingsGame && <label style=\{\{ fontWeight: 800 \}\}>Run as a Warm-Up/);

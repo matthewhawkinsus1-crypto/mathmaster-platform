@@ -113,6 +113,76 @@ function SetPicks({ question, drawing, axisSet, picks, side }) {
 // along an axis still shows.
 const ASYMPTOTE_STROKE = { stroke: 'var(--mm-rush-asymptote)', strokeWidth: 2.25, strokeDasharray: '8 6' };
 
+/*
+ * A SYSTEM'S TWO LINES (Systems of Equations Rush; rushGraphModel
+ * systemDrawing). Line 1 is solid and wide; line 2 is dashed and narrow, on
+ * top of it, inside a casing of the board's colour cut to the same dashes —
+ * so where the two are one line, line 1 shows at both edges of every dash
+ * and whole in every gap: a wide line with a dashed line down its middle,
+ * two lines one on the other, in a contrast theme too (where both are the
+ * text colour and the casing the board's). Each line has an arrowhead at
+ * both exits (line 2's smaller, on line 1's), and its number at its own end.
+ */
+export const SYSTEM_STROKE = Object.freeze({ line1: 9, casing: 6, line2: 3, dash: '11 7' });
+const SYSTEM_ARROW = Object.freeze({ 1: Object.freeze({ length: 17, half: 9 }), 2: Object.freeze({ length: 12, half: 5.5 }) });
+const SYSTEM_BADGE = 10;
+
+const sizedArrowPoints = (arrow, side, { length, half }) => {
+  const tipX = arrow.u * side;
+  const tipY = arrow.v * side;
+  const baseX = tipX - arrow.dx * length;
+  const baseY = tipY - arrow.dy * length;
+  const [nx, ny] = [-arrow.dy, arrow.dx];
+  return [`${tipX},${tipY}`, `${baseX + nx * half},${baseY + ny * half}`, `${baseX - nx * half},${baseY - ny * half}`].join(' ');
+};
+
+function SystemLines({ lines, side }) {
+  const ends = (line) => ({ x1: line.from.u * side, y1: line.from.v * side, x2: line.to.u * side, y2: line.to.v * side });
+  const ordered = [...lines].sort((left, right) => left.id - right.id);
+  return (
+    <g className="mm-rush-system">
+      {ordered.map((line) => (line.id === 1 ? (
+        <g key="line1" data-mm-system-line="1">
+          <line {...ends(line)} stroke="var(--mm-rush-line1)" strokeWidth={SYSTEM_STROKE.line1} data-mm-plane-part="line" />
+          {line.arrows.map((arrow) => (
+            <polygon key={`a1${arrow.u.toFixed(4)}-${arrow.v.toFixed(4)}`} points={sizedArrowPoints(arrow, side, SYSTEM_ARROW[1])} fill="var(--mm-rush-line1)" data-mm-plane-part="closed" />
+          ))}
+        </g>
+      ) : (
+        <g key={`line${line.id}`} data-mm-system-line={String(line.id)}>
+          <line {...ends(line)} stroke="var(--mm-graph-bg)" strokeWidth={SYSTEM_STROKE.casing} strokeDasharray={SYSTEM_STROKE.dash} data-mm-plane-part="halo" />
+          <line {...ends(line)} stroke="var(--mm-rush-line2)" strokeWidth={SYSTEM_STROKE.line2} strokeDasharray={SYSTEM_STROKE.dash} data-mm-plane-part="line" />
+          {line.arrows.map((arrow) => (
+            <g key={`a2${arrow.u.toFixed(4)}-${arrow.v.toFixed(4)}`}>
+              <polygon points={sizedArrowPoints(arrow, side, SYSTEM_ARROW[2])} fill="var(--mm-graph-bg)" stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinejoin="round" data-mm-plane-part="halo" />
+              <polygon points={sizedArrowPoints(arrow, side, SYSTEM_ARROW[2])} fill="var(--mm-rush-line2)" data-mm-plane-part="closed" />
+            </g>
+          ))}
+        </g>
+      )))}
+    </g>
+  );
+}
+
+// Each line's number, on the line near its own end (rushGraphModel places
+// them clear of every target and of each other).
+function SystemLabels({ lines, side, font }) {
+  return (
+    <g className="mm-rush-system-labels" pointerEvents="none">
+      {lines.map((line) => {
+        const cx = line.label.u * side;
+        const cy = line.label.v * side;
+        return (
+          <g key={`label${line.id}`} data-mm-system-label={String(line.id)}>
+            <rect x={cx - SYSTEM_BADGE} y={cy - SYSTEM_BADGE} width={SYSTEM_BADGE * 2} height={SYSTEM_BADGE * 2} rx={5} fill={line.id === 1 ? 'var(--mm-rush-line1)' : 'var(--mm-rush-line2)'} stroke="var(--mm-graph-bg)" strokeWidth={2} data-mm-plane-part="chip" />
+            <text x={cx} y={cy + font * 0.36} textAnchor="middle" fontSize={font} fontWeight={1000} fill="var(--mm-graph-bg)">{line.id}</text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 // How the student last used the page. A graph focused when play begins shows
 // its keyboard ring only to a student who has been using the keyboard; a
 // finger or a mouse never sees it. The svg opts out of the page's own
@@ -172,6 +242,8 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
         {(drawing.arrows || []).map((arrow) => (
           <polygon key={`arrow${arrow.u.toFixed(4)}-${arrow.v.toFixed(4)}`} className="mm-rush-arrow" points={arrowPoints(arrow, side)} fill="var(--mm-rush-curve)" stroke="var(--mm-rush-curve)" strokeWidth={1} strokeLinejoin="round" data-mm-plane-part="closed" />
         ))}
+        {/* A system: its two lines, each told apart by its own stroke. */}
+        {drawing.system && <SystemLines lines={drawing.system} side={side} />}
       </g>
       {/* The axis numbers are drawn OVER the curve, each with its own outline
           in the plot's colour: a steep curve hugging an axis used to run over
@@ -195,6 +267,7 @@ const GraphLayer = memo(function GraphLayer({ drawing, view, side }) {
         ))}
         <text x={yLabelOnLeft ? axisX - LABEL_GAP : axisX + LABEL_GAP} y={xLabelY} textAnchor={yLabelOnLeft ? 'end' : 'start'} style={halo}>0</text>
       </g>
+      {drawing.system && <SystemLabels lines={drawing.system} side={side} font={font} />}
       {drawing.dots.map((dot) => (
         <circle
           key={`d${dot.u}-${dot.v}`}

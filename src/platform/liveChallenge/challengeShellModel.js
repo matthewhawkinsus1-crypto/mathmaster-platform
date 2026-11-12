@@ -26,7 +26,7 @@
 
 import { MATCH_STATE, deriveMatchState, roomRoundState } from '../../../functions/shared/liveChallengeLifecycle.mjs';
 import { timerElapsedMs, timerFromRoom } from '../../../functions/shared/liveChallengeTimer.mjs';
-import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID, SYSTEMS_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LINE_GRAPH_MODE_ID, LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
 import { personalRoundTimer, storedTimeMultiplier } from '../../../functions/shared/liveChallengeAccommodations.mjs';
 import { HOST_AWAY_ENDED_BY, HOST_AWAY_FINISH_MS } from '../../../functions/shared/liveChallengeServerSweep.mjs';
@@ -59,7 +59,7 @@ export const ROUND_CLOSE_AFTER_ALL_DONE_MS = 1_200;
 // id because the student bundle does not carry the mode registry
 // (liveChallengeModes.mjs brings Solver Race and the rush catalog with it); a
 // test holds this set to the registry's question-set modes.
-const QUESTION_SET_MODES = new Set([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID, ...LINE_GRAPH_MODE_IDS]);
+const QUESTION_SET_MODES = new Set([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID, SYSTEMS_RUSH_MODE_ID, ...LINE_GRAPH_MODE_IDS]);
 export const roomRunsQuestionSets = (room = {}) => QUESTION_SET_MODES.has(String(room?.challengeMode || ''));
 
 /*
@@ -70,6 +70,7 @@ export const roomRunsQuestionSets = (room = {}) => QUESTION_SET_MODES.has(String
 export const QUESTION_SET_GAME = Object.freeze({
   GRAPH_FEATURE_RUSH: 'graphFeatureRush',
   INEQUALITY_RUSH: 'inequalityRush',
+  SYSTEMS_RUSH: 'systemsRush',
   LINE_GRAPH: 'lineGraph',
 });
 
@@ -77,16 +78,19 @@ export const questionSetGameOf = (room = {}) => {
   const modeId = String(room?.challengeMode || '');
   if (modeId === RUSH_MODE_ID) return QUESTION_SET_GAME.GRAPH_FEATURE_RUSH;
   if (modeId === INEQUALITY_RUSH_MODE_ID) return QUESTION_SET_GAME.INEQUALITY_RUSH;
+  if (modeId === SYSTEMS_RUSH_MODE_ID) return QUESTION_SET_GAME.SYSTEMS_RUSH;
   if (LINE_GRAPH_MODE_IDS.includes(modeId)) return QUESTION_SET_GAME.LINE_GRAPH;
   return null;
 };
 
 /*
  * The games played on Graph Feature Rush's round screen and attempts: the
- * rush itself, and Inequality Graphing Rush (its items graphed on a number
- * line). Their host views, race boards and reports are the rush's.
+ * rush itself, Inequality Graphing Rush (its items graphed on a number line)
+ * and Systems of Equations Rush (two lines on every graph). Their host views,
+ * race boards and reports are the rush's.
  */
-export const isRushGame = (game) => game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH || game === QUESTION_SET_GAME.INEQUALITY_RUSH;
+const RUSH_GAMES = new Set([QUESTION_SET_GAME.GRAPH_FEATURE_RUSH, QUESTION_SET_GAME.INEQUALITY_RUSH, QUESTION_SET_GAME.SYSTEMS_RUSH]);
+export const isRushGame = (game) => RUSH_GAMES.has(game);
 
 const RUSH_WORDS = Object.freeze({
   [QUESTION_SET_GAME.GRAPH_FEATURE_RUSH]: Object.freeze({
@@ -111,6 +115,17 @@ const RUSH_WORDS = Object.freeze({
     lobby: 'Inequality Graphing Rush — graph your own inequalities on a number line',
     earn: 'Graph the inequalities on your number line to earn points.',
   }),
+  [QUESTION_SET_GAME.SYSTEMS_RUSH]: Object.freeze({
+    game: 'Systems of Equations Rush',
+    one: 'system',
+    many: 'systems',
+    task: 'Find the solutions',
+    working: 'Students are finding intercepts and solutions on their own systems.',
+    go: 'Everyone has their own systems. Two lines on every graph — find what is asked. Go!',
+    countdown: 'Everyone gets their own systems',
+    lobby: 'Systems of Equations Rush — two lines on every graph: find their intercepts and solutions',
+    earn: 'Find the intercepts and solutions on your systems to earn points.',
+  }),
 });
 
 /** How a rush room's screens name the game and what students work through. */
@@ -130,6 +145,7 @@ const ARENA_LINE_TITLES = Object.freeze({
 const ARENA_TASKS = Object.freeze({
   [QUESTION_SET_GAME.GRAPH_FEATURE_RUSH]: 'Find the features',
   [QUESTION_SET_GAME.INEQUALITY_RUSH]: 'Graph the solutions',
+  [QUESTION_SET_GAME.SYSTEMS_RUSH]: 'Find the solutions',
   [QUESTION_SET_GAME.LINE_GRAPH]: 'Graph the lines',
 });
 export const arenaGameTitle = (room = {}) => {
@@ -146,15 +162,15 @@ export const arenaTagline = (room = {}) => Object.freeze([
 
 /*
  * Question-set rounds that hold more than anyone finishes — Graph Feature
- * Rush, Inequality Graphing Rush and Graph the Line's Rush — end on the
- * clock alone. A Classic or
+ * Rush, Inequality Graphing Rush, Systems of Equations Rush and Graph the
+ * Line's Rush — end on the clock alone. A Classic or
  * Sprint round of Graph the Line is over for a student who has worked
  * through it, and closes early once everyone has (the server agrees:
  * liveChallengeRoundCompletion reads the same receipts). A test holds this
  * set to the registry: the question-set modes whose pool is the engine's
  * largest.
  */
-const CLOCK_ONLY_MODES = new Set([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID, LINE_GRAPH_MODE_ID.RUSH]);
+const CLOCK_ONLY_MODES = new Set([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID, SYSTEMS_RUSH_MODE_ID, LINE_GRAPH_MODE_ID.RUSH]);
 export const roomRoundsEndOnTheClock = (room = {}) => CLOCK_ONLY_MODES.has(String(room?.challengeMode || ''));
 
 const integerOr = (value, fallback) => {

@@ -17,7 +17,7 @@ import { buildChallengeScoringPreview } from '../../../functions/shared/liveChal
 import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../functions/shared/liveChallengeParity.mjs';
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
-import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { INEQUALITY_RUSH_MODE_ID, RUSH_MODE_ID, SYSTEMS_RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
 import { CLASSIC_SETUP_CHOICES, getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
 import { LINE_GRAPH_MODE_IDS } from '../../../functions/shared/lineGraphRules.mjs';
@@ -34,6 +34,7 @@ import { reportArrivalAnnouncement } from '../../platform/liveChallenge/consoleA
 import { STANDINGS_DISPLAY, normalizeStandingsDisplay } from '../../../functions/shared/liveChallengePrivacy.mjs';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
 import { defaultInequalitySetup, inequalityCreateRequest, inequalitySetupProblem } from '../../platform/liveChallenge/inequalitySetupModel.js';
+import { defaultSystemsSetup, systemsCreateRequest, systemsSetupProblem } from '../../platform/liveChallenge/systemsSetupModel.js';
 import {
   CLASSIC_SECOND_CHANCE_NOTE,
   classicAllowsSecondChance,
@@ -107,8 +108,10 @@ const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Alge
 // teacher chooses the rush; a classic game's console carries neither.
 const GraphFeatureRushSetup = lazy(() => import('./GraphFeatureRushSetup.jsx'));
 const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.jsx'));
-// Inequality Graphing Rush's setup the same way (its practice is the rush's).
+// Inequality Graphing Rush's setup the same way (its practice is the rush's),
+// and Systems of Equations Rush's.
 const InequalityRushSetup = lazy(() => import('./InequalityRushSetup.jsx'));
+const SystemsRushSetup = lazy(() => import('./SystemsRushSetup.jsx'));
 // Graph the Line's the same way: loaded only when a teacher chooses it.
 const LineGraphSetup = lazy(() => import('./LineGraphSetup.jsx'));
 // The last-time card a Solver Race setup shows (the game setups above carry
@@ -201,7 +204,7 @@ export function ChallengeReport({ report }) {
           <span style={{ display: 'block', marginTop: 5, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.</span>
         </div>
       )}
-      {(report.graphFeatureRush || report.inequalityRush) && <RushReport report={report} />}
+      {(report.graphFeatureRush || report.inequalityRush || report.systemsRush) && <RushReport report={report} />}
       {report.lineGraph && <LineGraphReport report={report} />}
       {report.neverJoined?.length > 0 && (
         <div style={{ padding: '10px 13px', borderRadius: 9, background: 'var(--mm-surface-control)', fontSize: 'calc(13.5 * var(--mm-px))', color: 'var(--mm-text)' }}>
@@ -361,6 +364,7 @@ export default function LiveChallengeTeacher({
   const [secondChanceMode, setSecondChanceMode] = useState('off');
   const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
   const [inequalitySetup, setInequalitySetup] = useState(() => defaultInequalitySetup(courseId));
+  const [systemsSetup, setSystemsSetup] = useState(() => defaultSystemsSetup(courseId));
   // What the chosen class did the last time it played the chosen game, if it
   // has (liveChallengeClassMemory.mjs): the setup card's "last played … → try …".
   const [classMemory, setClassMemory] = useState(null);
@@ -451,6 +455,7 @@ export default function LiveChallengeTeacher({
   // the Line preset, in the format already chosen).
   useEffect(() => { setRushSetup(defaultRushSetup(courseId)); }, [courseId]);
   useEffect(() => { setInequalitySetup(defaultInequalitySetup(courseId)); }, [courseId]);
+  useEffect(() => { setSystemsSetup(defaultSystemsSetup(courseId)); }, [courseId]);
   useEffect(() => { setLineSetup((current) => defaultLineSetup(courseId, current.format)); }, [courseId]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
@@ -590,6 +595,7 @@ export default function LiveChallengeTeacher({
   const joinedCount = leaderboard.length;
   const rushMode = challengeMode === RUSH_MODE_ID;
   const inequalityMode = challengeMode === INEQUALITY_RUSH_MODE_ID;
+  const systemsMode = challengeMode === SYSTEMS_RUSH_MODE_ID;
   // Graph the Line is offered to every teacher while its modes are
   // teacher-selectable — the server's own switch. A mode that is not is a
   // preview, which createLiveChallenge launches for the platform administrator
@@ -598,16 +604,18 @@ export default function LiveChallengeTeacher({
   const lineMode = lineGraphOffered && challengeMode === LINE_GRAPH_GAME;
   // A game with its own settings: no Warm-Up link, no bank question style,
   // no speed setting — and its own setup panel.
-  const ownSettingsGame = rushMode || inequalityMode || lineMode;
+  const ownSettingsGame = rushMode || inequalityMode || systemsMode || lineMode;
   // What a classic game will be scored by: the choice, if this game allows it.
   const classicStrategyId = resolveClassicScoring(challengeMode, classicScoringId);
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
   const inequalityProblem = inequalityMode ? inequalitySetupProblem(inequalitySetup) : null;
+  const systemsProblem = systemsMode ? systemsSetupProblem(systemsSetup) : null;
   // The games with a memory (N80). Standard Challenge has none: there is no
   // easier or harder setting to suggest (liveChallengeClassMemory.mjs).
   let memoryGame = null;
   if (rushMode) memoryGame = 'graphFeatureRush';
   else if (inequalityMode) memoryGame = 'inequalityRush';
+  else if (systemsMode) memoryGame = 'systemsRush';
   else if (lineMode) memoryGame = LINE_GRAPH_GAME;
   else if (challengeMode === 'solverRace') memoryGame = 'solverRace';
   // "Use last settings" or "Use suggestion" on a Solver Race card: the race
@@ -813,13 +821,17 @@ export default function LiveChallengeTeacher({
     creatingRef.current = true;
     const result = await run('create', async () => {
       if (ownSettingsGame) {
-        // Graph Feature Rush, Inequality Graphing Rush and Graph the Line: no
-        // Warm-Up link, no bank question style, no speed setting — the game's
-        // own settings, validated again by the server.
+        // Graph Feature Rush, Inequality Graphing Rush, Systems of Equations
+        // Rush and Graph the Line: no Warm-Up link, no bank question style, no
+        // speed setting — the game's own settings, validated again by the server.
         if (rushProblem) throw new Error(rushProblem);
         if (inequalityProblem) throw new Error(inequalityProblem);
+        if (systemsProblem) throw new Error(systemsProblem);
         if (lineProblem) throw new Error(lineProblem);
-        const gameName = rushMode ? 'Graph Feature Rush' : inequalityMode ? 'Inequality Graphing Rush' : 'Graph the Line';
+        let gameName = 'Graph the Line';
+        if (rushMode) gameName = 'Graph Feature Rush';
+        else if (inequalityMode) gameName = 'Inequality Graphing Rush';
+        else if (systemsMode) gameName = 'Systems of Equations Rush';
         let created;
         try {
           created = await createLiveChallenge({
@@ -831,7 +843,9 @@ export default function LiveChallengeTeacher({
               ? rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
               : inequalityMode
                 ? inequalityCreateRequest(inequalitySetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
-                : lineCreateRequest(lineSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })),
+                : systemsMode
+                  ? systemsCreateRequest(systemsSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })
+                  : lineCreateRequest(lineSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) })),
             standingsDisplay,
             // The seats are named as they are created: students who join
             // before the configuration below lands still get their names.
@@ -1147,6 +1161,18 @@ export default function LiveChallengeTeacher({
         </Suspense>
       );
     }
+    if (dryRunOpen && systemsMode) {
+      return (
+        <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
+          <GraphFeatureRushPractice
+            game={SYSTEMS_RUSH_MODE_ID}
+            config={systemsCreateRequest(systemsSetup).systemsRush}
+            roundSeconds={systemsSetup.roundSeconds}
+            onClose={() => setDryRunOpen(false)}
+          />
+        </Suspense>
+      );
+    }
     if (dryRunOpen && lineMode) {
       return (
         <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
@@ -1233,10 +1259,12 @@ export default function LiveChallengeTeacher({
                   <option value="solverRace">Solver Race</option>
                   <option value={RUSH_MODE_ID}>Graph Feature Rush</option>
                   <option value={INEQUALITY_RUSH_MODE_ID}>Inequality Graphing Rush</option>
+                  <option value={SYSTEMS_RUSH_MODE_ID}>Systems of Equations Rush</option>
                   {lineGraphOffered && <option value={LINE_GRAPH_GAME}>{LINE_GRAPH_LAUNCHED ? 'Graph the Line' : 'Graph the Line (preview)'}</option>}
                 </select>
                 {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums — or to mark domains, ranges, and where a graph rises, falls, or is positive or negative.</span>}
                 {inequalityMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every student gets their own inequalities and races the clock to graph each one on a number line — open or closed, which way, and "no solution".</span>}
+                {systemsMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Every graph shows two lines. Students race the clock to tap their intercepts and the solution of the system — or to answer no solution, infinitely many, or can't be determined from the graph.</span>}
                 {lineMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>Students graph lines from slope-intercept, standard and point-slope form — and, if you choose, name the equation of a line. Each line is checked the moment it is drawn.{LINE_GRAPH_LAUNCHED ? '' : ' In preview: only you can launch it.'}</span>}
               </label>
               {challengeMode === 'solverRace' && classMemory?.game === 'solverRace' && (
@@ -1287,6 +1315,11 @@ export default function LiveChallengeTeacher({
               {inequalityMode && (
                 <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Inequality Graphing Rush settings…</p>}>
                   <InequalityRushSetup setup={inequalitySetup} onChange={setInequalitySetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'inequalityRush' ? classMemory : null} onAnnounce={announce} />
+                </Suspense>
+              )}
+              {systemsMode && (
+                <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Systems of Equations Rush settings…</p>}>
+                  <SystemsRushSetup setup={systemsSetup} onChange={setSystemsSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} memory={classMemory?.game === 'systemsRush' ? classMemory : null} onAnnounce={announce} />
                 </Suspense>
               )}
               {lineMode && (
@@ -1370,7 +1403,7 @@ export default function LiveChallengeTeacher({
                 </select>
                 {speedPreset(speedInfluencePercent) === 'custom' && <input type="number" min="0" max="50" value={speedInfluencePercent} onChange={(event) => setSpeedInfluencePercent(Math.max(0, Math.min(50, Number(event.target.value) || 0)))} style={field} />}
               </label>}
-              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : inequalityMode ? 'Inequality Graphing Rush' : lineMode ? 'Graph the Line' : 'Live Challenge'}`} style={field} /></label>
+              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : inequalityMode ? 'Inequality Graphing Rush' : systemsMode ? 'Systems of Equations Rush' : lineMode ? 'Graph the Line' : 'Live Challenge'}`} style={field} /></label>
             </div>
           )}
           {!ownSettingsGame && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} strategyId={classicStrategyId} />}

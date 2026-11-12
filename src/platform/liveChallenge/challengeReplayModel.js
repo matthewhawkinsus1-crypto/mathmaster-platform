@@ -82,6 +82,16 @@ export const replayRequestFromRoom = (room = {}, { rewardPolicy = null } = {}) =
       itemTypes: Array.isArray(config.itemTypes) ? [...config.itemTypes] : [],
       difficulty: text(config.difficulty),
     };
+  } else if (game === QUESTION_SET_GAME.SYSTEMS_RUSH) {
+    // The questions, the kinds of system and the difficulty, as the server normalized them.
+    const config = room.systemsRush?.config;
+    if (!config) return null;
+    request.systemsRush = {
+      presetId: text(config.presetId) || 'custom',
+      questions: Array.isArray(config.questions) ? [...config.questions] : [],
+      kinds: Array.isArray(config.kinds) ? [...config.kinds] : [],
+      difficulty: text(config.difficulty),
+    };
   } else if (game === QUESTION_SET_GAME.LINE_GRAPH) {
     // The room's own question settings, as the server normalized them; the
     // format is the mode's, so it rides on challengeMode, not here.
@@ -135,6 +145,7 @@ export const replaySummary = (room = {}) => {
   let label = room.challengeMode === 'solverRace' ? 'Solver Race' : 'Standard Challenge';
   if (game === QUESTION_SET_GAME.GRAPH_FEATURE_RUSH) label = 'Graph Feature Rush';
   else if (game === QUESTION_SET_GAME.INEQUALITY_RUSH) label = 'Inequality Graphing Rush';
+  else if (game === QUESTION_SET_GAME.SYSTEMS_RUSH) label = 'Systems of Equations Rush';
   else if (game === QUESTION_SET_GAME.LINE_GRAPH) label = LINE_FORMAT_WORDS[lineGraphFormatOfMode(room.challengeMode)] || 'Graph the Line';
   const parts = [
     label,

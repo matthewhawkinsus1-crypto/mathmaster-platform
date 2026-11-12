@@ -250,8 +250,11 @@ test('each round draws its feedback line over the room it keeps, and the room is
     assert.deepEqual(at(round, `.mm-${round}-feedback-held`, 'display', TALL), ['block']);
     assert.deepEqual(at(round, `.mm-${round}-feedback-held`, 'visibility', TALL), ['hidden']);
   }
-  // The rush's room is the round's settings; the line's, its item's kind and the round's forms.
-  assert.match(ROUNDS.rush.source, /feedbackReserve\(\{ features: roundFeatures \? roundFeatures\.split\(' '\) : \[\], offScreen: offScreenGame, inequality: inequalityGame \}\)/);
+  // The rush's room is the round's settings — its features, off-screen
+  // setting, an inequality game, a systems game's settings, each the room's
+  // own — and the line's, its item's kind and the round's forms.
+  assert.match(ROUNDS.rush.source, /feedbackReserve\(\{ features: roundFeatures \? roundFeatures\.split\(' '\) : \[\], offScreen: offScreenGame, inequality: inequalityGame, systems: systemsConfig \}\)/);
+  assert.match(ROUNDS.rush.source, /const systemsKey = systemsGame \? JSON\.stringify\(room\.systemsRush\?\.config \|\| \{\}\) : '';\s*const systemsConfig = useMemo\(\(\) => \(systemsKey \? JSON\.parse\(systemsKey\) : null\), \[systemsKey\]\);/, 'a systems game\'s settings, from its room');
   assert.match(ROUNDS.line.source, /lineFeedbackReserve\(\{\s*itemType: kindItemType,\s*answerStyle: kindAnswerStyle,\s*forms: roundForms \? roundForms\.split\(' '\) : \[\],/);
   // The item's kind from GO; before it the kind the round starts with
   // (liveChallengeKindsHoldStill.test.mjs: the countdown says nothing of the first item).

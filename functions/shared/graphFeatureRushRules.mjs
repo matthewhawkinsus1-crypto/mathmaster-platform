@@ -21,7 +21,10 @@ export const RUSH_MODE_ID = 'graphFeatureRush';
 // its items are rush questions graphed on a number line, its attempts are rush
 // attempts, and its students play on the rush's round screen.
 export const INEQUALITY_RUSH_MODE_ID = 'inequalityRush';
-export const RUSH_MODE_IDS = Object.freeze([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID]);
+// So does Systems of Equations Rush (systemsRush.mjs): its items are rush
+// questions drawn as two lines, its taps the rush's hit test.
+export const SYSTEMS_RUSH_MODE_ID = 'systemsRush';
+export const RUSH_MODE_IDS = Object.freeze([RUSH_MODE_ID, INEQUALITY_RUSH_MODE_ID, SYSTEMS_RUSH_MODE_ID]);
 
 /** Whether a room's mode plays on the rush's attempts and round screen. */
 export const isRushModeId = (modeId) => RUSH_MODE_IDS.includes(String(modeId || ''));
@@ -32,6 +35,12 @@ export const RUSH_ATTEMPT_KIND = Object.freeze({
   // The feature exists, past the edge of the view (a game with off-screen
   // features turned on).
   OFF_SCREEN: 'offScreen',
+  // A system of two lines (systemsRush.mjs) that is one line drawn twice:
+  // "Infinitely Many".
+  INFINITELY_MANY: 'infinite',
+  // A system whose one solution its graph cannot show — the lines cross
+  // between grid lines, or past the edge: "Can't Be Determined".
+  CANNOT_DETERMINE: 'undetermined',
   // A set drawn on an axis — a domain, a range, an interval, an inequality's
   // solutions — sent with ✓ Check
   // (`drawing`: numberLineSets.drawingToPlain).
@@ -100,6 +109,31 @@ export const isNumberLineQuestion = (question) => question?.kind === 'inequality
   || question?.setAxis === 'x' || question?.setAxis === 'y'
   || (Array.isArray(question?.targets) && question.targets.some((target) => target?.geometry === 'set'));
 
+/** Whether a question is a system of two lines (Systems of Equations Rush), and one asking for its solution. */
+export const isSystemQuestion = (question) => question?.kind === 'system';
+export const isSystemSolutionQuestion = (question) => isSystemQuestion(question) && question.feature === 'solution';
+
+/*
+ * WHICH PRESS ANSWERS A QUESTION — the rule the device and the server both
+ * grade a press by — or null when its answer is tapped (or checked):
+ *
+ *   "Off screen"           a feature that exists past the edge of the view
+ *   "Infinitely Many",     a system that names its press (`answerPress`): the
+ *   "Can't Be Determined"  same line twice; one solution its graph cannot show
+ *   "Does Not Exist"       otherwise, wherever there is nothing to find — an
+ *                          absent feature, an inequality's and a system's
+ *                          "No Solution"
+ *
+ * A question without `answerPress` — every graph and every inequality — is
+ * answered exactly as before it existed.
+ */
+const NAMED_PRESSES = Object.freeze([RUSH_ATTEMPT_KIND.INFINITELY_MANY, RUSH_ATTEMPT_KIND.CANNOT_DETERMINE]);
+export const rushPressAnswer = (question) => {
+  if (question?.offScreen === true) return RUSH_ATTEMPT_KIND.OFF_SCREEN;
+  if (NAMED_PRESSES.includes(question?.answerPress)) return question.answerPress;
+  return Array.isArray(question?.targets) && question.targets.length === 0 ? RUSH_ATTEMPT_KIND.DOES_NOT_EXIST : null;
+};
+
 // The diagnosis of a wrong check that drew exactly a question's `flipSet` —
 // the set its solving gives with the sign left unflipped (an inequality
 // divided by a negative). Counted in the teacher's report beside the
@@ -132,9 +166,14 @@ export const rushQuestionWeight = (question) => {
   return Math.max(1, Math.min(RUSH_MAX_QUESTION_WEIGHT, taps));
 };
 
-/** How many misses on a question skip it: three for a number line, eight for taps. */
+/*
+ * How many misses on a question skip it: three for a number line, eight for
+ * taps — and three for a system's solution, which has a handful of possible
+ * answers (a point, No Solution, Infinitely Many, Can't Be Determined), so
+ * the third wrong one shows the answer, as an inequality's does.
+ */
 export const rushAutoSkipMisses = (question) => (
-  isNumberLineQuestion(question) ? RUSH_SET_AUTO_SKIP_MISSES : RUSH_AUTO_SKIP_MISSES
+  isNumberLineQuestion(question) || isSystemSolutionQuestion(question) ? RUSH_SET_AUTO_SKIP_MISSES : RUSH_AUTO_SKIP_MISSES
 );
 
 /**

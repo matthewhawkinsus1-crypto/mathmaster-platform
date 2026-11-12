@@ -323,7 +323,10 @@ const raceMemory = (accuracy, settings = {}) => ({
 });
 
 test('Standard Challenge has no memory: nothing easier or harder to suggest; the other games each have one', () => {
-  assert.deepEqual([...M.CLASS_MEMORY_GAME_IDS].sort(), ['graphFeatureRush', 'inequalityRush', 'lineGraph', 'solverRace']);
+  // Every game on a difficulty ladder has one — Systems of Equations Rush,
+  // the third rush, too — and Standard Challenge none.
+  assert.deepEqual([...M.CLASS_MEMORY_GAME_IDS].sort(), ['graphFeatureRush', 'inequalityRush', 'lineGraph', 'solverRace', 'systemsRush']);
+  assert.equal(M.classMemoryGameOfMode('systemsRush').id, 'systemsRush');
   assert.equal(M.classMemoryGameOfMode('standard'), null);
   assert.equal(M.classMemoryGameOfMode('solverRace').id, 'solverRace');
   for (const modeId of Object.values(LINE_GRAPH_MODE_ID)) assert.equal(M.classMemoryGameOfMode(modeId).id, 'lineGraph', `${modeId}: one memory for the three formats`);

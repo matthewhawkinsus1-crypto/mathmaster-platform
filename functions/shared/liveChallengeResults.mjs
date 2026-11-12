@@ -387,7 +387,22 @@ export const questionSetMatchSummary = (player = {}) => {
       });
     }
   });
-  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0, offScreenPresses: 0, offScreenCorrect: 0, extraTimeCompleted: 0 };
+  const totals = {
+    questions: 0,
+    completed: 0,
+    skipped: 0,
+    attempts: 0,
+    hits: 0,
+    dnePresses: 0,
+    dneCorrect: 0,
+    offScreenPresses: 0,
+    offScreenCorrect: 0,
+    infinitePresses: 0,
+    infiniteCorrect: 0,
+    undeterminedPresses: 0,
+    undeterminedCorrect: 0,
+    extraTimeCompleted: 0,
+  };
   const byFeature = {};
   const byFamily = {};
   const byTier = {};
@@ -439,15 +454,22 @@ export const questionSetMatchSummary = (player = {}) => {
       }
     }
     if (receipt.extraTime === true && receipt.isCorrect === true && receipt.completesQuestion === true) totals.extraTimeCompleted += 1;
-    // "Does Not Exist" and, in a game with off-screen features, "Off screen":
-    // the two presses that answer without a tap, each counted with how many
-    // were right.
+    // "Does Not Exist" (an inequality's and a system's "No Solution"), "Off
+    // screen" in a game with off-screen features, and a system's "Infinitely
+    // Many" and "Can't Be Determined": the presses that answer without a tap,
+    // each counted with how many were right.
     if (receipt.attemptKind === 'dne') {
       totals.dnePresses += 1;
       if (receipt.isCorrect === true) totals.dneCorrect += 1;
     } else if (receipt.attemptKind === 'offScreen') {
       totals.offScreenPresses += 1;
       if (receipt.isCorrect === true) totals.offScreenCorrect += 1;
+    } else if (receipt.attemptKind === 'infinite') {
+      totals.infinitePresses += 1;
+      if (receipt.isCorrect === true) totals.infiniteCorrect += 1;
+    } else if (receipt.attemptKind === 'undetermined') {
+      totals.undeterminedPresses += 1;
+      if (receipt.isCorrect === true) totals.undeterminedCorrect += 1;
     }
   });
   return Object.freeze({ ...totals, byFeature, byFamily, byTier, byTag, mistakes, wrongTaps });
