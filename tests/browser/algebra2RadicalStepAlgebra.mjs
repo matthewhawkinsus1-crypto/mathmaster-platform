@@ -446,6 +446,20 @@ journeys.dol = async (browser) => {
   const { context, page, errors } = await newPage(browser);
   try {
     const id = 'srh-dol-1';
+    // Where the verdict is withheld the workspace coaches nothing after a step: raising both
+    // sides says only that the step was recorded, not what to do about candidates.
+    const stepNotes = await newPage(browser);
+    try {
+      await open(stepNotes.page, `dol-notes-${Date.now()}`, id);
+      const shape = await shapeOnScreen(stepNotes.page, 'x');
+      await isolateRadical(stepNotes.page, shape, log);
+      await raiseBothSides(stepNotes.page, shape, log);
+      const notes = await stepNotes.page.locator('[role="status"]').allInnerTexts();
+      check(notes.some((text) => /Step recorded/.test(text)), `a DOL records the raise without coaching (${JSON.stringify(notes)})`);
+      check(!notes.some((text) => /candidate/i.test(text)), 'a DOL says nothing about candidates after raising both sides');
+    } finally {
+      await stepNotes.context.close();
+    }
     await open(page, `dol-${Date.now()}`, id);
     await solveRadical(page, { log });
     await submitAnswer(page);

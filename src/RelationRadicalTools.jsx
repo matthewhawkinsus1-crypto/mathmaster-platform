@@ -19,6 +19,7 @@ import {
   readSolutionSetDraft,
   zeroProductResult,
 } from './relationRadicalToolsModel.js';
+import { spokenMathValue } from './tools/shared/spokenMathValue.js';
 
 /*
  * THE RADICAL-EQUATION AND QUADRATIC TOOLS OF THE RELATION WORKSPACE.
@@ -52,7 +53,7 @@ const chip = (active = false) => ({
   minHeight: 38,
   padding: '5px 11px',
   borderRadius: 9,
-  border: active ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+  border: active ? '2px solid var(--mm-primary)' : '1px solid var(--mm-primary-border)',
   background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
   color: 'var(--mm-primary-text)',
   fontWeight: 800,
@@ -61,8 +62,8 @@ const chip = (active = false) => ({
 const primaryButton = (enabled) => ({
   ...chip(true),
   border: 0,
-  background: enabled ? '#174ea6' : '#9fb7df',
-  color: '#fff',
+  background: enabled ? 'var(--mm-primary)' : 'var(--mm-surface-control-strong)',
+  color: enabled ? 'var(--mm-on-primary)' : 'var(--mm-disabled-text)',
   cursor: enabled ? 'pointer' : 'not-allowed',
   whiteSpace: 'nowrap',
 });
@@ -383,7 +384,7 @@ function CandidateCheckCard({ candidate, variable, sideLatex, entry, onRecord, o
           <span>Left side <strong><MathDisplay value={latexOf(entry.left)} format="latex" inline /></strong></span>
           <span>Right side <strong><MathDisplay value={latexOf(entry.right)} format="latex" inline /></strong></span>
           <span style={{ fontWeight: 800, color: 'var(--mm-primary-text)' }} data-candidate-choice={entry.choice}>{choiceWords(entry.choice)}</span>
-          {!disabled && <button type="button" onClick={edit} style={chip(false)} aria-label={`Change the check of ${variable} = ${candidate.expression}`}>Change</button>}
+          {!disabled && <button type="button" onClick={edit} style={chip(false)} aria-label={`Change the check of ${variable} = ${spokenMathValue(candidate.expression)}`}>Change</button>}
         </div>
       ) : disabled ? (
         <div style={captionStyle}>This check was not recorded.</div>
@@ -398,7 +399,7 @@ function CandidateCheckCard({ candidate, variable, sideLatex, entry, onRecord, o
                 value={left}
                 onChange={setLeft}
                 placeholder="Value of the left side"
-                ariaLabel={`Left side of the original equation when ${variable} = ${candidate.expression}`}
+                ariaLabel={`Left side of the original equation when ${variable} = ${spokenMathValue(candidate.expression)}`}
                 toolProfile="algebra-operation"
                 compact
               />
@@ -411,7 +412,7 @@ function CandidateCheckCard({ candidate, variable, sideLatex, entry, onRecord, o
                 value={right}
                 onChange={setRight}
                 placeholder="Value of the right side"
-                ariaLabel={`Right side of the original equation when ${variable} = ${candidate.expression}`}
+                ariaLabel={`Right side of the original equation when ${variable} = ${spokenMathValue(candidate.expression)}`}
                 toolProfile="algebra-operation"
                 compact
               />

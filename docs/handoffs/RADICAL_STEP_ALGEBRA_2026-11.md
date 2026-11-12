@@ -128,11 +128,84 @@ reported (`tests/browser/radicalStepAlgebraDriver.mjs`).
 ## Release
 
 Shared grading changed (`functions/shared/**`), so the Functions that bundle it
-must ship **before** Hosting, which the new client needs:
+must ship **before** Hosting, which the new client needs. Nothing here touches
+Firestore rules or indexes.
+
+### Which Functions
+
+The planner cannot read an import graph, so for any `functions/shared/**` change
+it plans every function (210, in 28 groups, about an hour). The functions that
+can actually load the changed modules are **18** (plus `platformBuildInfo`,
+which every functions release redeploys and then calls to prove the commit):
+
+| loads | functions |
+| --- | --- |
+| `submissionIngestion.mjs` — the submission grader and `normalizeStepWork` (`submissionEnvelope.mjs`) | `ingestStudentSubmissions`, `applyWorkspaceDraftRecovery`, `finalizeStudentResponseCheckpoints`, `sweepStudentResponseCheckpoints` |
+| `responseCheckpointFinalizer.mjs` | `finalizeStudentResponseCheckpoints`, `sweepStudentResponseCheckpoints` |
+| `responseInspector.mjs` (direct, or through `lib/reviewMyWork.js` and `lib/retroactiveAccommodation.js`) | `inspectStudentResponse`, `overrideStudentResponseGrade`, `loadMyReviewWork`, `reviewRetroactiveAccommodation`, `syncGradeToClassroom`, `syncSectionGradeToClassroom` |
+| `sectionRecoveryActions.mjs` | `advanceSectionRecovery`, `resolveHeldSectionRecovery` |
+| `recoveryCertificationGrading.mjs` | `previewRecoveryContentUpgrade`, `commitRecoveryContentUpgrade`, `previewAssignmentContentUpgrade`, `commitAssignmentContentUpgrade` |
+| `workspaceDraftRecovery.mjs` | `applyWorkspaceDraftRecovery`, `getStudentPersistenceRecoveryReport`, `resolveStudentPersistenceHold`, `syncGradeToClassroom` |
+
+How it was derived: every relative `import()` / `require()` / `from` under
+`functions/` gives the module graph. The six shared files this change edits are
+imported (transitively) by exactly those six shared modules plus the two `lib/`
+files above, and `functions/index.js` / `classroomSectionEntry.js` reach them
+only through their lazy loaders. The 18 are the exported functions that call a
+loader. The weekly path planner (`lib/weeklyPathServerPlan.js`, the one
+non-literal `import()`) imports none of the changed files. The planner also
+lists `publishAssignmentToClassrooms`, `forceRepublishAssignmentToClassrooms` and
+`drainClassroomPushQueue`; a name-based walk flags them only through
+`const base = require(...)` and a `module.exports` block, and they never call a
+changed module, so they are left out.
+
+The set is for THIS change only. `main` also carries other work that touches
+`functions/` (the Systems of Equations Rush PR changed `functions/index.js` and
+nine shared Live Challenge modules). Unless the live build already includes it,
+the plan's diff holds more than this change, and the 18 are not enough.
+
+### Commands (Linux, Cloud Shell)
+
+Correct for any live state, and the default:
 
 ```bash
-node scripts/release-firebase.mjs                 # the plan from the live build
-node scripts/release-firebase.mjs --execute      # indexes -> functions -> rules -> Hosting (wrapper)
+git fetch origin && git checkout main && git pull --ff-only        # clean, current main whose CI run on main is green
+npm ci && (cd functions && npm ci)
+npm run build && npm run build:firebase
+node scripts/release-firebase.mjs                                  # the plan: what changed since the live build, every command
+node scripts/release-firebase.mjs --execute                        # asks for the project id (mathmaster-aleks)
 node scripts/verify-callable-access.mjs --fix
 node scripts/release-firebase.mjs --whats-live
 ```
+
+`--execute` deploys, in the planner's order: indexes, the Functions in paced
+groups (every function: about an hour), the `platformBuildInfo` check (must
+report the commit being deployed), the callable-access check, `path-admin`,
+rules, then Hosting through `npm run deploy:hosting` (the resilient wrapper;
+never a raw `firebase deploy --only hosting`). If only the Hosting upload
+fails, rerun just `FIREBASE_HOSTING_UPLOAD_CONCURRENCY=4 npm run deploy:hosting`.
+
+Faster, **only** when the plan's `diff:` shows nothing under `functions/` but
+this change (no other commit since the live build touched it), replace the
+`--execute` line with the exact functions (three groups, about 7 minutes; the
+other steps are unchanged):
+
+```bash
+node scripts/release-firebase.mjs --execute --functions advanceSectionRecovery,applyWorkspaceDraftRecovery,commitAssignmentContentUpgrade,commitRecoveryContentUpgrade,finalizeStudentResponseCheckpoints,getStudentPersistenceRecoveryReport,ingestStudentSubmissions,inspectStudentResponse,loadMyReviewWork,overrideStudentResponseGrade,previewAssignmentContentUpgrade,previewRecoveryContentUpgrade,resolveHeldSectionRecovery,resolveStudentPersistenceHold,reviewRetroactiveAccommodation,sweepStudentResponseCheckpoints,syncGradeToClassroom,syncSectionGradeToClassroom
+```
+
+### Check it is live
+
+**Import the lesson only after Hosting is live.** The V5 compile that opens the
+new workspace runs in the teacher's browser, and the workspace and its tools run
+in the student's, so an older build compiles these items to a workspace that
+cannot solve them. Until the new build is live, the original
+`5_Solving_Radical_Equations_Honors.json` (the Sign & Solution Analyzer version)
+still imports and runs. Reload open tabs after the release (a cached tab still
+runs the old bundle).
+
+- `node scripts/release-firebase.mjs --whats-live`: Hosting and `platformBuildInfo` report the merge commit.
+- In the teacher app, import `5_Solving_Radical_Equations_Honors_Step_Algebra.json`
+  as a draft (assign it to no class) and open Student preview: Classwork #1 opens
+  the Step Algebra workspace with *Raise both sides to a power* under Other
+  operations, and an answer saves and resumes after a reload.

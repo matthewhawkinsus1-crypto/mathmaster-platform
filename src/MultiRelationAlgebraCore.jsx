@@ -1647,7 +1647,15 @@ export default function MultiRelationAlgebra({
   };
   const commitRadicalStep = async (next, label, kind, transition) => {
     const committed = await commitState(next, label, kind, transition);
-    if (committed) setMessage({ tone: 'success', text: RADICAL_STEP_NOTES[kind] || 'Step recorded.' });
+    if (committed) {
+      // Where the verdict is withheld (a DOL, quiz or test) the step is only
+      // recorded: no word about what the next stage is for, which the
+      // assessment is there to see the student decide.
+      setMessage({
+        tone: 'success',
+        text: showImmediateFeedback === false ? 'Step recorded.' : (RADICAL_STEP_NOTES[kind] || 'Step recorded.'),
+      });
+    }
     return committed;
   };
 
