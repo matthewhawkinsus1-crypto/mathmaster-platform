@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import {
   complexityAdjustedRoundSeconds,
   authoritativeReceiptTotal,
@@ -15,6 +16,7 @@ import { getChallengeMode } from '../../functions/shared/liveChallengeModes.mjs'
 import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const require = createRequire(import.meta.url);
 
 test('closing threshold defaults to 70 and supports every teacher option', () => {
   assert.equal(DEFAULT_ROUND_CLOSING_THRESHOLD, 70);
@@ -114,11 +116,10 @@ test('teacher pacing changes are server-owned and closing is irreversible', () =
 
 
 test('Live Challenge lobby creation has enough memory for the secure planner', () => {
-  const server = read('../../functions/index.js');
-  assert.match(
-    server,
-    /exports\.createLiveChallenge = onCall\(\{ memory: "512MiB" \}, async \(request\) => \{/,
-  );
+  const { createLiveChallenge } = require('../../functions/platformEntry.js');
+  const endpoint = createLiveChallenge.__endpoint;
+  assert.ok(endpoint.callableTrigger, 'the deployed lobby entry point is a callable');
+  assert.ok(endpoint.availableMemoryMb >= 1024, 'lobby creation has exceeded 512 MiB in production');
 });
 
 test('Pace Race is mutually exclusive with the visible round timer and Second Chance is opt-in', () => {

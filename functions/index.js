@@ -12055,7 +12055,9 @@ async function requireOwnedChallenge(db, request, roomId) {
 // A mode's own settings errors: each carries a sentence a teacher can act on.
 const LIVE_CHALLENGE_CONFIG_ERRORS = new Set(["GraphFeatureRushConfigError", "InequalityRushConfigError", "SystemsRushConfigError", "LineGraphConfigError"]);
 
-exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
+// Live lobby creation has exceeded 512 MiB for both Graph Feature Rush and
+// Systems of Equations Rush. Keep the headroom across Firebase deployments.
+exports.createLiveChallenge = onCall({ memory: "1GiB" }, async (request) => {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
   if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required for Live Challenge.");
