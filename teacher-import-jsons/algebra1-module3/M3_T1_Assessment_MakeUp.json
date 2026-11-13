@@ -1,0 +1,387 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I M3 T1 Assessment — Make-Up",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 3/Topic 1/Assessment Make-Up",
+    "instructionalPurpose": "assessment",
+    "gradingPurpose": "test",
+    "instructions": "This is your make-up for the Module 3 Topic 1 Assessment. Work every question in its tool: solve step by step in the workspace, graph on the number line, and build each equation yourself. Your steps are recorded. Each question allows one try, there are no hints, and your teacher releases your score."
+  },
+  "variantPolicy": {
+    "mode": "shared",
+    "sectionModes": {
+      "test": "shared"
+    }
+  },
+  "sections": [
+    {
+      "id": "m3t1-makeup",
+      "role": "test",
+      "title": "M3 T1 Assessment — Make-Up",
+      "recommendedMinutes": 55,
+      "questions": [
+        {
+          "questionId": "m3t1mu-q1",
+          "standard": "A.2C",
+          "alignments": [
+            { "framework": "teks", "code": "A.2C", "role": "primary" },
+            { "framework": "teks", "code": "A.1A", "role": "secondary" }
+          ],
+          "studentActions": ["identifyQuantities", "writeEquation"],
+          "dok": 2,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "Ana is saving money to buy a new bike. Her grandfather gave her $35 for her birthday, and she is saving $12 per week for the bike. Identify the input and output quantities. Then write an equation that can be used to determine the amount Ana has saved, y, after x weeks.",
+          "quantities": [
+            { "id": "weeks", "label": "Number of weeks", "unit": "weeks" },
+            { "id": "saved", "label": "Total amount Ana has saved", "unit": "dollars" },
+            { "id": "weekly", "label": "Amount Ana saves each week", "unit": "dollars per week" }
+          ],
+          "correctIndependentId": "weeks",
+          "correctDependentId": "saved",
+          "equationPrompt": "Write an equation for the amount Ana has saved, y, after x weeks.",
+          "answerModel": {
+            "equation": "y=12x+35"
+          },
+          "directionSteps": [
+            "Decide which quantity is the input and which is the output.",
+            "Find the amount Ana starts with and the amount she adds each week.",
+            "Write an equation for y in terms of x."
+          ],
+          "solutionReview": {
+            "headline": "y = 12x + 35",
+            "reasoning": [
+              "The amount saved depends on the number of weeks, so the number of weeks is the input (x) and the total amount saved is the output (y).",
+              "Ana adds 12 dollars every week, so 12 is the rate of change and it multiplies x.",
+              "The 35 dollars from her grandfather is there before any weeks pass, so it is the starting amount: y = 12x + 35."
+            ],
+            "answerSummary": "Input: number of weeks. Output: total amount saved. y = 12x + 35",
+            "commonError": "Writing y = 35x + 12, which treats the one-time 35 dollars as the amount saved each week."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q2",
+          "standard": "A.5A",
+          "alignments": [
+            { "framework": "teks", "code": "A.5A", "role": "primary" }
+          ],
+          "studentActions": ["solveStepByStep"],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "What value of k makes the equation 9 − 4(k + 3) = 5 − 2(2k + 1) true? Solve the equation step by step in the workspace. If no value of k makes the equation true, or every value does, say so in the workspace.",
+          "equation": "9 - 4(k + 3) = 5 - 2(2k + 1)",
+          "solveFor": "k",
+          "relationWorkspace": true,
+          "directionSteps": [
+            "Simplify each side of the equation.",
+            "Collect the k-terms on one side.",
+            "Decide whether one value, no value, or every value of k makes the equation true."
+          ],
+          "solutionReview": {
+            "headline": "No solution",
+            "reasoning": [
+              "Distribute: 9 − 4k − 12 = 5 − 4k − 2.",
+              "Combine like terms: −4k − 3 = −4k + 3.",
+              "Add 4k to both sides: −3 = 3, which is false.",
+              "No value of k makes the equation true, so the equation has no solution."
+            ],
+            "answerSummary": "No solution",
+            "commonError": "Writing k = 0 when the k-terms cancel. When the variable disappears, the statement that is left decides: −3 = 3 is false, so there is no solution."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q3",
+          "standard": "A.5B",
+          "alignments": [
+            { "framework": "teks", "code": "A.5B", "role": "primary" }
+          ],
+          "studentActions": ["solveInequality"],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "What is the solution set for 3(4 − w) ≥ −2w + 15? Solve the inequality step by step in the workspace.",
+          "inequality": "3(4 - w) >= -2w + 15",
+          "representSolution": false,
+          "directionSteps": [
+            "Distribute on the left side.",
+            "Collect the w-terms on one side and the numbers on the other.",
+            "Get w by itself. Decide whether the inequality symbol changes direction."
+          ],
+          "solutionReview": {
+            "headline": "w ≤ −3",
+            "reasoning": [
+              "Distribute: 12 − 3w ≥ −2w + 15.",
+              "Add 2w to both sides: 12 − w ≥ 15.",
+              "Subtract 12 from both sides: −w ≥ 3.",
+              "Divide both sides by −1. Dividing by a negative number reverses the symbol: w ≤ −3."
+            ],
+            "answerSummary": "w ≤ −3",
+            "commonError": "Keeping the symbol the same when dividing by −1, which gives w ≥ −3."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q4",
+          "standard": "A.5A",
+          "alignments": [
+            { "framework": "teks", "code": "A.5A", "role": "primary" }
+          ],
+          "studentActions": ["solveStepByStep"],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Solve the equation 0.6(5x − 4) = −1.5x + 6.6 step by step in the workspace. If no value of x makes the equation true, or every value does, say so in the workspace.",
+          "equation": "0.6(5x - 4) = -1.5x + 6.6",
+          "solveFor": "x",
+          "relationWorkspace": true,
+          "directionSteps": [
+            "Distribute 0.6 on the left side.",
+            "Collect the x-terms on one side and the numbers on the other.",
+            "Get x by itself."
+          ],
+          "solutionReview": {
+            "headline": "x = 2",
+            "reasoning": [
+              "Distribute 0.6: 3x − 2.4 = −1.5x + 6.6.",
+              "Add 1.5x to both sides: 4.5x − 2.4 = 6.6.",
+              "Add 2.4 to both sides: 4.5x = 9.",
+              "Divide both sides by 4.5: x = 2.",
+              "Check: 0.6(5 · 2 − 4) = 3.6 and −1.5(2) + 6.6 = 3.6."
+            ],
+            "answerSummary": "x = 2",
+            "commonError": "Multiplying only the 5x by 0.6 and writing 3x − 4 on the left side."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q5",
+          "standard": "A.5A",
+          "alignments": [
+            { "framework": "teks", "code": "A.5A", "role": "primary" }
+          ],
+          "studentActions": ["solveStepByStep"],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Does the equation (1/4)(12x + 20) = 3(x − 1) + 8 have one solution, no solution, or an infinite number of solutions? Solve the equation step by step in the workspace to decide. If no value of x makes the equation true, or every value does, say so in the workspace.",
+          "equation": "(1/4)(12x + 20) = 3(x - 1) + 8",
+          "solveFor": "x",
+          "relationWorkspace": true,
+          "directionSteps": [
+            "Distribute on each side of the equation.",
+            "Combine like terms on each side.",
+            "Collect the x-terms. Decide whether one value, no value, or every value of x makes the equation true."
+          ],
+          "solutionReview": {
+            "headline": "An infinite number of solutions (all real numbers)",
+            "reasoning": [
+              "Distribute on the left: (1/4)(12x) + (1/4)(20) = 3x + 5.",
+              "Distribute and combine like terms on the right: 3x − 3 + 8 = 3x + 5.",
+              "Subtract 3x from both sides: 5 = 5, which is always true.",
+              "Any value of x makes the equation true, so the equation has an infinite number of solutions."
+            ],
+            "answerSummary": "An infinite number of solutions",
+            "commonError": "Writing x = 5 after reaching 5 = 5, or calling it no solution because the variable disappeared. A true statement such as 5 = 5 means every value of x works."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q6",
+          "standard": "A.2C",
+          "alignments": [
+            { "framework": "teks", "code": "A.2C", "role": "primary" },
+            { "framework": "teks", "code": "A.1A", "role": "secondary" }
+          ],
+          "studentActions": ["identifyQuantities", "writeEquation", "completeTable"],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Malik goes to a bakery. He buys 4 muffins that cost $1.75 each and some cookies that cost $0.90 each. Identify the input and output quantities, write an equation for the total cost, y, when Malik buys x cookies, and then use your equation to complete the table.",
+          "quantities": [
+            { "id": "cookies", "label": "Number of cookies Malik buys", "unit": "cookies" },
+            { "id": "total", "label": "Total cost", "unit": "dollars" },
+            { "id": "muffinPrice", "label": "Cost of one muffin", "unit": "dollars" }
+          ],
+          "correctIndependentId": "cookies",
+          "correctDependentId": "total",
+          "equationPrompt": "Write an equation for the total cost, y, when Malik buys x cookies.",
+          "tablePrompt": "Use your equation to find the total cost, in dollars, for each number of cookies.",
+          "answerModel": {
+            "equation": "y=0.9x+7",
+            "tableXValues": [0, 3, 6, 10]
+          },
+          "directionSteps": [
+            "Decide which quantity is the input and which is the output.",
+            "Find the cost of the 4 muffins.",
+            "Write an equation for y in terms of x.",
+            "Use your equation to complete the table."
+          ],
+          "solutionReview": {
+            "headline": "y = 0.9x + 7",
+            "reasoning": [
+              "The total cost depends on how many cookies Malik buys, so the number of cookies is the input (x) and the total cost is the output (y).",
+              "The 4 muffins cost 4 × 1.75 = 7 dollars. That amount does not change when x changes.",
+              "Each cookie adds 0.90 dollars, so 0.9 multiplies x: y = 0.9x + 7.",
+              "Table: x = 0 gives 7.00, x = 3 gives 9.70, x = 6 gives 12.40, and x = 10 gives 16.00 dollars."
+            ],
+            "answerSummary": "Input: number of cookies. Output: total cost. y = 0.9x + 7. Table: 7, 9.70, 12.40, 16.00",
+            "commonError": "Using the price of one muffin as the starting amount (y = 0.9x + 1.75) instead of the cost of all 4 muffins."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q7",
+          "standard": "A.12E",
+          "alignments": [
+            { "framework": "teks", "code": "A.12E", "role": "primary" }
+          ],
+          "studentActions": ["solveStepByStep"],
+          "dok": 1,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "Rewrite the equation 2x + 5y = 15 in slope-intercept form. Work step by step in the workspace until the equation is in the form y = mx + b.",
+          "equation": "2x + 5y = 15",
+          "mode": "rewriteLinearForm",
+          "targetForm": "slopeIntercept",
+          "workspaceDifficulty": 4,
+          "directionSteps": [
+            "Get the y-term by itself on one side of the equation.",
+            "Divide each term by the coefficient of y.",
+            "Write the result in the form y = mx + b."
+          ],
+          "solutionReview": {
+            "headline": "y = −(2/5)x + 3",
+            "reasoning": [
+              "Subtract 2x from both sides: 5y = −2x + 15.",
+              "Divide every term by 5: y = −(2/5)x + 3."
+            ],
+            "answerSummary": "y = −(2/5)x + 3",
+            "commonError": "Dividing only part of the right side by 5 (for example y = −2x + 3), or losing the negative sign on the slope."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q8",
+          "standard": "A.12E",
+          "alignments": [
+            { "framework": "teks", "code": "A.12E", "role": "primary" }
+          ],
+          "studentActions": ["solveStepByStep"],
+          "dok": 1,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "The formula for distance traveled is d = rt, where d is the distance, r is the rate, and t is the time. Solve the formula for t in the workspace.",
+          "equation": "d = r*t",
+          "solveFor": "t",
+          "workspaceDifficulty": 4,
+          "directionSteps": [
+            "Find the operation that is being done to t.",
+            "Undo that operation on both sides of the formula.",
+            "Write the formula with t by itself."
+          ],
+          "solutionReview": {
+            "headline": "t = d/r",
+            "reasoning": [
+              "In d = rt, the variable t is multiplied by r.",
+              "Divide both sides by r: d/r = t, so t = d/r."
+            ],
+            "answerSummary": "t = d/r",
+            "commonError": "Subtracting r instead of dividing (t = d − r), or dividing in the wrong order (t = r/d)."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q9",
+          "standard": "A.5B",
+          "alignments": [
+            { "framework": "teks", "code": "A.5B", "role": "primary" }
+          ],
+          "studentActions": ["solveInequality"],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Solve the inequality 2.5m − 1 < −1.5(m + 6) step by step in the workspace. Then graph the solution on the number line.",
+          "inequality": "2.5m - 1 < -1.5(m + 6)",
+          "solutionRepresentations": ["graph"],
+          "directionSteps": [
+            "Distribute on the right side.",
+            "Collect the m-terms on one side and the numbers on the other.",
+            "Get m by itself. Decide whether the inequality symbol changes direction.",
+            "Graph the solution: choose an open or closed circle and the direction to shade."
+          ],
+          "solutionReview": {
+            "headline": "m < −2: an open circle at −2, shaded to the left",
+            "reasoning": [
+              "Distribute −1.5: 2.5m − 1 < −1.5m − 9.",
+              "Add 1.5m to both sides: 4m − 1 < −9.",
+              "Add 1 to both sides: 4m < −8.",
+              "Divide both sides by 4. Dividing by a positive number keeps the symbol: m < −2.",
+              "Graph an open circle at −2, because −2 is not a solution, and shade to the left."
+            ],
+            "answerSummary": "m < −2",
+            "commonError": "Using a closed circle at −2 (that graph shows m ≤ −2), or shading to the right."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q10",
+          "standard": "A.12E",
+          "alignments": [
+            { "framework": "teks", "code": "A.12E", "role": "primary" }
+          ],
+          "studentActions": ["solveStepByStep"],
+          "dok": 1,
+          "difficultyBand": 2,
+          "questionWeight": 1,
+          "prompt": "Rewrite the equation y + 4 = −3(x − 2) in slope-intercept form. Work step by step in the workspace until the equation is in the form y = mx + b.",
+          "equation": "y + 4 = -3(x - 2)",
+          "mode": "rewriteLinearForm",
+          "targetForm": "slopeIntercept",
+          "workspaceDifficulty": 4,
+          "directionSteps": [
+            "Distribute on the right side.",
+            "Get y by itself on the left side.",
+            "Write the result in the form y = mx + b."
+          ],
+          "solutionReview": {
+            "headline": "y = −3x + 2",
+            "reasoning": [
+              "Distribute −3: y + 4 = −3x + 6.",
+              "Subtract 4 from both sides: y = −3x + 2."
+            ],
+            "answerSummary": "y = −3x + 2",
+            "commonError": "Distributing −3 as −3x − 6, or moving the 4 to the right side as + 4 instead of − 4 (y = −3x + 10)."
+          }
+        },
+        {
+          "questionId": "m3t1mu-q11",
+          "standard": "A.5A",
+          "alignments": [
+            { "framework": "teks", "code": "A.5A", "role": "primary" },
+            { "framework": "teks", "code": "A.1A", "role": "secondary" }
+          ],
+          "studentActions": ["solveStepByStep"],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A triangle has a height of (2n − 6) inches and a base of 10 inches. A rectangle has a length of 4 inches and a width of (n + 3) inches. The area of the triangle, in square inches, is equal to the area of the rectangle, in square inches. What is the value of n? The workspace shows the equation for the two equal areas. Solve it step by step. If no value of n makes the equation true, or every value does, say so in the workspace.",
+          "equation": "(1/2)(10)(2n - 6) = 4(n + 3)",
+          "solveFor": "n",
+          "relationWorkspace": true,
+          "directionSteps": [
+            "Simplify each side of the area equation.",
+            "Collect the n-terms on one side and the numbers on the other.",
+            "Get n by itself."
+          ],
+          "solutionReview": {
+            "headline": "n = 7",
+            "reasoning": [
+              "Area of the triangle: (1/2)(10)(2n − 6) = 5(2n − 6) = 10n − 30.",
+              "Area of the rectangle: 4(n + 3) = 4n + 12.",
+              "Set the areas equal: 10n − 30 = 4n + 12. Subtract 4n from both sides: 6n − 30 = 12. Add 30 to both sides: 6n = 42.",
+              "Divide both sides by 6: n = 7.",
+              "Check: the triangle's height is 2(7) − 6 = 8 inches, so its area is (1/2)(10)(8) = 40 square inches. The rectangle is 4 inches by 10 inches, so its area is also 40 square inches."
+            ],
+            "answerSummary": "n = 7",
+            "commonError": "Multiplying only the 2n by 5 (writing 10n − 6), which gives n = 3."
+          }
+        }
+      ]
+    }
+  ]
+}
