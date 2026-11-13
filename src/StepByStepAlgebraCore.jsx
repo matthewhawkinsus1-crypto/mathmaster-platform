@@ -29,6 +29,7 @@ import {
   latexToExpression,
   parseEquationInput,
   parseOperationOperand,
+  readSavedEquationProducts,
   splitAdditiveTerms,
 } from './algebraAstEngine';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
@@ -120,19 +121,21 @@ const CANCEL_KEYS = 'Tab to one and press Enter';
  */
 export const getInitialEquation = (question, record) => {
   const saved = record?.algebraState?.equation;
-  if (saved?.left && saved?.right) return { equation: saved, error: null };
+  const hasSavedEquation = saved?.left && saved?.right;
   try {
-    return { equation: parseEquationInput(question), error: null };
+    const pristine = parseEquationInput(question);
+    return { equation: hasSavedEquation ? readSavedEquationProducts(saved, pristine) : pristine, error: null };
   } catch (error) {
+    if (hasSavedEquation) return { equation: saved, error: null };
     return { equation: null, error: error?.message || 'This equation could not be read.' };
   }
 };
 
 const isFactorOperation = (operation) => operation === 'multiply' || operation === 'divide';
 
-const operationOperandIdentity = (value) => {
+const operationOperandIdentity = (value, equation) => {
   try {
-    return parseOperationOperand(value).expression.replace(/\s+/g, '');
+    return parseOperationOperand(value, equation).expression.replace(/\s+/g, '');
   } catch {
     return String(value ?? '').replace(/\s+/g, '');
   }
@@ -473,8 +476,8 @@ export default function StepByStepAlgebra({
   // after the algebra engine changes: that can resurrect UI requirements that
   // the current engine no longer considers mathematically necessary.
   const savedDraft = useMemo(
-    () => rehydrateAlgebraDraft({ draft: rawSavedDraft, initialEquation }),
-    [rawSavedDraft, initialEquation],
+    () => rehydrateAlgebraDraft({ draft: rawSavedDraft, initialEquation, pristineEquation }),
+    [rawSavedDraft, initialEquation, pristineEquation],
   );
   const [equation, setEquation] = useState(savedDraft?.equation || initialEquation);
   const [committedHistory, setCommittedHistory] = useState([]);
@@ -2442,7 +2445,7 @@ export default function StepByStepAlgebra({
       ? placedOperationPositions[side]
       : (factorZoneHint?.side === side ? factorZoneHint.position : null);
     let parsedOperand = operand;
-    try { parsedOperand = parseOperationOperand(operand).expression; } catch { parsedOperand = latexToExpression(operand); }
+    try { parsedOperand = parseOperationOperand(operand, equation).expression; } catch { parsedOperand = latexToExpression(operand); }
     const operandLatex = expressionToLatex(parsedOperand);
     const sourceLatex = expressionToLatex(sideExpression(side));
     let previewLatex = sourceLatex;
@@ -2486,7 +2489,7 @@ export default function StepByStepAlgebra({
   const operandLabel = (() => {
     if (!operand) return '';
     try {
-      return parseOperationOperand(operand).expression;
+      return parseOperationOperand(operand, equation).expression;
     } catch {
       return latexToExpression(operand);
     }
@@ -2973,7 +2976,7 @@ export default function StepByStepAlgebra({
                 // MathLive can re-emit an equivalent operand while focus/layout
                 // changes. Do not erase a side the student already placed unless
                 // the mathematical operand actually changed.
-                const operandChanged = operationOperandIdentity(value) !== operationOperandIdentity(operand);
+                const operandChanged = operationOperandIdentity(value, equation) !== operationOperandIdentity(operand, equation);
                 setOperand(value);
                 if (operandChanged && placedOperationSidesRef.current.length) {
                   placedOperationSidesRef.current = [];

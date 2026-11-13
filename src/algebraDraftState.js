@@ -1,4 +1,4 @@
-import { applyBalancedOperation } from './algebraAstEngine.js';
+import { applyBalancedOperation, readSavedEquationProducts } from './algebraAstEngine.js';
 import { sanitizeStructureTool } from './algebraStructureTools.js';
 import { equationKey } from './algebraStructureToolState.js';
 import { migrateLegacySimplifyDraft } from './platform/algebra/simplify/simplifyState.js';
@@ -139,9 +139,9 @@ const sanitizeWorkSteps = (steps) => (Array.isArray(steps) ? steps : [])
     && typeof step.description === 'string')
   .slice(-MAX_WORK_STEPS);
 
-export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
+export const rehydrateAlgebraDraft = ({ draft, initialEquation, pristineEquation = initialEquation }) => {
   if (!draft) return null;
-  const equation = draft.equation || initialEquation;
+  const equation = readSavedEquationProducts(draft.equation || initialEquation, pristineEquation);
   if (!equation?.left || !equation?.right) return null;
 
   // Legacy drafts were allowed to persist the entire pendingMove object. That
