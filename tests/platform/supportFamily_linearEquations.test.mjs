@@ -270,9 +270,10 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   assert.ok(questions.length > 150);
   // Algebra I Module 3 Lesson 1 (and its Honors file) brought real
   // one-variable linear equations into the corpus. The M3 T1 Assessment
-  // make-up brought four more, two lines rewritten in slope-intercept form
-  // and one formula solved for a letter. Those are claimed (every hand-written
-  // one), and anything claimed is linear in the letter it is solved for, read
+  // make-up and its Honors version each brought four more, two lines
+  // rewritten in slope-intercept form and one formula solved for a letter.
+  // Those are claimed (every hand-written one), and anything claimed is
+  // linear in the letter it is solved for, read
   // on its own: an equation in that letter alone by the numeric oracle, a
   // line or a formula by solving for its letter with every other letter fixed.
   const solvedLetter = (question) => question.solveFor || question.objective?.variable || question.variable
@@ -296,9 +297,11 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   ));
   assert.ok(handWrittenEquations.length >= 20);
   handWrittenEquations.forEach((question) => assert.ok(claimed.includes(question), `claimed: ${question.questionId}`));
-  // The make-up's two inequalities belong to pointsAndIntervals, and its two
-  // models to functionFeatures.
-  const makeUpSolves = ['m3t1mu-q2', 'm3t1mu-q4', 'm3t1mu-q5', 'm3t1mu-q7', 'm3t1mu-q8', 'm3t1mu-q10', 'm3t1mu-q11'];
+  // Each make-up's two inequalities belong to pointsAndIntervals, its two
+  // models to functionFeatures, and the Honors version's three extension
+  // questions (typed and chosen parts) to no family.
+  const makeUpSolves = ['q2', 'q4', 'q5', 'q7', 'q8', 'q10', 'q11']
+    .flatMap((item) => [`m3t1mu-${item}`, `m3t1muh-${item}`]);
   makeUpSolves.forEach((questionId) => assert.ok(claimed.some((question) => question.questionId === questionId), `claimed: ${questionId}`));
   assert.equal(claimed.length, handWrittenEquations.length + makeUpSolves.length, 'nothing else in the corpus is claimed');
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)
