@@ -11,6 +11,15 @@ test('a sentence our server wrote reaches the teacher', () => {
   assert.equal(teacherErrorSentence(error, 'Live Challenge action failed.'), 'This class already has a Live Challenge running.');
 });
 
+test('a bare internal callable failure does not send a connected teacher to check Wi-Fi', () => {
+  assert.equal(teacherErrorSentence(callable('internal', 'internal')), TEACHER_ERROR_GENERIC);
+  assert.equal(
+    teacherErrorSentence(callable('internal', 'The challenge could not be created.')),
+    'The challenge could not be created.',
+  );
+  assert.match(teacherErrorSentence(callable('internal', 'Failed to fetch')), /Wi-Fi/);
+});
+
 test('Firestore, SDK and program errors are replaced by the screen\'s own sentence', () => {
   const firestore = Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied', name: 'FirebaseError' });
   assert.equal(teacherErrorSentence(firestore, 'Could not load the Live Challenge.'), 'Could not load the Live Challenge.');
