@@ -269,20 +269,38 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   const questions = corpus.flatMap((path) => compileAuthoringIntentV5(JSON.parse(readFileSync(path, 'utf8'))).package.sections.flatMap((section) => section.questions));
   assert.ok(questions.length > 150);
   // Algebra I Module 3 Lesson 1 (and its Honors file) brought real
-  // one-variable linear equations into the corpus. Those are claimed — every
-  // hand-written one — and anything claimed is a linear equation the oracle
-  // reads on its own.
+  // one-variable linear equations into the corpus. The M3 T1 Assessment
+  // make-up brought four more, two lines rewritten in slope-intercept form
+  // and one formula solved for a letter. Those are claimed (every hand-written
+  // one), and anything claimed is linear in the letter it is solved for, read
+  // on its own: an equation in that letter alone by the numeric oracle, a
+  // line or a formula by solving for its letter with every other letter fixed.
+  const solvedLetter = (question) => question.solveFor || question.objective?.variable || question.variable
+    || (question.targetForm === 'slopeIntercept' || question.objective?.kind === 'slopeIntercept' ? 'y' : 'x');
+  const hasOtherLetters = (question) => equationReadings(question)
+    .some(([left, right]) => lettersOf(`${left} ${right}`).some((letter) => letter !== solvedLetter(question)));
   const claimed = questions.filter((question) => linearEquations.matches(question));
   claimed.forEach((question) => {
+    const label = `corpus: ${String(question.prompt).slice(0, 80)}`;
     assert.equal(question.type, 'stepAlgebra', `corpus: ${question.type} ${String(question.prompt).slice(0, 80)}`);
-    assert.ok(['one', 'none', 'infinite'].includes(numericOracle(question).case), `corpus: ${String(question.prompt).slice(0, 80)}`);
+    if (hasOtherLetters(question)) {
+      const { left, right, target } = formulaOf(question);
+      const others = lettersOf(`${left} ${right}`).filter((letter) => letter !== target);
+      assert.equal(solveLinear(left, right, target, pointFor(others))?.case, 'one', label);
+    } else {
+      assert.ok(['one', 'none', 'infinite'].includes(numericOracle(question).case), label);
+    }
   });
   const handWrittenEquations = questions.filter((question) => (
     /^m3l1h?-/.test(String(question.questionId)) && question.type === 'stepAlgebra' && !question.questionFamily
   ));
   assert.ok(handWrittenEquations.length >= 20);
   handWrittenEquations.forEach((question) => assert.ok(claimed.includes(question), `claimed: ${question.questionId}`));
-  assert.equal(claimed.length, handWrittenEquations.length, 'nothing else in the corpus is claimed');
+  // The make-up's two inequalities belong to pointsAndIntervals, and its two
+  // models to functionFeatures.
+  const makeUpSolves = ['m3t1mu-q2', 'm3t1mu-q4', 'm3t1mu-q5', 'm3t1mu-q7', 'm3t1mu-q8', 'm3t1mu-q10', 'm3t1mu-q11'];
+  makeUpSolves.forEach((questionId) => assert.ok(claimed.some((question) => question.questionId === questionId), `claimed: ${questionId}`));
+  assert.equal(claimed.length, handWrittenEquations.length + makeUpSolves.length, 'nothing else in the corpus is claimed');
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)
     .forEach((question) => assert.equal(linearEquations.matches(question), false, `district DOL: ${question.heading}`));
 
