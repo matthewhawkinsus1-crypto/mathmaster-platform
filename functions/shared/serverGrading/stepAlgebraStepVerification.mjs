@@ -71,6 +71,7 @@ import {
   expressionsEquivalent,
   getSuggestedMove,
   latexToExpression,
+  parseOperationOperand,
 } from '../algebra/algebraAstEngine.mjs';
 import { evaluateMove, resolveEquationAfterMove, resolveSupportLevel } from '../algebra/algebraSupportLevels.mjs';
 import { parse } from '../algebra/safeMath.mjs';
@@ -601,17 +602,26 @@ const moveCompositionFits = (equation, operation, operand, budget) => ['left', '
   .every((side) => composedWithinBudget(budget, operated(equation[side], operation, operand)));
 
 
-const recomputeMove = (before, operation) => {
+const recomputeMove = (before, operation, useEquationSymbols = true) => {
   try {
     return applyBalancedOperation({
       equationState: before,
       operation: operation.operation,
       operand: operation.operand,
       placementBySide: operation.placementBySide || {},
+      useEquationSymbols,
     });
   } catch {
     return null;
   }
+};
+
+const moveProduces = (after, move, variable, budget) => {
+  for (const side of ['left', 'right']) {
+    const result = sidesEquivalent(after[side], move.unsimplified[side], variable, budget);
+    if (result !== true) return result;
+  }
+  return true;
 };
 
 /** The side a one-side rewrite changed, by the workspace's own comparison. */
@@ -679,10 +689,11 @@ const verifyEquationStep = ({ work, pristine, question, record, stepNumberBase }
     // The workspace refuses an unreadable or unbalanced move before it
     // reaches step credit (attemptMove), so neither is ever a step.
     if (!isObject(work.operation) || !safeOperand(work.operation.operand, budget)) return unverified(action, 'step-operation-invalid');
-    if (!moveCompositionFits(before, work.operation.operation, operandExpression(work.operation.operand), budget)) {
+    const operand = parseOperationOperand(work.operation.operand, before).expression;
+    if (!moveCompositionFits(before, work.operation.operation, operand, budget)) {
       return declinedBeyondBudget(action);
     }
-    const move = recomputeMove(before, work.operation);
+    let move = recomputeMove(before, work.operation);
     if (!move || !move.preservesSolution) return unverified(action, 'step-operation-invalid');
     if (action === STEP_ACTIONS.INEFFICIENT_MOVE && evaluateMove(move, supportLevel).efficient) {
       return unverified(action, 'step-move-not-inefficient');
@@ -693,11 +704,18 @@ const verifyEquationStep = ({ work, pristine, question, record, stepNumberBase }
       if (!after) return unverified(action, 'step-state-unreadable');
       // Validity: whatever the student cancelled, simplified or kept as
       // written, each side is the side the operation produced.
-      for (const side of ['left', 'right']) {
-        const produced = sidesEquivalent(after[side], move.unsimplified[side], variable, budget);
-        if (produced === BEYOND) return declinedBeyondBudget(action);
-        if (!produced) return unverified(action, 'step-not-from-operation');
+      let produced = moveProduces(after, move, variable, budget);
+      // Old clients queued compact operands as single names. Verify their
+      // original step and credit when that interpretation matches both sides.
+      if (produced === false && operand !== parseOperationOperand(work.operation.operand).expression) {
+        const legacyMove = recomputeMove(before, work.operation, false);
+        if (legacyMove?.preservesSolution) {
+          produced = moveProduces(after, legacyMove, variable, budget);
+          if (produced === true) move = legacyMove;
+        }
       }
+      if (produced === BEYOND) return declinedBeyondBudget(action);
+      if (!produced) return unverified(action, 'step-not-from-operation');
     }
     return outcome({
       action,

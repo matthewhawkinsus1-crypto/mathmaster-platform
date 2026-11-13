@@ -34,7 +34,9 @@ const LATEX_TO_EXPRESSION = [
   // ∛x is nthRoot(x, 3); the index has to be read before the plain root.
   [/\\sqrt\[([^\]{}]*)\]\{([^{}]*)\}/g, 'nthRoot($2, $1)'],
   [/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)'],
-  [/\\pi/g, 'pi'],
+  // Keep pi separate from a neighbouring factor, including the legacy
+  // board output `\pir` for pi times r.
+  [/\\pi(?:\{\}|(?=[A-Za-z]?(?![A-Za-z])))|π/g, ' pi '],
   [/\\,|\\!|\\;/g, ''],
   // `~` is LaTeX's non-breaking space, and MathJS's own toTex writes every
   // implicit product with one: the operand a student types as 2y comes back
@@ -89,6 +91,17 @@ const NAMES_NEVER_SPLIT = new Set(['pi', 'sqrt', 'cbrt', 'abs', 'exp', 'log', 'l
 // A run of letters standing alone: never part of a command (\pi), a
 // subscripted or digit-carrying name (x_1, x2), or a call (f(x), sqrt(…)).
 const LETTER_RUN = /(?<![A-Za-z_\\])[A-Za-z]+(?![A-Za-z0-9_(])/g;
+
+// Authored formulas such as I = Prt can name the target only inside a
+// compact product. Keep uppercase abbreviations and longer names intact.
+export const expandTargetProduct = (expression, target) => {
+  if (!/^[A-Za-z]$/.test(target)) return expression;
+  const runs = expression.match(LETTER_RUN) || [];
+  if (runs.includes(target)) return expression;
+  return expression.replace(LETTER_RUN, (run) => (
+    /^[A-Z][a-z]{1,2}$/.test(run) && run.includes(target) ? [...run].join('*') : run
+  ));
+};
 
 export const letterRunsAsProducts = (expression, context = []) => {
   const singles = new Set();

@@ -405,10 +405,9 @@ test('a workspace literal that falls back to the answer box is graded as the typ
 test('a balance literal whose workspace cannot be built after all, with no key, keeps the device verdict instead of being held', async () => {
   const { buildIngestedAttempt, normalizeSubmissionEnvelope } = await import('../../functions/shared/submissionIngestion.mjs');
   const { buildSubmissionEnvelope } = await import('../../functions/shared/submissionEnvelope.mjs');
-  // The parser-free mode check reads `I = Prt` / `P` as buildable, but the
-  // workspace cannot be built (an unexpanded run of letters), so the student
-  // saw the typed answer box — which has no key.
-  const question = { questionId: 'lw-unbuilt', type: 'literal', prompt: 'Solve for P.', equation: 'I = Prt', solveFor: 'P', workspace: true, activityRole: 'classwork' };
+  // The parser-free mode check sees a formula and target, but the target is
+  // absent, so the student saw the typed answer box with no key.
+  const question = { questionId: 'lw-unbuilt', type: 'literal', prompt: 'Solve for P.', equation: 'I = A*r*t', solveFor: 'P', workspace: true, activityRole: 'classwork' };
   assert.equal(resolveLiteralWorkspaceMode(question), 'workspace');
   assert.equal(built(question), null);
   const response = legacyResponse(question, 'I/(rt)');
@@ -449,4 +448,12 @@ test('the workspace a literal question opens reports through the literal surface
   // The literal grader on the built question and on the stored question is one verdict.
   const work = equationWork('h', 'A / b');
   assert.deepEqual(literalWorkspaceWorkGrader.grade(workspaceQuestion, work), literalWorkspaceWorkGrader.grade(AREA, work));
+});
+
+test('previously queued simple-interest work can submit the isolated target with a compact Pr denominator', () => {
+  const question = { ...AREA, formula: 'I = Prt', solveFor: 't' };
+  const response = buildToolResponse({ question: built(question), toolId: 'literalWorkspace', work: equationWork('t', 'I/(Pr)') });
+  const graded = gradeServerResponse({ question, response });
+  assert.equal(graded.graded, true);
+  assert.equal(graded.isCorrect, true);
 });

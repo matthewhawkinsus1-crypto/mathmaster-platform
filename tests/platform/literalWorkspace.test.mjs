@@ -4,7 +4,7 @@ import {
   buildLiteralWorkspaceQuestion, expandImplicitProducts, readLiteralEquation,
   readLiteralVariable, usesLiteralWorkspace,
 } from '../../src/literalWorkspace.js';
-import { expressionsEquivalent, latexToExpression, parseOperationOperand } from '../../src/algebraAstEngine.js';
+import { expressionToLatex, expressionsEquivalent, latexToExpression, parseOperationOperand } from '../../src/algebraAstEngine.js';
 import { applyBalancedOperation, isSolvedEquation, parseEquationInput } from '../../src/algebraAstEngine.js';
 
 const AREA = { type: 'literal', prompt: 'Solve for h.', equationLatex: 'A = bh', solveFor: 'h', answer: 'A/b' };
@@ -139,4 +139,41 @@ test('LaTeX the student can produce is understood', () => {
 test('an equals sign in the operand is still refused', () => {
   assert.throws(() => parseOperationOperand('x = 2'), /without an equals sign/);
   assert.throws(() => parseOperationOperand(''), /Enter a number/);
+});
+
+test('dividing the simple-interest formula by Pr cancels P and r on the balance', () => {
+  const literal = buildLiteralWorkspaceQuestion({ type: 'literal', equation: 'I = Prt', solveFor: 't', workspace: true });
+  assert.ok(literal.question, literal.reason);
+  for (const question of [literal.question, { type: 'stepAlgebra', equation: 'I = Prt', solveFor: 't' }]) {
+    const state = parseEquationInput(question);
+    for (const operand of ['Pr', 'P*r']) {
+      const move = applyBalancedOperation({ equationState: state, operation: 'divide', operand });
+      assert.equal(move.solved, true, operand);
+      assert.equal(move.simplified.right, 't');
+      assert.equal(move.cancellationTargets[1].cancellationPairs.length, 2);
+    }
+  }
+});
+
+test('the circumference renders pi and r separately and accepts pi from the keypad', () => {
+  for (const equation of ['C = 2*pi*r', 'C = 2πr', String.raw`C = 2\pi r`, String.raw`C = 2\pi{}r`]) {
+    const state = parseEquationInput({ equation, solveFor: 'r' });
+    assert.match(expressionToLatex(state.right), /\\pi r/);
+    for (const operand of ['2pi', '2π', String.raw`2\pi`]) {
+      const move = applyBalancedOperation({ equationState: state, operation: 'divide', operand });
+      assert.equal(move.solved, true, `${equation} divided by ${operand}`);
+      assert.equal(move.simplified.right, 'r');
+    }
+  }
+});
+
+test('named quantities and identifiers with subscripts keep their names', () => {
+  const { question } = buildLiteralWorkspaceQuestion({ type: 'literal', equation: 'SA = base*h', solveFor: 'h', workspace: true });
+  const state = parseEquationInput(question);
+  assert.equal(state.left, 'SA');
+  assert.equal(state.right, 'base*h');
+  const move = applyBalancedOperation({ equationState: state, operation: 'divide', operand: 'base' });
+  assert.equal(move.solved, true);
+  assert.equal(parseEquationInput({ equation: 'I = Pr_1*t', solveFor: 't' }).right, 'Pr_1*t');
+  assert.equal(parseEquationInput({ leftExpression: 'Tax', rightExpression: 'rate*x', solveFor: 'x' }).left, 'Tax');
 });

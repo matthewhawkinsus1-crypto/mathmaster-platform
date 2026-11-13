@@ -55,6 +55,15 @@ const draftRecord = (pendingMove) => ({
   likeTermsAnswer: '',
 });
 
+test('an older simple-interest draft can still simplify its saved Pr quotient', () => {
+  const initialEquation = parseEquationInput({ equation: 'I = P*r*t', solveFor: 't' });
+  const previous = { ...initialEquation, left: '(I)/(Pr)', right: '(Prt)/(Pr)' };
+  const restored = rehydrateAlgebraDraft({ draft: { ...draftRecord(null), equation: previous }, initialEquation });
+  const next = makePendingMove({ equation: restored.equation, operation: 'multiply', operand: 'Pr' });
+  assert.equal(next.cancellationTargets[0].cancellationPairs.length, 2);
+  assert.equal(next.cancellationTargets[0].cancellationResultExpression, 'I');
+});
+
 test('the fixture is a move that is still pending, and its engine form carries the solution', () => {
   assert.deepEqual(move.requiredCancellationSides, ['left'], 'the +5 / −5 pair still has to be cancelled');
   assert.equal(move.analysisBefore.solution, 7, 'the engine analysis knows x = 7');
