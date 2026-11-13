@@ -415,10 +415,12 @@ test('HELP-11: Pre-Flight warns — never blocks — on answer-only worked solut
   // the Step Algebra version of Solving Radical Equations — Honors (27, every one
   // with steps: its nine single-radical items author the worked solution the
   // analyzer used to write from its spec; 27 of the 137 in the Honors count
-  // above are the same lesson on the analyzer, which still imports as before).
+  // above are the same lesson on the analyzer, which still imports as before);
+  // and the Algebra I DOL #4 Review (13) and its Honors version (16), every
+  // one with steps.
   const practiceLike = itemsByRole().filter((item) => ['warmup', 'classwork', 'practice'].includes(item.role));
-  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 90 + 133 + 27);
-  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 90 + 133 + 27);
+  assert.equal(practiceLike.length, 265 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 26 + 90 + 133 + 27 + 13 + 16);
+  assert.equal(practiceLike.filter((item) => workedSolutionDepth(item.question) === 'steps').length, 204 + 59 + 13 + 16 + 33 + 144 + 146 + 132 + 137 + 9 + 12 + 17 + 16 + 2 + 1 + 11 + 2 + 3 + 2 + 90 + 133 + 27 + 13 + 16);
   // Wired into Pre-Flight as advice the teacher sees in the Check step, and
   // never as a diagnostic: any warning diagnostic makes an assignment "Needs
   // Review", which students never see (isUnpublishedDraft) — and most real

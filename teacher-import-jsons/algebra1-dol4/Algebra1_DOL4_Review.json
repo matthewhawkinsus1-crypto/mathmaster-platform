@@ -1,0 +1,1007 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — DOL #4 Review",
+    "courseId": "algebra1",
+    "folder": "Algebra I/DOL Reviews",
+    "instructionalPurpose": "review",
+    "gradingPurpose": "practice",
+    "instructions": "Review for District DOL #4, which you will take in Eduphoria. Its 13 questions follow the DOL #4 blueprint, one for each question on the test. Every question uses an interactive tool, so show your work inside the tool: read graphs, build models, establish slopes and intercepts with a process, solve equations step by step, sort graphs, fit a line to data and build a sequence. You have 3 tries on each question, and hints are there when you need them. Questions 8 and 9 give you your own equations, and a new one when you ask for it."
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "practice": "personalized"
+    }
+  },
+  "sections": [
+    {
+      "id": "dol4-review-practice",
+      "role": "practice",
+      "title": "DOL #4 Review — Practice",
+      "recommendedMinutes": 100,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "dol4-review-q01",
+          "standard": "A.2A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "readGraph",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "The graph shows a linear function f over part of its inputs. Determine the domain and range of the function shown. Write each one as an inequality.",
+          "function": {
+            "family": "linear",
+            "m": -2,
+            "b": 3,
+            "domain": {
+              "min": -2,
+              "max": 3,
+              "minClosed": true,
+              "maxClosed": false
+            }
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 6,
+            "yMin": -6,
+            "yMax": 10,
+            "accessibleDescription": "A line segment that falls from left to right. Its left end is a closed dot and its right end is an open dot. Both axes are marked every unit."
+          },
+          "correctDomain": "-2 <= x < 3",
+          "correctRange": "-3 < y <= 7",
+          "notation": "inequality",
+          "hints": [
+            "The domain is the set of x-values the graph covers. Read the graph from its left end to its right end.",
+            "The range is the set of y-values the graph covers. Read it from the lowest point of the graph to the highest point.",
+            "A closed dot means that endpoint is included, so use ≤ there. An open dot means it is not included, so use < there."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. An open dot at one end of a graph means that endpoint is…",
+            "options": [
+              "not part of the graph",
+              "part of the graph"
+            ],
+            "correct": "not part of the graph"
+          },
+          "attemptFeedback": [
+            "Check each end of the graph first: a closed dot gets ≤ and an open dot gets <.",
+            "Read the domain from the left end of the graph to the right end, and the range from its lowest point to its highest point. The lowest point is not always on the left."
+          ],
+          "solutionReview": {
+            "commonError": "Using ≤ at the open dot; the right end of the graph is an open dot, so x = 3 and y = −3 are not included: −2 ≤ x < 3 and −3 < y ≤ 7."
+          }
+        },
+        {
+          "questionId": "dol4-review-q02",
+          "standard": "A.2A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable",
+            "classifyContinuity",
+            "constructGraph",
+            "stateDomain",
+            "stateRange"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "An arcade card starts with 20 points. Each game costs 4 points, and a game cannot be started with fewer than 4 points left on the card. Let x be the number of games played and f(x) be the number of points left on the card.",
+          "scenario": "An arcade card starts with 20 points. Each game costs 4 points, and a game cannot be started with fewer than 4 points left on the card. Let x be the number of games played and f(x) be the number of points left on the card.",
+          "quantities": [
+            {
+              "id": "games",
+              "label": "Number of games played"
+            },
+            {
+              "id": "points",
+              "label": "Points left on the card"
+            },
+            {
+              "id": "cost",
+              "label": "Points each game costs"
+            }
+          ],
+          "correctIndependentId": "games",
+          "correctDependentId": "points",
+          "answerModel": {
+            "equation": "f(x)=20-4x",
+            "domain": "{0, 1, 2, 3, 4, 5}",
+            "range": "{0, 4, 8, 12, 16, 20}",
+            "continuity": "discrete"
+          },
+          "tableXValues": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "graph": {
+            "xMin": -1,
+            "xMax": 7,
+            "yMin": -2,
+            "yMax": 24,
+            "xAxisLabel": "Games played",
+            "yAxisLabel": "Points left on the card"
+          },
+          "hints": [
+            "The points left depend on how many games are played, so the number of games is the input.",
+            "Each game takes the same number of points away from the card. How many whole games can the card’s starting points pay for?",
+            "List every number of games that makes sense, including none. Then find the points left for each one."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The number of games played can be…",
+            "options": [
+              "only a whole number of games",
+              "any number, even part of a game"
+            ],
+            "correct": "only a whole number of games"
+          },
+          "misconceptions": [
+            {
+              "field": "continuity",
+              "match": [
+                "continuous"
+              ],
+              "message": "A continuous graph would mean part of a game could be played. Can it?"
+            },
+            {
+              "field": "domainDiscrete",
+              "match": [
+                "{1, 2, 3, 4, 5}"
+              ],
+              "message": "Before any game is played, the card still has its points. Is 0 games in your domain?"
+            },
+            {
+              "field": "rangeDiscrete",
+              "match": [
+                "{4, 8, 12, 16, 20}"
+              ],
+              "message": "After the last game the card has no points left. Is that number in your range?"
+            }
+          ],
+          "attemptFeedback": [
+            "Check that every part fits the situation: only whole games can be played, and a card might have no games played on it yet.",
+            "Check your table against your equation. Your domain and range should list every value that makes sense, including the first one and the last one."
+          ],
+          "solutionReview": {
+            "headline": "The points left go down 4 for each game, starting from 20, and 20 points pay for at most 5 whole games.",
+            "reasoning": [
+              "Input and output: the points left depend on how many games are played, so the input is the number of games played and the output is the points left on the card; the points each game costs stay the same.",
+              "Function: the card starts with 20 points and each game takes away 4, so after x games the card has f(x) = 20 − 4x points.",
+              "Table: f(0) = 20, f(1) = 16, f(2) = 12, f(3) = 8, f(4) = 4 and f(5) = 0.",
+              "Discrete or continuous: only whole games can be played, never part of one, so the relationship is discrete.",
+              "Graph: plot the table’s points (0, 20), (1, 16), (2, 12), (3, 8), (4, 4) and (5, 0) as separate points, without connecting them.",
+              "Domain: the card can pay for no games or for as many as 20 ÷ 4 = 5 games, so the domain is {0, 1, 2, 3, 4, 5}.",
+              "Range: the points left are {0, 4, 8, 12, 16, 20}."
+            ],
+            "commonError": "Leaving 0 out of the domain or the range, or connecting the points; the card starts at 0 games played and ends with 0 points, and only whole games can be played.",
+            "answerSummary": "f(x) = 20 − 4x; the relationship is discrete, with domain {0, 1, 2, 3, 4, 5} and range {0, 4, 8, 12, 16, 20}."
+          }
+        },
+        {
+          "questionId": "dol4-review-q03",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "proveConstantRate"
+          ],
+          "mode": "deriveEquation",
+          "requiredComparisons": 3,
+          "rows": [
+            {
+              "x": -2,
+              "y": 5
+            },
+            {
+              "x": 2,
+              "y": -1
+            },
+            {
+              "x": 6,
+              "y": -7
+            },
+            {
+              "x": 10,
+              "y": -13
+            }
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "The table shows values of a linear function. Use three different pairs of rows to prove that the rate of change is constant. Then write the equation of the line in slope-intercept form, y = mx + b.",
+          "hints": [
+            "For each pair of rows, Δx is the change in x and Δy is the change in y. The rate of change is Δy ÷ Δx.",
+            "The x-values go up by 4, not 1, and the y-values go down. Watch the sign of Δy.",
+            "Substitute your slope and the x- and y-values from one row into y = mx + b, then solve for b."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. When x goes up and y goes down, the rate of change is…",
+            "options": [
+              "negative",
+              "positive"
+            ],
+            "correct": "negative"
+          },
+          "attemptFeedback": [
+            "For each pair of rows, find Δy and Δx, subtracting in the same order on the top and the bottom. The x-values do not go up by 1.",
+            "Your rate of change must be the same for every pair of rows. To find b, substitute the slope and one row’s x and y into y = mx + b."
+          ],
+          "solutionReview": {
+            "commonError": "Using the change in y alone as the slope; the x-values go up by 4, not 1, so the rate of change is Δy ÷ Δx = −6 ÷ 4 = −3/2."
+          }
+        },
+        {
+          "questionId": "dol4-review-q04",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3B",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A pump drains a pool at a constant rate. The graph shows the depth of the water, y feet, x hours after the pump starts. Find the rate of change from the graph and tell what it means. Then write the equation of the line in slope-intercept form.",
+          "xAxisLabel": "Time since the pump started (hours)",
+          "yAxisLabel": "Depth of the water (feet)",
+          "source": {
+            "kind": "graph",
+            "points": [
+              {
+                "x": 0,
+                "y": 6
+              },
+              {
+                "x": 3,
+                "y": 4
+              },
+              {
+                "x": 6,
+                "y": 2
+              },
+              {
+                "x": 9,
+                "y": 0
+              }
+            ]
+          },
+          "graphBounds": {
+            "xMin": -1,
+            "xMax": 11,
+            "yMin": -1,
+            "yMax": 8
+          },
+          "requiredCards": [
+            "slope",
+            "yIntercept",
+            "slopeIntercept"
+          ],
+          "context": {
+            "slopeMeaning": {
+              "value": "The water gets 2/3 of a foot shallower each hour.",
+              "choices": [
+                "The water gets 2/3 of a foot shallower each hour.",
+                "The water gets 3/2 feet shallower each hour.",
+                "The water gets 2 feet shallower each hour.",
+                "The water is 2/3 of a foot deep when the pump starts."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The water is 6 feet deep when the pump starts.",
+              "choices": [
+                "The water is 6 feet deep when the pump starts.",
+                "The water gets 6 feet shallower each hour.",
+                "The pool is empty after 6 hours.",
+                "The water is 6 feet deep after 3 hours."
+              ]
+            }
+          },
+          "hints": [
+            "Pick two points where the line crosses grid intersections. Count the rise (change in y) and the run (change in x) between them.",
+            "The water gets shallower as time goes on, so the rate of change is negative. The line drops less than 1 foot each hour, so the slope is a fraction.",
+            "The y-intercept is the depth when x = 0, the moment the pump starts."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The slope of this line is the change in depth divided by…",
+            "options": [
+              "the change in time",
+              "the depth when the pump starts"
+            ],
+            "correct": "the change in time"
+          },
+          "attemptFeedback": [
+            "Count the rise and the run between two points that sit exactly on grid intersections. Is the line going up or down as time goes on?",
+            "The slope is the rise divided by the run, not the run divided by the rise. The y-intercept is where the line meets the y-axis."
+          ],
+          "solutionReview": {
+            "commonError": "Writing the slope upside down as −3/2; the depth drops 2 feet every 3 hours, so the slope is rise ÷ run = −2/3 and the equation is y = −(2/3)x + 6."
+          }
+        },
+        {
+          "questionId": "dol4-review-q05",
+          "standard": "A.2C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "identifyQuantities",
+            "writeEquation",
+            "completeTable"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A plumber charges a $65 service fee for each visit plus $45 for each hour of work. Identify the input and output quantities, write an equation for the total charge, y, for a visit that takes x hours, and then use your equation to complete the table.",
+          "quantities": [
+            {
+              "id": "hours",
+              "label": "Hours of work",
+              "unit": "hours"
+            },
+            {
+              "id": "charge",
+              "label": "Total charge for the visit",
+              "unit": "dollars"
+            },
+            {
+              "id": "fee",
+              "label": "Service fee for a visit",
+              "unit": "dollars"
+            }
+          ],
+          "correctIndependentId": "hours",
+          "correctDependentId": "charge",
+          "equationPrompt": "Write an equation for the total charge, y, for a visit that takes x hours.",
+          "tablePrompt": "Use your equation to find the total charge, in dollars, for each number of hours.",
+          "answerModel": {
+            "equation": "y=45x+65",
+            "tableXValues": [
+              0,
+              1,
+              2,
+              4
+            ]
+          },
+          "hints": [
+            "The total charge depends on how long the plumber works, so the hours of work are the input.",
+            "One amount is added again for every hour, so it multiplies x. The other is charged once per visit.",
+            "Use your equation: substitute each number of hours for x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which amount is charged once, no matter how long the visit takes?",
+            "options": [
+              "the service fee",
+              "the charge for each hour"
+            ],
+            "correct": "the service fee"
+          },
+          "attemptFeedback": [
+            "Which amount is charged for every hour, and which is charged once per visit? The amount charged for every hour multiplies x.",
+            "Check each table value by substituting that number of hours into your equation."
+          ],
+          "solutionReview": {
+            "headline": "y = 45x + 65",
+            "reasoning": [
+              "The total charge depends on how many hours the plumber works, so the hours of work are the input (x) and the total charge is the output (y).",
+              "Each hour adds 45 dollars, so 45 is the rate of change and it multiplies x.",
+              "The 65-dollar service fee is charged once, even for a visit of 0 hours, so it is the starting amount: y = 45x + 65.",
+              "Table: x = 0 gives 65, x = 1 gives 110, x = 2 gives 155, and x = 4 gives 245 dollars."
+            ],
+            "answerSummary": "Input: hours of work. Output: total charge. y = 45x + 65. Table: 65, 110, 155, 245",
+            "commonError": "Writing y = 65x + 45, which charges the one-time service fee for every hour."
+          }
+        },
+        {
+          "questionId": "dol4-review-q06",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "connectLinearRepresentations"
+          ],
+          "mode": "linearMultipleRepresentations",
+          "interactionMode": "process",
+          "feedbackTiming": "guided",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Graph the linear function 2x − 5y = 10. Find its x-intercept (which gives the zero of the function), its y-intercept and its slope, then graph the line using its intercepts.",
+          "source": {
+            "kind": "standardForm",
+            "equation": "2x-5y=10"
+          },
+          "graphBounds": {
+            "xMin": -2,
+            "xMax": 8,
+            "yMin": -5,
+            "yMax": 3
+          },
+          "requiredCards": [
+            "xIntercept",
+            "yIntercept",
+            "slope",
+            "graphIntercepts"
+          ],
+          "hints": [
+            "Every point on the x-axis has y = 0. Substitute 0 for y and solve to find the x-intercept.",
+            "Every point on the y-axis has x = 0. Substitute 0 for x and solve to find the y-intercept.",
+            "The zero of the function is the x-value of the x-intercept. Use the two intercepts as two points to find the slope."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To find the x-intercept of an equation, you substitute…",
+            "options": [
+              "0 for x",
+              "0 for y"
+            ],
+            "correct": "0 for y"
+          },
+          "attemptFeedback": [
+            "To find an intercept, substitute 0 for the other variable and solve. Watch the sign when you divide by a negative coefficient.",
+            "The slope is the change in y divided by the change in x between your two intercepts. Plot both intercepts, then draw the line through them."
+          ],
+          "solutionReview": {
+            "commonError": "Dividing by 5 instead of −5 for the y-intercept; with x = 0 the equation is −5y = 10, so y = −2, not 2."
+          }
+        },
+        {
+          "questionId": "dol4-review-q07",
+          "standard": "A.3C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "readGraph",
+            "findXIntercepts",
+            "findZeros",
+            "findYIntercept",
+            "analyzeDomain",
+            "analyzeRange"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A hot-air balloon descends at a constant rate until it lands. The graph shows the balloon’s height above the ground, y feet, x minutes after it starts to descend. Find the x-intercept, the zero and the y-intercept of the function. Then determine the reasonable domain and range for this situation. Write each one as an inequality.",
+          "function": {
+            "family": "linear",
+            "m": -100,
+            "b": 1200,
+            "domain": {
+              "min": 0,
+              "max": 12,
+              "minClosed": true,
+              "maxClosed": true
+            }
+          },
+          "graph": {
+            "xMin": -1,
+            "xMax": 14,
+            "yMin": -100,
+            "yMax": 1400,
+            "xAxisLabel": "Time descending",
+            "xAxisUnit": "minutes",
+            "yAxisLabel": "Height above the ground",
+            "yAxisUnit": "feet",
+            "accessibleDescription": "A line segment that falls from left to right. It starts at a closed dot on the vertical axis and ends at a closed dot on the horizontal axis. The horizontal axis is time descending in minutes, marked every minute. The vertical axis is height above the ground in feet, marked every 100 feet."
+          },
+          "xIntercepts": [
+            {
+              "x": 12,
+              "y": 0
+            }
+          ],
+          "yIntercept": [
+            0,
+            1200
+          ],
+          "correctDomain": "0 <= x <= 12",
+          "correctRange": "0 <= y <= 1200",
+          "notation": "inequality",
+          "hints": [
+            "The x-intercept is where the graph meets the x-axis, when the balloon is on the ground. The zero of the function is that point’s x-value.",
+            "The y-intercept is where the graph meets the y-axis, the moment the balloon starts to descend.",
+            "The domain is the times the graph covers, from its left end to its right end. The range is the heights it covers, from lowest to highest."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. At the x-intercept, the balloon’s height is…",
+            "options": [
+              "0 feet, on the ground",
+              "its starting height"
+            ],
+            "correct": "0 feet, on the ground"
+          },
+          "misconceptions": [
+            {
+              "field": "zeros",
+              "match": [
+                "{1200}"
+              ],
+              "message": "That mixes up the zero and the y-intercept. The zero is the x-value that makes y = 0: the time when the balloon lands."
+            }
+          ],
+          "attemptFeedback": [
+            "The x-intercept and the zero come from where the graph meets the x-axis. The y-intercept comes from where it meets the y-axis.",
+            "For the domain, read the times the graph covers from its left end to its right end. For the range, read the heights it covers from lowest to highest."
+          ],
+          "solutionReview": {
+            "commonError": "Mixing up the zero and the y-intercept; the zero is the x-value that makes y = 0 (12 minutes, when the balloon lands), and the y-intercept is the starting height, 1,200 feet."
+          }
+        },
+        {
+          "questionId": "dol4-review-q08",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Solve {{equation}} step by step.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 3,
+            "constraints": {
+              "solutionCase": "one",
+              "distribute": true
+            }
+          },
+          "hints": [
+            "Which side has parentheses? Distribute first: multiply the number in front by every term inside.",
+            "Use the Addition or Subtraction Property of Equality to collect the variable terms on one side and the constants on the other.",
+            "Divide both sides by the coefficient of the variable, then check your value in the original equation."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. When the variable appears on both sides, a move that keeps the equation balanced is to…",
+            "options": [
+              "subtract the same variable term from both sides",
+              "subtract a variable term from one side only"
+            ],
+            "correct": "subtract the same variable term from both sides"
+          },
+          "attemptFeedback": [
+            "Check your distributing first: the number in front of the parentheses multiplies every term inside. Then check the sign and the arithmetic in each step.",
+            "Substitute your value into both sides of the original equation. If the two sides are not equal, look back for the step where a sign or an operation slipped."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute, then combine like terms.",
+              "Use the Addition or Subtraction Property of Equality to move the variable terms to one side and the constants to the other.",
+              "Use the Multiplication or Division Property of Equality to get the variable alone.",
+              "Check: substitute the value into both sides of the original equation; the two sides must be equal."
+            ],
+            "commonError": "Distributing to only the first term in the parentheses, for example writing 3(x − 4) as 3x − 4."
+          }
+        },
+        {
+          "questionId": "dol4-review-q09",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Solve {{equation}} step by step. If no value of the variable makes the equation true, or every value does, say so in the workspace.",
+          "questionFamily": {
+            "id": "linear.multiStepEquation",
+            "version": 3,
+            "constraints": {
+              "solutionCase": "mixed",
+              "distribute": true
+            }
+          },
+          "hints": [
+            "What does each side look like once you distribute and combine like terms?",
+            "If the variable terms are the same on both sides, subtracting one of them removes the variable.",
+            "When the variable is gone, read the statement that is left. If it is false, no value of the variable can make the equation true; if it is true, every value of the variable does."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The variable terms cancel and leave a false statement, such as two different numbers set equal. That means…",
+            "options": [
+              "no value of the variable makes the equation true",
+              "the variable must equal zero"
+            ],
+            "correct": "no value of the variable makes the equation true"
+          },
+          "attemptFeedback": [
+            "When the variable terms cancel, read the statement that is left: if it is false, no value works, and if it is true, every value works.",
+            "Check your distributing and combining like terms on each side before you decide which case it is."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Simplify each side: distribute, then combine like terms.",
+              "Collect the variable terms on one side. If they do not cancel, solve for the variable and check the value in the original equation.",
+              "If the variable terms cancel, read the statement that is left. A false statement, such as 4 = 9, means no solution. A true statement, such as 4 = 4, means every value is a solution."
+            ],
+            "commonError": "Writing 0 as the solution when the variable terms cancel; when the variable disappears, the statement that is left decides whether there is no solution or every value works."
+          }
+        },
+        {
+          "questionId": "dol4-review-q10",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.1A",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Phone Plan A costs $25 a month plus $0.10 for each text message. Phone Plan B costs $15 a month plus $0.15 for each text message. The workspace shows the equation that says the two plans cost the same for t texts. Solve it step by step to find the number of texts for which the plans cost the same.",
+          "equation": "25 + 0.10t = 15 + 0.15t",
+          "solveFor": "t",
+          "relationWorkspace": true,
+          "hints": [
+            "Which side has the larger t-term? Subtract the smaller t-term from both sides so that t is on one side only.",
+            "Then subtract the number that is on the same side as t from both sides.",
+            "Divide both sides by the coefficient of t. Check: both plans should cost the same for that many texts."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To collect the t-terms on one side, you can subtract…",
+            "options": [
+              "0.10t from both sides",
+              "0.10t from the left side only"
+            ],
+            "correct": "0.10t from both sides"
+          },
+          "attemptFeedback": [
+            "Collect the t-terms on one side by subtracting the same t-term from both sides. Then collect the constants on the other side.",
+            "Check the division by a decimal carefully, then substitute your value into both plans’ costs to see whether they match."
+          ],
+          "solutionReview": {
+            "headline": "t = 200",
+            "reasoning": [
+              "Subtract 0.10t from both sides: 25 = 15 + 0.05t.",
+              "Subtract 15 from both sides: 10 = 0.05t.",
+              "Divide both sides by 0.05: t = 200.",
+              "Check: Plan A costs 25 + 0.10(200) = 45 dollars and Plan B costs 15 + 0.15(200) = 45 dollars."
+            ],
+            "answerSummary": "t = 200 texts",
+            "commonError": "Dividing 10 by 0.5 instead of 0.05, which gives 20 texts instead of 200."
+          }
+        },
+        {
+          "questionId": "dol4-review-q11",
+          "standard": "A.3E",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.3E",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "matchFigures"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "Each graph is a transformation of the parent function f(x) = x. Sort each graph to the function, written in terms of f(x), that produces it.",
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10
+          },
+          "figures": [
+            {
+              "id": "right4",
+              "function": {
+                "family": "linear",
+                "m": 1,
+                "b": -4
+              },
+              "category": "inputMinus4"
+            },
+            {
+              "id": "steep3",
+              "function": {
+                "family": "linear",
+                "m": 3,
+                "b": 0
+              },
+              "category": "outputTimes3"
+            },
+            {
+              "id": "flat",
+              "function": {
+                "family": "linear",
+                "m": 0.25,
+                "b": 0
+              },
+              "category": "inputTimesQuarter"
+            },
+            {
+              "id": "up6",
+              "function": {
+                "family": "linear",
+                "m": 1,
+                "b": 6
+              },
+              "category": "outputPlus6"
+            }
+          ],
+          "categories": [
+            {
+              "id": "outputTimes3",
+              "label": "3f(x)"
+            },
+            {
+              "id": "outputPlus6",
+              "label": "f(x) + 6"
+            },
+            {
+              "id": "inputMinus4",
+              "label": "f(x − 4)"
+            },
+            {
+              "id": "inputTimesQuarter",
+              "label": "f((1/4)x)"
+            }
+          ],
+          "hints": [
+            "Read each graph’s slope and where it crosses the axes.",
+            "Multiplying the output by 3 makes the line steeper. Multiplying the input by 1/4 makes it less steep. Both lines still pass through the origin.",
+            "Adding 6 to the output moves every point up 6. Subtracting 4 from the input moves every point right 4."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Compared with f(x) = x, the graph of 3f(x) is…",
+            "options": [
+              "steeper, and still through the origin",
+              "moved up 3 units"
+            ],
+            "correct": "steeper, and still through the origin"
+          },
+          "attemptFeedback": [
+            "Compare each graph’s steepness with the parent line f(x) = x, and check where each graph crosses the axes.",
+            "A change inside the parentheses acts on the input, so it moves or stretches the graph sideways, and subtracting moves it right, not left. A change outside acts on the output, so it moves or stretches the graph up and down."
+          ],
+          "solutionReview": {
+            "headline": "Read each graph’s slope and where it crosses an axis, then match it to the change of f(x) = x that makes it.",
+            "reasoning": [
+              "Figure 1 has slope 1 and crosses the x-axis at 4: it is x − 4, every point of f(x) moved right 4. It goes with f(x − 4).",
+              "Figure 2 passes through the origin with slope 3: it is 3x, every output of f(x) tripled. It goes with 3f(x).",
+              "Figure 3 passes through the origin with slope 1/4: it is (1/4)x, every input of f(x) multiplied by 1/4, which stretches the line away from the y-axis. It goes with f((1/4)x).",
+              "Figure 4 has slope 1 and crosses the y-axis at 6: it is x + 6, every point of f(x) moved up 6. It goes with f(x) + 6."
+            ],
+            "answerSummary": "Figure 1: f(x − 4); Figure 2: 3f(x); Figure 3: f((1/4)x); Figure 4: f(x) + 6.",
+            "commonError": "Moving f(x − 4) left because of the minus sign; subtracting 4 from the input moves the graph right 4, so f(x − 4) is the line through (4, 0)."
+          }
+        },
+        {
+          "questionId": "dol4-review-q12",
+          "standard": "A.4C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.4C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "fitDataModel",
+            "predictFromModel"
+          ],
+          "points": [
+            {
+              "x": 30,
+              "y": 92
+            },
+            {
+              "x": 35,
+              "y": 88
+            },
+            {
+              "x": 40,
+              "y": 79
+            },
+            {
+              "x": 45,
+              "y": 75
+            },
+            {
+              "x": 50,
+              "y": 66
+            },
+            {
+              "x": 55,
+              "y": 62
+            },
+            {
+              "x": 60,
+              "y": 51
+            },
+            {
+              "x": 65,
+              "y": 48
+            },
+            {
+              "x": 70,
+              "y": 40
+            },
+            {
+              "x": 75,
+              "y": 33
+            }
+          ],
+          "predictionX": 52,
+          "predictionTolerance": 2,
+          "xAxisLabel": "Outdoor temperature (°F)",
+          "yAxisLabel": "Cups of hot cocoa sold",
+          "dok": 3,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A school concession stand recorded the outdoor temperature, x degrees Fahrenheit, and the number of cups of hot cocoa it sold, y, on ten game nights. First estimate a line of best fit by moving the slope and the intercept yourself. Then run linear regression to write a linear function that fits the data. Use the regression function to predict how many cups the stand will sell on a night when it is 52°F.",
+          "hints": [
+            "Start your estimate by making the line fall the way the points fall, then slide it until about as many points sit above it as below it.",
+            "Run linear regression on all ten data points. Its line replaces your estimate as your model.",
+            "Substitute 52 for x in the regression function y = mx + b, then round to the nearest whole cup."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To predict the cups sold at 52°F, you substitute 52 for…",
+            "options": [
+              "x, the temperature",
+              "y, the cups sold"
+            ],
+            "correct": "x, the temperature"
+          },
+          "attemptFeedback": [
+            "Run linear regression on all ten points. Your prediction should come from the regression function, not from your estimate.",
+            "Substitute the temperature for x in the regression function, then round to the nearest whole cup."
+          ],
+          "solutionReview": {
+            "commonError": "Predicting from a line through two of the points, or from the hand-fit estimate; the prediction comes from the regression function, which uses all ten points."
+          }
+        },
+        {
+          "questionId": "dol4-review-q13",
+          "standard": "A.12C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.12C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "buildSequenceTable",
+            "plotSequence",
+            "analyzeSequence",
+            "findSequenceTerm"
+          ],
+          "sequence": {
+            "kind": "arithmetic",
+            "first": 23,
+            "difference": -6
+          },
+          "displayCount": 6,
+          "targetN": 9,
+          "notation": "f(n)",
+          "dok": 2,
+          "difficultyBand": 3,
+          "questionWeight": 1,
+          "prompt": "A sequence is given in function form by f(1) = 23 and f(n) = f(n − 1) − 6 for n ≥ 2. Use the recursive rule to find the first six terms, plot them, identify the common difference, and find f(9).",
+          "hints": [
+            "A recursive rule tells you how to get each term from the term just before it.",
+            "Start with f(1). Apply the rule to it to get f(2), then apply the rule again to get f(3).",
+            "Keep applying the rule past the sixth term until you reach f(9). Plot each term as the point (n, f(n)), without connecting the points."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To get f(2) from the rule f(n) = f(n − 1) − 6, you…",
+            "options": [
+              "subtract 6 from f(1)",
+              "subtract 6 from n"
+            ],
+            "correct": "subtract 6 from f(1)"
+          },
+          "attemptFeedback": [
+            "Each term is the term before it minus 6. Start from f(1) and apply the rule one term at a time.",
+            "The common difference is the change from one term to the next. Keep applying the rule past the sixth term until you reach f(9)."
+          ],
+          "solutionReview": {
+            "commonError": "Subtracting 6 from the position n instead of from the term before it; each term is the previous term minus 6, so the terms are 23, 17, 11, 5, −1, −7, and f(9) = −25."
+          }
+        }
+      ]
+    }
+  ]
+}

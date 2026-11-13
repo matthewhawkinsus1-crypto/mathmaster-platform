@@ -727,6 +727,9 @@ const familyHints = [
   ['Which of the two stays the same every time?', '¿Cuál de los dos se mantiene igual cada vez?'],
   ['Plot each term as the point ({1}, aₙ): its position {2} across and its value up.', 'Marca cada término como el punto ({1}, aₙ): su posición {2} en horizontal y su valor en vertical.'],
   ['Leave the points unconnected, because {1} takes only whole-number positions.', 'No unas los puntos, porque {1} solo toma posiciones que son números enteros.'],
+  // The DOL #4 review: a real-world graph's intercepts asked together with its
+  // domain and range.
+  ['This question asks about the x-intercepts, the y-intercept, the domain and the range.', 'Esta pregunta trata de las intersecciones con el eje x, la intersección con el eje y, el dominio y el rango.'],
 ];
 
 // --- The worked example ("Try a similar one", Practise one like this) -------
@@ -822,6 +825,9 @@ const workedExamplePrompts = [
   ['You are given the point-slope equation {1}.', 'Se te da la ecuación en forma punto-pendiente {1}.'],
   ['Describe the x-intercepts and the y-intercept.', 'Describe las intersecciones con el eje x y la intersección con el eje y.'],
   ['Fit a line by hand to the data {1}, {2}, {3}, {4} and predict {5} at {6}.', 'Ajusta a mano una recta a los datos {1}, {2}, {3}, {4} y predice {5} en {6}.'],
+  // The DOL #4 review: intercepts with the domain and range, and a line fit to five points.
+  ['Describe the x-intercepts, the y-intercept, the domain and the range.', 'Describe las intersecciones con el eje x, la intersección con el eje y, el dominio y el rango.'],
+  ['Fit a line by hand to the data {1}, {2}, {3}, {4}, {5} and predict {6} at {7}.', 'Ajusta a mano una recta a los datos {1}, {2}, {3}, {4}, {5} y predice {6} en {7}.'],
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ {3} for {4}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ {3} para {4}.'],
   ['A sequence has a₁ {1} and aₙ {2} aₙ₋₁ for {3}.', 'Una sucesión tiene a₁ {1} y aₙ {2} aₙ₋₁ para {3}.'],
   ['Use the recursive rule to find the first five terms.', 'Usa la regla recursiva para hallar los primeros cinco términos.'],
@@ -938,6 +944,8 @@ const workedExampleAnswers = [
   ['Answer: {1}; {2}; {3} and {4} are inverses', 'Respuesta: {1}; {2}; {3} y {4} son inversas'],
   ['Answer: Constant rate of change: {1}', 'Respuesta: Razón de cambio constante: {1}'],
   ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept {3}', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y {3}'],
+  // The DOL #4 review: a segment that stops short of the y-axis, with its domain and range.
+  ['Answer: x-intercepts {1}, zeros {{2}}; y-intercept never; domain {3}; range {4}', 'Respuesta: intersecciones con el eje x {1}, ceros {{2}}; intersección con el eje y: ninguna; dominio {3}; rango {4}'],
   ['Answer: input tickets sold, output money collected in dollars; {1}; table {2}, {3}, {4}, {5}, {6}; separate points; domain {{7}, {8}, {9}, ..., {10}}; range {{11}, {12}, {13}, ..., {14}}', 'Respuesta: entrada boletos vendidos, salida dinero recaudado en dólares; {1}; tabla {2}, {3}, {4}, {5}, {6}; puntos separados; dominio {{7}, {8}, {9}, ..., {10}}; rango {{11}, {12}, {13}, ..., {14}}'],
   ['Answer: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} at {8}', 'Respuesta: {1} ({2} ≈ {3}, {4} ≈ {5}); {6} ≈ {7} en {8}'],
   ['Answer: {1}, {2}, {3}, {4}, {5}', 'Respuesta: {1}, {2}, {3}, {4}, {5}'],
@@ -1198,12 +1206,19 @@ const workedExampleSteps = [
   ['Solve {1} for {2}: {3}, so {4}: {5} and {6}.', 'Despeja {2} en {1}: {3}, así que {4}: {5} y {6}.'],
   ['Table: {1}; {2}; {3}; {4}; {5}.', 'Tabla: {1}; {2}; {3}; {4}; {5}.'],
   ['Use all {1} points: {2}, {3}, {4}, {5}.', 'Usa los {1} puntos: {2}, {3}, {4}, {5}.'],
+  ['Use all {1} points: {2}, {3}, {4}, {5}, {6}.', 'Usa los {1} puntos: {2}, {3}, {4}, {5}, {6}.'],
   ['Means: {1}̄ {2}, ȳ {3}.', 'Medias: {1}̄ {2}, ȳ {3}.'],
   ['Sxx {1} Σ({2}̄){3}, Sxy {4} Σ({5}̄)({6} ȳ) {7}.', 'Sxx {1} Σ({2}̄){3}, Sxy {4} Σ({5}̄)({6} ȳ) {7}.'],
   ['{1} Sxy {2} Sxx {3}, and {4} ȳ {5}̄ {6}.', '{1} Sxy {2} Sxx {3}, y {4} ȳ {5}̄ {6}.'],
+  ['{1} Sxy {2} Sxx {3} ≈ {4}, and {5} ȳ {6}̄ {7} ≈ {8}.', '{1} Sxy {2} Sxx {3} ≈ {4}, y {5} ȳ {6}̄ {7} ≈ {8}.'],
   ['The regression line is {1}.', 'La recta de regresión es {1}.'],
   ['Set the slope stepper as close to {1} and the intercept stepper as close to {2} as the steps allow; the residuals then scatter around zero.', 'Pon el control de la pendiente lo más cerca de {1} y el de la intersección lo más cerca de {2} que permitan los pasos; así los residuos se dispersan alrededor de cero.'],
   ['At {1}: {2}.', 'En {1}: {2}.'],
+  ['At {1}: {2} ≈ {3}.', 'En {1}: {2} ≈ {3}.'],
+  // The DOL #4 review: b read from a table's row at x = 0, and a graph segment
+  // that stops short of the y-axis.
+  ['The row {1} has {2}, so {3}.', 'La fila {1} tiene {2}, así que {3}.'],
+  ['y-intercept: the graph never reaches {1}.', 'Intersección con el eje y: la gráfica nunca llega a {1}.'],
   ['Start with the first term: {1}.', 'Empieza con el primer término: {1}.'],
   ['Apply the rule to each term to get the next one: {1}, {2}, {3}, {4}.', 'Aplica la regla a cada término para obtener el siguiente: {1}, {2}, {3}, {4}.'],
   ['Each term comes from the one before it the same way, so the terms have a common difference of {1}.', 'Cada término viene del anterior de la misma manera, así que los términos tienen una diferencia común de {1}.'],

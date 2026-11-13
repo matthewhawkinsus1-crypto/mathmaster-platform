@@ -47,8 +47,9 @@ import { recoveryCandidateFamilies } from '../../functions/shared/recoveryConten
 // lessons (added 2026-11-03) generate every Warm-Up and DOL question from an
 // assignment Question Family, so each section is 3/3/3 ready with nothing
 // prepared. The Algebra I Module 3 Topic 1 Assessment make-up and its Honors
-// version (added 2026-11-13) have only a Test section, so neither has either
-// row.
+// version (added 2026-11-13) have only a Test section, and the Algebra I
+// DOL #4 review and its Honors file (added 2026-11-13) only a Practice
+// section, so none of them has either row.
 const PINNED = Object.freeze({
   'docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json': ['2/2/2 ready', '1/1/1 ready'],
   'docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json': ['0/0/2 unavailable', '0/0/2 unavailable'],
@@ -58,6 +59,8 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra1-dol1/District_DOL1_Technology_Graph_Analysis_Review.json': ['0/4/4 ready', '0/0/8 unavailable'],
   'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
   'teacher-import-jsons/algebra1-dol3/Algebra1_DOL3_Review_Honors.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
+  'teacher-import-jsons/algebra1-dol4/Algebra1_DOL4_Review.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
+  'teacher-import-jsons/algebra1-dol4/Algebra1_DOL4_Review_Honors.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
   'teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': ['0/3/3 ready', '0/3/3 ready'],

@@ -271,7 +271,8 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   // Algebra I Module 3 Lesson 1 (and its Honors file) brought real
   // one-variable linear equations into the corpus. The M3 T1 Assessment
   // make-up and its Honors version each brought four more, two lines
-  // rewritten in slope-intercept form and one formula solved for a letter.
+  // rewritten in slope-intercept form and one formula solved for a letter,
+  // and the DOL #4 review and its Honors file one each.
   // Those are claimed (every hand-written one), and anything claimed is
   // linear in the letter it is solved for, read
   // on its own: an equation in that letter alone by the numeric oracle, a
@@ -303,7 +304,12 @@ test('it claims nothing that is not a linear equation: the whole teacher-import 
   const makeUpSolves = ['q2', 'q4', 'q5', 'q7', 'q8', 'q10', 'q11']
     .flatMap((item) => [`m3t1mu-${item}`, `m3t1muh-${item}`]);
   makeUpSolves.forEach((questionId) => assert.ok(claimed.some((question) => question.questionId === questionId), `claimed: ${questionId}`));
-  assert.equal(claimed.length, handWrittenEquations.length + makeUpSolves.length, 'nothing else in the corpus is claimed');
+  // The DOL #4 review and its Honors file solve the phone plans'
+  // 25 + 0.10t = 15 + 0.15t by hand; their questions 8 and 9 are versions the
+  // equation family writes, not hand-written equations.
+  const dol4Solves = claimed.filter((question) => question.questionId === 'dol4-review-q10');
+  assert.equal(dol4Solves.length, 2, 'the phone plans, in the review and in its Honors file');
+  assert.equal(claimed.length, handWrittenEquations.length + makeUpSolves.length + dol4Solves.length, 'nothing else in the corpus is claimed');
   readJson('drafts/district-dol2/assignment.json').sections.flatMap((section) => section.questions)
     .forEach((question) => assert.equal(linearEquations.matches(question), false, `district DOL: ${question.heading}`));
 

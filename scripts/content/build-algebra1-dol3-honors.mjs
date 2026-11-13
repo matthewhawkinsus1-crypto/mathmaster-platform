@@ -125,16 +125,22 @@ const EXTENSION_SUPPORTS = Object.freeze({
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const without = (object, keys) => Object.fromEntries(Object.entries(object).filter(([key]) => !keys.includes(key)));
 
+// \frac{top}{bottom}, where each part is plain text and {{template}} slots.
+const LATEX_FRACTION = /\\frac\{((?:\{\{[^{}]*\}\}|[^{}])*)\}\{((?:\{\{[^{}]*\}\}|[^{}])*)\}/g;
+// One number or slot stands alone; anything longer is kept together in parentheses.
+const fractionPart = (part) => (/^(?:\{\{[^{}]*\}\}|[\w.]+)$/.test(part.trim()) ? part.trim() : `(${part.trim()})`);
+
 /**
  * A bank solution line in plain text. Every $ in a bank solution opens or
  * closes a math span (none is money), so spans are unwrapped in pairs, and
- * the few commands the bank uses become Unicode. Anything else is refused,
- * never guessed at.
+ * the few commands the bank uses become Unicode, and a fraction becomes
+ * top/bottom. Anything else is refused, never guessed at.
  */
 export const plainSolutionText = (text) => {
   let plain = String(text);
   if ((plain.match(/\$/g) || []).length % 2) throw new Error(`An unpaired $ in a bank solution: ${plain}`);
   [['\\le', '≤'], ['\\ge', '≥'], ['\\cdot', '·'], ['\\pm', '±']].forEach(([latex, unicode]) => { plain = plain.split(latex).join(unicode); });
+  plain = plain.replace(LATEX_FRACTION, (whole, top, bottom) => `${fractionPart(top)}/${fractionPart(bottom)}`);
   plain = plain.replace(/\$([^$]*)\$/g, '$1');
   if (/[$\\]/.test(plain)) throw new Error(`A bank solution keeps markup MathMaster will not rewrite: ${plain}`);
   return plain.replace(/\s*(≤|≥)\s*/g, ' $1 ');
