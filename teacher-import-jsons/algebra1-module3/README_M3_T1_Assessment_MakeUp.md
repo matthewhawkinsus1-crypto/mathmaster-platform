@@ -2,6 +2,8 @@
 
 `M3_T1_Assessment_MakeUp.json` is a make-up for the Bluebonnet Learning Algebra I Module 3 Topic 1 Assessment (11 questions). It is one Assignment V5 import with a single **Test** section. Every question is a parallel version of the original question: it tests the same TEKS and the same skill with new numbers and a new context. Each question is answered in a MathMaster tool, not by picking an option or typing one final answer.
 
+`M3_T1_Assessment_MakeUp_Honors.json` is the Honors version for Honors classes. It has the same 11 skills with different numbers, plus three Honors Extension questions. See [Honors version](#honors-version).
+
 ## Question map
 
 | # | TEKS | Original question | Make-up question | Tool: what the student does | Answer |
@@ -45,10 +47,35 @@ Steps never cost a try. The one try is used when the student submits the finishe
 
 ## Teacher setup
 
-1. Import `M3_T1_Assessment_MakeUp.json` with the assignment JSON import. Pre-Flight should show it valid, with 0 errors and 0 warnings and one advisory note (Spanish worked solutions).
+1. Import `M3_T1_Assessment_MakeUp.json` for an Algebra I class, or `M3_T1_Assessment_MakeUp_Honors.json` for an Algebra I Honors class, with the assignment JSON import. Pre-Flight should show it valid, with 0 errors and 0 warnings and one advisory note (Spanish worked solutions). Do not assign the regular file to an Honors class: Review blocks it, because Honors work needs a DOK 3 reasoning question.
 2. Assign it only to the student taking the make-up, and set a due date.
 3. After the student submits, release the results from the assignment's controls.
 4. MathMaster does not send the score to Bluebonnet or Eduphoria. Enter it in the district gradebook yourself.
+
+## Honors version
+
+`M3_T1_Assessment_MakeUp_Honors.json` has 14 questions in one Test section, with the same test rules as the regular file. Questions 1–11 test the same skills as the regular make-up with different numbers, so students cannot pass answers between the two versions. Several have a small Honors twist: a balance that goes down, a coupon, a negative y-coefficient, a fraction slope, and an inequality whose symbol flips and includes its endpoint. Questions 12–14 are the Honors Extension (DOK 3). Each one has typed parts and one reasoning choice, where every option is a claim with a reason and each wrong option is wrong in one specific way. Review shows the file ready for an Honors class, with all four Honors depth areas. A test has no Practice section, so no audited CCMR item is needed.
+
+| # | TEKS | Honors question | What the student does | Answer |
+|---|---|---|---|---|
+| 1 | A.2C | Jalen: $240 saved, spends $18 per week | Picks the input and output, then types the equation | y = −18x + 240 |
+| 2 | A.5A | 7 − 3(2p + 5) = 4 − 2(3p + 5) | Step-by-step workspace | No solution |
+| 3 | A.5B | 5(3 − w) < −2w + 6 | Step-by-step inequality workspace | w > 3 |
+| 4 | A.5A | 1.5(2x − 6) = −0.5x + 8.5 | Step-by-step workspace | x = 5 |
+| 5 | A.5A | (2/3)(9x + 6) = 3(2x − 1) + 7 | Step-by-step workspace | Infinitely many (all real numbers) |
+| 6 | A.2C | Priya: 3 notebooks at $2.40, pens at $1.15, a $2.00 coupon | Quantities, then the equation, then a table from it | y = 1.15x + 5.2; table 5.20, 7.50, 9.80, 14.40 |
+| 7 | A.12E | 4x − 6y = 18 to slope-intercept form | Step-by-step workspace | y = (2/3)x − 3 |
+| 8 | A.12E | P = 2l + 2w, solve for w | Step-by-step workspace on the formula | w = (P − 2l)/2 |
+| 9 | A.5B | −2.5m + 3 ≤ 1.5(m − 6), then graph | Inequality workspace, then the number line | m ≥ 3: closed circle at 3, shaded right |
+| 10 | A.12E | y − 3 = −(1/2)(x + 4) to slope-intercept form | Step-by-step workspace | y = −(1/2)x + 1 |
+| 11 | A.5A | Triangle: base (n + 6), height 8. Rectangle: (n − 2) by 6. Same area | Step-by-step workspace on (1/2)(8)(n + 6) = 6(n − 2) | n = 18 |
+| 12 | A.5A, DOK 3 | 2(3x − 4) + x = ax − 8: reason about the constant a | Types two values and chooses the true explanation | a = 7; x = 0 when a = 3; no value of a gives no solution, because both sides end in −8 |
+| 13 | A.5B, DOK 3 | Find the error in Jordan's solution of −3(x + 2) > 2x + 14 | Chooses the step and what went wrong, then types the correct set | Step 4; dividing by −5 should reverse the symbol; x < −4 |
+| 14 | A.12E, DOK 3 | F = (9/5)C + 32: solve for C, then find where both scales match | Types the formula and the temperature, then chooses the reasoning | C = (5/9)(F − 32); −40; replace F with C |
+
+- Question 14's formula part takes any equivalent form, such as (5/9)(F − 32), 5F/9 − 160/9 or (F − 32)/1.8. The order mistake (5/9)F − 32 is marked wrong.
+- Every question counts ×1, so the Honors make-up is out of 14. To give the extension less weight, use the value control in Assignment Review.
+- The limits above apply here too. The extension's typed parts and choices are stored with the assignment, the same as questions 1 and 6.
 
 ## Why question 8 is d = rt and not a formula with π
 
@@ -56,6 +83,6 @@ The original uses C = 2πr. MathMaster's algebra engine does not read the π sym
 
 ## How it was checked
 
-- `node scripts/check-teacher-import.mjs teacher-import-jsons/algebra1-module3/M3_T1_Assessment_MakeUp.json` reports the file valid, with 0 errors and 0 warnings. Each question compiled to the tool in the table above.
+- `node scripts/check-teacher-import.mjs teacher-import-jsons/algebra1-module3/M3_T1_Assessment_MakeUp.json` reports the file valid, with 0 errors and 0 warnings. Each question compiled to the tool in the table above. For the Honors file it also reports "ready for an Honors class", with all four Honors depth areas.
 - A sample correct solution for every question was run step by step through the workspaces' own step checks, and each final answer was graded by the server grader. Common wrong answers were graded too: w ≥ −3, a closed circle at −2, x = 5 for the identity, y = 35x + 12, y = 0.9x + 1.75, and others. Each one was marked wrong.
 - Every answer, table value and number in the worked solutions was rechecked with exact arithmetic.
