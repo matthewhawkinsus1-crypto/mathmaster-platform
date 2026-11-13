@@ -46,7 +46,8 @@ import { recoveryCandidateFamilies } from '../../functions/shared/recoveryConten
 // Module 3 Topic 2 Lesson 4 and 5 files and the Algebra II Honors radicals
 // lessons (added 2026-11-03) generate every Warm-Up and DOL question from an
 // assignment Question Family, so each section is 3/3/3 ready with nothing
-// prepared.
+// prepared. The Algebra I Module 3 Topic 1 Assessment make-up (added
+// 2026-11-13) has only a Test section, so it has neither row.
 const PINNED = Object.freeze({
   'docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json': ['2/2/2 ready', '1/1/1 ready'],
   'docs/assignments/Algebra_II_Honors_3x3_Systems_Day1_V5_FINAL.json': ['0/0/2 unavailable', '0/0/2 unavailable'],
@@ -59,6 +60,7 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra1-module2-topic2/L2_Vertical_and_Horizontal_Transformations_of_Linear_Functions.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines.json': ['0/3/3 ready', '0/3/3 ready'],
   'teacher-import-jsons/algebra1-module2-topic2/L3_Slopes_of_Perpendicular_Lines_and_Horizontal_Vertical_Lines_Honors.json': ['0/3/3 ready', '0/3/3 ready'],
+  'teacher-import-jsons/algebra1-module3/M3_T1_Assessment_MakeUp.json': ['0/0/0 notPresent', '0/0/0 notPresent'],
   'teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations_Honors.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T1_L3_Modeling_and_Solving_Linear_Inequalities.json': ['3/3/3 ready', '2/2/2 ready'],
