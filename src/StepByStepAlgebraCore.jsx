@@ -32,7 +32,7 @@ import {
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
 import { boardTerms, committedCancellationModel, equationIsSolved, simplifyPartsFor, strategicHintReadings } from './platform/algebra/committedEquationFacts.js';
-import { clientParserSteps, takeStepsWhenIdle } from './platform/math/idleMathSteps.js';
+import { clientParserSteps, takeStepsWhenIdle, wholeIdlePeriod } from './platform/math/idleMathSteps.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -823,7 +823,7 @@ export default function StepByStepAlgebra({
   // wait for them. A new equation starts again; leaving the question stops.
   useEffect(() => takeStepsWhenIdle([
     ...clientParserSteps(),
-    () => simplifyPartsFor(simplifyRegions),
+    wholeIdlePeriod(() => simplifyPartsFor(simplifyRegions)),
   ]), [simplifyRegions]);
   // After the commit that leaves nothing to simplify, Simplify closes so the
   // confirmation is not pushed under the action bar, and focus goes back to

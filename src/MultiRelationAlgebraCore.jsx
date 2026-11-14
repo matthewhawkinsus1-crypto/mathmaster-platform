@@ -60,7 +60,7 @@ import { radicalDomainText, radicalHoldsAt } from '../functions/shared/toolMath/
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
 import { simplifyPartsFor } from './platform/algebra/committedEquationFacts.js';
-import { clientParserSteps, takeStepsWhenIdle } from './platform/math/idleMathSteps.js';
+import { clientParserSteps, takeStepsWhenIdle, wholeIdlePeriod } from './platform/math/idleMathSteps.js';
 import { chooseSimplifyPart, openSimplify, simplifyHasDecisions, undoSimplify } from './platform/algebra/simplify/simplifyState.js';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
@@ -1882,7 +1882,7 @@ export default function MultiRelationAlgebra({
   // wait for them. A new branch or relation starts again; leaving stops.
   useEffect(() => takeStepsWhenIdle([
     ...clientParserSteps(),
-    () => simplifyPartsFor(simplifyRegions),
+    wholeIdlePeriod(() => simplifyPartsFor(simplifyRegions)),
   ]), [simplifyRegions]);
   // Its choices belong to the expressions they were made on: a commit, an
   // Undo or another branch keeps Simplify open with nothing chosen.

@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { all, create } from 'mathjs';
-import { IDLE_STEP_MS, IDLE_WORK_MS, buildOrder, clientParserSteps, takeStepsWhenIdle } from '../../src/platform/math/idleMathSteps.js';
+import { IDLE_STEP_MS, IDLE_WHOLE_PERIOD_MS, IDLE_WORK_MS, buildOrder, clientParserSteps, takeStepsWhenIdle, wholeIdlePeriod } from '../../src/platform/math/idleMathSteps.js';
 import { math } from '../../src/platform/math/mathjs.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -146,6 +146,24 @@ test('a step is taken only in idle time with time left and no input waiting, a l
   assert.equal(page.listeners.size, 0, 'and it no longer listens for the student');
 });
 
+test('a step that needs a whole idle period begins one, with most of it left', () => {
+  const page = fakePage();
+  const taken = [];
+  const [first, second, third] = recordedSteps(3, taken, { cost: () => page.spend(2) });
+  takeStepsWhenIdle([first, wholeIdlePeriod(second), third], page);
+  page.idle();
+  assert.deepEqual(taken, [0], 'not after another step in the same idle period');
+  page.remaining = IDLE_WHOLE_PERIOD_MS - 1;
+  page.idle();
+  assert.deepEqual(taken, [0], `not with less than ${IDLE_WHOLE_PERIOD_MS} ms of the period left`);
+  page.remaining = 50;
+  page.idle();
+  assert.deepEqual(taken, [0, 1], 'alone at the start of a whole one');
+  page.remaining = 50;
+  page.idle();
+  assert.deepEqual(taken, [0, 1, 2]);
+});
+
 test('a long step is the only step of its idle period', () => {
   const page = fakePage();
   const taken = [];
@@ -217,7 +235,7 @@ for (const file of ['src/StepByStepAlgebraCore.jsx', 'src/MultiRelationAlgebraCo
     assert.match(parts, /simplifyPartsFor\(simplifyRegions\)/);
     // After the render, in an effect whose cleanup stops the steps.
     const steps = region(core, 'useEffect(() => takeStepsWhenIdle([', '), [simplifyRegions]);', 'the idle steps');
-    assert.match(steps, /\.\.\.clientParserSteps\(\),\s*\(\) => simplifyPartsFor\(simplifyRegions\),\s*\]$/);
+    assert.match(steps, /\.\.\.clientParserSteps\(\),\s*wholeIdlePeriod\(\(\) => simplifyPartsFor\(simplifyRegions\)\),\s*\]$/);
   });
 }
 

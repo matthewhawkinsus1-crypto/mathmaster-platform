@@ -56,11 +56,19 @@ export const clientParserSteps = () => {
 };
 
 // A step is begun only with this much of the idle period left, and none
-// after this much work in one idle period: the longest step (about 25 ms at
-// 4x) then still ends well inside 50 ms, so no idle period is a long task.
+// after this much work in one idle period: the longest of the parser's steps
+// (about 25 ms at 4x) then still ends well inside 50 ms, so no idle period is
+// a long task.
 export const IDLE_STEP_MS = 8;
 export const IDLE_WORK_MS = 5;
+// A step that needs a whole idle period (a board's Simplify parts, 20 to 45
+// ms at 4x) is the only step of one, begun with at least this much of it
+// left, the most a browser hands over at once being 50 ms.
+export const IDLE_WHOLE_PERIOD_MS = 40;
 const STUDENT_ACTIONS = ['pointerdown', 'keydown', 'touchstart'];
+
+/** `step`, to be the only step of an idle period with IDLE_WHOLE_PERIOD_MS or more left. */
+export const wholeIdlePeriod = (step) => Object.assign(() => step(), { wholeIdlePeriod: true });
 
 /**
  * Take `steps` one at a time in the page's idle time, until they are done, the
@@ -84,15 +92,17 @@ export const takeStepsWhenIdle = (steps, scope = globalThis) => {
   };
   const inputWaiting = () => scope.navigator?.scheduling?.isInputPending?.() === true;
   const now = () => scope.performance?.now?.() ?? Date.now();
-  const room = (deadline, began, taken) => (idle
-    ? deadline.timeRemaining() >= IDLE_STEP_MS && now() - began < IDLE_WORK_MS
-    : taken === 0);
+  const room = (deadline, began, taken, step) => {
+    if (!idle) return taken === 0;
+    if (step.wholeIdlePeriod) return taken === 0 && deadline.timeRemaining() >= IDLE_WHOLE_PERIOD_MS;
+    return deadline.timeRemaining() >= IDLE_STEP_MS && now() - began < IDLE_WORK_MS;
+  };
   const take = (deadline) => {
     pending = null;
     if (stopped) return;
     const began = now();
     let taken = 0;
-    while (next < queue.length && !inputWaiting() && room(deadline, began, taken)) {
+    while (next < queue.length && !inputWaiting() && room(deadline, began, taken, queue[next])) {
       const step = queue[next];
       next += 1;
       taken += 1;
@@ -101,6 +111,8 @@ export const takeStepsWhenIdle = (steps, scope = globalThis) => {
       } catch {
         // Its first real use meets the same error, as it always did.
       }
+      // It had the idle period to itself.
+      if (step.wholeIdlePeriod) break;
     }
     if (next >= queue.length) stop();
     else pending = idle ? scope.requestIdleCallback(take) : scope.setTimeout(take, 50);
