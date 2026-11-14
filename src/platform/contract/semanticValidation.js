@@ -14,6 +14,7 @@ import {
 import { inequalitySolutionRepresentationStages } from '../../../functions/shared/toolMath/algebra-relations/inequalityRepresentationPolicy.mjs';
 import { relationSourceFromQuestion, usesRelationWorkspace } from '../../../functions/shared/serverGrading/stepAlgebraRouting.mjs';
 import { radicalAuthoringProblem } from './radicalEquationIntent.js';
+import { relationGivenProductProblem } from './relationGivenProducts.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -512,6 +513,17 @@ const validateBuiltQuestionSemantics = (question = {}, { label = 'Question' } = 
     if (problem) {
       errors.push(`${label} (stepAlgebra) has a radical equation the Step Algebra radical workspace cannot verify: ${problem}. It checks one square, cube, 4th or 5th root with a linear radicand (a cube, 4th or 5th root must equal a constant once isolated). Author it as a different question type instead.`);
     }
+  }
+  // An equation that writes the item's variable straight before a bracket,
+  // x(x - 5), would be read by the relation workspace as a function named x,
+  // and no work on it could be checked. Importing writes the multiplication
+  // (relationGivenProducts.js). An item that reaches Pre-Flight without that
+  // compile — a Question Editor replacement, a repair pack, an assignment
+  // stored before imports wrote it — is warned about, never refused: many
+  // assignments are old, and a save or a reuse of one is not blocked by this.
+  const implicitProduct = relationGivenProductProblem(question);
+  if (implicitProduct) {
+    warnings.push(`${label} (${type}) writes ${implicitProduct.variable} straight before a bracket in its equation, "${implicitProduct.before}". The Step Algebra workspace would read that as a function named ${implicitProduct.variable}, so no student work on it could be checked. Write the multiplication: "${implicitProduct.after}".`);
   }
   // Once a question has a workflow, the workflow is the renderer contract.
   // Applying legacy type-required fields on top of it recreates the exact V5

@@ -128,9 +128,13 @@ an extra branch `x = 5.00000000001` do not read as the list of candidates.
 *Factor* and *Zero-product property* are not tied to radicals. A lesson turns
 them on with `"algebraTools": ["factor", "zeroProduct"]` on a `stepAlgebra` item.
 No absolute-value or inequality lesson gains a button it did not have.
-Authoring caveat: the shared parser reads `x(x - 5)` as a function call. The
-tools insert the multiplication for what a student types; an authored *given*
-equation should be written `x*(x - 5)` or `(x)(x - 5)`.
+The shared parser reads `x(x - 5)` as a call of a function named x. The tools
+insert the multiplication for what a student types, and an import does the same
+for an authored *given*: `x(x - 5) = 0` is stored as `x*(x - 5) = 0`, and the
+import lists the repair (`src/platform/contract/relationGivenProducts.js`, one
+rule for both). Where the unwritten form reaches Pre-Flight without an import (a
+Question Editor replacement, an assignment stored before this change), Pre-Flight
+warns with the line to write; it never blocks a save or a reuse.
 
 ## The lesson
 

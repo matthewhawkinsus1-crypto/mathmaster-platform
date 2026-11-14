@@ -13,6 +13,7 @@ import {
 import { allocateAssignmentQuestionValues } from '../functions/shared/questionValue.mjs';
 import { getEquationAnalysis, parseEquationInput } from '../functions/shared/algebra/algebraAstEngine.mjs';
 import { usesRelationWorkspace } from '../functions/shared/serverGrading/stepAlgebraRouting.mjs';
+import { explicitRelationGivenProducts } from './platform/contract/relationGivenProducts.js';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
   "schemaVersion": 5,
@@ -557,6 +558,15 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
   if (specialCase) {
     next.relationWorkspace = true;
     repairs.push(`opened ${label} in the relation workspace, where a student can conclude "${specialCase === 'noSolution' ? 'No solution' : 'All real numbers'}"; on the balance workspace its equation could never be finished. Give the one-solution equations beside it "relationWorkspace": true as well, so the workspace does not tell students which equations are the special cases`);
+  }
+  // An authored x(x - 5) is a product, but the relation workspace's parser
+  // reads a function named x, and no work on the equation could be checked
+  // (platform/contract/relationGivenProducts.js). Written with its
+  // multiplication sign, once the item's workspace is decided.
+  const products = explicitRelationGivenProducts(next);
+  if (products.changes.length) {
+    next = products.question;
+    repairs.push(`wrote the multiplication in ${label}'s equation (${products.changes.map((change) => `${change.before} → ${change.after}`).join('; ')}): on the Step Algebra workspace ${products.variable} straight before a bracket would be read as a function named ${products.variable}, so no student work on it could be checked`);
   }
   if (!next.equationsLatex && Array.isArray(next.equations) && type === 'system') {
     next.equationsLatex = next.equations;

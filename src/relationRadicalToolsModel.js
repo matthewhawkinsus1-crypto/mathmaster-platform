@@ -27,6 +27,7 @@ import {
 } from './algebraRelationFoundation.js';
 import { radicalGradingContext, readExactValue } from '../functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs';
 import { rationalToNumber, rationalToText } from '../functions/shared/toolMath/algebra-relations/radicalEquationShape.mjs';
+import { withExplicitProducts } from './platform/contract/relationGivenProducts.js';
 
 /** The radical shape and its exact solution for the relation the workspace opened, or null. */
 export const radicalContextOf = (pristine) => radicalGradingContext(pristine);
@@ -46,15 +47,11 @@ export const powerChoiceLabel = (power) => POWER_NAMES[power] || `Power ${power}
  * bracket is a PRODUCT on the board. The parser reads it as a call of a function
  * named x, which no relation holds (the grader notes the same hazard for its
  * own keys), so a correct factored form would be refused. Only the relation's
- * own variable is read as a factor, and only here, in these tools: the shared
+ * own variable is read as a factor, here in these tools and in an authored
+ * given (platform/contract/relationGivenProducts.js, the one rule): the shared
  * normalizer is left alone so function notation elsewhere is not disturbed.
  */
-export const withExplicitProducts = (raw, variable = 'x') => {
-  const letter = /^[A-Za-z]$/.test(String(variable)) ? String(variable) : 'x';
-  // The letter, not part of a longer name (a digit before it is a coefficient: 2x(x - 3)),
-  // then a bracket — MathLive writes it x\left( — read as a factor.
-  return String(raw ?? '').replace(new RegExp(`(?<![A-Za-z_\\\\])${letter}\\s*(?:\\\\left)?\\s*\\(`, 'g'), `${letter}*(`);
-};
+export { withExplicitProducts };
 
 const readExpression = (raw, variable = 'x') => {
   try {
