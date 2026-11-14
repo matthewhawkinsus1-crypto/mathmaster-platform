@@ -12,10 +12,13 @@
  *
  * This sweep reads every Step Algebra equation in the bank (the lessons, the
  * Path seeds, the demo bank and the platform's equation families), every
- * other equation the bank writes, and a set of edge cases (fractions,
- * radicals, inequalities, systems, no solution, identities, formulas,
- * finished forms, text that does not parse), and the equation after each
- * one's first suggested move. Each is read both ways: the engine's own
+ * other equation the bank writes, a set of edge cases (fractions, radicals,
+ * inequalities, systems, no solution, identities, formulas, finished forms,
+ * text that does not parse), the single-radical equations of #548's tests and
+ * scenarios (the radical lesson's items and the versions its families deal
+ * are in the bank), and the equation after each one's first suggested move;
+ * and, for every one of them that opens the relation workspace, the regions
+ * of each branch Simplify reads there. Each is read both ways: the engine's own
  * answers, as the board read them before, and the cache's, as a new object
  * each time (worked out, then kept), in one order and then back over the last
  * of them, past the cache's bound. Nothing may differ, a failure included.
@@ -46,6 +49,8 @@ import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
 import { makePendingMove } from '../../src/algebraDraftState.js';
 import { resolveEquationAfterMove } from '../../src/algebraSupportLevels.js';
 import { resolveFamilyPreviewInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { parseRelationSource, relationSourceFromQuestion } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
+import { withPromptRelationSource } from '../../functions/shared/runtime/stepAlgebraRelationRouting.mjs';
 import { parse as clientParse } from '../../src/platform/math/mathjs.js';
 import { splittableFraction } from '../../src/algebraFractionSplitModel.js';
 import { fractionTermParts } from '../../src/algebraFractionReductionModel.js';
@@ -149,6 +154,20 @@ const EDGE_CASES = [
   { equation: '3x + = 5' }, { equation: '' }, { equation: '=' }, { equation: 'x == 2' }, {}, { equation: 'x = (' },
 ];
 
+// Single-radical equations, which the relation workspace solves (#548): its
+// node tests' and browser scenarios' own examples, in scope and out of it.
+// The lesson's items and the versions its families deal come from the bank.
+const RADICAL_CASES = [
+  'sqrt(x + 4) + 2 = x', 'sqrt(5x - 1) = 2x - 1', 'sqrt(1.5h) = 6', 'sqrt(3x + 1) + 1 = x', 'sqrt(2x + 2) = 3x - 1',
+  'nthRoot(2x - 1, 3) = 3', 'sqrt(4x - 4) = x', 'sqrt(5x - 6) = x', 'sqrt(-7x + 23) = x - 5', 'sqrt(x + 1) = -3',
+  'nthRoot(x + 4, 3) - 2 = 3', '2 nthRoot(3x - 5, 4) + 7 = 13', '2 nthRoot(x + 3, 5) + 1 = 7', '3 nthRoot(2x+5,5)-1=8',
+  'nthRoot(3x+1,4)=2', 'nthRoot(x, 6) = 2', 'nthRoot(x,1)=2', 'sqrt(-x + 3) - 4 = x - 1', 'sqrt(1.23456789x) = 3',
+  'sqrt(2x + 1) = x + 3', 'sqrt(4x) = 3', 'sqrt(4x ) + 3 = x + 3 ', 'sqrt(7)=x', 'sqrt(sqrt(x)+1)=2', 'sqrt(x + 1) + sqrt(x) = 3',
+  'sqrt(x + 3) = x', 'sqrt(x)=x^2', 'sqrt(x+4)=3', 'sqrt(x+4)=x-2', 'sqrt(x^2 + 1) = 3', '|sqrt(x)| = 3', '2*sqrt(x+1)=-3',
+  '0*sqrt(x - 10) + sqrt(x + 4) = x - 2', '2sqrt(x+4)-2sqrt(x+4)=0', 'sqrt(x) - sqrt(x) + sqrt(x + 9) = x - 3', 'sqrt(x+1)=2=2',
+].map((equation) => ({ equation, solveFor: equation.includes('h') ? 'h' : 'x', relationWorkspace: true }));
+const RADICAL_SCENARIOS = JSON.parse(readFileSync(path.join(ROOT, 'tests/browser/fixtures/radicalStepAlgebraScenarios.json'), 'utf8'));
+
 const readEquation = (question) => {
   try {
     const equation = parseEquationInput(question);
@@ -179,7 +198,7 @@ const unique = (equations) => {
   return [...seen.values()];
 };
 
-const questions = [...bankQuestions(), ...familyQuestions(), ...EDGE_CASES];
+const questions = [...bankQuestions(), ...familyQuestions(), ...EDGE_CASES, ...RADICAL_CASES, ...RADICAL_SCENARIOS];
 const firstEquations = questions.map(readEquation).filter(Boolean);
 const EQUATIONS = unique([...firstEquations, ...firstEquations.map(afterSuggestedMove).filter(Boolean)]);
 
@@ -225,11 +244,55 @@ const keptReadings = (equation) => ({
   parts: outcome(() => simplifyPartsFor(regionsOf(equation))),
 });
 
-test(`the sweep reads enough of the bank to mean something (${EQUATIONS.length} equations)`, () => {
+// The relation workspace's regions for each branch of every relation a
+// question opens there (radicals, absolute values, inequalities), as
+// MultiRelationAlgebraCore builds them for Simplify.
+const relationOf = (question) => {
+  try {
+    const source = relationSourceFromQuestion(withPromptRelationSource(question));
+    return source ? parseRelationSource(source, question.solveFor || question.variable || question.objective?.variable || 'x') : null;
+  } catch {
+    return null;
+  }
+};
+const branchRegions = (relation) => (relation?.branches || []).map((branch) => (branch.expressions || []).map((expression, index, all) => ({
+  key: String(index),
+  label: all.length === 3 ? ['left region', 'middle region', 'right region'][index] : (['left side', 'right side'][index] || `expression ${index + 1}`),
+  expression,
+  variable: relation.variable || 'x',
+})));
+const RELATION_BOARDS = (() => {
+  const seen = new Map();
+  for (const question of questions) {
+    for (const regions of branchRegions(relationOf(question))) seen.set(JSON.stringify(regions), regions);
+  }
+  return [...seen.values()];
+})();
+const isRadical = (regions) => regions.some((region) => /sqrt|nthRoot/.test(region.expression));
+
+test(`the sweep reads enough of the bank to mean something (${EQUATIONS.length} equations, ${EQUATIONS.filter((equation) => /sqrt|nthRoot/.test(`${equation.left} ${equation.right}`)).length} with a radical)`, () => {
   assert.ok(questions.length >= 300, `${questions.length} questions`);
   assert.ok(EQUATIONS.length > EQUATION_READINGS_KEPT * 2, 'more equations than the cache keeps, so it is read past its bound');
   assert.ok(EQUATIONS.some((equation) => isSolvedEquation(equation)), 'finished equations are in it');
   assert.ok(EQUATIONS.some((equation) => buildCancellationModel(equation.left, null, equation.variable, [])?.pairs?.length), 'and boards that offer a cancellation');
+  const radicals = EQUATIONS.filter((equation) => /sqrt|nthRoot/.test(`${equation.left} ${equation.right}`));
+  assert.ok(radicals.length >= 60, `${radicals.length} radical equations on the equation board`);
+  assert.ok(RELATION_BOARDS.filter(isRadical).length >= 60, `${RELATION_BOARDS.filter(isRadical).length} radical relation boards`);
+});
+
+test(`Simplify's parts on the relation workspace, kept, are the engine's (${RELATION_BOARDS.length} boards, ${RELATION_BOARDS.filter(isRadical).length} with a radical)`, () => {
+  const differences = [];
+  for (const order of [RELATION_BOARDS, RELATION_BOARDS.slice(-EQUATION_READINGS_KEPT * 2).reverse()]) {
+    for (const regions of order) {
+      const before = JSON.stringify(outcome(() => detectSimplifyParts(regions)));
+      for (let read = 0; read < 2; read += 1) {
+        const now = JSON.stringify(outcome(() => simplifyPartsFor(JSON.parse(JSON.stringify(regions)))));
+        if (now !== before) differences.push(`${regions.map((region) => region.expression).join(' | ')}: ${now} (was ${before})`);
+      }
+    }
+  }
+  assert.ok(RELATION_BOARDS.length > EQUATION_READINGS_KEPT * 2, `${RELATION_BOARDS.length} relation boards, past the cache's bound`);
+  assert.deepEqual(differences.slice(0, 5), [], `${differences.length} boards differ`);
 });
 
 test('every reading the board takes from the cache is the engine\'s, worked out or kept', () => {

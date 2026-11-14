@@ -235,3 +235,16 @@ test('the board is set up once when its question opens', () => {
   const pristine = region(core, 'const pristineEquation = useMemo(', '[question],', 'the authored equation');
   assert.match(pristine, /recordHoldsEquation\(normalizedRecord\) \? getInitialEquation\(question, null\)\.equation : initialEquation/);
 });
+
+test('the relation workspace (radicals, absolute values, inequalities) is set up once when its question opens', () => {
+  const core = executableSource(readFileSync(new URL('../../src/MultiRelationAlgebraCore.jsx', import.meta.url), 'utf8'));
+  // Every piece of the first state comes from the question and the saved draft
+  // in its initializer, so the set-up effect does not read them again on mount.
+  assert.match(core, /useState\(\(\) => initialStateFor\(question, draftKey\)\)/);
+  for (const reader of ['initialPendingRelationFlipFor', 'initialCandidateChecksFor', 'initialSolutionSetFor']) {
+    assert.match(core, new RegExp(`useState\\(\\(\\) => ${reader}\\(draftKey\\)\\)`), reader);
+  }
+  assert.match(core, /const problemSetUpRef = useRef\(problemKey\);/);
+  const setUp = region(core, 'useEffect(() => {\n    if (problemSetUpRef.current === problemKey) return;', '}, [question, draftKey]);', 'the problem set-up');
+  assert.match(setUp, /problemSetUpRef\.current = problemKey;\s*setRelationState\(initialStateFor\(question, draftKey\)\);/, 'a new problem is still set up');
+});

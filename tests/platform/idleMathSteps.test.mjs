@@ -205,14 +205,23 @@ test('without an idle callback, one step a timer', () => {
   assert.equal(page.timers.length, 0);
 });
 
-test('Step Algebra reads Simplify\'s parts only while Simplify is open, and builds the parser in idle steps', () => {
-  const core = executableSource(readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8'));
-  const parts = region(core, 'const simplifyOpen = Boolean(simplifyTool);', '}, [simplifyRegions, simplifyOpen]);', 'Simplify\'s parts');
-  assert.match(parts, /if \(!simplifyOpen\) return NO_SIMPLIFY_PARTS;/);
-  assert.match(parts, /simplifyPartsFor\(simplifyRegions\)/);
-  // After the render, in an effect whose cleanup stops the steps.
-  const steps = region(core, 'useEffect(() => takeStepsWhenIdle([', '), [simplifyRegions]);', 'the idle steps');
-  assert.match(steps, /\.\.\.clientParserSteps\(\),\s*\(\) => simplifyPartsFor\(simplifyRegions\),\s*\]$/);
+// Both Step Algebra workspaces: the equation board, and the relation workspace
+// that radical, absolute-value and inequality questions open.
+for (const file of ['src/StepByStepAlgebraCore.jsx', 'src/MultiRelationAlgebraCore.jsx']) {
+  test(`${file} reads Simplify's parts only while Simplify is open, and builds the parser in idle steps`, () => {
+    const core = executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
+    assert.match(core, /const simplifyOpen = Boolean\(simplifyTool\);/);
+    assert.doesNotMatch(core, /\bdetectSimplifyParts\(/, 'parts worked out without the kept reading');
+    const parts = region(core, 'const simplifyParts = useMemo(() => {', '}, [simplifyRegions, simplifyOpen]);', 'Simplify\'s parts');
+    assert.match(parts, /if \(!simplifyOpen\) return NO_SIMPLIFY_PARTS;/);
+    assert.match(parts, /simplifyPartsFor\(simplifyRegions\)/);
+    // After the render, in an effect whose cleanup stops the steps.
+    const steps = region(core, 'useEffect(() => takeStepsWhenIdle([', '), [simplifyRegions]);', 'the idle steps');
+    assert.match(steps, /\.\.\.clientParserSteps\(\),\s*\(\) => simplifyPartsFor\(simplifyRegions\),\s*\]$/);
+  });
+}
+
+test('the fraction tools read a term with no slash as no fraction, without parsing it', () => {
   // The fraction tools read a term without a slash as no fraction, unparsed.
   for (const file of ['src/algebraFractionSplitModel.js', 'src/algebraFractionReductionModel.js']) {
     const source = executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));

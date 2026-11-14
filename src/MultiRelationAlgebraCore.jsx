@@ -58,7 +58,9 @@ import {
 } from './relationRadicalToolsModel.js';
 import { radicalDomainText, radicalHoldsAt } from '../functions/shared/toolMath/algebra-relations/radicalEquationShape.mjs';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
-import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
+import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
+import { simplifyPartsFor } from './platform/algebra/committedEquationFacts.js';
+import { clientParserSteps, takeStepsWhenIdle } from './platform/math/idleMathSteps.js';
 import { chooseSimplifyPart, openSimplify, simplifyHasDecisions, undoSimplify } from './platform/algebra/simplify/simplifyState.js';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
@@ -113,6 +115,9 @@ const ALGEBRA_TOOL_BUTTON_STYLE = {
 
 const branchLabel = (index) => String.fromCharCode(65 + index);
 const expressionKey = (branchIndex, expressionIndex) => `${branchIndex}:${expressionIndex}`;
+// Simplify's parts while Simplify is closed: none are shown.
+const NO_SIMPLIFY_PARTS = Object.freeze([]);
+
 const draftKeyFor = (draftKey) => (draftKey ? `${draftKey}:multi-relation` : null);
 
 const pendingFlipResultsFor = (pending) => {
@@ -763,7 +768,12 @@ export default function MultiRelationAlgebra({
   // new question, and resetting for it took the operation the student had
   // picked and the number they were typing (TL16, as in StepByStepAlgebraCore).
   const problemKey = useMemo(() => JSON.stringify([draftKey ?? null, pristine]), [draftKey, pristine]);
-  const problemSetUpRef = useRef(null);
+  // The state above starts as this problem set up (read from the same draft
+  // and question), so the first render is not set up again: that read the
+  // draft four more times, parsed the relation again and drew the whole
+  // workspace a second time with an equal relation, a new object, working out
+  // every reading of it (the shared grader's included) twice.
+  const problemSetUpRef = useRef(problemKey);
 
   useEffect(() => {
     if (problemSetUpRef.current === problemKey) return;
@@ -783,11 +793,12 @@ export default function MultiRelationAlgebra({
     setDragCancellationKey(null);
     setDragStroke(null);
     dragStrokeRef.current = null;
-    // From the same saved draft as the relation itself. This effect also runs
-    // on mount, and resetting the open symbol step to null here dropped it on
-    // every remount — navigating back, a reload, a reopened Chromebook — while
-    // the relation came back already divided by the negative and still showing
-    // the old symbol, with no step left to reverse it.
+    // From the same saved draft as the relation itself, as the first render
+    // reads it. Resetting the open symbol step to null here (when this effect
+    // also ran on mount) dropped it on every remount — navigating back, a
+    // reload, a reopened Chromebook — while the relation came back already
+    // divided by the negative and still showing the old symbol, with no step
+    // left to reverse it.
     setPendingRelationFlip(initialPendingRelationFlipFor(draftKey));
     setRelationPicker(null);
     setAbsoluteSplitOpen(false);
@@ -1856,9 +1867,23 @@ export default function MultiRelationAlgebra({
     variable: relationState.variable || 'x',
   })), [active, relationState.variable]);
   const simplifyKey = `${activeBranch}|${(active?.expressions || []).join(' ; ')}`;
+  // Read only while Simplify is open: nothing else shows them (the board's
+  // highlights, the panel's parts, a tap on a term). Kept by the regions' text
+  // (committedEquationFacts.js), and worked out while the student reads (below).
   const simplifyParts = useMemo(() => {
-    try { return detectSimplifyParts(simplifyRegions); } catch { return []; }
-  }, [simplifyRegions]);
+    if (!simplifyOpen) return NO_SIMPLIFY_PARTS;
+    try { return simplifyPartsFor(simplifyRegions); } catch { return []; }
+  }, [simplifyRegions, simplifyOpen]);
+  // WHILE THE STUDENT READS: the client's mathjs parser, which Simplify parses
+  // through, and the parts it would show on the active branch, built a step at
+  // a time in idle time and never inside a key or a press (idleMathSteps.js),
+  // as the equation workspace does: the first frame of a radical, an absolute
+  // value or an inequality does not build them, and opening Simplify does not
+  // wait for them. A new branch or relation starts again; leaving stops.
+  useEffect(() => takeStepsWhenIdle([
+    ...clientParserSteps(),
+    () => simplifyPartsFor(simplifyRegions),
+  ]), [simplifyRegions]);
   // Its choices belong to the expressions they were made on: a commit, an
   // Undo or another branch keeps Simplify open with nothing chosen.
   useEffect(() => {
