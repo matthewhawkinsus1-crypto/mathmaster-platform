@@ -227,6 +227,25 @@ export const HONORS_DEPTH_AREAS = Object.freeze([
 ]);
 export const HONORS_DEPTH_REQUIRED = 3;
 
+/*
+ * WHAT EACH PART OF THE HONORS CHECK IS CALLED.
+ *
+ * One name for each key inspectHonorsRigor reports, so a gap is called the
+ * same thing wherever a teacher or an author meets it: the Review blocker
+ * (preflightSteps.js), the import check (scripts/lib/honorsImportReview.mjs),
+ * the AI repair (honorsDepthAiRepair.js) and Create's last check
+ * (canonicalCcmrHydration.js), which used to print the keys themselves:
+ * "The Honors version is still missing: multipleRepresentations, ...".
+ */
+export const HONORS_CHECK_LABELS = Object.freeze({
+  coreTeks: 'Core TEKS alignment',
+  higherOrderReasoning: 'higher-order reasoning',
+  multipleRepresentations: 'multiple representations',
+  justification: 'explanation / justification',
+  modelingApplication: 'modeling / application',
+  ccmrEnrichment: 'audited CCMR Practice',
+});
+
 export const isNarrowHonorsCheckpoint = (questions = []) => {
   const included = (Array.isArray(questions) ? questions : []).filter((question) => question?.teacherExcluded !== true);
   return included.length > 0 && included.length <= 3 && included.every((question) => (

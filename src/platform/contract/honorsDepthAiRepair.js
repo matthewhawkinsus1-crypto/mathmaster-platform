@@ -1,16 +1,7 @@
 import { CONTRACT_SLICES, buildContractSlice } from './authoringContract.js';
 import { compileAuthoringIntentV5 } from './authoringIntentV5.js';
-import { HONORS_DEPTH_REQUIRED } from '../rigor/courseRigor.js';
+import { HONORS_CHECK_LABELS, HONORS_DEPTH_REQUIRED } from '../rigor/courseRigor.js';
 const clean = (value) => String(value ?? '').trim();
-
-const MISSING_LABELS = Object.freeze({
-  coreTeks: 'Core TEKS alignment',
-  higherOrderReasoning: 'higher-order reasoning',
-  multipleRepresentations: 'multiple representations',
-  justification: 'explanation / justification',
-  modelingApplication: 'modeling / application',
-  ccmrEnrichment: 'audited CCMR Practice',
-});
 
 const sectionQuestions = (section = {}) => (
   Array.isArray(section?.questions) ? section.questions : []
@@ -135,7 +126,7 @@ export const nonCcmrHonorsReady = (honorsReport = {}) => Boolean(
 
 export const honorsMissingLabels = (missing = []) => (
   (Array.isArray(missing) ? missing : [])
-    .map((key) => MISSING_LABELS[key] || clean(key))
+    .map((key) => HONORS_CHECK_LABELS[key] || clean(key))
     .filter(Boolean)
 );
 
