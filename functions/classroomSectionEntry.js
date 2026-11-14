@@ -53,6 +53,7 @@ const {
   standingClassroomReturnRefusal,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
 const {
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
@@ -1207,15 +1208,20 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
   // Split-section publications only, asked of Firestore (issue #545): 445 of
   // the 480 published links on Nov 11, 2026, where this read all 480 every 5
   // minutes and dropped the whole-assignment ones itself
-  // (tests/platform/classroomCheckpointScans.test.mjs).
-  const publicationSnapshot = await db
-    .collection("classroomLinks")
-    .where("status", "==", "published")
-    .where("publicationKind", "==", "section")
-    .select("publicationKind", "courseworkId", "sectionGradePassbackEnabled", "assignmentId")
-    .limit(1000)
-    .get();
-  const assignmentIds = [...new Set(publicationSnapshot.docs
+  // (tests/platform/classroomCheckpointScans.test.mjs). Every one of them, a
+  // page at a time: one unordered limit(1000) would have dropped classes'
+  // checkpoints past 1,000 links (lib/classroomCheckpointScan.js).
+  const scan = await classroomCheckpointScan.scanPublishedLinks(db, {
+    filters: [["status", "published"], ["publicationKind", "section"]],
+    fields: ["publicationKind", "courseworkId", "sectionGradePassbackEnabled", "assignmentId"],
+  });
+  const scanConcerns = classroomCheckpointScan.checkpointScanConcerns({ links: scan.docs.length, complete: scan.complete });
+  if (!scan.complete) {
+    logger.error("Section checkpoint scan stopped at its limit", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  } else if (scanConcerns.length) {
+    logger.warn("Section checkpoint scan is near its limits", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  }
+  const assignmentIds = [...new Set(scan.docs
     .map((doc) => doc.data() || {})
     .filter((publication) => publication.publicationKind === "section"
       && publication.courseworkId
@@ -1224,9 +1230,10 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
     .filter(Boolean))];
   if (!assignmentIds.length) return;
 
-  const assignmentSnapshots = await db.getAll(
-    ...assignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
-    { fieldMask: [...SECTION_CHECKPOINT_ASSIGNMENT_FIELDS] }
+  const assignmentSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    assignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
+    { fieldMask: SECTION_CHECKPOINT_ASSIGNMENT_FIELDS }
   );
 
   for (const assignmentSnapshot of assignmentSnapshots) {
@@ -1299,6 +1306,14 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
       queuedStudents,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+  }
+
+  // The run may last 300 s; one that takes this long says so while it still fits.
+  const elapsedMs = Date.now() - now;
+  if (elapsedMs >= classroomCheckpointScan.CHECKPOINT_SLOW_RUN_MS) {
+    logger.warn("Section checkpoint scan is near its limits", {
+      links: scan.docs.length, assignments: assignmentIds.length, elapsedMs, concerns: ["slow-run"],
+    });
   }
 });
 

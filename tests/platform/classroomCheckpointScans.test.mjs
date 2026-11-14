@@ -244,3 +244,130 @@ test('every writer of a Classroom publication stores gradePassbackEnabled as a b
   assert.match(sectionPublish, /publicationKind: "section",/);
   assert.match(sectionPublish, /gradePassbackEnabled: false,\s*sectionGradePassbackEnabled: gradePassbackEnabled !== false,/);
 });
+
+/* --- every link, a page at a time (lib/classroomCheckpointScan.js) ------- */
+
+// The section scheduler read its links through one unordered limit(1000), so
+// past 1,000 links (445 on Nov 11, 2026) it would have dropped classes'
+// checkpoints without a sign. It reads them in document-id order, 500 a page,
+// and says so in the log when a run nears its limits.
+const scan = requireFromFunctions('./lib/classroomCheckpointScan.js');
+const logger = requireFromFunctions('firebase-functions/logger');
+const logs = [];
+for (const level of ['warn', 'error']) logger[level] = (message, fields) => logs.push({ level, message, fields });
+const sectionLink = (assignmentId) => ({
+  status: 'published', publicationKind: 'section', gradePassbackEnabled: false,
+  sectionGradePassbackEnabled: true, courseworkId: `cw-${assignmentId}`, assignmentId,
+});
+// Stored out of id order, so any order the scheduler reads in is its own.
+const shuffled = (entries) => Object.fromEntries(entries.map((entry, index) => [index * 7919 % entries.length, entry]).sort(([a], [b]) => a - b).map(([, entry]) => entry));
+const linkQueries = (db) => db.reads.filter((r) => r.kind === 'query' && r.collection === 'classroomLinks');
+
+test('past 1,000 links the section scheduler still reads every one, in document-id order, and owes every class its checkpoint', async () => {
+  logs.length = 0;
+  const count = 1203;
+  const ids = Array.from({ length: count }, (_, n) => `A${String(n).padStart(4, '0')}`);
+  const db = await run(checkpointSchedulerFirestore({
+    classroomLinks: shuffled([
+      ...ids.map((assignmentId) => [`link-${assignmentId}`, sectionLink(assignmentId)]),
+      ['link-whole', { status: 'published', gradePassbackEnabled: true, courseworkId: 'cw-w', assignmentId: 'WHOLE' }],
+    ]),
+    assignments: Object.fromEntries(ids.map((assignmentId) => [assignmentId, { dueAt: iso(-1 * HOUR), lateDueAt: iso(2 * DAY), assignedClassIds: ['c1'] }])),
+    grades: { s1: { classId: 'c1' } },
+  }), 'section');
+
+  const pages = linkQueries(db);
+  assert.deepEqual(pages.map((page) => [page.orderBy, page.limit, page.startAfter]), [
+    ['__name__', 500, null],
+    ['__name__', 500, 'link-A0499'],
+    ['__name__', 500, 'link-A0999'],
+  ]);
+  for (const page of pages) {
+    assert.deepEqual(page.filters, [
+      { field: 'status', op: '==', value: 'published' },
+      { field: 'publicationKind', op: '==', value: 'section' },
+    ]);
+  }
+  const read = db.reads.filter((r) => r.kind === 'getAll' && r.paths[0]?.startsWith('assignments/'));
+  assert.deepEqual(read.flatMap((r) => r.paths).sort(), ids.map((id) => `assignments/${id}`));
+  assert.ok(read.every((r) => r.paths.length <= 100 && fieldNames(r.fields).includes('dueAt')), 'a hundred at a time, dates only');
+  assert.equal(db.queued.length, count);
+  assert.ok(db.queued.every((q) => q.data.reason === 'due-checkpoint' && q.data.studentId === 's1'));
+  assert.deepEqual(logs, [], '1,203 links are not near the limits');
+});
+
+test('a run past 2,000 links warns, and one that stops at the page limit logs an error and still serves what it read', async () => {
+  logs.length = 0;
+  const many = (count, assignmentId) => Object.fromEntries(Array.from({ length: count }, (_, n) => [`link-${String(n).padStart(5, '0')}`, sectionLink(assignmentId)]));
+  await run(checkpointSchedulerFirestore({
+    classroomLinks: many(scan.CHECKPOINT_LINK_WARN_AT, 'BIG'),
+    assignments: { BIG: { dueAt: iso(7 * DAY), assignedClassIds: ['c1'] } },
+    grades: {},
+  }), 'section');
+  assert.deepEqual(logs.map((entry) => [entry.level, entry.message, entry.fields.links, entry.fields.concerns]), [
+    ['warn', 'Section checkpoint scan is near its limits', scan.CHECKPOINT_LINK_WARN_AT, ['many-links']],
+  ]);
+
+  logs.length = 0;
+  const limit = scan.CHECKPOINT_LINK_PAGE_SIZE * scan.CHECKPOINT_LINK_MAX_PAGES;
+  const db = await run(checkpointSchedulerFirestore({
+    classroomLinks: many(limit + 1, 'BIG'),
+    assignments: { BIG: { dueAt: iso(-1 * HOUR), lateDueAt: iso(2 * DAY), assignedClassIds: ['c1'] } },
+    grades: { s1: { classId: 'c1' } },
+  }), 'section');
+  assert.equal(linkQueries(db).length, scan.CHECKPOINT_LINK_MAX_PAGES);
+  assert.deepEqual(logs.map((entry) => [entry.level, entry.message, entry.fields.links, entry.fields.pages, entry.fields.concerns]), [
+    ['error', 'Section checkpoint scan stopped at its limit', limit, scan.CHECKPOINT_LINK_MAX_PAGES, ['stopped-at-page-limit']],
+  ]);
+  assert.deepEqual(queuedBy(db), ['BIG due-checkpoint s1'], 'what it read is still served');
+});
+
+test('a run that takes most of its time says so', async () => {
+  logs.length = 0;
+  const db = checkpointSchedulerFirestore({
+    classroomLinks: { only: sectionLink('A1') },
+    assignments: { A1: { dueAt: iso(7 * DAY), assignedClassIds: ['c1'] } },
+    grades: {},
+  });
+  const realNow = Date.now;
+  let first = true;
+  // Every clock read after the scheduler's first is two minutes later.
+  Date.now = () => {
+    const value = realNow() + (first ? 0 : scan.CHECKPOINT_SLOW_RUN_MS);
+    first = false;
+    return value;
+  };
+  try {
+    await run(db, 'section');
+  } finally {
+    Date.now = realNow;
+  }
+  assert.deepEqual(logs.map((entry) => [entry.level, entry.message, entry.fields.concerns]), [
+    ['warn', 'Section checkpoint scan is near its limits', ['slow-run']],
+  ]);
+  assert.ok(logs[0].fields.elapsedMs >= scan.CHECKPOINT_SLOW_RUN_MS);
+});
+
+test('a page scan is complete unless it stopped at its last page with that page full', async () => {
+  const links = (count) => Object.fromEntries(Array.from({ length: count }, (_, n) => [`l${String(n).padStart(3, '0')}`, { status: 'published', assignmentId: `A${n}` }]));
+  const scanOf = async (count, maxPages) => scan.scanPublishedLinks(checkpointSchedulerFirestore({ classroomLinks: links(count) }), {
+    filters: [['status', 'published']], fields: ['assignmentId'], pageSize: 10, maxPages,
+  });
+  const exact = await scanOf(20, 3);
+  assert.deepEqual([exact.docs.length, exact.pages, exact.complete], [20, 3, true], 'a full last page is followed by an empty one');
+  const cut = await scanOf(31, 3);
+  assert.deepEqual([cut.docs.length, cut.pages, cut.complete], [30, 3, false]);
+  assert.deepEqual(cut.docs.map((doc) => doc.id), Object.keys(links(30)), 'in document-id order, each once');
+  assert.deepEqual(scan.checkpointScanConcerns({ links: 30, complete: false }), ['stopped-at-page-limit']);
+  assert.deepEqual(scan.checkpointScanConcerns({ links: scan.CHECKPOINT_LINK_WARN_AT - 1, complete: true }), []);
+});
+
+test('getAll in batches reads every reference once, in order, with the field mask', async () => {
+  const db = checkpointSchedulerFirestore({ assignments: Object.fromEntries(Array.from({ length: 250 }, (_, n) => [`A${n}`, { dueAt: 'x', questions: QUESTIONS }])) });
+  const refs = Array.from({ length: 250 }, (_, n) => db.doc(`assignments/A${n}`));
+  const snapshots = await scan.getAllInBatches(db, refs, { fieldMask: ['dueAt'] });
+  assert.deepEqual(snapshots.map((snapshot) => snapshot.id), refs.map((ref) => ref.id));
+  assert.deepEqual(db.reads.map((r) => r.paths.length), [100, 100, 50]);
+  assert.deepEqual(snapshots[0].data(), { dueAt: 'x' }, 'the mask is applied');
+  assert.deepEqual(await scan.getAllInBatches(db, []), [], 'nothing to read, nothing asked');
+});
