@@ -371,3 +371,29 @@ test('getAll in batches reads every reference once, in order, with the field mas
   assert.deepEqual(snapshots[0].data(), { dueAt: 'x' }, 'the mask is applied');
   assert.deepEqual(await scan.getAllInBatches(db, []), [], 'nothing to read, nothing asked');
 });
+
+// The section scheduler read its ~81 state documents one at a time, most of a
+// run's 3.5 s. It reads them a hundred at a time, up front: a run writes only
+// each assignment's own state, so it decides exactly as before.
+test('the section scheduler reads its state documents a hundred at a time, and decides as before', async () => {
+  const ids = Array.from({ length: 150 }, (_, n) => `S${String(n).padStart(3, '0')}`);
+  const due = iso(-1 * HOUR);
+  const db = await run(checkpointSchedulerFirestore({
+    classroomLinks: {
+      ...Object.fromEntries(ids.map((id) => [`link-${id}`, sectionLink(id)])),
+      'link-GONE': sectionLink('GONE'),
+    },
+    assignments: Object.fromEntries(ids.map((id) => [id, { dueAt: due, lateDueAt: iso(2 * DAY), assignedClassIds: ['c1'] }])),
+    // Half of them had their due checkpoint queued already, at this due time.
+    classroomSectionGradeCheckpointState: Object.fromEntries(ids.filter((_, n) => n % 2 === 0).map((id) => [id, { dueQueuedAt: due, dueAt: due }])),
+    grades: { s1: { classId: 'c1' } },
+  }), 'section');
+
+  const statePath = (id) => `classroomSectionGradeCheckpointState/${id}`;
+  const stateReads = db.reads.filter((r) => String(r.path || r.paths?.[0] || '').startsWith('classroomSectionGradeCheckpointState/'));
+  assert.deepEqual(stateReads.map((r) => [r.kind, r.paths?.length]), [['getAll', 100], ['getAll', 50]], 'never one at a time');
+  assert.deepEqual(stateReads.flatMap((r) => r.paths).sort(), ids.map(statePath), 'each once; none for an assignment that is gone');
+  assert.deepEqual(queuedBy(db), ids.filter((_, n) => n % 2 === 1).map((id) => `${id} due-checkpoint s1`).sort(),
+    'only the half not queued before is owed its checkpoint');
+  assert.deepEqual(db.sets.map((s) => s.path).sort(), ids.filter((_, n) => n % 2 === 1).map(statePath));
+});

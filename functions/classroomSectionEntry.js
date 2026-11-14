@@ -1235,9 +1235,18 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
     assignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
     { fieldMask: SECTION_CHECKPOINT_ASSIGNMENT_FIELDS }
   );
+  const existingAssignments = assignmentSnapshots.filter((snapshot) => snapshot.exists);
+  // Each assignment's state document, read a hundred at a time rather than one
+  // by one: 81 on Nov 11, 2026, most of a run's 3.5 s. A run writes only each
+  // assignment's own state, so this reads what the loop would have read; a
+  // student a trigger records meanwhile is woken on the next run.
+  const stateSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    existingAssignments.map((snapshot) => db.collection(SECTION_CHECKPOINT_COLLECTION).doc(snapshot.id))
+  );
+  const stateById = new Map(stateSnapshots.map((snapshot) => [snapshot.id, snapshot]));
 
-  for (const assignmentSnapshot of assignmentSnapshots) {
-    if (!assignmentSnapshot.exists) continue;
+  for (const assignmentSnapshot of existingAssignments) {
     const assignmentId = assignmentSnapshot.id;
     const assignment = assignmentSnapshot.data() || {};
     const releaseAt = toDate(assignment.releaseAt || assignment.releaseDate);
@@ -1246,9 +1255,8 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
       assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate
     );
     const stateRef = db.collection(SECTION_CHECKPOINT_COLLECTION).doc(assignmentId);
-    // eslint-disable-next-line no-await-in-loop
-    const stateSnapshot = await stateRef.get();
-    const state = stateSnapshot.exists ? stateSnapshot.data() || {} : {};
+    const stateSnapshot = stateById.get(assignmentId);
+    const state = stateSnapshot?.exists ? stateSnapshot.data() || {} : {};
 
     // H-116: wake each student whose OWN due time or final cutoff has now
     // arrived — recorded by the section trigger when it set the class's
