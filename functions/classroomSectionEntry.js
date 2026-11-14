@@ -47,7 +47,10 @@ const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTrigge
 const {
   classroomPushFailure,
   classroomPushHeldForLimit,
+  classroomReturnRefusal,
   clearedClassroomErrorFields,
+  clearedReturnRefusalFields,
+  standingClassroomReturnRefusal,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
@@ -694,8 +697,14 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       // columns that did not go through; the rest are already current.
       const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
       const forceRetry = (signalReason === "manual-retry" || signalReason === "section-grade-reconcile") && quotaRetry === 0;
+      // A teacher's own retry asks Google to return a submission again even if
+      // it refused before; nothing else does while the submission is unchanged.
+      const teacherRetry = signalReason === "manual-retry" && quotaRetry === 0;
       const mayRequeue = quotaRetry < classroomPushQueue.MAX_QUOTA_RETRIES;
       let requeueForLimit = false;
+      // Grades saved in Classroom whose return Google refused: counted for one
+      // warning per assignment, not an error per column.
+      const notReturned = { refused: 0, notAskedAgain: 0, states: new Set(), reasons: new Set() };
 
       // eslint-disable-next-line no-await-in-loop
       const publicationSnapshot = await db
@@ -998,20 +1007,76 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           });
           let submissionState = patched.state || submission.state || null;
           let returnedToStudent = String(submissionState || "").toUpperCase() === "RETURNED";
+          let returnRefusal = null;
           if (releasePolicy.shouldReturn && !returnedToStudent) {
-            // eslint-disable-next-line no-await-in-loop
-            await classroomLib.returnSubmission(classroom, {
-              courseId,
-              courseWorkId: publication.courseworkId,
+            // Google returns only work the student turned in. Once it has
+            // refused this submission, it is not asked again while the
+            // submission is in the same state (lib/classroomPushErrors.js).
+            returnRefusal = teacherRetry ? null : standingClassroomReturnRefusal({
+              prior,
+              courseworkId: publication.courseworkId,
               submissionId: submission.id,
+              submissionState,
             });
-            submissionState = "RETURNED";
-            returnedToStudent = true;
+            if (returnRefusal) {
+              notReturned.notAskedAgain += 1;
+            } else {
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                await classroomLib.returnSubmission(classroom, {
+                  courseId,
+                  courseWorkId: publication.courseworkId,
+                  submissionId: submission.id,
+                });
+                submissionState = "RETURNED";
+                returnedToStudent = true;
+              } catch (error) {
+                returnRefusal = classroomReturnRefusal(error, { submissionState });
+                // Every other refusal is a failed push, as before.
+                if (!returnRefusal) throw error;
+                notReturned.refused += 1;
+              }
+            }
+          }
+
+          if (returnRefusal) {
+            notReturned.states.add(returnRefusal.submissionState || "unknown");
+            notReturned.reasons.add(returnRefusal.reason);
+            // The grade is in Classroom; only its return is missing.
+            // eslint-disable-next-line no-await-in-loop
+            await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+              ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+              assignmentId,
+              courseId,
+              courseworkId: publication.courseworkId,
+              submissionId: submission.id,
+              submissionState,
+              stage,
+              grade: gradeResult.grade,
+              classroomGrade,
+              maxPoints,
+              attempted: gradeResult.attempted,
+              total: gradeResult.total,
+              creditOnAttempted: gradeResult.creditOnAttempted,
+              isFinal,
+              studentVisible: releasePolicy.studentVisible,
+              returnedToStudent: false,
+              sectionKey: gradeResult.sectionKey,
+              sectionLabel: gradeResult.sectionLabel,
+              questionIndices: gradeResult.questionIndices,
+              gradePassbackMode: "section",
+              reconciliationVersion: CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+              evidenceFingerprint,
+              syncedAt: FieldValue.serverTimestamp(),
+              ...returnRefusal.audit,
+            });
+            continue;
           }
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+            ...clearedReturnRefusalFields(prior),
             ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
@@ -1089,6 +1154,19 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             ...failure.audit,
           });
         }
+      }
+
+      if (notReturned.refused || notReturned.notAskedAgain) {
+        logger.warn("Section grades saved in Classroom but not returned", {
+          assignmentId,
+          studentId: event.params.studentId,
+          // Google refused the return in this push.
+          refused: notReturned.refused,
+          // Refused before, and the submission has not changed: not asked.
+          notAskedAgain: notReturned.notAskedAgain,
+          submissionStates: [...notReturned.states],
+          reasons: [...notReturned.reasons],
+        });
       }
 
       if (successfulBySection.size) {

@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("crypto");
+const { CLASSROOM_GRADED_NOT_RETURNED } = require("./classroomPushErrors");
 
 // Increment whenever the section passback derivation or its durable audit
 // contract changes. A row stamped by an older implementation is evidence that
@@ -48,10 +49,15 @@ function sectionGradeSyncIsCurrent({
   returnedToStudent = false,
   shouldReturn = false,
 } = {}) {
-  return prior.status === "synced"
-    && Number(prior.reconciliationVersion || 0) >= CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION
-    && String(prior.evidenceFingerprint || "") === String(evidenceFingerprint || "")
-    && (!shouldReturn || returnedToStudent);
+  const sameEvidence = Number(prior.reconciliationVersion || 0) >= CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION
+    && String(prior.evidenceFingerprint || "") === String(evidenceFingerprint || "");
+  if (!sameEvidence) return false;
+  if (prior.status === "synced") return !shouldReturn || returnedToStudent;
+  // Classroom holds this same grade and refused to return it. Sending it again
+  // would only be refused again; the next change to this column's evidence, or
+  // a teacher's retry, sends it and asks again if the submission has changed
+  // (lib/classroomPushErrors.js).
+  return prior.status === CLASSROOM_GRADED_NOT_RETURNED;
 }
 
 module.exports = {
