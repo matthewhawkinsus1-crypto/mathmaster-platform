@@ -1,15 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   applyHonorsDepthAiSections,
   buildHonorsDepthAiRepairRequest,
+  judgeHonorsDepthRepair,
   nonCcmrHonorsMissing,
   nonCcmrHonorsReady,
   separateHonorsDepthAiRepair,
   unresolvedRequestedHonorsGaps,
 } from '../../src/platform/contract/honorsDepthAiRepair.js';
-import { inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
+import { HONORS_DEPTH_AREAS, inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
+import { describeHonorsGap } from '../../src/components/teacher/preflightSteps.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const base = () => ({
   schemaVersion: 5,
@@ -77,26 +81,111 @@ test('a rationale-required open sort counts as explicit explanation/justificatio
   assert.equal(report.checks.justification, true);
 });
 
-test('Honors repair acceptance can require the exact gaps requested, not merely any 3-of-4 depth combination', () => {
-  const requested = ['multipleRepresentations', 'justification'];
-  const candidate = {
-    missing: ['multipleRepresentations', 'ccmrEnrichment'],
-    checks: {
-      coreTeks: true,
-      higherOrderReasoning: true,
-      multipleRepresentations: false,
-      justification: true,
-      modelingApplication: true,
-      ccmrEnrichment: false,
-    },
-    depthCount: 3,
-  };
-  assert.equal(nonCcmrHonorsReady(candidate), true, 'candidate can meet 3-of-4 overall');
-  assert.deepEqual(
-    unresolvedRequestedHonorsGaps(requested, candidate),
-    ['multipleRepresentations'],
-    'but the specific requested gap must still block acceptance',
-  );
+/*
+ * A REPAIR IS TAKEN WHEN THE HONORS CHECK PASSES IT.
+ *
+ * A candidate used to be refused unless it resolved every gap the request
+ * listed. Honors needs three of the four depth areas, so an assignment with
+ * higher-order reasoning and justification is listed as missing multiple
+ * representations and modeling / application, either of which would do: a
+ * candidate that added a modeling question passed the check and was refused
+ * all the same. Each question below supplies exactly the area it is named
+ * for, so a lesson can be built with any set of areas and every verdict is
+ * the real check's.
+ */
+const AREA_QUESTIONS = Object.freeze({
+  higherOrderReasoning: { activityRole: 'classwork', dok: 3, prompt: 'Solve $3(x - 2) = 2x + 5$.' },
+  multipleRepresentations: { activityRole: 'classwork', dok: 2, studentActions: ['connectRepresentations'], prompt: 'Match each table to its equation.' },
+  justification: { activityRole: 'practice', dok: 2, prompt: 'Explain why $x = 4$ solves $2x + 3 = 11$.' },
+  modelingApplication: { activityRole: 'practice', dok: 2, taskType: 'modeling', prompt: 'A box has volume $x^3 + 3x^2 + 2x$ and height $x + 2$. Find its width and length.' },
+});
+// A lesson whose questions supply exactly `areas`, aligned to a TEKS unless `teks` is false.
+const lessonWith = (areas, { teks = true } = {}) => [
+  { activityRole: 'classwork', dok: 2, prompt: 'Solve $2x + 3 = 11$.' },
+  ...areas.map((area) => AREA_QUESTIONS[area]),
+].map((question) => ({ ...question, ...(teks ? { standard: 'A.5A' } : {}) }));
+// What the request listed for a source lesson, as Pre-Flight passes it.
+const listedFor = (questions) => nonCcmrHonorsMissing(inspectHonorsRigor(questions, { allowNarrowCheckpoint: true }));
+const judge = (source, candidate) => judgeHonorsDepthRepair({
+  questions: candidate,
+  requestedMissing: listedFor(source),
+  sourceLabel: 'MathMaster AI',
+});
+
+test('the area questions supply exactly the areas they are named for', () => {
+  for (const area of HONORS_DEPTH_AREAS) {
+    const { checks } = inspectHonorsRigor(lessonWith([area]), { ccmrTargetRequired: false });
+    assert.deepEqual(HONORS_DEPTH_AREAS.filter((key) => checks[key]), [area]);
+    assert.equal(checks.coreTeks, true);
+  }
+  assert.equal(inspectHonorsRigor(lessonWith(HONORS_DEPTH_AREAS, { teks: false })).checks.coreTeks, false);
+});
+
+test('a candidate that supplies enough depth areas is taken, though a gap the request listed is still open', () => {
+  const source = lessonWith(['higherOrderReasoning', 'justification']);
+  assert.deepEqual(listedFor(source), ['multipleRepresentations', 'modelingApplication']);
+  const candidate = lessonWith(['higherOrderReasoning', 'justification', 'modelingApplication']);
+  const verdict = judge(source, candidate);
+  assert.equal(verdict.accepted, true, verdict.message);
+  assert.equal(verdict.message, '');
+  assert.equal(verdict.report.checks.multipleRepresentations, false, 'a listed gap is still open');
+  assert.deepEqual(unresolvedRequestedHonorsGaps(listedFor(source), verdict.report), ['multipleRepresentations'], 'the gap that used to refuse it');
+  assert.equal(describeHonorsGap(inspectHonorsRigor(candidate, { allowNarrowCheckpoint: true })), '', 'Review does not block the repaired lesson');
+});
+
+test('a candidate still short of the depth rule is refused, with the message it always had', () => {
+  const source = lessonWith(['higherOrderReasoning']);
+  assert.deepEqual(listedFor(source), ['multipleRepresentations', 'justification', 'modelingApplication']);
+  const short = judge(source, lessonWith(['higherOrderReasoning', 'justification']));
+  assert.equal(short.accepted, false);
+  assert.equal(short.message, 'MathMaster AI did not resolve the Honors gap(s) it was asked to repair: multiple representations, modeling / application. The original assignment was kept unchanged.');
+
+  // Three areas are not enough without higher-order reasoning: it is required on its own.
+  const noReasoning = lessonWith(['multipleRepresentations', 'justification', 'modelingApplication']);
+  assert.equal(inspectHonorsRigor(noReasoning, { ccmrTargetRequired: false }).depthCount, 3);
+  const unchanged = judge(noReasoning, noReasoning);
+  assert.equal(unchanged.accepted, false);
+  assert.equal(unchanged.message, 'MathMaster AI did not resolve the Honors gap(s) it was asked to repair: higher-order reasoning. The original assignment was kept unchanged.');
+});
+
+test('a candidate that leaves Core TEKS unaligned is refused, with the message it always had', () => {
+  // Listed and still open: the depth rule is met, Core TEKS is not.
+  const unaligned = lessonWith(['higherOrderReasoning', 'justification'], { teks: false });
+  assert.deepEqual(listedFor(unaligned), ['coreTeks', 'multipleRepresentations', 'modelingApplication']);
+  const leftOpen = judge(unaligned, lessonWith(['higherOrderReasoning', 'justification', 'modelingApplication'], { teks: false }));
+  assert.equal(leftOpen.accepted, false);
+  assert.equal(leftOpen.message, 'MathMaster AI did not resolve the Honors gap(s) it was asked to repair: Core TEKS alignment, multiple representations. The original assignment was kept unchanged.');
+
+  // Not listed but lost: every listed gap is closed and the TEKS alignment is gone.
+  const lost = judge(lessonWith(['higherOrderReasoning', 'justification']), lessonWith(HONORS_DEPTH_AREAS, { teks: false }));
+  assert.equal(lost.accepted, false);
+  assert.equal(lost.message, 'MathMaster AI could not safely resolve enough Honors depth: Core TEKS alignment. Honors requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions. The original assignment was kept unchanged.');
+});
+
+test('a repair is taken exactly when Review would not block the lesson for Honors depth or Core TEKS', () => {
+  let taken = 0;
+  for (const teks of [true, false]) {
+    for (let mask = 0; mask < 2 ** HONORS_DEPTH_AREAS.length; mask += 1) {
+      const areas = HONORS_DEPTH_AREAS.filter((_, index) => mask & (2 ** index));
+      const candidate = lessonWith(areas, { teks });
+      const reviewBlocks = describeHonorsGap(inspectHonorsRigor(candidate, { allowNarrowCheckpoint: true })) !== '';
+      const verdict = judgeHonorsDepthRepair({ questions: candidate, requestedMissing: ['coreTeks', ...HONORS_DEPTH_AREAS] });
+      assert.equal(verdict.accepted, !reviewBlocks, `${teks ? 'aligned' : 'not aligned'}, ${areas.join(' + ') || 'no depth'}: ${verdict.message}`);
+      if (verdict.accepted) taken += 1;
+      else assert.match(verdict.message, /^AI (did not resolve|could not safely resolve) .* The original assignment was kept unchanged\.$/);
+    }
+  }
+  // Aligned, with higher-order reasoning and two or three of the other areas.
+  assert.equal(taken, 4);
+});
+
+test('Pre-Flight takes or refuses an Honors repair on that verdict alone', () => {
+  const modal = readFileSync(new URL('../../src/components/teacher/LessonPreflightModal.jsx', import.meta.url), 'utf8');
+  const gate = executableSource(region(modal, 'const acceptHonorsDepthCandidate', 'const buildHonorsDepthWithAi', 'the Honors repair gate'));
+  assert.match(gate, /judgeHonorsDepthRepair\(\{[^}]*questions: candidateModel\.questions/);
+  assert.match(gate, /requestedMissing: nonCcmrHonorsMissing\(honorsReport\)/);
+  assert.match(gate, /if \(!(\w+)\.accepted\) throw new Error\(\1\.message\)/);
+  assert.doesNotMatch(gate, /unresolvedRequestedHonorsGaps\(|nonCcmrHonorsReady\(|inspectHonorsRigor\(/, 'no second gate refuses what the check passes');
 });
 
 test('CCMR is deliberately excluded from the embedded Honors repair target', () => {
@@ -132,10 +221,24 @@ test('Honors AI repair prompt tells the provider to repair TEKS/depth without fa
   assert.match(prompt, /## Common studentActions/);
   assert.match(prompt, /## Course TEKS/);
   assert.match(prompt, /Do NOT add type, toolId, questionId/);
-  assert.match(prompt, /Every non-CCMR gap listed at the top/);
+  assert.match(prompt, /The returned candidate MUST meet that readiness rule after compilation/);
   assert.match(prompt, /do not satisfy it only by mentioning equation forms in prose\/card text/);
   assert.match(prompt, /connectRepresentations\/findRepresentationMismatch/);
   assert.doesNotMatch(prompt, /Current MathMaster authoring contract/);
+});
+
+test('the repair request asks for the depth rule the check applies, not for every gap it lists', () => {
+  const prompt = buildHonorsDepthAiRepairRequest({
+    assignmentV5: base(),
+    honorsReport: { missing: ['multipleRepresentations', 'modelingApplication', 'ccmrEnrichment'] },
+  });
+  // The gaps are still listed...
+  assert.match(prompt, /^Non-CCMR Honors gaps to repair: multiple representations, modeling \/ application$/m);
+  assert.match(prompt, /^Repair the current assignment only enough to meet the Honors readiness rule in the repair contract below\.$/m);
+  // ...and what is required of them is what judgeHonorsDepthRepair takes.
+  assert.match(prompt, /- Honors readiness requires Core TEKS, DOK 3\+ reasoning, and at least three of the four depth dimensions /);
+  assert.match(prompt, /- The returned candidate MUST meet that readiness rule after compilation\. MathMaster rechecks the rule itself, not each gap listed at the top of this repair request: a listed Core TEKS or higher-order reasoning gap MUST be resolved, while the other listed gaps need resolving only until the candidate has three of the four depth dimensions\. Leaving one of those unresolved once the rule is met is an acceptable repair\./);
+  assert.doesNotMatch(prompt, /MUST be resolved by the returned candidate|leaving a requested gap unresolved is not an acceptable repair|satisfy the listed Honors depth gaps/);
 });
 
 test('Honors repair stays compact for a rich lesson instead of attaching the full global authoring manual', () => {
