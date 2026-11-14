@@ -145,9 +145,9 @@ const hasAnyToken = (value, tokens) => tokens.some((token) => value.includes(tok
  * labelled errorAnalysis and is still applied mathematics. Letting a label
  * overrule the wording would take modeling credit away from 59 audited CCMR
  * items written exactly that way, so the wording is still read for every
- * question.
+ * question. The authoring contract names these values (authoringContract.js).
  */
-const MODELING_TASK_TYPES = Object.freeze(['modeling', 'application']);
+export const MODELING_TASK_TYPES = Object.freeze(['modeling', 'application']);
 export const declaresModelingTask = (question = {}) => MODELING_TASK_TYPES.includes(String(question?.taskType ?? '').trim());
 
 const hasExplicitRepresentationConnection = (question = {}) => {
@@ -215,9 +215,10 @@ const representationKinds = (question = {}) => {
  * An Honors assignment is judged on these four depth areas and needs
  * HONORS_DEPTH_REQUIRED of them. Higher-order reasoning is one of the four
  * and is also required on its own, so the rule is DOK 3 work plus two of the
- * other three. The Review blocker (preflightSteps.js) and the AI repair gate
- * (honorsDepthAiRepair.js) read it from here, so the message a teacher sees
- * cannot ask for more than this check requires.
+ * other three. The Review blocker (preflightSteps.js), the AI repair
+ * (honorsDepthAiRepair.js) and the authoring contract (authoringContract.js)
+ * read it from here, so neither the message a teacher sees nor the rule an
+ * author is given can ask for more than this check requires.
  */
 export const HONORS_DEPTH_AREAS = Object.freeze([
   'higherOrderReasoning',
@@ -246,9 +247,13 @@ export const HONORS_CHECK_LABELS = Object.freeze({
   ccmrEnrichment: 'audited CCMR Practice',
 });
 
+// A Warm-Up or DOL of at most this many questions, on its own, is a narrow
+// checkpoint: it needs only its Core TEKS (inspectHonorsRigor).
+export const HONORS_CHECKPOINT_MAX_QUESTIONS = 3;
+
 export const isNarrowHonorsCheckpoint = (questions = []) => {
   const included = (Array.isArray(questions) ? questions : []).filter((question) => question?.teacherExcluded !== true);
-  return included.length > 0 && included.length <= 3 && included.every((question) => (
+  return included.length > 0 && included.length <= HONORS_CHECKPOINT_MAX_QUESTIONS && included.every((question) => (
     ['warmup', 'dol'].includes(String(question.activityRole || question.role || '').trim().toLowerCase())
   ));
 };

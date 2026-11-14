@@ -25,6 +25,13 @@ import {
   EVIDENCE_LEVELS,
   EVIDENCE_MODES,
 } from './alignments.js';
+import {
+  HONORS_CHECKPOINT_MAX_QUESTIONS,
+  HONORS_CHECK_LABELS,
+  HONORS_DEPTH_AREAS,
+  HONORS_DEPTH_REQUIRED,
+  MODELING_TASK_TYPES,
+} from '../rigor/courseRigor.js';
 
 export const CONTRACT_SCHEMA_VERSION = 5;
 export const CONTRACT_SCHEMA_NAME = 'MathMaster Assignment V5';
@@ -493,6 +500,24 @@ const compactTeksSection = (courseId = null) => {
   }).join('\n');
 };
 
+/*
+ * THE HONORS DEPTH RULE, AS THE HONORS CHECK ENFORCES IT.
+ *
+ * Authors met this rule only when an import was blocked for an Honors class.
+ * Its numbers, the names of its areas and the taskType values that count for
+ * modeling / application are read from the check's own definitions
+ * (courseRigor.js), so this text cannot ask for more or less than
+ * inspectHonorsRigor does.
+ */
+const honorsDepthRuleLines = () => {
+  const areas = HONORS_DEPTH_AREAS.map((key) => HONORS_CHECK_LABELS[key]).join(', ');
+  const declared = MODELING_TASK_TYPES.map((value) => `\`"taskType": "${value}"\``).join(' or ');
+  return [
+    `- A full Honors assignment needs ${HONORS_CHECK_LABELS.coreTeks} and at least ${HONORS_DEPTH_REQUIRED} of the ${HONORS_DEPTH_AREAS.length} depth areas (${areas}). One of them must be ${HONORS_CHECK_LABELS.higherOrderReasoning}: at least one question with \`"dok": 3\` or higher, whose work really is DOK 3. Preflight blocks an assignment that falls short for an Honors class.`,
+    `- Mark a real-world modeling or application question with ${declared}. The Honors check then counts it for ${HONORS_CHECK_LABELS.modelingApplication} whatever its wording, so a problem under a textbook heading such as "APPLY MATH" is not missed. \`taskType\` names a question's main task: do not use these values for other work.`,
+  ];
+};
+
 /**
  * The sections that carry semantic V5 authoring guidance.
  *
@@ -655,8 +680,9 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '## Honors + CCMR Practice',
   '- Do not author honors/isHonors/courseLevel. Honors placement comes from the destination class.',
   '- For Honors, deepen reasoning, representation, modeling, justification, and transfer while preserving the assigned course TEKS and lesson ceiling.',
+  ...honorsDepthRuleLines(),
   '- In a full Honors assignment with independent Practice, aim for about 15% authentic exam-style CCMR Practice over the recent sequence: normally 1 item in a 5–8 question Practice section or 1–2 in a 9–12 question Practice section.',
-  '- Warm-Ups/DOLs with three or fewer questions are exempt from the CCMR-share expectation.',
+  `- Warm-Ups/DOLs with ${HONORS_CHECKPOINT_MAX_QUESTIONS} or fewer questions are exempt from the depth rule and the CCMR-share expectation; they need only ${HONORS_CHECK_LABELS.coreTeks}.`,
   '- Do not turn every Honors question into test prep; the exam-style item is a deliberate transfer check.',
   '',
   '## CCMR / assessment fidelity',

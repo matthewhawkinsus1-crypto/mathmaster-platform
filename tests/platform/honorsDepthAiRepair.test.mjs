@@ -14,6 +14,7 @@ import {
 import { HONORS_DEPTH_AREAS, inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
 import { describeHonorsGap } from '../../src/components/teacher/preflightSteps.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { lessonWith } from './helpers/honorsDepthFixtures.mjs';
 
 const base = () => ({
   schemaVersion: 5,
@@ -89,21 +90,10 @@ test('a rationale-required open sort counts as explicit explanation/justificatio
  * higher-order reasoning and justification is listed as missing multiple
  * representations and modeling / application, either of which would do: a
  * candidate that added a modeling question passed the check and was refused
- * all the same. Each question below supplies exactly the area it is named
- * for, so a lesson can be built with any set of areas and every verdict is
- * the real check's.
+ * all the same. The lessons below are built from questions that each supply
+ * exactly one depth area (helpers/honorsDepthFixtures.mjs), so every verdict
+ * is the real check's.
  */
-const AREA_QUESTIONS = Object.freeze({
-  higherOrderReasoning: { activityRole: 'classwork', dok: 3, prompt: 'Solve $3(x - 2) = 2x + 5$.' },
-  multipleRepresentations: { activityRole: 'classwork', dok: 2, studentActions: ['connectRepresentations'], prompt: 'Match each table to its equation.' },
-  justification: { activityRole: 'practice', dok: 2, prompt: 'Explain why $x = 4$ solves $2x + 3 = 11$.' },
-  modelingApplication: { activityRole: 'practice', dok: 2, taskType: 'modeling', prompt: 'A box has volume $x^3 + 3x^2 + 2x$ and height $x + 2$. Find its width and length.' },
-});
-// A lesson whose questions supply exactly `areas`, aligned to a TEKS unless `teks` is false.
-const lessonWith = (areas, { teks = true } = {}) => [
-  { activityRole: 'classwork', dok: 2, prompt: 'Solve $2x + 3 = 11$.' },
-  ...areas.map((area) => AREA_QUESTIONS[area]),
-].map((question) => ({ ...question, ...(teks ? { standard: 'A.5A' } : {}) }));
 // What the request listed for a source lesson, as Pre-Flight passes it.
 const listedFor = (questions) => nonCcmrHonorsMissing(inspectHonorsRigor(questions, { allowNarrowCheckpoint: true }));
 const judge = (source, candidate) => judgeHonorsDepthRepair({
