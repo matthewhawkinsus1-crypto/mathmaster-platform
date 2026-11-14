@@ -168,8 +168,9 @@ Firestore rules or indexes.
 
 ### Which Functions
 
-The planner cannot read an import graph, so for any `functions/shared/**` change
-it plans every function (210, in 28 groups, about an hour). The functions that
+When this was written the planner could not read an import graph, so for any `functions/shared/**` change
+it planned every function (210, in 28 groups, about an hour). It now follows imports
+(`scripts/lib/functionsImportGraph.mjs`) and picks these same 18 for this change by itself. The functions that
 can actually load the changed modules are **18** (plus `platformBuildInfo`,
 which every functions release redeploys and then calls to prove the commit):
 

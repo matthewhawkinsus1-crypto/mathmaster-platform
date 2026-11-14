@@ -543,6 +543,11 @@ ship. Then it asks `platformBuildInfo` which commit is live and refuses to go
 on unless it is yours (see "Which commit is live"). It finishes with the exact
 command to retry what is left, and writes a report under `release-reports/`.
 `--functions name1,name2` deploys only those (plus `platformBuildInfo`).
+Without `--only` or `--functions`, the plan deploys only the functions whose code the
+release changed: it follows each function's imports, lazy loads included
+(`scripts/lib/functionsImportGraph.mjs`), prints the reason for each one it picks,
+and plans every function whenever it cannot be sure (a computed import, a changed
+`functions/package.json`, the codebase's settings in `firebase.json`, a seed file).
 
 ### Step 2 (older script) — deploy them a few at a time
 
