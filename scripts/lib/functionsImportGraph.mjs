@@ -520,16 +520,18 @@ const walkCode = (root, { ref = () => {}, load = () => {}, computed = () => {}, 
         visitTarget(node.left);
         visit(node.right);
         return;
+      // A literal path is a load, not a name spelled in the code: only a
+      // computed one is code to read.
       case 'ImportExpression':
         loaderSite(node, node.source);
-        visit(node.source);
+        if (staticString(node.source) === null) visit(node.source);
         visit(node.options);
         return;
       case 'CallExpression':
         // Any require(): an ESM file's own `const require = createRequire(...)` loads too.
         if (isRequireCall(node)) loaderSite(node, node.arguments[0]);
         visit(node.callee);
-        visit(node.arguments);
+        visit(isRequireCall(node) && staticString(node.arguments[0]) !== null ? node.arguments.slice(1) : node.arguments);
         return;
       case 'ImportDeclaration':
       case 'ExportAllDeclaration':

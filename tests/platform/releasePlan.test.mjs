@@ -910,6 +910,16 @@ test('when the graph cannot be sure, every function deploys, and the plan says w
   const browser = changeTo(edit('functions/shared/browserOnly.mjs'));
   assert.deepEqual([browser.all, browser.functions], [[], []]);
   assert.match(browser.notes.join('\n'), /shared\/browserOnly\.mjs: no function loads it/);
+  // So is a module only an uncalled loader imports: its path is a load that no
+  // function makes, not a name the code reads files by.
+  const retired = changeTo({ 'functions/shared/retired.mjs': 'export const retired = false;' }, {
+    both: {
+      'functions/index.js': `${fixtureIndex}\nasync function retiredLoader() { return import('./shared/retired.mjs'); }`,
+      'functions/shared/retired.mjs': 'export const retired = true;',
+    },
+  });
+  assert.deepEqual([retired.all, retired.functions], [[], []]);
+  assert.match(retired.notes.join('\n'), /shared\/retired\.mjs: no function loads it/);
 
   // firebase.json: the functions target is planned only for its functions settings.
   const settings = firebaseFunctionsSettingsChanged(fixtureFiles['firebase.json'], JSON.stringify(firebase));
