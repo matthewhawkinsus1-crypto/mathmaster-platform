@@ -16,6 +16,7 @@
  *                         https://<project>.web.app/mathmaster-build.json)
  *   --only a,b            targets to deploy regardless of the diff:
  *                         indexes, functions, path-admin, rules, database, hosting
+ *                         (functions here is the whole default codebase)
  *   --functions a,b       exact default-codebase functions (implies functions)
  *   --group-size N        functions per group (default 8)
  *   --pause-seconds N     pause between groups (default 45)
@@ -28,6 +29,13 @@
  *   --whats-live          print the commit Hosting, the functions (platformBuildInfo)
  *                         and, when gcloud is on PATH, every function's mm-git-sha
  *                         label are from; deploys nothing, needs no diff
+ *
+ * Without --only or --functions, the default-codebase functions deployed are
+ * the ones the diff reaches: each export's static import graph (lazy
+ * require() and import() included) is followed to the files it loads, and a
+ * function is deployed when one of them changed. The plan prints each with
+ * the reason, or every function and why the graph cannot be sure
+ * (scripts/lib/functionsImportGraph.mjs).
  *
  * Any release that deploys default-codebase functions also redeploys
  * platformBuildInfo and then calls it (the callable protocol, no credentials):
@@ -63,6 +71,8 @@ import {
   classifyChangedFiles,
   deployCommandFor,
   describeStep,
+  firebaseFunctionsSettingsChanged,
+  functionSelectionLines,
   retryCommandFor,
   summarizeFunctionLabels,
 } from './lib/releasePlan.mjs';
@@ -92,6 +102,32 @@ const git = (...args) => {
   const result = spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${result.stderr.trim()}`);
   return result.stdout.trim();
+};
+
+// A file as one commit has it; null when it has no such file.
+const fileAt = (rev, file) => {
+  const result = spawnSync('git', ['cat-file', 'blob', `${rev}:${file}`], { cwd: repoRoot, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 });
+  return result.status === 0 ? result.stdout : null;
+};
+
+/**
+ * The default-codebase functions the diff reaches, by the import graph of
+ * HEAD (scripts/lib/functionsImportGraph.mjs). A graph that cannot be built is
+ * a reason to deploy every function, never to deploy none.
+ */
+const selectFunctions = async ({ base, files, inventory }) => {
+  try {
+    const { buildFunctionsImportGraph, gitSource, selectFunctionsForChange } = await import('./lib/functionsImportGraph.mjs');
+    const head = gitSource(repoRoot, 'HEAD');
+    const graph = buildFunctionsImportGraph({ source: head });
+    return selectFunctionsForChange({
+      graph,
+      changes: files.map((file) => ({ file, before: fileAt(base, file), after: head.read(file) })),
+      inventory,
+    });
+  } catch (error) {
+    return { all: [`the import graph could not be built (${String(error?.message || error).split('\n')[0]})`], functions: [], reasons: {}, notes: [] };
+  }
 };
 
 const fetchLiveBuild = async () => {
@@ -244,7 +280,11 @@ if (spawnSync('git', ['cat-file', '-e', `${base}^{commit}`], { cwd: repoRoot }).
 }
 
 const changed = git('diff', '--name-only', `${base}..HEAD`).split('\n').filter(Boolean);
-const { targets, reasons, unclassified } = classifyChangedFiles(changed);
+// firebase.json is also each functions codebase's when its settings there changed.
+const functionsSettings = changed.includes('firebase.json')
+  ? firebaseFunctionsSettingsChanged(fileAt(base, 'firebase.json'), fileAt('HEAD', 'firebase.json'))
+  : null;
+const { targets, reasons, unclassified } = classifyChangedFiles(changed, { functionsSettings });
 const only = list(option('only'))?.map((name) => TARGET_ALIASES[name] || name) || null;
 const functionNames = list(option('functions'));
 const wantsFunctions = Boolean(functionNames?.length) || (only ? only.includes(RELEASE_TARGETS.FUNCTIONS) : targets.includes(RELEASE_TARGETS.FUNCTIONS));
@@ -253,12 +293,22 @@ const inventoryEntries = wantsFunctions ? await loadInventory({ required: true }
 const inventory = inventoryEntries.map(({ name }) => name);
 const BUILD_INFO_REGION = regionOf(inventoryEntries);
 
+// Which functions: the ones named, the whole fleet for --only functions, or
+// what the diff reaches.
+const functionsMode = !wantsFunctions ? null
+  : functionNames?.length ? 'named'
+    : only ? 'only' : 'graph';
+const selection = functionsMode === 'graph'
+  ? await selectFunctions({ base, files: reasons[RELEASE_TARGETS.FUNCTIONS] || [], inventory })
+  : null;
+
 let steps;
 try {
   steps = buildReleasePlan({
     targets,
     allFunctions: inventory,
     functionNames,
+    selectedFunctions: selection && !selection.all.length ? selection.functions : null,
     only: functionNames?.length ? [...new Set([...(only || targets), RELEASE_TARGETS.FUNCTIONS])] : only,
     groupSize: GROUP_SIZE,
     expectedGitSha: headFull,
@@ -266,6 +316,7 @@ try {
 } catch (error) {
   fail(error.message);
 }
+const plannedFunctions = [...new Set(steps.filter((step) => step.target === RELEASE_TARGETS.FUNCTIONS).flatMap((step) => step.group))];
 
 console.log(`MathMaster release plan for ${PROJECT}`);
 console.log(`  live build: ${liveBuild?.gitSha || 'unknown'}${liveBuild?.builtAt ? ` (built ${liveBuild.builtAt})` : ''}`);
@@ -275,6 +326,8 @@ for (const target of Object.keys(reasons)) {
   console.log(`  ${target.padEnd(22)} because ${files.slice(0, 3).join(', ')}${files.length > 3 ? ` and ${files.length - 3} more` : ''}`);
 }
 if (unclassified.length) console.log(`  NOTE: not mapped to a target (deployed by nothing): ${unclassified.slice(0, 6).join(', ')}${unclassified.length > 6 ? ' …' : ''}`);
+const selectionLines = functionSelectionLines({ selection, total: inventory.length, mode: functionsMode, named: functionNames || [] });
+if (selectionLines.length) console.log(`\n${selectionLines.join('\n')}`);
 if (!steps.length) {
   console.log('\nNothing to deploy.');
   process.exit(0);
@@ -314,7 +367,7 @@ const gate = (label, command, args) => {
   if (result.status !== 0) fail(`${label} failed; nothing was deployed.`);
 };
 gate('Deploy provenance (HEAD contains origin/main, clean tree)', 'node', ['scripts/check-deploy-provenance.mjs']);
-if (wantsFunctions) gate('Functions load from the real entry point', 'node', ['scripts/verify-functions-discovery.mjs', ...(functionNames || []), BUILD_INFO_FUNCTION]);
+if (plannedFunctions.length) gate('Functions load from the real entry point', 'node', ['scripts/verify-functions-discovery.mjs', ...plannedFunctions]);
 
 const deployEnv = {
   ...process.env,
@@ -401,6 +454,13 @@ const report = {
   liveBuildBefore: liveBuild || null,
   targets: [...new Set(steps.map((step) => step.target).filter((target) => target !== VERIFY_FUNCTIONS))],
   reasons,
+  // How the default-codebase functions were chosen: named | only | graph, and
+  // for the graph each one's reason, or why it chose all of them.
+  functions: functionsMode ? {
+    mode: functionsMode,
+    planned: plannedFunctions,
+    ...(selection ? { all: selection.all, reasons: selection.reasons, notes: selection.notes } : {}),
+  } : null,
   ok: outcome.ok,
   results: outcome.results,
   failedFunctions: outcome.failedFunctions,
@@ -419,7 +479,7 @@ const report = {
     hosting: liveBuild?.gitSha
       ? `Firebase console → Hosting → Release history → roll back to the release built from ${liveBuild.gitSha}; or \`git checkout ${liveBuild.gitSha} && npm run deploy:hosting\` (set MATHMASTER_DEPLOY_ALLOW_BEHIND_MAIN=1).`
       : 'Firebase console → Hosting → Release history → roll back to the previous release.',
-    functions: `Redeploy the previous code: \`git checkout ${base} && node scripts/release-firebase.mjs --execute --only functions --since ${base}~1\` (or --functions <names> for the affected ones).`,
+    functions: `Redeploy the previous code: \`git checkout ${base} && node scripts/release-firebase.mjs --execute --only functions --since ${base}~1\` (or --functions ${plannedFunctions.length && plannedFunctions.length < inventory.length ? `${plannedFunctions.join(',')}, the ones this release deployed` : '<names> for the affected ones'}).`,
     rules: `\`git checkout ${base} -- firestore.rules && npx firebase deploy --only firestore:rules --project ${PROJECT}\`, then restore the file.`,
   },
 };

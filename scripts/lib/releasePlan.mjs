@@ -162,8 +162,13 @@ const vendoredIntoPathAdmin = (file) => VENDORED_PATHS.some((entry) => (entry.ki
 /**
  * Which deploy targets a set of changed paths requires, and the files that
  * put each one on the list (so a release can say WHY it is deploying Hosting).
+ *
+ * firebase.json is Hosting's, and also each functions codebase's when that
+ * codebase's settings in it changed (`functionsSettings`, from
+ * firebaseFunctionsSettingsChanged): its source, predeploy and ignore list
+ * decide what every function of the codebase uploads.
  */
-export const classifyChangedFiles = (paths = []) => {
+export const classifyChangedFiles = (paths = [], { functionsSettings = null } = {}) => {
   const reasons = {};
   const unclassified = [];
   for (const raw of paths) {
@@ -176,10 +181,81 @@ export const classifyChangedFiles = (paths = []) => {
       matched = true;
     }
     if (vendoredIntoPathAdmin(file)) (reasons[RELEASE_TARGETS.PATH_ADMIN] ||= []).push(file);
+    if (file === 'firebase.json') {
+      if (functionsSettings?.default) (reasons[RELEASE_TARGETS.FUNCTIONS] ||= []).push(file);
+      if (functionsSettings?.['path-admin']) (reasons[RELEASE_TARGETS.PATH_ADMIN] ||= []).push(file);
+    }
     if (!matched && !NO_DEPLOY.some((pattern) => pattern.test(file))) unclassified.push(file);
   }
   const targets = ORDER.filter((target) => reasons[target]?.length);
   return { targets, reasons, unclassified };
+};
+
+/** A codebase's entry in firebase.json's `functions` (null when it has none). */
+const codebaseSettings = (firebaseJson, codebase) => {
+  const config = JSON.parse(firebaseJson);
+  const list = Array.isArray(config.functions) ? config.functions : config.functions ? [config.functions] : [];
+  return list.find((entry) => (entry.codebase || 'default') === codebase) || null;
+};
+
+/**
+ * Which codebases' settings differ between two versions of firebase.json:
+ * { default: boolean, 'path-admin': boolean }. A version that cannot be read
+ * counts as a change to every codebase; a missing one (null) as no settings.
+ */
+export const firebaseFunctionsSettingsChanged = (before, after, codebases = ['default', 'path-admin']) => Object.fromEntries(codebases.map((codebase) => {
+  try {
+    return [codebase, JSON.stringify(codebaseSettings(before ?? '{}', codebase)) !== JSON.stringify(codebaseSettings(after ?? '{}', codebase))];
+  } catch {
+    return [codebase, true];
+  }
+}));
+
+/** The repository scripts a codebase's predeploy runs (`node scripts/x.mjs ...`). */
+export const predeployScripts = (firebaseJson, codebase = 'default') => {
+  try {
+    return (codebaseSettings(firebaseJson, codebase)?.predeploy || [])
+      .map((command) => (String(command).match(/^\s*node\s+(\S+\.m?js)(?:\s|$)/) || [])[1])
+      .filter(Boolean)
+      .map((file) => file.replace(/^\.\//, ''));
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * The plan's account of which default-codebase functions it deploys and why.
+ *
+ *   mode 'graph'  chosen by what the diff changed (functionsImportGraph.mjs
+ *                 selectFunctionsForChange): `selection` is its result
+ *   mode 'named'  --functions named them
+ *   mode 'only'   --only functions: the whole fleet, whatever changed
+ *
+ * Every chosen function is printed; the reasons for choosing all of them and
+ * the changed files that reach none are printed up to `upTo` each (the
+ * release report keeps them all).
+ */
+export const functionSelectionLines = ({ selection = null, total = 0, mode = 'graph', named = [], upTo = 8 } = {}) => {
+  if (mode === 'named') return [`Functions: the ${named.length} named by --functions (and ${BUILD_INFO_FUNCTION}).`];
+  if (mode === 'only') return [`Functions: all ${total}, as --only functions asks, whatever the diff changed.`];
+  if (mode !== 'graph' || !selection) return [];
+  const lines = [];
+  const some = (list, line) => {
+    list.slice(0, upTo).forEach((entry) => lines.push(line(entry)));
+    if (list.length > upTo) lines.push(`  ... and ${list.length - upTo} more (in the release report)`);
+  };
+  if (selection.all?.length) {
+    lines.push(`Functions: all ${total}. The import graph cannot be sure which functions this diff reaches:`);
+    some(selection.all, (why) => `  - ${why}`);
+  } else if (!selection.functions?.length) {
+    lines.push(`Functions: none of ${total}. No function loads code this diff changed.`);
+  } else {
+    lines.push(`Functions: ${selection.functions.length} of ${total}, each for what it loads (${BUILD_INFO_FUNCTION} ships with every functions release):`);
+    const width = Math.max(...selection.functions.map((name) => name.length));
+    selection.functions.forEach((name) => lines.push(`  ${name.padEnd(width)}  ${selection.reasons?.[name] || ''}`.trimEnd()));
+  }
+  some(selection.notes || [], (note) => `  (no function: ${note})`);
+  return lines;
 };
 
 export const chunk = (list, size) => {
@@ -193,9 +269,11 @@ export const chunk = (list, size) => {
  * The ordered steps of a release.
  *
  * `only` narrows to named targets; `functionNames` limits the default codebase
- * to exact functions (AGENTS.md: prefer exact names). Every functions step
- * names its functions explicitly — never a bare `--only functions`, which
- * would also redeploy the path-admin codebase.
+ * to exact functions (AGENTS.md: prefer exact names). Without them,
+ * `selectedFunctions` is what the diff reaches (functionsImportGraph.mjs;
+ * an empty list deploys no function) and null is the whole fleet. Every
+ * functions step names its functions explicitly — never a bare
+ * `--only functions`, which would also redeploy the path-admin codebase.
  *
  * Any release that deploys default-codebase functions also deploys
  * `platformBuildInfo`, in the LAST group before the checks (only
@@ -208,6 +286,7 @@ export const buildReleasePlan = ({
   targets = [],
   allFunctions = [],
   functionNames = null,
+  selectedFunctions = null,
   only = null,
   groupSize = 8,
   expectedGitSha = null,
@@ -217,7 +296,7 @@ export const buildReleasePlan = ({
   for (const target of wanted) {
     if (target === RELEASE_TARGETS.FUNCTIONS) {
       const known = new Set(allFunctions);
-      const requested = functionNames?.length ? functionNames : allFunctions;
+      const requested = functionNames?.length ? functionNames : (Array.isArray(selectedFunctions) ? selectedFunctions : allFunctions);
       const unknown = requested.filter((name) => !known.has(name));
       if (unknown.length) throw new Error(`Not deployable functions in the default codebase: ${unknown.join(', ')}`);
       if (!requested.length) continue;

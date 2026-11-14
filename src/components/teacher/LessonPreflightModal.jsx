@@ -30,10 +30,10 @@ import {
   applyHonorsDepthAiSections,
   buildHonorsDepthAiRepairRequest,
   honorsMissingLabels,
+  judgeHonorsDepthRepair,
   nonCcmrHonorsMissing,
   nonCcmrHonorsReady,
   separateHonorsDepthAiRepair,
-  unresolvedRequestedHonorsGaps,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
   assignmentAiDiagnostics,
@@ -804,16 +804,14 @@ export const LessonPreflightModal = ({
       throw new Error(`The Honors repair introduced a new assignment blocker:\n${newErrors.join('\n')}`);
     }
 
-    const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
-    const requestedGaps = nonCcmrHonorsMissing(honorsReport);
-    const unresolvedRequested = unresolvedRequestedHonorsGaps(requestedGaps, candidateReport);
-    if (unresolvedRequested.length) {
-      throw new Error(`${sourceLabel} did not resolve the Honors gap(s) it was asked to repair: ${honorsMissingLabels(unresolvedRequested).join(', ')}. The original assignment was kept unchanged.`);
-    }
-    if (!nonCcmrHonorsReady(candidateReport)) {
-      const unresolved = nonCcmrHonorsMissing(candidateReport);
-      throw new Error(`${sourceLabel} could not safely resolve enough Honors depth: ${honorsMissingLabels(unresolved).join(', ')}. Honors requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions. The original assignment was kept unchanged.`);
-    }
+    // Taken when the Honors check passes it, as Review would, even if a gap
+    // the request listed is still open (honorsDepthAiRepair.js).
+    const verdict = judgeHonorsDepthRepair({
+      questions: candidateModel.questions,
+      requestedMissing: nonCcmrHonorsMissing(honorsReport),
+      sourceLabel,
+    });
+    if (!verdict.accepted) throw new Error(verdict.message);
 
     const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
     const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
@@ -825,7 +823,7 @@ export const LessonPreflightModal = ({
     setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
     setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
     setHonorsAiMessage(
-      candidateReport.checks.ccmrEnrichment
+      verdict.report.checks.ccmrEnrichment
         ? `${sourceLabel} repaired the Honors depth requirements and the assignment passed Preflight again.`
         : `${sourceLabel} repaired the Honors depth requirements. MathMaster is checking the Honors version again, with its audited CCMR Practice, below.`,
     );
