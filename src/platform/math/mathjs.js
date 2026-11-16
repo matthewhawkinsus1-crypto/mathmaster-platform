@@ -20,14 +20,18 @@
  *
  * Its simplify is mathjs's own, reading its default rules' text once rather
  * than on every call (functions/shared/algebra/simplifyRulesParsedOnce.mjs),
- * as the shared graders' instance does.
+ * and its simplifyCore simplifies each node once, where mathjs's simplifies the
+ * first operand of every sum and product twice
+ * (functions/shared/algebra/simplifyCoreOnce.mjs), as the shared graders'
+ * instance does: mathjs's answers, without 2^(n-1) visits for n terms.
  */
 import { all, create } from 'mathjs';
+import { withSimplifyCoreOnce } from '../../../functions/shared/algebra/simplifyCoreOnce.mjs';
 import { withSimplifyRulesParsedOnce } from '../../../functions/shared/algebra/simplifyRulesParsedOnce.mjs';
 
 // The factories the instance builds each function from, with their
 // dependencies: what idleMathSteps.js needs to build one ahead of its first use.
-export const factories = withSimplifyRulesParsedOnce(all);
+export const factories = withSimplifyRulesParsedOnce(withSimplifyCoreOnce(all));
 
 export const math = create(factories);
 
