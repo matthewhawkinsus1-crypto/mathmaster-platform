@@ -81,6 +81,14 @@ name: Student and Teacher Journeys
 #                          (a met prerequisite opens Classwork and Practice,
 #                          the server accepts the answer; Warm-Up and DOL stay
 #                          shut; without it the lesson still opens later)
+#   radical server grading tests/browser/teacherWorkflow/radicalServerGradingJourneys.mjs
+#                          (its own job: the Algebra II Honors radical lesson
+#                          as today's lesson, a radical equation solved on
+#                          Step Algebra through its controls and submitted;
+#                          with the harness server every step and the answer
+#                          are accepted and marked by the shared ingestion,
+#                          step for step and part for part as the browser
+#                          marked them, the extraneous root kept as well)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
 #   submit and finish      tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
 #                          (its own job: Submit names the try it spends, the
@@ -397,6 +405,29 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/dol2ReviewHonorsJourneys.mjs
+
+  # Its own runner: the teacher job is near its time limit. A radical equation
+  # solved on Step Algebra in the real App (#548), the harness's server
+  # (`&server=1`: the shared ingestion functions/index.js calls) grading every
+  # step from its raw work and the answer from its raw response, exactly as the
+  # browser graded them. Two solves, 1366x768: about 1½ minutes locally
+  # (84-87 s in four runs).
+  radical-server-grading:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: A radical solve graded by the server's ingestion as the browser graded it, step by step
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/radicalServerGradingJourneys.mjs
 
   # Its own runner: the teacher job is near its time limit. One journey,
   # 1366x768 and 390x844.

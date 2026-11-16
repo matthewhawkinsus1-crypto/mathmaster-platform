@@ -151,13 +151,14 @@ export const recordHarnessCallable = (name, responseBytes = null) => {
 const persist = () => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...store.entries()].map(([path, data]) => [path, serialize(data)]))); } catch { /* quota: harness only */ }
 };
-// `?questions=matrices` and `?questions=dividing` (PH10, PH06): a real Algebra II
-// lesson, compiled by the real import chain; `?questions=runtime`, the
+// `?questions=matrices`, `?questions=dividing` (PH10, PH06) and
+// `?questions=radicals`: a real Algebra II lesson, compiled by the real import
+// chain; `?questions=runtime`, the
 // performance certification's flow compiled the same way
 // (studentRuntimeLesson.js). Loaded only when asked for: it pulls in the
 // lesson files and the compile modules every other page does not need.
 const requestedLesson = new URLSearchParams(window.location.search).get('questions');
-const lessonFixtures = requestedLesson === 'matrices' || requestedLesson === 'dividing'
+const lessonFixtures = ['matrices', 'dividing', 'radicals'].includes(requestedLesson)
   ? await import('./lessonFixtures.js')
   : requestedLesson === 'runtime' ? await import('./studentRuntimeLesson.js') : null;
 const compiledSections = lessonFixtures ? () => lessonFixtures.lessonSectionsFor(requestedLesson) : null;

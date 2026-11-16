@@ -91,6 +91,9 @@ const DRIVERS = [
   // graded and replayed by the server's code, in shards (below); ran by hand
   // until it passed twice in a row in Playwright's headless Chromium.
   ['student-runtime-browser-gates.yml', 'radical-step-algebra', 'plain', ['algebra2RadicalStepAlgebra']],
+  // S14 (#548): a radical solve in the real App, graded by the harness's
+  // server (the shared ingestion) as the browser graded it.
+  ['student-teacher-journeys.yml', 'radical-server-grading', 'teacher', ['teacherWorkflow/radicalServerGradingJourneys']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -208,7 +211,14 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   ['tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs', 'tests/browser/teacherWorkflow/fixtures/school.js',
     'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js',
     'tests/browser/teacherWorkflow/matrixLabPhoneJourneys.mjs', 'tests/browser/support/openerCover.mjs',
-    'src/components/common/MatrixGrid.jsx'].forEach((file) => {
+    'src/components/common/MatrixGrid.jsx',
+    // S14: the radical server-grading journeys, the harness server and lesson
+    // they run on, the student emulator they solve with, the lesson itself, and
+    // the ingestion and grader the server runs.
+    'tests/browser/teacherWorkflow/radicalServerGradingJourneys.mjs', 'tests/browser/teacherWorkflow/fakeServer.js',
+    'tests/browser/teacherWorkflow/lessonFixtures.js', 'tests/browser/radicalStepAlgebraDriver.mjs', 'tests/browser/relationWorkspaceDriver.mjs',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
+    'functions/shared/submissionIngestion.mjs', 'functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs'].forEach((file) => {
     assert.ok(runsOnPullRequest(journeys, file), `a change to ${file} runs the journeys`);
   });
   const emulator = 'student-pass3-emulator-journeys.yml';

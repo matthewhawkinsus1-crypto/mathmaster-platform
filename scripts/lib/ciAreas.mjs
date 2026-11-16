@@ -378,6 +378,11 @@ export const CI_AREAS = {
     'tests/browser/support/touchEmulation*',
     // How readAloudTranslate, studentUxPlatform and the matrices lesson on a phone read the Work View opener's cover.
     'tests/browser/support/openerCover*',
+    // The radical server-grading journeys (#548): the student emulator they
+    // solve with, and the lesson the harness imports as today's.
+    'tests/browser/radicalStepAlgebraDriver.mjs',
+    'tests/browser/relationWorkspaceDriver.mjs',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
     'package.json',
     'package-lock.json',
     'firebase.json',
