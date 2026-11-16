@@ -10391,6 +10391,12 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (persistenceState.persistencePending) {
         for (const publicationDoc of publications) {
           const publication = publicationDoc.data() || {};
+          // Only the columns this trigger sends to, as for the Recovery hold
+          // above. A split section's row is the section trigger's own, and it
+          // does not hold for persistence: "sync-pending" there replaced its
+          // record, so it sent that grade, and asked for a refused return,
+          // again (tests/platform/classroomPersistencePendingColumns.test.mjs).
+          if (publication.gradePassbackEnabled === false || !String(publication.courseId || "")) continue;
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),

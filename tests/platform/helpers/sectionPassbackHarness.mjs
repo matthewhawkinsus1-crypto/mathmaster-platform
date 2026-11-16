@@ -1,15 +1,16 @@
-// The real split-section grade trigger, run against fakes of the two things it
-// talks to: Firestore, and Google's Classroom API.
+// The real Classroom grade triggers, the split-section one and the
+// whole-assignment one, run against fakes of the two things they talk to:
+// Firestore, and Google's Classroom API.
 //
 // Only Google's HTTP layer is replaced. functions/lib/classroom.js is the real
 // module, so every call is tagged with its step and a refusal reaches the
 // trigger exactly as a GaxiosError from googleapis does. The Firestore fake
 // keeps documents, merges `set(..., { merge: true })` and applies
 // FieldValue.delete() as Firestore does, and records every read, so a test can
-// assert what the trigger read and what it wrote.
+// assert what the triggers read and what they wrote.
 //
-// Load this module before anything else requires functions/classroomSectionEntry.js:
-// the entry takes getFirestore when it is first loaded.
+// Load this module before anything else requires functions/classroomSectionEntry.js
+// or functions/index.js: each takes getFirestore when it is first loaded.
 
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -126,19 +127,27 @@ export function passbackFirestore(seed = {}) {
       },
     };
   }
-  const query = (collection, state = { filters: [], fields: null, limit: null }) => ({
+  const query = (collection, state = { filters: [], fields: null, limit: null, startAfter: null }) => ({
     where: (field, op, value) => {
       assert.equal(op, '==', 'the fake supports equality only');
       return query(collection, { ...state, filters: [...state.filters, { field: String(field), value }] });
     },
     select: (...fields) => query(collection, { ...state, fields: fields.map(segmentsOf) }),
     limit: (limit) => query(collection, { ...state, limit }),
+    // Results already come in document-id order; a paged read asks for that
+    // order and passes the last document (or its id) as the cursor.
+    orderBy: (field) => {
+      assert.equal(String(field), '__name__', 'the fake orders by document id only');
+      return query(collection, state);
+    },
+    startAfter: (cursor) => query(collection, { ...state, startAfter: typeof cursor === 'string' ? cursor : cursor.id }),
     doc: (id) => ref(`${collection}/${id}`),
     async get() {
       const docs = [...store.entries()]
         .filter(([docPath]) => docPath.startsWith(`${collection}/`) && docPath.split('/').length === 2)
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .filter(([, data]) => state.filters.every(({ field, value }) => data?.[field] === value))
+        .filter(([docPath]) => state.startAfter === null || docPath.split('/')[1] > state.startAfter)
         .slice(0, state.limit ?? undefined)
         .map(([docPath, data]) => snapshotOf(docPath, data, state.fields));
       // Firestore bills a query by the documents it returns (one if none).
@@ -152,6 +161,13 @@ export function passbackFirestore(seed = {}) {
     writes,
     doc: ref,
     collection: (name) => query(name),
+    // getAll(ref, ..., { fieldMask }), as Firestore bills it: one read a document.
+    async getAll(...args) {
+      const options = args.length && !args[args.length - 1]?.path ? args.pop() : null;
+      const fields = options?.fieldMask ? options.fieldMask.map(segmentsOf) : null;
+      reads.push({ kind: 'getAll', paths: args.map((docRef) => docRef.path), fields });
+      return args.map((docRef) => snapshotOf(docRef.path, store.get(docRef.path), fields));
+    },
     data: (docPath) => (store.has(docPath) ? structuredClone(store.get(docPath)) : undefined),
   };
 }
@@ -216,26 +232,52 @@ export function fakeGoogle({ states = {}, refuse = () => null } = {}) {
   return google;
 }
 
-/* --- the trigger ------------------------------------------------------------ */
+/* --- the triggers ----------------------------------------------------------- */
 
 export const sectionEntry = () => requireFromFunctions('./classroomSectionEntry.js');
+// The whole-assignment trigger, syncGradeToClassroom (functions/index.js).
+export const wholeEntry = () => requireFromFunctions('./index.js');
+const TRIGGERS = {
+  section: () => sectionEntry().cloudFunctions.syncSectionGradeToClassroom,
+  whole: () => wholeEntry().syncGradeToClassroom,
+};
 
 /**
- * Write the student's grade document as `change` describes and run the section
- * trigger on that write, as Firestore would deliver it.
+ * Write the student's grade document as `change` describes, and return the
+ * event Firestore delivers for that write: every trigger gets the same
+ * before and after.
  */
-export async function writeGrades({ db, google, studentId, change }) {
-  currentDb = db;
-  currentGoogle = google;
+export function writeGradeDocument({ db, studentId, change }) {
   const gradePath = `grades/${studentId}`;
   const beforeData = db.data(gradePath);
-  db.store.set(gradePath, change(structuredClone(beforeData)));
-  const afterRef = db.doc(gradePath);
-  await sectionEntry().cloudFunctions.syncSectionGradeToClassroom.run({
+  const afterData = change(structuredClone(beforeData));
+  db.store.set(gradePath, structuredClone(afterData));
+  return {
     params: { studentId },
     data: {
       before: { exists: beforeData !== undefined, data: () => structuredClone(beforeData) },
-      after: { exists: true, ref: afterRef, data: () => db.data(gradePath) },
+      after: { exists: true, ref: db.doc(gradePath), data: () => structuredClone(afterData) },
     },
-  });
+  };
+}
+
+/** Run one Classroom trigger, 'section' or 'whole', on a delivered write. */
+export async function runTrigger(name, { db, google, event }) {
+  currentDb = db;
+  currentGoogle = google;
+  await TRIGGERS[name]().run(event);
+}
+
+/**
+ * Write the student's grade document as `change` describes and run the
+ * triggers on that write, in that order, as Firestore would deliver it. Both
+ * Classroom triggers answer every write; the order between them is not fixed.
+ */
+export async function writeGrades({ db, google, studentId, change, triggers = ['section'] }) {
+  const event = writeGradeDocument({ db, studentId, change });
+  for (const name of triggers) {
+    // eslint-disable-next-line no-await-in-loop
+    await runTrigger(name, { db, google, event });
+  }
+  return event;
 }
