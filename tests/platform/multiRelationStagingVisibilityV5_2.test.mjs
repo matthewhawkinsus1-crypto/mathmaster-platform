@@ -28,5 +28,7 @@ test('cancellable fraction factors remain visible in dark mode', () => {
 });
 
 test('fraction cancellation uses factor presentation latex instead of reparsing text', () => {
-  assert.match(src, /factor\.latex \|\| expressionToLatex\(factor\.text\)/);
+  // Only a factor with no LaTeX of its own is read from its text, through the
+  // form that never throws (typedValueRenderSweep.test.mjs).
+  assert.match(src, /factor\.latex \|\| expressionLatexOrText\(factor\.text\)/);
 });

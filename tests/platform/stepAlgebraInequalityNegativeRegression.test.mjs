@@ -10,11 +10,14 @@ import {
   cloneRelationState,
   parseRelationSource,
   relationCancellationCandidates,
+  relationExpressionToLatex,
   relationExpressionsEquivalent,
   validateRelationTransition,
 } from '../../src/algebraRelationFoundation.js';
 import { expressionsEquivalent, splitAdditiveTerms } from '../../src/algebraAstEngine.js';
+import { relationLatex } from '../../src/relationRadicalToolsModel.js';
 import { multiRelationSource } from './helpers/solverSource.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const wholeBranchPlacement = () => ({
   0: { kind: 'whole-operation' },
@@ -241,6 +244,10 @@ test('relation UI supports multi-branch negative sign flips and preserves signed
   // Once a divide/multiply step is committed, a one-piece signed quotient must
   // go through the relation-aware renderer. Otherwise the additive-term display
   // can visually prepend a second minus to an already-negative numerator.
-  assert.match(src, /terms\.length === 1 && !placementMode/);
-  assert.match(src, /relationExpressionToLatex\(expression\)/);
+  // relationLatex is the relation-aware renderer (relationExpressionToLatex)
+  // wherever that can read the expression, and never throws where it cannot
+  // (typedValueRenderSweep.test.mjs).
+  const onePiece = region(src, 'if (!terms?.length || (terms.length === 1 && !placementMode)) {', 'const cancellableIndices', 'one-piece expression');
+  assert.match(onePiece, /<MathDisplay value=\{relationLatex\(expression\)\} format="latex" inline \/>/);
+  assert.equal(relationLatex('(-3) / 2'), relationExpressionToLatex('(-3) / 2'));
 });

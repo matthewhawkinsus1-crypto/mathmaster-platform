@@ -24,8 +24,11 @@ import {
   normalizeRelationExpressionInput,
   raiseRadicalRelation,
   relationExpressionToLatex,
+  relationStateToLatex,
+  relationStateToText,
   zeroProductFactors,
 } from './algebraRelationFoundation.js';
+import { latexOrAsWritten, latexText, typedLatex } from './platform/math/typedMathLatex.js';
 import { radicalGradingContext, readExactValue } from '../functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs';
 import { relationToolsOffered } from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { rationalToNumber, rationalToText } from '../functions/shared/toolMath/algebra-relations/radicalEquationShape.mjs';
@@ -42,25 +45,31 @@ import { withExplicitProducts } from './platform/contract/relationGivenProducts.
  * question module crashed, and because the recorded check is in the saved
  * draft it crashed again on every reload: the students could not finish the
  * question. readExactValue reads these values (the grade was never the
- * problem); only the drawing was.
+ * problem); only the drawing was. The rule is platform-wide now
+ * (src/platform/math/typedMathLatex.js); these are its relation forms.
  */
-const LATEX_COMMAND = /\\[A-Za-z]/;
-const asLatexText = (text) => `\\text{${text.replace(/[\\{}$%#&_^~]/g, '')}}`;
 
 /** Relation text ("(0) + (2)", "x") as LaTeX; text it cannot parse is shown as written, never thrown. */
-export const relationLatex = (expression) => {
-  const text = String(expression ?? '');
-  try {
-    return relationExpressionToLatex(text);
-  } catch {
-    return LATEX_COMMAND.test(text) ? text : asLatexText(text);
-  }
-};
+export const relationLatex = (expression) => latexOrAsWritten(relationExpressionToLatex, expression);
 
 /** A value typed in a math box: LaTeX already ("\frac12"), or plain text ("1/2", "-0.5"). Never throws. */
-export const typedValueLatex = (value) => {
-  const text = String(value ?? '').trim();
-  return LATEX_COMMAND.test(text) ? text : relationLatex(text);
+export const typedValueLatex = (value) => typedLatex(value, relationExpressionToLatex);
+
+/**
+ * A whole relation state as LaTeX (relationStateToLatex), or as text when an
+ * expression in it cannot be drawn: a typed expression the relation reader
+ * accepted can be written out longer than the parser reads. Never throws.
+ */
+export const relationStateLatex = (state) => {
+  try {
+    return relationStateToLatex(state);
+  } catch {
+    try {
+      return latexText(relationStateToText(state));
+    } catch {
+      return '';
+    }
+  }
 };
 
 /** The radical shape and its exact solution for the relation the workspace opened, or null. */

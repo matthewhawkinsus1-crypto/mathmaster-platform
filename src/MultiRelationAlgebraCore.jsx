@@ -10,11 +10,11 @@ import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { placementInstruction } from './relationOperationPlacement.js';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import {
-  expressionToLatex,
   expressionsEquivalent,
   latexToExpression,
   splitAdditiveTerms,
 } from './algebraAstEngine';
+import { expressionLatexOrText } from './platform/math/typedMathLatex.js';
 import {
   OTHER_ALGEBRA_OPERATIONS,
   absoluteValueSplitInputModel,
@@ -26,14 +26,12 @@ import {
   obviousSpecialClaim,
   parseRelationSource,
   relationCancellationCandidates,
-  relationExpressionToLatex,
   relationExpressionsEquivalent,
   normalizeRelationExpressionInput,
   relationSolutionSummary,
   relationSourceFromQuestion,
   relationStateContainsAbsoluteValue,
   verifyRelationCandidates,
-  relationStateToLatex,
   relationStateToText,
   resolveRelationNumberLineConfig,
   restorableRelationState,
@@ -48,11 +46,18 @@ import {
   RelationRaisePowerPanel,
   RelationZeroProductPanel,
 } from './RelationRadicalTools.jsx';
+// Every expression this workspace draws goes through relationLatex (and the
+// whole relation through relationStateLatex): drawn as before where the
+// parser can read it, as written where it cannot, never thrown. An operand or
+// rewrite the student typed is read and written out again in the parser's own
+// spelling, which can run past what the parser reads (typedMathLatex.js).
 import {
   checkChoiceOf,
   isRecordedCheck,
   radicalCandidateList,
   radicalContextOf,
+  relationLatex,
+  relationStateLatex,
   relationToolsFor,
   restorableSolutionSet,
 } from './relationRadicalToolsModel.js';
@@ -340,7 +345,7 @@ function AdditiveExpressionRegion({
     // canonical sign renderer once the balanced operation is committed.
     return (
       <span style={{ fontSize: 'calc(30 * var(--mm-px))', minWidth: 70, textAlign: 'center' }}>
-        <MathDisplay value={relationExpressionToLatex(expression)} format="latex" inline />
+        <MathDisplay value={relationLatex(expression)} format="latex" inline />
       </span>
     );
   }
@@ -544,7 +549,7 @@ function FractionCancellationRegion({
   if (!model || model.kind !== 'fraction') {
     return (
       <span style={{ fontSize: 'calc(30 * var(--mm-px))', minWidth: 70, textAlign: 'center' }}>
-        <MathDisplay value={relationExpressionToLatex(expression)} format="latex" inline />
+        <MathDisplay value={relationLatex(expression)} format="latex" inline />
       </span>
     );
   }
@@ -589,7 +594,7 @@ function FractionCancellationRegion({
       >
         <span style={{ fontSize: 'calc(24 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
           <MathDisplay
-            value={factor.latex || expressionToLatex(factor.text)}
+            value={factor.latex || expressionLatexOrText(factor.text)}
             format="latex"
             inline
           />
@@ -963,7 +968,7 @@ export default function MultiRelationAlgebra({
   ]);
 
   useEffect(() => {
-    onRelationDisplayChange?.(relationStateToLatex(relationState));
+    onRelationDisplayChange?.(relationStateLatex(relationState));
   }, [onRelationDisplayChange, relationState]);
 
   const hasTransientUndo = Boolean(
@@ -2420,7 +2425,7 @@ export default function MultiRelationAlgebra({
                       }}
                     >
                       <MathDisplay
-                        value={relationExpressionToLatex(absoluteSplitModel.inner)}
+                        value={relationLatex(absoluteSplitModel.inner)}
                         format="latex"
                         inline
                       />
@@ -2499,7 +2504,7 @@ export default function MultiRelationAlgebra({
                     ))}
                   </select>
                   <div style={{ textAlign: 'center', fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-text-strong)' }}>
-                    <MathDisplay value={relationExpressionToLatex(absoluteSplitModel.inner)} format="latex" inline />
+                    <MathDisplay value={relationLatex(absoluteSplitModel.inner)} format="latex" inline />
                   </div>
                   <select
                     value={absoluteSplitRelations[1] || ''}
@@ -2936,7 +2941,7 @@ export default function MultiRelationAlgebra({
                 >
                   <span style={{ fontSize: 'calc(24 * var(--mm-px))' }}>
                     <MathDisplay
-                      value={expressionToLatex(relationState.variable)}
+                      value={relationLatex(relationState.variable)}
                       format="latex"
                       inline
                     />
@@ -2944,7 +2949,7 @@ export default function MultiRelationAlgebra({
                   <span style={{ color: 'var(--mm-primary-text)', fontSize: 'calc(22 * var(--mm-px))', fontWeight: 900 }}>=</span>
                   <span style={{ fontSize: 'calc(24 * var(--mm-px))' }}>
                     <MathDisplay
-                      value={relationExpressionToLatex(expression)}
+                      value={relationLatex(expression)}
                       format="latex"
                       inline
                     />
@@ -2984,10 +2989,10 @@ export default function MultiRelationAlgebra({
             candidates={candidateVerification}
             checks={candidateChecks}
             variable={relationState.variable}
-            originalLatex={relationStateToLatex(pristine)}
+            originalLatex={relationStateLatex(pristine)}
             sideLatex={{
-              left: relationExpressionToLatex(pristine.branches?.[0]?.expressions?.[0] || ''),
-              right: relationExpressionToLatex(pristine.branches?.[0]?.expressions?.[1] || ''),
+              left: relationLatex(pristine.branches?.[0]?.expressions?.[0] || ''),
+              right: relationLatex(pristine.branches?.[0]?.expressions?.[1] || ''),
             }}
             domainText={radicalDomainText(radicalContext.shape)}
             onRecord={recordRadicalCheck}
@@ -3058,7 +3063,7 @@ export default function MultiRelationAlgebra({
                 >
                   <div style={{ fontSize: 'calc(21 * var(--mm-px))', fontWeight: 800 }}>
                     <MathDisplay
-                      value={`${expressionToLatex(relationState.variable)} = ${relationExpressionToLatex(expression)}`}
+                      value={`${relationLatex(relationState.variable)} = ${relationLatex(expression)}`}
                       format="latex"
                       inline
                     />
