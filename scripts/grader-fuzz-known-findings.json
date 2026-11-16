@@ -1,0 +1,60 @@
+{
+  "about": "Findings of the grader fuzz harness (scripts/lib/graderFuzz) that are understood and not fixed yet. A signature listed here does not fail a run; any other 'fail' finding does. Each entry says what it is, why it is left, and where it is tracked. Delete an entry with the change that fixes it (the nightly's --strict-known run names an entry that no longer reproduces). See docs/architecture/GRADER_FUZZ.md.",
+  "findings": {
+    "typedFields/unfinished-not-right/sign-after": {
+      "what": "A key with a + or − left after it (`12 +`, `x=5-`) is marked right by every typed-field grader: constantTermsLast (functions/shared/answerEquivalence.mjs) drops a sign that has no term.",
+      "whyLeft": "Refusing it lowers verdicts already given. It needs the owner's decision and a re-grade plan, not a quiet change.",
+      "tracked": "ISSUE_UNFINISHED"
+    },
+    "typedFields/unfinished-not-right/product-sign-after": {
+      "what": "A key with a product sign left after it (`4*`, `102\\times`, `1\\cdot`) is marked right: commutedProduct reads a product sign with no factor after it as nothing.",
+      "whyLeft": "As above: refusing it lowers verdicts already given.",
+      "tracked": "ISSUE_UNFINISHED"
+    },
+    "typedFields/unfinished-not-right/product-sign-before": {
+      "what": "A key with a product sign before it (`*38`) is marked right.",
+      "whyLeft": "As above: refusing it lowers verdicts already given.",
+      "tracked": "ISSUE_UNFINISHED"
+    },
+    "questionResponses/unfinished-not-right/sign-after": {
+      "what": "The same leniency on a whole multiAnswer, literal or table question.",
+      "whyLeft": "As typedFields/unfinished-not-right/sign-after.",
+      "tracked": "ISSUE_UNFINISHED"
+    },
+    "questionResponses/unfinished-not-right/product-sign-after": {
+      "what": "The same leniency on a whole multiAnswer, literal or table question.",
+      "whyLeft": "As typedFields/unfinished-not-right/product-sign-after.",
+      "tracked": "ISSUE_UNFINISHED"
+    },
+    "questionResponses/unfinished-not-right/product-sign-before": {
+      "what": "The same leniency on a whole multiAnswer, literal or table question.",
+      "whyLeft": "As typedFields/unfinished-not-right/product-sign-before.",
+      "tracked": "ISSUE_UNFINISHED"
+    },
+    "typedFields/device-server-parity/over-240-characters": {
+      "what": "A typed box travels to the server cut to 240 characters (normalizeOrdinaryResponse, and the attempt record), while the screen grades all of it. A right answer longer than that is right on the screen and wrong on the server. Reached only with padding (255 plus signs, brackets, spaces); no bank key's own spelling is that long.",
+      "whyLeft": "The limit is part of the stored attempt record's shape; raising it, or refusing a longer answer on the screen, is a contract change.",
+      "tracked": "ISSUE_LENGTH"
+    },
+    "questionResponses/device-server-parity/over-240-characters": {
+      "what": "The same 240-character cut on a whole multiAnswer or table question.",
+      "whyLeft": "As typedFields/device-server-parity/over-240-characters.",
+      "tracked": "ISSUE_LENGTH"
+    },
+    "typedFields/answers-in-time/long": {
+      "what": "sameValue takes about 2 s on a 2,000-character value of nested brackets (`(\\frac{1}{2}+` repeated), growing with roughly the cube of the length. Met only in runs with --max-length 2000 or more; the pull-request slice stops at 600.",
+      "whyLeft": "No assignment box sends more than 240 characters; a My Math Path box may send 2,000. Bounding it means refusing long input before it is read, which is a verdict change for those inputs.",
+      "tracked": "ISSUE_LENGTH"
+    },
+    "questionResponses/answers-in-time/long": {
+      "what": "The same cost, met through a whole question's screen grader.",
+      "whyLeft": "As typedFields/answers-in-time/long.",
+      "tracked": "ISSUE_LENGTH"
+    },
+    "drafts/reopen-time-grows-with-length/algebra": {
+      "what": "Reopening a Step Algebra draft with a move in progress (rehydrateAlgebraDraft -> makePendingMove) takes over twenty times as long at 18 terms on a side as at 9, about 2 s at 20 and no end at 24. Nothing makes a student combine terms, so a side can grow by one term a move.",
+      "whyLeft": "It is Step Algebra's own engine, which PR #552's branch is changing (simplify reads its rules once; equation facts once). Reported there rather than raced.",
+      "tracked": "ISSUE_STEP_ALGEBRA"
+    }
+  }
+}

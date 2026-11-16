@@ -1428,11 +1428,22 @@ export const gradePathResponse = ({ privateGrading, raw }) => {
   if (!contract) {
     return { ...graded(false), rejected: true, reason: 'no_server_grader_for_this_tool' };
   }
-  const check = contract.validateStudentResponse(raw, privateGrading.definition);
+  // Malformed or tampered work must never crash the callable that marks it:
+  // it is refused, as the shared tool graders refuse it (toolGraderDefinition.mjs
+  // bindToolGrader). A validator cannot name every bad shape (`intervals:
+  // [null]` passed one and threw in the grader; the grader fuzz harness found
+  // it), so a throw from either is the same refusal.
+  let check;
+  let result;
+  try {
+    check = contract.validateStudentResponse(raw, privateGrading.definition);
+    if (check.valid) result = contract.gradeStudentResponse(privateGrading.definition, raw);
+  } catch (error) {
+    return { ...graded(false), rejected: true, reason: 'malformed_response', detail: String(error?.message || '').slice(0, 200) };
+  }
   if (!check.valid) {
     return { ...graded(false), rejected: true, reason: 'malformed_response', detail: check.reason };
   }
-  const result = contract.gradeStudentResponse(privateGrading.definition, raw);
   // Belt and braces: whatever the client claimed, the verdict is this one.
   return {
     isCorrect: result.isCorrect === true,
