@@ -24,7 +24,8 @@
  *
  * COST. With reporting off, a request reads nothing and writes nothing (the
  * flag is cached per instance). With it on, one report request is one
- * transaction: 2 document reads and 2 writes, at most
+ * transaction: 3 document reads (the switch, the day, the account's limit)
+ * and 2 writes, at most
  * CRASH_REPORT_LIMITS.callsPerReporterPerDay times per account per day, and
  * only from a device that crashed.
  */
@@ -32,6 +33,7 @@
 const crypto = require("node:crypto");
 
 const FLAG_CACHE_MS = 2 * 60 * 1000;
+const DELETE_PAGE = 300;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let sharedPromise = null;
@@ -90,8 +92,19 @@ function createPlatformHealthService({ db, HttpsError, now = () => Date.now() })
     const dailyRef = db.collection(rules.PLATFORM_HEALTH_DAILY_COLLECTION).doc(day);
     const reporterRef = db.collection(rules.PLATFORM_HEALTH_REPORTERS_COLLECTION).doc(reporterDocId(day, request.auth.uid));
 
+    const switchRef = await flagRef();
     const accepted = await db.runTransaction(async (transaction) => {
-      const [dailySnap, reporterSnap] = await Promise.all([transaction.get(dailyRef), transaction.get(reporterRef)]);
+      // The switch is read again here, in the transaction that writes. The
+      // cached copy above is only good enough to refuse cheaply: an instance
+      // that cached "on" must not write after the owner turned reporting off
+      // or deleted what was collected (the purge would be undone), nor keep
+      // question detail after the owner chose family detail.
+      const [flagSnap, dailySnap, reporterSnap] = await Promise.all([transaction.get(switchRef), transaction.get(dailyRef), transaction.get(reporterRef)]);
+      const liveMode = rules.resolveCrashReportingMode(flagSnap.exists ? flagSnap.data() : null);
+      if (liveMode !== mode) {
+        cachedFlag = { mode: liveMode, readAt: now() };
+        return null;
+      }
       const reporter = reporterSnap.exists ? reporterSnap.data() || {} : {};
       const calls = Number(reporter.calls) || 0;
       if (calls >= limits.callsPerReporterPerDay) return 0;
@@ -137,46 +150,53 @@ function createPlatformHealthService({ db, HttpsError, now = () => Date.now() })
       });
       return taken;
     });
+    // The switch changed under this request: nothing was written. The device
+    // is told the mode that is live now and sends again, if at all, for that.
+    if (accepted === null) return { mode: cachedFlag.mode, accepted: 0 };
     return { mode, accepted };
   };
 
-  const deleteWhere = async (collectionName, beforeDay) => {
+  // Deletes until the query is empty, or until the time allowed runs out, and
+  // says which: a caller must never report "all deleted" for a sweep that stopped.
+  const deleteWhere = async (collectionName, beforeDay, deadlineMs) => {
     let removed = 0;
-    for (let round = 0; round < 20; round += 1) {
+    for (;;) {
       let query = db.collection(collectionName);
       if (beforeDay) query = query.where("day", "<", beforeDay);
       // eslint-disable-next-line no-await-in-loop
-      const snapshot = await query.limit(300).get();
-      if (snapshot.empty) break;
+      const snapshot = await query.limit(DELETE_PAGE).get();
+      if (snapshot.empty) return { removed, complete: true };
       const batch = db.batch();
       snapshot.docs.forEach((doc) => batch.delete(doc.ref));
       // eslint-disable-next-line no-await-in-loop
       await batch.commit();
       removed += snapshot.size;
-      if (snapshot.size < 300) break;
+      if (snapshot.size < DELETE_PAGE) return { removed, complete: true };
+      if (Date.now() >= deadlineMs) return { removed, complete: false };
     }
-    return removed;
+  };
+  const sweep = async (dailyBefore, reportersBefore, budgetMs) => {
+    const rules = await shared();
+    const deadlineMs = Date.now() + budgetMs;
+    const daily = await deleteWhere(rules.PLATFORM_HEALTH_DAILY_COLLECTION, dailyBefore, deadlineMs);
+    const reporters = await deleteWhere(rules.PLATFORM_HEALTH_REPORTERS_COLLECTION, reportersBefore, deadlineMs);
+    return { daily: daily.removed, reporters: reporters.removed, complete: daily.complete && reporters.complete };
   };
 
-  /** The daily retention sweep. Reads nothing while there is nothing to delete beyond one empty query each. */
-  const prune = async () => {
+  /** The daily retention sweep. With nothing to delete it is one empty query per collection. */
+  const prune = async ({ budgetMs = 90 * 1000 } = {}) => {
     const rules = await shared();
     const limits = rules.CRASH_REPORT_LIMITS;
     const nowMs = now();
-    return {
-      daily: await deleteWhere(rules.PLATFORM_HEALTH_DAILY_COLLECTION, rules.utcDayKey(nowMs - limits.dailyRetentionDays * DAY_MS)),
-      reporters: await deleteWhere(rules.PLATFORM_HEALTH_REPORTERS_COLLECTION, rules.utcDayKey(nowMs - limits.reporterRetentionDays * DAY_MS)),
-    };
+    return sweep(
+      rules.utcDayKey(nowMs - limits.dailyRetentionDays * DAY_MS),
+      rules.utcDayKey(nowMs - limits.reporterRetentionDays * DAY_MS),
+      budgetMs,
+    );
   };
 
   /** Everything collected, now: what "turn off and delete" means. */
-  const purge = async () => {
-    const rules = await shared();
-    return {
-      daily: await deleteWhere(rules.PLATFORM_HEALTH_DAILY_COLLECTION, null),
-      reporters: await deleteWhere(rules.PLATFORM_HEALTH_REPORTERS_COLLECTION, null),
-    };
-  };
+  const purge = ({ budgetMs = 40 * 1000 } = {}) => sweep(null, null, budgetMs);
 
   /**
    * Root administrator: `{ action: "status" }`, `{ action: "set", mode }`, or
@@ -200,6 +220,8 @@ function createPlatformHealthService({ db, HttpsError, now = () => Date.now() })
     await audit(actor, action === "purge" ? "crash_reporting_purged" : "crash_reporting_mode_set", rules.CRASH_REPORTING_FLAG, {
       from: previous, to: mode, ...(removed ? { removed } : {}),
     });
+    // `removed.complete: false` means the time allowed ran out with records left: the
+    // switch is off, nothing new is written, and the action is run again.
     return { mode, changed: previous !== mode, ...(removed ? { removed } : {}) };
   };
 

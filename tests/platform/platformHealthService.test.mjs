@@ -97,12 +97,12 @@ test('a probe answers the mode and stores nothing, even with reporting on', asyn
   assert.equal(db.cost.writes, 0);
 });
 
-test('one report is two reads and two writes, and counts into the day', async () => {
+test('one report is three reads and two writes, and counts into the day', async () => {
   const { db, service } = setup({ mode: 'family' });
   await service.currentMode();
   const before = { ...db.cost };
   assert.deepEqual(await service.report(student('u1', { v: 1, buckets: [bucket({ count: 3 })] })), { mode: 'family', accepted: 1 });
-  assert.equal(db.cost.reads - before.reads, 2);
+  assert.equal(db.cost.reads - before.reads, 3, 'the switch, the day, the account limit');
   assert.equal(db.cost.writes - before.writes, 2);
   const day = daily(db);
   assert.equal(day.total, 3);
@@ -196,9 +196,9 @@ test('retention: days past the limit and rate-limit records past theirs are dele
   await service.report(student('u1', { buckets: [bucket()] }));
   clock.now += 3 * 24 * 60 * 60 * 1000;
   await service.report(student('u1', { buckets: [bucket()] }));
-  assert.deepEqual(await service.prune(), { daily: 0, reporters: 1 });
+  assert.deepEqual(await service.prune(), { daily: 0, reporters: 1, complete: true });
   clock.now += (CRASH_REPORT_LIMITS.dailyRetentionDays - 2) * 24 * 60 * 60 * 1000;
-  assert.deepEqual(await service.prune(), { daily: 1, reporters: 1 });
+  assert.deepEqual(await service.prune(), { daily: 1, reporters: 1, complete: true });
   assert.deepEqual([...db.docs.keys()].filter((path) => path.startsWith('platformHealth')), ['platformHealthDaily/2026-11-19']);
   for (const data of db.docs.values()) if (data.day) assert.ok(data.expireAt instanceof Date, 'every record carries its expiry');
 });
@@ -215,11 +215,40 @@ test('the administrator sets the mode, and "purge" turns it off and deletes ever
   assert.deepEqual(Object.keys(db.docs.get('platformFlags/crashReporting')).sort(), ['mode', 'updatedAt'], 'the flag every client can read says the mode, never who');
   assert.equal((await service.report(student('u1', { buckets: [bucket()] }))).accepted, 1, 'on takes effect at once on this instance');
   const purged = await service.manage({ data: { action: 'purge' }, actor, audit });
-  assert.deepEqual(purged, { mode: 'off', changed: true, removed: { daily: 1, reporters: 1 } });
+  assert.deepEqual(purged, { mode: 'off', changed: true, removed: { daily: 1, reporters: 1, complete: true } });
   assert.deepEqual([...db.docs.keys()], ['platformFlags/crashReporting']);
   assert.equal((await service.report(student('u1', { buckets: [bucket()] }))).accepted, 0);
   assert.deepEqual(audits.map((entry) => entry.action), ['crash_reporting_mode_set', 'crash_reporting_purged']);
   assert.deepEqual(audits[0].details, { from: 'off', to: 'family' });
+});
+
+test('an instance that cached "on" cannot write after the owner turns reporting off or purges', async () => {
+  const { db, clock, service: reporting } = setup({ mode: 'question' });
+  // A second instance, as the management callable is: its own cache, the same database.
+  const managing = createPlatformHealthService({ db, HttpsError, now: () => clock.now });
+  const actor = { uid: 'uid-root', email: 'root.admin@example.test' };
+  assert.equal((await reporting.report(student('u1', { buckets: [bucket()] }))).accepted, 1, 'the reporting instance has cached "question"');
+  await managing.manage({ data: { action: 'purge' }, actor, audit: async () => {} });
+  const writes = db.cost.writes;
+  assert.deepEqual(await reporting.report(student('u2', { buckets: [bucket()] })), { mode: 'off', accepted: 0 }, 'refused in the transaction, and told the live mode');
+  assert.equal(db.cost.writes, writes);
+  assert.deepEqual([...db.docs.keys()], ['platformFlags/crashReporting'], 'the purge is not undone');
+  // And question detail is not kept after the owner chooses family detail.
+  const second = setup({ mode: 'question' });
+  const other = createPlatformHealthService({ db: second.db, HttpsError, now: () => second.clock.now });
+  await second.service.report(student('u1', { buckets: [bucket({ assignmentId: 'a1B2c3', questionId: 'q-7' })] }));
+  await other.manage({ data: { action: 'set', mode: 'family' }, actor, audit: async () => {} });
+  assert.deepEqual(await second.service.report(student('u2', { buckets: [bucket({ family: 'later', assignmentId: 'zz9Later', questionId: 'q-9' })] })), { mode: 'family', accepted: 0 });
+  assert.doesNotMatch(JSON.stringify(daily(second.db)), /zz9Later|q-9/);
+});
+
+test('deleting goes on until nothing is left, and a pass that ran out of time says so', async () => {
+  const { db, service } = setup({ mode: 'off' });
+  for (let index = 0; index < 7000; index += 1) db.docs.set(`platformHealthReporters/2026-11-16_${index}`, { day: '2026-11-16', calls: 1 });
+  db.docs.set('platformHealthDaily/2026-11-16', { day: '2026-11-16', buckets: {} });
+  assert.deepEqual(await service.purge({ budgetMs: 0 }), { daily: 1, reporters: 300, complete: false }, 'out of time is reported, never "all deleted"');
+  assert.deepEqual(await service.purge(), { daily: 0, reporters: 6700, complete: true });
+  assert.deepEqual([...db.docs.keys()], ['platformFlags/crashReporting']);
 });
 
 test('the callables are wired: reporting needs a sign-in only, managing needs the root administrator, and a schedule prunes', () => {

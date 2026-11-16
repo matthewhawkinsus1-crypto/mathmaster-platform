@@ -78,7 +78,10 @@ deletes both collections.
   is a separate chunk loaded only after a failure, and it never reads Firestore.
 - Off: zero Firestore operations per request (the switch is cached per
   function instance for two minutes).
-- On: one report request is one transaction of 2 reads and 2 writes. An
+- On: one report request is one transaction of 3 reads (the switch, the day,
+  the account's limit) and 2 writes. The switch is read in the transaction so
+  an instance that cached "on" cannot write after reporting is turned off or
+  purged. An
   account may make 8 requests a day, touching at most 20 distinct buckets. A
   crash loop is merged on the device into one batch, with a growing gap
   between batches.

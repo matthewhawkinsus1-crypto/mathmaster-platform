@@ -49,7 +49,6 @@ const harness = ({ mode = 'family', signedIn = true, fail = false } = {}) => {
       timers[index] = null;
       state.now += ms;
       await fn();
-      await reporter.flush();
     }
   };
   const stored = () => JSON.parse(data.get(CRASH_REPORT_STORAGE_KEY) || '{}');
@@ -176,6 +175,24 @@ test('a kind that is not a crash is never reported, and the queue is bounded', a
   assert.deepEqual(calls, []);
   for (let index = 0; index < 100; index += 1) reporter.reportCrash(crash({ family: `family-${index}` }));
   assert.equal(Object.keys(stored().queue).length, CRASH_REPORT_LIMITS.bucketsPerReporterPerDay);
+});
+
+test('more distinct failures than one request holds: the rest stay queued and go in the next request', async () => {
+  const { reporter, calls, run, stored, timers } = harness({ mode: 'family' });
+  const total = CRASH_REPORT_LIMITS.bucketsPerReporterPerDay;
+  for (let index = 0; index < total; index += 1) reporter.reportCrash(crash({ family: `family-${index}` }));
+  // The first timer only: the probe and the first batch.
+  const first = timers.findIndex(Boolean);
+  const { fn } = timers[first];
+  timers[first] = null;
+  await fn();
+  assert.equal(calls[1].buckets.length, CRASH_REPORT_LIMITS.bucketsPerCall);
+  assert.equal(Object.keys(stored().queue).length, total - CRASH_REPORT_LIMITS.bucketsPerCall, 'what did not fit is kept');
+  await run();
+  const sent = calls.slice(1).flatMap((call) => call.buckets.map((entry) => entry.family));
+  assert.equal(new Set(sent).size, total, 'every failure was sent exactly once');
+  assert.equal(sent.length, total);
+  assert.deepEqual(stored().queue, {});
 });
 
 test('a queue left by an earlier page is sent on resume', async () => {

@@ -94,7 +94,7 @@ export const createCrashReporter = ({
     if (timer !== null) clearTimer(timer);
     timer = setTimer(() => {
       timer = null;
-      flush();
+      return flush();
     }, delay);
   };
 
@@ -133,19 +133,23 @@ export const createCrashReporter = ({
         return;
       }
       // Rebuild for the mode the server named: "family" drops the question.
+      // One request holds a bounded number of buckets. What does not fit stays
+      // queued for the next request, so `sentKeys` names only what went.
       const merged = new Map();
-      for (const entry of Object.values(state.queue)) {
+      const sentKeys = [];
+      for (const [key, entry] of Object.entries(state.queue)) {
         const bucket = normalizeCrashBucket(entry?.bucket, { mode: state.mode });
         const id = crashBucketId(bucket);
+        if (!merged.has(id) && merged.size >= CRASH_REPORT_LIMITS.bucketsPerCall) continue;
         const count = clampCrashCount((merged.get(id)?.count || 0) + (Number(entry?.count) || 1));
         merged.set(id, { ...bucket, count });
+        sentKeys.push(key);
       }
-      const buckets = [...merged.values()].slice(0, CRASH_REPORT_LIMITS.bucketsPerCall).map((bucket) => {
+      const buckets = [...merged.values()].map((bucket) => {
         const sent = { ...bucket };
         delete sent.role; // the server takes the role from the sign-in, not from the request
         return sent;
       });
-      const sentKeys = Object.keys(state.queue);
       if (state.calls >= MAX_CALLS_PER_DAY) return;
       const answer = await call({ v: CRASH_REPORT_SCHEMA, buckets });
       if (answer === null) return;

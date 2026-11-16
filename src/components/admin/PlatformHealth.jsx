@@ -116,7 +116,9 @@ export default function PlatformHealth() {
       setChoice(result.mode);
       setDays([]);
       setConfirmPurge(false);
-      setNotice('Reporting is off and every collected count has been deleted.');
+      setNotice(result.removed?.complete === false
+        ? 'Reporting is off, and nothing new is being collected. There was more to delete than one pass could finish: press “Turn off and delete collected counts” again.'
+        : 'Reporting is off and every collected count has been deleted.');
     } catch (purgeError) {
       setError(messageOf(purgeError));
     } finally {
