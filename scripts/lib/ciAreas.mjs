@@ -239,6 +239,10 @@ export const CI_AREAS = {
     'tests/browser/lineGraphGame*',
     'tests/browser/graphFeatureRushStudent*',
     'tests/browser/graphFeatureRushTeacher*',
+    // Systems of Equations Rush's round screen (S5): its driver and page, and
+    // the plain dev server's config it serves the page with.
+    'tests/browser/systemsRushScreens*',
+    'vite.config.js',
     'tests/fixtures/secureRichToolAnswers.mjs',
     'tests/fixtures/testCycleCertificationFixture.mjs',
     // The drivers load it in node, before the server: the emulator's closed

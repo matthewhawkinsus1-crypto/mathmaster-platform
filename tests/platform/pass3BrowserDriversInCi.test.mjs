@@ -10,6 +10,8 @@
 //   a11yApp the accessibility App harness, which askMyTeacherJourneys needs
 //   stubbed the emulator Vite config's stubbed services (secureAccessParity)
 //   self    the driver starts its own servers (emulator, bridge, Vite)
+//   vite    the driver starts the plain dev server itself, and nothing else:
+//           no emulator, no bridge, no callables (systemsRushScreens)
 //
 // A step that only runs on a schedule counts only where it is meant to.
 
@@ -24,6 +26,7 @@ const SERVERS = {
   a11yApp: /TEACHER_HARNESS_PORT=(\d+) npx vite --config tests\/browser\/accessibilityAppHarness\.vite\.config\.mjs/,
   stubbed: /npx vite --config tests\/browser\/emulator\/vite\.config\.mjs[^\n]*--port (\d+)/,
   self: null,
+  vite: null,
 };
 
 const DRIVERS = [
@@ -73,6 +76,10 @@ const DRIVERS = [
   // Whole Graph the Line games, with its phone pass (the bar and grid held still);
   // ran by hand until it passed three times in a row in two Chromiums.
   ['student-pass3-emulator-journeys.yml', 'pass3-graph-the-line', 'self', ['lineGraphGame']],
+  // S5 (#547): Systems of Equations Rush's round screen on a phone and a laptop,
+  // beside the whole Graph Feature Rush games; ran by hand until it passed
+  // twice in a row in Playwright's headless Chromium.
+  ['student-pass3-emulator-journeys.yml', 'pass3-systems-rush-screens', 'vite', ['systemsRushScreens']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -96,10 +103,12 @@ for (const [workflow, job, server, drivers] of DRIVERS) {
       }
       assert.doesNotMatch(step, /github\.event_name == 'schedule'/, `${driver} runs on pull requests, not only at night`);
       // The emulator drivers load the real callables, whose dependencies
-      // (firebase-admin) live only in functions/.
-      if (workflow === 'student-pass3-emulator-journeys.yml') {
+      // (firebase-admin) live only in functions/. A driver that starts only
+      // Vite loads no callable, and is given no server: it starts its own.
+      if (workflow === 'student-pass3-emulator-journeys.yml' && server === 'self') {
         assert.ok(steps.slice(0, index).some((earlier) => /run: npm --prefix functions ci\s*$/m.test(earlier)), `${job} installs functions/ before ${driver}`);
       }
+      if (server === 'vite') assert.doesNotMatch(step, /AUDIT_ORIGIN/, `${driver} starts its own dev server: no origin is handed to it`);
       const pattern = SERVERS[server];
       if (!pattern) return;
       const start = steps.slice(0, index).find((earlier) => pattern.test(earlier));
@@ -152,7 +161,12 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
     'tests/browser/testCycleLifecycleQa.mjs', 'tests/browser/testCycleLifecycleQa.html', 'tests/fixtures/testCycleCertificationFixture.mjs',
     'tests/browser/graphFeatureRushGame.mjs', 'src/components/liveChallenge/GraphFeatureRushGraph.jsx',
     'tests/browser/lineGraphGame.mjs', 'src/components/liveChallenge/LineGraphRound.jsx', 'tests/browser/support/roundBarFit.mjs',
-    'tests/fixtures/secureRichToolAnswers.mjs'].forEach((file) => {
+    'tests/fixtures/secureRichToolAnswers.mjs',
+    // S5: the Systems Rush round screen's driver and page, what it draws and
+    // grades with, and the plain dev server's config it is served by.
+    'tests/browser/systemsRushScreens.mjs', 'tests/browser/systemsRushScreens.html', 'tests/browser/systemsRushScreensMain.jsx',
+    'src/components/liveChallenge/GraphFeatureRushRound.jsx', 'src/platform/liveChallenge/rushGraphModel.js',
+    'functions/shared/systemsGenerator.mjs', 'functions/shared/systemsRush.mjs', 'src/theme/forcedColors.css', 'vite.config.js'].forEach((file) => {
     assert.ok(runsOnPullRequest(emulator, file), `a change to ${file} runs the emulator journeys`);
   });
 });
