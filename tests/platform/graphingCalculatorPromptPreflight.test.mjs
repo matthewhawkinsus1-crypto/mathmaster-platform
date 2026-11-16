@@ -65,6 +65,11 @@ test('a prompt that tells students to use a graphing calculator is recognised, a
     'Ben graphed y = x² on his graphing calculator and saw a U shape. Is he right?',
     'Maria used a graphing calculator and found x = 2.',
     "Maria's graphing calculator shows two zeros. Explain why.",
+    // ... also when the same sentence asks the student something about it.
+    "Explain why Ben's graphing calculator shows two zeros.",
+    'Maria says you should use a graphing calculator here. Is she right?',
+    'Explain what Maria saw when she graphed f(x) on her graphing calculator.',
+    'Decide whether Jamal entered the function into his graphing calculator correctly.',
     'On a graphing calculator, the graph of y = x² looks like a U.',
     // Not a graphing calculator: the question's own graphing tool, technology, a calculator.
     'Use the graphing tool to draw the line.',
