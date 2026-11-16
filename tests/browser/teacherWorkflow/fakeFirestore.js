@@ -127,6 +127,38 @@ const stats = {
   docsDelivered: new Map(),
   callables: new Map(),
   callableBytes: new Map(),
+  // Reads as Firestore bills them, by the path asked for: a document read
+  // (getDoc, a transaction's get) is one, found or not; a one-shot query is
+  // one per document it returns and at least one; a listener's first snapshot
+  // is one per document in it and at least one; after that, one per document
+  // its snapshot added or changed (one deleted is free). docsDelivered above
+  // counts every document handed over, a query listener's whole result on
+  // every snapshot; this counts what a project pays for (sessionReadsProbe.mjs).
+  //
+  // The SDK keeps ONE target per document or query, however many listeners
+  // and one-shot reads ask for it: a getDoc, a getDocs or a second listener on
+  // exactly what an open listener holds is answered from that target, and the
+  // server is asked once (readsServedByListener). What is NOT modelled, and so
+  // still counted in full: a listener opened again after its target was let go,
+  // which the persistent cache can sometimes resume.
+  readsBilled: new Map(),
+  // Of readsBilled, what an open listener's later snapshots brought: the cost
+  // of other people's and the server's writes, not of what this device asked.
+  readsPushed: new Map(),
+  readsServedByListener: new Map(),
+  // Listens the server sees: a listener opened on a target no open listener
+  // already holds (`subscriptions` counts every onSnapshot call).
+  targetsOpened: new Map(),
+  // Of `reads` (and readsBilled), the ones a transaction made: what a write
+  // reads first (the draft save, a response checkpoint).
+  transactionReads: new Map(),
+  // Billed reads per document and version ("path@version"): a document read
+  // again at a version this device already read is a read nobody needed.
+  readsByVersion: new Map(),
+  // `?statsTrace=1`: where each read, query and listener came from — the
+  // first frame of the app's own code on the stack, as "kind path <- frame"
+  // (readable on the dev server; a production build's frames are minified).
+  traces: new Map(),
 };
 // Every write the APP made through the client API (setDoc, updateDoc,
 // addDoc, deleteDoc, a batch, a transaction) — never the fake callables'
@@ -141,6 +173,43 @@ const recordClientWrite = (op, path, payload = null) => {
 };
 const bump = (map, key, by = 1) => map.set(key, (map.get(key) || 0) + by);
 const targetPath = (target) => (target?.type === 'query' ? target.collectionPath : target?.path) || '';
+// One billed read of each document, at the version handed over.
+const billDocuments = (targetPathValue, docPaths, { atLeastOne = false, pushed = false } = {}) => {
+  const count = Math.max(atLeastOne ? 1 : 0, docPaths.length);
+  bump(stats.readsBilled, targetPathValue, count);
+  if (pushed) bump(stats.readsPushed, targetPathValue, count);
+  docPaths.forEach((path) => bump(stats.readsByVersion, `${path}@${store.has(path) ? versionOf(path) : 'missing'}`));
+};
+// The SDK's identity for what a read or listener targets: one document, or one
+// collection with the same constraints in the same order.
+const targetKey = (target) => (target?.type === 'document'
+  ? `doc:${target.path}`
+  : `query:${targetPath(target)}:${JSON.stringify(serialize(target?.type === 'query' ? target.constraints : []))}`);
+// The open listener holding a target, if any. Once its first snapshot is paid
+// for, a read of the same target is answered from it; a read that comes
+// before is the one request both ride, so the listener's first snapshot is
+// then the free one.
+const openListenerFor = (target) => {
+  const key = targetKey(target);
+  return [...listeners].find((listener) => listener.key === key) || null;
+};
+// The result each target last brought, so that a change two listeners of one
+// target both hear is paid for once.
+const targetResults = new Map();
+const servedByOpenListener = (target) => {
+  const holder = openListenerFor(target);
+  if (holder?.paid) return true;
+  if (holder) holder.paid = true;
+  return false;
+};
+const traceCalls = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('statsTrace') === '1';
+const traceCall = (kind, path) => {
+  if (!traceCalls) return;
+  const frames = String(new Error().stack || '').split('\n').slice(1).map((line) => line.trim());
+  const own = frames.find((line) => /\/src\//.test(line) && !/node_modules/.test(line)) || frames.find((line) => !/fakeFirestore/.test(line)) || '?';
+  const site = own.replace(/^at\s+/, '').replace(/https?:\/\/[^/]+/, '').replace(/\?[^:)]*/, '');
+  bump(stats.traces, `${kind} ${path.replace(/^(presence|grades)\/[^/]+$/, '$1/*')} <- ${site}`);
+};
 const notifyEveryWrite = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('notify') === 'every-write';
 /** fakeFunctions.js: one callable invocation, and the JSON size of its latest response. */
 export const recordHarnessCallable = (name, responseBytes = null) => {
@@ -291,7 +360,6 @@ const querySnapshot = (paths, changes = null) => {
   const docChanges = changes || docs.map((entry, newIndex) => ({ type: 'added', doc: entry, oldIndex: -1, newIndex }));
   return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn), docChanges: () => docChanges, metadata: ONLINE_METADATA };
 };
-const runQuery = (target) => querySnapshot(queryPaths(target));
 const resultSignature = (paths) => paths.map((path) => `${path}@${versionOf(path)}`).join('|');
 const changesBetween = (previous, paths) => {
   const now = new Map(paths.map((path, index) => [path, index]));
@@ -350,11 +418,22 @@ const leakForeignControls = harnessParams.get('leakForeignControls') || null;
 const isStudentControlsQuery = (target) => target?.type === 'query' && target.collectionPath === CONTROLS_PATH
   && (target.constraints || []).some((entry) => entry.kind === 'where' && entry.field === 'studentId' && entry.op === '==');
 
-export const getDoc = async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); };
+export const getDoc = async (ref) => {
+  traceCall('getDoc', ref.path);
+  await draftNetwork(ref.path);
+  bump(stats.reads, ref.path);
+  if (servedByOpenListener(ref)) bump(stats.readsServedByListener, ref.path);
+  else billDocuments(ref.path, [ref.path]);
+  return docSnapshot(ref.path);
+};
 export const getDocs = async (target) => {
-  const result = runQuery(target);
+  traceCall('getDocs', targetPath(target));
+  const paths = queryPaths(target);
+  const result = querySnapshot(paths);
   bump(stats.queries, targetPath(target));
   bump(stats.docsDelivered, targetPath(target), result.size);
+  if (servedByOpenListener(target)) bump(stats.readsServedByListener, targetPath(target), result.size);
+  else billDocuments(targetPath(target), paths, { atLeastOne: true });
   return result;
 };
 
@@ -369,6 +448,10 @@ export const onSnapshot = (target, ...rest) => {
     signature: null,
     delivered: new Map(),
     path: targetPath(target),
+    key: targetKey(target),
+    // Another listener already holding this target: this one is handed its view.
+    sharesWith: openListenerFor(target),
+    paid: false,
     emit: () => {
       if (latency) setTimeout(() => listener.emitNow(), latency);
       else listener.emitNow();
@@ -383,15 +466,31 @@ export const onSnapshot = (target, ...rest) => {
         const first = listener.signature === null;
         listener.signature = signature;
         bump(stats.notifications, targetPath(target));
+        // A first snapshot the target's one request already paid for.
+        const servedFirst = first && (listener.paid || Boolean(listener.sharesWith?.paid));
+        if (first) listener.paid = true;
+        if (servedFirst) bump(stats.readsServedByListener, listener.path, Math.max(1, paths.length));
         if (target.type === 'document') {
           const snapshot = docSnapshot(target.path);
           bump(stats.docsDelivered, listener.path, Number(snapshot.exists()));
+          // The first snapshot is billed found or not; a deletion after it is free.
+          const paidByAnother = !first && targetResults.get(listener.key) === signature;
+          if (!servedFirst && !paidByAnother && (first || snapshot.exists())) billDocuments(listener.path, [target.path], { pushed: !first });
+          targetResults.set(listener.key, signature);
           onNext?.(snapshot);
           return;
         }
         const changes = first ? null : changesBetween(listener.delivered, paths);
         listener.delivered = new Map(paths.map((path) => [path, versionOf(path)]));
         bump(stats.docsDelivered, listener.path, paths.length);
+        if (first) {
+          if (!servedFirst) billDocuments(listener.path, paths, { atLeastOne: true });
+        } else if (targetResults.get(listener.key) !== signature) {
+          // Added or changed; one that left the result because it changed is
+          // billed too, one deleted is not.
+          billDocuments(listener.path, changes.filter((change) => change.type !== 'removed' || store.has(change.doc.ref.path)).map((change) => change.doc.ref.path), { pushed: true });
+        }
+        targetResults.set(listener.key, signature);
         if (first && leak) {
           const foreign = childrenOf(CONTROLS_PATH).filter((path) => store.get(path)?.studentId === leak && !paths.includes(path));
           onNext?.({ ...querySnapshot([...paths, ...foreign]), metadata: { fromCache: true } });
@@ -403,6 +502,8 @@ export const onSnapshot = (target, ...rest) => {
   };
   listeners.add(listener);
   bump(stats.subscriptions, targetPath(target));
+  if (!listener.sharesWith) bump(stats.targetsOpened, targetPath(target));
+  traceCall('onSnapshot', targetPath(target));
   setTimeout(() => listener.emit(), 0);
   return () => listeners.delete(listener);
 };
@@ -483,7 +584,14 @@ export const writeBatch = () => {
 
 export const runTransaction = async (_db, fn) => {
   const tx = {
-    get: async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); },
+    get: async (ref) => {
+      traceCall('transaction.get', ref.path);
+      await draftNetwork(ref.path);
+      bump(stats.reads, ref.path);
+      bump(stats.transactionReads, ref.path);
+      billDocuments(ref.path, [ref.path]);
+      return docSnapshot(ref.path);
+    },
     set: (ref, data, options) => { recordClientWrite('set', ref.path, data); writeSet(ref, data, options); return tx; },
     update: (ref, ...args) => { recordClientWrite('update', ref.path, updatePayload(args)); writeUpdate(ref, args); return tx; },
     delete: (ref) => { recordClientWrite('delete', ref.path); remove(ref.path); return tx; },
@@ -517,6 +625,16 @@ export const harnessStore = {
       docsDeliveredByPath: Object.fromEntries(stats.docsDelivered),
       callables: Object.fromEntries(stats.callables),
       callableBytes: Object.fromEntries(stats.callableBytes),
+      readsBilled: Object.fromEntries(stats.readsBilled),
+      readsBilledTotal: [...stats.readsBilled.values()].reduce((total, count) => total + count, 0),
+      readsPushed: Object.fromEntries(stats.readsPushed),
+      readsPushedTotal: [...stats.readsPushed.values()].reduce((total, count) => total + count, 0),
+      readsServedByListener: Object.fromEntries(stats.readsServedByListener),
+      targetsOpened: Object.fromEntries(stats.targetsOpened),
+      transactionReads: Object.fromEntries(stats.transactionReads),
+      // Documents read more than once at the same version: path@version -> times read.
+      rereadsAtSameVersion: Object.fromEntries([...stats.readsByVersion].filter(([, count]) => count > 1)),
+      traces: Object.fromEntries(stats.traces),
       clientWrites: clientWrites.map((entry) => ({ ...entry })),
     };
   },
@@ -544,14 +662,22 @@ if (typeof window !== 'undefined') window.__mmHarnessStore = harnessStore;
 
 // Live presence needs heartbeats to stay "online". The fixture marks which
 // students are simulated as working; keep their heartbeat fresh.
-setInterval(() => {
+//
+// `?presenceBeat=manual`: no timer. A driver beats when it chooses
+// (harnessStore.beatPresence()), so what a teacher's screens are delivered in
+// a stretch of a session does not depend on how long that stretch took
+// (sessionReadsProbe.mjs).
+function beatSimulatedPresence() {
   const now = Date.now();
-  let touched = false;
+  let touched = 0;
   [...store.keys()].filter((path) => path.startsWith('presence/')).forEach((path) => {
     const data = store.get(path);
     if (!data?.__simulated) return;
     put(path, { ...data, updatedAt: now, lastInteractionAt: data.__idle ? data.lastInteractionAt : now - 5_000 });
-    touched = true;
+    touched += 1;
   });
   if (touched) notify();
-}, 15_000);
+  return touched;
+}
+harnessStore.beatPresence = beatSimulatedPresence;
+if (harnessParams.get('presenceBeat') !== 'manual') setInterval(beatSimulatedPresence, 15_000);

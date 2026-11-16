@@ -344,6 +344,9 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     lesson({ id: 'a-p5', title: 'Linear Equations — Lesson 5', classIds: ['c-alg1-p5'], releaseMs: now, dueMs: now + 2 * DAY, lateMs: now + 6 * DAY, instructionMs: now, folder: 'Algebra I' }),
     { ...lesson({ id: 'a-library', title: 'Quadratics — Lesson 1', classIds: [], releaseMs: null, dueMs: now + 10 * DAY, lateMs: now + 12 * DAY, instructionMs: null, folder: 'Algebra II' }), dueAt: null, lateDueAt: null },
   ];
+  // `&fullClass=1` (sessionReadsProbe.mjs): Algebra II Period 3 at its real size.
+  const fullClass = params?.get?.('fullClass') === '1';
+  if (fullClass) assignments.push(...fullClassLessons({ lesson, now, mp1 }));
   assignments.forEach(({ id, ...data }) => { fixture[`assignments/${id}`] = data; });
 
   // ---------------------------------------------------------------- students
@@ -384,6 +387,7 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     'a-p1-ready': TRACKERS[['strong', 'solid', 'struggling', 'strong', 'partial', 'solid'][index]],
   }));
   addStudents(byId['c-alg1-p5'], 5, () => ({}));
+  if (fullClass) addFullClassStudents({ students, classRecord: byId['c-alg2-p3'] });
   // `&district=wrong` (districtIdJourneys.mjs): the student whose account was
   // made under a mistyped district number. Pushed after every serial student,
   // and only on request, so no other journey's school changes.
@@ -457,6 +461,13 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   presence(p3[1], { questionIndex: 2, sectionQuestionIndex: 1, questionStates: 'cc....', answeredCount: 2, correctCount: 2 });
   presence(p3[2], { questionIndex: 1, currentAttempts: 3, questionStates: 'cx....', answeredCount: 2, correctCount: 1, accuracy: 50 });
   presence(p3[3], { assignmentId: 'a-yesterday', assignmentTitle: 'Systems of Equations — Lesson 2: Substitution', activityRole: 'practice', questionIndex: 3 });
+  // `&fullClass=1`: most of the added students are at work on today's lesson too.
+  if (fullClass) {
+    students.filter((student) => FULL_CLASS.addedIds.includes(student.id)).slice(0, FULL_CLASS.working).forEach((student, index) => presence(student, {
+      questionIndex: 1 + (index % 4), sectionQuestionIndex: index % 2, questionStates: ['c.....', 'cc....', 'cx....', 'ccc...'][index % 4],
+      answeredCount: 1 + (index % 3), correctCount: 1 + (index % 2),
+    }));
+  }
   // The identity edge students are working in the Lab section, so each one is
   // a Live Class tile. Presence carries no name: the tile must take it from the roster.
   students.filter((student) => IDENTITY_EDGE_IDS.includes(student.id)).forEach((student) => presence(student, {
@@ -514,6 +525,80 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const controls = params?.get?.('controls');
   if (controls === 'mirror' || controls === 'retired') addPrivateControlsScenario({ fixture, now, mode: controls, classRecord: byId['c-alg2-p3'] });
   return fixture;
+};
+
+/*
+ * A FULL CLASS (sessionReadsProbe.mjs) — opt-in, `&fullClass=1`, synthetic.
+ *
+ * The school above is small on purpose: every journey reads it. What a
+ * session costs in Firestore reads grows with the class, so the probe that
+ * measures it asks for Algebra II Period 3 at the size a teacher really has:
+ *
+ *   30 students  the 8 above and 22 more (910101–910122), every one with
+ *                graded work on every lesson below; 18 of the 22 at work on
+ *                today's lesson (live presence)
+ *   20 lessons   the 4 above and 16 earlier ones (a-p3-unit-01 … 16), one
+ *                every three days back to about two months ago, all closed
+ *                (those over 30 days old in the 1st marking period)
+ *
+ *   910101       the probe's student: today's Warm-Up done; yesterday's
+ *                lesson part-done, its Classwork and Practice still open
+ *
+ * Nothing else in the school changes, and without the parameter nothing does.
+ */
+export const FULL_CLASS = Object.freeze({
+  student: '910101',
+  addedIds: Object.freeze(Array.from({ length: 22 }, (_, index) => String(910101 + index))),
+  lessonIds: Object.freeze(Array.from({ length: 16 }, (_, index) => `a-p3-unit-${pad(index + 1)}`)),
+  working: 18,
+});
+// Most recent first: unit 01 was released 13 days ago, unit 16 58 days ago.
+const FULL_CLASS_TITLES = [
+  'Systems of Equations — Lesson 1: Graphing', 'Absolute Value — Lesson 3: Inequalities', 'Absolute Value — Lesson 2: Equations',
+  'Absolute Value — Lesson 1: Graphs', 'Functions — Lesson 4: Piecewise', 'Functions — Lesson 3: Transformations',
+  'Functions — Lesson 2: Notation', 'Functions — Lesson 1: Domain and Range', 'Linear Inequalities — Lesson 4: Two Variables',
+  'Linear Inequalities — Lesson 3: Absolute Value', 'Linear Inequalities — Lesson 2: Compound', 'Linear Inequalities — Lesson 1: One Variable',
+  'Linear Functions — Lesson 4: Parallel and Perpendicular Lines', 'Linear Functions — Lesson 3: Point-Slope Form',
+  'Linear Functions — Lesson 2: Slope-Intercept Form', 'Linear Functions — Lesson 1: Slope',
+];
+const FULL_CLASS_KINDS = ['strong', 'solid', 'strong', 'struggling', 'solid', 'strong', 'partial', 'solid', 'strong'];
+const fullClassLessons = ({ lesson, now, mp1 }) => FULL_CLASS.lessonIds.map((id, index) => {
+  const releaseMs = now - (10 + 3 * (index + 1)) * DAY;
+  return lesson({
+    id, title: FULL_CLASS_TITLES[index], classIds: ['c-alg2-p3'], releaseMs, dueMs: releaseMs + 2 * DAY, lateMs: releaseMs + 5 * DAY,
+    instructionMs: releaseMs, folder: 'Algebra II', ...(now - releaseMs > 30 * DAY ? { period: mp1 } : {}),
+  });
+});
+const addFullClassStudents = ({ students, classRecord }) => {
+  const earlier = (offset) => Object.fromEntries(FULL_CLASS.lessonIds.map((id, index) => [id, TRACKERS[FULL_CLASS_KINDS[(offset + index) % FULL_CLASS_KINDS.length]]]));
+  // The class's first 8 students keep everything they have, and gain the earlier lessons.
+  students.filter((student) => student.classId === classRecord.classId).forEach((student, index) => {
+    student.gradesByAssignment = { ...earlier(index), ...student.gradesByAssignment };
+  });
+  FULL_CLASS.addedIds.forEach((id, index) => {
+    const first = FIRST[(index * 11 + 4) % FIRST.length];
+    const last = LAST[(index * 13 + 7) % LAST.length];
+    students.push({
+      id,
+      firstName: first,
+      lastName: last,
+      displayName: `${first} ${last}`,
+      classId: classRecord.classId,
+      classPeriod: classRecord.period,
+      assignedTeacherEmail: TEACHER_EMAIL,
+      status: 'active',
+      profile: {},
+      gradesByAssignment: {
+        ...earlier(index + 8),
+        'a-mp1': TRACKERS[FULL_CLASS_KINDS[index % FULL_CLASS_KINDS.length]],
+        'a-lastweek': TRACKERS[FULL_CLASS_KINDS[(index + 3) % FULL_CLASS_KINDS.length]],
+        // The probe's student (the first) left yesterday's lesson part-done.
+        'a-yesterday': TRACKERS[index === 0 ? 'partial' : FULL_CLASS_KINDS[(index + 5) % FULL_CLASS_KINDS.length]],
+        ...(index < 8 ? { 'a-today': TRACKERS.warmupOnly } : {}),
+      },
+      assignmentActivity: {},
+    });
+  });
 };
 
 /*
