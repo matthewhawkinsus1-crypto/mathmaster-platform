@@ -32,7 +32,12 @@
  * with it. tests/platform/gradeEntryStorage.test.mjs holds that, and a
  * read-only check against every production record held it before release.
  */
-import { calculateStepPartialCredit } from './attemptPolicy.mjs';
+import {
+  calculateStepPartialCredit,
+  getQuestionCardState,
+  getQuestionCredit,
+  normalizeQuestionRecord,
+} from './attemptPolicy.mjs';
 
 export const RESPONSE_DETAIL_COLLECTION = 'responseDetail';
 
@@ -118,7 +123,7 @@ export const trackerWithoutSplitMarkers = (tracker) => {
   const out = {};
   for (const [questionKey, record] of Object.entries(tracker)) {
     if (!isPlainObject(record)) { out[questionKey] = record; continue; }
-    const { detailRef, stepCredit, ...rest } = record;
+    const { detailRef: _detailRef, stepCredit: _stepCredit, ...rest } = record;
     out[questionKey] = rest;
   }
   return out;
@@ -183,4 +188,41 @@ export const splitTracker = (tracker, options = {}) => {
     if (detail) details[questionKey] = detail;
   }
   return { summaries, details };
+};
+
+/** A record still stored whole on the grades document (its detail inline, no detailRef). */
+export const isInlineRecord = (record) => hasInlineDetail(record) && !isSplitSummary(record);
+
+/** Whether any record of a grades document is still stored whole (raw document data, not joined). */
+export const anyInlineRecords = (gradeData) => {
+  const byAssignment = isPlainObject(gradeData?.gradesByAssignment) ? gradeData.gradesByAssignment : {};
+  return Object.values(byAssignment).some((tracker) => isPlainObject(tracker) && Object.values(tracker).some(isInlineRecord));
+};
+
+const stable = (value) => JSON.stringify(value, (key, item) => (
+  isPlainObject(item) ? Object.fromEntries(Object.keys(item).sort().map((name) => [name, item[name]])) : item
+));
+const withoutMarkers = (record) => {
+  if (!isPlainObject(record)) return record;
+  const { detailRef: _detailRef, stepCredit: _stepCredit, ...rest } = record;
+  return rest;
+};
+
+/**
+ * Whether a split is faithful for this record: joined back it is the record,
+ * and its summary alone grades exactly as the record does (credit, card,
+ * normalized attempts and credit). `extraChecks` adds the caller's own grading
+ * views ([name, fn] pairs). A record that fails is left stored whole.
+ */
+export const splitIsFaithful = (record, { summary, detail }, extraChecks = []) => {
+  if (stable(withoutMarkers(mergeQuestionRecord(summary, detail))) !== stable(record)) return false;
+  const views = [
+    (x) => getQuestionCredit(x),
+    (x) => stable(getQuestionCardState(x)),
+    (x) => { const n = normalizeQuestionRecord(x); return stable([n.status, n.attemptCount, n.totalAttempts, n.partialCredit, n.bestPartialCredit, n.variantIndex, n.timeSpent, n.lastAttemptAt]); },
+    ...extraChecks,
+  ];
+  return views.every((view) => {
+    try { return stable(view(summary)) === stable(view(record)); } catch { return false; }
+  });
 };

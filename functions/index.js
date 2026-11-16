@@ -814,6 +814,7 @@ exports.expediteCheckpointsOnSectionClose = onDocumentWritten(
  */
 const {
   gradeEntryStorage,
+  splitInlineRecords,
   hydrateGradeData,
   questionRecordUpdates,
   writeSplitTracker,
@@ -851,7 +852,7 @@ function authoritativeStudentClassId(gradeData) {
  * together — so a teacher never sees a grade without its evidence, and a
  * deadline can never turn one response into two attempts.
  */
-async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {} }) {
+async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {}, hints = null }) {
   const ingestion = await submissionIngestion();
   const dispositions = await submissionDisposition();
   const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
@@ -906,10 +907,13 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     // The whole record of this assignment's questions: the summary joined to
     // its stored detail, read in this transaction (attempt policy compares the
     // last response and replays the steps).
+    const storedGradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    // Records written before the split are moved after this call (splitInlineRecords).
+    if (hints && storedGradeData && (await gradeEntryStorage()).anyInlineRecords(storedGradeData)) hints.inlineRecords = true;
     const gradeData = await hydrateGradeData({
       transaction,
       gradeRef,
-      gradeData: gradeSnapshot.exists ? gradeSnapshot.data() || {} : null,
+      gradeData: storedGradeData,
       assignmentIds: [envelope.assignmentId],
     });
     const classId = authoritativeStudentClassId(gradeData);
@@ -1336,6 +1340,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
   // queues from clients built before step work existed have drained.
   const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
   const receipts = [];
+  const hints = {};
   for (const raw of incoming) {
     // A wall-clock budget for the whole call: verifying a crafted step can
     // cost seconds, and a batch of them must not time out the honest work
@@ -1383,7 +1388,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
     // The envelope never gets to say whose work it is.
     envelope.studentId = studentId;
     try {
-      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings }));
+      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings, hints }));
     } catch (error) {
       logger.error("Could not ingest a student submission", {
         studentId, actionId: envelope.actionId, errorMessage: error?.message, errorCode: error?.code ?? null,
@@ -1394,6 +1399,20 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
         disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
         reason: `ingestion-error:${String(error.message || "unknown").slice(0, 120)}`,
       });
+    }
+  }
+  /*
+   * THIS STUDENT'S RECORDS STILL STORED WHOLE MOVE INTO THE SPLIT NOW
+   * (functions/lib/gradeDetailStore.js splitInlineRecords): after every receipt
+   * above is decided, in its own transaction, best effort. Nothing here can
+   * change a receipt or a grade; a failure is logged and retried on the next call.
+   */
+  if (hints.inlineRecords) {
+    try {
+      const moved = await splitInlineRecords({ db, studentId });
+      if (moved.split || moved.kept) logger.info("Moved a student's records into the split", { studentId, ...moved });
+    } catch (error) {
+      logger.warn("Could not move a student's records into the split", { studentId, errorMessage: error?.message, errorCode: error?.code ?? null });
     }
   }
   return { receipts, ingestedAt: now };

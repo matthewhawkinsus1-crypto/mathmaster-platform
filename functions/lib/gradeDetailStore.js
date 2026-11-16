@@ -97,7 +97,67 @@ async function hydrateTrackerRows(rows, assignmentId, { db, transaction = null }
     : row));
 }
 
+/*
+ * MOVING A STUDENT'S RECORDS THAT ARE STILL STORED WHOLE.
+ *
+ * Records written before the split carry their detail inline on the grades
+ * document. This moves every such record of one student into the split, in
+ * one transaction: each is checked first (joined back it is the record; its
+ * summary alone grades exactly as the record, by the browser's rules and the
+ * Classroom runtime's), and a record that fails the check is left as it is.
+ * It changes no grade: the Classroom triggers see the trackers change, compute
+ * the same grade, and skip a column already synced with it.
+ *
+ * Run after a student's submissions are recorded (best effort, never in the
+ * way of the submission itself), so the students whose records grow, the
+ * ones doing work, move first.
+ */
+async function splitInlineRecords({ db, studentId }) {
+  const storage = await gradeEntryStorage();
+  const runtime = require("./classroomGradeRuntime");
+  const extraChecks = [
+    (record) => runtime.getQuestionCredit(record),
+    (record) => runtime.isQuestionTerminal(record),
+    (record) => runtime.questionWasAttempted(record),
+  ];
+  const gradeRef = db.collection("grades").doc(String(studentId));
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(gradeRef);
+    if (!snapshot.exists) return { split: 0, kept: 0 };
+    const byAssignment = snapshot.data()?.gradesByAssignment || {};
+    const updates = [];
+    const detailByAssignment = {};
+    let split = 0;
+    let kept = 0;
+    for (const [assignmentId, tracker] of Object.entries(byAssignment)) {
+      if (!tracker || typeof tracker !== "object" || Array.isArray(tracker)) continue;
+      for (const [questionKey, record] of Object.entries(tracker)) {
+        if (!storage.isInlineRecord(record)) continue;
+        const halves = storage.splitQuestionRecord(record);
+        if (!storage.splitIsFaithful(record, halves, extraChecks)) { kept += 1; continue; }
+        updates.push(new FieldPath("gradesByAssignment", assignmentId, questionKey), halves.summary);
+        (detailByAssignment[assignmentId] ||= {})[questionKey] = halves.detail;
+        split += 1;
+      }
+    }
+    if (!split) return { split, kept };
+    for (const [assignmentId, questions] of Object.entries(detailByAssignment)) {
+      transaction.set(responseDetailRef(gradeRef, assignmentId), {
+        studentId: String(studentId),
+        assignmentId: String(assignmentId),
+        questions,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, {
+        mergeFields: ["studentId", "assignmentId", "updatedAt", ...Object.keys(questions).map((key) => new FieldPath("questions", key))],
+      });
+    }
+    transaction.update(gradeRef, ...updates);
+    return { split, kept };
+  });
+}
+
 module.exports = {
+  splitInlineRecords,
   RESPONSE_DETAIL_COLLECTION,
   gradeEntryStorage,
   responseDetailRef,
