@@ -17,14 +17,19 @@
  * Every client module imports mathjs from here, never from 'mathjs'.
  * tests/platform/mathjsInstance.test.mjs checks that, and that this instance
  * answers exactly as mathjs's default one does.
+ *
+ * Its simplify is mathjs's own, reading its default rules' text once rather
+ * than on every call (functions/shared/algebra/simplifyRulesParsedOnce.mjs),
+ * as the shared graders' instance does.
  */
 import { all, create } from 'mathjs';
-
-export const math = create(all);
+import { withSimplifyRulesParsedOnce } from '../../../functions/shared/algebra/simplifyRulesParsedOnce.mjs';
 
 // The factories the instance builds each function from, with their
 // dependencies: what idleMathSteps.js needs to build one ahead of its first use.
-export const factories = all;
+export const factories = withSimplifyRulesParsedOnce(all);
+
+export const math = create(factories);
 
 // The functions the client calls, forwarded so that importing this module
 // builds none of them. Node classes are used as `math.OperatorNode`.

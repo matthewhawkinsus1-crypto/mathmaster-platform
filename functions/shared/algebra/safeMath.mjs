@@ -30,6 +30,7 @@
  * from here instead of 'mathjs'; tests/platform/safeMath.test.mjs holds that.
  */
 import { all, create } from 'mathjs';
+import { withSimplifyRulesParsedOnce } from './simplifyRulesParsedOnce.mjs';
 
 /*
  * BUILT ON FIRST USE.
@@ -44,8 +45,12 @@ import { all, create } from 'mathjs';
  * is asked to read, compile, evaluate or simplify (`hardened`, below): still
  * before any expression is parsed, so no expression ever runs in an unlocked
  * namespace. The node classes are built when a node is first constructed.
+ *
+ * Its simplify is mathjs's own, reading its default rules' text once rather
+ * than on every call (simplifyRulesParsedOnce.mjs); it is built, with the
+ * parser it reads them with, when the instance is locked, like the rest.
  */
-const math = create(all);
+const math = create(withSimplifyRulesParsedOnce(all));
 
 let hardened = null;
 const hardenedMath = () => {
