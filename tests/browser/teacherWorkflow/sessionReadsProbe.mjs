@@ -115,8 +115,7 @@ const NOT_SIMULATED = /(callable|no fake for the callable) "(reconcileAssignment
 // This tree's counts on the production build, each a ceiling for its phase.
 const BUDGETS = Object.freeze({
   student: {
-    // docReads +1: one class read by id; listenersOpened +2: sign-in's two holds (targetsOpened unchanged)
-    signIn: { asked: 61, listenersOpened: 15, targetsOpened: 13, queries: 3, docReads: 6, open: 13 },
+    signIn: { asked: 37, listenersOpened: 15, targetsOpened: 13, queries: 2, docReads: 6, open: 13 },
     openAssignment: { asked: 3, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 1, open: 14 },
     answer: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14 },
     finish: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14 },
@@ -125,15 +124,14 @@ const BUDGETS = Object.freeze({
     mathPath: { asked: 4, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 4, open: 14 },
     home: { asked: 1, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 1, open: 13 },
     midAssignment: { asked: 3, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 1, open: 14 },
-    // docReads +1: one class read by id; listenersOpened +2: sign-in's two holds (targetsOpened unchanged)
-    reload: { asked: 63, listenersOpened: 16, targetsOpened: 14, queries: 3, docReads: 7, open: 14 },
+    reload: { asked: 39, listenersOpened: 16, targetsOpened: 14, queries: 2, docReads: 7, open: 14 },
   },
   teacher: {
-    home: { asked: 132, listenersOpened: 76, targetsOpened: 76, queries: 2, docReads: 7, open: 64 },
+    home: { asked: 97, listenersOpened: 65, targetsOpened: 64, queries: 2, docReads: 7, open: 64 },
     grades: { asked: 51, listenersOpened: 2, targetsOpened: 2, queries: 0, docReads: 0, open: 4 },
-    monitor: { asked: 74, listenersOpened: 127, targetsOpened: 127, queries: 0, docReads: 0, open: 64 },
+    monitor: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64 },
     review: { asked: 51, listenersOpened: 1, targetsOpened: 1, queries: 0, docReads: 1, open: 4 },
-    homeAgain: { asked: 74, listenersOpened: 127, targetsOpened: 127, queries: 0, docReads: 0, open: 64 },
+    homeAgain: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64 },
   },
 });
 
