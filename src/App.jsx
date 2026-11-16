@@ -5307,8 +5307,21 @@ function App() {
   // to roster-owned documents individually rather than the whole collection:
   // Firestore rules can then enforce that a teacher reads only students they
   // currently teach. Presence should never become a school-wide teacher feed.
+  //
+  // The listeners follow WHO is on the roster, as a value, and whether a
+  // screen that shows presence is open — not the `allStudents` array itself.
+  // Leaving Grades hands Home a new array of the same students (the compact
+  // roster again in place of the grade records), and Home and Classes are both
+  // presence screens: each of those closed every student's listener and opened
+  // it again.
+  const presenceRosterKey = useMemo(() => JSON.stringify([...new Set(
+    (Array.isArray(allStudents) ? allStudents : [])
+      .map((student) => String(student?.id || '').trim())
+      .filter(Boolean),
+  )]), [allStudents]);
+  const teacherPresenceScreen = ['home', 'classesWorkspace'].includes(teacherTab);
   useEffect(() => {
-    if (user?.role !== 'teacher' || !['home', 'classesWorkspace'].includes(teacherTab)) {
+    if (user?.role !== 'teacher' || !teacherPresenceScreen) {
       setPresenceById({});
       return undefined;
     }
@@ -5317,11 +5330,7 @@ function App() {
     // the full interactive exemplar rerender during instruction.
     if (teacherPreviewRuntimeActive) return undefined;
 
-    const rosterIds = [...new Set(
-      (Array.isArray(allStudents) ? allStudents : [])
-        .map((student) => String(student?.id || '').trim())
-        .filter(Boolean),
-    )];
+    const rosterIds = JSON.parse(presenceRosterKey);
 
     if (!rosterIds.length) {
       setPresenceById({});
@@ -5351,7 +5360,7 @@ function App() {
       presenceBuffer.cancel();
       unsubs.forEach((unsubscribe) => unsubscribe());
     };
-  }, [user?.role, teacherTab, allStudents, teacherPreviewRuntimeActive]);
+  }, [user?.role, teacherPresenceScreen, presenceRosterKey, teacherPreviewRuntimeActive]);
 
   // The server writes one compact receipt only after Google Classroom accepts
   // a grade patch. Listening to that receipt gives students confirmation from

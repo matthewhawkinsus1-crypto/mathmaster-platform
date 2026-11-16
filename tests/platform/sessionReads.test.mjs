@@ -11,7 +11,9 @@
 //   - each read the probe showed nobody needed, gone, by the behaviour that
 //     removed it:
 //       the live monitor's Spotlight listeners follow the class's roster, not
-//       every presence flush (each flush opened one new query per 8 students).
+//       every presence flush (each flush opened one new query per 8 students);
+//       the teacher's per-student presence listeners follow WHO is on the
+//       roster, not each new array naming them (leaving Grades re-opened them all).
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -21,6 +23,7 @@ import { FULL_CLASS, buildTeacherWorkflowFixture } from '../browser/teacherWorkf
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
+const APP = executableSource(read('src/App.jsx'));
 const MONITOR = executableSource(read('src/components/teacher/LiveClassMonitor.jsx'));
 
 class Timestamp {
@@ -88,4 +91,17 @@ test('the live monitor\'s Spotlight listeners follow the class\'s roster, not ev
   assert.match(MONITOR, /const spotlightStudentIds = useMemo\(\(\) => JSON\.parse\(spotlightRosterKey\), \[spotlightRosterKey\]\);/);
   const key = region(MONITOR, 'const spotlightRosterKey = useMemo(', '[students, classes, activeClassId]);', 'the Spotlight roster key');
   assert.match(key, /JSON\.stringify\(\[\.\.\.new Set\(\s*studentsInClass\(\{ students, classes, classId: activeClassId \}\)/);
+});
+
+test('the teacher\'s presence listeners follow who is on the roster, not each new array of the same students', () => {
+  const effect = effectAround(APP, /onSnapshot\(\s*doc\(db, 'presence', studentId\)/, 'the presence listeners');
+  // What they may depend on: who is signed in, whether a presence screen is
+  // open, the roster's ids as a value, and Preview. Not the array, and not
+  // which of the two presence screens it is.
+  assert.deepEqual(effect.deps, ['user?.role', 'teacherPresenceScreen', 'presenceRosterKey', 'teacherPreviewRuntimeActive']);
+  assert.match(effect.body, /const rosterIds = JSON\.parse\(presenceRosterKey\);/);
+  assert.match(effect.body, /const unsubs = rosterIds\.map\(\(studentId\) => onSnapshot\(/);
+  const key = region(APP, 'const presenceRosterKey = useMemo(', ');\n', 'the roster key');
+  assert.match(key, /JSON\.stringify\(\[\.\.\.new Set\(\s*\(Array\.isArray\(allStudents\) \? allStudents : \[\]\)\s*\.map\(\(student\) => String\(student\?\.id \|\| ''\)\.trim\(\)\)/);
+  assert.match(APP, /const teacherPresenceScreen = \['home', 'classesWorkspace'\]\.includes\(teacherTab\);/);
 });
