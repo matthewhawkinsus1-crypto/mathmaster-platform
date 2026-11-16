@@ -160,8 +160,11 @@ test('the strategic hint reads the equation only where the hint can be offered',
       if (!offered) assert.deepEqual({ move, solved }, { move: null, solved: false }, 'nothing is worked out where no hint is offered');
     }
   }
-  // An equation that could not be read reaches the engine, and throws, as it always did.
-  assert.throws(() => strategicHintReadings(null, { offered: false }));
+  // A question the solver could not read has no equation and no hint: the board
+  // shows its panel (stepAlgebraUnreadableEquation.test.mjs), never a crash.
+  for (const offered of [true, false]) {
+    assert.deepEqual(strategicHintReadings(null, { offered }), { suggestedMove: null, solved: false });
+  }
 });
 
 test('each reading keeps at most a bounded number of equations', () => {

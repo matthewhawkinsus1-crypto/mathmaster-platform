@@ -113,9 +113,12 @@ export const suggestedMove = (equation) => {
 // The strategic hint's two readings, worked out only where the hint can be
 // offered, since nothing else shows them: the suggested move first, as it
 // needs no simplify, and with no move to suggest there is no hint, solved or
-// not. An equation that could not be read still reaches the engine, which
-// throws, as the solver's render always did.
+// not. A question the solver could not read has no equation and no hint:
+// the board shows UnreadableEquationPanel, and these readings run before
+// that return, so they must not throw on it (they used to, which crashed
+// the board in place of the panel).
 export const strategicHintReadings = (equation, { offered = true } = {}) => {
+  if (equation == null) return { suggestedMove: null, solved: false };
   const move = offered || !keyed(equation) ? suggestedMove(equation) : null;
   return { suggestedMove: move, solved: move ? equationIsSolved(equation) : false };
 };

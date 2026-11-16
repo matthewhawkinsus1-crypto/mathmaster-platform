@@ -130,7 +130,13 @@ export const getInitialEquation = (question, record) => {
   const saved = record?.algebraState?.equation;
   if (recordHoldsEquation(record)) return { equation: saved, error: null };
   try {
-    return { equation: parseEquationInput(question), error: null };
+    const equation = parseEquationInput(question);
+    // parseEquationInput splits at "=" and reads neither side, so "2x + = 7"
+    // reached the board, which threw the first time it drew a side. Each side
+    // is read here, where a failure reaches UnreadableEquationPanel.
+    expressionToLatex(equation.left);
+    expressionToLatex(equation.right);
+    return { equation, error: null };
   } catch (error) {
     return { equation: null, error: error?.message || 'This equation could not be read.' };
   }
@@ -2164,6 +2170,11 @@ export default function StepByStepAlgebra({
     if (!publishHints || !strategicHint) return undefined;
     return publishHints([{ text: strategicHint, standing: true }]);
   }, [publishHints, strategicHint]);
+  // Placed after the last hook, so hook order stays identical whether or not
+  // the blueprint parsed, and before anything below reads the equation. A
+  // student can't repair the JSON, so this states what happened and points at
+  // the person who can.
+  if (!equation) return <UnreadableEquationPanel parseError={parseError} teacherView={teacherView} />;
   const inlineToolActive = Boolean(
     (inlineExpressionTools && (distributionState || simplifyTool)) || structureTool,
   );
@@ -2526,11 +2537,6 @@ export default function StepByStepAlgebra({
       return latexToExpression(operand);
     }
   })();
-
-  // Placed after every hook so hook order stays identical whether or not the
-  // blueprint parsed. A student can't repair the JSON, so this states what
-  // happened and points at the person who can.
-  if (!equation) return <UnreadableEquationPanel parseError={parseError} teacherView={teacherView} />;
 
   return (
     <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
