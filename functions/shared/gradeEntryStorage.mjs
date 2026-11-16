@@ -107,6 +107,23 @@ export const mergeQuestionRecord = (summary, detailEntry) => {
   return merged;
 };
 
+/**
+ * A tracker as it reads with no trace of how it is stored: each record without
+ * `detailRef` / `stepCredit`. A joined record minus these is the record that
+ * was split (checked over every production record), so a fingerprint taken
+ * over this is the fingerprint the unsplit record had.
+ */
+export const trackerWithoutSplitMarkers = (tracker) => {
+  if (!isPlainObject(tracker)) return tracker;
+  const out = {};
+  for (const [questionKey, record] of Object.entries(tracker)) {
+    if (!isPlainObject(record)) { out[questionKey] = record; continue; }
+    const { detailRef, stepCredit, ...rest } = record;
+    out[questionKey] = rest;
+  }
+  return out;
+};
+
 /** A whole assignment's tracker, joined with its detail document's data. */
 export const mergeTracker = (tracker, detailDocument) => {
   if (!isPlainObject(tracker)) return tracker;

@@ -1527,7 +1527,9 @@ exports.advanceSectionRecovery = onCall(async (request) => {
       if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
       if (!gradeSnapshot.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.");
       const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-      const gradeData = gradeSnapshot.data() || {};
+      // The records whole: recovery reads their family pins and practice evidence,
+      // stored beside the grades document (gradeEntryStorage.mjs).
+      const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnapshot.data() || {}, assignmentIds: [assignmentId] });
       if (secureAssignmentMode(assignment) || assignment.secure === true) {
         throw new HttpsError("failed-precondition", "Secure assessments use their own retest process.");
       }
@@ -1679,7 +1681,8 @@ exports.resolveHeldSectionRecovery = onCall(async (request) => {
         overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
       ]);
       if (!gradeSnap.exists || !assignmentSnap.exists) throw new HttpsError("not-found", "The student or assignment was not found.");
-      const gradeData = gradeSnap.data() || {};
+      // The records whole (stored beside the grades document; gradeEntryStorage.mjs).
+      const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnap.data() || {}, assignmentIds: [assignmentId] });
       const classId = authoritativeStudentClassId(gradeData);
       const classSnap = classId ? await transaction.get(db.collection("classes").doc(String(classId))) : null;
       const ownsClass = classSnap?.exists
@@ -2086,7 +2089,8 @@ exports.inspectStudentResponse = onCall(async (request) => {
     throw new HttpsError("not-found", "The student or assignment was not found.");
   }
 
-  const student = studentSnap.data() || {};
+  // The inspected record whole: its parts and pin are stored beside the grades document.
+  const student = await hydrateGradeData({ db, gradeRef, gradeData: studentSnap.data() || {}, assignmentIds: [assignmentId] });
   const classSnap = student.classId
     ? await db.collection("classes").doc(String(student.classId)).get()
     : null;
@@ -2334,7 +2338,8 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
       throw new HttpsError("not-found", "The student or assignment was not found.");
     }
 
-    const gradeData = gradeSnap.data() || {};
+    // The record whole (its parts and pin are stored beside the grades document).
+    const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnap.data() || {}, assignmentIds: [assignmentId] });
     const classSnap = gradeData.classId
       ? await transaction.get(db.collection("classes").doc(String(gradeData.classId)))
       : null;
