@@ -52,6 +52,7 @@ import {
   utcDayOf,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
+import { joinResponseDetail } from '../grades/responseDetailStore.js';
 
 const SCHOOL_TIME_ZONE = 'America/Chicago';
 const clean = (value) => String(value ?? '').trim();
@@ -330,7 +331,9 @@ export const fetchStudentGradeRecord = async ({ db, studentId } = {}) => {
   const id = clean(studentId);
   if (!db || !id) return null;
   const snapshot = await getDoc(doc(db, 'grades', id));
-  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+  if (!snapshot.exists()) return null;
+  // Whole records: their support flags and parts are stored apart (gradeEntryStorage.mjs).
+  return { id: snapshot.id, ...(await joinResponseDetail(db, id, snapshot.data() || {})) };
 };
 
 /** Everything the drawer and the report need for one student, in parallel. */
