@@ -215,6 +215,7 @@ export const SignInAccess = teacherPanel(() => import('../SignInAccess.jsx'));
 export const ClassesAdmin = teacherPanel(() => import('../components/admin/ClassesAdmin.jsx'));
 export const PreproductionReset = teacherPanel(() => import('../components/admin/PreproductionReset.jsx'));
 export const AssignmentAiHealth = teacherPanel(() => import('../components/admin/AssignmentAiHealth.jsx'));
+export const PlatformHealth = teacherPanel(() => import('../components/admin/PlatformHealth.jsx'));
 export const PathCoverageAudit = teacherPanel(() => import('../components/teacher/PathCoverageAudit.jsx'));
 export const AttendanceHistoryPanel = teacherPanel(() => import('../components/teacher/AttendanceHistoryPanel.jsx'));
 export const ParentContactCenter = teacherPanel(() => import('../components/teacher/ParentContactCenter.jsx'));

@@ -2149,6 +2149,26 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    /*
+     * CRASH COUNTS (functions/lib/platformHealth.js, shared/crashReport.mjs).
+     * Written only by the reportClientCrashes callable (Admin SDK), and only
+     * while the owner has reporting on (platformFlags/crashReporting).
+     *
+     * platformHealthDaily: one document per day of counts in closed-shape
+     * buckets. It names no student, but it is the platform's fault record,
+     * not a classroom's: only the root administrator reads it. No teacher, no
+     * student, and nobody writes it from a browser.
+     *
+     * platformHealthReporters: the per-account daily rate limit behind those
+     * counts. Its document names are a hash of an account and a day, so no
+     * client reads it at all, the root administrator included.
+     */
+    match /platformHealthDaily/{day} {
+      allow read: if rootAdmin();
+      allow create, update, delete: if false;
+    }
+    match /platformHealthReporters/{reporterId} { allow read, write: if false; }
+
     // Classes are the authoritative record of who teaches what course to whom,
     // so every screen may read them but only the audited admin callables may
     // write them. A teacher who could edit this collection could hand

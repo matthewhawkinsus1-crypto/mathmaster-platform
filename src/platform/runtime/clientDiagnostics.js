@@ -15,6 +15,12 @@
  * lifecycle, record, pin — as well as what went wrong), and no stack, which
  * can quote code that holds question content. Student answers, names and
  * answer keys are never passed in by any caller.
+ *
+ * THE ONE EXCEPTION, AND ONLY WHEN THE OWNER TURNS IT ON. A crash is also
+ * handed to crashReporter.js, which may send a COUNT of it (never this log,
+ * never the message kept here) once the server says reporting is on. That
+ * module is imported only after a failure, and what it may send is defined in
+ * functions/shared/crashReport.mjs.
  */
 
 import { getMathMasterBuildInfo } from './buildInfo.js';
@@ -60,11 +66,13 @@ const screenPath = () => {
   }
 };
 
+const crashReporter = () => import('./crashReporter.js');
+
 /**
  * Keep one failure. `kind` is a short machine word (chunk-load, render-error,
  * unhandled-rejection, window-error); `source` names the boundary or listener.
  */
-export const recordClientDiagnostic = ({ kind, message, source = '', limit = MESSAGE_LIMIT } = {}) => {
+export const recordClientDiagnostic = ({ kind, message, source = '', limit = MESSAGE_LIMIT, report = null } = {}) => {
   const build = getMathMasterBuildInfo();
   const entry = {
     at: new Date().toISOString(),
@@ -82,6 +90,20 @@ export const recordClientDiagnostic = ({ kind, message, source = '', limit = MES
     // Storage full or blocked: keep it for this page at least.
     memoryLog.push(entry);
     if (memoryLog.length > CLIENT_DIAGNOSTICS_LIMIT) memoryLog.shift();
+  }
+  // `report` is what a question boundary knows as separate fields (the error
+  // text, the family, the module, the content ids); other callers have only
+  // the message. Either way crashReporter reduces it to closed shapes.
+  if (typeof window !== 'undefined') {
+    let path = '';
+    try { path = window.location.pathname || ''; } catch { path = ''; }
+    const detail = {
+      kind, source, build: entry.build, screen: path,
+      message: report?.error ?? message,
+      family: report?.family, questionType: report?.questionType,
+      assignmentId: report?.assignmentId, questionId: report?.questionId,
+    };
+    crashReporter().then((module) => module.reportCrash(detail)).catch(() => {});
   }
   return entry;
 };
@@ -129,4 +151,12 @@ export const installClientDiagnostics = (target = typeof window !== 'undefined' 
     recordClientDiagnostic({ kind: 'unhandled-rejection', message: reason?.message || String(reason ?? ''), source: 'promise' });
   });
   target.__MATHMASTER_DIAGNOSTICS__ = () => readClientDiagnostics();
+  // A crash followed by a quick reload leaves its count queued on the device.
+  try {
+    if (target.localStorage?.getItem('mm:crash-reports')?.includes('"bucket"')) {
+      crashReporter().then((module) => module.resumeCrashReports()).catch(() => {});
+    }
+  } catch {
+    // No storage: nothing was queued.
+  }
 };
