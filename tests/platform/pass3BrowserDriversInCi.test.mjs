@@ -211,7 +211,9 @@ test('the emulator journeys watch src/** with exclusions after it, and what the 
     'src/platform/rewards/challengeRewardPolicy.js', 'src/MathInput.jsx', 'src/QuestionEngine.jsx',
     'tests/fixtures/secureRichToolAnswers.mjs', 'functions/platformEntry.js', 'tests/browser/emulator/vite.bridge.config.mjs',
     // Loaded in node by the Live Challenge drivers, before the server.
-    'tests/integration/support/emulatorTransactions.mjs']
+    'tests/integration/support/emulatorTransactions.mjs',
+    // Loaded in node by liveChallengeShellQa, to work a banked line's equation.
+    'tests/browser/equationWorkspacePlanner.mjs']
     .forEach((file) => assert.ok(reachedBy(file, paths), `${file} runs the journeys`));
   assert.equal(reachedBy('src/platform/gradeTransfer/gradeTransferModel.js', paths), false, 'an excluded directory does not');
   // The matching rule itself: in order, the last match decides.

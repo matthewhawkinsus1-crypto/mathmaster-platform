@@ -248,6 +248,9 @@ export const CI_AREAS = {
     // The drivers load it in node, before the server: the emulator's closed
     // transaction re-run as production re-runs it.
     'tests/integration/support/emulatorTransactions.mjs',
+    // liveChallengeShellQa loads it in node to work a banked line's equation
+    // step by step (scripts/check-emulator-journey-paths.mjs found it missing).
+    'tests/browser/equationWorkspacePlanner.mjs',
     'scripts/check-emulator-journey-paths.mjs',
     'package.json',
     'package-lock.json',
