@@ -28,7 +28,8 @@ const teacherPreviewEntryBody = executableSource(region(
 const workspaceHeadBody = executableSource(region(
   source,
   'const renderAssignmentWorkspace = (preview = false) => {',
-  'const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);',
+  // The head ends where the open question's record is read (however it is read).
+  'const currentRecord = ',
   'renderAssignmentWorkspace (head)',
 ));
 

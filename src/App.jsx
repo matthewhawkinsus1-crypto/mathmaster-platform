@@ -225,6 +225,8 @@ import { useToast } from './ui/Toast';
 import { prefetchQuestionResources } from './platform/performance/questionPrefetch.js';
 import { measurePerformanceOperation, startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { keepSame, sameData, sameStableValue, useRenderStability } from './platform/performance/renderStability.js';
+// One normalised view per stored record, for the render's reads of it.
+import { questionRecordView } from './platform/performance/questionRecordView.js';
 import {
   createDurableAction,
   drainDurableActions,
@@ -3843,7 +3845,7 @@ function App() {
   };
 
   const getModuleRecord = (assignmentTracker, index) =>
-    normalizeQuestionRecord(assignmentTracker?.[index]);
+    questionRecordView(assignmentTracker?.[index]);
 
   const getModuleStatus = (assignmentTracker, index) =>
     getModuleRecord(assignmentTracker, index).status;
@@ -9699,7 +9701,7 @@ function App() {
         // go to. Keeping the pinned banner (and its "Go to Warm-Up" button) on
         // every Classwork and Practice question only took height from the work.
         const warmupFinished = questionIndices.every((index) => (
-          ['correct', 'expired'].includes(normalizeQuestionRecord(tracker?.[assignment.id]?.[index]).status)
+          ['correct', 'expired'].includes(questionRecordView(tracker?.[assignment.id]?.[index]).status)
         ));
         return questionIndices.length && !warmupFinished ? { assignment, state, questionIndices } : null;
       })
@@ -10398,7 +10400,7 @@ function App() {
       invite: liveChallengeInvite,
       playedRoomIds: warmupChallengePlayedRoomIds,
     });
-    const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);
+    const currentRecord = questionRecordView(workingTracker?.[currentQuestionIndex]);
     const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex);
     const currentIsWarmup = !lifecycle.isPracticeOnly && activeQuestionRole === 'warmup' && warmupState.enabled;
     // A finalization receipt ("Time ended…") describes a close. When the
@@ -10554,7 +10556,7 @@ function App() {
       const sectionPosition = studentRequiredSet ? requiredSectionPosition.get(index) : entry.logicalPosition;
       return { index, visiblePosition, sectionPosition, question, role: entry.logicalRole, isTimedDOLQuestion };
     });
-    const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
+    const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(questionRecordView(workingTracker?.[index]).status);
     const visibleByStorageIndex = new Map(visibleQuestionEntries.map((entry) => [entry.index, entry]));
     const navigationSections = currentContent.logicalSections.map((logicalSection) => ({
       role: logicalSection.role,
@@ -10595,7 +10597,7 @@ function App() {
      * strip, the dropdown and the Overview all read these.
      */
     const sectionHasWork = (role) => projectedEntries.some((entry) => entry.logicalRole === role
-      && normalizeQuestionRecord(workingTracker?.[entry.storageIndex]).totalAttempts > 0);
+      && questionRecordView(workingTracker?.[entry.storageIndex]).totalAttempts > 0);
     /*
      * WHAT THE NAVIGATOR SAYS, ONCE PER CHANGE OF WHAT IT READS.
      *
@@ -10791,7 +10793,7 @@ function App() {
         currentRole: currentNavigationSection?.role,
         isWorkable: entryIsWorkableNow,
         isComplete: sectionQuestionIsComplete,
-        attemptCountOf: (index) => normalizeQuestionRecord(workingTracker?.[index]).attemptCount,
+        attemptCountOf: (index) => questionRecordView(workingTracker?.[index]).attemptCount,
         sectionLabelOf: (role) => (role === 'dol' ? EXIT_TICKET : activitySectionMeta[role]?.label || ''),
       })
       : null;
@@ -10853,7 +10855,7 @@ function App() {
         text: 'Your assignment work is saved when you switch, and you come back to this question after the game.',
       },
       !lifecycle.isPracticeOnly && dolState.status === 'active' && !dolSectionIndices.includes(currentQuestionIndex)
-        && dolSectionIndices.some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && {
+        && dolSectionIndices.some((index) => questionRecordView(workingTracker?.[index]).totalAttempts === 0) && {
         key: 'dol',
         tone: 'dol',
         chip: `${EXIT_TICKET_SPELLED_OUT} open`,
@@ -10863,7 +10865,7 @@ function App() {
       },
       // Timed windows mean nothing in post-deadline practice.
       !lifecycle.isPracticeOnly && warmupState.status === 'active' && activeQuestionRole !== 'warmup'
-        && visibleQuestionEntries.some((entry) => entry.role === 'warmup' && !['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[entry.index]).status)) && {
+        && visibleQuestionEntries.some((entry) => entry.role === 'warmup' && !['correct', 'expired'].includes(questionRecordView(workingTracker?.[entry.index]).status)) && {
         key: 'warmup',
         tone: 'warmup',
         chip: 'Warm-Up open',
@@ -11101,7 +11103,7 @@ function App() {
             </section>
           )}
 
-          {!preview && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).some((index) => normalizeQuestionRecord(workingTracker?.[index]).totalAttempts === 0) && (
+          {!preview && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).some((index) => questionRecordView(workingTracker?.[index]).totalAttempts === 0) && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '20px 22px', borderRadius: '14px', background: 'var(--mm-accent-soft)', border: '2px solid #9334e6', color: 'var(--mm-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', textAlign: 'left' }}>
               <div>
                 <strong style={{ display: 'block', fontSize: 'calc(22 * var(--mm-px))' }}>The {exitTicketInSentence} is open now</strong>
@@ -11436,7 +11438,7 @@ function App() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: '10px' }}>
                     {section.entries.map((entry) => {
                       const { index, sectionPosition } = entry;
-                      const record = normalizeQuestionRecord(workingTracker?.[index]);
+                      const record = questionRecordView(workingTracker?.[index]);
                       const cardAssessment = questionAssessmentFramework(questions[index] || {});
                       const cardAssessmentLabel = cardAssessment.examStyle && cardAssessment.framework
                         ? `${FRAMEWORK_LABELS[cardAssessment.framework] || cardAssessment.framework} practice`

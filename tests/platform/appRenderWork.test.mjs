@@ -36,6 +36,13 @@ import {
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, saveLineIsAboutDrafts,
 } from '../../src/platform/student/saveStatusModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { questionRecordView } from '../../src/platform/performance/questionRecordView.js';
+import {
+  normalizeQuestionRecord, recordQuestionAttempt, recordQuestionStep, requestReplacementQuestion,
+} from '../../src/attemptPolicy.js';
+import { overlayDurableActionsOnGrades } from '../../src/platform/performance/durableActionOutbox.js';
+import { adoptCanonicalAdvances } from '../../src/platform/persistence/canonicalTrackerReconciliation.js';
+import { mergePracticeTrackers } from '../../src/platform/student/practiceTrackerMerge.js';
 import { createProfileReader } from '../browser/support/cpuProfileNames.mjs';
 import {
   APP_RENDER_BUDGET, DEFERRED_BUILDERS, DEFERRED_MEMO_BUDGET_MS, appComponentLine, createAppRenderMeasures, definitionLine, timeUnder,
@@ -441,9 +448,56 @@ test('the navigator works out a question\'s line once per change of what it read
  * feedback, current content and due dates, each lesson's Warm-Up window on
  * every tracker change, and the normalised records of the open assignment.
  * Each is now kept until something it reads changes: renderMemo on exactly
- * its inputs. What each memo reads is checked against what it is keyed on,
- * as the navigator's are above.
+ * its inputs, or for a record, a view kept with the record
+ * (questionRecordView). What each memo reads is checked against what it is
+ * keyed on, as the navigator's are above.
  */
+
+test('a stored record is normalised once, and its view is what the attempt policy reads', () => {
+  const record = { status: 'incorrect', attemptCount: '2', variantIndex: 1, timeSpent: 40, supportUsage: { hintUsed: true }, stepGrades: [{ variantIndex: 1, equationBefore: 'x+1=2', equationAfter: 'x=1', earned: 1, possible: 2, expectedTotalPoints: 2 }] };
+  const view = questionRecordView(record);
+  assert.deepEqual(view, normalizeQuestionRecord(record));
+  assert.equal(questionRecordView(record), view, 'the same record: the same view, not worked out again');
+  const saved = { ...record, attemptCount: 3 };
+  assert.notEqual(questionRecordView(saved), view, 'a save makes a new record, and it gets its own view');
+  assert.equal(questionRecordView(saved).attemptCount, 3);
+  assert.equal(questionRecordView(undefined), questionRecordView(null), 'no record: the one empty view');
+  assert.deepEqual(questionRecordView(undefined), normalizeQuestionRecord(undefined));
+  assert.deepEqual(questionRecordView('incorrect'), normalizeQuestionRecord('incorrect'), 'a legacy status string');
+});
+
+const deepFreeze = (value) => {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+};
+
+test('nothing that makes or merges records writes into a record it was given, so a record\'s view stays its view', () => {
+  // A view is kept by the record object, so it is right only while no code
+  // changes a record in place. These are the ways a tracker's records are
+  // made on a student's device: a Submit, a step, a new version, an answer
+  // still queued on this device, a record the server holds ahead, practice
+  // after the deadline. Modules run in strict mode: a write into a frozen
+  // record throws.
+  const record = () => deepFreeze({ status: 'attempted', attemptCount: 1, totalAttempts: 1, variantIndex: 0, timeSpent: 12, stepGrades: [], partGrades: [], supportUsage: { hintUsed: false, accommodations: [] } });
+  const expired = () => deepFreeze({ status: 'expired', attemptCount: 3, totalAttempts: 3, variantIndex: 0 });
+  const attempt = recordQuestionAttempt({ record: record(), isCorrect: true, questionDetails: 'x = 4', timeSpent: 30, parts: [] });
+  assert.equal(attempt.record.status, 'correct');
+  const step = recordQuestionStep({ record: record(), stepGrade: { variantIndex: 0, accepted: true, earned: 1, possible: 1, equationBefore: '3x=12', equationAfter: 'x=4' } });
+  assert.ok(step.record || step);
+  assert.equal(requestReplacementQuestion(expired()).variantIndex, 1);
+  const tracker = deepFreeze({ 'a-1': { 0: record(), 1: expired() } });
+  const overlaid = overlayDurableActionsOnGrades(tracker, [{ kind: 'questionProgress', assignmentId: 'a-1', questionIndex: 0, payload: { timeSpent: 99 }, capturedAt: 1 }]);
+  assert.equal(overlaid['a-1'][0].timeSpent, 99);
+  assert.equal(tracker['a-1'][0].timeSpent, 12, 'the record it was given is as it was');
+  const server = deepFreeze({ 'a-1': { 0: { ...record(), attemptCount: 2, totalAttempts: 2 } } });
+  const { grades } = adoptCanonicalAdvances(tracker, server);
+  assert.equal(grades['a-1'][0], server['a-1'][0], 'the server record is adopted as it is');
+  assert.equal(adoptCanonicalAdvances(grades, server).grades, grades, 'nothing ahead: the same tracker');
+  assert.equal(mergePracticeTrackers(deepFreeze({ 0: record() }), deepFreeze({ 0: expired() }))[0].totalAttempts, 3);
+});
 
 const KEYWORDS = new Set([...JS, 'if', 'else', 'new', 'typeof']);
 // A renderMemo slot's inputs and the text of what it works out.
@@ -543,6 +597,27 @@ test('each lesson\'s Warm-Up window is worked out from the bell schedule, not ag
   // records: the first two are the open Warm-Ups' own inputs.
   const required = region(code, 'const studentRequiredFor = (assignmentData,', '\n  );\n', 'studentRequiredFor');
   only(required.slice(required.indexOf('=>') + 2), new Set([...KEYWORDS, 'studentRequiredQuestions', 'assignments', 'entry', 'assignmentData', 'hasPracticePass', 'forStudent', 'user', 'assignmentTracker', 'tracker']), 'studentRequiredFor');
+});
+
+test('App reads a record through its kept view only to read it, and normalises a fresh one where it builds a record', () => {
+  const code = app();
+  const sites = [...code.matchAll(/questionRecordView\(([^()]*(?:\([^()]*\))?[^()]*)\)(.{0,20})/g)];
+  assert.ok(sites.length >= 9, `${sites.length} reads through the view`);
+  for (const [, , after] of sites) {
+    // A field read, or a name whose every use is a field read.
+    assert.match(after, /^\.(status|totalAttempts|attemptCount|variantIndex|timeSpent)\b|^;|^\)?\s*$|^,?$/, `questionRecordView(...)${after}`);
+  }
+  for (const name of ['currentRecord', 'record']) {
+    const at = code.indexOf(`const ${name} = questionRecordView(`);
+    if (at < 0) continue;
+    const scope = code.slice(at, at + 9000);
+    assert.doesNotMatch(scope, new RegExp(`\\b${name}(?:\\.\\w+)+\\s*=[^=>]|\\.\\.\\.${name}\\b|Object\\.assign\\(${name}\\b`), `${name} is only read`);
+  }
+  assert.match(code, /const getModuleRecord = \(assignmentTracker, index\) =>\s*questionRecordView\(assignmentTracker\?\.\[index\]\);/);
+  for (const helper of ['getModuleStatus', 'getModuleTime']) assert.match(code, new RegExp(`const ${helper} = \\(assignmentTracker, index\\) =>\\s*getModuleRecord\\(assignmentTracker, index\\)\\.\\w+;`));
+  // A record App builds from another starts from a fresh object.
+  assert.match(code, /\.\.\.normalizeQuestionRecord\(currentAssignmentGrades\[currentQuestionIndex\]\),/);
+  assert.doesNotMatch(code, /\.\.\.questionRecordView\(/);
 });
 
 /* ------------------------------------------- what the runtime driver counts */
