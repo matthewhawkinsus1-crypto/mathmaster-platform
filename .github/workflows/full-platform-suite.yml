@@ -153,10 +153,10 @@ jobs:
 
       # The Response Inspector, the two grade override callables and
       # inspectClassroomPublication called by students, other classes'
-      # teachers and the signed-out: real Auth emulator tokens through the
-      # client SDK (#554, item 7). Firestore and Auth emulators of its own,
-      # because each refused call is checked against the whole project:
-      # nothing written anywhere.
+      # teachers and the signed-out, and the `accepted` verdict guard at
+      # ingestion: real Auth emulator tokens through the client SDK (#554,
+      # item 7). Firestore and Auth emulators of its own, because each refused
+      # call is checked against the whole project: nothing written anywhere.
       - name: Certify who may inspect and change a grade, with real sign-in tokens
         if: ${{ !cancelled() }}
         timeout-minutes: 10
