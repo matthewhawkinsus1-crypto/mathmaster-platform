@@ -15,5 +15,5 @@
  * Only re-exports: the logic stays in its own module, where its tests are.
  */
 export { buildStudentRecoverySummary } from '../../platform/recovery/studentRecoveryModel.js';
-export { buildStudentRecoveryDiscovery } from '../../platform/recovery/studentRecoveryDiscovery.js';
+export { buildStudentRecoveryDiscovery, recoveryDiscoveryCandidates } from '../../platform/recovery/studentRecoveryDiscovery.js';
 export { buildRecoverySummariesByAssignment } from '../../platform/student/recoverySummaries.js';

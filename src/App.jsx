@@ -1552,18 +1552,42 @@ function App() {
    * screens, and inside an assignment only that one — the tracker changes with
    * every step a student saves there, and a summary costs a few milliseconds
    * per assignment on a Chromebook.
+   *
+   * And worked out only when what it reads changes. A summary is built only
+   * for an assignment whose Warm-Up or DOL Recovery may be actionable now
+   * (recoveryDiscoveryCandidates: its original has closed, or a Recovery is
+   * under way), and that check reads the assignments, the Recovery records,
+   * the bell schedule and the clock, never the tracker. The candidates are
+   * kept until one of those changes, so a Submit's tracker changes build the
+   * list again only while there is a candidate to build it for, and inside
+   * an assignment with no Recovery to offer, never.
    */
   const recoveryDiscoveryScope = user?.role !== 'student' || !user?.id
     ? null
     : activeView === 'dashboard'
       ? RECOVERY_DISCOVERY_ALL
       : (activeView === 'assignment' && activeAssignmentId) || null;
-  const studentRecoveryDiscovery = useMemo(() => {
+  const studentRecoveryCandidates = useMemo(() => {
     if (!recoveryDiscoveryScope || !studentRecoveryKit) return NO_RECOVERY_OPPORTUNITIES;
-    return studentRecoveryKit.buildStudentRecoveryDiscovery({
+    return studentRecoveryKit.recoveryDiscoveryCandidates({
       assignments: recoveryDiscoveryScope === RECOVERY_DISCOVERY_ALL
         ? assignments
         : assignments.filter((assignment) => assignment.id === recoveryDiscoveryScope),
+      sectionRecoveryByAssignment,
+      studentId: user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod,
+      schedule: classSchedule,
+      studentProfile: user.timingProfile || null,
+      nowValue: now,
+    });
+  }, [recoveryDiscoveryScope, studentRecoveryKit, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, sectionRecoveryByAssignment, classSchedule, now]);
+  const studentRecoveryDiscovery = useMemo(() => {
+    if (!recoveryDiscoveryScope || !studentRecoveryKit) return NO_RECOVERY_OPPORTUNITIES;
+    // Nothing worth a summary: the same empty list, whatever the tracker says.
+    if (!studentRecoveryCandidates.length) return NO_RECOVERY_OPPORTUNITIES;
+    return studentRecoveryKit.buildStudentRecoveryDiscovery({
+      candidates: studentRecoveryCandidates,
       trackerByAssignment: projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment) || {},
       sectionRecoveryByAssignment,
       overridesByAssignment: teacherGradeOverridesByAssignment || {},
@@ -1574,7 +1598,7 @@ function App() {
       studentProfile: user.timingProfile || null,
       nowValue: now,
     });
-  }, [recoveryDiscoveryScope, studentRecoveryKit, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, assignments, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
+  }, [recoveryDiscoveryScope, studentRecoveryKit, studentRecoveryCandidates, user?.id, user?.classId, user?.classPeriod, user?.timingProfile, tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, classSchedule, now]);
   const studentRecoveryByAssignment = useMemo(
     () => groupRecoveryOpportunitiesByAssignment(studentRecoveryDiscovery),
     [studentRecoveryDiscovery],
