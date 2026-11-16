@@ -13,7 +13,8 @@
 //      the same grades, the same rows.
 //   3. The due-date checkpoint across a class with a completed student, one
 //      with partial work and one with none: each column gets that student's
-//      own grade, and the completed sections keep theirs.
+//      own grade, and the completed sections keep theirs, FINAL, and are not
+//      sent again, at the due date or at the final cutoff.
 //
 // The queue is released as drainClassroomPushQueue releases it: its own
 // releaseSignalFor, one grade-document write per entry, and the trigger that
@@ -208,24 +209,30 @@ test('Reconcile run again with nothing changed returns nothing twice, posts noth
 /* --- 3. the due date, across a class --------------------------------------- */
 
 // Work written before the due date, through the trigger as it happened; then
-// the due date passes and the scheduler's checkpoint runs.
-async function classAtItsDueDate() {
+// the class's due date (or, with `deadline: 'final'`, its final cutoff) passes
+// and the scheduler's checkpoint runs. With `turnedIn: false` nobody turned the
+// work in on Classroom, so Google refuses every return.
+async function classAtItsDueDate({ deadline = 'due', turnedIn = true } = {}) {
   const students = { done: EVERYTHING_DONE, partial: PARTIAL, none: null };
   const db = classFixture({ students: Object.fromEntries(Object.keys(students).map((id) => [id, null])) });
-  const googleFor = Object.fromEntries(Object.keys(students).map((id) => [id, fakeGoogle({
-    states: { 'cw-warmup': 'TURNED_IN', 'cw-classwork': 'TURNED_IN' },
-  })]));
+  const googleFor = Object.fromEntries(Object.keys(students).map((id) => [id, fakeGoogle(turnedIn
+    ? { states: { 'cw-warmup': 'TURNED_IN', 'cw-classwork': 'TURNED_IN' } }
+    : { refuse: returnsOnlyTurnedInWork })]));
   for (const [id, work] of Object.entries(students)) {
     if (!work) continue;
     // eslint-disable-next-line no-await-in-loop
     await writeGrades({ db, google: googleFor[id], studentId: id, change: (grades) => ({ ...grades, gradesByAssignment: { A1: structuredClone(work) } }) });
   }
-  // The completed sections went out final and returned when they were done.
+  // The completed sections went out final (and returned, if Google would) when they were done.
   for (const key of SECTIONS) {
     assert.equal(row(db, 'done', key).stage, 'final-complete');
-    assert.equal(row(db, 'done', key).returnedToStudent, true);
+    assert.equal(row(db, 'done', key).status, turnedIn ? 'synced' : 'graded-not-returned');
+    assert.equal(row(db, 'done', key).returnedToStudent, turnedIn);
   }
-  db.store.set('assignments/A1', { ...db.data('assignments/A1'), dueAt: iso(-60_000) });
+  db.store.set('assignments/A1', {
+    ...db.data('assignments/A1'),
+    ...(deadline === 'final' ? { dueAt: iso(-2 * DAY), lateDueAt: iso(-60_000) } : { dueAt: iso(-60_000) }),
+  });
   const before = {
     rows: rows(db),
     trackers: Object.fromEntries(Object.keys(students).map((id) => [id, structuredClone(db.data(`grades/${id}`).gradesByAssignment)])),
@@ -280,9 +287,13 @@ test('the due-date checkpoint gives every student their own grade and leaves com
   }
 });
 
-test('a completed section stays FINAL at the due-date checkpoint and is not sent again', {
-  todo: 'Classroom passback, coordinated on #545: the due-date checkpoint relabels a completed section "due-checkpoint" (isFinal false) and sends it to Google again',
-}, async () => {
+// A completed section's column is final the moment it is finished
+// (lib/classroomGradeRuntime.js, resolveClassroomGradeStage). A class-wide
+// wake-up used to relabel it "due-checkpoint" (isFinal false) or
+// "final-deadline", and the new label made the column look changed, so it was
+// sent again: a list and a patch for every finished column at each wake-up,
+// and the monitor and the receipt lost "FINAL" at the due date (#545).
+test('a completed section stays FINAL at the due-date checkpoint and is not sent again', async () => {
   const { db, googleFor } = await classAtItsDueDate();
   const sent = steps(googleFor.done);
   // The teacher's grade monitor and the student's receipt read stage and
@@ -291,4 +302,35 @@ test('a completed section stays FINAL at the due-date checkpoint and is not sent
     Object.fromEntries(SECTIONS.map((key) => [key, { stage: row(db, 'done', key).stage, isFinal: row(db, 'done', key).isFinal, sentAgain: sent[key] }])),
     Object.fromEntries(SECTIONS.map((key) => [key, { stage: 'final-complete', isFinal: true, sentAgain: [] }])),
   );
+});
+
+test('at the final-deadline wake-up a completed section stays FINAL and is not sent again, and unfinished work is made final', async () => {
+  const { db, googleFor, released } = await classAtItsDueDate({ deadline: 'final' });
+  assert.deepEqual(released.sort(), ['final-deadline done', 'final-deadline none', 'final-deadline partial'], 'the whole class, work or not');
+  const sent = steps(googleFor.done);
+  assert.deepEqual(
+    Object.fromEntries(SECTIONS.map((key) => [key, { stage: row(db, 'done', key).stage, isFinal: row(db, 'done', key).isFinal, sentAgain: sent[key] }])),
+    Object.fromEntries(SECTIONS.map((key) => [key, { stage: 'final-complete', isFinal: true, sentAgain: [] }])),
+  );
+  // Work the student did not finish is final now: assigned and returned.
+  assert.deepEqual(steps(googleFor.partial), { warmup: ['list', 'patch', 'return'], classwork: ['list', 'patch', 'return'] });
+  for (const key of SECTIONS) {
+    assert.deepEqual([row(db, 'partial', key).stage, row(db, 'partial', key).isFinal, row(db, 'partial', key).returnedToStudent], ['final-deadline', true, true], `partial ${key}`);
+  }
+});
+
+test('a completed section Classroom would not return is not sent again at the class\'s wake-ups either', async () => {
+  // Nobody turned the work in on Classroom, so Google refused the return when
+  // the section was finished. The column already holds the grade; as on any
+  // other write that leaves it alone, a wake-up does not send it again. A new
+  // grade, or a teacher's Retry, asks for the return again
+  // (tests/platform/classroomReturnRefusal.test.mjs).
+  for (const deadline of ['due', 'final']) {
+    // eslint-disable-next-line no-await-in-loop
+    const { db, googleFor } = await classAtItsDueDate({ deadline, turnedIn: false });
+    assert.deepEqual(steps(googleFor.done), { warmup: [], classwork: [] }, `${deadline}: nothing sent for the finished columns`);
+    for (const key of SECTIONS) {
+      assert.deepEqual([row(db, 'done', key).status, row(db, 'done', key).stage], ['graded-not-returned', 'final-complete'], `${deadline} ${key}`);
+    }
+  }
 });

@@ -204,15 +204,20 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
     assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
     studentFinalCutoff
   );
+  // A finished section is final, whatever wakes it: the class's due or final
+  // wake-up, an assessment release, a retry. It was assigned and returned when
+  // it was finished. The due-date wake-up relabelled it "due-checkpoint", not
+  // final, and either wake-up's label made a column Classroom already held
+  // look changed, so it was sent again (#545).
+  if (progress.complete) return "final-complete";
   // H-116: "final-deadline" and "due-checkpoint" are queued for the whole
   // roster at the CLASS's cutoff and due time. They speak for this student
   // only once THEIR own has arrived; before it the grade is ordinary progress
   // (not returned), and the scheduler wakes them again at their own time.
   if (reason === "final-deadline" && !(lateDueAt && now < lateDueAt.getTime())) return "final-deadline";
   if (reason === "due-checkpoint" && !(dueAt && now < dueAt.getTime())) return "due-checkpoint";
-  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+  if (reason === "assessment-release") return "assessment-release";
 
-  if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
   if (reason === "initial-reconcile") {
     if (dueAt && now >= dueAt.getTime()) return "due-checkpoint";

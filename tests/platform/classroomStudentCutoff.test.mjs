@@ -92,7 +92,14 @@ test('a student with no individual deadline gets exactly the stage and release t
   for (const releaseSignal of signals) {
     for (const nowValue of times.filter((time) => reachable(releaseSignal, time))) {
       for (const p of [progress, { ...progress, complete: true }, { ...progress, attempted: 0, meaningfulProgress: false }]) {
-        const expected = stageBefore({ assignment, progress: p, releaseSignal, nowValue });
+        // The second deliberate difference (#545): a finished section column
+        // stays "final-complete" when the class's due or final wake-up reaches
+        // it, as it already did for an assessment release. Its new label made
+        // a column Classroom already held, assigned and returned, look changed,
+        // so it was sent again. (index.js's own copy, for the whole-assignment
+        // trigger, is unchanged.)
+        const classWakeUp = ['final-deadline', 'due-checkpoint'].includes(runtime.releaseSignalReason(releaseSignal));
+        const expected = p.complete && classWakeUp ? 'final-complete' : stageBefore({ assignment, progress: p, releaseSignal, nowValue });
         const actual = runtime.resolveClassroomGradeStage({ assignment, progress: p, releaseSignal, nowValue, studentFinalCutoff: null, studentDueAt: null });
         assert.equal(actual, expected, `${JSON.stringify(releaseSignal)} at ${new Date(nowValue).toISOString()}`);
         assert.equal(runtime.deferredClassCheckpoint({ assignment, releaseSignal, nowValue }), null);
