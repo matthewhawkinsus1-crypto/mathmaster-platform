@@ -47,6 +47,11 @@
 //                       relation workspace's placement and cancellation.
 //   directions-places-* student-a11y-3: on a focused side the arrow keys choose
 //                       where the operation goes, as a tap does, at 1366 and 390.
+//   directions-operand-enter-*
+//                       Enter in "Subtract what?" picks the operation up (and
+//                       nothing from an empty box), keeps the focus there for
+//                       Shift+Tab to the sides, and never submits a solved
+//                       question, at 1366 and 390.
 //
 // Exit code 1 on any finding. Screenshots land in
 // tests/browser/artifacts/stepAlgebraStructureTools/.
@@ -886,6 +891,61 @@ async function directionsPlacementPlaces(browserInstance, viewport) {
   await context.close();
 }
 
+// ENTER IN "SUBTRACT WHAT?" PICKS THE OPERATION UP (owner's #554 item 4, #386 R5).
+// Enter in the value box did nothing, and the student reached for Pick up; once the
+// equation was solved it submitted the whole question. Now it presses the card's one
+// declared action, Pick up (answerEntryUx.js): nothing from an empty box, focus stays in
+// the box, Shift+Tab goes back to the sides as the line says, no Submit, no Cancel.
+async function directionsOperandEnter(browserInstance, viewport) {
+  const journey = `directions-operand-enter-${viewport.width}`;
+  const context = await ownerContext(browserInstance, viewport);
+  const page = await open(context, 4);
+  const pickUp = page.locator('button.algebra-pickup-button');
+  const grades = () => page.evaluate(() => window.__mmStructure.grades().length);
+  expect(journey, await tabUntil(page, (now) => now.label === 'Choose Subtract operation', { limit: 80 }), 'Tab never reached Subtract');
+  await press(page, 'Enter', 450);
+  expect(journey, (await focusNow(page)).label === 'Subtract what to both sides', `the value box did not take the focus: ${JSON.stringify(await focusNow(page))}`);
+  // An empty box: Enter does nothing, and the operation stays in hand.
+  await press(page, 'Enter', 350);
+  expect(journey, (await pickUp.getAttribute('aria-pressed')) === 'false', 'Enter in the empty box picked the operation up');
+  expect(journey, (await page.locator('.algebra-operation-composer').count()) === 1, 'Enter in the empty box closed the operation');
+  // "6⏎" typed at once: Enter reads the box as it stands.
+  await page.keyboard.type('6');
+  await press(page, 'Enter', 600);
+  expect(journey, (await pickUp.getAttribute('aria-pressed')) === 'true', 'Enter in the value box did not pick the operation up');
+  expect(journey, await said(page, 'Subtract 6 on both sides is ready. Click or tap the side where the subtracted term belongs, or Shift+Tab back to a side and press Enter.'),
+    `no line says the operation is ready (${JSON.stringify(await sayings(page))})`);
+  expect(journey, (await focusNow(page)).label === 'Subtract what to both sides', `Enter moved the focus out of the box: ${JSON.stringify(await focusNow(page))}`);
+  expect(journey, (await grades()) === 0, 'Enter in the value box submitted the question');
+  // The line's own route, from the box.
+  expect(journey, await tabUntil(page, (now) => now.label === 'Place subtract 6 on the right side', { back: true, limit: 40 }), 'Shift+Tab never reached the right side');
+  await press(page, 'Enter', 450);
+  expect(journey, await tabUntil(page, (now) => now.label === 'Place subtract 6 on the left side', { back: true, limit: 40 }), 'Shift+Tab never reached the left side');
+  await press(page, 'Enter', 1000);
+  expect(journey, await said(page, /^The operation is balanced\./), `the move was not balanced (${JSON.stringify(await sayings(page))})`);
+  report.push({ journey, said: (await sayings(page)).slice(-1) });
+  await page.close();
+  if (viewport.width < 500) { await context.close(); return; }
+  // Solved, a question shows Submit. Enter in the value box of a further operation still
+  // picks it up, and never submits the question (the box's Enter is the box's own).
+  const solved = await open(context, 8);
+  const host = solved.locator('body');
+  await balancedMove(solved, host, 'Divide by', '-2');
+  await cancelFactor(solved, host);
+  await simplifySide(solved, host, 'right', '5');
+  // The step commits once its animation ends.
+  await solved.waitForFunction(() => document.querySelector('[data-math-state]')?.getAttribute('data-math-state')?.replace(/[\s~]+/g, '') === 'x=5', null, { timeout: 5000 }).catch(() => {});
+  expect(`${journey}-solved`, compact(await state(solved)) === 'x=5', `the equation is ${await state(solved)}`);
+  expect(`${journey}-solved`, (await solved.getByRole('button', { name: /^Submit/ }).count()) > 0, 'a solved equation shows no Submit');
+  await chooseOperation(solved, host, 'Add');
+  await solved.keyboard.type('1');
+  await press(solved, 'Enter', 1200);
+  expect(`${journey}-solved`, (await solved.evaluate(() => window.__mmStructure.grades().length)) === 0, 'Enter in the value box submitted the solved question');
+  expect(`${journey}-solved`, (await solved.locator('button.algebra-pickup-button').getAttribute('aria-pressed')) === 'true', 'Enter did not pick the operation up');
+  await solved.close();
+  await context.close();
+}
+
 // Each Rewrite tool: its status line, then the keys it names.
 async function directionsStructureTools(context) {
   const journey = 'directions-structure-tools';
@@ -1038,17 +1098,19 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   }
 }
 // AX32 (slice 4): placing an operation and cancelling by keys, on a computer and on a phone.
+// Each by its own name, so ONLY=directions runs them all and ONLY=directions-operand one.
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
-  if (!wants('directions')) continue;
-  try {
-    await directionsPlacementAndCancel(browser, viewport);
-  } catch (error) {
-    note(`directions-placement-${viewport.width}`, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
-  }
-  try {
-    await directionsPlacementPlaces(browser, viewport);
-  } catch (error) {
-    note(`directions-places-${viewport.width}`, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
+  for (const [name, run] of [
+    [`directions-placement-${viewport.width}`, directionsPlacementAndCancel],
+    [`directions-places-${viewport.width}`, directionsPlacementPlaces],
+    [`directions-operand-enter-${viewport.width}`, directionsOperandEnter],
+  ]) {
+    if (!wants(name)) continue;
+    try {
+      await run(browser, viewport);
+    } catch (error) {
+      note(name, `threw: ${error.message.split('\n').slice(0, 3).join(' | ')}`);
+    }
   }
 }
 await browser.close();

@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
@@ -92,6 +92,7 @@ import { useContentStableValue } from './platform/react/useContentStableValue.js
 import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
+import { focusForEnter, resolveToolEnterAction } from './platform/interaction/answerEntryUx.js';
 import { START_OVER } from './platform/student/studentWords.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
@@ -639,6 +640,21 @@ export default function StepByStepAlgebra({
   useEffect(() => {
     placedOperationPositionsRef.current = placedOperationPositions;
   }, [placedOperationPositions]);
+
+  // ENTER IN THE OPERATION'S VALUE BOX ("Subtract what?") presses the one
+  // button the box's card declares for Enter (answerEntryUx.js): Pick up, a
+  // card action. Never Cancel or Apply to both sides, which declare nothing,
+  // and nothing from an empty box. The box owns its Enter (MathInput
+  // onSubmit), so the question's own Enter routing never takes it: once the
+  // equation was solved, Enter here submitted the whole question.
+  const boardRootRef = useRef(null);
+  const operationComposerRef = useRef(null);
+  const pressOperationEnterAction = useCallback(() => {
+    const field = operationComposerRef.current?.querySelector('math-field');
+    const decision = resolveToolEnterAction({ field, shell: boardRootRef.current });
+    if (decision.kind === 'press') decision.target.click();
+    else if (decision.kind === 'focus') focusForEnter(decision.target);
+  }, []);
 
   // The committed equation as LaTeX, once per equation: the board's
   // data-math-state, the operand keyboard's letters and the reported work all read it.
@@ -2548,7 +2564,7 @@ export default function StepByStepAlgebra({
   })();
 
   return (
-    <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
+    <section ref={boardRootRef} className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
       {showPrompt && !embedded ? <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt> : null}
       {/* `algebra-toolbar`: the row the question starts with, so the Enlarge
           button that floats over its right end gets room (WorkViewShell.css,
@@ -3013,7 +3029,7 @@ export default function StepByStepAlgebra({
       )}
 
       {armedTile && !pendingMove && (
-        <div className="algebra-operation-composer">
+        <div ref={operationComposerRef} className="algebra-operation-composer" data-mm-enter-scope="">
           <div className="algebra-composer-operation" aria-hidden="true">{OPERATIONS.find((item) => item.id === armedTile.operation)?.symbol}</div>
           <label className="algebra-composer-input-label">
             <span>{armedOperationLabel} what?</span>
@@ -3035,6 +3051,7 @@ export default function StepByStepAlgebra({
               toolProfile="algebra-operation"
               placeholder="value or expression"
               ariaLabel={`${armedOperationLabel} what to both sides`}
+              onSubmit={pressOperationEnterAction}
               focusSignal={operationFocusSignal}
               contextSymbols={operationContextSymbols}
               collapseSignal={mathToolsCollapseSignal}
@@ -3044,6 +3061,7 @@ export default function StepByStepAlgebra({
           </label>
           <button
             type="button"
+            data-mm-enter-action="card"
             className={`algebra-pickup-button ${mobileInteraction.isMobile ? 'is-tap-placement-button' : ''}`}
             /* Tap-or-keyboard placement used to be gated on `isMobile`, which
                meant a DESKTOP keyboard user found `onClick` undefined: pressing
