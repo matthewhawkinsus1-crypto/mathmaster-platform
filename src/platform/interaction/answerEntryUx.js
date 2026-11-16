@@ -276,6 +276,23 @@ export const isTouchPrimaryPointer = (windowObject = typeof window !== 'undefine
 /** How many answer-entry controls a workspace shows — "the" box only when it is one. */
 export const countAnswerControls = (root) => visibleAnswerControls(root).length;
 
+/*
+ * EVERY PART OF A QUESTION'S ANSWER, NOT ONLY ITS TYPED BOXES.
+ *
+ * The question-level single-answer convention (one box, complete: Enter
+ * submits) counted typed boxes. A multi-answer question with a choice part
+ * and one typed box counted one, so once the choice was made and the box
+ * filled, Enter in the box submitted the whole question, where a question of
+ * two typed boxes only brings Submit into focus. Its parts are counted the
+ * way the tool-level contract counts them above: a typed box, and a choice,
+ * a select, a plane, a slider or a written explanation beside it.
+ */
+export const countAnswerParts = (root) => {
+  const parts = new Set(visibleAnswerControls(root));
+  otherAnswerControlsIn(root).forEach((control) => parts.add(control));
+  return parts.size;
+};
+
 /**
  * After a remount that only shows restored work: the cursor goes back to the
  * box the student was in, when the question still has the same boxes. Anything
@@ -329,6 +346,7 @@ function focusAnswerControlAt(root, index) {
 export default {
   answerControlAcceptsFocus,
   countAnswerControls,
+  countAnswerParts,
   focusForEnter,
   nextEmptyAnswerField,
   resolveQuestionEnterIntent,

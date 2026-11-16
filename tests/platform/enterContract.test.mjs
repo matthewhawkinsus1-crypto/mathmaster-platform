@@ -18,6 +18,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  countAnswerParts,
   nextEmptyAnswerField,
   resolveQuestionEnterIntent,
   resolveToolEnterAction,
@@ -176,11 +177,26 @@ test('ToolShell routes Enter through the contract and reads no button text', () 
   assert.doesNotMatch(shell, /check\|submit\|verify/i);
 });
 
-test('QuestionEngine counts the boxes and treats a DOL or one-try item as deliberate', () => {
+// A multi-answer question with a choice part and one typed box: once the choice
+// was made and the box filled, one Enter in the box submitted the whole
+// question, where two typed boxes only bring Submit into focus.
+test('a question\'s answer parts are its typed boxes and every other answer control', () => {
+  const box = () => input('3');
+  const choice = () => h('div', { role: 'radiogroup' }, h('button', {}, 'discrete'), h('button', {}, 'continuous'));
+  assert.equal(countAnswerParts(panel(box())), 1, 'one box is the whole answer');
+  assert.equal(countAnswerParts(panel(choice(), box())), 2, 'a box beside a choice is one part of two');
+  assert.equal(countAnswerParts(panel(box(), h('select'))), 2, 'and beside a select');
+  assert.equal(countAnswerParts(panel(box(), h('textarea'))), 2, 'and beside a written explanation');
+  assert.equal(countAnswerParts(panel(h('textarea'))), 1, 'a textarea is counted once');
+  assert.equal(countAnswerParts(panel(box(), h('select', { disabled: true }))), 1, 'a control that is off is not a part');
+  assert.equal(countAnswerParts(panel(box(), h('div', { role: 'radiogroup', hidden: true }))), 1, 'nor one that is hidden');
+});
+
+test('QuestionEngine counts the parts and treats a DOL or one-try item as deliberate', () => {
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   const capture = engine.slice(engine.indexOf('onKeyDownCapture={(event) => {'), engine.indexOf('style={{ position: \'relative\', padding: \'10px\''));
   assert.match(capture, /if \(event\.target\?\.closest\?\.\('\[data-mm-enter-owner\]'\)\) return;/, 'a field that owns Enter keeps it');
-  assert.match(capture, /const multipart = isComposed \|\| countAnswerControls\(questionEngineRef\.current\) > 1;/);
+  assert.match(capture, /const multipart = isComposed \|\| countAnswerParts\(questionEngineRef\.current\) > 1;/, 'every answer part, not only the typed boxes');
   assert.match(capture, /const deliberate = Boolean\(dolMode\) \|\| resolvedMaximumAttempts <= 1;/);
   assert.match(capture, /resolveQuestionEnterIntent\(\{[\s\S]*?multipart,[\s\S]*?deliberateSubmit: deliberate,/);
   assert.match(capture, /intent === 'focus-submit'\) focusForEnter\(submitButtonRef\.current\)/);

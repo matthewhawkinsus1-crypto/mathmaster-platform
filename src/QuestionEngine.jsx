@@ -114,7 +114,7 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, answerFocusPosition, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, answerFocusPosition, countAnswerParts, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
 import { AnswerFocusPolicyProvider, DeferredFocusProvider, useDeferredFocusAuthority } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
@@ -3278,12 +3278,14 @@ function QuestionEngineBody({
         // swallow it. Otherwise, with a submit available:
         //   incomplete           Enter moves to the next empty box
         //   one box, complete    Enter submits (the single-answer convention)
-        //   several boxes, a DOL
+        //   several parts, a DOL
         //   or a one-try item    Enter brings Submit into focus; a second,
         //                        deliberate Enter presses it
-        // Textareas, selects and the calculator keep Enter throughout.
+        // Textareas, selects and the calculator keep Enter throughout. A part
+        // is a typed box or any other answer control (a choice, a select, a
+        // plane): a box beside a choice is not the whole answer.
         if (event.target?.closest?.('[data-mm-enter-owner]')) return;
-        const multipart = isComposed || countAnswerControls(questionEngineRef.current) > 1;
+        const multipart = isComposed || countAnswerParts(questionEngineRef.current) > 1;
         const deliberate = Boolean(dolMode) || resolvedMaximumAttempts <= 1;
         const intent = resolveQuestionEnterIntent({
           event,
