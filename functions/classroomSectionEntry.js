@@ -30,11 +30,14 @@ const {
   gradeSyncDocumentId,
 } = require("./lib/publication");
 const { runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
-const { classroomPublicationGrade } = require("./lib/classroomSectionGrade");
+const {
+  activeAssignmentGradeOverride,
+  classroomPublicationGrade,
+  gradeProgressWithTeacherOverrides,
+} = require("./lib/classroomSectionGrade");
 const { studentOmittedFor } = require("./lib/studentWorkloadIndices");
 const studentWorkloadIndices = require("./lib/studentWorkloadIndices");
 const {
-  assignmentGradeProgress,
   releaseSignalReason,
   resolveClassroomGradeStage,
   classroomGradeReleasePolicy,
@@ -637,7 +640,16 @@ const syncSectionGradeToClassroom = onDocumentWritten(
     // A completed Practice-based Recovery rescores a Warm-Up/DOL section, so it
     // wakes the section passback exactly like a changed answer does.
     const recoveryChangedIds = sectionRecoveryGrades.recoveryChangedAssignmentIds(afterData, beforeData);
-    const assignmentIds = [...new Set([...gradeChangedAssignmentIds, ...signaledAssignmentIds, ...recoveryChangedIds])];
+    // A teacher's override changes the grade MathMaster shows, so it wakes the
+    // section columns as it wakes the whole-assignment one. The two override
+    // callables also send a Retry in the same write, so this reads nothing
+    // more for them.
+    const afterOverrides = afterData.teacherGradeOverridesByAssignment || {};
+    const beforeOverrides = beforeData.teacherGradeOverridesByAssignment || {};
+    const overrideChangedIds = [...new Set([...Object.keys(afterOverrides), ...Object.keys(beforeOverrides)])].filter(
+      (assignmentId) => JSON.stringify(afterOverrides[assignmentId] || {}) !== JSON.stringify(beforeOverrides[assignmentId] || {})
+    );
+    const assignmentIds = [...new Set([...gradeChangedAssignmentIds, ...signaledAssignmentIds, ...recoveryChangedIds, ...overrideChangedIds])];
     // TT23: a support-profile change that moves which items the student owes
     // moves their section columns too. It gets the same push an answer would,
     // but only to correct a grade Classroom already holds (the whole-assignment
@@ -684,29 +696,38 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           assignmentId, studentId: event.params.studentId, message: String(error?.message || error),
         }),
       });
-      let correctionTracker = afterByAssignment[assignmentId] || {};
+      // A teacher's overrides decide the grade MathMaster shows, so every
+      // column is graded with them, by the whole-assignment trigger's rules
+      // (lib/classroomSectionGrade.js): a per-question score for the attempt
+      // it was given on, and an assignment-level grade that replaces each
+      // column's. They are applied once, here, with or without a workload
+      // correction.
+      const teacherOverrides = afterData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+      const assignmentGradeOverride = activeAssignmentGradeOverride(teacherOverrides);
       let correctionPracticeWaived = [];
       if (afterData.profile?.workloadCorrections?.[assignmentId]) {
         const corrections = require("./lib/retroactiveAccommodation");
-        correctionTracker = await corrections.projectCorrectionTracker(correctionTracker, afterData.teacherGradeOverridesByAssignment?.[assignmentId] || {});
         correctionPracticeWaived = await corrections.readPracticeWaiver({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } });
         correctionPracticeWaived.forEach((index) => studentOmitted.add(index));
       }
       // A completed Recovery credits its section at the recorded score in the
-      // same section grade (functions/lib/sectionRecoveryGrades.js). This path
-      // grades without teacher overrides, so the original is read the same way.
+      // same section grade (functions/lib/sectionRecoveryGrades.js). Its
+      // original is read with the teacher's corrections, as the whole
+      // assignment's is, and the overrides inside a section it rescored are
+      // dropped: they only shaped that original.
       // eslint-disable-next-line no-await-in-loop
-      const { tracker } = await sectionRecoveryGrades.projectRecoveredGradeInputs({
+      const recovered = await sectionRecoveryGrades.projectRecoveredGradeInputs({
         assignment,
-        tracker: correctionTracker,
+        tracker: afterByAssignment[assignmentId] || {},
         questions,
-        overrides: {},
+        overrides: teacherOverrides,
         recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
         // A Live Challenge Warm-Up result is the Warm-Up grade.
         challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
-        gradeProgress: (gradeTracker, indices, gradeQuestions) => assignmentGradeProgress(gradeTracker, indices, gradeQuestions),
+        gradeProgress: gradeProgressWithTeacherOverrides,
         omittedIndices: studentOmitted,
       });
+      const { tracker } = recovered;
       const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
       const signalReason = releaseSignalReason(releaseSignal);
       // A push queued again after Google's per-minute limit sends only the
@@ -760,7 +781,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             publication,
             tracker,
             questions,
-            gradeProgress: assignmentGradeProgress,
+            gradeProgress: gradeProgressWithTeacherOverrides,
+            overrides: recovered.overrides,
+            assignmentGradeOverride,
             omittedIndices: studentOmitted,
           });
         } catch (error) {
@@ -781,8 +804,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         // A HELD Practice-based Recovery in this column's section (or any, for
         // a whole-assignment column): the section grade is not settled, so
         // nothing is sent until the teacher resolves the hold
-        // (functions/lib/sectionRecoveryGrades.js). This path grades without
-        // teacher overrides, so none can stand in for the resolution here.
+        // (functions/lib/sectionRecoveryGrades.js). It holds this column even
+        // when an assignment-level teacher grade decides the other columns:
+        // the Recovery is still the teacher's to resolve
+        // (tests/integration/sectionRecoveryPlatformFailure.test.mjs).
         const recoveryHold = sectionRecoveryGrades.recoveryPassbackHold({
           recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
           sectionKey: gradeResult.sectionKey,
