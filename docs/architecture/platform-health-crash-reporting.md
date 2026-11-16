@@ -52,6 +52,13 @@ it had queued and does not ask again for 24 hours. That request carries nothing
 about the failure, and the server reads and writes nothing for it beyond its
 cached copy of the switch. A device that never fails never asks.
 
+## What is not counted
+
+A failure recorded while the device is offline, and a chunk that would not load
+(a tab that outlived a deploy), are not reported. The reporter is itself a
+lazily loaded chunk, so asking for it then is a second failed request on a
+screen that is already recovering. Both still go in the device's local log.
+
 ## Where it is kept, and who can read it
 
 | Collection | Holds | Read | Kept |

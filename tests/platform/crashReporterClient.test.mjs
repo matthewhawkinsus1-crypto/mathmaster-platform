@@ -215,6 +215,18 @@ test('the reporter is off the first load and off every healthy path: clientDiagn
   assert.match(reporter, /httpsCallable\(functions, 'reportClientCrashes'\)/);
 });
 
+test('offline, or for a chunk that would not load, the reporter chunk is not fetched at all', () => {
+  // The reporter is a lazy chunk: asking for it while offline, or from a tab
+  // that outlived a deploy, is a second failed request on a recovering screen
+  // (tests/browser/reviewMyWork.mjs, the offline scene, fails on it).
+  const source = executableSource(componentSource('src/platform/runtime/clientDiagnostics.js'));
+  const reached = source.indexOf('crashReporter().then((module) => module.reportCrash');
+  assert.ok(reached > 0);
+  const guard = source.slice(source.lastIndexOf('if (typeof window', reached), reached).split('\n')[0];
+  assert.match(guard, /entry\.online !== false/);
+  assert.match(guard, /kind !== 'chunk-load'/);
+});
+
 test('recording a diagnostic hands the reporter fields, and the reporter is not reached without a window', async () => {
   const diagnostics = await import('../../src/platform/runtime/clientDiagnostics.js');
   assert.equal(typeof globalThis.window, 'undefined');

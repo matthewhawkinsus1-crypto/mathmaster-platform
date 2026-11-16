@@ -94,7 +94,13 @@ export const recordClientDiagnostic = ({ kind, message, source = '', limit = MES
   // `report` is what a question boundary knows as separate fields (the error
   // text, the family, the module, the content ids); other callers have only
   // the message. Either way crashReporter reduces it to closed shapes.
-  if (typeof window !== 'undefined') {
+  //
+  // Not when the device is offline, and not for a chunk that would not load:
+  // the reporter is itself a chunk, so fetching it then fails too, and that
+  // second failure is noise on a screen that is already recovering (the
+  // offline Review My Work scene, a tab that outlived a deploy). Neither
+  // could be sent from this page anyway.
+  if (typeof window !== 'undefined' && entry.online !== false && kind !== 'chunk-load') {
     let path = '';
     try { path = window.location.pathname || ''; } catch { path = ''; }
     const detail = {
