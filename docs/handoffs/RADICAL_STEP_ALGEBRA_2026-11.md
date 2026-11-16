@@ -85,6 +85,12 @@ Each step's raw work is replayed by `verifyStepAlgebraStep` through the SAME
 `submissionEnvelope.mjs` — **a kind missing there makes the whole step unreadable
 on the server** — and new step kinds in `RELATION_STEP_KINDS`.
 
+A Raise, Factor or Zero-product step is credited only on an item that offers
+that tool. `relationToolsOffered` (`stepAlgebraStepVerification.mjs`) is the one
+rule: the workspace draws its buttons from it (`relationToolsFor`), and the replay
+records a step from any other tool as unverified (`step-tool-not-offered`),
+however valid its mathematics.
+
 `graderVersion` (`step-algebra-workspace-v2`) is intentionally unchanged: nothing
 already graded changes, and regrade tooling reports on it.
 
@@ -120,8 +126,6 @@ an extra branch `x = 5.00000000001` do not read as the list of candidates.
 - The three parts (`relation-work`, `candidate-verification`, `solution-set`) are
   independent rows of the score; none of them completes or passes the question
   alone.
-- `factor` and `zeroProduct` steps are validated by the mathematics, not by
-  whether the item opted into the tools; the buttons are what is opt-in.
 
 ## Reusable for quadratic lessons
 

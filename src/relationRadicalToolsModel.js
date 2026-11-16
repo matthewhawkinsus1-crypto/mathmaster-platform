@@ -15,10 +15,10 @@
  * The tools are opt-in. A radical equation the lesson verifies turns on all
  * three; any other lesson names the ones it wants in `question.algebraTools`
  * (a standalone quadratic lesson asks for ["factor", "zeroProduct"]). No
- * absolute-value or inequality lesson gains a button it did not have.
+ * absolute-value or inequality lesson gains a button it did not have, and the
+ * server's step replay credits a tool's step only where the item offers it.
  */
 import {
-  RADICAL_ALGEBRA_TOOLS,
   cloneRelationState,
   factorTargetOfBranch,
   normalizeRelationExpressionInput,
@@ -26,18 +26,19 @@ import {
   zeroProductFactors,
 } from './algebraRelationFoundation.js';
 import { radicalGradingContext, readExactValue } from '../functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs';
+import { relationToolsOffered } from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { rationalToNumber, rationalToText } from '../functions/shared/toolMath/algebra-relations/radicalEquationShape.mjs';
 import { withExplicitProducts } from './platform/contract/relationGivenProducts.js';
 
 /** The radical shape and its exact solution for the relation the workspace opened, or null. */
 export const radicalContextOf = (pristine) => radicalGradingContext(pristine);
 
-/** Which of the radical / quadratic tools this question turns on, in menu order. */
-export const relationToolsFor = (question, pristine) => {
-  const declared = new Set((Array.isArray(question?.algebraTools) ? question.algebraTools : []).map(String));
-  if (radicalContextOf(pristine)) RADICAL_ALGEBRA_TOOLS.forEach((tool) => declared.add(tool.id));
-  return RADICAL_ALGEBRA_TOOLS.filter((tool) => declared.has(tool.id));
-};
+/**
+ * Which of the radical / quadratic tools this question turns on, in menu order:
+ * the rule the server's step replay applies too (relationToolsOffered), so a
+ * step from a tool the item does not offer earns nothing there.
+ */
+export const relationToolsFor = (question, pristine) => relationToolsOffered(question, pristine);
 
 const POWER_NAMES = Object.freeze({ 2: 'Square', 3: 'Cube', 4: '4th power', 5: '5th power' });
 export const powerChoiceLabel = (power) => POWER_NAMES[power] || `Power ${power}`;
