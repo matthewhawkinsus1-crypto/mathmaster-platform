@@ -103,13 +103,14 @@ function classroomPushFailure(error, { mayRequeue }) {
  * Classroom, so a section's final grade was patched and then its return was
  * refused with 400 FAILED_PRECONDITION ("Precondition check failed."). The row
  * was marked failed, logged as an error, and every later grade write sent the
- * grade and asked for the return again: about 100-200 errors a pass after a
- * section checkpoint (Nov 1-12, 2026, issue #545).
+ * grade and asked for the return again: about 100-200 errors a pass, from
+ * ordinary grade syncs as well as the pushes after a checkpoint (Nov 1-12,
+ * 2026, issue #545).
  *
  * Such a row is now "graded-not-returned". The grade stays in Classroom, the
  * row says why it was not returned, and the section trigger does not ask
  * Google to return that submission again while it is still in the state Google
- * refused it in, unless a teacher retries it.
+ * refused it in, unless a teacher sends that grade again.
  */
 const CLASSROOM_GRADED_NOT_RETURNED = "graded-not-returned";
 // Google's states for work that is not turned in: never opened (NEW), opened

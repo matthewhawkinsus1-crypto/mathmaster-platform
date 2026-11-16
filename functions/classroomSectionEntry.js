@@ -713,8 +713,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       // columns that did not go through; the rest are already current.
       const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
       const forceRetry = (signalReason === "manual-retry" || signalReason === "section-grade-reconcile") && quotaRetry === 0;
-      // A teacher's own retry asks Google to return a submission again even if
-      // it refused before; nothing else does while the submission is unchanged.
+      // A teacher sending this grade again asks Google to return a submission
+      // even if it refused before: Retry, Retry all, a grade override, a
+      // resolved Recovery, a repost or a correction sync, all "manual-retry".
+      // Nothing else does while the submission is unchanged.
       const teacherRetry = signalReason === "manual-retry" && quotaRetry === 0;
       const mayRequeue = quotaRetry < classroomPushQueue.MAX_QUOTA_RETRIES;
       let requeueForLimit = false;

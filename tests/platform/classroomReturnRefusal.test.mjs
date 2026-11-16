@@ -1,7 +1,8 @@
 // A SECTION GRADE CLASSROOM SAVED BUT WOULD NOT RETURN IS SAID SO, AND NOT ASKED FOR AGAIN.
 //
 // Nov 1-12, 2026 (issue #545): syncSectionGradeToClassroom logged about
-// 100-200 "Section grade passback failed" errors a pass. Google answered 400
+// 100-200 "Section grade passback failed" errors a pass, from ordinary grade
+// syncs as well as the pushes after a checkpoint. Google answered 400
 // FAILED_PRECONDITION at return-submission: the grade had been patched, then
 // returning the submission was refused. Google's grading guide says why: "The
 // submission can only be returned if it has already been turned in by the
@@ -11,10 +12,10 @@
 //
 // Now the row is "graded-not-returned" and says why in a teacher's words; the
 // return is not asked for again while the submission is in the state Google
-// refused it in, unless a teacher retries; the log is one counted warning per
-// assignment. Every other error, and the per-minute limit, are handled as
-// before. The real trigger runs here against fakes of Firestore and of Google's
-// HTTP layer (helpers/sectionPassbackHarness.mjs).
+// refused it in, unless a teacher sends the grade again; the log is one counted
+// warning per assignment. Every other error, and the per-minute limit, are
+// handled as before. The real trigger runs here against fakes of Firestore and
+// of Google's HTTP layer (helpers/sectionPassbackHarness.mjs).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
