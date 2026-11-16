@@ -19,6 +19,8 @@ import { auditAssignmentChoiceOptions } from './choiceOptionPreflight.js';
 import { auditAssignmentSpanishVersions } from './spanishVersionPreflight.js';
 import { auditAssignmentAnswerKeys } from './answerKeyPreflight.js';
 import { auditAssignmentImpossibleItems } from './impossibleItemsPreflight.js';
+import { auditAssignmentOtherQuestionReferences } from './otherQuestionReferencePreflight.js';
+import { auditAssignmentGraphingCalculatorPrompts } from './graphingCalculatorPromptPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -190,6 +192,14 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   // because a warning diagnostic would hide a deliberate dependent system's
   // lesson from its class.
   const impossibleItems = auditAssignmentImpossibleItems(questions, deliveredOnly);
+  // Prompts that need another question's answer ("Use the prices you found"),
+  // which a student can meet first or without that question
+  // (otherQuestionReferencePreflight.js, #554 item 6): advisory like the rest.
+  const otherQuestionReferences = auditAssignmentOtherQuestionReferences(questions, deliveredOnly);
+  // Prompts that send students to a graphing calculator the question does not
+  // give them, judged on the calculator a student actually gets with this
+  // review's settings (graphingCalculatorPromptPreflight.js): advisory.
+  const graphingCalculatorPrompts = auditAssignmentGraphingCalculatorPrompts(runtimeSource, questions, deliveredOnly);
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -283,7 +293,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questionValues,
     processMode,
     // Advisory only (see above): never in errors, warnings or diagnostics.
-    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions, spanishVersions }),
+    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions, spanishVersions, otherQuestionReferences, graphingCalculatorPrompts }),
     solutionReviews,
     attemptFeedback,
     hintAnswers,
@@ -292,6 +302,8 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     spanishVersions,
     answerKeys,
     impossibleItems,
+    otherQuestionReferences,
+    graphingCalculatorPrompts,
     // Excluded questions Pre-Flight kept but did not judge for delivery.
     retiredQuestions,
     errors: uniqueErrors,
@@ -309,7 +321,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
  * solutions stay advice: a warning in readiness would make the
  * assignment "Needs Review", which students never see (the owner's call: they
  * stay advisory). Pre-Flight shows how many there are so they are not missed;
- * nothing here changes whether the assignment is ready.
+ * nothing here changes whether the assignment is ready. So do the two prompt
+ * notes of #554 item 6: a prompt that needs another question's answer, and a
+ * prompt that names a graphing calculator the question does not give.
  */
 export const ADVISORY_FINDING_GROUPS = Object.freeze([
   Object.freeze({ id: 'solutionReviews', label: 'worked solutions' }),
@@ -318,6 +332,8 @@ export const ADVISORY_FINDING_GROUPS = Object.freeze([
   Object.freeze({ id: 'hiddenHints', label: 'hints students will not see' }),
   Object.freeze({ id: 'choiceOptions', label: 'choices worth the same as the key' }),
   Object.freeze({ id: 'spanishVersions', label: 'notes on Spanish for hints and worked solutions' }),
+  Object.freeze({ id: 'otherQuestionReferences', label: 'prompts that need another question\'s answer' }),
+  Object.freeze({ id: 'graphingCalculatorPrompts', label: 'prompts that name a graphing calculator students do not get' }),
 ]);
 
 export const summarizeAdvisoryFindings = (audits = {}) => {

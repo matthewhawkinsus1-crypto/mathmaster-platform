@@ -562,13 +562,17 @@ test('the Spanish note is advice: counted in the suggestions, never in what deci
 });
 
 test('the advisory groups are an independent list: a group dropped from the summary fails here', () => {
-  const EXPECTED = ['solutionReviews', 'attemptFeedback', 'hintAnswers', 'hiddenHints', 'choiceOptions', 'spanishVersions'];
+  // #554 item 6 added the two prompt notes after the Spanish one.
+  const EXPECTED = ['solutionReviews', 'attemptFeedback', 'hintAnswers', 'hiddenHints', 'choiceOptions', 'spanishVersions', 'otherQuestionReferences', 'graphingCalculatorPrompts'];
   assert.deepEqual(ADVISORY_FINDING_GROUPS.map(({ id }) => id), EXPECTED);
   const audits = Object.fromEntries(EXPECTED.map((id, index) => [id, { warnings: Array.from({ length: index + 1 }, (_, n) => `${id} ${n}`) }]));
   const summary = summarizeAdvisoryFindings(audits);
   assert.deepEqual(summary.groups.map(({ id, count }) => [id, count]), EXPECTED.map((id, index) => [id, index + 1]));
-  assert.equal(summary.total, 1 + 2 + 3 + 4 + 5 + 6);
-  assert.deepEqual(summarizeAdvisoryFindings({ spanishVersions: { warnings: ['a', 'b'] } }), { total: 2, groups: [{ id: 'spanishVersions', label: ADVISORY_FINDING_GROUPS.at(-1).label, count: 2 }] });
+  assert.equal(summary.total, EXPECTED.reduce((sum, _, index) => sum + index + 1, 0));
+  // The Spanish group's own label, wherever it sits in the list.
+  const spanishLabel = ADVISORY_FINDING_GROUPS.find(({ id }) => id === 'spanishVersions').label;
+  assert.match(spanishLabel, /Spanish/);
+  assert.deepEqual(summarizeAdvisoryFindings({ spanishVersions: { warnings: ['a', 'b'] } }), { total: 2, groups: [{ id: 'spanishVersions', label: spanishLabel, count: 2 }] });
 });
 
 test('Pre-Flight shows the notes in their own panel, with how to fix them', () => {

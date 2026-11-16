@@ -175,7 +175,9 @@ test('TT14/TT21: advisory findings are counted for the teacher and never change 
   // "Watch out": advice the model reports in its own panels.
   // Every advisory panel Pre-Flight shows is counted (an independent list:
   // the count must not be checked against itself).
-  const PANELS = ['solutionReviews', 'attemptFeedback', 'hintAnswers', 'hiddenHints', 'choiceOptions', 'spanishVersions'];
+  // The last two are #554 item 6's prompt notes (otherQuestionReferencePreflight.js,
+  // graphingCalculatorPromptPreflight.js), counted like the rest.
+  const PANELS = ['solutionReviews', 'attemptFeedback', 'hintAnswers', 'hiddenHints', 'choiceOptions', 'spanishVersions', 'otherQuestionReferences', 'graphingCalculatorPrompts'];
   assert.deepEqual(ADVISORY_FINDING_GROUPS.map(({ id }) => id), PANELS);
   assert.ok(model.attemptFeedback.warnings.length > 0, 'the fixture has Practice questions with no attempt feedback');
   const expected = PANELS.reduce((sum, id) => sum + (model[id]?.warnings?.length || 0), 0);

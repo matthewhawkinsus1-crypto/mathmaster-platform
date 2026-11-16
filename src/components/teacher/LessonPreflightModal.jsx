@@ -2166,6 +2166,44 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {/* Advice, not a readiness finding (otherQuestionReferencePreflight.js,
+          #554 item 6): a prompt that needs another question's answer, which
+          a student can meet first or without that question. Graded as
+          before, so it never turns the assignment "Needs Review". */}
+      {preflightModel.otherQuestionReferences?.warnings?.length > 0 && (
+        <div data-other-question-reference-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Questions that need another question&apos;s answer</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            Questions can be shown one at a time or in another order, given as a Recovery version, or left out for a student with fewer items, so a question that uses an earlier answer can reach a student without it. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.otherQuestionReferences.warnings.length === 1 ? '1 question' : `${preflightModel.otherQuestionReferences.warnings.length} questions`}</summary>
+            <ul data-other-question-reference-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.otherQuestionReferences.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
+      {/* Advice, not a readiness finding (graphingCalculatorPromptPreflight.js,
+          #554 item 6): a prompt that names a graphing calculator, on a
+          question whose calculator, with this review's Calculator setting,
+          cannot graph. */}
+      {preflightModel.graphingCalculatorPrompts?.warnings?.length > 0 && (
+        <div data-graphing-calculator-prompt-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Graphing calculator in the prompt</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These prompts tell students to use a graphing calculator, but the calculator students get on that question cannot graph. A question&apos;s own calculator setting comes first, and on an exit ticket, quiz or test the lesson&apos;s setting can only make it stricter. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.graphingCalculatorPrompts.warnings.length === 1 ? '1 question' : `${preflightModel.graphingCalculatorPrompts.warnings.length} questions`}</summary>
+            <ul data-graphing-calculator-prompt-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.graphingCalculatorPrompts.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {/* Advice, not a readiness finding (hintAnswerPreflight.js, HELP-16):
           teacher-written hints the leak guard drops, so a student never
           sees them, and why. */}
