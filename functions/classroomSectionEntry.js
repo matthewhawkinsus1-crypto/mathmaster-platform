@@ -77,6 +77,21 @@ const SECTION_CHECKPOINT_ASSIGNMENT_FIELDS = Object.freeze([
   "lateDueDate",
   "assignedClassIds",
 ]);
+// The only publication fields syncSectionGradeToClassroom reads: a link also
+// carries its launch URL, materials and title. Kept in step with the trigger
+// by tests/platform/classroomSectionPassbackReads.test.mjs.
+const SECTION_PASSBACK_LINK_FIELDS = Object.freeze([
+  "status",
+  "publicationKind",
+  "courseworkId",
+  "sectionGradePassbackEnabled",
+  "publishAt",
+  "sectionKey",
+  "sectionLabel",
+  "courseId",
+  "maxPoints",
+  "teacherUid",
+]);
 
 function requireTeacher(request) {
   if (!request?.auth) {
@@ -707,10 +722,14 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       // warning per assignment, not an error per column.
       const notReturned = { refused: 0, notAskedAgain: 0, states: new Set(), reasons: new Set() };
 
+      // Only the publication fields used below: a link also carries its
+      // launch URL, materials and title (issue #545, item 2). The same
+      // documents as before, in the same place, so the same reads.
       // eslint-disable-next-line no-await-in-loop
       const publicationSnapshot = await db
         .collection("classroomLinks")
         .where("assignmentId", "==", assignmentId)
+        .select(...SECTION_PASSBACK_LINK_FIELDS)
         .get();
       const publications = publicationSnapshot.docs.filter((doc) => {
         const publication = doc.data() || {};

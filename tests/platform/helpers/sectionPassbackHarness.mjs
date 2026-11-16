@@ -135,13 +135,14 @@ export function passbackFirestore(seed = {}) {
     limit: (limit) => query(collection, { ...state, limit }),
     doc: (id) => ref(`${collection}/${id}`),
     async get() {
-      reads.push({ kind: 'query', collection, filters: state.filters, fields: state.fields });
       const docs = [...store.entries()]
         .filter(([docPath]) => docPath.startsWith(`${collection}/`) && docPath.split('/').length === 2)
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .filter(([, data]) => state.filters.every(({ field, value }) => data?.[field] === value))
         .slice(0, state.limit ?? undefined)
         .map(([docPath, data]) => snapshotOf(docPath, data, state.fields));
+      // Firestore bills a query by the documents it returns (one if none).
+      reads.push({ kind: 'query', collection, filters: state.filters, fields: state.fields, returned: docs.map((doc) => doc.id) });
       return { docs, empty: docs.length === 0, size: docs.length };
     },
   });
