@@ -20,7 +20,6 @@ import { KEYBOARD_PLACEMENT_ROUTE, extractEquationSymbols, placementInstructionF
 import {
   applyAdditiveOperationAtPlacement,
   describeOperation,
-  equationToLatex,
   expressionToLatex,
   describeOperationToken,
   describePlacedOperation,
@@ -33,6 +32,7 @@ import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
 import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
 import { boardTerms, committedCancellationModel, equationIsSolved, simplifyPartsFor, strategicHintReadings } from './platform/algebra/committedEquationFacts.js';
 import { clientParserSteps, takeStepsWhenIdle, wholeIdlePeriod } from './platform/math/idleMathSteps.js';
+import { equationLatexOrText, expressionLatexOrText } from './platform/math/typedMathLatex.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -642,7 +642,13 @@ export default function StepByStepAlgebra({
 
   // The committed equation as LaTeX, once per equation: the board's
   // data-math-state, the operand keyboard's letters and the reported work all read it.
-  const equationLatex = useMemo(() => (equation ? equationToLatex(equation) : ''), [equation]);
+  // A side can be one the student typed that the parser cannot read on its
+  // own: the simplification check reads "1) + (2" inside "(1) + (2) - (3)",
+  // and a host that grades no step (a composed question's balance step, the
+  // systems workspace, Rewrite Linear Form) commits it. It is drawn as
+  // written (typedMathLatex.js); thrown, the question crashed, and a saved
+  // draft or record holding such a side crashed it on every load.
+  const equationLatex = useMemo(() => (equation ? equationLatexOrText(equation) : ''), [equation]);
   const operationContextSymbols = useMemo(() => extractEquationSymbols(
     question?.equation,
     question?.formula,
@@ -2188,7 +2194,7 @@ export default function StepByStepAlgebra({
     : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
 
   const sideExpression = (side) => (pendingMove ? pendingMove.unsimplified[side] : equation[side]);
-  const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionToLatex(equation[side]);
+  const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionLatexOrText(equation[side]);
   const sideFontSize = (side) => {
     const length = String(sideExpression(side) || '').replace(/\s+/g, '').length;
     if (length >= 42) return 23;
@@ -2489,8 +2495,11 @@ export default function StepByStepAlgebra({
       : (factorZoneHint?.side === side ? factorZoneHint.position : null);
     let parsedOperand = operand;
     try { parsedOperand = parseOperationOperand(operand).expression; } catch { parsedOperand = latexToExpression(operand); }
-    const operandLatex = expressionToLatex(parsedOperand);
-    const sourceLatex = expressionToLatex(sideExpression(side));
+    // What the student is still typing ("2x +", "(") is drawn as written:
+    // the preview is drawn as they drag, so it must never throw
+    // (typedMathLatex.js).
+    const operandLatex = expressionLatexOrText(parsedOperand);
+    const sourceLatex = expressionLatexOrText(sideExpression(side));
     let previewLatex = sourceLatex;
 
     if (armedTile.operation === 'multiply') {

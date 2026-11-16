@@ -222,9 +222,11 @@ test('the solver takes its readings from the cache, everywhere it reads them', (
   assert.match(hint, /const hintOffered = hintsAllowed && question\.showHint !== false;/);
   assert.match(hint, /const \{ suggestedMove, solved \} = strategicHintReadings\(equation, \{ offered: hintOffered \}\);/);
   // The committed equation's LaTeX once per equation: the board's state, the
-  // operand keyboard's letters and the reported work.
-  assert.match(core, /const equationLatex = useMemo\(\(\) => \(equation \? equationToLatex\(equation\) : ''\), \[equation\]\);/);
-  assert.equal((core.match(/equationToLatex\(/g) || []).length, 1, 'the equation is written as LaTeX in one place');
+  // operand keyboard's letters and the reported work. Through the form that
+  // never throws: a side the student typed can be one the parser cannot read
+  // on its own (typedValueRenderSweep.test.mjs).
+  assert.match(core, /const equationLatex = useMemo\(\(\) => \(equation \? equationLatexOrText\(equation\) : ''\), \[equation\]\);/);
+  assert.equal((core.match(/\bequation(?:ToLatex|LatexOrText)\(/g) || []).length, 1, 'the equation is written as LaTeX in one place');
 });
 
 test('the board is set up once when its question opens', () => {
