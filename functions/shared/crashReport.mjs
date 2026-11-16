@@ -73,7 +73,7 @@ export const SCREEN_WORDS = Object.freeze([
   'home', 'library', 'classes-workspace', 'students', 'weekly-path', 'pacing', 'action-center',
   'attendance-history', 'parent-contacts', 'grade-transfer', 'standards', 'analytics', 'exams',
   'live-challenge', 'math-tools', 'simulator', 'demo', 'classes', 'classroom', 'access',
-  'accounts', 'ai', 'coverage', 'reset', 'health',
+  'accounts', 'ai', 'coverage', 'reset',
 ]);
 
 /*

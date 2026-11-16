@@ -85,7 +85,7 @@ import { tabKeyTarget } from '../../platform/interaction/tabListKeys.js';
 // (selecting is Enter or Space, a native button's click), and the content under
 // them is a tab panel named by the selected tab. Same keys as Live Class. On a
 // phone they are one row that scrolls sideways (App.css, .mm-admin-tabs).
-const ADMIN_SECTIONS =[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['health', 'Platform health'], ['reset', 'Pre-production reset']];
+const ADMIN_SECTIONS =[['classes', 'Classes & rosters'], ['accounts', 'Accounts & sign-in'], ['coverage', 'Path content coverage'], ['ai', 'Assignment AI health'], ['reset', 'Pre-production reset']];
 const ADMIN_PANEL_ID = 'admin-section-panel';
 const adminTabId = (id) => `admin-tab-${id}`;
 const moveBetweenAdminTabs = (event) => {
@@ -1911,11 +1911,13 @@ export default function TeacherWorkspace({
           </div>
           <main id={MAIN_CONTENT_ID} tabIndex={-1} style={{ padding: 'clamp(14px, 4vw, 28px)' }}>
             <div id={ADMIN_PANEL_ID} role="tabpanel" aria-labelledby={adminTabId(adminTab)}>
-            {adminTab === 'classes' && <ClassesAdmin />}
+            {/* Platform health is on the landing section, not a sixth tab: the
+                owner sees a crash alert on opening Administration, and the
+                tab row keeps its certified one-row layout. */}
+            {adminTab === 'classes' && <><PlatformHealth /><ClassesAdmin /></>}
             {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
             {adminTab === 'coverage' && <PathCoverageAudit />}
             {adminTab === 'ai' && <AssignmentAiHealth />}
-            {adminTab === 'health' && <PlatformHealth />}
             {adminTab === 'reset' && (
               <PreproductionReset
                 onResetComplete={async () => {

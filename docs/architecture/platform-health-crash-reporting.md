@@ -6,7 +6,8 @@ local log (`src/platform/runtime/clientDiagnostics.js`), but nothing left it
 unless someone pressed "Copy details for your teacher".
 
 This adds an optional report of **counts**. It is **off** until the root
-administrator turns it on in Administration → Platform health.
+administrator turns it on in Administration (the Platform health panel at the
+top of Classes & rosters, the section Administration opens on).
 
 ## The switch
 

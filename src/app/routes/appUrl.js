@@ -59,7 +59,7 @@ export const TEACHER_TABS = Object.freeze([
   'liveChallenge', 'mathTools', 'simulator', 'demo',
   'classes', 'classroom', 'access',
 ]);
-export const TEACHER_ADMIN_TABS = Object.freeze(['classes', 'accounts', 'ai', 'coverage', 'health', 'reset']);
+export const TEACHER_ADMIN_TABS = Object.freeze(['classes', 'accounts', 'ai', 'coverage', 'reset']);
 
 // A section of an assignment, as the workspace names it (activityRole).
 const SECTION_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;

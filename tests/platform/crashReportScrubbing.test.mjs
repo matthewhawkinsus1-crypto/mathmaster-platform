@@ -107,7 +107,7 @@ test('a screen is a route template: every id in the address is replaced', () => 
   assert.equal(screenTemplate('/assignments/abc123XYZassignment/warm-up/3'), '/assignments/:id/:id/:id');
   assert.equal(screenTemplate('/student/rowan.example@school.example/assignments'), '/:id/:id/assignments');
   assert.equal(screenTemplate('/path/session/A.5A?launch=SECRETTOKEN#x=5'), '/path/session/:id');
-  assert.equal(screenTemplate('/teacher/admin/health'), '/teacher/admin/health');
+  assert.equal(screenTemplate('/teacher/admin/coverage'), '/teacher/admin/coverage');
   assert.equal(screenTemplate(''), '/');
   assert.equal(screenTemplate('/a/b/c/d/e/f/g/h/i'), '/:id/:id/:id/:id/:id/:id', 'bounded depth');
 });

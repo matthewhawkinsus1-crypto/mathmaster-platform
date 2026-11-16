@@ -128,49 +128,6 @@ export default function PlatformHealth() {
 
   return (
     <div>
-      <section style={panel} aria-labelledby="platform-health-reporting">
-        <h2 id="platform-health-reporting" style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))' }}>Crash reporting</h2>
-        <p style={{ ...muted, margin: '6px 0 12px' }}>
-          Currently <strong>{mode === null ? '…' : MODES.find(([id]) => id === mode)?.[1] || 'Off'}</strong>. When it is on, a device
-          that records a failure sends a <em>count</em> of it. It never sends who the student is, their class, what they typed,
-          the question&rsquo;s text, a stack trace or the time of day.
-        </p>
-        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend style={{ fontWeight: 800, marginBottom: 6 }}>What devices send</legend>
-          {MODES.map(([id, label, detail]) => (
-            <label key={id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', cursor: 'pointer' }}>
-              <input type="radio" name="crash-reporting-mode" value={id} checked={choice === id} onChange={() => setChoice(id)} disabled={busy !== ''} style={{ marginTop: 4 }} />
-              <span><strong>{label}</strong><br /><span style={muted}>{detail}</span></span>
-            </label>
-          ))}
-        </fieldset>
-        <details style={{ ...muted, margin: '10px 0 0' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--mm-text)' }}>Exactly what is sent, who can read it, and how long it is kept</summary>
-          <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-            <li>The build (a short commit id), the kind of failure, which boundary caught it, and whether the account is a student or a teacher.</li>
-            <li>The screen as a template: <code>/assignments/:id/:id/:id</code>. Ids in the address are replaced before sending.</li>
-            <li>The question family id and module name. In &ldquo;Counts by question&rdquo;, also the assignment id and question id.</li>
-            <li>An error signature rebuilt from a fixed list of technical words. Any other word becomes <code>_</code> and any number <code>#</code>, so a typed answer or a name cannot be in it.</li>
-            <li>Stored as one document of counts per day, kept {CRASH_REPORT_LIMITS.dailyRetentionDays} days, readable only by the root administrator. Teachers and students cannot read it.</li>
-            <li>To limit how often one account can report, the server keeps a per-day record named by a hash of the account. Nobody can read it and it is deleted after {CRASH_REPORT_LIMITS.reporterRetentionDays} days.</li>
-            <li>Each account can send at most {CRASH_REPORT_LIMITS.callsPerReporterPerDay} reports a day. No student screen reads anything for this.</li>
-          </ul>
-        </details>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-          <button type="button" style={primary} onClick={save} disabled={busy !== '' || mode === null || choice === mode}>{busy === 'saving' ? 'Saving…' : 'Save'}</button>
-          {confirmPurge ? (
-            <>
-              <button type="button" style={danger} onClick={purge} disabled={busy !== ''}>{busy === 'purging' ? 'Deleting…' : 'Yes, turn off and delete everything'}</button>
-              <button type="button" style={quiet} onClick={() => setConfirmPurge(false)} disabled={busy !== ''}>Cancel</button>
-            </>
-          ) : (
-            <button type="button" style={danger} onClick={() => setConfirmPurge(true)} disabled={busy !== '' || mode === null}>Turn off and delete collected counts</button>
-          )}
-        </div>
-        {notice ? <p role="status" style={{ ...muted, margin: '10px 0 0', color: 'var(--mm-success-text)' }}>{notice}</p> : null}
-        {error ? <p role="alert" style={{ ...muted, margin: '10px 0 0', color: 'var(--mm-error-text)' }}>{error}</p> : null}
-      </section>
-
       <section style={panel} aria-labelledby="platform-health-today">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <h2 id="platform-health-today" style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))' }}>Failures, last {HEALTH_DAYS_SHOWN} days</h2>
@@ -229,6 +186,51 @@ export default function PlatformHealth() {
           <p style={{ ...muted, marginTop: 10 }}>Some days held more distinct failures than one day&rsquo;s record keeps ({CRASH_REPORT_LIMITS.bucketsPerDay}); the extra reports were counted but not itemised.</p>
         ) : null}
       </section>
+      <section style={panel} aria-labelledby="platform-health-reporting">
+        <h2 id="platform-health-reporting" style={{ margin: 0, fontSize: 'calc(19 * var(--mm-px))' }}>Crash reporting: {mode === null ? '…' : MODES.find(([id]) => id === mode)?.[1] || 'Off'}</h2>
+        <p style={{ ...muted, margin: '6px 0 0' }}>
+          When it is on, a device that records a failure sends a <em>count</em> of it. It never sends who the student is, their
+          class, what they typed, the question&rsquo;s text, a stack trace or the time of day.
+        </p>
+        <details style={{ marginTop: 10 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-text)', minHeight: 32 }}>Change what devices send</summary>
+        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend style={{ fontWeight: 800, marginBottom: 6 }}>What devices send</legend>
+          {MODES.map(([id, label, detail]) => (
+            <label key={id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', cursor: 'pointer' }}>
+              <input type="radio" name="crash-reporting-mode" value={id} checked={choice === id} onChange={() => setChoice(id)} disabled={busy !== ''} style={{ marginTop: 4 }} />
+              <span><strong>{label}</strong><br /><span style={muted}>{detail}</span></span>
+            </label>
+          ))}
+        </fieldset>
+        <details style={{ ...muted, margin: '10px 0 0' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--mm-text)' }}>Exactly what is sent, who can read it, and how long it is kept</summary>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+            <li>The build (a short commit id), the kind of failure, which boundary caught it, and whether the account is a student or a teacher.</li>
+            <li>The screen as a template: <code>/assignments/:id/:id/:id</code>. Ids in the address are replaced before sending.</li>
+            <li>The question family id and module name. In &ldquo;Counts by question&rdquo;, also the assignment id and question id.</li>
+            <li>An error signature rebuilt from a fixed list of technical words. Any other word becomes <code>_</code> and any number <code>#</code>, so a typed answer or a name cannot be in it.</li>
+            <li>Stored as one document of counts per day, kept {CRASH_REPORT_LIMITS.dailyRetentionDays} days, readable only by the root administrator. Teachers and students cannot read it.</li>
+            <li>To limit how often one account can report, the server keeps a per-day record named by a hash of the account. Nobody can read it and it is deleted after {CRASH_REPORT_LIMITS.reporterRetentionDays} days.</li>
+            <li>Each account can send at most {CRASH_REPORT_LIMITS.callsPerReporterPerDay} reports a day. No student screen reads anything for this.</li>
+          </ul>
+        </details>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+          <button type="button" style={primary} onClick={save} disabled={busy !== '' || mode === null || choice === mode}>{busy === 'saving' ? 'Saving…' : 'Save'}</button>
+          {confirmPurge ? (
+            <>
+              <button type="button" style={danger} onClick={purge} disabled={busy !== ''}>{busy === 'purging' ? 'Deleting…' : 'Yes, turn off and delete everything'}</button>
+              <button type="button" style={quiet} onClick={() => setConfirmPurge(false)} disabled={busy !== ''}>Cancel</button>
+            </>
+          ) : (
+            <button type="button" style={danger} onClick={() => setConfirmPurge(true)} disabled={busy !== '' || mode === null}>Turn off and delete collected counts</button>
+          )}
+        </div>
+        </details>
+        {notice ? <p role="status" style={{ ...muted, margin: '10px 0 0', color: 'var(--mm-success-text)' }}>{notice}</p> : null}
+        {error ? <p role="alert" style={{ ...muted, margin: '10px 0 0', color: 'var(--mm-error-text)' }}>{error}</p> : null}
+      </section>
+
     </div>
   );
 }
