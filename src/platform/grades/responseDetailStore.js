@@ -21,7 +21,6 @@ import {
   FieldPath,
   collection,
   doc,
-  getDoc,
   getDocs,
   onSnapshot,
   serverTimestamp,
@@ -123,12 +122,6 @@ export const writeTrackerSplit = ({ db, writer, studentId, assignmentId, tracker
   return summaries;
 };
 
-/** One grades document by id, joined (a single read when nothing is stored apart). */
-export const getJoinedGradeDocument = async (db, studentId) => {
-  const snapshot = await getDoc(doc(db, 'grades', String(studentId)));
-  if (!snapshot.exists()) return null;
-  return joinResponseDetail(db, studentId, snapshot.data() || {});
-};
 
 /**
  * The server's trackers as a student's open session may adopt them: joined to

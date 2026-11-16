@@ -630,7 +630,8 @@ test('the finalization transaction persists every projection it derived', () => 
   const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const start = functionsSource.indexOf('async function finalizeOneResponseCheckpoint');
   const block = functionsSource.slice(start, functionsSource.indexOf('exports.finalizeStudentResponseCheckpoints'));
-  assert.match(block, /new FieldPath\("gradesByAssignment", assignmentId, String\(checkpoint\.questionIndex\)\)/);
+  // The question record: its summary on this path and its detail beside it (functions/lib/gradeDetailStore.js).
+  assert.match(block, /\.\.\.await questionRecordUpdates\(\{\s*writer: transaction, gradeRef, studentId: gradeRef\.id, assignmentId,\s*questionKey: String\(checkpoint\.questionIndex\), record: finalization\.record,/);
   assert.match(block, /new FieldPath\("supportUsageByAssignment", assignmentId\)/);
   assert.match(block, /new FieldPath\("classworkGradesByAssignment", assignmentId\)/);
   assert.match(block, /new FieldPath\("dolGradesByAssignment", assignmentId, finalization\.dolDateKey\)/);

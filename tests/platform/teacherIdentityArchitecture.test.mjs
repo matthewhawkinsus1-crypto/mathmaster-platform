@@ -213,8 +213,6 @@ const census = (pattern) => {
 // The grades-document access that exists, and why. None of it is for names.
 const KNOWN_GRADES_DOCUMENT_ACCESS = {
   'src/App.jsx': {
-    // Gradebook only (a full-data tab): the one-time deferred credit repair writes back.
-    persistCurrentGraderCreditRepairs: 1,
     // THE one full-data listener's source: the teacher's whole class, one query.
     studentGradeSourceForViewer: 2,
     // The signed-in STUDENT's own record: the response-checkpoint transaction
@@ -248,6 +246,12 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
   },
   // The signed-in student's own Path.
   'src/services/masteryStateService.js': { fetchStudentMasteryState: 1 },
+  // A record's detail is stored beside its grades document (gradeEntryStorage.mjs).
+  // The gradebook's one-time deferred credit repair and a teacher's
+  // live-question correction write a changed tracker through here (moved from
+  // App.jsx's persistCurrentGraderCreditRepairs): its summaries on the grades
+  // document, its detail beside it.
+  'src/platform/grades/responseDetailStore.js': { writeTrackerSplit: 1 },
 };
 const KNOWN_FULL_RECORD_HELPER_CALLS = {
   'src/components/student/MyMathPathApp.jsx': { MyMathPathApp: 1 },
