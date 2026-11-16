@@ -52,6 +52,9 @@ const {
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
 const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
+// Which Classroom publications a teacher may see and act on: the publication
+// callables' one rule.
+const classroomLinkOwnership = require("./lib/classroomLinkOwnership");
 const { deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
@@ -1846,6 +1849,29 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
     );
   }
   return { teacherUid, teacherEmail };
+}
+
+/*
+ * Whether the caller manages this assignment, by the rule above: the root
+ * administrator, or the verified teacher of record of every class it is
+ * assigned to. Answered rather than thrown, for the Classroom publication
+ * callables: a publication that records no teacher is shown and acted on only
+ * for that caller (lib/classroomLinkOwnership.js).
+ */
+async function callerManagesAssignment(request, assignmentSnap) {
+  try {
+    await assertTeacherMayManageAssignment(request, assignmentSnap);
+    return true;
+  } catch (error) {
+    if (error instanceof HttpsError && ["permission-denied", "failed-precondition"].includes(error.code)) return false;
+    throw error;
+  }
+}
+
+/** The same question for an assignment the callable has not read: one read, of the one field it needs. */
+async function callerManagesAssignmentId(request, db, assignmentId) {
+  const [assignmentSnap] = await db.getAll(db.doc(`assignments/${String(assignmentId)}`), { fieldMask: ["assignedClassIds"] });
+  return callerManagesAssignment(request, assignmentSnap);
 }
 
 const clampPercent = (value) =>
@@ -8793,11 +8819,15 @@ async function updateAssignmentClassroomPublications(request) {
     ? new Set(courseIds.map(String))
     : null;
 
-  const publications = linkSnap.docs
-    .map((doc) => ({ ref: doc.ref, data: doc.data() }))
-    .filter((entry) => entry.data.status === "published" && entry.data.courseworkId)
-    .filter((entry) => !entry.data.teacherUid || entry.data.teacherUid === teacherUid)
-    .filter((entry) => !requested || requested.has(String(entry.data.courseId)));
+  // The caller's own posts (lib/classroomLinkOwnership.js). Every link read
+  // here is this assignment's, which the callable has read already.
+  const publications = await classroomLinkOwnership.linksForTeacher(
+    linkSnap.docs
+      .map((doc) => ({ ref: doc.ref, data: doc.data() }))
+      .filter((entry) => entry.data.status === "published" && entry.data.courseworkId)
+      .filter((entry) => !requested || requested.has(String(entry.data.courseId))),
+    { teacherUid, linkOf: (entry) => entry.data, managesAssignment: () => callerManagesAssignment(request, assignmentSnap) }
+  );
 
   if (!publications.length) {
     return { assignmentId: String(assignmentId), results: [], summary: { updated: 0, failed: 0, skipped: 0 } };
@@ -9013,10 +9043,14 @@ exports.repairClassroomAssignmentPublications = onCall(
         .get(),
     ]);
 
-    const existingPublications = publicationSnapshot.docs
-      .map((doc) => ({ ref: doc.ref, id: doc.id, data: doc.data() || {} }))
-      .filter(({ data }) => !data.teacherUid || data.teacherUid === teacherUid)
-      .filter(({ data }) => data.courseId);
+    // The caller's own posts (lib/classroomLinkOwnership.js), all of them this
+    // assignment's.
+    const existingPublications = await classroomLinkOwnership.linksForTeacher(
+      publicationSnapshot.docs
+        .map((doc) => ({ ref: doc.ref, id: doc.id, data: doc.data() || {} }))
+        .filter(({ data }) => data.courseId),
+      { teacherUid, linkOf: (entry) => entry.data, managesAssignment: () => callerManagesAssignment(request, assignmentSnap) }
+    );
 
     const publicationByCourseId = new Map();
     for (const publication of existingPublications) {
@@ -9616,10 +9650,13 @@ exports.inspectClassroomPublication = onCall(
       .where("assignmentId", "==", assignmentId)
       .get();
 
-    const publications = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((item) => !item.teacherUid || item.teacherUid === teacherUid)
-      .filter((item) => item.courseId && item.courseworkId && item.status === "published");
+    // The caller's own posts (lib/classroomLinkOwnership.js).
+    const publications = await classroomLinkOwnership.linksForTeacher(
+      snap.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((item) => item.courseId && item.courseworkId && item.status === "published"),
+      { teacherUid, managesAssignment: () => callerManagesAssignmentId(request, db, assignmentId) }
+    );
 
     if (!publications.length) {
       return { assignmentId, results: [], summary: { courses: 0, rosterStudents: 0, failed: 0 } };
@@ -9710,16 +9747,20 @@ exports.removeAssignmentClassroomPackage = onCall(
     }
 
     const db = getFirestore();
-    const classroom = await classroomLib().getClassroomClient(teacherUid);
     const snap = await db
       .collection("classroomLinks")
       .where("assignmentId", "==", assignmentId)
       .get();
 
-    const publications = snap.docs
-      .map((doc) => ({ ref: doc.ref, data: doc.data() }))
-      .filter((entry) => !entry.data.teacherUid || entry.data.teacherUid === teacherUid)
-      .filter((entry) => entry.data.courseId);
+    // The caller's own posts (lib/classroomLinkOwnership.js). Their Google
+    // account is used only when there is one to remove.
+    const publications = await classroomLinkOwnership.linksForTeacher(
+      snap.docs
+        .map((doc) => ({ ref: doc.ref, data: doc.data() }))
+        .filter((entry) => entry.data.courseId),
+      { teacherUid, linkOf: (entry) => entry.data, managesAssignment: () => callerManagesAssignmentId(request, db, assignmentId) }
+    );
+    const classroom = publications.length ? await classroomLib().getClassroomClient(teacherUid) : null;
 
     const results = [];
 
@@ -9830,9 +9871,11 @@ exports.listPublishedAssignments = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
   const snap = await db.collection("classroomLinks").limit(500).get();
-  const links = snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((item) => !item.teacherUid || item.teacherUid === teacherUid)
+  // The caller's own posts (lib/classroomLinkOwnership.js).
+  const links = (await classroomLinkOwnership.linksForTeacher(
+    snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+    { teacherUid, managesAssignment: (assignmentId) => callerManagesAssignmentId(request, db, assignmentId) }
+  ))
     .sort((a, b) => {
       const aDate = toDate(a.publishedAt || a.updatedAt || a.createdAt)?.getTime() || 0;
       const bDate = toDate(b.publishedAt || b.updatedAt || b.createdAt)?.getTime() || 0;
@@ -9901,8 +9944,12 @@ exports.listClassroomGradeSyncs = onCall(async (request) => {
     .select("teacherUid", "assignmentId")
     .limit(2000)
     .get();
-  const ownPublications = publicationSnap.docs
-    .filter((doc) => !doc.data().teacherUid || doc.data().teacherUid === teacherUid);
+  // The caller's own posts (lib/classroomLinkOwnership.js).
+  const ownPublications = await classroomLinkOwnership.linksForTeacher(publicationSnap.docs, {
+    teacherUid,
+    linkOf: (doc) => doc.data(),
+    managesAssignment: (assignmentId) => callerManagesAssignmentId(request, db, assignmentId),
+  });
   const publicationIds = new Set(ownPublications.map((doc) => doc.id));
   if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 } };
   const ownAssignments = new Set(ownPublications.map((doc) => String(doc.data().assignmentId || "")));

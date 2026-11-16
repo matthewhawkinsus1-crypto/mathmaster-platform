@@ -27,8 +27,9 @@
  * inspectClassroomPublication reads a class's Google Classroom roster and can
  * reset who a post is assigned to. It does not refuse another teacher; it
  * answers only with their own posts. That is asserted the same way. (A post
- * with no recorded teacher, no teacherUid, is answered for any teacher through
- * that teacher's own Google account. That legacy rule is not asserted here.)
+ * with no recorded teacher, no teacherUid, is answered only for the
+ * assignment's teacher and the root administrator:
+ * classroomPublicationOwnership.test.mjs.)
  */
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';

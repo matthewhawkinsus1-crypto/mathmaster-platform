@@ -103,6 +103,11 @@ requireFromFunctions.cache[classroomModulePath] = {
 };
 export const googleCallsSince = (mark = 0) => googleCalls.slice(mark).map((entry) => ({ ...entry }));
 export const googleMark = () => googleCalls.length;
+/**
+ * Let the stub answer `name` too. Each test file runs in its own process, so
+ * an answer one file adds never quiets an unexpected call in another.
+ */
+export const answerGoogle = (name, answer) => { googleAnswers[name] = answer; };
 
 /* --- the deployed functions ------------------------------------------------ */
 
