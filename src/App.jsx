@@ -21,7 +21,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { createResponseDetailRoster, joinResponseDetail, needsResponseDetail, serverTrackersForAdoption, subscribeResponseDetail, withResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
+import { joinResponseDetail, needsResponseDetail, serverTrackersForAdoption, subscribeResponseDetail, subscribeResponseDetailRoster, withResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
 import {
   buildResponseCheckpointAction,
   checkpointDocumentId,
@@ -3082,13 +3082,18 @@ function App() {
     // stored beside its student's grades document (gradeEntryStorage.mjs):
     // every student whose records are stored that way is followed there too,
     // and the gradebook sees each grades document joined to it.
+    // The roster's detail listeners follow the roster itself (not who has
+    // split records yet), so they restart only when a student joins or leaves.
     let latestStudents = null;
     let detailFailed = false;
+    let detailByStudent = new Map();
+    let rosterKey = '';
+    let stopDetailRoster = () => {};
     const publish = () => {
       if (!latestStudents) return;
-      const waiting = latestStudents.filter((student) => needsResponseDetail(student) && !detailRoster.loaded(student.id));
+      const waiting = latestStudents.filter((student) => needsResponseDetail(student) && !detailByStudent.has(String(student.id)));
       const studentData = latestStudents.map((student) => {
-        const detail = detailRoster.detailFor(student.id);
+        const detail = detailByStudent.get(String(student.id));
         return detail ? withResponseDetail(student, detail) : student;
       });
       setAllStudents(studentData);
@@ -3105,15 +3110,24 @@ function App() {
           });
       }
     };
-    const detailRoster = createResponseDetailRoster(db, publish, (error) => {
-      detailFailed = true;
-      console.error('Could not follow students\' saved work detail:', error);
-    });
     const stopGrades = onSnapshot(
       studentGradeSourceForViewer(viewer),
       (snapshot) => {
         latestStudents = collectStudentGradeSnapshot(snapshot);
-        detailRoster.sync(latestStudents.filter((student) => needsResponseDetail(student)).map((student) => student.id));
+        const ids = latestStudents.map((student) => String(student.id)).sort();
+        const key = ids.join('|');
+        if (key !== rosterKey) {
+          rosterKey = key;
+          stopDetailRoster();
+          detailByStudent = new Map();
+          stopDetailRoster = subscribeResponseDetailRoster(db, ids, (loaded) => {
+            detailByStudent = loaded;
+            publish();
+          }, (error) => {
+            detailFailed = true;
+            console.error('Could not follow students\' saved work detail:', error);
+          });
+        }
         publish();
       },
       (error) => {
@@ -3124,7 +3138,7 @@ function App() {
     );
     return () => {
       stopGrades();
-      detailRoster.stop();
+      stopDetailRoster();
     };
   // NOT `assignments`: the repair above runs once and reads the ref. Listing
   // the array tore this listener down on every write to ANY assignment —

@@ -69,28 +69,18 @@ export const subscribeResponseDetail = (db, studentId, onDetail, onError = () =>
 );
 
 /**
- * Live detail for many students, kept to the ids given: sync(ids) adds and
- * drops listeners, onChange(detailByStudent) fires with the whole map.
+ * Live detail for a roster of students: one listener each, all released by the
+ * returned cleanup. onChange(detailByStudent) fires with a Map of every
+ * student whose detail has arrived ({ [assignmentId]: data } per student).
  */
-export const createResponseDetailRoster = (db, onChange, onError = () => {}) => {
-  const listeners = new Map();
+export const subscribeResponseDetailRoster = (db, studentIds, onChange, onError = () => {}) => {
   const detailByStudent = new Map();
-  const emit = () => onChange(new Map(detailByStudent));
-  return {
-    sync(studentIds) {
-      const wanted = new Set([...studentIds].map(String));
-      for (const [id, unsubscribe] of listeners) {
-        if (!wanted.has(id)) { unsubscribe(); listeners.delete(id); detailByStudent.delete(id); }
-      }
-      for (const id of wanted) {
-        if (listeners.has(id)) continue;
-        listeners.set(id, subscribeResponseDetail(db, id, (detail) => { detailByStudent.set(id, detail); emit(); }, onError));
-      }
-    },
-    loaded(studentId) { return detailByStudent.has(String(studentId)); },
-    detailFor(studentId) { return detailByStudent.get(String(studentId)) || null; },
-    stop() { for (const unsubscribe of listeners.values()) unsubscribe(); listeners.clear(); detailByStudent.clear(); },
-  };
+  const ids = [...new Set([...(studentIds || [])].map(String))];
+  const unsubscribes = ids.map((id) => subscribeResponseDetail(db, id, (detail) => {
+    detailByStudent.set(id, detail);
+    onChange(detailByStudent);
+  }, onError));
+  return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
 };
 
 /** Read one assignment's detail in a client transaction and join it (reads before writes). */
