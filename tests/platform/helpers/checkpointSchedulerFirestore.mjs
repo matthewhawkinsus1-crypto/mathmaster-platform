@@ -59,10 +59,6 @@ export const checkpointSchedulerFirestore = (collections) => {
     startAfter: (cursor) => query(collection, { ...state, startAfter: typeof cursor === 'string' ? cursor : cursor.id }),
     doc: (id) => ref(`${collection}/${id}`),
     async get() {
-      reads.push({
-        kind: 'query', collection, filters: state.filters, fields: state.fields,
-        orderBy: state.orderBy, startAfter: state.startAfter, limit: state.limit,
-      });
       assert.ok(!state.startAfter || state.orderBy, 'a cursor needs an order');
       let entries = Object.entries(collections[collection] || {})
         .filter(([, data]) => state.filters.every(({ field, op, value }) => {
@@ -74,6 +70,11 @@ export const checkpointSchedulerFirestore = (collections) => {
       const docs = entries
         .slice(0, state.limit ?? undefined)
         .map(([id, data]) => ({ id, ref: ref(`${collection}/${id}`), exists: true, data: () => project(data, state.fields) }));
+      // `returned`: Firestore bills a query by the documents it returns (one if none).
+      reads.push({
+        kind: 'query', collection, filters: state.filters, fields: state.fields,
+        orderBy: state.orderBy, startAfter: state.startAfter, limit: state.limit, returned: docs.length,
+      });
       return { docs, empty: docs.length === 0, size: docs.length };
     },
   });

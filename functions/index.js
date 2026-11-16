@@ -47,6 +47,7 @@ const {
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
+const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 const { deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
@@ -10811,6 +10812,9 @@ const CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS = Object.freeze([
   "lateDueDate",
   "assignedClassIds",
 ]);
+// This scheduler has the 60 s default timeout. A run warns at 24 s, two fifths
+// of it, as the section scheduler warns at 120 s of its 300 s.
+const CLASSROOM_GRADE_CHECKPOINT_SLOW_RUN_MS = 24_000;
 
 async function queueClassroomGradeSignalForAudience({
   db,
@@ -10865,17 +10869,23 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   // publication `false`, since it passes back through its own scheduler. So
   // `== true` is the `!== false` below, read by the database: 35 of the 480
   // published links on Nov 11, 2026, where this read all 480 in full every 5
-  // minutes (tests/platform/classroomCheckpointScans.test.mjs).
-  const publicationsSnap = await db
-    .collection("classroomLinks")
-    .where("status", "==", "published")
-    .where("gradePassbackEnabled", "==", true)
-    .select(...CLASSROOM_GRADE_CHECKPOINT_LINK_FIELDS)
-    .limit(1000)
-    .get();
+  // minutes (tests/platform/classroomCheckpointScans.test.mjs). Every one of
+  // them, a page at a time, as the section scheduler reads its own: one
+  // unordered limit(1000) would have dropped classes' checkpoints past 1,000
+  // links (lib/classroomCheckpointScan.js).
+  const scan = await classroomCheckpointScan.scanPublishedLinks(db, {
+    filters: [["status", "published"], ["gradePassbackEnabled", true]],
+    fields: CLASSROOM_GRADE_CHECKPOINT_LINK_FIELDS,
+  });
+  const scanConcerns = classroomCheckpointScan.checkpointScanConcerns({ links: scan.docs.length, complete: scan.complete });
+  if (!scan.complete) {
+    logger.error("Whole-assignment checkpoint scan stopped at its limit", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  } else if (scanConcerns.length) {
+    logger.warn("Whole-assignment checkpoint scan is near its limits", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  }
 
   const classroomAssignmentIds = [...new Set(
-    publicationsSnap.docs
+    scan.docs
       .map((doc) => doc.data() || {})
       .filter((publication) => (
         publication.courseworkId
@@ -10888,23 +10898,18 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   // Read only assignments that actually have a current Classroom publication.
   // This avoids an arbitrary 500-assignment collection cap silently skipping a
   // live course when the library grows. Only the dates and classes are read,
-  // never the questions.
-  const assignmentSnapshots = classroomAssignmentIds.length
-    ? await db.getAll(
-      ...classroomAssignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
-      { fieldMask: [...CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS] }
-    )
-    : [];
+  // never the questions, a hundred at a time.
+  const assignmentSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    classroomAssignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
+    { fieldMask: CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS }
+  );
 
-  let dueAssignments = 0;
-  let finalAssignments = 0;
-  let reconcileAssignments = 0;
-  let queuedStudents = 0;
-  let studentCheckpointStudents = 0;
-
+  // The assignments a checkpoint can be owed for: those that exist, with a
+  // class and a due or final time. Only their state is read, as before.
+  const scheduled = [];
   for (const assignmentDoc of assignmentSnapshots) {
     if (!assignmentDoc.exists) continue;
-    const assignmentId = assignmentDoc.id;
     const assignment = assignmentDoc.data() || {};
     if (!assignmentAudience(assignment).classIds.length) continue;
     const dueAt = toDate(assignment.dueAt || assignment.dueDate);
@@ -10912,11 +10917,28 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate
     );
     if (!dueAt && !lateDueAt) continue;
+    scheduled.push({ assignmentId: assignmentDoc.id, assignment, dueAt, lateDueAt });
+  }
+  // Their state documents, a hundred at a time rather than one by one (25 on
+  // Nov 11, 2026). A run writes only each assignment's own state, so this
+  // reads what the loop would have read; a student a trigger records meanwhile
+  // is woken on the next run.
+  const stateSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    scheduled.map(({ assignmentId }) => db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId))
+  );
+  const stateById = new Map(stateSnapshots.map((snapshot) => [snapshot.id, snapshot]));
 
+  let dueAssignments = 0;
+  let finalAssignments = 0;
+  let reconcileAssignments = 0;
+  let queuedStudents = 0;
+  let studentCheckpointStudents = 0;
+
+  for (const { assignmentId, assignment, dueAt, lateDueAt } of scheduled) {
     const stateRef = db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId);
-    // eslint-disable-next-line no-await-in-loop
-    const stateSnap = await stateRef.get();
-    const state = stateSnap.exists ? stateSnap.data() || {} : {};
+    const stateSnap = stateById.get(assignmentId);
+    const state = stateSnap?.exists ? stateSnap.data() || {} : {};
 
     // H-116: a student whose OWN due time or final cutoff is later than the
     // class's was recorded by the grade trigger when it set the class's
@@ -11028,6 +11050,14 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       reconcileAssignments,
       studentCheckpointStudents,
       queuedStudents,
+    });
+  }
+
+  // A run this long says so while it still fits in its time.
+  const elapsedMs = Date.now() - now;
+  if (elapsedMs >= CLASSROOM_GRADE_CHECKPOINT_SLOW_RUN_MS) {
+    logger.warn("Whole-assignment checkpoint scan is near its limits", {
+      links: scan.docs.length, assignments: classroomAssignmentIds.length, elapsedMs, concerns: ["slow-run"],
     });
   }
 });
