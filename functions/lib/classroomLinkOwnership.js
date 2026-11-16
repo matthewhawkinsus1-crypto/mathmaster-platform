@@ -17,11 +17,34 @@
  * record of every class the assignment is assigned to. Anyone else gets what
  * they get for another teacher's link: nothing.
  *
- * The six publication callables in functions/index.js ask this one rule:
+ * The six publication callables in functions/index.js ask this one rule.
+ * Four act on one assignment and read its links by `assignmentId`:
  * updateAssignmentClassroomPublications, repairClassroomAssignmentPublications,
- * inspectClassroomPublication, removeAssignmentClassroomPackage,
- * listPublishedAssignments and listClassroomGradeSyncs.
+ * inspectClassroomPublication and removeAssignmentClassroomPackage. They keep
+ * the links `linksForTeacher` gives them.
+ *
+ * The two lists, listPublishedAssignments and listClassroomGradeSyncs, read
+ * the teacher's own links by `teacherUid`, a page at a time
+ * (`readTeacherLinks`). They read every teacher's links before, any 500 (or
+ * 2,000) of them unordered, and dropped a teacher's own past that. A link that
+ * records no teacher cannot be found by `teacherUid`, and nothing else finds
+ * it without reading every link, so the lists show it to nobody: its
+ * assignment's teacher and the administrator still act on it through the four
+ * callables above, and scripts/backfill-classroom-link-teachers.mjs stamps the
+ * teacher on any that remain.
  */
+
+const { FieldPath } = require("firebase-admin/firestore");
+
+// A page of a teacher's links: the size of the read the lists replaced. Below
+// it a list is one query reading exactly the teacher's links; an exact
+// multiple costs one more query, which reads nothing (billed as one read).
+const TEACHER_LINK_PAGE_SIZE = 500;
+// 10,000 links. A read that reaches it stops and says so.
+const TEACHER_LINK_MAX_PAGES = 20;
+// From here a list warns: one teacher's publications have grown large enough
+// for the screens to want their own paging.
+const TEACHER_LINK_WARN_AT = 2000;
 
 /** The teacher a link records, or "" when it records none. */
 function linkTeacherUid(link) {
@@ -59,7 +82,51 @@ async function linksForTeacher(entries, { teacherUid, linkOf = (entry) => entry,
   return kept;
 }
 
+/**
+ * Every classroomLinks document that records `teacherUid`, with only `fields`
+ * when they are given, in document-id order, a page at a time (the pattern of
+ * lib/classroomCheckpointScan.js). One equality filter, ordered by document id:
+ * Firestore serves it from the automatic single-field index on `teacherUid`,
+ * so it needs no composite index. `complete` is false only when the read
+ * stopped at `maxPages` with a full last page.
+ */
+async function readTeacherLinks(db, teacherUid, {
+  fields = null,
+  pageSize = TEACHER_LINK_PAGE_SIZE,
+  maxPages = TEACHER_LINK_MAX_PAGES,
+} = {}) {
+  const uid = String(teacherUid || "").trim();
+  if (!uid) return { docs: [], pages: 0, complete: true };
+  let base = db.collection("classroomLinks").where("teacherUid", "==", uid);
+  if (fields) base = base.select(...fields);
+  base = base.orderBy(FieldPath.documentId()).limit(pageSize);
+
+  const docs = [];
+  let pages = 0;
+  let cursor = null;
+  while (pages < maxPages) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await (cursor ? base.startAfter(cursor) : base).get();
+    pages += 1;
+    docs.push(...snapshot.docs);
+    if (snapshot.docs.length < pageSize) return { docs, pages, complete: true };
+    cursor = snapshot.docs[snapshot.docs.length - 1];
+  }
+  return { docs, pages, complete: false };
+}
+
+/** What a read of one teacher's `links` links is near or at: nothing, or one concern. */
+function teacherLinkReadConcerns({ links, complete, warnAt = TEACHER_LINK_WARN_AT }) {
+  if (!complete) return ["stopped-at-page-limit"];
+  return links >= warnAt ? ["many-links"] : [];
+}
+
 module.exports = {
+  TEACHER_LINK_MAX_PAGES,
+  TEACHER_LINK_PAGE_SIZE,
+  TEACHER_LINK_WARN_AT,
   linkTeacherUid,
   linksForTeacher,
+  readTeacherLinks,
+  teacherLinkReadConcerns,
 };

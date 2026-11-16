@@ -9867,15 +9867,28 @@ exports.removeAssignmentClassroomPackage = onCall(
   }
 );
 
+/*
+ * One teacher's own Classroom publications, for the two lists below: every one
+ * of them, a page at a time (lib/classroomLinkOwnership.js). The lists read
+ * any 500 (or 2,000) links of every teacher's and kept the caller's, so past
+ * that a teacher's own posts dropped off without a sign.
+ */
+async function readOwnClassroomLinks(db, teacherUid, callable, options = {}) {
+  const read = await classroomLinkOwnership.readTeacherLinks(db, teacherUid, options);
+  const concerns = classroomLinkOwnership.teacherLinkReadConcerns({ links: read.docs.length, complete: read.complete });
+  if (!read.complete) {
+    logger.error("A teacher's Classroom publications stopped at the page limit", { callable, teacherUid, links: read.docs.length, pages: read.pages, concerns });
+  } else if (concerns.length) {
+    logger.warn("A teacher's Classroom publications are near the list limits", { callable, teacherUid, links: read.docs.length, pages: read.pages, concerns });
+  }
+  return read.docs;
+}
+
 exports.listPublishedAssignments = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
-  const snap = await db.collection("classroomLinks").limit(500).get();
-  // The caller's own posts (lib/classroomLinkOwnership.js).
-  const links = (await classroomLinkOwnership.linksForTeacher(
-    snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
-    { teacherUid, managesAssignment: (assignmentId) => callerManagesAssignmentId(request, db, assignmentId) }
-  ))
+  const links = (await readOwnClassroomLinks(db, teacherUid, "listPublishedAssignments"))
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
     .sort((a, b) => {
       const aDate = toDate(a.publishedAt || a.updatedAt || a.createdAt)?.getTime() || 0;
       const bDate = toDate(b.publishedAt || b.updatedAt || b.createdAt)?.getTime() || 0;
@@ -9940,16 +9953,9 @@ async function writeGradeSyncAudit(db, publicationId, studentId, patch) {
 exports.listClassroomGradeSyncs = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
-  const publicationSnap = await db.collection("classroomLinks")
-    .select("teacherUid", "assignmentId")
-    .limit(2000)
-    .get();
-  // The caller's own posts (lib/classroomLinkOwnership.js).
-  const ownPublications = await classroomLinkOwnership.linksForTeacher(publicationSnap.docs, {
-    teacherUid,
-    linkOf: (doc) => doc.data(),
-    managesAssignment: (assignmentId) => callerManagesAssignmentId(request, db, assignmentId),
-  });
+  // The caller's own posts, as "Published assignments" reads them: only their
+  // ids and assignments are needed.
+  const ownPublications = await readOwnClassroomLinks(db, teacherUid, "listClassroomGradeSyncs", { fields: ["assignmentId"] });
   const publicationIds = new Set(ownPublications.map((doc) => doc.id));
   if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 } };
   const ownAssignments = new Set(ownPublications.map((doc) => String(doc.data().assignmentId || "")));

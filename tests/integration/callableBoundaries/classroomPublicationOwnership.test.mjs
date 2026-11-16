@@ -6,11 +6,15 @@
  * A classroomLinks document records the teacher whose Google account made the
  * post (`teacherUid`). One the original single-connection integration wrote
  * records none. The six publication callables used to treat such a link as
- * every teacher's. Now (functions/lib/classroomLinkOwnership.js) it is shown,
- * and acted on, only for a caller who manages its assignment: the teacher of
- * record of every class it is assigned to, or the root administrator. Any other
- * teacher gets what they get for another teacher's link: nothing, with nothing
- * written and Google never asked.
+ * every teacher's. Now (functions/lib/classroomLinkOwnership.js) the four that
+ * act on one assignment show it, and act on it, only for a caller who manages
+ * that assignment: the teacher of record of every class it is assigned to, or
+ * the root administrator. Any other teacher gets what they get for another
+ * teacher's link: nothing, with nothing written and Google never asked. The
+ * two lists read each teacher's own links by `teacherUid`, which the legacy
+ * post does not record, so they list it for nobody until
+ * scripts/backfill-classroom-link-teachers.mjs stamps its teacher
+ * (classroomPublicationLists.test.mjs is their cost and their completeness).
  *
  * Each callable is called through the client SDK with a real Auth emulator
  * token (callableHost.mjs) by the assignment's teacher, by a teacher of another
@@ -302,16 +306,18 @@ const monitoredPosts = async (caller) => {
   return syncs.map((row) => row.publicationId).filter((id) => id.startsWith('ownership-')).sort();
 };
 
-test('"Published assignments" lists the legacy post for the assignment\'s teacher and the administrator, and not for another teacher', async () => {
+// The lists read a teacher's posts by the teacher they record, so a post that
+// records none is in nobody's list, the assignment's teacher's included.
+test('"Published assignments" lists each teacher\'s own posts, and the legacy post for nobody', async () => {
   assert.deepEqual(await listedPosts(accounts.other), [OTHER_POST.id]);
-  assert.deepEqual(await listedPosts(accounts.owner), [LEGACY.id, OWNER_POST.id].sort());
-  assert.deepEqual(await listedPosts(accounts.admin), [LEGACY.id]);
+  assert.deepEqual(await listedPosts(accounts.owner), [OWNER_POST.id]);
+  assert.deepEqual(await listedPosts(accounts.admin), []);
 });
 
-test('the grade passback monitor shows the legacy post\'s rows to the assignment\'s teacher and the administrator, and not to another teacher', async () => {
+test('the grade passback monitor shows each teacher\'s own rows, and the legacy post\'s to nobody', async () => {
   assert.deepEqual(await monitoredPosts(accounts.other), [OTHER_POST.id]);
-  assert.deepEqual(await monitoredPosts(accounts.owner), [LEGACY.id, OWNER_POST.id].sort());
-  assert.deepEqual(await monitoredPosts(accounts.admin), [LEGACY.id]);
+  assert.deepEqual(await monitoredPosts(accounts.owner), [OWNER_POST.id]);
+  assert.deepEqual(await monitoredPosts(accounts.admin), []);
 });
 
 test('refusals are unchanged: a signed-out caller is still refused before any post is read', async () => {
