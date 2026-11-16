@@ -10,7 +10,7 @@ import { parse, simplify } from '../../algebra/safeMath.mjs';
 import { compareMathAnswer, normalizeMathAnswer } from '../../answerUtils.mjs';
 import { sameValue as sharedAnswerEquivalent } from '../../answerEquivalence.mjs';
 import { algebraicExpressionInput } from './expressionSafety.mjs';
-import { sampledIdentity, withinSimplifyBudget } from './simplifyBudget.mjs';
+import { SAMPLED, decidePastBudget, withinSimplifyBudget } from './simplifyBudget.mjs';
 
 // What reaches the parser at all — one definition, shared with the grader's
 // pre-check of student text (expressionSafety.mjs).
@@ -38,10 +38,14 @@ export const isAlgebraicallyEquivalent = (studentExpression, expectedExpression,
   try {
     const studentNode = parse(student);
     const expectedNode = parse(expected);
-    // simplify's cost is exponential in the length of a sum or product chain:
-    // a difference past the budget is decided at sample points instead, so no
+    // simplify's cost is exponential in the length of a sum or product chain,
+    // so a difference past the budget is first compared at sample points: no
     // answer a student can type stalls the tab or the server (simplifyBudget.mjs).
-    if (!withinSimplifyBudget(parse(`(${student}) - (${expected})`))) return sampledIdentity(studentNode, expectedNode);
+    const difference = parse(`(${student}) - (${expected})`);
+    if (!withinSimplifyBudget(difference)) {
+      const decided = decidePastBudget(difference, studentNode, expectedNode);
+      if (decided !== 'simplify') return decided === SAMPLED.EQUAL;
+    }
     const simplified = simplify(`(${student}) - (${expected})`).toString().replace(/\s+/g, '');
     return simplified === '0';
   } catch {

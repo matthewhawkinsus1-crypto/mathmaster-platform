@@ -23,6 +23,7 @@
  *                          is asked again, after other values were graded
  *   padding                spaces round a value change nothing
  *   unfinished-not-right   the key left unfinished ("12 +", "(x") is not right
+ *   key-is-right           the key, typed as it is keyed, is right everywhere
  *   answers-in-time        one verdict takes under `slowMs`
  *   graders-agree          (report only) the assignment matcher, the Path
  *                          grader and Pre-Flight give one verdict. They are
@@ -149,6 +150,12 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
     // Pre-Flight's check is a teacher's tool reading an authored key; alone, it is listed.
     const studentFacing = right.some((name) => name !== 'preflight');
     if (right.length) report('unfinished-not-right', breakOf(typed, field.expected), `${JSON.stringify(typed)} is marked right for key ${JSON.stringify(field.expected)} by ${right.join(', ')}`, studentFacing ? 'fail' : 'report');
+  }
+
+  // The key itself, typed as it is keyed.
+  if (input.inputClass === 'key') {
+    const refused = ['assignment', 'device', 'server', 'path', 'secure'].filter((name) => name in verdicts && verdicts[name] !== true && verdicts[name] !== THROWN);
+    if (refused.length) report('key-is-right', `${profileOf(field)}/${refused.join('+')}`, `the key ${JSON.stringify(field.expected)} is not marked right by ${refused.join(', ')}`);
   }
 
   // Separate graders, listed where they differ.

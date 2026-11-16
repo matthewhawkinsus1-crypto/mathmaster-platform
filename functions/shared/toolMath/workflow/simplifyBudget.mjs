@@ -22,15 +22,26 @@
  * is that measure for the difference equivalence.mjs builds, kept here so the
  * composed-workflow grader does not load Step Algebra's engine.
  *
- * A difference inside the budget is simplified exactly as before. One outside
- * it is decided by sampledIdentity instead: both sides evaluated at fixed
- * irregular points, equal when every defined point agrees. That is the same
- * question (are they equal for every value of every letter?) answered in
- * linear time, so no input can stall it.
+ * A difference inside the budget is simplified exactly as before. Past it,
+ * the two sides are first compared at fixed irregular points (compareAtSamples),
+ * which is linear in their size:
  *
- * Pure. Imports only the hardened parser equivalence.mjs already loads.
+ *   they differ at a point    not equal, whatever simplify would have said:
+ *                             this is every wrong answer, at once
+ *   they agree at every point simplify is still asked while the chain is one
+ *                             it finishes (SIMPLIFY_LIMIT), so the verdict is
+ *                             the one it always gave; past that, where it
+ *                             never gave one, agreeing everywhere is equal
+ *   too few points defined    as above while simplify can be asked; past
+ *                             that, not shown equal
+ *
+ * So no verdict simplify gave in about a second changes, and no input stalls.
+ * simplify does not expand or factor (`2(x+3)` is not `2x+6` to it), and the
+ * points cannot tell those apart: only past SIMPLIFY_LIMIT, where there was no
+ * verdict at all, does equal value alone decide.
+ *
+ * Pure, and imports nothing: it reads nodes equivalence.mjs has already parsed.
  */
-import { parse } from '../../algebra/safeMath.mjs';
 
 /*
  * The longest flattened chain simplify is given, and the size of the whole
@@ -41,6 +52,13 @@ import { parse } from '../../algebra/safeMath.mjs';
  * to a time). The node count is not what costs; it bounds the walk.
  */
 export const SIMPLIFY_BUDGET = Object.freeze({ nodes: 200, chain: 10 });
+
+/*
+ * The longest chain simplify is asked about at all, and then only for sides
+ * that agree at every sample point. The slowest seeded difference at 14 links
+ * took 1.3 s here; at 16, several.
+ */
+export const SIMPLIFY_LIMIT = Object.freeze({ nodes: 200, chain: 14 });
 
 const CHAIN_FAMILY = Object.freeze({ add: 'sum', subtract: 'sum', multiply: 'product', divide: 'product' });
 const chainFamily = (node) => (node?.isOperatorNode ? CHAIN_FAMILY[node.fn] || null : null);
@@ -78,13 +96,28 @@ export const withinSimplifyBudget = (node, budget = SIMPLIFY_BUDGET) => {
   return cost.nodes <= budget.nodes && cost.chain <= budget.chain;
 };
 
+export const SAMPLED = Object.freeze({ EQUAL: 'equal', DIFFERENT: 'different', UNKNOWN: 'unknown' });
+
+/**
+ * How a difference past the budget is decided (the table above):
+ * 'different', 'equal', or 'simplify' when mathjs should still be asked.
+ */
+export const decidePastBudget = (differenceNode, leftNode, rightNode) => {
+  const sampled = compareAtSamples(leftNode, rightNode);
+  if (sampled === SAMPLED.DIFFERENT) return SAMPLED.DIFFERENT;
+  if (withinSimplifyBudget(differenceNode, SIMPLIFY_LIMIT)) return 'simplify';
+  return sampled === SAMPLED.EQUAL ? SAMPLED.EQUAL : SAMPLED.DIFFERENT;
+};
+
 // Irregular, so no small-integer coincidence makes two expressions agree; of
 // both signs and none zero or one, so a denominator or a root is defined at
 // most of them. The same points Step Algebra samples at.
 const SAMPLE_VALUES = Object.freeze([1.37, -2.11, 3.73, 0.59, -4.29, 2.91, 5.17, -0.83, 1.93, -3.47, 4.61, 0.27]);
 const MINIMUM_VALID_SAMPLES = 6;
 const CONSTANT_NAMES = new Set(['e', 'pi', 'i', 'Infinity', 'NaN', 'true', 'false', 'null']);
-const TOLERANCE = 1e-9;
+// Looser than a typed number's tolerance: a long sum loses digits to rounding,
+// and a false 'different' here would lower a verdict simplify used to give.
+const TOLERANCE = 1e-6;
 
 const lettersOf = (node) => {
   const names = new Set();
@@ -107,24 +140,25 @@ const valueAt = (code, scope) => {
 const close = (left, right) => Math.abs(left - right) <= TOLERANCE * Math.max(1, Math.abs(left), Math.abs(right));
 
 /**
- * Are two parsed expressions equal for every value of every letter in them?
- * true when every sample both are defined at agrees (and enough are defined);
- * false when one disagrees, or too few are defined to say.
+ * Two parsed expressions at the sample points: 'different' when a point both
+ * are defined at disagrees, 'equal' when enough are defined and all agree,
+ * 'unknown' when too few are defined to say (or a side cannot be evaluated).
  */
-export const sampledIdentity = (leftNode, rightNode) => {
+export function compareAtSamples(leftNode, rightNode) {
   let left;
   let right;
   try {
     left = leftNode.compile();
     right = rightNode.compile();
   } catch {
-    return false;
+    return SAMPLED.UNKNOWN;
   }
   const letters = [...new Set([...lettersOf(leftNode), ...lettersOf(rightNode)])].sort();
   if (!letters.length) {
     const a = valueAt(left, {});
     const b = valueAt(right, {});
-    return a !== null && b !== null && close(a, b);
+    if (a === null || b === null) return SAMPLED.UNKNOWN;
+    return close(a, b) ? SAMPLED.EQUAL : SAMPLED.DIFFERENT;
   }
   let valid = 0;
   for (let sample = 0; sample < SAMPLE_VALUES.length; sample += 1) {
@@ -132,17 +166,11 @@ export const sampledIdentity = (leftNode, rightNode) => {
     const a = valueAt(left, scope);
     const b = valueAt(right, scope);
     if (a === null || b === null) continue;
-    if (!close(a, b)) return false;
+    if (!close(a, b)) return SAMPLED.DIFFERENT;
     valid += 1;
   }
-  return valid >= MINIMUM_VALID_SAMPLES;
-};
+  return valid >= MINIMUM_VALID_SAMPLES ? SAMPLED.EQUAL : SAMPLED.UNKNOWN;
+}
 
-/** Parse for the budget: the node, or null for text the hardened parser refuses. */
-export const parsedOrNull = (text) => {
-  try {
-    return parse(text);
-  } catch {
-    return null;
-  }
-};
+/** Are two parsed expressions shown equal for every value of every letter in them? */
+export const sampledIdentity = (leftNode, rightNode) => compareAtSamples(leftNode, rightNode) === SAMPLED.EQUAL;

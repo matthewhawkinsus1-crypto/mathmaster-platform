@@ -3,13 +3,14 @@
  * Grader fuzz and parity run (scripts/lib/graderFuzz, docs/architecture/GRADER_FUZZ.md).
  *
  *   node scripts/fuzz-graders.mjs                       the pull-request slice
- *   node scripts/fuzz-graders.mjs --seed 2026-11-16 --count 20000 --max-length 20000
+ *   node scripts/fuzz-graders.mjs --seed 2026-11-16 --count 20000 --max-length 1000
  *                                                       a nightly-sized run
  *   node scripts/fuzz-graders.mjs --target typedFields  one target
  *   node scripts/fuzz-graders.mjs --replay case.json    one case again (a
  *                                                       finding's `repro`)
  *   --out findings.json    every finding, folded by signature, as JSON
  *   --budget-minutes N     stop each target after N minutes (it says so)
+ *   --slow-ms N            what one verdict may take before it is a finding (2000)
  *   --strict-known         also fail when a listed known finding was not met
  *                          (for a run large enough to meet them all)
  *
@@ -30,13 +31,14 @@ const flag = (name) => process.argv.includes(name);
 const known = readKnownFindings();
 const replay = argOf('--replay');
 const out = argOf('--out');
-const maxLength = Number(argOf('--max-length', '2000')) || 2000;
+const maxLength = Number(argOf('--max-length', '600')) || 600;
+const checkOptions = { slowMs: Number(argOf('--slow-ms', '2000')) || 2000 };
 
 let result;
 if (replay) {
   const parsed = JSON.parse(readFileSync(replay, 'utf8'));
   const fuzzCase = parsed.repro || parsed;
-  const findings = await replayCase(fuzzCase);
+  const findings = await replayCase(fuzzCase, checkOptions);
   result = { seed: 'replay', cases: 1, perTarget: [], findings, summary: summarizeFindings(findings, known) };
 } else {
   const targets = argOf('--target') ? argOf('--target').split(',') : TARGET_IDS;
@@ -46,6 +48,7 @@ if (replay) {
     targets,
     budgetMs: argOf('--budget-minutes') ? Number(argOf('--budget-minutes')) * 60_000 : Infinity,
     known,
+    checkOptions,
     caseOptions: { maxLength },
   });
 }

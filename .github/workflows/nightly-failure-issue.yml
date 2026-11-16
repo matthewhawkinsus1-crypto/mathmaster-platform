@@ -23,6 +23,7 @@ on:
       - "Student and Teacher Journeys"
       - "Student Pass 3 Emulator Journeys"
       - "Interactive Capability Certification"
+      - "Grader Fuzz Nightly"
     types: [completed]
 
 permissions:

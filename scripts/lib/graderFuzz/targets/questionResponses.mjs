@@ -20,6 +20,7 @@
  *   device-server-parity   one verdict, part for part, wherever the server
  *                          marks the type at all
  *   unfinished-not-right   the key left unfinished is not a right answer
+ *   key-is-right           a question answered with its own keys is right
  *   stable                 asked again, the same verdict
  *   answers-in-time        one check takes under `slowMs`
  */
@@ -126,7 +127,9 @@ export const cases = function* cases({ rng, count, maxLength = 2000 }) {
     const fuzzed = rng.pick(typedBoxes);
     const input = typedInput(rng, rng.pick(INPUT_CLASSES), { key: fuzzed.key, field: fuzzed.field || {}, maxLength });
     const answers = Object.fromEntries(boxes.map((box) => [box.id, box.id === fuzzed.id ? input.text : text(box.key ?? '')]));
-    yield { target: id, source, question, answers, fuzzed: fuzzed.id, key: fuzzed.key, input: { inputClass: input.inputClass, detail: input.detail } };
+    // Whether every box has a key of its own to hold: then the keys, typed, are the right answer.
+    const allKeyed = boxes.every((box) => box.key !== null && box.key !== undefined);
+    yield { target: id, source, question, answers, fuzzed: fuzzed.id, key: fuzzed.key, allKeyed, input: { inputClass: input.inputClass, detail: input.detail } };
   }
 };
 
@@ -171,6 +174,10 @@ export const check = async (fuzzCase, { slowMs = 2000 } = {}) => {
   const again = timed('device', () => onDevice(question, answers));
   if (!again.thrown && (again.result.isCorrect !== device.result.isCorrect || JSON.stringify(partsOf(again.result)) !== JSON.stringify(partsOf(device.result)))) {
     report('stable', question.type, `${question.type} gave ${device.result.isCorrect} and then ${again.result.isCorrect} for the same answers`);
+  }
+
+  if (input.inputClass === 'key' && fuzzCase.allKeyed && device.result.isCorrect !== true) {
+    report('key-is-right', question.type, `a ${question.type} question answered with its own keys is not marked right: ${JSON.stringify(partsOf(device.result))}`);
   }
 
   if (input.inputClass === 'brokenKey' && isUnfinished(typed) && device.result.isCorrect === true) {
