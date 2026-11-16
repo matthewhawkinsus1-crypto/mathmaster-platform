@@ -476,7 +476,10 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-    const gradeData = gradeSnapshot.data() || {};
+    // The whole record (summary joined to its stored detail), read in this transaction.
+    const gradeData = await hydrateGradeData({
+      transaction, gradeRef, gradeData: gradeSnapshot.data() || {}, assignmentIds: [String(checkpoint.assignmentId)],
+    });
     const question = runtimeQuestionsFromAssignment(assignment)?.[Number(checkpoint.questionIndex)] || null;
 
     const decision = decideCheckpointFinalization({
@@ -577,8 +580,11 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const gradeUpdates = [
-      new FieldPath("gradesByAssignment", assignmentId, String(checkpoint.questionIndex)),
-      finalization.record,
+      // The summary here, the detail beside it (responseDetail), one detailRef.
+      ...await questionRecordUpdates({
+        writer: transaction, gradeRef, studentId: gradeRef.id, assignmentId,
+        questionKey: String(checkpoint.questionIndex), record: finalization.record,
+      }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       finalization.supportUsage,
     ];
@@ -792,6 +798,28 @@ exports.expediteCheckpointsOnSectionClose = onDocumentWritten(
  * `lastSubmissionId`. A retry of a submission that already landed reports
  * `duplicate` and writes nothing.
  * ========================================================================= */
+/*
+ * A QUESTION RECORD IS STORED SPLIT (functions/shared/gradeEntryStorage.mjs).
+ *
+ * Its summary stays in grades/{studentId}.gradesByAssignment[a][q] (enough to
+ * grade: credit, status, attempts, `stepCredit`), and its detail (parts,
+ * steps, last response, support flags, algebra state) lives in
+ * grades/{studentId}/responseDetail/{a}.questions[q], tied by one `detailRef`.
+ * Since Nov 16, 2026 the grades document was approaching Firestore's 1 MiB cap.
+ *
+ * A writer stores both halves in the same transaction or batch
+ * (writeQuestionRecord). A reader that needs the whole record (attempt policy,
+ * review, recovery, mastery) joins them first (hydrateGradeData); a reader that
+ * only grades (the Classroom triggers, class-wide reports) reads the summary.
+ */
+const {
+  gradeEntryStorage,
+  hydrateGradeData,
+  questionRecordUpdates,
+  writeSplitTracker,
+  hydrateTrackerRows,
+} = require("./lib/gradeDetailStore");
+
 let submissionIngestionModule = null;
 async function submissionIngestion() {
   if (!submissionIngestionModule) {
@@ -875,7 +903,15 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     const assignment = assignmentSnapshot.exists
       ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
       : null;
-    const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    // The whole record of this assignment's questions: the summary joined to
+    // its stored detail, read in this transaction (attempt policy compares the
+    // last response and replays the steps).
+    const gradeData = await hydrateGradeData({
+      transaction,
+      gradeRef,
+      gradeData: gradeSnapshot.exists ? gradeSnapshot.data() || {} : null,
+      assignmentIds: [envelope.assignmentId],
+    });
     const classId = authoritativeStudentClassId(gradeData);
 
     const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
@@ -1132,8 +1168,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     }
 
     const updates = [
-      new FieldPath("gradesByAssignment", assignmentId, String(envelope.questionIndex)),
-      built.record,
+      // The summary here, the detail beside it (responseDetail), one detailRef.
+      ...await questionRecordUpdates({
+        writer: transaction, gradeRef, studentId, assignmentId,
+        questionKey: String(envelope.questionIndex), record: built.record,
+      }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       built.supportUsage,
     ];
@@ -23602,7 +23641,7 @@ async function loadSavedAssignmentTrackers(db, assignmentId, assignment) {
   const queries = contentUpgradeGradeQueries(db, assignment);
   if (!queries.length) return [];
   const snapshots = await Promise.all(queries.map((queryRef) => queryRef.get()));
-  return contentUpgradeTrackerRows(snapshots, assignmentId);
+  return hydrateTrackerRows(contentUpgradeTrackerRows(snapshots, assignmentId), assignmentId, { db });
 }
 
 async function loadSavedAssignmentTrackersInTransaction(transaction, db, assignmentId, assignment) {
@@ -23612,7 +23651,7 @@ async function loadSavedAssignmentTrackersInTransaction(transaction, db, assignm
     // eslint-disable-next-line no-await-in-loop
     snapshots.push(await transaction.get(queryRef));
   }
-  return contentUpgradeTrackerRows(snapshots, assignmentId);
+  return hydrateTrackerRows(contentUpgradeTrackerRows(snapshots, assignmentId), assignmentId, { db, transaction });
 }
 
 function contentUpgradeAlreadyCurrent(liveAssignment = {}, targetAssignment = {}) {
@@ -23941,13 +23980,11 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
+      const storage = await gradeEntryStorage();
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        transaction.update(
-          gradeRow.ref,
-          new FieldPath("gradesByAssignment", assignmentId),
-          migration.tracker
-        );
+        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,
@@ -24511,13 +24548,11 @@ exports.commitTeacherQuestionRepair = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
+      const storage = await gradeEntryStorage();
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        transaction.update(
-          gradeRow.ref,
-          new FieldPath("gradesByAssignment", assignmentId),
-          migration.tracker
-        );
+        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,
