@@ -3621,19 +3621,25 @@ function App() {
    * and when, is unchanged. Holds are let go once the signed-in user is set
    * (by an effect declared after those listeners', so it runs after they open),
    * when sign-in fails, and when it is superseded.
+   *
+   * The holds are the hydration effect's own (its signInHolds, which its
+   * cleanup releases); this ref reaches the same array, so the release once
+   * the user is set can empty it first.
    */
   const signInHoldsRef = useRef([]);
-  const holdSignInTarget = (target) => {
-    signInHoldsRef.current.push(onSnapshot(target, () => {}, () => {}));
-  };
   const releaseSignInHolds = () => {
-    const holds = signInHoldsRef.current;
-    signInHoldsRef.current = [];
-    holds.forEach((release) => release());
+    signInHoldsRef.current.splice(0).forEach((release) => release());
   };
 
   useEffect(() => {
     let cancelled = false;
+    // Sign-in's holds (signInHoldsRef above): this effect's, released by its
+    // cleanup, or sooner through the ref, which empties this same array.
+    const signInHolds = [];
+    signInHoldsRef.current = signInHolds;
+    const holdSignInTarget = (target) => {
+      signInHolds.push(onSnapshot(target, () => {}, () => {}));
+    };
     const session = auth.session;
     if (auth.status !== 'ready' || !session) {
       setUser(null);
@@ -3858,8 +3864,9 @@ function App() {
           console.error('Could not load the signed-in account:', error);
           setSessionHydrationError(error || new Error('MathMaster could not load your account.'));
         }
-        // No screen will open the listeners these held targets were for.
-        releaseSignInHolds();
+        // No screen will open the listeners these held targets were for. This
+        // sign-in's own holds: a newer one's are not this one's to let go.
+        signInHolds.splice(0).forEach((release) => release());
       } finally {
         if (!cancelled) setSessionHydrating(false);
       }
@@ -3869,7 +3876,7 @@ function App() {
     return () => {
       cancelled = true;
       // A sign-in superseded (signed out, or another account) holds nothing.
-      releaseSignInHolds();
+      signInHolds.forEach((release) => release());
     };
     // Session UID changes only when the authenticated identity changes. The
     // helper functions above intentionally read the newest Firestore state.

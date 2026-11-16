@@ -124,14 +124,19 @@ test('a student\'s device reads its own class, never the collection', () => {
 });
 
 test('sign-in\'s reads and the listeners that follow them ride one target', () => {
-  const hold = region(APP, 'const holdSignInTarget = (target) => {', '\n  };', 'holdSignInTarget');
-  assert.match(hold, /signInHoldsRef\.current\.push\(onSnapshot\(target, \(\) => \{\}, \(\) => \{\}\)\);/, 'a hold is a listener that does nothing');
+  // The holds are the hydration effect's own array, which its cleanup releases
+  // (listenerLifecycleGuard holds every listener to that), reached through the
+  // ref so the release once the user is set can empty it first.
+  const effect = region(APP, 'const signInHolds = [];', '}, [auth.status, auth.session?.uid]);', 'the hydration effect');
+  assert.match(effect, /^const signInHolds = \[\];\s*signInHoldsRef\.current = signInHolds;\s*const holdSignInTarget = \(target\) => \{\s*signInHolds\.push\(onSnapshot\(target, \(\) => \{\}, \(\) => \{\}\)\);\s*\};/, 'a hold is a listener that does nothing, kept in the effect\'s own array');
+  assert.match(APP, /const releaseSignInHolds = \(\) => \{\s*signInHoldsRef\.current\.splice\(0\)\.forEach\(\(release\) => release\(\)\);\s*\};/);
   const hydrate = region(APP, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession');
   const holdsBefore = (holdCall, read) => {
     const holdAt = hydrate.indexOf(holdCall);
     const readAt = hydrate.indexOf(read);
     assert.ok(holdAt !== -1 && readAt !== -1 && holdAt < readAt, `${holdCall} comes before ${read}`);
   };
+  // Each hold is taken before its read.
   holdsBefore("holdSignInTarget(collection(db, 'assignments'));", 'await fetchAssignments();');
   holdsBefore("holdSignInTarget(doc(db, 'grades', studentId));", "await getDoc(doc(db, 'grades', studentId));");
   holdsBefore('holdSignInTarget(studentClassAssignmentsQuery(db, studentData.classId));', 'await fetchStudentAssignments({');
@@ -139,8 +144,9 @@ test('sign-in\'s reads and the listeners that follow them ride one target', () =
   assert.match(hydrate, /if \(!cancelled && [^\n]*\) holdSignInTarget\(studentClassAssignmentsQuery\(db, studentData\.classId\)\);/);
   // Let go when sign-in fails, when it is superseded, and once the user is set —
   // by an effect declared AFTER the listeners it hands the targets to.
-  assert.match(region(hydrate, '} catch (error) {', 'finally', 'the sign-in failure'), /releaseSignInHolds\(\);/);
-  assert.match(region(APP, 'hydrateSession();', '}, [auth.status, auth.session?.uid]);', 'the sign-in cleanup'), /return \(\) => \{\s*cancelled = true;\s*releaseSignInHolds\(\);\s*\};/);
+  // A failed sign-in lets go of its own holds only: a newer sign-in's are not its to release.
+  assert.match(region(hydrate, '} catch (error) {', 'finally', 'the sign-in failure'), /signInHolds\.splice\(0\)\.forEach\(\(release\) => release\(\)\);/);
+  assert.match(region(APP, 'hydrateSession();', '}, [auth.status, auth.session?.uid]);', 'the sign-in cleanup'), /return \(\) => \{\s*cancelled = true;\s*signInHolds\.forEach\(\(release\) => release\(\)\);\s*\};/);
   const release = /useEffect\(\(\) => \{\s*if \(user\) releaseSignInHolds\(\);\s*\}, \[user\]\);/.exec(APP);
   assert.ok(release, 'released once a user is set, and not on the first run, which comes with the hydration that takes the holds');
   const lessons = effectAround(APP, /const unsubscribe = onSnapshot\(\s*collection\(db, 'assignments'\),/, 'the lesson listener');
