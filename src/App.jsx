@@ -96,6 +96,7 @@ import {
   mergeStudentAssignments,
   priorWorkAssignmentIds,
   priorWorkFromClassLeft,
+  studentClassAssignmentsQuery,
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
@@ -3602,6 +3603,35 @@ function App() {
     setPreviewTracker({});
   };
 
+  /*
+   * SIGN-IN'S READS AND THE LISTENERS THAT FOLLOW THEM ASK THE SERVER ONCE.
+   *
+   * Before anything is on screen, sign-in reads a student's roster row and
+   * their class's lessons, or a teacher's assignments, with one-shot reads
+   * (online they wait for the server; offline they answer from the cache).
+   * The screens then open listeners on exactly those documents — and each
+   * listener's first snapshot read them all again, because the one-shot
+   * read's target had already been let go.
+   *
+   * Firestore's SDK keeps one target per document or query, however many reads
+   * and listeners ask for it, and asks the server for it once. So sign-in holds
+   * each of those targets open with a listener that does nothing, from just
+   * before its read until the screen's own listener is open on it: the read,
+   * and then the listener, ride the hold's one request. What each is given,
+   * and when, is unchanged. Holds are let go once the signed-in user is set
+   * (by an effect declared after those listeners', so it runs after they open),
+   * when sign-in fails, and when it is superseded.
+   */
+  const signInHoldsRef = useRef([]);
+  const holdSignInTarget = (target) => {
+    signInHoldsRef.current.push(onSnapshot(target, () => {}, () => {}));
+  };
+  const releaseSignInHolds = () => {
+    const holds = signInHoldsRef.current;
+    signInHoldsRef.current = [];
+    holds.forEach((release) => release());
+  };
+
   useEffect(() => {
     let cancelled = false;
     const session = auth.session;
@@ -3635,6 +3665,7 @@ function App() {
       setSessionHydrationError(null);
       try {
         if (session.role === 'teacher') {
+          holdSignInTarget(collection(db, 'assignments'));
           await fetchAssignments();
           if (cancelled) return;
           // Identity and classes first: the roster fetch is scoped by them, so
@@ -3670,9 +3701,15 @@ function App() {
           throw new Error('Your signed-in account does not have a MathMaster student ID.');
         }
         const studentId = session.studentId;
+        holdSignInTarget(doc(db, 'grades', studentId));
         const studentSnapshot = await getDoc(doc(db, 'grades', studentId));
         if (!studentSnapshot.exists()) throw new Error('Your student record is not available. Ask your teacher to add you to the roster.');
         const studentData = studentSnapshot.data() || {};
+        // The class query fetchStudentAssignments reads first, which the
+        // class's lesson listener then keeps. Not for a sign-in already
+        // superseded (signed out, another account): its cleanup let go of
+        // its holds, and nothing will take this one.
+        if (!cancelled && String(studentData.classId || '').trim()) holdSignInTarget(studentClassAssignmentsQuery(db, studentData.classId));
         // The student's own class, plus anything they have work on from an
         // earlier one — never the whole collection (studentAssignmentScope.js).
         const savedResumeTarget = readResumeAction(studentId);
@@ -3821,13 +3858,19 @@ function App() {
           console.error('Could not load the signed-in account:', error);
           setSessionHydrationError(error || new Error('MathMaster could not load your account.'));
         }
+        // No screen will open the listeners these held targets were for.
+        releaseSignInHolds();
       } finally {
         if (!cancelled) setSessionHydrating(false);
       }
     };
 
     hydrateSession();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // A sign-in superseded (signed out, or another account) holds nothing.
+      releaseSignInHolds();
+    };
     // Session UID changes only when the authenticated identity changes. The
     // helper functions above intentionally read the newest Firestore state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5549,6 +5592,15 @@ function App() {
     // fetchStudentClass is the component's own loader; the row, the class read and the course settings decide the answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);
+
+  // Sign-in's holds (signInHoldsRef above) end here: with the user set, the
+  // listeners they were waiting for — the lesson listener and the student's own
+  // grade document, both declared above, so opened first — hold the targets.
+  // Not before: App mounts with sign-in already under way, and this effect's
+  // first run comes in the same commit as the hydration that takes the holds.
+  useEffect(() => {
+    if (user) releaseSignInHolds();
+  }, [user]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;

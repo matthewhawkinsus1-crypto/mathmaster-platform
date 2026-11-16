@@ -14,7 +14,9 @@
 //       every presence flush (each flush opened one new query per 8 students);
 //       the teacher's per-student presence listeners follow WHO is on the
 //       roster, not each new array naming them (leaving Grades re-opened them all);
-//       a student's device reads its own class, not every class in the school.
+//       a student's device reads its own class, not every class in the school;
+//       sign-in's one-shot reads and the listeners that follow them ride one
+//       target (each listener's first snapshot used to read them all again).
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -119,4 +121,29 @@ test('a student\'s device reads its own class, never the collection', () => {
   assert.doesNotMatch(follower, /fetchClasses\(\)/);
   // The teacher's screens still span their classes.
   assert.match(hydrate.slice(0, hydrate.indexOf("if (session.role !== 'student'")), /classesRef\.current = await fetchClasses\(\);/);
+});
+
+test('sign-in\'s reads and the listeners that follow them ride one target', () => {
+  const hold = region(APP, 'const holdSignInTarget = (target) => {', '\n  };', 'holdSignInTarget');
+  assert.match(hold, /signInHoldsRef\.current\.push\(onSnapshot\(target, \(\) => \{\}, \(\) => \{\}\)\);/, 'a hold is a listener that does nothing');
+  const hydrate = region(APP, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession');
+  const holdsBefore = (holdCall, read) => {
+    const holdAt = hydrate.indexOf(holdCall);
+    const readAt = hydrate.indexOf(read);
+    assert.ok(holdAt !== -1 && readAt !== -1 && holdAt < readAt, `${holdCall} comes before ${read}`);
+  };
+  holdsBefore("holdSignInTarget(collection(db, 'assignments'));", 'await fetchAssignments();');
+  holdsBefore("holdSignInTarget(doc(db, 'grades', studentId));", "await getDoc(doc(db, 'grades', studentId));");
+  holdsBefore('holdSignInTarget(studentClassAssignmentsQuery(db, studentData.classId));', 'await fetchStudentAssignments({');
+  // A sign-in superseded while it read the roster row takes no hold after its cleanup.
+  assert.match(hydrate, /if \(!cancelled && [^\n]*\) holdSignInTarget\(studentClassAssignmentsQuery\(db, studentData\.classId\)\);/);
+  // Let go when sign-in fails, when it is superseded, and once the user is set —
+  // by an effect declared AFTER the listeners it hands the targets to.
+  assert.match(region(hydrate, '} catch (error) {', 'finally', 'the sign-in failure'), /releaseSignInHolds\(\);/);
+  assert.match(region(APP, 'hydrateSession();', '}, [auth.status, auth.session?.uid]);', 'the sign-in cleanup'), /return \(\) => \{\s*cancelled = true;\s*releaseSignInHolds\(\);\s*\};/);
+  const release = /useEffect\(\(\) => \{\s*if \(user\) releaseSignInHolds\(\);\s*\}, \[user\]\);/.exec(APP);
+  assert.ok(release, 'released once a user is set, and not on the first run, which comes with the hydration that takes the holds');
+  const lessons = effectAround(APP, /const unsubscribe = onSnapshot\(\s*collection\(db, 'assignments'\),/, 'the lesson listener');
+  const grades = effectAround(APP, /return onSnapshot\(\s*doc\(db, 'grades', user\.id\),/, 'the student\'s grade listener');
+  assert.ok(lessons.start < release.index && grades.start < release.index, 'the release runs after the listeners open');
 });
