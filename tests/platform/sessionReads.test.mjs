@@ -13,7 +13,8 @@
 //       the live monitor's Spotlight listeners follow the class's roster, not
 //       every presence flush (each flush opened one new query per 8 students);
 //       the teacher's per-student presence listeners follow WHO is on the
-//       roster, not each new array naming them (leaving Grades re-opened them all).
+//       roster, not each new array naming them (leaving Grades re-opened them all);
+//       a student's device reads its own class, not every class in the school.
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -104,4 +105,18 @@ test('the teacher\'s presence listeners follow who is on the roster, not each ne
   const key = region(APP, 'const presenceRosterKey = useMemo(', ');\n', 'the roster key');
   assert.match(key, /JSON\.stringify\(\[\.\.\.new Set\(\s*\(Array\.isArray\(allStudents\) \? allStudents : \[\]\)\s*\.map\(\(student\) => String\(student\?\.id \|\| ''\)\.trim\(\)\)/);
   assert.match(APP, /const teacherPresenceScreen = \['home', 'classesWorkspace'\]\.includes\(teacherTab\);/);
+});
+
+test('a student\'s device reads its own class, never the collection', () => {
+  const loader = region(APP, 'const fetchStudentClass = async (classId) => {', '\n  };', 'fetchStudentClass');
+  assert.match(loader, /await getDoc\(doc\(db, 'classes', id\)\)/);
+  assert.doesNotMatch(loader, /collection\(/);
+  const hydrate = region(APP, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession');
+  const studentHydrate = hydrate.slice(hydrate.indexOf("if (session.role !== 'student'"));
+  assert.match(studentHydrate, /const loadedClasses = await fetchStudentClass\(studentData\.classId\);/);
+  assert.doesNotMatch(studentHydrate, /fetchClasses\(\)/, 'a student session never reads every class');
+  const follower = region(APP, 'const classReadForRosterRef = useRef(null);', '}, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);', 'the roster follower');
+  assert.doesNotMatch(follower, /fetchClasses\(\)/);
+  // The teacher's screens still span their classes.
+  assert.match(hydrate.slice(0, hydrate.indexOf("if (session.role !== 'student'")), /classesRef\.current = await fetchClasses\(\);/);
 });

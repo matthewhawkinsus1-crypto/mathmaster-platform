@@ -3203,6 +3203,32 @@ function App() {
     }
   };
 
+  // A STUDENT'S DEVICE READS ONE CLASS: THEIR OWN. What a student's screens
+  // keep of a class is its record's name, period, teacher of record, course and
+  // level (rosterMembership.js studentClassFields), for the class their roster
+  // row names. Sign-in used to read the whole collection for it — every class
+  // in the school, on every student's Chromebook — and a move to another class
+  // read it all again. Fails as fetchClasses does: nothing read, the class's
+  // fields fall back to the period's course settings.
+  const fetchStudentClass = async (classId) => {
+    const id = String(classId || '').trim();
+    if (!id) {
+      setClasses([]);
+      classesRef.current = [];
+      return [];
+    }
+    try {
+      const snapshot = await getDoc(doc(db, 'classes', id));
+      const value = snapshot.exists() ? [{ classId: snapshot.id, ...snapshot.data() }] : [];
+      setClasses(value);
+      classesRef.current = value;
+      return value;
+    } catch (error) {
+      console.error('Could not load the class:', error);
+      return [];
+    }
+  };
+
   const fetchClassSchedule = async () => {
     try {
       const snapshot = await getDoc(doc(db, 'settings', 'classSchedule'));
@@ -3684,7 +3710,7 @@ function App() {
         // period-keyed profile is only a fallback for a student nobody has
         // placed in a class yet — it cannot answer the question once two
         // classes share a period.
-        const loadedClasses = await fetchClasses();
+        const loadedClasses = await fetchStudentClass(studentData.classId);
         if (cancelled) return;
         // The class, its name, period and teachers, and the course and level it sets, from the roster row
         // and the class's record; the grade document's listener keeps them following the row
@@ -5518,9 +5544,9 @@ function App() {
     }
     classReadForRosterRef.current = classId;
     let cancelled = false;
-    fetchClasses().then((loaded) => { if (!cancelled) follow(Object.fromEntries(loaded.map((entry) => [entry.classId, entry]))); });
+    fetchStudentClass(classId).then((loaded) => { if (!cancelled) follow(Object.fromEntries(loaded.map((entry) => [entry.classId, entry]))); });
     return () => { cancelled = true; };
-    // fetchClasses is the component's own loader; the row, the classes read and the course settings decide the answer.
+    // fetchStudentClass is the component's own loader; the row, the class read and the course settings decide the answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);
 
