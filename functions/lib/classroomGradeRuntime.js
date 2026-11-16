@@ -124,7 +124,9 @@ function getQuestionCredit(record) {
   const normalized = normalizeStoredQuestionRecord(record);
   if (normalized.status === "correct") return 1;
   const stored = clampPercent(normalized.bestPartialCredit ?? normalized.partialCredit ?? 0);
-  const derived = storedAlgebraStepPartialCredit(normalized);
+  // A summary stored apart from its detail carries what its steps earned as
+  // `stepCredit` (functions/shared/gradeEntryStorage.mjs).
+  const derived = Math.max(storedAlgebraStepPartialCredit(normalized), clampPercent(normalized.stepCredit ?? 0));
   return Math.max(stored, derived) / 100;
 }
 

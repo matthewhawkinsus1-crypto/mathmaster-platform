@@ -1947,7 +1947,10 @@ function getQuestionCredit(record, authoritativeOverride = null) {
   }
   if (record.status === "correct") return 1;
   const stored = clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0);
-  const derived = storedAlgebraStepPartialCredit(record);
+  // `stepCredit` is what the steps earned, stored on a record's summary when
+  // its detail (stepGrades among it) was split off (gradeEntryStorage.mjs):
+  // a summary read on its own grades exactly as the full record.
+  const derived = Math.max(storedAlgebraStepPartialCredit(record), clampPercent(record.stepCredit ?? 0));
   return Math.max(stored, derived) / 100;
 }
 
