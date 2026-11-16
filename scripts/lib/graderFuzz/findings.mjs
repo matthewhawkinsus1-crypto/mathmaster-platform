@@ -46,7 +46,9 @@ export const finding = ({ target, property, signature, message, repro, severity 
 /** A thrown value as one short line a signature can hold. */
 export const errorLine = (error) => String(error?.message ?? error)
   .split('\n')[0]
-  // Not the value that broke it: one cause, one signature.
+  // Not the value that broke it: one cause, one signature. A message that
+  // quotes the value after a colon ("Unsupported relation: C = 2πr") keeps its head.
+  .replace(/:\s.*$/, ': …')
   .replace(/"[^"]*"|'[^']*'|`[^`]*`/g, '"…"')
   .replace(/\d+/g, 'N')
   .slice(0, 90);
