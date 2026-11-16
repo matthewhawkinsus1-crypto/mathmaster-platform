@@ -12,8 +12,11 @@
  *
  * It now reads them a page at a time in document-id order, which is also
  * Firestore's own order for an equality-only query, so the query needs no new
- * index. The scheduler logs a warning when a run nears its limits and an error
- * if it ever stops at the page limit.
+ * index. A page is 1,000 links, the size of the query it replaced: below 1,000
+ * a run is still one query and reads exactly what it read. Only a count that
+ * is an exact multiple of 1,000 costs one more query, which finds nothing (one
+ * read) and shows that nothing was left. The scheduler logs a warning when a
+ * run nears its limits and an error if it ever stops at the page limit.
  *
  * A bounded "next wake" query on due work would read far less. It needs every
  * existing deadline migrated onto a new field first, so it is not done here.
@@ -21,9 +24,9 @@
 
 const { FieldPath } = require("firebase-admin/firestore");
 
-const CHECKPOINT_LINK_PAGE_SIZE = 500;
+const CHECKPOINT_LINK_PAGE_SIZE = 1000;
 // 20,000 links. A run that reaches it reads no further and logs an error.
-const CHECKPOINT_LINK_MAX_PAGES = 40;
+const CHECKPOINT_LINK_MAX_PAGES = 20;
 // From here every run warns: reading each link every 5 minutes has become
 // costly enough that the bounded "next wake" query should replace it.
 const CHECKPOINT_LINK_WARN_AT = 2000;

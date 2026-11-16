@@ -249,7 +249,7 @@ test('every writer of a Classroom publication stores gradePassbackEnabled as a b
 
 // The section scheduler read its links through one unordered limit(1000), so
 // past 1,000 links (445 on Nov 11, 2026) it would have dropped classes'
-// checkpoints without a sign. It reads them in document-id order, 500 a page,
+// checkpoints without a sign. It reads them in document-id order, 1,000 a page,
 // and says so in the log when a run nears its limits.
 const scan = requireFromFunctions('./lib/classroomCheckpointScan.js');
 const logger = requireFromFunctions('firebase-functions/logger');
@@ -278,9 +278,8 @@ test('past 1,000 links the section scheduler still reads every one, in document-
 
   const pages = linkQueries(db);
   assert.deepEqual(pages.map((page) => [page.orderBy, page.limit, page.startAfter]), [
-    ['__name__', 500, null],
-    ['__name__', 500, 'link-A0499'],
-    ['__name__', 500, 'link-A0999'],
+    ['__name__', 1000, null],
+    ['__name__', 1000, 'link-A0999'],
   ]);
   for (const page of pages) {
     assert.deepEqual(page.filters, [
@@ -294,6 +293,26 @@ test('past 1,000 links the section scheduler still reads every one, in document-
   assert.equal(db.queued.length, count);
   assert.ok(db.queued.every((q) => q.data.reason === 'due-checkpoint' && q.data.studentId === 's1'));
   assert.deepEqual(logs, [], '1,203 links are not near the limits');
+});
+
+// No more reads than the single limit(1000) query it replaced, for every count
+// that query served: one query, the same links.
+test('below 1,000 links a run is still one query, reading exactly the links it read', async () => {
+  for (const count of [0, 445, 999]) {
+    const db = await run(checkpointSchedulerFirestore({
+      classroomLinks: Object.fromEntries(Array.from({ length: count }, (_, n) => [`link-${String(n).padStart(4, '0')}`, sectionLink('A1')])),
+      assignments: { A1: { dueAt: iso(7 * DAY), assignedClassIds: ['c1'] } },
+      grades: {},
+    }), 'section');
+    assert.deepEqual(linkQueries(db).map((page) => [page.limit, page.startAfter]), [[1000, null]], `${count} links`);
+  }
+  // An exact multiple of a page costs one more query, which finds nothing.
+  const full = await run(checkpointSchedulerFirestore({
+    classroomLinks: Object.fromEntries(Array.from({ length: 1000 }, (_, n) => [`link-${String(n).padStart(4, '0')}`, sectionLink('A1')])),
+    assignments: { A1: { dueAt: iso(7 * DAY), assignedClassIds: ['c1'] } },
+    grades: {},
+  }), 'section');
+  assert.deepEqual(linkQueries(full).map((page) => page.startAfter), [null, 'link-0999']);
 });
 
 test('a run past 2,000 links warns, and one that stops at the page limit logs an error and still serves what it read', async () => {
