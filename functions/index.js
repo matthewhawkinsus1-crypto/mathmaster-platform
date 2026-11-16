@@ -1316,8 +1316,11 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
       try {
         receipts.push(await recordOneQuestionProgress({ db, studentId, envelope: progress }));
       } catch (error) {
+        // `errorMessage`, not `message`: the logger's own message overwrites a
+        // `message` field, and the cause (Nov 16, 2026: "too many index entries
+        // for entity /grades/…") reached only the device, never the log.
         logger.error("Could not record question progress", {
-          studentId, actionId: progress.actionId, message: error.message,
+          studentId, actionId: progress.actionId, errorMessage: error?.message, errorCode: error?.code ?? null,
         });
         receipts.push({
           actionId: progress.actionId,
@@ -1344,7 +1347,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
       receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings }));
     } catch (error) {
       logger.error("Could not ingest a student submission", {
-        studentId, actionId: envelope.actionId, message: error.message,
+        studentId, actionId: envelope.actionId, errorMessage: error?.message, errorCode: error?.code ?? null,
       });
       // A failed write is a retry, never a retirement.
       receipts.push({

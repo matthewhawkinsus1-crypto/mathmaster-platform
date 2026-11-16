@@ -431,5 +431,72 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "gradesByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "classroomSectionSyncStatusByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "assignmentActivity",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "classroomReleaseSignals",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "sectionRecoveryByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "dolGradesByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "classworkGradesByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "supportUsageByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "classroomSyncStatusByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "teacherGradeOverridesByAssignment",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "grades",
+      "fieldPath": "testCycleGrades",
+      "ttl": false,
+      "indexes": []
+    }
+  ]
 }
