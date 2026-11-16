@@ -16,9 +16,16 @@
 // A step that only runs on a schedule counts only where it is meant to.
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { jobsOf, readWorkflow as read, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
+
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 const SERVERS = {
   plain: /npx vite --host 127\.0\.0\.1 --port 5199 --strictPort/,
@@ -80,6 +87,10 @@ const DRIVERS = [
   // beside the whole Graph Feature Rush games; ran by hand until it passed
   // twice in a row in Playwright's headless Chromium.
   ['student-pass3-emulator-journeys.yml', 'pass3-systems-rush-screens', 'vite', ['systemsRushScreens']],
+  // S14 (#548): radical equations solved through Step Algebra's controls and
+  // graded and replayed by the server's code, in shards (below); ran by hand
+  // until it passed twice in a row in Playwright's headless Chromium.
+  ['student-runtime-browser-gates.yml', 'radical-step-algebra', 'plain', ['algebra2RadicalStepAlgebra']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -121,6 +132,41 @@ for (const [workflow, job, server, drivers] of DRIVERS) {
   });
 }
 
+// S14: one browser took 17 minutes for every radical journey, so
+// radical-step-algebra splits them over shards, one `ONLY=` list each. Every
+// journey the driver has runs in exactly one shard (a journey in none is
+// coverage nobody sees go; one in two is time spent twice), and the driver
+// refuses a name that is no journey before it starts a browser, so a list
+// cannot quietly run less than it says.
+test('every radical Step Algebra journey runs in exactly one shard of radical-step-algebra', () => {
+  const job = jobsOf(read('student-runtime-browser-gates.yml'))['radical-step-algebra'];
+  assert.ok(job, 'student-runtime-browser-gates.yml has a radical-step-algebra job');
+  const step = stepsOf(job).find((entry) => /run: node tests\/browser\/algebra2RadicalStepAlgebra\.mjs\s*$/m.test(entry));
+  assert.match(step, /^ +ONLY: \$\{\{ matrix\.shard\.only \}\}$/m, 'each shard runs its own list');
+  const shards = [...job.matchAll(/^ {10}- \{ name: ([\w-]+), only: "([^"]*)" \}\s*$/gm)].map(([, name, only]) => ({ name, journeys: only.split(',') }));
+  assert.ok(shards.length >= 2, `${shards.length} shard(s)`);
+  // The driver's journeys, as it lists them when it refuses a name.
+  const artifacts = mkdtempSync(path.join(os.tmpdir(), 'radical-journeys-'));
+  try {
+    const refusal = spawnSync(process.execPath, [path.join(repo, 'tests/browser/algebra2RadicalStepAlgebra.mjs')], {
+      encoding: 'utf8',
+      timeout: 60_000,
+      // No browser is wanted, and none must be reached: a module that does not exist.
+      env: { PATH: process.env.PATH, ONLY: 'examples,no-such-journey', PLAYWRIGHT_MODULE: '/nonexistent/playwright.mjs', ARTIFACTS_DIR: artifacts },
+    });
+    assert.equal(refusal.status, 2, `${refusal.stderr}`.slice(0, 400));
+    assert.match(refusal.stderr, /No journey called no-such-journey\./);
+    const journeys = (refusal.stderr.match(/The journeys are: ([^.]+)\./) || [])[1]?.split(', ') || [];
+    assert.ok(journeys.length >= 5, `the driver lists its journeys (${journeys.join(', ')})`);
+    const ran = {};
+    shards.forEach(({ journeys: list }) => list.forEach((name) => { ran[name] = (ran[name] || 0) + 1; }));
+    assert.deepEqual(Object.keys(ran).sort(), [...journeys].sort(), 'the shards run the driver\'s journeys and no others');
+    journeys.forEach((name) => assert.equal(ran[name], 1, `${name} runs in exactly one shard`));
+  } finally {
+    rmSync(artifacts, { recursive: true, force: true });
+  }
+});
+
 test('the lobby invite journey enters the game on the accessibility App harness', () => {
   const steps = stepsOf(jobsOf(read('student-teacher-journeys.yml'))['pass3-student-journeys']);
   const harness = steps.findIndex((step) => SERVERS.a11yApp.test(step));
@@ -142,6 +188,16 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   });
   // toolChoiceGroups (W7-2) opens the keyboard sweep's page.
   assert.ok(runsOnPullRequest(gates, 'tests/browser/keyboardSweep.html'));
+  // S14: the radical journeys' driver, page and student emulator, the scenarios
+  // they append, the lesson they import, what they solve and grade with, and
+  // the dev server's config.
+  ['tests/browser/algebra2RadicalStepAlgebra.mjs', 'tests/browser/algebra2RadicalStepAlgebra.html', 'tests/browser/algebra2RadicalStepAlgebraMain.jsx',
+    'tests/browser/radicalStepAlgebraDriver.mjs', 'tests/browser/relationWorkspaceDriver.mjs', 'tests/browser/fixtures/radicalStepAlgebraScenarios.json',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
+    'functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs', 'functions/shared/submissionEnvelope.mjs', 'src/MultiRelationAlgebraCore.jsx',
+    'src/platform/contract/radicalEquationIntent.js', 'vite.config.js'].forEach((file) => {
+    assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
+  });
   // secureExamToolFocus opens the app harness's practice test (no page of its own).
   ['tests/browser/secureExamToolFocus.mjs', 'tests/browser/accessibilityAppHarness.vite.config.mjs',
     'tests/browser/teacherWorkflow/innerScreensFixture.js', 'tests/browser/teacherWorkflow/fakeSecureExamService.js'].forEach((file) => {

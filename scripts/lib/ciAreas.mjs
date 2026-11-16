@@ -270,6 +270,14 @@ export const CI_AREAS = {
     'tests/browser/phoneToolPanelReach*',
     'tests/browser/algebra1Module2Topic2*',
     'teacher-import-jsons/algebra1-module2-topic2/**',
+    // Radical equations on Step Algebra (#548): the driver, its page and
+    // student emulator, the scenarios it appends, the lesson it imports, and
+    // the dev server's config (one mathjs for browser and server grading).
+    'tests/browser/algebra2RadicalStepAlgebra*',
+    'tests/browser/radicalStepAlgebraDriver.mjs',
+    'tests/browser/fixtures/radicalStepAlgebraScenarios.json',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
+    'vite.config.js',
     'tests/browser/undoTyping*',
     'tests/browser/toolFocusAndUndo*',
     'tests/browser/composedOutcomePolicy*',

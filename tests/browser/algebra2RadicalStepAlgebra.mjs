@@ -2,8 +2,14 @@
 //
 //   npx vite --host 127.0.0.1 --port 5197 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5197 node tests/browser/algebra2RadicalStepAlgebra.mjs [journey ...]
+//   AUDIT_ORIGIN=http://127.0.0.1:5197 ONLY=examples,shapes node tests/browser/algebra2RadicalStepAlgebra.mjs
 //
 //   (PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome> when the defaults are not installed.)
+//
+// It runs in CI: .github/workflows/student-runtime-browser-gates.yml, job radical-step-algebra, on the plain
+// dev server at 5199, its journeys split over the job's shards by `ONLY=` (every journey in exactly one:
+// tests/platform/pass3BrowserDriversInCi.test.mjs). A name that is no journey is refused (exit 2) before
+// any browser starts.
 //
 // The lesson is compiled through the teacher import chain by algebra2RadicalStepAlgebraMain.jsx and
 // mounted in the real QuestionEngine (no Firebase), on a Chromebook-sized screen (1366x768). Each
@@ -52,7 +58,6 @@ const ROOT = path.resolve(here, '../..');
 const ARTIFACTS = process.env.ARTIFACTS_DIR || path.join(ROOT, 'tests/browser/artifacts/algebra2RadicalStepAlgebra');
 const PLAYWRIGHT_MODULE = process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs';
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || undefined;
-const { chromium } = await import(PLAYWRIGHT_MODULE);
 
 const CHROMEBOOK = { width: 1366, height: 768 };
 const VERBOSE = process.env.VERBOSE === '1';
@@ -519,11 +524,19 @@ journeys.lesson = async (browser) => {
   }
 };
 
-const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(journeys);
+// The journeys to run: named on the command line, or in ONLY (comma-separated: CI's shards), or all of them.
+// A name that is no journey is refused before any browser starts, so a shard's list cannot run as less than it says.
+const named = process.argv.slice(2).length ? process.argv.slice(2) : (process.env.ONLY || '').split(',').map((name) => name.trim()).filter(Boolean);
+const selected = named.length ? named : Object.keys(journeys);
+const unknown = selected.filter((name) => !Object.hasOwn(journeys, name));
+if (unknown.length) {
+  console.error(`No journey called ${unknown.join(', ')}. The journeys are: ${Object.keys(journeys).join(', ')}.`);
+  process.exit(2);
+}
+const { chromium } = await import(PLAYWRIGHT_MODULE);
 const browser = await chromium.launch(CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {});
 try {
   for (const name of selected) {
-    if (!journeys[name]) { console.error(`unknown journey: ${name}`); process.exitCode = 2; continue; }
     journeyName = name;
     const started = Date.now();
     const before = findings.length;
