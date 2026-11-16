@@ -9584,14 +9584,17 @@ function App() {
   const renderStudentPackUpNotice = () => {
     if (user?.role !== 'student' || !user.classPeriod) return null;
     if (secureExamActive) return null;
-    const packUp = getClassPackUpState({
+    // The bell window, once per change of the schedule, the class period and
+    // the clock: asked on every render, it worked out the schedule and its
+    // time-zone arithmetic again each time, several times a Submit.
+    const packUp = renderMemo('packUp', [classSchedule, user.classPeriod, now], () => getClassPackUpState({
       schedule: classSchedule,
       classPeriod: user.classPeriod,
       nowValue: now,
       minutesBeforeEnd: 5,
-    });
+    }));
     if (packUp.status !== 'active') return null;
-    if (studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now })) return null;
+    if (renderMemo('packUpExtraTime', [assignments, classSchedule, user.classId, user.classPeriod, now], () => studentExtraTimeDolOpen({ assignments, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now }))) return null;
     // "Saved" only when nothing is owed (packUpLine.js).
     const workLine = packUpWorkLine(studentSaveStatusNow());
 
@@ -9652,26 +9655,36 @@ function App() {
   // lessons: the banner shows it, and on a phone (no banner) the assignment's
   // status chip offers it when it belongs to another lesson. Asked twice a
   // render, it walks every lesson's bell window: worked out once per change
-  // of what it reads.
-  const studentActiveWarmup = () => renderMemo('activeWarmup', [user, secureExamActive, assignments, classSchedule, now, tracker], () => {
-    if (user?.role !== 'student' || !user.classPeriod) return null;
-    // Its "Go to Warm-Up" would take a student out of a secure exam.
-    if (secureExamActive) return null;
-    const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
-    const active = assignments
-      .filter((assignment) => assignmentIsForStudent(assignment, classContext))
-      .map((assignment) => {
-        const state = getWarmupState({
-          assignment,
-          schedule: classSchedule,
-          ...classContext,
-          nowValue: now,
-        });
-        if (state.status !== 'active') return null;
-        // Never recommend work the student cannot do for credit: excused
-        // for them, or not open to them (not released yet / closed).
-        if (assignmentIsExcusedForStudent(assignment, user.id)) return null;
-        if (!getAssignmentLifecycle(assignment, now, { studentId: user.id }).isOpen) return null;
+  // of what it reads, in two parts. Which lessons have a Warm-Up open to this
+  // student now reads the bell windows and the lessons, not the tracker, so a
+  // Submit's tracker changes do not walk the windows again; which questions
+  // are left reads the records of those lessons only.
+  const studentActiveWarmup = () => {
+    const open = renderMemo('openWarmups', [user, secureExamActive, assignments, classSchedule, now], () => {
+      if (user?.role !== 'student' || !user.classPeriod) return [];
+      // Its "Go to Warm-Up" would take a student out of a secure exam.
+      if (secureExamActive) return [];
+      const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+      return assignments
+        .filter((assignment) => assignmentIsForStudent(assignment, classContext))
+        .map((assignment) => {
+          const state = getWarmupState({
+            assignment,
+            schedule: classSchedule,
+            ...classContext,
+            nowValue: now,
+          });
+          if (state.status !== 'active') return null;
+          // Never recommend work the student cannot do for credit: excused
+          // for them, or not open to them (not released yet / closed).
+          if (assignmentIsExcusedForStudent(assignment, user.id)) return null;
+          if (!getAssignmentLifecycle(assignment, now, { studentId: user.id }).isOpen) return null;
+          return { assignment, state };
+        })
+        .filter(Boolean);
+    });
+    return renderMemo('activeWarmup', [open, ...open.map(({ assignment }) => tracker?.[assignment.id])], () => open
+      .map(({ assignment, state }) => {
         const questions = getStoredAssignmentQuestions(assignment);
         const bannerOmitted = new Set(studentRequiredFor(assignment).omitted);
         const questionIndices = questions.reduce((indices, question, index) => {
@@ -9691,9 +9704,8 @@ function App() {
         return questionIndices.length && !warmupFinished ? { assignment, state, questionIndices } : null;
       })
       .filter(Boolean)
-      .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
-    return active[0] || null;
-  });
+      .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0))[0] || null);
+  };
 
   const renderStudentWarmupBanner = () => {
     const activeWarmup = studentActiveWarmup();
@@ -10317,8 +10329,11 @@ function App() {
 
     // Worked out above for this same assignment, once per change of what
     // each reads (a preview is a teacher's, whose lifecycle names no student).
+    // What follows reads the same assignment, the bell windows, the lifecycle
+    // and the clock on every render, so each of those reads is kept
+    // (renderMemo) until one of its inputs changes.
     const questions = activeQuestions;
-    const currentContent = projectCurrentAssignmentContent(assignment);
+    const currentContent = renderMemo('currentContent', [assignment], () => projectCurrentAssignmentContent(assignment));
     const lifecycle = activeLifecycle;
     /*
      * A GRANTED PRACTICE PASS EXCUSES PRACTICE FROM THIS RUNTIME.
@@ -10391,19 +10406,19 @@ function App() {
     // again and the receipt from the earlier window no longer describes it.
     const currentSectionOpenNow = (currentIsWarmup && warmupState.status === 'active')
       || (currentIsDOL && dolState.status === 'active');
-    const currentManualSectionState = getSectionAccessState({
+    const currentManualSectionState = renderMemo('currentManualSectionState', [getSectionAccessState, assignment, activeQuestionRole, user?.classId, user?.classPeriod, now, preview, user?.role, user?.id], () => getSectionAccessState({
       assignment,
       activityRole: activeQuestionRole,
       classId: user?.classId || null,
       classPeriod: user?.classPeriod,
       nowValue: now,
       studentId: !preview && user?.role === 'student' ? user.id : undefined,
-    });
+    }));
     const currentSectionManuallyLocked = !preview
       && !lifecycle.isPracticeOnly
       && currentManualSectionState.enabled
       && !currentManualSectionState.isOpen;
-    const assignmentFeedbackHeld = !preview && !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment);
+    const assignmentFeedbackHeld = !preview && !lifecycle.isPracticeOnly && renderMemo('heldTeacherFeedback', [assignment], () => assignmentHasHeldTeacherFeedback(assignment));
     const currentFeedbackReleased = lifecycle.isPracticeOnly || assignmentFeedbackWasReleased(assignment)
       || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
@@ -11131,7 +11146,7 @@ function App() {
                 {preview && <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? 'var(--mm-success-bg)' : 'var(--mm-accent-soft)', color: currentSectionVariantMode === 'shared' ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>}
               </div>
               <div style={{ color: 'var(--mm-text-muted)', fontSize: 'calc(13 * var(--mm-px))', marginTop: '7px', lineHeight: 1.5 }}>
-                {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLine}{dates.finalLine ? <><br />{dates.finalLine}</> : null}</>; })()}
+                {(() => { const dates = renderMemo('dueDateLines', [assignment, lifecycle], () => studentDueDateLines(assignment, lifecycle)); return <>{dates.dueLine}{dates.finalLine ? <><br />{dates.finalLine}</> : null}</>; })()}
               </div>
               {/* A student who opens the assignment from a Google Classroom link
                   never passes Home or View Results; the assignment itself says
@@ -11787,7 +11802,10 @@ function App() {
       recordOf: (storageIndex) => tracker?.[activeAssignmentId]?.[storageIndex],
     });
   };
-  const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome();
+  // Once per change of what the rule reads (the open question, its
+  // assignment, the clock for its lifecycle, this assignment's records), not
+  // on every render.
+  const lobbyInviteHeldHere = renderMemo('lobbyInviteHeld', [user?.role, user?.id, activeView, activeAssignmentId, assignments, now, currentQuestionIndex, tracker?.[activeAssignmentId]], studentWorkspaceHoldsOutcome);
 
   const [classroomAnnouncementText, setClassroomAnnouncementText] = useState('');
   const classroomAnnouncementRef = useRef(null);

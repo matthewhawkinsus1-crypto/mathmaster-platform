@@ -14,7 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRenderMemo, createStableCallbacks, sameStableValue } from '../../src/platform/performance/renderStability.js';
-import { executableSource } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -298,6 +298,14 @@ test('App works out the bell windows, the lifecycle and the grades once per chan
   // fresh `{}` on every render.
   assert.match(app, /\nconst NO_RECORDS = Object\.freeze\(\{\}\);\n/);
   // Every lesson's Warm-Up window, asked twice a render (the banner and the
-  // workspace's status chip), worked out once per change of what it reads.
-  assert.match(app, /const studentActiveWarmup = \(\) => renderMemo\('activeWarmup', \[user, secureExamActive, assignments, classSchedule, now, tracker\], \(\) => \{/);
+  // workspace's status chip), worked out once per change of what it reads:
+  // the windows on the student, the lessons, the schedule and the clock (not
+  // the tracker, which a Submit changes), the questions left on the records
+  // of the lessons whose Warm-Up is open.
+  const warmup = region(app, 'const studentActiveWarmup = () => {', 'const renderStudentWarmupBanner = () => {', 'the active Warm-Up');
+  assert.match(warmup, /const open = renderMemo\('openWarmups', \[user, secureExamActive, assignments, classSchedule, now\], \(\) => \{/);
+  assert.match(warmup, /return renderMemo\('activeWarmup', \[open, \.\.\.open\.map\(\(\{ assignment \}\) => tracker\?\.\[assignment\.id\]\)\], \(\) => open\s*\.map\(/);
+  const windows = region(warmup, "const open = renderMemo('openWarmups'", "return renderMemo('activeWarmup'", 'the open Warm-Ups');
+  assert.doesNotMatch(executableSource(windows), /\btracker\b|studentRequiredFor/, 'the windows read no record');
+  assert.match(windows, /getWarmupState\(\{/);
 });

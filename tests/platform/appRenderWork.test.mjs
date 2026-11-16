@@ -430,6 +430,121 @@ test('the navigator works out a question\'s line once per change of what it read
   assert.match(known, /if \(!assignmentId \|\| !isFamilyBackedQuestion\(storedQuestion\) \|\| preview \|\| typeof deal === 'function'\) return true;/);
 });
 
+/* ------------------------------------- shared code, once per change (3rd pass) */
+/*
+ * WHAT A RENDER READS OF THE BELL SCHEDULE, THE LIFECYCLE AND THE RECORDS.
+ *
+ * After the second pass App still asked shared Functions code the same
+ * questions on every one of its renders (five to seven a Submit, counting the
+ * ones React makes for an update that changes nothing): the pack-up line's
+ * bell window, the lobby invite's rule, the workspace's section access, held
+ * feedback, current content and due dates, each lesson's Warm-Up window on
+ * every tracker change, and the normalised records of the open assignment.
+ * Each is now kept until something it reads changes: renderMemo on exactly
+ * its inputs. What each memo reads is checked against what it is keyed on,
+ * as the navigator's are above.
+ */
+
+const KEYWORDS = new Set([...JS, 'if', 'else', 'new', 'typeof']);
+// A renderMemo slot's inputs and the text of what it works out.
+const memoSlot = (code, name) => {
+  const start = code.indexOf(`renderMemo('${name}', [`);
+  assert.ok(start >= 0, `renderMemo('${name}', ...)`);
+  let depth = 0;
+  let at = start + `renderMemo('${name}', `.length;
+  const inputsStart = at;
+  for (; at < code.length; at += 1) {
+    const char = code[at];
+    if (char === '[' || char === '(' || char === '{') depth += 1;
+    if (char === ']' || char === ')' || char === '}') depth -= 1;
+    if (depth === 0) break;
+  }
+  const inputs = code.slice(inputsStart + 1, at).split(',').map((input) => input.trim()).filter(Boolean);
+  // What follows the inputs, up to the call's own closing parenthesis.
+  depth = 1;
+  const bodyStart = at + 1;
+  for (at = bodyStart; at < code.length && depth > 0; at += 1) {
+    const char = code[at];
+    if (char === '(' || char === '[' || char === '{') depth += 1;
+    if (char === ')' || char === ']' || char === '}') depth -= 1;
+  }
+  return { inputs, body: code.slice(bodyStart, at - 1).replace(/^,\s*/, '') };
+};
+// What `user` (or another object) a text reads: the properties after it.
+const propertiesOf = (text, name) => [...new Set([...text.matchAll(new RegExp(`\\b${name}(?:\\?\\.|\\.)(\\w+)`, 'g'))].map((match) => match[1]))].sort();
+
+test('App works out the pack-up line, the lobby rule and the workspace\'s lifecycle reads once per change of what each reads', () => {
+  const code = app();
+  const PURE = ['getClassPackUpState', 'studentExtraTimeDolOpen', 'projectCurrentAssignmentContent', 'assignmentHasHeldTeacherFeedback', 'studentDueDateLines', 'getAssignmentLifecycle', 'sectionHoldsLobbyInvite', 'getEffectiveActivityPolicy', 'assignmentFeedbackWasReleased'];
+  const cases = {
+    packUp: { inputs: ['classSchedule', 'user.classPeriod', 'now'], user: ['classPeriod'] },
+    packUpExtraTime: { inputs: ['assignments', 'classSchedule', 'user.classId', 'user.classPeriod', 'now'], user: ['classId', 'classPeriod'] },
+    currentContent: { inputs: ['assignment'] },
+    currentManualSectionState: { inputs: ['getSectionAccessState', 'assignment', 'activeQuestionRole', 'user?.classId', 'user?.classPeriod', 'now', 'preview', 'user?.role', 'user?.id'], user: ['classId', 'classPeriod', 'id', 'role'] },
+    heldTeacherFeedback: { inputs: ['assignment'] },
+    dueDateLines: { inputs: ['assignment', 'lifecycle'] },
+  };
+  for (const [name, expected] of Object.entries(cases)) {
+    const { inputs, body } = memoSlot(code, name);
+    assert.deepEqual(inputs, expected.inputs, `${name}: its inputs`);
+    const roots = new Set(inputs.map((input) => input.split(/\?\.|\./)[0]));
+    only(body.slice(body.indexOf('=>') + 2), new Set([...KEYWORDS, ...PURE, ...roots]), name);
+    if (expected.user) assert.deepEqual(propertiesOf(body, 'user'), expected.user, `${name}: what it reads of the student`);
+  }
+  // The lobby rule: its function, keyed on the student, the screen, the
+  // open assignment and question, the lessons, the clock and that
+  // assignment's records (and only those of its records).
+  const lobby = /const lobbyInviteHeldHere = renderMemo\('lobbyInviteHeld', \[([^\]]*\[activeAssignmentId\])\], studentWorkspaceHoldsOutcome\);/.exec(code);
+  assert.ok(lobby, 'the lobby rule through renderMemo');
+  assert.deepEqual(lobby[1].split(',').map((input) => input.trim()), ['user?.role', 'user?.id', 'activeView', 'activeAssignmentId', 'assignments', 'now', 'currentQuestionIndex', 'tracker?.[activeAssignmentId]']);
+  const rule = region(code, 'const studentWorkspaceHoldsOutcome = () => {', '\n  };', 'the lobby rule');
+  only(rule.slice(rule.indexOf('=>') + 2), new Set([...KEYWORDS, ...PURE, 'user', 'activeView', 'activeAssignmentId', 'assignments', 'item', 'assignment', 'now', 'entries', 'entry', 'role', 'currentQuestionIndex', 'storageIndex', 'tracker']), 'the lobby rule');
+  assert.deepEqual(propertiesOf(rule, 'user'), ['id', 'role']);
+  for (const match of rule.matchAll(/\btracker\b(.{0,24})/g)) assert.match(match[1], /^\?\.\[activeAssignmentId\]/, `tracker${match[1]}`);
+  // Nothing in a render asks them outside their memos (the precise clock's
+  // effect asks for the bell window at the real time, after a render).
+  const packUpLine = region(code, 'const renderStudentPackUpNotice = () => {', 'const renderStudentWarmupBanner = () => {', 'the pack-up line');
+  assert.equal(packUpLine.split('getClassPackUpState(').length - 1, 1);
+  assert.equal(packUpLine.split('studentExtraTimeDolOpen(').length - 1, 1);
+  assert.equal(code.split('studentWorkspaceHoldsOutcome').length - 1, 2, 'defined, and handed to its memo');
+  const workspace = region(code, 'const renderAssignmentWorkspace = (preview = false) => {', 'const renderWhatChangedPanel = ', 'the assignment workspace');
+  const callsIn = (text, call) => text.split(call).length - 1;
+  assert.equal(callsIn(workspace, 'projectCurrentAssignmentContent('), 1);
+  assert.match(workspace, /renderMemo\('currentContent', \[assignment\], \(\) => projectCurrentAssignmentContent\(assignment\)\)/);
+  assert.equal(callsIn(workspace, 'assignmentHasHeldTeacherFeedback('), 1);
+  assert.match(workspace, /renderMemo\('heldTeacherFeedback', \[assignment\], \(\) => assignmentHasHeldTeacherFeedback\(assignment\)\)/);
+  // The section access: the open question's, and the navigator's per section.
+  assert.equal(callsIn(workspace, 'getSectionAccessState({'), 2);
+  assert.match(workspace, /renderMemo\('currentManualSectionState', \[[^\]]*\], \(\) => getSectionAccessState\(\{/);
+  assert.match(workspace, /renderMemo\(`navigatorSection\|\$\{cacheKey\}`, \[[^\]]*\], \(\) => describeSectionAccess\(\{[\s\S]*manualState: getSectionAccessState\(\{/);
+  // The due dates: the header's through its memo; the others only while the
+  // work is late (its banner and status chip).
+  const dueDates = [...workspace.matchAll(/studentDueDateLines\(assignment, lifecycle\)/g)].map((match) => match.index);
+  assert.ok(dueDates.length >= 2);
+  for (const at of dueDates) {
+    const before = workspace.slice(Math.max(0, at - 700), at);
+    assert.ok(before.endsWith("renderMemo('dueDateLines', [assignment, lifecycle], () => ") || /lifecycle\.isLate && /.test(before), `studentDueDateLines at ${at}: in its memo or a late-only branch`);
+  }
+});
+
+test('each lesson\'s Warm-Up window is worked out from the bell schedule, not again on each tracker change', () => {
+  const code = app();
+  const warmup = region(code, 'const studentActiveWarmup = () => {', 'const renderStudentWarmupBanner = () => {', 'the active Warm-Up');
+  const windows = memoSlot(warmup, 'openWarmups');
+  assert.deepEqual(windows.inputs, ['user', 'secureExamActive', 'assignments', 'classSchedule', 'now']);
+  only(windows.body.slice(windows.body.indexOf('=>') + 2), new Set([...KEYWORDS, 'user', 'secureExamActive', 'assignments', 'classSchedule', 'now', 'classContext', 'assignment', 'state', 'assignmentIsForStudent', 'getWarmupState', 'assignmentIsExcusedForStudent', 'getAssignmentLifecycle']), 'the open Warm-Ups');
+  // The questions left: on the open Warm-Ups (so on everything they read)
+  // and on the records of their lessons, nothing else of the tracker.
+  const left = memoSlot(warmup, 'activeWarmup');
+  assert.deepEqual(left.inputs, ['open', '...open.map(({ assignment }) => tracker?.[assignment.id])']);
+  only(left.body.slice(left.body.indexOf('=>') + 2), new Set([...KEYWORDS, 'open', 'assignment', 'state', 'questions', 'bannerOmitted', 'questionIndices', 'indices', 'question', 'index', 'warmupFinished', 'tracker', 'a', 'b', 'Set', 'Number', 'getStoredAssignmentQuestions', 'studentRequiredFor', 'questionIsIncluded', 'resolveQuestionActivityRole', 'normalizeQuestionRecord', 'questionRecordView']), 'the Warm-Up questions left');
+  for (const match of left.body.matchAll(/\btracker\b(.{0,18})/g)) assert.match(match[1], /^\?\.\[assignment\.id\]/, `tracker${match[1]}`);
+  // studentRequiredFor reads the lessons, the student and that lesson's
+  // records: the first two are the open Warm-Ups' own inputs.
+  const required = region(code, 'const studentRequiredFor = (assignmentData,', '\n  );\n', 'studentRequiredFor');
+  only(required.slice(required.indexOf('=>') + 2), new Set([...KEYWORDS, 'studentRequiredQuestions', 'assignments', 'entry', 'assignmentData', 'hasPracticePass', 'forStudent', 'user', 'assignmentTracker', 'tracker']), 'studentRequiredFor');
+});
+
 /* ------------------------------------------- what the runtime driver counts */
 /*
  * studentRuntimePerformance.mjs hands each interaction to appRenderMeasures.mjs,
