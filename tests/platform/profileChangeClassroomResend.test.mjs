@@ -250,6 +250,8 @@ test('a push only a profile change asked for corrects a grade Classroom holds, a
   assert.equal(profileChangeNeedsPush({ status: 'synced', grade: '82' }, 82), false, 'a stored number as text is still the same grade');
   assert.equal(profileChangeNeedsPush({}, 82), false, 'never sent: a profile change does not start a column');
   assert.equal(profileChangeNeedsPush(null, 82), false);
+  assert.equal(profileChangeNeedsPush({ status: 'graded-not-returned', grade: 70 }, 82), true, 'Classroom saved 70 and refused only to return it: it holds 70');
+  assert.equal(profileChangeNeedsPush({ status: 'graded-not-returned', grade: 82 }, 82), false);
   assert.equal(profileChangeNeedsPush({ status: 'failed', grade: 70 }, 82), false, 'a failed push is the teacher\'s to retry');
   assert.equal(profileChangeNeedsPush({ status: 'auth-error', grade: 70 }, 82), false);
   assert.equal(profileChangeNeedsPush({ status: 'recovery-held', grade: null }, 82), false);

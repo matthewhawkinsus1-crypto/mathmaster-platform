@@ -213,9 +213,9 @@ export function fakeGoogle({ states = {}, refuse = () => null } = {}) {
   const calls = [];
   const state = (courseWorkId) => states[courseWorkId] || 'CREATED';
   const submission = (courseWorkId) => ({ id: `sub-${courseWorkId}`, state: state(courseWorkId) });
-  const answer = (step, courseWorkId) => {
+  const answer = (step, courseWorkId, detail = {}) => {
     const error = refuse(step, courseWorkId, state(courseWorkId));
-    calls.push({ step, courseWorkId, refused: Boolean(error) });
+    calls.push({ step, courseWorkId, refused: Boolean(error), ...detail });
     if (error) throw error;
   };
   const google = {
@@ -224,7 +224,8 @@ export function fakeGoogle({ states = {}, refuse = () => null } = {}) {
     states,
     client: { courses: { courseWork: { studentSubmissions: {
       list: async ({ courseWorkId }) => { answer('list', courseWorkId); return { data: { studentSubmissions: [submission(courseWorkId)] } }; },
-      patch: async ({ courseWorkId }) => { answer('patch', courseWorkId); return { data: submission(courseWorkId) }; },
+      // `body`: the grades sent, draftGrade alone or with assignedGrade.
+      patch: async ({ courseWorkId, requestBody }) => { answer('patch', courseWorkId, { body: requestBody }); return { data: submission(courseWorkId) }; },
       return: async ({ courseWorkId }) => { answer('return', courseWorkId); states[courseWorkId] = 'RETURNED'; return { data: {} }; },
     } } } },
     steps: (courseWorkId) => calls.filter((call) => !courseWorkId || call.courseWorkId === courseWorkId).map((call) => call.step),

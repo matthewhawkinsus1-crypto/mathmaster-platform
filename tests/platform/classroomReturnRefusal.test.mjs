@@ -268,3 +268,71 @@ test('a refusal of work that was turned in is not explained as work not turned i
   await writeGrades({ db, google, studentId: STUDENT, change: answer(0, { status: 'correct', totalAttempts: 2 }) });
   assert.deepEqual(google.steps('cw-warmup'), ['list', 'patch']);
 });
+
+/* --- a support-profile change (TT23) -------------------------------------- */
+
+// A support-profile change re-sends only a grade Classroom holds, and only
+// when it moved (studentWorkloadIndices.profileChangeNeedsPush). A grade
+// Classroom saved but would not return is held there: the row tells the
+// teacher to return it in Classroom, which returns the grade it holds.
+const { buildSupportProjection } = await import('../../functions/shared/supportProfileModel.mjs');
+const { studentOmittedIndices } = await import('../../functions/shared/reducedWorkload.mjs');
+const today = new Date().toISOString().slice(0, 10);
+const revision = ({ n, percent = null }) => ({
+  id: `r${n}`, revisionId: `r${n}`, revision: n, status: 'active', effectiveStart: today, createdAtMs: Date.now() - (10 - n) * 1000,
+  accommodations: percent === null ? [] : [{ id: 'reduced-item-count-same-rigor', params: { itemReduction: { mode: 'percent', value: percent } }, appliesTo: [] }],
+  modifications: [],
+});
+const profileOf = (revisions) => buildSupportProjection({ revisions, todayKey: today });
+// Fewer items, same rigor, at 25%; then taken off.
+const REDUCED_25 = profileOf([revision({ n: 1 }), revision({ n: 2, percent: 25 })]);
+const TAKEN_OFF = profileOf([revision({ n: 1 }), revision({ n: 2, percent: 25 }), revision({ n: 3 })]);
+// Eight Classwork items, due in a week: open work, which a profile change moves.
+const openClasswork = {
+  schemaVersion: 5, assignedClassIds: ['c1'], dueAt: iso(7 * DAY), lateDueAt: iso(8 * DAY),
+  sections: [{ id: 'cw', role: 'classwork', title: 'Classwork', questions: Array.from({ length: 8 }, (_, i) => ({
+    questionId: `cw-q${i}`, id: `cw-q${i}`, type: 'numeric', prompt: `Solve ${i}.`, standard: i % 2 ? 'A.5A' : 'A.5B', dok: 2,
+  })) }],
+  sectionAccess: { classwork: { defaultState: 'open', overridesByClassId: {} } },
+};
+
+test('a support-profile change corrects a grade Classroom saved but would not return', async () => {
+  logged.length = 0;
+  const db = passbackFirestore({
+    assignments: { A1: openClasswork },
+    classroomLinks: { 'pub-classwork': link('classwork') },
+    classroomRosterLinks: { [rosterLinkDocumentId(COURSE, STUDENT)]: { googleUserId: 'g-s1' } },
+    grades: { [STUDENT]: { classId: 'c1', profile: REDUCED_25, gradesByAssignment: { A1: {} } } },
+  });
+  const google = fakeGoogle({ refuse: returnsOnlyTurnedInWork });
+  // The student finishes the six items they owe: Classwork is complete at
+  // 100%, saved in Classroom, and Google refuses to return it.
+  const omitted = studentOmittedIndices({ assignment: { id: 'A1', ...openClasswork }, profile: REDUCED_25, tracker: {} });
+  assert.equal(omitted.size, 2);
+  const owed = [...Array(8).keys()].filter((index) => !omitted.has(index));
+  await writeGrades({
+    db, google, studentId: STUDENT,
+    change: (grades) => ({ ...grades, gradesByAssignment: { A1: Object.fromEntries(owed.map((index) => [index, { status: 'correct', totalAttempts: 1 }])) } }),
+  });
+  assert.deepEqual(google.steps('cw-classwork'), ['list', 'patch', 'return']);
+  assert.equal(row(db, 'classwork').status, 'graded-not-returned');
+  assert.equal(row(db, 'classwork').grade, 100);
+
+  // The reduction is taken off: the student owes all eight, and MathMaster
+  // shows 6 of 8. Classroom gets that grade, as a draft while the work is open
+  // again, as a synced column would.
+  google.calls.length = 0;
+  await writeGrades({ db, google, studentId: STUDENT, change: (grades) => ({ ...grades, profile: TAKEN_OFF }) });
+  assert.deepEqual(google.calls.map((call) => [call.step, call.body]), [['list', undefined], ['patch', { draftGrade: 75 }]]);
+  const corrected = row(db, 'classwork');
+  assert.equal(corrected.grade, 75);
+  assert.equal(corrected.status, 'synced');
+  assert.equal(corrected.studentVisible, false);
+  assert.equal(corrected.returnRefusedReason, undefined, 'it no longer reads as a grade Classroom would not return');
+
+  // The same profile saved again moves nothing and sends nothing.
+  google.calls.length = 0;
+  await writeGrades({ db, google, studentId: STUDENT, change: (grades) => ({ ...grades, profile: structuredClone(TAKEN_OFF) }) });
+  assert.deepEqual(google.calls, []);
+  assert.deepEqual(errorsLogged(), []);
+});
