@@ -6,7 +6,7 @@
 //     node tests/browser/teacherWorkflow/studentRuntimePerformance.mjs
 //
 //   DEVICES=chromebook,phone (default both) · CPU=4 (CDP throttling rate) ·
-//   RUNS=1 · MODES=timing,counts (also profile, trace) · OUT=<file.json> ·
+//   RUNS=1 · MODES=timing,counts (also profile, trace, calls) · OUT=<file.json> ·
 //   PAGE=<the harness page's path> (an older build's harness) · LABEL=<text>,
 //   copied into the output so runs can be told apart · the same
 //   PLAYWRIGHT_MODULE / CHROMIUM_PATH as journeys.mjs.
@@ -42,6 +42,12 @@
 //            for DevTools' Performance panel). A trace run fails when opening
 //            the assignment, a Next or opening Work View forces more layouts,
 //            not counting MathLive's own, than FORCED_LAYOUT_BUDGET allows
+//   calls    each Submit's and Next's calls of shared Functions code
+//            (PERF_DIST; ../support/sharedCodeCalls.mjs), counted with
+//            precise coverage in a flow of their own: coverage runs the
+//            window's code unoptimised, and slower windows let more of the
+//            app's own timers land in them, so they are not the windows the
+//            counts mode counts renders in
 //
 // At the end, App's 30-second clock on the Step Algebra question, fired on
 // demand (clock-tick), and again with the page's clock moved past the end of
@@ -53,7 +59,11 @@
 // into an answer box draws QuestionEngine once and at most 60 components; a
 // Submit draws it at most 4 times and 260 components, a Next 5 and 320; a
 // clock tick that changes nothing draws it not at all, and the one that ends
-// the class draws it again.
+// the class draws it again. With PERF_DIST: App's own renders and render time
+// (../support/appRenderMeasures.mjs); and in a calls run, a Submit and a Next
+// (the fewest of the three of each) normalise the bell schedule and question
+// records, and run the Recovery window check, no more often than
+// SHARED_CALL_BUDGET allows (../support/sharedCodeCalls.mjs).
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -61,6 +71,8 @@ import { componentNamer, createProfileReader } from '../support/cpuProfileNames.
 import { countWhere, createCallCounter } from '../support/functionCallCounts.mjs';
 // App's own renders and its render time, and their budgets.
 import { createAppRenderMeasures } from '../support/appRenderMeasures.mjs';
+// The shared Functions code a Submit and a Next run, and its budget.
+import { checkSharedCalls, countsSharedCalls, sharedCallsIn } from '../support/sharedCodeCalls.mjs';
 import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -344,6 +356,10 @@ const runFlow = async (browser, device, mode) => {
       cdp.on('Tracing.dataCollected', ({ value }) => traceEvents.push(...value));
       await cdp.send('Tracing.start', { categories: 'devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.stack', transferMode: 'ReportEvents' });
     }
+    // A Submit's and a Next's shared code, counted from the press until the
+    // window is quiet (a calls run with PERF_DIST: sharedCodeCalls.mjs).
+    const windowCalls = mode === 'calls' && DIST && countsSharedCalls(name) ? createCallCounter(cdp, DIST) : null;
+    if (windowCalls) await windowCalls.start();
     const t0 = await now();
     await action(prepared);
     let readyAt = null;
@@ -353,6 +369,7 @@ const runFlow = async (browser, device, mode) => {
     }
     const t1 = await quiet(quietMs, maxMs);
     const record = { name, readyMs: readyAt == null ? null : Math.round(readyAt - t0), windowMs: Math.round(t1 - t0) };
+    if (windowCalls) record.sharedCalls = sharedCallsIn(await windowCalls.take());
     if (mode === 'profile') {
       const { profile } = await cdp.send('Profiler.stop');
       if (profileReader) record.profile = { ...profileReader.summarize(profile), inclusive: profileReader.inclusive(profile) };
@@ -670,6 +687,7 @@ for (const { device, mode, interactions = [] } of results.runs) {
   }
 }
 if (MODES.includes('counts') && !DIST) console.log('Step Algebra\'s mathjs budget needs PERF_DIST (source maps); not counted.');
+if (MODES.includes('calls') && !DIST) console.log('The shared-code budget needs PERF_DIST (source maps); not counted.');
 
 // Medians over the runs, per device, interaction and measure.
 const table = [];
@@ -691,6 +709,7 @@ for (const device of DEVICES) {
 results.medians = table;
 console.log('\nmedians (timing: latency, ready, long-task ms; counts: QuestionEngine/tool renders, component renders)');
 table.forEach((row) => console.log(`  ${row.device.padEnd(10)} ${row.interaction.padEnd(22)} ${String(row.latencyMs ?? '-').padStart(6)} ${String(row.readyMs ?? '-').padStart(6)} ${String(row.longTaskMs ?? '-').padStart(6)} ${String(row.engineRenders ?? '-').padStart(4)} ${String(row.componentRenders ?? '-').padStart(5)}`));
+results.sharedCalls = checkSharedCalls(results.runs, findings);
 results.app = appMeasures.check(results.runs, findings);
 if (process.env.OUT) writeFileSync(process.env.OUT, `${JSON.stringify(results, null, 1)}\n`);
 

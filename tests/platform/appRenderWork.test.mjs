@@ -43,6 +43,7 @@ import {
 import { overlayDurableActionsOnGrades } from '../../src/platform/performance/durableActionOutbox.js';
 import { adoptCanonicalAdvances } from '../../src/platform/persistence/canonicalTrackerReconciliation.js';
 import { mergePracticeTrackers } from '../../src/platform/student/practiceTrackerMerge.js';
+import { SHARED_CALL_BUDGET, SHARED_CALLS, checkSharedCalls, countsSharedCalls, sharedCallsIn } from '../browser/support/sharedCodeCalls.mjs';
 import { createProfileReader } from '../browser/support/cpuProfileNames.mjs';
 import {
   APP_RENDER_BUDGET, DEFERRED_BUILDERS, DEFERRED_MEMO_BUDGET_MS, appComponentLine, createAppRenderMeasures, definitionLine, timeUnder,
@@ -728,4 +729,90 @@ test('the driver hands every interaction to the measures, which time exactly the
   const timed = DEFERRED_BUILDERS.map(([, pattern]) => /export const (\w+) = /.exec(pattern.source)[1]).sort();
   assert.deepEqual(timed, called);
   for (const [file, pattern] of DEFERRED_BUILDERS) assert.match(read(file), new RegExp(pattern.source, 'm'), `${pattern.source} in ${file}`);
+});
+
+/* -------------------------------- the shared code a Submit and a Next run */
+/*
+ * sharedCodeCalls.mjs counts, in a calls run with PERF_DIST, the calls of
+ * shared Functions code in each Submit's and Next's window (precise
+ * coverage, functionCallCounts.mjs) and fails the run when the fewest of
+ * the three Submits, or of the three Nexts, normalises the bell schedule or
+ * question records more often than SHARED_CALL_BUDGET allows, or runs the
+ * Recovery window check at all. The counted functions are told by their
+ * source file and the text of the line they start on.
+ */
+test('the shared code the measures count is the shared code App asks for', () => {
+  const files = {
+    normalizeSchedule: 'functions/shared/classSchedule.mjs',
+    normalizeQuestionRecord: 'functions/shared/attemptPolicy.mjs',
+    recoveryWindowCheck: 'functions/shared/sectionRecoveryEligibility.mjs',
+  };
+  assert.deepEqual(Object.keys(SHARED_CALLS).sort(), Object.keys(files).sort());
+  for (const [name, file] of Object.entries(files)) {
+    const { source, text } = SHARED_CALLS[name];
+    assert.match(file, source, `${name}: its file`);
+    const lines = read(file).split('\n').filter((line) => text.test(line.trim()));
+    assert.equal(lines.length, 1, `${name}: one definition in ${file}`);
+  }
+  // A take of the coverage counter, as functionCallCounts.mjs reads it back.
+  const ran = [
+    { source: 'functions/shared/classSchedule.mjs', line: 42, text: 'export const normalizeSchedule = (schedule) => {', count: 7 },
+    { source: 'functions/shared/classSchedule.mjs', line: 148, text: 'export const resolvePeriodWindow = ({ schedule: scheduleValue, classPeriod, nowValue = Date.now(), timeZone = null } = {}) => {', count: 3 },
+    { source: 'functions/shared/attemptPolicy.mjs', line: 294, text: 'export const normalizeQuestionRecord = (record) => {', count: 40 },
+    { source: 'functions/shared/sectionRecoveryEligibility.mjs', line: 92, text: 'export const resolveOriginalOpportunity = ({', count: 2 },
+    { source: 'src/attemptPolicy.js', line: 1, text: 'export const normalizeQuestionRecord = (record) => {', count: 99 },
+  ];
+  assert.deepEqual(sharedCallsIn(ran), { normalizeSchedule: 7, normalizeQuestionRecord: 40, recoveryWindowCheck: 2 });
+  assert.ok(countsSharedCalls('basic-submit') && countsSharedCalls('next-to-tool'));
+  assert.ok(!countsSharedCalls('expression-key-6') && !countsSharedCalls('open-assignment') && !countsSharedCalls('clock-tick'));
+});
+
+test('a Submit or a Next over the shared-code budget every time is a finding, and the code before fails it', () => {
+  const window = (name, normalizeSchedule, normalizeQuestionRecord, recoveryWindowCheck) => ({ name, sharedCalls: { normalizeSchedule, normalizeQuestionRecord, recoveryWindowCheck } });
+  const check = (runs) => {
+    const findings = [];
+    checkSharedCalls(runs, findings, { log: () => {} });
+    return findings;
+  };
+  const { submit, next } = SHARED_CALL_BUDGET;
+  // This build, with the key's checkpoint landing in two Submits and App's
+  // clock ticking inside two Nexts (each asks again for what reads them):
+  // the fewest is the Submit, or the Next, with nothing else in its window.
+  assert.deepEqual(check([{ device: 'phone', mode: 'calls', interactions: [
+    window('basic-submit', 36, 190, 0), window('choice-submit', 26, 151, 0), window('expression-submit', 44, 230, 0),
+    window('next-to-choice', 26, 135, 0), window('next-to-expression', 96, 280, 2), window('next-to-tool', 96, 285, 2),
+    { name: 'hint', skipped: 'no hint' },
+  ] }]), []);
+  // The code before (counted on 8dc31e8a, a calls run with PERF_DIST).
+  const before = check([
+    { device: 'chromebook', mode: 'calls', interactions: [window('basic-submit', 90, 381, 4), window('choice-submit', 118, 387, 4), window('expression-submit', 48, 280, 2), window('next-to-choice', 50, 276, 2), window('next-to-expression', 50, 280, 2), window('next-to-tool', 50, 296, 2)] },
+    { device: 'phone', mode: 'calls', interactions: [window('basic-submit', 50, 258, 2), window('choice-submit', 48, 277, 2), window('expression-submit', 48, 280, 2), window('next-to-choice', 54, 313, 2), window('next-to-expression', 48, 263, 2), window('next-to-tool', 50, 296, 2)] },
+  ]);
+  for (const device of ['chromebook', 'phone']) {
+    for (const kind of ['Submit', 'Next']) {
+      for (const name of ['normalizeSchedule', 'normalizeQuestionRecord', 'recoveryWindowCheck']) {
+        assert.ok(before.some((finding) => finding.startsWith(`${device}: every ${kind} ran ${name} more than `)), `${device} ${kind} ${name}: ${before.join(' / ')}`);
+      }
+    }
+  }
+  assert.match(before[0], /^chromebook: every Submit ran normalizeSchedule more than \d+ times \(basic-submit 90, choice-submit 118, expression-submit 48; budget \d+ for the fewest\)$/);
+  // Within budget, and only calls runs are read.
+  assert.ok(submit.normalizeSchedule < 48 && next.normalizeSchedule < 48, 'below the code before\'s fewest');
+  assert.ok(submit.normalizeQuestionRecord < 258 && next.normalizeQuestionRecord < 263, 'below the code before\'s fewest');
+  assert.equal(submit.recoveryWindowCheck, 0);
+  assert.deepEqual(check([{ device: 'phone', mode: 'counts', interactions: [window('basic-submit', 900, 900, 9)] }]), []);
+});
+
+test('the driver counts each Submit\'s and Next\'s shared code in a flow of its own and hands the counts to the budget', () => {
+  const driver = executableSource(read('tests/browser/teacherWorkflow/studentRuntimePerformance.mjs'));
+  assert.match(driver, /^import \{ checkSharedCalls, countsSharedCalls, sharedCallsIn \} from '\.\.\/support\/sharedCodeCalls\.mjs';$/m);
+  const measure = region(driver, 'const measure = async (name, {', '\n  };\n', 'measure');
+  // From just before the press until the window is quiet, in a calls run
+  // only: never in the windows a counts run counts renders in.
+  assert.match(measure, /const windowCalls = mode === 'calls' && DIST && countsSharedCalls\(name\) \? createCallCounter\(cdp, DIST\) : null;\n\s*if \(windowCalls\) await windowCalls\.start\(\);\n\s*const t0 = await now\(\);/);
+  assert.match(measure, /const t1 = await quiet\(quietMs, maxMs\);\n[^\n]*\n\s*if \(windowCalls\) record\.sharedCalls = sharedCallsIn\(await windowCalls\.take\(\)\);/);
+  assert.match(driver, /const instrument = \(withHook\) => \{/);
+  assert.match(driver, /await context\.addInitScript\(instrument, mode === 'counts'\);/, 'no DevTools hook in a calls run');
+  const end = region(driver, 'results.medians = table;', 'if (findings.length) {', 'the end of the run');
+  assert.match(end, /\nresults\.sharedCalls = checkSharedCalls\(results\.runs, findings\);\n/);
 });
