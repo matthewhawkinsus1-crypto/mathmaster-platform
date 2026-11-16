@@ -23,12 +23,45 @@ import {
   factorTargetOfBranch,
   normalizeRelationExpressionInput,
   raiseRadicalRelation,
+  relationExpressionToLatex,
   zeroProductFactors,
 } from './algebraRelationFoundation.js';
 import { radicalGradingContext, readExactValue } from '../functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs';
 import { relationToolsOffered } from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { rationalToNumber, rationalToText } from '../functions/shared/toolMath/algebra-relations/radicalEquationShape.mjs';
 import { withExplicitProducts } from './platform/contract/relationGivenProducts.js';
+
+/*
+ * DRAWING WHAT A STUDENT TYPED, WITHOUT EVER THROWING.
+ *
+ * Nov 16, 2026, Solving Radical Equations (Step Algebra): a value typed in a
+ * check or the final set arrives from the math box as MathLive's LaTeX
+ * ("\frac12", "-\frac12", "\sqrt{36}"). The panels drew it through
+ * relationExpressionToLatex, which parses relation TEXT ("(1) / (4)") and
+ * throws a SyntaxError on any LaTeX command. It threw inside render, the
+ * question module crashed, and because the recorded check is in the saved
+ * draft it crashed again on every reload: the students could not finish the
+ * question. readExactValue reads these values (the grade was never the
+ * problem); only the drawing was.
+ */
+const LATEX_COMMAND = /\\[A-Za-z]/;
+const asLatexText = (text) => `\\text{${text.replace(/[\\{}$%#&_^~]/g, '')}}`;
+
+/** Relation text ("(0) + (2)", "x") as LaTeX; text it cannot parse is shown as written, never thrown. */
+export const relationLatex = (expression) => {
+  const text = String(expression ?? '');
+  try {
+    return relationExpressionToLatex(text);
+  } catch {
+    return LATEX_COMMAND.test(text) ? text : asLatexText(text);
+  }
+};
+
+/** A value typed in a math box: LaTeX already ("\frac12"), or plain text ("1/2", "-0.5"). Never throws. */
+export const typedValueLatex = (value) => {
+  const text = String(value ?? '').trim();
+  return LATEX_COMMAND.test(text) ? text : relationLatex(text);
+};
 
 /** The radical shape and its exact solution for the relation the workspace opened, or null. */
 export const radicalContextOf = (pristine) => radicalGradingContext(pristine);

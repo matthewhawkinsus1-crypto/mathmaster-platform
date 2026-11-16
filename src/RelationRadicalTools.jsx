@@ -4,7 +4,6 @@ import MathInput from './MathInput';
 import {
   RADICAL_POWER_CHOICES,
   factorTargetOfBranch,
-  relationExpressionToLatex,
   zeroProductFactors,
 } from './algebraRelationFoundation.js';
 import {
@@ -17,6 +16,8 @@ import {
   raiseResult,
   readCheckDraft,
   readSolutionSetDraft,
+  relationLatex,
+  typedValueLatex,
   zeroProductResult,
 } from './relationRadicalToolsModel.js';
 import { spokenMathValue } from './tools/shared/spokenMathValue.js';
@@ -72,7 +73,10 @@ const equationStyle = { fontSize: 'calc(22 * var(--mm-px))', color: 'var(--mm-te
 const fieldLabel = { display: 'grid', gap: 3, minWidth: 0 };
 const fieldCaption = { color: 'var(--mm-text-muted)', fontSize: 'calc(11 * var(--mm-px))', fontWeight: 800 };
 
-const latexOf = (expression) => relationExpressionToLatex(String(expression ?? ''));
+// Never throws: a value the relation parser cannot read is drawn as written
+// (relationRadicalToolsModel.js). Values typed in a math box are LaTeX and go
+// through typedValueLatex.
+const latexOf = relationLatex;
 const equationLatex = (branch) => `${latexOf(branch?.expressions?.[0])} = ${latexOf(branch?.expressions?.[1])}`;
 
 function PanelHeader({ title, onClose, children }) {
@@ -381,8 +385,8 @@ function CandidateCheckCard({ candidate, variable, sideLatex, entry, onRecord, o
       </div>
       {recorded && !editing ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-          <span>Left side <strong><MathDisplay value={latexOf(entry.left)} format="latex" inline /></strong></span>
-          <span>Right side <strong><MathDisplay value={latexOf(entry.right)} format="latex" inline /></strong></span>
+          <span>Left side <strong><MathDisplay value={typedValueLatex(entry.left)} format="latex" inline /></strong></span>
+          <span>Right side <strong><MathDisplay value={typedValueLatex(entry.right)} format="latex" inline /></strong></span>
           <span style={{ fontWeight: 800, color: 'var(--mm-primary-text)' }} data-candidate-choice={entry.choice}>{choiceWords(entry.choice)}</span>
           {!disabled && <button type="button" onClick={edit} style={chip(false)} aria-label={`Change the check of ${variable} = ${spokenMathValue(candidate.expression)}`}>Change</button>}
         </div>
@@ -527,7 +531,7 @@ export function RadicalSolutionSet({ variable, recorded, onRecord, onEdit, disab
               : recorded.values.map((value, index) => (
                 <span key={`${value}-${index}`}>
                   {index > 0 ? ', ' : ''}
-                  <MathDisplay value={`${latexOf(variable)} = ${latexOf(value)}`} format="latex" inline />
+                  <MathDisplay value={`${latexOf(variable)} = ${typedValueLatex(value)}`} format="latex" inline />
                 </span>
               ))}
           </strong>
