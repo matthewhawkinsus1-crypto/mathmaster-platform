@@ -41,9 +41,13 @@ const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
 const {
+  CLASSROOM_GRADED_NOT_RETURNED,
   classroomPushFailure,
   classroomPushHeldForLimit,
+  classroomReturnRefusal,
   clearedClassroomErrorFields,
+  clearedReturnRefusalFields,
+  standingClassroomReturnRefusal,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
@@ -10428,6 +10432,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
       }
 
       const successfulCourses = [];
+      // Grades saved in Classroom whose return Google refused: counted for one
+      // warning per assignment, not an error per column.
+      const notReturned = { refused: 0, notAskedAgain: 0, states: new Set(), reasons: new Set() };
 
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data() || {};
@@ -10462,7 +10469,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (
           (!forceRetry || (afterData.profile?.workloadCorrections?.[assignmentId]?.eventId
             && priorAudit.correctionEventId === afterData.profile.workloadCorrections[assignmentId].eventId))
-          && priorAudit.status === "synced"
+          && ["synced", CLASSROOM_GRADED_NOT_RETURNED].includes(priorAudit.status)
           && String(priorAudit.stage || "") === stage
           && Number(priorAudit.maxPoints || 100) === maxPoints
           && Boolean(priorAudit.studentVisible) === releasePolicy.studentVisible
@@ -10471,7 +10478,11 @@ exports.syncGradeToClassroom = onDocumentWritten(
           // after a teacher reopens/extends a timed section, so compare the
           // actual MathMaster percentage for every assignment type.
           && Number(priorAudit.grade) === Number(grade)
-          && (!releasePolicy.shouldReturn || priorReturnConfirmed)
+          // Classroom holds this same grade and refused to return it: sending
+          // it again would only be refused again. A new grade, or a teacher's
+          // Retry, sends it, and asks for the return if the submission has
+          // changed (lib/classroomPushErrors.js).
+          && (!releasePolicy.shouldReturn || priorReturnConfirmed || priorAudit.status === CLASSROOM_GRADED_NOT_RETURNED)
         ) {
           continue;
         }
@@ -10651,23 +10662,78 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
           let submissionState = patched.state || submission.state || null;
           let returnedToStudent = String(submissionState || "").toUpperCase() === "RETURNED";
+          let returnRefusal = null;
           if (releasePolicy.shouldReturn && !returnedToStudent) {
             // Patching assignedGrade alone can still leave Classroom showing a
             // teacher-only Draft. Returning the submission is the explicit
             // Google action that releases the assigned grade to the student.
-            // eslint-disable-next-line no-await-in-loop
-            await classroomLib().returnSubmission(classroom, {
-              courseId,
-              courseWorkId: publication.courseworkId,
+            // Google returns only work the student turned in. Once it has
+            // refused this submission, it is not asked again while the
+            // submission is in the same state, unless a teacher sends the
+            // grade again (lib/classroomPushErrors.js), as in the section
+            // trigger.
+            returnRefusal = forceRetry ? null : standingClassroomReturnRefusal({
+              prior: priorAudit,
+              courseworkId: publication.courseworkId,
               submissionId: submission.id,
+              submissionState,
             });
-            submissionState = "RETURNED";
-            returnedToStudent = true;
+            if (returnRefusal) {
+              notReturned.notAskedAgain += 1;
+            } else {
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                await classroomLib().returnSubmission(classroom, {
+                  courseId,
+                  courseWorkId: publication.courseworkId,
+                  submissionId: submission.id,
+                });
+                submissionState = "RETURNED";
+                returnedToStudent = true;
+              } catch (returnError) {
+                returnRefusal = classroomReturnRefusal(returnError, { submissionState });
+                // Every other refusal is a failed push, as before.
+                if (!returnRefusal) throw returnError;
+                notReturned.refused += 1;
+              }
+            }
+          }
+
+          if (returnRefusal) {
+            notReturned.states.add(returnRefusal.submissionState || "unknown");
+            notReturned.reasons.add(returnRefusal.reason);
+            // The grade is in Classroom; only its return is missing. The row
+            // says why in a teacher's words ("Graded, not returned"), it is not
+            // a failure for "Retry all", and the student's receipt names only
+            // the columns that went through.
+            // eslint-disable-next-line no-await-in-loop
+            await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+              ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+              assignmentId,
+              courseId,
+              courseworkId: publication.courseworkId,
+              submissionId: submission.id,
+              submissionState,
+              stage,
+              grade,
+              classroomGrade,
+              maxPoints,
+              attempted: progress.attempted,
+              total: progress.total,
+              creditOnAttempted: progress.creditOnAttempted,
+              isFinal,
+              studentVisible: releasePolicy.studentVisible,
+              returnedToStudent: false,
+              syncedAt: FieldValue.serverTimestamp(),
+              ...returnRefusal.audit,
+            });
+            continue;
           }
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+            ...clearedReturnRefusalFields(priorAudit),
             ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
@@ -10726,6 +10792,19 @@ exports.syncGradeToClassroom = onDocumentWritten(
             ...failure.audit,
           });
         }
+      }
+
+      if (notReturned.refused || notReturned.notAskedAgain) {
+        logger.warn("Grades saved in Classroom but not returned", {
+          assignmentId,
+          studentId: event.params.studentId,
+          // Google refused the return in this push.
+          refused: notReturned.refused,
+          // Refused before, and the submission has not changed: not asked.
+          notAskedAgain: notReturned.notAskedAgain,
+          submissionStates: [...notReturned.states],
+          reasons: [...notReturned.reasons],
+        });
       }
 
       if (requeueForLimit) {

@@ -125,6 +125,10 @@ export function passbackFirestore(seed = {}) {
         }
         store.set(docPath, data);
       },
+      async delete() {
+        writes.push({ kind: 'delete', path: docPath });
+        store.delete(docPath);
+      },
     };
   }
   const query = (collection, state = { filters: [], fields: null, limit: null, startAfter: null }) => ({
@@ -161,6 +165,20 @@ export function passbackFirestore(seed = {}) {
     writes,
     doc: ref,
     collection: (name) => query(name),
+    // A write batch: its writes are applied in order when it is committed.
+    batch() {
+      const operations = [];
+      const batch = {
+        set: (docRef, data, options) => { operations.push(() => docRef.set(data, options)); return batch; },
+        update: (docRef, ...pairs) => { operations.push(() => docRef.update(...pairs)); return batch; },
+        delete: (docRef) => { operations.push(() => docRef.delete()); return batch; },
+        async commit() {
+          // eslint-disable-next-line no-await-in-loop
+          for (const operation of operations) await operation();
+        },
+      };
+      return batch;
+    },
     // getAll(ref, ..., { fieldMask }), as Firestore bills it: one read a document.
     async getAll(...args) {
       const options = args.length && !args[args.length - 1]?.path ? args.pop() : null;
@@ -267,6 +285,17 @@ export async function runTrigger(name, { db, google, event }) {
   currentDb = db;
   currentGoogle = google;
   await TRIGGERS[name]().run(event);
+}
+
+/**
+ * Run one callable against this test's Firestore: `entry` is 'section'
+ * (functions/classroomSectionEntry.js) or 'whole' (functions/index.js).
+ */
+export async function runCallable(entry, name, { db, google = null, request }) {
+  currentDb = db;
+  currentGoogle = google;
+  const functions = entry === 'section' ? sectionEntry().cloudFunctions : wholeEntry();
+  return functions[name].run(request);
 }
 
 /**
