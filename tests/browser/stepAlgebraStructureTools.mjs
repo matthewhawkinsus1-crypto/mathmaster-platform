@@ -26,6 +26,9 @@
 //   keyboard            Factor tokens and commit reached by keyboard alone.
 //   phone               390px: no horizontal page scroll, tokens in view.
 //   solve-regression    3x + 6 = 21 still solves to x = 5.
+//   unreadable-side     a side typed so it reads only in context ("10)+(5" for
+//                       15) is refused in words and commits nothing; 15 then
+//                       takes the step (it used to make Check do nothing).
 //   owner-case-*        Student push Q, the owner's screenshot: 2x + y = 2
 //                       after y = -4x + 12, at 1366×768 and 390×844, by
 //                       pointer and by keyboard alone. One Simplify; the group
@@ -521,6 +524,37 @@ async function solveRegression(context) {
   const final = compact(await state(page));
   expect(journey, /^x=(5|\\frac\{15\}\{3\})$/.test(final), `plain solve: ${final}`);
   report.push({ journey, final, unused: Boolean(cancel) });
+  await page.close();
+}
+
+// A SIDE TYPED SO IT READS ONLY IN CONTEXT ("10)+(5" is 15 inside "(10)+(5) - (15)").
+// The check took it and the step's grade threw on it inside the commit, so Check did
+// nothing at all. Now it is read on its own first: the student is told, nothing is
+// committed, and 15 then takes the step as before.
+async function unreadableSide(context) {
+  const journey = 'unreadable-side';
+  const page = await open(context, 4);
+  const host = page.locator('body');
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await balancedMove(page, host, 'Subtract', '6');
+  const labels = await page.locator('[aria-label$="select to cancel"]').evaluateAll((elements) => elements.map((element) => element.dataset.termText));
+  const six = labels.find((label) => /^[-+]?\s*6$/.test(label));
+  if (six) await page.locator(`[data-term-text="${six}"][aria-label$="select to cancel"]`).first().click();
+  await settle(page, 1200);
+  const box = page.locator('math-field[aria-label="Right side: enter your simplification"]');
+  expect(journey, (await box.count()) === 1, 'the board did not ask for the right side');
+  const pending = compact(await state(page));
+  await simplifySide(page, host, 'right', '10)+(5');
+  await settle(page, 900);
+  const words = 'MathMaster could not read what you typed for the right side yet. Enter only the expression for that side, without an equals sign.';
+  expect(journey, (await statusTexts(page)).includes(words), `no line says the side could not be read (${JSON.stringify(await statusTexts(page))})`);
+  expect(journey, compact(await state(page)) === pending && (await box.count()) === 1, `the step was taken: ${await state(page)}`);
+  await simplifySide(page, host, 'right', '15');
+  await page.waitForFunction(() => document.querySelector('[data-math-state]')?.getAttribute('data-math-state')?.replace(/[\s~]+/g, '') === '3x=15', null, { timeout: 5000 }).catch(() => {});
+  expect(journey, compact(await state(page)) === '3x=15', `15 did not take the step: ${await state(page)}`);
+  expect(journey, errors.length === 0, `the page threw: ${errors.join(' | ')}`);
+  report.push({ journey, pending, committed: compact(await state(page)) });
   await page.close();
 }
 
@@ -1071,7 +1105,7 @@ const only = (process.env.ONLY || '').split(',').map((name) => name.trim()).filt
 const wants = (name) => !only.length || only.some((entry) => name.startsWith(entry));
 
 const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-for (const journey of [factored15x45, factoredPartial, factoredNegative, slopeFiveTwoSix, slopeTwoFourEight, keyboard, solveRegression, subtractedGroup, undoOneDecision, legacyDrafts, divideNegative, directionsStructureTools, directionsRelation]) {
+for (const journey of [factored15x45, factoredPartial, factoredNegative, slopeFiveTwoSix, slopeTwoFourEight, keyboard, solveRegression, unreadableSide, subtractedGroup, undoOneDecision, legacyDrafts, divideNegative, directionsStructureTools, directionsRelation]) {
   if (!wants(journey.name)) continue;
   try {
     await journey(context);

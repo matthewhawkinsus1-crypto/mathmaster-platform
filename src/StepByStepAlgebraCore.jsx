@@ -33,6 +33,7 @@ import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplif
 import { boardTerms, committedCancellationModel, equationIsSolved, simplifyPartsFor, strategicHintReadings } from './platform/algebra/committedEquationFacts.js';
 import { clientParserSteps, takeStepsWhenIdle, wholeIdlePeriod } from './platform/math/idleMathSteps.js';
 import { equationLatexOrText, expressionLatexOrText } from './platform/math/typedMathLatex.js';
+import { typedSideReadable, unreadableSidesMessage } from './platform/algebra/typedSide.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -1783,6 +1784,14 @@ export default function StepByStepAlgebra({
     const missing = targets.filter((target) => !String(simplificationAnswers[target.side] || '').trim());
     if (missing.length) {
       setMessage({ tone: 'error', text: `Complete the ${missing.map((target) => target.label.toLowerCase()).join(' and ')} simplification response.` });
+      return;
+    }
+    // Each side read on its own first (typedSide.js): the check below reads it
+    // only inside "(typed) - (expected)", where "4)+(4" is 8.
+    const unreadable = targets.filter((target) => !typedSideReadable(simplificationAnswers[target.side]));
+    if (unreadable.length) {
+      triggerShake();
+      setMessage({ tone: 'growth', text: unreadableSidesMessage(unreadable.map((target) => target.label.toLowerCase())) });
       return;
     }
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
