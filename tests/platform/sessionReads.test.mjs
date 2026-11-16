@@ -1,4 +1,4 @@
-// WHAT A SESSION COSTS IN FIRESTORE READS.
+// WHAT A SESSION COSTS IN FIRESTORE READS, AND THE READS IT NO LONGER MAKES.
 //
 // tests/browser/teacherWorkflow/sessionReadsProbe.mjs measures a student's
 // school day and a teacher's, phase by phase, on the harness built as
@@ -7,12 +7,21 @@
 //
 //   - the school the probe asks for (`&fullClass=1`): a class of 30 and 20
 //     lessons, its student part-way through yesterday's lesson; and nothing of
-//     it without the parameter.
+//     it without the parameter;
+//   - each read the probe showed nobody needed, gone, by the behaviour that
+//     removed it:
+//       the live monitor's Spotlight listeners follow the class's roster, not
+//       every presence flush (each flush opened one new query per 8 students).
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
 import { FULL_CLASS, buildTeacherWorkflowFixture } from '../browser/teacherWorkflow/fixture.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+
+const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
+const MONITOR = executableSource(read('src/components/teacher/LiveClassMonitor.jsx'));
 
 class Timestamp {
   constructor(ms) { this.ms = ms; }
@@ -26,6 +35,20 @@ const gradeIds = (fixture) => Object.keys(fixture).filter((key) => /^grades\/[^/
 const lessonsFor = (fixture, classId) => Object.entries(fixture)
   .filter(([key, data]) => /^assignments\/[^/]+$/.test(key) && (data.assignedClassIds || []).includes(classId))
   .map(([key, data]) => ({ id: key.split('/')[1], ...data }));
+
+// The effect around an anchor, and its dependency list.
+const effectAround = (source, anchor, label) => {
+  const match = anchor.exec(source);
+  assert.ok(match, `could not find ${label}`);
+  const start = source.lastIndexOf('useEffect(', match.index);
+  const deps = /\n {2}\}, \[([\s\S]*?)\]\);/.exec(source.slice(match.index));
+  assert.ok(start !== -1 && deps, `could not find the effect and dependency list of ${label}`);
+  return {
+    start,
+    body: source.slice(start, match.index + deps.index),
+    deps: deps[1].split(',').map((dep) => dep.trim()).filter(Boolean),
+  };
+};
 
 test('the probe\'s school: a class of 30, 20 lessons, and none of it without &fullClass=1', () => {
   const full = school('fullClass=1');
@@ -55,4 +78,14 @@ test('the probe\'s school: a class of 30, 20 lessons, and none of it without &fu
   assert.equal(lessonsFor(base, 'c-alg2-p3').length, 4);
   assert.deepEqual(Object.keys(base).filter((key) => FULL_CLASS.addedIds.some((id) => key.endsWith(`/${id}`)) || FULL_CLASS.lessonIds.some((id) => key.endsWith(`/${id}`))), []);
   assert.deepEqual(Object.keys(school('fullClass=0')), Object.keys(base));
+});
+
+test('the live monitor\'s Spotlight listeners follow the class\'s roster, not every presence flush', () => {
+  const effect = effectAround(MONITOR, /activeTeacherSpotlightQueries\(db, \{/, 'the Spotlight listeners');
+  assert.deepEqual(effect.deps, ['teacherEmail', 'activeClassId', 'spotlightStudentIds']);
+  // The ids are a memo of the roster's ids AS A STRING: a new `students`
+  // array of the same students gives the same string, so the same array.
+  assert.match(MONITOR, /const spotlightStudentIds = useMemo\(\(\) => JSON\.parse\(spotlightRosterKey\), \[spotlightRosterKey\]\);/);
+  const key = region(MONITOR, 'const spotlightRosterKey = useMemo(', '[students, classes, activeClassId]);', 'the Spotlight roster key');
+  assert.match(key, /JSON\.stringify\(\[\.\.\.new Set\(\s*studentsInClass\(\{ students, classes, classId: activeClassId \}\)/);
 });

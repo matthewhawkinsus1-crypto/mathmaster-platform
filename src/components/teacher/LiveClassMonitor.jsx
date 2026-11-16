@@ -656,12 +656,19 @@ export default function LiveClassMonitor({
     );
   }, [teacherEmail, activeClassId]);
 
-  const spotlightStudentIds = useMemo(() => {
-    if (!activeClassId) return [];
-    return [...new Set(studentsInClass({ students, classes, classId: activeClassId })
+  // WHO THE SPOTLIGHT LISTENERS COVER, AS A VALUE. `students` is a new array
+  // every time presence flushes (up to once a second while a class works), with
+  // the same students in it. Keyed on that array, the listeners below were torn
+  // down and opened again on every flush: one new query per eight students, each
+  // with a fresh `expiresAt > now` (so never one Firestore could resume), and
+  // the requests and the presented frame emptied until the new ones answered.
+  // They follow the class's roster now, and only a change in who is in it.
+  const spotlightRosterKey = useMemo(() => (activeClassId ? JSON.stringify([...new Set(
+    studentsInClass({ students, classes, classId: activeClassId })
       .map((student) => String(student?.id || student?.studentId || '').trim())
-      .filter(Boolean))];
-  }, [students, classes, activeClassId]);
+      .filter(Boolean),
+  )]) : '[]'), [students, classes, activeClassId]);
+  const spotlightStudentIds = useMemo(() => JSON.parse(spotlightRosterKey), [spotlightRosterKey]);
 
   useEffect(() => {
     setSpotlightRequests([]);
