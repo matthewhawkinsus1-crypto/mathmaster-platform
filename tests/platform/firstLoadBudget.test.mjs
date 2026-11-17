@@ -58,7 +58,7 @@ test('the ratchet fails growth past the allowance and a path with no baseline, a
   assert.equal(compareToBaseline({ measured: { ...measured, newPath: { bytes: 1, files: 1 } }, baseline }).ok, false, 'a path with no baseline fails');
 });
 
-test('the checked-in baseline holds the measured split, and CI checks it after the production build', () => {
+test('the checked-in baseline holds the measured split, and CI checks it after the production build', async () => {
   const baseline = JSON.parse(readFileSync(new URL('../../scripts/first-load-baseline.json', import.meta.url), 'utf8'));
   assert.ok(baseline.paths.signIn.bytes > 0 && baseline.paths.studentHome.bytes > 0);
   // The point of the shell: the sign-in screen is a fraction of the app. Measured
@@ -71,8 +71,11 @@ test('the checked-in baseline holds the measured split, and CI checks it after t
   const build = workflow.indexOf('run: npm run build\n');
   const budget = workflow.indexOf('run: node scripts/check-first-load-budget.mjs');
   assert.ok(build > 0 && budget > build, 'the budget runs after the production build in CI');
-  const vite = readFileSync(new URL('../../vite.config.js', import.meta.url), 'utf8');
-  assert.match(vite, /build: \{ manifest: true \}/, 'the budget reads dist/.vite/manifest.json');
+  // The config as Vite receives it, not its text: the production build writes
+  // the manifest the budget reads (dist/.vite/manifest.json).
+  const { default: viteConfig } = await import(new URL('../../vite.config.js', import.meta.url).href);
+  const config = typeof viteConfig === 'function' ? viteConfig({ command: 'build', mode: 'production' }) : viteConfig;
+  assert.equal(config.build?.manifest, true, 'the budget reads dist/.vite/manifest.json');
   const firebase = JSON.parse(readFileSync(new URL('../../firebase.json', import.meta.url), 'utf8'));
   assert.ok(firebase.hosting.ignore.includes('**/.*'), 'the manifest (dist/.vite) is never deployed');
 });
