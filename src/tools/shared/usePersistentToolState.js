@@ -49,6 +49,7 @@ import {
   toolWorkspaceFields,
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics.js';
+import { SCALAR_DRAFT_SHAPES, draftNormalizer, withoutPrototypeKeys } from './toolDraftShape.js';
 
 /*
  * `${draftKey}:work:${scope}` — one entry per tool workspace per question.
@@ -302,18 +303,30 @@ const resolveInitial = (initialValue) => (typeof initialValue === 'function' ? i
  * where its card map belonged, on every reload and every device, because the
  * draft was still there each time.
  *
- * Two checks, both before the tool sees the value:
+ * The checks, all before the tool sees the value:
  *
  *   - the field's own `normalize` (usePersistentToolState's option), when the
  *     tool gives one. It knows the question — which cards exist, which slots —
  *     so it can keep the valid part of a draft and drop the rest. It returns
- *     `{ value, issues }`.
+ *     `{ value, issues }`; a tool builds it from the shared pieces in
+ *     toolDraftShape.js (`draftNormalizer(shape)`). Every structured field in
+ *     src/tools has one, except the two 3×3 reduction states, which their
+ *     tools repair on every read (tests/platform/toolDraftRestoreSweep.test.mjs).
+ *     A `value` of `undefined` means nothing could be kept (JSON never stores
+ *     `undefined`), and the field starts fresh.
  *   - for EVERY draft-backed field, the collection-shape guard: a field that
  *     starts as a map ({}) restores only a map, and one that starts as a list
  *     ([]) only a list. Every such field in src/tools keeps its kind for life
  *     (no setter assigns one a scalar), so anything else is damage, and the
- *     field starts from its initial value instead. Scalar fields are left to
- *     the tool: `null` becoming a number is an ordinary edit there.
+ *     field starts from its initial value instead.
+ *   - for EVERY draft-backed field, the same guard for the scalar kinds
+ *     (SCALAR_DRAFT_SHAPES): a field that starts as text restores text (an
+ *     older build's number as its digits; text longer than the backup keeps
+ *     is cut to MAX_DRAFT_TEXT_LENGTH), one that starts as true / false a
+ *     boolean, and one that starts as a number a number or what was typed into
+ *     its box. A field that starts as `null` is left to the tool's own
+ *     normalize: `null` becoming a number or a point is an ordinary edit there.
+ *   - no `__proto__` key at any depth (withoutPrototypeKeys).
  *
  * `restored` is false when the initial value is used. `issues` is empty for a
  * clean draft. The stored record is not rewritten here: the next real edit
@@ -322,6 +335,7 @@ const resolveInitial = (initialValue) => (typeof initialValue === 'function' ? i
  */
 const isPlainMap = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const collectionKind = (value) => (Array.isArray(value) ? 'list' : isPlainMap(value) ? 'map' : null);
+const SCALAR_KIND_NAMES = Object.freeze({ string: 'text', boolean: 'boolean', number: 'number' });
 
 export const hydrateToolDraftField = ({ record, field, initialValue, normalize = null } = {}) => {
   const fallback = () => resolveInitial(initialValue);
@@ -343,10 +357,22 @@ export const hydrateToolDraftField = ({ record, field, initialValue, normalize =
     }
   }
   const initial = fallback();
+  if (value === undefined) return { value: initial, restored: false, issues: issues.length ? issues : ['no-value'] };
   const expected = collectionKind(initial);
   if (expected && collectionKind(value) !== expected) {
     return { value: initial, restored: false, issues: [...issues, `expected-${expected}`] };
   }
+  const note = (issue) => { if (!issues.includes(issue)) issues.push(issue); };
+  const scalar = SCALAR_DRAFT_SHAPES[typeof initial];
+  if (scalar) {
+    const checked = draftNormalizer(scalar)(value);
+    if (checked.value === undefined) {
+      return { value: initial, restored: false, issues: [...issues, `expected-${SCALAR_KIND_NAMES[typeof initial]}`] };
+    }
+    value = checked.value;
+    checked.issues.forEach(note);
+  }
+  value = withoutPrototypeKeys(value, note);
   return { value, restored: true, issues };
 };
 
