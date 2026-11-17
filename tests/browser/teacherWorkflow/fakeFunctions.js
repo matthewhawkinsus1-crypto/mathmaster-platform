@@ -685,10 +685,79 @@ const handlers = {
       .filter((entry) => wanted.has(entry.data?.source?.assignmentId));
     return buildCaseEvidenceResponse({ request: validation.request, events, receipts, drafts, audits, misconceptionRecords, nowMs: Date.now() });
   },
-  // The Response Inspector reads the live record server-side; the in-memory
-  // harness has no grader to replay, so it says so instead of rendering {}.
-  inspectStudentResponse: () => {
-    throw Object.assign(new Error('The Response Inspector is not available in the in-memory harness.'), { code: 'functions/failed-precondition' });
+  // The Response Inspector, as functions/index.js inspectStudentResponse
+  // answers: the same checks in the same order (a teacher; this student's
+  // teacher of record; not a Test Cycle; an assignment the student's class
+  // has; a question with an attempt), the same reads (the record, the evidence
+  // stored beside it — trusted only for the attempt it was taken from — the
+  // saved workspace and the audits) and the same shared model, so the screen
+  // the journeys open is the one production renders. The real callable's
+  // boundaries run against the emulators
+  // (tests/integration/callableBoundaries/responseInspectorBoundaries.test.mjs).
+  // The shared grading modules load on the first call only.
+  inspectStudentResponse: async ({ studentId, assignmentId, questionIndex } = {}) => {
+    const student = String(studentId || '').trim();
+    const assignmentKey = String(assignmentId || '').trim();
+    const index = Number(questionIndex);
+    if (!student || !assignmentKey || !Number.isInteger(index) || index < 0) throw rejection('invalid-argument', 'Student, assignment, and question are required.');
+    const grade = harnessStore.get(`grades/${student}`) || null;
+    const assignmentDoc = harnessStore.get(`assignments/${assignmentKey}`) || null;
+    if (!grade || !assignmentDoc) throw rejection('not-found', 'The student or assignment was not found.');
+    const classRecord = grade.classId ? harnessStore.get(`classes/${grade.classId}`) || null : null;
+    if (lower(classRecord?.teacherOfRecord) !== lower(TEACHER_EMAIL)) throw rejection('permission-denied', "Only this student's teacher of record may inspect responses.");
+    const assignment = { id: assignmentKey, ...assignmentDoc };
+    if (String(assignment?.assessmentPolicy?.mode || '') === 'testCycle') throw rejection('failed-precondition', 'Secure Test Cycle results use the dedicated assessment correction workflow.');
+    if (!(Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : []).map(String).includes(String(grade.classId || ''))) {
+      throw rejection('permission-denied', "This assignment is not assigned to the student's current class.");
+    }
+    // functions/lib/assignmentRuntime.js runtimeQuestionsFromAssignment.
+    const questions = Number(assignment.schemaVersion) !== 5 ? [] : (Array.isArray(assignment.sections) ? assignment.sections : []).flatMap((section) => (
+      (Array.isArray(section?.questions) ? section.questions : []).map((entry) => ({ ...entry, activityRole: entry?.activityRole || section?.role || 'classwork', sectionId: section?.id || null, sectionTitle: section?.title || null }))
+    ));
+    const question = questions[index];
+    if (!question) throw rejection('not-found', 'The question was not found.');
+    const tracker = grade.gradesByAssignment?.[assignmentKey] || {};
+    const record = tracker[String(index)] || tracker[index] || null;
+    const attempted = record && (Number(record.totalAttempts || record.attemptCount || 0) > 0 || ['correct', 'expired'].includes(record.status) || Number(record.bestPartialCredit ?? record.partialCredit ?? 0) > 0);
+    if (!attempted) throw rejection('failed-precondition', 'There is no submitted attempt to inspect.');
+    const override = grade.teacherGradeOverridesByAssignment?.[assignmentKey]?.[String(index)] ?? null;
+    const section = (Array.isArray(assignment.sections) ? assignment.sections : []).find((candidate) => (
+      Array.isArray(candidate?.questions) && candidate.questions.some((entry) => entry?.questionId === question.questionId)
+    )) || null;
+    const inspector = await import('../../../functions/shared/responseInspector.mjs');
+    const stored = harnessStore.get(`grades/${student}/responseInspectionEvidence/${inspector.responseInspectionEvidenceDocumentId({ assignmentId: assignmentKey, questionIndex: index })}`) || null;
+    // functions/index.js trustedResponseInspectionEvidence.
+    const trusted = stored
+      && String(stored.assignmentId || '') === assignmentKey
+      && Number(stored.questionIndex) === index
+      && String(record.lastSubmissionId || '') !== ''
+      && String(stored.submissionId || '') === String(record.lastSubmissionId || '')
+      && Number(stored.variantIndex ?? 0) === Number(record.variantIndex ?? 0)
+      && Number(stored.totalAttempts ?? 0) === Number(record.totalAttempts ?? record.attemptCount ?? 0);
+    const gradingEvidence = trusted && stored.evidence && typeof stored.evidence === 'object' ? stored.evidence : null;
+    const workspace = inspector.resolveGradedWorkspace({
+      document: harnessStore.get(`studentWorkspaceDrafts/${workspaceDraftDocumentId({ studentId: student, assignmentId: assignmentKey })}`) || null,
+      questionIndex: index,
+      variantIndex: record?.variantIndex || 0,
+      submittedAt: gradingEvidence?.submittedAt || record?.lastAttemptAt || null,
+    });
+    const auditHistory = harnessStore.paths(`grades/${student}/gradeOverrideAudits/`)
+      .map((path) => harnessStore.get(path) || {})
+      .filter((entry) => entry.assignmentId === assignmentKey && Number(entry.questionIndex) === index)
+      .sort((left, right) => String(left.at || '').localeCompare(String(right.at || '')))
+      .slice(-50);
+    return inspector.buildInspectorModel({
+      assignment,
+      question,
+      questionIndex: index,
+      section,
+      student: { id: student, classId: grade.classId || null, displayName: grade.displayName || null, firstName: grade.firstName, lastName: grade.lastName },
+      record,
+      workspace,
+      override,
+      gradingEvidence,
+      auditHistory,
+    });
   },
   getTeacherWeeklyPathCompletions: () => {
     if (harness.weeklyPathFails) throw Object.assign(new Error('internal'), { code: 'functions/internal' });

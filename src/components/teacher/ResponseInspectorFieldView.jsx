@@ -30,8 +30,12 @@ const valueStyle = {
 };
 const mutedStyle = { color: 'var(--mm-text-muted)', fontSize: 'calc(12 * var(--mm-px))' };
 const cellStyle = { padding: '8px 10px', verticalAlign: 'top', textAlign: 'left', borderTop: '1px solid var(--mm-border)', minWidth: 110, overflowWrap: 'anywhere' };
+// The part stays in view while the table scrolls sideways on a narrow screen.
+const partStyle = { ...cellStyle, position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--mm-border)' };
 
 // Looked up by own key only: a status of "__proto__" or "constructor" is text, not a property.
+// A disclosure's summary is a control: room enough to be one (WCAG 2.5.8).
+const summaryStyle = { padding: '6px 0', cursor: 'pointer' };
 const RESULT_MARK = new Map([['correct', '✓'], ['incorrect', '✗'], ['partial', '◐'], ['blank', '–'], ['ungraded', '·']]);
 
 /** A value exactly as written; as mathematics too when it is LaTeX. Never throws. */
@@ -140,31 +144,42 @@ export default function ResponseInspectorFieldView({ model }) {
   const rows = Array.isArray(view.rows) ? view.rows.filter((row) => row && typeof row === 'object') : [];
   const steps = Array.isArray(view.steps) ? view.steps.filter((step) => step && typeof step === 'object') : [];
   const raw = model?.states?.submitted ?? model?.states?.legacyRecorded ?? null;
+  // A column every row leaves empty (a tool's checks have no saved value, no
+  // reading and no single key) is left out, so a phone keeps its width for
+  // what there is.
+  const shows = {
+    saved: rows.some((row) => row.saved),
+    read: rows.some((row) => row.read),
+    expected: rows.some((row) => row.expected),
+  };
   return (
     <div data-inspector-field-view={asText(view.kind)}>
       <p style={mutedStyle}>Keystrokes are not recorded. The submitted response is the closest record of what the student typed.</p>
       {rows.length > 0 ? (
         <div role="region" aria-label="Field comparison" tabIndex={0} style={{ overflowX: 'auto', border: '1px solid var(--mm-border)', borderRadius: 8 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <caption style={{ ...mutedStyle, textAlign: 'left', padding: '8px 10px', captionSide: 'top' }}>Each part: what was saved, what was graded, how the grader read it, the expected answer and the result.</caption>
+            {/* The table's name for a screen reader; the paragraph above the
+                table says the same to the eye, and a visible caption would
+                scroll sideways with the table on a phone. */}
+            <caption style={SR_ONLY_STYLE}>Each part: what was saved, what was graded, how the grader read it, the expected answer and the result.</caption>
             <thead>
               <tr style={{ background: 'var(--mm-surface-sunken)' }}>
-                <th scope="col" style={cellStyle}>Part</th>
-                <th scope="col" style={cellStyle}>Saved Workspace{view.savedTiming ? <span style={{ ...mutedStyle, display: 'block', fontWeight: 400 }}>{asText(view.savedTiming)}</span> : null}</th>
+                <th scope="col" style={{ ...partStyle, background: 'var(--mm-surface-sunken)' }}>Part</th>
+                {shows.saved && <th scope="col" style={cellStyle}>Saved Workspace{view.savedTiming ? <span style={{ ...mutedStyle, display: 'block', fontWeight: 400 }}>{asText(view.savedTiming)}</span> : null}</th>}
                 <th scope="col" style={cellStyle}>{asText(view.snapshotLabel || 'Submitted Snapshot')}</th>
-                <th scope="col" style={cellStyle}>Read by the grader as</th>
-                <th scope="col" style={cellStyle}>Expected</th>
+                {shows.read && <th scope="col" style={cellStyle}>Read by the grader as</th>}
+                {shows.expected && <th scope="col" style={cellStyle}>Expected</th>}
                 <th scope="col" style={cellStyle}>Automatic Result</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, index) => (
                 <tr key={`${asText(row.id)}-${index}`} data-inspector-row={asText(row.id)}>
-                  <th scope="row" style={{ ...cellStyle, fontWeight: 700 }}>{asText(row.label || row.id)}</th>
-                  <td style={cellStyle}><ValueCell value={row.saved} question={question} /></td>
+                  <th scope="row" style={{ ...partStyle, fontWeight: 700, background: 'var(--mm-surface)' }}>{asText(row.label || row.id)}</th>
+                  {shows.saved && <td style={cellStyle}><ValueCell value={row.saved} question={question} /></td>}
                   <td style={cellStyle}><ValueCell value={row.submitted} question={question} readable /></td>
-                  <td style={cellStyle}><ValueCell value={row.read} question={question} empty="—" /></td>
-                  <td style={cellStyle}><ValueCell value={row.expected} question={question} empty="—" /></td>
+                  {shows.read && <td style={cellStyle}><ValueCell value={row.read} question={question} empty="—" /></td>}
+                  {shows.expected && <td style={cellStyle}><ValueCell value={row.expected} question={question} empty="—" /></td>}
                   <td style={cellStyle}><ResultCell result={row.result} /></td>
                 </tr>
               ))}
@@ -201,13 +216,13 @@ export default function ResponseInspectorFieldView({ model }) {
       )}
       {Array.isArray(view.savedFacts) && view.savedFacts.length > 0 && (
         <details style={{ marginTop: 12 }}>
-          <summary>Saved workspace{view.savedTiming ? ` (${asText(view.savedTiming)})` : ''}</summary>
+          <summary style={summaryStyle}>Saved workspace{view.savedTiming ? ` (${asText(view.savedTiming)})` : ''}</summary>
           <FactList facts={view.savedFacts} label="Saved workspace" />
         </details>
       )}
       {raw !== null && (
         <details style={{ marginTop: 12 }}>
-          <summary>Raw stored response</summary>
+          <summary style={summaryStyle}>Raw stored response</summary>
           <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...mutedStyle }}>{show(raw)}</pre>
         </details>
       )}

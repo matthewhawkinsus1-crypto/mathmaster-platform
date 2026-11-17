@@ -231,6 +231,11 @@ const lessonFixtures = ['matrices', 'dividing', 'radicals'].includes(requestedLe
   ? await import('./lessonFixtures.js')
   : requestedLesson === 'runtime' ? await import('./studentRuntimeLesson.js') : null;
 const compiledSections = lessonFixtures ? () => lessonFixtures.lessonSectionsFor(requestedLesson) : null;
+// `&inspector=1`: today's lesson answered and graded, for the Response
+// Inspector (inspectorFixture.js). Loaded only then: it pulls in every grader.
+const inspectorScenario = new URLSearchParams(window.location.search).get('inspector') === '1'
+  ? await import('./inspectorFixture.js')
+  : null;
 
 const loadOrSeed = () => {
   const params = new URLSearchParams(window.location.search);
@@ -243,6 +248,7 @@ const loadOrSeed = () => {
     return;
   }
   const fixture = buildTeacherWorkflowFixture({ now: Date.now(), Timestamp, params, compiledSections });
+  if (inspectorScenario) inspectorScenario.addResponseInspectorScenario({ fixture, now: Date.now() });
   Object.entries(fixture).forEach(([path, data]) => put(path, clone(data)));
   persist();
 };

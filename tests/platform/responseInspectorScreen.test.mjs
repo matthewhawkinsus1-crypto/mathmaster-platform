@@ -111,7 +111,7 @@ const drawn = (element) => {
     else globalThis.window = previous;
   }
 };
-const outsideRaw = (html) => html.split('<summary>Raw stored response</summary>')[0];
+const outsideRaw = (html) => html.split(/<summary[^>]*>Raw stored response<\/summary>/)[0];
 
 const STEP_QUESTION = { questionId: 'step', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '2x + 3 = 7', objective: { kind: 'solve', variable: 'x' } };
 const CASES = () => [
@@ -142,9 +142,12 @@ test('every kind of question is drawn field by field, as a headed table and fact
     const html = drawn(React.createElement(ResponseInspectorFieldView, { model }));
     const shown = outsideRaw(html);
     assert.match(shown, /<div role="region" aria-label="Field comparison" tabindex="0"/, `${name}: the table scrolls in its own named region`);
-    assert.match(shown, /<caption[^>]*>Each part: what was saved, what was graded, how the grader read it, the expected answer and the result\.<\/caption>/, name);
-    assert.equal((shown.match(/<th scope="col"/g) || []).length, 6, `${name}: six column headers`);
+    assert.match(shown, /<caption style="[^"]*position:absolute[^"]*">Each part: what was saved, what was graded, how the grader read it, the expected answer and the result\.<\/caption>/, `${name}: the table is named for a screen reader`);
+    // Part, what was graded and the result always; saved, read and expected when any row has one.
+    const optional = ['saved', 'read', 'expected'].filter((column) => model.view.rows.some((entry) => entry[column])).length;
+    assert.equal((shown.match(/<th scope="col"/g) || []).length, 3 + optional, `${name}: a column header for each column shown`);
     assert.equal((shown.match(/<th scope="row"/g) || []).length, model.view.rows.length, `${name}: each row headed by its part`);
+    assert.equal((shown.match(/<td /g) || []).length, model.view.rows.length * (2 + optional), `${name}: every row has a cell under each column`);
     assert.match(shown, /Keystrokes are not recorded\. The submitted response is the closest record of what the student typed\./, name);
     const rawJson = model.states.submitted?.value;
     if (typeof rawJson === 'string' && rawJson.startsWith('{')) assert.ok(!shown.includes(rawJson.replaceAll('"', '&quot;')), `${name}: the raw work is only behind its details control`);

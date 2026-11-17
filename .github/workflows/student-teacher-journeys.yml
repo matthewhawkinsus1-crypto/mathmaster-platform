@@ -10,6 +10,11 @@ name: Student and Teacher Journeys
 #                          DOL fire drill, moving classwork, exports)
 #   support evidence       tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
 #   case review            tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+#   response inspector     tests/browser/teacherWorkflow/responseInspectorJourneys.mjs
+#                          (in the case review's job: opened from the gradebook
+#                          on each kind of question and from Live View, read
+#                          field by field with its reasons; never on the
+#                          projector)
 #   walkthrough scope      tests/browser/teacherWorkflow/walkthroughJourneys.mjs
 #                          (only the selected class's live assignments; class
 #                          switch; empty state; a stale saved session retired)
@@ -248,6 +253,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
+      - name: Response Inspector — from the gradebook and from Live View
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/responseInspectorJourneys.mjs
 
   # Unfinished work across Chromebooks and the Warm-Up reopen (see teacher).
   teacher-drafts:
