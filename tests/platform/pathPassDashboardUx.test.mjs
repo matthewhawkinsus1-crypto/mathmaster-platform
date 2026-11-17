@@ -39,8 +39,12 @@ test('skills wheel keeps pass completion visible independently of mastery status
   assert.match(wheel, /passProgress:/);
   assert.match(wheel, /Level \$\{Math\.min\(passCount, 3\)\} round done/);
   // A pass outlines its segment in the pass color; otherwise the gap is cut in
-  // the card's own surface color (a token, so it is not a white seam in dark mode).
-  assert.match(wheel, /stroke: passCount \? passColor : 'var\(--mm-surface\)'/);
+  // the card's own surface color (a token, so it is not a white seam in dark mode),
+  // or an empty level draws its edge (wheelFills.js).
+  assert.match(wheel, /stroke: passCount \? passColor : look\.edge \|\| 'var\(--mm-surface\)'/);
+  // The pass colours are the theme's tokens, the hub's own words' (a fixed green and purple read under 3:1 on the dark card).
+  assert.match(wheel, /practice: Object\.freeze\(\{ shape: 'ring', colour: 'var\(--mm-success-text\)' \}\)/);
+  assert.match(wheel, /stretch: Object\.freeze\(\{ shape: 'dot', colour: 'var\(--mm-accent-text\)' \}\)/);
   assert.match(dashboard, /practice round done/);
   assert.match(dashboard, /Level 3 \(stretch\) round done/);
 });

@@ -141,7 +141,9 @@ test('a map card heads its evidence by what it is, and a repair says how it is l
 
 test('the colour key is drawn from the wheel\'s own colours, not emoji', () => {
   const key = region(dashboard, '<strong>What the colours mean</strong>', '</ul>', 'the colour key');
-  assert.match(key, /Object\.entries\(MASTERY_STATUS_COLORS\)\.map\(\(\[status, color\]\) =>/);
-  assert.match(key, /background: color/);
+  // Every level of the wheel, each swatch drawn as its wedge: the wheel's own colour and fill (levelOf, wheelFills.js).
+  assert.match(key, /Object\.keys\(MASTERY_STATUS_COLORS\)\.map\(\(status\) =>/);
+  assert.match(key, /\.\.\.wheelSwatchStyle\(levelOf\(status\)\)/);
+  assert.match(wheel, /export const levelOf = \(status\) => \(\{\s*fill: MASTERY_STATUS_FILLS\[status\][^,]*,\s*colour: MASTERY_STATUS_COLORS\[status\]/);
   assert.doesNotMatch(dashboard, /🔵|🟢|🟡|🔴|⚪/, 'an emoji key drew Secure blue beside a green wedge');
 });

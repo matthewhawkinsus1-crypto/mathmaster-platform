@@ -51,5 +51,6 @@ test('the colour key explains the dot, in the skill card\'s words', () => {
   const dashboard = read('src/components/student/MyMathPathDashboard.jsx');
   const key = dashboard.slice(dashboard.indexOf('<strong>What the colours mean</strong>'), dashboard.indexOf('numbers around the wheel are the topics'));
   assert.match(key, /<span data-mm-swatch="point" style=\{\{ color: 'var\(--mm-error-text\)', fontWeight: 900 \}\}>●<\/span> \{RETENTION_CHECK_RECOMMENDED\.toLowerCase\(\)\} · $/);
-  assert.match(dashboard, /^import MyMathPathWheel, \{ RETENTION_CHECK_RECOMMENDED \} from '\.\/MyMathPathWheel\.jsx';$/m);
+  // The words come from the wheel's own constant (it also hands the key each level's fill).
+  assert.match(dashboard, /^import MyMathPathWheel, \{[^}]*\bRETENTION_CHECK_RECOMMENDED\b[^}]*\} from '\.\/MyMathPathWheel\.jsx';$/m);
 });
