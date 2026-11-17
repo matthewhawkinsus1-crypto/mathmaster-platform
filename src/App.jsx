@@ -501,10 +501,12 @@ import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendanceEve
 // App reads only this name, and that module is a teacher's history screen.
 import { ATTENDANCE_HISTORY_EVENT_KIND } from '../functions/shared/attendanceDay.mjs';
 import { applyStudentAttendanceExtension } from './platform/attendance/extensionClient.js';
+// The periods' course profiles alone, not courseRigor.js: its Honors checks
+// load with the teacher's screens (PF01, platform/rigor/courseProfiles.js).
 import {
   defaultCourseProfiles,
   normalizeCourseProfiles,
-} from './platform/rigor/courseRigor.js';
+} from './platform/rigor/courseProfiles.js';
 import SessionGate from './app/shell/SessionGate.jsx';
 import { screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';

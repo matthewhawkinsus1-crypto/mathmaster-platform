@@ -1,56 +1,19 @@
 import { getStrandForTEKS } from '../mastery/strandConfig.js';
 import { mapTEKSToExamDomains } from '../assessment/examDomainRegistry.js';
+// Each period's course and level live on their own, so App reads them without
+// the rigor checks below (PF01, ./courseProfiles.js); the same names from here.
+import { COURSE_LABELS, normalizeCourseLevel } from './courseProfiles.js';
 
-export const COURSE_LEVELS = Object.freeze({
-  STANDARD: 'standard',
-  HONORS: 'honors',
-});
-
-export const COURSE_OPTIONS = Object.freeze([
-  Object.freeze({ id: 'algebra1', label: 'Algebra I' }),
-  Object.freeze({ id: 'algebra2', label: 'Algebra II' }),
-]);
-
-const COURSE_LABELS = Object.freeze(Object.fromEntries(COURSE_OPTIONS.map((course) => [course.id, course.label])));
+export {
+  COURSE_LEVELS,
+  COURSE_OPTIONS,
+  defaultCourseProfiles,
+  normalizeCourseId,
+  normalizeCourseLevel,
+  normalizeCourseProfiles,
+} from './courseProfiles.js';
 
 const CCMR_FRAMEWORKS = new Set(['digitalSAT', 'act', 'tsia2', 'asvab']);
-
-export const normalizeCourseLevel = (value) => (
-  String(value || '').trim().toLowerCase() === COURSE_LEVELS.HONORS
-    ? COURSE_LEVELS.HONORS
-    : COURSE_LEVELS.STANDARD
-);
-
-export const normalizeCourseId = (value) => {
-  const token = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (['algebra2', 'alg2', 'a2'].includes(token)) return 'algebra2';
-  return 'algebra1';
-};
-
-export const defaultCourseProfiles = (classPeriods = []) => Object.fromEntries(
-  classPeriods.map((period) => [period, {
-    classPeriod: period,
-    course: 'algebra1',
-    courseLabel: 'Algebra I',
-    courseLevel: COURSE_LEVELS.STANDARD,
-  }]),
-);
-
-export const normalizeCourseProfiles = (rawProfiles = {}, classPeriods = []) => {
-  const defaults = defaultCourseProfiles(classPeriods);
-  return Object.fromEntries(classPeriods.map((period) => {
-    const source = rawProfiles?.[period] || {};
-    const course = normalizeCourseId(source.course || source.courseId);
-    return [period, {
-      ...defaults[period],
-      ...source,
-      classPeriod: period,
-      course,
-      courseLabel: COURSE_LABELS[course],
-      courseLevel: normalizeCourseLevel(source.courseLevel || source.level),
-    }];
-  }));
-};
 
 export const splitClassPeriodsByRigor = (classPeriods = [], courseProfiles = {}) => (
   classPeriods.reduce((result, period) => {
