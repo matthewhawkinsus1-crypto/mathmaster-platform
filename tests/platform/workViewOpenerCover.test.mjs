@@ -194,6 +194,15 @@ test('the sweep reads every surface the opener floats over, at the phones, at 20
   // The figures on their own are read on the phones; everything else at every size.
   assert.deepEqual(SURFACES.find((surface) => surface.id === 'cues').sizes.map((size) => size.id), SIZES.filter((size) => size.phone).map((size) => size.id));
   for (const id of ['assignment', 'hosts', 'lab']) assert.equal(SURFACES.find((surface) => surface.id === id).sizes, SIZES);
+  // A scene with no opener to read fails rather than passing as clear: but the one Lab tool the Work View inventory
+  // exempts, and every figure on the colour-alone page is expected, the two cases section 6 recorded among them.
+  const { WORK_VIEW_INVENTORY } = await import('../../src/tools/workViewInventory.js');
+  const lab = SURFACES.find((surface) => surface.id === 'lab');
+  assert.deepEqual([...lab.noOpener], ['solutionReview2']);
+  for (const toolId of lab.noOpener) assert.equal(WORK_VIEW_INVENTORY[toolId]?.status, 'exempt', toolId);
+  const cues = SURFACES.find((surface) => surface.id === 'cues');
+  for (const scene of ['inverse-lab', 'system-equations', 'workspace-inverse', 'static-figure']) assert.ok(cues.expects.includes(scene), scene);
+  assert.match(read('tests/browser/workViewOpenerCover.mjs'), /if \(unread\.length\) problems\.push\(`no opener to read on \$\{unread\.join\(', '\)\}`\);/);
   // R10's set: the plane tools, the table tools and the Step Algebra boards.
   for (const id of ['tool-graphing2', 'tool-transformationsLab', 'tool-systemsWorkspace', 'tool-dataModelingLab', 'tool-linearTableWorkbench', 'tool-stepAlgebra2', 'legacy-stepAlgebra']) {
     assert.ok(SCROLL_SCENES.includes(id), id);

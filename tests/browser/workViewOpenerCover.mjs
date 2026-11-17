@@ -150,17 +150,30 @@ export const SURFACES = Object.freeze([
     id: 'lab',
     server: 'app',
     sizes: SIZES,
-    read: async (page, origins, record) => {
+    // Solution Review has no Work View (WORK_VIEW_INVENTORY: exempt, read-only).
+    noOpener: Object.freeze(['solutionReview2']),
+    read: async (page, origins, record, surface) => {
       await MATH_TOOLS_LAB_SCREEN.open(page, origins);
-      // The Lab opens on its first tool, the Transformations Lab (and in its Work View where that opens on its own).
-      const scenes = [{ id: 'transformationsLab', run: async () => {
+      const closeWorkView = async () => {
         const close = page.locator('[role="dialog"][aria-modal="true"] .mathmaster-work-view-header > button', { hasText: /^Close/ });
         if (await close.count()) await close.first().evaluate((button) => button.click());
         await settled(page, 600);
-      } }, ...MATH_TOOLS_LAB_SCREEN.scenes];
+      };
+      // The Lab opens on its first tool, the Transformations Lab (and in its Work View where that opens on its own).
+      const scenes = [{ id: 'transformationsLab', run: closeWorkView }, ...MATH_TOOLS_LAB_SCREEN.scenes];
       for (const scene of scenes) {
         await scene.run(page, origins, { first: false });
-        record(scene.id, await readOpenerCoverage(page));
+        let readings = await readOpenerCoverage(page);
+        // No opener yet: a tool that opens its Work View on its own on a short phone can do so after the scene closed
+        // it, and on a loaded machine a tool can draw its opener after the scene's wait for its first controls. Its
+        // Work View closed again, and its opener waited for (30s at most), it is read once more.
+        if (!readings.length && !surface.noOpener.includes(scene.id)) {
+          await closeWorkView();
+          await page.waitForFunction((selector) => [...document.querySelectorAll(selector)].some((button) => button.getBoundingClientRect().width > 0), 'button.mathmaster-work-view-opener', { timeout: 30_000 }).catch(() => {});
+          await settled(page, 600);
+          readings = await readOpenerCoverage(page);
+        }
+        record(scene.id, readings);
       }
       return scenes.length;
     },
@@ -169,6 +182,8 @@ export const SURFACES = Object.freeze([
     id: 'cues',
     server: 'audit',
     sizes: SIZES.filter((size) => size.phone),
+    // The page's figures that are each their own Work View.
+    expects: Object.freeze(['inverse-lab', 'exp-log', 'systems', 'systems-build', 'transformations', 'workspace-inverse', 'static-figure', 'system-equations']),
     read: async (page, origins, record) => {
       await openCues(page, origins.audit, 'light');
       await settled(page, 900);
@@ -221,6 +236,12 @@ const runCover = async (browser, origins, surface, size) => {
     const count = await surface.read(page, origins, (scene, readings) => { scenes[scene] = readings; }, surface);
     if (size.textScale !== 1 && !(await textScaleApplied(page, size))) problems.push('the text-size setting did not apply');
     if (!count) problems.push('no scene was read');
+    // A scene whose opener was not on the page was not read: it fails rather than passing as clear.
+    const unread = [
+      ...Object.entries(scenes).filter(([scene, readings]) => !readings.length && !(surface.noOpener || []).includes(scene)).map(([scene]) => scene),
+      ...(surface.expects || []).filter((scene) => !scenes[scene]),
+    ];
+    if (unread.length) problems.push(`no opener to read on ${unread.join(', ')}`);
   } catch (error) {
     problems.push(`could not read the surface: ${error.message.split('\n')[0]}`);
   } finally {
@@ -235,6 +256,8 @@ const runCover = async (browser, origins, surface, size) => {
     scenes: Object.keys(scenes).length,
     openers: Object.values(scenes).reduce((sum, readings) => sum + readings.length, 0),
     stacked: Object.values(scenes).reduce((sum, readings) => sum + readings.filter((reading) => reading.stacked).length, 0),
+    // Each scene's openers, and how many had a row of their own: what the report's counts are made of.
+    byScene: Object.fromEntries(Object.entries(scenes).map(([scene, readings]) => [scene, { openers: readings.length, stacked: readings.filter((reading) => reading.stacked).length }])),
     covered,
     over,
     problems: [...problems, ...errors.map((message) => `page error: ${message}`)],
