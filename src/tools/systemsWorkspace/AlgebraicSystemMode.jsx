@@ -470,15 +470,49 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   );
 }
 
+// The fields the report below reads, each with the normaliser the subsystem's
+// own field restores through.
+const SUBSYSTEM_REPORT_SHAPES = Object.freeze({
+  selection: 'selection',
+  isolation: 'isolation',
+  substitution: 'substitution',
+  combination: 'combination',
+  statementWork: 'statementWork',
+  firstSolved: 'solved',
+  backSub: 'backSub',
+  secondSolved: 'solved',
+});
+const restoredSubsystemRecord = (record, variables) => {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return null;
+  // The reduced system is square: one equation per variable.
+  const known = Array.isArray(variables) ? variables : [];
+  const shapes = algebraicDraftNormalizers(known.length, known);
+  const restored = { ...record };
+  Object.entries(SUBSYSTEM_REPORT_SHAPES).forEach(([field, shape]) => {
+    if (!Object.prototype.hasOwnProperty.call(record, field)) return;
+    const { value } = shapes[shape](record[field]);
+    if (value === undefined) delete restored[field];
+    else restored[field] = value;
+  });
+  return restored;
+};
+
 /**
  * The reduced subsystem's solution as its own draft record holds it, so a 3×3
  * parent restored from a draft knows the subsystem is solved on its FIRST
  * render instead of flashing the finished subsystem open for a frame. The
  * field names are this component's, which is why the reader lives here.
+ *
+ * The parent reads that record directly, so it is read here through the
+ * normalisers the subsystem's own fields restore through: a damaged field
+ * (a combination with no coefficients threw here on every load) reads as the
+ * subsystem itself will show it, not reached or not solved yet, and a valid
+ * record reads exactly as saved. A solution names both variables.
  */
-export const subsystemReportFromDraft = (record, variables = null) => {
+export const subsystemReportFromDraft = (saved, variables = null) => {
+  const record = restoredSubsystemRecord(saved, variables);
   const combined = record?.combination;
-  if (combined?.combinationValid && combined?.text && isDegenerateStatement(combined.coefficients)) {
+  if (combined?.combinationValid && combined?.text && combined.coefficients && isDegenerateStatement(combined.coefficients)) {
     return { outcome: { type: degenerateStatementTruth(combined.coefficients).isTrue ? 'infinite' : 'none', statement: combined.text } };
   }
   // A substitution that cancelled every variable reports only the statement the
@@ -491,7 +525,7 @@ export const subsystemReportFromDraft = (record, variables = null) => {
   }
   const first = record?.firstSolved;
   const second = record?.secondSolved;
-  if (!first?.variable || !second?.variable || first.value == null || second.value == null) return null;
+  if (!first?.variable || !second?.variable || first.variable === second.variable || first.value == null || second.value == null) return null;
   const firstValue = Number(first.value);
   const secondValue = Number(second.value);
   if (!Number.isFinite(firstValue) || !Number.isFinite(secondValue)) return null;

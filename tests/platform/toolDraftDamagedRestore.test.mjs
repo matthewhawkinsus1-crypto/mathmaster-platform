@@ -16,7 +16,10 @@
  * renders them (helpers/toolDraftRender.mjs), and asserts that the tool opens,
  * that the damaged field was repaired or set aside (and said so), and that the
  * draft's valid fields came back exactly as saved. On the build before the fix
- * every one of these drafts threw.
+ * every one of these drafts threw. A 3×3 system also reads its reduced 2×2's
+ * own draft record directly, on its first render: one test opens the 3×3 on
+ * damaged records of that nested scope, another reads every recorded 2×2
+ * record through it.
  *
  * The last tests are the other half of the promise: every valid draft the
  * tools wrote in Chromium (fixtures/toolDraftValidRecords.json), and the
@@ -29,6 +32,7 @@ import { readFileSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { openToolDraftRenderer, errorText } from './helpers/toolDraftRender.mjs';
 import { LONG_TEXT_LENGTH } from './helpers/hostileDraftValues.mjs';
+import * as R from '../../src/tools/systemsWorkspace/substitutionReduction.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const CASES = JSON.parse(read('tests/platform/fixtures/toolDraftDamageCases.json')).cases;
@@ -114,6 +118,82 @@ for (const fix of FIXES) {
     }
   });
 }
+
+/* --------------------------- the reduced 2×2 a 3×3 reads on its first render */
+
+// The 3×3 substitution of systemsWorkspaceSubstitutionReduction.test.mjs, at
+// its reduced 2×2 (-3y + z = -3, -y - 4z = -14; y = 2, z = 3).
+const REDUCTION_EQUATIONS = ['x + y + z = 6', '2x - y + 3z = 9', '3x + 2y - z = 4'];
+const reductionAtSubsystem = () => {
+  const system = R.buildReductionSystem({ variables: ['x', 'y', 'z'], equations: REDUCTION_EQUATIONS });
+  const reduction = [
+    (state) => R.chooseReductionSource(state, system, 'E1', 'x'),
+    (state) => R.recordIsolatedExpression(state, system, '-(y) - (z) + (6)'),
+    (state) => R.useIsolatedExpressionAsToken(state, system),
+    (state) => R.attemptTargetSubstitution(state, system, 'E2', 'x'),
+    (state) => R.attemptTargetSubstitution(state, system, 'E3', 'x'),
+    (state) => R.openTargetSimplification(state, 'E2'),
+    (state) => R.recordTargetStandardForm(state, system, 'E2', '-3 y+ z = -3'),
+    (state) => R.recordTargetStandardForm(state, system, 'E3', '- y-4 z = -14'),
+  ].reduce((state, move) => {
+    const { state: next, feedback } = move(state);
+    assert.equal(feedback, null);
+    return next;
+  }, R.emptyReductionState());
+  const scope = `tool:reduced-${R.reducedSystemIdentity(R.reducedSystem(reduction, system))}`;
+  return { reduction, scope };
+};
+
+test('3×3 systems: a damaged draft of the reduced 2×2 opens, and a solved one is still known on the first render (subsystemReportFromDraft)', async () => {
+  // The 3×3 reads its reduced 2×2's own draft record directly on its first
+  // render, so that a solved subsystem does not flash open; that read threw on
+  // these, before the 2×2 restored a field.
+  const { reduction, scope } = reductionAtSubsystem();
+  const question = { questionId: 'reduced-subsystem-draft', type: 'systemsWorkspace', toolId: 'systemsWorkspace', mode: 'algebraic', method: 'substitution', prompt: 'Solve the system by substitution.', variables: ['x', 'y', 'z'], equations: REDUCTION_EQUATIONS, requireVerification: true };
+  const { open } = await renderer();
+  const opened = (subsystem) => open(question, { record: { reduction }, scopes: { [scope]: subsystem } });
+  const checked = { operation: 'add', attempts: 1, text: '0 = 0', cancelledRows: { 0: true, 1: true }, cancellationConfirmed: true, coefficientAnswer: '0', constantAnswer: '0', combinationChecked: true, combinationValid: true };
+  const solved = { method: 'substitution', selection: { equationIndex: 0, variable: 'z' }, firstSolved: { variable: 'y', value: 2, expression: '2' }, backSub: { equationIndex: 0 }, secondSolved: { variable: 'z', value: 3, expression: '3' } };
+  // An object JSON can carry that cannot be turned into text or a number.
+  const unprintable = () => JSON.parse('{"toString":1,"valueOf":null}');
+  for (const [label, subsystem] of [
+    ['a checked combination without its coefficients', { method: 'elimination', combination: checked }],
+    ['coefficients null', { method: 'elimination', combination: { ...checked, coefficients: null } }],
+    ['a coefficient that is no number', { method: 'elimination', combination: { ...checked, coefficients: { a: unprintable(), b: 0, c: 0 } } }],
+    ['a statement that is no text', { method: 'elimination', combination: { ...checked, coefficients: { a: 0, b: 0, c: 0 }, text: unprintable() } }],
+    ['a solved variable that is no text', { ...solved, firstSolved: { ...solved.firstSolved, variable: unprintable() } }],
+    ['a solved value that is no number', { ...solved, secondSolved: { ...solved.secondSolved, value: unprintable() } }],
+  ]) {
+    const result = await opened(subsystem);
+    assert.deepEqual(errorText(result), [], `${label}: the 3×3 opens`);
+    assert.doesNotMatch(result.html, /Pick up solved value/, `${label}: no solution is read from it`);
+  }
+  // Both solves for one variable are not a solution of the pair.
+  assert.doesNotMatch((await opened({ ...solved, secondSolved: { ...solved.secondSolved, variable: 'y' } })).html, /Pick up solved value/);
+  // A valid solved 2×2 is read as before: the first render is already at
+  // back-substitution, holding both values.
+  const result = await opened(solved);
+  assert.deepEqual(errorText(result), []);
+  assert.match(result.html, /aria-label="Pick up solved value 2 for y"/);
+  assert.match(result.html, /aria-label="Pick up solved value 3 for z"/);
+});
+
+test('the 3×3 reads every recorded 2×2 draft exactly as saved', async () => {
+  const { subsystemReportFromDraft } = await (await renderer()).load('/src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
+  let solved = 0;
+  for (const sceneId of ['extra:journey-sub-2x2', 'extra:journey-elim-2x2']) {
+    const { variables } = await sceneById(sceneId);
+    for (const record of VALID[sceneId]) {
+      const report = subsystemReportFromDraft(record, variables);
+      if (!report?.solution) continue;
+      solved += 1;
+      assert.deepEqual(report.solution, { [record.firstSolved.variable]: record.firstSolved.value, [record.secondSolved.variable]: record.secondSolved.value });
+      // The very objects saved: nothing was rebuilt on the way.
+      ['selection', 'substitution', 'firstSolved', 'backSub', 'secondSolved'].forEach((field) => assert.equal(report.detail[field], record[field], `${sceneId} ${field}`));
+    }
+  }
+  assert.ok(solved >= 2, `${solved} solved 2×2 drafts read`);
+});
 
 test('text longer than the backup keeps is cut to it, and the tools that froze on it open', async () => {
   const { load, open } = await renderer();

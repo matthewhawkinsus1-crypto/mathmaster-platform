@@ -12,7 +12,8 @@
  *   rawHostileValues() what JSON cannot carry (NaN, Infinity, undefined),
  *                      which reaches a tool only from the in-memory cache;
  *   damagedCopies(v)   a VALID value v with one part damaged at a time: each
- *                      key deleted or given a wrong kind, each list's first and
+ *                      key deleted or given a wrong kind (a record that cannot
+ *                      be turned into text among them), each list's first and
  *                      last entry replaced, every entry of a list given the same
  *                      damage (a row with no type), keys merged into each map,
  *                      to MAX_DEPTH.
@@ -62,6 +63,7 @@ export const rawHostileValues = () => [
   ['undefined', undefined],
 ];
 
+export const UNPRINTABLE = 'unprintable record';
 const LEAF_DAMAGE = ({ long = true } = {}) => [
   ['null', null],
   ['text', 'abc'],
@@ -70,6 +72,9 @@ const LEAF_DAMAGE = ({ long = true } = {}) => [
   ['list', []],
   ['map', {}],
   ['nested list', [[1]]],
+  // Where a typed answer or a coordinate belongs, a record whose toString is
+  // not a function: drawing it throws "Cannot convert object to primitive value".
+  [UNPRINTABLE, hostileKeys()],
   ...(long ? [['long text', 'a'.repeat(50000)]] : []),
 ];
 const ENTRY_DAMAGE = () => [['null', null], ['text', 'abc'], ['number', 7], ['map', {}], ['list', [[1, 2]]], ['hostile keys', hostileKeys()]];

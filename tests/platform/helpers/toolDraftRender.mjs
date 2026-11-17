@@ -103,10 +103,12 @@ export async function openToolDraftRenderer({ cacheName = 'tool-drafts' } = {}) 
   let opened = 0;
   /**
    * Open `question` on `record` (written to storage, as a reload reads it) or
-   * on `raw` (handed to the cache as it is). Every error React reports is
-   * collected; the render never rejects.
+   * on `raw` (handed to the cache as it is). `scopes` writes the records of
+   * nested draft scopes beside it ({ scope: record }, as a 3×3 keeps its
+   * reduced 2×2's work). Every error React reports is collected; the render
+   * never rejects.
    */
-  const open = async (question, { record = null, raw = null } = {}) => {
+  const open = async (question, { record = null, raw = null, scopes = {} } = {}) => {
     opened += 1;
     const draftKey = `tool-draft-test-${opened}`;
     const key = `${draftKey}:work:tool`;
@@ -118,7 +120,10 @@ export async function openToolDraftRenderer({ cacheName = 'tool-drafts' } = {}) 
         React.createElement(Tool, { questionData: question, onAction() {}, draftKey })));
     const previous = globalThis.window;
     globalThis.window = {
-      localStorage: memoryStorage(record ? { [key]: envelope(record) } : {}),
+      localStorage: memoryStorage({
+        ...(record ? { [key]: envelope(record) } : {}),
+        ...Object.fromEntries(Object.entries(scopes).map(([scope, scoped]) => [`${draftKey}:work:${scope}`, envelope(scoped)])),
+      }),
       sessionStorage: memoryStorage(),
       addEventListener() {},
       removeEventListener() {},

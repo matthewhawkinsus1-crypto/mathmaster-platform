@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { openToolDraftRenderer, errorText } from './helpers/toolDraftRender.mjs';
-import { damagedCopies, hostileValues, rawHostileValues } from './helpers/hostileDraftValues.mjs';
+import { UNPRINTABLE, damagedCopies, hostileValues, rawHostileValues } from './helpers/hostileDraftValues.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -192,9 +192,13 @@ test('every registry tool opens on every damaged draft, and the parts of a draft
         const inContext = Object.keys(base).length > 0;
         if (inContext && base[field.name] === undefined) continue;
         const valid = inContext ? base[field.name] : field.initial;
+        const damaged = STRUCTURED.has(kindOf(field.initial)) ? damagedCopies(valid, { long: false }) : [];
+        const unprintable = ([name]) => name.endsWith(`= ${UNPRINTABLE}`);
         const cases = [
           ...(inContext ? [] : hostileValues({ long: false }).filter(([name]) => RENDERED.has(name))),
-          ...(STRUCTURED.has(kindOf(field.initial)) ? damagedCopies(valid, { long: false }).slice(0, inContext ? 24 : 48) : []),
+          ...damaged.filter((entry) => !unprintable(entry)).slice(0, inContext ? 24 : 48),
+          // A record that cannot become text, in each place a value is drawn from.
+          ...damaged.filter(unprintable).slice(0, 12),
         ];
         for (const [name, value] of cases) {
           opened += 1;
