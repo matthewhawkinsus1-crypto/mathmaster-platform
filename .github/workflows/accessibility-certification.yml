@@ -330,6 +330,12 @@ jobs:
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/myMathPathLandmarks.mjs
+      - name: My Math Path's topic browser, wheel legend and a locked skill's repair
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/pathTopicBrowser.mjs
       - name: Home and Grades accessible names (QA m13)
         if: ${{ !cancelled() }}
         env:
