@@ -1078,6 +1078,36 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 }
 
 /*
+ * ON A PHONE, A FIGURE THAT IS ITS OWN WORK VIEW STARTS BELOW ITS OPENER TOO.
+ *
+ * The rule above gives a question's work the button's row. A figure that is its
+ * own Work View had none: a plane drawn on its own with an opener of its own
+ * (PathQuestionStimulus: My Math Path's question with a graph, the session
+ * recap, a secure Test's field item), and any figure mounted outside a question,
+ * started right under the button, which floats over its top right corner. On a
+ * 360-390px phone the plane's y-axis name and its top numbers ("y", 4, 6, 8, 10)
+ * were under it, and on the colour-alone page's figures on their own a point and
+ * its name (the Inverse & Composition Lab's (x, f(x)) and "swapped") and a
+ * system's first equation in its list (tests/browser/workViewOpenerCover.mjs).
+ * A point cannot move off its coordinates, and a name moved off its point reads
+ * as another's; the figure's content starts below the button's measured bottom
+ * edge instead, as the question's does. Padding on the surface, which the button
+ * is placed in from the top of its padding box, so the button keeps its place:
+ * `!important` over a figure's own inline padding (GraphDisplay's 12px).
+ *
+ * Not the question's own work area (the rule above has it), not where the button
+ * already has a row of its own (data-opener-stacked: 200% text, a narrow
+ * figure), and not a tool whose header shares the button's row and keeps clear of
+ * its width itself (the Math Tools Lab's registered tools). A phone only: the
+ * sweep finds nothing under these openers on a Chromebook, so nothing moves there.
+ */
+@media (max-width: 600px) {
+  .mathmaster-work-view-surface[data-enlarged="false"]:not([data-opener-stacked="true"]):not(:has(> .mathmaster-question-tool-workspace, .mathmaster-tool-shell-header)) {
+    padding-top: var(--mm-work-view-opener-bottom, 52px) !important;
+  }
+}
+
+/*
  * "LET'S BACK UP" STARTS BELOW THE OPENER AND CAN BE READ FROM ITS FIRST LINE.
  *
  * The step covers the work area (position absolute, inset 0) and centred its

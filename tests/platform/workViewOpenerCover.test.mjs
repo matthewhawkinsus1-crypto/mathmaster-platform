@@ -14,10 +14,57 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
-import { parseCss, declared } from './helpers/cssRules.mjs';
+import { parseCss, declared, rulesFor } from './helpers/cssRules.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
+import { OPENER_GAP, openerSharesRow } from '../../src/platform/workView/openerPlacement.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+const shellCss = parseCss(read('src/components/common/WorkViewShell.css'));
+const figure = executableSource(read('src/components/common/EnlargeableFigure.jsx'));
+
+/* ------------------------------------------------- a figure that is its own Work View, on a phone */
+
+const OWN_FIGURE = '.mathmaster-work-view-surface[data-enlarged="false"]:not([data-opener-stacked="true"]):not(:has(> .mathmaster-question-tool-workspace, .mathmaster-tool-shell-header))';
+
+test('on a phone, a figure that is its own Work View starts below its opener', () => {
+  // My Math Path's question with a graph, the session recap and a secure Test's field item draw their plane
+  // with an opener of its own (PathQuestionStimulus), and on a 360-390 px phone its y-axis name and top numbers
+  // were under it. The figure's content starts at the button's measured bottom edge.
+  assert.deepEqual(declared(shellCss, OWN_FIGURE, 'padding-top', { media: '(max-width: 600px)' }), { value: 'var(--mm-work-view-opener-bottom, 52px)', important: true },
+    'padding on the surface itself, over a figure\'s own inline padding (GraphDisplay\'s 12px)');
+  // A phone only: on a Chromebook nothing moves (the sweep finds nothing under these openers there).
+  assert.equal(declared(shellCss, OWN_FIGURE, 'padding-top', { media: null }), null, 'not at every width');
+  assert.ok(rulesFor(shellCss, OWN_FIGURE).every((rule) => rule.atRules.some((atRule) => atRule.includes('(max-width: 600px)'))));
+});
+
+test('the figure\'s lane leaves alone the question\'s own work, a button on a row of its own, and a tool whose header shares the button\'s row', () => {
+  // The question's work has its own phone lane (phoneOpenerLane.test.mjs); counting it twice would put two rows of
+  // nothing above every question.
+  assert.match(OWN_FIGURE, /:not\(:has\(> \.mathmaster-question-tool-workspace/);
+  // Where the button has a row of its own (200% text, a narrow figure), nothing is under it already.
+  assert.match(OWN_FIGURE, /:not\(\[data-opener-stacked="true"\]\)/);
+  // A tool's header keeps clear of the button's width itself (the Math Tools Lab's registered tools).
+  assert.match(OWN_FIGURE, /\.mathmaster-tool-shell-header\)\)$/);
+  assert.match(OWN_FIGURE, /^\.mathmaster-work-view-surface\[data-enlarged="false"\]/, 'never an open Work View');
+});
+
+test('padding moves the figure, not the button, and the button\'s bottom edge is measured for every figure that has one', () => {
+  // The button is placed from the top of the surface's padding box, so padding the surface moves only what is under it.
+  const control = region(figure, 'const CONTROL = {', '};', 'the opener\'s place');
+  assert.match(control, /position: 'absolute',\s*top: 8,\s*right: 8,/);
+  assert.match(control, /minHeight: 44,/, 'its 44 px target');
+  // Measured wherever there is a button, a question's or a figure's own: nothing in the effect asks which.
+  const effect = region(figure, 'const publishSpace = () => {', '}, [enlarged]);', 'the opener measurement');
+  assert.match(effect, /'--mm-work-view-opener-bottom', stacked \? '0px' :/);
+  assert.match(figure, /const surface = opener\?\.parentElement;\n\s*if \(enlarged \|\| !opener \|\| !surface\) return undefined;/);
+  // At the sizes the sweep measured, the stimulus plane's figure shares the button's row (so the lane applies):
+  // a 330 px figure on a 390 px phone and a 300 px one on a 360 px phone at 100% text...
+  assert.equal(openerSharesRow({ surfaceWidth: 330, openerWidth: 142, fontSize: 13 }), true);
+  assert.equal(openerSharesRow({ surfaceWidth: 300, openerWidth: 142, fontSize: 13 }), true);
+  // ...and at 200% text the button takes a row of its own, where the lane is not needed.
+  assert.equal(openerSharesRow({ surfaceWidth: 330, openerWidth: 257, fontSize: 26 }), false);
+  assert.equal(OPENER_GAP, 16);
+});
 
 /* ------------------------------------------------- #386 R17: tries and completion badges */
 
