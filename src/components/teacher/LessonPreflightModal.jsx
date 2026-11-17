@@ -8,6 +8,7 @@ import {
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { advisoryCountsText, advisoryTotalText, buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { preflightClassSizeFor } from '../../platform/preflight/questionPreflightFindings.js';
 import { findAssignmentKeyConflict } from '../../assignmentDestinations.js';
 import { applySafeToolContractRepairs } from '../../platform/contract/questionToolContract.js';
 import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
@@ -306,14 +307,13 @@ export const LessonPreflightModal = ({
     () => buildPreflightReviewedAssignmentV5(workingAssignmentV5, draft),
     [workingAssignmentV5, draft],
   );
-  // The largest class this assignment will be given to: uniqueness is per class.
-  const preflightClassSize = useMemo(() => {
-    const chosen = Array.isArray(draft.assignedClassIds) && draft.assignedClassIds.length
-      ? draft.assignedClassIds
-      : Object.keys(rosterSizesByClassId || {});
-    const sizes = chosen.map((classId) => Number(rosterSizesByClassId?.[classId]) || 0).filter((size) => size > 0);
-    return sizes.length ? Math.max(...sizes) : null;
-  }, [draft.assignedClassIds, rosterSizesByClassId]);
+  // The largest class this assignment will be given to: uniqueness is per
+  // class. The Question Editor counts against the same class
+  // (questionPreflightFindings.js).
+  const preflightClassSize = useMemo(
+    () => preflightClassSizeFor(draft.assignedClassIds, rosterSizesByClassId),
+    [draft.assignedClassIds, rosterSizesByClassId],
+  );
   const preflightModel = useMemo(
     () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize }),
     [reviewedAssignmentV5, preflightClassSize],

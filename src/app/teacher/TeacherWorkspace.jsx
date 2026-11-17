@@ -2002,6 +2002,9 @@ export default function TeacherWorkspace({
           }
           fullAuditAuthorized={rootAdminUiEligible || user.assignmentRepairer === true}
           studentActivityStatus={allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined) ? 'present' : 'unavailable'}
+          // Pre-Flight's findings in the editor count question versions
+          // against the same class Assignment Review does.
+          rosterSizesByClassId={preflightRosterSizesByClassId}
           onSave={saveQuestionEditor}
           onClose={() => setQuestionEditorAssignment(null)}
         />
