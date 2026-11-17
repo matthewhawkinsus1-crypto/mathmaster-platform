@@ -190,11 +190,13 @@ test('the held read hands the copy over once, and its save once', async () => {
   const held = holdDraftRead({
     transact: (update) => runTransaction(null, update),
     read: async (transaction) => { const snapshot = await transaction.get(reference); return snapshot.exists() ? snapshot.data() : null; },
-    write: (transaction, existing, patch) => { writes.push({ existing, patch }); transaction.set(reference, { patch }); return ['dropped-key']; },
+    write: (transaction, existing, patch) => { writes.push({ existing, patch }); transaction.set(reference, { patch }); return { written: true, droppedKeys: ['dropped-key'] }; },
   });
   assert.equal(held.landed, false);
   assert.equal(await held.serverCopy, null, 'no document yet');
   assert.equal(held.landed, true);
+  // The save resolves to what its write returned: a lesson's report of the
+  // keys the caps left out, a Recovery's stored answers.
   assert.deepEqual(await held.save({ n: 1 }), { written: true, droppedKeys: ['dropped-key'] });
   await assert.rejects(held.save({ n: 2 }), /used/, 'a held read writes once');
   assert.deepEqual(writes, [{ existing: null, patch: { n: 1 } }]);

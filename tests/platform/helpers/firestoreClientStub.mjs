@@ -14,7 +14,9 @@
 //     update throws is the caller's and ends it;
 //   - `beforeCommit` runs between a transaction's update and its commit, so a
 //     test can write as another device would in that moment;
-//   - `failReads` fails that many reads, `readGate(path)` can hold one back;
+//   - `failReads` fails that many reads, `readGate(path)` can hold one back:
+//     by default the server reads the document when the gate opens; with
+//     `readAnswersLate` it read it at once and its answer arrives late;
 //   - a callable answers with `answers[name](data)` and is recorded in
 //     `calls`; one with no answer fails, as an undeployed function would.
 //
@@ -26,6 +28,7 @@ const state = (globalThis.__firestoreClient ||= {
   commits: [],
   failReads: 0,
   readGate: null,
+  readAnswersLate: false,
   beforeCommit: null,
   calls: [],
   answers: {},
@@ -38,6 +41,7 @@ export const resetFirestoreClient = () => {
   state.commits.length = 0;
   state.failReads = 0;
   state.readGate = null;
+  state.readAnswersLate = false;
   state.beforeCommit = null;
   state.calls.length = 0;
   state.answers = {};
@@ -78,12 +82,13 @@ const snapshotOf = (path) => {
 
 const readDocument = async (path, how) => {
   state.reads.push({ path, how });
+  const early = state.readAnswersLate ? { snapshot: snapshotOf(path), version: state.versions.get(path) || 0 } : null;
   if (state.readGate) await state.readGate(path, how);
   if (state.failReads > 0) {
     state.failReads -= 1;
     throw firebaseError('unavailable', 'Failed to get document because the client is offline. (stub)');
   }
-  return { snapshot: snapshotOf(path), version: state.versions.get(path) || 0 };
+  return early || { snapshot: snapshotOf(path), version: state.versions.get(path) || 0 };
 };
 
 export const getDoc = async (reference) => (await readDocument(reference.path, 'getDoc')).snapshot;

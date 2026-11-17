@@ -147,7 +147,8 @@ test('the store hands back what the caps left out', () => {
   const writer = region(store, 'export const writeWorkspaceDraft', '\n};');
   assert.match(writer, /droppedKeys = writeMerged\(transaction, reference, existing, patch\);/);
   assert.match(writer, /return \{ written: true, droppedKeys \};/);
-  assert.match(region(store, 'export const openWorkspaceDraft', '\n};'), /write: \(transaction, existing, patch\) => writeMerged\(transaction, reference, existing, patch\),/);
+  // The held read's save resolves to what its write returns (heldDraftRead.js).
+  assert.match(region(store, 'export const openWorkspaceDraft', '\n};'), /write: \(transaction, existing, patch\) => \(\{ written: true, droppedKeys: writeMerged\(transaction, reference, existing, patch\) \}\),/);
   // App passes the store's answer through to the sync, whichever way it saved
   // (draftOpeningReadOnce.test.mjs runs both against the real store).
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));

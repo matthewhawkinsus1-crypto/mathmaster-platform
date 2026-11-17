@@ -1,12 +1,14 @@
 /*
- * ONE READ FOR OPENING A LESSON AND FOR ITS FIRST SAVE.
+ * ONE READ FOR OPENING A LESSON OR A RECOVERY AND FOR ITS FIRST SAVE.
  *
  * Opening an assignment reads the student's server copy of their drafts
  * (App.jsx restores what another Chromebook saved), and the first background
  * save, a few seconds later, read the same document again: a save merges into
  * whatever is stored, in a transaction that reads first
  * (workspaceDraftStore.js). Two reads of one document, nearly always at one
- * version, on every lesson a student opened.
+ * version, on every lesson a student opened. A Recovery's saved answers were
+ * read the same way twice (useRecoveryAnswerDrafts.js,
+ * recoveryAnswerDraftStore.js).
  *
  * A Firestore transaction in the web SDK is optimistic. Its read records the
  * document's version, and its write is sent as "only if the document is still
@@ -30,7 +32,8 @@
  * Injected, so it runs in a node test: `transact(update)` runs `update` as a
  * transaction (Firestore's runTransaction, retries included), `read(t)`
  * resolves to the stored document or null, `write(t, stored, patch)` merges
- * and writes it and returns the keys the document's caps left out.
+ * and writes it and returns what the save resolves to (a lesson's: the keys
+ * the document's caps left out; a Recovery's: the stored answers it sent).
  */
 // What `release` hands the waiting transaction. It then throws an error that
 // is not Firestore's, so Firestore ends the transaction without running it again.
@@ -44,7 +47,7 @@ export const holdDraftRead = ({ transact, read, write }) => {
   let deliver;
   const request = new Promise((resolve) => { deliver = resolve; });
   let taken = false;
-  let droppedKeys = [];
+  let saved;
   const done = Promise.resolve().then(() => transact(async (transaction) => {
     const stored = await read(transaction);
     // Handed over once: a transaction run again after a refused write reads
@@ -56,7 +59,7 @@ export const holdDraftRead = ({ transact, read, write }) => {
     const patch = await request;
     if (patch === RELEASED) throw new Error('released');
     // Of the attempt that commits (a refused write runs this again).
-    droppedKeys = write(transaction, stored, patch) || [];
+    saved = write(transaction, stored, patch);
   }));
   // The read failed (offline, refused): the copy never comes. A failure after
   // it was read is the save's, and goes to whoever saved.
@@ -74,7 +77,7 @@ export const holdDraftRead = ({ transact, read, write }) => {
     /** The first save, written in the read's own transaction. Once only. */
     save(patch) {
       if (!take(patch)) return Promise.reject(new Error('used'));
-      return done.then(() => ({ written: true, droppedKeys }));
+      return done.then(() => saved);
     },
     /** Nothing to save with this read: its transaction ends without a write. */
     release() { take(RELEASED); },
@@ -82,7 +85,8 @@ export const holdDraftRead = ({ transact, read, write }) => {
 };
 
 /**
- * An open assignment's reads and saves, as App.jsx makes them.
+ * An open assignment's reads and saves, as App.jsx makes them (and a
+ * Recovery's, as useRecoveryAnswerDrafts.js does).
  *
  *   read()          reads the server copy, held for the next save (an older
  *                   read no save took is let go), and resolves to the copy;

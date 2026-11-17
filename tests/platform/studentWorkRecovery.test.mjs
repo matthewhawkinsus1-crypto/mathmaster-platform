@@ -966,7 +966,7 @@ test('the store merges inside a transaction rather than replacing the document',
   const alone = region(storeSource, 'export const writeWorkspaceDraft', '\n};', 'the save on its own');
   assert.match(alone, /await runTransaction\(db, async \(transaction\) => \{\s*const existing = storedData\(await transaction\.get\(reference\)\);[\s\S]*droppedKeys = writeMerged\(transaction, reference, existing, patch\);/);
   const held = region(storeSource, 'export const openWorkspaceDraft', '\n};', 'the held read');
-  assert.match(held, /transact: \(update\) => runTransaction\(db, update\),\s*read: async \(transaction\) => storedData\(await transaction\.get\(reference\)\),\s*write: \(transaction, existing, patch\) => writeMerged\(transaction, reference, existing, patch\),/);
+  assert.match(held, /transact: \(update\) => runTransaction\(db, update\),\s*read: async \(transaction\) => storedData\(await transaction\.get\(reference\)\),\s*write: \(transaction, existing, patch\) => \(\{ written: true, droppedKeys: writeMerged\(transaction, reference, existing, patch\) \}\),/);
   // The merge (with the report of what its caps left out, Batch 3) is what is set.
   const merged = region(storeSource, 'const writeMerged = ', '\n};', 'the merged write');
   assert.match(merged, /const report = mergeWorkspaceDraftDocumentReport\(\{ existing, patch \}\);/);

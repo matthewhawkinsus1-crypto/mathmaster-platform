@@ -41,7 +41,7 @@ export const openWorkspaceDraft = ({ studentId, assignmentId }) => {
   return holdDraftRead({
     transact: (update) => runTransaction(db, update),
     read: async (transaction) => storedData(await transaction.get(reference)),
-    write: (transaction, existing, patch) => writeMerged(transaction, reference, existing, patch),
+    write: (transaction, existing, patch) => ({ written: true, droppedKeys: writeMerged(transaction, reference, existing, patch) }),
   });
 };
 
