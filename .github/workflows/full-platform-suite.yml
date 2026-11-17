@@ -253,9 +253,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run build
 
-      # What a student downloads before sign-in and before Home, against
-      # scripts/first-load-baseline.json (scripts/lib/firstLoadBudget.mjs).
-      - name: Student first-load budget
+      # What a student downloads before sign-in and before Home, and a teacher
+      # before their Home, against scripts/first-load-baseline.json
+      # (scripts/lib/firstLoadBudget.mjs).
+      - name: First-load budget (student and teacher)
         if: ${{ !cancelled() }}
         run: node scripts/check-first-load-budget.mjs --report
 
