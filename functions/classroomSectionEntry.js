@@ -45,6 +45,7 @@ const {
   deferredClassCheckpoint,
   toDate,
 } = require("./lib/classroomGradeRuntime");
+const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
 const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
 const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
@@ -629,8 +630,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
     const beforeData = event.data?.before?.exists ? event.data.before.data() || {} : {};
     const afterByAssignment = afterData.gradesByAssignment || {};
     const beforeByAssignment = beforeData.gradesByAssignment || {};
+    // A change that moves only time on task (a Next's `timeSpent`) is no
+    // change: nothing here reads it (lib/classroomTrackerChange.js).
     const gradeChangedAssignmentIds = Object.keys(afterByAssignment).filter(
-      (assignmentId) => JSON.stringify(afterByAssignment[assignmentId]) !== JSON.stringify(beforeByAssignment[assignmentId])
+      (assignmentId) => trackerChangedBeyondTimeOnTask(beforeByAssignment[assignmentId], afterByAssignment[assignmentId])
     );
     const afterSignals = afterData.classroomReleaseSignals || {};
     const beforeSignals = beforeData.classroomReleaseSignals || {};

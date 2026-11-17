@@ -27,7 +27,8 @@
  *   classwork   a typed answer's response checkpoint, then Submit: the device
  *               report, the drain (ingestStudentSubmissions), the report after
  *               it, the activity flush and the completion reconcile, the
- *               mastery trigger for the attempt's evidence event; and the
+ *               mastery trigger for the attempt's evidence event; a Next (the
+ *               time on the question, then the activity flush); and the
  *               deadline finalizer and a teacher's sweep afterwards
  *   finishing   the same, for the Submit that completes the assignment (the
  *               final Classroom passback, held while the device still reports
@@ -39,7 +40,8 @@
  *
  * The counts each step must produce are pinned below, so a write added to a
  * Submit turns this red. Each pin names the actor and the fields, not only a
- * number.
+ * number. What reached Classroom (each push, each row of the teacher's
+ * passback monitor) is pinned step by step at the end.
  *
  * Isolation: own project id, set before the Cloud Functions load.
  */
@@ -59,7 +61,7 @@ process.env.GOOGLE_CLOUD_PROJECT = PROJECT;
 process.env.FIREBASE_CONFIG = JSON.stringify({ projectId: PROJECT });
 
 const {
-  ASSIGNMENT_ID, CLASS_ID, PREFIX, TEACHER_EMAIL, certAssignment: classworkAssignment, db, fns, patchGradeCalls, repo, resetClassroomCalls,
+  ASSIGNMENT_ID, CLASS_ID, PREFIX, TEACHER_EMAIL, certAssignment: classworkAssignment, classroomCallLog, db, fns, patchGradeCalls, repo, resetClassroomCalls,
   seedFixture, seedRosteredStudent, studentRequest, teacherRequest,
 } = await import('./canonicalPersistenceHarness.mjs');
 const ledger = await import('./support/gradeWriteLedger.mjs');
@@ -128,13 +130,37 @@ const deliverNewEvidence = async (studentId) => {
   knownEvidence.set(studentId, seen);
 };
 
+/*
+ * What a step sent to Classroom, and what the teacher's passback monitor says
+ * after it: each push (a grade patched, as a draft or assigned; a submission
+ * returned), and each monitor row the step wrote, as it reads after the step.
+ */
+const PUSHES = new Set(['patchGrade', 'returnSubmission']);
+const describePush = (call) => (call.call === 'patchGrade'
+  ? `patchGrade ${call.courseWorkId} ${call.grade} ${call.assignToStudent ? 'assigned' : 'draft'}`
+  : `${call.call} ${call.courseWorkId}`);
+const describeAuditRow = (row) => [
+  row?.courseworkId, row?.status, row?.stage, row?.grade,
+  ...(row?.studentVisible ? ['visible'] : []), ...(row?.returnedToStudent ? ['returned'] : []),
+].join(' ');
+const classroomEffects = async ({ calls, writes, names }) => {
+  const auditPaths = [...new Set(writes.filter((write) => write.path.startsWith('classroomGradeSyncs/')).map((write) => write.path))];
+  const rows = await Promise.all(auditPaths.map(async (auditPath) => describeAuditRow((await db.doc(auditPath).get()).data())));
+  return {
+    pushes: calls.filter((call) => PUSHES.has(call.call)).map((call) => pattern(describePush(call), names)),
+    auditRows: rows.map((row) => pattern(row, names)).sort(),
+  };
+};
+
 /**
- * One step of a Submit: what it wrote, and what the triggers it woke did.
- * The grades triggers (and the mastery trigger for a new evidence event) run
- * after the step, as Firestore delivers them, before the next step starts.
+ * One step of a Submit: what it wrote, what the triggers it woke did, and what
+ * reached Classroom. The grades triggers (and the mastery trigger for a new
+ * evidence event) run after the step, as Firestore delivers them, before the
+ * next step starts.
  */
 const step = async (scenario, name, { studentId, names }, fn) => {
   const from = ledger.mark();
+  const callsFrom = classroomCallLog().length;
   await fn();
   await ledger.settleGradeTriggers();
   await deliverNewEvidence(studentId);
@@ -160,6 +186,7 @@ const step = async (scenario, name, { studentId, names }, fn) => {
       ...(write.changed === null ? {} : { changed: write.changed }),
     })),
     triggerRuns: invocations.map(({ trigger, didWork, reads, writes }) => ({ trigger, didWork, reads, writes })),
+    ...await classroomEffects({ calls: classroomCallLog().slice(callsFrom), writes: recorded.writes, names }),
   };
   (snapshots.afterEachStep ||= {})[`${scenario}: ${name}`] = await gradeStateAt(studentId);
   return result;
@@ -583,23 +610,48 @@ test('a classwork Submit: its checkpoint, the Submit (wrong, wrong again, right)
   pin((await db.collection('grades').doc(CLASSWORK_STUDENT).get()).data().classroomSyncStatusByAssignment, undefined, 'no draft receipt on the grade record');
   inventory.classwork.total = total(steps);
 
-  // Next (App.jsx handleQuestionNavigation): the time on the question goes
-  // through ingestion, and the activity is flushed. No device report: elapsed
-  // time is not grade-bearing work.
-  const next = await step('classwork', 'Next: time on the question, then the activity flush', { studentId: CLASSWORK_STUDENT, names }, async () => {
+  // Next (App.jsx changeQuestion): the time on the question goes through
+  // ingestion, the activity is flushed, and the flush asks the completion
+  // reconcile whether that time completed Classwork (not here: one question
+  // of four is answered). No device report: elapsed time is not grade-bearing
+  // work.
+  const recordBeforeNext = await recordOf(0);
+  const NEXT = 'Next: time on the question, then the activity flush';
+  const next = await step('classwork', NEXT, { studentId: CLASSWORK_STUDENT, names }, async () => {
     await enqueueDurableAction(createDurableAction({
       kind: 'questionProgress', studentId: CLASSWORK_STUDENT, assignmentId: ASSIGNMENT_ID, questionIndex: 0,
       payload: { timeSpent: 200, activityRole: 'classwork' },
     }), { storage: browser.storage });
     await drainDurableActions({ storage: browser.storage, studentId: CLASSWORK_STUDENT, reconcile: reconcileAction(browser) });
     await flushActivityAsTheBrowser(browser, 20);
+    await ledger.asActor('reconcileAssignmentActivityProjection', () => (
+      fns.reconcileAssignmentActivityProjection.run(studentRequest(CLASSWORK_STUDENT, { assignmentId: ASSIGNMENT_ID }))
+    ));
   });
+  // What a Next writes to the record: its time on task, and nothing else.
+  const { timeSpent: timeAfterNext, ...restAfterNext } = await recordOf(0);
+  const { timeSpent: timeBeforeNext, ...restBeforeNext } = recordBeforeNext;
+  assert.deepEqual([timeBeforeNext < 200, timeAfterNext], [true, 200], 'the Next raised the question\'s time on task');
+  assert.deepEqual(restAfterNext, restBeforeNext, 'and changed nothing else in its record');
+  // Both triggers still see both writes, and neither does any work for them:
+  // nothing either computes reads time on task, so a change that moves only
+  // that is no change (functions/lib/classroomTrackerChange.js). Before, the
+  // time on the record woke both into reading the assignment and what each
+  // needs to grade it (7 and 5 reads), to compute the grade they had already
+  // sent, and send nothing.
   pin(next, {
     gradeWrites: ['ingestStudentSubmissions: gradesByAssignment', 'client:activityFlush: assignmentActivity'],
     detailWrites: 0,
     triggerRuns: 4,
-    triggerRunsWithWork: 2,
+    triggerRunsWithWork: 0,
   });
+  pin(inventory.classwork[NEXT].triggerRuns.map(({ trigger, reads, writes }) => `${trigger}: ${reads} reads, ${writes} writes`), [
+    'syncGradeToClassroom: 0 reads, 0 writes',
+    'syncSectionGradeToClassroom: 0 reads, 0 writes',
+    'syncGradeToClassroom: 0 reads, 0 writes',
+    'syncSectionGradeToClassroom: 0 reads, 0 writes',
+  ], 'a Next costs the triggers no reads');
+  assert.deepEqual([inventory.classwork[NEXT].pushes, inventory.classwork[NEXT].auditRows], [[], []], 'and sends Classroom nothing, as before');
 
   // The deadline passes: the finalizer and a teacher's sweep find the
   // checkpoint retired by the Submit, and write nothing for it.
@@ -777,4 +829,55 @@ test('a Recovery: a Practice answer, an answer saved, and the Recovery Submit', 
   }, 'the recovered grade, and each trigger\'s receipt for the column it sent');
   assert.ok(patchGradeCalls().length >= 2, 'the recovered grade reaches both Classroom columns');
   snapshots.recovery = await storedState(RC_STUDENT);
+});
+
+/*
+ * WHAT REACHED CLASSROOM, STEP BY STEP: each push (a grade patched, a
+ * submission returned) and each row of the teacher's passback monitor a step
+ * wrote, for every step above that did either; every other step did neither.
+ * The same table measured on the commit before a Next stopped waking the
+ * triggers: the Next sent nothing then and sends nothing now, and no other
+ * step moved.
+ */
+const CLASSROOM_BY_STEP = {
+  'classwork, a wrong answer: drain: ingestStudentSubmissions': {
+    pushes: ['patchGrade canonpersist-coursework 0 draft'],
+    auditRows: ['canonpersist-coursework synced progress-25 0'],
+  },
+  'classwork: drain: ingestStudentSubmissions': {
+    pushes: ['patchGrade canonpersist-coursework 25 draft'],
+    auditRows: ['canonpersist-coursework synced progress-25 25'],
+  },
+  'classwork q1: drain: ingestStudentSubmissions': {
+    pushes: ['patchGrade canonpersist-coursework 50 draft'],
+    auditRows: ['canonpersist-coursework synced progress-50 50'],
+  },
+  'classwork q2: drain: ingestStudentSubmissions': {
+    pushes: ['patchGrade canonpersist-coursework 75 draft'],
+    auditRows: ['canonpersist-coursework synced progress-75 75'],
+  },
+  // The final grade, held while the device reports the answer queued...
+  'finishing: drain: ingestStudentSubmissions': {
+    pushes: [],
+    auditRows: ['canonpersist-coursework sync-pending sync-pending 100'],
+  },
+  // ...and sent, returned, when the report after the drain releases it.
+  'finishing: device report after the drain': {
+    pushes: ['patchGrade canonpersist-coursework 100 assigned', 'returnSubmission canonpersist-coursework'],
+    auditRows: ['canonpersist-coursework synced final-complete 100 visible returned'],
+  },
+  'recovery: the Recovery Submit': {
+    pushes: ['patchGrade gw-rc-whole-cw 90 assigned', 'returnSubmission gw-rc-whole-cw', 'patchGrade gw-rc-dol-cw 90 assigned', 'returnSubmission gw-rc-dol-cw'],
+    auditRows: ['gw-rc-dol-cw synced late-progress-100 90 visible returned', 'gw-rc-whole-cw synced late-progress-100 90 visible returned'],
+  },
+};
+
+test('what reached Classroom, step by step', () => {
+  const table = {};
+  for (const [scenario, steps] of Object.entries(inventory)) {
+    for (const [name, entry] of Object.entries(steps)) {
+      if (entry.pushes?.length || entry.auditRows?.length) table[`${scenario}: ${name}`] = { pushes: entry.pushes, auditRows: entry.auditRows };
+    }
+  }
+  pin(table, CLASSROOM_BY_STEP);
 });

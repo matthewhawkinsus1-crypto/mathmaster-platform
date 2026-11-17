@@ -59,6 +59,8 @@ const classroomLinkOwnership = require("./lib/classroomLinkOwnership");
 // The grade passback monitor's rows: a teacher's own, read by their own posts.
 const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
 const { classroomReceiptNeedsWriting, deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
+// What wakes the two grade triggers: a tracker that moved beyond time on task.
+const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -10184,10 +10186,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const beforeData = event.data?.before?.exists ? event.data.before.data() || {} : {};
     const afterByAssignment = afterData.gradesByAssignment || {};
     const beforeByAssignment = beforeData.gradesByAssignment || {};
+    // A change that moves only time on task (a Next's `timeSpent`) is no
+    // change: nothing here reads it (lib/classroomTrackerChange.js).
     const gradeChangedAssignmentIds = Object.keys(afterByAssignment).filter(
-      (assignmentId) =>
-        JSON.stringify(afterByAssignment[assignmentId]) !==
-        JSON.stringify(beforeByAssignment[assignmentId])
+      (assignmentId) => trackerChangedBeyondTimeOnTask(beforeByAssignment[assignmentId], afterByAssignment[assignmentId])
     );
     const afterTeacherOverrides = afterData.teacherGradeOverridesByAssignment || {};
     const beforeTeacherOverrides = beforeData.teacherGradeOverridesByAssignment || {};
