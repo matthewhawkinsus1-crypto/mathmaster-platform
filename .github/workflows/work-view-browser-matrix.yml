@@ -14,6 +14,16 @@ name: Work View Browser Matrix
 # (tests/platform/workViewMatrixFindings.test.mjs). This job fails when the live
 # browser disagrees with it, which is the point: the fixture must never drift
 # ahead of what the browser does.
+#
+# Beside it, work-view-opener-cover (tests/browser/workViewOpenerCover.mjs):
+# nothing a student needs under "Open Work View" on any surface it floats over
+# (every registry tool, Path tool and legacy question type in the assignment
+# screen, the figures that are their own Work View in My Math Path and a secure
+# Test, the Math Tools Lab, the colour-alone page's figures on their own), on
+# three phones at 100% and 200% text and a Chromebook; the assignment screen's
+# tries and completion badges clear of the opener and of each other (#386 R17);
+# and with Work View open, the view the one thing that scrolls up and down
+# (#386 R10).
 
 on:
   workflow_call:
@@ -116,5 +126,49 @@ jobs:
         with:
           name: algebraic-substitution-handoff
           path: tests/browser/artifacts/algebraicSubstitutionHandoff
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # What Work View's opener covers, the header's badges and one scroller in Work View (see the header). The stubbed
+  # harness serves the assignment harness, the hosts' page and the colour-alone page (its own dependency cache:
+  # forcedColors.vite.config.mjs); the in-memory app serves the Math Tools Lab and the assignment screen. About
+  # eleven minutes on a shared four-core machine (2026-11-17), three readings at a time.
+  work-view-opener-cover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install application dependencies and Chromium
+        uses: ./.github/actions/setup
+        with: { browser: "true" }
+
+      - name: Start the stubbed harness server
+        run: |
+          npx vite --config tests/browser/forcedColors.vite.config.mjs --host 127.0.0.1 --port 5198 --strictPort >/tmp/opener-cover-vite.log 2>&1 &
+          for i in {1..90}; do curl -fsS http://127.0.0.1:5198/tests/browser/studentUxPlatform.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/opener-cover-vite.log; exit 1
+
+      - name: Start the in-memory app harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/opener-cover-teacher.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/opener-cover-teacher.log; exit 1
+
+      - name: Nothing a student needs under Work View's opener; tries and completion badges clear; one scroller in Work View
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5198"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
+        run: node tests/browser/workViewOpenerCover.mjs
+
+      - name: Keep the opener sweep's report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-view-opener-cover
+          path: tests/browser/artifacts/workViewOpenerCover
           if-no-files-found: ignore
           retention-days: 14

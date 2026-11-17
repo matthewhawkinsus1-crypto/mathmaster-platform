@@ -1,0 +1,120 @@
+/*
+ * WHAT WORK VIEW'S OPENER COVERS, THE HEADER'S BADGES, AND ONE SCROLLER IN WORK VIEW (#386 R17, R10).
+ *
+ * The geometry is proved in a browser by tests/browser/workViewOpenerCover.mjs (the CI job
+ * work-view-opener-cover): nothing a student needs under "Open Work View" on any surface it floats
+ * over, at three phones at 100% and 200% text and a Chromebook; the assignment screen's tries and
+ * completion badges clear of the opener and of each other; with Work View open, the view the one
+ * thing that scrolls up and down. Nothing here lays a page out, so this binds the rules that
+ * geometry depends on, each to the region that does the work, and the driver to CI.
+ *
+ * Each assertion was broken once to see it go red (see the commit).
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
+import { parseCss, declared } from './helpers/cssRules.mjs';
+import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
+
+const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+
+/* ------------------------------------------------- #386 R17: tries and completion badges */
+
+test('a question\'s tries and "Question complete" are drawn above its work, never in the corner the opener floats over', () => {
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  const panel = region(engine, 'const questionContextPanel = (', '\n  );\n', 'the question\'s context panel');
+  assert.match(panel, /className="mathmaster-question-attempt-strip"/, 'the tries line is in the context panel');
+  assert.match(panel, /'Question complete'/, 'and so is the question\'s completion');
+  // The panel is handed to the container beside the work, not inside it.
+  assert.match(engine, /contextPanel=\{solverWorkspaceActive \? null : questionContextPanel\}/);
+  const work = region(engine, '<EnlargeableFigure\n        label="Question Work View"', '</EnlargeableFigure>', 'the question\'s Work View');
+  assert.doesNotMatch(work, /mathmaster-question-attempt-strip|questionContextPanel/, 'nothing of the tries line inside the work');
+  // The container draws the panel before the work, as a sibling of it.
+  const container = executableSource(read('src/components/student/MobileViewportContainer.jsx'));
+  assert.match(container, /\{!workspaceActive && contextPanel\}/);
+});
+
+test('on a phone the tries line and the grade weight share one row and wrap rather than overlap', () => {
+  const mobile = parseCss(read('src/components/student/MathToolMobileLayout.css'));
+  const PANEL = '.mathmaster-question-container.mode-portrait .mathmaster-question-context-panel:has(> *)';
+  assert.equal(declared(mobile, PANEL, 'display')?.value, 'flex');
+  assert.equal(declared(mobile, PANEL, 'flex-wrap')?.value, 'wrap', 'a second badge wraps to a row of its own');
+  const strip = '.mathmaster-question-container.mode-portrait .mathmaster-question-context-panel > .mathmaster-question-attempt-strip';
+  assert.equal(declared(mobile, strip, 'flex')?.value, '0 1 auto', 'the tries line shrinks to its words, never past them');
+  assert.equal(declared(mobile, strip, 'position'), null, 'in the flow');
+});
+
+test('a closed question\'s verdict shares the opener\'s row and stops short of it', () => {
+  const engine = executableSource(read('src/QuestionEngine.jsx'));
+  const row = region(engine, 'className="mathmaster-closed-verdict-row"', '}}', 'the verdict\'s row');
+  assert.match(row, /minHeight: 'var\(--mm-work-view-opener-bottom, 0px\)'/, 'as tall as the button, so the row after it starts below it');
+  assert.match(row, /marginRight: 'var\(--mm-work-view-opener-space, 0px\)'/, 'it stops before the button');
+  // On a phone it is one of the rows that share the button's row (so the work area adds no second gap).
+  assert.match(read('src/components/common/WorkViewShell.css'), /\.mathmaster-question-tool-workspace:not\(:has\([^)]*\.mathmaster-closed-verdict-row,/);
+});
+
+test('a finished section\'s "Complete" is drawn in its tab, and the section tabs never run under the header\'s buttons', () => {
+  const app = parseCss(read('src/App.css'));
+  // The medallion sits in the tab's own row, a fixed 24 px, not floated over its neighbours.
+  assert.equal(declared(app, '.mathmaster-section-complete-medallion', 'position'), null);
+  assert.equal(declared(app, '.mathmaster-section-complete-medallion', 'flex')?.value, '0 0 24px');
+  // On a phone every tab is in view: the tabs wrap onto rows of their own rather than run on under the buttons
+  // beside them (a DOL tab was clipped under "Focus view"), so no tab's "Complete" is drawn under another control.
+  const tabs = '.mathmaster-assignment-screen .mathmaster-section-tabs';
+  const PHONE = '(max-width: 768px) and (orientation: portrait)';
+  assert.equal(declared(app, tabs, 'flex-wrap', { media: PHONE })?.value, 'wrap');
+  assert.equal(declared(app, tabs, 'overflow-x', { media: PHONE })?.value, 'visible');
+  // The Focus view button is not in the tabs' row of its own: it sits beside them, never over one.
+  const nav = executableSource(read('src/App.jsx'));
+  const strip = region(nav, '<div className="mathmaster-section-tabs" role="group" aria-label="Assignment sections">', '</div>\n              ) : (', 'the section strip');
+  assert.doesNotMatch(strip, /mathmaster-focus-view-button|mathmaster-overview-button|mathmaster-assignment-status-chip/);
+  assert.match(nav, /className="mathmaster-focus-view-button"/);
+});
+
+/* ------------------------------------------------- the browser sweep, wired into CI */
+
+test('the sweep reads every surface the opener floats over, at the phones, at 200% text and on a Chromebook', async () => {
+  const { SIZES, SCROLL_SIZES, SURFACES, SCROLL_SCENES, HEADER_ITEMS } = await import('../browser/workViewOpenerCover.mjs');
+  assert.deepEqual(SIZES.map((size) => size.id), ['390x844', '360x740', '320x568', '390x844@200%', '360x740@200%', '320x568@200%', '1366x768']);
+  assert.ok(SIZES.filter((size) => size.phone).every((size) => size.width <= 390));
+  assert.deepEqual(SCROLL_SIZES.map((size) => size.id), ['390x844', '360x740', '320x568', '1366x768', '1920x1080']);
+  assert.deepEqual(SURFACES.map((surface) => surface.id), ['assignment', 'hosts', 'lab', 'cues']);
+  // The figures on their own are read on the phones; everything else at every size.
+  assert.deepEqual(SURFACES.find((surface) => surface.id === 'cues').sizes.map((size) => size.id), SIZES.filter((size) => size.phone).map((size) => size.id));
+  for (const id of ['assignment', 'hosts', 'lab']) assert.equal(SURFACES.find((surface) => surface.id === id).sizes, SIZES);
+  // R10's set: the plane tools, the table tools and the Step Algebra boards.
+  for (const id of ['tool-graphing2', 'tool-transformationsLab', 'tool-systemsWorkspace', 'tool-dataModelingLab', 'tool-linearTableWorkbench', 'tool-stepAlgebra2', 'legacy-stepAlgebra']) {
+    assert.ok(SCROLL_SCENES.includes(id), id);
+  }
+  // R17's: the tries line, the completion medallion and the opener are among what is measured.
+  for (const kind of ['tries', 'completion medallion', 'section progress', 'closed verdict', 'opener']) assert.ok(kind in HEADER_ITEMS, kind);
+  // The assignment harness mounts every registry tool, every Path tool and every legacy question type.
+  const driver = read('tests/browser/workViewOpenerCover.mjs');
+  assert.match(driver, /\?tools=1&legacy=1&path=1/);
+  const harness = read('tests/browser/studentUxPlatformMain.jsx');
+  assert.match(harness, /params\.get\('path'\) === '1'/);
+  assert.match(harness, /questionFromToolPayload\(buildPublicToolPayload\(authored\)\)/, 'as My Math Path delivers it');
+});
+
+test('a pull request that changes the sweep, what it reads or what draws it runs the opener sweep', () => {
+  const job = jobsOf(readWorkflow('work-view-browser-matrix.yml'))['work-view-opener-cover'];
+  assert.ok(job, 'the job is in the Work View workflow');
+  const steps = stepsOf(job);
+  const run = steps.find((step) => /run: node tests\/browser\/workViewOpenerCover\.mjs\s*$/m.test(step));
+  assert.ok(run, 'it runs the sweep');
+  assert.match(run, /AUDIT_ORIGIN: "http:\/\/127\.0\.0\.1:5198"/);
+  assert.match(run, /TEACHER_HARNESS_ORIGIN: "http:\/\/127\.0\.0\.1:5188"/);
+  assert.ok(steps.some((step) => /forcedColors\.vite\.config\.mjs --host 127\.0\.0\.1 --port 5198/.test(step)), 'the stubbed harness');
+  assert.ok(steps.some((step) => /teacherWorkflow\/vite\.config\.mjs/.test(step)), 'the in-memory app');
+  assert.ok(steps.some((step) => /uses: actions\/upload-artifact@/.test(step) && /path: tests\/browser\/artifacts\/workViewOpenerCover/.test(step)), 'its report is kept');
+  for (const file of [
+    'tests/browser/workViewOpenerCover.mjs', 'tests/browser/support/openerCover.mjs', 'tests/browser/studentUxPlatformMain.jsx',
+    'tests/browser/hostAccessibilityMain.jsx', 'tests/browser/colourAloneCuesMain.jsx', 'tests/browser/accessibilityTeacherScreens.mjs',
+    'tests/platform/fixtures/pathToolQuestions.mjs', 'src/components/common/WorkViewShell.css', 'src/components/common/EnlargeableFigure.jsx',
+    'src/QuestionEngine.jsx', 'src/App.css', 'src/GraphScenarioMatch.jsx', 'src/components/labs/InteractiveModelingLabPlayer.jsx',
+    'src/components/student/PathQuestionStimulus.jsx', 'src/tools/dataModeling/DataModelingLab.jsx', 'src/GraphDisplay.jsx',
+  ]) {
+    assert.ok(runsOnPullRequest('work-view-browser-matrix.yml', file), `a change to ${file} runs the opener sweep`);
+  }
+});
