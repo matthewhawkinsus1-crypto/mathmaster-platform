@@ -13,6 +13,15 @@ import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.mjs'
 import { dolSectionProjection } from './assignmentProjections.mjs';
 import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
 import { STUDENT_NAME_UNAVAILABLE, studentIdLabel, studentNameForStorage } from './studentIdentity.mjs';
+import {
+  answerKeyChangeReason,
+  answerKeyFingerprint,
+  equivalentRejectionReason,
+  findAnswerKeyChange,
+  findEquivalentRejections,
+  findParserChanges,
+  parserChangeReason,
+} from './responseInspectorReasons.mjs';
 
 export const GRADER_VERSION = 'ordinary-response-v3';
 export const GRADING_EVIDENCE_VERSION = 3;
@@ -153,6 +162,11 @@ export const captureAutomaticGradingEvidence = ({
   graderVersion,
   contentVersion: question?.contentVersion ?? question?.version ?? null,
   answerKeyVersion: question?.answerKeyVersion ?? question?.version ?? null,
+  // What the attempt was graded against, so the inspector can say when the
+  // key has changed since: the question's id and a fingerprint of its key
+  // (responseInspectorReasons.mjs) — never the key itself.
+  questionId: question?.questionId ?? null,
+  answerKeyFingerprint: answerKeyFingerprint(question),
   deliveredInstanceAuthority: deliveredInstanceAuthority?.authoritative === true
     ? structuredClone(deliveredInstanceAuthority)
     : null,
@@ -326,7 +340,45 @@ const replayQuestion = ({ question, attemptRecord, evidence, assignment, questio
   return authority;
 };
 
-export const replayResponse = ({
+/*
+ * WHAT A PART'S GRADE IS, AND NOTHING ABOUT HOW IT IS SPELLED.
+ *
+ * The recorded parts are the attempt record's own shape (attemptPolicy.mjs
+ * compactParts: `graded: true` written out, its own key order, the response cut
+ * to 240 characters, the label as it was), while a replay's parts are the
+ * grader's (gradingResult.mjs). Compared as text, the two never matched, so
+ * every replay of a real attempt — a correct one included — reported a grading
+ * discrepancy. They are compared by verdict: graded, complete, correct, credit
+ * and weight. A relabelled part is not a different grade.
+ */
+const partCredit = (part) => (Number.isFinite(Number(part?.credit))
+  ? Math.max(0, Math.min(1, Number(part.credit)))
+  : (part?.isCorrect === true ? 1 : 0));
+const partWeight = (part) => (Number(part?.weight ?? part?.scoreWeight) > 0
+  ? Math.min(20, Number(part.weight ?? part.scoreWeight))
+  : 1);
+const partVerdict = (part) => ({
+  graded: part?.graded !== false,
+  isComplete: part?.isComplete === true,
+  isCorrect: part?.isCorrect === true,
+  credit: Math.round(partCredit(part) * 1000) / 1000,
+  weight: partWeight(part),
+});
+const gradedPartDifferences = (originalResult, currentResult) => {
+  const original = new Map(list(originalResult?.parts).map((part) => [String(part?.id), part]));
+  const current = new Map(list(currentResult?.parts).map((part) => [String(part?.id), part]));
+  const ids = [...new Set([...current.keys(), ...original.keys()])];
+  return ids
+    .filter((id) => !original.has(id) || !current.has(id) || json(partVerdict(original.get(id))) !== json(partVerdict(current.get(id))))
+    .map((id) => ({ id, original: original.get(id) || null, current: current.get(id) || null }));
+};
+
+/*
+ * The replay, and the question it marked against. The question stays on the
+ * server: the inspector's reasons read it (responseInspectorReasons.mjs), and
+ * the model the teacher's screen receives carries only its key's fingerprint.
+ */
+const replayWithQuestion = ({
   question,
   attemptRecord,
   gradingEvidence,
@@ -338,26 +390,35 @@ export const replayResponse = ({
   const evidence = gradingEvidence || null;
   if (!evidence?.submittedResponse) {
     return {
-      available: false,
-      adapter: 'none',
-      reason: 'The historical submitted response snapshot is unavailable, so exact replay is unavailable.',
+      question: null,
+      replay: {
+        available: false,
+        adapter: 'none',
+        reason: 'The historical submitted response snapshot is unavailable, so exact replay is unavailable.',
+      },
     };
   }
   const authority = replayQuestion({ question, attemptRecord, evidence, assignment, questionIndex, studentId, classId });
   if (!authority.authoritative) {
     return {
-      available: false,
-      adapter: 'unsupported-safe-inspection',
-      reason: authority.reason,
+      question: null,
+      replay: {
+        available: false,
+        adapter: 'unsupported-safe-inspection',
+        reason: authority.reason,
+      },
     };
   }
   const deliveredQuestion = authority.question;
   const support = serverResponseGradingSupport(deliveredQuestion);
   if (!support.supported) {
     return {
-      available: false,
-      adapter: 'unsupported-safe-inspection',
-      reason: `Replay unavailable for this question type or delivery mode (${support.reason}). Stored response and grading evidence remain inspectable.`,
+      question: deliveredQuestion,
+      replay: {
+        available: false,
+        adapter: 'unsupported-safe-inspection',
+        reason: `Replay unavailable for this question type or delivery mode (${support.reason}). Stored response and grading evidence remain inspectable.`,
+      },
     };
   }
   const currentResult = gradeServerResponse({
@@ -366,9 +427,12 @@ export const replayResponse = ({
   });
   if (!currentResult.graded) {
     return {
-      available: false,
-      adapter: 'shared-grading-registry',
-      reason: `The shared grader could not replay this response (${currentResult.reason || 'unknown reason'}).`,
+      question: deliveredQuestion,
+      replay: {
+        available: false,
+        adapter: 'shared-grading-registry',
+        reason: `The shared grader could not replay this response (${currentResult.reason || 'unknown reason'}).`,
+      },
     };
   }
   const originalResult = evidence.automaticResult || null;
@@ -376,31 +440,39 @@ export const replayResponse = ({
     ? Number(evidence.automaticScore)
     : null;
   const currentScore = scoreGradingResult(currentResult);
-  const byId = new Map(list(originalResult?.parts).map((part) => [String(part.id), part]));
-  const fieldDifferences = list(currentResult.parts)
-    .filter((part) => json(byId.get(String(part.id))) !== json(part))
-    .map((part) => ({
-      id: part.id,
-      original: byId.get(String(part.id)) || null,
-      current: part,
-    }));
+  const fieldDifferences = gradedPartDifferences(originalResult, currentResult);
+  const verdictChanged = typeof originalResult?.isCorrect === 'boolean'
+    && originalResult.isCorrect !== (currentResult.isCorrect === true);
+  const partless = !list(originalResult?.parts).length && !list(currentResult.parts).length;
   return {
-    available: true,
-    adapter: 'shared-grading-registry',
-    questionSource: authority.source || null,
-    originalResult,
-    originalScore,
-    currentResult,
-    currentScore,
-    fieldDifferences,
-    discrepancy: originalScore !== currentScore || fieldDifferences.length > 0,
-    gradingTrace: buildGradingTrace({
-      question: deliveredQuestion,
-      response: evidence.submittedResponse,
-      grading: currentResult,
-    }),
+    question: deliveredQuestion,
+    replay: {
+      available: true,
+      adapter: 'shared-grading-registry',
+      questionSource: authority.source || null,
+      originalResult,
+      originalScore,
+      currentResult,
+      currentScore,
+      fieldDifferences,
+      // A discrepancy is a different VERDICT for the same snapshot: a part
+      // marked differently, or the whole. `originalScore` is the question's
+      // automatic credit (its best attempt), not this snapshot's, so it decides
+      // only where neither result has parts to compare.
+      discrepancy: fieldDifferences.length > 0 || verdictChanged || (partless && originalScore !== currentScore),
+      gradingTrace: buildGradingTrace({
+        question: deliveredQuestion,
+        response: evidence.submittedResponse,
+        grading: currentResult,
+      }),
+      // The key this replay marked against, as a fingerprint: compared with
+      // the one stored at grading to say whether the key has changed since.
+      answerKey: answerKeyFingerprint(deliveredQuestion),
+    },
   };
 };
+
+export const replayResponse = (options = {}) => replayWithQuestion(options).replay;
 
 export const replayStoredResponse = ({
   question,
@@ -473,16 +545,35 @@ const comparableWorkspaceResponse = (workspace, submitted) => {
   return { comparable: false, equal: null };
 };
 
+/*
+ * "WHY WAS THIS MARKED WRONG?" — EVERY REASON THE EVIDENCE SUPPORTS, IN ORDER.
+ *
+ * `reasons` lists each one that is true, most telling first; the first is also
+ * spread on the diagnosis itself (`code`, `explanation`, `values`), which is
+ * what this returned before the list existed. The order: no history, the key
+ * changed since grading, replay disagrees, a blank box, not saved before the
+ * close, read differently from how it was typed, equal to the key but refused
+ * by a form rule, the saved workspace differs, some parts wrong — and only when
+ * nothing else explains it, "does not match the accepted answer".
+ *
+ * `question` is the question the replay marked against (replayWithQuestion):
+ * the three key-reading reasons are decided against it, and never without a
+ * replay of the stored snapshot, so they speak of the grader and key as they
+ * are now (responseInspectorReasons.mjs).
+ */
+const gradedPartCount = (result) => Math.max(1, list(result?.parts).filter((part) => part?.graded !== false).length);
+
 export const diagnoseResponse = ({
   record,
   workspace = null,
   replay = null,
   gradingEvidence = null,
+  question = null,
 } = {}) => {
   const evidence = gradingEvidence;
   const submitted = evidence?.submittedResponse;
   if (!submitted) {
-    return legacyRecordedResponse(record)
+    const only = legacyRecordedResponse(record)
       ? {
         code: 'legacy-evidence',
         explanation: 'An exact submitted snapshot was not retained. The field values below are the responses recorded by the historical grader.',
@@ -491,27 +582,47 @@ export const diagnoseResponse = ({
         code: 'insufficient-history',
         explanation: 'Insufficient historical data to determine the cause. The submitted response snapshot is unavailable.',
       };
+    return { ...only, reasons: [only] };
   }
+  const reasons = [];
+  const keyChange = question
+    ? findAnswerKeyChange({
+      evidence,
+      question,
+      currentFingerprint: replay?.answerKey ?? answerKeyFingerprint(question),
+      currentTrace: replay?.gradingTrace ?? null,
+    })
+    : { known: false, changed: false, details: [] };
+  if (keyChange.changed) reasons.push(answerKeyChangeReason(keyChange, { replayAvailable: replay?.available === true }));
   if (replay?.discrepancy) {
-    return {
+    reasons.push({
       code: 'grader-version-discrepancy',
       explanation: 'The current grader result differs from the original grader result.',
       values: { original: replay.originalResult, current: replay.currentResult },
-    };
+    });
   }
   if (submitted.kind === 'fields'
       && list(submitted.fields).some((field) => String(field?.value ?? '').trim() === '')) {
-    return {
+    reasons.push({
       code: 'missing-submitted-field',
       explanation: 'At least one submitted field was blank or missing, even if a saved workspace contains a value.',
       values: { submitted },
-    };
+    });
   }
   if (record?.persistencePending === true) {
-    return {
+    reasons.push({
       code: 'not-persisted-before-close',
       explanation: 'The response was not persisted before the assignment closed.',
-    };
+    });
+  }
+  if (question && replay?.available === true && !keyChange.changed) {
+    const graded = { question, response: submitted, original: evidence.automaticResult, current: replay.currentResult };
+    const totalParts = gradedPartCount(evidence.automaticResult);
+    const misread = findParserChanges(graded);
+    if (misread.length) reasons.push(parserChangeReason(misread, { totalParts }));
+    const explained = new Set(misread.map((finding) => finding.id));
+    const equivalent = findEquivalentRejections(graded).filter((finding) => !explained.has(finding.id));
+    if (equivalent.length) reasons.push(equivalentRejectionReason(equivalent, { totalParts }));
   }
   const workspaceComparison = comparableWorkspaceResponse(workspace, submitted);
   if (workspaceComparison.comparable && !workspaceComparison.equal) {
@@ -521,29 +632,38 @@ export const diagnoseResponse = ({
       : timing === 'newer'
         ? 'The saved workspace differs from the submitted response and was saved after submission. This may represent later editing; the submitted snapshot remains the response that was graded.'
         : 'The saved workspace differs from the submitted response. The submitted snapshot is the response that was graded.';
-    return {
+    reasons.push({
       code: 'workspace-submission-divergence',
       explanation,
       values: workspaceComparison,
-    };
+    });
   }
   const result = replay?.currentResult || evidence.automaticResult;
   if (list(result?.parts).length > 1 && list(result.parts).some((part) => !part.isCorrect)) {
-    return {
+    reasons.push({
       code: 'multipart-partial',
       explanation: 'One or more parts of this multi-part response were missing or incorrect.',
       values: { parts: result.parts },
-    };
+    });
   }
-  return result?.isCorrect === false
-    ? {
-      code: 'genuinely-incorrect',
-      explanation: 'The stored submitted response does not match the accepted answer under the grader used here.',
-    }
-    : {
-      code: 'correct',
-      explanation: 'The stored submitted response matches the accepted answer.',
-    };
+  if (!reasons.length) {
+    reasons.push(result?.isCorrect === false
+      ? {
+        code: 'genuinely-incorrect',
+        explanation: 'The stored submitted response does not match the accepted answer under the grader used here.',
+      }
+      : {
+        code: 'correct',
+        explanation: 'The stored submitted response matches the accepted answer.',
+      });
+  }
+  const [primary] = reasons;
+  return {
+    code: primary.code,
+    explanation: primary.explanation,
+    ...(primary.values !== undefined ? { values: primary.values } : {}),
+    reasons,
+  };
 };
 
 export const expectedAnswers = ({ question, evidence } = {}) => {
@@ -579,9 +699,9 @@ export const buildInspectorModel = ({
 } = {}) => {
   const evidence = gradingEvidence || null;
   const authority = authoritativeQuestionForInspection({ question, evidence });
-  const replay = replayStoredResponse({
+  const { replay, question: replayedQuestion } = replayWithQuestion({
     question,
-    record,
+    attemptRecord: record,
     gradingEvidence: evidence,
     assignment,
     questionIndex,
@@ -649,9 +769,12 @@ export const buildInspectorModel = ({
       content: evidence?.contentVersion ?? null,
       answerKey: evidence?.answerKeyVersion ?? null,
       grader: evidence?.graderVersion ?? null,
+      // The question's versions today, beside the ones it was graded with.
+      currentContent: question?.contentVersion ?? question?.version ?? null,
+      currentAnswerKey: question?.answerKeyVersion ?? question?.version ?? null,
     },
     replay,
-    diagnosis: diagnoseResponse({ record, workspace, replay, gradingEvidence: evidence }),
+    diagnosis: diagnoseResponse({ record, workspace, replay, gradingEvidence: evidence, question: replayedQuestion }),
     auditHistory: list(auditHistory),
   };
 };
