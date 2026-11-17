@@ -727,6 +727,24 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     onRestore: restore,
     resetKey: questionUndoResetKey(questionData),
     ...(subsystem ? { ownerId: 'algebraic-subsystem-history' } : {}),
+    draftFields: {
+      method: setMethod,
+      selection: setSelection,
+      isolation: setIsolation,
+      substitution: setSubstitution,
+      multipliers: setMultipliers,
+      appliedMultipliers: setAppliedMultipliers,
+      multiplierWork: setMultiplierWork,
+      combination: setCombination,
+      firstSolved: setFirstSolved,
+      specialCase: setSpecialCase,
+      statementWork: setStatementWork,
+      backSub: setBackSub,
+      secondSolved: setSecondSolved,
+      verification: setVerification,
+      methodEfficiencyReason: setMethodEfficiencyReason,
+      separatedSolved: setSeparatedSolved,
+    },
   });
 
   // The open Step Algebra owns Undo only while it has something to undo. A

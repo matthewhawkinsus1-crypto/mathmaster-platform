@@ -359,6 +359,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
     onRestore: restore,
     resetKey: questionUndoResetKey(questionData),
     ownerId: 'algebraic-reduction-history',
+    draftFields: { reduction: setStoredReduction, outcomeClassification: setOutcomeClassification, planeWork: setPlaneWork },
   });
   const hasPostSubsystemWork = Boolean(reduction.back?.destinationId || Object.keys(reduction.verification || {}).length);
   // Most local first. The reduced subsystem's work happened after this

@@ -300,6 +300,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     onRestore: restore,
     resetKey: questionUndoResetKey(questionData),
     ownerId: 'algebraic-elimination-history',
+    draftFields: { elimination: setStoredElimination, subsystemClassification: setSubsystemClassification, planeWork: setPlaneWork },
   });
   const hasPostSubsystemWork = Boolean(elimination.back?.destinationId || Object.keys(elimination.verification || {}).length);
   const compositeUndo = useMemo(() => {

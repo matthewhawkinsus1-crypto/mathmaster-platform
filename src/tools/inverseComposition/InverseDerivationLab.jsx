@@ -146,6 +146,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
     onRestore: restoreDerivation,
     resetKey: questionUndoResetKey(questionData),
     persist: true,
+    draftFields: { derivation: setDerivation, operation: setOperation, operand: setOperand },
   });
 
   const startOver = () => {

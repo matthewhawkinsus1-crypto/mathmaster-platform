@@ -103,6 +103,8 @@ export default function EquationByEquationMode({ questionData = {}, config, rows
     onRestore: restore,
     resetKey: questionUndoResetKey(questionData),
     ownerId: 'algebraic-by-equation-history',
+    // `verification` is the property of that name of the stored check.
+    draftFields: { solved: setSolved, verification: [setStoredCheck, 'verification'] },
   });
   // Most local first: the equation being solved, then this board's history.
   const compositeUndo = useMemo(() => (

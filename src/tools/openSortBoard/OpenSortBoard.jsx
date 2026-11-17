@@ -217,6 +217,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
     onRestore: restoreBoard,
     resetKey: questionUndoResetKey(questionData),
     persist: true,
+    draftFields: { groups: setGroups },
   });
 
   /*

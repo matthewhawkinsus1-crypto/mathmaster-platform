@@ -377,11 +377,26 @@ export const hydrateToolDraftField = ({ record, field, initialValue, normalize =
 };
 
 /*
+ * THE SAME CHECK FOR A VALUE THAT COMES BACK ANOTHER WAY.
+ *
+ * A draft is not the only saved copy of a field. The Undo history this device
+ * keeps across a reload (persistedMathUndo.js) holds the field's earlier
+ * values, in the same storage and as open to damage, and an Undo writes one
+ * back through the field's setter, which checks nothing. So each draft-backed
+ * setter is noted here with its field and the refs that hold the field's
+ * latest initial value and normalize, and the Undo reads a saved value back
+ * through hydrateToolDraftField with them: exactly what the field restores it
+ * as (useMathUndoHistory.js, restoreAsDraftField). Only the note is kept in
+ * this module, which every student's first load carries.
+ */
+export const draftFieldOfSetter = new WeakMap();
+
+/*
  * Say once, without the student, that a draft had to be repaired. The key
  * names the student, so only the assignment, the question's position and the
  * field go into the diagnostic (clientDiagnostics.js scrubs and bounds it).
  */
-const reportDraftRepair = (key, field, issues) => {
+export const reportDraftRepair = (key, field, issues) => {
   if (!issues.length) return;
   const identity = parseQuestionDraftKey(key);
   const where = identity
@@ -612,6 +627,9 @@ export default function usePersistentToolState(field, initialValue, options = {}
       return resolved;
     });
   }, [field, coalesceMs]);
+  // The note an Undo reads a saved value back with (draftFieldOfSetter): the
+  // refs, as the initial value and normalize usually close over the question.
+  if (!draftFieldOfSetter.has(setPersistentValue)) draftFieldOfSetter.set(setPersistentValue, [field, initialRef, normalizeRef]);
 
   return [value, setPersistentValue];
 }

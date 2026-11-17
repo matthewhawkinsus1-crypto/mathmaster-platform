@@ -1020,6 +1020,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     resetKey: questionUndoResetKey(questionData),
     ownerId: 'lmr-board',
     persist: true,
+    // Every field Undo records is written back through its own setter.
+    draftFields: fieldSetters,
   });
   // ONE UNDO (owner decision 2026-10-23, R-14 in student-ux-platform-pass): a
   // graph has no Undo of its own, only Start over. The enlarged graph is a
