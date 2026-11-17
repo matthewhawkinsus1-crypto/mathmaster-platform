@@ -2,6 +2,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { fetchStudentAssignments, individuallyAssignedTestCycleIds } from '../platform/assignments/studentAssignmentScope.js';
 import { loadStudentMasteryState } from '../platform/mastery/studentMasteryState.js';
+import { joinResponseDetail } from '../platform/grades/responseDetailStore.js';
 // The pure legacy->Phase 5 conversion lives outside this module so that callers
 // which only need the transformation do not pull a Firestore client in with it.
 // Re-exported because existing importers reach for it here.
@@ -23,7 +24,8 @@ const dataOrNull = async (reference) => {
 export const fetchStudentMasteryState = (studentId, { assignments = null } = {}) => loadStudentMasteryState(studentId, {
   assignments,
   reads: {
-    grade: () => dataOrNull(doc(db, 'grades', String(studentId))),
+    // Whole records: mastery reads each record's support flags, stored apart (gradeEntryStorage.mjs).
+    grade: async () => joinResponseDetail(db, String(studentId), await dataOrNull(doc(db, 'grades', String(studentId)))),
     retention: () => dataOrNull(doc(db, 'studentRetentionSchedules', String(studentId))),
     serverMastery: () => dataOrNull(doc(db, 'studentMasteryProfiles', String(studentId))),
     scopedAssignments: ({ classId, gradesByAssignment, testCycleGrades }) => fetchStudentAssignments({

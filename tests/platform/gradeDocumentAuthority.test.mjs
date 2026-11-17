@@ -113,6 +113,10 @@ test('the authority lists do not overlap and name every grade field the server w
   // `testCycleOperations/{id}.results[studentId]` (runTestCycleBulkAction). It
   // is a field of that server-only audit document, never of a grade document.
   const OPERATION_DOCUMENT_FIELDS = new Set(['results']);
+  // A question record's detail is stored in grades/{id}/responseDetail/{a}
+  // under `questions[q]` (functions/lib/gradeDetailStore.js): a field of that
+  // document, never of the grades document.
+  const RESPONSE_DETAIL_DOCUMENT_FIELDS = new Set(['questions']);
   const functionsSources = [
     'functions/index.js', 'functions/classroomSectionEntry.js', 'functions/classroomSectionForceEntry.js',
     ...readdirSync(new URL('../../functions/lib/', import.meta.url)).filter((name) => name.endsWith('.js')).map((name) => `functions/lib/${name}`),
@@ -121,7 +125,7 @@ test('the authority lists do not overlap and name every grade field the server w
   const unclassified = new Set();
   for (const path of functionsSources) {
     for (const match of executableSource(read(path)).matchAll(/new FieldPath\(\s*"([A-Za-z]+)"/g)) {
-      if (!ASSIGNMENT_DOCUMENT_FIELDS.has(match[1]) && !OPERATION_DOCUMENT_FIELDS.has(match[1]) && !classified.has(match[1])) {
+      if (!ASSIGNMENT_DOCUMENT_FIELDS.has(match[1]) && !OPERATION_DOCUMENT_FIELDS.has(match[1]) && !RESPONSE_DETAIL_DOCUMENT_FIELDS.has(match[1]) && !classified.has(match[1])) {
         unclassified.add(`${path}: ${match[1]}`);
       }
     }
@@ -187,7 +191,9 @@ test('signing in shows the canonical record and writes nothing back to it', () =
   assert.doesNotMatch(hydration, /updateDoc\(|setDoc\(|repairGradesByAssignmentWithCurrentGrader\(/);
   // The one-time current-grader correction keeps its teacher-authorized writer.
   const teacherRepair = region(app, 'const persistCurrentGraderCreditRepairs', 'const repairedById', 'teacher grader repair');
-  assert.match(teacherRepair, /batch\.update\(doc\(db, 'grades', student\.id\), \{ gradesByAssignment \}\)/);
+  // ... now writing each changed assignment split (summaries + detail document), one student per batch.
+  assert.match(teacherRepair, /writeTrackerSplit\(\{\s*db, writer: batch, studentId: student\.id, assignmentId, tracker: gradesByAssignment\[assignmentId\],\s*\}\)/);
+  assert.match(teacherRepair, /await batch\.commit\(\);/);
 });
 
 test('closing a DOL on the student screen writes no projection to the grade document', () => {

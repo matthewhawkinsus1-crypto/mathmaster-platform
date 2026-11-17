@@ -330,13 +330,17 @@ export const normalizeQuestionRecord = (record) => {
       : 0,
     lastAttemptAt: record.lastAttemptAt || record.recordedAt || null,
     stepGrades,
+    // `stepCredit`: what the steps earned, kept on a summary stored apart from
+    // its detail (gradeEntryStorage.mjs), so a summary alone grades the same.
     partialCredit: Math.max(
       clampPercent(record.partialCredit),
       calculateStepPartialCredit(stepGrades, record.variantIndex ?? 0),
+      clampPercent(record.stepCredit ?? 0),
     ),
     bestPartialCredit: Math.max(
       clampPercent(record.bestPartialCredit ?? record.partialCredit),
       calculateStepPartialCredit(stepGrades, record.variantIndex ?? 0),
+      clampPercent(record.stepCredit ?? 0),
     ),
     stepCreditVersion: Math.max(0, Number(record.stepCreditVersion) || 0),
     algebraState: record.algebraState || null,

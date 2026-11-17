@@ -743,6 +743,24 @@ service cloud.firestore {
         && serverRecoveryFieldsAbsentOnCreate();
       allow delete: if false;
 
+      // A question record's DETAIL (functions/shared/gradeEntryStorage.mjs):
+      // its parts, steps, last response, support flags, algebra state and
+      // family pin, stored beside the grades document because one document
+      // per student approached Firestore's 1 MiB cap (Nov 16, 2026). Readable
+      // by exactly who may read the grades document: the student, the teacher
+      // whose roster row it is, root. Written by the server, and by that
+      // teacher's own correction or current-grader repair (the authority that
+      // already writes gradesByAssignment), always for this student and this
+      // assignment. Never deleted from a browser.
+      match /responseDetail/{assignmentId} {
+        allow read: if rootAdmin() || ownsStudent(studentId) || teachesPresenceStudent(studentId);
+        allow create, update: if (rootAdmin() || teachesPresenceStudent(studentId))
+          && request.resource.data.studentId == studentId
+          && request.resource.data.assignmentId == assignmentId
+          && request.resource.data.questions is map;
+        allow delete: if false;
+      }
+
       /*
        * STUDENT SUPPORT PROFILE HISTORY — privileged and immutable.
        * Source labels, notes and service expectations live here, never on the
