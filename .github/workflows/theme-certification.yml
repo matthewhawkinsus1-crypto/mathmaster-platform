@@ -8,7 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  # Light and dark (darkModeCertification.mjs), then Windows' contrast themes: every certified student and teacher scene
+  # Light and dark (darkModeCertification.mjs), what colour alone told apart read with the colour taken away
+  # (colourAloneCues.mjs, about a minute), then Windows' contrast themes: every certified student and teacher scene
   # under forced colours, dark and light (forcedColorsCertification.mjs, after its self-test), and then the Math Tools
   # Lab's tools and their Work Views. The forced-colours walk (340 readings) took thirteen minutes on a shared four-core
   # machine (2026-11-08), and ten on CI, where the whole job took sixteen; the Lab's 192 readings took six minutes on
@@ -54,6 +55,17 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/forcedColorsSelfTest.mjs
+      # WCAG 1.4.1 in the app's own themes: the two progress wheels' levels and round marks, and the planes whose lines
+      # differed only by colour (y = x and f, a curve and its inverse, two solid boundaries, a source and its image, a
+      # figure's two named curves, Graph the Line's line drawn without the method), read in light and dark at
+      # 1440x900, 1366x768 and 390x844 with the page's colour taken away: fails a level or a mark drawn like another,
+      # and a name on a line that is missing, hidden or on a point or another word (colourAloneCues.mjs).
+      - name: Lines and levels are told apart without colour, light and dark
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5198"
+        run: node tests/browser/colourAloneCues.mjs
       # Windows' contrast themes: every certified scene at 1366x768 and 390x844, read under forced colours in a dark
       # contrast theme and a light one. Fails a Tab stop that draws no focus indicator, a selected or pressed control
       # shown only by colour or background, and a control that lost its edge (src/theme/forcedColors.css).
@@ -89,4 +101,11 @@ jobs:
         with:
           name: forced-colors-certification
           path: tests/browser/artifacts/forcedColors
+          retention-days: 14
+      - name: Keep the colour-alone report and its grey pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: colour-alone-cues
+          path: tests/browser/artifacts/colourAlone
           retention-days: 14

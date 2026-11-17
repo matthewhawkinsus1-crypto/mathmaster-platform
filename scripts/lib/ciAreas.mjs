@@ -423,6 +423,8 @@ export const CI_AREAS = {
     'tests/browser/forcedColors*',
     'scripts/lib/forcedColors.mjs',
     'tests/platform/forcedColors*',
+    // What colour alone told apart, read in the app's own themes (WCAG 1.4.1), and walked under forced colours too.
+    'tests/browser/colourAloneCues*',
     'tests/browser/accessibilityCertification.mjs',
     'tests/browser/accessibilityTeacherScreens.mjs',
     'tests/browser/accessibilityAudit.mjs',

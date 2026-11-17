@@ -69,6 +69,13 @@
  * as the page opens and again with a domain value chosen and a wedge named; and
  * the mastery wheel in the app, on the student's My Math Path.
  *
+ * THE CUES THAT ARE NOT COLOUR. What colour alone told apart has a cue of its
+ * own now (WCAG 1.4.1), drawn on planes and wheels like any other part: the
+ * names on lines and the constraints' rings, the wheels' fills and round marks,
+ * Graph the Line's badge for a line drawn without the method. The walk reads
+ * them on their page (CUE_SCREENS, colourAloneCues.html), as it opens and with
+ * that line drawn.
+ *
  * HOW. Chromium draws forced colours when Playwright emulates them, and a
  * contrast theme sets prefers-color-scheme from its Canvas, as Windows tells
  * Chromium: `forcedColors: 'active'` with `colorScheme` 'dark' stands for a dark
@@ -99,6 +106,7 @@ import {
   servesStubbedServices,
 } from './accessibilityCertification.mjs';
 import { auditForcedColors, waitForFormulas } from './forcedColorsAudit.mjs';
+import { drawLineWithoutMethod, openCues } from './colourAloneCues.mjs';
 import { FORCED_COLORS_RULE_IDS } from '../../scripts/lib/forcedColors.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -172,10 +180,26 @@ export const DRAWING_SCREENS = Object.freeze([
   },
 ]);
 
+// What colour alone told apart, and now something else does too (colourAloneCues.html, WCAG 1.4.1): the names on the
+// planes' lines and the constraints' rings, the wheels' fills and round marks, and Graph the Line's badge for a line
+// drawn without the method, which the planes' and drawings' pages do not draw. Read for its planes and drawings alone,
+// as the page opens and with that line drawn (tests/browser/colourAloneCues.mjs reads it in the app's own themes).
+export const CUE_SCREENS = Object.freeze([
+  {
+    id: 'colour-alone-cues',
+    harness: 'audit',
+    include: '[data-cue-scene] [data-mm-plane], [data-cue-scene] [data-mm-drawing]',
+    scenes: [
+      { id: null, run: (page, origins) => openCues(page, origins.audit, null) },
+      { id: 'method', run: (page) => drawLineWithoutMethod(page) },
+    ],
+  },
+]);
+
 // What the walk reads: the certified screens, the rounds' own (the student's arena in a Graph Feature Rush and a
 // Graph the Line round, the rounds' certified scenes that are not axe's: the large-text runs measure them), the
-// planes' and the other drawings'.
-export const WALKED_SCREENS = Object.freeze([...CERTIFIED_SCREENS, ...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS, ...DRAWING_SCREENS]);
+// planes', the other drawings' and the cues that are not colour.
+export const WALKED_SCREENS = Object.freeze([...CERTIFIED_SCREENS, ...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS, ...DRAWING_SCREENS, ...CUE_SCREENS]);
 
 /** The screens a run walks: those ONLY names, or every one of WALKED_SCREENS but those with a job of their own. */
 export const screensToWalk = (only) => {
