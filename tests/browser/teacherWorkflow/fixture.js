@@ -270,10 +270,18 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const fixture = {};
 
   // ---------------------------------------------------------------- schedule
-  const clampStart = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(0, 5, 0, 0)).getTime());
-  const clampEnd = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(23, 55, 0, 0)).getTime());
+  // Period 3 holds `now` at any hour. A start before midnight is today's
+  // 00:00, and an end after it is "24:00", which the schedule reads as the
+  // next midnight (instructionalCalendar.mjs, zonedTimeOnDate). Clamped to
+  // 00:05 and 23:55 instead, the harness had no class in session for the five
+  // minutes either side of midnight, so a journey that opened it then waited
+  // for "In session now" until it timed out (CI run 138, at 23:55 UTC).
   const todayPeriods = {
-    'Period 3': { enabled: true, start: hhmm(clampStart(p3StartMs)), end: hhmm(clampEnd(p3EndMs)) },
+    'Period 3': {
+      enabled: true,
+      start: sameDay(p3StartMs, now) ? hhmm(p3StartMs) : '00:00',
+      end: sameDay(p3EndMs, now) ? hhmm(p3EndMs) : '24:00',
+    },
   };
   if (sameDay(now - 4 * 3600_000, now)) todayPeriods['Period 1'] = { enabled: true, start: hhmm(now - 4 * 3600_000), end: hhmm(now - 3 * 3600_000) };
   if (sameDay(now + 3 * 3600_000, now)) todayPeriods['Period 5'] = { enabled: true, start: hhmm(now + 2 * 3600_000), end: hhmm(now + 3 * 3600_000) };
