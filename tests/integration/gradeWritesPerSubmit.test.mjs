@@ -34,7 +34,10 @@
  *               final Classroom passback, held while the device still reports
  *               the work queued, then released)
  *   secure      one secure Test item answered (the navigation runtime's draft
- *               save), the older one-call submit, and the Test's final Submit
+ *               save), the older one-call submit, the Test's final Submit, and
+ *               (not a Submit) the teacher's release that sends it to
+ *               Classroom, the same release again, and a release whose
+ *               Corrections plan was never written
  *   recovery    a Recovery Practice answer, a Recovery answer saved, and the
  *               Recovery Submit
  *
@@ -449,6 +452,7 @@ const TC_PREFIX = 'gw_';
 const TC_CLASS = 'gw-tc-class';
 const TC_ASSIGNMENT = 'gw-tc-assignment';
 const TC_STUDENT = 'GW_TC_STUDENT';
+const TC_COURSE = 'gw-tc-course';
 
 // A DOL Recovery of its own (as tests/integration/sectionRecoveryPlatformFailure.test.mjs builds one).
 const RC_CLASS = 'gw-rc-class';
@@ -523,6 +527,14 @@ before(async () => {
     displayName: TC_STUDENT, classId: TC_CLASS, classPeriod: 'Period 4', assignedTeacherEmail: TEACHER_EMAIL, status: 'active', gradesByAssignment: {},
   });
   await db.collection('assignments').doc(TC_ASSIGNMENT).set(certAssignment({ prefix: TC_PREFIX, classIds: [TC_CLASS], assignmentId: TC_ASSIGNMENT }));
+  // Posted to Classroom, so the release below reaches it (nothing before the
+  // release does: an unreleased Test has no grade to send).
+  await db.collection('classroomLinks').doc('gw-tc-whole').set({
+    schemaVersion: 2, publicationId: 'gw-tc-whole', assignmentId: TC_ASSIGNMENT,
+    courseId: TC_COURSE, courseName: 'Grade writes Test Cycle', courseworkId: 'gw-tc-whole-cw',
+    teacherUid: `uid-${TEACHER_EMAIL}`, status: 'published', maxPoints: 100, sectionKey: 'whole',
+  });
+  await db.collection('classroomRosterLinks').doc(rosterLinkDocumentId(TC_COURSE, TC_STUDENT)).set({ courseId: TC_COURSE, studentId: TC_STUDENT, googleUserId: `google-${TC_STUDENT}` });
 
   await db.collection('classes').doc(RC_CLASS).set({ name: 'Grade writes Recovery', period: 'Period 2', teacherOfRecord: TEACHER_EMAIL, status: 'active', course: 'algebra1' });
   await db.collection('assignments').doc(RC_ASSIGNMENT.id).set(recoveryAssignmentDoc(RC_ASSIGNMENT));
@@ -748,7 +760,62 @@ test('a secure Test item: a draft save that answers it, the older one-call submi
   const testRecord = (await db.collection('testCycleRecords').doc(`${TC_ASSIGNMENT}__${TC_STUDENT}`).get()).data();
   assert.equal(testRecord.test.state, 'submitted');
   assert.equal(testRecord.test.answeredQuestions, 2, 'the teacher\'s table still reads the answered count from the record');
-  snapshots.secure = await storedState(TC_STUDENT, { testCycleRecord: testRecord });
+
+  // Not a Submit: the teacher releases the Test. The score and the
+  // Corrections plan the failed Test opens are one transaction, so the record
+  // and its projection are written once (before, twice: the release, then the
+  // plan), and the recorded grade goes to the Test Cycle's Classroom column.
+  const release = () => ledger.asActor('proctorExamAction', () => fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'releaseFeedback' })));
+  const recordRef = db.collection('testCycleRecords').doc(`${TC_ASSIGNMENT}__${TC_STUDENT}`);
+  const planRef = db.collection('testCycleCorrectionPlans').doc(`${TC_ASSIGNMENT}__${TC_STUDENT}`);
+  const projectionOf = async () => (await db.collection('grades').doc(TC_STUDENT).get()).data().testCycleGrades[TC_ASSIGNMENT];
+  resetClassroomCalls();
+  const released = await step('secure', 'the teacher releases the Test', context, release);
+  pin(released, {
+    gradeWrites: ['proctorExamAction: testCycleGrades'],
+    detailWrites: 0,
+    triggerRuns: 2,
+    triggerRunsWithWork: 1,
+  }, 'the released grade and the Corrections it opens, in one write');
+  const releasedRecord = (await recordRef.get()).data();
+  const { plan } = (await planRef.get()).data();
+  const projection = await projectionOf();
+  assert.equal(releasedRecord.test.state, 'released');
+  assert.ok(plan.targets.length > 0, 'the failed Test opened its Corrections');
+  assert.deepEqual(
+    [releasedRecord.corrections.planId, releasedRecord.corrections.total, projection.recordedGrade, projection.correctionsTotal, projection.stage],
+    [plan.planId, plan.targets.length, releasedRecord.recordedGrade, plan.targets.length, releasedRecord.stage],
+    'the record and its projection carry both the score and the plan',
+  );
+  assert.deepEqual(patchGradeCalls().map((call) => call.grade), [releasedRecord.recordedGrade], 'the recorded grade reaches Classroom once');
+
+  // The same release again (a double click, two tabs, "release all"): nothing.
+  const repeated = await step('secure', 'the teacher releases it again', context, release);
+  pin(repeated, NOTHING, 'a repeat release writes nothing');
+  assert.deepEqual((await planRef.get()).data().plan, plan, 'and leaves the plan as it was');
+
+  // A release interrupted between its two writes, before they were one, left
+  // the record and its projection released with no Corrections plan. The
+  // next release builds it, and writes the record and its projection once.
+  await planRef.delete();
+  await recordRef.update({ 'corrections.planId': null, 'corrections.total': 0 });
+  await db.collection('grades').doc(TC_STUDENT).update(new admin.firestore.FieldPath('testCycleGrades', TC_ASSIGNMENT, 'correctionsTotal'), 0);
+  await ledger.settleGradeTriggers();
+  const repaired = await step('secure', 'a release whose Corrections plan was never written', context, release);
+  pin(repaired, {
+    gradeWrites: ['proctorExamAction: testCycleGrades'],
+    detailWrites: 0,
+    triggerRuns: 2,
+    triggerRunsWithWork: 1,
+  }, 'the plan, and the record and its projection with it, once');
+  const repairedRecord = (await recordRef.get()).data();
+  assert.equal((await planRef.get()).data()?.plan?.planId, plan.planId, 'the plan is there again');
+  assert.deepEqual(
+    [repairedRecord.corrections.planId, repairedRecord.corrections.total, repairedRecord.recordedGrade, (await projectionOf()).correctionsTotal],
+    [plan.planId, plan.targets.length, releasedRecord.recordedGrade, plan.targets.length],
+    'with the score as it was recorded',
+  );
+  snapshots.secure = await storedState(TC_STUDENT, { testCycleRecord: repairedRecord });
 });
 
 test('a Recovery: a Practice answer, an answer saved, and the Recovery Submit', async () => {
@@ -865,6 +932,13 @@ const CLASSROOM_BY_STEP = {
   'finishing: device report after the drain': {
     pushes: ['patchGrade canonpersist-coursework 100 assigned', 'returnSubmission canonpersist-coursework'],
     auditRows: ['canonpersist-coursework synced final-complete 100 visible returned'],
+  },
+  // The teacher releases the failed Test: its recorded grade, to the Test
+  // Cycle's own column (sent once, as when the release wrote the grade
+  // record twice).
+  'secure: the teacher releases the Test': {
+    pushes: ['patchGrade gw-tc-whole-cw 4 draft'],
+    auditRows: ['gw-tc-whole-cw synced testcycle-test 4'],
   },
   'recovery: the Recovery Submit': {
     pushes: ['patchGrade gw-rc-whole-cw 90 assigned', 'returnSubmission gw-rc-whole-cw', 'patchGrade gw-rc-dol-cw 90 assigned', 'returnSubmission gw-rc-dol-cw'],

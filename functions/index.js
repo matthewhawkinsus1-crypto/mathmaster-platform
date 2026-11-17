@@ -22853,6 +22853,15 @@ exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (requ
  * corrections back to the start (and one who had finished them back from the
  * Retest). The score is recorded once per session, and an existing correction
  * plan for this session is never overwritten.
+ *
+ * ONE WRITE. The score and the Corrections it opens are recorded in one
+ * transaction, so the record and its projection on grades/{studentId} are
+ * written once. They were two transactions, each writing both: every write to
+ * that document runs both Classroom triggers and is sent to every teacher
+ * listening to the gradebook, and the first projection (a released Test with
+ * no Corrections yet) was a state nothing reads before the second replaced it.
+ * A Test released before this whose plan was never written still gets it from
+ * the next release.
  */
 async function applyTestCycleFeedbackRelease(db, session) {
   const courseTest = session?.courseTest;
@@ -22877,53 +22886,9 @@ async function applyTestCycleFeedbackRelease(db, session) {
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
   const answeredQuestions = secureExamNavigation.answeredCount(session);
   const totalQuestions = Number(session.requiredQuestions || 0);
-
-  const released = await mutateTestCycleRecord(db, {
-    assignmentId: courseTest.assignmentId,
-    studentId,
-    shared,
-    policy,
-    mutate: (record) => {
-      // Superseded by a teacher reset. The caller already refuses this, and so
-      // does this helper: a stale score reaching the record is not recoverable
-      // by the student, so it is worth refusing twice. The match is exact — an
-      // emptied stage is not a wildcard (see `courseTestSessionIsCurrent`).
-      const current = isRetest ? record.retest : record.test;
-      const currentSessionId = current.examSessionId;
-      if (String(currentSessionId || "") !== String(session.examSessionId || "")) return { value: { superseded: true } };
-      if (current.state === shared.record.SESSION_STATE.RELEASED) return { value: { alreadyReleased: true } };
-      const updated = isRetest
-        ? shared.record.applyRetestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy })
-        : shared.record.applyTestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy });
-      return { record: updated, value: { released: true } };
-    },
-  });
-  if (released.value?.superseded) return null;
   // A retest has no corrections after it; neither does an external-original
   // cycle, whose one secure session IS the retest.
-  if (isRetest || policy.externalAssessment) {
-    return { recordId: released.record.recordId, recordedGrade: released.record.recordedGrade ?? null };
-  }
-
-  // A failed Test builds this student's corrections automatically, from their
-  // own evidence, at the moment the score becomes real to them — read against
-  // the Test they sat: a question their teacher excused (TC15) was never
-  // asked, so it is never "missed" and never corrected.
-  const excused = shared.reducedItems.applicableExcusedSlotIds(released.record, blueprint);
-  const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
-  const profile = shared.corrections.buildPerformanceProfile({
-    blueprint: ownBlueprint,
-    responses: testCycleLib.responsesForProfile(session),
-  });
-  const plan = shared.corrections.buildCorrectionPlan({
-    blueprint: ownBlueprint,
-    profile,
-    policy,
-    releasedTestGrade: rawScore,
-    assignmentId: courseTest.assignmentId,
-    studentId,
-    examSessionId: session.examSessionId,
-  });
+  const opensCorrections = !isRetest && !policy.externalAssessment;
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(testCycleRecordKey(courseTest.assignmentId, studentId));
 
   const withCorrections = await mutateTestCycleRecord(db, {
@@ -22932,12 +22897,49 @@ async function applyTestCycleFeedbackRelease(db, session) {
     shared,
     policy,
     mutate: async (record, { transaction }) => {
+      // Superseded by a teacher reset. The caller already refuses this, and so
+      // does this helper: a stale score reaching the record is not recoverable
+      // by the student, so it is worth refusing twice. The match is exact — an
+      // emptied stage is not a wildcard (see `courseTestSessionIsCurrent`).
+      const current = isRetest ? record.retest : record.test;
+      const currentSessionId = current.examSessionId;
+      if (String(currentSessionId || "") !== String(session.examSessionId || "")) return { value: { superseded: true } };
+      // Released already: the score stays as it was recorded, and the record
+      // is written only for a Corrections plan this session never got.
+      const alreadyReleased = current.state === shared.record.SESSION_STATE.RELEASED;
+      const released = alreadyReleased
+        ? record
+        : isRetest
+          ? shared.record.applyRetestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy })
+          : shared.record.applyTestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy });
+      const releaseOnly = (value) => (alreadyReleased ? { value } : { record: released, value });
+      if (!opensCorrections) return releaseOnly(alreadyReleased ? { alreadyReleased: true } : { released: true });
+
       const existingPlan = await transaction.get(planRef);
-      if (!plan) return { value: { plan: null } };
+      // A failed Test builds this student's corrections automatically, from
+      // their own evidence, at the moment the score becomes real to them —
+      // read against the Test they sat: a question their teacher excused
+      // (TC15) was never asked, so it is never "missed" and never corrected.
+      const excused = shared.reducedItems.applicableExcusedSlotIds(released, blueprint);
+      const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
+      const profile = shared.corrections.buildPerformanceProfile({
+        blueprint: ownBlueprint,
+        responses: testCycleLib.responsesForProfile(session),
+      });
+      const plan = shared.corrections.buildCorrectionPlan({
+        blueprint: ownBlueprint,
+        profile,
+        policy,
+        releasedTestGrade: rawScore,
+        assignmentId: courseTest.assignmentId,
+        studentId,
+        examSessionId: session.examSessionId,
+      });
+      if (!plan) return releaseOnly({ plan: null });
       // This session's plan already exists: the release is a repeat. Keep the
       // student's progress exactly where it is.
       if (existingPlan.exists && String(existingPlan.data()?.plan?.sourceExamSessionId || "") === String(session.examSessionId || "")) {
-        return { value: { plan: existingPlan.data().plan, repeat: true } };
+        return releaseOnly({ plan: existingPlan.data().plan, repeat: true });
       }
       /*
        * IS THE CORRECTIONS GATE ACTUALLY CLOSED FOR THIS STUDENT?
@@ -22955,7 +22957,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
        * nothing to correct, so it is complete the moment it exists and gates
        * nothing: the student goes straight on to the Retest.
        */
-      const controls = record.teacherControls;
+      const controls = released.teacherControls;
       const hasTargets = Array.isArray(plan.targets) && plan.targets.length > 0;
       const correctionsGate = Boolean(plan)
         && hasTargets
@@ -22964,7 +22966,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
         && !controls.correctionsWaived
         && !controls.retestUnlocked;
       transaction.set(planRef, {
-        recordId: record.recordId,
+        recordId: released.recordId,
         assignmentId: courseTest.assignmentId,
         studentId,
         plan,
@@ -22976,9 +22978,9 @@ async function applyTestCycleFeedbackRelease(db, session) {
       return {
         value: { plan, correctionsGate },
         record: {
-          ...record,
+          ...released,
           corrections: {
-            ...record.corrections,
+            ...released.corrections,
             planId: plan.planId,
             required: correctionsGate,
             total: plan.targets.length,
@@ -22990,8 +22992,10 @@ async function applyTestCycleFeedbackRelease(db, session) {
       };
     },
   });
+  if (withCorrections.value?.superseded) return null;
 
   const latest = withCorrections.record;
+  if (!opensCorrections) return { recordId: latest.recordId, recordedGrade: latest.recordedGrade ?? null };
   const gateOpen = Boolean(withCorrections.value?.plan)
     && !(latest.corrections.required && !latest.corrections.complete
       && !latest.teacherControls.correctionsWaived && !latest.teacherControls.retestUnlocked);

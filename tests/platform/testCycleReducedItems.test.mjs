@@ -384,7 +384,7 @@ test('every place a student\'s Test or Retest is planned applies their own choic
   assert.match(retest, /: shared\.retest\.buildRetestBlueprint\(\{ blueprint, profile, policy \}\);/, 'anyone else: the call it always was');
 
   const release = region(functionsIndex, 'async function applyTestCycleFeedbackRelease(', 'async function syncTestCycleSessionState(', 'release');
-  assert.match(release, /const excused = shared\.reducedItems\.applicableExcusedSlotIds\(released\.record, blueprint\);/);
+  assert.match(release, /const excused = shared\.reducedItems\.applicableExcusedSlotIds\(released, blueprint\);/);
   assert.match(release, /const ownBlueprint = excused\.length \? shared\.reducedItems\.studentTestBlueprint\(blueprint, excused\) : blueprint;\s*const profile = shared\.corrections\.buildPerformanceProfile\(\{\s*blueprint: ownBlueprint,/);
 
   const card = region(functionsIndex, 'exports.getStudentTestCycle = onCall(', 'function testCycleSkillList(', 'getStudentTestCycle');
