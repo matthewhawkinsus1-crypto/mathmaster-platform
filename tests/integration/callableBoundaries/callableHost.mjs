@@ -213,6 +213,30 @@ export async function rawCall(name, data, { authorization = null } = {}) {
 
 /* --- what is in the project ------------------------------------------------ */
 
+/** Write `entries` ([path, data] pairs) in batches, as a fixture of thousands of documents needs. */
+export async function writeDocuments(entries) {
+  for (let start = 0; start < entries.length; start += 400) {
+    const batch = db.batch();
+    entries.slice(start, start + 400).forEach(([docPath, data]) => batch.set(db.doc(docPath), data));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+}
+
+/**
+ * Delete the documents at `paths` in batches. A file that seeds thousands
+ * removes them when it ends: the files after it in the same emulator walk the
+ * whole project for every "nothing was written" check (projectSnapshot).
+ */
+export async function deleteDocuments(paths) {
+  for (let start = 0; start < paths.length; start += 400) {
+    const batch = db.batch();
+    paths.slice(start, start + 400).forEach((docPath) => batch.delete(db.doc(docPath)));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+}
+
 /*
  * Every document in the project, at every depth, with its update time. A
  * refused call must leave this exactly as it was: no grade field, override,
@@ -233,8 +257,13 @@ export async function projectSnapshot() {
             data: snapshot.data(),
           });
         }
+      }
+      // Each document's own collections (a missing document's too), 50
+      // documents at a time: one at a time, a fixture of thousands took
+      // seconds a walk.
+      for (let start = 0; start < snapshots.length; start += 50) {
         // eslint-disable-next-line no-await-in-loop
-        await visit(await snapshot.ref.listCollections());
+        await Promise.all(snapshots.slice(start, start + 50).map(async (snapshot) => visit(await snapshot.ref.listCollections())));
       }
     }
   };

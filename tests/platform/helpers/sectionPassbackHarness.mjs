@@ -133,8 +133,12 @@ export function passbackFirestore(seed = {}) {
   }
   const query = (collection, state = { filters: [], fields: null, limit: null, startAfter: null }) => ({
     where: (field, op, value) => {
-      assert.equal(op, '==', 'the fake supports equality only');
-      return query(collection, { ...state, filters: [...state.filters, { field: String(field), value }] });
+      assert.ok(op === '==' || op === 'in', 'the fake supports equality and `in` only');
+      // Firestore refuses an `in` of no values or of more than 30. An equality
+      // filter is recorded as it always was, { field, value }.
+      if (op === 'in') assert.ok(Array.isArray(value) && value.length >= 1 && value.length <= 30, `an in filter takes 1 to 30 values, not ${value?.length}`);
+      const filter = op === 'in' ? { field: String(field), op, value } : { field: String(field), value };
+      return query(collection, { ...state, filters: [...state.filters, filter] });
     },
     select: (...fields) => query(collection, { ...state, fields: fields.map(segmentsOf) }),
     limit: (limit) => query(collection, { ...state, limit }),
@@ -150,7 +154,7 @@ export function passbackFirestore(seed = {}) {
       const docs = [...store.entries()]
         .filter(([docPath]) => docPath.startsWith(`${collection}/`) && docPath.split('/').length === 2)
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .filter(([, data]) => state.filters.every(({ field, value }) => data?.[field] === value))
+        .filter(([, data]) => state.filters.every(({ field, op, value }) => (op === 'in' ? value.includes(data?.[field]) : data?.[field] === value)))
         .filter(([docPath]) => state.startAfter === null || docPath.split('/')[1] > state.startAfter)
         .slice(0, state.limit ?? undefined)
         .map(([docPath, data]) => snapshotOf(docPath, data, state.fields));

@@ -55,6 +55,8 @@ const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 // Which Classroom publications a teacher may see and act on: the publication
 // callables' one rule.
 const classroomLinkOwnership = require("./lib/classroomLinkOwnership");
+// The grade passback monitor's rows: a teacher's own, read by their own posts.
+const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
 const { deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
@@ -9960,19 +9962,24 @@ exports.listClassroomGradeSyncs = onCall(async (request) => {
   if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 } };
   const ownAssignments = new Set(ownPublications.map((doc) => String(doc.data().assignmentId || "")));
 
-  // The newest rows. Until Oct 14, 2026 this read any 500 of them, so the
-  // monitor (and "Retry all") could miss most of a day's failures.
-  const syncSnap = await db.collection("classroomGradeSyncs")
-    .orderBy("updatedAt", "desc")
-    .limit(500)
-    .get();
+  // The rows of those posts alone, by their ids, and the newest 500 of them
+  // (lib/classroomGradeSyncRows.js). This read the newest 500 rows of every
+  // teacher's and kept the caller's, so a teacher whose rows were not among
+  // the school's newest 500 saw part of their monitor, or none of it.
+  const read = await classroomGradeSyncRows.readPublicationGradeSyncs(db, [...publicationIds]);
+  const rowConcerns = classroomGradeSyncRows.gradeSyncReadConcerns({ rows: read.docs.length, complete: read.complete });
+  if (!read.complete) {
+    logger.error("The grade passback monitor stopped reading a teacher's rows at its limit", { teacherUid, posts: publicationIds.size, rows: read.docs.length, queries: read.queries, concerns: rowConcerns });
+  } else if (rowConcerns.length) {
+    logger.warn("The grade passback monitor read many rows for one teacher", { teacherUid, posts: publicationIds.size, rows: read.docs.length, queries: read.queries, concerns: rowConcerns });
+  }
   // Pushes waiting in the paced queue (lib/classroomPushQueue.js).
   const waiting = (await classroomPushQueue.waitingClassroomPushes(db, { limit: 2000 }))
     .filter((entry) => ownAssignments.has(entry.assignmentId));
   const queuedPushes = new Set(waiting.map((entry) => `${entry.assignmentId}/${entry.studentId}`));
-  const syncs = syncSnap.docs
+  const syncs = classroomGradeSyncRows.newestGradeSyncs(read.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((item) => publicationIds.has(String(item.publicationId)))
+    .filter((item) => publicationIds.has(String(item.publicationId))))
     .map((item) => ({
       ...item,
       queued: queuedPushes.has(`${item.assignmentId}/${item.studentId}`),
