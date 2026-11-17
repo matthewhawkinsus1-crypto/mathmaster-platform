@@ -97,10 +97,14 @@ test('every stage of mathematical work required by the spec is stored through us
 
 test('the only local useState fields are transient interaction/Undo presentation state', () => {
   const useStateFields = [...modeSource.matchAll(/const\s*\[\s*([A-Za-z0-9_$]+)\s*,\s*set[A-Za-z0-9_$]*\s*\]\s*=\s*useState\(/g)].map((m) => m[1]);
-  assert.deepEqual(useStateFields.sort(), ['dragOverVariable', 'embeddedUndoController', 'scaleEditors', 'slotAttempt'].sort());
+  // unreadableIsolationDraft: the rewrite last refused as unreadable, kept only
+  // so its words show while the box still holds it; the refusal records nothing
+  // (isolationSimplification.js).
+  assert.deepEqual(useStateFields.sort(), ['dragOverVariable', 'embeddedUndoController', 'scaleEditors', 'slotAttempt', 'unreadableIsolationDraft'].sort());
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.slotAttempt);
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.embeddedUndoController);
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.scaleEditors);
+  assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.unreadableIsolationDraft);
 });
 
 test('each Step Algebra embed gets a draft key scoped to the exact mathematical identity being solved, so a different choice never rehydrates stale work', () => {
@@ -144,7 +148,12 @@ test('substitution token creation lets the student keep the valid isolated form 
   assert.match(modeSource, /onClick=\{useIsolatedExpressionAsToken\} style=\{secondaryButtonStyle\}>Use this expression</);
   assert.match(modeSource, /Simplify first \(optional\)/);
   assert.match(modeSource, /Skip simplification/);
-  assert.match(modeSource, /expressionsEquivalent\(draft, isolatedExpr, selection\.variable\)/);
+  // The rewrite becomes the token only when the shared judge, which reads it on
+  // its own and then asks for equivalence with the isolated form, accepts it
+  // (isolationSimplification.js; systemsIsolationTypedRead.test.mjs).
+  const check = region(modeSource, 'const checkAndUseIsolationSimplification = () => {', 'const changeSubstitutionTokenExpression', 'Check and use my simplification');
+  assert.match(check, /const judged = judgeIsolationSimplification\(draft, isolatedExpr, selection\.variable\);/);
+  assert.match(check, /if \(judged\.verdict !== 'accepted'\) \{\s*setIsolation\(\(current\) => \(\{ \.\.\.current, simplificationChecked: true, simplificationValid: false \}\)\);\s*return;\s*\}\s*const \{ tokenExpression \} = judged;/);
   assert.match(modeSource, /tokenExpression: isolatedExpr/);
   assert.match(modeSource, /expression=\{substitutionTokenExpression\}/);
 });

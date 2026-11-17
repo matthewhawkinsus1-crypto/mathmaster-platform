@@ -16,7 +16,8 @@ import { scrollMotion } from '../../motionPreference.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
-import { expressionsEquivalent, latexToExpression, expressionToLatex, expressionIsSimplified } from '../../algebraAstEngine.js';
+import { latexToExpression, expressionToLatex, expressionIsSimplified } from '../../algebraAstEngine.js';
+import { ISOLATION_UNREADABLE_MESSAGE, judgeIsolationSimplification } from './isolationSimplification.js';
 import './AlgebraicSystemMode.css';
 import {
   EliminationCombinationEntry,
@@ -480,6 +481,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   // ("-(3)+(2~ y)") in these plain-expression fields. Every read goes through
   // the repair, so a reopened question behaves exactly like a fresh one.
   const isolation = useMemo(() => repairPersistedIsolation(storedIsolation), [storedIsolation]);
+  // The optional rewrite last refused because it could not be read on its own
+  // (isolationSimplification.js). Kept here, never in the draft: the refusal
+  // records nothing, and it goes as soon as the box holds anything else.
+  const [unreadableIsolationDraft, setUnreadableIsolationDraft] = useState(null);
   const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
   const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
   const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });
@@ -793,6 +798,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const startOptionalIsolationSimplification = () => {
+    setUnreadableIsolationDraft(null);
     setIsolation((current) => ({
       ...current,
       tokenExpression: null,
@@ -815,22 +821,20 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const checkAndUseIsolationSimplification = () => {
     const draft = String(isolation.simplificationDraft || '').trim();
-    if (!draft || !isolatedExpr) {
+    // Read on its own first: equivalence reads it only inside
+    // "(typed) - (isolated)", where "7)-(2x" is 7 - 2x. What cannot be read
+    // is told so and records nothing (isolationSimplification.js).
+    const judged = judgeIsolationSimplification(draft, isolatedExpr, selection.variable);
+    if (judged.verdict === 'unreadable') {
+      setUnreadableIsolationDraft(draft);
+      return;
+    }
+    setUnreadableIsolationDraft(null);
+    if (judged.verdict !== 'accepted') {
       setIsolation((current) => ({ ...current, simplificationChecked: true, simplificationValid: false }));
       return;
     }
-    const valid = expressionsEquivalent(draft, isolatedExpr, selection.variable);
-    if (!valid) {
-      setIsolation((current) => ({ ...current, simplificationChecked: true, simplificationValid: false }));
-      return;
-    }
-    let tokenExpression = draft;
-    try {
-      tokenExpression = latexToExpression(draft);
-    } catch {
-      // MathInput can return plain ASCII math already. Equivalence was proven
-      // above, so the student's visible expression remains safe to substitute.
-    }
+    const { tokenExpression } = judged;
     setIsolation((current) => ({
       ...current,
       tokenExpression,
@@ -1732,6 +1736,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           {isolation.simplificationChecked && !isolation.simplificationValid ? (
                             <p className="mathmaster-systems-substitution-feedback is-error" style={{ margin: 0 }}>
                               That rewrite is not equivalent to the isolated expression yet. Revise it, or use the original form.
+                            </p>
+                          ) : null}
+                          {unreadableIsolationDraft !== null && unreadableIsolationDraft === String(isolation.simplificationDraft || '').trim() ? (
+                            <p className="mathmaster-systems-substitution-feedback is-error" role="status" data-isolation-unreadable="true" style={{ margin: 0 }}>
+                              {ISOLATION_UNREADABLE_MESSAGE}
                             </p>
                           ) : null}
                         </div>

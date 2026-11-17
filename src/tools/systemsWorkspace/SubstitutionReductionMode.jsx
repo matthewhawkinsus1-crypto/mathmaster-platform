@@ -50,6 +50,7 @@ import { spokenMathValue } from '../shared/spokenMathValue.js';
 import { scrollMotion } from '../../motionPreference.js';
 import MathInput from '../../MathInput';
 import { latexToExpression } from '../../algebraAstEngine.js';
+import { ISOLATION_UNREADABLE_MESSAGE, judgeIsolationSimplification } from './isolationSimplification.js';
 import AlgebraicSystemMode, {
   EmbeddedStepAlgebra,
   MathDragToken,
@@ -152,6 +153,8 @@ const feedbackText = (note, system, sourceVariable) => {
       return 'MathMaster could not open the next solving step from that form of the expression. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.';
     case 'token:token-in-use':
       return 'The expression is already in a reduced equation. Undo that substitution first if you want to change it.';
+    case 'token:unreadable':
+      return ISOLATION_UNREADABLE_MESSAGE;
     case 'reduce:not-equivalent':
       return 'That form is not the same equation the substitution produced. Keep working in the solver.';
     case 'back:destination-lacks-unknown':
@@ -304,6 +307,16 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   const source = reduction.source;
   const sourceVariable = source?.variable || null;
   const isolated = isolatedExpression(reduction, system);
+  // The optional rewrite is read on its own before the shared check judges
+  // it, as in the 2×2 (isolationSimplification.js): what cannot be read is
+  // told so, and the reduction's state is left exactly as it was.
+  const checkTokenRewrite = () => {
+    if (judgeIsolationSimplification(reduction.isolation?.simplificationDraft, isolated, sourceVariable).verdict === 'unreadable') {
+      apply({ state: reduction, feedback: { stage: 'token', reason: 'unreadable' } });
+      return;
+    }
+    apply(checkTokenSimplification(reduction, system));
+  };
   const token = substitutionToken(reduction);
   const targets = reductionTargets(reduction, system);
   const remaining = remainingVariables(reduction, system);
@@ -622,7 +635,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                           />
                         </label>
                         <div className="mathmaster-reduction-button-row">
-                          <button type="button" onClick={() => apply(checkTokenSimplification(reduction, system))} style={smallActionStyle}>Check and use my simplification</button>
+                          <button type="button" onClick={checkTokenRewrite} style={smallActionStyle}>Check and use my simplification</button>
                           <button type="button" onClick={() => apply(adoptIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Skip simplification</button>
                         </div>
                         {reduction.isolation.simplificationChecked && !reduction.isolation.simplificationValid ? (
