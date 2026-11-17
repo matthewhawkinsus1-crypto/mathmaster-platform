@@ -62,6 +62,15 @@ name: Student and Teacher Journeys
 #                          restore's frame, MathLive's 60 ms timer — moves the
 #                          cursor; held deterministically, then raced many
 #                          times; Chromebook, iPad, phone; 50x/20x nightly)
+#   Step Algebra's first   tests/browser/teacherWorkflow/stepAlgebraOperandDraftJourneys.mjs
+#   operand                (its own job, #386 R12: the value a student types on
+#                          a fresh Step Algebra stage, before the server's copy
+#                          of their drafts is read, is still there when that
+#                          copy lands, and the question is not remounted under
+#                          them; a saved step still comes back whole; the read
+#                          held, then raced at random moments; Chromebook and
+#                          phone, at normal speed and 4x CPU throttling; 25x at
+#                          4x and 6x nightly)
 #   Warm-Up reopen         tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
 #                          (lmr-wu-1: partial work, timer close, teacher reopen,
 #                          resume, submit; malformed drafts; a second board;
@@ -520,6 +529,34 @@ jobs:
           REPEAT: "50"
           THROTTLED_REPEAT: "20"
         run: node tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
+
+  # Its own runner: every race starts a fresh Chromebook (a browser context of
+  # its own) on the real App. Pull requests race each journey twice at normal
+  # speed and twice at 4x CPU throttling; the nightly run races it 25 times at
+  # 4x and 25 times at 6x.
+  step-algebra-operand:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: The operand typed on a fresh Step Algebra stage outlives the server's copy arriving (Chromebook, phone)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/stepAlgebraOperandDraftJourneys.mjs
+      - name: The operand race 25 times at 4x and 25 at 6x (nightly and on demand)
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          REPEAT: "25"
+          THROTTLE: "4,6"
+        run: node tests/browser/teacherWorkflow/stepAlgebraOperandDraftJourneys.mjs
 
   # Its own runner: the teacher job is near its time limit. A few minutes:
   # every student screen reloaded, on a Chromebook and a phone.

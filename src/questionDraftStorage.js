@@ -517,6 +517,66 @@ const serverCopiesSeen = new Set();
 const assignmentDraftPrefix = (studentId, assignmentId) => `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
 const serverCopySeen = (key) => [...serverCopiesSeen].some((prefix) => String(key).startsWith(prefix));
 
+/*
+ * THE OPERATION A STUDENT IS TYPING IS NOT TAKEN BACK BY A COPY OF THE SAME
+ * BOARD (issue #386 R12).
+ *
+ * Step Algebra's work on the equation is one answer, taken whole from one copy
+ * (workspaceDraftSchema.mjs), and only a committed step dates it: choosing an
+ * operation and typing its value ("Divide by what?" 3) do not. On a device that
+ * opened the question before the server's copy was read, those were undated,
+ * and a tie goes to the saved copy: work begun on a fresh device yields to
+ * saved work. When the saved copy held the same equation and steps, with an
+ * older operation or none (one the student cancelled), the read landed, the
+ * question was remounted, and the 3 the student had just typed became the
+ * other copy's 7, or the box closed.
+ *
+ * Yielding protects saved steps; here nothing committed differs, so nothing is
+ * protected by it. When both copies hold the same equation, steps and step
+ * answers, the copy edited later keeps its operation and value, as every other
+ * answer goes to the copy that edited it last. Where the saved copy holds work
+ * this one lacks, it still comes back whole: an operation typed here was
+ * chosen for an equation that is no longer on the board.
+ */
+const STEP_ALGEBRA_WORK = 'work';
+const keepNewerOperationOnSameBoard = (kind, own, saved, merged) => {
+  if (kind !== 'step-algebra' || !merged) return merged;
+  const mine = fieldRecordGroups(kind, own?.value).get(STEP_ALGEBRA_WORK);
+  const theirs = fieldRecordGroups(kind, saved?.value).get(STEP_ALGEBRA_WORK);
+  // The signature of this group is its committed work alone.
+  if (!mine || !theirs || mine.signature !== theirs.signature) return merged;
+  // At the same time too: the saved copy can be this device's own first save,
+  // which the server merged with the older operation in it.
+  if (own.savedAtIsEdit !== true || (Number(own.savedAt) || 0) < (Number(saved.savedAt) || 0)) return merged;
+  const value = { ...merged.value };
+  (fieldRecordGroups(kind, merged.value).get(STEP_ALGEBRA_WORK)?.fields || []).forEach((field) => { delete value[field]; });
+  copyFieldRecordGroup(value, own.value, mine);
+  return { ...merged, value };
+};
+
+/*
+ * THE SAME ANSWERS ARE NOT A CHANGE, IN ANY ORDER.
+ *
+ * The merge builds its copy answer by answer, so the fields come back in
+ * another order, and Step Algebra's prompt answers, kept one by one, leave no
+ * empty map behind. Compared as text, every Step Algebra copy a device held
+ * read as changed whenever the server's copy was read: the question was
+ * remounted under a student who was typing, for nothing.
+ */
+const orderedJson = (value) => JSON.stringify(value, (_key, field) => (
+  field && typeof field === 'object' && !Array.isArray(field)
+    ? Object.fromEntries(Object.keys(field).sort().map((name) => [name, field[name]]))
+    : field
+));
+const withoutEmptyPromptAnswers = (kind, value) => {
+  if (kind !== 'step-algebra' || !value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const prompts = Object.hasOwn(value, 'promptAnswers') ? value.promptAnswers : undefined;
+  if (!prompts || typeof prompts !== 'object' || Array.isArray(prompts) || Object.keys(prompts).length) return value;
+  const { promptAnswers: _none, ...rest } = value;
+  return rest;
+};
+const sameAnswers = (kind, left, right) => orderedJson(withoutEmptyPromptAnswers(kind, left)) === orderedJson(withoutEmptyPromptAnswers(kind, right));
+
 /**
  * Settle every multi-answer, Step Algebra and composed-step draft this device
  * holds against the server's copy of the same draft, answer by answer
@@ -572,7 +632,7 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
     // reached this one's records yet.
     let canonicalAt = Math.max(0, Number(entry?.canonicalAt) || 0);
     try { canonicalAt = Math.max(canonicalAt, Number(typeof canonicalSavedAt === 'function' ? canonicalSavedAt(entry) : 0) || 0); } catch { /* the entry's own */ }
-    const merged = mergeFieldRecordCopies({
+    const merged = keepNewerOperationOnSameBoard(kind, envelope, entry, mergeFieldRecordCopies({
       kind,
       // This device's copy, with its answers dated even if an older build wrote it.
       a: { ...envelope, fieldEditedAt: adoptedFieldEditedAt(kind, envelope) },
@@ -581,7 +641,7 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       // A copy from before the question's last submission and one from after
       // it are not merged answer by answer: the restore decides, whole.
       canonicalAt,
-    });
+    }));
     if (!merged) {
       if (!fresh) return;
       // Copies this rule cannot merge (a value an older build stored): the
@@ -591,11 +651,12 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       return;
     }
     keys.add(key);
-    const changed = JSON.stringify(merged.value) !== JSON.stringify(envelope.value);
+    const changed = !sameAnswers(kind, merged.value, envelope.value);
     const next = {
       version: 2,
       savedAt: merged.savedAt,
-      value: merged.value,
+      // The same answers stay as the page wrote them.
+      value: changed ? merged.value : envelope.value,
       ...(envelope.touchedAt ? { touchedAt: envelope.touchedAt } : {}),
       ...(merged.savedAtIsEdit ? { savedAtIsEdit: true } : {}),
       fieldEditedAt: merged.fieldEditedAt,

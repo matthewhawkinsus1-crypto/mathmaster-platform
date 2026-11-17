@@ -449,6 +449,91 @@ test('Step Algebra\'s Start over writes the reset before the cleared workspace (
   assert.match(reset, /if \(!confirmed\) return;\s*writeQuestionDraft\(localDraftKey, null, \{ edit: true \}\);\s*setEquation\(pristineEquation\);/);
 });
 
+/*
+ * THE FIRST OPERAND ON A FRESH STAGE (issue #386 R12). A Chromebook opens the
+ * question before the server's copy is read; the student chooses Divide and
+ * types 3. Choosing and typing date nothing (above), so the work was a tie,
+ * and a fresh copy yields: the read landed and the 3 became the saved copy's
+ * old 7, or the box closed (tests/browser/teacherWorkflow/
+ * stepAlgebraOperandDraftJourneys.mjs reproduced both in the real App).
+ */
+const typingOnAFreshDevice = async (operand = '3') => {
+  const p = await page();
+  p.readQuestionDraft(ALGEBRA, {});
+  p.writeQuestionDraft(ALGEBRA, algebra({ equation: STEP_ONE }));
+  assert.equal(p.envelope(ALGEBRA).fieldsFresh, true, 'opened before the read');
+  p.input();
+  p.writeQuestionDraft(ALGEBRA, { ...algebra({ equation: STEP_ONE, armedTile: { operation: 'divide', sourceSide: 'left' } }), operand });
+  return p;
+};
+const savedBoard = ({ armedTile = null, operand = '', savedAt = at(10), equation = STEP_ONE, workSteps = [], fieldEditedAt = {} } = {}) => readWorkspaceDraftEntries(serverDoc([{
+  key: ALGEBRA, value: { ...algebra({ equation, workSteps, armedTile }), operand }, savedAt, savedAtIsEdit: true, fieldEditedAt,
+}]));
+
+test('device: the operand a student types on a fresh Chromebook outlives a saved copy of the same board (R12)', async () => {
+  // The saved copy chose Divide and typed 7 earlier, on another Chromebook.
+  const p = await typingOnAFreshDevice('3');
+  const typed = p.envelope(ALGEBRA).value;
+  const settled = p.reconcileFieldRecordDrafts(savedBoard({ armedTile: { operation: 'divide', sourceSide: 'left' }, operand: '7' }), OWNER);
+  assert.equal(p.envelope(ALGEBRA).value.operand, '3', 'the 3 the student typed, not the older 7');
+  assert.deepEqual(p.envelope(ALGEBRA).value.armedTile, { operation: 'divide', sourceSide: 'left' });
+  assert.equal(settled.settled, 0, 'nothing changed under the student: no remount');
+  assert.ok(settled.keys.has(ALGEBRA), 'settled here, so not then restored whole');
+  assert.deepEqual(p.envelope(ALGEBRA).value, typed, 'stored as the page wrote it');
+  assert.equal(p.envelope(ALGEBRA).fieldsFresh, undefined, 'and no longer fresh');
+
+  // The saved copy had cancelled its operation: the box stays open with the 3.
+  const q = await typingOnAFreshDevice('3');
+  assert.equal(q.reconcileFieldRecordDrafts(savedBoard(), OWNER).settled, 0);
+  assert.equal(q.envelope(ALGEBRA).value.operand, '3');
+  assert.equal(q.envelope(ALGEBRA).value.armedTile?.operation, 'divide');
+
+  // The saved copy can be this Chromebook's own first save, merged on the
+  // server with the older 7 in it: the same time, and the 3 still stays.
+  const r = await typingOnAFreshDevice('3');
+  const own = r.envelope(ALGEBRA);
+  r.reconcileFieldRecordDrafts(savedBoard({ armedTile: { operation: 'divide', sourceSide: 'left' }, operand: '7', savedAt: own.savedAt }), OWNER);
+  assert.equal(r.envelope(ALGEBRA).value.operand, '3');
+});
+
+test('device: saved steps still come back whole over a fresh Chromebook\'s operation, and a later operation still wins (R12)', async () => {
+  // Another Chromebook committed a step: the board moves on, and the Divide 3
+  // chosen for the starting equation goes with it.
+  const p = await typingOnAFreshDevice('3');
+  const settled = p.reconcileFieldRecordDrafts(savedBoard({ equation: SOLVED, workSteps: [{ n: 1 }], fieldEditedAt: { work: at(10) } }), OWNER);
+  assert.equal(settled.settled, 1, 'the question remounts to show the saved steps');
+  assert.deepEqual(p.envelope(ALGEBRA).value.equation, SOLVED);
+  assert.equal(p.envelope(ALGEBRA).value.operand, '');
+  assert.equal(p.envelope(ALGEBRA).value.armedTile, null);
+
+  // The same board, but the other Chromebook's operation is the later one.
+  const q = await typingOnAFreshDevice('3');
+  q.reconcileFieldRecordDrafts(savedBoard({ armedTile: { operation: 'divide', sourceSide: 'left' }, operand: '7', savedAt: Date.now() + 5_000 }), OWNER);
+  assert.equal(q.envelope(ALGEBRA).value.operand, '7', 'the later edit wins, as for every answer');
+});
+
+test('device: a settle that changes no answer does not remount the question', async () => {
+  // The server holds exactly the Step Algebra copy this Chromebook holds (it
+  // saved it there). The merge rebuilds it answer by answer (another field
+  // order, no empty prompt map), and that is not a change.
+  const p = await page();
+  p.readQuestionDraft(ALGEBRA, {});
+  p.input();
+  p.writeQuestionDraft(ALGEBRA, { ...algebra({ equation: STEP_ONE, armedTile: { operation: 'divide', sourceSide: 'left' } }), operand: '3' });
+  const mine = p.envelope(ALGEBRA);
+  const generation = p.questionDraftRestoreGeneration();
+  const settled = p.reconcileFieldRecordDrafts(readWorkspaceDraftEntries(serverDoc([{ key: ALGEBRA, value: mine.value, savedAt: mine.savedAt, savedAtIsEdit: true, fieldEditedAt: mine.fieldEditedAt }])), OWNER);
+  assert.equal(settled.settled, 0, 'no remount under a student who may be typing');
+  assert.equal(p.questionDraftRestoreGeneration(), generation);
+  assert.deepEqual(p.envelope(ALGEBRA).value, mine.value);
+  assert.equal(JSON.stringify(p.envelope(ALGEBRA).value), JSON.stringify(mine.value), 'kept as the page wrote it');
+  // A real change still remounts it: another device's prompt answer.
+  const answered = { ...mine.value, promptAnswers: { check: 'It works.' } };
+  const changed = p.reconcileFieldRecordDrafts(readWorkspaceDraftEntries(serverDoc([{ key: ALGEBRA, value: answered, savedAt: Date.now() + 5_000, savedAtIsEdit: true, fieldEditedAt: { ...mine.fieldEditedAt, 'promptAnswers/check': Date.now() + 5_000 } }])), OWNER);
+  assert.equal(changed.settled, 1);
+  assert.deepEqual(p.envelope(ALGEBRA).value.promptAnswers, { check: 'It works.' });
+});
+
 test('device: a write the device could not store leaves the page\'s view of the draft as it was (RT22 re-review)', async () => {
   let refuse = false;
   const storage = new MemoryStorage();

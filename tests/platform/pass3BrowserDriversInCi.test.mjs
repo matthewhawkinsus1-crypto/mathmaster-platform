@@ -94,6 +94,9 @@ const DRIVERS = [
   // S14 (#548): a radical solve in the real App, graded by the harness's
   // server (the shared ingestion) as the browser graded it.
   ['student-teacher-journeys.yml', 'radical-server-grading', 'teacher', ['teacherWorkflow/radicalServerGradingJourneys']],
+  // #386 R12: the operand typed on a fresh Step Algebra stage outlives the
+  // server's copy of the drafts arriving, in the real App.
+  ['student-teacher-journeys.yml', 'step-algebra-operand', 'teacher', ['teacherWorkflow/stepAlgebraOperandDraftJourneys']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {

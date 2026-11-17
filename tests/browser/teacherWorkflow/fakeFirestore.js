@@ -393,13 +393,26 @@ const changesBetween = (previous, paths) => {
  *   ?offline=1         start with that collection unreachable (reads and the
  *                      background save's transaction fail, as Firestore does
  *                      offline) until `__mmHarnessStore.setOnline(true)`.
+ *   ?draftReadHold=1   every read of that collection waits until
+ *                      `__mmHarnessStore.releaseDraftReads()`: the read lands
+ *                      exactly when a race journey says it does
+ *                      (stepAlgebraOperandDraftJourneys.mjs). Then as above.
  * Every other path is untouched, so no other journey changes.
  */
 const harnessParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 const draftReadMs = Math.max(0, Number(harnessParams.get('draftReadMs')) || 0);
 let draftsOnline = harnessParams.get('offline') !== '1';
+let releaseHeldDraftReads = null;
+const heldDraftReads = harnessParams.get('draftReadHold') === '1'
+  ? new Promise((resolve) => { releaseHeldDraftReads = resolve; })
+  : null;
+let draftReadsHeld = 0;
 const draftNetwork = async (path) => {
   if (!String(path || '').startsWith('studentWorkspaceDrafts/')) return;
+  if (heldDraftReads) {
+    draftReadsHeld += 1;
+    await heldDraftReads;
+  }
   if (draftReadMs) await new Promise((resolve) => { setTimeout(resolve, draftReadMs); });
   if (!draftsOnline) throw new Error('Failed to get document because the client is offline. (harness)');
 };
@@ -662,6 +675,13 @@ export const harnessStore = {
     draftsOnline = Boolean(value);
     if (announce && typeof window !== 'undefined') window.dispatchEvent(new Event(draftsOnline ? 'online' : 'offline'));
     return draftsOnline;
+  },
+  // `?draftReadHold=1` (see draftNetwork): how many reads are waiting, and
+  // letting them, and every later one, through.
+  draftReadsHeld: () => draftReadsHeld,
+  releaseDraftReads: () => {
+    releaseHeldDraftReads?.();
+    return draftReadsHeld;
   },
 };
 if (typeof window !== 'undefined') window.__mmHarnessStore = harnessStore;
