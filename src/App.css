@@ -2087,6 +2087,35 @@
   scroll-margin-top: 142px;
 }
 
+/*
+ * ON A NARROW SCREEN THE SECTION TABS KEEP THEIR OWN ROWS (#386 R17).
+ *
+ * Expanded ("Show progress"), the navigator's top row is the back arrow, the
+ * section tabs, the Warm-Up's time left, the status chip and Focus view. The
+ * tabs may shrink to nothing (min-width: 0) and wrap, but a tab cannot be
+ * narrower than its words, so where the row had no room for them the tabs ran
+ * on under the chips: at 360x740 and 320x568 with 200% text "Classwork 0/2"
+ * lay under "More" and "⏱ 9 min" over Classwork, Practice and their "0/2", and
+ * at 320x568 the time left over the same two tabs
+ * (tests/browser/workViewOpenerCover.mjs --check=badges). Below 22em the
+ * tabs are never narrower than the widest of them, and the row wraps: the
+ * chips and Focus view take the row under the tabs when the tabs need the
+ * width. An `em` in a media query is the browser's own text size, so a phone
+ * at 100% (360px is 22.5em) keeps its one row as it was, and the rule takes a
+ * 320px phone and any phone at 125% text and over; a laptop never.
+ */
+@media (max-width: 22em) {
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav:not(.is-collapsed) .mathmaster-assignment-unified-top {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav:not(.is-collapsed) .mathmaster-section-tabs {
+    flex: 1 1 0;
+    min-width: min-content;
+  }
+}
+
 /* --- Section completion achievement state ---------------------------------
    Completing a whole activity section is a milestone, not merely another
    progress fraction. Gold is paired with a check icon + COMPLETE text so the

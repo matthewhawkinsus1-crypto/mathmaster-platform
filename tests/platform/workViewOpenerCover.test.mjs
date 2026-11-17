@@ -146,6 +146,25 @@ test('a finished section\'s "Complete" is drawn in its tab, and the section tabs
   assert.match(nav, /className="mathmaster-focus-view-button"/);
 });
 
+test('below 22em the section tabs are never narrower than their widest tab, and the chips take the row under them', () => {
+  // At 360x740 and 320x568 with 200% text, and at 320x568, the tabs ran on under "More" and the Warm-Up's time left,
+  // a finished section's "Complete" and the tabs' "0/2" among them (workViewOpenerCover.mjs --check=badges).
+  const app = parseCss(read('src/App.css'));
+  const NARROW = '(max-width: 22em)';
+  const top = '.mathmaster-assignment-screen .mathmaster-assignment-unified-nav:not(.is-collapsed) .mathmaster-assignment-unified-top';
+  const tabs = '.mathmaster-assignment-screen .mathmaster-assignment-unified-nav:not(.is-collapsed) .mathmaster-section-tabs';
+  assert.equal(declared(app, top, 'flex-wrap', { media: NARROW })?.value, 'wrap', 'the chips and Focus view wrap under the tabs');
+  assert.equal(declared(app, tabs, 'min-width', { media: NARROW })?.value, 'min-content', 'a tab is never wider than the tabs\' own box');
+  assert.equal(declared(app, tabs, 'flex', { media: NARROW })?.value, '1 1 0', 'the row breaks on the tabs\' least width, not on all of them in one line');
+  // In ems, the browser's own text size: a 360px phone at 100% (22.5em) keeps its one row; a laptop never wraps.
+  assert.equal(declared(app, top, 'flex-wrap', { media: null }), null);
+  const ems = (px, textScale) => px / (16 * textScale);
+  assert.ok(ems(360, 1) > 22 && ems(390, 1) > 22, 'a 360 or 390px phone at 100% text keeps its one row');
+  assert.ok(ems(320, 1) <= 22 && [390, 360, 320].every((px) => ems(px, 2) <= 22), 'a 320px phone, and every phone at 200% text, wraps');
+  // Folded (Focus view) the row has its own rule (RUN-15), untouched.
+  assert.match(top, /:not\(\.is-collapsed\)/);
+});
+
 /* ------------------------------------------------- the browser sweep, wired into CI */
 
 test('the sweep reads every surface the opener floats over, at the phones, at 200% text and on a Chromebook', async () => {
