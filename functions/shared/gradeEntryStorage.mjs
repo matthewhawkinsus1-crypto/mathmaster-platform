@@ -23,7 +23,11 @@
  * when the two detailRefs match. Whatever else wrote the summary (a record from
  * before the split, which still carries its detail inline, or an older client
  * that resets a question to an empty record) is read exactly as written, and a
- * detail it does not match is never shown.
+ * detail it does not match is never shown. A field written on the summary
+ * itself always wins over the detail: only code from before the split writes
+ * one there (it spreads the summary it read and adds what it recorded, keeping
+ * the detailRef), so that field is newer than the detail, which then supplies
+ * only the fields the summary lacks.
  *
  * The summary alone is enough to grade: `stepCredit` is the credit the steps
  * earned (calculateStepPartialCredit, the rule every credit function shares),
@@ -100,13 +104,16 @@ export const splitQuestionRecord = (record, { detailRef = newDetailRef() } = {})
 
 /**
  * The full record a reader sees. A summary is joined with its detail only when
- * their detailRefs match; anything else is returned as it was stored.
+ * their detailRefs match; anything else is returned as it was stored. A detail
+ * field the summary itself carries is kept as the summary has it: it was
+ * written after the split, by code that did not know it.
  */
 export const mergeQuestionRecord = (summary, detailEntry) => {
   if (!isSplitSummary(summary)) return summary;
   if (!isPlainObject(detailEntry) || detailEntry.detailRef !== summary.detailRef) return { ...summary };
   const merged = { ...summary };
   for (const field of DETAIL_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(summary, field)) continue;
     if (Object.prototype.hasOwnProperty.call(detailEntry, field)) merged[field] = detailEntry[field];
   }
   return merged;

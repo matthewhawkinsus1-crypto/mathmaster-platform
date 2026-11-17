@@ -143,6 +143,16 @@ test('a detail is attached only to the summary that names it', () => {
   assert.deepEqual(mergeQuestionRecord(legacy, detail), legacy);
   // A summary whose detail is missing reads as its summary.
   assert.deepEqual(mergeQuestionRecord(summary, undefined), { ...summary });
+  // Code from before the split (a server or a teacher's tab still running it
+  // while a release rolls out) spreads the summary it read and records on top,
+  // keeping the detailRef: what it wrote wins, the detail fills only the rest.
+  const recordedOver = { ...summary, partGrades: [{ part: 'a', earned: 1, possible: 1 }], lastResponseKey: '{"a":"7"}' };
+  const joined = mergeQuestionRecord(recordedOver, detail);
+  assert.deepEqual(joined.partGrades, recordedOver.partGrades);
+  assert.equal(joined.lastResponseKey, recordedOver.lastResponseKey);
+  for (const field of Object.keys(detail).filter((key) => key !== 'detailRef' && !(key in recordedOver))) {
+    assert.deepEqual(joined[field], detail[field], `${field} still comes from the detail`);
+  }
   // Legacy string statuses and empty slots are not split.
   assert.deepEqual(splitQuestionRecord('incorrect'), { summary: 'incorrect', detail: null });
   assert.deepEqual(splitQuestionRecord(null), { summary: null, detail: null });
