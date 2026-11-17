@@ -12,7 +12,7 @@ import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMaste
 import { fetchMyMathPathSkillProgress, fetchPathSessionRecap } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
-import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
+import { fetchSessionPathCoverage } from '../../platform/path/pathCoverageService.js';
 import {
   frameworkCoverageKnown,
   isFrameworkSkillLaunchable,
@@ -296,7 +296,7 @@ export const MyMathPathExperience = ({
 
   // Load the secure-bank coverage BEFORE building this week's plan. Assessment
   // transfer slots must never be frozen for a TEKS/framework pair the active
-  // bank cannot issue.
+  // bank cannot issue. Read once a session per course (pathCoverageService.js).
   const [coverage, setCoverage] = useState(() => coverageOverride || null);
   const [coverageLoaded, setCoverageLoaded] = useState(() => Boolean(coverageOverride));
   useEffect(() => {
@@ -307,7 +307,7 @@ export const MyMathPathExperience = ({
     }
     let cancelled = false;
     setCoverageLoaded(false);
-    fetchPathCoverage(courseId).then((index) => {
+    fetchSessionPathCoverage(courseId).then((index) => {
       if (cancelled) return;
       setCoverage(index);
       setCoverageLoaded(true);

@@ -506,7 +506,7 @@ test('every new module App.jsx calls is actually imported there', () => {
     'checkpointDocumentId', 'checkpointEligibility', 'enqueueResponseCheckpoint', 'responseFingerprint',
     'resolveAuthoritativeClose', 'createWorkspaceDraftSync', 'openWorkspaceDraft', 'createHeldDraftReads',
     'readLatestWorkspaceResume', 'selectRestorableDraftEntries', 'readWorkspaceDraftEntries',
-    'subscribeToQuestionDrafts', 'questionDraftSavedAt', 'restoreQuestionDrafts',
+    'subscribeToQuestionDrafts', 'questionDraftSavedAt', 'restoreQuestionDrafts', 'forgetSessionPathCoverage',
   ];
   const importBlock = appSource.slice(0, appSource.indexOf('\nfunction App()'));
   const imports = importBlock.match(/import\s[\s\S]*?from\s+'[^']+';/g)?.join('\n') || '';

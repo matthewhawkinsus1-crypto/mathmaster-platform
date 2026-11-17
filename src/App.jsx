@@ -470,6 +470,7 @@ import {
   subscribeStudentPathIntervention,
 } from './platform/path/pathStore.js';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
+import { forgetSessionPathCoverage } from './platform/path/pathCoverageService.js';
 import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
 import {
   blobToBase64,
@@ -3703,6 +3704,11 @@ function App() {
       setUser(null);
       clearSignedInAssignments();
     }
+    // Any sign-in but the one this page last hydrated (after a sign-out, or
+    // straight from another account) reads My Math Path's coverage index
+    // again: a content release reaches a student at their next sign-in
+    // (platform/path/pathCoverageService.js).
+    if (hydratedSessionUidRef.current !== session.uid) forgetSessionPathCoverage();
     hydratedSessionUidRef.current = session.uid;
 
     const hydrateSession = async () => {
