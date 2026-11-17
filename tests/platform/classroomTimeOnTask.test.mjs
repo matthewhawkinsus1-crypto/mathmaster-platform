@@ -25,7 +25,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { fakeGoogle, passbackFirestore, requireFromFunctions, writeGrades } from './helpers/sectionPassbackHarness.mjs';
+import { PERMISSION_DENIED, fakeGoogle, passbackFirestore, requireFromFunctions, writeGrades } from './helpers/sectionPassbackHarness.mjs';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 
 const { gradeSyncDocumentId, rosterLinkDocumentId } = requireFromFunctions('./lib/publication.js');
@@ -211,3 +211,66 @@ for (const [name, dates, start, change, extra, wholeRow] of SCENES) {
     assert.deepEqual(much, none);
   });
 }
+
+/* --- a teacher's sync of a retroactive correction ----------------------------- */
+
+// A teacher's sync authorizes a corrected grade for the inputs it was computed
+// from, and every automatic push checks them again
+// (functions/lib/retroactiveAccommodation.js correctionSyncAllowed). Those
+// inputs leave out time on task, so a student's Next after the sync holds no
+// push; an answer is a new input, and holds every push until the teacher asks
+// again, as it always has. The callable side is in
+// retroactiveAccommodationServer.test.mjs.
+const { gradeInputFingerprint, gradeInputFingerprintWithoutTime } = requireFromFunctions('./lib/retroactiveAccommodation.js');
+const { workloadContentKey } = await import('../../functions/shared/workloadCorrection.mjs');
+
+// Classwork c1-c4 (0-3), due yesterday, late work open for a week.
+const correctedLesson = { schemaVersion: 5, assignedClassIds: ['c1'], dueAt: iso(-DAY), lateDueAt: iso(7 * DAY), sections: [{ role: 'classwork', questions: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }, { id: 'c4' }] }] };
+// The correction omits c4; of c1-c3 the student has two right: 67.
+const CORRECTED = { active: true, eventId: 'correction-1', contentKey: workloadContentKey({ id: 'A1', ...correctedLesson }), omittedIndices: [3], percent: 25 };
+let signalsSent = 0;
+const signal = (source, extra = {}) => ({ requestedAt: new Date(Date.now() + (signalsSent += 1)).toISOString(), reason: 'manual-retry', source, ...extra });
+
+test('a corrected grade whose push failed reaches Classroom on the retry after a Next; after an answer it waits for the teacher', async () => {
+  for (const [what, studentChange, reaches] of [
+    ['a Next', (tracker) => ({ ...tracker, 0: { ...tracker[0], timeSpent: 95 } }), true],
+    ['an answer', (tracker) => ({ ...tracker, 2: answered('correct', { totalAttempts: 2, attemptCount: 2, lastSubmissionId: 'sub-2' }) }), false],
+  ]) {
+    const db = passbackFirestore({
+      assignments: { A1: correctedLesson },
+      classroomLinks: LINKS,
+      classroomRosterLinks: { [rosterLinkDocumentId(COURSE, STUDENT)]: { googleUserId: 'g-s1' } },
+      grades: { [STUDENT]: { classId: 'c1', profile: { workloadCorrections: { A1: CORRECTED } }, gradesByAssignment: { A1: { 0: answered('correct', { timeSpent: 40 }), 1: answered('correct', { timeSpent: 30 }), 2: answered('attempted', { timeSpent: 50 }) } } } },
+    });
+    let refusing = true;
+    const google = fakeGoogle({ refuse: (step) => (refusing && step === 'patch' ? PERMISSION_DENIED() : null) });
+    // The teacher's sync, as requestSync stores it: the authorization and a Retry.
+    const inputs = { assignment: { id: 'A1', ...correctedLesson }, gradeData: db.data(`grades/${STUDENT}`), practiceWaived: [] };
+    const authorization = { eventId: 'correction-1', inputFingerprint: await gradeInputFingerprint(inputs), inputFingerprintWithoutTime: await gradeInputFingerprintWithoutTime(inputs), at: iso(0) };
+    // eslint-disable-next-line no-await-in-loop
+    await writeGrades({ db, google, studentId: STUDENT, triggers: BOTH, change: (grades) => ({
+      ...grades,
+      profile: { ...grades.profile, workloadCorrections: { A1: { ...CORRECTED, syncAuthorization: authorization } } },
+      classroomReleaseSignals: { A1: signal('retroactive-accommodation', { correctionEventId: 'correction-1' }) },
+    }) });
+    const rows = () => ['pub-whole', 'pub-classwork'].map((id) => {
+      const row = db.data(`classroomGradeSyncs/${gradeSyncDocumentId(id, STUDENT)}`);
+      return [row?.status, row?.grade ?? null];
+    });
+    assert.deepEqual(rows().map(([status]) => status), ['failed', 'failed'], `${what}: Google refused the sync`);
+    // The student works on, then the teacher retries the failed push.
+    // eslint-disable-next-line no-await-in-loop
+    await writeGrades({ db, google, studentId: STUDENT, triggers: BOTH, change: (grades) => ({ ...grades, gradesByAssignment: { A1: studentChange(grades.gradesByAssignment.A1) } }) });
+    refusing = false;
+    google.calls.length = 0;
+    // eslint-disable-next-line no-await-in-loop
+    await writeGrades({ db, google, studentId: STUDENT, triggers: BOTH, change: (grades) => ({ ...grades, classroomReleaseSignals: { A1: signal('teacher-retry') } }) });
+    if (reaches) {
+      assert.deepEqual(rows(), [['synced', 67], ['synced', 67]], `${what}: the corrected grade reaches both columns`);
+      assert.deepEqual(google.calls.filter((call) => call.step === 'patch').map((call) => [call.courseWorkId, call.body.assignedGrade]), [['cw-whole', 67], ['cw-classwork', 67]]);
+    } else {
+      assert.deepEqual(google.calls, [], `${what}: nothing is sent until the teacher syncs again`);
+      assert.deepEqual(rows().map(([status]) => status), ['failed', 'failed']);
+    }
+  }
+});

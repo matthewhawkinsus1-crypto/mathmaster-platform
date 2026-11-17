@@ -21,7 +21,9 @@
  * legacy string record a Next turns into an object is a new shape. Both still
  * wake the triggers, as does every other field of every record.
  *
- * Only the two triggers load this, so a change to it reaches no other function
+ * The same rule decides which grade inputs a teacher's sync of a retroactive
+ * correction authorizes (lib/retroactiveAccommodation.js): the tracker without
+ * its time on task. Only the two triggers and that check load this
  * (scripts/lib/functionsImportGraph.mjs).
  */
 const isRecordObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -47,4 +49,10 @@ function trackerChangedBeyondTimeOnTask(before, after) {
   return false;
 }
 
-module.exports = { trackerChangedBeyondTimeOnTask };
+/** The tracker as a grade reads it: each record without its time on task. */
+function trackerWithoutTimeOnTask(tracker) {
+  if (!isRecordObject(tracker)) return tracker;
+  return Object.fromEntries(Object.entries(tracker).map(([key, record]) => [key, withoutTimeOnTask(record)]));
+}
+
+module.exports = { trackerChangedBeyondTimeOnTask, trackerWithoutTimeOnTask };
