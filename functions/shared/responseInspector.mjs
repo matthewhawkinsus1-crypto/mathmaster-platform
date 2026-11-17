@@ -22,6 +22,7 @@ import {
   findParserChanges,
   parserChangeReason,
 } from './responseInspectorReasons.mjs';
+import { buildResponseView } from './responseInspectorView.mjs';
 
 export const GRADER_VERSION = 'ordinary-response-v3';
 export const GRADING_EVIDENCE_VERSION = 3;
@@ -717,6 +718,11 @@ export const buildInspectorModel = ({
     })
     : null;
   const expected = expectedAnswers({ question, evidence });
+  const automaticResult = evidence?.automaticResult || {
+    parts: record?.partGrades || [],
+    isCorrect: record?.status === 'correct',
+  };
+  const gradingTrace = teacherTrace || replay?.gradingTrace || evidence?.gradingTrace || null;
   return {
     assignment: {
       id: assignment?.id || assignment?.assignmentId || null,
@@ -749,15 +755,12 @@ export const buildInspectorModel = ({
       submitted: evidence?.submittedResponse ?? null,
       submittedProvenance: evidence?.submissionProvenance ?? null,
       legacyRecorded: legacy,
-      gradingTrace: teacherTrace || replay?.gradingTrace || evidence?.gradingTrace || null,
+      gradingTrace,
     },
     expected: expected.value,
     expectedAvailable: expected.available,
     expectedUnavailableReason: expected.reason,
-    automaticResult: evidence?.automaticResult || {
-      parts: record?.partGrades || [],
-      isCorrect: record?.status === 'correct',
-    },
+    automaticResult,
     timestamps: {
       inputUpdatedAt: null,
       workspaceSavedAt: workspace?.savedAt || null,
@@ -775,6 +778,17 @@ export const buildInspectorModel = ({
     },
     replay,
     diagnosis: diagnoseResponse({ record, workspace, replay, gradingEvidence: evidence, question: replayedQuestion }),
+    // The field-by-field view, for every question type (responseInspectorView.mjs):
+    // read with the question the student was shown when it is known.
+    view: buildResponseView({
+      question: replayedQuestion || (authority.authoritative ? authority.question : question),
+      response: evidence?.submittedResponse ?? legacy,
+      provenance: evidence?.submittedResponse ? 'submitted' : legacy ? 'legacy' : 'none',
+      result: automaticResult,
+      workspace,
+      expected,
+      trace: gradingTrace,
+    }),
     auditHistory: list(auditHistory),
   };
 };

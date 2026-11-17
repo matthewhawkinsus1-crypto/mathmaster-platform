@@ -77,6 +77,9 @@ export const shownValue = (value) => {
   })();
   return written.length > MAX_SHOWN ? `${written.slice(0, MAX_SHOWN)}…` : written;
 };
+// A table looked up by its own keys only: stored or typed text such as
+// "__proto__" is never a key of it.
+const own = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined);
 const safely = (read, fallback) => {
   try { return read(); } catch { return fallback; }
 };
@@ -178,7 +181,7 @@ const KEY_FIELDS = ['expected', 'answer', 'accepted', 'acceptedAnswers'];
 // of its own (factored form, simplest radical form, sides as keyed) keeps it:
 // that is its own rule, switched off by that rule, never by this one.
 const writtenFormVariants = (field) => {
-  if (FORM_MODE_RULES[field.gradingMode]) return [];
+  if (own(FORM_MODE_RULES, field.gradingMode)) return [];
   const plain = without(field, ['gradingMode', ...(field.equivalence === 'polynomialRelation' ? ['equivalence'] : [])]);
   return [
     plain,
@@ -192,7 +195,7 @@ const fieldRules = (field) => {
   const rules = [];
   if (isChoiceAnswerField(field)) rules.push({ rule: 'choice-option', relax: (f) => [without(f, ['inputProfile', 'inputMode', 'type'])] });
   if (fieldRequiresSimplifiedPolynomial(field)) rules.push({ rule: 'simplified-polynomial', relax: (f) => [without(f, ['answerForm'])] });
-  if (FORM_MODE_RULES[field.gradingMode]) rules.push({ rule: FORM_MODE_RULES[field.gradingMode], relax: (f) => [without(f, ['gradingMode'])] });
+  if (own(FORM_MODE_RULES, field.gradingMode)) rules.push({ rule: own(FORM_MODE_RULES, field.gradingMode), relax: (f) => [without(f, ['gradingMode'])] });
   if (fieldIsNumberBox(field) && field.allowArithmetic !== true) rules.push({ rule: 'calculation', relax: (f) => [{ ...f, allowArithmetic: true }] });
   if (field.lineForm !== LINE_FORM_ANY) rules.push({ rule: 'line-form', relax: (f) => [{ ...f, lineForm: LINE_FORM_ANY }] });
   rules.push({ rule: 'written-form', relax: writtenFormVariants });
@@ -414,10 +417,10 @@ const characterReadings = (typed) => {
     } else if (digitOf(codePoint) !== null) {
       found.digit.push(character);
       rewritten += digitOf(codePoint);
-    } else if (VULGAR_FRACTIONS[character]) {
+    } else if (own(VULGAR_FRACTIONS, character)) {
       found.fraction.push(character);
       // 2½ is two and a half: written as the mixed number the platform reads.
-      rewritten += `${/\d$/.test(rewritten) ? ' ' : ''}${VULGAR_FRACTIONS[character]}`;
+      rewritten += `${/\d$/.test(rewritten) ? ' ' : ''}${own(VULGAR_FRACTIONS, character)}`;
     } else {
       rewritten += character;
     }
@@ -571,8 +574,8 @@ export const findAnswerKeyChange = ({ evidence = null, question = null, currentF
           kind: 'comparison',
           id: String(field.id),
           label: labelFor(question, field.id),
-          graded: COMPARATOR_LABELS[before.comparator] || before.comparator,
-          current: COMPARATOR_LABELS[field.comparator] || field.comparator,
+          graded: own(COMPARATOR_LABELS, before.comparator) || String(before.comparator),
+          current: own(COMPARATOR_LABELS, field.comparator) || String(field.comparator),
         });
       }
     });
