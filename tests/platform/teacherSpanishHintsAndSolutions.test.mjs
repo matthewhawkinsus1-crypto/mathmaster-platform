@@ -562,8 +562,9 @@ test('the Spanish note is advice: counted in the suggestions, never in what deci
 });
 
 test('the advisory groups are an independent list: a group dropped from the summary fails here', () => {
-  // #554 item 6 added the two prompt notes after the Spanish one.
-  const EXPECTED = ['solutionReviews', 'attemptFeedback', 'hintAnswers', 'hiddenHints', 'choiceOptions', 'spanishVersions', 'otherQuestionReferences', 'graphingCalculatorPrompts'];
+  // #554 item 6 added the two prompt notes after the Spanish one; the answer-key
+  // and double-check panels came last, once the count stopped leaving them out.
+  const EXPECTED = ['solutionReviews', 'attemptFeedback', 'hintAnswers', 'hiddenHints', 'choiceOptions', 'spanishVersions', 'otherQuestionReferences', 'graphingCalculatorPrompts', 'answerKeys', 'impossibleItems'];
   assert.deepEqual(ADVISORY_FINDING_GROUPS.map(({ id }) => id), EXPECTED);
   const audits = Object.fromEntries(EXPECTED.map((id, index) => [id, { warnings: Array.from({ length: index + 1 }, (_, n) => `${id} ${n}`) }]));
   const summary = summarizeAdvisoryFindings(audits);

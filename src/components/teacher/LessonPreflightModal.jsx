@@ -7,7 +7,7 @@ import {
   validateLessonPublishingIntent,
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
-import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { advisoryCountsText, advisoryTotalText, buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import { findAssignmentKeyConflict } from '../../assignmentDestinations.js';
 import { applySafeToolContractRepairs } from '../../platform/contract/questionToolContract.js';
 import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
@@ -2052,13 +2052,14 @@ export const LessonPreflightModal = ({
 
       {renderRecoveryReadiness()}
 
-      {/* The advice below, counted (TT14, TT21): it never stops the
-          assignment from being ready (assignmentV5PreflightModel.js
-          summarizeAdvisoryFindings). */}
+      {/* The advice below, counted (TT14, TT21), every panel of it, each
+          count in the number it needs ("1 hint that states the answer"): it
+          never stops the assignment from being ready
+          (assignmentV5PreflightModel.js summarizeAdvisoryFindings). */}
       {preflightModel.advisory?.total > 0 && (
         <p data-preflight-advisory={preflightModel.advisory.total} style={{ margin: '0 0 12px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>
-          <strong>{preflightModel.advisory.total === 1 ? '1 suggestion' : `${preflightModel.advisory.total} suggestions`} below</strong>
-          {' '}({preflightModel.advisory.groups.map((group) => `${group.count} ${group.label}`).join(', ')}). Advice only: they never stop the assignment from being ready or published.
+          <strong>{advisoryTotalText(preflightModel.advisory)} below</strong>
+          {' '}({advisoryCountsText(preflightModel.advisory)}). Advice only: they never stop the assignment from being ready or published.
         </p>
       )}
 

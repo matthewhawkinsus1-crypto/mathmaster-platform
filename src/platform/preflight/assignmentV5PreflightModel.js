@@ -293,7 +293,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questionValues,
     processMode,
     // Advisory only (see above): never in errors, warnings or diagnostics.
-    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions, spanishVersions, otherQuestionReferences, graphingCalculatorPrompts }),
+    advisory: summarizeAdvisoryFindings({ solutionReviews, attemptFeedback, hintAnswers, hiddenHints, choiceOptions, spanishVersions, otherQuestionReferences, graphingCalculatorPrompts, answerKeys, impossibleItems }),
     solutionReviews,
     attemptFeedback,
     hintAnswers,
@@ -323,24 +323,49 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
  * stay advisory). Pre-Flight shows how many there are so they are not missed;
  * nothing here changes whether the assignment is ready. So do the two prompt
  * notes of #554 item 6: a prompt that needs another question's answer, and a
- * prompt that names a graphing calculator the question does not give.
+ * prompt that names a graphing calculator the question does not give. And so
+ * do the two panels the count used to leave out: the answer keys to check
+ * (answerKeyPreflight.js) and the questions to double-check
+ * (impossibleItemsPreflight.js), advice in their own panels like the rest.
+ *
+ * Each group is named for what one of its notes is, in the plural (`label`)
+ * and the singular (`singular`): "1 prompt that needs another question's
+ * answer", never "1 prompts…". A worked-solution or Spanish note can cover
+ * many questions at once, so those are counted as notes.
  */
 export const ADVISORY_FINDING_GROUPS = Object.freeze([
-  Object.freeze({ id: 'solutionReviews', label: 'worked solutions' }),
-  Object.freeze({ id: 'attemptFeedback', label: 'attempt feedback' }),
-  Object.freeze({ id: 'hintAnswers', label: 'hints that state the answer' }),
-  Object.freeze({ id: 'hiddenHints', label: 'hints students will not see' }),
-  Object.freeze({ id: 'choiceOptions', label: 'choices worth the same as the key' }),
-  Object.freeze({ id: 'spanishVersions', label: 'notes on Spanish for hints and worked solutions' }),
-  Object.freeze({ id: 'otherQuestionReferences', label: 'prompts that need another question\'s answer' }),
-  Object.freeze({ id: 'graphingCalculatorPrompts', label: 'prompts that name a graphing calculator students do not get' }),
+  Object.freeze({ id: 'solutionReviews', singular: 'note on worked solutions', label: 'notes on worked solutions' }),
+  Object.freeze({ id: 'attemptFeedback', singular: 'Practice question with no attempt feedback', label: 'Practice questions with no attempt feedback' }),
+  Object.freeze({ id: 'hintAnswers', singular: 'hint that states the answer', label: 'hints that state the answer' }),
+  Object.freeze({ id: 'hiddenHints', singular: 'hint students will not see', label: 'hints students will not see' }),
+  Object.freeze({ id: 'choiceOptions', singular: 'question with a choice worth the same as the key', label: 'questions with choices worth the same as the key' }),
+  Object.freeze({ id: 'spanishVersions', singular: 'note on Spanish for hints and worked solutions', label: 'notes on Spanish for hints and worked solutions' }),
+  Object.freeze({ id: 'otherQuestionReferences', singular: 'prompt that needs another question\'s answer', label: 'prompts that need another question\'s answer' }),
+  Object.freeze({ id: 'graphingCalculatorPrompts', singular: 'prompt that names a graphing calculator students do not get', label: 'prompts that name a graphing calculator students do not get' }),
+  Object.freeze({ id: 'answerKeys', singular: 'answer key to check', label: 'answer keys to check' }),
+  Object.freeze({ id: 'impossibleItems', singular: 'note to double-check', label: 'notes to double-check' }),
 ]);
 
+/** Each group with notes, its label in the number its count needs, and the total. */
 export const summarizeAdvisoryFindings = (audits = {}) => {
   const groups = ADVISORY_FINDING_GROUPS
-    .map(({ id, label }) => ({ id, label, count: Array.isArray(audits?.[id]?.warnings) ? audits[id].warnings.length : 0 }))
+    .map(({ id, singular, label }) => {
+      const count = Array.isArray(audits?.[id]?.warnings) ? audits[id].warnings.length : 0;
+      return { id, label: count === 1 ? singular : label, count };
+    })
     .filter((group) => group.count > 0);
   return { total: groups.reduce((sum, group) => sum + group.count, 0), groups };
+};
+
+/** The words Review's Check step shows: "1 hint that states the answer, 2 answer keys to check". */
+export const advisoryCountsText = (advisory = {}) => (Array.isArray(advisory?.groups) ? advisory.groups : [])
+  .map((group) => `${group.count} ${group.label}`)
+  .join(', ');
+
+/** "1 suggestion" or "3 suggestions". */
+export const advisoryTotalText = (advisory = {}) => {
+  const total = Number(advisory?.total) || 0;
+  return total === 1 ? '1 suggestion' : `${total} suggestions`;
 };
 
 export const sectionVariantModeV5 = (assignmentV5 = {}, role) => (
