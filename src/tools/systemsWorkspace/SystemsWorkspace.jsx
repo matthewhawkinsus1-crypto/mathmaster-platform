@@ -276,19 +276,26 @@ function ClassicInequalityMode({ questionData, onAction }) {
   const studentPolygon = constructionComplete ? feasibleRegionPolygon(studentInequalities, bounds) : [];
 
   // Each line keeps its own inequality's colour: filtering before indexing
-  // painted the second boundary blue while the first was unfinished.
+  // painted the second boundary blue while the first was unfinished. And its
+  // number, in a ring of that colour on the plane (WCAG 1.4.1): two boundaries
+  // of ≤ or ≥ are both solid, so the colour was all that told them apart. The
+  // dash stays the relation's: solid for ≤ and ≥, dashed for < and >.
   const graphLines = requiresConstruction
     ? constructedLines.map((line, index) => (line ? {
         m:line.m,
         b:line.b,
         stroke:constraintColor(index),
         dash:line.boundaryStyle === 'dashed' ? '10 6' : undefined,
+        label:String(index + 1),
+        tag:true,
       } : null)).filter(Boolean)
     : inequalities.map((ineq,index)=>({
         m:ineq.m,
         b:ineq.b,
         stroke:constraintColor(index),
         dash:String(ineq.relation).includes('=') ? undefined : '10 6',
+        label:String(index + 1),
+        tag:true,
       }));
 
   const plottedPoints = [

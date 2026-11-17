@@ -354,7 +354,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         </> : null}
 
         {mode === 'plotTransform' ? <>
-          <p style={{ marginTop: 0 }}>Map <strong>S1 → P1, S2 → P2</strong>, and so on. Plot the transformed defining points in source order; the source graph stays visible while you work.</p>
+          <p style={{ marginTop: 0 }}>Map <strong>S1 → P1, S2 → P2</strong>, and so on. Plot the transformed defining points in source order; the source graph stays visible while you work, its points squares and yours dots.</p>
           <CoordinatePlane
             {...graphBounds}
             snapStep={questionData.snapStep || 1}
@@ -376,10 +376,13 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               { points: sourcePoints, stroke: '#5f6b7a', strokeWidth: 3 },
               { points: plottedPoints, stroke: '#1a73e8', strokeWidth: 3 },
             ]}
+            // The source's points are squares and the student's dots, as well
+            // as S1… and P1… (WCAG 1.4.1): the two graphs are both solid, and
+            // their colours were all that told one line from the other.
             points={[
               ...sourcePoints.map((point, index) => {
                 const [x, y] = pointCoordinates(point);
-                return { x, y, label: `S${index + 1}`, fill: '#5f6b7a', movable: false };
+                return { x, y, label: `S${index + 1}`, fill: '#5f6b7a', shape: 'square', movable: false };
               }),
               ...plottedPoints.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}` })),
             ]}

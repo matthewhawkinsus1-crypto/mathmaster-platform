@@ -166,6 +166,8 @@ Exact LaTeX requires doubled backslashes in JSON:
 
 Supported static graph function types include `line`, `quadratic`, `absolute`, `squareRoot`, `cubic`, `cubeRoot`, `logarithmic`, `exponential`, `reciprocal`, and `rational`.
 
+To name a curve on the figure, give it a `label` (`{ "type": "line", "m": 2, "b": 1, "label": "f" }`): the name is drawn beside that curve, clear of the figure's points. Two solid curves that a student must tell apart need names, not only different `stroke` colours: a student who cannot tell the colours apart cannot tell the curves apart (WCAG 1.4.1). Leave out a name that would answer the question (an equation the student is asked to write).
+
 For a static `quadratic`, use exactly one of these forms:
 
 - Standard form: `{ "type": "quadratic", "a": -1, "b": 8, "c": 0 }` for `y = ax^2 + bx + c`.

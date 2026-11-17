@@ -18,6 +18,7 @@ import {
   classifyFeasibleRegion,
   explicitBooleanAnswerMatches,
   feasibleRegionPolygon as feasibleRegionPolygonGeneral,
+  lineSegmentForBounds,
   feasibleRegionVertices,
   modelingEntryToCanonical,
   pointMembership,
@@ -792,6 +793,14 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   // as messages a Spanish reading says too (inequalityGraphMarks.js; AX05,
   // slice 4).
   const graphLabel = inequalityGraphName({ constraintCount, tapAction });
+  // Each boundary drawn is named on the plane by its constraint's number, in a
+  // ring of its colour (WCAG 1.4.1): two boundaries of ≤ or ≥ are both solid,
+  // and differed only by colour. The line keeps the style the student chose.
+  const boundaryTags = build.map((entry, index) => {
+    const line = effectiveLines[index];
+    if (!line || entry?.visible === false) return null;
+    return { label: String(index + 1), tag: true, stroke: constraintColor(index), points: lineSegmentForBounds(line, bounds) };
+  }).filter(Boolean);
 
   // ------------------------------------------------------------ rendering
   const stepCount = plan.constraintSteps.length;
@@ -993,6 +1002,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
             showPlotHelp="keyboard"
             cursorLabel={tapAction.kind === 'boundaryPoint' ? `Point ${tapAction.which}` : 'Point'}
             points={graphPoints}
+            curveLabels={boundaryTags}
             ariaLabel={graphLabel}
             // What InequalityGraphLayers draws, said by the plane, as messages a
             // Spanish reading says too (inequalityGraphMarks.js; AX05, slice 3).

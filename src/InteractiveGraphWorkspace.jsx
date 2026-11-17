@@ -57,6 +57,8 @@ import { typedCoordinate, typedEntryEnterAction } from './graphTypedCoordinate.j
 import { connectPointsStrokes, constructionBranchSplitX, constructionPointsToConnect, inversePointsToConnect } from './graphConnectPoints.js';
 import { KEYBOARD_ACCESS_SUPPORT_ID, connectPointsOffered, connectPointsProvidedByPlan } from './platform/graph/connectPointsPolicy.js';
 import { STUDENT_MARK_COLOR } from './platform/graph/studentMarkColor.js';
+import { placeCurveLabels } from './platform/graph/curveLabels.js';
+import { useCoveredByOpener } from './platform/graph/useCoveredByOpener.js';
 import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 import { START_OVER } from './platform/student/studentWords.js';
 
@@ -115,6 +117,33 @@ const markerExplanations = { arrow: 'Function continues', open: 'Endpoint exclud
 const markerSymbols = { arrow: '➤', open: '○', closed: '●' };
 const markerValue = (placement) => typeof placement === 'string' ? placement : placement?.marker || '';
 const markerPoint = (placement) => Array.isArray(placement?.point) ? placement.point : null;
+
+/*
+ * f AND f⁻¹, NAMED ON THE PLANE (WCAG 1.4.1). Building the inverse, the curve
+ * and its inverse are both solid (blue and purple, a student's strokes light
+ * blue and light purple): their colours were all that told them apart, and a
+ * contrast theme draws both in its text colour. Each is named beside itself
+ * (platform/graph/curveLabels.js): nearer to it than to the other or to y = x,
+ * clear of every point and its name, a graph end and the axes' numbers. The
+ * names are in the inks this paper writes its labels in (the points' blue,
+ * y = x's purple: 7.8:1 and 8.0:1 on it), on a plate of the paper: Canvas and the
+ * text colour under a contrast theme. `original` and `inverse` are each the
+ * curve's runs of viewBox points, as drawn.
+ */
+const CURVE_NAME_SIZE = 14;
+export const inverseCurveNames = ({ naming, original, inverse, mirror, axes, dots, avoid, hidden = [] }) => {
+  if (!naming) return [];
+  const curves = [
+    { label: 'f', ink: '#174ea6', paths: original },
+    { label: 'f⁻¹', ink: '#6f2da8', paths: inverse },
+    ...(mirror ? [{ label: '', paths: [mirror] }] : []),
+    ...axes.map((axis) => ({ label: '', paths: [axis] })),
+  ];
+  const spots = placeCurveLabels({
+    curves, dots, avoid, hidden, bounds: { left: PADDING, right: WIDTH - PADDING, top: PADDING, bottom: HEIGHT - PADDING }, textSize: CURVE_NAME_SIZE, gap: 6,
+  });
+  return curves.map((curve, index) => (spots[index] ? { label: curve.label, ink: curve.ink, spot: spots[index] } : null)).filter(Boolean);
+};
 
 // `held`: the marker being dragged or placed (Highlight under a contrast theme).
 function EndpointMarker({ type, x, y, angle = 0, color = '#1a73e8', opacity = 1, scale = 1, held = false }) {
@@ -1275,6 +1304,50 @@ export default function InteractiveGraphWorkspace({
   const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
   const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !pointsLocked);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
+  // Work View's opener over the plane's corner: no name goes under it.
+  const openerCover = useCoveredByOpener(svgRef, WIDTH, stage === 'analysis' && inverseReflectionEnabled);
+  const curveNames = inverseCurveNames({
+    naming: stage === 'analysis' && inverseReflectionEnabled,
+    original: [
+      ...(showPredrawnGraph ? visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])) : []),
+      ...((!construction.snapped || curveAcceptedOwnPoints) ? construction.strokes : []),
+    ],
+    inverse: analysis.inverseSnapped && !inverseAcceptedOwnPoints
+      ? inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)]))
+      : analysis.inverseStrokes || [],
+    mirror: inverseReflection?.showReferenceLine !== false && reflectionLineMax > reflectionLineMin
+      ? [[toScreenX(reflectionLineMin), toScreenY(reflectionLineMin)], [toScreenX(reflectionLineMax), toScreenY(reflectionLineMax)]]
+      : null,
+    axes: [[[PADDING, axisX], [WIDTH - PADDING, axisX]], [[axisY, PADDING], [axisY, HEIGHT - PADDING]]],
+    dots: [
+      ...(constructionEnabled ? tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => ({ x: toScreenX(construction.placements[task.id][0]), y: toScreenY(construction.placements[task.id][1]), radius: 11 })) : []),
+      ...analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => (analysis.selections[part.id] || []).map((point) => ({ x: toScreenX(point[0]), y: toScreenY(point[1]), radius: 11 }))),
+      ...endpointRequirements.map((requirement) => {
+        const point = markerPoint(construction.markerPlacements[requirement.id]) || requirement.point;
+        return { x: toScreenX(point[0]), y: toScreenY(point[1]), radius: 16 };
+      }),
+    ],
+    avoid: [
+      // The names of the placed points and the selections, drawn on their plates up and to the right.
+      ...(constructionEnabled ? tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => {
+        const x = toScreenX(construction.placements[task.id][0]);
+        const y = toScreenY(construction.placements[task.id][1]);
+        return { left: x + 8, right: x + 8 + Math.max(36, toPlainMath(task.label).length * 7 + 12), top: y - 29, bottom: y - 8 };
+      }) : []),
+      ...analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => (analysis.selections[part.id] || []).map((point) => {
+        const x = toScreenX(point[0]);
+        const y = toScreenY(point[1]);
+        return { left: x + 8, right: x + 90, top: y - 29, bottom: y - 7 };
+      })),
+      // "y = x", drawn at the mirror line's upper end; a graph end's name above it.
+      ...(reflectionLineMax > reflectionLineMin ? [{ left: toScreenX(reflectionLineMax) - 50, right: toScreenX(reflectionLineMax) - 6, top: toScreenY(reflectionLineMax) + 8, bottom: toScreenY(reflectionLineMax) + 24 }] : []),
+      ...endpointRequirements.map((requirement) => ({ left: toScreenX(requirement.point[0]) - 34, right: toScreenX(requirement.point[0]) + 34, top: toScreenY(requirement.point[1]) - 44, bottom: toScreenY(requirement.point[1]) - 26 })),
+      // The axes' numbers.
+      ...xTicks.map((tick) => ({ left: toScreenX(tick) - 12, right: toScreenX(tick) + 12, top: axisX + 8, bottom: axisX + 24 })),
+      ...yTicks.filter((tick) => tick !== 0).map((tick) => ({ left: axisY - 9 - String(tick).length * 8, right: axisY - 7, top: toScreenY(tick) - 8, bottom: toScreenY(tick) + 8 })),
+    ],
+    hidden: openerCover ? [openerCover] : [],
+  });
 
   const workspaceTitle = pointOnly
     ? 'Plot the Points'
@@ -1704,6 +1777,12 @@ export default function InteractiveGraphWorkspace({
 
             {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && !outcomesWithheld && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" data-mm-plane-part="ring" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
             {markerGhostActive && <EndpointMarker type={draggingMarkerType || activeMarker} x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1])} opacity={0.55} scale={1.15} held />}
+            {curveNames.map(({ label, ink, spot }) => (
+              <g key={`curve-name-${label}`} data-curve-label={label} aria-hidden="true" pointerEvents="none">
+                <rect x={spot.box.left - 3} y={spot.box.top - 2} width={spot.box.right - spot.box.left + 6} height={spot.box.bottom - spot.box.top + 4} rx="5" fill="#fff" data-mm-plane-part="plate" />
+                <text x={spot.x} y={spot.y} textAnchor="middle" fontSize={CURVE_NAME_SIZE} fontWeight="bold" fill={ink}>{label}</text>
+              </g>
+            ))}
             {showCoordinates && hoverPoint && <g pointerEvents="none"><rect x={Math.min(WIDTH - 132, toScreenX(hoverPoint[0]) + 10)} y={Math.max(12, toScreenY(hoverPoint[1]) - 35)} width="116" height="27" rx="6" fill="#202124" opacity="0.66" data-mm-plane-part="chip" /><text x={Math.min(WIDTH - 122, toScreenX(hoverPoint[0]) + 20)} y={Math.max(31, toScreenY(hoverPoint[1]) - 16)} fontSize="13" fill="#fff">{pointLabel(hoverPoint)}</text></g>}
             </g>
           </svg>

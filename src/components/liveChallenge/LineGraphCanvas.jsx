@@ -87,24 +87,29 @@ function FullLine({ line, view, side, stroke, width = 4, dash = null, opacity = 
   );
 }
 
-// The ✓ or ✗ on a judged line, clear of its points and their coordinates:
-// colour is never the only signal.
-function VerdictBadge({ line, points, view, side, right }) {
+// The mark on a judged line, clear of its points and their coordinates, so
+// colour is never the only signal: ✓ right, ✗ wrong, and "!" for the right line
+// drawn without the method the game asks for (neither credit nor a miss: the
+// words under the grid say which points to use). The method's line had no mark,
+// and told itself from a line not yet judged by its colour alone.
+export const VERDICT_MARKS = Object.freeze({ correct: 'check', wrong: 'cross', method: 'bang' });
+export function VerdictBadge({ line, points, view, side, kind }) {
   const segment = lineSegmentInView(line, view);
-  if (!segment) return null;
+  if (!segment || !VERDICT_MARKS[kind]) return null;
   const [from, to] = segment.map((point) => toScreen(view, side, point));
   const avoid = points.flatMap((point) => {
     const at = toScreen(view, side, point);
     return [pointBox(at), pointLabelSpot({ at, side, text: formatPoint(point) }).box];
   });
   const { x: cx, y: cy } = verdictBadgeSpot({ from, to, avoid, side });
-  const fill = right ? 'var(--mm-line-right)' : 'var(--mm-line-wrong)';
+  const fill = { correct: 'var(--mm-line-right)', wrong: 'var(--mm-line-wrong)', method: 'var(--mm-line-method)' }[kind];
+  const mark = VERDICT_MARKS[kind];
   return (
-    <g aria-hidden="true">
+    <g aria-hidden="true" data-verdict-mark={mark}>
       <circle cx={cx} cy={cy} r={13} fill={fill} stroke="var(--mm-graph-bg)" strokeWidth={2.5} data-mm-plane-part="point" />
-      {right
-        ? <path d={`M${cx - 6} ${cy + 0.5} L${cx - 1.5} ${cy + 5} L${cx + 6.5} ${cy - 5}`} fill="none" stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" data-mm-plane-part="halo" />
-        : <path d={`M${cx - 5} ${cy - 5} L${cx + 5} ${cy + 5} M${cx + 5} ${cy - 5} L${cx - 5} ${cy + 5}`} stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" data-mm-plane-part="halo" />}
+      {mark === 'check' ? <path d={`M${cx - 6} ${cy + 0.5} L${cx - 1.5} ${cy + 5} L${cx + 6.5} ${cy - 5}`} fill="none" stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" data-mm-plane-part="halo" /> : null}
+      {mark === 'cross' ? <path d={`M${cx - 5} ${cy - 5} L${cx + 5} ${cy + 5} M${cx + 5} ${cy - 5} L${cx - 5} ${cy + 5}`} stroke="var(--mm-graph-bg)" strokeWidth={3} strokeLinecap="round" data-mm-plane-part="halo" /> : null}
+      {mark === 'bang' ? <path d={`M${cx} ${cy - 6.5} L${cx} ${cy + 1.5} M${cx} ${cy + 6} L${cx} ${cy + 6.2}`} stroke="var(--mm-graph-bg)" strokeWidth={3.2} strokeLinecap="round" data-mm-plane-part="halo" /> : null}
     </g>
   );
 }
@@ -373,8 +378,8 @@ function LineGraphCanvas({
           // eslint-disable-next-line react/no-array-index-key
           <PointMark key={index} point={point} view={view} side={side} held={held?.index === index} label={!answerLine} />
         ))}
-        {drawing && studentLine && (judged === 'correct' || judged === 'wrong') && !answerLine && (
-          <VerdictBadge line={studentLine} points={points} view={view} side={side} right={judged === 'correct'} />
+        {drawing && studentLine && judged && !answerLine && (
+          <VerdictBadge line={studentLine} points={points} view={view} side={side} kind={judged} />
         )}
         {held && <HeldLabel point={held.point} view={view} side={side} holder={holder} />}
         {cursorVisible && (
