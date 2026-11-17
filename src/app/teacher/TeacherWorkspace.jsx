@@ -2761,6 +2761,9 @@ export default function TeacherWorkspace({
               onOpenAssignment={openAssignmentHub}
               onSelectClass={(classContext) => { setLiveFocus(null); setActiveClass(classContext); }}
               liveFocus={liveFocus}
+              // Live View opens the same Response Inspector, through the same
+              // callable and its authorization, as the gradebook below.
+              onInspectResponse={(target) => setResponseInspectorTarget(target)}
             />
           )}
 

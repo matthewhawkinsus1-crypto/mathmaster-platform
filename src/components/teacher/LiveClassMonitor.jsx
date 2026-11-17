@@ -35,6 +35,7 @@ import {
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
 import { seeNextQueue } from '../../platform/teacher/liveSeeNext.js';
+import { liveInspectorTarget } from '../../platform/teacher/liveInspectorTarget.js';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
   SPOTLIGHT_REQUEST_COLLECTION,
@@ -140,6 +141,12 @@ function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
 }
 
 const smallButtonStyle = { minHeight: 24, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 'calc(11.5 * var(--mm-px))', cursor: 'pointer' };
+
+// "Classwork Q2": the section and question a tile shows, for a control's name.
+const liveQuestionName = (live) => {
+  const role = String(live?.activityRole || 'activity');
+  return `${role.charAt(0).toUpperCase()}${role.slice(1)} Q${Number(live?.sectionQuestionIndex ?? live?.questionIndex ?? 0) + 1}`;
+};
 // maxWidth: a select is as wide as its longest option; a long lesson title
 // pushed the control past a phone's right edge.
 const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 'calc(14 * var(--mm-px))', maxWidth: '100%', minWidth: 0 };
@@ -184,6 +191,10 @@ function StudentTile({
   showStudentId = true,
   // "Seen" / "On my way" for a raised hand (HelpAcknowledgeControls.jsx).
   teacherEmail = '',
+  // Opens the Response Inspector on the question the student is on, or null:
+  // no answer there yet, the question cannot be named for certain, or the
+  // tiles are on the projector (liveInspectorTarget.js).
+  onInspect = null,
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   // One line for assistive tech: the name, or "Name unavailable · ID 101410".
@@ -267,6 +278,17 @@ function StudentTile({
             {live.currentAttempts > 0 && ` · ${live.currentAttempts} attempt${live.currentAttempts === 1 ? '' : 's'} here`}
             {live.currentTeksCode && ` · TEKS ${live.currentTeksCode}`}
           </div>
+          {onInspect && !roomMode && (
+            <button
+              type="button"
+              data-live-inspect={row.id}
+              onClick={(event) => { event.stopPropagation(); onInspect(); }}
+              aria-label={`Inspect the answer to ${liveQuestionName(live)} for ${tileLabel}`}
+              style={{ ...smallButtonStyle, marginTop: 8, alignSelf: 'flex-start', borderColor: '#1a73e8', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
+            >
+              Inspect answer
+            </button>
+          )}
         </>
       ) : (
         <div style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>No assignment open</div>
@@ -342,7 +364,7 @@ function withClassworkStates(roster, selectedAssignment, progressPositions) {
   });
 }
 
-function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null, teacherEmail = '' }) {
+function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null, teacherEmail = '', onInspect = null }) {
   const style = WALKTHROUGH_STYLE[row.status] || WALKTHROUGH_STYLE[WALKTHROUGH_STATUS.ELSEWHERE];
   const attendanceMark = normalizeLiveAttendance(row.attendance).mark;
   return (
@@ -381,6 +403,17 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null, te
       )}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {onOpenStudent && <button type="button" onClick={() => onOpenStudent(row.id)} style={smallButtonStyle}>View work</button>}
+        {onInspect && (
+          <button
+            type="button"
+            data-live-inspect={row.id}
+            onClick={onInspect}
+            aria-label={`Inspect the answer to ${liveQuestionName(row.live)} for ${formatStudentLabel({ studentId: row.id, displayName: row.nameMissing ? '' : row.name }, { lastFirst: false })}`}
+            style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
+          >
+            Inspect answer
+          </button>
+        )}
         {row.status === WALKTHROUGH_STATUS.NEEDS_CHECK && !row.checked && (
           <button type="button" onClick={() => onChecked(row.id)} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>Checked</button>
         )}
@@ -608,6 +641,10 @@ export default function LiveClassMonitor({
   // Told whether the Large room tiles are on (the view a teacher projects),
   // so Teacher Home can keep students' private questions off it (TT26).
   onProjectingChange = null,
+  // Opens the Response Inspector (#249) — the gradebook's own screen and
+  // callable — on a student's current question: { studentId, assignmentId,
+  // questionIndex }.
+  onInspectResponse = null,
 }) {
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
   const [assignmentId, setAssignmentId] = useState(() => focusAssignmentId || 'all');
@@ -1105,6 +1142,21 @@ export default function LiveClassMonitor({
     }),
   } : null);
 
+  // THE INSPECTOR FOR THE QUESTION A STUDENT IS ON. The heartbeat names a
+  // position; liveInspectorTarget rebuilds the storage index the callable
+  // takes, from the assignment as this class has it (closed ones included:
+  // a student can still be on one). Offered only once the question has an
+  // answer, and never on the projector: it shows a student's answers and the
+  // key to the whole room.
+  const inspectorAssignments = Array.isArray(timerAssignments) ? timerAssignments : assignments;
+  const inspectFor = (row) => {
+    if (!onInspectResponse || projecting || !row?.live?.assignmentId) return null;
+    const assignment = inspectorAssignments.find((entry) => String(entry?.id || '') === String(row.live.assignmentId)) || null;
+    const target = liveInspectorTarget({ studentId: row.id, live: row.live, assignment });
+    if (!target?.attempted) return null;
+    return () => onInspectResponse({ studentId: target.studentId, assignmentId: target.assignmentId, questionIndex: target.questionIndex });
+  };
+
   const switchMode = (nextMode) => {
     setMode(nextMode);
     // Entering Walkthrough with nothing chosen picks this class's most
@@ -1382,7 +1434,7 @@ export default function LiveClassMonitor({
               <div style={{ padding: 18, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nobody is in this group right now.</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))', gap: 10 }}>
-                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} teacherEmail={teacherEmail} />)}
+                {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} onInspect={inspectFor(row)} teacherEmail={teacherEmail} />)}
               </div>
             )}
           </div>
@@ -1410,6 +1462,7 @@ export default function LiveClassMonitor({
               onSpotlight={activeClassId && !activeSpotlight ? requestSpotlight : null}
               classPoints={classPointsForRow(row)}
               teacherEmail={teacherEmail}
+              onInspect={inspectFor(row)}
             />
           ))}
         </div>
