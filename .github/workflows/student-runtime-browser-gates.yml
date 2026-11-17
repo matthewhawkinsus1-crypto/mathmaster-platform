@@ -139,7 +139,9 @@ name: Student Runtime Browser Gates
 #     studentHomeToday, studentGradesRaise, studentResultUpNext,
 #     studentWhatChanged, gradeCenterMobile; and wave 7's stepNotQueued
 #     (W7-3), toolOutcomeReach and feedbackReasons2 (W7-4), toolChoiceGroups
-#     (W7-2)
+#     (W7-2); and stepAlgebraFirstOperand (#386 R12: the first value typed
+#     on a fresh Step Algebra stage, a plain question's and a composed
+#     question's, is kept on a Chromebook and a phone, slowed 4x as well)
 #   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
 #     Firebase)
 #     secureResults, secureExamNavigation, secureAccessParity; and
@@ -544,6 +546,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/stepNotQueued.mjs
+      - name: The first operand typed on a fresh Step Algebra stage is kept, on a Chromebook and a phone
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/stepAlgebraFirstOperand.mjs
       - name: A tool's outcome box can be reached on every screen
         if: ${{ !cancelled() }}
         env:

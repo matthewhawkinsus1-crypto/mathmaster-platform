@@ -45,6 +45,8 @@ const DRIVERS = [
     'afterLastMiss', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise', 'studentResultUpNext',
     'studentWhatChanged', 'gradeCenterMobile', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2',
     'toolChoiceGroups',
+    // #386 R12: the first operand on a fresh Step Algebra stage is kept.
+    'stepAlgebraFirstOperand',
   ]],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'self', ['secureResults', 'secureExamNavigation']],
   // CI10: the M2 T2 lessons' every question, laptop and phone, and their tries.
@@ -187,7 +189,8 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   ['submitNotQueued', 'toolDraftSyncSweep', 'toolOpenAudit', 'matrixLabFeedback', 'algebra2MatricesLesson',
     'afterLastMiss', 'day1Systems', 'day2Nonunique', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise',
     'studentResultUpNext', 'studentWhatChanged', 'gradeCenterMobile', 'secureResults', 'secureExamNavigation',
-    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups', 'mathBoxFocus'].forEach((driver) => {
+    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups', 'mathBoxFocus',
+    'stepAlgebraFirstOperand'].forEach((driver) => {
     for (const file of [`tests/browser/${driver}.mjs`, `tests/browser/${driver}.html`]) {
       assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
     }

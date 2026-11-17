@@ -331,6 +331,8 @@ export const CI_AREAS = {
     'tests/browser/studentWhatChanged*',
     'tests/browser/gradeCenterMobile*',
     'tests/browser/stepNotQueued*',
+    // #386 R12: the first operand on a fresh Step Algebra stage.
+    'tests/browser/stepAlgebraFirstOperand*',
     'tests/browser/toolOutcomeReach*',
     'tests/browser/feedbackReasons2*',
     'tests/browser/toolChoiceGroups*',
