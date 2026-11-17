@@ -59,6 +59,7 @@ import { KEYBOARD_ACCESS_SUPPORT_ID, connectPointsOffered, connectPointsProvided
 import { STUDENT_MARK_COLOR } from './platform/graph/studentMarkColor.js';
 import { placeCurveLabels } from './platform/graph/curveLabels.js';
 import { useCoveredByOpener } from './platform/graph/useCoveredByOpener.js';
+import { useDrawnUnit } from './platform/graph/useDrawnUnit.js';
 import FocusSafeButton from './components/common/FocusSafeButton.jsx';
 import { START_OVER } from './platform/student/studentWords.js';
 
@@ -131,7 +132,7 @@ const markerPoint = (placement) => Array.isArray(placement?.point) ? placement.p
  * curve's runs of viewBox points, as drawn.
  */
 const CURVE_NAME_SIZE = 14;
-export const inverseCurveNames = ({ naming, original, inverse, mirror, axes, dots, avoid, hidden = [] }) => {
+export const inverseCurveNames = ({ naming, original, inverse, mirror, axes, dots, avoid, hidden = [], unit = 0 }) => {
   if (!naming) return [];
   const curves = [
     { label: 'f', ink: '#174ea6', paths: original },
@@ -140,7 +141,7 @@ export const inverseCurveNames = ({ naming, original, inverse, mirror, axes, dot
     ...axes.map((axis) => ({ label: '', paths: [axis] })),
   ];
   const spots = placeCurveLabels({
-    curves, dots, avoid, hidden, bounds: { left: PADDING, right: WIDTH - PADDING, top: PADDING, bottom: HEIGHT - PADDING }, textSize: CURVE_NAME_SIZE, gap: 6,
+    curves, dots, avoid, hidden, bounds: { left: PADDING, right: WIDTH - PADDING, top: PADDING, bottom: HEIGHT - PADDING }, textSize: CURVE_NAME_SIZE, gap: 6, unit,
   });
   return curves.map((curve, index) => (spots[index] ? { label: curve.label, ink: curve.ink, spot: spots[index] } : null)).filter(Boolean);
 };
@@ -1306,6 +1307,8 @@ export default function InteractiveGraphWorkspace({
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
   // Work View's opener over the plane's corner: no name goes under it.
   const openerCover = useCoveredByOpener(svgRef, WIDTH, stage === 'analysis' && inverseReflectionEnabled);
+  // How small the board is drawn: a name keeps two pixels of room on a board drawn small (curveLabels.js).
+  const drawnUnit = useDrawnUnit(svgRef, WIDTH, stage === 'analysis' && inverseReflectionEnabled);
   const curveNames = inverseCurveNames({
     naming: stage === 'analysis' && inverseReflectionEnabled,
     original: [
@@ -1347,6 +1350,7 @@ export default function InteractiveGraphWorkspace({
       ...yTicks.filter((tick) => tick !== 0).map((tick) => ({ left: axisY - 9 - String(tick).length * 8, right: axisY - 7, top: toScreenY(tick) - 8, bottom: toScreenY(tick) + 8 })),
     ],
     hidden: openerCover ? [openerCover] : [],
+    unit: drawnUnit,
   });
 
   const workspaceTitle = pointOnly

@@ -123,6 +123,36 @@ test('the graph workspace names a curve f and its inverse f⁻¹, each beside it
   assert.match(board, /naming: stage === 'analysis' && inverseReflectionEnabled,/);
 });
 
+test('the graph workspace drawn small keeps f and f⁻¹ two pixels from a point\'s name, measuring its board as drawn', async () => {
+  const { inverseCurveNames } = await server.ssrLoadModule('/src/InteractiveGraphWorkspace.jsx');
+  const to = (x, y) => [56 + ((x + 10) / 20) * 648, 56 + ((10 - y) / 20) * 428];
+  const sample = (fn) => [Array.from({ length: 41 }, (_, i) => -10 + i / 2).map((x) => [x, fn(x)]).filter(([, y]) => y >= -10 && y <= 10).map(([x, y]) => to(x, y))];
+  const plane = {
+    naming: true, original: sample((x) => 2 * x + 1), inverse: sample((x) => (x - 1) / 2), mirror: [to(-10, -10), to(10, 10)], axes: [[to(-10, 0), to(10, 0)], [to(0, -10), to(0, 10)]], dots: [],
+  };
+  const full = inverseCurveNames({ ...plane, avoid: [] });
+  // A point's name on its plate 9 units under where f's name goes: clear of 0.6em of it (8.4 units).
+  const at = full[0].spot.box;
+  const plate = { left: at.left - 20, right: at.right + 90, top: at.bottom + 9, bottom: at.bottom + 30 };
+  const gapBetween = (a, b) => Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom);
+  assert.deepEqual(inverseCurveNames({ ...plane, avoid: [plate] }).map((name) => name.spot), full.map((name) => name.spot), 'unmeasured, nothing moves');
+  assert.deepEqual(inverseCurveNames({ ...plane, avoid: [plate], unit: 760 / 834 }).map((name) => name.spot), full.map((name) => name.spot), 'on a Chromebook (834px), nothing moves');
+  // The board on its own on a 390px phone: 760 units drawn 98px wide, where 9 units is about a pixel.
+  const unit = 760 / 98;
+  for (const { label, spot } of inverseCurveNames({ ...plane, avoid: [plate], unit })) {
+    assert.ok(gapBetween(spot.box, plate) >= 2 * unit - 1e-9, `${label} is ${gapBetween(spot.box, plate).toFixed(1)} units from the point's name, under two pixels (${(2 * unit).toFixed(1)})`);
+  }
+  // The board says how small it is drawn, while it names its curves.
+  const board = executableSource(read('src/InteractiveGraphWorkspace.jsx'));
+  assert.match(board, /const drawnUnit = useDrawnUnit\(svgRef, WIDTH, stage === 'analysis' && inverseReflectionEnabled\);/);
+  assert.match(region(board, 'const curveNames = inverseCurveNames({', '\n  });', 'the names on the board'), /\n    unit: drawnUnit,$/);
+  assert.match(region(board, 'export const inverseCurveNames', '\n};', 'inverseCurveNames'), /textSize: CURVE_NAME_SIZE, gap: 6, unit,/);
+  const hook = executableSource(read('src/platform/graph/useDrawnUnit.js'));
+  assert.match(hook, /const width = svg\.getBoundingClientRect\(\)\.width;/);
+  assert.match(hook, /const next = width > 0 \? Number\(viewBoxWidth\) \/ width : 0;/);
+  assert.match(hook, /observer\.observe\(svg\);/, 'and again as the board changes size');
+});
+
 test('a static figure names each curve its author named, and makes up no name', async () => {
   const graph = { xMin: -6, xMax: 6, yMin: -6, yMax: 6, functions: [{ type: 'line', m: 0.5, b: 1, label: 'f' }, { type: 'exponential', a: 0.5, b: 1.5, h: 0, k: -3, label: 'g' }] };
   const named = await render('/src/GraphDisplay.jsx', { graph, enlargeable: false });

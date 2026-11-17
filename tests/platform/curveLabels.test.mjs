@@ -136,3 +136,26 @@ test('a curve is sampled in runs that break where it leaves the window or jumps 
   }
   assert.deepEqual(runsOf(() => Number.NaN), [], 'nothing drawn, nothing named');
 });
+
+test('on a plane drawn small a name keeps two pixels of room; drawn at a size a student reads, it does not move', () => {
+  const { curves, dots } = inversePlane();
+  const first = placeCurveLabels({ curves, dots, bounds: PLOT, textSize: 12 });
+  // A point's name 8 units under y = x's name: clear of its 0.6em (7.2 units), as a name is at any size read.
+  const word = { left: first[2].box.left - 10, right: first[2].box.right + 10, top: first[2].box.bottom + 8, bottom: first[2].box.bottom + 24 };
+  const gapBetween = (a, b) => Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom);
+  assert.deepEqual(placeCurveLabels({ curves, dots, avoid: [word], bounds: PLOT, textSize: 12 }), first, 'nothing moves for a word 0.6em away');
+  // The same plane drawn 250px wide (2.24 units to a pixel): 0.6em is still the larger room, and nothing moves.
+  assert.deepEqual(placeCurveLabels({ curves, dots, avoid: [word], bounds: PLOT, textSize: 12, unit: 560 / 250 }), first, 'nothing moves at a size read');
+  // Drawn 70px wide (8 units to a pixel), 8 units is one pixel: every name keeps two (16 units) from the word and the points.
+  const unit = 560 / 70;
+  const small = placeCurveLabels({ curves, dots, avoid: [word], bounds: PLOT, textSize: 12, unit });
+  curves.forEach((curve, index) => {
+    if (!curve.label) return;
+    const spot = small[index];
+    assert.ok(spot, `${curve.label} has a place`);
+    assert.ok(gapBetween(spot.box, word) >= 2 * unit - 1e-9, `${curve.label} is ${gapBetween(spot.box, word).toFixed(1)} units from the word, under two pixels (${2 * unit})`);
+    for (const dot of dots) assert.ok(gapBetween(spot.box, dotBox(dot)) >= 2 * unit - 1e-9, `${curve.label} is ${gapBetween(spot.box, dotBox(dot)).toFixed(1)} units from a point`);
+    assert.ok(distanceTo([spot.cx, spot.cy], curve.paths) < 30, `${curve.label} still beside its own line`);
+  });
+  assert.notDeepEqual(small[2], first[2], 'y = x\'s name moved off the word');
+});

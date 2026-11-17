@@ -27,6 +27,9 @@
  *   a box    { left, right, top, bottom }
  * `avoid` are boxes a name keeps off (an axis number, a point's name), and
  * `hidden` boxes no name may go under (a control drawn over the plane).
+ * `unit`, where the plane says how small it is drawn: its viewBox units to one
+ * CSS pixel (useDrawnUnit.js), which keeps the room below from going under two
+ * pixels.
  */
 
 // A bold label's average advance, in ems; an overestimate errs toward room.
@@ -52,6 +55,12 @@ const NEARER_BY = 1.6;
 // as one: "on f" and "f" as "on ff"), in ems of the name's text.
 const DOT_ROOM = 0.6;
 const LABEL_ROOM = 0.6;
+// And never less than two CSS pixels where the plane is drawn small: the graph
+// workspace on its own on a 390px phone draws its 760-unit board 98px wide, and
+// there 0.6em of a name is one pixel, a name that close to a point's name reads
+// as part of it. Only where a plane is drawn under about a quarter of its size;
+// at any size a student reads it at, 0.6em is the larger.
+const ROOM_PX = 2;
 // Along the curve's drawn length: near its ends first, then inward, then every
 // twentieth of the way, for a crowded plane (a phone's).
 const PREFERRED = [0.88, 0.12, 0.76, 0.24, 0.64, 0.36, 0.5, 0.95, 0.05];
@@ -174,12 +183,15 @@ const pointAlong = (runs, fraction) => {
  * is the centre of the name's box; (x, y) is where its text starts, as SVG text
  * takes it, centred (`anchor` 'middle').
  */
-export const placeCurveLabels = ({ curves = [], dots = [], avoid = [], hidden = [], bounds = null, textSize = 12, gap = 4 } = {}) => {
+export const placeCurveLabels = ({ curves = [], dots = [], avoid = [], hidden = [], bounds = null, textSize = 12, gap = 4, unit = 0 } = {}) => {
   const drawn = curves.map((curve) => visibleRuns(curve?.paths, bounds));
   const segments = drawn.map(segmentsOf);
+  const fewestUnits = ROOM_PX * (Number(unit) > 0 ? Number(unit) : 0);
+  const dotRoom = Math.max(DOT_ROOM * textSize, fewestUnits);
+  const labelRoom = Math.max(LABEL_ROOM * textSize, fewestUnits);
   const dotBoxes = dots.filter((dot) => dot && Number.isFinite(dot.x) && Number.isFinite(dot.y))
-    .map((dot) => grown(dotBox({ ...dot, radius: Number(dot.radius) || 0 }), DOT_ROOM * textSize));
-  const avoided = avoid.filter(Boolean).map((box) => grown(box, LABEL_ROOM * textSize));
+    .map((dot) => grown(dotBox({ ...dot, radius: Number(dot.radius) || 0 }), dotRoom));
+  const avoided = avoid.filter(Boolean).map((box) => grown(box, labelRoom));
   const taken = [];
   const textArea = textSize * textSize;
   return curves.map((curve, index) => {
@@ -204,7 +216,7 @@ export const placeCurveLabels = ({ curves = [], dots = [], avoid = [], hidden = 
         const nearestOther = others.reduce((nearest, list) => Math.min(nearest, distanceToSegments([cx, cy], list)), Number.POSITIVE_INFINITY);
         const crossing = segments.filter((list) => crosses(list, box)).length;
         const cost = dotBoxes.reduce((sum, dot) => sum + COST_DOT * overlapArea(box, dot), 0)
-          + taken.reduce((sum, other) => sum + COST_LABEL * overlapArea(box, grown(other, LABEL_ROOM * textSize)), 0)
+          + taken.reduce((sum, other) => sum + COST_LABEL * overlapArea(box, grown(other, labelRoom)), 0)
           + avoided.reduce((sum, other) => sum + COST_AXIS_NUMBER * overlapArea(box, other), 0)
           + hidden.filter(Boolean).reduce((sum, other) => sum + COST_HIDDEN * overlapArea(box, other), 0)
           + COST_OUTSIDE * outsideArea(box, bounds)
