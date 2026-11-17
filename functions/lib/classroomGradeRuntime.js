@@ -317,7 +317,32 @@ function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(),
   };
 }
 
+/*
+ * THE STUDENT'S CLASSROOM RECEIPT, WRITTEN ONLY WHEN A SCREEN COULD SHOW IT.
+ *
+ * After a push goes through, both grades triggers write a receipt back to the
+ * student's own grade record (classroomSyncStatusByAssignment, and
+ * classroomSectionSyncStatusByAssignment for a section column). That write is
+ * a change to grades/{studentId}, so it runs both triggers again and is sent
+ * to every teacher listening to the gradebook.
+ *
+ * Before the due date nearly every answer that moves the grade is pushed as a
+ * teacher's draft, which the student cannot see in Classroom, and no student
+ * screen shows a draft receipt: the toast, Home's card, the result page and
+ * the Grade Center all read only a receipt whose `studentVisible` is true
+ * (App.jsx, StudentDashboardView.jsx, StudentAssignmentResult.jsx). So a draft
+ * receipt over no receipt, or over another draft, changed nothing anyone sees,
+ * and it is not written. A receipt the student can see is always written, and
+ * so is a draft that replaces one they could see, exactly as before. The push
+ * and its audit row (classroomGradeSyncs, what the teacher's monitor reads)
+ * are not touched by this.
+ */
+function classroomReceiptNeedsWriting(next, stored) {
+  return next?.studentVisible === true || stored?.studentVisible === true;
+}
+
 module.exports = {
+  classroomReceiptNeedsWriting,
   clampPercent,
   toDate,
   normalizeStoredQuestionRecord,

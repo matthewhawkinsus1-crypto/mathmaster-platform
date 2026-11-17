@@ -240,8 +240,9 @@ test('NV02: only an own close later than the class\'s holds anything', () => {
 test('NV02: both triggers hold the return and record the student\'s own close for the scheduler', () => {
   const index = executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
   const section = executableSource(readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8'));
-  // index.js's own release policy holds by the lib's one rule.
-  assert.match(index, /const \{ deferredClassCheckpoint, extendedTimeReturnHeldUntil \} = require\("\.\/lib\/classroomGradeRuntime"\);/);
+  // index.js's own release policy holds by the lib's one rule: the rule is
+  // imported from the lib (beside whatever else index.js takes from it).
+  assert.match(index, /const \{[^}]*\bextendedTimeReturnHeldUntil\b[^}]*\} = require\("\.\/lib\/classroomGradeRuntime"\);/);
   const releaseHelper = region(index, 'function classroomGradeReleasePolicy(', '\n}\n', 'index.js release policy');
   assert.match(releaseHelper, /extendedTimeReturnHeldUntil\(\{ assignment, nowValue: now, studentFinalCutoff \}\)/);
   assert.match(releaseHelper, /const studentVisible = explicitlyStudentVisible \|\| \(partialAfterDue && heldUntilMs === null\);/);

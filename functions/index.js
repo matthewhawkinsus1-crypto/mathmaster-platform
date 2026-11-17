@@ -58,7 +58,7 @@ const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 const classroomLinkOwnership = require("./lib/classroomLinkOwnership");
 // The grade passback monitor's rows: a teacher's own, read by their own posts.
 const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
-const { deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
+const { classroomReceiptNeedsWriting, deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -10974,12 +10974,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         };
         // This small student-visible record is the receipt. Updating it causes
         // this trigger to run once more, but no grade/release field changed, so
-        // that second invocation exits immediately.
-        // eslint-disable-next-line no-await-in-loop
-        await after.ref.update(
-          new FieldPath("classroomSyncStatusByAssignment", assignmentId),
-          status
-        );
+        // that second invocation exits immediately. A draft receipt no student
+        // screen shows, over none or another draft, is not written
+        // (lib/classroomGradeRuntime.js classroomReceiptNeedsWriting).
+        if (classroomReceiptNeedsWriting(status, afterData.classroomSyncStatusByAssignment?.[assignmentId])) {
+          // eslint-disable-next-line no-await-in-loop
+          await after.ref.update(
+            new FieldPath("classroomSyncStatusByAssignment", assignmentId),
+            status
+          );
+        }
       }
     }
   }

@@ -41,6 +41,7 @@ const {
   releaseSignalReason,
   resolveClassroomGradeStage,
   classroomGradeReleasePolicy,
+  classroomReceiptNeedsWriting,
   deferredClassCheckpoint,
   toDate,
 } = require("./lib/classroomGradeRuntime");
@@ -1217,15 +1218,21 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       }
 
       if (successfulBySection.size) {
+        // A draft receipt no student screen shows, over none or another
+        // draft, is not written (lib/classroomGradeRuntime.js
+        // classroomReceiptNeedsWriting): the write would only run both grades
+        // triggers again.
+        const storedReceipts = afterData.classroomSectionSyncStatusByAssignment?.[assignmentId] || {};
         const updateArgs = [];
         successfulBySection.forEach((status, sectionKey) => {
+          if (!classroomReceiptNeedsWriting(status, storedReceipts[sectionKey])) return;
           updateArgs.push(
             new FieldPath("classroomSectionSyncStatusByAssignment", assignmentId, sectionKey),
             status
           );
         });
         // eslint-disable-next-line no-await-in-loop
-        await after.ref.update(...updateArgs);
+        if (updateArgs.length) await after.ref.update(...updateArgs);
       }
 
       if (requeueForLimit) {

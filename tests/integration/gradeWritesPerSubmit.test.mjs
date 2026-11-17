@@ -534,8 +534,11 @@ const INGESTED = 'ingestStudentSubmissions: gradesByAssignment + supportUsageByA
 const RECEIPT = 'trigger:syncGradeToClassroom: classroomSyncStatusByAssignment';
 // A Submit whose answer moves the Classroom grade: before the due date the
 // trigger sends it to Classroom as a teacher's draft, which the student cannot
-// see, and writes the student's receipt for it back to the grade record.
-const DRAIN_SENDING_A_DRAFT = Object.freeze({ gradeWrites: [INGESTED, RECEIPT], detailWrites: 1, triggerRuns: 4, triggerRunsWithWork: 2 });
+// see. No student screen shows a draft receipt, so none is written back to the
+// grade record (functions/lib/classroomGradeRuntime.js
+// classroomReceiptNeedsWriting): before, it was a second write and two more
+// trigger runs.
+const DRAIN_SENDING_A_DRAFT = Object.freeze({ gradeWrites: [INGESTED], detailWrites: 1, triggerRuns: 2, triggerRunsWithWork: 2 });
 // A Submit that leaves the Classroom grade where it was (a second wrong try).
 const DRAIN_SENDING_NOTHING = Object.freeze({ gradeWrites: [INGESTED], detailWrites: 1, triggerRuns: 2, triggerRunsWithWork: 2 });
 // The report after the drain: the device's queue for the assignment fell to
@@ -577,6 +580,7 @@ test('a classwork Submit: its checkpoint, the Submit (wrong, wrong again, right)
   assert.deepEqual(drafts(), [{ grade: 25, assignToStudent: false }], 'the new grade reaches Classroom as a draft');
   const audit = (await db.collection('classroomGradeSyncs').where('studentId', '==', CLASSWORK_STUDENT).get()).docs.map((entry) => entry.data());
   assert.deepEqual(audit.map((entry) => [entry.status, entry.stage, entry.grade, entry.studentVisible]), [['synced', 'progress-25', 25, false]], 'the teacher\'s monitor row says so');
+  pin((await db.collection('grades').doc(CLASSWORK_STUDENT).get()).data().classroomSyncStatusByAssignment, undefined, 'no draft receipt on the grade record');
   inventory.classwork.total = total(steps);
 
   // Next (App.jsx handleQuestionNavigation): the time on the question goes
