@@ -7,7 +7,10 @@
  * (`npm run test:challenge-finish` globs tests/integration/*.test.mjs and runs
  * this file too.) GRADE_WRITES_OUT=<dir> also writes what was measured there:
  * inventory.json (every write, by step) and snapshots.json (each student's
- * stored grade, detail and evidence, timestamps and random ids normalized).
+ * stored grade, detail and evidence after every step, timestamps and random
+ * ids normalized). GRADE_WRITES_MEASURE=1 records without checking the pins,
+ * which is how another tree (the commit before a change) is measured with the
+ * same steps; every other run checks them.
  *
  * Every change to grades/{studentId} runs two Cloud Functions,
  * `syncGradeToClassroom` and `syncSectionGradeToClassroom` (both
@@ -90,6 +93,9 @@ ledger.useGradeTriggers([
 ]);
 
 const OUT = process.env.GRADE_WRITES_OUT || '';
+const MEASURE_ONLY = process.env.GRADE_WRITES_MEASURE === '1';
+/** A pinned count: checked on every run but a measuring one. */
+const pin = (actual, expected, message) => { if (!MEASURE_ONLY) assert.deepEqual(actual, expected, message); };
 const inventory = {};
 const snapshots = {};
 const [emulatorHost, emulatorPort] = process.env.FIRESTORE_EMULATOR_HOST.split(':');
@@ -155,6 +161,7 @@ const step = async (scenario, name, { studentId, names }, fn) => {
     })),
     triggerRuns: invocations.map(({ trigger, didWork, reads, writes }) => ({ trigger, didWork, reads, writes })),
   };
+  (snapshots.afterEachStep ||= {})[`${scenario}: ${name}`] = await gradeStateAt(studentId);
   return result;
 };
 
@@ -190,6 +197,23 @@ const storedState = async (studentId, extra = {}) => {
     misconceptionEvidence: stableList(misconceptions.docs.map((entry) => entry.data())),
     ...extra,
   });
+};
+
+/*
+ * After a step: the grade fields, the detail and the evidence, which no
+ * change here may move, apart from the Classroom receipts and the release
+ * signal (what the triggers write back, and the device report's wake-up).
+ */
+const gradeStateAt = async (studentId) => {
+  const state = await storedState(studentId);
+  const { classroomSyncStatusByAssignment = null, classroomSectionSyncStatusByAssignment = null, classroomReleaseSignals: _signals, ...grade } = state.grade || {};
+  return {
+    grade,
+    responseDetail: state.responseDetail,
+    evidenceEvents: state.evidenceEvents,
+    misconceptionEvidence: state.misconceptionEvidence,
+    receipts: { whole: classroomSyncStatusByAssignment, sections: classroomSectionSyncStatusByAssignment },
+  };
 };
 
 after(async () => {
@@ -523,7 +547,7 @@ const plainSubmit = (drain) => ({ reportBefore: NOTHING, drain, reportAfter: REP
 const classworkBrowser = browserFor(CLASSWORK_STUDENT);
 const classworkNames = { [CLASSWORK_STUDENT]: '{studentId}', [ASSIGNMENT_ID]: '{assignmentId}', [encodeURIComponent(CLASSWORK_STUDENT)]: '{studentId}' };
 const assertSteps = (steps, expected, label) => {
-  for (const [name, value] of Object.entries(expected)) assert.deepEqual(steps[name], value, `${label}, ${name}`);
+  for (const [name, value] of Object.entries(expected)) pin(steps[name], value, `${label}, ${name}`);
 };
 const recordOf = async (questionIndex) => (await db.collection('grades').doc(CLASSWORK_STUDENT).get()).data().gradesByAssignment[ASSIGNMENT_ID][questionIndex];
 
@@ -533,15 +557,26 @@ test('a classwork Submit: its checkpoint, the Submit (wrong, wrong again, right)
   await ledger.followGradeDocument(CLASSWORK_STUDENT);
 
   const typed = await step('classwork', 'typing: the response checkpoint', { studentId: CLASSWORK_STUDENT, names }, () => typeAnswer(browser, 0));
-  assert.deepEqual(typed, NOTHING, 'a checkpoint never writes the grade record');
+  pin(typed, NOTHING, 'a checkpoint never writes the grade record');
 
+  // Each Submit, with what reached Classroom: a draft grade (assigned to
+  // nobody, returned to nobody) whenever the answer moved the grade.
+  const drafts = () => patchGradeCalls().map((call) => ({ grade: call.grade, assignToStudent: call.assignToStudent }));
   const wrong = literal('definitely not it');
+  resetClassroomCalls();
   assertSteps(await submitAsTheBrowser('classwork, a wrong answer', browser, 0, { names, response: wrong }), plainSubmit(DRAIN_SENDING_A_DRAFT), 'a first wrong answer');
   assert.equal((await recordOf(0)).status, 'attempted');
+  assert.deepEqual(drafts(), [{ grade: 0, assignToStudent: false }], 'the first answer reaches Classroom as a draft');
+  resetClassroomCalls();
   assertSteps(await submitAsTheBrowser('classwork, wrong again', browser, 0, { names, response: wrong }), plainSubmit(DRAIN_SENDING_NOTHING), 'a second wrong answer');
+  assert.deepEqual(drafts(), [], 'the same grade is not sent again');
+  resetClassroomCalls();
   const steps = await submitAsTheBrowser('classwork', browser, 0, { names });
   assertSteps(steps, plainSubmit(DRAIN_SENDING_A_DRAFT), 'the right answer');
   assert.equal((await recordOf(0)).status, 'correct');
+  assert.deepEqual(drafts(), [{ grade: 25, assignToStudent: false }], 'the new grade reaches Classroom as a draft');
+  const audit = (await db.collection('classroomGradeSyncs').where('studentId', '==', CLASSWORK_STUDENT).get()).docs.map((entry) => entry.data());
+  assert.deepEqual(audit.map((entry) => [entry.status, entry.stage, entry.grade, entry.studentVisible]), [['synced', 'progress-25', 25, false]], 'the teacher\'s monitor row says so');
   inventory.classwork.total = total(steps);
 
   // Next (App.jsx handleQuestionNavigation): the time on the question goes
@@ -555,7 +590,7 @@ test('a classwork Submit: its checkpoint, the Submit (wrong, wrong again, right)
     await drainDurableActions({ storage: browser.storage, studentId: CLASSWORK_STUDENT, reconcile: reconcileAction(browser) });
     await flushActivityAsTheBrowser(browser, 20);
   });
-  assert.deepEqual(next, {
+  pin(next, {
     gradeWrites: ['ingestStudentSubmissions: gradesByAssignment', 'client:activityFlush: assignmentActivity'],
     detailWrites: 0,
     triggerRuns: 4,
@@ -568,7 +603,7 @@ test('a classwork Submit: its checkpoint, the Submit (wrong, wrong again, right)
     await ledger.asActor('finalizeStudentResponseCheckpoints', () => fns.finalizeStudentResponseCheckpoints.run({}));
     await ledger.asActor('sweepStudentResponseCheckpoints', () => fns.sweepStudentResponseCheckpoints.run(teacherRequest({ assignmentId: ASSIGNMENT_ID, classId: CLASS_ID })));
   });
-  assert.deepEqual(deadline, NOTHING);
+  pin(deadline, NOTHING);
 });
 
 test('the Submit that finishes the assignment: the final passback is held while the device reports it queued, then sent', async () => {
@@ -630,31 +665,25 @@ test('a secure Test item: a draft save that answers it, the older one-call submi
   const answered = await step('secure', 'draft save that answers an item', context, () => ledger.asActor('saveSecureExamDraft', () => fns.saveSecureExamDraft.run(studentRequest(TC_STUDENT, {
     examSessionId, questionInstanceId: first.questionInstanceId, responsePayload: { responses: { answer: certAnswerFromPrompt(first.prompt) } },
   }))));
-  assert.deepEqual(answered, {
-    gradeWrites: ['saveSecureExamDraft: testCycleGrades'],
-    detailWrites: 0,
-    triggerRuns: 2,
-    triggerRunsWithWork: 1,
-  });
+  // The answered count moves on the Test Cycle record (the teacher's table);
+  // the grade record's projection would change only its `updatedAt`, so it is
+  // not written (functions/index.js testCycleProjectionUnchanged).
+  pin(answered, NOTHING, 'answering a secure item does not write the grade record');
   const edited = await step('secure', 'draft save of the same item again', context, () => ledger.asActor('saveSecureExamDraft', () => fns.saveSecureExamDraft.run(studentRequest(TC_STUDENT, {
     examSessionId, questionInstanceId: first.questionInstanceId, responsePayload: { responses: { answer: CERT_WRONG_ANSWER } },
   }))));
-  assert.deepEqual(edited, { gradeWrites: [], detailWrites: 0, triggerRuns: 0, triggerRunsWithWork: 0 }, 'an edit moves no answered count');
+  pin(edited, NOTHING, 'an edit moves no answered count');
 
   const second = (await issue(1)).questionInstance;
   names[second.questionInstanceId] = '{questionInstanceId}';
   const oneCall = await step('secure', 'older one-call submit of an item', context, () => ledger.asActor('submitSecureExamResponse', () => fns.submitSecureExamResponse.run(studentRequest(TC_STUDENT, {
     examSessionId, questionInstanceId: second.questionInstanceId, responsePayload: { responses: { answer: certAnswerFromPrompt(second.prompt) } }, submissionId: 'gw-sub-2',
   }))));
-  assert.deepEqual(oneCall, {
-    gradeWrites: ['submitSecureExamResponse: testCycleGrades'],
-    detailWrites: 0,
-    triggerRuns: 2,
-    triggerRunsWithWork: 1,
-  });
+  pin(oneCall, NOTHING, 'nor does the older call that records an item');
+  assert.equal((await db.collection('testCycleRecords').doc(`${TC_ASSIGNMENT}__${TC_STUDENT}`).get()).data().test.answeredQuestions, 2, 'the record counts both answers');
 
   const finished = await step('secure', 'the Test\'s final Submit', context, () => ledger.asActor('finalizeSecureExam', () => fns.finalizeSecureExam.run(studentRequest(TC_STUDENT, { examSessionId }))));
-  assert.deepEqual(finished, {
+  pin(finished, {
     gradeWrites: ['finalizeSecureExam: testCycleGrades'],
     detailWrites: 0,
     triggerRuns: 2,
@@ -677,7 +706,7 @@ test('a Recovery: a Practice answer, an answer saved, and the Recovery Submit', 
   const practiced = await step('recovery', 'a Recovery Practice answer', context, () => recovery('practice', {
     pin: firstItem.pin, practiceIndex: firstItem.practiceIndex, response: correctResponse(reproduce(firstItem)),
   }));
-  assert.deepEqual(practiced, {
+  pin(practiced, {
     gradeWrites: ['advanceSectionRecovery: sectionRecoveryByAssignment'],
     detailWrites: 0,
     triggerRuns: 2,
@@ -721,7 +750,7 @@ test('a Recovery: a Practice answer, an answer saved, and the Recovery Submit', 
     sync.save(keyOf(item), buildRecoveryAnswerValue({ itemId: item.itemId, fingerprint: item.pin.fingerprint, response: correctResponse(reproduce(item)) }));
     await sync.whenIdle();
   });
-  assert.deepEqual(saved, { gradeWrites: [], detailWrites: 0, triggerRuns: 0, triggerRunsWithWork: 0 }, 'a saved answer is a draft, never the grade record');
+  pin(saved, NOTHING, 'a saved answer is a draft, never the grade record');
   for (const item of started.plan.items.slice(1)) {
     sync.save(keyOf(item), buildRecoveryAnswerValue({ itemId: item.itemId, fingerprint: item.pin.fingerprint, response: correctResponse(reproduce(item)) }));
   }
@@ -732,7 +761,7 @@ test('a Recovery: a Practice answer, an answer saved, and the Recovery Submit', 
 
   resetClassroomCalls();
   const submitted = await step('recovery', 'the Recovery Submit', context, () => recovery('submit', { responses }));
-  assert.deepEqual(submitted, {
+  pin(submitted, {
     gradeWrites: [
       'advanceSectionRecovery: sectionRecoveryByAssignment',
       'trigger:syncGradeToClassroom: classroomSyncStatusByAssignment',

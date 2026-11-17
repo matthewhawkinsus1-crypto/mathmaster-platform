@@ -9,6 +9,7 @@ async function liveChallengeClassPoints() {
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { isDeepStrictEqual } = require("util");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
@@ -20559,13 +20560,33 @@ function writeTestCycleRecord(transaction, db, { record, gradeSnapshot, shared, 
   transaction.set(db.collection(TEST_CYCLE_RECORDS).doc(normalized.recordId), document);
   if (gradeSnapshot?.exists) {
     const previous = gradeSnapshot.data()?.testCycleGrades?.[normalized.assignmentId] || null;
-    transaction.update(
-      gradeSnapshot.ref,
-      new FieldPath("testCycleGrades", normalized.assignmentId),
-      testCycleGradeProjection(document, gradeState, resolvedStage, previous),
-    );
+    const projection = testCycleGradeProjection(document, gradeState, resolvedStage, previous);
+    if (!testCycleProjectionUnchanged(projection, previous)) {
+      transaction.update(gradeSnapshot.ref, new FieldPath("testCycleGrades", normalized.assignmentId), projection);
+    }
   }
   return { record: document, gradeState, stage: resolvedStage };
+}
+
+/*
+ * A PROJECTION THAT WOULD CHANGE ONLY ITS `updatedAt` IS NOT WRITTEN AGAIN.
+ *
+ * Every write to grades/{studentId} runs both Classroom triggers and is sent
+ * to every teacher listening to the gradebook. Each secure Test item a student
+ * answers moves the record's answered count, which the teacher's table reads
+ * from the record (written above, every time), and nothing in this projection
+ * but `updatedAt`, which nothing reads (the student's card refreshes on the
+ * other fields: testCycleDiscovery.js buildTestCycleCardRefreshKey). So that
+ * write bought one Functions run per trigger and a document sent to every
+ * listening teacher, for a timestamp. The comparison is against the projection
+ * read in this transaction; any other change, a state, a grade, a stage, a
+ * correction, a field an older projection lacks, is written as before.
+ */
+function testCycleProjectionUnchanged(next, previous) {
+  if (!previous || typeof previous !== "object") return false;
+  const { updatedAt: _nextUpdatedAt, ...nextFields } = next;
+  const { updatedAt: _previousUpdatedAt, ...previousFields } = previous;
+  return isDeepStrictEqual(nextFields, previousFields);
 }
 
 /*
