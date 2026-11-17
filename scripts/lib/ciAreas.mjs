@@ -331,8 +331,10 @@ export const CI_AREAS = {
     'tests/browser/studentWhatChanged*',
     'tests/browser/gradeCenterMobile*',
     'tests/browser/stepNotQueued*',
-    // #386 R12: the first operand on a fresh Step Algebra stage.
+    // #386 R12 and R5: the first operand on a fresh Step Algebra stage, and
+    // Enter in a composed question's step (its driver opens the same page).
     'tests/browser/stepAlgebraFirstOperand*',
+    'tests/browser/workflowStepEnter*',
     'tests/browser/toolOutcomeReach*',
     'tests/browser/feedbackReasons2*',
     'tests/browser/toolChoiceGroups*',

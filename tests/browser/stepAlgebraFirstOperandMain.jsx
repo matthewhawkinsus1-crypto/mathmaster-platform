@@ -2,7 +2,8 @@
  * THE FIRST OPERAND ON A FRESH STEP ALGEBRA STAGE (issue #386 R12), AND ENTER
  * IN A COMPOSED QUESTION'S STEPS (#386 R5), in the real QuestionEngine, the
  * real Step Algebra solver and the real workflow runner. Driven by
- * tests/browser/stepAlgebraFirstOperand.mjs.
+ * tests/browser/stepAlgebraFirstOperand.mjs and, for `?scene=enter`,
+ * tests/browser/workflowStepEnter.mjs.
  *
  *   ?scene=plain     a Step Algebra question, 5x = 35, opened with no draft
  *   ?scene=steps     a composed question of four steps (one shown at a time):

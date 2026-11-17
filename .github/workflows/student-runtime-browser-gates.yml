@@ -141,7 +141,10 @@ name: Student Runtime Browser Gates
 #     (W7-3), toolOutcomeReach and feedbackReasons2 (W7-4), toolChoiceGroups
 #     (W7-2); and stepAlgebraFirstOperand (#386 R12: the first value typed
 #     on a fresh Step Algebra stage, a plain question's and a composed
-#     question's, is kept on a Chromebook and a phone, slowed 4x as well)
+#     question's, is kept on a Chromebook and a phone, slowed 4x as well) and
+#     workflowStepEnter (#386 R5: Enter in a composed question's step never
+#     submits it, presses no Start over or Reset, and never reaches a step
+#     not on screen)
 #   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
 #     Firebase)
 #     secureResults, secureExamNavigation, secureAccessParity; and
@@ -552,6 +555,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/stepAlgebraFirstOperand.mjs
+      - name: Enter in a composed question's step never submits it, resets nothing, and stays on the step
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workflowStepEnter.mjs
       - name: A tool's outcome box can be reached on every screen
         if: ${{ !cancelled() }}
         env:
