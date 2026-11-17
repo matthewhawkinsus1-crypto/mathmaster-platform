@@ -29,6 +29,14 @@ name: Student and Teacher Journeys
 #                          (D7: a student with extra time keeps working after
 #                          the class's DOL closed and reads their own close;
 #                          a classmate's is closed; Live view lists who)
+#   a teacher's code that  tests/browser/teacherWorkflow/teacherCodeRecovery.mjs
+#   cannot load            (in the teacher job: the authoring code the
+#                          workspace loads on demand, and a screen's own
+#                          chunk, answered with Hosting's HTML page after a
+#                          deploy: a failed idle prefetch shows nothing;
+#                          Assignments, an action and a screen reach
+#                          "MathMaster was just updated", whose button loads
+#                          the new version)
 #   private controls       tests/browser/teacherWorkflow/privateControlsJourneys.mjs
 #                          (its own job: one own-controls listener per student,
 #                          one class listener per teacher; a shared Chromebook
@@ -230,6 +238,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
+      - name: A teacher's code that cannot load reaches "MathMaster was just updated"
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/teacherCodeRecovery.mjs
 
   # Case review and held Recovery, on a runner of their own (see teacher).
   teacher-case-review:
