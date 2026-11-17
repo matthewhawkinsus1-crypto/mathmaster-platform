@@ -271,7 +271,9 @@ test('production integration uses FieldPath segments and secure Test Cycle never
   assert.match(app, /window\.addEventListener\('pageshow', reconcileQueuedStudentWork\)/);
   assert.match(app, /document\.addEventListener\('visibilitychange', reconcileWhenVisible\)/);
   assert.match(app, /studentGradeSourceForViewer\(viewer\)/);
-  assert.match(app, /const studentData = collectStudentGradeSnapshot\(snapshot\)/);
+  // The gradebook is the grades listener's snapshot, joined to each student's stored detail (gradeEntryStorage.mjs).
+  assert.match(app, /latestStudents = collectStudentGradeSnapshot\(snapshot\)/);
+  assert.match(app, /return detail \? withResponseDetail\(student, detail\) : student;/);
   assert.match(app, /setAllStudents\(studentData\)/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { secure: true } }), /Protected assessment data/);
   assert.throws(() => createDurableAction({ kind: 'ordinarySubmission', studentId: 'student', assignmentId: 'assignment', questionIndex: 0, payload: { answerKey: 'never' } }), /Protected assessment data/);

@@ -20,6 +20,7 @@ import '../shell/leadingStyles.js';
 import '../../components/teacher/supportEvidence.css';
 import '../../components/teacher/teacherWorkspace.css';
 import { addDoc, collection, deleteField, doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore';
+import { joinTrackerInTransaction, writeTrackerSplit } from '../../platform/grades/responseDetailStore.js';
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';
 import { updateAssignmentClassroomPublications } from '../../classroomApi';
@@ -1323,13 +1324,19 @@ export default function TeacherWorkspace({
           ? await Promise.all(audienceStudents.map(async (student) => {
             const studentRef = doc(db, 'grades', student.id);
             const snapshot = await transaction.get(studentRef);
-            return { student, studentRef, snapshot };
+            // The records whole, read in this transaction: a correction
+            // re-grades parts and responses, stored beside the grades document
+            // (gradeEntryStorage.mjs).
+            const joined = snapshot.exists()
+              ? await joinTrackerInTransaction(transaction, db, student.id, snapshot.data() || {}, assignmentId)
+              : null;
+            return { student, studentRef, snapshot, joined };
           }))
           : [];
 
-        gradeEntries.forEach(({ student, studentRef, snapshot }) => {
+        gradeEntries.forEach(({ student, studentRef, snapshot, joined }) => {
           if (!snapshot.exists()) return;
-          const studentData = snapshot.data() || {};
+          const studentData = joined || {};
           const gradesByAssignment = studentData.gradesByAssignment || {};
           const assignmentTracker = gradesByAssignment[assignmentId];
           if (assignmentTracker === undefined) return;
@@ -1357,10 +1364,9 @@ export default function TeacherWorkspace({
             });
           }
           if (nextTracker !== assignmentTracker || (Array.isArray(liveRepairs) && liveRepairs.length > 0)) {
-            studentPatch.gradesByAssignment = {
-              ...gradesByAssignment,
-              [assignmentId]: nextTracker,
-            };
+            // This assignment's tracker only, split: summaries on the grades
+            // document, its detail document replaced to match.
+            writeTrackerSplit({ db, writer: transaction, studentId: student.id, assignmentId, tracker: nextTracker });
           }
           if (weightChanges.length > 0) {
             studentPatch.classroomReleaseSignals = {

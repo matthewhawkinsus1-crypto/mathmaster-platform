@@ -21,6 +21,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { joinResponseDetail, needsResponseDetail, serverTrackersForAdoption, subscribeResponseDetail, subscribeResponseDetailRoster, withResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
 import {
   buildResponseCheckpointAction,
   checkpointDocumentId,
@@ -3044,15 +3045,32 @@ function App() {
 
     if (!repairs.length) return 0;
 
-    for (let start = 0; start < repairs.length; start += 400) {
+    // Only the assignments a repair changed are written, each split: its
+    // summaries on the grades document and its detail document replaced to
+    // match (gradeEntryStorage.mjs). One student per batch (a detail document
+    // can be large). A student whose saved work is not whole is skipped and
+    // logged, never written from a summary.
+    const written = [];
+    for (const repair of repairs) {
+      const { student, gradesByAssignment } = repair;
+      const before = student?.gradesByAssignment || {};
+      const changedIds = Object.keys(gradesByAssignment).filter((assignmentId) => gradesByAssignment[assignmentId] !== before[assignmentId]);
+      if (!changedIds.length) continue;
       const batch = writeBatch(db);
-      repairs.slice(start, start + 400).forEach(({ student, gradesByAssignment }) => {
-        batch.update(doc(db, 'grades', student.id), { gradesByAssignment });
-      });
+      try {
+        changedIds.forEach((assignmentId) => writeTrackerSplit({
+          db, writer: batch, studentId: student.id, assignmentId, tracker: gradesByAssignment[assignmentId],
+        }));
+      } catch (error) {
+        console.error('Skipped a current-grader repair:', error);
+        continue;
+      }
+      // eslint-disable-next-line no-await-in-loop
       await batch.commit();
+      written.push(repair);
     }
 
-    const repairedById = new Map(repairs.map(({ student, gradesByAssignment }) => [
+    const repairedById = new Map(written.map(({ student, gradesByAssignment }) => [
       student.id,
       gradesByAssignment,
     ]));
@@ -3061,7 +3079,7 @@ function App() {
         ? { ...student, gradesByAssignment: repairedById.get(student.id) }
         : student
     )));
-    return repairs.length;
+    return written.length;
   };
 
   const collectStudentGradeSnapshot = (querySnapshot) => querySnapshot.docs
@@ -3115,21 +3133,57 @@ function App() {
 
     const viewer = { email: user.email || null, isRootAdmin: user.isRootAdmin === true };
     setTeacherStudentDataMode('loading-full');
-    return onSnapshot(
+    // Each record's detail (parts, steps, last response, support flags) is
+    // stored beside its student's grades document (gradeEntryStorage.mjs):
+    // every student whose records are stored that way is followed there too,
+    // and the gradebook sees each grades document joined to it.
+    // The roster's detail listeners follow the roster itself (not who has
+    // split records yet), so they restart only when a student joins or leaves.
+    let latestStudents = null;
+    let detailFailed = false;
+    let detailByStudent = new Map();
+    let rosterKey = '';
+    let stopDetailRoster = () => {};
+    const publish = () => {
+      if (!latestStudents) return;
+      const waiting = latestStudents.filter((student) => needsResponseDetail(student) && !detailByStudent.has(String(student.id)));
+      const studentData = latestStudents.map((student) => {
+        const detail = detailByStudent.get(String(student.id));
+        return detail ? withResponseDetail(student, detail) : student;
+      });
+      setAllStudents(studentData);
+      setTeacherStudentDataMode('full');
+
+      // The repair re-grades stored responses, so it waits until every
+      // student's detail has arrived; it never runs on a summary alone.
+      if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current && !waiting.length && !detailFailed) {
+        teacherGraderRepairRanRef.current = true;
+        persistCurrentGraderCreditRepairs(studentData, assignmentsRef.current)
+          .catch((error) => {
+            teacherGraderRepairRanRef.current = false;
+            console.error('Could not apply deferred current-grader credit repairs:', error);
+          });
+      }
+    };
+    const stopGrades = onSnapshot(
       studentGradeSourceForViewer(viewer),
       (snapshot) => {
-        const studentData = collectStudentGradeSnapshot(snapshot);
-        setAllStudents(studentData);
-        setTeacherStudentDataMode('full');
-
-        if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current) {
-          teacherGraderRepairRanRef.current = true;
-          persistCurrentGraderCreditRepairs(studentData, assignmentsRef.current)
-            .catch((error) => {
-              teacherGraderRepairRanRef.current = false;
-              console.error('Could not apply deferred current-grader credit repairs:', error);
-            });
+        latestStudents = collectStudentGradeSnapshot(snapshot);
+        const ids = latestStudents.map((student) => String(student.id)).sort();
+        const key = ids.join('|');
+        if (key !== rosterKey) {
+          rosterKey = key;
+          stopDetailRoster();
+          detailByStudent = new Map();
+          stopDetailRoster = subscribeResponseDetailRoster(db, ids, (loaded) => {
+            detailByStudent = loaded;
+            publish();
+          }, (error) => {
+            detailFailed = true;
+            console.error('Could not follow students\' saved work detail:', error);
+          });
         }
+        publish();
       },
       (error) => {
         console.error('Could not watch live student grades:', error);
@@ -3137,6 +3191,10 @@ function App() {
         setTeacherStudentDataMode('summary');
       },
     );
+    return () => {
+      stopGrades();
+      stopDetailRoster();
+    };
   // NOT `assignments`: the repair above runs once and reads the ref. Listing
   // the array tore this listener down on every write to ANY assignment —
   // another teacher's edit, a DOL unlock, a question-family seat — flipped the
@@ -3710,7 +3768,9 @@ function App() {
         holdSignInTarget(doc(db, 'grades', studentId));
         const studentSnapshot = await getDoc(doc(db, 'grades', studentId));
         if (!studentSnapshot.exists()) throw new Error('Your student record is not available. Ask your teacher to add you to the roster.');
-        const studentData = studentSnapshot.data() || {};
+        // Whole records: the open question restores its parts, steps and last
+        // response, stored beside the grades document (gradeEntryStorage.mjs).
+        const studentData = await joinResponseDetail(db, studentId, studentSnapshot.data() || {});
         // The class query fetchStudentAssignments reads first, which the
         // class's lesson listener then keeps. Not for a sign-in already
         // superseded (signed out, another account): its cleanup let go of
@@ -5466,7 +5526,28 @@ function App() {
 
     // Whoever is signed in now, their row is followed from its first snapshot.
     setStudentRosterMembership(null);
-    return onSnapshot(
+    // A record's detail (parts, steps, last response) is stored beside the
+    // grades document (gradeEntryStorage.mjs): the server's trackers are
+    // adopted joined to it, from either snapshot, whichever arrives last.
+    let latestServerGrades = null;
+    let latestDetail = null;
+    let stopDetail = null;
+    const adoptServerGrades = () => {
+      if (!latestServerGrades) return;
+      const serverGrades = serverTrackersForAdoption(latestServerGrades, latestDetail);
+      setTracker((current) => {
+        const { grades, adopted } = adoptCanonicalAdvances(current, serverGrades);
+        // Attempts the server made are not this session's attempts.
+        adopted.forEach(({ assignmentId, questionIndex, totalAttempts }) => {
+          const baseline = liveSessionAttemptBaselineRef.current;
+          if (baseline.assignmentId === assignmentId) {
+            baseline.totalAttemptsByIndex = { ...baseline.totalAttemptsByIndex, [questionIndex]: totalAttempts };
+          }
+        });
+        return grades;
+      });
+    };
+    const stopGrades = onSnapshot(
       doc(db, 'grades', user.id),
       (snapshot) => {
         if (!snapshot.exists()) return;
@@ -5474,18 +5555,16 @@ function App() {
         // finalizer's auto-submit above all — reaches the open question now,
         // not at the next sign-in: a closed question shows as closed, and the
         // next checkpoint carries the attempt count the server really has.
-        const serverGrades = snapshot.data()?.gradesByAssignment || {};
-        setTracker((current) => {
-          const { grades, adopted } = adoptCanonicalAdvances(current, serverGrades);
-          // Attempts the server made are not this session's attempts.
-          adopted.forEach(({ assignmentId, questionIndex, totalAttempts }) => {
-            const baseline = liveSessionAttemptBaselineRef.current;
-            if (baseline.assignmentId === assignmentId) {
-              baseline.totalAttemptsByIndex = { ...baseline.totalAttemptsByIndex, [questionIndex]: totalAttempts };
-            }
-          });
-          return grades;
-        });
+        latestServerGrades = snapshot.data()?.gradesByAssignment || {};
+        if (!stopDetail && needsResponseDetail({ gradesByAssignment: latestServerGrades })) {
+          stopDetail = subscribeResponseDetail(
+            db,
+            user.id,
+            (detail) => { latestDetail = detail; adoptServerGrades(); },
+            (error) => console.error('Could not follow saved work detail:', error),
+          );
+        }
+        adoptServerGrades();
         const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
         // Each map is kept while the snapshot says the same (keepSame,
         // renderStability.js). Every Submit and Next brings two snapshots, the
@@ -5571,6 +5650,10 @@ function App() {
       },
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
     );
+    return () => {
+      stopGrades();
+      if (stopDetail) stopDetail();
+    };
   }, [user?.role, user?.id, toastSuccess]);
 
   /*
@@ -8951,9 +9034,11 @@ function App() {
   const loadClassGradeRecords = async (classId) => {
     const roster = studentsInClass({ students: allStudents, classes, classId });
     const snapshots = await Promise.all(roster.map((student) => getDoc(doc(db, 'grades', student.id))));
-    return snapshots
+    // Whole records: each record's detail is stored apart (gradeEntryStorage.mjs).
+    const records = await Promise.all(snapshots
       .filter((snapshot) => snapshot.exists())
-      .map((snapshot) => ({ id: snapshot.id, ...snapshot.data(), profile: normalizeStudentProfile(snapshot.data()?.profile || snapshot.data()) }));
+      .map(async (snapshot) => ({ id: snapshot.id, data: await joinResponseDetail(db, snapshot.id, snapshot.data() || {}) })));
+    return records.map(({ id, data }) => ({ id, ...data, profile: normalizeStudentProfile(data?.profile || data) }));
   };
 
   const openGradeExport = ({ classIds = [], assignmentId = null } = {}) => {

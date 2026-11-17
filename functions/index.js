@@ -486,7 +486,10 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-    const gradeData = gradeSnapshot.data() || {};
+    // The whole record (summary joined to its stored detail), read in this transaction.
+    const gradeData = await hydrateGradeData({
+      transaction, gradeRef, gradeData: gradeSnapshot.data() || {}, assignmentIds: [String(checkpoint.assignmentId)],
+    });
     const question = runtimeQuestionsFromAssignment(assignment)?.[Number(checkpoint.questionIndex)] || null;
 
     const decision = decideCheckpointFinalization({
@@ -587,8 +590,11 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const gradeUpdates = [
-      new FieldPath("gradesByAssignment", assignmentId, String(checkpoint.questionIndex)),
-      finalization.record,
+      // The summary here, the detail beside it (responseDetail), one detailRef.
+      ...await questionRecordUpdates({
+        writer: transaction, gradeRef, studentId: gradeRef.id, assignmentId,
+        questionKey: String(checkpoint.questionIndex), record: finalization.record,
+      }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       finalization.supportUsage,
     ];
@@ -802,6 +808,29 @@ exports.expediteCheckpointsOnSectionClose = onDocumentWritten(
  * `lastSubmissionId`. A retry of a submission that already landed reports
  * `duplicate` and writes nothing.
  * ========================================================================= */
+/*
+ * A QUESTION RECORD IS STORED SPLIT (functions/shared/gradeEntryStorage.mjs).
+ *
+ * Its summary stays in grades/{studentId}.gradesByAssignment[a][q] (enough to
+ * grade: credit, status, attempts, `stepCredit`), and its detail (parts,
+ * steps, last response, support flags, algebra state) lives in
+ * grades/{studentId}/responseDetail/{a}.questions[q], tied by one `detailRef`.
+ * Since Nov 16, 2026 the grades document was approaching Firestore's 1 MiB cap.
+ *
+ * A writer stores both halves in the same transaction or batch
+ * (writeQuestionRecord). A reader that needs the whole record (attempt policy,
+ * review, recovery, mastery) joins them first (hydrateGradeData); a reader that
+ * only grades (the Classroom triggers, class-wide reports) reads the summary.
+ */
+const {
+  gradeEntryStorage,
+  splitInlineRecords,
+  hydrateGradeData,
+  questionRecordUpdates,
+  writeSplitTracker,
+  hydrateTrackerRows,
+} = require("./lib/gradeDetailStore");
+
 let submissionIngestionModule = null;
 async function submissionIngestion() {
   if (!submissionIngestionModule) {
@@ -833,7 +862,7 @@ function authoritativeStudentClassId(gradeData) {
  * together — so a teacher never sees a grade without its evidence, and a
  * deadline can never turn one response into two attempts.
  */
-async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {} }) {
+async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {}, hints = null }) {
   const ingestion = await submissionIngestion();
   const dispositions = await submissionDisposition();
   const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
@@ -885,7 +914,18 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     const assignment = assignmentSnapshot.exists
       ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
       : null;
-    const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    // The whole record of this assignment's questions: the summary joined to
+    // its stored detail, read in this transaction (attempt policy compares the
+    // last response and replays the steps).
+    const storedGradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    // Records written before the split are moved after this call (splitInlineRecords).
+    if (hints && storedGradeData && (await gradeEntryStorage()).anyInlineRecords(storedGradeData)) hints.inlineRecords = true;
+    const gradeData = await hydrateGradeData({
+      transaction,
+      gradeRef,
+      gradeData: storedGradeData,
+      assignmentIds: [envelope.assignmentId],
+    });
     const classId = authoritativeStudentClassId(gradeData);
 
     const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
@@ -1142,8 +1182,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     }
 
     const updates = [
-      new FieldPath("gradesByAssignment", assignmentId, String(envelope.questionIndex)),
-      built.record,
+      // The summary here, the detail beside it (responseDetail), one detailRef.
+      ...await questionRecordUpdates({
+        writer: transaction, gradeRef, studentId, assignmentId,
+        questionKey: String(envelope.questionIndex), record: built.record,
+      }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       built.supportUsage,
     ];
@@ -1307,6 +1350,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
   // queues from clients built before step work existed have drained.
   const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
   const receipts = [];
+  const hints = {};
   for (const raw of incoming) {
     // A wall-clock budget for the whole call: verifying a crafted step can
     // cost seconds, and a batch of them must not time out the honest work
@@ -1354,7 +1398,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
     // The envelope never gets to say whose work it is.
     envelope.studentId = studentId;
     try {
-      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings }));
+      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings, hints }));
     } catch (error) {
       logger.error("Could not ingest a student submission", {
         studentId, actionId: envelope.actionId, errorMessage: error?.message, errorCode: error?.code ?? null,
@@ -1365,6 +1409,20 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
         disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
         reason: `ingestion-error:${String(error.message || "unknown").slice(0, 120)}`,
       });
+    }
+  }
+  /*
+   * THIS STUDENT'S RECORDS STILL STORED WHOLE MOVE INTO THE SPLIT NOW
+   * (functions/lib/gradeDetailStore.js splitInlineRecords): after every receipt
+   * above is decided, in its own transaction, best effort. Nothing here can
+   * change a receipt or a grade; a failure is logged and retried on the next call.
+   */
+  if (hints.inlineRecords) {
+    try {
+      const moved = await splitInlineRecords({ db, studentId });
+      if (moved.split || moved.kept) logger.info("Moved a student's records into the split", { studentId, ...moved });
+    } catch (error) {
+      logger.warn("Could not move a student's records into the split", { studentId, errorMessage: error?.message, errorCode: error?.code ?? null });
     }
   }
   return { receipts, ingestedAt: now };
@@ -1498,7 +1556,9 @@ exports.advanceSectionRecovery = onCall(async (request) => {
       if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
       if (!gradeSnapshot.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.");
       const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-      const gradeData = gradeSnapshot.data() || {};
+      // The records whole: recovery reads their family pins and practice evidence,
+      // stored beside the grades document (gradeEntryStorage.mjs).
+      const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnapshot.data() || {}, assignmentIds: [assignmentId] });
       if (secureAssignmentMode(assignment) || assignment.secure === true) {
         throw new HttpsError("failed-precondition", "Secure assessments use their own retest process.");
       }
@@ -1650,7 +1710,8 @@ exports.resolveHeldSectionRecovery = onCall(async (request) => {
         overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
       ]);
       if (!gradeSnap.exists || !assignmentSnap.exists) throw new HttpsError("not-found", "The student or assignment was not found.");
-      const gradeData = gradeSnap.data() || {};
+      // The records whole (stored beside the grades document; gradeEntryStorage.mjs).
+      const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnap.data() || {}, assignmentIds: [assignmentId] });
       const classId = authoritativeStudentClassId(gradeData);
       const classSnap = classId ? await transaction.get(db.collection("classes").doc(String(classId))) : null;
       const ownsClass = classSnap?.exists
@@ -1980,7 +2041,10 @@ function getQuestionCredit(record, authoritativeOverride = null) {
   }
   if (record.status === "correct") return 1;
   const stored = clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0);
-  const derived = storedAlgebraStepPartialCredit(record);
+  // `stepCredit` is what the steps earned, stored on a record's summary when
+  // its detail (stepGrades among it) was split off (gradeEntryStorage.mjs):
+  // a summary read on its own grades exactly as the full record.
+  const derived = Math.max(storedAlgebraStepPartialCredit(record), clampPercent(record.stepCredit ?? 0));
   return Math.max(stored, derived) / 100;
 }
 
@@ -2077,7 +2141,8 @@ exports.inspectStudentResponse = onCall(async (request) => {
     throw new HttpsError("not-found", "The student or assignment was not found.");
   }
 
-  const student = studentSnap.data() || {};
+  // The inspected record whole: its parts and pin are stored beside the grades document.
+  const student = await hydrateGradeData({ db, gradeRef, gradeData: studentSnap.data() || {}, assignmentIds: [assignmentId] });
   const classSnap = student.classId
     ? await db.collection("classes").doc(String(student.classId)).get()
     : null;
@@ -2325,7 +2390,8 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
       throw new HttpsError("not-found", "The student or assignment was not found.");
     }
 
-    const gradeData = gradeSnap.data() || {};
+    // The record whole (its parts and pin are stored beside the grades document).
+    const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnap.data() || {}, assignmentIds: [assignmentId] });
     const classSnap = gradeData.classId
       ? await transaction.get(db.collection("classes").doc(String(gradeData.classId)))
       : null;
@@ -23786,7 +23852,7 @@ async function loadSavedAssignmentTrackers(db, assignmentId, assignment) {
   const queries = contentUpgradeGradeQueries(db, assignment);
   if (!queries.length) return [];
   const snapshots = await Promise.all(queries.map((queryRef) => queryRef.get()));
-  return contentUpgradeTrackerRows(snapshots, assignmentId);
+  return hydrateTrackerRows(contentUpgradeTrackerRows(snapshots, assignmentId), assignmentId, { db });
 }
 
 async function loadSavedAssignmentTrackersInTransaction(transaction, db, assignmentId, assignment) {
@@ -23796,7 +23862,7 @@ async function loadSavedAssignmentTrackersInTransaction(transaction, db, assignm
     // eslint-disable-next-line no-await-in-loop
     snapshots.push(await transaction.get(queryRef));
   }
-  return contentUpgradeTrackerRows(snapshots, assignmentId);
+  return hydrateTrackerRows(contentUpgradeTrackerRows(snapshots, assignmentId), assignmentId, { db, transaction });
 }
 
 function contentUpgradeAlreadyCurrent(liveAssignment = {}, targetAssignment = {}) {
@@ -24125,13 +24191,11 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
+      const storage = await gradeEntryStorage();
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        transaction.update(
-          gradeRow.ref,
-          new FieldPath("gradesByAssignment", assignmentId),
-          migration.tracker
-        );
+        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,
@@ -24695,13 +24759,11 @@ exports.commitTeacherQuestionRepair = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
+      const storage = await gradeEntryStorage();
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        transaction.update(
-          gradeRow.ref,
-          new FieldPath("gradesByAssignment", assignmentId),
-          migration.tracker
-        );
+        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,

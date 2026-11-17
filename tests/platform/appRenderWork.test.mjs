@@ -274,8 +274,12 @@ test('App renders nothing for a snapshot, a resume, a report or a drain that cha
     assert.match(calls[0], /^keepSame\(/, `${map}: kept while it says the same`);
   }
   assert.match(listener, /setClassroomSyncStatusByAssignment\(keepSame\(next\)\);/);
-  // What else it sets is already kept while it says the same.
-  assert.match(listener, /setTracker\(\(current\) => \{[\s\S]*adoptCanonicalAdvances\(current, serverGrades\)[\s\S]*return grades;/);
+  // What else it sets is already kept while it says the same: the server's
+  // trackers, adopted joined to their stored detail (#561) from this snapshot
+  // or the detail's, whichever arrives last.
+  assert.match(listener, /\n\s*adoptServerGrades\(\);\n/);
+  const adoption = region(code, 'const adoptServerGrades = () => {', '\n    };\n', 'the trackers\' adoption');
+  assert.match(adoption, /setTracker\(\(current\) => \{[\s\S]*adoptCanonicalAdvances\(current, serverGrades\)[\s\S]*return grades;/);
   // The place to resume: set only when it is another place.
   const resume = region(code, 'const action = {\n      assignmentId: activeAssignmentId,', '}, [user, activeView, activeAssignmentId, currentQuestionIndex, assignments, activeQuestionRole, tracker]);', 'the resume effect');
   assert.match(resume, /if \(!sameData\(resumeAction, action\)\) setResumeAction\(action\);\s*$/);

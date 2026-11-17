@@ -128,9 +128,13 @@ const BUDGETS = Object.freeze({
   },
   teacher: {
     home: { asked: 97, listenersOpened: 65, targetsOpened: 64, queries: 2, docReads: 7, open: 64 },
-    grades: { asked: 51, listenersOpened: 2, targetsOpened: 2, queries: 0, docReads: 0, open: 4 },
+    // The gradebook follows each roster student's stored detail beside their
+    // grades document (#561, responseDetailStore.js): one listener each, 50
+    // in this school, billed one read each while a collection is empty, and
+    // opened again with the gradebook's grades listener (review).
+    grades: { asked: 101, listenersOpened: 52, targetsOpened: 52, queries: 0, docReads: 0, open: 54 },
     monitor: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64 },
-    review: { asked: 51, listenersOpened: 1, targetsOpened: 1, queries: 0, docReads: 1, open: 4 },
+    review: { asked: 101, listenersOpened: 51, targetsOpened: 51, queries: 0, docReads: 1, open: 54 },
     homeAgain: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64 },
   },
 });

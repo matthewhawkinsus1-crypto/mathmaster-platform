@@ -2,6 +2,7 @@
 const { createHash } = require("node:crypto");
 const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection } = require("./assignmentRuntime");
 const { ROOT_ADMIN_EMAIL } = require("./auth");
+const { gradeEntryStorage, hydrateGradeData } = require("./gradeDetailStore");
 const EVENTS = "accommodationAdjustments";
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const id = (value) => typeof value === "string" && /^[A-Za-z0-9._-]{1,100}$/.test(value);
@@ -28,7 +29,13 @@ async function readPracticeWaiver({ db, transaction = null, studentId, gradeData
 async function gradeInputFingerprint({ assignment, gradeData, practiceWaived }) {
   const { stableWorkloadValue } = await import("../shared/workloadCorrection.mjs");
   const { workloadCorrections: _corrections, ...profile } = gradeData.profile || {};
-  return digest(stableWorkloadValue({ assignment, profile, tracker: gradeData.gradesByAssignment?.[assignment.id] || null,
+  // The tracker as its records read whole, without the split's own markers: the
+  // same fingerprint the record had before it was stored split. Callers join
+  // gradeData to its detail first (a record whose detail moved on reads as its
+  // summary, so the fingerprint differs and the sync is held, as it should be).
+  const storage = await gradeEntryStorage();
+  const tracker = storage.trackerWithoutSplitMarkers(gradeData.gradesByAssignment?.[assignment.id] || null);
+  return digest(stableWorkloadValue({ assignment, profile, tracker: tracker || null,
     overrides: gradeData.teacherGradeOverridesByAssignment?.[assignment.id] || null,
     recovery: gradeData.sectionRecoveryByAssignment?.[assignment.id] || null,
     challenge: gradeData.warmupChallengeByAssignment?.[assignment.id] || null, practiceWaived }));
@@ -39,9 +46,12 @@ async function correctionSyncAllowed({ db, studentId, gradeData, assignment }) {
   const correction = gradeData?.profile?.workloadCorrections?.[assignment.id];
   // Firestore can deliver an old event after approval/reversal. In particular,
   // an event from before the first correction has no correction to guard.
-  const liveSnapshot = await db.collection("grades").doc(studentId).get();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const liveSnapshot = await gradeRef.get();
   if (!liveSnapshot.exists) return false;
-  const liveData = liveSnapshot.data();
+  // Both the event's and the live record, joined to their stored detail (gradeEntryStorage.mjs).
+  const liveData = await hydrateGradeData({ db, gradeRef, gradeData: liveSnapshot.data(), assignmentIds: [assignment.id] });
+  gradeData = await hydrateGradeData({ db, gradeRef, gradeData, assignmentIds: [assignment.id] });
   const liveCorrection = liveData.profile?.workloadCorrections?.[assignment.id];
   if (!correction && !liveCorrection) return true;
   if (!correction || correction.eventId !== liveCorrection?.eventId) return false;
@@ -82,7 +92,7 @@ function createRetroactiveAccommodationService({ db, FieldPath, FieldValue, Http
         const gradeRef = db.collection("grades").doc(studentId);
         const [gradeSnap, assignmentSnap] = await Promise.all([tx.get(gradeRef), tx.get(db.collection("assignments").doc(assignmentId))]);
         if (!gradeSnap.exists || !assignmentSnap.exists) fail("not-found", "Student or assignment not found.");
-        const gradeData = gradeSnap.data();
+        const gradeData = await hydrateGradeData({ transaction: tx, gradeRef, gradeData: gradeSnap.data(), assignmentIds: [assignmentId] });
         const assignment = { ...assignmentSnap.data(), id: assignmentId };
         const classSnap = gradeData.classId ? await tx.get(db.collection("classes").doc(gradeData.classId)) : null;
         if (email !== ROOT_ADMIN_EMAIL && (!classSnap?.exists || String(classSnap.data().teacherOfRecord || "").trim().toLowerCase() !== email)) fail("permission-denied", "Only the student's teacher of record may review corrections.");

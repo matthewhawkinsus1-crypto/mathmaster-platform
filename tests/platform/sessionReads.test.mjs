@@ -150,6 +150,7 @@ test('sign-in\'s reads and the listeners that follow them ride one target', () =
   const release = /useEffect\(\(\) => \{\s*if \(user\) releaseSignInHolds\(\);\s*\}, \[user\]\);/.exec(APP);
   assert.ok(release, 'released once a user is set, and not on the first run, which comes with the hydration that takes the holds');
   const lessons = effectAround(APP, /const unsubscribe = onSnapshot\(\s*collection\(db, 'assignments'\),/, 'the lesson listener');
-  const grades = effectAround(APP, /return onSnapshot\(\s*doc\(db, 'grades', user\.id\),/, 'the student\'s grade listener');
+  // (Since #561 the listener is kept as stopGrades, beside the stored detail's.)
+  const grades = effectAround(APP, /(?:return|const stopGrades =) onSnapshot\(\s*doc\(db, 'grades', user\.id\),/, 'the student\'s grade listener');
   assert.ok(lessons.start < release.index && grades.start < release.index, 'the release runs after the listeners open');
 });

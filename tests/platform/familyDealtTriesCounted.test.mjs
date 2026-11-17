@@ -499,7 +499,8 @@ test('the live correction and the grader repair are told whose record they repai
   const workspace = executableSource(readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8'));
   const live = region(workspace, 'nextTracker = repairAssignmentTrackerForLiveCorrections({', '});', 'the live correction');
   assert.match(live, /assignment: liveAssignment,\s*studentId: student\.id,\s*classId: studentData\.classId \|\| student\.classId \|\| null,/);
-  assert.match(workspace, /gradeEntries\.forEach\(\(\{ student, studentRef, snapshot \}\) => \{/);
+  // Each student's entry carries its records joined to their stored detail (gradeEntryStorage.mjs).
+  assert.match(workspace, /gradeEntries\.forEach\(\(\{ student, studentRef, snapshot, joined \}\) => \{/);
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   const repairOne = region(app, 'const repairGradesByAssignmentWithCurrentGrader = (', 'const persistCurrentGraderCreditRepairs', 'one roster repair');
   assert.match(repairOne, /repairAssignmentTrackerForCurrentGrader\(\{\s*assignmentTracker: gradesByAssignment\[assignment\.id\],\s*questions,\s*correctedAt,\s*assignment,\s*studentId,\s*classId,\s*\}\);/);
