@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
@@ -74,6 +75,13 @@ const graphBounds = (values = []) => {
 
 // A term's name drawn with its number: a subscript for aₙ (a<sub>6</sub>), and
 // f(6) for f(n) (TL39, sequenceNotation.js).
+// A saved plot is a list of [n, aₙ] points, and the table one typed cell per
+// row (toolDraftShape.js). A point that is not two numbers is dropped; a cell
+// that is not text stays a blank cell in its row, so every later row keeps its
+// place.
+const normalizePlottedPoints = draftNormalizer(s.list(s.point()));
+const normalizeTableValues = draftNormalizer(s.list(s.cell({ or: '' }), { keepPositions: true }));
+
 function TermName({ words, n }) {
   return words.notation === 'f(n)' ? <>{words.term(n)}</> : <>a<sub>{n}</sub></>;
 }
@@ -174,8 +182,8 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   const requireRecursive = actions.includes('writeRecursive');
   const requireTarget = actions.includes('findSequenceTerm') && targetN > 0;
 
-  const [tableValues, setTableValues] = usePersistentToolState('tableValues', () => rows.map(() => ''));
-  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', []);
+  const [tableValues, setTableValues] = usePersistentToolState('tableValues', () => rows.map(() => ''), { normalize: normalizeTableValues });
+  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', [], { normalize: normalizePlottedPoints });
   const [plotMessage, setPlotMessage] = useState('');
   const [kindAnswer, setKindAnswer] = usePersistentToolState('kindAnswer', '');
   const [changeAnswer, setChangeAnswer] = usePersistentToolState('changeAnswer', '');
@@ -591,8 +599,8 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
   const bounds = graphBounds([...leftRows, ...rightRows].map((row) => row.value));
   const plotSnapStep = inferPlotSnapStep([...leftRows, ...rightRows], questionData.plotSnapStep);
   const [activeSeries, setActiveSeries] = usePersistentToolState('activeSeries', 'A');
-  const [leftPlottedPoints, setLeftPlottedPoints] = usePersistentToolState('leftPlottedPoints', []);
-  const [rightPlottedPoints, setRightPlottedPoints] = usePersistentToolState('rightPlottedPoints', []);
+  const [leftPlottedPoints, setLeftPlottedPoints] = usePersistentToolState('leftPlottedPoints', [], { normalize: normalizePlottedPoints });
+  const [rightPlottedPoints, setRightPlottedPoints] = usePersistentToolState('rightPlottedPoints', [], { normalize: normalizePlottedPoints });
   const [plotMessage, setPlotMessage] = useState('');
   const [relation, setRelation] = usePersistentToolState('relation', '');
   const [difference, setDifference] = usePersistentToolState('difference', '');

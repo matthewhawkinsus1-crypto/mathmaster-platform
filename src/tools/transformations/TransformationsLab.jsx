@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -80,6 +81,11 @@ const parameterFields = (values, setters, keys) => (
   </div>
 );
 
+// A saved plot is a list of [x, y] points (toolDraftShape.js): an entry that
+// is not one (null, a number, a pair with a word in it) is dropped, and the
+// other points come back where the student put them.
+const normalizePlottedPoints = draftNormalizer(s.list(s.point()));
+
 export default function TransformationsLab({ questionData = {}, onAction }) {
   const viewportWidth = useViewportWidth();
   // The bridge and each mode's first step are the mapping rule the item
@@ -120,7 +126,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const [horizontalDistance, setHorizontalDistance] = usePersistentToolState('horizontalDistance', '');
   const [verticalDirection, setVerticalDirection] = usePersistentToolState('verticalDirection', '');
   const [verticalDistance, setVerticalDistance] = usePersistentToolState('verticalDistance', '');
-  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', []);
+  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', [], { normalize: normalizePlottedPoints });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   /*

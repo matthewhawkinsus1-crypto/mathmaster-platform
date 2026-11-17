@@ -231,9 +231,17 @@ test('embedded solver reveal is presentation-only and does not solve or choose a
 });
 
 test('the ordered pair is only assembled after both variables are solved, and verification is required before the workspace considers the attempt ready to check', () => {
-  // Through a method: once both solves are done. Rows that each hold one
-  // variable (TL43): once every row has its value (none pending).
-  assert.match(modeSource, /const solution = separated\s*\?\s*\(separatedPending \? null : separatedPair\('value'\)\)\s*:\s*\(secondSolvedDone \? \{ \[survivingVariable\]: firstSolved\.value, \[removedVariable\]: secondSolved\.value \} : null\);/);
+  // Through a method: once both solves are done, each with the variable it
+  // belongs to (a restored draft can hold the second without the first, or
+  // without the selection that names the variables: toolDraftShape.js). Rows
+  // that each hold one variable (TL43): once every row has its value (none
+  // pending).
+  const methodPair = modeSource.match(/const solution = separated\s*\?\s*\(separatedPending \? null : separatedPair\('value'\)\)\s*:\s*\(([A-Za-z]+) \? \{ \[survivingVariable\]: firstSolved\.value, \[removedVariable\]: secondSolved\.value \} : null\);/);
+  assert.ok(methodPair, 'the ordered pair a method assembles');
+  const gate = methodPair[1] === 'secondSolvedDone' ? methodPair[1] : (modeSource.match(new RegExp(`const ${methodPair[1]} = ([^;]+);`)) || [])[1] || '';
+  for (const condition of ['secondSolvedDone', 'firstSolvedDone', 'survivingVariable', 'removedVariable']) {
+    assert.match(gate, new RegExp(`\\b${condition}\\b`), `the pair waits for ${condition}`);
+  }
   assert.match(modeSource, /const separatedPending = separatedValues\.find\(\(entry\) => entry\.value === null\)\?\.row \|\| null;/);
   assert.match(modeSource, /readyToSubmit = isDegenerate \? Boolean\(!subsystem && specialCaseAnswered\) : Boolean\(solution && \(!config\.requireVerification \|\| allVerified\)\)/);
 });

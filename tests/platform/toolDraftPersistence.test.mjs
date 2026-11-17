@@ -391,7 +391,8 @@ test('high-frequency edits coalesce, but a finished gesture is written at once',
     'the in-memory-only window has to stay short enough that a shutdown costs part of one gesture');
   const interval = stripComments(read('src/tools/intervalNumberLine/IntervalNumberLine.jsx'));
   // The only display-rate writer in the registry: endpoint dragging.
-  assert.match(interval, /usePersistentToolState\('built', \[\], \{ coalesceMs: TOOL_DRAFT_COALESCE_MS \}\)/);
+  // (Its options also carry its restore shape, toolDraftShape.js.)
+  assert.match(interval, /usePersistentToolState\('built', \[\], \{[^}]*\bcoalesceMs: TOOL_DRAFT_COALESCE_MS\b[^}]*\}\)/);
   assert.match(interval, /const endDrag = \(\) => \{[\s\S]*flushToolDrafts\(\)/);
   // Typing is never coalesced.
   assert.match(interval, /usePersistentToolState\('notation', ''\)/);

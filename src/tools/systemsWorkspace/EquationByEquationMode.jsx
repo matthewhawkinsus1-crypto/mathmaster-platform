@@ -18,6 +18,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
@@ -44,6 +45,12 @@ export const BY_EQUATION_METHOD = 'byEquation';
 // audit's documented exception there), not a copy with a new hard-coded colour.
 const actionStyle = eliminationActionStyle;
 
+// A row's own solve is { variable, value, expression }, and each original
+// equation's check a record of its own (toolDraftShape.js). One that is not
+// that shape is dropped, and that row or equation asks for its work again.
+const normalizeRowSolves = draftNormalizer(s.map(s.record({ variable: s.text(), value: s.cell(), expression: s.nullable(s.text()) })));
+const normalizeByEquationCheck = draftNormalizer(s.record({ verification: s.map(s.record({ placed: s.map(s.boolean()), leftAnswer: s.text(), rightAnswer: s.text(), checked: s.boolean(), valid: s.boolean() })) }));
+
 const emptyCheck = () => ({ verification: {} });
 
 /** "x in Equation 1, y in Equation 2 and z in Equation 3". */
@@ -61,8 +68,8 @@ export default function EquationByEquationMode({ questionData = {}, config, rows
   );
   // The student's own solve of each equation that is not already
   // `variable = number`, by equation index, and the original-equation checks.
-  const [solved, setSolved] = usePersistentToolState('byEquationSolved', {});
-  const [storedCheck, setStoredCheck] = usePersistentToolState('byEquationVerification', emptyCheck);
+  const [solved, setSolved] = usePersistentToolState('byEquationSolved', {}, { normalize: normalizeRowSolves });
+  const [storedCheck, setStoredCheck] = usePersistentToolState('byEquationVerification', emptyCheck, { normalize: normalizeByEquationCheck });
   const check = storedCheck?.verification ? storedCheck : emptyCheck();
   // Transient presentation only — see toolStatePersistence.js.
   const [verificationNote, setVerificationNote] = useState(null);

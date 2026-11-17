@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -12,13 +13,18 @@ import expressionMeaningGrader, {
 } from '../../../functions/shared/serverGrading/tools/expressionMeaning.mjs';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 
+// A saved row of meanings is a map of the choices made for one expression
+// (toolDraftShape.js): a choice that is not text is dropped, and a row that is
+// not a map is dropped, so the row asks for its choices again.
+const normalizeMeaningRows = draftNormalizer(s.map(s.map(s.text())));
+
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 
 const DIMENSION_LABEL = { unit: 'Unit', contextMeaning: 'Contextual meaning', mathRole: 'Mathematical role' };
 
 export default function ExpressionMeaning({ questionData = {}, onAction }) {
   const expressions = useMemo(() => (Array.isArray(questionData.expressions) ? questionData.expressions : []), [questionData.expressions]);
-  const [assignments, setAssignments] = usePersistentToolState('assignments', {});
+  const [assignments, setAssignments] = usePersistentToolState('assignments', {}, { normalize: normalizeMeaningRows });
   // Which expression's meaning row is currently open for editing. Selection,
   // not an answer, so it stays out of the draft/undo history — but it opens
   // where the restored answers say the student was: the first row still

@@ -1129,8 +1129,9 @@ test('the lab reports and submits the same raw work, in the shape the grader rea
   // grader recognises as untouched. Every judgment starts unanswered, which
   // is what the plan's starting choices say too.
   assert.match(COMPONENT, /const startingLine = dataModelingStartingLine\(mode, questionData, \{ regression, stepperPlan: exploratoryLineFit \? fitControls : null \}\);/);
-  assert.match(COMPONENT, /usePersistentToolState\('m', startingLine\.m\)/);
-  assert.match(COMPONENT, /usePersistentToolState\('b', startingLine\.b\)/);
+  // (The options, each box's restore shape, toolDraftShape.js, are not part of that.)
+  assert.match(COMPONENT, /usePersistentToolState\('m', startingLine\.m(?:, \{[^}]*\})?\)/);
+  assert.match(COMPONENT, /usePersistentToolState\('b', startingLine\.b(?:, \{[^}]*\})?\)/);
   for (const [field, value] of Object.entries(DATA_MODELING_STARTING_CHOICES)) {
     assert.equal(value, UNANSWERED, `the plan starts ${field} unanswered`);
     assert.match(COMPONENT, new RegExp(`usePersistentToolState\\('${field}', UNANSWERED\\)`), `${field} starts unanswered, as the plan says`);

@@ -25,7 +25,8 @@ test('the history keeps the newest command first, each once, at most three', () 
 
 test('the history is draft-backed, and each calculator on a page keeps its own', () => {
   const calculator = componentSource('src/tools/matrixLab/MatrixCalculator.jsx');
-  assert.match(calculator, /usePersistentToolState\(historyKey, \[\]\)/);
+  // (Its options, the restore shape of toolDraftShape.js, are not part of that.)
+  assert.match(calculator, /usePersistentToolState\(historyKey, \[\](?:, \{[^}]*\})?\)/);
   assert.doesNotMatch(calculator, /useState\(null\)/, 'no result held only in component state');
   // A result is worked out again from the matrices on screen, never stored.
   assert.match(calculator, /runCalculator\(operation, left\.cells, right\?\.cells\),\s*\}\)\);/);

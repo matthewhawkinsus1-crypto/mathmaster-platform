@@ -37,6 +37,7 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState, { ToolDraftScopeProvider, readToolDraftRecord, useToolDraftScope } from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
@@ -116,6 +117,14 @@ import AlgebraicOutcome from './AlgebraicOutcome.jsx';
 import { resolveInterpretationGate } from './algebraicOutcomeModel.js';
 import { planePairs } from './spatialFeedback.js';
 import { SubmitText, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+
+// A classification or plane reading is tagged with the outcome it answers
+// (toolDraftShape.js): { identity, choice, kind } and { identity, answers,
+// checked }. One that is not that shape is not kept, and the question asks for
+// it again. The reduction's own state is repaired by repairReductionState on every
+// read, so it needs no shape here.
+const normalizeOutcomeClassification = draftNormalizer(s.nullable(s.record({ identity: s.text(), choice: s.text(), kind: s.text() })));
+const normalizePlaneWork = draftNormalizer(s.nullable(s.record({ identity: s.text(), answers: s.map(s.text()), checked: s.boolean() })));
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
@@ -199,8 +208,8 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   // their own names so a student who switches method keeps each method's work
   // (the elimination workspace keeps its own pair). Each is tagged with the
   // outcome it answers and used only while that outcome stands.
-  const [outcomeClassification, setOutcomeClassification] = usePersistentToolState('substitutionClassification', null);
-  const [storedPlaneWork, setPlaneWork] = usePersistentToolState('substitutionPlanes', null);
+  const [outcomeClassification, setOutcomeClassification] = usePersistentToolState('substitutionClassification', null, { normalize: normalizeOutcomeClassification });
+  const [storedPlaneWork, setPlaneWork] = usePersistentToolState('substitutionPlanes', null, { normalize: normalizePlaneWork });
 
   // The statement the student's OWN simplified sides made, if one has settled
   // the system (the other road to an outcome is the reduced 2×2, below).

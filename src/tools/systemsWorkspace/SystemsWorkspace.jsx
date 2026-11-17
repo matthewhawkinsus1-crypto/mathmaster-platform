@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
@@ -36,6 +37,25 @@ import { algebraicSystemDimension } from './algebraicSystemsEngine.js';
 
 // The defaults the shared grader also reads, so an unauthored field shows and
 // grades the same system (functions/shared/toolMath/systemsWorkspace/systemsMath.mjs).
+/*
+ * WHAT A SAVED GRAPH OF A SYSTEM MAY RESTORE (toolDraftShape.js). Each line or
+ * boundary is one entry of typed coordinates, in the question's order, so an
+ * entry that is not one (null, a word) stays a blank entry in its place: it
+ * threw on every load, because every entry's points are read. A coordinate
+ * that is not a value is blank; the other entries come back as typed.
+ */
+const SYSTEM_CELL = s.cell({ or: '' });
+const TWO_POINTS = { x1: s.required(SYSTEM_CELL), y1: s.required(SYSTEM_CELL), x2: s.required(SYSTEM_CELL), y2: s.required(SYSTEM_CELL) };
+const LINE_POINTS_ENTRY = s.record(TWO_POINTS, { or: { x1: '', y1: '', x2: '', y2: '' } });
+const CONSTRUCTION_ENTRY = s.record({
+  ...TWO_POINTS,
+  boundaryStyle: s.required(s.text({ or: '' })),
+  shade: s.required(s.text({ or: '' })),
+}, { or: { x1: '', y1: '', x2: '', y2: '', boundaryStyle: '', shade: '' } });
+const normalizeLinePoints = draftNormalizer(s.list(LINE_POINTS_ENTRY, { keepPositions: true, length: 2 }));
+const normalizeConstruction = (count) => draftNormalizer(s.list(CONSTRUCTION_ENTRY, { keepPositions: true, length: count }));
+const normalizeIntersectionValues = draftNormalizer(s.record(TWO_POINTS));
+
 const DEFAULT_SYSTEM = SYSTEMS_WORKSPACE_DEFAULTS.system;
 const DEFAULT_INEQUALITIES = SYSTEMS_WORKSPACE_DEFAULTS.inequalities;
 const DEFAULT_LINEAR_QUADRATIC = SYSTEMS_WORKSPACE_DEFAULTS.linearQuadratic;
@@ -199,7 +219,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
   const [testChoice, setTestChoice] = usePersistentToolState('testChoice', '');
   const [construction, setConstruction] = usePersistentToolState('construction', () => inequalities.map(() => ({
     x1:'', y1:'', x2:'', y2:'', boundaryStyle:'', shade:'',
-  })));
+  })), { normalize: normalizeConstruction(inequalities.length) });
   // Why a tap on the construct graph placed nothing.
   const [plotNotice, setPlotNotice] = useState(null);
   const { feedback, submit } = useToolSubmission(onAction);
@@ -498,7 +518,7 @@ function LinearConstructMode({ questionData, onAction }) {
   const [x, setX] = usePersistentToolState('x', '');
   const [y, setY] = usePersistentToolState('y', '');
   const [classification, setClassification] = usePersistentToolState('classification', UNANSWERED);
-  const [linePoints, setLinePoints] = usePersistentToolState('linePoints', emptyLinePoints);
+  const [linePoints, setLinePoints] = usePersistentToolState('linePoints', emptyLinePoints, { normalize: normalizeLinePoints });
   // Why a tap on the plane placed nothing.
   const [plotNotice, setPlotNotice] = useState(null);
   const { feedback, submit } = useToolSubmission(onAction);
@@ -663,7 +683,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
   const intersections = useMemo(() => solveLinearQuadratic(config), [config]);
   const revealAnswers = useRevealAnswers();
   const [count, setCount] = usePersistentToolState('count', '');
-  const [values, setValues] = usePersistentToolState('values', { x1:'', y1:'', x2:'', y2:'' });
+  const [values, setValues] = usePersistentToolState('values', { x1:'', y1:'', x2:'', y2:'' }, { normalize: normalizeIntersectionValues });
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ count, values }), [count, values]);
   const restore = useCallback((value) => { setCount(value?.count || ''); setValues(value?.values || { x1:'', y1:'', x2:'', y2:'' }); }, []);

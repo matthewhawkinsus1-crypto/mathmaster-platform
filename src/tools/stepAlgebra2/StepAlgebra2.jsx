@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
 import useMathUndoHistory from '../../platform/workView/useMathUndoHistory';
@@ -10,6 +11,7 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import stepAlgebra2Grader, {
   LEGACY_SOLVER_DEFAULT_EQUATION,
+  LEGACY_SOLVER_OPERATIONS,
   applyLegacySolverOperation as applyOperation,
   legacySolverWork,
 } from '../../../functions/shared/serverGrading/tools/stepAlgebra2.mjs';
@@ -43,6 +45,23 @@ const formatEquation = (state) => {
   return `${coefficient} ${b >= 0 ? '+' : '−'} ${exactFractionText(Math.abs(b))} = ${exact(state.c)}`;
 };
 
+/*
+ * WHAT A SAVED BALANCE MAY RESTORE (toolDraftShape.js). The equation is
+ * ax + b = c in numbers, and each step names its move and the equation before
+ * and after it. A step without its equations threw on every load (the list
+ * draws both); the steps before the first damaged one are kept, because each
+ * follows from the one before.
+ */
+const BALANCE_EQUATION = s.record({ a: s.required(s.number()), b: s.required(s.number()), c: s.required(s.number()) });
+const normalizeBalanceEquation = draftNormalizer(BALANCE_EQUATION);
+const normalizeBalanceOperation = draftNormalizer(s.oneOf(LEGACY_SOLVER_OPERATIONS));
+const normalizeBalanceHistory = draftNormalizer(s.list(s.record({
+  before: s.required(BALANCE_EQUATION),
+  operation: s.required(s.oneOf(LEGACY_SOLVER_OPERATIONS)),
+  operand: s.required(s.number()),
+  after: s.required(BALANCE_EQUATION),
+}), { untilInvalid: true }));
+
 const describeOperation = (operation, value) => {
   const spec = OPERATIONS[operation];
   if (!spec || !Number.isFinite(value)) return null;
@@ -69,10 +88,10 @@ export default function StepAlgebra2({ questionData = {}, onAction, draftKey = n
 
 function BalanceSolver({ questionData = {}, onAction }) {
   const original = questionData.equation || LEGACY_SOLVER_DEFAULT_EQUATION;
-  const [state, setState] = usePersistentToolState('state', { ...original });
-  const [operation, setOperation] = usePersistentToolState('operation', 'subtract');
+  const [state, setState] = usePersistentToolState('state', { ...original }, { normalize: normalizeBalanceEquation });
+  const [operation, setOperation] = usePersistentToolState('operation', 'subtract', { normalize: normalizeBalanceOperation });
   const [operand, setOperand] = usePersistentToolState('operand', '');
-  const [history, setHistory] = usePersistentToolState('history', []);
+  const [history, setHistory] = usePersistentToolState('history', [], { normalize: normalizeBalanceHistory });
   const [inputError, setInputError] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   // The student's moves, in order — what Check submits, what a deadline
