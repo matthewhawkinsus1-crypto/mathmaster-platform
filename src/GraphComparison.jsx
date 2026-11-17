@@ -2,16 +2,20 @@ import { useEffect, useMemo } from 'react';
 import GraphDisplay from './GraphDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import graphComparisonGrader from '../functions/shared/serverGrading/tools/graphComparison.mjs';
 import { fieldResponsesWork } from '../functions/shared/toolMath/scenario/scenarioWork.mjs';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 
+// The saved responses: a choice or the written comparison, by field id.
+const COMPARISON_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftShape.cell())));
+
 export default function GraphComparison({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const graphs = useMemo(() => (Array.isArray(question.graphs) ? question.graphs.filter((item) => item?.graph) : []), [question.graphs]);
   const fields = useMemo(() => (Array.isArray(question.fields) ? question.fields.filter((item) => item?.id) : []), [question.fields]);
   const graphLabelById = useMemo(() => Object.fromEntries(graphs.map((item, index) => [String(item.id || ''), item.label || `Graph ${index + 1}`])), [graphs]);
-  const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-comparison` : null);
+  const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-comparison` : null, { normalize: COMPARISON_DRAFT });
   const responses = history.value;
 
   // The student's raw work. Each field's verdict comes ONLY from the shared

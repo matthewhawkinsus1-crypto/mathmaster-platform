@@ -5,6 +5,17 @@ import {
   EMPTY_POINT_MEANING,
   normalizeInterpretationConfig,
 } from './contextInterpretationUtils';
+import { draftShape } from './tools/shared/toolDraftShape.js';
+
+/*
+ * What a saved point meaning may hold (ContextInterpretation's draft, and the
+ * relationship model's pointMeaning): each entry is what was typed or chosen
+ * for it. An entry holding anything else is dropped, and its box opens empty.
+ */
+export const pointMeaningDraftShape = (options = {}) => draftShape.record(
+  Object.fromEntries(Object.keys(EMPTY_POINT_MEANING).map((key) => [key, draftShape.nullable(draftShape.cell())])),
+  options,
+);
 
 const borderFor = (feedback, id) => {
   const grade = feedback?.partGrades?.find((part) => part.id === id);

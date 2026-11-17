@@ -98,7 +98,10 @@ test('intercept conceptual and ordered-pair work is write-through persisted and 
   assert.match(region, /draftKey \? `\$\{draftKey\}:linear-intercepts` : null/);
   assert.match(region, /const workDraftKeyRef = useRef\(workDraftKey\)/);
   assert.match(region, /writeQuestionDraft\(workDraftKeyRef\.current, resolved\)/);
-  assert.match(region, /setWorkState\(readQuestionDraft\(workDraftKey, null\) \|\| initialWork\(\)\)/);
+  // A key change reads the work its new key names (through the module's
+  // draft check, checkedQuestionDraft.js), or starts it fresh when there is none.
+  assert.match(region, /setWorkState\(readInterceptWork\(workDraftKey\)\)/);
+  assert.match(orchestratorSource, /const readInterceptWork = \(key\) => readCheckedQuestionDraft\(key, null, \{[^}]*\}\) \|\| initialWork\(\);/);
 
   // The old passive save was the race: a navigation/key swap could happen
   // before the effect ran, or make the old in-memory work land under the new key.

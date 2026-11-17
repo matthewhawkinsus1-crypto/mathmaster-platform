@@ -3,14 +3,18 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import { pointChoiceLineReading } from './platform/language/numberLineDescription.js';
 import { PublishFigureReading, describedContent, describedIn, useFigureWords } from './platform/language/figureReadings.js';
 import { namedIn } from './platform/language/figureNames.js';
 import { gradeNumberLineResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 
+// The saved choice: the number picked on the line, or none yet.
+const POINT_DRAFT = draftNormalizer(draftShape.nullable(draftShape.number()));
+
 export default function NumberLine({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { target, prompt } = question;
-  const history = useUndoHistory(null, 60, draftKey ? `${draftKey}:number-line` : null);
+  const history = useUndoHistory(null, 60, draftKey ? `${draftKey}:number-line` : null, { normalize: POINT_DRAFT });
   const selectedPoint = history.value;
   const choices = Array.isArray(question.choices) && question.choices.length > 0 ? question.choices : [-10, -5, 0, 5, 10];
   // Correctness comes from the shared grading contract so every caller of it —

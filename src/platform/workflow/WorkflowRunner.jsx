@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MathInput from '../../MathInput';
 import useLocalDraftState from '../../useLocalDraftState';
+import { draftNormalizer, draftShape } from '../../tools/shared/toolDraftShape.js';
+import { workflowResponsesDraftShape } from './workflowResponseDraft.js';
 import { studentInputMark, studentInputSince } from '../../questionDraftStorage';
 import MathDisplay from '../../MathDisplay';
 import QuestionPrompt from '../../QuestionPrompt';
@@ -930,6 +932,8 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
 // dependency the memo that picks the open keypad did not list.
 const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
 
+const STAGE_POSITION_DRAFT = draftNormalizer(draftShape.number({ integer: true, min: 0 }));
+
 export default function WorkflowRunner({
   question,
   onStateChange,
@@ -951,13 +955,18 @@ export default function WorkflowRunner({
   onSupportEvidence = null,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
+  // Each step's saved answer is read back as the kind that step writes
+  // (workflowResponseDraft.js), and the open step as a step's position.
+  const responsesDraft = useMemo(() => draftNormalizer(workflowResponsesDraftShape(authoredWorkflow)), [authoredWorkflow]);
   const [storedResponses, setResponses] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-responses` : null,
     {},
+    { normalize: responsesDraft },
   );
   const [activeStageIndex, setActiveStageIndex] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-stage` : null,
     0,
+    { normalize: STAGE_POSITION_DRAFT },
   );
 
   // A table step that came back from the server copy carries only the

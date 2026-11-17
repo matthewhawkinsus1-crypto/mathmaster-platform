@@ -6,7 +6,9 @@ import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
 import { NoTryCostScope, useHostSubmitLabel, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { inequalitySolutionRepresentationStages, solutionRepresentationStageStatus } from './platform/curriculum/inequalityRepresentationPolicy.js';
-import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { writeQuestionDraft } from './questionDraftStorage';
+import { readCheckedQuestionDraft } from './platform/persistence/checkedQuestionDraft.js';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import { placementInstruction } from './relationOperationPlacement.js';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import {
@@ -145,8 +147,12 @@ const pendingFlipForBranch = (pending, branchIndex) => (
 // One reader for the saved draft, so no field reaches the workspace unchecked.
 // A malformed relation state, pending symbol step or candidate map is dropped
 // and the question resumes from its own equation instead of failing to open.
+// The draft is read as every module's is (checkedQuestionDraft.js): a record,
+// with no __proto__ key; each of its fields is then checked by the
+// workspace's own readers below.
+const RELATION_DRAFT = draftNormalizer(draftShape.record({}));
 const readRelationDraft = (draftKey) => {
-  const saved = readQuestionDraft(draftKeyFor(draftKey), null);
+  const saved = readCheckedQuestionDraft(draftKeyFor(draftKey), null, { normalize: RELATION_DRAFT, field: 'multi-relation' });
   if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
     return { relationState: null, pendingRelationFlip: null, candidateChecks: {}, solutionSet: null };
   }

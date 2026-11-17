@@ -2,6 +2,7 @@ import { applyBalancedOperation } from './algebraAstEngine.js';
 import { sanitizeStructureTool } from './algebraStructureTools.js';
 import { equationKey } from './algebraStructureToolState.js';
 import { migrateLegacySimplifyDraft } from './platform/algebra/simplify/simplifyState.js';
+import { draftShape } from './tools/shared/toolDraftShape.js';
 
 // Increment this whenever the shape/meaning of a pending algebra move changes.
 // Saved equations are durable; cancellation/simplification UI is derived and
@@ -206,5 +207,91 @@ export const rehydrateAlgebraDraft = ({ draft, initialEquation }) => {
     return { ...cleanTransientState(draft, equation), workSteps };
   }
 };
+
+/*
+ * WHAT A SAVED STEP ALGEBRA DRAFT MAY HOLD, BEFORE IT IS REHYDRATED.
+ *
+ * The draft is read back as the workspace opens (StepByStepAlgebraCore), and
+ * rehydrateAlgebraDraft trusted the kind of each field: an equation side that
+ * was a record, an operand or support level that could not be turned into
+ * text, crossed sides that were not a list, each threw in the first render or
+ * the first Undo after it, on every reload (checkedQuestionDraft.js). Each
+ * field is the kind the workspace writes; a field that is not is dropped and
+ * the workspace starts it as a new one would. An equation without both sides
+ * is dropped whole (the question's own equation is used); a committed step,
+ * an armed operation or a pending move that is not one is dropped; an open
+ * Distribute tool that does not describe its own terms is closed, as an open
+ * tool is on any change of draft version. A valid draft comes back unchanged.
+ */
+const sidePair = draftShape.record({ left: draftShape.required(draftShape.cell()), right: draftShape.required(draftShape.cell()) });
+const maybe = (piece) => draftShape.nullable(piece);
+const sideTerm = draftShape.record({ sign: draftShape.number(), magnitudeText: draftShape.text(), magnitudeLatex: draftShape.text(), text: draftShape.text(), latex: draftShape.text() });
+const isPlain = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const keepsWhole = (piece) => (value) => {
+  let changed = false;
+  const kept = piece(value, () => { changed = true; });
+  return !changed && kept === value;
+};
+const distributionTermsValid = keepsWhole(draftShape.list(sideTerm));
+const isDistributionState = (state) => isPlain(state)
+  && PENDING_MOVE_SIDES.includes(state.side)
+  && typeof state.factorText === 'string' && typeof state.factorLatex === 'string'
+  && Array.isArray(state.terms) && state.terms.every(isPlain) && distributionTermsValid(state.terms)
+  && Array.isArray(state.placedIndices)
+  && state.placedIndices.every((index) => Number.isInteger(index) && index >= 0 && index < state.terms.length)
+  && (state.armed === undefined || typeof state.armed === 'boolean')
+  && (state.groupText === undefined || typeof state.groupText === 'string')
+  && (state.sideTermIndex === undefined || Number.isInteger(state.sideTermIndex))
+  && (state.sideTerms === undefined || (Array.isArray(state.sideTerms) && state.sideTerms.every(isPlain) && distributionTermsValid(state.sideTerms)));
+const pendingPlacement = draftShape.either(
+  draftShape.text(),
+  draftShape.record({ kind: draftShape.required(draftShape.text()), termIndex: draftShape.required(draftShape.number({ integer: true, min: 0 })) }),
+);
+
+export const ALGEBRA_DRAFT_SHAPE = draftShape.record({
+  algebraDraftVersion: draftShape.number(),
+  equation: draftShape.record({
+    left: draftShape.required(draftShape.cell()),
+    right: draftShape.required(draftShape.cell()),
+    variable: maybe(draftShape.text()),
+    objective: maybe(draftShape.record({
+      kind: maybe(draftShape.text()),
+      variable: maybe(draftShape.text()),
+      simplifyRequired: maybe(draftShape.boolean()),
+      requireSimplifiedFinalForm: maybe(draftShape.boolean()),
+      targetForm: maybe(draftShape.either(draftShape.text(), draftShape.record({}))),
+    })),
+  }),
+  supportLevel: maybe(draftShape.cell()),
+  mode: maybe(draftShape.cell()),
+  operand: maybe(draftShape.cell()),
+  distributionState: draftShape.nullable(draftShape.where(isDistributionState)),
+  structureTool: draftShape.nullable(draftShape.record({})),
+  simplifyTool: draftShape.nullable(draftShape.record({})),
+  workSteps: draftShape.list(draftShape.record({
+    kind: maybe(draftShape.text()),
+    description: draftShape.required(draftShape.text()),
+    // Words, and the mathematics among them ({ latex }, { text }).
+    parts: draftShape.list(draftShape.either(draftShape.cell(), draftShape.record({ text: draftShape.text(), latex: draftShape.text() }))),
+    before: draftShape.required(sidePair),
+    after: draftShape.required(sidePair),
+  })),
+  armedTile: maybe(draftShape.record({ operation: draftShape.required(draftShape.text()), sourceSide: maybe(draftShape.text()) })),
+  pendingMove: maybe(draftShape.record({
+    operation: maybe(draftShape.text()),
+    operandExpression: maybe(draftShape.cell()),
+    operand: maybe(draftShape.cell()),
+    placementBySide: draftShape.map(maybe(pendingPlacement)),
+  })),
+  crossedSides: draftShape.list(draftShape.text()),
+  cancelledPairIds: draftShape.map(draftShape.list(draftShape.cell())),
+  selectedCancellationIndices: draftShape.map(draftShape.list(draftShape.cell())),
+  simplificationAnswers: draftShape.map(maybe(draftShape.cell())),
+  promptAnswers: draftShape.map(maybe(draftShape.cell())),
+  likeTermsOpen: maybe(draftShape.boolean()),
+  likeTermsSide: maybe(draftShape.text()),
+  selectedLikeTermIndices: draftShape.list(draftShape.cell()),
+  likeTermsAnswer: maybe(draftShape.cell()),
+});
 
 export { sanitizeWorkSteps, MAX_WORK_STEPS };

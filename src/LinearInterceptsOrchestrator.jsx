@@ -3,7 +3,9 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput.jsx';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
 import EnlargeableFigure from './components/common/EnlargeableFigure';
-import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { writeQuestionDraft } from './questionDraftStorage';
+import { readCheckedQuestionDraft } from './platform/persistence/checkedQuestionDraft.js';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import { parseOrderedPair } from './answerUtils.js';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
@@ -71,6 +73,32 @@ const initialStage = () => ({
 
 const initialWork = () => ({ activeKind: 'x', x: initialStage(), y: initialStage() });
 
+/*
+ * What the saved work may hold (checkedQuestionDraft.js): which intercept is
+ * open, and for each the variable chosen and placed as zero, the solved
+ * equation, the point and how far it got. A field that is not one is dropped
+ * and that intercept reads it as a new one would; an intercept that is not a
+ * record starts fresh. A valid draft comes back unchanged.
+ */
+const TEXT = draftShape.nullable(draftShape.text());
+const FLAG = draftShape.nullable(draftShape.boolean());
+const interceptStageDraft = draftShape.record({
+  conceptualZeroChoice: TEXT,
+  placedZeroVariable: TEXT,
+  committed: FLAG,
+  solved: FLAG,
+  solvedEquationLatex: TEXT,
+  point: TEXT,
+  checked: FLAG,
+  completed: FLAG,
+});
+const INTERCEPT_WORK_DRAFT = draftNormalizer(draftShape.record({
+  activeKind: TEXT,
+  x: interceptStageDraft,
+  y: interceptStageDraft,
+}));
+const readInterceptWork = (key) => readCheckedQuestionDraft(key, null, { normalize: INTERCEPT_WORK_DRAFT, field: 'linear-intercepts' }) || initialWork();
+
 // Told when a finished intercept is reopened on a DOL, quiz or test: the
 // question is no longer complete, so Submit waits again.
 const INCOMPLETE_PAYLOAD = Object.freeze({ isComplete: false, isCorrect: false, questionDetails: '', responseKey: '', parts: [] });
@@ -102,7 +130,7 @@ export default function LinearInterceptsOrchestrator({
   // restorable and continues to flow through the universal server draft sync.
   const workDraftKey = draftKey ? `${draftKey}:linear-intercepts` : null;
   const workDraftKeyRef = useRef(workDraftKey);
-  const [work, setWorkState] = useState(() => readQuestionDraft(workDraftKey, null) || initialWork());
+  const [work, setWorkState] = useState(() => readInterceptWork(workDraftKey));
   const [zeroArmed, setZeroArmed] = useState(false);
   const [stageHistory, setStageHistory] = useState(() => ({ kind: 'x', entries: [] })); // conceptual undo, scoped per intercept
   const [message, setMessage] = useState('');
@@ -130,7 +158,7 @@ export default function LinearInterceptsOrchestrator({
   useEffect(() => {
     if (workDraftKeyRef.current === workDraftKey) return;
     workDraftKeyRef.current = workDraftKey;
-    setWorkState(readQuestionDraft(workDraftKey, null) || initialWork());
+    setWorkState(readInterceptWork(workDraftKey));
     setZeroArmed(false);
     setStageHistory({ kind: 'x', entries: [] });
     setMessage('');

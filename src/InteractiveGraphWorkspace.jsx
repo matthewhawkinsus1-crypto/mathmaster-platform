@@ -21,6 +21,7 @@ import { checkPlottedPoints, summarizeSelfCheck } from './platform/student/graph
 import { analysisKeypadProfile } from '../functions/shared/pathToolContracts.mjs';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 import {
   MAGNETIC_POINT_SNAP_PIXELS,
@@ -247,6 +248,46 @@ const analysisAnswerShape = (part) => describeAnswerFormat({
   answerFormat: analysisAnswerFormatFor(part) || analysisKeypadProfile(part),
 });
 
+/*
+ * WHAT A SAVED GRAPH MAY HOLD (checkedQuestionDraft.js). The stage, and the
+ * construction and analysis the workspace keeps in its drafts: points are
+ * [x, y] pairs, a sketch is a list of strokes of such points, a camera is the
+ * four edges of the window it was drawn in, a typed answer is what was typed.
+ * A point, stroke, marker or answer that is not one is dropped; a collection
+ * the workspace reads on every render opens empty in its place (the task's
+ * chosen x values: the question's own), and the rest of the work comes back.
+ */
+const STAGE_DRAFT = draftNormalizer(draftShape.oneOf(['construct', 'analysis']));
+const sketchStrokesDraft = draftShape.list(draftShape.list(draftShape.point()), { or: [] });
+const sketchCameraDraft = draftShape.nullable(draftShape.record(
+  Object.fromEntries(['xMin', 'xMax', 'yMin', 'yMax'].map((edge) => [edge, draftShape.required(draftShape.number())])),
+));
+const TYPED = draftShape.nullable(draftShape.cell());
+const FLAG = draftShape.nullable(draftShape.boolean());
+const constructionDraft = (chosenXValues) => draftNormalizer(draftShape.record({
+  placements: draftShape.required(draftShape.map(draftShape.point(), { or: {} })),
+  chosenXValues: draftShape.required(draftShape.map(TYPED, { or: chosenXValues })),
+  pointsValidated: FLAG,
+  strokes: draftShape.required(sketchStrokesDraft),
+  sketchView: sketchCameraDraft,
+  snapped: FLAG,
+  // A marker is its symbol and where it was dropped; an older draft's is the
+  // symbol alone (markerValue / markerPoint above read both).
+  markerPlacements: draftShape.required(draftShape.map(
+    draftShape.either(draftShape.text(), draftShape.record({ marker: draftShape.text(), point: draftShape.nullable(draftShape.point()) })),
+    { or: {} },
+  )),
+}));
+const ANALYSIS_DRAFT = draftNormalizer(draftShape.record({
+  selections: draftShape.required(draftShape.map(draftShape.nullable(draftShape.list(draftShape.point())), { or: {} })),
+  answers: draftShape.required(draftShape.map(TYPED, { or: {} })),
+  typedPoints: draftShape.required(draftShape.map(TYPED, { or: {} })),
+  noneSelections: draftShape.required(draftShape.map(FLAG, { or: {} })),
+  inversePointsValidated: FLAG,
+  inverseStrokes: sketchStrokesDraft,
+  inverseSketchView: sketchCameraDraft,
+  inverseSnapped: FLAG,
+}));
 
 export default function InteractiveGraphWorkspace({
   question,
@@ -306,7 +347,7 @@ export default function InteractiveGraphWorkspace({
   const [drawFeedback, setDrawFeedback] = useState('');
   const [activeMarker, setActiveMarker] = useState(null);
   const [activeAnalysisPartId, setActiveAnalysisPartId] = useState(null);
-  const [stage, setStage] = useLocalDraftState(draftKey ? `${draftKey}:graph-stage` : null, mode === 'analysis' ? 'analysis' : 'construct');
+  const [stage, setStage] = useLocalDraftState(draftKey ? `${draftKey}:graph-stage` : null, mode === 'analysis' ? 'analysis' : 'construct', { normalize: STAGE_DRAFT });
   const lastMarkerFeedbackRef = useRef('');
   const [selfCheckReport, setSelfCheckReport] = useState(null);
   // "Check Point Placements" just found a point off (until a point moves).
@@ -448,11 +489,13 @@ export default function InteractiveGraphWorkspace({
     { placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], sketchView: null, snapped: false, markerPlacements: {} },
     60,
     draftKey ? `${draftKey}:graph-construction` : null,
+    { normalize: constructionDraft(initialChosenX) },
   );
   const analysisHistory = useUndoHistory(
     { selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSketchView: null, inverseSnapped: false },
     60,
     draftKey ? `${draftKey}:graph-analysis` : null,
+    { normalize: ANALYSIS_DRAFT },
   );
   const construction = constructionHistory.value;
   const analysis = analysisHistory.value;

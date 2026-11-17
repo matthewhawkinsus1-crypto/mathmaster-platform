@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
-import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
+import { writeQuestionDraft } from './questionDraftStorage';
+import { readCheckedQuestionDraft } from './platform/persistence/checkedQuestionDraft.js';
+import { draftNormalizer } from './tools/shared/toolDraftShape.js';
+import { ALGEBRA_DRAFT_SHAPE, ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
 import { buildCancellationModel } from './algebraCancellationModel';
 import { keyboardPlacementSlots, keyboardPlacementStart, moveKeyboardPlacement, placementSideName, stageOperationPlacement } from './algebraOperationPlacement';
@@ -404,6 +406,9 @@ export function UnreadableEquationPanel({ parseError = null, teacherView = false
   );
 }
 
+// The saved draft's check (checkedQuestionDraft.js).
+const ALGEBRA_DRAFT_CHECK = draftNormalizer(ALGEBRA_DRAFT_SHAPE);
+
 export default function StepByStepAlgebra({
   question: questionProp,
   questionRecord,
@@ -488,7 +493,9 @@ export default function StepByStepAlgebra({
     [question],
   );
   const localDraftKey = draftKey ? `${draftKey}:step-algebra` : null;
-  const rawSavedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
+  // Read through the draft's own shape first (algebraDraftState.js): a field
+  // of the wrong kind is dropped before anything draws it.
+  const rawSavedDraft = useMemo(() => readCheckedQuestionDraft(localDraftKey, null, { normalize: ALGEBRA_DRAFT_CHECK, field: 'step-algebra' }), [localDraftKey]);
   // Pending moves are derived engine state. Never trust an old serialized copy
   // after the algebra engine changes: that can resurrect UI requirements that
   // the current engine no longer considers mathematically necessary.
