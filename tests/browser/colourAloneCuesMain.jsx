@@ -11,8 +11,9 @@
  * Inverse & Composition Lab's f and y = x, the Exponential ↔ Log Bridge's, the
  * Systems Workspace's two non-strict boundaries in both its modes, the
  * Transformations Lab's source and image, the graph workspace's curve and its
- * inverse, a figure's two named solid functions, and Graph the Line's line drawn
- * without the method). Each is mounted with its real component and props, in the
+ * inverse, a figure's two named solid functions, a system of equations' two
+ * lines beside its equations, and Graph the Line's line drawn without the
+ * method). Each is mounted with its real component and props, in the
  * state a student sees it in. Nothing is restyled: the page takes the app's
  * stylesheets, and its theme from <html data-theme>, as the app's pages do.
  *
@@ -28,6 +29,8 @@ import SystemsWorkspace from '../../src/tools/systemsWorkspace/SystemsWorkspace.
 import TransformationsLab from '../../src/tools/transformations/TransformationsLab.jsx';
 import FunctionGraphBuilder from '../../src/FunctionGraphBuilder.jsx';
 import GraphDisplay from '../../src/GraphDisplay.jsx';
+import SystemGrader from '../../src/SystemGrader.jsx';
+import { generateQuestion } from '../../src/problemGenerator.js';
 import LineGraphCanvas from '../../src/components/liveChallenge/LineGraphCanvas.jsx';
 import { ARENA_LINE_VARS } from '../../src/components/liveChallenge/grandPrixTheme.js';
 import { pointsKey } from '../../src/platform/liveChallenge/lineGraphModel.js';
@@ -106,6 +109,15 @@ const FIGURE = {
   points: [{ x: 2, y: 2, label: 'P' }],
 };
 
+// ------------------------------------------------------------------ a system of equations
+// The system generator's question as one student's key makes it: y = 2x - 1 and
+// y = -x + 8, listed beside their lines' colours, and the two lines on its graph.
+const SYSTEM = generateQuestion({
+  questionId: 'colour-cues-system', type: 'system', prompt: 'Solve the system and enter the intersection as an ordered pair.',
+  showEquations: true, showGraph: true,
+  generator: { kind: 'linearSystem', xRange: [-5, 5], yRange: [-5, 5], slopeChoices: [-3, -2, -1, 1, 2, 3] },
+}, 'colour-cues|student|1|variant:0');
+
 // ------------------------------------------------------------------ Graph the Line
 const tokens = (text) => Object.fromEntries(String(text).split(';').map((entry) => entry.trim()).filter(Boolean)
   .map((entry) => [entry.slice(0, entry.indexOf(':')).trim(), entry.slice(entry.indexOf(':') + 1).trim()]));
@@ -176,6 +188,9 @@ function Cues() {
       </Scene>
       <Scene id="static-figure" title="A figure with two named solid functions">
         <GraphDisplay graph={FIGURE} title="A figure with two named solid functions" />
+      </Scene>
+      <Scene id="system-equations" title="A system of equations: its two lines and their equations">
+        <SystemGrader question={SYSTEM} onStateChange={ignore} onUndoStateChange={ignore} feedback={null} draftKey={null} />
       </Scene>
       <Scene id="line-method" title="Graph the Line: the right line, drawn without the method">
         <LineWithoutMethod />

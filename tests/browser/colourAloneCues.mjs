@@ -12,11 +12,13 @@
  * WHY. My Math Path's mastery wheel and the CCMR readiness wheel told a level
  * apart on the wheel by colour alone in the app's own themes, the mastery
  * wheel's two kinds of round done were a green and a purple dot, and some
- * planes drew two lines alike but for their colour. Each now has a cue that is
- * not colour (src/components/student/wheelFills.js, the round marks in
- * MyMathPathWheel.jsx, src/platform/graph/curveLabels.js, Graph the Line's
- * method badge). The unit tests pin each cue in the markup
- * (tests/platform/wheelFills.test.mjs, planeLineNames.test.mjs, curveLabels.test.mjs);
+ * planes drew two lines alike but for their colour (and a system of equations
+ * paired each equation with its line by a swatch of its colour). Each now has
+ * a cue that is not colour (src/components/student/wheelFills.js, the round
+ * marks in MyMathPathWheel.jsx, src/platform/graph/curveLabels.js and
+ * systemLineNames.js, Graph the Line's method badge). The unit tests pin each cue in the markup
+ * (tests/platform/wheelFills.test.mjs, planeLineNames.test.mjs, curveLabels.test.mjs,
+ * systemLineNames.test.mjs);
  * this reads them as a student's browser lays them out.
  *
  * WHAT. Every scene of colourAloneCues.html (the two wheels and the mastery
@@ -62,6 +64,8 @@ export const PLANE_NAMES = Object.freeze({
   'systems-build': ['1', '2'],
   'workspace-inverse': ['f', 'f⁻¹'],
   'static-figure': ['f', 'g'],
+  // The page's generated system (its key is fixed): each line named by the equation listed for it.
+  'system-equations': ['y = 2x − 1', 'y = −x + 8'],
 });
 
 /**

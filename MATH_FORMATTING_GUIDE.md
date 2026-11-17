@@ -30,6 +30,8 @@ Every new question must contain either:
 
 The generator chooses an integer intersection first and builds two different lines through it. Distinct slopes guarantee one solution.
 
+While the equations are shown (`showEquations`, the default), each line is named on the graph by its equation, so the colour beside each equation is not all that pairs it with its line (WCAG 1.4.1). With `showEquations: false` the lines carry no names, as the equations are not given.
+
 ## 3. Function tables with multiple blanks
 
 ```json
