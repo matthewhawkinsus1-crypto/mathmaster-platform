@@ -5,16 +5,18 @@
  *
  * A classroomLinks document records the teacher whose Google account made the
  * post (`teacherUid`). One the original single-connection integration wrote
- * records none. The six publication callables used to treat such a link as
- * every teacher's. Now (functions/lib/classroomLinkOwnership.js) the four that
- * act on one assignment show it, and act on it, only for a caller who manages
- * that assignment: the teacher of record of every class it is assigned to, or
- * the root administrator. Any other teacher gets what they get for another
- * teacher's link: nothing, with nothing written and Google never asked. The
- * two lists read each teacher's own links by `teacherUid`, which the legacy
- * post does not record, so they list it for nobody until
- * scripts/backfill-classroom-link-teachers.mjs stamps its teacher
- * (classroomPublicationLists.test.mjs is their cost and their completeness).
+ * records none. The six publication callables, and the grade passback
+ * monitor's two retry buttons, used to treat such a link as every teacher's.
+ * Now (functions/lib/classroomLinkOwnership.js) the four that act on one
+ * assignment show it, and act on it, and the two retries queue a resend for
+ * it, only for a caller who manages that assignment: the teacher of record of
+ * every class it is assigned to, or the root administrator. Any other teacher
+ * gets what they get for another teacher's link: a refusal or nothing, with
+ * nothing written or queued and Google never asked. The two lists read each
+ * teacher's own links by `teacherUid`, which the legacy post does not record,
+ * so they list it for nobody until scripts/backfill-classroom-link-teachers.mjs
+ * stamps its teacher (classroomPublicationLists.test.mjs is their cost and
+ * their completeness).
  *
  * Each callable is called through the client SDK with a real Auth emulator
  * token (callableHost.mjs) by the assignment's teacher, by a teacher of another
@@ -28,7 +30,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 const {
-  NOTHING_CHANGED, answerGoogle, browser, changesBetween, db, googleCallsSince, googleFixtures, googleMark,
+  NOTHING_CHANGED, answerGoogle, browser, changesBetween, db, deleteDocuments, googleCallsSince, googleFixtures, googleMark,
   projectSnapshot, refusalOf, repo, shutdown, signedIn,
 } = await import('./callableHost.mjs');
 
@@ -36,6 +38,7 @@ const requireFromRepo = createRequire(path.join(repo, 'package.json'));
 // The administrator's address comes from the code that recognises it.
 const { ROOT_ADMIN_EMAIL } = requireFromRepo('./functions/shared/rolePolicyIdentity.cjs');
 const { gradeSyncDocumentId } = requireFromRepo('./functions/lib/publication.js');
+const { CLASSROOM_PUSH_QUEUE, queueEntryId } = requireFromRepo('./functions/lib/classroomPushQueue.js');
 
 const CLASS = { owner: 'ownership-class-owner', other: 'ownership-class-other' };
 // Synthetic addresses on a reserved domain: nobody's real account.
@@ -50,6 +53,8 @@ const LEGACY = { id: 'ownership-legacy-post', courseId: 'course-legacy', coursew
 const OWNER_POST = { id: 'ownership-owner-post', assignmentId: 'ownership-owner-assignment', courseId: 'course-owner', courseworkId: 'coursework-owner' };
 const OTHER_POST = { id: 'ownership-other-post', assignmentId: 'ownership-other-assignment', courseId: 'course-other', courseworkId: 'coursework-other' };
 const STUDENT = 'ownership-student';
+// A second student, whose row on the legacy post failed: what "Retry all" queues.
+const FAILED_STUDENT = 'ownership-student-failed';
 
 const legacyPost = () => ({
   schemaVersion: 2, publicationId: LEGACY.id, assignmentId: ASSIGNMENT, courseId: LEGACY.courseId,
@@ -107,11 +112,17 @@ before(async () => {
   await db.collection('classroomCourseMappings').doc('ownership-owner-mapping').set({
     teacherUid: accounts.owner.uid, courseId: LEGACY.courseId, courseName: 'Legacy course', classId: CLASS.owner, classPeriod: 'Period 2',
   });
-  // One grade passback row for each post.
+  // One grade passback row for each post, and a failed one on the legacy post.
   for (const [publicationId, assignmentId] of [[LEGACY.id, ASSIGNMENT], [OWNER_POST.id, OWNER_POST.assignmentId], [OTHER_POST.id, OTHER_POST.assignmentId]]) {
     // eslint-disable-next-line no-await-in-loop
     await db.collection('classroomGradeSyncs').doc(gradeSyncDocumentId(publicationId, STUDENT)).set(syncRow(publicationId, assignmentId));
   }
+  await db.collection('classroomGradeSyncs').doc(gradeSyncDocumentId(LEGACY.id, FAILED_STUDENT)).set({
+    ...syncRow(LEGACY.id, ASSIGNMENT), syncId: gradeSyncDocumentId(LEGACY.id, FAILED_STUDENT), studentId: FAILED_STUDENT,
+    status: 'failed', errorStatus: 'UNAVAILABLE', message: 'Google Classroom did not answer.',
+  });
+  // A row's retry resends from the student's grade record, which must exist.
+  await db.collection('grades').doc(STUDENT).set({ classId: CLASS.owner, displayName: 'Ownership Student', status: 'active', gradesByAssignment: {} });
 
   // What Google answers the callables that change a post.
   answerGoogle('patchCourseWork', async (client, { courseWorkId }) => ({ id: courseWorkId, alternateLink: null }));
@@ -318,6 +329,93 @@ test('the grade passback monitor shows each teacher\'s own rows, and the legacy 
   assert.deepEqual(await monitoredPosts(accounts.other), [OTHER_POST.id]);
   assert.deepEqual(await monitoredPosts(accounts.owner), [OWNER_POST.id]);
   assert.deepEqual(await monitoredPosts(accounts.admin), []);
+});
+
+/* ==========================================================================
+ * THE MONITOR'S RETRY BUTTONS: ONE ROW'S RETRY, AND "RETRY ALL".
+ *
+ * Both only queue a push (lib/classroomPushQueue.js); the drain sends it
+ * later. So a retry the caller may make writes exactly one queue entry, and
+ * one they may not make writes nothing. Neither asks Google anything.
+ * ======================================================================== */
+
+const legacyRowRetry = { publicationId: LEGACY.id, studentId: STUDENT, assignmentId: ASSIGNMENT };
+const queuedPush = (assignmentId, studentId) => `${CLASSROOM_PUSH_QUEUE}/${queueEntryId(assignmentId, studentId, 'manual-retry')}`;
+// Every push a retry here can queue. Each test starts with none waiting, so
+// one test's push, left by a failure, cannot fail the next.
+const clearRetryPushes = () => deleteDocuments([
+  queuedPush(ASSIGNMENT, STUDENT), queuedPush(ASSIGNMENT, FAILED_STUDENT), queuedPush(OTHER_POST.assignmentId, STUDENT),
+]);
+
+/** The call answers `expected`, queues exactly `push`, from `source`, and never reaches Google. */
+async function assertQueuedOnly(caller, name, data, expected, { push, source }) {
+  await clearRetryPushes();
+  const before = await projectSnapshot();
+  const mark = googleMark();
+  const result = await caller.call(name, data);
+  assert.deepEqual(result, expected, `${caller.label} calling ${name}`);
+  assert.deepEqual(changesBetween(before, await projectSnapshot()), { added: [push], removed: [], changed: [] }, `${caller.label} calling ${name} queued one push and wrote nothing else`);
+  const entry = (await db.doc(push).get()).data();
+  assert.deepEqual([entry.reason, entry.source, entry.quotaRetry], ['manual-retry', source, 0]);
+  assert.deepEqual(googleCallsSince(mark), [], `${caller.label} calling ${name} never reached Google Classroom`);
+  await db.doc(push).delete();
+}
+
+/** The call is refused with `refusal`, writes and queues nothing, and never reaches Google. */
+async function assertRefusedAndNothingWritten(caller, name, data, refusal) {
+  await clearRetryPushes();
+  const before = await projectSnapshot();
+  const mark = googleMark();
+  assert.deepEqual(await refusalOf(caller.call(name, data)), refusal, `${caller.label} calling ${name}`);
+  assert.deepEqual(changesBetween(before, await projectSnapshot()), NOTHING_CHANGED, `${caller.label} calling ${name} wrote and queued nothing`);
+  assert.deepEqual(googleCallsSince(mark), [], `${caller.label} calling ${name} never reached Google Classroom`);
+}
+
+const ANOTHER_TEACHERS_POST = {
+  code: 'functions/permission-denied', message: 'That Classroom publication belongs to another teacher.',
+};
+
+test('another teacher\'s retry of a legacy post\'s row is refused as for another teacher\'s post, and nothing is queued', async () => {
+  await assertRefusedAndNothingWritten(accounts.other, 'retryClassroomGradeSync', legacyRowRetry, ANOTHER_TEACHERS_POST);
+});
+
+test('another teacher\'s "Retry all" leaves the legacy post\'s failed row alone', async () => {
+  await clearRetryPushes();
+  await assertAbsentAndNothingWritten(accounts.other, 'retryAllClassroomGradeSyncs', {}, { failedRows: 0, queued: 0, assignments: 0 });
+});
+
+test('another teacher still retries a row of their own post', async () => {
+  await assertQueuedOnly(accounts.other, 'retryClassroomGradeSync', { publicationId: OTHER_POST.id, studentId: STUDENT, assignmentId: OTHER_POST.assignmentId }, { queued: true }, {
+    push: queuedPush(OTHER_POST.assignmentId, STUDENT), source: 'teacher-retry',
+  });
+});
+
+test('the assignment\'s teacher retries the legacy post\'s row: the push is queued', async () => {
+  await assertQueuedOnly(accounts.owner, 'retryClassroomGradeSync', legacyRowRetry, { queued: true }, {
+    push: queuedPush(ASSIGNMENT, STUDENT), source: 'teacher-retry',
+  });
+});
+
+test('the assignment\'s teacher\'s "Retry all" queues the legacy post\'s failed row, and no synced row', async () => {
+  // Their own post's row and the legacy post's other row are synced.
+  await assertQueuedOnly(accounts.owner, 'retryAllClassroomGradeSyncs', {}, { failedRows: 1, queued: 1, assignments: 1 }, {
+    push: queuedPush(ASSIGNMENT, FAILED_STUDENT), source: 'teacher-retry-all',
+  });
+});
+
+test('the administrator retries the legacy post\'s row, and queues its failed row with "Retry all"', async () => {
+  await assertQueuedOnly(accounts.admin, 'retryClassroomGradeSync', legacyRowRetry, { queued: true }, {
+    push: queuedPush(ASSIGNMENT, STUDENT), source: 'teacher-retry',
+  });
+  await assertQueuedOnly(accounts.admin, 'retryAllClassroomGradeSyncs', {}, { failedRows: 1, queued: 1, assignments: 1 }, {
+    push: queuedPush(ASSIGNMENT, FAILED_STUDENT), source: 'teacher-retry-all',
+  });
+});
+
+test('the administrator is still refused a row of a post that records another teacher', async () => {
+  await assertRefusedAndNothingWritten(accounts.admin, 'retryClassroomGradeSync', {
+    publicationId: OTHER_POST.id, studentId: STUDENT, assignmentId: OTHER_POST.assignmentId,
+  }, ANOTHER_TEACHERS_POST);
 });
 
 test('refusals are unchanged: a signed-out caller is still refused before any post is read', async () => {

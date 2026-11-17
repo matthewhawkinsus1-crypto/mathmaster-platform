@@ -1,6 +1,6 @@
 // WHOSE CLASSROOM PUBLICATION A TEACHER MAY SEE AND ACT ON: THE ONE RULE.
 //
-// functions/lib/classroomLinkOwnership.js decides it for the six publication
+// functions/lib/classroomLinkOwnership.js decides it for the eight publication
 // callables in functions/index.js. A link that records a teacher is theirs
 // alone; one that records none is the caller's only when they manage its
 // assignment. The two lists read a teacher's own links by uid, a page at a

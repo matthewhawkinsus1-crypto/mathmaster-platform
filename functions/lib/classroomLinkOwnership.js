@@ -17,11 +17,17 @@
  * record of every class the assignment is assigned to. Anyone else gets what
  * they get for another teacher's link: nothing.
  *
- * The six publication callables in functions/index.js ask this one rule.
+ * The eight publication callables in functions/index.js ask this one rule.
  * Four act on one assignment and read its links by `assignmentId`:
  * updateAssignmentClassroomPublications, repairClassroomAssignmentPublications,
  * inspectClassroomPublication and removeAssignmentClassroomPackage. They keep
  * the links `linksForTeacher` gives them.
+ *
+ * Two queue a grade passback's resend: retryClassroomGradeSync, for the post
+ * a monitor row names, and retryAllClassroomGradeSyncs, for the posts every
+ * failed row names. They resend only for the posts `linksForTeacher` keeps:
+ * to a caller who does not manage its assignment, a post that records no
+ * teacher is refused, or left out, as another teacher's post is.
  *
  * The two lists, listPublishedAssignments and listClassroomGradeSyncs, read
  * the teacher's own links by `teacherUid`, a page at a time

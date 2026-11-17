@@ -10004,10 +10004,16 @@ exports.retryClassroomGradeSync = onCall(async (request) => {
   if (!publication.exists) {
     throw new HttpsError("not-found", "Classroom publication not found.");
   }
-  if (
-    publication.data().teacherUid &&
-    publication.data().teacherUid !== teacherUid
-  ) {
+  // The caller's own post, by the publication callables' one rule
+  // (lib/classroomLinkOwnership.js): a post that records no teacher is theirs
+  // only if they manage its assignment. Anyone else is refused as for another
+  // teacher's post.
+  const [ownPublication] = await classroomLinkOwnership.linksForTeacher([publication], {
+    teacherUid,
+    linkOf: (snapshot) => snapshot.data(),
+    managesAssignment: (id) => callerManagesAssignmentId(request, db, id),
+  });
+  if (!ownPublication) {
     throw new HttpsError(
       "permission-denied",
       "That Classroom publication belongs to another teacher."
@@ -10064,13 +10070,19 @@ exports.retryAllClassroomGradeSyncs = onCall(async (request) => {
     });
   }
 
-  // The same ownership rule as one row's retry.
+  // The same ownership rule as one row's retry (lib/classroomLinkOwnership.js):
+  // a post that records no teacher is the caller's only if they manage its
+  // assignment, asked once an assignment.
+  const ownPublicationIds = new Set((await classroomLinkOwnership.linksForTeacher([...publications], {
+    teacherUid,
+    linkOf: ([, link]) => link,
+    managesAssignment: (id) => callerManagesAssignmentId(request, db, id),
+  })).map(([id]) => id));
   const studentsByAssignment = new Map();
   let failedRows = 0;
   for (const row of rows) {
     const publication = publications.get(String(row.publicationId));
-    if (!publication) continue;
-    if (publication.teacherUid && publication.teacherUid !== teacherUid) continue;
+    if (!publication || !ownPublicationIds.has(String(row.publicationId))) continue;
     if (String(publication.assignmentId || "") !== String(row.assignmentId)) continue;
     failedRows += 1;
     const students = studentsByAssignment.get(String(row.assignmentId)) || new Set();
