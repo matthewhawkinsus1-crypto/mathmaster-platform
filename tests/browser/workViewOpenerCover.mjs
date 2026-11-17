@@ -415,7 +415,7 @@ const MEASURE_SCROLL = () => {
       ? /(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight + 1
       : /(auto|scroll)/.test(style.overflowX) && element.scrollWidth > element.clientWidth + 1;
   };
-  const name = (element) => element.getAttribute('aria-label')
+  const name = (element) => (element.matches('math-div, math-span') ? `the formula "${element.textContent.trim().slice(0, 30)}"` : element.getAttribute('aria-label'))
     || `${element.tagName.toLowerCase()}${typeof element.className === 'string' && element.className.trim() ? `.${element.className.trim().split(/\s+/)[0]}` : ''}`;
   const nested = [];
   const sideways = [];

@@ -380,6 +380,23 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
   box-shadow: none !important;
 }
 
+/*
+ * IN WORK VIEW, THE VIEW IS THE ONE THING THAT SCROLLS UP AND DOWN (#386 R10).
+ *
+ * A region a student scrolls by keyboard (role="region" and a Tab stop, the
+ * keyboard sweep's T6) may cap its height on the page, where the question is one
+ * part of a long screen. In Work View the view already scrolls as one surface,
+ * and a capped region inside it was a scroller inside a scroller: the Data
+ * Modeling Lab's residual table showed 4 of its 7 rows in a 185px box, on a
+ * phone, a Chromebook and a desktop alike (tests/browser/workViewOpenerCover.mjs
+ * --check=scroll). There it takes its own height, as a split's panels do above.
+ * Only the height: a region that scrolls sideways (a row wider than a phone)
+ * still does, a region of its own the keyboard scrolls.
+ */
+[data-open="true"] .mathmaster-work-view-surface [role="region"][tabindex="0"] {
+  max-height: none !important;
+}
+
 /* A temporary editing surface renders the one reachable Universal Undo above
    its backdrop. Hide covered copies rather than leaving two student-facing
    controls that appear to have different histories. */

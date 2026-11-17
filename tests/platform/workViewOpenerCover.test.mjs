@@ -165,6 +165,24 @@ test('below 22em the section tabs are never narrower than their widest tab, and 
   assert.match(top, /:not\(\.is-collapsed\)/);
 });
 
+/* ------------------------------------------------- #386 R10: one scroller in Work View */
+
+test('in Work View a region the keyboard scrolls takes its own height: the view is the one thing that scrolls up and down', () => {
+  // The Data Modeling Lab's residual table, capped at 185 px, was a scroller inside the view's scroll at every
+  // size, phone to desktop.
+  const REGION = '[data-open="true"] .mathmaster-work-view-surface [role="region"][tabindex="0"]';
+  assert.deepEqual(declared(shellCss, REGION, 'max-height', { media: null }), { value: 'none', important: true }, 'over a region\'s inline cap');
+  assert.equal(declared(shellCss, REGION, 'overflow'), null, 'a region that scrolls sideways keeps doing so');
+  // The view itself is the scroller, and a split's panels already stand down there.
+  assert.equal(declared(shellCss, '[data-open="true"] .mathmaster-work-view-surface', 'overflow')?.value, 'auto');
+  assert.deepEqual(declared(shellCss, '[data-open="true"] .mathmaster-tool-split > .mathmaster-tool-panel', 'max-height'), { value: 'none', important: true });
+  // The residual table is such a region, so the rule reaches it.
+  const lab = executableSource(read('src/tools/dataModeling/DataModelingLab.jsx'));
+  const table = region(lab, 'aria-label="Residual table"', '>', 'the residual table');
+  assert.match(table, /tabIndex=\{0\}/);
+  assert.match(lab, /<div role="region" aria-label="Residual table"/);
+});
+
 /* ------------------------------------------------- the browser sweep, wired into CI */
 
 test('the sweep reads every surface the opener floats over, at the phones, at 200% text and on a Chromebook', async () => {
