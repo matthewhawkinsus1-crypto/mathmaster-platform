@@ -50,6 +50,12 @@ import {
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics.js';
 import { SCALAR_DRAFT_SHAPES, draftNormalizer, withoutPrototypeKeys } from './toolDraftShape.js';
+// The parsed-workspace cache and the segment name live on their own, so App's
+// "View as Student" can forget a preview's workspaces without this hook on a
+// student's first load (./toolDraftCache.js).
+import { TOOL_DRAFT_SEGMENT, toolDraftCache as stores } from './toolDraftCache.js';
+
+export { TOOL_DRAFT_SEGMENT, forgetAssignmentToolDrafts } from './toolDraftCache.js';
 
 /*
  * `${draftKey}:work:${scope}` — one entry per tool workspace per question.
@@ -62,9 +68,8 @@ import { SCALAR_DRAFT_SHAPES, draftNormalizer, withoutPrototypeKeys } from './to
  * the lifecycle: `removeQuestionDraftFamily(draftKey)` already clears
  * `draftKey` and everything under `draftKey:`, so a replacement question
  * retires this entry with the rest of the family and no new teardown path is
- * needed.
+ * needed. (TOOL_DRAFT_SEGMENT, `work`, is ./toolDraftCache.js's.)
  */
-export const TOOL_DRAFT_SEGMENT = 'work';
 export const DEFAULT_TOOL_DRAFT_SCOPE = 'tool';
 
 /*
@@ -122,13 +127,13 @@ const storedRecord = (store) => (store.fresh
   : store.record);
 
 /*
- * One parsed record per key, shared by every field of the tool showing it.
+ * One parsed record per key, shared by every field of the tool showing it
+ * (`stores`, imported above from ./toolDraftCache.js).
  *
  * Without it each field would re-read and re-parse the same JSON, and — worse —
  * two fields writing in the same tick would each serialise from their own stale
  * copy and the second would erase the first.
  */
-const stores = new Map();
 
 /*
  * Bounded. A long assignment visits every question, and each visit parses one
@@ -445,13 +450,9 @@ export const forgetToolDrafts = (draftKey) => {
   return forgotten;
 };
 
-/**
- * Forget every cached tool workspace for one student/assignment.
- *
- * localStorage can be cleared independently of this module-level parsed cache
- * (teacher "Restart Preview Fresh" is the important case). Clearing only disk
- * and leaving this cache alive resurrects the supposedly deleted answers on
- * the next mount.
+/*
+ * Forgetting every cached tool workspace for one student/assignment
+ * (`forgetAssignmentToolDrafts`, re-exported above) is ./toolDraftCache.js's.
  */
 /**
  * Forget every cached tool workspace under a whole draft FAMILY — a secure
@@ -465,24 +466,6 @@ export const forgetToolDraftFamily = (prefix) => {
   let forgotten = 0;
   [...stores.keys()].forEach((key) => {
     if (key !== prefix && !key.startsWith(`${prefix}:`)) return;
-    const store = stores.get(key);
-    if (store?.timer !== null && store?.timer !== undefined) clearTimeout(store.timer);
-    stores.delete(key);
-    forgotten += 1;
-  });
-  return forgotten;
-};
-
-export const forgetAssignmentToolDrafts = ({ studentId, assignmentId } = {}) => {
-  const wantedStudent = String(studentId ?? '');
-  const wantedAssignment = String(assignmentId ?? '');
-  if (!wantedStudent || !wantedAssignment) return 0;
-  let forgotten = 0;
-  [...stores.keys()].forEach((key) => {
-    const identity = parseQuestionDraftKey(key);
-    if (!identity) return;
-    if (identity.studentId !== wantedStudent || identity.assignmentId !== wantedAssignment) return;
-    if (!String(identity.toolSuffix || '').startsWith(`${TOOL_DRAFT_SEGMENT}:`)) return;
     const store = stores.get(key);
     if (store?.timer !== null && store?.timer !== undefined) clearTimeout(store.timer);
     stores.delete(key);

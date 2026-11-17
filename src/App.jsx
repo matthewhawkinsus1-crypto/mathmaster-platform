@@ -246,7 +246,9 @@ import {
   reconcileAssignmentActivityProjection,
   reportDeviceQueueState,
 } from './services/submissionIngestionService.js';
-import { forgetAssignmentToolDrafts } from './tools/shared/usePersistentToolState.js';
+// The tools' parsed-workspace cache alone, not the draft hook: that loads with
+// the tools (PF01, tools/shared/toolDraftCache.js).
+import { forgetAssignmentToolDrafts } from './tools/shared/toolDraftCache.js';
 import { createDeviceReportCoordinator, reconcileWithDeviceReports } from './platform/persistence/deviceReportCoordinator.js';
 import {
   INGESTIBLE_KINDS,
