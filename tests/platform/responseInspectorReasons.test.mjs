@@ -259,7 +259,11 @@ test('the evidence keeps a fingerprint of the key it was graded against, and nev
   const evidence = captureAutomaticGradingEvidence({ response, grading: gradeServerResponse({ question, response }), question });
   assert.equal(evidence.questionId, 'q-reasons');
   assert.equal(evidence.answerKeyFingerprint.surface, 'multiAnswer');
-  assert.deepEqual(Object.keys(evidence.answerKeyFingerprint.parts).sort(), ['percent', 'r2']);
+  // A list, never a record keyed by box id: Firestore refuses some names as field names.
+  assert.ok(Array.isArray(evidence.answerKeyFingerprint.parts));
+  assert.deepEqual(evidence.answerKeyFingerprint.parts.map((part) => part.id).sort(), ['percent', 'r2']);
+  const reserved = answerKeyFingerprint(multiAnswer([{ id: '__x__', label: 'x', answer: 1 }]));
+  assert.deepEqual(reserved.parts.map((part) => part.id), ['__x__'], 'an id Firestore reserves is a value here, never a field name');
   assert.equal(evidence.answerKeyFingerprint.whole, answerKeyFingerprint(question).whole);
   assert.doesNotMatch(JSON.stringify(evidence.answerKeyFingerprint), /0\.49|"49"/, 'a fingerprint, not the key');
 });
@@ -408,6 +412,7 @@ test('the reasons never throw on a hostile snapshot or question, and say nothing
       assert.doesNotThrow(() => findParserChanges({ question, response, original: { isCorrect: false }, current: { isCorrect: false } }));
       assert.doesNotThrow(() => answerKeyFingerprint(question));
       assert.doesNotThrow(() => findAnswerKeyChange({ evidence: { answerKeyFingerprint: { whole: 1, parts: null }, automaticResult: { parts: 'x' }, gradingTrace: { fields: [null] } }, question }));
+      assert.doesNotThrow(() => findAnswerKeyChange({ evidence: { answerKeyFingerprint: { whole: 'a', surface: 'multiAnswer', parts: [null, 7, { id: { toString: null } }] } }, question, currentFingerprint: { whole: 'b', surface: 'multiAnswer', parts: 'x' } }));
     }
   }
 });

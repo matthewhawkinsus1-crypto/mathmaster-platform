@@ -148,6 +148,10 @@ const hashOf = (value) => generateStableUUID(stableStringify(value));
  * The key a question grades against, fingerprinted: `{ surface, whole, parts }`,
  * or null for a surface whose key is not a named set of fields (a graph, a
  * tool, a generated instance not delivered here).
+ *
+ * `parts` is a list of `{ id, hash }`, never a record keyed by box id: an
+ * author names the boxes, and Firestore refuses some names as field names
+ * (`__x__` is reserved), which would refuse the whole evidence document.
  */
 export const answerKeyFingerprint = (question) => safely(() => {
   if (!isObject(question)) return null;
@@ -157,9 +161,14 @@ export const answerKeyFingerprint = (question) => safely(() => {
   return {
     surface,
     whole: hashOf({ surface, parts }),
-    parts: Object.fromEntries(Object.entries(parts).map(([id, value]) => [id, hashOf(value)])),
+    parts: Object.entries(parts).map(([id, value]) => ({ id, hash: hashOf(value) })),
   };
 }, null);
+
+// A fingerprint's part hashes by id (a list; tolerant of anything else).
+const partHashes = (fingerprint) => new Map(list(fingerprint?.parts)
+  .filter((part) => isObject(part) && typeof part.id === 'string')
+  .map((part) => [part.id, part.hash]));
 
 /* ---------------------------------------------------------------------------
  * EACH TYPED ANSWER, WITH THE COMPARISON ITS GRADER USES.
@@ -530,14 +539,16 @@ export const findAnswerKeyChange = ({ evidence = null, question = null, currentF
   if (graded?.whole && currentFingerprint?.whole && graded.surface === currentFingerprint.surface) {
     known = true;
     if (graded.whole !== currentFingerprint.whole) {
-      const ids = [...new Set([...Object.keys(graded.parts || {}), ...Object.keys(currentFingerprint.parts || {})])]
-        .filter((id) => id !== '__blanks' && graded.parts?.[id] !== currentFingerprint.parts?.[id]);
+      const before = partHashes(graded);
+      const now = partHashes(currentFingerprint);
+      const ids = [...new Set([...before.keys(), ...now.keys()])]
+        .filter((id) => id !== '__blanks' && before.get(id) !== now.get(id));
       details.push({
         kind: 'key',
         parts: ids.map((id) => ({
           id,
           label: labelFor(question, id),
-          change: !graded.parts?.[id] ? 'added' : !currentFingerprint.parts?.[id] ? 'removed' : 'changed',
+          change: !before.has(id) ? 'added' : !now.has(id) ? 'removed' : 'changed',
         })),
       });
     }

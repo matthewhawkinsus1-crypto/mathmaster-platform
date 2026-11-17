@@ -322,6 +322,21 @@ test("the student's own teacher inspects the response, and inspecting writes not
   assert.equal(model.attemptNumber, 1);
   assert.equal(model.automaticScore, 0);
   assert.deepEqual(model.states.submitted, WRONG, 'what the student submitted, as graded');
+  // Read field by field, with why it was marked wrong (#554 item 8): a wrong
+  // value is only that, and nothing else is claimed about it.
+  assert.deepEqual(
+    model.view.rows.map((row) => [row.label, row.submitted?.text, row.expected?.text, row.result?.status]),
+    [['Expression for y', 'definitely not it', '2x+1', 'incorrect']],
+  );
+  assert.deepEqual(model.diagnosis.reasons.map((reason) => reason.code), ['genuinely-incorrect']);
+  assert.equal(model.replay.discrepancy, false, 'the recorded attempt replays to the same verdict');
+  // Ingestion stored what the attempt was graded against: the question and a
+  // fingerprint of its key, never the key.
+  const stored = (await db.collection('grades').doc(STUDENT.subject.id).collection('responseInspectionEvidence').doc(`${SHARED}__q0`).get()).data();
+  assert.equal(stored.evidence.questionId, 'boundary-q0');
+  assert.equal(stored.evidence.answerKeyFingerprint.surface, 'literal');
+  assert.deepEqual(stored.evidence.answerKeyFingerprint.parts.map((part) => part.id), ['literal']);
+  assert.doesNotMatch(JSON.stringify(stored.evidence.answerKeyFingerprint), /2x\+1/);
   assert.deepEqual(changesBetween(before, await projectSnapshot()), NOTHING_CHANGED);
 });
 
