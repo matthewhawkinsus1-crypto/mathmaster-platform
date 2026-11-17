@@ -1426,7 +1426,7 @@ export default function LiveClassMonitor({
                 ['onQuestion', `On This Question (${walkthrough.onQuestion.length})`],
                 ['aheadDone', `Ahead / Done (${walkthrough.aheadDone.length})`],
                 ['all', `All (${walkthrough.all.length})`],
-              ].map(([id, label]) => <button key={id} type="button" onClick={() => setWalkthroughFilter(id)} style={{ ...smallButtonStyle, background: walkthroughFilter === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: walkthroughFilter === id ? '#1a73e8' : 'var(--mm-border)', color: walkthroughFilter === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>)}
+              ].map(([id, label]) => <button key={id} type="button" aria-pressed={walkthroughFilter === id} onClick={() => setWalkthroughFilter(id)} style={{ ...smallButtonStyle, background: walkthroughFilter === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: walkthroughFilter === id ? '#1a73e8' : 'var(--mm-border)', color: walkthroughFilter === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>)}
               {checkedStudentIds.length > 0 && <button type="button" onClick={() => setCheckedStudentIds([])} style={{ ...smallButtonStyle, marginLeft: 'auto' }}>Reset checks ({checkedStudentIds.length})</button>}
             </div>
 
