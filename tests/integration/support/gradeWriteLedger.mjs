@@ -96,17 +96,24 @@ const readNow = (documentPath) => context.run({ actor: 'ledger' }, async () => {
 });
 
 /*
- * After a committed write to a followed grades document: did it change the
- * document? If so, Firestore delivers one event to each grades trigger.
+ * After a commit: did it change each followed grades document it wrote? A
+ * commit is one change to a document however many of its writes name it, so
+ * Firestore delivers one event to each grades trigger for each document it
+ * changed.
  */
-const observeGradeDocument = async (documentPath, entry) => {
-  if (!state.known.has(documentPath)) return;
-  const before = state.known.get(documentPath);
-  const after = await readNow(documentPath);
-  const changed = !isDeepStrictEqual(comparable(before), comparable(after));
-  entry.changed = changed;
-  state.known.set(documentPath, after);
-  if (changed) state.pending.push({ documentPath, before, after, cause: entry.seq });
+const observeGradeDocuments = async (entries) => {
+  const byPath = new Map();
+  entries.filter((entry) => isGradeDocumentPath(entry.path) && state.known.has(entry.path))
+    .forEach((entry) => byPath.set(entry.path, [...(byPath.get(entry.path) || []), entry]));
+  for (const [documentPath, written] of byPath) {
+    const before = state.known.get(documentPath);
+    // eslint-disable-next-line no-await-in-loop
+    const after = await readNow(documentPath);
+    const changed = !isDeepStrictEqual(comparable(before), comparable(after));
+    written.forEach((entry) => { entry.changed = changed; });
+    state.known.set(documentPath, after);
+    if (changed) state.pending.push({ documentPath, before, after, cause: written[0].seq });
+  }
 };
 
 const recordRead = (documentPath, count = 1) => {
@@ -133,10 +140,7 @@ export function installGradeWriteLedger({ db }) {
       seq: (state.seq += 1), commitId, actor, transactional, changed: null, client: false, ...op,
     }));
     state.writes.push(...entries);
-    for (const entry of entries) {
-      // eslint-disable-next-line no-await-in-loop
-      if (isGradeDocumentPath(entry.path)) await observeGradeDocument(entry.path, entry);
-    }
+    await observeGradeDocuments(entries);
     return response;
   };
   WriteBatch.prototype._commit[MARK] = true;
@@ -175,15 +179,12 @@ export async function followGradeDocument(studentId) {
 export async function clientWrite(actor, writes, fn) {
   const result = await fn();
   const commitId = (state.seq += 1);
-  for (const write of writes) {
-    const entry = {
-      seq: (state.seq += 1), commitId, actor, transactional: Boolean(write.transactional), changed: null, client: true,
-      path: write.path, kind: write.kind || 'update', fields: [...(write.fields || [])].sort(),
-    };
-    state.writes.push(entry);
-    // eslint-disable-next-line no-await-in-loop
-    if (isGradeDocumentPath(entry.path)) await observeGradeDocument(entry.path, entry);
-  }
+  const entries = writes.map((write) => ({
+    seq: (state.seq += 1), commitId, actor, transactional: Boolean(write.transactional), changed: null, client: true,
+    path: write.path, kind: write.kind || 'update', fields: [...(write.fields || [])].sort(),
+  }));
+  state.writes.push(...entries);
+  await observeGradeDocuments(entries);
   return result;
 }
 
