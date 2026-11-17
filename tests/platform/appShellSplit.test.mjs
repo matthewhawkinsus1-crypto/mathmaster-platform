@@ -165,8 +165,15 @@ test('the teacher workspace is App\'s teacher branch, given every input it reads
   for (const name of props) {
     assert.match(app, new RegExp(`(?:\\bconst \\[?\\s*${name}\\b|\\bconst \\[[^\\]]*\\b${name}\\b[^\\]]*\\]|\\bconst \\{[^}]*\\b${name}\\b[^}]*\\}|\\bfunction ${name}\\(|^import [^;]*\\b${name}\\b[^;]*;|\\blet ${name}\\b)`, 'm'), `${name} is declared or imported in App`);
   }
-  // Hooks stay in App: the branch had none, and the workspace calls none.
-  assert.doesNotMatch(teacherWorkspaceCode, /\buse[A-Z]\w*\(/);
+  // App's state stays in App: the branch had no hooks. The workspace calls
+  // only its own, for the authoring code it loads on demand (app/teacher/
+  // authoringKitLoader.js): the failure it hands AppErrorBoundary, the idle
+  // prefetch once it has drawn, and the Assignments list's wait for the code.
+  const hooks = [...teacherWorkspaceCode.matchAll(/\b(use(?:[A-Z]\w*)?)\(/g)].map((match) => match[1]);
+  assert.deepEqual(hooks.sort(), ['use', 'useEffect', 'useState'], 'no other hook in the workspace');
+  assert.match(teacherWorkspaceCode, /const \[authoringKitError, setAuthoringKitError\] = useState\(null\);/);
+  assert.match(teacherWorkspaceCode, /useEffect\(\(\) => prefetchAuthoringKit\(\), \[\]\);/);
+  assert.match(teacherWorkspaceCode, /teacherTab === 'assignments' \? \(loadedAuthoringKit\(\) \|\| use\(loadAuthoringKit\(\)\)\) : null;/);
 });
 
 test('the session gate renders for any screen that does not belong to the account signed in now', () => {

@@ -17,6 +17,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 
 import {
   ATTENDANCE_EXTENSION_GRANTS_COLLECTION,
@@ -331,10 +332,11 @@ test('permanent deletion and the content release apply the rule', () => {
 
 test('App: a student listens to their class; Duplicate copies no instance state', () => {
   const app = appAndTeacherWorkspaceSource();
-  // Duplicate moved with the teacher's screen (G2): imported next to its call there.
+  // Duplicate moved with the teacher's screen (G2), and takes the rule from
+  // the authoring code it loads on demand, bound where it is called.
   const teacherWorkspace = readFileSync(new URL('../../src/app/teacher/TeacherWorkspace.jsx', import.meta.url), 'utf8');
-  assert.match(teacherWorkspace, /^import \{ stripAssignmentInstanceState \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/assignmentPrivacy\.mjs';$/m);
   const duplicate = executableSource(region(teacherWorkspace, 'const handleDuplicateAssignment', '\n  };', 'handleDuplicateAssignment'));
+  assert.ok(takesFromAuthoringKit(duplicate, 'stripAssignmentInstanceState', 'functions/shared/assignmentPrivacy.mjs'), 'Duplicate binds the rule from the authoring code');
   assert.match(duplicate, /\} = stripAssignmentInstanceState\(assignment\);/);
   const listener = executableSource(region(app, 'const studentClassAssignmentsRef = useRef', 'const studentWorkedAssignmentKey', 'assignment listener'));
   // The student branch subscribes to its class and returns before the

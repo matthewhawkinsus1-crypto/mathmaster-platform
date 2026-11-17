@@ -20,6 +20,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 import {
   RECOVERY_REPAIR_INSTRUCTION,
   recoveryReadinessLabel,
@@ -232,7 +233,10 @@ test('after "assignment changed", Approve waits for Check again, and the alert s
 
 test('an assignment card offers Prepare Recovery only where a static Warm-Up or DOL question can gain it, and the details refresh after', () => {
   const workspace = executableSource(componentSource('src/app/teacher/TeacherWorkspace.jsx'));
-  assert.match(workspace, /^import \{ recoveryPreparationAvailable \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/recoveryContentPlan\.mjs';$/m);
+  // The Assignments list takes the check from the authoring code, which it
+  // waits for as for its own code (app/teacher/authoringKitLoader.js).
+  const list = region(workspace, "{teacherTab === 'assignments' && (", 'const renderAssignmentCard = (assignment) => {', 'the Assignments list');
+  assert.ok(takesFromAuthoringKit(list, 'recoveryPreparationAvailable', 'functions/shared/recoveryContentPlan.mjs'));
   const card = region(workspace, 'const renderAssignmentCard = (assignment) => {', 'key: \'move-folder\'', 'assignment card');
   assert.match(card, /const recoveryCanBeAdded = recoveryPreparationAvailable\(assignment\);/);
   assert.match(card, /\{recoveryCanBeAdded && <button type="button" data-recovery-can-be-added=\{assignment\.id\} onClick=\{\(\) => openAssignmentHub\(assignment\.id\)\}/);

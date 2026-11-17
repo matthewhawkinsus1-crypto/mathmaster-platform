@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 import { collectReviewBlockers, summarizePreflightReadiness } from '../../src/components/teacher/preflightSteps.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -29,9 +30,10 @@ test('Create never sources, swaps or repairs an audited item: it confirms the Ho
   const create = createHandler();
   assert.doesNotMatch(create, /hydrateAssignmentCcmr\(|applyCcmrHydrationToCanonicalAssignment\(|replaceDirectCcmrQuestionsWithAuditedBank\(/);
   assert.match(create, /confirmHonorsCandidateForCreate\(\{[\s\S]*?honorsCandidate,[\s\S]*?reviewedAssignmentV5: reviewedCandidate,[\s\S]*?honorsEnrichmentQuestion: teacherReview\?\.honorsEnrichmentQuestion/);
-  // Imported next to its call: TeacherWorkspace is .jsx, so a call with no
-  // import passes every check and fails at runtime.
-  assert.match(workspaceSource, /import \{[^}]*confirmHonorsCandidateForCreate[^}]*\} from '\.\.\/\.\.\/platform\/assignments\/canonicalCcmrHydration\.js';/);
+  // Bound next to its call, from the authoring code Create awaits:
+  // TeacherWorkspace is .jsx, so a call with no binding passes every check
+  // and fails at runtime.
+  assert.ok(takesFromAuthoringKit(create, 'confirmHonorsCandidateForCreate', 'src/platform/assignments/canonicalCcmrHydration.js'));
   // The Honors destination publishes that version's sections; Standard and
   // library saves publish the reviewed assignment's.
   const split = region(create, 'const destinationVariants = destinationGroups.map', 'const plannedWrites', 'destination split');

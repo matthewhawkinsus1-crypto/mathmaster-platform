@@ -50,6 +50,8 @@ import {
   completedRecoverySections,
   warmupChallengeCounts,
 } from '../../src/platform/recovery/teacherRecoveryAudit.js';
+import * as gradebookRecoveryMarks from '../../src/platform/recovery/gradebookRecoveryMarks.js';
+import * as teacherRecoveryAuditModule from '../../src/platform/recovery/teacherRecoveryAudit.js';
 import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/sectionRecoveryGrades.js';
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
@@ -898,10 +900,14 @@ test('the gradebook detail renders the Recovery audit trail and the section mark
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'SectionRecoveryAuditTrail', 'src/components/teacher/SectionRecoveryAuditTrail.jsx'));
   // Every helper the gradebook row calls is imported where it is used: a call
   // with no import is a runtime ReferenceError no check catches (AGENTS.md).
-  const auditImport = app.match(/^import \{([^}]*)\} from '\.\.\/\.\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
-  assert.ok(auditImport, 'the gradebook imports the Recovery audit helpers');
+  // They come from their own module (the gradebook does not load the audit),
+  // the same functions the Recovery audit module exports.
+  const auditImport = app.match(/^import \{([^}]*)\} from '\.\.\/\.\.\/platform\/recovery\/gradebookRecoveryMarks\.js';$/m);
+  assert.ok(auditImport, 'the gradebook imports the Recovery marks');
   ['completedRecoverySections', 'warmupChallengeCounts', 'heldRecoverySections'].forEach((name) => {
     assert.match(auditImport[1], new RegExp(`\\b${name}\\b`), `${name} is imported`);
+    assert.equal(typeof gradebookRecoveryMarks[name], 'function');
+    assert.equal(teacherRecoveryAuditModule[name], gradebookRecoveryMarks[name], `${name} is the audit module's own`);
   });
   assert.match(app, /const challengeWarmup = warmupChallengeCounts\(student, selectedAssignment\.id\);/);
   assert.match(app, /<SectionRecoveryAuditTrail student=\{student\} assignment=\{selectedAssignment\} \/>/);
