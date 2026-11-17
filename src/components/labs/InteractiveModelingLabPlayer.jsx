@@ -96,7 +96,7 @@ export const InteractiveModelingLabPlayer = ({
   return (
     <section className="mathmaster-interactive-lab" style={{ width: '100%', maxWidth: 1100, margin: '0 auto', padding: 'clamp(14px, 3vw, 24px)', boxSizing: 'border-box', textAlign: 'left', background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid var(--mm-border)', touchAction: 'pan-y' }}>
       <header style={{ borderBottom: '2px solid #1a73e8', paddingBottom: 14, marginBottom: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><span style={{ background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '4px 9px', borderRadius: 999, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>DOK {lab.dokLevel} · MODELING LAB</span><span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{lab.teksAlignments.length ? `TEKS ${lab.teksAlignments.join(', ')}` : 'No TEKS alignment'}</span></div>
+        <div className="mathmaster-interactive-lab-heading" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><span style={{ background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '4px 9px', borderRadius: 999, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>DOK {lab.dokLevel} · MODELING LAB</span><span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{lab.teksAlignments.length ? `TEKS ${lab.teksAlignments.join(', ')}` : 'No TEKS alignment'}</span></div>
         <h2 style={{ margin: '9px 0 5px' }}>{lab.title}</h2>
         <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.5 }}>{lab.scenarioDescription}</p>
       </header>

@@ -965,6 +965,21 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   margin-right: var(--mm-work-view-opener-space, 176px);
 }
 
+/* Two more rows a question starts with, measured under the button at 1366x768
+   (tests/browser/workViewOpenerCover.mjs): the Visual Match Board's heading row,
+   whose count ("0 of 2 matched") ends at its right edge, and the modeling lab's
+   first row, whose TEKS line ("No TEKS alignment") does. Each keeps the
+   button's width clear wherever the question's work has no row of its own for
+   the button: a wide screen, or a phone on its side. On a phone held upright the
+   work starts below the button (the phone lane, below), and a margin there would
+   take the button's width from the row for nothing. */
+.mathmaster-desktop-question-content .mathmaster-work-view-surface[data-enlarged="false"] .graph-scenario-match-heading-row,
+.mathmaster-question-container.mode-landscape .mathmaster-work-view-surface[data-enlarged="false"] .graph-scenario-match-heading-row,
+.mathmaster-desktop-question-content .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-interactive-lab-heading,
+.mathmaster-question-container.mode-landscape .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-interactive-lab-heading {
+  margin-right: var(--mm-work-view-opener-space, 176px);
+}
+
 /* A centred heading clears the button on its own wherever it has the width;
    on a phone it starts at the left and stops before the button. Step Algebra's
    toolbar WRAPS, and a right margin narrows every row of it — at 344px each

@@ -66,6 +66,33 @@ test('padding moves the figure, not the button, and the button\'s bottom edge is
   assert.equal(OPENER_GAP, 16);
 });
 
+/* ------------------------------------------------- rows a question starts with, on a wide screen */
+
+const WIDE_ROWS = [
+  '.mathmaster-desktop-question-content .mathmaster-work-view-surface[data-enlarged="false"] .graph-scenario-match-heading-row',
+  '.mathmaster-question-container.mode-landscape .mathmaster-work-view-surface[data-enlarged="false"] .graph-scenario-match-heading-row',
+  '.mathmaster-desktop-question-content .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-interactive-lab-heading',
+  '.mathmaster-question-container.mode-landscape .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-interactive-lab-heading',
+];
+
+test('on a Chromebook the Visual Match Board\'s count and the modeling lab\'s TEKS line keep clear of the opener', () => {
+  // Measured at 1366x768: "0 of 2 matched" and "No TEKS alignment" were under the button. Each row keeps the
+  // button's measured width clear, as a staged question's step chips do (PQ-025).
+  for (const selector of WIDE_ROWS) {
+    assert.deepEqual(declared(shellCss, selector, 'margin-right', { media: null }), { value: 'var(--mm-work-view-opener-space, 176px)', important: false }, selector);
+  }
+  // Only where the question's work has no row of its own for the button. On a phone held upright the work starts
+  // below the button (the phone lane), and a margin there would narrow the row by the button's width for nothing.
+  for (const selector of WIDE_ROWS) assert.doesNotMatch(selector, /mode-portrait/);
+  // The rows are drawn where the rule names them, and hold what was covered.
+  const match = executableSource(read('src/GraphScenarioMatch.jsx'));
+  const row = region(match, '<div className="graph-scenario-match-heading-row">', '</div>\n      </div>', 'the board\'s heading row');
+  assert.match(row, /className="graph-scenario-match-progress"/, 'the count is in that row');
+  const lab = executableSource(read('src/components/labs/InteractiveModelingLabPlayer.jsx'));
+  const heading = region(lab, 'className="mathmaster-interactive-lab-heading"', '</div>', 'the lab\'s first row');
+  assert.match(heading, /No TEKS alignment/, 'the TEKS line is in that row');
+});
+
 /* ------------------------------------------------- #386 R17: tries and completion badges */
 
 test('a question\'s tries and "Question complete" are drawn above its work, never in the corner the opener floats over', () => {
