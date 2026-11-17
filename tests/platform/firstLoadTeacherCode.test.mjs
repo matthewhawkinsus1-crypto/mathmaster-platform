@@ -67,6 +67,8 @@ for (const [file, why] of [
   ['src/platform/classroom/classroomTopicNaming.js', 'only a teacher publishes to Classroom (teacher kit); the Classroom Manager loads its own'],
   ['src/platform/classroom/teacherTopicStyle.js', 'a teacher\'s saved Classroom topic style is read by the teacher kit and the Classroom Manager only (TT07)'],
   ['src/platform/teacher/studentSupportSignals.js', 'App reads only the event kinds (teacher/supportEventKinds.js) and the live rapid-correct summary (teacher/rapidCorrectness.js)'],
+  ['src/platform/path/weeklyPathProgressRefresh.js', 'only a teacher\'s screens keep weekly Path completion fresh (teacher kit)'],
+  ['src/app/teacher/weeklyPathProgress.js', 'only a teacher\'s screens follow weekly Path completion (teacher kit)'],
 ]) {
   test(`${path.basename(file)} is not in the first load: ${why}`, () => {
     const key = path.join(repo, file);

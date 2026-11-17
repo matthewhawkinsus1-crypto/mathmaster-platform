@@ -1895,59 +1895,33 @@ function App() {
     }));
   }, [activeClass.classId, classes, courseProfiles, weeklyGoalsByClass, pacingByClass, skillOverrides, teacherWeeklyRoster, assignments, teacherLearningProfiles, weeklyPathGoalSnapshotsByStudent, now, teacherTab]);
 
+  // This week's Path completion for the class the screen shows, kept fresh
+  // while a teacher is on it, by the teacher kit (app/teacher/
+  // weeklyPathProgress.js; when to ask: platform/path/
+  // weeklyPathProgressRefresh.js): never for a class no screen shows, not
+  // again for an entry within the minute of the answer the screen holds,
+  // nothing while the page is hidden, and asked again a minute after it was
+  // last asked.
+  const weeklyPathProgress = useMemo(() => (teacherKit ? teacherKit.createWeeklyPathProgressRefresh() : null), [teacherKit]);
+  useEffect(() => () => weeklyPathProgress?.forget(), [weeklyPathProgress, user?.uid]);
   useEffect(() => {
-    // Home needs this as much as the Weekly Path tab does: the needs-attention
-    // queue reports who is behind, and reporting that from data that has not
-    // loaded yet would tell a teacher the whole class is behind every time they
-    // open the page.
-    if (user?.role !== 'teacher' || !['weeklyPath', 'home', 'grades'].includes(teacherTab)) return undefined;
-    if (teacherPreviewRuntimeActive) return undefined;
-    const activeId = activeClass.classId || classes[0]?.classId || null;
-    if (!activeId) { setWeeklyPathCompletionsByStudent({}); setWeeklyPathGoalSnapshotsByStudent({}); setWeeklyPathProgressLoadedFor(null); return undefined; }
-    const classRecord = classes.find((entry) => entry.classId === activeId) || null;
-    const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
-      classId: activeId,
-      classPeriod: classRecord?.period || '',
-    }) || {};
-    const weekStartsOn = config.weekStartsOn || 1;
-    let alive = true;
-
-    const loadProgress = async ({ showLoading = false } = {}) => {
-      if (showLoading && alive) setWeeklyPathProgressLoading(true);
-      try {
-        const result = await fetchTeacherWeeklyPathCompletions({
-          classId: activeId,
-          // Compute the week at fetch time. This keeps Monday rollover correct
-          // without tying a Cloud Function call to App's UI clock tick.
-          weekKey: weekKeyFor(Date.now(), weekStartsOn),
-        });
-        if (alive) {
-          setWeeklyPathCompletionsByStudent(result?.byStudentId || {});
-          setWeeklyPathGoalSnapshotsByStudent(result?.goalsByStudentId || {});
-          setWeeklyPathTruncated(result?.truncated === true);
-          setWeeklyPathProgressLoadedFor(activeId);
-        }
-      } catch (error) {
-        console.error('Could not load Weekly Path progress:', error);
-        // A failed read is NOT zero completions. Leaving `loadedFor` unset keeps
-        // every completion alert out of the queue rather than announcing that
-        // nobody did any work.
-        if (alive) { setWeeklyPathCompletionsByStudent({}); setWeeklyPathGoalSnapshotsByStudent({}); setWeeklyPathTruncated(false); setWeeklyPathProgressLoadedFor(null); }
-      } finally {
-        if (showLoading && alive) setWeeklyPathProgressLoading(false);
-      }
-    };
-
-    loadProgress({ showLoading: true });
-    // Weekly progress changes only when sessions complete. Refresh once a
-    // minute while the teacher is looking at this class instead of invoking a
-    // callable every time the application's display clock ticks.
-    const timer = setInterval(() => loadProgress(), 60_000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [user?.role, teacherTab, activeClass.classId, classes, weeklyGoalsByClass, teacherPreviewRuntimeActive]);
+    if (user?.role !== 'teacher' || teacherPreviewRuntimeActive || !weeklyPathProgress) return undefined;
+    return teacherKit.followWeeklyPathProgress(weeklyPathProgress, {
+      uid: user.uid,
+      teacherTab,
+      activeClassId: activeClass.classId,
+      classes,
+      weeklyGoalsByClass,
+      path: { completions: fetchTeacherWeeklyPathCompletions, weeklyGoalFor: storedWeeklyGoalForClassContext, weekKeyFor },
+      set: {
+        completions: setWeeklyPathCompletionsByStudent,
+        goals: setWeeklyPathGoalSnapshotsByStudent,
+        truncated: setWeeklyPathTruncated,
+        loadedFor: setWeeklyPathProgressLoadedFor,
+        loading: setWeeklyPathProgressLoading,
+      },
+    });
+  }, [user?.role, user?.uid, teacherTab, activeClass.classId, classes, weeklyGoalsByClass, teacherPreviewRuntimeActive, weeklyPathProgress, teacherKit]);
 
   useEffect(() => {
     if (!pendingClassroomLaunch) return;
