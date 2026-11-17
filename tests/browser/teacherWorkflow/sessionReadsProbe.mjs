@@ -72,10 +72,13 @@
 //                    the student's own record after a Submit). Live data the
 //                    screen is there to show, arriving on the backend's
 //                    timing, so it is reported and not budgeted
-//   transactionReads what writes read first: the draft save, and a response
-//                    checkpoint, which the queued-work machinery takes when
-//                    typing and saving fall a certain way. Reported, not
-//                    budgeted: on a loaded machine one run in eight took one
+//   transactionReads what writes read first: the draft save (and the read of
+//                    the drafts as a lesson opens, which is the first save's
+//                    read: heldDraftRead.js), and a response checkpoint,
+//                    which the queued-work machinery takes when typing and
+//                    saving fall a certain way. Reported, not budgeted (the
+//                    drafts' share is, as draftReads, below): on a loaded
+//                    machine one run in eight took one
 //   rereads          documents read again at a version already read in the phase
 //   listenersOpened  every onSnapshot call
 //   targetsOpened    the listens the server sees (a listener on a target
@@ -83,15 +86,29 @@
 //   open             listeners still open when the phase ended
 //   queries          one-shot queries (getDocs)
 //   docReads         getDoc reads
-//   snapshots, callables
+//   draftReads       billed reads of the student's drafts document
+//                    (studentWorkspaceDrafts/*), asked and in writes alike:
+//                    the opening's read is a transaction's read, held for the
+//                    first save (heldDraftRead.js), so `asked` no longer sees it
+//   callables        Cloud Functions calls, every one the app made through the
+//                    harness's functions fake (fakeFunctions.js counts each
+//                    call by name, one that fails as undeployed included)
+//   answeredCallables the callables the harness answers. The two it does not
+//                    simulate (NOT_SIMULATED_CALLABLES) fail as undeployed and
+//                    the app tries them again on its own timing, so how many
+//                    of their retries fall in a phase is the harness's, not the
+//                    app's (reconcileAssignmentActivityProjection: 5 or 6 in
+//                    the answer phase, 0 or 1 in midAssignment, on any build)
+//   snapshots
 //
 // and the same by path, with per-student paths folded (presence/*, grades/*, …).
 //
 // BUDGETS (production build): in every phase, asked, listenersOpened,
-// targetsOpened, queries, docReads and open may not exceed the numbers in
-// BUDGETS, and every phase has one. They are this tree's own counts, which
-// repeat exactly from run to run; raise one only with the reason in the
-// commit. Exit code 1 when a phase breaks one, or cannot be driven.
+// targetsOpened, queries, docReads, open and answeredCallables may not exceed
+// the numbers in BUDGETS, nor draftReads where a phase names it (where no save
+// splits by typing speed), and every phase has one. They are this tree's own
+// counts, which repeat exactly from run to run; raise one only with the reason
+// in the commit. Exit code 1 when a phase breaks one, or cannot be driven.
 
 import { writeFileSync } from 'node:fs';
 import { newSchoolContext } from './schoolClock.mjs';
@@ -110,32 +127,50 @@ const TODAY_TITLE = 'Systems of Equations — Lesson 3: Elimination';
 const IGNORED_CONSOLE = /Failed to decode downloaded font|OTS parsing error|math fonts could not be loaded|Download the React DevTools|\[vite\]|Failed to load resource/;
 // Background syncs the harness does not simulate (fakeFunctions.js): the call
 // fails as an undeployed function would and is counted with the callables.
-const NOT_SIMULATED = /(callable|no fake for the callable) "(reconcileAssignmentActivityProjection|resolveWeeklyPathGoalSnapshot)"/;
+const NOT_SIMULATED_CALLABLES = ['reconcileAssignmentActivityProjection', 'resolveWeeklyPathGoalSnapshot'];
+const NOT_SIMULATED = new RegExp(`(callable|no fake for the callable) "(${NOT_SIMULATED_CALLABLES.join('|')})"`);
 
 // This tree's counts on the production build, each a ceiling for its phase.
+//
+// Lowered by the second reads pass (they were the counts before it):
+//   - a lesson's opening reads the student's drafts once: the read is a
+//     transaction's, held for the first save (heldDraftRead.js), where the
+//     opening's getDoc and the first save's transaction each read it. So
+//     openAssignment, midAssignment and reload ask for no document (docReads
+//     1 -> 0, asked one less), and openAssignment and reload read the drafts
+//     once (draftReads 2 -> 1; budgeted only there: in a phase where the
+//     student types, a slow machine can split a save in two);
+//   - Home and My Math Path read each course's coverage index once a session
+//     (pathCoverageService.js fetchSessionPathCoverage): signIn's read serves
+//     mathPath and home (docReads 4 -> 3 and 1 -> 0);
+//   - a teacher's weekly Path completions callable is asked for only for the
+//     class on screen, not again within its minute (weeklyPathProgressRefresh.js):
+//     once in this session, in grades, where it was six times, two in grades
+//     (answeredCallables, newly budgeted: home 3 -> 2, grades 4 -> 3,
+//     monitor 1 -> 0, review 3 -> 2, homeAgain 1 -> 0).
 const BUDGETS = Object.freeze({
   student: {
-    signIn: { asked: 37, listenersOpened: 15, targetsOpened: 13, queries: 2, docReads: 6, open: 13 },
-    openAssignment: { asked: 3, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 1, open: 14 },
-    answer: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14 },
-    finish: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14 },
-    results: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14 },
-    grades: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 13 },
-    mathPath: { asked: 4, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 4, open: 14 },
-    home: { asked: 1, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 1, open: 13 },
-    midAssignment: { asked: 3, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 1, open: 14 },
-    reload: { asked: 39, listenersOpened: 16, targetsOpened: 14, queries: 2, docReads: 7, open: 14 },
+    signIn: { asked: 37, listenersOpened: 15, targetsOpened: 13, queries: 2, docReads: 6, open: 13, answeredCallables: 4 },
+    openAssignment: { asked: 2, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 0, open: 14, draftReads: 1, answeredCallables: 0 },
+    answer: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14, answeredCallables: 12 },
+    finish: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14, answeredCallables: 3 },
+    results: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14, answeredCallables: 0 },
+    grades: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 13, answeredCallables: 0 },
+    mathPath: { asked: 3, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 3, open: 14, answeredCallables: 1 },
+    home: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 13, answeredCallables: 2 },
+    midAssignment: { asked: 2, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 0, open: 14, answeredCallables: 3 },
+    reload: { asked: 38, listenersOpened: 16, targetsOpened: 14, queries: 2, docReads: 6, open: 14, draftReads: 1, answeredCallables: 2 },
   },
   teacher: {
-    home: { asked: 97, listenersOpened: 65, targetsOpened: 64, queries: 2, docReads: 7, open: 64 },
+    home: { asked: 97, listenersOpened: 65, targetsOpened: 64, queries: 2, docReads: 7, open: 64, answeredCallables: 2 },
     // The gradebook follows each roster student's stored detail beside their
     // grades document (#561, responseDetailStore.js): one listener each, 50
     // in this school, billed one read each while a collection is empty, and
     // opened again with the gradebook's grades listener (review).
-    grades: { asked: 101, listenersOpened: 52, targetsOpened: 52, queries: 0, docReads: 0, open: 54 },
-    monitor: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64 },
-    review: { asked: 101, listenersOpened: 51, targetsOpened: 51, queries: 0, docReads: 1, open: 54 },
-    homeAgain: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64 },
+    grades: { asked: 101, listenersOpened: 52, targetsOpened: 52, queries: 0, docReads: 0, open: 54, answeredCallables: 3 },
+    monitor: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64, answeredCallables: 0 },
+    review: { asked: 101, listenersOpened: 51, targetsOpened: 51, queries: 0, docReads: 1, open: 54, answeredCallables: 2 },
+    homeAgain: { asked: 62, listenersOpened: 61, targetsOpened: 61, queries: 0, docReads: 0, open: 64, answeredCallables: 0 },
   },
 });
 
@@ -180,7 +215,7 @@ const movement = async (page) => JSON.stringify(await page.evaluate(() => {
   const stats = window.__mmHarnessStore?.stats?.() || {};
   return [stats.readsBilledTotal, stats.reads, stats.queries, stats.subscriptions, stats.notifications, stats.callables, stats.openListeners];
 }));
-const budgetedMetrics = ['asked', 'listenersOpened', 'targetsOpened', 'queries', 'docReads', 'open'];
+const budgetedMetrics = ['asked', 'listenersOpened', 'targetsOpened', 'queries', 'docReads', 'open', 'draftReads', 'answeredCallables'];
 
 // The app is at rest: nothing it asks of the backend has moved for `quietMs`.
 const quiet = async (page, { quietMs = 2500, maxMs = 45_000 } = {}) => {
@@ -211,11 +246,13 @@ const summarize = (stats, { stillMoving }) => {
     asked: (stats.readsBilledTotal ?? 0) - (stats.readsPushedTotal ?? 0) - transactionReads,
     pushed: stats.readsPushedTotal ?? null,
     transactionReads,
+    draftReads: billedByPath['studentWorkspaceDrafts/*'] || 0,
     listenersOpened: sum(Object.values(stats.subscriptions || {})),
     targetsOpened: sum(Object.values(stats.targetsOpened || {})),
     queries: sum(Object.values(stats.queries || {})),
     docReads: sum(Object.values(stats.reads || {})) - transactionReads,
     callables: sum(Object.values(stats.callables || {})),
+    answeredCallables: sum(Object.entries(stats.callables || {}).filter(([name]) => !NOT_SIMULATED_CALLABLES.includes(name)).map(([, count]) => count)),
     open: stats.openListeners ?? null,
     rereads: sum(Object.values(extraByPath)),
     snapshots: sum(Object.values(stats.notifications || {})),
@@ -257,7 +294,7 @@ const runPhases = async (session, steps) => {
     phases[name] = summarize(await counters(session.page), { stillMoving: !settled });
     if (!settled) problems.push(`${session.who} ${name}: the app was still reading after 45 s`);
     const row = phases[name];
-    console.error(`  ${session.who} ${name.padEnd(15)} reads ${String(row.reads).padStart(4)} (asked ${String(row.asked).padStart(3)}, pushed ${String(row.pushed).padStart(3)}, in writes ${row.transactionReads}) · listeners opened ${String(row.listenersOpened).padStart(3)} (targets ${String(row.targetsOpened).padStart(3)}) · open ${String(row.open).padStart(3)} · queries ${row.queries} · doc reads ${row.docReads} · callables ${row.callables}${row.rereads ? ` · re-read ${row.rereads}` : ''}`);
+    console.error(`  ${session.who} ${name.padEnd(15)} reads ${String(row.reads).padStart(4)} (asked ${String(row.asked).padStart(3)}, pushed ${String(row.pushed).padStart(3)}, in writes ${row.transactionReads}) · listeners opened ${String(row.listenersOpened).padStart(3)} (targets ${String(row.targetsOpened).padStart(3)}) · open ${String(row.open).padStart(3)} · queries ${row.queries} · doc reads ${row.docReads} · draft reads ${row.draftReads} · callables ${row.callables} (answered ${row.answeredCallables})${row.rereads ? ` · re-read ${row.rereads}` : ''}`);
   }
   return phases;
 };
@@ -451,7 +488,7 @@ if (!ONLY || ONLY === 'student') sessions.student = await studentSession();
 if (!ONLY || ONLY === 'teacher') sessions.teacher = await teacherSession();
 await browser.close();
 
-const TOTALLED = ['reads', 'asked', 'pushed', 'transactionReads', 'rereads', 'listenersOpened', 'targetsOpened', 'queries', 'docReads', 'callables'];
+const TOTALLED = ['reads', 'asked', 'pushed', 'transactionReads', 'draftReads', 'rereads', 'listenersOpened', 'targetsOpened', 'queries', 'docReads', 'callables', 'answeredCallables'];
 const overBudget = [];
 const budgetsChecked = CHECK_BUDGETS && !devBuild;
 if (budgetsChecked) {
@@ -483,7 +520,7 @@ const json = JSON.stringify(report, null, 2);
 console.log(json);
 if (process.env.OUT) writeFileSync(process.env.OUT, `${json}\n`);
 
-Object.entries(totals).forEach(([who, row]) => console.error(`${who} session: ${row.reads} reads (${row.asked} asked, ${row.pushed} pushed, ${row.transactionReads} in writes), ${row.listenersOpened} listeners opened (${row.targetsOpened} targets), ${row.queries} queries, ${row.docReads} document reads, ${row.callables} callables`));
+Object.entries(totals).forEach(([who, row]) => console.error(`${who} session: ${row.reads} reads (${row.asked} asked, ${row.pushed} pushed, ${row.transactionReads} in writes), ${row.listenersOpened} listeners opened (${row.targetsOpened} targets), ${row.queries} queries, ${row.docReads} document reads, ${row.draftReads} draft reads, ${row.callables} callables`));
 if (devBuild) console.error('Development build: StrictMode runs every mount effect twice, so these counts are not production\'s; budgets were not checked.');
 if (problems.length) console.error(`\n${problems.length} problem(s):\n- ${problems.join('\n- ')}`);
 if (overBudget.length) console.error(`\nOver budget:\n- ${overBudget.join('\n- ')}`);
