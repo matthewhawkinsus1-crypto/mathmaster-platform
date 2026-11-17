@@ -34,7 +34,8 @@ import { FAMILY_PIN_SERVER_WAIT_MS, WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, crea
 import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemAssignmentIds, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
 import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { scrollMotion } from './motionPreference.js';
-import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
+import { openWorkspaceDraft, readLatestWorkspaceResume, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
+import { createHeldDraftReads } from './platform/persistence/heldDraftRead.js';
 import { readWorkspaceDeliveryPins, readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
 import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerReconciliation.js';
@@ -4393,20 +4394,30 @@ function App() {
       // `online` event). Read it then, so this device shows work done on
       // another Chromebook and the sync learns what the server holds.
       flush: async ({ document }) => {
-        const result = await writeWorkspaceDraft(document);
+        const result = await drafts.save(document);
         if (!serverCopyRead) readServerCopy();
         return result;
       },
     });
     workspaceDraftSyncRef.current = sync;
     const unsubscribe = subscribeToQuestionDrafts((event) => sync.record(event));
+    // The server copy is read as the assignment opens, and that read is held
+    // for the first save, which is merged into it in the same transaction:
+    // one read of the document for both, where the opening and the first save
+    // each read it (platform/persistence/heldDraftRead.js). A save never waits
+    // for that read, and every later save reads for itself, as before. (The
+    // sync's flush, above, saves through it; nothing saves before this line.)
+    const drafts = createHeldDraftReads({
+      open: () => openWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId }),
+      write: writeWorkspaceDraft,
+    });
 
     let reading = false;
     let serverCopyRead = false;
     const readServerCopy = () => {
       if (cancelled || reading) return;
       reading = true;
-      readWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId })
+      drafts.read()
         .then((stored) => {
           if (cancelled) return;
           serverCopyRead = true;
@@ -4497,6 +4508,8 @@ function App() {
       document.removeEventListener('visibilitychange', flushWhenHidden);
       void sync.flushNow();
       sync.stop();
+      // A read no save took ends without writing (the last save, above, took it if it could).
+      drafts.release();
       if (workspaceDraftSyncRef.current === sync) workspaceDraftSyncRef.current = null;
     };
   }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, activeAssignmentUsesWorkspaceDrafts]);

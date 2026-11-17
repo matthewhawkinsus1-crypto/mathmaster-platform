@@ -4,19 +4,45 @@
  * `studentWorkspaceDrafts/{studentId}__{assignmentId}` — deliberately NOT the
  * grades document. Writing here changes no grade, wakes no Classroom passback
  * and produces no evidence; it is recoverable student work and nothing else.
- * One document per assignment means one read when the assignment opens and one
- * coalesced write per debounce window.
+ * One document per assignment means one read when the assignment opens, which
+ * its first save writes with (openWorkspaceDraft), and one coalesced write per
+ * debounce window.
  */
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { mergeWorkspaceDraftDocumentReport, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { holdDraftRead } from './heldDraftRead.js';
 
 export const WORKSPACE_DRAFT_COLLECTION = 'studentWorkspaceDrafts';
 
-export const readWorkspaceDraft = async ({ studentId, assignmentId }) => {
-  if (!studentId || !assignmentId) return null;
-  const snapshot = await getDoc(doc(db, WORKSPACE_DRAFT_COLLECTION, workspaceDraftDocumentId({ studentId, assignmentId })));
-  return snapshot.exists() ? snapshot.data() : null;
+const storedData = (snapshot) => (snapshot.exists() ? snapshot.data() : null);
+
+// A save's write, in its transaction: the patch merged into what was read.
+// Returns the drafts the document's caps left out.
+const writeMerged = (transaction, reference, existing, patch) => {
+  const report = mergeWorkspaceDraftDocumentReport({ existing, patch });
+  transaction.set(reference, {
+    ...report.document,
+    // Server-stamped: a Chromebook with a wrong clock must not win by
+    // claiming the future, and the rules require it to be request.time.
+    updatedAt: serverTimestamp(),
+  });
+  return report.droppedKeys;
+};
+
+/**
+ * The assignment's server copy, read as it opens and held for its first save
+ * (heldDraftRead.js): `serverCopy` resolves to the stored document (null when
+ * there is none), and `save(patch)` merges the first save into it and writes
+ * it in the same transaction. One read for both.
+ */
+export const openWorkspaceDraft = ({ studentId, assignmentId }) => {
+  const reference = doc(db, WORKSPACE_DRAFT_COLLECTION, workspaceDraftDocumentId({ studentId, assignmentId }));
+  return holdDraftRead({
+    transact: (update) => runTransaction(db, update),
+    read: async (transaction) => storedData(await transaction.get(reference)),
+    write: (transaction, existing, patch) => writeMerged(transaction, reference, existing, patch),
+  });
 };
 
 /**
@@ -35,19 +61,9 @@ export const writeWorkspaceDraft = async (patch) => {
   const reference = doc(db, WORKSPACE_DRAFT_COLLECTION, patch.documentId);
   let droppedKeys = [];
   await runTransaction(db, async (transaction) => {
-    const snapshot = await transaction.get(reference);
-    const report = mergeWorkspaceDraftDocumentReport({
-      existing: snapshot.exists() ? snapshot.data() : null,
-      patch,
-    });
+    const existing = storedData(await transaction.get(reference));
     // Of the attempt that commits (a retried transaction runs again).
-    droppedKeys = report.droppedKeys;
-    transaction.set(reference, {
-      ...report.document,
-      // Server-stamped: a Chromebook with a wrong clock must not win by
-      // claiming the future, and the rules require it to be request.time.
-      updatedAt: serverTimestamp(),
-    });
+    droppedKeys = writeMerged(transaction, reference, existing, patch);
   });
   // The drafts the document's caps left out (workspaceDraftSchema.mjs): the
   // sync tells the student they are on this device only.

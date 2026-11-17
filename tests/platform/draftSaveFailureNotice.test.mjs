@@ -139,12 +139,19 @@ test('past the caps the merge names what it left out, and the sync tells the stu
 
 test('the store hands back what the caps left out', () => {
   const store = executableSource(readFileSync(new URL('../../src/platform/persistence/workspaceDraftStore.js', import.meta.url), 'utf8'));
+  // Every save writes through one merge, alone or in the opening read's
+  // transaction (openWorkspaceDraft), and it names what the caps left out.
+  const merged = region(store, 'const writeMerged = ', '\n};', 'the merged write');
+  assert.match(merged, /const report = mergeWorkspaceDraftDocumentReport\(\{ existing, patch \}\);/);
+  assert.match(merged, /return report\.droppedKeys;/);
   const writer = region(store, 'export const writeWorkspaceDraft', '\n};');
-  assert.match(writer, /droppedKeys = report\.droppedKeys;/);
+  assert.match(writer, /droppedKeys = writeMerged\(transaction, reference, existing, patch\);/);
   assert.match(writer, /return \{ written: true, droppedKeys \};/);
-  // App passes the store's answer through to the sync.
+  assert.match(region(store, 'export const openWorkspaceDraft', '\n};'), /write: \(transaction, existing, patch\) => writeMerged\(transaction, reference, existing, patch\),/);
+  // App passes the store's answer through to the sync, whichever way it saved
+  // (draftOpeningReadOnce.test.mjs runs both against the real store).
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(region(app, 'flush: async ({ document }) => {', '},'), /const result = await writeWorkspaceDraft\(document\);[\s\S]*return result;/);
+  assert.match(region(app, 'flush: async ({ document }) => {', '},'), /const result = await drafts\.save\(document\);[\s\S]*return result;/);
 });
 
 test('a shared Chromebook: the next student starts clean, and a reload keeps this student\'s notice', () => {
