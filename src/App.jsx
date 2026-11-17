@@ -464,10 +464,10 @@ import {
   normalizeGradingPeriodSettings,
 } from './platform/student/gradingPeriods.js';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot, fetchMyWeeklyPathCompletions,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
-  subscribeStudentPathIntervention,
+  studentWeeklyPath, subscribeStudentPathIntervention,
 } from './platform/path/pathStore.js';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
 import { forgetSessionPathCoverage } from './platform/path/pathCoverageService.js';
@@ -2463,48 +2463,56 @@ function App() {
     });
   }, [user, weeklyGoalsByClass]);
 
+  // This student's week, as this page holds it for Home and My Math Path
+  // (platform/path/studentWeeklyPath.js): asked for again a minute after the
+  // last answer, or after any Path work, and never while the page is hidden.
+  const studentWeeklyPathFacts = useMemo(() => (
+    user?.role === 'student' && user.id ? studentWeeklyPath.forStudent({ studentId: user.id, classId: user.classId || null }) : null
+  ), [user?.role, user?.id, user?.classId]);
+
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
       setStudentWeeklyPathProgress(null);
       return undefined;
     }
-    if (studentDashboardMode !== 'assignments') return undefined;
+    if (studentDashboardMode !== 'assignments' || !studentWeeklyPathFacts) return undefined;
 
     const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
     const settings = normalizeWeeklyGoalConfig(studentWeeklyGoalConfig || {}, { honors });
     const currentWeekKey = weekKeyFor(now, settings.weekStartsOn || 1);
-    let active = true;
+    // Nothing until the week is known: an answer the page holds lands in this
+    // same render, else this says "Check your Math Path" until one comes.
     setStudentWeeklyPathProgress(null);
 
-    Promise.all([
-      fetchStudentWeeklyPathGoalSnapshot({ weekKey: currentWeekKey }),
-      // Server-counted completions: the rule the teacher table and Classroom use.
-      fetchMyWeeklyPathCompletions({ weekKey: currentWeekKey }),
-    ]).then(([goal, weeklyFacts]) => {
-      if (!active) return;
-      if (!goal) {
-        const required = Number(settings.sessions) || 0;
-        setStudentWeeklyPathProgress({
-          required,
-          completed: 0,
-          remaining: required,
-          complete: required === 0,
-          overdue: now > dueAtFor(now, settings) && required > 0,
-        });
-        return;
-      }
+    // The frozen goal, and the completions the server counts: the rule the
+    // teacher table and Classroom use.
+    return studentWeeklyPathFacts.follow(currentWeekKey, {
+      goal: true,
+      apply: ({ goal, facts: weeklyFacts }) => {
+        if (!goal) {
+          const required = Number(settings.sessions) || 0;
+          setStudentWeeklyPathProgress({
+            required,
+            completed: 0,
+            remaining: required,
+            complete: required === 0,
+            overdue: now > dueAtFor(now, settings) && required > 0,
+          });
+          return;
+        }
 
-      const completions = weeklyFacts?.completions || [];
-      setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
-    }).catch((error) => {
-      if (!active) return;
-      console.error('Could not confirm the student Weekly Path status:', error);
-      setStudentWeeklyPathProgress(null);
+        const completions = weeklyFacts?.completions || [];
+        setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
+      },
+      // Without an answer the card says to check, never that nothing is done,
+      // and the week is asked for again in a minute.
+      fail: (error) => {
+        console.error('Could not confirm the student Weekly Path status:', error);
+        setStudentWeeklyPathProgress(null);
+      },
     });
-
-    return () => { active = false; };
   }, [
-    user?.role, user?.id, user?.profile?.courseLevel, studentWeeklyGoalConfig,
+    user?.role, user?.id, user?.profile?.courseLevel, studentWeeklyGoalConfig, studentWeeklyPathFacts,
     studentDashboardMode, Math.floor(now / 3_600_000),
   ]);
 
@@ -3682,7 +3690,10 @@ function App() {
     // straight from another account) reads My Math Path's coverage index
     // again: a content release reaches a student at their next sign-in
     // (platform/path/pathCoverageService.js).
-    if (hydratedSessionUidRef.current !== session.uid) forgetSessionPathCoverage();
+    if (hydratedSessionUidRef.current !== session.uid) {
+      forgetSessionPathCoverage();
+      studentWeeklyPath.forget();
+    }
     hydratedSessionUidRef.current = session.uid;
 
     const hydrateSession = async () => {
@@ -12457,6 +12468,7 @@ function App() {
           initialSessionConfig={mathPathArrival?.sessionConfig || null}
           pathOptions={studentPathOptionsNow()}
           weeklyGoalConfig={studentWeeklyGoalConfig}
+          weeklyPathFacts={studentWeeklyPathFacts}
           courseId={studentCourseId}
           studentRecord={studentRecord}
           serverMasteryProfiles={studentServerMasteryProfiles}

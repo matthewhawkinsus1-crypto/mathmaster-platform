@@ -123,5 +123,5 @@ test('a new sign-in on the page reads the index again', () => {
   // The session effect: any account other than the one this page hydrated last,
   // after a sign-out (null) or straight from another account.
   const hydrate = region(app, 'if (hydratedSessionUidRef.current && hydratedSessionUidRef.current !== session.uid) {', 'const hydrateSession = async () => {', 'the session effect');
-  assert.match(hydrate, /if \(hydratedSessionUidRef\.current !== session\.uid\) forgetSessionPathCoverage\(\);\s*hydratedSessionUidRef\.current = session\.uid;/);
+  assert.match(hydrate, /if \(hydratedSessionUidRef\.current !== session\.uid\) \{\s*forgetSessionPathCoverage\(\);[^}]*\}\s*hydratedSessionUidRef\.current = session\.uid;/);
 });

@@ -37,6 +37,12 @@
 //     finish          the last open question (Practice Q2) answered and Submitted
 //     results         "Continue to your results": the lesson's result page
 //     grades          My Grades ("View All Grades" on the result page)
+//     aMinute         resting there until a minute has passed since Home's
+//                     week of My Math Path was asked for (a lesson takes
+//                     longer in class than here), so whether My Math Path asks
+//                     for it again never depends on how fast this machine
+//                     drove the lesson (studentWeeklyPath.js holds an answer
+//                     for a minute)
 //     mathPath        My Math Path
 //     home            back to Home
 //     midAssignment   yesterday's part-done lesson from "Do this next", one
@@ -148,6 +154,18 @@ const NOT_SIMULATED = new RegExp(`(callable|no fake for the callable) "(${NOT_SI
 //     once in this session, in grades, where it was six times, two in grades
 //     (answeredCallables, newly budgeted: home 3 -> 2, grades 4 -> 3,
 //     monitor 1 -> 0, review 3 -> 2, homeAgain 1 -> 0).
+//
+// Lowered by the third reads pass:
+//   - a student's week of My Math Path is held by the page for Home and My
+//     Math Path (studentWeeklyPath.js): the completions are asked for again a
+//     minute after the last answer, or after the student's own Path work.
+//     Back on Home seconds after My Math Path asked, Home asks only for the
+//     frozen week, and only because this harness does not answer My Math
+//     Path's freeze (resolveWeeklyPathGoalSnapshot), which would have frozen
+//     it for the page (home answeredCallables 2 -> 1). aMinute keeps Home's
+//     first answer from serving My Math Path, so mathPath's count holds on any
+//     machine (1: the completions); within the minute it asks for none
+//     (studentWeeklyPath.test.mjs).
 const BUDGETS = Object.freeze({
   student: {
     signIn: { asked: 37, listenersOpened: 15, targetsOpened: 13, queries: 2, docReads: 6, open: 13, answeredCallables: 4 },
@@ -156,8 +174,9 @@ const BUDGETS = Object.freeze({
     finish: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14, answeredCallables: 3 },
     results: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 14, answeredCallables: 0 },
     grades: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 13, answeredCallables: 0 },
+    aMinute: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 13, answeredCallables: 0 },
     mathPath: { asked: 3, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 3, open: 14, answeredCallables: 1 },
-    home: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 13, answeredCallables: 2 },
+    home: { asked: 0, listenersOpened: 0, targetsOpened: 0, queries: 0, docReads: 0, open: 13, answeredCallables: 1 },
     midAssignment: { asked: 2, listenersOpened: 1, targetsOpened: 1, queries: 1, docReads: 0, open: 14, answeredCallables: 3 },
     reload: { asked: 38, listenersOpened: 16, targetsOpened: 14, queries: 2, docReads: 6, open: 14, draftReads: 1, answeredCallables: 2 },
   },
@@ -359,11 +378,14 @@ const studentSession = async () => {
   console.error(`\nstudent ${STUDENT} — a school day`);
   const session = await openSession('student', `&as=student&studentId=${STUDENT}&questions=real&server=1`);
   const { page } = session;
+  let homeWeekAskedBy = Date.now();
   const phases = await runPhases(session, [
     ['signIn', async () => {
       await visible(page, page.getByText(/Welcome, /)).waitFor({ timeout: 60_000 });
     }],
     ['openAssignment', async () => {
+      // Home has settled: its week of My Math Path was asked for by now.
+      homeWeekAskedBy = Date.now();
       const card = page.locator('article[data-assignment-card="a-today"]');
       await visible(page, card.getByRole('button', { name: /^(Continue|Start|Resume)/ })).click();
       await page.locator('math-field').first().waitFor({ timeout: 30_000 });
@@ -390,6 +412,10 @@ const studentSession = async () => {
       // The result page's own way there.
       await visible(page, page.getByRole('button', { name: /^View All Grades$/ })).click();
       await visible(page, page.getByText(/My Grades/)).waitFor({ timeout: 30_000 });
+    }],
+    ['aMinute', async () => {
+      const wait = homeWeekAskedBy + 61_000 - Date.now();
+      if (wait > 0) await page.waitForTimeout(wait);
     }],
     ['mathPath', async () => {
       await navLink(page, 'My Math Path').click();
