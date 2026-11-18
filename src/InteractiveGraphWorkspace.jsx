@@ -283,6 +283,10 @@ const analysisAnswerShape = (part) => describeAnswerFormat({
  * construction and analysis the workspace keeps in its drafts: points are
  * [x, y] pairs, a sketch is a list of strokes of such points, a camera is the
  * four edges of the window it was drawn in, a typed answer is what was typed.
+ * A card is placed at a point, or, where its value is not real ("Undefined 1"
+ * on a square root or a logarithm), as the word 'undefined' (placeTask): that
+ * placement was dropped as not a point, so a reload took it away. Every route
+ * to a point (a click, a drag, the keyboard, the typed x and y) stores numbers.
  * A point, stroke, marker or answer that is not one is dropped; a collection
  * the workspace reads on every render opens empty in its place (the task's
  * chosen x values: the question's own), and the rest of the work comes back.
@@ -294,8 +298,9 @@ const sketchCameraDraft = draftShape.nullable(draftShape.record(
 ));
 const TYPED = draftShape.nullable(draftShape.cell());
 const FLAG = draftShape.nullable(draftShape.boolean());
+const PLACEMENT = draftShape.either(draftShape.point(), draftShape.oneOf(['undefined']));
 const constructionDraft = (chosenXValues) => draftNormalizer(draftShape.record({
-  placements: draftShape.required(draftShape.map(draftShape.point(), { or: {} })),
+  placements: draftShape.required(draftShape.map(PLACEMENT, { or: {} })),
   chosenXValues: draftShape.required(draftShape.map(TYPED, { or: chosenXValues })),
   pointsValidated: FLAG,
   strokes: draftShape.required(sketchStrokesDraft),
