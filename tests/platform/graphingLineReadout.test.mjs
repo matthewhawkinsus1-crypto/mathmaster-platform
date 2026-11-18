@@ -74,7 +74,13 @@ test('GR30 — a stored Graphing line reads as the readout writes it wherever a 
   assert.equal(storedGraphingLine('y = 2x + 3 and more'), null);
   // The three places a record is read use it.
   const read = (file) => executableSource(readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8'));
-  assert.match(read('src/components/teacher/StudentResponseInspector.jsx'), /show\(readableStoredResponse\(legacy\?\.\[part\.id\] \?\? legacy, model\.question\)\)/);
+  // The inspector's field view draws every stored value through WrittenValue;
+  // the graded column (the submitted snapshot, or the legacy recorded parts)
+  // asks it to read a stored line as the readout writes it. Rendered in
+  // tests/platform/responseInspectorScreen.test.mjs.
+  const fieldView = read('src/components/teacher/ResponseInspectorFieldView.jsx');
+  assert.match(region(fieldView, 'export function WrittenValue(', 'function ValueCell(', 'the inspector draws a stored value'), /const shown = readable \? asText\(readableStoredResponse\(written, question\)\) : written;/);
+  assert.match(fieldView, /<td style=\{cellStyle\}><ValueCell value=\{row\.submitted\} question=\{question\} readable \/><\/td>/);
   assert.match(read('src/components/teacher/StudentSpotlightView.jsx'), /value=\{readableStoredResponse\(part\?\.value \?\? part\?\.response \?\? part, frame\.question\)\}/);
   assert.match(region(read('src/QuestionEngine.jsx'), 'const closedYourAnswer =', ': [];'), /response: readableStoredResponseLatex\(part\.response, processedQuestion\)/);
 });

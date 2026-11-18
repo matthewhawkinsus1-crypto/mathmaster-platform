@@ -51,6 +51,23 @@
 //              submission, so another device does not bring that draft back
 //              (the harness has no ingestion, so the journey writes the
 //              canonical record the server would).
+//   other      another question's work arrives while the student types: B
+//              worked the line question, A then the fraction; back on B, the
+//              student types in the slope box as A's fraction work lands — at
+//              the opening read (held until they are typing), then when the
+//              page comes back online. The line question is not remounted for
+//              another question's draft: no key is lost, the caret stays where
+//              the student put it, and the fraction shows A's work when opened.
+//   next       the next question's work arrives as the student presses Next:
+//              B worked the line question and went back to the fraction; A
+//              then changed the line question's slope. Back on B (the read
+//              held), the student presses Next, and the read lands in the
+//              microtasks right after the commit that drew the line question
+//              from B's own older copy, where a Next's passive effects have not
+//              run unless something in that commit made React run them. The
+//              line question shows A's slope, and the student's next key keeps
+//              it. (With App's ref set in a passive effect and the question's
+//              layout-effect update made passive, it showed 12 and saved 129.)
 //   practice   post-deadline Practice Mode: the student practises on one
 //              device; another opens Practice Mode with the server out of
 //              reach and back without an `online` event (its read failed, its
@@ -458,6 +475,152 @@ if (wanted('canonical')) {
   const envelope = await localDraft(E.page, FRACTION_KEY);
   check(envelope === null, 'canonical: another device does not bring the pre-submission draft back over the submission', JSON.stringify(envelope));
   await E.context.close();
+}
+
+/* ============================================================== other */
+
+if (wanted('other')) {
+  const engineTag = (page) => page.evaluate(() => { document.querySelector('.mathmaster-question-engine').__journeyTag = true; });
+  const sameEngine = (page) => page.evaluate(() => document.querySelector('.mathmaster-question-engine')?.__journeyTag === true);
+  // Which box has the cursor, and where the caret is in the slope box.
+  const cursor = (page) => page.evaluate(() => {
+    const boxes = [...document.querySelectorAll('.mathmaster-question-stage math-field')];
+    let active = document.activeElement;
+    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+    let owner = active;
+    while (owner?.getRootNode?.()?.host) owner = owner.getRootNode().host;
+    return { box: boxes.indexOf(owner), value: boxes[0]?.value, caret: boxes[0]?.position };
+  });
+  const holds = async (page, suffix, test, ms = 15000) => {
+    const deadline = Date.now() + ms;
+    let draft = await localDraft(page, suffix);
+    while (!test(draft?.value) && Date.now() < deadline) {
+      await page.waitForTimeout(150);
+      draft = await localDraft(page, suffix);
+    }
+    return test(draft?.value);
+  };
+  // The student, in the slope box, caret before its last digit, types on
+  // while `arrive` brings the other question's work in behind them.
+  const typeThrough = async (page, arrive, landed, tag) => {
+    await engineTag(page);
+    await page.locator('.mathmaster-question-stage math-field').first().click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('ArrowLeft');
+    const start = (await cursor(page)).value;
+    await page.keyboard.type('34', { delay: 60 });
+    await arrive();
+    const arrived = await holds(page, FRACTION_KEY, landed);
+    // A remount, had there been one, would have happened by now.
+    await page.waitForTimeout(500);
+    await page.keyboard.type('56', { delay: 60 });
+    const after = await cursor(page);
+    const expected = `${start.slice(0, -1)}3456${start.slice(-1)}`;
+    check(arrived, `other (${tag}): the read lands while the student types, and brings A's fraction work to B`);
+    check(await sameEngine(page), `other (${tag}): the question the student is typing in is not remounted for another question's draft`);
+    check(after.box === 0 && after.value === expected && after.caret === expected.length - 1,
+      `other (${tag}): every key lands where the caret was, and the caret is still there`, JSON.stringify({ ...after, expected }));
+  };
+
+  // B works the line question; then A, the fraction.
+  const B0 = await openDevice('other: B works the line');
+  await openAssignment(B0.page);
+  await goTo(B0.page, Q_LINE);
+  await typeInto(B0.page, 0, '12');
+  await waitForServer(B0.page, (drafts) => drafts[LINE_KEY]?.value?.m === '12');
+  const stateB = await B0.context.storageState();
+  const serverB = await serverDb(B0.page);
+  await B0.context.close();
+  const A5 = await openDevice('other: A works the fraction', { server: serverB });
+  await openAssignment(A5.page);
+  await goTo(A5.page, Q_FRACTION);
+  await typeInto(A5.page, 0, '7');
+  await waitForServer(A5.page, (drafts) => drafts[FRACTION_KEY]?.value?.f === '7');
+  const serverWithFraction = await serverDb(A5.page);
+
+  // Back on B, as the lesson opens: the read is held until the student types.
+  const B = await openDevice('other: B back', { storageState: comingBack(stateB, serverWithFraction), params: { draftReadHold: '1' } });
+  await openAssignment(B.page);
+  await goTo(B.page, Q_LINE);
+  await typeThrough(B.page, () => B.page.evaluate(() => window.__mmHarnessStore.releaseDraftReads()), (value) => value?.f === '7', 'the opening read');
+  await goTo(B.page, Q_FRACTION);
+  const restored = await shows(B.page, ['7']);
+  check(same(restored, ['7']), 'other: the fraction, opened, shows A\'s work', JSON.stringify(restored));
+
+  // A works the fraction again; B, back on the line question, comes back online.
+  await typeInto(A5.page, 0, '5');
+  await waitForServer(A5.page, (drafts) => drafts[FRACTION_KEY]?.value?.f === '5');
+  const fractionDoc = await A5.page.evaluate((doc) => window.__mmHarnessStore.exportDoc(doc), DOC);
+  await A5.context.close();
+  await goTo(B.page, Q_LINE);
+  await typeThrough(B.page, () => B.page.evaluate(([doc, data]) => {
+    window.__mmHarnessStore.importDoc(doc, data);
+    window.dispatchEvent(new Event('online'));
+  }, [DOC, fractionDoc]), (value) => value?.f === '5', 'back online');
+  await goTo(B.page, Q_FRACTION);
+  const newer = await shows(B.page, ['5']);
+  check(same(newer, ['5']), 'other: the fraction, opened, shows A\'s newer work', JSON.stringify(newer));
+  await B.context.close();
+}
+
+/* =============================================================== next */
+
+if (wanted('next')) {
+  // B works the line question, then goes back to the fraction (where it will
+  // resume); A, later, gives the line question another slope.
+  const B0 = await openDevice('next: B works the line');
+  await openAssignment(B0.page);
+  await goTo(B0.page, Q_LINE);
+  await typeInto(B0.page, 0, '12');
+  await waitForServer(B0.page, (drafts) => drafts[LINE_KEY]?.value?.m === '12');
+  await goTo(B0.page, Q_FRACTION);
+  await B0.page.waitForTimeout(SAVED);
+  const stateB = await B0.context.storageState();
+  const serverB = await serverDb(B0.page);
+  await B0.context.close();
+  const A6 = await openDevice('next: A changes the slope', { server: serverB });
+  await openAssignment(A6.page);
+  await goTo(A6.page, Q_LINE);
+  await typeInto(A6.page, 0, '34');
+  await waitForServer(A6.page, (drafts) => drafts[LINE_KEY]?.value?.m === '34');
+  const serverWithA = await serverDb(A6.page);
+  await A6.context.close();
+
+  // Back on B, the read held, on the fraction. The read is let through from
+  // a MutationObserver as soon as the line question's boxes are in the page:
+  // the observer runs in the microtasks after React's commit, before the
+  // scheduler's next task, where a Next's passive effects run.
+  const B = await openDevice('next: B back', { storageState: comingBack(stateB, serverWithA), params: { draftReadHold: '1' } });
+  await openAssignment(B.page);
+  await goTo(B.page, Q_FRACTION);
+  await B.page.evaluate(() => {
+    const old = document.querySelector('.mathmaster-question-engine');
+    window.__journeyNext = { released: null };
+    const observer = new MutationObserver(() => {
+      const engine = document.querySelector('.mathmaster-question-engine');
+      if (!engine || engine === old || !engine.querySelector('math-field')) return;
+      if (!/A line passes through/.test(document.querySelector('.mathmaster-question-stage')?.innerText || '')) return;
+      observer.disconnect();
+      // Its boxes are drawn; their values follow in MathInput's effects.
+      window.__journeyNext.released = { boxes: engine.querySelectorAll('math-field').length };
+      window.__mmHarnessStore.releaseDraftReads();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  await B.page.getByRole('button', { name: 'Next question' }).first().click();
+  await B.page.waitForFunction(() => window.__journeyNext.released, null, { timeout: 30000 });
+  const drawn = await B.page.evaluate(() => window.__journeyNext.released);
+  check(drawn.boxes === 2, 'next: the read lands as soon as the line question, read from B\'s own older copy, is in the page', JSON.stringify(drawn));
+  const shown = await shows(B.page, ['34', '']);
+  check(same(shown, ['34', '']), 'next: the line question shows A\'s newer slope', JSON.stringify(shown));
+  // The student types on in the slope box.
+  await B.page.locator('.mathmaster-question-stage math-field').first().click();
+  await B.page.keyboard.press('End');
+  await B.page.keyboard.type('9', { delay: 25 });
+  await B.page.keyboard.press('Tab');
+  const saved = await waitForServer(B.page, (drafts) => /9/.test(drafts[LINE_KEY]?.value?.m || ''));
+  check(saved[LINE_KEY]?.value?.m === '349', 'next: the student\'s next key keeps A\'s slope (34, then 9), and B\'s older 12 never comes back', JSON.stringify(saved[LINE_KEY]?.value));
+  await B.context.close();
 }
 
 /* =========================================================== practice */

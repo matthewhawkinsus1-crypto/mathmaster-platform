@@ -54,6 +54,17 @@
 const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
+const { hydrateGradeData } = require("./gradeDetailStore");
+
+/*
+ * Mastery reads every question record whole (its support flags among it), and
+ * a record's detail is stored beside the grades document (gradeEntryStorage.mjs):
+ * join them before planning, or the planner would see records without it.
+ */
+async function wholeStudentRecord(db, studentId, studentData) {
+  if (!db || !studentId || !studentData || typeof studentData !== "object") return studentData;
+  return hydrateGradeData({ db, gradeRef: db.collection("grades").doc(String(studentId)), gradeData: studentData });
+}
 
 const PACING_DOC = "classPacing";
 const OVERRIDES_DOC = "skillOverrides";
@@ -293,6 +304,7 @@ async function loadServerPlannedSessions({
       return null;
     }
     const { pacing, teacherOverrides, assignments } = await loadServerPathInputs({ db, studentId, classRecord, planner, now });
+    const wholeRecord = await wholeStudentRecord(db, studentId, studentData);
     return planWeeklySessions(planner, {
       studentId,
       courseId: classRecord?.course,
@@ -301,7 +313,7 @@ async function loadServerPlannedSessions({
       weeklyConfig,
       pacing,
       teacherOverrides,
-      studentRecord: studentData,
+      studentRecord: wholeRecord,
       assignments,
       serverProfiles,
       retentionSchedules,
@@ -314,6 +326,7 @@ async function loadServerPlannedSessions({
 }
 
 module.exports = {
+  wholeStudentRecord,
   PLANNER_ENTRIES,
   REPO_ROOT,
   VENDOR_ROOT,

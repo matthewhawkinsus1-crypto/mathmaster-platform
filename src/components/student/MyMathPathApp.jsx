@@ -12,7 +12,7 @@ import { buildUnifiedMasteryProfiles } from '../../platform/mastery/unifiedMaste
 import { fetchMyMathPathSkillProgress, fetchPathSessionRecap } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
-import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
+import { fetchSessionPathCoverage } from '../../platform/path/pathCoverageService.js';
 import {
   frameworkCoverageKnown,
   isFrameworkSkillLaunchable,
@@ -150,6 +150,11 @@ export const MyMathPathExperience = ({
   // the synthetic learner. Absent for a real student, who gets the live
   // secure service.
   sessionProvider = null,
+  // The signed-in student's week as App.jsx's page holds it for Home and this
+  // screen (platform/path/studentWeeklyPath.js): one answer serves both for a
+  // minute, and none outlives the student's Path work. Absent wherever the
+  // week is not the viewer's own: the simulator's, a teacher's read-only view.
+  weeklyPathFacts = null,
   coverageOverride = null,
   onSimulationController = null,
   onSimulationEvent = null,
@@ -296,7 +301,7 @@ export const MyMathPathExperience = ({
 
   // Load the secure-bank coverage BEFORE building this week's plan. Assessment
   // transfer slots must never be frozen for a TEKS/framework pair the active
-  // bank cannot issue.
+  // bank cannot issue. Read once a session per course (pathCoverageService.js).
   const [coverage, setCoverage] = useState(() => coverageOverride || null);
   const [coverageLoaded, setCoverageLoaded] = useState(() => Boolean(coverageOverride));
   useEffect(() => {
@@ -307,7 +312,7 @@ export const MyMathPathExperience = ({
     }
     let cancelled = false;
     setCoverageLoaded(false);
-    fetchPathCoverage(courseId).then((index) => {
+    fetchSessionPathCoverage(courseId).then((index) => {
       if (cancelled) return;
       setCoverage(index);
       setCoverageLoaded(true);
@@ -341,6 +346,8 @@ export const MyMathPathExperience = ({
   }) : null), [weeklyPlan, weeklyGoalConfig, honors, studentId, courseId]);
   const [assignedWeeklyGoal, setAssignedWeeklyGoal] = useState(null);
   const frozenWeeklySnapshotRef = useRef(null);
+  // The live student's own week, held by the page (weeklyPathFacts above).
+  const liveWeek = weeklyPathFacts && !sessionProvider && !readOnly ? weeklyPathFacts : null;
 
   useEffect(() => {
     if (!proposedWeeklyGoal) { setAssignedWeeklyGoal(null); return undefined; }
@@ -365,7 +372,10 @@ export const MyMathPathExperience = ({
     // The server freezes a week exactly once, so its snapshot is reused for
     // the rest of that week. The proposal is rebuilt whenever the live mastery
     // profile moves (after every answer); asking the server again each time
-    // only cost a callable and flashed the unfrozen proposal in between.
+    // only cost a callable and flashed the unfrozen proposal in between. The
+    // page may know it already: Home read it, or an earlier visit froze it.
+    const weekAlreadyFrozen = liveWeek ? liveWeek.frozenGoal(proposedWeeklyGoal.weekKey) : null;
+    if (weekAlreadyFrozen) frozenWeeklySnapshotRef.current = { weekKey: weekAlreadyFrozen.weekKey || proposedWeeklyGoal.weekKey, snapshot: weekAlreadyFrozen };
     const frozen = frozenWeeklySnapshotRef.current;
     if (frozen && frozen.weekKey === proposedWeeklyGoal.weekKey) {
       setAssignedWeeklyGoal(mergeWeeklyGoalSnapshot({ proposed: proposedWeeklyGoal, snapshot: frozen.snapshot }));
@@ -373,7 +383,7 @@ export const MyMathPathExperience = ({
     }
     let cancelled = false;
     setAssignedWeeklyGoal(null);
-    resolveWeeklyPathGoalSnapshot(proposedWeeklyGoal)
+    (liveWeek ? liveWeek.resolve(proposedWeeklyGoal) : resolveWeeklyPathGoalSnapshot(proposedWeeklyGoal))
       .then((snapshot) => {
         if (cancelled || !snapshot) return;
         frozenWeeklySnapshotRef.current = { weekKey: snapshot.weekKey || proposedWeeklyGoal.weekKey, snapshot };
@@ -385,7 +395,7 @@ export const MyMathPathExperience = ({
         if (!cancelled) console.error('Could not freeze Weekly Path goal:', caught);
       });
     return () => { cancelled = true; };
-  }, [proposedWeeklyGoal, sessionProvider]);
+  }, [proposedWeeklyGoal, sessionProvider, liveWeek]);
 
   // Until the week is frozen it offers no swaps: the server has agreed to none.
   const unfrozenWeeklyGoal = useMemo(() => mergeWeeklyGoalSnapshot({ proposed: proposedWeeklyGoal }), [proposedWeeklyGoal]);
@@ -414,6 +424,24 @@ export const MyMathPathExperience = ({
     if (!weeklyGoalWeekKey) return undefined;
     let cancelled = false;
     setWeeklySessionFacts((current) => (current.status === 'loading' ? current : { ...current, status: 'loading' }));
+    const ready = (facts) => {
+      if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: facts.completions || [], inProgress: facts.inProgress || [], status: 'ready' });
+    };
+    const failed = (caught) => {
+      console.error('Could not load weekly Path completions:', caught);
+      if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: null, inProgress: [], status: 'failed' });
+    };
+    // The live student's: what the page holds when it is fresh (in this same
+    // render, so the facts never read as loading), else asked for. A session
+    // finished here was Path work, so the reload after it asks the server.
+    // A failure is retried in a minute as well as by Try again.
+    if (liveWeek) {
+      const stop = liveWeek.follow(weeklyGoalWeekKey, { apply: ({ facts }) => ready(facts), fail: failed });
+      return () => {
+        cancelled = true;
+        stop();
+      };
+    }
     const load = sessionProvider
       // The simulator's runtime holds session documents of the production
       // shape; the same collector counts them.
@@ -424,16 +452,9 @@ export const MyMathPathExperience = ({
         ? fetchTeacherWeeklyPathCompletions({ classId: studentRecord?.classId || studentProfile?.classId || null, weekKey: weeklyGoalWeekKey })
           .then((result) => ({ completions: result.byStudentId?.[studentId] || [], inProgress: [] }))
         : fetchMyWeeklyPathCompletions({ weekKey: weeklyGoalWeekKey });
-    load
-      .then((facts) => {
-        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: facts.completions || [], inProgress: facts.inProgress || [], status: 'ready' });
-      })
-      .catch((caught) => {
-        console.error('Could not load weekly Path completions:', caught);
-        if (!cancelled) setWeeklySessionFacts({ weekKey: weeklyGoalWeekKey, completions: null, inProgress: [], status: 'failed' });
-      });
+    load.then(ready).catch(failed);
     return () => { cancelled = true; };
-  }, [weeklyGoalWeekKey, sessionProvider, readOnly, studentId, studentRecord?.classId, studentProfile?.classId, weeklyRefreshKey, evidenceEvents]);
+  }, [weeklyGoalWeekKey, sessionProvider, readOnly, studentId, studentRecord?.classId, studentProfile?.classId, weeklyRefreshKey, evidenceEvents, liveWeek]);
   const weeklyCompletions = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.completions : null;
   const weeklyInProgress = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.inProgress : [];
   const weeklyFactsStatus = weeklySessionFacts.weekKey === weeklyGoalWeekKey ? weeklySessionFacts.status : 'loading';
@@ -515,8 +536,11 @@ export const MyMathPathExperience = ({
         now: Date.now(),
       });
     }
-    return readOnly ? null : fetchMyWeeklyPathHistory;
-  }, [sessionProvider, readOnly, assignedWeeklyGoal]);
+    // The live student's recent weeks, held by the page (studentWeeklyPath.js)
+    // for a minute and never past their Path work, as Home's week is.
+    if (readOnly) return null;
+    return liveWeek ? liveWeek.history : fetchMyWeeklyPathHistory;
+  }, [sessionProvider, readOnly, assignedWeeklyGoal, liveWeek]);
 
 
   // CCMR. The components have existed since Batch 9; what was missing was any

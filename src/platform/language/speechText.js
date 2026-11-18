@@ -403,14 +403,6 @@ const isFunctionBefore = (name, argument, named, w) => {
   if (holdsOwnLetter(name, argument, w)) return false;
   return CONVENTIONAL_FUNCTIONS.includes(name) || !isMultiTerm(argument, w) || /[=<>≤≥≠]/.test(argument);
 };
-const closingBracket = (text, open) => {
-  let depth = 0;
-  for (let index = open; index < text.length; index += 1) {
-    if (text[index] === '(') depth += 1;
-    else if (text[index] === ')') { depth -= 1; if (depth === 0) return index; }
-  }
-  return -1;
-};
 /*
  * f(g(2)) is applied from the inside out: an application inside a bracket is
  * read before the bracket it stands in. An inverse applied, f⁻¹(x) or
@@ -419,30 +411,61 @@ const closingBracket = (text, open) => {
  * f(2(x + 1)) and f(√(x + 1)) were "f times the quantity …", a bracket with
  * one inside it never read as an input. A bracket that is a factor is left as
  * written, for the products below.
+ *
+ * Read in place, `text` from `start` to `end`, with the brackets of the whole
+ * text matched once (roundBrackets): finding each bracket's close by scanning
+ * on, to the end of the text when it had none, was quadratic in a long box
+ * ("f(f(f(…"). Inside a bracket the pairs are the bracket's own, and the
+ * characters around it, ( and ), read as an edge does.
  */
-const readApplications = (text, letters, named, w) => {
+const readApplications = (text, letters, named, w, closes = roundBrackets(text), start = 0, end = text.length) => {
   const head = new RegExp(`(?<![A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\)|\\^\\s*[-−]1(?![0-9./]))?\\(`, 'g');
+  head.lastIndex = start;
   let out = '';
-  let from = 0;
-  for (const match of text.matchAll(head)) {
-    if (match.index < from) continue;
+  let from = start;
+  for (let match = head.exec(text); match && match.index < end; match = head.exec(text)) {
     const open = match.index + match[0].length - 1;
-    const close = closingBracket(text, open);
+    const close = closes.get(open) ?? -1;
     if (close === -1) continue;
     const [, name, inverse] = match;
-    const argument = readApplications(text.slice(open + 1, close), letters, named, w);
-    const follows = /[^\s.,;:?!)\]]/.test(text.slice(close + 1));
+    const argument = readApplications(text, letters, named, w, closes, open + 1, close);
+    const follows = /[^\s.,;:?!)\]]/.test(text.slice(close + 1, end));
     out += text.slice(from, match.index) + (inverse || isFunctionBefore(name, argument, named, w)
       ? applicationSpeech(w, '', inverse ? `${name} ${w.inverse}` : name, argument, follows)
       : `${name}(${argument})`);
     from = close + 1;
+    head.lastIndex = from;
   }
-  return out + text.slice(from);
+  return out + text.slice(from, end);
 };
 
+/*
+ * The matching close of every opening bracket of `text`, in one pass. With
+ * `escapes`, a backslash makes the character after it no bracket, as a LaTeX
+ * group is read (`\{`). The readers below find a group's close from its
+ * opening, and scanned on to the end of the text for every group that never
+ * closed: quadratic in a long box of them ("\sqrt{\sqrt{…", "√(√(…").
+ */
+const matchingCloses = (text, open, close, { escapes = false } = {}) => {
+  const closes = new Map();
+  const stack = [];
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (escapes && char === '\\') index += 1;
+    else if (char === open) stack.push(index);
+    else if (char === close && stack.length) closes.set(stack.pop(), index);
+  }
+  return closes;
+};
+const latexBraces = (text) => matchingCloses(text, '{', '}', { escapes: true });
+const roundBrackets = (text) => matchingCloses(text, '(', ')');
+
 // The argument of a LaTeX command, braces balanced: `\frac{x^{2}+1}{3}` has
-// numerator `x^{2}+1`. Returns [argument, indexAfter] or null.
-const readGroup = (text, from) => {
+// numerator `x^{2}+1`. Returns [argument, indexAfter] or null. `braces`: the
+// text's latexBraces, when the caller reads more than one group of it. (A
+// group is only read where no backslash stands before its brace, so the pairs
+// found from the start of the text are the ones its own scan would find.)
+const readGroup = (text, from, braces = null) => {
   let index = from;
   while (text[index] === ' ') index += 1;
   if (text[index] !== '{') {
@@ -450,41 +473,53 @@ const readGroup = (text, from) => {
     const token = text.slice(index).match(/^\\[A-Za-z]+|^[A-Za-z0-9]/);
     return token ? [token[0], index + token[0].length] : null;
   }
-  let depth = 0;
-  for (let cursor = index; cursor < text.length; cursor += 1) {
-    if (text[cursor] === '\\') { cursor += 1; continue; }
-    if (text[cursor] === '{') depth += 1;
-    else if (text[cursor] === '}') {
-      depth -= 1;
-      if (depth === 0) return [text.slice(index + 1, cursor), cursor + 1];
-    }
-  }
-  return null;
+  const close = (braces || latexBraces(text)).get(index);
+  return close === undefined ? null : [text.slice(index + 1, close), close + 1];
 };
 
 // Rewrite every `\command{a}{b}` (innermost first is not needed: the callback
-// recurses into its own arguments).
-const rewriteCommand = (text, pattern, arity, speak) => {
+// recurses into its own arguments). `lead(text, at, from)`, when given, is where
+// the match starts if the command takes in text before it (a repeating
+// decimal's digits): `speak` then gets [match, that text or undefined].
+const rewriteCommand = (text, pattern, arity, speak, lead = null) => {
   let out = '';
   let cursor = 0;
   const finder = new RegExp(pattern, 'g');
+  let braces = null;
   let match;
   while ((match = finder.exec(text))) {
     if (match.index < cursor) continue;
     const args = [];
     let after = match.index + match[0].length;
     for (let n = 0; n < arity; n += 1) {
-      const group = readGroup(text, after);
+      braces ||= latexBraces(text);
+      const group = readGroup(text, after, braces);
       if (!group) break;
       args.push(group[0]);
       after = group[1];
     }
     if (args.length < arity) continue;
-    out += text.slice(cursor, match.index) + speak(...args, match);
+    const start = lead ? lead(text, match.index, cursor) : match.index;
+    const found = lead ? [text.slice(start, match.index + match[0].length), start < match.index ? text.slice(start, match.index) : undefined] : match;
+    out += text.slice(cursor, start) + speak(...args, found);
     cursor = after;
     finder.lastIndex = after;
   }
   return out + text.slice(cursor);
+};
+
+/*
+ * The number a repeating decimal's bar follows, read back from `\overline`:
+ * where `(\d\.?\d*)?\\overline` matched, one digit, a point, then digits ("0.",
+ * "2.5" of 12.5, "16"), the leftmost such that ends at the command and starts
+ * at or after `from`. As one regular expression that group was tried from each
+ * digit of a long number, and re-read the rest of it each time.
+ */
+const isDigit = (char) => char >= '0' && char <= '9';
+const repeatingDecimalStart = (text, at, from) => {
+  let start = at;
+  while (start > from && isDigit(text[start - 1])) start -= 1;
+  return start - 2 >= from && text[start - 1] === '.' && isDigit(text[start - 2]) ? start - 2 : start;
 };
 
 // A LaTeX root after its coefficient multiplies it, as 5∛2 does (5 times the
@@ -515,11 +550,14 @@ const LATEX_PLAIN_LOG = /\\(ln|log)(?![A-Za-z_])\s*/g;
 const latexLogsToWords = (text, w) => {
   let out = '';
   let from = 0;
+  let parens = null;
+  let braces = null;
   for (const match of text.matchAll(LATEX_PLAIN_LOG)) {
     if (match.index < from) continue;
     const at = match.index + match[0].length;
     const bare = /^(?:\d+(?:\.\d+)?|[A-Za-z](?![A-Za-z])|\|[^|]+\|)/.exec(text.slice(at));
-    const group = text[at] === '(' ? rootArgument(text, at) : text[at] === '{' ? readGroup(text, at) : bare && [bare[0], at + bare[0].length];
+    const group = text[at] === '(' ? rootArgument(text, at, parens ||= roundBrackets(text))
+      : text[at] === '{' ? readGroup(text, at, braces ||= latexBraces(text)) : bare && [bare[0], at + bare[0].length];
     const name = match[1] === 'ln' ? w.naturalLog : w.commonLog;
     if (!group) {
       out += `${text.slice(from, match.index)} ${name} `;
@@ -579,9 +617,9 @@ const latexToSpeech = (raw, w) => {
     .replace(/\\\}/g, ` ${w.setClose} `);
   text = rewriteCommand(text, String.raw`\\(?:text|mathrm|textbf|mathbf|operatorname)(?![A-Za-z])\s*`, 1, (body) => ` ${body} `);
   // 0.\overline{3}: a repeating decimal; \overline{AB}: segment AB.
-  text = rewriteCommand(text, String.raw`(\d\.?\d*)?\\overline(?![A-Za-z])\s*`, 1, (body, match) => (
+  text = rewriteCommand(text, String.raw`\\overline(?![A-Za-z])\s*`, 1, (body, match) => (
     match[1] ? ` ${match[1]}${body} ${w.repeating} ` : ` ${w.segment} ${body} `
-  ));
+  ), repeatingDecimalStart);
   text = rewriteCommand(text, String.raw`\\overrightarrow(?![A-Za-z])\s*`, 1, (body) => ` ${w.ray} ${body} `);
   for (let pass = 0; pass < 4 && /\\[dt]?frac|\\sqrt/.test(text); pass += 1) {
     text = rewriteCommand(text, String.raw`\\[dt]?frac(?![A-Za-z])\s*`, 2, (top, bottom) => (isSimplePart(top) && isSimplePart(bottom)
@@ -743,31 +781,110 @@ const vulgarFractionsToWords = (text, w) => String(text)
  * not an aside; nor is a relation inside a bracket inside it.
  */
 const RELATION_SYMBOL = /[=<>≤≥≠≈]/;
+
+/*
+ * THE END OF A TEXT THAT A PATTERN ANCHORED AT ITS END CAN SEE.
+ *
+ * Read aloud asks of many marks "what is just before it?" with a pattern
+ * anchored at the end of everything before the mark (`[\p{L}]\s*$`). A
+ * regular expression tries such a pattern from the start of the text, so
+ * asking it of each mark in a long box was quadratic: seconds per keystroke.
+ * Each such question is now asked of the end it can match in: the run of
+ * characters its last part can take, and the code points its fixed part
+ * needs before that, so the answer is the same and costs only that run.
+ */
+const isHighSurrogate = (code) => code >= 0xD800 && code <= 0xDBFF;
+const isLowSurrogate = (code) => code >= 0xDC00 && code <= 0xDFFF;
+// The code point that ends at `end`.
+const codePointBefore = (text, end) => (
+  end > 1 && isLowSurrogate(text.charCodeAt(end - 1)) && isHighSurrogate(text.charCodeAt(end - 2)) ? text.slice(end - 2, end) : text.slice(end - 1, end)
+);
+// Where the run of code points before `end` that `accepts` begins.
+const runStartBefore = (text, end, accepts) => {
+  let start = end;
+  while (start > 0) {
+    const point = codePointBefore(text, start);
+    if (!accepts(point)) break;
+    start -= point.length;
+  }
+  return start;
+};
+const SPACE = /^\s$/;
+const isSpaceChar = (point) => SPACE.test(point);
+// `text` before `end` from `extra` code units ahead of the spaces it ends
+// with: all that `<one character>\s*$` or `<one character>\s+$` can match.
+const spaceTail = (text, end = text.length, extra = 2) => text.slice(Math.max(0, runStartBefore(text, end, isSpaceChar) - extra), end);
+
+/*
+ * Which brackets are asides. A bracket's own text is what is inside it with
+ * every bracket of at most four levels inside that taken out (four passes,
+ * innermost first, of `\([^()]*\)`), and it is an aside when that still holds
+ * a relation. So a relation counts where no bracket of at most four levels
+ * around it, inside this one, holds it: worked out for every bracket in one
+ * pass, from the brackets inside it, instead of cutting out and rewriting each
+ * bracket's text, which was quadratic for brackets inside brackets.
+ */
 const asideSpans = (text) => {
   const spans = [];
   const open = [];
   for (let index = 0; index < text.length; index += 1) {
-    if (text[index] === '(') open.push(index);
-    else if (text[index] === ')' && open.length) {
-      const start = open.pop();
-      let own = text.slice(start + 1, index);
-      for (let pass = 0; pass < 4 && /\([^()]*\)/.test(own); pass += 1) own = own.replace(/\([^()]*\)/g, ' ');
-      if (RELATION_SYMBOL.test(own) && !/[\p{L}\p{N})\]]$/u.test(text.slice(0, start))) spans.push([start, index]);
-    }
+    const char = text[index];
+    if (char === '(') open.push({ start: index, height: 0, relation: false });
+    else if (char === ')' && open.length) {
+      const group = open.pop();
+      const height = group.height + 1;
+      const parent = open[open.length - 1];
+      if (parent) {
+        parent.height = Math.max(parent.height, height);
+        // A bracket of five levels or more is not taken out of its parent's text.
+        if (height > 4 && group.relation) parent.relation = true;
+      }
+      if (group.relation && !/[\p{L}\p{N})\]]$/u.test(text.slice(Math.max(0, group.start - 2), group.start))) spans.push([group.start, index]);
+    } else if (open.length && RELATION_SYMBOL.test(char)) open[open.length - 1].relation = true;
   }
-  // The outermost only: an aside inside an aside is read with it.
-  return spans.filter(([start, end]) => !spans.some(([from, to]) => from < start && to > end));
+  // The outermost only: an aside inside an aside is read with it. Brackets
+  // nest, so one is inside another exactly when one that starts before it
+  // ends after it.
+  const inside = new Set();
+  let reach = -1;
+  [...spans].sort((a, b) => a[0] - b[0]).forEach((span) => {
+    if (reach > span[1]) inside.add(span);
+    reach = Math.max(reach, span[1]);
+  });
+  return spans.filter((span) => !inside.has(span));
 };
 // A pause where something is said before or after it, and none against a
 // stop that is already there ("(b = −2), which").
 const PAUSES_BEFORE = /[\p{L}\p{N}%)\]’”"']\s*$/u;
 const PAUSES_AFTER = /^\s*[\p{L}\p{N}(]/u;
-const relationAsidesAsPauses = (text) => asideSpans(text)
-  .sort((a, b) => b[0] - a[0])
-  .reduce((out, [start, end]) => {
-    const [before, after] = [out.slice(0, start), out.slice(end + 1)];
-    return `${before}${PAUSES_BEFORE.test(before) ? PAUSE : ''} ${out.slice(start + 1, end)} ${PAUSES_AFTER.test(after) ? PAUSE : ''}${after}`;
-  }, text);
+// The first code point of `text` that is not a space, or ''.
+const firstNonSpace = (text) => {
+  const found = /\S/u.exec(text);
+  return found ? String.fromCodePoint(text.codePointAt(found.index)) : '';
+};
+/*
+ * Each aside said between pauses, from the last back. What follows an aside
+ * is the text after it with the later asides already said, kept in pieces with
+ * the first character that is not a space: rebuilding and re-reading the whole
+ * text for every aside was quadratic in their number.
+ */
+const relationAsidesAsPauses = (text) => {
+  const spans = asideSpans(text).sort((a, b) => b[0] - a[0]);
+  if (!spans.length) return text;
+  const pieces = [];
+  let restFrom = text.length;
+  let restFirst = '';
+  for (const [start, end] of spans) {
+    const gap = text.slice(end + 1, restFrom);
+    const following = firstNonSpace(gap) || restFirst;
+    const piece = `${PAUSES_BEFORE.test(spaceTail(text, start)) ? PAUSE : ''} ${text.slice(start + 1, end)} ${PAUSES_AFTER.test(following) ? PAUSE : ''}`;
+    pieces.push(gap, piece);
+    restFirst = firstNonSpace(piece) || following;
+    restFrom = start;
+  }
+  pieces.push(text.slice(0, restFrom));
+  return pieces.reverse().join('');
+};
 // A run of mathematics that is one aside ("(f(153) = 598.75)" after a word):
 // speechTextFor gives it its pauses, which the run cannot see.
 const isWholeAside = (value) => {
@@ -775,14 +892,56 @@ const isWholeAside = (value) => {
   return asideSpans(text).some(([start, end]) => start === 0 && end === text.length - 1);
 };
 
+/*
+ * A SIGN THE TEXT ENDS WITH, FOUND WHERE ITS ONE MATCH STARTS.
+ *
+ * `([^\s\-−]*)(\s*)([-−])\s*$` is anchored at the end, so it can only match
+ * from the start of the word before the text's last sign; but the engine tried
+ * it from every character before that, re-reading the rest of the text each
+ * time: seconds for a long box with no sign at its end. The start is found
+ * from the end instead, and the same pattern is tried there, once.
+ */
+const TRAILING_SIGN = /([^\s\-−]*)(\s*)([-−])\s*$/y;
+const isSpace = (char) => /\s/.test(char);
+const isSign = (char) => char === '-' || char === '−';
+const trailingSignStart = (text) => {
+  let index = text.length;
+  while (index > 0 && isSpace(text[index - 1])) index -= 1;
+  if (index === 0 || !isSign(text[index - 1])) return -1;
+  index -= 1;
+  while (index > 0 && isSpace(text[index - 1])) index -= 1;
+  while (index > 0 && !isSpace(text[index - 1]) && !isSign(text[index - 1])) index -= 1;
+  return index;
+};
+
 // A denominator: one number, one word, or one bracket, which may hold two
-// levels of brackets ("((x-(3))*(x-(3)))").
-const FRACTION_SLASH = /([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*)(\d+(?:\.\d+)?|[A-Za-z]+|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))/g;
+// levels of brackets ("((x-(3))*(x-(3)))"). A fraction is
+// `([A-Za-z0-9.)]+)\s*\/\s*([-−]?\s*)(denominator)`: its numerator is the
+// whole run of those characters before the slash, so each run is tried once,
+// from its start (or from where the fraction before it ended, inside it). As
+// one regular expression it was tried again from each character of a run no
+// slash follows, quadratic in a long one.
+const NUMERATOR_RUN = /[A-Za-z0-9.)]+/g;
+const AFTER_NUMERATOR = /\s*\/\s*([-−]?\s*)(\d+(?:\.\d+)?|[A-Za-z]+|\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))/y;
+const replaceFractions = (text, speak) => {
+  let out = '';
+  let from = 0;
+  NUMERATOR_RUN.lastIndex = 0;
+  for (let run = NUMERATOR_RUN.exec(text); run; run = NUMERATOR_RUN.exec(text)) {
+    AFTER_NUMERATOR.lastIndex = run.index + run[0].length;
+    const rest = AFTER_NUMERATOR.exec(text);
+    if (!rest) continue;
+    out += text.slice(from, run.index) + speak(run[0], rest[1], rest[2]);
+    from = AFTER_NUMERATOR.lastIndex;
+    NUMERATOR_RUN.lastIndex = from;
+  }
+  return out + text.slice(from);
+};
 const fractionSlashes = (text, w) => {
   let out = text;
   // Each pass reads the slashes the one before left inside a denominator.
   for (let pass = 0; pass < 4; pass += 1) {
-    const next = out.replace(FRACTION_SLASH, (match, numerator, sign, denominator) => (
+    const next = replaceFractions(out, (numerator, sign, denominator) => (
       ` ${numerator} ${w.over} ${sign}${/^[A-Za-z]+$/.test(denominator) && !readsAsWord(denominator, w) ? denominator.split('').join(' ') : denominator} `
     ));
     if (next === out) break;
@@ -831,13 +990,16 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
         : /^\s*(?:[+\-−*/·×÷^√∛∜(|]|[\p{L}\p{N}])/u.test(whole.slice(offset + match.length));
       return ` ${coefficient ? `${w.times} ` : ''}${w.abs} ${body} ${ends ? `${w.endAbs} ` : ''}`;
     })
+    // (A pattern that starts with spaces is tried from the first of them only,
+    // `(?<!\s)`: a match never starts inside a run of spaces, and trying each
+    // of its characters again was quadratic in a long one.)
     // A bar that pairs with none (math-speech-4, item 4) was handed to the
     // voice: "p | 4" is "p divides 4" (the rational root theorem), and the bar
     // of an augmented row or a synthetic division, "[3, −2, −4 | −4]" and
     // "1, −2, −3 | 0", is "bar" between pauses; its "−4" is negative 4, not
     // "minus 4".
     .replace(/(^|\s)([A-Za-z])\s+\|\s+(\d+|[A-Za-z])(?=\s|$)/g, `$1$2 ${w.divides} $3`)
-    .replace(/\s*\|\s*/g, (bar, offset, whole) => `${whole.slice(0, offset).trim() ? ', ' : ' '}${w.bar}${whole.slice(offset + bar.length).trim() ? ', ' : ' '}`)
+    .replace(/(?<!\s)\s*\|\s*/g, (bar, offset, whole) => `${whole.slice(0, offset).trim() ? ', ' : ' '}${w.bar}${whole.slice(offset + bar.length).trim() ? ', ' : ' '}`)
     // (f + g)(x), (m − n)(2), (f ∘ g)(x): an operation on two functions,
     // applied — "f plus g of x", never "the quantity f plus g times x". Two
     // function names side by side, (fg)(x), are their product (AX20): "f
@@ -923,7 +1085,10 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
     .replace(/\)\s*\(/g, ')\uE000(')
-    .replace(/([\p{L}0-9]+)\s*\(/gu, (match, token) => (operatorWords.includes(token) ? `${token} (` : `${token}\uE000(`))
+    // Tried once per run of letters and digits, at its start: a run a bracket
+    // does not follow was re-read from each of its characters, which made a
+    // long box take seconds (a match can only start where a run does).
+    .replace(/(?<![\p{L}0-9])([\p{L}0-9]+)\s*\(/gu, (match, token) => (operatorWords.includes(token) ? `${token} (` : `${token}\uE000(`))
     .replace(/\uE000/g, ` ${w.times} `);
   text = markQuantityEnds(text, w, operatorWords)
     .replace(/\(/g, ` ${w.quantity} `);
@@ -932,7 +1097,10 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
   // The word before a sign never holds a sign itself: "x-7 - 50/(x-5)" kept
   // "x-7" whole as the word before the second sign and read it with its
   // hyphen (walkthrough 2026-10-22, "x-7 minus the fraction …").
-  text = text.replace(/([^\s\-−]*)\s*[-−]\s*(?=[A-Za-z0-9.(√]|[-−]\s*[A-Za-z0-9.(√])/g, (match, before) => {
+  // A word is tried once, from its start, and spaces once, from their first:
+  // a match never starts inside either, and trying each character of a long
+  // one again made the reading quadratic in its length.
+  text = text.replace(/(?<![^\s\-−])(?!(?<=\s)\s)([^\s\-−]*)\s*[-−]\s*(?=[A-Za-z0-9.(√]|[-−]\s*[A-Za-z0-9.(√])/g, (match, before) => {
     const previous = before.trim();
     const unary = !previous || /[(,[;:]$/.test(previous) || operatorWords.includes(previous);
     return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
@@ -944,13 +1112,15 @@ const plainMathToSpeech = (raw, w, functionNames = '', { intervals = false } = {
   // operator word or an opening, "negative" ("x = −___": "negative blank").
   // A hyphen pressed against what is before it is a word's: "the x- and
   // y-values", "a 6-hour job".
-  text = text.replace(/([^\s\-−]*)(\s*)([-−])\s*$/, (match, before, space, sign) => {
-    if (sign === '-' && before && !space) return match;
+  const signAt = trailingSignStart(text);
+  TRAILING_SIGN.lastIndex = Math.max(signAt, 0);
+  const [, before, space, sign] = (signAt === -1 ? null : TRAILING_SIGN.exec(text)) || [];
+  if (sign && !(sign === '-' && before && !space)) {
     const previous = before.trim();
     const unary = Boolean(previous) && (/[(,[;:]$/.test(previous) || operatorWords.includes(previous));
-    return unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `;
-  });
-  return text.replace(/[()[\]]/g, ' ').replace(/\s*\uE003/g, ',').replace(new RegExp(QUANTITY_END, 'g'), ` ${w.endQuantity} `);
+    text = `${text.slice(0, signAt)}${unary ? `${previous} ${w.negative} ` : `${previous} ${w.minus} `}`;
+  }
+  return text.replace(/[()[\]]/g, ' ').replace(/(?<!\s)\s*\uE003/g, ',').replace(new RegExp(QUANTITY_END, 'g'), ` ${w.endQuantity} `);
 };
 
 /*
@@ -982,16 +1152,13 @@ const fromSuperscript = (run) => [...run].map((char) => SUPERSCRIPT_MAP[char] ??
 const SUPERSCRIPT_ORDINAL = /(\d)(ˢᵗ|ⁿᵈ|ʳᵈ|ᵗʰ)(?![\p{L}\p{N}])/gu;
 const SIMPLE_ARGUMENT = new RegExp(`^[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*$`);
 const ROOT_OF_SIMPLE = new RegExp(`^(?:[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+√|[√∛∜])[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*$`);
-const rootArgument = (text, from) => {
+// `parens`: the text's roundBrackets, when the caller reads more than one.
+const rootArgument = (text, from, parens = null) => {
   let index = from;
   while (text[index] === ' ') index += 1;
   if (text[index] === '(') {
-    let depth = 0;
-    for (let end = index; end < text.length; end += 1) {
-      if (text[end] === '(') depth += 1;
-      else if (text[end] === ')') { depth -= 1; if (depth === 0) return [text.slice(index + 1, end), end + 1]; }
-    }
-    return null;
+    const close = (parens || roundBrackets(text)).get(index);
+    return close === undefined ? null : [text.slice(index + 1, close), close + 1];
   }
   const run = new RegExp(`^[A-Za-z0-9.…]+[${EXPONENT_CHARACTERS}]*`).exec(text.slice(index));
   return run ? [run[0], index + run[0].length] : null;
@@ -1008,23 +1175,24 @@ const rootArgument = (text, from) => {
  */
 const SUBSCRIPT_BASE = { '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9', 'ₐ': 'a', 'ₑ': 'e', 'ₓ': 'x', 'ₙ': 'n', 'ₖ': 'k', 'ₘ': 'm', '⁄': '/' };
 const LOG_BASE = /(?<![A-Za-z\\])log(?:([₀-₉ₐₑₓₙₖₘ]+(?:[⁄.][₀-₉]+)?)|_\{\s*([^{}]+?)\s*\}|_(\d+(?:\.\d+)?|[A-Za-z]))/g;
-const logArgument = (text, from) => {
+const logArgument = (text, from, parens = null) => {
   let index = from;
   while (text[index] === ' ') index += 1;
   // A bracket is the argument; without one, a number or a lone letter
   // ("log₂ 8", "log_b x"), never the next word ("log₂ is …").
-  if (text[index] === '(') return rootArgument(text, index);
+  if (text[index] === '(') return rootArgument(text, index, parens);
   const run = /^(?:\d+(?:\.\d+)?|[A-Za-z](?![A-Za-z]))/.exec(text.slice(index));
   return run ? [run[0], index + run[0].length] : null;
 };
 const logBasesToWords = (text, w) => {
   let out = '';
   let from = 0;
+  let parens = null;
   for (const match of text.matchAll(LOG_BASE)) {
     if (match.index < from) continue;
     const base = match[1] ? [...match[1]].map((char) => SUBSCRIPT_BASE[char] ?? char).join('') : (match[2] ?? match[3]);
     const after = match.index + match[0].length;
-    const argument = logArgument(text, after);
+    const argument = logArgument(text, after, parens ||= roundBrackets(text));
     const body = argument?.[0].trim();
     const of = argument ? ` ${w.of} ${SIMPLE_ARGUMENT.test(body) ? body : `(${body})`}` : '';
     out += `${text.slice(from, match.index)} ${w.logBase} ${base}${of} `;
@@ -1043,8 +1211,8 @@ const logBasesToWords = (text, w) => {
  */
 const PLAIN_LOG = /(?<![A-Za-z\\])(log|ln)(?![A-Za-z_₀-₉ₐₑₓₙₖₘ])/g;
 const FUNCTION_WORDS = new Set(['sin', 'cos', 'tan', 'log', 'ln', 'sqrt', 'abs', 'exp']);
-const plainLogArgument = (text, from) => {
-  const argument = logArgument(text, from);
+const plainLogArgument = (text, from, parens = null) => {
+  const argument = logArgument(text, from, parens);
   if (!argument || /^\s*[aAI]\s*$/.test(argument[0])) return null;
   const words = argument[0].match(/[A-Za-z]{3,}/g) || [];
   return words.every((word) => FUNCTION_WORDS.has(word.toLowerCase())) ? argument : null;
@@ -1052,9 +1220,10 @@ const plainLogArgument = (text, from) => {
 const plainLogsToWords = (text, w) => {
   let out = '';
   let from = 0;
+  let parens = null;
   for (const match of text.matchAll(PLAIN_LOG)) {
     if (match.index < from) continue;
-    const argument = plainLogArgument(text, match.index + match[0].length);
+    const argument = plainLogArgument(text, match.index + match[0].length, parens ||= roundBrackets(text));
     if (!argument) {
       // ln alone is still the natural log; "log" is a word as it stands.
       if (match[1] === 'ln') {
@@ -1094,7 +1263,48 @@ const proseLogNames = (prose, next, w) => prose
  * span is not a set, and a set of one member holds one number, point or
  * letter, never a word.
  */
-const LATEX_SPAN = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/g;
+// A span of LaTeX in a text. latexSpans finds the same matches, and
+// tests/platform/readAloudLongText.test.mjs holds it to them.
+export const LATEX_SPAN = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]/g;
+/*
+ * LATEX_SPAN's matches, in one pass. Every kind of span ends at the first
+ * closing mark after its opening (at least one character after it), so where
+ * none follows, every opening after that fails as well; the expression found
+ * that out again for each opening, by reading on to the end, which was
+ * quadratic in a long box of openings ("\\(\\(\\(…"). Each closing mark is
+ * looked for forwards only, from where the last search for it stopped. Same
+ * matches, as [span] with its `index`, in order.
+ */
+export const latexSpans = (text) => {
+  const next = (mark) => {
+    let found = -2;
+    return (from) => {
+      if (found !== -1 && found < from) found = text.indexOf(mark, from);
+      return found;
+    };
+  };
+  const [nextDouble, nextDollar, nextLine, nextRound, nextSquare] = ['$$', '$', '\n', '\\)', '\\]'].map(next);
+  const spans = [];
+  for (let index = 0; index < text.length; index += 1) {
+    let end = -1;
+    if (text[index] === '$') {
+      // $$…$$, then $…$ (no $ or line break inside).
+      if (text[index + 1] === '$' && nextDouble(index + 3) !== -1) end = nextDouble(index + 3) + 2;
+      else {
+        const dollar = nextDollar(index + 1);
+        const line = nextLine(index + 1);
+        if (dollar >= index + 2 && (line === -1 || line > dollar)) end = dollar + 1;
+      }
+    } else if (text[index] === '\\' && (text[index + 1] === '(' || text[index + 1] === '[')) {
+      const close = (text[index + 1] === '(' ? nextRound : nextSquare)(index + 3);
+      if (close !== -1) end = close + 2;
+    }
+    if (end === -1) continue;
+    spans.push(Object.assign([text.slice(index, end)], { index }));
+    index = end - 1;
+  }
+  return spans;
+};
 const PLAIN_SET = /(?<![\\^_{}\]\p{L}])\{([^{}$\\^_]*)\}(?!\})/gu;
 const isSetMembers = (members) => /[\p{L}\p{N}∞]/u.test(members) && !/\p{L}{2,}/u.test(members)
   && (members.includes(',') || /^\s*(?:[-−+±]?\s*\d+(?:\.\d+)?|\([^()]*\)|\p{L})\s*$/u.test(members));
@@ -1102,7 +1312,7 @@ const isSetMembers = (members) => /[\p{L}\p{N}∞]/u.test(members) && !/\p{L}{2,
 // ($)", is said "in dollars", as a person reads a table's heading; the voice
 // was handed "($)" (lesson re-walk 2026-11-06). Taken out before the text is
 // split, so its "$" never opens a LaTeX span with a later one.
-const dollarUnits = (text, w) => text.replace(/\s*\(\s*\$\s*\)/g, ` ${w.units.dollars}`);
+const dollarUnits = (text, w) => text.replace(/(?<!\s)\s*\(\s*\$\s*\)/g, ` ${w.units.dollars}`);
 
 /*
  * A NAME'S MARKS, SAID (math-speech-3; the sweep of every lesson and bank
@@ -1170,7 +1380,7 @@ const plainSetsToWords = (text, w) => {
   });
   let out = '';
   let from = 0;
-  for (const span of text.matchAll(LATEX_SPAN)) {
+  for (const span of latexSpans(text)) {
     out += rewrite(text.slice(from, span.index)) + span[0];
     from = span.index + span[0].length;
   }
@@ -1227,23 +1437,55 @@ const slashSaid = (before, after, numberBefore, w) => {
 const QUANTITY_WORDS = new Set([...RATIO_PARTS, 'base', 'reference', 'referencia']);
 const OPERAND_BEFORE = /(?:^|[\s(=+\-−×·*√∛∜])(?:\d+(?:\.\d+)?|\p{L})$/u;
 const BLANK_AFTER = /^(?:_{3,}|[([]\s*\?\s*[)\]])/;
+/*
+ * What each slash is read with comes from just before and after it: the word
+ * or number it ends, and the run of characters around it. Each is read from
+ * the end of the text before the slash (spaceTail, runStartBefore), and the
+ * run around a slash once for all the slashes in it: read from the whole text
+ * before every slash, a long line of fractions or of words and slashes took
+ * seconds.
+ */
+const WORD_CHAR = /^[\p{L}'’-]$/u;
+const LETTER = /^\p{L}$/u;
+const DIGIT_OR_POINT = /^[\d.]$/;
+// `text` before `end` from where WORD_RUN can start: its run, and what is before it.
+const wordTail = (text, end) => text.slice(Math.max(0, runStartBefore(text, end, (point) => WORD_CHAR.test(point)) - 2), end);
+// ... and where OPERAND_BEFORE can: a number's digits and points, or one
+// letter, and what stands before them.
+const operandTail = (text, end) => text.slice(Math.max(0, runStartBefore(text, end, (point) => DIGIT_OR_POINT.test(point)) - 4), end);
+// ... and where `\d\s*\p{L}+$` can: letters, the spaces before them, a digit.
+const numberWordTail = (text, end) => {
+  const letters = runStartBefore(text, end, (point) => LETTER.test(point));
+  return text.slice(Math.max(0, runStartBefore(text, letters, isSpaceChar) - 2), end);
+};
 const slashesBetweenWords = (text, w) => {
-  const rewrite = (plain) => plain.replace(/(\/\s*)\?(?=\s*(?:[.,;:)\]]|$))/g, '$1___').replace(/\s*\/\s*/g, (slash, offset, whole) => {
-    const head = whole.slice(0, offset);
-    const tail = whole.slice(offset + slash.length);
-    const before = WORD_RUN.exec(head)?.[0] || '';
-    const after = /^[\p{L}'’-]+/u.exec(tail)?.[0] || '';
-    if (OPERAND_BEFORE.test(head) && (QUANTITY_WORDS.has(after.toLowerCase()) || BLANK_AFTER.test(tail))) return ` ${w.over} `;
-    if (!/^\p{L}/u.test(before) || !/^\p{L}/u.test(after)) return slash;
-    // The whole run of characters around the slash: a web address or a path.
-    const run = `${/\S*$/.exec(head)[0]}${slash.trim() ? slash : '/'}${/^\S*/.exec(tail)[0]}`;
-    if (!/\s/.test(slash) && NOT_PROSE_RUN.test(run.replace(/[.,;:!?)\]]+$/, ''))) return slash;
-    const said = slashSaid(before, after, /\d\s*\p{L}+$/u.test(head), w);
-    return said ?? slash;
-  });
+  const rewrite = (plain) => {
+    // The run around the last slash asked about: a web address or a path.
+    let run = null;
+    return plain.replace(/(\/\s*)\?(?=\s*(?:[.,;:)\]]|$))/g, '$1___').replace(/(?<!\s)\s*\/\s*/g, (slash, offset, whole) => {
+      const tail = whole.slice(offset + slash.length);
+      const before = WORD_RUN.exec(wordTail(whole, offset))?.[0] || '';
+      const after = /^[\p{L}'’-]+/u.exec(tail)?.[0] || '';
+      if (OPERAND_BEFORE.test(operandTail(whole, offset)) && (QUANTITY_WORDS.has(after.toLowerCase()) || BLANK_AFTER.test(tail))) return ` ${w.over} `;
+      if (!/^\p{L}/u.test(before) || !/^\p{L}/u.test(after)) return slash;
+      // The whole run of characters around the slash: a web address or a path.
+      if (!/\s/.test(slash)) {
+        if (!run || offset >= run.end) {
+          let start = offset;
+          while (start > 0 && !/\s/.test(whole[start - 1])) start -= 1;
+          let end = offset + 1;
+          while (end < whole.length && !/\s/.test(whole[end])) end += 1;
+          run = { end, notProse: NOT_PROSE_RUN.test(whole.slice(start, end).replace(/[.,;:!?)\]]+$/, '')) };
+        }
+        if (run.notProse) return slash;
+      }
+      const said = slashSaid(before, after, /\d\s*\p{L}+$/u.test(numberWordTail(whole, offset)), w);
+      return said ?? slash;
+    });
+  };
   let out = '';
   let from = 0;
-  for (const span of text.matchAll(LATEX_SPAN)) {
+  for (const span of latexSpans(text)) {
     out += rewrite(text.slice(from, span.index)) + span[0];
     from = span.index + span[0].length;
   }
@@ -1279,7 +1521,7 @@ const TYPED_ROOT = /^(?:cbrt|(sqrt)|root\(\s*(\d+|[A-Za-z])\s*\))\s*(?=\()/;
 const typedRootAt = (text, index) => {
   if (text[index - 1] === '\\') return null;
   const found = TYPED_ROOT.exec(text.slice(index));
-  return found && found[0].startsWith('root') && /[A-Za-z]{2}$/.test(text.slice(0, index)) ? null : found;
+  return found && found[0].startsWith('root') && /[A-Za-z]{2}$/.test(text.slice(Math.max(0, index - 2), index)) ? null : found;
 };
 // Its radicand's powers are the drawing's, "p^2" as p²: "the cube root of p
 // squared", as for ∛(p²), not "of the quantity p squared".
@@ -1296,7 +1538,50 @@ const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
     .replace(/\^\s*\?/g, ` ${w.power} ${w.blank}`)
     .replace(SUPERSCRIPT_ORDINAL, (match, digit, suffix) => `${digit}${fromSuperscript(suffix)}`);
   if (!new RegExp(`[√∛∜${SUPERSCRIPTS}]|cbrt|sqrt|root\\(`).test(text)) return text;
-  let out = '';
+  // What is read so far, in pieces, and how many bars it holds. A root looks
+  // at the end of it (a slash, a coefficient, a closing bar): testing the
+  // joined text for that at every root copied all of it each time, which was
+  // quadratic in a long box. The end is read back only as far as it is needed.
+  const pieces = [];
+  let bars = 0;
+  const add = (piece) => {
+    pieces.push(piece);
+    bars += piece.length === 1 ? Number(piece === '|') : piece.split('|').length - 1;
+  };
+  // How many code units at the end, before the last `skip`, `accepts` takes.
+  const endRun = (accepts, skip = 0) => {
+    let count = 0;
+    let skipped = 0;
+    for (let at = pieces.length - 1; at >= 0; at -= 1) {
+      for (let unit = pieces[at].length - 1; unit >= 0; unit -= 1) {
+        if (skipped < skip) { skipped += 1; continue; }
+        if (!accepts(pieces[at][unit])) return count;
+        count += 1;
+      }
+    }
+    return count;
+  };
+  // The last `length` code units (all of them, when there are fewer).
+  const endText = (length) => {
+    const taken = [];
+    let gathered = 0;
+    for (let at = pieces.length - 1; at >= 0 && gathered < length; at -= 1) {
+      taken.push(pieces[at]);
+      gathered += pieces[at].length;
+    }
+    const joined = taken.reverse().join('');
+    return joined.slice(Math.max(0, joined.length - length));
+  };
+  const drop = (length) => {
+    let left = length;
+    while (left > 0 && pieces.length) {
+      const last = pieces.pop();
+      if (last.length > left) pieces.push(last.slice(0, last.length - left));
+      left -= Math.min(left, last.length);
+    }
+  };
+  const isSpaceUnit = (char) => /\s/.test(char);
+  let parens = null;
   for (let index = 0; index < text.length;) {
     // A superscript straight after its base is a power, as it is drawn, so
     // x³√x is x³ times √x, never "x times the cube root of x" (lesson re-walk
@@ -1307,7 +1592,8 @@ const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
     const symbol = indexRun || typed ? null : { '√': '2', '∛': '3', '∜': '4' }[text[index]];
     if (indexRun || typed || symbol) {
       const order = indexRun ? fromSuperscript(indexRun[1]) : typed ? (typed[1] ? '2' : typed[2] ?? '3') : symbol;
-      const argument = rootArgument(text, index + (indexRun || typed ? (indexRun || typed)[0].length : 1));
+      parens ||= roundBrackets(text);
+      const argument = rootArgument(text, index + (indexRun || typed ? (indexRun || typed)[0].length : 1), parens);
       if (argument) {
         const words = order === '2' ? w.squareRoot : order === '3' ? w.cubeRoot : w.root(order);
         // A root inside a root (√(∛x)) is read the same way, and a root of
@@ -1318,26 +1604,35 @@ const unicodeMathToSpokenForm = (raw, w, { mark = false } = {}) => {
         const body = unicodeMathToSpokenForm(radicand, w, { mark }).trim();
         // A slash before a root is a fraction bar, "over": "√8/√2" and "3 /
         // √6". The root is words from here on, so the slash was left to the
-        // voice as a symbol (platform-polish-3).
-        const over = /\/\s*$/.test(out);
-        if (over) out = out.replace(/\s*\/\s*$/, ' ');
-        // 5∛2 is "5 times the cube root of 2", and x³√x "x cubed times …".
-        const coefficient = !over && (ROOT_COEFFICIENT.test(out) || Boolean(typed && TYPED_ROOT_COEFFICIENT.test(out)));
+        // voice as a symbol (platform-polish-3). (`\/\s*$`, and then
+        // `\s*\/\s*$` taken off with a space put in its place.)
+        const spaces = endRun(isSpaceUnit);
+        const end = endText(spaces + 1);
+        const lastNonSpace = end.length > spaces ? end[0] : '';
+        const over = lastNonSpace === '/';
+        if (over) {
+          drop(spaces + 1 + endRun(isSpaceUnit, spaces + 1));
+          add(' ');
+        }
+        // 5∛2 is "5 times the cube root of 2", and x³√x "x cubed times …". A
+        // typed root's coefficient is the last word, after a space.
+        const coefficient = !over && (ROOT_COEFFICIENT.test(endText(1)) || Boolean(typed && TYPED_ROOT_COEFFICIENT.test(endText(spaces + endRun((char) => !isSpaceUnit(char), spaces) + 1))));
         // A root after absolute-value bars multiplies them, "|5b⁷k⁵| ⁴√(k³)",
         // and is written so (×): the bars' end is then said where they close
         // ("… end absolute value times the 4th root of k cubed"). It never was
         // (platform-polish-3). Only after a closing bar: bars are counted.
-        const afterBars = !over && /\|\s*$/.test(out) && (out.match(/\|/g) || []).length % 2 === 0;
+        const afterBars = !over && lastNonSpace === '|' && bars % 2 === 0;
         const said = `${over ? `${w.over} ` : afterBars ? '× ' : coefficient ? `${w.times} ` : ''}${words}`;
         const argumentSaid = simple ? body : `(${body})`;
-        out += mark ? ` ${SAID_OPEN}${said}${SAID_CLOSE}${argumentSaid} ` : ` ${said} ${argumentSaid} `;
+        add(mark ? ` ${SAID_OPEN}${said}${SAID_CLOSE}${argumentSaid} ` : ` ${said} ${argumentSaid} `);
         index = argument[1];
         continue;
       }
     }
-    out += text[index];
+    add(text[index]);
     index += 1;
   }
+  const out = pieces.join('');
   // x⁶ is x^(6) and 2ˣ is 2^(x), after a bar too (|z|ⁿ); ⁻¹ stays, for the
   // inverse rules below. A bracketed exponent, x⁽ⁿ⁺¹⁾, is one bracket. The
   // letters of xᵃᵇ are said apart, "a b": "ab" would be read as a word. An
@@ -1495,6 +1790,30 @@ const proseArrowsToWords = (segments, w, letters) => {
     linked = true;
   });
   const words = new Map();
+  // What a sentence's runs share: how many there are, and whether it is about
+  // a limit. Worked out once per sentence: worked out again for every run, a
+  // long list of arrows ("A → B, C → D, …", one sentence) read each side of
+  // each arrow once per run, quadratic in their number.
+  const runsBySentence = new Map();
+  runs.forEach((run) => {
+    if (!runsBySentence.has(run.sentence)) runsBySentence.set(run.sentence, []);
+    runsBySentence.get(run.sentence).push(run);
+  });
+  const sentences = new Map();
+  const sentenceOf = (run) => {
+    if (!sentences.has(run.sentence)) {
+      const inSentence = runsBySentence.get(run.sentence);
+      sentences.set(run.sentence, {
+        runs: inSentence.length,
+        limit: inSentence.some((other) => other.arrows.some((index) => {
+          const { side: left, cursor } = sideAt(index, -1);
+          return sideAt(index, 1).side.type === 'infinite'
+            || (left.kind === 'math' && pieces[cursor - 1]?.type === 'prose' && /\b(?:as|when|cuando)\s*$/i.test(pieces[cursor - 1].value));
+        })),
+      });
+    }
+    return sentences.get(run.sentence);
+  };
   for (const run of runs) {
     const lefts = run.arrows.map((index) => sideAt(index, -1));
     const rights = run.arrows.map((index) => sideAt(index, 1));
@@ -1505,18 +1824,13 @@ const proseArrowsToWords = (segments, w, letters) => {
       if (!next || next.cursor === right.cursor) return right.side;
       return right.side.kind === 'math' && next.side.kind === 'math' ? { kind: 'math', type: 'expression', text: '' } : { kind: 'prose', text: '' };
     })];
-    const inSentence = runs.filter((other) => other.sentence === run.sentence);
-    const limit = inSentence.some((other) => other.arrows.some((index) => {
-      const { side: left, cursor } = sideAt(index, -1);
-      return sideAt(index, 1).side.type === 'infinite'
-        || (left.kind === 'math' && pieces[cursor - 1]?.type === 'prose' && /\b(?:as|when|cuando)\s*$/i.test(pieces[cursor - 1].value));
-    }));
+    const { runs: runsInSentence, limit } = sentenceOf(run);
     // "Row 1 → Row 2": two names of one kind, each with its number.
     const labels = run.arrows.map((index) => {
       const before = /\b([A-Z][a-z]+) [-−]?\d+\b(?!.*\b[A-Z][a-z]+ \d)/.exec(wholeAt(index, -1));
       return Boolean(before) && new RegExp(`^${before[1]} [-−]?\\d+\\b`).test(wholeAt(index, 1));
     });
-    const said = arrowWords(run.arrows.map((index) => pieces[index].value), sides, w, { limit, pairs: inSentence.length > 1, labels });
+    const said = arrowWords(run.arrows.map((index) => pieces[index].value), sides, w, { limit, pairs: runsInSentence > 1, labels });
     run.arrows.forEach((index, position) => words.set(index, said[position]));
   }
   const rebuilt = segments.map((segment) => ({ ...segment, value: segment.kind === 'math' ? segment.value : '' }));
@@ -1551,18 +1865,19 @@ const TRIG_NAME = /(?<![A-Za-z])\\?(sin|cos|tan)(?:\^[({]?\s*(\d+)\s*[)}]?)?(?![
 // The argument: a bracket, or a number with its letter ("\sin2x" is sin(2x)),
 // a letter, or an angle's name (θ; \theta, the one the reader says).
 const TRIG_ARGUMENT = new RegExp(`^(?:\\d+(?:\\.\\d+)?[A-Za-z]?|[A-Za-z]|[θϑ]|${UNICODE_GREEK.source}|\\\\(?:var)?theta|${LATEX_GREEK.source.slice(0, -'(?![A-Za-z])'.length)})(?![A-Za-z])`);
-const trigArgument = (text, from) => {
-  if (text[from] === '(') return plainLogArgument(text, from);
+const trigArgument = (text, from, parens = null) => {
+  if (text[from] === '(') return plainLogArgument(text, from, parens);
   const run = TRIG_ARGUMENT.exec(text.slice(from));
   return run ? [run[0], from + run[0].length] : null;
 };
 const trigToWords = (text, w) => {
   let out = '';
   let from = 0;
+  let parens = null;
   for (const match of String(text).matchAll(TRIG_NAME)) {
     if (match.index < from) continue;
     const power = match[2] === '2' ? ` ${w.squared}` : match[2] === '3' ? ` ${w.cubed}` : match[2] ? ` ${w.power} ${match[2]}` : '';
-    const argument = trigArgument(text, match.index + match[0].length);
+    const argument = trigArgument(text, match.index + match[0].length, parens ||= roundBrackets(String(text)));
     const body = argument?.[0].trim();
     const simple = SIMPLE_ARGUMENT.test(body ?? '') || TRIG_ARGUMENT.test(body ?? '');
     const of = argument ? ` ${w.of} ${simple ? body : `(${body})`}` : '';
@@ -1727,19 +2042,40 @@ const proseAsides = (text, segments) => {
     at += segment.value.length;
   }
   const marks = new Map();
+  // Each bracket's match on its own line, found in one pass; and, counted once
+  // over the text, where two letters stand together and where a relation or an
+  // arrow stands. Scanning on from every bracket to its match (or to the end of
+  // a line of brackets that never close), and searching each bracket's text
+  // again, was quadratic.
+  const closes = new Map();
+  const opens = [];
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '\n') opens.length = 0;
+    else if (text[index] === '(') opens.push(index);
+    else if (text[index] === ')' && opens.length) closes.set(opens.pop(), index);
+  }
+  let counts = null;
+  const holdsWordOrStatement = (from, to) => {
+    if (!counts) {
+      const letterPairs = new Uint32Array(text.length + 1);
+      const statements = new Uint32Array(text.length + 1);
+      for (let index = 0; index < text.length; index += 1) {
+        const point = String.fromCodePoint(text.codePointAt(index));
+        const next = index + point.length < text.length ? String.fromCodePoint(text.codePointAt(index + point.length)) : '';
+        letterPairs[index + 1] = letterPairs[index] + (point.length === 1 && isLowSurrogate(text.charCodeAt(index)) ? 0 : (/\p{L}/u.test(point) && /\p{L}/u.test(next) ? 1 : 0));
+        statements[index + 1] = statements[index] + (ASIDE_STATEMENT.test(text[index]) ? 1 : 0);
+      }
+      counts = { letterPairs, statements };
+    }
+    return counts.letterPairs[to] > counts.letterPairs[from] || counts.statements[to] > counts.statements[from];
+  };
   for (let index = text.indexOf('('); index !== -1; index = text.indexOf('(', index + 1)) {
     if (!prose.has(index)) continue;
-    let depth = 0;
-    let close = -1;
-    for (let cursor = index; cursor < text.length && text[cursor] !== '\n'; cursor += 1) {
-      if (text[cursor] === '(') depth += 1;
-      else if (text[cursor] === ')') { depth -= 1; if (depth === 0) { close = cursor; break; } }
-    }
+    const close = closes.get(index) ?? -1;
     if (close === -1 || !prose.has(close)) continue;
-    const inner = text.slice(index + 1, close);
-    if (!/\p{L}{2}/u.test(inner) && !ASIDE_STATEMENT.test(inner)) continue;
     // "(coefficient)x": a bracket a letter or digit is pressed against is a factor.
-    if (!ASIDE_BEFORE.test(text.slice(0, index)) || SIGN_AFTER.test(text.slice(close + 1)) || /^[\p{L}\p{N}]/u.test(text.slice(close + 1))) continue;
+    if (!ASIDE_BEFORE.test(spaceTail(text, index)) || SIGN_AFTER.test(text.slice(close + 1)) || /^[\p{L}\p{N}]/u.test(text.slice(close + 1))) continue;
+    if (!holdsWordOrStatement(index + 1, close)) continue;
     marks.set(index, ASIDE_OPEN).set(close, ASIDE_CLOSE);
   }
   if (!marks.size) return segments;
@@ -1750,9 +2086,11 @@ const proseAsides = (text, segments) => {
     return { ...segment, value: [...segment.value].map((char, offset) => marks.get(start + offset) ?? char).join('') };
   });
 };
+// A mark is found from the first space before it (a match never starts inside
+// a run of spaces), and what is said before it is read from the end of that.
 const asidesAsPauses = (text) => (ASIDE_MARKS.test(text) ? text
-  .replace(/\s*\uE022\s*/g, (mark, offset, whole) => (PAUSES_BEFORE.test(whole.slice(0, offset)) ? ', ' : ' '))
-  .replace(/\s*\uE023\s*/g, (mark, offset, whole) => (PAUSES_AFTER.test(whole.slice(offset + mark.length)) ? ', ' : ' ')) : text);
+  .replace(/(?<!\s)\s*\uE022\s*/g, (mark, offset, whole) => (PAUSES_BEFORE.test(spaceTail(whole, offset)) ? ', ' : ' '))
+  .replace(/(?<!\s)\s*\uE023\s*/g, (mark, offset, whole) => (PAUSES_AFTER.test(whole.slice(offset + mark.length)) ? ', ' : ' ')) : text);
 
 /*
  * AN ELLIPSIS IN A LIST IS "AND SO ON" (math-speech-4; 808 texts hand the
@@ -1830,7 +2168,7 @@ const numberRowsAsLists = (plain) => plain.replace(NUMBER_ROW, (row) => (/[ \t][
 const outsideSpans = (text, rewrite) => {
   let out = '';
   let from = 0;
-  for (const span of text.matchAll(LATEX_SPAN)) {
+  for (const span of latexSpans(text)) {
     out += rewrite(text.slice(from, span.index)) + span[0];
     from = span.index + span[0].length;
   }
@@ -1857,6 +2195,86 @@ const undelimitedLatexAsSpans = (text, w) => outsideSpans(text, (raw) => {
   return numberRowsAsLists(/[\^_]\{|\\sqrt/.test(plain) ? latexRunsAsSpans(plain) : plain);
 });
 
+/*
+ * THE SEGMENTER'S SPANS FOR READ ALOUD, IN ONE PASS.
+ *
+ * The matches of mathSafeText.js DELIMITED_SPEECH, found as segmentMathText
+ * finds them with that global expression (`exec` from `lastIndex`, and from
+ * just after a span it turned down). Every kind of span ends at the first
+ * closing mark after its opening (for $…$, the first dollar its own `\x`
+ * escapes do not hide), so where none follows, every opening after that fails
+ * as well: the expression found that out again for each opening, reading on
+ * to the end, quadratic in a long box of them ("\$\$\$…", "\(\(\(…"). Marks
+ * are looked for forwards only, which holds for one pass of the segmenter:
+ * the search only moves on, but for a step back to just after a span turned
+ * down, still past every place it looked from.
+ * tests/platform/readAloudLongText.test.mjs holds it to the expression.
+ */
+export const speechSpans = (text) => {
+  const next = (mark) => {
+    let found = -2;
+    return (from) => {
+      if (found !== -1 && found < from) found = text.indexOf(mark, from);
+      return found;
+    };
+  };
+  const [nextDouble, nextRound, nextSquare, nextOpenBrace, nextCloseBrace] = ['$$', '\\)', '\\]', '{', '}'].map(next);
+  // Where a $…$ whose text starts at each place closes: its text is `\x`
+  // (x no line break) and characters other than $, \ and a line break, and it
+  // closes at the first $ between two of those.
+  const escaped = (at) => at + 1 < text.length && !/[\n\r\u2028\u2029]/.test(text[at + 1]);
+  let closesAt = null;
+  const dollarClose = (at) => {
+    if (!closesAt) {
+      closesAt = new Int32Array(text.length + 2).fill(-1);
+      for (let index = text.length - 1; index >= 0; index -= 1) {
+        const char = text[index];
+        if (char === '$') closesAt[index] = index;
+        else if (char === '\\') closesAt[index] = escaped(index) ? closesAt[index + 2] : -1;
+        else if (char !== '\n') closesAt[index] = closesAt[index + 1];
+      }
+    }
+    // At least one piece of text before the close.
+    const char = text[at];
+    if (at >= text.length || char === '$' || char === '\n') return -1;
+    if (char === '\\') return escaped(at) ? closesAt[at + 2] : -1;
+    return closesAt[at + 1];
+  };
+  return {
+    lastIndex: 0,
+    exec() {
+      for (let index = this.lastIndex; index < text.length; index += 1) {
+        const char = text[index];
+        let end = -1;
+        if (char === '$') {
+          if (text[index + 1] === '$' && nextDouble(index + 3) !== -1) end = nextDouble(index + 3) + 2;
+          else if (dollarClose(index + 1) !== -1) end = dollarClose(index + 1) + 1;
+        } else if (char === '\\' && (text[index + 1] === '(' || text[index + 1] === '[')) {
+          const close = (text[index + 1] === '(' ? nextRound : nextSquare)(index + 3);
+          if (close !== -1) end = close + 2;
+        } else if (char === '{' && text[index + 1] === '{') {
+          const opening = nextOpenBrace(index + 2);
+          const closing = nextCloseBrace(index + 2);
+          if (closing >= index + 3 && (opening === -1 || opening > closing) && text[closing + 1] === '}') end = closing + 2;
+        }
+        if (end !== -1) {
+          this.lastIndex = end;
+          return Object.assign([text.slice(index, end)], { index });
+        }
+      }
+      this.lastIndex = 0;
+      return null;
+    },
+  };
+};
+
+// The text segments make, and where each starts in it (a last entry for the end).
+const segmentText = (segments) => {
+  const starts = [0];
+  segments.forEach((segment) => starts.push(starts[starts.length - 1] + segment.value.length));
+  return { text: segments.map((segment) => segment.value).join(''), starts };
+};
+
 export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {}) => {
   const w = wordsFor(language);
   const text = spokenLineForms(writtenNotationToSpokenForm(undelimitedLatexAsSpans(lineBreaksAsPauses(raw), w), w, { mark: true }), w);
@@ -1864,9 +2282,10 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
   // A name the text defines anywhere ("Let c(x) = …") is a function in every
   // later sentence too ("Find c(4).").
   const names = `${functionNames || ''}${definedFunctionNames(text)}`;
-  const split = proseAsides(text, segmentMathText(text, { speech: true }).map((segment) => ({ ...segment, value: segment.value.replace(SAID_MARKS, ' ') })));
+  const split = proseAsides(text, segmentMathText(text, { speech: true, spans: speechSpans(text) }).map((segment) => ({ ...segment, value: segment.value.replace(SAID_MARKS, ' ') })));
   const segments = proseArrowsToWords(split, w, functionLettersFor(names));
   const dimensionsText = /dimension|matri|dimensi/i.test(text);
+  let whole = null;
   return segments
     .map((segment, index) => {
       // "1st": the number is split from its suffix, and "1 st" is read
@@ -1882,8 +2301,10 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
         // An aside in brackets after a word is said between pauses: "is 153,
         // f of 153 equals 598.75." (relationAsidesAsPauses).
         if (!isWholeAside(segment.value)) return ` ${spoken} `;
-        const around = (from, to) => segments.slice(from, to).map((part) => part.value).join('');
-        return ` ${PAUSES_BEFORE.test(around(0, index)) ? ',' : ''} ${spoken}${PAUSES_AFTER.test(around(index + 1)) ? ',' : ''} `;
+        // What is said before and after it, read from the text the segments
+        // make, joined once (joined again for each aside, it was quadratic).
+        whole ??= segmentText(segments);
+        return ` ${PAUSES_BEFORE.test(spaceTail(whole.text, whole.starts[index])) ? ',' : ''} ${spoken}${PAUSES_AFTER.test(whole.text.slice(whole.starts[index + 1])) ? ',' : ''} `;
       }
       // "A⁻¹" in prose is "A inverse"; a speech engine cannot say ⁻¹. An
       // escaped price ("\\$4.50" outside a span) loses its backslash.
@@ -1898,7 +2319,7 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
     // ("2{{b}}x={{A}}$", "Only factors of {{q}}$"), never a price: it was
     // handed to the voice (math-speech-4, item 4).
     .replace(/\$(?!\s*\d)/g, ' ')
-    .replace(/\s+([,.;:?!])/g, '$1')
+    .replace(/(?<!\s)\s+([,.;:?!])/g, '$1')
     .replace(/,(?:\s*,)+/g, ',')
     .replace(/\s+/g, ' ')
     // "name the point (0, 7)" — the prose already said "the point"; so for

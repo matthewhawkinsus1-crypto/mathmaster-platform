@@ -98,7 +98,7 @@ test('an armed operation makes both equation sides keyboard-reachable', () => {
   // keys there): while an operation is armed, Enter or Space stages it on that side.
   assert.match(algebra, /onKeyDown=\{sideTapReady \? \(event\) => placementKeyDown\(side, event\) : undefined\}/,
     'a focused side must take the keys while an operation is armed');
-  const keys = algebra.slice(algebra.indexOf('const placementKeyDown = (side, event) => {'), algebra.indexOf('const suggestedMove = getSuggestedMove(equation);'));
+  const keys = algebra.slice(algebra.indexOf('const placementKeyDown = (side, event) => {'), algebra.indexOf('const hintOffered = '));
   assert.match(keys, /if \(!tapPlacementArmed \|\| !armedTile\) return;/, 'only while an operation is armed');
   assert.match(keys, /if \(event\.key === 'Enter' \|\| event\.key === ' '\) \{\s*event\.preventDefault\(\);\s*stagePlacement\(side, /,
     'Enter or Space must apply the armed operation to the focused side');

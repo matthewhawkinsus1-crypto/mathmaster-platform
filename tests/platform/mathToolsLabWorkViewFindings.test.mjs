@@ -128,9 +128,17 @@ test('Work View\'s header task is a Tab stop while it scrolls, and only then', (
   const measure = region(figure, 'const [taskScrolls, setTaskScrolls] = useState(false);', '}, [enlarged, taskWords]);', 'the measure');
   assert.match(measure, /if \(!enlarged \|\| !box\) \{\s*setTaskScrolls\(false\);/, 'no stop while Work View is closed');
   assert.match(measure, /const measure = \(\) => setTaskScrolls\(\/\^\(auto\|scroll\)\$\/\.test\(window\.getComputedStyle\(box\)\.overflowY\) && \(overflowsDownward\(box\) \|\| overflowsSideways\(box\)\)\);/, 'taller or wider than its box, in a box that scrolls (not a short phone\'s one clipped line)');
-  assert.match(measure, /observer\.observe\(box\);\s*if \(box\.parentElement\) observer\.observe\(box\.parentElement\);/, 'again when it or the header around it changes size');
+  assert.match(measure, /observer\.observe\(box\);\s*if \(box\.parentElement\) observer\.observe\(box\.parentElement\);/, 'when it or the header around it is laid out, and changes size');
   assert.match(measure, /words\.observe\(box, \{ subtree: true, childList: true, characterData: true \}\);/, 'again when its words change, which leaves the clamped box its size');
-  assert.match(measure, /document\.fonts\?\.ready\?\.then\(\(\) => \{ if \(!gone\) measure\(\); \}\);/, 'again once the fonts have loaded');
+  assert.match(measure, /if \(document\.fonts && document\.fonts\.status !== 'loaded'\) document\.fonts\.ready\?\.then\(\(\) => \{ if \(!gone\) measureNextFrame\(\); \}\);/, 'again once the fonts have loaded, if they were loading');
+  // Measured in the frame after an observer reports, never in the effect or inside the observers' delivery, where
+  // it read the page after the sticky bars' observers had written and laid it out again (forced layouts, the
+  // runtime driver's trace mode): the observers schedule it, and the effect itself measures only without them.
+  assert.match(measure, /new ResizeObserver\(measureNextFrame\)/);
+  assert.match(measure, /new MutationObserver\(measureNextFrame\)/);
+  assert.match(measure, /frame = window\.requestAnimationFrame\(\(\) => \{\s*frame = null;\s*if \(!gone\) measure\(\);/);
+  assert.equal(measure.match(/\bmeasure\(\);/g)?.length, 2, 'once from the frame, once where there is no ResizeObserver');
+  assert.match(measure, /\} else \{\s*measure\(\);\s*\}/);
   // The box it measures is the one the stylesheet clamps to whole lines and lets scroll.
   const css = executableSource(read('src/components/common/WorkViewShell.css'));
   assert.match(css, /\.mathmaster-work-view-persistent-task \{ max-height: calc\(1\.35em \* 4\); overflow-y: auto; overflow-wrap: anywhere; \}/, 'a word longer than the line wraps, so the task does not scroll sideways');

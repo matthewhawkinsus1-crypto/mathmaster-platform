@@ -1,6 +1,8 @@
 import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
 import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
+import { QUESTION_ENGINE_TYPES, drawnQuestionKind } from './platform/question/drawnQuestionKind.js';
+import { studentQuestionVersions } from './platform/question/studentQuestionVersions.js';
 import { compileAuthoringIntentV5, keyLooksLikeFiniteSet } from './platform/contract/authoringIntentV5.js';
 import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { orderedPairKey } from '../functions/shared/answerUtils.mjs';
@@ -11,8 +13,10 @@ import {
   resolveFamilyPreviewInstance,
 } from '../functions/shared/questionFamilyInstance.mjs';
 import { allocateAssignmentQuestionValues } from '../functions/shared/questionValue.mjs';
-import { getEquationAnalysis, parseEquationInput } from '../functions/shared/algebra/algebraAstEngine.mjs';
-import { usesRelationWorkspace } from '../functions/shared/serverGrading/stepAlgebraRouting.mjs';
+import { explicitRelationGivenProducts } from './platform/contract/relationGivenProducts.js';
+// A linear equation whose variable cancels opens in the relation workspace (one
+// rule, shared with Pre-Flight's warning: specialCaseEquations.js).
+import { specialCaseConclusion, specialCaseOnBalanceWorkspace } from './platform/contract/specialCaseEquations.js';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
   "schemaVersion": 5,
@@ -438,33 +442,6 @@ const inferBinaryChoiceOptions = (field = {}) => {
   return patterns.find((entry) => entry.pattern.test(label) && entry.options.includes(answer))?.options || null;
 };
 
-/*
- * A linear equation with no solution, or with every number as a solution,
- * cannot be finished on the balance workspace: the student reaches a
- * statement such as 6 = 5 and has no way to say so. The relation workspace
- * can — it accepts "No solution" or "All real numbers" only once the
- * student's own balanced steps reach a statement with no variable left, and
- * grades that claim against the equation itself — so such an equation opens
- * there, as every special-case Question Family version does
- * (questionFamiliesLinearCases.mjs). Returns the equation's outcome
- * ('noSolution' | 'allReals') when it would otherwise open on the balance,
- * else null. A family slot or template has no equation yet; a rewrite or
- * intercept objective is not solving.
- */
-const specialCaseOnBalanceWorkspace = (question) => {
-  if (question.relationWorkspace !== undefined || usesRelationWorkspace(question)) return null;
-  if (question.questionFamily || question.generator || question.mode === 'linearIntercepts' || question.targetForm) return null;
-  if ((question.objective?.kind || 'isolate') !== 'isolate') return null;
-  if (/\{\{/.test(String(question.equation ?? question.equationLatex ?? ''))) return null;
-  try {
-    const analysis = getEquationAnalysis(parseEquationInput(question));
-    if (!analysis.numericLinear || analysis.hasUniqueSolution) return null;
-    return Math.abs(analysis.constantDifference) < 1e-9 ? 'allReals' : 'noSolution';
-  } catch {
-    return null;
-  }
-};
-
 // Firestore does not allow an array to contain another array directly. The
 // authoring compiler accepts the natural [[x,y], ...] notation and stores the
 // Firestore-safe {x,y} shape. The same pass also absorbs common AI aliases so
@@ -556,7 +533,16 @@ const normalizeQuestionStorageShapes = (questions, repairs = []) => (Array.isArr
   const specialCase = type === 'stepAlgebra' ? specialCaseOnBalanceWorkspace(next) : null;
   if (specialCase) {
     next.relationWorkspace = true;
-    repairs.push(`opened ${label} in the relation workspace, where a student can conclude "${specialCase === 'noSolution' ? 'No solution' : 'All real numbers'}"; on the balance workspace its equation could never be finished. Give the one-solution equations beside it "relationWorkspace": true as well, so the workspace does not tell students which equations are the special cases`);
+    repairs.push(`opened ${label} in the relation workspace, where a student can conclude "${specialCaseConclusion(specialCase)}"; on the balance workspace its equation could never be finished. Give the one-solution equations beside it "relationWorkspace": true as well, so the workspace does not tell students which equations are the special cases`);
+  }
+  // An authored x(x - 5) is a product, but the relation workspace's parser
+  // reads a function named x, and no work on the equation could be checked
+  // (platform/contract/relationGivenProducts.js). Written with its
+  // multiplication sign, once the item's workspace is decided.
+  const products = explicitRelationGivenProducts(next);
+  if (products.changes.length) {
+    next = products.question;
+    repairs.push(`wrote the multiplication in ${label}'s equation (${products.changes.map((change) => `${change.before} → ${change.after}`).join('; ')}): on the Step Algebra workspace ${products.variable} straight before a bracket would be read as a function named ${products.variable}, so no student work on it could be checked`);
   }
   if (!next.equationsLatex && Array.isArray(next.equations) && type === 'system') {
     next.equationsLatex = next.equations;
@@ -773,6 +759,73 @@ export const CORE_QUESTION_TYPES = Object.freeze([
 
 export const SUPPORTED_QUESTION_TYPES = Object.freeze([...CORE_QUESTION_TYPES, ...MISSING_TOOL_IDS]);
 
+// The composed types above: the student app draws them only as the steps of a
+// workflow, never by their name.
+const WORKFLOW_ONLY_TYPES = Object.freeze(CORE_QUESTION_TYPES.filter((type) => !QUESTION_ENGINE_TYPES.includes(type)));
+
+const shownName = (value) => (typeof value === 'string' ? value : JSON.stringify(value));
+
+/*
+ * A supported name is not yet a question a student can be shown. The student
+ * app draws a question by the rule in drawnQuestionKind.js (its workflow, else
+ * the registry tool its toolId and then its type names, else QuestionEngine's
+ * own module for its type), and a question it draws nothing for shows the
+ * panel "This question could not be displayed". The name check above judges
+ * `toolId || type`, so a core type in toolId over a type the app does not draw
+ * ({ type: 'freeResponse', toolId: 'multiAnswer' }) passed it and reached
+ * students as that panel. `which` names the version a student is given: a
+ * family's generated version, or one of the question's variants.
+ */
+const undrawnQuestionMessage = (label, question, which) => {
+  const { type, toolId } = question || {};
+  const panel = `students${which.startsWith(' in its variant') ? ' given that variant' : ''} would see "This question could not be displayed" instead of a question`;
+  if (WORKFLOW_ONLY_TYPES.includes(type)) {
+    return `${label} has type ${type}${toolId ? ` and toolId ${shownName(toolId)}` : ''}${which} and no workflow: MathMaster draws ${type} only as the steps of a workflow, so ${panel}. Give it a workflow, or a recipe that builds one.`;
+  }
+  const given = (value) => value !== undefined && value !== null && value !== '';
+  const fix = QUESTION_ENGINE_TYPES.includes(toolId) ? `Use type ${toolId}.` : 'Use a type MathMaster draws.';
+  // A version is judged without the name check (a variant need not name a
+  // toolId), so a type can be given alone.
+  if (!given(toolId)) {
+    const named = given(type) ? `type ${shownName(type)}` : 'no type';
+    const why = given(type) ? `${shownName(type)} is not a type MathMaster draws` : 'MathMaster draws a question by its type';
+    return `${label} has ${named}${which}: ${why}, so ${panel}. ${fix}`;
+  }
+  const named = given(type) ? `type ${shownName(type)} and toolId ${shownName(toolId)}` : `toolId ${shownName(toolId)} and no type`;
+  const why = given(type) ? `${shownName(type)} is not a type it draws` : 'this question has none';
+  return `${label} has ${named}${which}: MathMaster draws a question by its type unless its toolId names an interactive tool, and ${why}, so ${panel}. ${fix}`;
+};
+
+// The checks one tool or one question type has, on one version a student is
+// given (`which` names it). The modeling lab is read from `lab`, which for the
+// stored question is the authored slot, as it always was.
+const typeChecks = ({ label, name, version, which, lab = version, labWhich = which }) => {
+  if (MISSING_TOOL_IDS.includes(name)) {
+    const toolValidation = validateToolQuestion({ ...version, toolId: name });
+    if (!toolValidation.isValid) {
+      throw new Error(`${label} (${name}) is invalid${which}: ${toolValidation.errors.join(' | ')}`);
+    }
+  }
+  // A fraction answer is graded as one written number, so an answer key
+  // that is not one ("three quarters", "3:4", "x/4") could never be matched.
+  // A fraction question with no answer is a drill and stays valid. A family
+  // slot's key is a template ("{{n}}/{{d}}"): the key it generates is judged.
+  if (name === 'fraction') {
+    const answerKey = version.answer;
+    const hasAnswer = answerKey !== undefined && answerKey !== null && String(answerKey).trim() !== '';
+    if (hasAnswer && !parseWrittenNumber(answerKey)) {
+      const shown = typeof answerKey === 'string' ? answerKey : JSON.stringify(answerKey);
+      throw new Error(`${label} fraction answer "${shown}"${which} is not a number MathMaster can grade (write it like 3/4).`);
+    }
+  }
+  if (name === 'modelingLab') {
+    if (!lab.labDefinition || typeof lab.labDefinition !== 'object') throw new Error(`${label} modelingLab is missing labDefinition${labWhich}.`);
+    const labDok = Number(lab.labDefinition.dokLevel ?? lab.dok ?? 3);
+    if (![3, 4].includes(labDok)) throw new Error(`${label} modelingLab DOK must be 3 or 4${labWhich}.`);
+    if (!Array.isArray(lab.labDefinition.parameters) || lab.labDefinition.parameters.length === 0) throw new Error(`${label} modelingLab requires at least one parameter${labWhich}.`);
+  }
+};
+
 export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error('JSON must be a non-empty array of questions.');
@@ -804,32 +857,29 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     if (!supportedTypes.has(questionType)) {
       throw new Error(`Question ${index + 1} uses unsupported type ${questionType}.`);
     }
-    if (MISSING_TOOL_IDS.includes(questionType)) {
-      const toolValidation = validateToolQuestion({ ...rendered, toolId: questionType });
-      if (!toolValidation.isValid) {
-        const which = rendered === question ? '' : ' in its generated version';
-        throw new Error(`Question ${index + 1} (${questionType}) is invalid${which}: ${toolValidation.errors.join(' | ')}`);
-      }
-    }
-    // A fraction answer is graded as one written number, so an answer key
-    // that is not one ("three quarters", "3:4", "x/4") could never be matched.
-    // A fraction question with no answer is a drill and stays valid. A family
-    // slot's key is a template ("{{n}}/{{d}}"): the key it generates is judged.
-    if (questionType === 'fraction') {
-      const answerKey = rendered.answer;
-      const hasAnswer = answerKey !== undefined && answerKey !== null && String(answerKey).trim() !== '';
-      if (hasAnswer && !parseWrittenNumber(answerKey)) {
-        const shown = typeof answerKey === 'string' ? answerKey : JSON.stringify(answerKey);
-        const which = rendered === question ? '' : ' in its generated version';
-        throw new Error(`Question ${index + 1} fraction answer "${shown}"${which} is not a number MathMaster can grade (write it like 3/4).`);
-      }
-    }
-    if (questionType === 'modelingLab') {
-      if (!question.labDefinition || typeof question.labDefinition !== 'object') throw new Error(`Question ${index + 1} modelingLab is missing labDefinition.`);
-      const labDok = Number(question.labDefinition.dokLevel ?? question.dok ?? 3);
-      if (![3, 4].includes(labDok)) throw new Error(`Question ${index + 1} modelingLab DOK must be 3 or 4.`);
-      if (!Array.isArray(question.labDefinition.parameters) || question.labDefinition.parameters.length === 0) throw new Error(`Question ${index + 1} modelingLab requires at least one parameter.`);
-    }
+    const label = `Question ${index + 1}`;
+    const which = rendered === question ? '' : ' in its generated version';
+    // What the student app draws, for every version of the question a student
+    // can be given (studentQuestionVersions.js): the stored question repaired
+    // as the student player repairs it, then each of its variants, every
+    // version of a variant family, or a family slot's generated preview. One
+    // version that draws nothing is a student who sees the panel.
+    const { versions, error: versionsError } = studentQuestionVersions(question);
+    if (versionsError) throw new Error(familyResolutionMessage(label, versionsError));
+    const drawnVersions = versions.map(({ question: version, which: versionWhich }) => {
+      const drawn = drawnQuestionKind(version);
+      if (!drawn) throw new Error(undrawnQuestionMessage(label, version, versionWhich));
+      return { version, versionWhich, name: drawn.toolId || drawn.type || null };
+    });
+    // The checks a tool or a type has are run for the name above, as they
+    // always were, and for the tool or type each version draws, where it is
+    // another: a registry tool's type behind a core toolId opens that tool,
+    // and a variant that draws another tool is judged as that tool.
+    typeChecks({ label, name: questionType, version: rendered, which, lab: question, labWhich: '' });
+    drawnVersions.forEach(({ version, versionWhich, name }) => {
+      if (!name || (version === rendered && name === questionType)) return;
+      typeChecks({ label, name, version, which: versionWhich });
+    });
     const rawDok = question?.complexity?.level ?? question?.complexity?.dok ?? question?.standards?.dok ?? question?.dok;
     if (rawDok !== undefined && rawDok !== null && rawDok !== '' && (!Number.isInteger(Number(rawDok)) || Number(rawDok) < 1 || Number(rawDok) > 4)) {
       throw new Error(`Question ${index + 1} has invalid DOK ${rawDok}. Use an integer from 1 through 4.`);

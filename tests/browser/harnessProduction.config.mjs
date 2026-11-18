@@ -18,17 +18,23 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { preloadOnlyWhatIsMissing } from '../../scripts/lib/modulePreload.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const pages = String(process.env.HARNESS || 'tests/browser/studentUxPlatform.html')
   .split(',').map((page) => page.trim()).filter(Boolean);
 
+// As vite.config.js: each import()'s preload list names only the files not
+// already loaded when it runs (scripts/lib/modulePreload.mjs).
+const preload = preloadOnlyWhatIsMissing();
+
 export default defineConfig({
   root,
-  plugins: [react()],
+  plugins: [react(), preload.plugin],
   build: {
     outDir: path.resolve(root, process.env.OUT_DIR || 'dist-harness'),
     emptyOutDir: true,
+    modulePreload: { resolveDependencies: preload.resolveDependencies },
     rollupOptions: {
       input: Object.fromEntries(pages.map((page) => [path.basename(page, '.html'), path.resolve(root, page)])),
     },

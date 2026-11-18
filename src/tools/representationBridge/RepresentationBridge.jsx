@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { controlStep, Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useMethodWithheld, useToolRuntimeContext, SubmitText } from '../shared/ToolRuntimeContext';
@@ -35,6 +36,26 @@ const formatCoord = (value) => (Number.isInteger(value) ? String(value) : String
 const DIMENSION_LABEL = { unit: 'Unit', contextMeaning: 'Contextual meaning', mathRole: 'Mathematical role' };
 const HIGHLIGHT_LABEL = { rate: 'RATE / SLOPE', start: 'START / Y-INTERCEPT', zero: 'ZERO / X-INTERCEPT' };
 const MEANING_ROWS = ['rate', 'yIntercept', 'zero'];
+
+/*
+ * WHAT A SAVED BRIDGE MAY RESTORE (toolDraftShape.js). A recorded interval is
+ * { i, j, dx, dy, rate } between two of the table's rows, a graph point
+ * [x, y], a meaning a map of typed choices per row, and a stage's last check a
+ * boolean. An interval that is not one (null) threw on every load (the list
+ * names both rows); it is dropped, as is anything else that is not its shape,
+ * and the rest comes back as the student left it.
+ */
+const bridgeRowIndex = (rowCount) => s.number({ integer: true, min: 0, max: Math.max(0, rowCount - 1) });
+const bridgeEvidence = (rowCount) => s.list(s.record({
+  i: s.required(bridgeRowIndex(rowCount)),
+  j: s.required(bridgeRowIndex(rowCount)),
+  dx: s.text(),
+  dy: s.text(),
+  rate: s.text(),
+}));
+const normalizeBridgeGraphPoints = draftNormalizer(s.list(s.point()));
+const normalizeMeaningAssignments = draftNormalizer(s.map(s.map(s.text())));
+const normalizeStageChecks = draftNormalizer(s.map(s.boolean()));
 
 const emptyState = {
   tableEvidence: [], studentSlope: '', rateConclusion: '',
@@ -77,7 +98,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   }), [questionData]);
   const context = questionData.context || {};
 
-  const [tableEvidence, setTableEvidence] = usePersistentToolState('tableEvidence', []);
+  const [tableEvidence, setTableEvidence] = usePersistentToolState('tableEvidence', [], { normalize: draftNormalizer(bridgeEvidence(derived.rows.length)) });
   const [studentSlope, setStudentSlope] = usePersistentToolState('studentSlope', '');
   const [rateConclusion, setRateConclusion] = usePersistentToolState('rateConclusion', '');
   const [generalM, setGeneralM] = usePersistentToolState('generalM', '');
@@ -86,9 +107,9 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   const [factoredA, setFactoredA] = usePersistentToolState('factoredA', '');
   const [factoredC, setFactoredC] = usePersistentToolState('factoredC', '');
   const [factoredEquation, setFactoredEquation] = usePersistentToolState('factoredEquation', '');
-  const [graphPoints, setGraphPoints] = usePersistentToolState('graphPoints', []);
-  const [meaningAssignments, setMeaningAssignments] = usePersistentToolState('meaningAssignments', {});
-  const [stageChecks, setStageChecks] = usePersistentToolState('stageChecks', {});
+  const [graphPoints, setGraphPoints] = usePersistentToolState('graphPoints', [], { normalize: normalizeBridgeGraphPoints });
+  const [meaningAssignments, setMeaningAssignments] = usePersistentToolState('meaningAssignments', {}, { normalize: normalizeMeaningAssignments });
+  const [stageChecks, setStageChecks] = usePersistentToolState('stageChecks', {}, { normalize: normalizeStageChecks });
   const [stagingDx, setStagingDx] = usePersistentToolState('stagingDx', '');
   const [stagingDy, setStagingDy] = usePersistentToolState('stagingDy', '');
   const [stagingRate, setStagingRate] = usePersistentToolState('stagingRate', '');

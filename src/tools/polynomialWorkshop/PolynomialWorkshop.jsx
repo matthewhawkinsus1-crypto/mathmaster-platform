@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluatePolynomial } from '../shared/toolMath';
@@ -45,6 +46,12 @@ import { SYNTHETIC_TABLE_RETRY, SYNTHETIC_TABLE_WITHHELD, syntheticMissMessage, 
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import { addSubtractHints } from './addSubtractHints.js';
 import { areaModelHints, coefficientAreaHints } from './areaModelHints.js';
+
+// Every box the workshop saves is a typed cell in a row of cells (an area
+// model, a division's rows, a synthetic division's three rows), read by its
+// position (toolDraftShape.js). A cell that is not a value comes back as an
+// empty box in its place, so the boxes after it keep theirs.
+const normalizeCells = draftNormalizer(s.list(s.cell({ or: '' }), { keepPositions: true }));
 
 const inputStyle = { width:'100%', padding:9, border:'1px solid var(--mm-tint-border)', borderRadius:8, boxSizing:'border-box' };
 const actionStyle = { marginTop:14, padding:'10px 16px', border:0, borderRadius:8, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' };
@@ -115,7 +122,7 @@ function MultiplyArea({ questionData, feedback, submit, onAction }) {
   // Written for these binomials (areaModelHints.js), not the same on every item.
   const hints = useMemo(() => coefficientAreaHints(left, right), [left, right]);
   const cellDegrees = [2, 1, 1, 0];
-  const [cells, setCells] = usePersistentToolState('cells', ['','','','']);
+  const [cells, setCells] = usePersistentToolState('cells', ['','','',''], { normalize: normalizeCells });
   const [expanded, setExpanded] = usePersistentToolState('expanded', '');
   const setCell=(index,value)=>setCells((old)=>old.map((v,i)=>i===index?value:v));
   useFieldUndoHistory({questionData,fields:{cells:[cells,setCells],expanded:[expanded,setExpanded]}});
@@ -179,7 +186,7 @@ function MultiplyFactors({ questionData, feedback, submit, clearFeedback = () =>
   const model = useMemo(() => areaModelKey(questionData), [questionData]);
   const width = model ? model.columns.length : 0;
   const size = model ? model.rows.length * width : 0;
-  const [terms, setTerms] = usePersistentToolState('terms', []);
+  const [terms, setTerms] = usePersistentToolState('terms', [], { normalize: normalizeCells });
   const [product, setProduct] = usePersistentToolState('product', '');
   // An edit clears the verdict and its red cells.
   const setTerm = (index, value) => { clearFeedback(); setTerms((old) => listWith(size, old, index, value)); };
@@ -231,8 +238,8 @@ function AddSubtract({ questionData, feedback, submit, clearFeedback = () => {},
   const model = useMemo(() => addSubtractKey(questionData), [questionData]);
   const count = model ? model.columns.length : 0;
   const subtracting = model?.operation === 'subtract';
-  const [opposites, setOpposites] = usePersistentToolState('opposites', []);
-  const [sums, setSums] = usePersistentToolState('sums', []);
+  const [opposites, setOpposites] = usePersistentToolState('opposites', [], { normalize: normalizeCells });
+  const [sums, setSums] = usePersistentToolState('sums', [], { normalize: normalizeCells });
   const [answer, setAnswer] = usePersistentToolState('result', '');
   // An edit clears the verdict, and with it the red cells (as the division views do).
   const setOpposite = (index, value) => { clearFeedback(); setOpposites((old) => listWith(count, old, index, value)); };
@@ -444,9 +451,9 @@ function LongDivisionLayout({ divisionKey, terms, products, differences, showPla
 function LongDivision({ questionData, feedback, submit, clearFeedback, onAction }) {
   const key = useMemo(() => longDivisionKey(questionData), [questionData]);
   const count = key ? key.rounds.length : 0;
-  const [terms, setTerms] = usePersistentToolState('terms', []);
-  const [products, setProducts] = usePersistentToolState('products', []);
-  const [differences, setDifferences] = usePersistentToolState('differences', []);
+  const [terms, setTerms] = usePersistentToolState('terms', [], { normalize: normalizeCells });
+  const [products, setProducts] = usePersistentToolState('products', [], { normalize: normalizeCells });
+  const [differences, setDifferences] = usePersistentToolState('differences', [], { normalize: normalizeCells });
   const [quotient, setQuotient] = usePersistentToolState('quotient', '');
   const [remainder, setRemainder] = usePersistentToolState('remainder', '');
   const at = (setter) => (index, value) => { clearFeedback(); setter((old) => listWith(count, old, index, value)); };
@@ -518,9 +525,9 @@ function SyntheticDivision({ questionData, feedback, submit, clearFeedback, onAc
   const key = useMemo(() => syntheticDivisionKey(questionData), [questionData]);
   const columns = key ? key.coefficients.length : 0;
   const [r, setR] = usePersistentToolState('r', '');
-  const [coefficients, setCoefficients] = usePersistentToolState('coefficients', []);
-  const [products, setProducts] = usePersistentToolState('products', []);
-  const [sums, setSums] = usePersistentToolState('sums', []);
+  const [coefficients, setCoefficients] = usePersistentToolState('coefficients', [], { normalize: normalizeCells });
+  const [products, setProducts] = usePersistentToolState('products', [], { normalize: normalizeCells });
+  const [sums, setSums] = usePersistentToolState('sums', [], { normalize: normalizeCells });
   const [quotient, setQuotient] = usePersistentToolState('quotient', '');
   const [remainder, setRemainder] = usePersistentToolState('remainder', '');
   const at = (setter, length) => (index, value) => { clearFeedback(); setter((old) => listWith(length, old, index, value)); };
@@ -669,9 +676,9 @@ function SyntheticRemainderFactor({ questionData, feedback, submit, onAction }) 
   const columnIndexes = (count) => Array.from({ length: Math.max(0, count) }, (_, index) => index);
   const blank = (count) => Array.from({ length: Math.max(0, count) }, () => '');
   const [rootBox, setRootBox] = usePersistentToolState('root', '');
-  const [top, setTop] = usePersistentToolState('top', blank(size));
-  const [middle, setMiddle] = usePersistentToolState('middle', blank(size - 1));
-  const [bottom, setBottom] = usePersistentToolState('bottom', blank(size));
+  const [top, setTop] = usePersistentToolState('top', blank(size), { normalize: normalizeCells });
+  const [middle, setMiddle] = usePersistentToolState('middle', blank(size - 1), { normalize: normalizeCells });
+  const [bottom, setBottom] = usePersistentToolState('bottom', blank(size), { normalize: normalizeCells });
   const [value, setValue] = usePersistentToolState('value', '');
   const [quotient, setQuotient] = usePersistentToolState('quotient', '');
   const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', UNANSWERED);

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { questionAxisLabels } from '../shared/planeAxisTitles.js';
@@ -31,6 +32,14 @@ import {
 } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
 import { useHostSubmitLabel, useMethodWithheld, useRevealAnswers, useSubmitLabel, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+
+// The estimate kept beside a regression run is the line the student had set,
+// { m, b } as its boxes held them (toolDraftShape.js); anything else is not
+// kept, so the run shows no estimate.
+// Every number box of the lab is an <input type="number">, which holds a number
+// or text that reads as one; other text drew NaN into the line it describes.
+const normalizeNumberBox = draftNormalizer(s.numberBox());
+const normalizeRegressionEstimate = draftNormalizer(s.nullable(s.record({ m: s.required(s.cell()), b: s.required(s.cell()) })));
 
 const Field = ({ label, children }) => (
   <label style={{ display:'block', fontSize:'calc(13 * var(--mm-px))', color:'var(--mm-text-muted)', fontWeight:700 }}>
@@ -165,8 +174,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   // The starting line and choices come from the plan the shared grader reads,
   // so it can tell this untouched lab from finished work.
   const startingLine = dataModelingStartingLine(mode, questionData, { regression, stepperPlan: exploratoryLineFit ? fitControls : null });
-  const [m, setM] = usePersistentToolState('m', startingLine.m);
-  const [b, setB] = usePersistentToolState('b', startingLine.b);
+  const [m, setM] = usePersistentToolState('m', startingLine.m, { normalize: normalizeNumberBox });
+  const [b, setB] = usePersistentToolState('b', startingLine.b, { normalize: normalizeNumberBox });
   const slopeIncrements = interactionIncrements(regression.m);
   const interceptIncrements = interactionIncrements(Math.max(Math.abs(regression.b), yMax - yMin));
   // Every judgment starts unanswered ("Choose…", judgmentChoices.js). They
@@ -182,7 +191,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   // Keep the default prediction target tied to the observed data, not to display/camera bounds.
   // Work View and graph fitting are presentation concerns and must not change submitted math state.
   const defaultPredictionX = Math.ceil(Math.max(...xs, 1) + 1);
-  const [predictionX, setPredictionX] = usePersistentToolState('predictionX', questionData.predictionX ?? defaultPredictionX);
+  const [predictionX, setPredictionX] = usePersistentToolState('predictionX', questionData.predictionX ?? defaultPredictionX, { normalize: normalizeNumberBox });
   const [predictionY, setPredictionY] = usePersistentToolState('predictionY', '');
   const [predictionType, setPredictionType] = usePersistentToolState('predictionType', UNANSWERED);
   const [correlationEntry, setCorrelationEntry] = usePersistentToolState('correlationEntry', '');
@@ -192,18 +201,18 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [regressionTechnologyRun, setRegressionTechnologyRun] = usePersistentToolState('regressionTechnologyRun', false);
   // The student's own estimate, kept beside the regression line it is compared
   // with once running regression makes that line their model.
-  const [regressionEstimate, setRegressionEstimate] = usePersistentToolState('regressionEstimate', null);
+  const [regressionEstimate, setRegressionEstimate] = usePersistentToolState('regressionEstimate', null, { normalize: normalizeRegressionEstimate });
   // Neutral defaults are deliberate. Initialising these fields from the
   // regression result would put most of the answer in the boxes before the
   // student used technology to calculate it.
-  const [quadraticA, setQuadraticA] = usePersistentToolState('quadraticA', startingModel.a ?? '');
-  const [quadraticB, setQuadraticB] = usePersistentToolState('quadraticB', startingModel.b ?? '');
-  const [quadraticC, setQuadraticC] = usePersistentToolState('quadraticC', startingModel.c ?? '');
-  const [exponentialA, setExponentialA] = usePersistentToolState('exponentialA', startingModel.a ?? '');
-  const [exponentialBase, setExponentialBase] = usePersistentToolState('exponentialBase', startingModel.base ?? '');
-  const [squareRootA, setSquareRootA] = usePersistentToolState('squareRootA', startingModel.a ?? '');
-  const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '');
-  const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '');
+  const [quadraticA, setQuadraticA] = usePersistentToolState('quadraticA', startingModel.a ?? '', { normalize: normalizeNumberBox });
+  const [quadraticB, setQuadraticB] = usePersistentToolState('quadraticB', startingModel.b ?? '', { normalize: normalizeNumberBox });
+  const [quadraticC, setQuadraticC] = usePersistentToolState('quadraticC', startingModel.c ?? '', { normalize: normalizeNumberBox });
+  const [exponentialA, setExponentialA] = usePersistentToolState('exponentialA', startingModel.a ?? '', { normalize: normalizeNumberBox });
+  const [exponentialBase, setExponentialBase] = usePersistentToolState('exponentialBase', startingModel.base ?? '', { normalize: normalizeNumberBox });
+  const [squareRootA, setSquareRootA] = usePersistentToolState('squareRootA', startingModel.a ?? '', { normalize: normalizeNumberBox });
+  const [squareRootH, setSquareRootH] = usePersistentToolState('squareRootH', startingModel.h ?? '', { normalize: normalizeNumberBox });
+  const [squareRootK, setSquareRootK] = usePersistentToolState('squareRootK', startingModel.k ?? '', { normalize: normalizeNumberBox });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   // Universal Undo over every answer in the lab (TOOL-2, useFieldUndoHistory.js):
   // a stepper press, a choice, a typed value, or running regression (which

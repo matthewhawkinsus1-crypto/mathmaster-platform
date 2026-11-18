@@ -4,15 +4,21 @@ import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import QuestionVisual from './QuestionVisual';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import graphingGrader from '../functions/shared/serverGrading/tools/graphing.mjs';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import GradedEntryMark, { gradedEntryInputProps } from './components/common/GradedEntryMark.jsx';
 
+// The saved slope and intercept boxes: what was typed in each. A value that is
+// not one is dropped, and its box opens empty (checkedQuestionDraft.js).
+const BOX = draftShape.nullable(draftShape.cell());
+const LINE_DRAFT = draftNormalizer(draftShape.record({ slope: BOX, intercept: BOX }));
+
 export default function GraphLine({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { m, b, prompt, equationLatex, showEquation = true, showGraph = false } = question;
   const idBase = useId();
-  const history = useUndoHistory({ slope: '', intercept: '' }, 60, draftKey ? `${draftKey}:line` : null);
+  const history = useUndoHistory({ slope: '', intercept: '' }, 60, draftKey ? `${draftKey}:line` : null, { normalize: LINE_DRAFT });
   const { slope, intercept } = history.value;
   const generatedEquation = `y = ${m}x ${b >= 0 ? '+' : '-'} ${Math.abs(b)}`;
   const displayedEquation = equationLatex || generatedEquation;

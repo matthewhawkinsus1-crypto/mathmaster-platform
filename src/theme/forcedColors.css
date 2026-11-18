@@ -502,12 +502,16 @@
    *                         Enough Evidence empty (strandConfig.js,
    *                         MASTERY_STATUS_FILLS)
    *   a readiness state     the same fills, a prerequisite to strengthen hatched
-   *                         level, and no alignment yet an empty GrayText ring
-   *                         (domainReadiness.js, DOMAIN_STATE_FILLS)
+   *                         level, and no alignment yet an empty GrayText ring,
+   *                         dashed (domainReadiness.js, DOMAIN_STATE_FILLS)
    *   the 3D model's planes hatched rising, falling and level, each still
    *                         labelled P1, P2, P3
    *   a round done          an empty ring, a Level 3 round a solid dot
    * A key's swatch (data-mm-swatch="<part>") is drawn as the part it explains.
+   * The app's own themes draw the same fills over the levels' colours
+   * (src/components/student/wheelFills.js), a muted level's edge dashed, and
+   * the same ring and dot: there a hatch's colour is its pattern's plate and
+   * its lines lines, drawn here as such.
    */
 
   /* Not there to choose yet: a mapping's range values before a domain value is
@@ -615,14 +619,10 @@
     opacity: 1 !important;
   }
 
-  /* The key's two rounds, words with a dot: a practice round's an empty ring,
-     a Level 3 round's solid, as the wheel draws them. */
-  [data-mm-swatch="point"] {
-    color: CanvasText !important;
-  }
-
+  /* The key's two rounds, words with a mark: a practice round's a ring (○), a
+     Level 3 round's a dot (●), as the wheel draws them, in the text colour. */
+  [data-mm-swatch="point"],
   [data-mm-swatch="ring"] {
-    color: Canvas !important;
-    -webkit-text-stroke: 1px CanvasText;
+    color: CanvasText !important;
   }
 }

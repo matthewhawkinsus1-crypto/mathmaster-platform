@@ -295,7 +295,9 @@ slips ("two lines on top of each other are still two lines — look for both").
   intercept question, the guide at the close, the report under its own key,
   the class's memory, refusals (nothing to ask, nothing to tap, a stale
   generator) and the preview.
-- QA harness, not CI: `tests/browser/systemsRushScreens.mjs` drives the real
+- In CI (`student-pass3-emulator-journeys.yml`, job
+  `pass3-systems-rush-screens`; it starts its own dev server):
+  `tests/browser/systemsRushScreens.mjs` drives the real
   round screen on a phone and a laptop: both lines and their labels, the same
   line twice also in forced colours, each kind answered through its own
   button, nothing scrolling sideways, and the graph keeping its place between

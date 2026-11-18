@@ -1,9 +1,25 @@
 import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS } from '../../tools/shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape } from '../../tools/shared/toolDraftShape.js';
 import { normalizeLabDefinition } from '../../platform/labs/labDefinitionSchema.js';
 import { submitModelingLab } from '../../services/modelingLabService.js';
 import { modelingLabResultView } from './modelingLabResultView.js';
 import { studentErrorSentence } from '../../platform/student/studentErrorWords.js';
+
+/*
+ * What the lab's saved work may hold (toolDraftShape.js): each parameter's
+ * value is a number, and each recorded trial its number, when it was recorded
+ * and the parameters it used. A value that is not a number is dropped (its
+ * slider opens at the default); a trial that is not one is dropped from the
+ * history, and the trials before and after it come back.
+ */
+const PARAMETERS = draftShape.map(draftShape.nullable(draftShape.number()));
+const PARAMETERS_DRAFT = draftNormalizer(PARAMETERS);
+const TRIALS_DRAFT = draftNormalizer(draftShape.list(draftShape.record({
+  trialNumber: draftShape.required(draftShape.number()),
+  recordedAt: draftShape.number(),
+  parameters: draftShape.required(PARAMETERS),
+})));
 
 const wordCount = (value) => String(value || '').trim().split(/\s+/).filter(Boolean).length;
 
@@ -26,12 +42,12 @@ export const InteractiveModelingLabPlayer = ({
   // the first Next. QuestionEngine opens the draft scope; without one (a
   // teacher's preview) these are ordinary state. A slider drag writes at
   // display rate, so its writes coalesce, as an endpoint drag's do.
-  const [savedParams, setParamValues] = usePersistentToolState('paramValues', defaultParams, { coalesceMs: TOOL_DRAFT_COALESCE_MS });
+  const [savedParams, setParamValues] = usePersistentToolState('paramValues', defaultParams, { coalesceMs: TOOL_DRAFT_COALESCE_MS, normalize: PARAMETERS_DRAFT });
   // A parameter the lab gained after this draft was saved starts at its default.
   const paramValues = useMemo(() => ({ ...defaultParams, ...savedParams }), [defaultParams, savedParams]);
   const [hypothesis, setHypothesis] = usePersistentToolState('hypothesis', '');
   const [justification, setJustification] = usePersistentToolState('justification', '');
-  const [trialHistory, setTrialHistory] = usePersistentToolState('trialHistory', []);
+  const [trialHistory, setTrialHistory] = usePersistentToolState('trialHistory', [], { normalize: TRIALS_DRAFT });
   // The server's evaluation of a submission: a grading result, never a draft.
   const [evaluation, setEvaluation] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -80,7 +96,7 @@ export const InteractiveModelingLabPlayer = ({
   return (
     <section className="mathmaster-interactive-lab" style={{ width: '100%', maxWidth: 1100, margin: '0 auto', padding: 'clamp(14px, 3vw, 24px)', boxSizing: 'border-box', textAlign: 'left', background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid var(--mm-border)', touchAction: 'pan-y' }}>
       <header style={{ borderBottom: '2px solid #1a73e8', paddingBottom: 14, marginBottom: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><span style={{ background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '4px 9px', borderRadius: 999, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>DOK {lab.dokLevel} · MODELING LAB</span><span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{lab.teksAlignments.length ? `TEKS ${lab.teksAlignments.join(', ')}` : 'No TEKS alignment'}</span></div>
+        <div className="mathmaster-interactive-lab-heading" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><span style={{ background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '4px 9px', borderRadius: 999, fontSize: 'calc(12 * var(--mm-px))', fontWeight: 900 }}>DOK {lab.dokLevel} · MODELING LAB</span><span style={{ fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text-muted)' }}>{lab.teksAlignments.length ? `TEKS ${lab.teksAlignments.join(', ')}` : 'No TEKS alignment'}</span></div>
         <h2 style={{ margin: '9px 0 5px' }}>{lab.title}</h2>
         <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.5 }}>{lab.scenarioDescription}</p>
       </header>

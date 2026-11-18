@@ -107,9 +107,10 @@ test('each place is said in words a student would use, from the term the screen 
 
 test('the side takes the arrow keys only while it can take the operation, and Enter places where they chose', () => {
   const core = executableSource(readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8'));
-  const keys = region(core, 'const placementSlotsFor = (side) =>', 'const suggestedMove = getSuggestedMove(equation);', 'the keyboard placement');
-  // The places come from the side on screen and the operation in hand.
-  assert.match(keys, /keyboardPlacementSlots\(\{\s*operation: armedTile\?\.operation,\s*terms: splitAdditiveTerms\(sideExpression\(side\)\) \|\| \[\],\s*\}\)/);
+  const keys = region(core, 'const placementSlotsFor = (side) =>', 'const hintOffered = ', 'the keyboard placement');
+  // The places come from the side on screen (its terms as the board draws
+  // them, read once per side) and the operation in hand.
+  assert.match(keys, /keyboardPlacementSlots\(\{\s*operation: armedTile\?\.operation,\s*terms: boardTerms\(sideExpression\(side\)\) \|\| \[\],\s*\}\)/);
   // Enter or Space stages the operation at the chosen place, or where it always went.
   assert.match(keys, /const index = keyboardSlotIndex\(side, slots\);/);
   assert.match(keys, /keyboardSlot\?\.side === side \? keyboardSlot\.index : keyboardPlacementStart\(slots\)/);

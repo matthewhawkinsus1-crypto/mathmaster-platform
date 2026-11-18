@@ -54,10 +54,11 @@ test('no coverage index fails closed; the teacher\'s assigned skills stay', () =
 test('the panel filters through coverage before it picks cards, and waits for the index', () => {
   const source = executableSource(readFileSync(new URL('../../src/components/student/RecommendedSkills.jsx', import.meta.url), 'utf8'));
   assert.match(source, /import \{ practisableOptions \} from '\.\.\/\.\.\/platform\/path\/recommendedCoverage\.js';/);
-  assert.match(source, /import \{ fetchPathCoverage \} from '\.\.\/\.\.\/platform\/path\/pathCoverageService\.js';/);
+  // The course's index, as a session reads it (once per course: sessionPathCoverage.test.mjs).
+  assert.match(source, /import \{ fetchSessionPathCoverage \} from '\.\.\/\.\.\/platform\/path\/pathCoverageService\.js';/);
   const options = region(source, 'const options = useMemo(() => {', '}, [coverage,', 'options');
   assert.match(options, /if \(coverage === undefined\) return null;/);
   assert.match(options, /return practisableOptions\(pathOptions \|\| buildStudentPathOptions\(/);
-  assert.match(source, /fetchPathCoverage\(courseId\)\.then\(/);
+  assert.match(source, /fetchSessionPathCoverage\(courseId\)\.then\(/);
   assert.match(source, /const panel = useMemo\(\(\) => \(options \? curateStudentPanel\(options\) : null\), \[options\]\);/);
 });

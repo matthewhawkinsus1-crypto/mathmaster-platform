@@ -2,6 +2,8 @@
 const { createHash } = require("node:crypto");
 const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection } = require("./assignmentRuntime");
 const { ROOT_ADMIN_EMAIL } = require("./auth");
+const { gradeEntryStorage, hydrateGradeData } = require("./gradeDetailStore");
+const { trackerWithoutTimeOnTask } = require("./classroomTrackerChange");
 const EVENTS = "accommodationAdjustments";
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const id = (value) => typeof value === "string" && /^[A-Za-z0-9._-]{1,100}$/.test(value);
@@ -25,23 +27,59 @@ async function readPracticeWaiver({ db, transaction = null, studentId, gradeData
     ? runtimeIncludedQuestionIndicesForSection(assignment, "practice") : [];
 }
 
-async function gradeInputFingerprint({ assignment, gradeData, practiceWaived }) {
+async function fingerprintOf({ assignment, gradeData, practiceWaived, withoutTimeOnTask }) {
   const { stableWorkloadValue } = await import("../shared/workloadCorrection.mjs");
   const { workloadCorrections: _corrections, ...profile } = gradeData.profile || {};
-  return digest(stableWorkloadValue({ assignment, profile, tracker: gradeData.gradesByAssignment?.[assignment.id] || null,
+  // The tracker as its records read whole, without the split's own markers: the
+  // same fingerprint the record had before it was stored split. Callers join
+  // gradeData to its detail first (a record whose detail moved on reads as its
+  // summary, so the fingerprint differs and the sync is held, as it should be).
+  const storage = await gradeEntryStorage();
+  const whole = storage.trackerWithoutSplitMarkers(gradeData.gradesByAssignment?.[assignment.id] || null);
+  const tracker = withoutTimeOnTask ? trackerWithoutTimeOnTask(whole) : whole;
+  return digest(stableWorkloadValue({ assignment, profile, tracker: tracker || null,
     overrides: gradeData.teacherGradeOverridesByAssignment?.[assignment.id] || null,
     recovery: gradeData.sectionRecoveryByAssignment?.[assignment.id] || null,
     challenge: gradeData.warmupChallengeByAssignment?.[assignment.id] || null, practiceWaived }));
 }
+
+/** Every grade input as stored, each record's time on task included. */
+const gradeInputFingerprint = (inputs) => fingerprintOf({ ...inputs, withoutTimeOnTask: false });
+
+/*
+ * THE GRADE INPUTS WITHOUT TIME ON TASK.
+ *
+ * A teacher's sync authorizes a corrected grade for the inputs it was computed
+ * from, and every automatic push checks them again (correctionSyncAllowed).
+ * Those inputs held each record's `timeSpent`, which every Next raises and no
+ * grade reads (lib/classroomTrackerChange.js). So a student who pressed Next
+ * after the sync held every automatic push of that assignment until the
+ * teacher asked again, and Classroom stopped following the student's grade
+ * with no sign of it; a Next between the preview and the approval, or between
+ * the approval and the sync, sent the teacher back to preview. This is the same
+ * digest over the tracker without time on task. Everything else that can move
+ * a grade stays in it: an answer, a record created or removed, the overrides,
+ * the assignment, the profile, a Recovery, a Challenge, a Practice Pass.
+ *
+ * It is stored beside `inputFingerprint`, never instead of it. An approval or
+ * an authorization stored before this has `inputFingerprint` alone and is
+ * checked against that, as before, until the teacher asks again; and a
+ * function still running the code before this reads `inputFingerprint` as it
+ * always has, so no sync is held while a release rolls out.
+ */
+const gradeInputFingerprintWithoutTime = (inputs) => fingerprintOf({ ...inputs, withoutTimeOnTask: true });
 
 /** Every automatic Classroom path must respect an unsynced or stale correction. */
 async function correctionSyncAllowed({ db, studentId, gradeData, assignment }) {
   const correction = gradeData?.profile?.workloadCorrections?.[assignment.id];
   // Firestore can deliver an old event after approval/reversal. In particular,
   // an event from before the first correction has no correction to guard.
-  const liveSnapshot = await db.collection("grades").doc(studentId).get();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const liveSnapshot = await gradeRef.get();
   if (!liveSnapshot.exists) return false;
-  const liveData = liveSnapshot.data();
+  // Both the event's and the live record, joined to their stored detail (gradeEntryStorage.mjs).
+  const liveData = await hydrateGradeData({ db, gradeRef, gradeData: liveSnapshot.data(), assignmentIds: [assignment.id] });
+  gradeData = await hydrateGradeData({ db, gradeRef, gradeData, assignmentIds: [assignment.id] });
   const liveCorrection = liveData.profile?.workloadCorrections?.[assignment.id];
   if (!correction && !liveCorrection) return true;
   if (!correction || correction.eventId !== liveCorrection?.eventId) return false;
@@ -53,11 +91,16 @@ async function correctionSyncAllowed({ db, studentId, gradeData, assignment }) {
   if (!liveAssignmentSnapshot.exists) return false;
   const liveAssignment = { ...liveAssignmentSnapshot.data(), id: assignment.id };
   const practiceWaived = await readPracticeWaiver({ db, studentId, gradeData: liveData, assignment: liveAssignment });
+  // An authorization that names its inputs without time on task is checked
+  // against those; one stored before, against every input as stored.
+  const withoutTime = typeof authorization.inputFingerprintWithoutTime === "string";
+  const authorized = withoutTime ? authorization.inputFingerprintWithoutTime : authorization.inputFingerprint;
+  const fingerprint = withoutTime ? gradeInputFingerprintWithoutTime : gradeInputFingerprint;
   const [eventFingerprint, liveFingerprint] = await Promise.all([
-    gradeInputFingerprint({ assignment, gradeData, practiceWaived }),
-    gradeInputFingerprint({ assignment: liveAssignment, gradeData: liveData, practiceWaived }),
+    fingerprint({ assignment, gradeData, practiceWaived }),
+    fingerprint({ assignment: liveAssignment, gradeData: liveData, practiceWaived }),
   ]);
-  return authorization.inputFingerprint === eventFingerprint && eventFingerprint === liveFingerprint;
+  return authorized === eventFingerprint && eventFingerprint === liveFingerprint;
 }
 
 function createRetroactiveAccommodationService({ db, FieldPath, FieldValue, HttpsError, gradeFor, now = Date.now }) {
@@ -82,7 +125,7 @@ function createRetroactiveAccommodationService({ db, FieldPath, FieldValue, Http
         const gradeRef = db.collection("grades").doc(studentId);
         const [gradeSnap, assignmentSnap] = await Promise.all([tx.get(gradeRef), tx.get(db.collection("assignments").doc(assignmentId))]);
         if (!gradeSnap.exists || !assignmentSnap.exists) fail("not-found", "Student or assignment not found.");
-        const gradeData = gradeSnap.data();
+        const gradeData = await hydrateGradeData({ transaction: tx, gradeRef, gradeData: gradeSnap.data(), assignmentIds: [assignmentId] });
         const assignment = { ...assignmentSnap.data(), id: assignmentId };
         const classSnap = gradeData.classId ? await tx.get(db.collection("classes").doc(gradeData.classId)) : null;
         if (email !== ROOT_ADMIN_EMAIL && (!classSnap?.exists || String(classSnap.data().teacherOfRecord || "").trim().toLowerCase() !== email)) fail("permission-denied", "Only the student's teacher of record may review corrections.");
@@ -103,23 +146,30 @@ function createRetroactiveAccommodationService({ db, FieldPath, FieldValue, Http
         const current = gradeData.profile?.workloadCorrections?.[assignmentId] || null;
         const practiceWaived = await readPracticeWaiver({ db, transaction: tx, studentId, gradeData, assignment });
         const inputFingerprint = await gradeInputFingerprint({ assignment, gradeData, practiceWaived });
+        const inputFingerprintWithoutTime = await gradeInputFingerprintWithoutTime({ assignment, gradeData, practiceWaived });
         const { previewRetroactiveSelection } = await import("../shared/retroactiveAccommodation.mjs");
         const { workloadContentKey } = await import("../shared/workloadCorrection.mjs");
         const reversing = action === "previewReversal" || action === "reverse";
         const parentSnap = current?.eventId ? await tx.get(eventCollection.doc(current.eventId)) : null;
         const parent = parentSnap?.exists ? parentSnap.data() : null;
         if (action === "requestSync") {
-          if (!current || data.eventId !== current.eventId || !parent || current.contentKey !== workloadContentKey(assignment) || parent.inputFingerprint !== inputFingerprint) fail("failed-precondition", "Correction or grade inputs changed. Preview again before requesting sync.");
-          if (current.syncAuthorization?.eventId === current.eventId && current.syncAuthorization.inputFingerprint === inputFingerprint) return { status: "requested", duplicate: true, eventId: current.eventId };
+          // The inputs the correction was approved on, against the inputs now:
+          // without time on task when the approval names them so, and every
+          // input as stored when it was approved before it could.
+          const approvedInputsUnchanged = typeof parent?.inputFingerprintWithoutTime === "string"
+            ? parent.inputFingerprintWithoutTime === inputFingerprintWithoutTime
+            : parent?.inputFingerprint === inputFingerprint;
+          if (!current || data.eventId !== current.eventId || !parent || current.contentKey !== workloadContentKey(assignment) || !approvedInputsUnchanged) fail("failed-precondition", "Correction or grade inputs changed. Preview again before requesting sync.");
+          if (current.syncAuthorization?.eventId === current.eventId && current.syncAuthorization.inputFingerprintWithoutTime === inputFingerprintWithoutTime) return { status: "requested", duplicate: true, eventId: current.eventId };
           if (!id(data.requestId)) fail("invalid-argument", "A request id is required.");
-          const syncId = digest([studentId, assignmentId, current.eventId, "sync", inputFingerprint]);
+          const syncId = digest([studentId, assignmentId, current.eventId, "sync", inputFingerprintWithoutTime]);
           const syncRef = eventCollection.doc(syncId);
           const existing = await tx.get(syncRef);
           if (existing.exists) return { status: "requested", duplicate: true, eventId: current.eventId };
           const at = new Date(now()).toISOString();
-          tx.set(syncRef, { kind: "retroactive-grade-correction", action: "sync-requested", studentId, assignmentId, correctionEventId: current.eventId, actorUid: request.auth.uid, actorEmail: email, at, inputFingerprint, exportLink: `classroomReleaseSignals/${assignmentId}` });
+          tx.set(syncRef, { kind: "retroactive-grade-correction", action: "sync-requested", studentId, assignmentId, correctionEventId: current.eventId, actorUid: request.auth.uid, actorEmail: email, at, inputFingerprint, inputFingerprintWithoutTime, exportLink: `classroomReleaseSignals/${assignmentId}` });
           tx.update(gradeRef, new FieldPath("classroomReleaseSignals", assignmentId), { requestedAt: at, reason: "manual-retry", source: "retroactive-accommodation", correctionEventId: current.eventId, correctionInputFingerprint: inputFingerprint });
-          tx.update(gradeRef, new FieldPath("profile", "workloadCorrections", assignmentId, "syncAuthorization"), { eventId: current.eventId, inputFingerprint, at });
+          tx.update(gradeRef, new FieldPath("profile", "workloadCorrections", assignmentId, "syncAuthorization"), { eventId: current.eventId, inputFingerprint, inputFingerprintWithoutTime, at });
           return { status: "requested", eventId: current.eventId, syncEventId: syncId };
         }
         if (!previewing && !id(data.requestId)) fail("invalid-argument", "A request id is required.");
@@ -151,7 +201,7 @@ function createRetroactiveAccommodationService({ db, FieldPath, FieldValue, Http
           selection.actualPercentTenths = restored.summary?.actualPercentTenths || 0;
         }
         const requiresSecondConfirmation = selection.policyDiscrepancy || (previousGrade !== null && proposedGrade !== null && proposedGrade < previousGrade);
-        const previewToken = digest([request.auth.uid, email, studentId, assignmentId, inputFingerprint, current?.eventId || null, selection.policy, proposed, reversing]);
+        const previewToken = digest([request.auth.uid, email, studentId, assignmentId, inputFingerprintWithoutTime, current?.eventId || null, selection.policy, proposed, reversing]);
         const row = { ...selection, previousGrade, proposedGrade, requiresSecondConfirmation, previewToken, correctionEventId: current?.eventId || null, syncStatus: current?.syncAuthorization?.eventId === current?.eventId && current ? "requested" : "not-requested" };
         if (previewing) return row;
         if (selection.status !== "eligible") fail("failed-precondition", "Manual review needed or assignment outside the historical range.");
@@ -169,7 +219,7 @@ function createRetroactiveAccommodationService({ db, FieldPath, FieldValue, Http
           previousRequiredIndices: selection.previousRequiredIndices, proposedRequiredIndices: selection.proposedRequiredIndices,
           actualPercentTenths: selection.actualPercentTenths, affectedRoles: selection.affectedRoles,
           previousProjection: current, appliedProjection: projection, previousEventId: current?.eventId || null,
-          inputFingerprint, contentKey: selection.contentKey, previewToken,
+          inputFingerprint, inputFingerprintWithoutTime, contentKey: selection.contentKey, previewToken,
           confirmations: { authority: true, selected: true, second: data.confirmDecrease === true }, exportLink: `classroomReleaseSignals/${assignmentId}` });
         tx.update(gradeRef, new FieldPath("profile", "workloadCorrections", assignmentId), projection);
         return { status: "applied", eventId, grade: proposedGrade };
@@ -179,4 +229,4 @@ function createRetroactiveAccommodationService({ db, FieldPath, FieldValue, Http
     return previewing || action === "history" ? { rows } : rows[0];
   };
 }
-module.exports = { createRetroactiveAccommodationService, correctionSyncAllowed, gradeInputFingerprint, readPracticeWaiver, projectCorrectionTracker };
+module.exports = { createRetroactiveAccommodationService, correctionSyncAllowed, gradeInputFingerprint, gradeInputFingerprintWithoutTime, readPracticeWaiver, projectCorrectionTracker };

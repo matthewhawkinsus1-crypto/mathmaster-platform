@@ -37,6 +37,7 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState, { ToolDraftScopeProvider, readToolDraftRecord, useToolDraftScope } from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
@@ -50,6 +51,7 @@ import { spokenMathValue } from '../shared/spokenMathValue.js';
 import { scrollMotion } from '../../motionPreference.js';
 import MathInput from '../../MathInput';
 import { latexToExpression } from '../../algebraAstEngine.js';
+import { ISOLATION_UNREADABLE_MESSAGE, judgeIsolationSimplification } from './isolationSimplification.js';
 import AlgebraicSystemMode, {
   EmbeddedStepAlgebra,
   MathDragToken,
@@ -116,6 +118,14 @@ import { resolveInterpretationGate } from './algebraicOutcomeModel.js';
 import { planePairs } from './spatialFeedback.js';
 import { SubmitText, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 
+// A classification or plane reading is tagged with the outcome it answers
+// (toolDraftShape.js): { identity, choice, kind } and { identity, answers,
+// checked }. One that is not that shape is not kept, and the question asks for
+// it again. The reduction's own state is repaired by repairReductionState on every
+// read, so it needs no shape here.
+const normalizeOutcomeClassification = draftNormalizer(s.nullable(s.record({ identity: s.text(), choice: s.text(), kind: s.text() })));
+const normalizePlaneWork = draftNormalizer(s.nullable(s.record({ identity: s.text(), answers: s.map(s.text()), checked: s.boolean() })));
+
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
 
@@ -152,6 +162,8 @@ const feedbackText = (note, system, sourceVariable) => {
       return 'MathMaster could not open the next solving step from that form of the expression. Your work is still here. Choose Change expression and use an equivalent form, or try the original isolated form again.';
     case 'token:token-in-use':
       return 'The expression is already in a reduced equation. Undo that substitution first if you want to change it.';
+    case 'token:unreadable':
+      return ISOLATION_UNREADABLE_MESSAGE;
     case 'reduce:not-equivalent':
       return 'That form is not the same equation the substitution produced. Keep working in the solver.';
     case 'back:destination-lacks-unknown':
@@ -196,8 +208,8 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   // their own names so a student who switches method keeps each method's work
   // (the elimination workspace keeps its own pair). Each is tagged with the
   // outcome it answers and used only while that outcome stands.
-  const [outcomeClassification, setOutcomeClassification] = usePersistentToolState('substitutionClassification', null);
-  const [storedPlaneWork, setPlaneWork] = usePersistentToolState('substitutionPlanes', null);
+  const [outcomeClassification, setOutcomeClassification] = usePersistentToolState('substitutionClassification', null, { normalize: normalizeOutcomeClassification });
+  const [storedPlaneWork, setPlaneWork] = usePersistentToolState('substitutionPlanes', null, { normalize: normalizePlaneWork });
 
   // The statement the student's OWN simplified sides made, if one has settled
   // the system (the other road to an outcome is the reduced 2×2, below).
@@ -304,6 +316,16 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
   const source = reduction.source;
   const sourceVariable = source?.variable || null;
   const isolated = isolatedExpression(reduction, system);
+  // The optional rewrite is read on its own before the shared check judges
+  // it, as in the 2×2 (isolationSimplification.js): what cannot be read is
+  // told so, and the reduction's state is left exactly as it was.
+  const checkTokenRewrite = () => {
+    if (judgeIsolationSimplification(reduction.isolation?.simplificationDraft, isolated, sourceVariable).verdict === 'unreadable') {
+      apply({ state: reduction, feedback: { stage: 'token', reason: 'unreadable' } });
+      return;
+    }
+    apply(checkTokenSimplification(reduction, system));
+  };
   const token = substitutionToken(reduction);
   const targets = reductionTargets(reduction, system);
   const remaining = remainingVariables(reduction, system);
@@ -337,6 +359,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
     onRestore: restore,
     resetKey: questionUndoResetKey(questionData),
     ownerId: 'algebraic-reduction-history',
+    draftFields: { reduction: setStoredReduction, outcomeClassification: setOutcomeClassification, planeWork: setPlaneWork },
   });
   const hasPostSubsystemWork = Boolean(reduction.back?.destinationId || Object.keys(reduction.verification || {}).length);
   // Most local first. The reduced subsystem's work happened after this
@@ -622,7 +645,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                           />
                         </label>
                         <div className="mathmaster-reduction-button-row">
-                          <button type="button" onClick={() => apply(checkTokenSimplification(reduction, system))} style={smallActionStyle}>Check and use my simplification</button>
+                          <button type="button" onClick={checkTokenRewrite} style={smallActionStyle}>Check and use my simplification</button>
                           <button type="button" onClick={() => apply(adoptIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Skip simplification</button>
                         </div>
                         {reduction.isolation.simplificationChecked && !reduction.isolation.simplificationValid ? (

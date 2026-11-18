@@ -29,19 +29,59 @@ const summarizeRejected = (entries = []) => {
 // recommendation panel, and the routing engine that may descend into a
 // prerequisite.
 
-/** The stored index for a course, or null when it has never been built. */
+const readCoverageIndex = async (courseId) => {
+  const snapshot = await getDoc(doc(db, 'pathCoverage', String(courseId)));
+  return snapshot.exists() ? snapshot.data() : null;
+};
+
+// A coverage read that fails must not take the Path down with it — but it
+// must not be mistaken for "everything is covered" either. Null fails
+// closed everywhere it is consulted.
+const failClosed = (error) => {
+  console.error('Could not load My Math Path coverage:', error);
+  return null;
+};
+
+/**
+ * The stored index for a course, or null when it has never been built. Read
+ * every time: the tools that rebuild it show what they built.
+ */
 export const fetchPathCoverage = async (courseId) => {
   if (!courseId) return null;
-  try {
-    const snapshot = await getDoc(doc(db, 'pathCoverage', String(courseId)));
-    return snapshot.exists() ? snapshot.data() : null;
-  } catch (error) {
-    // A coverage read that fails must not take the Path down with it — but it
-    // must not be mistaken for "everything is covered" either. Null fails
-    // closed everywhere it is consulted.
-    console.error('Could not load My Math Path coverage:', error);
-    return null;
+  return readCoverageIndex(courseId).catch(failClosed);
+};
+
+/*
+ * A STUDENT'S SCREENS READ EACH COURSE'S INDEX ONCE A SESSION.
+ *
+ * Home's Recommended for you and My Math Path each read the index as they
+ * opened, and a student passes between them all day: a read of the same
+ * document on every visit. The index changes only when content is released
+ * (the server rebuilds it), so the first read of a course serves the rest of
+ * the session, both screens and every visit. A release reaches a student at
+ * their next sign-in (App.jsx forgets the index then) or when the page is
+ * reloaded, and a rebuild or release run from this page drops it at once
+ * (below). A read that fails is not kept: it fails closed, as before, and the
+ * next visit reads again.
+ */
+const sessionCoverage = new Map();
+
+export const fetchSessionPathCoverage = (courseId) => {
+  if (!courseId) return Promise.resolve(null);
+  const key = String(courseId);
+  if (!sessionCoverage.has(key)) {
+    const reading = readCoverageIndex(key).catch((error) => {
+      if (sessionCoverage.get(key) === reading) sessionCoverage.delete(key);
+      return failClosed(error);
+    });
+    sessionCoverage.set(key, reading);
   }
+  return sessionCoverage.get(key);
+};
+
+/** Every course's index is read again on its next visit. */
+export const forgetSessionPathCoverage = () => {
+  sessionCoverage.clear();
 };
 
 
@@ -65,7 +105,8 @@ export const fetchPathRuntimeStatus = async () => {
  */
 export const rebuildPathCoverage = async (courses = PATH_COVERAGE_COURSE_IDS) => {
   const call = httpsCallable(functions, 'rebuildPathCoverage');
-  const result = await call({ courses });
+  // This page's screens show what was built, not the session's copy.
+  const result = await call({ courses }).finally(forgetSessionPathCoverage);
   return result.data || {};
 };
 
@@ -141,7 +182,8 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
 export const initializeBundledPathBankStarter = async ({ onProgress = null } = {}) => {
   onProgress?.({ phase: 'initializing', chunk: 0, chunks: 0 });
   const call = httpsCallable(functions, 'initializeStarterPathQuestionBank');
-  const raw = (await call({})).data || {};
+  // The server rebuilds coverage from the bank it installs.
+  const raw = (await call({}).finally(forgetSessionPathCoverage)).data || {};
   // One server-side pass, so `received` already IS the document count.
   const seed = { ...raw, documentCount: raw.received ?? 0 };
   if (!seed.imported) return { initialized: false, seed, coverage: null };
@@ -156,21 +198,21 @@ export const initializeBundledPathBankStarter = async ({ onProgress = null } = {
 /** Existing-install refresh for bundled Grade 6-8 + Algebra I/II course content. */
 export const refreshBundledCoursePathBank = async () => {
   const call = httpsCallable(functions, 'refreshBuiltInCoursePathBank');
-  const result = await call({});
+  const result = await call({}).finally(forgetSessionPathCoverage);
   return result.data || {};
 };
 
 /** Independent release-managed ASVAB refresh. */
 export const refreshReleasedAsvabPathBank = async () => {
   const call = httpsCallable(functions, 'refreshReleasedAsvabPathBank');
-  const result = await call({});
+  const result = await call({}).finally(forgetSessionPathCoverage);
   return result.data || {};
 };
 
 /** Coordinated release-managed Digital SAT + ACT + TSIA2 refresh. */
 export const refreshReleasedCcmrPathBanks = async () => {
   const call = httpsCallable(functions, 'refreshReleasedCcmrPathBanks');
-  const result = await call({});
+  const result = await call({}).finally(forgetSessionPathCoverage);
   return result.data || {};
 };
 

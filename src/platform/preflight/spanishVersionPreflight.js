@@ -95,6 +95,13 @@ const reviewPartName = ({ path }) => {
   return { headline: 'worked solution headline', answerSummary: 'worked solution answer summary', commonError: 'worked solution “Watch out” line' }[path[0]];
 };
 
+// The two notes that cover many questions at once, written for any list of
+// question numbers: Review shows each once for the whole assignment, and the
+// Question Editor gives each question its own (questionPreflightFindings.js).
+const questionsText = (numbers) => `${numbers.length === 1 ? 'Question' : `${numbers.length} questions —`} ${numbersText(numbers)}`;
+export const hintsWithoutSpanishNote = (numbers = []) => `${questionsText(numbers)} ${numbers.length === 1 ? 'has' : 'have'} hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.`;
+export const solutionWithoutSpanishNote = (numbers = []) => `${questionsText(numbers)} ${numbers.length === 1 ? 'has' : 'have'} a worked solution with no Spanish version, so a student who reads in Spanish sees it in English only. Add translations.es.solutionReview with the same fields (headline, reasoning, answerSummary, commonError), with every number, letter and symbol exactly as in the English.`;
+
 export const auditAssignmentSpanishVersions = (questions = [], { deliveredOnly = true } = {}) => {
   const hintsMissing = [];
   const reviewMissing = [];
@@ -145,13 +152,8 @@ export const auditAssignmentSpanishVersions = (questions = [], { deliveredOnly =
   });
 
   const warnings = [];
-  const questionsText = (numbers) => `${numbers.length === 1 ? 'Question' : `${numbers.length} questions —`} ${numbersText(numbers)}`;
-  if (hintsMissing.length) {
-    warnings.push(`${questionsText(hintsMissing)} ${hintsMissing.length === 1 ? 'has' : 'have'} hints with no Spanish version, so a student who reads in Spanish sees them in English only. Add translations.es.hints: one Spanish line for each hint, in the same order, with every number, letter and symbol exactly as in the English.`);
-  }
-  if (reviewMissing.length) {
-    warnings.push(`${questionsText(reviewMissing)} ${reviewMissing.length === 1 ? 'has' : 'have'} a worked solution with no Spanish version, so a student who reads in Spanish sees it in English only. Add translations.es.solutionReview with the same fields (headline, reasoning, answerSummary, commonError), with every number, letter and symbol exactly as in the English.`);
-  }
+  if (hintsMissing.length) warnings.push(hintsWithoutSpanishNote(hintsMissing));
+  if (reviewMissing.length) warnings.push(solutionWithoutSpanishNote(reviewMissing));
   warnings.push(...problems);
   return { warnings, hintsMissing, reviewMissing };
 };

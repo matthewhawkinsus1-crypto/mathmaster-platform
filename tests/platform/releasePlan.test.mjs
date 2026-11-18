@@ -23,12 +23,20 @@ import {
   classifyDeployFailure,
   deployCommandFor,
   describeStep,
+  firebaseFunctionsSettingsChanged,
+  functionSelectionLines,
   retryCommandFor,
   retryDelaySeconds,
   summarizeFunctionLabels,
 } from '../../scripts/lib/releasePlan.mjs';
 import { executeReleasePlan } from '../../scripts/lib/releaseExecutor.mjs';
 import { listDeployableFunctions } from '../../scripts/lib/functionsInventory.mjs';
+import {
+  buildFunctionsImportGraph,
+  fsSource,
+  mapSource,
+  selectFunctionsForChange,
+} from '../../scripts/lib/functionsImportGraph.mjs';
 import { buildDeployProvenance, provenanceLabels, sanitizeLabelValue } from '../../scripts/write-functions-provenance.mjs';
 import { region } from './helpers/sourceContract.mjs';
 
@@ -729,4 +737,309 @@ test('the sweep is held when the functions serve another commit, or a browser ca
     assert.deepEqual(outcome.heldFunctions, [SWEEP], why);
     assert.ok(retryCommandFor(outcome).includes(SWEEP), `${why}: the finishing command ships it`);
   }
+});
+
+// --- which functions a change reaches: the import graph ---------------------
+//
+// Without --only or --functions, the release deploys the default-codebase
+// functions whose code the diff changed (scripts/lib/functionsImportGraph.mjs):
+// each export's loads are followed, lazy ones included, to the files they
+// reach. Where the graph cannot be sure, every function deploys, and the plan
+// says why. The fixture has the real codebase's shapes: an entry that merges
+// index.js and a section entry and overrides one of index.js's exports,
+// index.js's top-level requires and lazy loaders, a loader map, and the global
+// setup every function runs.
+
+const FIXTURE_LOADERS = Object.freeze([{
+  file: 'functions/lib/planner.js', within: 'loadPlanner', map: 'ENTRIES', relativeTo: 'repository', describe: 'the fixture planner',
+}]);
+
+const fixtureFiles = {
+  'package.json': JSON.stringify({ type: 'module' }),
+  'firebase.json': JSON.stringify({
+    hosting: { public: 'dist' },
+    functions: [{ source: 'functions', codebase: 'default', predeploy: ['node scripts/stamp-functions.mjs --dir functions'] }],
+  }),
+  'functions/package.json': JSON.stringify({ main: 'main.js', type: 'commonjs' }),
+  'functions/main.js': [
+    "const { onCall } = require('firebase-functions/v2/https');",
+    "const base = require('./index.js');",
+    'Object.assign(exports, base);',
+    "const { handlers, cloudFunctions: sectionFunctions } = require('./section.js');",
+    'Object.assign(exports, sectionFunctions);',
+    'const legacyPublish = base.publish;',
+    'exports.publish = onCall(async (request) => handlers.split(request) || legacyPublish.run(request));',
+  ].join('\n'),
+  'functions/index.js': [
+    "const { onCall } = require('firebase-functions/v2/https');",
+    "const grading = require('./lib/grading.js');",
+    "setGlobalOptions({ labels: require('./lib/labels.js').labels });",
+    'const LIMIT = 5;',
+    'let ingestionModule = null;',
+    "async function ingestion() { if (!ingestionModule) ingestionModule = await import('./shared/ingestion.mjs'); return ingestionModule; }",
+    'exports.submit = onCall(async (request) => (await ingestion()).ingest(request, LIMIT));',
+    'exports.grade = onCall((request) => grading.grade(request));',
+    "exports.review = onCall((request) => require('./lib/review.js').review(request));",
+    'exports.publish = onCall(() => ({ published: true }));',
+    "exports.plan = onCall((request) => require('./lib/planner.js').plan(request));",
+    'exports.shadow = onCall((grading) => grading.grade());',
+    "exports.quiet = onCall(() => 'quiet');",
+  ].join('\n'),
+  'functions/section.js': [
+    "const { onCall } = require('firebase-functions/v2/https');",
+    "const classroom = require('./lib/classroom.js');",
+    'function split(request) { return classroom.publishSections(request); }',
+    'const syncSection = onCall((request) => classroom.syncSection(request));',
+    "const drainQueue = onCall(() => 'drained');",
+    'module.exports = { handlers: { split }, cloudFunctions: { syncSection, drainQueue } };',
+  ].join('\n'),
+  'functions/lib/grading.js': "const { equivalent } = require('../shared/answerEquivalence.mjs');\nexports.grade = (request) => equivalent(request);",
+  'functions/lib/review.js': "exports.review = async (request) => (await import('../shared/answerEquivalence.mjs')).equivalent(request);",
+  'functions/lib/classroom.js': 'exports.syncSection = () => 1;\nexports.publishSections = () => 2;',
+  'functions/lib/labels.js': "exports.labels = { 'mm-git-sha': 'unknown' };",
+  'functions/lib/planner.js': [
+    "const path = require('node:path');",
+    "const ENTRIES = Object.freeze({ week: 'src/plan/week.js' });",
+    'async function loadPlanner(root) {',
+    '  return Promise.all(Object.keys(ENTRIES).map((name) => import(path.join(root, ENTRIES[name]))));',
+    '}',
+    "exports.plan = async () => (await loadPlanner('.')).length;",
+  ].join('\n'),
+  'src/plan/week.js': "import { schoolDays } from '../../functions/shared/calendar.mjs';\nexport const week = () => schoolDays();",
+  'functions/shared/calendar.mjs': 'export const schoolDays = () => 5;',
+  'functions/shared/ingestion.mjs': "import { verify } from './serverGrading/steps.mjs';\nexport * from './envelope.mjs';\nexport const ingest = (request) => verify(request);",
+  'functions/shared/serverGrading/steps.mjs': 'export const verify = () => true;',
+  'functions/shared/envelope.mjs': "export const STEP_KINDS = Object.freeze(['rewrite']);",
+  'functions/shared/answerEquivalence.mjs': 'export const equivalent = () => true;',
+  'functions/shared/browserOnly.mjs': 'export const shownInTheBrowser = true;',
+  'functions/seeds/bank.json': '{"items":[]}',
+};
+const fixtureIndex = fixtureFiles['functions/index.js'];
+
+// The selection for a diff from the fixture (plus `both`, in both versions) to
+// the fixture with `edits` (null deletes a file).
+const changeTo = (edits, { both = {}, loaders = FIXTURE_LOADERS } = {}) => {
+  const before = mapSource({ ...fixtureFiles, ...both });
+  const after = mapSource({ ...fixtureFiles, ...both, ...edits });
+  const graph = buildFunctionsImportGraph({ source: after, computedLoaders: loaders });
+  return selectFunctionsForChange({
+    graph,
+    changes: Object.keys(edits).map((file) => ({ file, before: before.read(file), after: after.read(file) })),
+  });
+};
+// A change to the code of a file: one more export.
+const edit = (file) => ({ [file]: `${fixtureFiles[file]}\n${file.endsWith('.mjs') ? 'export const edited = true;' : 'exports.edited = true;'}` });
+
+test('the import graph follows every kind of load to the functions that make it', () => {
+  const chosen = (edits) => {
+    const selection = changeTo(edits);
+    assert.deepEqual(selection.all, [], 'sure');
+    return selection.functions;
+  };
+  // A static import, reached through index.js's lazy loader: import() in a function.
+  assert.deepEqual(chosen(edit('functions/shared/serverGrading/steps.mjs')), ['submit']);
+  // export * from.
+  assert.deepEqual(chosen(edit('functions/shared/envelope.mjs')), ['submit']);
+  // require() at the top of index.js, then a require() at the top of a lib
+  // file; and import() inside a lib function.
+  assert.deepEqual(chosen(edit('functions/shared/answerEquivalence.mjs')), ['grade', 'review']);
+  // require() inside an export's handler.
+  assert.deepEqual(chosen(edit('functions/lib/review.js')), ['review']);
+  // A loader map: import(ENTRIES[name]) loads each file the map names, and what those import.
+  assert.deepEqual(chosen(edit('src/plan/week.js')), ['plan']);
+  assert.deepEqual(chosen(edit('functions/shared/calendar.mjs')), ['plan']);
+  // An entry's exported members: the section entry's handler (through the
+  // platform entry's publish) and one of its cloudFunctions, not the other.
+  assert.deepEqual(chosen(edit('functions/lib/classroom.js')), ['publish', 'syncSection']);
+  // A parameter that shadows a top-level binding is not a use of it.
+  assert.deepEqual(chosen(edit('functions/lib/grading.js')), ['grade']);
+});
+
+test('in an entry file, a change reaches only the exports whose code uses it', () => {
+  const index = (from, to) => ({ 'functions/index.js': fixtureIndex.replace(from, to) });
+  // An export's own code.
+  assert.deepEqual(changeTo(index('grading.grade(request)', 'grading.grade(request, 2)')).functions, ['grade']);
+  // A constant: the exports that use it.
+  assert.deepEqual(changeTo(index('const LIMIT = 5;', 'const LIMIT = 6;')).functions, ['submit']);
+  // A lazy loader: the exports that call it.
+  assert.deepEqual(changeTo(index("import('./shared/ingestion.mjs')", "import('./shared/ingestion.mjs').then((m) => m)")).functions, ['submit']);
+  // index.js's publish, which the platform entry wraps through `base.publish`.
+  const wrapped = changeTo(index('({ published: true })', '({ published: 1 })'));
+  assert.deepEqual(wrapped.functions, ['publish']);
+  assert.equal(wrapped.reasons.publish, 'uses exports.publish in index.js, which changed, via legacyPublish in main.js');
+  // A comment or a blank line is not code.
+  assert.deepEqual(changeTo(index('const LIMIT = 5;', '// Five at most.\n\nconst LIMIT = 5;')).functions, []);
+  // A new export ships, and says so.
+  const added = changeTo({ 'functions/index.js': `${fixtureIndex}\nexports.fresh = onCall(() => 'new');` });
+  assert.deepEqual(added.functions, ['fresh']);
+  assert.equal(added.reasons.fresh, 'is new in index.js');
+});
+
+test('when the graph cannot be sure, every function deploys, and the plan says why', () => {
+  const unsure = (selection, pattern) => {
+    assert.deepEqual(selection.functions, [], 'no partial list');
+    assert.match(selection.all.join('\n'), pattern);
+  };
+  // A computed import that no loader map describes: it could load anything.
+  unsure(changeTo(edit('functions/shared/envelope.mjs'), {
+    both: { 'functions/lib/review.js': 'exports.review = async (request) => (await import(`../shared/${request.kind}.mjs`)).grade(request);' },
+  }), /^lib\/review\.js:1 loads a computed path, so the graph cannot tell which files it loads$/m);
+  // The loader map, once its loader is no longer where the description says.
+  unsure(changeTo(edit('functions/shared/calendar.mjs'), { loaders: [{ ...FIXTURE_LOADERS[0], within: 'loadSomethingElse' }] }),
+    /lib\/planner\.js:4 loads a computed path in loadPlanner/);
+  // The codebase's manifest.
+  unsure(changeTo({ 'functions/package.json': JSON.stringify({ main: 'main.js', type: 'commonjs', dependencies: { mathjs: '15.2.1' } }) }),
+    /^functions\/package\.json changed: every function runs on/m);
+  // firebase.json's settings for the default codebase, and a script its predeploy runs.
+  const firebase = JSON.parse(fixtureFiles['firebase.json']);
+  firebase.functions[0].ignore = ['node_modules', '*.local'];
+  unsure(changeTo({ 'firebase.json': JSON.stringify(firebase) }), /firebase\.json's settings for the default codebase changed/);
+  unsure(changeTo({ 'scripts/stamp-functions.mjs': 'export {};' }), /scripts\/stamp-functions\.mjs runs at the default codebase's predeploy/);
+  // A data file no function imports: the functions code reads files by name.
+  unsure(changeTo({ 'functions/seeds/bank.json': '{"items":[1]}' }), /seeds\/bank\.json is a data file no function loads by import/);
+  // A module nothing imports, but whose name the code spells: it may be loaded by name.
+  unsure(changeTo(edit('functions/shared/browserOnly.mjs'), {
+    both: { 'functions/lib/classroom.js': "exports.syncSection = () => 'shared/browserOnly.mjs';\nexports.publishSections = () => 2;" },
+  }), /shared\/browserOnly\.mjs is loaded by no function the graph can see, but its name is spelled in lib\/classroom\.js/);
+  // A top-level statement every function runs, and what it loads.
+  unsure(changeTo({ 'functions/index.js': fixtureIndex.replace('setGlobalOptions({ labels:', "setGlobalOptions({ memory: '1GiB', labels:") }),
+    /^a top-level statement of index\.js changed \(line 3\), and every function runs it$/m);
+  unsure(changeTo(edit('functions/lib/labels.js')), /^lib\/labels\.js changed, and every function loads it/m);
+
+  // The same module, imported by nothing and named by nothing, is the browser's alone.
+  const browser = changeTo(edit('functions/shared/browserOnly.mjs'));
+  assert.deepEqual([browser.all, browser.functions], [[], []]);
+  assert.match(browser.notes.join('\n'), /shared\/browserOnly\.mjs: no function loads it/);
+  // So is a module only an uncalled loader imports: its path is a load that no
+  // function makes, not a name the code reads files by.
+  const retired = changeTo({ 'functions/shared/retired.mjs': 'export const retired = false;' }, {
+    both: {
+      'functions/index.js': `${fixtureIndex}\nasync function retiredLoader() { return import('./shared/retired.mjs'); }`,
+      'functions/shared/retired.mjs': 'export const retired = true;',
+    },
+  });
+  assert.deepEqual([retired.all, retired.functions], [[], []]);
+  assert.match(retired.notes.join('\n'), /shared\/retired\.mjs: no function loads it/);
+
+  // firebase.json: the functions target is planned only for its functions settings.
+  const settings = firebaseFunctionsSettingsChanged(fixtureFiles['firebase.json'], JSON.stringify(firebase));
+  assert.deepEqual(settings, { default: true, 'path-admin': false });
+  assert.deepEqual(classifyChangedFiles(['firebase.json'], { functionsSettings: settings }).targets, [T.FUNCTIONS, T.HOSTING]);
+  const hostingOnly = { ...JSON.parse(fixtureFiles['firebase.json']), hosting: { public: 'build' } };
+  assert.deepEqual(classifyChangedFiles(['firebase.json'], { functionsSettings: firebaseFunctionsSettingsChanged(fixtureFiles['firebase.json'], JSON.stringify(hostingOnly)) }).targets, [T.HOSTING]);
+
+  // An unsure selection is the whole fleet: the release passes no list.
+  assert.deepEqual(buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: ['a', 'b', B], selectedFunctions: null }).flatMap((step) => step.group || []), ['a', 'b', B]);
+});
+
+test('a docs-only change deploys nothing, and neither does a comment or a note under functions/', () => {
+  const { targets } = classifyChangedFiles(['docs/handoffs/RELEASE.md', 'README.md', 'tests/platform/releasePlan.test.mjs']);
+  assert.deepEqual(targets, []);
+  assert.deepEqual(buildReleasePlan({ targets, allFunctions: ['submit', B], expectedGitSha: HEAD }), []);
+
+  const quiet = changeTo({
+    'functions/shared/envelope.mjs': `// The step kinds the server reads.\n${fixtureFiles['functions/shared/envelope.mjs']}`,
+    'functions/NOTES.md': '# notes',
+  });
+  assert.deepEqual([quiet.all, quiet.functions], [[], []]);
+  assert.match(quiet.notes.join('\n'), /shared\/envelope\.mjs: only comments or formatting changed/);
+  assert.match(quiet.notes.join('\n'), /NOTES\.md: not loaded by the deployed code/);
+  // A plan of no functions has no functions steps, so no verify step either.
+  assert.deepEqual(buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: ['submit', B], selectedFunctions: quiet.functions, expectedGitSha: HEAD }), []);
+  // ...and a plan of some has those, and platformBuildInfo.
+  assert.deepEqual(buildReleasePlan({ targets: [T.FUNCTIONS], allFunctions: ['submit', 'grade', B], selectedFunctions: ['grade'], expectedGitSha: HEAD })
+    .filter((step) => step.target === T.FUNCTIONS).map((step) => step.group), [['grade', B]]);
+});
+
+test('the plan prints each chosen function with its reason, or why it chose them all', () => {
+  const selection = changeTo(edit('functions/shared/answerEquivalence.mjs'));
+  assert.equal(selection.reasons.grade, 'imports shared/answerEquivalence.mjs via grading in index.js → lib/grading.js');
+  assert.equal(selection.reasons.review, 'imports shared/answerEquivalence.mjs via lib/review.js');
+  assert.deepEqual(functionSelectionLines({ selection, total: 9 }), [
+    `Functions: 2 of 9, each for what it loads (${B} ships with every functions release):`,
+    '  grade   imports shared/answerEquivalence.mjs via grading in index.js → lib/grading.js',
+    '  review  imports shared/answerEquivalence.mjs via lib/review.js',
+  ]);
+  assert.deepEqual(functionSelectionLines({ selection: { all: ['functions/package.json changed: x'], functions: [], reasons: {}, notes: [] }, total: 9 }), [
+    'Functions: all 9. The import graph cannot be sure which functions this diff reaches:',
+    '  - functions/package.json changed: x',
+  ]);
+  assert.deepEqual(functionSelectionLines({ selection: { all: [], functions: [], reasons: {}, notes: ['shared/x.mjs: only comments or formatting changed'] }, total: 9 }), [
+    'Functions: none of 9. No function loads code this diff changed.',
+    '  (no function: shared/x.mjs: only comments or formatting changed)',
+  ]);
+  // Every chosen function is printed; the rest is cut short, and says so.
+  const long = functionSelectionLines({ selection: { all: Array.from({ length: 12 }, (_, n) => `reason ${n}`), functions: [], reasons: {}, notes: [] }, total: 9 });
+  assert.equal(long.length, 1 + 8 + 1);
+  assert.equal(long.at(-1), '  ... and 4 more (in the release report)');
+  assert.deepEqual(functionSelectionLines({ mode: 'named', named: ['a', 'b'] }), [`Functions: the 2 named by --functions (and ${B}).`]);
+  assert.deepEqual(functionSelectionLines({ mode: 'only', total: 9 }), ['Functions: all 9, as --only functions asks, whatever the diff changed.']);
+
+  // The release plans what the graph chose, prints it before its steps, and
+  // asks the graph only when neither --only nor --functions decided.
+  const source = readFileSync(new URL('../../scripts/release-firebase.mjs', import.meta.url), 'utf8');
+  assert.match(region(source, 'steps = buildReleasePlan({', '});', 'the buildReleasePlan call'), /selectedFunctions: selection && !selection\.all\.length \? selection\.functions : null,/);
+  assert.match(region(source, 'const functionsMode =', ';', 'the functions mode'), /functionNames\?\.length \? 'named'\s*: only \? 'only' : 'graph'/);
+  const printed = source.indexOf('functionSelectionLines({ selection, total: inventory.length, mode: functionsMode');
+  assert.ok(printed > -1 && printed < source.indexOf("console.log('\\nSteps, in order:');"), 'printed before the steps');
+});
+
+// The real codebase, read from this checkout.
+let realGraph = null;
+const real = () => {
+  realGraph ||= buildFunctionsImportGraph({ source: fsSource() });
+  return realGraph;
+};
+const realInventory = () => listDeployableFunctions().functions.map((fn) => fn.name);
+
+test('the real codebase: the graph finds every deployable function, follows the weekly planner, and is sure', async () => {
+  const graph = real();
+  const names = realInventory();
+  assert.deepEqual(names.filter((name) => !graph.exportNode(name)), []);
+  names.forEach((name) => graph.closure(name));
+  assert.deepEqual(graph.uncertain, []);
+  // What every function runs is the global setup, not the graders.
+  const everyone = [...graph.globalClosure().keys()];
+  assert.ok(everyone.includes('functions/lib/deployProvenance.js'), everyone.join(', '));
+  assert.ok(!everyone.some((node) => node.startsWith('functions/shared/')), everyone.join(', '));
+  // The weekly planner's computed import: the server plans with the browser's
+  // planner, all of what the freeze vendors (the planner's own walk of it,
+  // which decides that a change to one of these files is a functions change).
+  const planner = graph.closure('resolveWeeklyPathGoalSnapshot');
+  assert.ok(planner.has('src/platform/path/weeklyPathPlan.js'));
+  const { plannerClosure } = await import('../../scripts/sync-functions-weekly-planner.mjs');
+  assert.deepEqual(plannerClosure().filter((file) => !planner.has(file)), []);
+});
+
+test('a change to one leaf grader deploys the functions that bundle it', () => {
+  const graph = real();
+  const file = 'functions/shared/serverGrading/gradingResult.mjs';
+  const text = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+  assert.doesNotMatch(text, /\bfrom\s*['"]\.|import\(\s*['"]\./, 'a leaf: it imports nothing');
+  const inventory = realInventory();
+  const selection = selectFunctionsForChange({ graph, inventory, changes: [{ file, before: text, after: `${text}\nexport const edited = true;\n` }] });
+  assert.deepEqual(selection.all, []);
+  for (const name of ['ingestStudentSubmissions', 'inspectStudentResponse', 'syncGradeToClassroom', 'syncSectionGradeToClassroom', 'submitSecureExamResponse']) {
+    assert.ok(selection.functions.includes(name), `${name} bundles the server grader`);
+  }
+  for (const name of ['createLiveChallenge', 'listClasses', 'getGoogleAuthUrl']) assert.ok(!selection.functions.includes(name), `${name} grades nothing`);
+  assert.ok(selection.functions.length < inventory.length / 4, `${selection.functions.length} of ${inventory.length}`);
+  selection.functions.forEach((name) => assert.match(selection.reasons[name], /^imports shared\/serverGrading\/gradingResult\.mjs via /, name));
+});
+
+test('a change inside one export of the real index.js deploys that export, and the platform entry follows index.js through base', () => {
+  const graph = real();
+  const file = 'functions/index.js';
+  const text = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const inventory = realInventory();
+  // The real file, with one export's value wrapped: `exports.X = (0, value)`.
+  const wrap = (name) => {
+    const { start, end } = graph.entryAnalysis(file).byKey.get(`exports.${name}`).node.expression.right;
+    return `${text.slice(0, start)}(0, ${text.slice(start, end)})${text.slice(end)}`;
+  };
+  const reached = (name) => selectFunctionsForChange({ graph, inventory, changes: [{ file, before: wrap(name), after: text }] });
+  assert.deepEqual(reached('queueClassroomGradeCheckpoints').functions, ['queueClassroomGradeCheckpoints']);
+  const wrapped = reached('publishAssignmentToClassrooms');
+  assert.deepEqual(wrapped.functions, ['publishAssignmentToClassrooms']);
+  assert.match(wrapped.reasons.publishAssignmentToClassrooms, /^uses exports\.publishAssignmentToClassrooms in index\.js, which changed, via legacyPublishAssignmentToClassrooms in platformEntry\.js/);
 });

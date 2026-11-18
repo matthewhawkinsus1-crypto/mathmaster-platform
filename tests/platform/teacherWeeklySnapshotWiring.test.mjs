@@ -19,7 +19,12 @@ test('teacher completion callable returns the frozen goal snapshots with complet
   assert.match(pathStoreSource, /goalsByStudentId/);
 });
 
-test('Gradebook, Home and Weekly Path all refresh the same weekly progress source', () => {
-  assert.match(appSource, /\['weeklyPath', 'home', 'grades'\]\.includes\(teacherTab\)/);
-  assert.match(appSource, /setWeeklyPathGoalSnapshotsByStudent\(result\?\.goalsByStudentId \|\| \{\}\)/);
+test('Gradebook, Home and Weekly Path all refresh the same weekly progress source', async () => {
+  // One follower for the three screens, from the teacher kit
+  // (app/teacher/weeklyPathProgress.js), which sets the frozen goals from the
+  // same answer as the completions; App hands it its state.
+  const follower = await readFile(new URL('../../src/app/teacher/weeklyPathProgress.js', import.meta.url), 'utf8');
+  assert.match(follower, /if \(!\['weeklyPath', 'home', 'grades'\]\.includes\(teacherTab\)\) return undefined;/);
+  assert.match(follower, /apply: \(result\) => \{\s*set\.completions\(result\?\.byStudentId \|\| \{\}\);\s*set\.goals\(result\?\.goalsByStudentId \|\| \{\}\);/);
+  assert.match(appSource, /return teacherKit\.followWeeklyPathProgress\(weeklyPathProgress, \{[\s\S]*?completions: setWeeklyPathCompletionsByStudent,\s*goals: setWeeklyPathGoalSnapshotsByStudent,/);
 });

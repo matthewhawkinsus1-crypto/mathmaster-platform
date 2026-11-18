@@ -9,6 +9,7 @@ async function liveChallengeClassPoints() {
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { isDeepStrictEqual } = require("util");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
@@ -41,13 +42,25 @@ const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
 const {
+  CLASSROOM_GRADED_NOT_RETURNED,
   classroomPushFailure,
   classroomPushHeldForLimit,
+  classroomReturnRefusal,
   clearedClassroomErrorFields,
+  clearedReturnRefusalFields,
+  standingClassroomReturnRefusal,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
-const { deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
+const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
+// Which Classroom publications a teacher may see and act on: the publication
+// callables' one rule.
+const classroomLinkOwnership = require("./lib/classroomLinkOwnership");
+// The grade passback monitor's rows: a teacher's own, read by their own posts.
+const classroomGradeSyncRows = require("./lib/classroomGradeSyncRows");
+const { classroomReceiptNeedsWriting, deferredClassCheckpoint, extendedTimeReturnHeldUntil } = require("./lib/classroomGradeRuntime");
+// What wakes the two grade triggers: a tracker that moved beyond time on task.
+const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
@@ -476,7 +489,10 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-    const gradeData = gradeSnapshot.data() || {};
+    // The whole record (summary joined to its stored detail), read in this transaction.
+    const gradeData = await hydrateGradeData({
+      transaction, gradeRef, gradeData: gradeSnapshot.data() || {}, assignmentIds: [String(checkpoint.assignmentId)],
+    });
     const question = runtimeQuestionsFromAssignment(assignment)?.[Number(checkpoint.questionIndex)] || null;
 
     const decision = decideCheckpointFinalization({
@@ -577,8 +593,11 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     }
 
     const gradeUpdates = [
-      new FieldPath("gradesByAssignment", assignmentId, String(checkpoint.questionIndex)),
-      finalization.record,
+      // The summary here, the detail beside it (responseDetail), one detailRef.
+      ...await questionRecordUpdates({
+        writer: transaction, gradeRef, studentId: gradeRef.id, assignmentId,
+        questionKey: String(checkpoint.questionIndex), record: finalization.record,
+      }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       finalization.supportUsage,
     ];
@@ -792,6 +811,29 @@ exports.expediteCheckpointsOnSectionClose = onDocumentWritten(
  * `lastSubmissionId`. A retry of a submission that already landed reports
  * `duplicate` and writes nothing.
  * ========================================================================= */
+/*
+ * A QUESTION RECORD IS STORED SPLIT (functions/shared/gradeEntryStorage.mjs).
+ *
+ * Its summary stays in grades/{studentId}.gradesByAssignment[a][q] (enough to
+ * grade: credit, status, attempts, `stepCredit`), and its detail (parts,
+ * steps, last response, support flags, algebra state) lives in
+ * grades/{studentId}/responseDetail/{a}.questions[q], tied by one `detailRef`.
+ * Since Nov 16, 2026 the grades document was approaching Firestore's 1 MiB cap.
+ *
+ * A writer stores both halves in the same transaction or batch
+ * (writeQuestionRecord). A reader that needs the whole record (attempt policy,
+ * review, recovery, mastery) joins them first (hydrateGradeData); a reader that
+ * only grades (the Classroom triggers, class-wide reports) reads the summary.
+ */
+const {
+  gradeEntryStorage,
+  splitInlineRecords,
+  hydrateGradeData,
+  questionRecordUpdates,
+  writeSplitTracker,
+  hydrateTrackerRows,
+} = require("./lib/gradeDetailStore");
+
 let submissionIngestionModule = null;
 async function submissionIngestion() {
   if (!submissionIngestionModule) {
@@ -823,7 +865,7 @@ function authoritativeStudentClassId(gradeData) {
  * together — so a teacher never sees a grade without its evidence, and a
  * deadline can never turn one response into two attempts.
  */
-async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {} }) {
+async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {}, hints = null }) {
   const ingestion = await submissionIngestion();
   const dispositions = await submissionDisposition();
   const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
@@ -875,7 +917,18 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     const assignment = assignmentSnapshot.exists
       ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
       : null;
-    const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    // The whole record of this assignment's questions: the summary joined to
+    // its stored detail, read in this transaction (attempt policy compares the
+    // last response and replays the steps).
+    const storedGradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    // Records written before the split are moved after this call (splitInlineRecords).
+    if (hints && storedGradeData && (await gradeEntryStorage()).anyInlineRecords(storedGradeData)) hints.inlineRecords = true;
+    const gradeData = await hydrateGradeData({
+      transaction,
+      gradeRef,
+      gradeData: storedGradeData,
+      assignmentIds: [envelope.assignmentId],
+    });
     const classId = authoritativeStudentClassId(gradeData);
 
     const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
@@ -1132,8 +1185,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     }
 
     const updates = [
-      new FieldPath("gradesByAssignment", assignmentId, String(envelope.questionIndex)),
-      built.record,
+      // The summary here, the detail beside it (responseDetail), one detailRef.
+      ...await questionRecordUpdates({
+        writer: transaction, gradeRef, studentId, assignmentId,
+        questionKey: String(envelope.questionIndex), record: built.record,
+      }),
       new FieldPath("supportUsageByAssignment", assignmentId),
       built.supportUsage,
     ];
@@ -1297,6 +1353,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
   // queues from clients built before step work existed have drained.
   const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
   const receipts = [];
+  const hints = {};
   for (const raw of incoming) {
     // A wall-clock budget for the whole call: verifying a crafted step can
     // cost seconds, and a batch of them must not time out the honest work
@@ -1316,8 +1373,11 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
       try {
         receipts.push(await recordOneQuestionProgress({ db, studentId, envelope: progress }));
       } catch (error) {
+        // `errorMessage`, not `message`: the logger's own message overwrites a
+        // `message` field, and the cause (Nov 16, 2026: "too many index entries
+        // for entity /grades/…") reached only the device, never the log.
         logger.error("Could not record question progress", {
-          studentId, actionId: progress.actionId, message: error.message,
+          studentId, actionId: progress.actionId, errorMessage: error?.message, errorCode: error?.code ?? null,
         });
         receipts.push({
           actionId: progress.actionId,
@@ -1341,10 +1401,10 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
     // The envelope never gets to say whose work it is.
     envelope.studentId = studentId;
     try {
-      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings }));
+      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings, hints }));
     } catch (error) {
       logger.error("Could not ingest a student submission", {
-        studentId, actionId: envelope.actionId, message: error.message,
+        studentId, actionId: envelope.actionId, errorMessage: error?.message, errorCode: error?.code ?? null,
       });
       // A failed write is a retry, never a retirement.
       receipts.push({
@@ -1352,6 +1412,20 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
         disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
         reason: `ingestion-error:${String(error.message || "unknown").slice(0, 120)}`,
       });
+    }
+  }
+  /*
+   * THIS STUDENT'S RECORDS STILL STORED WHOLE MOVE INTO THE SPLIT NOW
+   * (functions/lib/gradeDetailStore.js splitInlineRecords): after every receipt
+   * above is decided, in its own transaction, best effort. Nothing here can
+   * change a receipt or a grade; a failure is logged and retried on the next call.
+   */
+  if (hints.inlineRecords) {
+    try {
+      const moved = await splitInlineRecords({ db, studentId });
+      if (moved.split || moved.kept) logger.info("Moved a student's records into the split", { studentId, ...moved });
+    } catch (error) {
+      logger.warn("Could not move a student's records into the split", { studentId, errorMessage: error?.message, errorCode: error?.code ?? null });
     }
   }
   return { receipts, ingestedAt: now };
@@ -1485,7 +1559,9 @@ exports.advanceSectionRecovery = onCall(async (request) => {
       if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
       if (!gradeSnapshot.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.");
       const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
-      const gradeData = gradeSnapshot.data() || {};
+      // The records whole: recovery reads their family pins and practice evidence,
+      // stored beside the grades document (gradeEntryStorage.mjs).
+      const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnapshot.data() || {}, assignmentIds: [assignmentId] });
       if (secureAssignmentMode(assignment) || assignment.secure === true) {
         throw new HttpsError("failed-precondition", "Secure assessments use their own retest process.");
       }
@@ -1637,7 +1713,8 @@ exports.resolveHeldSectionRecovery = onCall(async (request) => {
         overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
       ]);
       if (!gradeSnap.exists || !assignmentSnap.exists) throw new HttpsError("not-found", "The student or assignment was not found.");
-      const gradeData = gradeSnap.data() || {};
+      // The records whole (stored beside the grades document; gradeEntryStorage.mjs).
+      const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnap.data() || {}, assignmentIds: [assignmentId] });
       const classId = authoritativeStudentClassId(gradeData);
       const classSnap = classId ? await transaction.get(db.collection("classes").doc(String(classId))) : null;
       const ownsClass = classSnap?.exists
@@ -1840,6 +1917,29 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
   return { teacherUid, teacherEmail };
 }
 
+/*
+ * Whether the caller manages this assignment, by the rule above: the root
+ * administrator, or the verified teacher of record of every class it is
+ * assigned to. Answered rather than thrown, for the Classroom publication
+ * callables: a publication that records no teacher is shown and acted on only
+ * for that caller (lib/classroomLinkOwnership.js).
+ */
+async function callerManagesAssignment(request, assignmentSnap) {
+  try {
+    await assertTeacherMayManageAssignment(request, assignmentSnap);
+    return true;
+  } catch (error) {
+    if (error instanceof HttpsError && ["permission-denied", "failed-precondition"].includes(error.code)) return false;
+    throw error;
+  }
+}
+
+/** The same question for an assignment the callable has not read: one read, of the one field it needs. */
+async function callerManagesAssignmentId(request, db, assignmentId) {
+  const [assignmentSnap] = await db.getAll(db.doc(`assignments/${String(assignmentId)}`), { fieldMask: ["assignedClassIds"] });
+  return callerManagesAssignment(request, assignmentSnap);
+}
+
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
@@ -1944,7 +2044,10 @@ function getQuestionCredit(record, authoritativeOverride = null) {
   }
   if (record.status === "correct") return 1;
   const stored = clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0);
-  const derived = storedAlgebraStepPartialCredit(record);
+  // `stepCredit` is what the steps earned, stored on a record's summary when
+  // its detail (stepGrades among it) was split off (gradeEntryStorage.mjs):
+  // a summary read on its own grades exactly as the full record.
+  const derived = Math.max(storedAlgebraStepPartialCredit(record), clampPercent(record.stepCredit ?? 0));
   return Math.max(stored, derived) / 100;
 }
 
@@ -2041,7 +2144,8 @@ exports.inspectStudentResponse = onCall(async (request) => {
     throw new HttpsError("not-found", "The student or assignment was not found.");
   }
 
-  const student = studentSnap.data() || {};
+  // The inspected record whole: its parts and pin are stored beside the grades document.
+  const student = await hydrateGradeData({ db, gradeRef, gradeData: studentSnap.data() || {}, assignmentIds: [assignmentId] });
   const classSnap = student.classId
     ? await db.collection("classes").doc(String(student.classId)).get()
     : null;
@@ -2289,7 +2393,8 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
       throw new HttpsError("not-found", "The student or assignment was not found.");
     }
 
-    const gradeData = gradeSnap.data() || {};
+    // The record whole (its parts and pin are stored beside the grades document).
+    const gradeData = await hydrateGradeData({ transaction, gradeRef, gradeData: gradeSnap.data() || {}, assignmentIds: [assignmentId] });
     const classSnap = gradeData.classId
       ? await transaction.get(db.collection("classes").doc(String(gradeData.classId)))
       : null;
@@ -8785,11 +8890,15 @@ async function updateAssignmentClassroomPublications(request) {
     ? new Set(courseIds.map(String))
     : null;
 
-  const publications = linkSnap.docs
-    .map((doc) => ({ ref: doc.ref, data: doc.data() }))
-    .filter((entry) => entry.data.status === "published" && entry.data.courseworkId)
-    .filter((entry) => !entry.data.teacherUid || entry.data.teacherUid === teacherUid)
-    .filter((entry) => !requested || requested.has(String(entry.data.courseId)));
+  // The caller's own posts (lib/classroomLinkOwnership.js). Every link read
+  // here is this assignment's, which the callable has read already.
+  const publications = await classroomLinkOwnership.linksForTeacher(
+    linkSnap.docs
+      .map((doc) => ({ ref: doc.ref, data: doc.data() }))
+      .filter((entry) => entry.data.status === "published" && entry.data.courseworkId)
+      .filter((entry) => !requested || requested.has(String(entry.data.courseId))),
+    { teacherUid, linkOf: (entry) => entry.data, managesAssignment: () => callerManagesAssignment(request, assignmentSnap) }
+  );
 
   if (!publications.length) {
     return { assignmentId: String(assignmentId), results: [], summary: { updated: 0, failed: 0, skipped: 0 } };
@@ -9005,10 +9114,14 @@ exports.repairClassroomAssignmentPublications = onCall(
         .get(),
     ]);
 
-    const existingPublications = publicationSnapshot.docs
-      .map((doc) => ({ ref: doc.ref, id: doc.id, data: doc.data() || {} }))
-      .filter(({ data }) => !data.teacherUid || data.teacherUid === teacherUid)
-      .filter(({ data }) => data.courseId);
+    // The caller's own posts (lib/classroomLinkOwnership.js), all of them this
+    // assignment's.
+    const existingPublications = await classroomLinkOwnership.linksForTeacher(
+      publicationSnapshot.docs
+        .map((doc) => ({ ref: doc.ref, id: doc.id, data: doc.data() || {} }))
+        .filter(({ data }) => data.courseId),
+      { teacherUid, linkOf: (entry) => entry.data, managesAssignment: () => callerManagesAssignment(request, assignmentSnap) }
+    );
 
     const publicationByCourseId = new Map();
     for (const publication of existingPublications) {
@@ -9608,10 +9721,13 @@ exports.inspectClassroomPublication = onCall(
       .where("assignmentId", "==", assignmentId)
       .get();
 
-    const publications = snap.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((item) => !item.teacherUid || item.teacherUid === teacherUid)
-      .filter((item) => item.courseId && item.courseworkId && item.status === "published");
+    // The caller's own posts (lib/classroomLinkOwnership.js).
+    const publications = await classroomLinkOwnership.linksForTeacher(
+      snap.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((item) => item.courseId && item.courseworkId && item.status === "published"),
+      { teacherUid, managesAssignment: () => callerManagesAssignmentId(request, db, assignmentId) }
+    );
 
     if (!publications.length) {
       return { assignmentId, results: [], summary: { courses: 0, rosterStudents: 0, failed: 0 } };
@@ -9702,16 +9818,20 @@ exports.removeAssignmentClassroomPackage = onCall(
     }
 
     const db = getFirestore();
-    const classroom = await classroomLib().getClassroomClient(teacherUid);
     const snap = await db
       .collection("classroomLinks")
       .where("assignmentId", "==", assignmentId)
       .get();
 
-    const publications = snap.docs
-      .map((doc) => ({ ref: doc.ref, data: doc.data() }))
-      .filter((entry) => !entry.data.teacherUid || entry.data.teacherUid === teacherUid)
-      .filter((entry) => entry.data.courseId);
+    // The caller's own posts (lib/classroomLinkOwnership.js). Their Google
+    // account is used only when there is one to remove.
+    const publications = await classroomLinkOwnership.linksForTeacher(
+      snap.docs
+        .map((doc) => ({ ref: doc.ref, data: doc.data() }))
+        .filter((entry) => entry.data.courseId),
+      { teacherUid, linkOf: (entry) => entry.data, managesAssignment: () => callerManagesAssignmentId(request, db, assignmentId) }
+    );
+    const classroom = publications.length ? await classroomLib().getClassroomClient(teacherUid) : null;
 
     const results = [];
 
@@ -9818,13 +9938,28 @@ exports.removeAssignmentClassroomPackage = onCall(
   }
 );
 
+/*
+ * One teacher's own Classroom publications, for the two lists below: every one
+ * of them, a page at a time (lib/classroomLinkOwnership.js). The lists read
+ * any 500 (or 2,000) links of every teacher's and kept the caller's, so past
+ * that a teacher's own posts dropped off without a sign.
+ */
+async function readOwnClassroomLinks(db, teacherUid, callable, options = {}) {
+  const read = await classroomLinkOwnership.readTeacherLinks(db, teacherUid, options);
+  const concerns = classroomLinkOwnership.teacherLinkReadConcerns({ links: read.docs.length, complete: read.complete });
+  if (!read.complete) {
+    logger.error("A teacher's Classroom publications stopped at the page limit", { callable, teacherUid, links: read.docs.length, pages: read.pages, concerns });
+  } else if (concerns.length) {
+    logger.warn("A teacher's Classroom publications are near the list limits", { callable, teacherUid, links: read.docs.length, pages: read.pages, concerns });
+  }
+  return read.docs;
+}
+
 exports.listPublishedAssignments = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
-  const snap = await db.collection("classroomLinks").limit(500).get();
-  const links = snap.docs
+  const links = (await readOwnClassroomLinks(db, teacherUid, "listPublishedAssignments"))
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((item) => !item.teacherUid || item.teacherUid === teacherUid)
     .sort((a, b) => {
       const aDate = toDate(a.publishedAt || a.updatedAt || a.createdAt)?.getTime() || 0;
       const bDate = toDate(b.publishedAt || b.updatedAt || b.createdAt)?.getTime() || 0;
@@ -9889,29 +10024,31 @@ async function writeGradeSyncAudit(db, publicationId, studentId, patch) {
 exports.listClassroomGradeSyncs = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const db = getFirestore();
-  const publicationSnap = await db.collection("classroomLinks")
-    .select("teacherUid", "assignmentId")
-    .limit(2000)
-    .get();
-  const ownPublications = publicationSnap.docs
-    .filter((doc) => !doc.data().teacherUid || doc.data().teacherUid === teacherUid);
+  // The caller's own posts, as "Published assignments" reads them: only their
+  // ids and assignments are needed.
+  const ownPublications = await readOwnClassroomLinks(db, teacherUid, "listClassroomGradeSyncs", { fields: ["assignmentId"] });
   const publicationIds = new Set(ownPublications.map((doc) => doc.id));
   if (!publicationIds.size) return { syncs: [], pushQueue: { waiting: 0 } };
   const ownAssignments = new Set(ownPublications.map((doc) => String(doc.data().assignmentId || "")));
 
-  // The newest rows. Until Oct 14, 2026 this read any 500 of them, so the
-  // monitor (and "Retry all") could miss most of a day's failures.
-  const syncSnap = await db.collection("classroomGradeSyncs")
-    .orderBy("updatedAt", "desc")
-    .limit(500)
-    .get();
+  // The rows of those posts alone, by their ids, and the newest 500 of them
+  // (lib/classroomGradeSyncRows.js). This read the newest 500 rows of every
+  // teacher's and kept the caller's, so a teacher whose rows were not among
+  // the school's newest 500 saw part of their monitor, or none of it.
+  const read = await classroomGradeSyncRows.readPublicationGradeSyncs(db, [...publicationIds]);
+  const rowConcerns = classroomGradeSyncRows.gradeSyncReadConcerns({ rows: read.docs.length, complete: read.complete });
+  if (!read.complete) {
+    logger.error("The grade passback monitor stopped reading a teacher's rows at its limit", { teacherUid, posts: publicationIds.size, rows: read.docs.length, queries: read.queries, concerns: rowConcerns });
+  } else if (rowConcerns.length) {
+    logger.warn("The grade passback monitor read many rows for one teacher", { teacherUid, posts: publicationIds.size, rows: read.docs.length, queries: read.queries, concerns: rowConcerns });
+  }
   // Pushes waiting in the paced queue (lib/classroomPushQueue.js).
   const waiting = (await classroomPushQueue.waitingClassroomPushes(db, { limit: 2000 }))
     .filter((entry) => ownAssignments.has(entry.assignmentId));
   const queuedPushes = new Set(waiting.map((entry) => `${entry.assignmentId}/${entry.studentId}`));
-  const syncs = syncSnap.docs
+  const syncs = classroomGradeSyncRows.newestGradeSyncs(read.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((item) => publicationIds.has(String(item.publicationId)))
+    .filter((item) => publicationIds.has(String(item.publicationId))))
     .map((item) => ({
       ...item,
       queued: queuedPushes.has(`${item.assignmentId}/${item.studentId}`),
@@ -9936,10 +10073,16 @@ exports.retryClassroomGradeSync = onCall(async (request) => {
   if (!publication.exists) {
     throw new HttpsError("not-found", "Classroom publication not found.");
   }
-  if (
-    publication.data().teacherUid &&
-    publication.data().teacherUid !== teacherUid
-  ) {
+  // The caller's own post, by the publication callables' one rule
+  // (lib/classroomLinkOwnership.js): a post that records no teacher is theirs
+  // only if they manage its assignment. Anyone else is refused as for another
+  // teacher's post.
+  const [ownPublication] = await classroomLinkOwnership.linksForTeacher([publication], {
+    teacherUid,
+    linkOf: (snapshot) => snapshot.data(),
+    managesAssignment: (id) => callerManagesAssignmentId(request, db, id),
+  });
+  if (!ownPublication) {
     throw new HttpsError(
       "permission-denied",
       "That Classroom publication belongs to another teacher."
@@ -9996,13 +10139,19 @@ exports.retryAllClassroomGradeSyncs = onCall(async (request) => {
     });
   }
 
-  // The same ownership rule as one row's retry.
+  // The same ownership rule as one row's retry (lib/classroomLinkOwnership.js):
+  // a post that records no teacher is the caller's only if they manage its
+  // assignment, asked once an assignment.
+  const ownPublicationIds = new Set((await classroomLinkOwnership.linksForTeacher([...publications], {
+    teacherUid,
+    linkOf: ([, link]) => link,
+    managesAssignment: (id) => callerManagesAssignmentId(request, db, id),
+  })).map(([id]) => id));
   const studentsByAssignment = new Map();
   let failedRows = 0;
   for (const row of rows) {
     const publication = publications.get(String(row.publicationId));
-    if (!publication) continue;
-    if (publication.teacherUid && publication.teacherUid !== teacherUid) continue;
+    if (!publication || !ownPublicationIds.has(String(row.publicationId))) continue;
     if (String(publication.assignmentId || "") !== String(row.assignmentId)) continue;
     failedRows += 1;
     const students = studentsByAssignment.get(String(row.assignmentId)) || new Set();
@@ -10037,10 +10186,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const beforeData = event.data?.before?.exists ? event.data.before.data() || {} : {};
     const afterByAssignment = afterData.gradesByAssignment || {};
     const beforeByAssignment = beforeData.gradesByAssignment || {};
+    // A change that moves only time on task (a Next's `timeSpent`) is no
+    // change: nothing here reads it (lib/classroomTrackerChange.js).
     const gradeChangedAssignmentIds = Object.keys(afterByAssignment).filter(
-      (assignmentId) =>
-        JSON.stringify(afterByAssignment[assignmentId]) !==
-        JSON.stringify(beforeByAssignment[assignmentId])
+      (assignmentId) => trackerChangedBeyondTimeOnTask(beforeByAssignment[assignmentId], afterByAssignment[assignmentId])
     );
     const afterTeacherOverrides = afterData.teacherGradeOverridesByAssignment || {};
     const beforeTeacherOverrides = beforeData.teacherGradeOverridesByAssignment || {};
@@ -10390,6 +10539,12 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (persistenceState.persistencePending) {
         for (const publicationDoc of publications) {
           const publication = publicationDoc.data() || {};
+          // Only the columns this trigger sends to, as for the Recovery hold
+          // above. A split section's row is the section trigger's own, and it
+          // does not hold for persistence: "sync-pending" there replaced its
+          // record, so it sent that grade, and asked for a refused return,
+          // again (tests/platform/classroomPersistencePendingColumns.test.mjs).
+          if (publication.gradePassbackEnabled === false || !String(publication.courseId || "")) continue;
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
@@ -10418,6 +10573,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
       }
 
       const successfulCourses = [];
+      // Grades saved in Classroom whose return Google refused: counted for one
+      // warning per assignment, not an error per column.
+      const notReturned = { refused: 0, notAskedAgain: 0, states: new Set(), reasons: new Set() };
 
       for (const publicationDoc of publications) {
         const publication = publicationDoc.data() || {};
@@ -10452,7 +10610,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (
           (!forceRetry || (afterData.profile?.workloadCorrections?.[assignmentId]?.eventId
             && priorAudit.correctionEventId === afterData.profile.workloadCorrections[assignmentId].eventId))
-          && priorAudit.status === "synced"
+          && ["synced", CLASSROOM_GRADED_NOT_RETURNED].includes(priorAudit.status)
           && String(priorAudit.stage || "") === stage
           && Number(priorAudit.maxPoints || 100) === maxPoints
           && Boolean(priorAudit.studentVisible) === releasePolicy.studentVisible
@@ -10461,7 +10619,11 @@ exports.syncGradeToClassroom = onDocumentWritten(
           // after a teacher reopens/extends a timed section, so compare the
           // actual MathMaster percentage for every assignment type.
           && Number(priorAudit.grade) === Number(grade)
-          && (!releasePolicy.shouldReturn || priorReturnConfirmed)
+          // Classroom holds this same grade and refused to return it: sending
+          // it again would only be refused again. A new grade, or a teacher's
+          // Retry, sends it, and asks for the return if the submission has
+          // changed (lib/classroomPushErrors.js).
+          && (!releasePolicy.shouldReturn || priorReturnConfirmed || priorAudit.status === CLASSROOM_GRADED_NOT_RETURNED)
         ) {
           continue;
         }
@@ -10641,23 +10803,78 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
           let submissionState = patched.state || submission.state || null;
           let returnedToStudent = String(submissionState || "").toUpperCase() === "RETURNED";
+          let returnRefusal = null;
           if (releasePolicy.shouldReturn && !returnedToStudent) {
             // Patching assignedGrade alone can still leave Classroom showing a
             // teacher-only Draft. Returning the submission is the explicit
             // Google action that releases the assigned grade to the student.
-            // eslint-disable-next-line no-await-in-loop
-            await classroomLib().returnSubmission(classroom, {
-              courseId,
-              courseWorkId: publication.courseworkId,
+            // Google returns only work the student turned in. Once it has
+            // refused this submission, it is not asked again while the
+            // submission is in the same state, unless a teacher sends the
+            // grade again (lib/classroomPushErrors.js), as in the section
+            // trigger.
+            returnRefusal = forceRetry ? null : standingClassroomReturnRefusal({
+              prior: priorAudit,
+              courseworkId: publication.courseworkId,
               submissionId: submission.id,
+              submissionState,
             });
-            submissionState = "RETURNED";
-            returnedToStudent = true;
+            if (returnRefusal) {
+              notReturned.notAskedAgain += 1;
+            } else {
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                await classroomLib().returnSubmission(classroom, {
+                  courseId,
+                  courseWorkId: publication.courseworkId,
+                  submissionId: submission.id,
+                });
+                submissionState = "RETURNED";
+                returnedToStudent = true;
+              } catch (returnError) {
+                returnRefusal = classroomReturnRefusal(returnError, { submissionState });
+                // Every other refusal is a failed push, as before.
+                if (!returnRefusal) throw returnError;
+                notReturned.refused += 1;
+              }
+            }
+          }
+
+          if (returnRefusal) {
+            notReturned.states.add(returnRefusal.submissionState || "unknown");
+            notReturned.reasons.add(returnRefusal.reason);
+            // The grade is in Classroom; only its return is missing. The row
+            // says why in a teacher's words ("Graded, not returned"), it is not
+            // a failure for "Retry all", and the student's receipt names only
+            // the columns that went through.
+            // eslint-disable-next-line no-await-in-loop
+            await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+              ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+              assignmentId,
+              courseId,
+              courseworkId: publication.courseworkId,
+              submissionId: submission.id,
+              submissionState,
+              stage,
+              grade,
+              classroomGrade,
+              maxPoints,
+              attempted: progress.attempted,
+              total: progress.total,
+              creditOnAttempted: progress.creditOnAttempted,
+              isFinal,
+              studentVisible: releasePolicy.studentVisible,
+              returnedToStudent: false,
+              syncedAt: FieldValue.serverTimestamp(),
+              ...returnRefusal.audit,
+            });
+            continue;
           }
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+            ...clearedReturnRefusalFields(priorAudit),
             ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
@@ -10718,6 +10935,19 @@ exports.syncGradeToClassroom = onDocumentWritten(
         }
       }
 
+      if (notReturned.refused || notReturned.notAskedAgain) {
+        logger.warn("Grades saved in Classroom but not returned", {
+          assignmentId,
+          studentId: event.params.studentId,
+          // Google refused the return in this push.
+          refused: notReturned.refused,
+          // Refused before, and the submission has not changed: not asked.
+          notAskedAgain: notReturned.notAskedAgain,
+          submissionStates: [...notReturned.states],
+          reasons: [...notReturned.reasons],
+        });
+      }
+
       if (requeueForLimit) {
         // eslint-disable-next-line no-await-in-loop
         await classroomPushQueue.requeueClassroomPushAfterQuota(db, {
@@ -10746,12 +10976,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         };
         // This small student-visible record is the receipt. Updating it causes
         // this trigger to run once more, but no grade/release field changed, so
-        // that second invocation exits immediately.
-        // eslint-disable-next-line no-await-in-loop
-        await after.ref.update(
-          new FieldPath("classroomSyncStatusByAssignment", assignmentId),
-          status
-        );
+        // that second invocation exits immediately. A draft receipt no student
+        // screen shows, over none or another draft, is not written
+        // (lib/classroomGradeRuntime.js classroomReceiptNeedsWriting).
+        if (classroomReceiptNeedsWriting(status, afterData.classroomSyncStatusByAssignment?.[assignmentId])) {
+          // eslint-disable-next-line no-await-in-loop
+          await after.ref.update(
+            new FieldPath("classroomSyncStatusByAssignment", assignmentId),
+            status
+          );
+        }
       }
     }
   }
@@ -10811,6 +11045,9 @@ const CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS = Object.freeze([
   "lateDueDate",
   "assignedClassIds",
 ]);
+// This scheduler has the 60 s default timeout. A run warns at 24 s, two fifths
+// of it, as the section scheduler warns at 120 s of its 300 s.
+const CLASSROOM_GRADE_CHECKPOINT_SLOW_RUN_MS = 24_000;
 
 async function queueClassroomGradeSignalForAudience({
   db,
@@ -10865,17 +11102,23 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   // publication `false`, since it passes back through its own scheduler. So
   // `== true` is the `!== false` below, read by the database: 35 of the 480
   // published links on Nov 11, 2026, where this read all 480 in full every 5
-  // minutes (tests/platform/classroomCheckpointScans.test.mjs).
-  const publicationsSnap = await db
-    .collection("classroomLinks")
-    .where("status", "==", "published")
-    .where("gradePassbackEnabled", "==", true)
-    .select(...CLASSROOM_GRADE_CHECKPOINT_LINK_FIELDS)
-    .limit(1000)
-    .get();
+  // minutes (tests/platform/classroomCheckpointScans.test.mjs). Every one of
+  // them, a page at a time, as the section scheduler reads its own: one
+  // unordered limit(1000) would have dropped classes' checkpoints past 1,000
+  // links (lib/classroomCheckpointScan.js).
+  const scan = await classroomCheckpointScan.scanPublishedLinks(db, {
+    filters: [["status", "published"], ["gradePassbackEnabled", true]],
+    fields: CLASSROOM_GRADE_CHECKPOINT_LINK_FIELDS,
+  });
+  const scanConcerns = classroomCheckpointScan.checkpointScanConcerns({ links: scan.docs.length, complete: scan.complete });
+  if (!scan.complete) {
+    logger.error("Whole-assignment checkpoint scan stopped at its limit", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  } else if (scanConcerns.length) {
+    logger.warn("Whole-assignment checkpoint scan is near its limits", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  }
 
   const classroomAssignmentIds = [...new Set(
-    publicationsSnap.docs
+    scan.docs
       .map((doc) => doc.data() || {})
       .filter((publication) => (
         publication.courseworkId
@@ -10888,23 +11131,18 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   // Read only assignments that actually have a current Classroom publication.
   // This avoids an arbitrary 500-assignment collection cap silently skipping a
   // live course when the library grows. Only the dates and classes are read,
-  // never the questions.
-  const assignmentSnapshots = classroomAssignmentIds.length
-    ? await db.getAll(
-      ...classroomAssignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
-      { fieldMask: [...CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS] }
-    )
-    : [];
+  // never the questions, a hundred at a time.
+  const assignmentSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    classroomAssignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
+    { fieldMask: CLASSROOM_GRADE_CHECKPOINT_ASSIGNMENT_FIELDS }
+  );
 
-  let dueAssignments = 0;
-  let finalAssignments = 0;
-  let reconcileAssignments = 0;
-  let queuedStudents = 0;
-  let studentCheckpointStudents = 0;
-
+  // The assignments a checkpoint can be owed for: those that exist, with a
+  // class and a due or final time. Only their state is read, as before.
+  const scheduled = [];
   for (const assignmentDoc of assignmentSnapshots) {
     if (!assignmentDoc.exists) continue;
-    const assignmentId = assignmentDoc.id;
     const assignment = assignmentDoc.data() || {};
     if (!assignmentAudience(assignment).classIds.length) continue;
     const dueAt = toDate(assignment.dueAt || assignment.dueDate);
@@ -10912,11 +11150,28 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate
     );
     if (!dueAt && !lateDueAt) continue;
+    scheduled.push({ assignmentId: assignmentDoc.id, assignment, dueAt, lateDueAt });
+  }
+  // Their state documents, a hundred at a time rather than one by one (25 on
+  // Nov 11, 2026). A run writes only each assignment's own state, so this
+  // reads what the loop would have read; a student a trigger records meanwhile
+  // is woken on the next run.
+  const stateSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    scheduled.map(({ assignmentId }) => db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId))
+  );
+  const stateById = new Map(stateSnapshots.map((snapshot) => [snapshot.id, snapshot]));
 
+  let dueAssignments = 0;
+  let finalAssignments = 0;
+  let reconcileAssignments = 0;
+  let queuedStudents = 0;
+  let studentCheckpointStudents = 0;
+
+  for (const { assignmentId, assignment, dueAt, lateDueAt } of scheduled) {
     const stateRef = db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId);
-    // eslint-disable-next-line no-await-in-loop
-    const stateSnap = await stateRef.get();
-    const state = stateSnap.exists ? stateSnap.data() || {} : {};
+    const stateSnap = stateById.get(assignmentId);
+    const state = stateSnap?.exists ? stateSnap.data() || {} : {};
 
     // H-116: a student whose OWN due time or final cutoff is later than the
     // class's was recorded by the grade trigger when it set the class's
@@ -11028,6 +11283,14 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       reconcileAssignments,
       studentCheckpointStudents,
       queuedStudents,
+    });
+  }
+
+  // A run this long says so while it still fits in its time.
+  const elapsedMs = Date.now() - now;
+  if (elapsedMs >= CLASSROOM_GRADE_CHECKPOINT_SLOW_RUN_MS) {
+    logger.warn("Whole-assignment checkpoint scan is near its limits", {
+      links: scan.docs.length, assignments: classroomAssignmentIds.length, elapsedMs, concerns: ["slow-run"],
     });
   }
 });
@@ -20303,13 +20566,33 @@ function writeTestCycleRecord(transaction, db, { record, gradeSnapshot, shared, 
   transaction.set(db.collection(TEST_CYCLE_RECORDS).doc(normalized.recordId), document);
   if (gradeSnapshot?.exists) {
     const previous = gradeSnapshot.data()?.testCycleGrades?.[normalized.assignmentId] || null;
-    transaction.update(
-      gradeSnapshot.ref,
-      new FieldPath("testCycleGrades", normalized.assignmentId),
-      testCycleGradeProjection(document, gradeState, resolvedStage, previous),
-    );
+    const projection = testCycleGradeProjection(document, gradeState, resolvedStage, previous);
+    if (!testCycleProjectionUnchanged(projection, previous)) {
+      transaction.update(gradeSnapshot.ref, new FieldPath("testCycleGrades", normalized.assignmentId), projection);
+    }
   }
   return { record: document, gradeState, stage: resolvedStage };
+}
+
+/*
+ * A PROJECTION THAT WOULD CHANGE ONLY ITS `updatedAt` IS NOT WRITTEN AGAIN.
+ *
+ * Every write to grades/{studentId} runs both Classroom triggers and is sent
+ * to every teacher listening to the gradebook. Each secure Test item a student
+ * answers moves the record's answered count, which the teacher's table reads
+ * from the record (written above, every time), and nothing in this projection
+ * but `updatedAt`, which nothing reads (the student's card refreshes on the
+ * other fields: testCycleDiscovery.js buildTestCycleCardRefreshKey). So that
+ * write bought one Functions run per trigger and a document sent to every
+ * listening teacher, for a timestamp. The comparison is against the projection
+ * read in this transaction; any other change, a state, a grade, a stage, a
+ * correction, a field an older projection lacks, is written as before.
+ */
+function testCycleProjectionUnchanged(next, previous) {
+  if (!previous || typeof previous !== "object") return false;
+  const { updatedAt: _nextUpdatedAt, ...nextFields } = next;
+  const { updatedAt: _previousUpdatedAt, ...previousFields } = previous;
+  return isDeepStrictEqual(nextFields, previousFields);
 }
 
 /*
@@ -22570,6 +22853,15 @@ exports.getTeacherTestCyclePlans = onCall(TEST_CYCLE_ACTION_OPTIONS, async (requ
  * corrections back to the start (and one who had finished them back from the
  * Retest). The score is recorded once per session, and an existing correction
  * plan for this session is never overwritten.
+ *
+ * ONE WRITE. The score and the Corrections it opens are recorded in one
+ * transaction, so the record and its projection on grades/{studentId} are
+ * written once. They were two transactions, each writing both: every write to
+ * that document runs both Classroom triggers and is sent to every teacher
+ * listening to the gradebook, and the first projection (a released Test with
+ * no Corrections yet) was a state nothing reads before the second replaced it.
+ * A Test released before this whose plan was never written still gets it from
+ * the next release.
  */
 async function applyTestCycleFeedbackRelease(db, session) {
   const courseTest = session?.courseTest;
@@ -22594,53 +22886,9 @@ async function applyTestCycleFeedbackRelease(db, session) {
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
   const answeredQuestions = secureExamNavigation.answeredCount(session);
   const totalQuestions = Number(session.requiredQuestions || 0);
-
-  const released = await mutateTestCycleRecord(db, {
-    assignmentId: courseTest.assignmentId,
-    studentId,
-    shared,
-    policy,
-    mutate: (record) => {
-      // Superseded by a teacher reset. The caller already refuses this, and so
-      // does this helper: a stale score reaching the record is not recoverable
-      // by the student, so it is worth refusing twice. The match is exact — an
-      // emptied stage is not a wildcard (see `courseTestSessionIsCurrent`).
-      const current = isRetest ? record.retest : record.test;
-      const currentSessionId = current.examSessionId;
-      if (String(currentSessionId || "") !== String(session.examSessionId || "")) return { value: { superseded: true } };
-      if (current.state === shared.record.SESSION_STATE.RELEASED) return { value: { alreadyReleased: true } };
-      const updated = isRetest
-        ? shared.record.applyRetestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy })
-        : shared.record.applyTestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy });
-      return { record: updated, value: { released: true } };
-    },
-  });
-  if (released.value?.superseded) return null;
   // A retest has no corrections after it; neither does an external-original
   // cycle, whose one secure session IS the retest.
-  if (isRetest || policy.externalAssessment) {
-    return { recordId: released.record.recordId, recordedGrade: released.record.recordedGrade ?? null };
-  }
-
-  // A failed Test builds this student's corrections automatically, from their
-  // own evidence, at the moment the score becomes real to them — read against
-  // the Test they sat: a question their teacher excused (TC15) was never
-  // asked, so it is never "missed" and never corrected.
-  const excused = shared.reducedItems.applicableExcusedSlotIds(released.record, blueprint);
-  const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
-  const profile = shared.corrections.buildPerformanceProfile({
-    blueprint: ownBlueprint,
-    responses: testCycleLib.responsesForProfile(session),
-  });
-  const plan = shared.corrections.buildCorrectionPlan({
-    blueprint: ownBlueprint,
-    profile,
-    policy,
-    releasedTestGrade: rawScore,
-    assignmentId: courseTest.assignmentId,
-    studentId,
-    examSessionId: session.examSessionId,
-  });
+  const opensCorrections = !isRetest && !policy.externalAssessment;
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(testCycleRecordKey(courseTest.assignmentId, studentId));
 
   const withCorrections = await mutateTestCycleRecord(db, {
@@ -22649,12 +22897,49 @@ async function applyTestCycleFeedbackRelease(db, session) {
     shared,
     policy,
     mutate: async (record, { transaction }) => {
+      // Superseded by a teacher reset. The caller already refuses this, and so
+      // does this helper: a stale score reaching the record is not recoverable
+      // by the student, so it is worth refusing twice. The match is exact — an
+      // emptied stage is not a wildcard (see `courseTestSessionIsCurrent`).
+      const current = isRetest ? record.retest : record.test;
+      const currentSessionId = current.examSessionId;
+      if (String(currentSessionId || "") !== String(session.examSessionId || "")) return { value: { superseded: true } };
+      // Released already: the score stays as it was recorded, and the record
+      // is written only for a Corrections plan this session never got.
+      const alreadyReleased = current.state === shared.record.SESSION_STATE.RELEASED;
+      const released = alreadyReleased
+        ? record
+        : isRetest
+          ? shared.record.applyRetestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy })
+          : shared.record.applyTestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy });
+      const releaseOnly = (value) => (alreadyReleased ? { value } : { record: released, value });
+      if (!opensCorrections) return releaseOnly(alreadyReleased ? { alreadyReleased: true } : { released: true });
+
       const existingPlan = await transaction.get(planRef);
-      if (!plan) return { value: { plan: null } };
+      // A failed Test builds this student's corrections automatically, from
+      // their own evidence, at the moment the score becomes real to them —
+      // read against the Test they sat: a question their teacher excused
+      // (TC15) was never asked, so it is never "missed" and never corrected.
+      const excused = shared.reducedItems.applicableExcusedSlotIds(released, blueprint);
+      const ownBlueprint = excused.length ? shared.reducedItems.studentTestBlueprint(blueprint, excused) : blueprint;
+      const profile = shared.corrections.buildPerformanceProfile({
+        blueprint: ownBlueprint,
+        responses: testCycleLib.responsesForProfile(session),
+      });
+      const plan = shared.corrections.buildCorrectionPlan({
+        blueprint: ownBlueprint,
+        profile,
+        policy,
+        releasedTestGrade: rawScore,
+        assignmentId: courseTest.assignmentId,
+        studentId,
+        examSessionId: session.examSessionId,
+      });
+      if (!plan) return releaseOnly({ plan: null });
       // This session's plan already exists: the release is a repeat. Keep the
       // student's progress exactly where it is.
       if (existingPlan.exists && String(existingPlan.data()?.plan?.sourceExamSessionId || "") === String(session.examSessionId || "")) {
-        return { value: { plan: existingPlan.data().plan, repeat: true } };
+        return releaseOnly({ plan: existingPlan.data().plan, repeat: true });
       }
       /*
        * IS THE CORRECTIONS GATE ACTUALLY CLOSED FOR THIS STUDENT?
@@ -22672,7 +22957,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
        * nothing to correct, so it is complete the moment it exists and gates
        * nothing: the student goes straight on to the Retest.
        */
-      const controls = record.teacherControls;
+      const controls = released.teacherControls;
       const hasTargets = Array.isArray(plan.targets) && plan.targets.length > 0;
       const correctionsGate = Boolean(plan)
         && hasTargets
@@ -22681,7 +22966,7 @@ async function applyTestCycleFeedbackRelease(db, session) {
         && !controls.correctionsWaived
         && !controls.retestUnlocked;
       transaction.set(planRef, {
-        recordId: record.recordId,
+        recordId: released.recordId,
         assignmentId: courseTest.assignmentId,
         studentId,
         plan,
@@ -22693,9 +22978,9 @@ async function applyTestCycleFeedbackRelease(db, session) {
       return {
         value: { plan, correctionsGate },
         record: {
-          ...record,
+          ...released,
           corrections: {
-            ...record.corrections,
+            ...released.corrections,
             planId: plan.planId,
             required: correctionsGate,
             total: plan.targets.length,
@@ -22707,8 +22992,10 @@ async function applyTestCycleFeedbackRelease(db, session) {
       };
     },
   });
+  if (withCorrections.value?.superseded) return null;
 
   const latest = withCorrections.record;
+  if (!opensCorrections) return { recordId: latest.recordId, recordedGrade: latest.recordedGrade ?? null };
   const gateOpen = Boolean(withCorrections.value?.plan)
     && !(latest.corrections.required && !latest.corrections.complete
       && !latest.teacherControls.correctionsWaived && !latest.teacherControls.retestUnlocked);
@@ -23596,7 +23883,7 @@ async function loadSavedAssignmentTrackers(db, assignmentId, assignment) {
   const queries = contentUpgradeGradeQueries(db, assignment);
   if (!queries.length) return [];
   const snapshots = await Promise.all(queries.map((queryRef) => queryRef.get()));
-  return contentUpgradeTrackerRows(snapshots, assignmentId);
+  return hydrateTrackerRows(contentUpgradeTrackerRows(snapshots, assignmentId), assignmentId, { db });
 }
 
 async function loadSavedAssignmentTrackersInTransaction(transaction, db, assignmentId, assignment) {
@@ -23606,7 +23893,7 @@ async function loadSavedAssignmentTrackersInTransaction(transaction, db, assignm
     // eslint-disable-next-line no-await-in-loop
     snapshots.push(await transaction.get(queryRef));
   }
-  return contentUpgradeTrackerRows(snapshots, assignmentId);
+  return hydrateTrackerRows(contentUpgradeTrackerRows(snapshots, assignmentId), assignmentId, { db, transaction });
 }
 
 function contentUpgradeAlreadyCurrent(liveAssignment = {}, targetAssignment = {}) {
@@ -23935,13 +24222,11 @@ exports.commitAssignmentContentUpgrade = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
+      const storage = await gradeEntryStorage();
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        transaction.update(
-          gradeRow.ref,
-          new FieldPath("gradesByAssignment", assignmentId),
-          migration.tracker
-        );
+        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,
@@ -24505,13 +24790,11 @@ exports.commitTeacherQuestionRepair = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
+      const storage = await gradeEntryStorage();
       migratedRows.forEach(({ gradeRow, migration }) => {
         if (!migration.changed) return;
-        transaction.update(
-          gradeRow.ref,
-          new FieldPath("gradesByAssignment", assignmentId),
-          migration.tracker
-        );
+        // Summaries on the grades document, detail beside it (gradeEntryStorage.mjs).
+        writeSplitTracker(storage, transaction, gradeRow.ref, assignmentId, migration.tracker);
         if (migration.gradeMayChange) {
           transaction.update(
             gradeRow.ref,

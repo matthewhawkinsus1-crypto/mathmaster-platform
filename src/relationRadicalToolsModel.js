@@ -15,19 +15,24 @@
  * The tools are opt-in. A radical equation the lesson verifies turns on all
  * three; any other lesson names the ones it wants in `question.algebraTools`
  * (a standalone quadratic lesson asks for ["factor", "zeroProduct"]). No
- * absolute-value or inequality lesson gains a button it did not have.
+ * absolute-value or inequality lesson gains a button it did not have, and the
+ * server's step replay credits a tool's step only where the item offers it.
  */
 import {
-  RADICAL_ALGEBRA_TOOLS,
   cloneRelationState,
   factorTargetOfBranch,
   normalizeRelationExpressionInput,
   raiseRadicalRelation,
   relationExpressionToLatex,
+  relationStateToLatex,
+  relationStateToText,
   zeroProductFactors,
 } from './algebraRelationFoundation.js';
+import { latexOrAsWritten, latexText, typedLatex } from './platform/math/typedMathLatex.js';
 import { radicalGradingContext, readExactValue } from '../functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs';
+import { relationToolsOffered } from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { rationalToNumber, rationalToText } from '../functions/shared/toolMath/algebra-relations/radicalEquationShape.mjs';
+import { withExplicitProducts } from './platform/contract/relationGivenProducts.js';
 
 /*
  * DRAWING WHAT A STUDENT TYPED, WITHOUT EVER THROWING.
@@ -40,36 +45,42 @@ import { rationalToNumber, rationalToText } from '../functions/shared/toolMath/a
  * question module crashed, and because the recorded check is in the saved
  * draft it crashed again on every reload: the students could not finish the
  * question. readExactValue reads these values (the grade was never the
- * problem); only the drawing was.
+ * problem); only the drawing was. The rule is platform-wide now
+ * (src/platform/math/typedMathLatex.js); these are its relation forms.
  */
-const LATEX_COMMAND = /\\[A-Za-z]/;
-const asLatexText = (text) => `\\text{${text.replace(/[\\{}$%#&_^~]/g, '')}}`;
 
 /** Relation text ("(0) + (2)", "x") as LaTeX; text it cannot parse is shown as written, never thrown. */
-export const relationLatex = (expression) => {
-  const text = String(expression ?? '');
-  try {
-    return relationExpressionToLatex(text);
-  } catch {
-    return LATEX_COMMAND.test(text) ? text : asLatexText(text);
-  }
-};
+export const relationLatex = (expression) => latexOrAsWritten(relationExpressionToLatex, expression);
 
 /** A value typed in a math box: LaTeX already ("\frac12"), or plain text ("1/2", "-0.5"). Never throws. */
-export const typedValueLatex = (value) => {
-  const text = String(value ?? '').trim();
-  return LATEX_COMMAND.test(text) ? text : relationLatex(text);
+export const typedValueLatex = (value) => typedLatex(value, relationExpressionToLatex);
+
+/**
+ * A whole relation state as LaTeX (relationStateToLatex), or as text when an
+ * expression in it cannot be drawn: a typed expression the relation reader
+ * accepted can be written out longer than the parser reads. Never throws.
+ */
+export const relationStateLatex = (state) => {
+  try {
+    return relationStateToLatex(state);
+  } catch {
+    try {
+      return latexText(relationStateToText(state));
+    } catch {
+      return '';
+    }
+  }
 };
 
 /** The radical shape and its exact solution for the relation the workspace opened, or null. */
 export const radicalContextOf = (pristine) => radicalGradingContext(pristine);
 
-/** Which of the radical / quadratic tools this question turns on, in menu order. */
-export const relationToolsFor = (question, pristine) => {
-  const declared = new Set((Array.isArray(question?.algebraTools) ? question.algebraTools : []).map(String));
-  if (radicalContextOf(pristine)) RADICAL_ALGEBRA_TOOLS.forEach((tool) => declared.add(tool.id));
-  return RADICAL_ALGEBRA_TOOLS.filter((tool) => declared.has(tool.id));
-};
+/**
+ * Which of the radical / quadratic tools this question turns on, in menu order:
+ * the rule the server's step replay applies too (relationToolsOffered), so a
+ * step from a tool the item does not offer earns nothing there.
+ */
+export const relationToolsFor = (question, pristine) => relationToolsOffered(question, pristine);
 
 const POWER_NAMES = Object.freeze({ 2: 'Square', 3: 'Cube', 4: '4th power', 5: '5th power' });
 export const powerChoiceLabel = (power) => POWER_NAMES[power] || `Power ${power}`;
@@ -79,15 +90,11 @@ export const powerChoiceLabel = (power) => POWER_NAMES[power] || `Power ${power}
  * bracket is a PRODUCT on the board. The parser reads it as a call of a function
  * named x, which no relation holds (the grader notes the same hazard for its
  * own keys), so a correct factored form would be refused. Only the relation's
- * own variable is read as a factor, and only here, in these tools: the shared
+ * own variable is read as a factor, here in these tools and in an authored
+ * given (platform/contract/relationGivenProducts.js, the one rule): the shared
  * normalizer is left alone so function notation elsewhere is not disturbed.
  */
-export const withExplicitProducts = (raw, variable = 'x') => {
-  const letter = /^[A-Za-z]$/.test(String(variable)) ? String(variable) : 'x';
-  // The letter, not part of a longer name (a digit before it is a coefficient: 2x(x - 3)),
-  // then a bracket — MathLive writes it x\left( — read as a factor.
-  return String(raw ?? '').replace(new RegExp(`(?<![A-Za-z_\\\\])${letter}\\s*(?:\\\\left)?\\s*\\(`, 'g'), `${letter}*(`);
-};
+export { withExplicitProducts };
 
 const readExpression = (raw, variable = 'x') => {
   try {

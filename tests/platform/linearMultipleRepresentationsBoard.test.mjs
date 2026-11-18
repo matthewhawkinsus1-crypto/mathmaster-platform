@@ -239,7 +239,9 @@ test('the whole board record syncs: no forbidden key, and well under the 16 KB c
 // -----------------------------------------------------------------------------
 test('three separate graph workspaces, each with its own grid, and Graph 3 anchored by resolveGraph3Anchor', () => {
   const source = code();
-  for (const key of ['graph1', 'graph2', 'graph3']) assert.match(source, new RegExp(`usePersistentToolState\\('${key}Points', \\[\\]\\)`));
+  // Each graph's points are its own draft-backed field, starting empty. The
+  // options (its restore shape, toolDraftShape.js) are not part of that.
+  for (const key of ['graph1', 'graph2', 'graph3']) assert.match(source, new RegExp(`usePersistentToolState\\('${key}Points', \\[\\](?:, \\{[^}]*\\})?\\)`));
   assert.match(source, /resolveGraph3Anchor\(questionData, canonicalFacts, pointSlopeEquation\)/);
   assert.match(source, /resolveGraphSnapSteps\(questionData, canonicalFacts, graph3Anchor\.point\)/);
   const plane = region(source, 'const renderPlane = (graph, width, extra = {}) => {', '  };', 'renderPlane');

@@ -80,13 +80,16 @@ test('scheduled due/final checkpoints wake only published Classroom assignments 
   const scheduler = src.slice(start, end);
 
   assert.match(scheduler, /schedule: "every 5 minutes"/);
-  assert.match(scheduler, /classroomLinks/);
+  // The assignments come from the published Classroom links (every page of
+  // them, lib/classroomCheckpointScan.js), and only the ones those links name
+  // are read, by reference: no capped scan of the assignments collection.
+  assert.match(scheduler, /classroomCheckpointScan\.scanPublishedLinks\(db, \{\s*filters: \[\["status", "published"\], \["gradePassbackEnabled", true\]\],/);
   assert.match(scheduler, /gradePassbackEnabled !== false/);
   assert.match(scheduler, /reason: "due-checkpoint"/);
   assert.match(scheduler, /reason: "final-deadline"/);
   assert.match(scheduler, /reason: "initial-reconcile"/);
   assert.match(scheduler, /reconcileVersion/);
-  assert.match(scheduler, /db\.getAll/);
+  assert.match(scheduler, /classroomCheckpointScan\.getAllInBatches\(\s*db,\s*classroomAssignmentIds\.map\(\(assignmentId\) => db\.doc\(`assignments\/\$\{assignmentId\}`\)\),/);
   assert.doesNotMatch(scheduler, /collection\("assignments"\)\.limit\(500\)/);
   assert.match(scheduler, /CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS/);
   assert.match(scheduler, /state\.dueAt !== dueAt\.toISOString\(\)/);

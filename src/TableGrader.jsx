@@ -5,6 +5,7 @@ import QuestionVisual from './QuestionVisual';
 import { resolveLabelFormat } from './labelFormat';
 import { gradeTableResponse, tableEditableKeys } from '../functions/shared/ordinaryResponseGrading.mjs';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import { FRACTION_ENTRY_PROPS } from './platform/interaction/numberEntry.js';
 import { displayTableFor } from './platform/question/displayTable.js';
 import { PublishFigureReading } from './platform/language/figureReadings.js';
@@ -14,6 +15,10 @@ import GradedEntryMark, { gradedEntryInputProps } from './components/common/Grad
 // already carries its own heading and directions. Repeating "Function Table"
 // and "Complete all missing values" inside one step of a workflow reads as a
 // second question rather than a part of this one.
+// The saved table: what was typed in each cell, by its "row:column" key. A
+// cell holding anything else is dropped and opens empty.
+const TABLE_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftShape.cell())));
+
 export default function TableGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey, compact = false }) {
   const { prompt, ruleLatex, showRule = false } = question;
   // A `= {}` default only fires for undefined, so an explicit `"table": null`
@@ -39,7 +44,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
   // table is complete.
   const editableKeys = useMemo(() => tableEditableKeys({ table: { answers, blanks } }), [answers, blanks]);
   const markIdBase = useId();
-  const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:table` : null);
+  const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:table` : null, { normalize: TABLE_DRAFT });
   const studentAnswers = history.value;
 
   // Correctness comes from the shared grading contract so every caller of it —

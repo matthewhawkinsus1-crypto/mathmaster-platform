@@ -10,13 +10,22 @@
 //   a11yApp the accessibility App harness, which askMyTeacherJourneys needs
 //   stubbed the emulator Vite config's stubbed services (secureAccessParity)
 //   self    the driver starts its own servers (emulator, bridge, Vite)
+//   vite    the driver starts the plain dev server itself, and nothing else:
+//           no emulator, no bridge, no callables (systemsRushScreens)
 //
 // A step that only runs on a schedule counts only where it is meant to.
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { jobsOf, readWorkflow as read, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
+
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 const SERVERS = {
   plain: /npx vite --host 127\.0\.0\.1 --port 5199 --strictPort/,
@@ -24,6 +33,7 @@ const SERVERS = {
   a11yApp: /TEACHER_HARNESS_PORT=(\d+) npx vite --config tests\/browser\/accessibilityAppHarness\.vite\.config\.mjs/,
   stubbed: /npx vite --config tests\/browser\/emulator\/vite\.config\.mjs[^\n]*--port (\d+)/,
   self: null,
+  vite: null,
 };
 
 const DRIVERS = [
@@ -35,6 +45,14 @@ const DRIVERS = [
     'afterLastMiss', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise', 'studentResultUpNext',
     'studentWhatChanged', 'gradeCenterMobile', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2',
     'toolChoiceGroups',
+    // #386 R12: the first operand on a fresh Step Algebra stage is kept.
+    // #386 R5: Enter in a composed question's step never submits it.
+    'stepAlgebraFirstOperand', 'workflowStepEnter',
+    // My Math Path's weekly panel (the grade so far), a session's end (the next
+    // weekly session) and My Progress (the weeks hit). They ran by hand only,
+    // and each had failed since 10 to 13 October. What they show is worked out
+    // in functions/shared, which this workflow's area reaches.
+    'pathProgressTruth', 'pathSessionEnd', 'myMathPathProgress',
   ]],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'self', ['secureResults', 'secureExamNavigation']],
   // CI10: the M2 T2 lessons' every question, laptop and phone, and their tries.
@@ -73,6 +91,20 @@ const DRIVERS = [
   // Whole Graph the Line games, with its phone pass (the bar and grid held still);
   // ran by hand until it passed three times in a row in two Chromiums.
   ['student-pass3-emulator-journeys.yml', 'pass3-graph-the-line', 'self', ['lineGraphGame']],
+  // S5 (#547): Systems of Equations Rush's round screen on a phone and a laptop,
+  // beside the whole Graph Feature Rush games; ran by hand until it passed
+  // twice in a row in Playwright's headless Chromium.
+  ['student-pass3-emulator-journeys.yml', 'pass3-systems-rush-screens', 'vite', ['systemsRushScreens']],
+  // S14 (#548): radical equations solved through Step Algebra's controls and
+  // graded and replayed by the server's code, in shards (below); ran by hand
+  // until it passed twice in a row in Playwright's headless Chromium.
+  ['student-runtime-browser-gates.yml', 'radical-step-algebra', 'plain', ['algebra2RadicalStepAlgebra']],
+  // S14 (#548): a radical solve in the real App, graded by the harness's
+  // server (the shared ingestion) as the browser graded it.
+  ['student-teacher-journeys.yml', 'radical-server-grading', 'teacher', ['teacherWorkflow/radicalServerGradingJourneys']],
+  // #386 R12: the operand typed on a fresh Step Algebra stage outlives the
+  // server's copy of the drafts arriving, in the real App.
+  ['student-teacher-journeys.yml', 'step-algebra-operand', 'teacher', ['teacherWorkflow/stepAlgebraOperandDraftJourneys']],
 ];
 
 for (const [workflow, job, server, drivers] of DRIVERS) {
@@ -96,10 +128,12 @@ for (const [workflow, job, server, drivers] of DRIVERS) {
       }
       assert.doesNotMatch(step, /github\.event_name == 'schedule'/, `${driver} runs on pull requests, not only at night`);
       // The emulator drivers load the real callables, whose dependencies
-      // (firebase-admin) live only in functions/.
-      if (workflow === 'student-pass3-emulator-journeys.yml') {
+      // (firebase-admin) live only in functions/. A driver that starts only
+      // Vite loads no callable, and is given no server: it starts its own.
+      if (workflow === 'student-pass3-emulator-journeys.yml' && server === 'self') {
         assert.ok(steps.slice(0, index).some((earlier) => /run: npm --prefix functions ci\s*$/m.test(earlier)), `${job} installs functions/ before ${driver}`);
       }
+      if (server === 'vite') assert.doesNotMatch(step, /AUDIT_ORIGIN/, `${driver} starts its own dev server: no origin is handed to it`);
       const pattern = SERVERS[server];
       if (!pattern) return;
       const start = steps.slice(0, index).find((earlier) => pattern.test(earlier));
@@ -111,6 +145,41 @@ for (const [workflow, job, server, drivers] of DRIVERS) {
     });
   });
 }
+
+// S14: one browser took 17 minutes for every radical journey, so
+// radical-step-algebra splits them over shards, one `ONLY=` list each. Every
+// journey the driver has runs in exactly one shard (a journey in none is
+// coverage nobody sees go; one in two is time spent twice), and the driver
+// refuses a name that is no journey before it starts a browser, so a list
+// cannot quietly run less than it says.
+test('every radical Step Algebra journey runs in exactly one shard of radical-step-algebra', () => {
+  const job = jobsOf(read('student-runtime-browser-gates.yml'))['radical-step-algebra'];
+  assert.ok(job, 'student-runtime-browser-gates.yml has a radical-step-algebra job');
+  const step = stepsOf(job).find((entry) => /run: node tests\/browser\/algebra2RadicalStepAlgebra\.mjs\s*$/m.test(entry));
+  assert.match(step, /^ +ONLY: \$\{\{ matrix\.shard\.only \}\}$/m, 'each shard runs its own list');
+  const shards = [...job.matchAll(/^ {10}- \{ name: ([\w-]+), only: "([^"]*)" \}\s*$/gm)].map(([, name, only]) => ({ name, journeys: only.split(',') }));
+  assert.ok(shards.length >= 2, `${shards.length} shard(s)`);
+  // The driver's journeys, as it lists them when it refuses a name.
+  const artifacts = mkdtempSync(path.join(os.tmpdir(), 'radical-journeys-'));
+  try {
+    const refusal = spawnSync(process.execPath, [path.join(repo, 'tests/browser/algebra2RadicalStepAlgebra.mjs')], {
+      encoding: 'utf8',
+      timeout: 60_000,
+      // No browser is wanted, and none must be reached: a module that does not exist.
+      env: { PATH: process.env.PATH, ONLY: 'examples,no-such-journey', PLAYWRIGHT_MODULE: '/nonexistent/playwright.mjs', ARTIFACTS_DIR: artifacts },
+    });
+    assert.equal(refusal.status, 2, `${refusal.stderr}`.slice(0, 400));
+    assert.match(refusal.stderr, /No journey called no-such-journey\./);
+    const journeys = (refusal.stderr.match(/The journeys are: ([^.]+)\./) || [])[1]?.split(', ') || [];
+    assert.ok(journeys.length >= 5, `the driver lists its journeys (${journeys.join(', ')})`);
+    const ran = {};
+    shards.forEach(({ journeys: list }) => list.forEach((name) => { ran[name] = (ran[name] || 0) + 1; }));
+    assert.deepEqual(Object.keys(ran).sort(), [...journeys].sort(), 'the shards run the driver\'s journeys and no others');
+    journeys.forEach((name) => assert.equal(ran[name], 1, `${name} runs in exactly one shard`));
+  } finally {
+    rmSync(artifacts, { recursive: true, force: true });
+  }
+});
 
 test('the lobby invite journey enters the game on the accessibility App harness', () => {
   const steps = stepsOf(jobsOf(read('student-teacher-journeys.yml'))['pass3-student-journeys']);
@@ -126,13 +195,32 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   ['submitNotQueued', 'toolDraftSyncSweep', 'toolOpenAudit', 'matrixLabFeedback', 'algebra2MatricesLesson',
     'afterLastMiss', 'day1Systems', 'day2Nonunique', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise',
     'studentResultUpNext', 'studentWhatChanged', 'gradeCenterMobile', 'secureResults', 'secureExamNavigation',
-    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups', 'mathBoxFocus'].forEach((driver) => {
+    'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups', 'mathBoxFocus',
+    'stepAlgebraFirstOperand', 'workflowStepEnter', 'pathProgressTruth', 'pathSessionEnd', 'myMathPathProgress'].forEach((driver) => {
     for (const file of [`tests/browser/${driver}.mjs`, `tests/browser/${driver}.html`]) {
       assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
     }
   });
+  // The My Math Path pages, and the shared rules that work out what they show:
+  // the grade so far and its label, which sessions count toward a week, the
+  // weeks hit, and the session's review.
+  ['tests/browser/pathProgressTruthMain.jsx', 'tests/browser/pathSessionEndMain.jsx', 'tests/browser/myMathPathProgressMain.jsx',
+    'functions/shared/weeklyPathGrade.mjs', 'functions/shared/weeklyPathCompletion.mjs', 'functions/shared/weeklyPathHistory.mjs',
+    'functions/shared/pathSessionRecap.mjs'].forEach((file) => {
+    assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
+  });
   // toolChoiceGroups (W7-2) opens the keyboard sweep's page.
   assert.ok(runsOnPullRequest(gates, 'tests/browser/keyboardSweep.html'));
+  // S14: the radical journeys' driver, page and student emulator, the scenarios
+  // they append, the lesson they import, what they solve and grade with, and
+  // the dev server's config.
+  ['tests/browser/algebra2RadicalStepAlgebra.mjs', 'tests/browser/algebra2RadicalStepAlgebra.html', 'tests/browser/algebra2RadicalStepAlgebraMain.jsx',
+    'tests/browser/radicalStepAlgebraDriver.mjs', 'tests/browser/relationWorkspaceDriver.mjs', 'tests/browser/fixtures/radicalStepAlgebraScenarios.json',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
+    'functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs', 'functions/shared/submissionEnvelope.mjs', 'src/MultiRelationAlgebraCore.jsx',
+    'src/platform/contract/radicalEquationIntent.js', 'vite.config.js'].forEach((file) => {
+    assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
+  });
   // secureExamToolFocus opens the app harness's practice test (no page of its own).
   ['tests/browser/secureExamToolFocus.mjs', 'tests/browser/accessibilityAppHarness.vite.config.mjs',
     'tests/browser/teacherWorkflow/innerScreensFixture.js', 'tests/browser/teacherWorkflow/fakeSecureExamService.js'].forEach((file) => {
@@ -143,7 +231,14 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
   ['tests/browser/teacherWorkflow/askMyTeacherJourneys.mjs', 'tests/browser/teacherWorkflow/fixtures/school.js',
     'tests/browser/accessibilityAppHarness.vite.config.mjs', 'tests/browser/teacherWorkflow/fakeFirestore.js',
     'tests/browser/teacherWorkflow/matrixLabPhoneJourneys.mjs', 'tests/browser/support/openerCover.mjs',
-    'src/components/common/MatrixGrid.jsx'].forEach((file) => {
+    'src/components/common/MatrixGrid.jsx',
+    // S14: the radical server-grading journeys, the harness server and lesson
+    // they run on, the student emulator they solve with, the lesson itself, and
+    // the ingestion and grader the server runs.
+    'tests/browser/teacherWorkflow/radicalServerGradingJourneys.mjs', 'tests/browser/teacherWorkflow/fakeServer.js',
+    'tests/browser/teacherWorkflow/lessonFixtures.js', 'tests/browser/radicalStepAlgebraDriver.mjs', 'tests/browser/relationWorkspaceDriver.mjs',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
+    'functions/shared/submissionIngestion.mjs', 'functions/shared/serverGrading/stepAlgebraRadicalGrading.mjs'].forEach((file) => {
     assert.ok(runsOnPullRequest(journeys, file), `a change to ${file} runs the journeys`);
   });
   const emulator = 'student-pass3-emulator-journeys.yml';
@@ -152,7 +247,12 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
     'tests/browser/testCycleLifecycleQa.mjs', 'tests/browser/testCycleLifecycleQa.html', 'tests/fixtures/testCycleCertificationFixture.mjs',
     'tests/browser/graphFeatureRushGame.mjs', 'src/components/liveChallenge/GraphFeatureRushGraph.jsx',
     'tests/browser/lineGraphGame.mjs', 'src/components/liveChallenge/LineGraphRound.jsx', 'tests/browser/support/roundBarFit.mjs',
-    'tests/fixtures/secureRichToolAnswers.mjs'].forEach((file) => {
+    'tests/fixtures/secureRichToolAnswers.mjs',
+    // S5: the Systems Rush round screen's driver and page, what it draws and
+    // grades with, and the plain dev server's config it is served by.
+    'tests/browser/systemsRushScreens.mjs', 'tests/browser/systemsRushScreens.html', 'tests/browser/systemsRushScreensMain.jsx',
+    'src/components/liveChallenge/GraphFeatureRushRound.jsx', 'src/platform/liveChallenge/rushGraphModel.js',
+    'functions/shared/systemsGenerator.mjs', 'functions/shared/systemsRush.mjs', 'src/theme/forcedColors.css', 'vite.config.js'].forEach((file) => {
     assert.ok(runsOnPullRequest(emulator, file), `a change to ${file} runs the emulator journeys`);
   });
 });
@@ -197,7 +297,9 @@ test('the emulator journeys watch src/** with exclusions after it, and what the 
     'src/platform/rewards/challengeRewardPolicy.js', 'src/MathInput.jsx', 'src/QuestionEngine.jsx',
     'tests/fixtures/secureRichToolAnswers.mjs', 'functions/platformEntry.js', 'tests/browser/emulator/vite.bridge.config.mjs',
     // Loaded in node by the Live Challenge drivers, before the server.
-    'tests/integration/support/emulatorTransactions.mjs']
+    'tests/integration/support/emulatorTransactions.mjs',
+    // Loaded in node by liveChallengeShellQa, to work a banked line's equation.
+    'tests/browser/equationWorkspacePlanner.mjs']
     .forEach((file) => assert.ok(reachedBy(file, paths), `${file} runs the journeys`));
   assert.equal(reachedBy('src/platform/gradeTransfer/gradeTransferModel.js', paths), false, 'an excluded directory does not');
   // The matching rule itself: in order, the last match decides.

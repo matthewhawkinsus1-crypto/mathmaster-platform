@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
+import { region } from './helpers/sourceContract.mjs';
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -37,8 +39,14 @@ test('section publisher disables the legacy whole-grade trigger and retains sect
 test('section grade trigger derives progress per publication instead of reusing one whole-assignment grade', () => {
   const source = read('functions/classroomSectionEntry.js');
   assert.match(source, /syncSectionGradeToClassroom/);
-  assert.match(source, /classroomPublicationGrade\(/);
-  assert.match(source, /assignmentGradeProgress/);
+  // Each publication's grade is its own column's progress: the runtime's
+  // assignmentGradeProgress over that column's questions, with the teacher's
+  // overrides (lib/classroomSectionGrade.js, issue #554 item 1).
+  const perColumn = region(source, 'gradeResult = classroomPublicationGrade({', '});', 'the per-publication grade');
+  assert.match(perColumn, /gradeProgress: gradeProgressWithTeacherOverrides,/);
+  const sectionGrade = read('functions/lib/classroomSectionGrade.js');
+  const progress = region(sectionGrade, 'function gradeProgressWithTeacherOverrides(', '\n}\n', 'the column progress');
+  assert.match(progress, /const progress = assignmentGradeProgress\(tracker, questionIndices, questions\);/);
   assert.doesNotMatch(source, /const\s+grade\s*=\s*calculateAssignmentGrade/);
   assert.match(source, /sectionKey:\s*gradeResult\.sectionKey/);
 });

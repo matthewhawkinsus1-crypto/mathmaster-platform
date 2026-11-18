@@ -28,7 +28,10 @@ test('Step Algebra offers a student-driven combine-like-terms part when like ter
   assert.equal(part.kind, 'likeTerms');
   assert.deepEqual(part.termIndices, [0, 2]);
   assert.equal(detectSimplifyParts([{ ...regions[0], expression: '3 * x + 5' }]).length, 0, 'no like terms, no part');
-  assert.match(coreSource, /detectSimplifyParts\(simplifyRegions\)/);
+  // The board's parts are the engine's for its regions, kept by their text
+  // while Simplify is open (committedEquationFacts.js simplifyPartsFor).
+  assert.match(coreSource, /simplifyPartsFor\(simplifyRegions\)/);
+  assert.match(executableSource(componentSource('src/platform/algebra/committedEquationFacts.js')), /export const simplifyPartsFor = \(regions\) => partsByText\.read\(textKey\(regions\), \(\) => detectSimplifyParts\(regions\)\);/);
 });
 
 test('the platform does not generate the combined coefficient for the student', () => {

@@ -4,7 +4,12 @@
 // · Topic 2 · Lesson 3 lesson of Solving Systems with Matrices: Matrix Lab
 // items with their Check button, a figure sort, a three-box Warm-Up, an exit
 // ticket. `?questions=dividing` makes it Algebra II Honors · Module 2 · Lesson 2,
-// Dividing Polynomials: long division, synthetic division, an exit ticket. The
+// Dividing Polynomials: long division, synthetic division, an exit ticket.
+// `?questions=radicals` makes it Algebra II Honors · Solving Radical Equations
+// on the Step Algebra relation workspace (Raise both sides, Factor,
+// Zero-product, the candidate checks and the final solution set), for the
+// journeys that grade a radical solve on the harness's server
+// (radicalServerGradingJourneys.mjs, with `&server=1`). The
 // questions are NOT the raw JSON: they go through the chain a teacher import and
 // publish run (parse -> preflight review -> preflight model ->
 // validateAssignmentQuestions -> rebuildV5SectionsFromQuestions), exactly as
@@ -21,8 +26,9 @@ import { buildAssignmentV5PreflightModel } from '../../../src/platform/preflight
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../../src/platform/contract/assignmentSchemaV5.js';
 import MATRICES_TEXT from '../../../teacher-import-jsons/algebra2-honors-module1/T2_L3_Solving_Systems_with_Matrices.json?raw';
 import DIVIDING_TEXT from '../../../teacher-import-jsons/algebra2-honors-module2/L2_Dividing_Polynomials.json?raw';
+import RADICALS_TEXT from '../../../teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json?raw';
 
-const LESSON_TEXT = Object.freeze({ matrices: MATRICES_TEXT, dividing: DIVIDING_TEXT });
+const LESSON_TEXT = Object.freeze({ matrices: MATRICES_TEXT, dividing: DIVIDING_TEXT, radicals: RADICALS_TEXT });
 
 const compile = (text) => {
   const parsed = parseAssignmentBlueprintText(text);

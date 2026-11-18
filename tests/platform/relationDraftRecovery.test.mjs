@@ -56,6 +56,9 @@ test('the workspace reads its whole draft through the one sanitising reader', ()
   assert.match(region(source, 'const initialStateFor = (question, draftKey) => {', '\n};'), /readRelationDraft\(draftKey\)/);
   assert.match(source, /const initialPendingRelationFlipFor = \(draftKey\) => readRelationDraft\(draftKey\)\.pendingRelationFlip;/);
   assert.match(source, /const initialCandidateChecksFor = \(draftKey\) => readRelationDraft\(draftKey\)\.candidateChecks;/);
-  // No other path reads the relation draft raw.
-  assert.equal((source.match(/readQuestionDraft\(draftKeyFor\(draftKey\)/g) || []).length, 1);
+  // No other path reads the relation draft: the reader is the one read of
+  // it (through the module draft check, checkedQuestionDraft.js).
+  const reads = /read(?:Checked)?QuestionDraft\(draftKeyFor\(draftKey\)/g;
+  assert.equal((source.match(reads) || []).length, 1);
+  assert.equal((reader.match(reads) || []).length, 1);
 });

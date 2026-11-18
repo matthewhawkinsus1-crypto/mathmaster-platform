@@ -13,6 +13,7 @@
  */
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -32,6 +33,13 @@ import { PublishFigureReading, describedContent, describedIn, useFigureWords } f
 import { namedIn } from '../../platform/language/figureNames.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
+
+// Which planes are shown is one switch per plane, in the planes' order, and
+// each interpretation box holds the choice or text given (toolDraftShape.js).
+// A switch that is not true / false shows its plane; an answer that is not a
+// value is dropped.
+const normalizeVisiblePlanes = draftNormalizer(s.list(s.boolean({ or: true }), { keepPositions: true }));
+const normalizeInterpretation = draftNormalizer(s.map(s.cell()));
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
@@ -180,7 +188,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   }, [orbitPhase]);
 
   const markInteracted = useCallback(() => setHasInteracted(true), []);
-  const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
+  const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true], { normalize: normalizeVisiblePlanes });
   const [revealed, setRevealed] = usePersistentToolState('solutionRevealed', spatialModel.revealSolution === true);
   // A DOL, quiz or test never offers a student-pressed reveal, and the line
   // under an earned model never names the true outcome there (see both
@@ -190,7 +198,7 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   const showResult = Boolean(earnedResult) || (canReveal && revealed);
   const shownType = earnedResult?.type || classification.type;
 
-  const [responses, setResponses] = usePersistentToolState('interpretation', {});
+  const [responses, setResponses] = usePersistentToolState('interpretation', {}, { normalize: normalizeInterpretation });
   const { feedback, submit } = useToolSubmission(onAction);
 
   const togglePlane = useCallback((index) => {

@@ -56,7 +56,8 @@ test('a phone\'s work area gets the room under the button, the height the button
   // The height is the one EnlargeableFigure measures and publishes.
   const figure = executableSource(read('src/components/common/EnlargeableFigure.jsx'));
   // (0px instead, below, when the button has a row of its own and the work starts under it anyway.)
-  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`\);/);
+  assert.match(figure, /const bottomEdge = \(\) => Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\);/);
+  assert.match(figure, /writeStyleVariable\(surface\.style, '--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{leavesItsRow \? bottomEdge\(\) : bottom\}px`\);/);
 });
 
 test('every row that already makes room for the button is exempt from the default room', () => {
@@ -196,7 +197,8 @@ test('the figure moves the button and publishes no reserved space or height when
   // (observeOpenerRoom watches both, after the observer has delivered:
   // openerRoomObserver.test.mjs), and leaves nothing behind.
   assert.match(publish, /observeOpenerRoom\(\{ opener, surface, publish: publishSpace \}\)/);
-  const cleanup = region(figure, 'return () => {\n      stopObserving();\n      surface.removeAttribute', '}, [enlarged]', 'the cleanup');
-  assert.match(cleanup, /surface\.removeAttribute\('data-opener-stacked'\)/);
+  const cleanup = region(figure, 'return () => {\n      stopObserving();\n      cancelLayoutWrite(surface);', '}, [enlarged]', 'the cleanup');
+  // (A measurement still waiting to be written is dropped first, so it cannot put back what is removed.)
+  assert.match(cleanup, /cancelLayoutWrite\(surface\);\s*surface\.removeAttribute\('data-opener-stacked'\)/);
   assert.match(figure, /className="mm-button-neutral mathmaster-work-view-opener"/, 'the class the stylesheet names');
 });

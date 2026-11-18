@@ -2,7 +2,9 @@ name: Student Pass 3 Emulator Journeys
 
 # Student pass 3's long browser drivers, which play the real student and
 # teacher screens against the real callables (functions/platformEntry.js) on
-# the Firestore emulator. Each starts the emulator, a bridge and Vite itself.
+# the Firestore emulator. Each starts the emulator, a bridge and Vite itself;
+# the rush round screen beside them (pass3-systems-rush-screens) starts only
+# Vite.
 #
 #   pass3-test-cycle-rich-tools   testCycleRichToolQa: every certified Rich
 #                                 Tool on a secure Test, Chromebook, iPad and
@@ -22,6 +24,12 @@ name: Student Pass 3 Emulator Journeys
 #                                 by mouse, touch and keyboard, four devices
 #                                 on correct-count, a class of twelve, the
 #                                 teacher's practice round, tap latency
+#   pass3-systems-rush-screens    systemsRushScreens: Systems of Equations
+#                                 Rush's round screen on a phone and a laptop:
+#                                 both lines and their labels, the same line
+#                                 twice also in forced colours, every press,
+#                                 no sideways scroll, a graph that holds still
+#                                 (no emulator: it starts only Vite)
 #   pass3-graph-the-line          lineGraphGame: whole Graph the Line games:
 #                                 setup and practice, a Sprint by mouse and
 #                                 touch, a Classic round for the class, naming
@@ -29,8 +37,8 @@ name: Student Pass 3 Emulator Journeys
 #                                 phones whose bar and grid must hold still
 #
 # Their own workflow and area (scripts/lib/ciAreas.mjs, which ci.yml reads), so
-# that only a change that can reach them runs them on a pull request (about 30
-# runner-minutes together, in five jobs); every push to main, every night, and
+# that only a change that can reach them runs them on a pull request (about 33
+# runner-minutes together, in six jobs); every push to main, every night, and
 # on demand, they run whatever changed. Read-only: this workflow writes nothing back and
 # uses no secrets.
 
@@ -118,6 +126,28 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/graphFeatureRushGame.mjs
+
+  # Systems of Equations Rush's round screen (#547), the one three rush games
+  # share in class, in real browsers (it ran by hand until now): the real
+  # GraphFeatureRushRound for every kind of system, on a phone and a laptop,
+  # through rendered controls. Both lines and their labels, the same line twice
+  # lying on itself (also in forced colours, line 2's dashes over a casing),
+  # every press told it is right, nothing scrolling sideways, every button's
+  # words fitting it, and the graph holding still from item to item. It needs
+  # no emulator and no callables (the page grades with the server's own
+  # function), so it starts only Vite, and functions/ is not installed. About
+  # a minute locally (198 checks; 61 s, and 71 s from a cold Vite cache).
+  pass3-systems-rush-screens:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Systems of Equations Rush's round screen on a phone and a laptop
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/systemsRushScreens.mjs
 
   # Whole Graph the Line games in real browsers against the real callables on
   # the Firestore emulator (it ran by hand until now): the teacher's setup and

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 
 const storeSource = readFileSync(new URL('../../src/platform/preflight/incompleteAssignmentDraftStore.js', import.meta.url), 'utf8');
 const intakeSource = readFileSync(new URL('../../src/AssignmentIntake.jsx', import.meta.url), 'utf8');
@@ -46,9 +47,11 @@ test('App imports the draft-store functions it calls, rather than referencing th
     'App must call at least one draft-store function to close the incomplete-draft lifecycle on publication',
   );
 
+  // Imported from the store, or (the teacher's workspace) bound from the
+  // authoring code it loads on demand, which re-exports it from the store.
   const missing = called.filter((name) => {
     const importing = new RegExp(`import[^;]*\\b${name}\\b[^;]*from\\s*['"][^'"]*incompleteAssignmentDraftStore[^'"]*['"]`, 's');
-    return !importing.test(appSource);
+    return !importing.test(appSource) && !takesFromAuthoringKit(appSource, name, 'src/platform/preflight/incompleteAssignmentDraftStore.js');
   });
 
   assert.deepEqual(

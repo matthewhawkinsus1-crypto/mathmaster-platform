@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { evaluate } from '../../platform/math/mathjs.js';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
@@ -16,7 +17,8 @@ import { scrollMotion } from '../../motionPreference.js';
 import { spokenMathValue } from '../shared/spokenMathValue.js';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
-import { expressionsEquivalent, latexToExpression, expressionToLatex, expressionIsSimplified } from '../../algebraAstEngine.js';
+import { latexToExpression, expressionToLatex, expressionIsSimplified } from '../../algebraAstEngine.js';
+import { ISOLATION_UNREADABLE_MESSAGE, judgeIsolationSimplification } from './isolationSimplification.js';
 import './AlgebraicSystemMode.css';
 import {
   EliminationCombinationEntry,
@@ -85,6 +87,76 @@ const classroomAssignmentLatex = (variable, expression) => {
 const emptyVerificationEntry = () => ({ placed: {}, leftAnswer: '', rightAnswer: '', checked: false, valid: false });
 const emptySpecialCase = () => ({ isTrueAnswer: '', solutionsAnswer: '', classificationAnswer: '' });
 const emptyMultiplierWork = () => ({ active: false, a: '', b: '', c: '', checked: false, valid: false });
+
+/*
+ * WHAT A SAVED ALGEBRAIC SOLVE MAY RESTORE (toolDraftShape.js), for a system of
+ * `count` equations in `variables`. An equation index is one of the system's
+ * equations, a variable one of its variables, a solved value a number, and
+ * every per-equation map has an entry for each equation. A back-substitution
+ * index that was a string (or any index the system does not have) threw on
+ * every load, because the screen substitutes into that equation; so did a
+ * solved value that was not a number, and a verification map missing an
+ * equation. A damaged index, variable or value reads as not chosen yet, a
+ * missing per-equation entry as that equation's empty one, and everything the
+ * student finished before it comes back as they left it.
+ */
+const algebraicDraftNormalizers = (count, variables) => {
+  const INDEX = s.nullable(s.number({ integer: true, min: 0, max: Math.max(0, count - 1) }));
+  const VARIABLE = s.nullable(s.oneOf(variables));
+  const TEXT = s.nullable(s.text());
+  const COEFFICIENTS = s.nullable(s.record({ a: s.required(s.number()), b: s.required(s.number()), c: s.required(s.number()) }));
+  const perEquation = (entry) => s.record(Object.fromEntries(Array.from({ length: count }, (_, index) => [index, s.required(entry)])));
+  // A solved value belongs to a variable: one whose variable was lost reads as
+  // not solved yet (its summary would say "undefined = 2").
+  const UNSOLVED = { variable: null, value: null, expression: null };
+  const SOLVED = s.refine(
+    s.record({ variable: VARIABLE, value: s.nullable(s.number()), expression: TEXT }),
+    (solved) => solved.value == null || variables.includes(solved.variable),
+    { or: UNSOLVED, code: 'value-without-variable' },
+  );
+  return {
+    selection: draftNormalizer(s.record({ equationIndex: s.required(INDEX), variable: s.required(VARIABLE) })),
+    isolation: draftNormalizer(s.record({
+      expression: s.required(TEXT),
+      tokenExpression: s.required(TEXT),
+      simplificationDraft: s.text(),
+      simplifying: s.boolean(),
+      simplificationChecked: s.boolean(),
+      simplificationValid: s.boolean(),
+    })),
+    substitution: draftNormalizer(s.record({ targetVariable: VARIABLE, targetEquationIndex: INDEX, equationText: TEXT })),
+    multipliers: draftNormalizer(perEquation(s.text({ or: '1' }))),
+    appliedMultipliers: draftNormalizer(perEquation(s.boolean({ or: false }))),
+    multiplierWork: draftNormalizer(perEquation(s.record({
+      active: s.boolean(), a: s.text(), b: s.text(), c: s.text(), checked: s.boolean(), valid: s.boolean(),
+    }, { or: emptyMultiplierWork() }))),
+    combination: draftNormalizer(s.record({
+      operation: TEXT,
+      attempts: s.number({ integer: true, min: 0 }),
+      coefficients: COEFFICIENTS,
+      text: TEXT,
+      pendingCoefficients: COEFFICIENTS,
+      cancelledRows: perEquation(s.boolean({ or: false })),
+      cancellationConfirmed: s.boolean(),
+      coefficientAnswer: s.text(),
+      constantAnswer: s.text(),
+      combinationChecked: s.boolean(),
+      combinationValid: s.boolean(),
+    })),
+    solved: draftNormalizer(SOLVED),
+    specialCase: draftNormalizer(s.nullable(s.record({ isTrueAnswer: s.text(), solutionsAnswer: s.text(), classificationAnswer: s.text() }))),
+    statementWork: draftNormalizer(s.record({ source: s.any(), left: s.text(), right: s.text(), checked: s.boolean() })),
+    backSub: draftNormalizer(s.record({ equationIndex: s.required(INDEX) })),
+    separatedSolved: draftNormalizer(s.map(s.record({ variable: s.text(), value: s.cell(), expression: TEXT }))),
+    verification: draftNormalizer(perEquation(s.record({
+      placed: s.required(s.map(s.boolean(), { or: {} })),
+      leftAnswer: s.text(),
+      rightAnswer: s.text(),
+      checked: s.boolean(),
+      valid: s.boolean(),
+    }, { or: emptyVerificationEntry() }))),
+  };
+};
 
 const equationIdentity = (value) => {
   const text = String(value || '');
@@ -398,15 +470,49 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   );
 }
 
+// The fields the report below reads, each with the normaliser the subsystem's
+// own field restores through.
+const SUBSYSTEM_REPORT_SHAPES = Object.freeze({
+  selection: 'selection',
+  isolation: 'isolation',
+  substitution: 'substitution',
+  combination: 'combination',
+  statementWork: 'statementWork',
+  firstSolved: 'solved',
+  backSub: 'backSub',
+  secondSolved: 'solved',
+});
+const restoredSubsystemRecord = (record, variables) => {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return null;
+  // The reduced system is square: one equation per variable.
+  const known = Array.isArray(variables) ? variables : [];
+  const shapes = algebraicDraftNormalizers(known.length, known);
+  const restored = { ...record };
+  Object.entries(SUBSYSTEM_REPORT_SHAPES).forEach(([field, shape]) => {
+    if (!Object.prototype.hasOwnProperty.call(record, field)) return;
+    const { value } = shapes[shape](record[field]);
+    if (value === undefined) delete restored[field];
+    else restored[field] = value;
+  });
+  return restored;
+};
+
 /**
  * The reduced subsystem's solution as its own draft record holds it, so a 3×3
  * parent restored from a draft knows the subsystem is solved on its FIRST
  * render instead of flashing the finished subsystem open for a frame. The
  * field names are this component's, which is why the reader lives here.
+ *
+ * The parent reads that record directly, so it is read here through the
+ * normalisers the subsystem's own fields restore through: a damaged field
+ * (a combination with no coefficients threw here on every load) reads as the
+ * subsystem itself will show it, not reached or not solved yet, and a valid
+ * record reads exactly as saved. A solution names both variables.
  */
-export const subsystemReportFromDraft = (record, variables = null) => {
+export const subsystemReportFromDraft = (saved, variables = null) => {
+  const record = restoredSubsystemRecord(saved, variables);
   const combined = record?.combination;
-  if (combined?.combinationValid && combined?.text && isDegenerateStatement(combined.coefficients)) {
+  if (combined?.combinationValid && combined?.text && combined.coefficients && isDegenerateStatement(combined.coefficients)) {
     return { outcome: { type: degenerateStatementTruth(combined.coefficients).isTrue ? 'infinite' : 'none', statement: combined.text } };
   }
   // A substitution that cancelled every variable reports only the statement the
@@ -419,7 +525,7 @@ export const subsystemReportFromDraft = (record, variables = null) => {
   }
   const first = record?.firstSolved;
   const second = record?.secondSolved;
-  if (!first?.variable || !second?.variable || first.value == null || second.value == null) return null;
+  if (!first?.variable || !second?.variable || first.variable === second.variable || first.value == null || second.value == null) return null;
   const firstValue = Number(first.value);
   const secondValue = Number(second.value);
   if (!Number.isFinite(firstValue) || !Number.isFinite(secondValue)) return null;
@@ -451,6 +557,7 @@ export const subsystemReportFromDraft = (record, variables = null) => {
 export default function AlgebraicSystemMode({ questionData = {}, onAction, draftKey = null, subsystem = null }) {
   const config = useMemo(() => normalizeAlgebraicSystemConfig(questionData), [questionData]);
   const { variables, equations } = config;
+  const shapes = useMemo(() => algebraicDraftNormalizers(equations.length, variables), [equations.length, variables]);
   // "Equation 2" standalone, "R₂" inside a 3×3 (#361) — the reduced 2×2 once
   // called R₁/R₂ "Equation 1/2", the same names as the three originals pinned
   // beside it.
@@ -460,7 +567,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const [method, setMethod] = usePersistentToolState('method', config.method === 'studentChoice' ? '' : config.method);
   const effectiveMethod = config.method === 'studentChoice' ? method : config.method;
 
-  const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null });
+  const [selection, setSelection] = usePersistentToolState('selection', { equationIndex: null, variable: null }, { normalize: shapes.selection });
   // A NEW STAGE COMES INTO VIEW WHEN IT APPEARS.
   //
   // Each elimination stage (complete the scaled equation, mark the cancelling
@@ -475,15 +582,19 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     if (!element || !stagesMountedRef.current || typeof window === 'undefined') return;
     window.requestAnimationFrame(() => element.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() }));
   }, []);
-  const [storedIsolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false });
+  const [storedIsolation, setIsolation] = usePersistentToolState('isolation', { expression: null, tokenExpression: null, simplificationDraft: '', simplifying: false, simplificationChecked: false, simplificationValid: false }, { normalize: shapes.isolation });
   // A draft saved before issue #334 can hold Step Algebra's LaTeX spacing
   // ("-(3)+(2~ y)") in these plain-expression fields. Every read goes through
   // the repair, so a reopened question behaves exactly like a fresh one.
   const isolation = useMemo(() => repairPersistedIsolation(storedIsolation), [storedIsolation]);
-  const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null });
-  const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' });
-  const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false });
-  const [multiplierWork, setMultiplierWork] = usePersistentToolState('multiplierWork', { 0: emptyMultiplierWork(), 1: emptyMultiplierWork() });
+  // The optional rewrite last refused because it could not be read on its own
+  // (isolationSimplification.js). Kept here, never in the draft: the refusal
+  // records nothing, and it goes as soon as the box holds anything else.
+  const [unreadableIsolationDraft, setUnreadableIsolationDraft] = useState(null);
+  const [substitution, setSubstitution] = usePersistentToolState('substitution', { targetVariable: null, targetEquationIndex: null, equationText: null }, { normalize: shapes.substitution });
+  const [multipliers, setMultipliers] = usePersistentToolState('multipliers', { 0: '1', 1: '1' }, { normalize: shapes.multipliers });
+  const [appliedMultipliers, setAppliedMultipliers] = usePersistentToolState('appliedMultipliers', { 0: false, 1: false }, { normalize: shapes.appliedMultipliers });
+  const [multiplierWork, setMultiplierWork] = usePersistentToolState('multiplierWork', { 0: emptyMultiplierWork(), 1: emptyMultiplierWork() }, { normalize: shapes.multiplierWork });
   const [combination, setCombination] = usePersistentToolState('combination', {
     operation: null,
     attempts: 0,
@@ -496,22 +607,22 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     constantAnswer: '',
     combinationChecked: false,
     combinationValid: false,
-  });
-  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null });
-  const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
+  }, { normalize: shapes.combination });
+  const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null }, { normalize: shapes.solved });
+  const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null, { normalize: shapes.specialCase });
   // False on a DOL, quiz or test (resolveSpecialCaseReport).
   const { showImmediateFeedback } = useToolRuntimeContext();
   // Inside a 3×3 only: the student's own simplification of a substituted
   // equation that has no variable left (#392). Keyed by that equation.
-  const [storedStatementWork, setStatementWork] = usePersistentToolState('statementWork', emptyStatementWork);
-  const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null });
-  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null });
+  const [storedStatementWork, setStatementWork] = usePersistentToolState('statementWork', emptyStatementWork, { normalize: shapes.statementWork });
+  const [backSub, setBackSub] = usePersistentToolState('backSub', { equationIndex: null }, { normalize: shapes.backSub });
+  const [secondSolved, setSecondSolved] = usePersistentToolState('secondSolved', { variable: null, value: null, expression: null }, { normalize: shapes.solved });
   // A standalone 2×2 whose rows each hold one different variable (x = 1,
   // y = 2) is solved row by row (TL43, separatedTwoByTwo): the student's own
   // solve of each row that is not already `variable = number`, by row index.
   const separated = useMemo(() => (subsystem ? null : separatedTwoByTwo(equations, variables)), [subsystem, equations, variables]);
-  const [separatedSolved, setSeparatedSolved] = usePersistentToolState('separatedSolved', {});
-  const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
+  const [separatedSolved, setSeparatedSolved] = usePersistentToolState('separatedSolved', {}, { normalize: shapes.separatedSolved });
+  const [verification, setVerification] = usePersistentToolState('verification', { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() }, { normalize: shapes.verification });
   // A side already written as a number (the 7 in 2x + 3y = 7) is shown as
   // given, as the 3×3 verification shows it (TL50): the student evaluates only
   // what needs evaluating. The check and the shared grader still read it as
@@ -616,6 +727,24 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     onRestore: restore,
     resetKey: questionUndoResetKey(questionData),
     ...(subsystem ? { ownerId: 'algebraic-subsystem-history' } : {}),
+    draftFields: {
+      method: setMethod,
+      selection: setSelection,
+      isolation: setIsolation,
+      substitution: setSubstitution,
+      multipliers: setMultipliers,
+      appliedMultipliers: setAppliedMultipliers,
+      multiplierWork: setMultiplierWork,
+      combination: setCombination,
+      firstSolved: setFirstSolved,
+      specialCase: setSpecialCase,
+      statementWork: setStatementWork,
+      backSub: setBackSub,
+      secondSolved: setSecondSolved,
+      verification: setVerification,
+      methodEfficiencyReason: setMethodEfficiencyReason,
+      separatedSolved: setSeparatedSolved,
+    },
   });
 
   // The open Step Algebra owns Undo only while it has something to undo. A
@@ -711,12 +840,17 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   }) : [];
   const separatedPending = separatedValues.find((entry) => entry.value === null)?.row || null;
   const separatedPair = (field) => Object.fromEntries(separatedValues.map((entry) => [entry.row.variable, entry[field]]));
+  // A solution needs both solved values and the variable each belongs to. A
+  // restored draft whose earlier step was set aside (toolDraftShape.js) can hold
+  // the second value without the first, or without the selection that names
+  // the variables; the verification would then substitute nothing and throw.
+  const solutionKnown = secondSolvedDone && firstSolvedDone && Boolean(survivingVariable) && Boolean(removedVariable);
   const solution = separated
     ? (separatedPending ? null : separatedPair('value'))
-    : (secondSolvedDone ? { [survivingVariable]: firstSolved.value, [removedVariable]: secondSolved.value } : null);
+    : (solutionKnown ? { [survivingVariable]: firstSolved.value, [removedVariable]: secondSolved.value } : null);
   const solutionExpressions = separated
     ? (separatedPending ? null : separatedPair('expression'))
-    : (secondSolvedDone ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression } : null);
+    : (solutionKnown ? { [survivingVariable]: firstSolvedExpression, [removedVariable]: secondSolvedExpression } : null);
   const displayedIsolationExpression = presentableExpression(substitutionTokenExpression || isolatedExpr || '');
 
   // Subsystem role: report the solution the moment it exists, and its absence
@@ -793,6 +927,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   };
 
   const startOptionalIsolationSimplification = () => {
+    setUnreadableIsolationDraft(null);
     setIsolation((current) => ({
       ...current,
       tokenExpression: null,
@@ -815,22 +950,20 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const checkAndUseIsolationSimplification = () => {
     const draft = String(isolation.simplificationDraft || '').trim();
-    if (!draft || !isolatedExpr) {
+    // Read on its own first: equivalence reads it only inside
+    // "(typed) - (isolated)", where "7)-(2x" is 7 - 2x. What cannot be read
+    // is told so and records nothing (isolationSimplification.js).
+    const judged = judgeIsolationSimplification(draft, isolatedExpr, selection.variable);
+    if (judged.verdict === 'unreadable') {
+      setUnreadableIsolationDraft(draft);
+      return;
+    }
+    setUnreadableIsolationDraft(null);
+    if (judged.verdict !== 'accepted') {
       setIsolation((current) => ({ ...current, simplificationChecked: true, simplificationValid: false }));
       return;
     }
-    const valid = expressionsEquivalent(draft, isolatedExpr, selection.variable);
-    if (!valid) {
-      setIsolation((current) => ({ ...current, simplificationChecked: true, simplificationValid: false }));
-      return;
-    }
-    let tokenExpression = draft;
-    try {
-      tokenExpression = latexToExpression(draft);
-    } catch {
-      // MathInput can return plain ASCII math already. Equivalence was proven
-      // above, so the student's visible expression remains safe to substitute.
-    }
+    const { tokenExpression } = judged;
     setIsolation((current) => ({
       ...current,
       tokenExpression,
@@ -1732,6 +1865,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           {isolation.simplificationChecked && !isolation.simplificationValid ? (
                             <p className="mathmaster-systems-substitution-feedback is-error" style={{ margin: 0 }}>
                               That rewrite is not equivalent to the isolated expression yet. Revise it, or use the original form.
+                            </p>
+                          ) : null}
+                          {unreadableIsolationDraft !== null && unreadableIsolationDraft === String(isolation.simplificationDraft || '').trim() ? (
+                            <p className="mathmaster-systems-substitution-feedback is-error" role="status" data-isolation-unreadable="true" style={{ margin: 0 }}>
+                              {ISOLATION_UNREADABLE_MESSAGE}
                             </p>
                           ) : null}
                         </div>

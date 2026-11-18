@@ -41,6 +41,7 @@ const { HttpsError } = require("firebase-functions/v2/https");
 const { runtimeQuestionsFromAssignment } = require("./assignmentRuntime");
 const { assignmentFeedbackIsHeld, assignmentFeedbackWasReleased } = require("./activityFeedback");
 const studentWorkloadIndices = require("./studentWorkloadIndices");
+const { hydrateGradeData } = require("./gradeDetailStore");
 
 const RESPONSE_INSPECTION_EVIDENCE_COLLECTION = "responseInspectionEvidence";
 const GRADE_OVERRIDE_AUDITS_COLLECTION = "gradeOverrideAudits";
@@ -537,7 +538,8 @@ async function loadMyReviewWorkHandler({ db, auth, data, now = Date.now() } = {}
   if (!gradeSnap?.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.", { retry: true });
 
   const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
-  const gradeData = gradeSnap.data() || {};
+  // The records whole: their parts and family pins are stored beside the grades document.
+  const gradeData = await hydrateGradeData({ db, gradeRef, gradeData: gradeSnap.data() || {}, assignmentIds: [assignmentId] });
   const classId = clean(gradeData.classId, 200) || null;
   if (isTestCycleAssignment(assignment, deps)) {
     throw new HttpsError("failed-precondition", "Test results are reviewed in the test's own results page.");

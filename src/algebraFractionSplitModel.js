@@ -37,7 +37,11 @@ const hasSymbols = (node) => node.filter((child) => child.isSymbolNode && !['e',
 /** The fraction a term is, if it is a splittable one: { numeratorTerms, denominatorText, ... }. */
 export const splittableFraction = (termMagnitudeText) => {
   try {
-    const node = unwrap(parse(String(termMagnitudeText)));
+    const text = String(termMagnitudeText);
+    // mathjs reads a division only from a slash, so a term without one is
+    // no fraction, and is not parsed to find that out.
+    if (!text.includes('/')) return null;
+    const node = unwrap(parse(text));
     if (node?.type !== 'OperatorNode' || node.fn !== 'divide' || node.args?.length !== 2) return null;
     const numeratorNode = unwrap(node.args[0]);
     const denominatorNode = unwrap(node.args[1]);

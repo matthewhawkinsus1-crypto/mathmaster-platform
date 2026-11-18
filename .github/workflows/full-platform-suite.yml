@@ -151,6 +151,17 @@ jobs:
         timeout-minutes: 10
         run: npm run test:secure-exam-auto-finalize
 
+      # The Response Inspector, the two grade override callables and
+      # inspectClassroomPublication called by students, other classes'
+      # teachers and the signed-out, and the `accepted` verdict guard at
+      # ingestion: real Auth emulator tokens through the client SDK (#554,
+      # item 7). Firestore and Auth emulators of its own, because each refused
+      # call is checked against the whole project: nothing written anywhere.
+      - name: Certify who may inspect and change a grade, with real sign-in tokens
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+        run: npm run test:callable-boundaries:emulator
+
   # The standalone tool tests, the release and content audits, the builds and
   # lint.
   audits-and-builds:
@@ -242,9 +253,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run build
 
-      # What a student downloads before sign-in and before Home, against
-      # scripts/first-load-baseline.json (scripts/lib/firstLoadBudget.mjs).
-      - name: Student first-load budget
+      # What a student downloads before sign-in and before Home, and a teacher
+      # before their Home, against scripts/first-load-baseline.json
+      # (scripts/lib/firstLoadBudget.mjs).
+      - name: First-load budget (student and teacher)
         if: ${{ !cancelled() }}
         run: node scripts/check-first-load-budget.mjs --report
 

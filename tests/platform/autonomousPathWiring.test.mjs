@@ -9,7 +9,8 @@ const recommended = fs.readFileSync(new URL('../../src/components/student/Recomm
 
 test('student Path is assembled even without a saved teacher pacing record', () => {
   assert.match(app, /storedPacingForClassContext\(pacingByClass/);
-  assert.match(app, /const studentPathOptions = useMemo\(\(\) => buildStudentPathOptions/);
+  // (Worked out when Home or My Math Path asks for it: appRenderWork.test.mjs.)
+  assert.match(app, /const studentPathOptionsNow = \(\) => renderMemo\('pathOptions', \[[^\]]*\], \(\) => buildStudentPathOptions/);
   assert.doesNotMatch(app, /studentPacing\s*\?\s*buildStudentPathOptions/);
 });
 

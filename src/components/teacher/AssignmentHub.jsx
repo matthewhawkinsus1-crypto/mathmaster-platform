@@ -343,6 +343,12 @@ export default function AssignmentHub({
   useEffect(() => {
     if (typeof onClassChange === 'function') onClassChange(open ? classId : null);
   }, [open, classId, onClassChange]);
+  // Gone from the page (the workspace left for a preview, or Live Teaching):
+  // no class. The hub mounts only when first opened (app/teacher/
+  // teacherPanels.js), so it no longer clears the class as it mounts closed.
+  useEffect(() => () => {
+    if (typeof onClassChange === 'function') onClassChange(null);
+  }, [onClassChange]);
 
   // Focus moves to the drawer when it OPENS (or shows another assignment) —
   // not on every parent render, which during class is about once a second and

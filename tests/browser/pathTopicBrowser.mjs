@@ -18,6 +18,16 @@ import { screenshotKeepingTouch } from './support/touchEmulation.mjs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5215';
+// The page's own server, by any loopback name (CI serves on 127.0.0.1): every
+// other request is aborted.
+const onThisMachine = (url) => {
+  try {
+    const { hostname } = new URL(url);
+    return ['localhost', '127.0.0.1', '[::1]', new URL(ORIGIN).hostname].includes(hostname);
+  } catch {
+    return false;
+  }
+};
 const VIEWPORTS = [
   { name: 'desktop', viewport: { width: 1366, height: 768 }, isMobile: false },
   { name: 'phone', viewport: { width: 390, height: 844 }, isMobile: true },
@@ -126,8 +136,7 @@ let blocked = 0;
 for (const view of VIEWPORTS) {
   const context = await browser.newContext({ viewport: view.viewport, isMobile: view.isMobile, hasTouch: view.isMobile });
   await context.route('**/*', (route) => {
-    const url = route.request().url();
-    if (url.startsWith('http://localhost') || url.startsWith('ws://localhost')) return route.continue();
+    if (onThisMachine(route.request().url())) return route.continue();
     blocked += 1;
     return route.abort();
   });

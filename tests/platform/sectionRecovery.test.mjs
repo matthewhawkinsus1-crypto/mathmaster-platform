@@ -50,6 +50,8 @@ import {
   completedRecoverySections,
   warmupChallengeCounts,
 } from '../../src/platform/recovery/teacherRecoveryAudit.js';
+import * as gradebookRecoveryMarks from '../../src/platform/recovery/gradebookRecoveryMarks.js';
+import * as teacherRecoveryAuditModule from '../../src/platform/recovery/teacherRecoveryAudit.js';
 import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/sectionRecoveryGrades.js';
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
@@ -881,7 +883,8 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
   // omits), and a change to it recomputes the display.
   assert.match(display, /projectSectionRecoveriesForDisplay\([\s\S]*warmupChallengeByAssignment,\s*(\/\/[^\n]*\n\s*)*(user\?\.role === 'student' \? user\.profile \|\| null : null,\s*)?\)/);
   assert.match(display, /\[tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment(, [^\]]+)?\]/);
-  assert.match(app, /setWarmupChallengeByAssignment\(snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\);/, 'a finished match reaches the Grade Center without a reload');
+  // (Kept as it was while the snapshot says the same: keepSame, appRenderWork.test.mjs.)
+  assert.match(app, /setWarmupChallengeByAssignment\((?:keepSame\()?snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\)\)?;/, 'a finished match reaches the Grade Center without a reload');
   const index = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const sync = region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback');
   assert.match(sync, /challengeCredit: afterData\.warmupChallengeByAssignment\?\.\[assignmentId\] \|\| null,/);
@@ -897,10 +900,14 @@ test('the gradebook detail renders the Recovery audit trail and the section mark
   assert.ok(importsComponent('src/app/teacher/TeacherWorkspace.jsx', 'SectionRecoveryAuditTrail', 'src/components/teacher/SectionRecoveryAuditTrail.jsx'));
   // Every helper the gradebook row calls is imported where it is used: a call
   // with no import is a runtime ReferenceError no check catches (AGENTS.md).
-  const auditImport = app.match(/^import \{([^}]*)\} from '\.\.\/\.\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
-  assert.ok(auditImport, 'the gradebook imports the Recovery audit helpers');
+  // They come from their own module (the gradebook does not load the audit),
+  // the same functions the Recovery audit module exports.
+  const auditImport = app.match(/^import \{([^}]*)\} from '\.\.\/\.\.\/platform\/recovery\/gradebookRecoveryMarks\.js';$/m);
+  assert.ok(auditImport, 'the gradebook imports the Recovery marks');
   ['completedRecoverySections', 'warmupChallengeCounts', 'heldRecoverySections'].forEach((name) => {
     assert.match(auditImport[1], new RegExp(`\\b${name}\\b`), `${name} is imported`);
+    assert.equal(typeof gradebookRecoveryMarks[name], 'function');
+    assert.equal(teacherRecoveryAuditModule[name], gradebookRecoveryMarks[name], `${name} is the audit module's own`);
   });
   assert.match(app, /const challengeWarmup = warmupChallengeCounts\(student, selectedAssignment\.id\);/);
   assert.match(app, /<SectionRecoveryAuditTrail student=\{student\} assignment=\{selectedAssignment\} \/>/);

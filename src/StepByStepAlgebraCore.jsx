@@ -1,6 +1,8 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
-import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { writeQuestionDraft } from './questionDraftStorage';
+import { readCheckedQuestionDraft } from './platform/persistence/checkedQuestionDraft.js';
+import { draftNormalizer } from './tools/shared/toolDraftShape.js';
+import { ALGEBRA_DRAFT_SHAPE, ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
 import { buildCancellationModel } from './algebraCancellationModel';
 import { keyboardPlacementSlots, keyboardPlacementStart, moveKeyboardPlacement, placementSideName, stageOperationPlacement } from './algebraOperationPlacement';
@@ -20,20 +22,20 @@ import { KEYBOARD_PLACEMENT_ROUTE, extractEquationSymbols, placementInstructionF
 import {
   applyAdditiveOperationAtPlacement,
   describeOperation,
-  equationToLatex,
   expressionToLatex,
   describeOperationToken,
   describePlacedOperation,
-  getSuggestedMove,
   expressionsEquivalent,
   latexToExpression,
   parseEquationInput,
   parseOperationOperand,
-  splitAdditiveTerms,
 } from './algebraAstEngine';
 import SimplifyPanel from './platform/algebra/simplify/SimplifyPanel.jsx';
-import { detectSimplifyParts, highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
-import { committedCancellationModel, equationIsSolved } from './platform/algebra/committedEquationFacts.js';
+import { highlightedTermIndices, partsForTerm } from './platform/algebra/simplify/simplifyEngine.js';
+import { boardTerms, committedCancellationModel, equationIsSolved, simplifyPartsFor, strategicHintReadings } from './platform/algebra/committedEquationFacts.js';
+import { clientParserSteps, takeStepsWhenIdle, wholeIdlePeriod } from './platform/math/idleMathSteps.js';
+import { equationLatexOrText, expressionLatexOrText } from './platform/math/typedMathLatex.js';
+import { typedSideReadable, unreadableSidesMessage } from './platform/algebra/typedSide.js';
 import {
   chooseSimplifyPart,
   openSimplify,
@@ -93,6 +95,9 @@ import { useContentStableValue } from './platform/react/useContentStableValue.js
 import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublisher, useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
+import { focusForEnter, resolveToolEnterAction } from './platform/interaction/answerEntryUx.js';
+import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
+import { focusFellToPage, operationTileAfterStep, typeAheadIntoOperand } from './platform/algebra/boardFocus.js';
 import { START_OVER } from './platform/student/studentWords.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
@@ -109,6 +114,15 @@ const OPERATIONS = [
 // in the same sentence.
 const CANCEL_KEYS = 'Tab to one and press Enter';
 
+// Simplify's parts while Simplify is closed: none are shown.
+const NO_SIMPLIFY_PARTS = Object.freeze([]);
+
+// A record that holds the student's saved equation (both sides).
+const recordHoldsEquation = (record) => {
+  const saved = record?.algebraState?.equation;
+  return Boolean(saved?.left && saved?.right);
+};
+
 /**
  * Returns `{ equation, error }` rather than throwing.
  *
@@ -120,9 +134,15 @@ const CANCEL_KEYS = 'Tab to one and press Enter';
  */
 export const getInitialEquation = (question, record) => {
   const saved = record?.algebraState?.equation;
-  if (saved?.left && saved?.right) return { equation: saved, error: null };
+  if (recordHoldsEquation(record)) return { equation: saved, error: null };
   try {
-    return { equation: parseEquationInput(question), error: null };
+    const equation = parseEquationInput(question);
+    // parseEquationInput splits at "=" and reads neither side, so "2x + = 7"
+    // reached the board, which threw the first time it drew a side. Each side
+    // is read here, where a failure reaches UnreadableEquationPanel.
+    expressionToLatex(equation.left);
+    expressionToLatex(equation.right);
+    return { equation, error: null };
   } catch (error) {
     return { equation: null, error: error?.message || 'This equation could not be read.' };
   }
@@ -388,6 +408,9 @@ export function UnreadableEquationPanel({ parseError = null, teacherView = false
   );
 }
 
+// The saved draft's check (checkedQuestionDraft.js).
+const ALGEBRA_DRAFT_CHECK = draftNormalizer(ALGEBRA_DRAFT_SHAPE);
+
 export default function StepByStepAlgebra({
   question: questionProp,
   questionRecord,
@@ -465,10 +488,16 @@ export default function StepByStepAlgebra({
   const initialEquation = initialParse.equation;
   const parseError = initialParse.error;
   // Reset Work must return to the authored equation for this variant, not to
-  // the latest saved server-side algebraState.
-  const pristineEquation = useMemo(() => getInitialEquation(question, null).equation, [question]);
+  // the latest saved server-side algebraState. With no equation saved on the
+  // record the initial reading above is that authored one, so it is not read twice.
+  const pristineEquation = useMemo(
+    () => (recordHoldsEquation(normalizedRecord) ? getInitialEquation(question, null).equation : initialEquation),
+    [question],
+  );
   const localDraftKey = draftKey ? `${draftKey}:step-algebra` : null;
-  const rawSavedDraft = useMemo(() => readQuestionDraft(localDraftKey, null), [localDraftKey]);
+  // Read through the draft's own shape first (algebraDraftState.js): a field
+  // of the wrong kind is dropped before anything draws it.
+  const rawSavedDraft = useMemo(() => readCheckedQuestionDraft(localDraftKey, null, { normalize: ALGEBRA_DRAFT_CHECK, field: 'step-algebra' }), [localDraftKey]);
   // Pending moves are derived engine state. Never trust an old serialized copy
   // after the algebra engine changes: that can resurrect UI requirements that
   // the current engine no longer considers mathematically necessary.
@@ -622,13 +651,69 @@ export default function StepByStepAlgebra({
     placedOperationPositionsRef.current = placedOperationPositions;
   }, [placedOperationPositions]);
 
+  // ENTER IN THE OPERATION'S VALUE BOX ("Subtract what?") presses the one
+  // button the box's card declares for Enter (answerEntryUx.js): Pick up, a
+  // card action. Never Cancel or Apply to both sides, which declare nothing,
+  // and nothing from an empty box. The box owns its Enter (MathInput
+  // onSubmit), so the question's own Enter routing never takes it: once the
+  // equation was solved, Enter here submitted the whole question.
+  const boardRootRef = useRef(null);
+  const operationComposerRef = useRef(null);
+  const pressOperationEnterAction = useCallback(() => {
+    const field = operationComposerRef.current?.querySelector('math-field');
+    const decision = resolveToolEnterAction({ field, shell: boardRootRef.current });
+    if (decision.kind === 'press') decision.target.click();
+    else if (decision.kind === 'focus') focusForEnter(decision.target);
+  }, []);
+
+  // A CHARACTER TYPED AT THE TILE JUST CHOSEN goes into its box ("Divide by
+  // what?") when the box is already on the page, with the cursor
+  // (boardFocus.js): typed before the box's deferred focus, it went to the
+  // tile, and that focus was then dropped as overtaken by the student's key.
+  const typeIntoOperationBox = useCallback((event) => {
+    typeAheadIntoOperand(event, operationComposerRef.current?.querySelector('math-field'));
+  }, []);
+
+  // AFTER A STEP IS COMMITTED the cursor goes back to the tile the move began
+  // from, when the control that had it went with the step (boardFocus.js). A
+  // deferred focus, so it goes through the question's authority: a press or
+  // key since the commit began, or a focus anything else moved, cancels it.
+  const deferredFocusHost = useDeferredFocusHost();
+  const operationTileRef = useRef(null);
+  const [stepCommitFocus, setStepCommitFocus] = useState(null);
+  useEffect(() => {
+    if (!stepCommitFocus) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const { ticket, operation, side, phone } = stepCommitFocus;
+      if (ticket && !deferredFocusHost?.isLive(ticket)) return;
+      if (!focusFellToPage(document)) return;
+      const label = OPERATIONS.find((item) => item.id === operation)?.label || '';
+      const tile = operationTileAfterStep(boardRootRef.current, { label, side, phone });
+      try {
+        tile?.focus({ preventScroll: true });
+      } catch {
+        tile?.focus?.();
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [stepCommitFocus, deferredFocusHost]);
+
+  // The committed equation as LaTeX, once per equation: the board's
+  // data-math-state, the operand keyboard's letters and the reported work all read it.
+  // A side can be one the student typed that the parser cannot read on its
+  // own: the simplification check reads "1) + (2" inside "(1) + (2) - (3)",
+  // and a host that grades no step (a composed question's balance step, the
+  // systems workspace, Rewrite Linear Form) commits it. It is drawn as
+  // written (typedMathLatex.js); thrown, the question crashed, and a saved
+  // draft or record holding such a side crashed it on every load.
+  const equationLatex = useMemo(() => (equation ? equationLatexOrText(equation) : ''), [equation]);
   const operationContextSymbols = useMemo(() => extractEquationSymbols(
     question?.equation,
     question?.formula,
-    equation ? equationToLatex(equation) : '',
+    equationLatex,
     question?.solveFor,
     equation?.variable,
-  ), [question?.equation, question?.formula, question?.solveFor, equation]);
+  ), [question?.equation, question?.formula, question?.solveFor, equation, equationLatex]);
 
   // THE PROBLEM THE RESET BELOW SETS UP, NOT EVERY FIELD OF THE QUESTION
   // (TL16, A2-117). The question's content also changes when the problem does
@@ -642,7 +727,11 @@ export default function StepByStepAlgebra({
     () => JSON.stringify([localDraftKey, pristineEquation, question.workspaceDifficulty ?? question.mode ?? null, Boolean(question.prefillFirstStep)]),
     [localDraftKey, pristineEquation, question.workspaceDifficulty, question.mode, question.prefillFirstStep],
   );
-  const problemSetUpRef = useRef(null);
+  // With no draft the board starts as this problem set up (the state above is
+  // read from the question), so the first render is not set up again: that
+  // drew the whole solver a second time with an equal equation, a new object,
+  // and worked out every reading of it twice, mathjs included.
+  const problemSetUpRef = useRef(savedDraft ? null : problemKey);
 
   useEffect(() => {
     if (savedDraft) return;
@@ -737,7 +826,6 @@ export default function StepByStepAlgebra({
     // stepAlgebraWorkspaceGrading.mjs): solved for the question's objective,
     // the same solutions as the question's original equation, every prompt.
     const result = gradeToolCheck(workGraderForQuestion(question), question, gradingWork);
-    const equationLatex = equationToLatex(equation);
     const objective = result.parts.find((part) => part.id === 'algebra-objective');
     const promptParts = result.parts.filter((part) => part.id !== 'algebra-objective');
     const shared = answerStateFromSharedGrading(result, {
@@ -757,7 +845,7 @@ export default function StepByStepAlgebra({
         ? shared.parts.map((part) => (part.id === 'algebra-objective' ? { ...part, response: equationLatex } : part))
         : [{ id: 'algebra-objective', label: question.objective?.label || 'Solve the equation', isComplete: false, isCorrect: false, response: equationLatex }],
     });
-  }, [equation, gradingWork, question, promptAnswers, onStateChange]);
+  }, [equation, gradingWork, question, promptAnswers, onStateChange, equationLatex]);
 
   useEffect(() => {
     onWorkStepsChange?.(workSteps);
@@ -789,9 +877,24 @@ export default function StepByStepAlgebra({
     { key: 'left', label: 'left side', expression: equation.left, variable: equation.variable || 'x' },
     { key: 'right', label: 'right side', expression: equation.right, variable: equation.variable || 'x' },
   ] : []), [equation]);
+  // Read only while Simplify is open: nothing else shows them (the board's
+  // highlights, the panel's parts, a tap on a term). Kept by the board's text
+  // (committedEquationFacts.js), and worked out while the student reads (below).
+  const simplifyOpen = Boolean(simplifyTool);
   const simplifyParts = useMemo(() => {
-    try { return detectSimplifyParts(simplifyRegions); } catch { return []; }
-  }, [simplifyRegions]);
+    if (!simplifyOpen) return NO_SIMPLIFY_PARTS;
+    try { return simplifyPartsFor(simplifyRegions); } catch { return []; }
+  }, [simplifyRegions, simplifyOpen]);
+  // WHILE THE STUDENT READS: the client's mathjs parser (which Simplify, the
+  // Rewrite tools and a division's fraction checks parse through) and the
+  // parts Simplify would show for this equation, built a step at a time in
+  // idle time and never inside a key or a press (idleMathSteps.js), so the
+  // question's first frame does not build them and opening Simplify does not
+  // wait for them. A new equation starts again; leaving the question stops.
+  useEffect(() => takeStepsWhenIdle([
+    ...clientParserSteps(),
+    wholeIdlePeriod(() => simplifyPartsFor(simplifyRegions)),
+  ]), [simplifyRegions]);
   // After the commit that leaves nothing to simplify, Simplify closes so the
   // confirmation is not pushed under the action bar, and focus goes back to
   // the Simplify button.
@@ -1019,6 +1122,9 @@ export default function StepByStepAlgebra({
   };
 
   const commitMove = async (move, { resolution = 'normal', crossedSidesOverride = null } = {}) => {
+    // Taken as the student commits (their Enter, Check or last cross-out), so
+    // anything they do while the step settles outranks the focus below.
+    const focusTicket = deferredFocusHost?.ticket({ since: 'now', channel: 'step-commit' }) || null;
     setCancelAnimating(true);
     setCollapsingSides(move.requiredCancellationSides || []);
     window.setTimeout(async () => {
@@ -1067,6 +1173,12 @@ export default function StepByStepAlgebra({
       setCollapsingSides([]);
       setLockedStroke(null);
       setStruckTerms(null);
+      setStepCommitFocus({
+        ticket: focusTicket,
+        operation: operationTileRef.current?.operation || move.operation,
+        side: operationTileRef.current?.sourceSide || 'left',
+        phone: Boolean(mobileInteraction?.isMobile),
+      });
       setBalancePulse(true);
       window.setTimeout(() => setBalancePulse(false), motionDuration(700, reducedMotion, { floor: 60 }));
       // "Continue from the equation shown" has to be true: a committed step can
@@ -1724,6 +1836,14 @@ export default function StepByStepAlgebra({
       setMessage({ tone: 'error', text: `Complete the ${missing.map((target) => target.label.toLowerCase()).join(' and ')} simplification response.` });
       return;
     }
+    // Each side read on its own first (typedSide.js): the check below reads it
+    // only inside "(typed) - (expected)", where "4)+(4" is 8.
+    const unreadable = targets.filter((target) => !typedSideReadable(simplificationAnswers[target.side]));
+    if (unreadable.length) {
+      triggerShake();
+      setMessage({ tone: 'growth', text: unreadableSidesMessage(unreadable.map((target) => target.label.toLowerCase())) });
+      return;
+    }
     const incorrect = targets.filter((target) => !expressionsEquivalent(simplificationAnswers[target.side], target.simplifiedExpression, equation.variable));
     if (incorrect.length) {
       // TL41 (confirmed as built): this box names the side to revise, never a
@@ -2025,6 +2145,7 @@ export default function StepByStepAlgebra({
     setRewriteMenuOpen(false);
     setStructureTool(null);
     const switching = armedTile?.operation !== operation;
+    operationTileRef.current = { operation, sourceSide };
     setArmedTile({ operation, sourceSide });
     setTapPlacementArmed(false);
     if (switching || placedOperationSidesRef.current.length) {
@@ -2078,7 +2199,7 @@ export default function StepByStepAlgebra({
    */
   const placementSlotsFor = (side) => keyboardPlacementSlots({
     operation: armedTile?.operation,
-    terms: splitAdditiveTerms(sideExpression(side)) || [],
+    terms: boardTerms(sideExpression(side)) || [],
   });
   const keyboardSlotIndex = (side, slots) => (keyboardSlot?.side === side ? keyboardSlot.index : keyboardPlacementStart(slots));
   const showPlacementCue = (side, slot) => {
@@ -2107,12 +2228,13 @@ export default function StepByStepAlgebra({
     setKeyboardSlot({ side, index: next });
     showPlacementCue(side, slots[next]);
   };
-  const suggestedMove = getSuggestedMove(equation);
+  // The strategic hint's two readings, once per equation and only where the
+  // hint can be offered (committedEquationFacts.js).
+  const hintOffered = hintsAllowed && question.showHint !== false;
+  const { suggestedMove, solved } = strategicHintReadings(equation, { offered: hintOffered });
   const stepCreditPercent = normalizedRecord.status === 'correct'
     ? 100
     : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
-  // Once per equation, not once per render (committedEquationFacts.js).
-  const solved = equationIsSolved(equation);
   // ONE LADDER (student pass 3, TOOL-5). "Need a strategic hint?" was a second
   // hint control beside the work bar's Hint: it opened with no try at all and
   // was recorded only as "a hint was used". Inside a question it is now the
@@ -2130,6 +2252,11 @@ export default function StepByStepAlgebra({
     if (!publishHints || !strategicHint) return undefined;
     return publishHints([{ text: strategicHint, standing: true }]);
   }, [publishHints, strategicHint]);
+  // Placed after the last hook, so hook order stays identical whether or not
+  // the blueprint parsed, and before anything below reads the equation. A
+  // student can't repair the JSON, so this states what happened and points at
+  // the person who can.
+  if (!equation) return <UnreadableEquationPanel parseError={parseError} teacherView={teacherView} />;
   const inlineToolActive = Boolean(
     (inlineExpressionTools && (distributionState || simplifyTool)) || structureTool,
   );
@@ -2143,7 +2270,7 @@ export default function StepByStepAlgebra({
     : `Target: isolate ${equation.objective?.variable || equation.variable}${equation.objective?.requireSimplifiedFinalForm ? ' in simplified final form' : ''}`;
 
   const sideExpression = (side) => (pendingMove ? pendingMove.unsimplified[side] : equation[side]);
-  const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionToLatex(equation[side]);
+  const displayedSideLatex = (side) => pendingMove ? pendingMove.unsimplifiedLatex[side] : expressionLatexOrText(equation[side]);
   const sideFontSize = (side) => {
     const length = String(sideExpression(side) || '').replace(/\s+/g, '').length;
     if (length >= 42) return 23;
@@ -2358,7 +2485,8 @@ export default function StepByStepAlgebra({
     const inlineDistribution = renderInlineDistributionSide(side);
     if (inlineDistribution) return equationSide(inlineDistribution, 'is-inline-distribution');
 
-    const terms = splitAdditiveTerms(sideExpression(side));
+    // Once per side's text, not once per render (committedEquationFacts.js).
+    const terms = boardTerms(sideExpression(side));
     // Simplify highlights every part it can act on, directly on the equation.
     // A tap on a highlighted term chooses its part; the parts are also one
     // keyboard toolbar in the Simplify panel, in this same reading order, so
@@ -2443,8 +2571,11 @@ export default function StepByStepAlgebra({
       : (factorZoneHint?.side === side ? factorZoneHint.position : null);
     let parsedOperand = operand;
     try { parsedOperand = parseOperationOperand(operand).expression; } catch { parsedOperand = latexToExpression(operand); }
-    const operandLatex = expressionToLatex(parsedOperand);
-    const sourceLatex = expressionToLatex(sideExpression(side));
+    // What the student is still typing ("2x +", "(") is drawn as written:
+    // the preview is drawn as they drag, so it must never throw
+    // (typedMathLatex.js).
+    const operandLatex = expressionLatexOrText(parsedOperand);
+    const sourceLatex = expressionLatexOrText(sideExpression(side));
     let previewLatex = sourceLatex;
 
     if (armedTile.operation === 'multiply') {
@@ -2456,7 +2587,7 @@ export default function StepByStepAlgebra({
     } else {
       const additivePosition = position && typeof position === 'object'
         ? position
-        : { kind: 'end', termIndex: Math.max(0, (splitAdditiveTerms(sideExpression(side))?.length || 1) - 1) };
+        : { kind: 'end', termIndex: Math.max(0, (boardTerms(sideExpression(side))?.length || 1) - 1) };
       try {
         previewLatex = expressionToLatex(applyAdditiveOperationAtPlacement(
           sideExpression(side),
@@ -2492,13 +2623,8 @@ export default function StepByStepAlgebra({
     }
   })();
 
-  // Placed after every hook so hook order stays identical whether or not the
-  // blueprint parsed. A student can't repair the JSON, so this states what
-  // happened and points at the person who can.
-  if (!equation) return <UnreadableEquationPanel parseError={parseError} teacherView={teacherView} />;
-
   return (
-    <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
+    <section ref={boardRootRef} className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
       {showPrompt && !embedded ? <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt> : null}
       {/* `algebra-toolbar`: the row the question starts with, so the Enlarge
           button that floats over its right end gets room (WorkViewShell.css,
@@ -2765,7 +2891,7 @@ export default function StepByStepAlgebra({
       {mobileInteraction.isMobile && !pendingMove && !inlineToolActive && (
         <div className="algebra-mobile-operation-palette" role="group" aria-label="Choose an algebra operation">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               <span aria-hidden="true">{operation.symbol}</span><small>{operation.label}</small>
             </button>
           ))}
@@ -2775,14 +2901,14 @@ export default function StepByStepAlgebra({
       <div className={`algebra-balance-workspace-shell ${mobileInteraction.isMobile ? 'is-mobile-tap-layout' : ''}`}>
         {!mobileInteraction.isMobile && !inlineToolActive && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}
         </div>}
 
         <div
-          data-math-state={equationToLatex(equation)}
+          data-math-state={equationLatex}
           // A named group (axe: aria-label on a role-less div is prohibited).
           role="group"
           aria-label="Interactive algebra balance scale"
@@ -2945,7 +3071,7 @@ export default function StepByStepAlgebra({
 
         {!mobileInteraction.isMobile && !inlineToolActive && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}
@@ -2963,7 +3089,7 @@ export default function StepByStepAlgebra({
       )}
 
       {armedTile && !pendingMove && (
-        <div className="algebra-operation-composer">
+        <div ref={operationComposerRef} className="algebra-operation-composer" data-mm-enter-scope="">
           <div className="algebra-composer-operation" aria-hidden="true">{OPERATIONS.find((item) => item.id === armedTile.operation)?.symbol}</div>
           <label className="algebra-composer-input-label">
             <span>{armedOperationLabel} what?</span>
@@ -2985,6 +3111,7 @@ export default function StepByStepAlgebra({
               toolProfile="algebra-operation"
               placeholder="value or expression"
               ariaLabel={`${armedOperationLabel} what to both sides`}
+              onSubmit={pressOperationEnterAction}
               focusSignal={operationFocusSignal}
               contextSymbols={operationContextSymbols}
               collapseSignal={mathToolsCollapseSignal}
@@ -2994,6 +3121,7 @@ export default function StepByStepAlgebra({
           </label>
           <button
             type="button"
+            data-mm-enter-action="card"
             className={`algebra-pickup-button ${mobileInteraction.isMobile ? 'is-tap-placement-button' : ''}`}
             /* Tap-or-keyboard placement used to be gated on `isMobile`, which
                meant a DESKTOP keyboard user found `onClick` undefined: pressing

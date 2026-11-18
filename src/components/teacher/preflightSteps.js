@@ -18,7 +18,7 @@
 // actually taking, which is decided by whether any class is selected.
 
 import { CREATION_MODE_LABELS, resolveCreationMode } from '../../assignmentDestinations.js';
-import { HONORS_DEPTH_AREAS, HONORS_DEPTH_REQUIRED } from '../../platform/rigor/courseRigor.js';
+import { HONORS_CHECK_LABELS, HONORS_DEPTH_AREAS, HONORS_DEPTH_REQUIRED } from '../../platform/rigor/courseRigor.js';
 
 export const PREFLIGHT_STEPS = Object.freeze([
   { id: 'details', label: 'Details', hint: 'Title, folder and dates' },
@@ -31,12 +31,9 @@ export const PREFLIGHT_STEP_IDS = Object.freeze(PREFLIGHT_STEPS.map((step) => st
 
 const blocker = (stepId, message) => ({ stepId, message });
 
+// The check's own names (courseRigor.js), and one for a report that lists no gaps.
 const HONORS_BLOCKER_LABELS = Object.freeze({
-  coreTeks: 'Core TEKS alignment',
-  higherOrderReasoning: 'higher-order reasoning',
-  multipleRepresentations: 'multiple representations',
-  justification: 'explanation / justification',
-  modelingApplication: 'modeling / application',
+  ...HONORS_CHECK_LABELS,
   unknownHonorsRequirement: 'an unclassified Honors requirement',
 });
 
@@ -71,7 +68,7 @@ export const describeHonorsGap = (honorsReport) => {
   const missing = new Set(report.missing.filter((key) => key && key !== 'ccmrEnrichment'));
   const sentences = [];
   if (missing.has('coreTeks')) {
-    sentences.push('Core TEKS alignment is missing: align at least one question to a Core TEKS.');
+    sentences.push(`${honorsBlockerLabel('coreTeks')} is missing: align at least one question to a Core TEKS.`);
   }
   if (report.isNarrowCheckpoint !== true) {
     const present = HONORS_DEPTH_AREAS.filter((key) => !missing.has(key));

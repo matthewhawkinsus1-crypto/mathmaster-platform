@@ -146,8 +146,16 @@ for (const viewport of VIEWPORTS) {
   const labOffered = await options(page, 'Assignment');
   expect(`W2 ${tag} switching class recomputes the list`, sameSet(labOffered, [TODAY]), `lab offered ${JSON.stringify(labOffered)}`);
   expect(`W2 ${tag} still in Walkthrough, on the Lab's lesson`, (await page.getByRole('tab', { name: /^Walkthrough/ }).getAttribute('aria-selected')) === 'true' && (await selectedText(page, 'Assignment')) === TODAY, `selected ${await selectedText(page, 'Assignment')}`);
-  await page.getByRole('button', { name: /^All · / }).click().catch(() => {});
+  // The whole roster, not the group the Walkthrough opens on (Needs Check): a
+  // Period 3 student in any group would be a leak. This looked for "All · N",
+  // a label the Walkthrough never had, and went on after 30 seconds reading
+  // Needs Check alone.
+  const allGroup = liveSection(page).getByRole('button', { name: /^All \(\d+\)$/ });
+  await allGroup.click();
+  expect(`W2 ${tag} the Lab's whole Walkthrough roster is shown`, (await allGroup.getAttribute('aria-pressed')) === 'true', `All pressed: ${await allGroup.getAttribute('aria-pressed')}`);
   const labText = await liveSection(page).innerText();
+  const labListed = namesIn('c-lab-p3').filter((name) => labText.includes(name));
+  expect(`W2 ${tag} the Lab's own students are listed`, labListed.length > 0, `none of ${JSON.stringify(namesIn('c-lab-p3'))}`);
   const leaked = alg2Only.filter((name) => labText.includes(name));
   expect(`W2 ${tag} the Lab's Walkthrough roster has no Period 3 (Algebra II) student`, leaked.length === 0, `leaked ${JSON.stringify(leaked)}`);
   await liveSection(page).screenshot({ path: path.join(ARTIFACTS, `W2-${tag}-lab-walkthrough.png`) });
@@ -168,7 +176,26 @@ for (const viewport of VIEWPORTS) {
   await page.getByRole('button', { name: 'Teach This Lesson' }).click();
   await page.getByText(/LIVE TEACHING · Teacher exemplar/).waitFor({ timeout: 15_000 });
   await page.getByRole('button', { name: /Back to Instructor Dashboard/i }).first().click();
-  await page.getByText(`Teaching: ${TODAY}`).waitFor({ timeout: 15_000 });
+  // Back from the exemplar lands on Live Classroom, still teaching. When it
+  // does not, the finding says what the screen shows instead: the exemplar
+  // still open, Live Classroom on another class, the stale-session note, or
+  // the saved session ended. (CI timed out here once at 390x844 with no more
+  // than that, and 29 local runs did not reproduce it.)
+  const teachingShown = await page.getByText(`Teaching: ${TODAY}`).waitFor({ timeout: 15_000 }).then(() => true, () => false);
+  if (!teachingShown) {
+    const seen = await page.evaluate(() => ({
+      exemplarOpen: Boolean(document.querySelector('section[aria-label="Live Teaching"]')),
+      liveClassroom: Boolean(document.querySelector('#home-live-class')),
+      classPressed: [...document.querySelectorAll('[role="group"][aria-label="Classes in session"] [aria-pressed="true"]')].map((node) => node.textContent.trim()),
+      liveTeachingLine: document.querySelector('#home-live-class')?.innerText.split('\n').find((line) => /Teaching|Teach This Lesson|Choose an active class/.test(line)) || null,
+      staleNote: Boolean(document.querySelector('[data-walkthrough-stale-session]')),
+      sessions: window.__mmHarnessStore.paths('walkthroughSessions/').map((key) => ({ key, active: window.__mmHarnessStore.get(key)?.active, classId: window.__mmHarnessStore.get(key)?.classId })),
+    }));
+    await page.screenshot({ path: path.join(ARTIFACTS, `W4-${tag}-no-teaching.png`), fullPage: true });
+    expect(`W4 ${tag} Back from Live Teaching returns to Live Classroom, still teaching`, false, JSON.stringify({ ...seen, pageErrors: errors.slice(0, 3) }));
+    await context.close();
+    continue;
+  }
   const sessionPath = await page.evaluate(() => window.__mmHarnessStore.paths('walkthroughSessions/')[0] || null);
   expect(`W4 ${tag} Live Teaching starts for the class the panel showed`, Boolean(sessionPath) && /c-alg2-p3/.test(sessionPath), `session ${sessionPath}`);
   await page.evaluate(() => window.__mmHarnessStore.update('assignments/a-today', { archived: true }));

@@ -424,7 +424,7 @@ test('the theme job walks the Math Tools Lab\'s tools and their Work Views too, 
 test('the walk reads the rounds\' own screens, the student\'s arena, beside the certified scenes', async () => {
   // A Graph Feature Rush round and a Graph the Line round are measured by the large-text runs and were read by no
   // forced-colours walk. The projector and the host console during a round are certified scenes it already reads.
-  const { DRAWING_SCREENS, PLANE_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
+  const { CUE_SCREENS, DRAWING_SCREENS, PLANE_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
   const { CERTIFIED_SCREENS, LIVE_CHALLENGE_ROUND_SCREENS, SCREENS, sceneLabel, screensToRun } = await import('../browser/accessibilityCertification.mjs');
   const labels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
   // The run walks what screensToWalk gives it (ONLY, or nothing named).
@@ -434,9 +434,9 @@ test('the walk reads the rounds\' own screens, the student\'s arena, beside the 
     'teacher-live-challenge/round', 'teacher-live-challenge/projector', 'teacher-live-challenge/results']) {
     assert.ok(byDefault.includes(label), `${label} is read`);
   }
-  // Every certified scene still (beside the rounds', the planes' and the other drawings'), and the Lab's own-job screens
-  // left to the step that names them.
-  const added = labels([...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS, ...DRAWING_SCREENS]);
+  // Every certified scene still (beside the rounds', the planes', the other drawings' and the cues that are not colour),
+  // and the Lab's own-job screens left to the step that names them.
+  const added = labels([...LIVE_CHALLENGE_ROUND_SCREENS, ...PLANE_SCREENS, ...DRAWING_SCREENS, ...CUE_SCREENS]);
   assert.deepEqual(byDefault.filter((label) => !added.includes(label)), labels(screensToRun(new Set(), CERTIFIED_SCREENS)));
   assert.ok(!byDefault.some((label) => label.startsWith('teacher-math-tools-lab/')), 'the Lab\'s tools are their own step\'s');
   // ONLY can name a round, as it names a certified screen.
@@ -492,12 +492,39 @@ test('the walk reads every kind of plane on the planes\' page, beside the certif
   assert.match(page, /shading: \[\{ m: 0\.6, b: 1, relation: '<=' \}, \{ m: -0\.6, b: 1, relation: '<' \}\]/);
 });
 
+test('the walk reads the cues that are not colour on their page: the planes\' names, the wheels\' fills and marks, the method\'s badge', async () => {
+  // What colour alone told apart has a cue of its own (WCAG 1.4.1), drawn as a plane's or a drawing's part: under a
+  // contrast theme it must be drawn in the theme's colours as every other part is.
+  const { CUE_SCREENS, WALKED_SCREENS, screensToWalk } = await import('../browser/forcedColorsCertification.mjs');
+  const { CUE_VIEWPORTS, PLANE_NAMES, drawLineWithoutMethod, openCues } = await import('../browser/colourAloneCues.mjs');
+  const { sceneLabel } = await import('../browser/accessibilityCertification.mjs');
+  const labels = (screens) => screens.flatMap((screen) => screen.scenes.map((scene) => sceneLabel(screen, scene)));
+  assert.deepEqual(labels(CUE_SCREENS), ['colour-alone-cues', 'colour-alone-cues/method']);
+  const [screen] = CUE_SCREENS;
+  assert.ok(WALKED_SCREENS.includes(screen) && labels(screensToWalk(new Set())).includes('colour-alone-cues'), 'walked by a run that names no screen');
+  assert.equal(screen.harness, 'audit');
+  assert.equal(screen.include, '[data-cue-scene] [data-mm-plane], [data-cue-scene] [data-mm-drawing]', 'its planes and drawings alone');
+  // The walk drives the page with the colour-alone driver's own steps, and leaves its theme to the device.
+  const walk = read('tests/browser/forcedColorsCertification.mjs');
+  assert.match(walk, /\{ id: null, run: \(page, origins\) => openCues\(page, origins\.audit, null\) \}/);
+  assert.match(walk, /\{ id: 'method', run: \(page\) => drawLineWithoutMethod\(page\) \}/);
+  assert.equal(typeof openCues, 'function');
+  assert.equal(typeof drawLineWithoutMethod, 'function');
+  // The page mounts every scene the driver reads, with its real component.
+  const page = read('tests/browser/colourAloneCuesMain.jsx');
+  for (const scene of [...Object.keys(PLANE_NAMES), 'mastery-wheel', 'readiness-wheel', 'transformations', 'line-method']) {
+    assert.match(page, new RegExp(`<Scene id="${scene}"`), `${scene} is on the page`);
+  }
+  assert.deepEqual(CUE_VIEWPORTS.map((viewport) => `${viewport.width}x${viewport.height}`), ['1440x900', '1366x768', '390x844']);
+});
+
 test('a pull request that changes the walk, what it walks or a screen runs the theme certification', () => {
   for (const file of [
     'tests/browser/forcedColorsCertification.mjs', 'tests/browser/forcedColorsAudit.mjs', 'tests/browser/forcedColorsSelfTest.mjs',
     'tests/browser/forcedColors.vite.config.mjs', 'scripts/lib/forcedColors.mjs', 'src/theme/forcedColors.css',
     'tests/browser/forcedColorsPlanes.html', 'tests/browser/forcedColorsPlanesMain.jsx', 'src/tools/shared/CoordinatePlane.jsx',
     'tests/browser/forcedColorsDrawings.html', 'tests/browser/forcedColorsDrawingsMain.jsx', 'src/components/student/MyMathPathWheel.jsx',
+    'tests/browser/colourAloneCues.mjs', 'tests/browser/colourAloneCues.html', 'tests/browser/colourAloneCuesMain.jsx',
     'tests/browser/accessibilityCertification.mjs', 'tests/browser/accessibilityTeacherScreens.mjs', 'tests/browser/accessibilityAudit.mjs',
     'tests/browser/accessibilityKeyboardReach.mjs', 'tests/browser/accessibilitySecureExamMain.jsx', 'tests/browser/support/touchEmulation.mjs',
     'tests/browser/emulator/vite.config.mjs', 'tests/browser/studentUxPlatformMain.jsx', 'tests/browser/keyboardSweep.html',

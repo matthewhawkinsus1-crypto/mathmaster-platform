@@ -43,11 +43,18 @@
 //                 (the card that says a question "could not be displayed").
 //                 The `opener` journey reads what the "⤢ Open Work View" button
 //                 covers in each (PH01).
+//   ?path=1       appends a "Path" section: one question per Path tool, each
+//                 its authored fixture (tests/platform/fixtures/pathToolQuestions.mjs)
+//                 as My Math Path delivers it: the public payload the server
+//                 builds, made into the question PathSessionPlayer mounts
+//                 (questionFromToolPayload). The opener sweep reads them
+//                 (workViewOpenerCover.mjs).
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
-import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
+import { buildQuestionDraftKey, writeQuestionDraft } from '../../src/questionDraftStorage.js';
+import { supportUseStorageKey } from '../../src/platform/supports/supportUseMemory.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
@@ -58,6 +65,9 @@ import StudentIdentityBar from '../../src/components/student/StudentIdentityBar.
 import { SAMPLE_SPECS } from '../../src/dev/MathToolsLab.jsx';
 import { QUESTION_TYPE_CATALOG } from '../../src/platform/contract/questionTypeCatalog.js';
 import { TOOL_CATALOG_IDS } from '../../src/tools/toolCatalog.js';
+import { questionFromToolPayload } from '../../src/platform/path/pathToolResponses.js';
+import { buildPublicToolPayload } from '../../functions/shared/pathToolContracts.mjs';
+import { PATH_TOOL_QUESTIONS } from '../platform/fixtures/pathToolQuestions.mjs';
 import FINAL_TEXT from '../../docs/assignments/algebra1-linear-multiple-representations-final-v5.json?raw';
 import '../../src/index.css';
 import { installTextScale } from '../../src/platform/layout/textScale.js';
@@ -234,6 +244,19 @@ const toolSection = params.get('tools') === '1' ? [{
   })),
 }] : [];
 
+const pathSection = params.get('path') === '1' ? [{
+  id: 'ux-path',
+  role: 'practice',
+  title: 'Path',
+  feedbackMode: 'immediate',
+  attemptsAllowed: 3,
+  questions: Object.entries(PATH_TOOL_QUESTIONS).map(([key, authored]) => ({
+    ...questionFromToolPayload(buildPublicToolPayload(authored)),
+    questionId: `path-${key}`,
+    id: `path-${key}`,
+  })),
+}] : [];
+
 const legacySection = params.get('legacy') === '1' ? [{
   id: 'ux-legacy',
   role: 'classwork',
@@ -260,6 +283,7 @@ const sections = [
   ...pick(finalCompiled.sections, 'dol', ['lmr-dol-1']),
   ...passCompiled.sections.filter((section) => section.role === 'dol'),
   ...toolSection,
+  ...pathSection,
   ...stagedSection,
   ...legacySection,
 ];
@@ -310,7 +334,7 @@ function Harness() {
             // button (its first question) for each other section.
             // A real section rarely has more than a dozen questions, so the
             // current section shows its first twelve (and the current one).
-            !(toolSection.length || legacySection.length)
+            !(toolSection.length || legacySection.length || pathSection.length)
             || (entry.section.id === section.id && (entry.index < 12 || flat === position))
             || allQuestions.findIndex((other) => other.section.id === entry.section.id) === flat
           )).map(({ entry, flat }) => (
@@ -392,6 +416,22 @@ window.__ux = {
     try { return JSON.parse(window.localStorage.getItem(`${draftKeyFor(flat)}:work:tool`))?.value ?? null; } catch { return null; }
   },
   grades: () => [...grades],
+  // A staged question opens on this step the next time it is mounted (WorkflowRunner keeps the step a student is on
+  // in its draft, and shows it whether or not the steps before it are answered): a driver can read every step.
+  atStep: (questionId, index) => {
+    const flat = allQuestions.findIndex((entry) => entry.question.questionId === questionId);
+    if (flat === -1) return false;
+    writeQuestionDraft(`${draftKeyFor(flat)}:workflow-stage`, index, { edit: false });
+    return true;
+  },
+  // The help a question had is kept across a remount (supportUseMemory.js): a hint read on one step is still read on
+  // the next. Forgotten, the question offers its first hint again the next time it is mounted.
+  forgetHelp: (questionId) => {
+    const flat = allQuestions.findIndex((entry) => entry.question.questionId === questionId);
+    if (flat === -1) return false;
+    window.localStorage.removeItem(supportUseStorageKey(draftKeyFor(flat)));
+    return true;
+  },
   question: (questionId) => allQuestions.find((entry) => entry.question.questionId === questionId)?.question || null,
   draftRejections: () => listDraftSyncRejections(),
 };

@@ -21,6 +21,13 @@ import { describeWeeklySessionEnd } from '../../src/platform/path/pathSessionEnd
 import { SKILLS_MOVED_STATE } from '../../src/platform/mastery/sessionSkillMovement.js';
 
 const WEEK = '2026-10-05';
+// The session ends on the Wednesday of that week. The end screen counts a
+// weekly session only when it was completed inside its week's window, as the
+// server, the teacher's table and Classroom do (describeWeeklySessionEnd,
+// through functions/shared/weeklyPathCompletion.mjs). Stamped with the real
+// clock, the session finished after that window closed on 13 October, counted
+// for nothing, and the screen offered no next session.
+const NOW = Date.parse('2026-10-07T15:00:00Z');
 const slot = (n, teksCode, studentLabel, purpose = 'currentLearning') => ({
   slot: n,
   weeklySlotKey: `${n}|teks:${teksCode}|${teksCode}|${purpose}|course|2|3`,
@@ -55,7 +62,7 @@ const session = (overrides = {}) => ({
   target: { alignmentKey: 'texas:A.5A' },
   summary: { completedQuestions: 5, correctQuestions: 2, independentSuccesses: 1 },
   route: [{ skillId: 'teks:A.5A' }, { skillId: 'teks:8.8C' }],
-  completedAt: Date.now(),
+  completedAt: NOW,
   ...overrides,
 });
 const weeklySession = (n) => session({
@@ -165,7 +172,7 @@ function ContainerScene({ name }) {
   const [profiles, setProfiles] = useState(BEFORE);
   const [finishedSession, setFinishedSession] = useState(null);
   const weeklySessionEnd = useMemo(() => describeWeeklySessionEnd({
-    goal, completions: scene.completions || [], inProgress: [], finishedSession,
+    goal, completions: scene.completions || [], inProgress: [], finishedSession, now: NOW,
   }), [scene, finishedSession]);
   const [started, setStarted] = useState(null);
 

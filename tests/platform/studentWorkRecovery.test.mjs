@@ -42,6 +42,7 @@ import {
   overlayDurableActionsOnGrades,
 } from '../../src/platform/performance/durableActionOutbox.js';
 import { normalizeQuestionRecord, recordQuestionAttempt } from '../../functions/shared/attemptPolicy.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const appSource = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const draftStorageSource = readFileSync(new URL('../../src/questionDraftStorage.js', import.meta.url), 'utf8');
@@ -269,7 +270,8 @@ test('the latest incomplete draft restores without becoming an attempt', () => {
 test('restoring drafts is the last step, after canonical grades and the outbox', () => {
   const start = appSource.indexOf('SERVER-BACKED WORKING DRAFTS');
   const block = appSource.slice(start, appSource.indexOf('const assignmentOpenSpanRef', start));
-  assert.match(block, /readWorkspaceDraft\(\{ studentId: user\.id, assignmentId: activeAssignmentId \}\)/);
+  // The assignment's server copy, read as it opens (held for its first save).
+  assert.match(block, /openWorkspaceDraft\(\{ studentId: user\.id, assignmentId: activeAssignmentId \}\)/);
   assert.match(block, /selectRestorableDraftEntries\(\{/);
   assert.match(block, /localSavedAt: \(key\) => questionDraftSavedAt\(key\)/);
   // Against the question's last canonical response, read by the shared reader:
@@ -502,9 +504,9 @@ test('every new module App.jsx calls is actually imported there', () => {
    */
   const symbols = [
     'checkpointDocumentId', 'checkpointEligibility', 'enqueueResponseCheckpoint', 'responseFingerprint',
-    'resolveAuthoritativeClose', 'createWorkspaceDraftSync', 'readWorkspaceDraft', 'writeWorkspaceDraft',
+    'resolveAuthoritativeClose', 'createWorkspaceDraftSync', 'openWorkspaceDraft', 'createHeldDraftReads',
     'readLatestWorkspaceResume', 'selectRestorableDraftEntries', 'readWorkspaceDraftEntries',
-    'subscribeToQuestionDrafts', 'questionDraftSavedAt', 'restoreQuestionDrafts',
+    'subscribeToQuestionDrafts', 'questionDraftSavedAt', 'restoreQuestionDrafts', 'forgetSessionPathCoverage',
   ];
   const importBlock = appSource.slice(0, appSource.indexOf('\nfunction App()'));
   const imports = importBlock.match(/import\s[\s\S]*?from\s+'[^']+';/g)?.join('\n') || '';
@@ -630,7 +632,8 @@ test('the finalization transaction persists every projection it derived', () => 
   const functionsSource = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const start = functionsSource.indexOf('async function finalizeOneResponseCheckpoint');
   const block = functionsSource.slice(start, functionsSource.indexOf('exports.finalizeStudentResponseCheckpoints'));
-  assert.match(block, /new FieldPath\("gradesByAssignment", assignmentId, String\(checkpoint\.questionIndex\)\)/);
+  // The question record: its summary on this path and its detail beside it (functions/lib/gradeDetailStore.js).
+  assert.match(block, /\.\.\.await questionRecordUpdates\(\{\s*writer: transaction, gradeRef, studentId: gradeRef\.id, assignmentId,\s*questionKey: String\(checkpoint\.questionIndex\), record: finalization\.record,/);
   assert.match(block, /new FieldPath\("supportUsageByAssignment", assignmentId\)/);
   assert.match(block, /new FieldPath\("classworkGradesByAssignment", assignmentId\)/);
   assert.match(block, /new FieldPath\("dolGradesByAssignment", assignmentId, finalization\.dolDateKey\)/);
@@ -957,11 +960,17 @@ test('an edit made while a flush is in flight is not dropped when that flush suc
 
 test('the store merges inside a transaction rather than replacing the document', () => {
   const storeSource = readFileSync(new URL('../../src/platform/persistence/workspaceDraftStore.js', import.meta.url), 'utf8');
-  assert.match(storeSource, /runTransaction\(db, async \(transaction\) => \{/);
-  assert.match(storeSource, /const snapshot = await transaction\.get\(reference\)/);
+  // Every save reads what is stored inside its transaction, alone or in the
+  // opening read's (openWorkspaceDraft, held for the first save), and writes
+  // the merge of the two (draftOpeningReadOnce.test.mjs runs both).
+  const alone = region(storeSource, 'export const writeWorkspaceDraft', '\n};', 'the save on its own');
+  assert.match(alone, /await runTransaction\(db, async \(transaction\) => \{\s*const existing = storedData\(await transaction\.get\(reference\)\);[\s\S]*droppedKeys = writeMerged\(transaction, reference, existing, patch\);/);
+  const held = region(storeSource, 'export const openWorkspaceDraft', '\n};', 'the held read');
+  assert.match(held, /transact: \(update\) => runTransaction\(db, update\),\s*read: async \(transaction\) => storedData\(await transaction\.get\(reference\)\),\s*write: \(transaction, existing, patch\) => \(\{ written: true, droppedKeys: writeMerged\(transaction, reference, existing, patch\) \}\),/);
   // The merge (with the report of what its caps left out, Batch 3) is what is set.
-  assert.match(storeSource, /const report = mergeWorkspaceDraftDocumentReport\(\{/);
-  assert.match(storeSource, /transaction\.set\(reference, \{\s*\.\.\.report\.document,/);
+  const merged = region(storeSource, 'const writeMerged = ', '\n};', 'the merged write');
+  assert.match(merged, /const report = mergeWorkspaceDraftDocumentReport\(\{ existing, patch \}\);/);
+  assert.match(merged, /transaction\.set\(reference, \{\s*\.\.\.report\.document,/);
   // A bare setDoc of the caller's document is what caused the data loss.
   assert.doesNotMatch(storeSource, /await setDoc\(/);
 });
@@ -1082,7 +1091,7 @@ test('only what the fresh device\'s student edited overrides; a newer copy that 
   assert.deepEqual(readWorkspaceDraftEntries(applyPatch(freshStored, own)).find((entry) => entry.key === BOARD_KEY).value, { slopeInterceptEquation: 'y=4x' });
 });
 
-test('the server read settles a workspace this device started from nothing before restoring, and remounts for either', () => {
+test('the server read settles a workspace this device started from nothing before restoring, and remounts the open question for either', () => {
   const app = appSource.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
   assert.match(app, /import \{[^}]*\breconcileToolWorkspaceDrafts\b[^}]*\} from '\.\/questionDraftStorage';/, 'imported next to its call');
   const start = app.indexOf('const readServerCopy = () => {');
@@ -1090,11 +1099,14 @@ test('the server read settles a workspace this device started from nothing befor
   const read = app.slice(start, app.indexOf('\n    readServerCopy();', start));
   // (It also takes the canonical guard, and field-record drafts are settled
   // beside it — Batch 3; fieldRecordDraftMerge.test.mjs.)
-  const settle = read.indexOf('const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId');
-  const restore = read.indexOf('const restored = restoreQuestionDrafts(restorable');
+  const settle = read.indexOf('reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId');
+  const restore = read.indexOf('restoreQuestionDrafts(restorable');
   assert.notEqual(settle, -1, 'the read settles fresh workspaces');
   assert.ok(restore > settle, 'before the restore, so a newer server copy is not then swapped in over the student\'s edits');
-  assert.match(read.slice(restore), /^const restored = restoreQuestionDrafts\(restorable\b[^;]*;\s*if \(restored \|\| settled\b[^)]*\) \{[\s\S]*?setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/, 'and the question remounts for either');
+  // Both report what they wrote in, and the question on screen remounts for
+  // either when it is one of its own drafts (draftRestoreRemountScope.test.mjs).
+  assert.match(read.slice(settle), /^reconcileToolWorkspaceDrafts\(entries, \{[^}]*\bchanged \}\);/, 'the settle reports the workspaces it changed');
+  assert.match(read.slice(restore), /^restoreQuestionDrafts\(restorable\b[^;]*\{ changed \}\);\s*if \(draftsOfQuestionChanged\(changed, currentQuestionIndexRef\.current\)\) \{[\s\S]*?setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/, 'and the question remounts for either');
 });
 
 test('a merge that would outgrow the value cap falls back to the newer copy, whole', () => {

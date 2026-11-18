@@ -118,9 +118,14 @@ test('the student weekly panel counts server completions, not evidence events', 
 
 test('Home reads the same server completions, and App.jsx imports what it calls', () => {
   const app = executableSource(read('src/App.jsx'));
-  const call = app.indexOf('fetchMyWeeklyPathCompletions({ weekKey: currentWeekKey })');
-  assert.ok(call > 0, 'Home weekly status must use server completions');
-  assert.match(app, /import \{[^}]*\bfetchMyWeeklyPathCompletions\b[^}]*\} from '.\/platform\/path\/pathStore.js'/s);
+  // Through the page's week (studentWeeklyPath.js), which My Math Path shares:
+  // its completions are pathStore's fetchMyWeeklyPathCompletions.
+  const home = region(app, 'return studentWeeklyPathFacts.follow(currentWeekKey, {', '\n    });', 'Home weekly status');
+  assert.match(home, /const completions = weeklyFacts\?\.completions \|\| \[\];\s*setStudentWeeklyPathProgress\(evaluateWeeklyGoalProgress\(\{ goal, completions, now \}\)\);/, 'Home weekly status must use server completions');
+  assert.match(app, /import \{[^}]*\bstudentWeeklyPath\b[^}]*\} from '.\/platform\/path\/pathStore.js'/s);
+  const store = executableSource(read('src/platform/path/pathStore.js'));
+  assert.match(region(store, 'export const studentWeeklyPath = createStudentWeeklyPath({', '});', 'the page week'), /completions: fetchMyWeeklyPathCompletions,\s*history: fetchMyWeeklyPathHistory,/);
+  assert.match(read('src/platform/path/studentWeeklyPath.js'), /client\.completions\(\{ weekKey \}\)/);
   assert.doesNotMatch(app, /deriveCompletionsFromEvidence\(/);
 });
 

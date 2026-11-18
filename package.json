@@ -55,6 +55,7 @@
     "test:canonical-persistence": "firebase emulators:exec --only firestore --project mathmaster-persist-harness --config tests/browser/emulator/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/canonicalPersistenceCertification.test.mjs\"",
     "test:warmup-reopen:emulator": "firebase emulators:exec --only firestore --project mathmaster-warmup-reopen --config tests/browser/emulator/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/warmupReopen/*.test.mjs\"",
     "test:grade-authority": "firebase emulators:exec --only firestore --project mathmaster-grade-authority --config tests/browser/emulator/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test tests/integration/gradeAuthorityEndToEnd.test.mjs\"",
+    "test:callable-boundaries:emulator": "firebase emulators:exec --only firestore,auth --project demo-callable-boundaries --config tests/integration/callableBoundaries/firebase.json \"node --import ./tests/integration/support/emulatorTransactions.mjs --test --test-concurrency=1 tests/integration/callableBoundaries/*.test.mjs\"",
     "test:persistence-v3": "node --test tests/platform/persistenceV3.test.mjs",
     "test:draft-persistence": "node scripts/run-draft-persistence-certification.mjs",
     "gates:serve": "node scripts/serve-gate.mjs",

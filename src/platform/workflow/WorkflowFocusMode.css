@@ -565,6 +565,8 @@
   color: var(--wf-text, var(--wf-accent-dark));
   font-size: calc(16 * var(--mm-px));
   font-weight: 900;
+  /* A word wider than the whole row breaks rather than run out of it. */
+  overflow-wrap: break-word;
 }
 
 .workflow-focus__workspace-heading-left {
@@ -575,7 +577,41 @@
   min-width: 0;
 }
 
+/*
+ * THE STEP COUNTER IS NEVER CUT OFF: BESIDE THE HEADING WHERE IT FITS, BELOW
+ * IT WHERE IT DOES NOT.
+ *
+ * Inside a question every box may shrink to nothing (MathToolMobileLayout.css,
+ * min-width: 0), and in this row the counter did: the heading and its badge
+ * took the width, and "3 of 17", which cannot wrap, ran past the right edge.
+ * On every phone at 200% text its words ran 23 to 57px past its box and 3 to
+ * 39px of them were cut off ("3 of 1" in Work View at 390x844), on every step
+ * of both staged questions, on the page and in Work View; at 320x568 they ran
+ * up to 13px into the step's padding. The counter is now never narrower than
+ * its words. It stays beside the heading while the heading's longest word
+ * still fits beside it, and drops to a line of its own, still at the right,
+ * where it does not ("Increasing/decreasing" at 200% text). Where it had been
+ * squeezed the heading now wraps around its real width, a line more on some
+ * steps; elsewhere nothing moves. A word wider than the whole row
+ * ("Increasing/decreasing" at 200% text on a 360px phone) breaks (h4, above).
+ * Where flex-basis has no min-content, the heading's one-line width decides
+ * instead: the counter drops sooner, and nothing is cut either way. A short
+ * Work View puts the heading in the Previous/Next row, one line that does not
+ * wrap (WorkViewShell.css): there the counter keeps its width and the step's
+ * name gives way.
+ */
+.workflow-focus__workspace > .workflow-focus__workspace-heading {
+  flex-wrap: wrap;
+}
+
+.workflow-focus__workspace > .workflow-focus__workspace-heading > .workflow-focus__workspace-heading-left {
+  flex: 1 1 auto;
+  flex-basis: min-content;
+}
+
 .workflow-focus__counter {
+  flex: 0 0 auto;
+  margin-left: auto;
   color: var(--mm-text-muted);
   font-size: calc(12 * var(--mm-px));
   font-weight: 800;

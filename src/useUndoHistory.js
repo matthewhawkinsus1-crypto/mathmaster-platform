@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { readQuestionDraft, studentInputMark, studentInputSince, writeQuestionDraft } from './questionDraftStorage';
+import { studentInputMark, studentInputSince, writeQuestionDraft } from './questionDraftStorage';
+import { readCheckedQuestionDraft } from './platform/persistence/checkedQuestionDraft.js';
 
 const cloneValue = (value) => {
   if (value === undefined) return value;
@@ -15,19 +16,25 @@ const cloneValue = (value) => {
  * on mount or after a change is not an edit; setValue, undo and reset are
  * edits once the student has touched the page since this hook loaded its
  * draft (setValue takes `{ edit }` from a caller that knows better).
+ *
+ * The saved value is read back checked, as useLocalDraftState reads it: the
+ * kind of `initialValue` and `options.normalize` (checkedQuestionDraft.js).
  */
 export default function useUndoHistory(
   initialValue,
   maximumEntries = 60,
   persistenceKey = null,
+  options = {},
 ) {
   const initialValueRef = useRef(initialValue);
+  const normalizeRef = useRef(options.normalize || null);
+  normalizeRef.current = options.normalize || null;
   const activeKeyRef = useRef(persistenceKey);
   const skipNextWriteRef = useRef(false);
   const inputMarkRef = useRef(0);
   const [value, setValueState] = useState(() => {
     inputMarkRef.current = studentInputMark();
-    return cloneValue(readQuestionDraft(persistenceKey, initialValue));
+    return cloneValue(readCheckedQuestionDraft(persistenceKey, initialValue, { normalize: normalizeRef.current }));
   });
   const historyRef = useRef([]);
 
@@ -37,7 +44,7 @@ export default function useUndoHistory(
     historyRef.current = [];
     skipNextWriteRef.current = true;
     inputMarkRef.current = studentInputMark();
-    setValueState(cloneValue(readQuestionDraft(persistenceKey, initialValueRef.current)));
+    setValueState(cloneValue(readCheckedQuestionDraft(persistenceKey, initialValueRef.current, { normalize: normalizeRef.current })));
   }, [persistenceKey]);
 
   useEffect(() => {

@@ -294,3 +294,24 @@ test('a failed row shows what Google said, with its status, reason and the call 
   assert.equal(gradeSyncErrorText({ status: 'failed', error: 'Requested entity was not found.' }), 'Requested entity was not found.');
   assert.equal(gradeSyncErrorText({ status: 'synced', error: 'invalid_grant' }), '', 'a synced row shows no old error');
 });
+
+// A grade Classroom saved but would not return (functions/lib/classroomPushErrors.js):
+// not a failure, so it is amber, it says why in the teacher's words, and
+// "Retry all" leaves it out, since Google would only refuse it again. Its own
+// Retry button still asks once more.
+test('a row graded but not returned says so and why, as a warning, and is left out of Retry all', () => {
+  const graded = {
+    status: 'graded-not-returned', publicationId: 'p', assignmentId: 'a', studentId: 's',
+    message: errors.RETURN_REFUSED_MESSAGES['not-turned-in'], error: 'Precondition check failed.',
+    errorStatus: 'FAILED_PRECONDITION', errorReasons: ['failedPrecondition'], errorStep: 'return-submission',
+  };
+  assert.equal(gradeSyncStatusLabel(graded), 'Graded, not returned');
+  assert.equal(gradeSyncErrorText(graded), errors.RETURN_REFUSED_MESSAGES['not-turned-in']);
+  assert.equal(isGradeSyncRetryEligible(graded), false);
+  for (const message of Object.values(errors.RETURN_REFUSED_MESSAGES)) {
+    assert.ok(message.length <= 200, `${message.length} characters fit under the status`);
+  }
+  const manager = read('src/ClassroomManagerV2.jsx');
+  const statusCell = manager.slice(manager.indexOf("<span style={sync.status === 'synced' && !sync.queued ? okPill"), manager.indexOf('{statusLabel}</span>'));
+  assert.match(statusCell, /\[[^\]]*'graded-not-returned'[^\]]*\]\.includes\(sync\.status\) \? warnPill : badPill/);
+});

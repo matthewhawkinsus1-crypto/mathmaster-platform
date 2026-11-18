@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { ResultPill, HintPanel } from '../shared/ToolShell';
@@ -17,6 +18,7 @@ import {
   classifyFeasibleRegion,
   explicitBooleanAnswerMatches,
   feasibleRegionPolygon as feasibleRegionPolygonGeneral,
+  lineSegmentForBounds,
   feasibleRegionVertices,
   modelingEntryToCanonical,
   pointMembership,
@@ -120,6 +122,56 @@ const emptyTestPointResponse = (count) => ({
   overall: '', perInequality: Array.from({ length: count }, () => ''), values: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
 });
 
+/*
+ * WHAT A SAVED INEQUALITY BUILD MAY RESTORE (toolDraftShape.js), for `count`
+ * constraints. Each constraint's model row, boundary build, rewrite and test
+ * answer is one entry in the constraint's place; a plotted point is [x, y] and
+ * a vertex { x, y }. A build entry that was not one (null), a list shorter
+ * than the constraints, or a shading point that was not two numbers threw on
+ * every load (every constraint's build is read for its line and its shading).
+ * A damaged entry comes back as that constraint's empty one, in its place; a
+ * damaged part of an entry as unanswered; and every other constraint as the
+ * student built it.
+ */
+const BUILD_POINT = s.nullable(s.point());
+const BUILD_COUNT = s.number({ integer: true, min: 0 });
+const inequalityDraftNormalizers = (count) => ({
+  modelingEntries: draftNormalizer(s.list(s.record({
+    coeffA: s.cell(), coeffB: s.cell(), relation: s.text(), constant: s.cell(),
+  }, { or: emptyModelingEntry() }), { keepPositions: true })),
+  modelCheck: draftNormalizer(s.nullable(s.record({ signature: s.text(), misses: s.list(s.cell()) }))),
+  build: draftNormalizer(s.list(s.record({
+    method: s.text(),
+    x1: s.cell(), y1: s.cell(), x2: s.cell(), y2: s.cell(),
+    slope: s.cell(), intercept: s.cell(), constant: s.cell(),
+    point1Plotted: s.boolean(), point2Plotted: s.boolean(),
+    boundaryAttempts: BUILD_COUNT, style: s.text(), styleAttempts: BUILD_COUNT,
+    shadePoint: BUILD_POINT, shadeAttempts: BUILD_COUNT, visible: s.boolean(),
+    boundaryCheckedWork: s.text(),
+  }, { or: emptyBuildEntry() }), { keepPositions: true, length: count })),
+  rewriteEntries: draftNormalizer(s.list(s.record({
+    source: s.text(),
+    steps: s.list(s.record({})),
+    committedText: s.text(),
+    draft: s.text(),
+    pendingFlip: s.any(),
+    verifiedText: s.text(),
+    verifiedConstraint: s.nullable(s.record({})),
+  }, { or: emptyRewriteEntry() }), { keepPositions: true })),
+  activeStep: draftNormalizer(s.nullable(s.text())),
+  attempts: draftNormalizer(BUILD_COUNT),
+  pointResponse: draftNormalizer(s.record({
+    overall: s.text(),
+    perInequality: s.required(s.list(s.cell({ or: '' }), { keepPositions: true, or: Array.from({ length: count }, () => '') })),
+    values: s.required(s.list(s.cell({ or: '' }), { keepPositions: true, or: Array.from({ length: count }, () => '') })),
+    onBoundary: s.text(),
+    boundaryIncluded: s.text(),
+  })),
+  studentTestPoint: draftNormalizer(BUILD_POINT),
+  vertices: draftNormalizer(s.list(s.record({ x: s.required(s.number()), y: s.required(s.number()), includedAnswer: s.text() }))),
+  reasoningChecks: draftNormalizer(s.map(s.cell())),
+});
+
 // First miss stays neutral — a nudge to re-examine the work, not the rule
 // itself. Only a repeated miss earns a more pointed (still non-revealing)
 // follow-up. Matches the platform's staged-feedback philosophy: wrong answers
@@ -146,19 +198,20 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   // One inequality is not a system: its words, where the screen would say
   // "overlap", "combine" or "the entire system" (F-SW-SYSTEM-WORDS).
   const said = wordsFor(constraintCount);
+  const shapes = useMemo(() => inequalityDraftNormalizers(constraintCount), [constraintCount]);
 
   const [modelingEntries, setModelingEntries] = usePersistentToolState('modelingEntries', () => (
     modeling ? Array.from({ length: constraintCount }, emptyModelingEntry) : []
-  ));
+  ), { normalize: shapes.modelingEntries });
   const [modelingSent, setModelingSent] = usePersistentToolState('modelingSent', !modeling);
   // The model's last Check where outcomes are shown: the rows it was about and
   // how many times each was sent wrong (F-SW-CHECKS-OWN-MODEL). Its lines go
   // when the rows change, until the next press.
-  const [modelCheck, setModelCheck] = usePersistentToolState('modelCheck', null);
-  const [build, setBuild] = usePersistentToolState('build', () => Array.from({ length: constraintCount }, emptyBuildEntry));
+  const [modelCheck, setModelCheck] = usePersistentToolState('modelCheck', null, { normalize: shapes.modelCheck });
+  const [build, setBuild] = usePersistentToolState('build', () => Array.from({ length: constraintCount }, emptyBuildEntry), { normalize: shapes.build });
   const [rewriteEntries, setRewriteEntries] = usePersistentToolState('rewriteEntries', () => (
     sourceConstraints.map((constraint) => emptyRewriteEntry(typeof constraint === 'string' ? constraint : formatInequality(constraint)))
-  ));
+  ), { normalize: shapes.rewriteEntries });
   const modeledConstraints = useMemo(() => (
     modeling ? modelingEntries.map(modelingEntryToCanonical) : []
   ), [modeling, modelingEntries]);
@@ -173,18 +226,18 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   const modelingEntriesReady = !modeling || modeledConstraints.length === constraintCount && modeledConstraints.every(Boolean);
   // Which step is open (inequalityBuildFlow.js): navigation, not mathematics,
   // kept with the draft so a reload or a reopened Work View lands on it again.
-  const [activeStep, setActiveStep] = usePersistentToolState('activeStep', null);
+  const [activeStep, setActiveStep] = usePersistentToolState('activeStep', null, { normalize: shapes.activeStep });
   const [combined, setCombined] = usePersistentToolState('combined', false);
   const [regionClassification, setRegionClassification] = usePersistentToolState('regionClassification', '');
-  const [regionClassificationAttempts, setRegionClassificationAttempts] = usePersistentToolState('regionClassificationAttempts', 0);
-  const [teacherPointResponse, setTeacherPointResponse] = usePersistentToolState('teacherPointResponse', () => emptyTestPointResponse(constraintCount));
-  const [studentTestPoint, setStudentTestPoint] = usePersistentToolState('studentTestPoint', null);
-  const [studentPointResponse, setStudentPointResponse] = usePersistentToolState('studentPointResponse', () => emptyTestPointResponse(constraintCount));
-  const [vertices, setVertices] = usePersistentToolState('vertices', []);
+  const [regionClassificationAttempts, setRegionClassificationAttempts] = usePersistentToolState('regionClassificationAttempts', 0, { normalize: shapes.attempts });
+  const [teacherPointResponse, setTeacherPointResponse] = usePersistentToolState('teacherPointResponse', () => emptyTestPointResponse(constraintCount), { normalize: shapes.pointResponse });
+  const [studentTestPoint, setStudentTestPoint] = usePersistentToolState('studentTestPoint', null, { normalize: shapes.studentTestPoint });
+  const [studentPointResponse, setStudentPointResponse] = usePersistentToolState('studentPointResponse', () => emptyTestPointResponse(constraintCount), { normalize: shapes.pointResponse });
+  const [vertices, setVertices] = usePersistentToolState('vertices', [], { normalize: shapes.vertices });
   // The answer each reasoning Check was about, so its line (and its step's
   // mark) belongs to that answer and goes when the answer changes, instead of
   // re-judging every edit live.
-  const [reasoningChecks, setReasoningChecks] = usePersistentToolState('reasoningChecks', {});
+  const [reasoningChecks, setReasoningChecks] = usePersistentToolState('reasoningChecks', {}, { normalize: shapes.reasoningChecks });
   // Why a tap on the graph did nothing, shown where the student is working.
   const [tapNotice, setTapNotice] = useState(null);
   const { feedback, submit } = useToolSubmission(onAction);
@@ -740,6 +793,14 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
   // as messages a Spanish reading says too (inequalityGraphMarks.js; AX05,
   // slice 4).
   const graphLabel = inequalityGraphName({ constraintCount, tapAction });
+  // Each boundary drawn is named on the plane by its constraint's number, in a
+  // ring of its colour (WCAG 1.4.1): two boundaries of ≤ or ≥ are both solid,
+  // and differed only by colour. The line keeps the style the student chose.
+  const boundaryTags = build.map((entry, index) => {
+    const line = effectiveLines[index];
+    if (!line || entry?.visible === false) return null;
+    return { label: String(index + 1), tag: true, stroke: constraintColor(index), points: lineSegmentForBounds(line, bounds) };
+  }).filter(Boolean);
 
   // ------------------------------------------------------------ rendering
   const stepCount = plan.constraintSteps.length;
@@ -941,6 +1002,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
             showPlotHelp="keyboard"
             cursorLabel={tapAction.kind === 'boundaryPoint' ? `Point ${tapAction.which}` : 'Point'}
             points={graphPoints}
+            curveLabels={boundaryTags}
             ariaLabel={graphLabel}
             // What InequalityGraphLayers draws, said by the plane, as messages a
             // Spanish reading says too (inequalityGraphMarks.js; AX05, slice 3).

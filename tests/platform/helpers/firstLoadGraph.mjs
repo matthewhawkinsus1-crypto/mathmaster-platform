@@ -12,10 +12,16 @@
  * node per entry point there (`pkg:firebase/auth`, `pkg:firebase/firestore`),
  * since one package can be half on the path; `firstLoadGraph()` keeps one
  * node per package (`pkg:firebase`).
+ *
+ * `teacherFirstLoadGraph()` is a teacher's: the student's, then the walk from
+ * each module a teacher's Home asks for (the budget's teacherHome path,
+ * TEACHER_HOME_KEYS: the teacher kit, the workspace, the sidebar, Home and the
+ * class bar), as the budget measures it.
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TEACHER_HOME_KEYS } from '../../../scripts/lib/firstLoadBudget.mjs';
 
 export const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];
@@ -67,6 +73,19 @@ export const firstLoadGraph = () => {
 };
 
 export const signInGraph = () => staticGraph(path.join(repo, 'src/main.jsx'), { entryPoints: true });
+
+export const teacherFirstLoadGraph = () => {
+  const graph = firstLoadGraph();
+  for (const key of TEACHER_HOME_KEYS) {
+    // App loads the kit (app/teacher/teacherKitLoader.js); the workspace and
+    // its screens come from app/lazyScreens.js.
+    const loader = path.join(repo, key.endsWith('teacherKit.js') ? 'src/app/teacher/teacherKitLoader.js' : 'src/app/lazyScreens.js');
+    for (const [file, parent] of staticGraph(path.join(repo, key))) {
+      if (!graph.has(file)) graph.set(file, parent ?? loader);
+    }
+  }
+  return graph;
+};
 
 /** What App.jsx reaches statically: the chunks loading App brings, and its prefetch fetches. */
 export const appGraph = () => staticGraph(path.join(repo, 'src/App.jsx'), { entryPoints: true });

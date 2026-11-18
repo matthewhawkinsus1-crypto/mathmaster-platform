@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -15,6 +16,26 @@ import { DEFAULT_INVERSE_LAB_F, functionLabel } from './inverseCompositionMath';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import FocusSafeButton from '../../components/common/FocusSafeButton.jsx';
+
+/*
+ * WHAT A SAVED DERIVATION MAY RESTORE (toolDraftShape.js). The relation is two
+ * sides of x, y and constant coefficients, and the history the relations
+ * before it, each the same shape. A history that was not a list, or a side
+ * that was missing, threw on every load (both are drawn); a damaged history is
+ * kept up to its first damaged step, and a relation without both sides is not
+ * kept, so the derivation starts again from f.
+ */
+const RELATION_SIDE = s.record({ x: s.required(s.number()), y: s.required(s.number()), c: s.required(s.number()) });
+const DERIVATION_STEP = {
+  phase: s.required(s.text()),
+  left: s.required(RELATION_SIDE),
+  right: s.required(RELATION_SIDE),
+  inverse: s.nullable(s.record({ slope: s.required(s.number()), intercept: s.required(s.number()) })),
+};
+const normalizeDerivation = draftNormalizer(s.record({
+  ...DERIVATION_STEP,
+  history: s.list(s.record(DERIVATION_STEP), { untilInvalid: true }),
+}));
 
 const inputStyle = {
   width: '100%',
@@ -45,7 +66,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
   const f = questionData.f || DEFAULT_INVERSE_LAB_F;
   const resetKey = JSON.stringify({ type: f.type, a: f.a, h: f.h, k: f.k });
   const makeInitial = () => createLinearInverseDerivation(f);
-  const [derivation, setDerivation] = usePersistentToolState('derivation', makeInitial);
+  const [derivation, setDerivation] = usePersistentToolState('derivation', makeInitial, { normalize: normalizeDerivation });
   const [operation, setOperation] = usePersistentToolState('operation', 'subtract');
   const [operand, setOperand] = usePersistentToolState('operand', '');
   const [operationError, setOperationError] = useState('');
@@ -125,6 +146,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
     onRestore: restoreDerivation,
     resetKey: questionUndoResetKey(questionData),
     persist: true,
+    draftFields: { derivation: setDerivation, operation: setOperation, operand: setOperand },
   });
 
   const startOver = () => {

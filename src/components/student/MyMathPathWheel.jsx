@@ -5,6 +5,8 @@ import {
 } from '../../platform/mastery/strandConfig.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
 import { normalizeCoursePathPassProgress } from '../../platform/path/pathPassPresentation.js';
+import WheelHatches from './WheelHatches.jsx';
+import { wedgePaint, wheelSwatchStyle } from './wheelFills.js';
 
 const polarToCartesian = (cx, cy, radius, angle) => ({
   x: cx + radius * Math.cos(angle),
@@ -27,6 +29,31 @@ const describeArc = (cx, cy, innerRadius, outerRadius, startAngle, endAngle) => 
 };
 
 const NOT_ENOUGH_EVIDENCE = 'Not Enough Evidence';
+
+/*
+ * A level on the wheel is its colour AND its fill (wheelFills.js, WCAG
+ * 1.4.1): Mastered solid, Secure hatched rising, Developing hatched falling,
+ * Needs Attention cross-hatched, Not Enough Evidence empty, as a contrast
+ * theme draws them and as the colour key under the wheel shows them.
+ */
+export const levelOf = (status) => ({
+  fill: MASTERY_STATUS_FILLS[status] || MASTERY_STATUS_FILLS[NOT_ENOUGH_EVIDENCE],
+  colour: MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE],
+});
+const LEVELS = Object.keys(MASTERY_STATUS_COLORS).map(levelOf);
+
+/*
+ * A round done is a mark inside its wedge, on a plate of the card's colour:
+ * a practice round's an empty ring, a Level 3 (stretch) round's a solid dot
+ * (WCAG 1.4.1: they were a green and a purple dot, told apart by colour
+ * alone). The wedge's edge takes the same colour, a theme token, so it reads
+ * on the dark card too.
+ */
+export const ROUND_MARKS = Object.freeze({
+  practice: Object.freeze({ shape: 'ring', colour: 'var(--mm-success-text)' }),
+  stretch: Object.freeze({ shape: 'dot', colour: 'var(--mm-accent-text)' }),
+});
+const roundOf = (passCount) => (passCount >= 3 ? 'stretch' : 'practice');
 
 // The red dot beside a skill: a retention check is recommended (the scheduler's
 // concern, which an overdue check raises too). Its words are the skill card's
@@ -62,6 +89,8 @@ export const MyMathPathWheel = ({
   useEscapeToDismiss(focusedTeks != null, clearFocusedTeks);
   const [openStrands, setOpenStrands] = useState({});
   const legendId = useId();
+  // The wheel's own pattern ids: two wheels on a page never share one.
+  const patternScope = `mm-wheel-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const center = size / 2;
   const outerRadius = size * 0.44;
   const innerRadius = size * 0.26;
@@ -125,6 +154,7 @@ export const MyMathPathWheel = ({
           // fill (MASTERY_STATUS_FILLS; src/theme/forcedColors.css).
           data-mm-drawing=""
         >
+          <WheelHatches scope={patternScope} levels={LEVELS} />
           {strandArcs.map((arc) => (
             <g key={`ring-${arc.strand.id}`} aria-hidden="true">
               <path
@@ -148,14 +178,25 @@ export const MyMathPathWheel = ({
                 const passCount = entry.passProgress?.passesCompleted || 0;
                 const badge = polarToCartesian(center, center, outerRadius + 7, (startAngle + endAngle) / 2);
                 const passBadge = polarToCartesian(center, center, outerRadius - 9, (startAngle + endAngle) / 2);
-                const passColor = passCount >= 3 ? '#5b21b6' : '#137333';
+                const round = passCount > 0 ? roundOf(passCount) : null;
+                const passColor = round ? ROUND_MARKS[round].colour : null;
+                const level = levelOf(status);
+                // Its colour and its fill: hatched over the colour, or empty inside an edge.
+                const look = wedgePaint({ scope: patternScope, fill: level.fill, colour: level.colour });
                 // Under a contrast theme the wedge is filled as its level is (Highlight
                 // while it is the one named in the hub), a round done is an empty ring
                 // and a Level 3 round a solid dot, as the key says.
                 return (
                   <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)} (topic ${entry.strandNumber}, ${entry.strand.title}): ${status}${passCount ? ` · Level ${Math.min(passCount, 3)} round done` : ''}${retentionConcern ? ` · ${RETENTION_CHECK_RECOMMENDED}` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
-                    <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE]} opacity={active ? 1 : 0.9} style={{ stroke: passCount ? passColor : 'var(--mm-surface)' }} strokeWidth={passCount ? 3 : 2} data-mm-plane-part={active ? 'held' : MASTERY_STATUS_FILLS[status] || MASTERY_STATUS_FILLS[NOT_ENOUGH_EVIDENCE]} />
-                    {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} style={{ stroke: 'var(--mm-surface)' }} strokeWidth="1.5" data-mm-plane-part={passCount >= 3 ? 'point' : 'open'} />}
+                    <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={look.paint} opacity={active ? 1 : 0.9} style={{ stroke: passCount ? passColor : look.edge || 'var(--mm-surface)' }} strokeWidth={passCount ? 3 : 2} strokeDasharray={passCount ? undefined : look.dash || undefined} data-wheel-fill={level.fill} data-mm-plane-part={active ? 'held' : level.fill} />
+                    {round && (
+                      <g data-round-mark={ROUND_MARKS[round].shape}>
+                        <circle cx={passBadge.x} cy={passBadge.y} r="6" style={{ fill: 'var(--mm-surface)' }} data-mm-plane-part="plate" />
+                        {ROUND_MARKS[round].shape === 'dot'
+                          ? <circle cx={passBadge.x} cy={passBadge.y} r="4.5" style={{ fill: passColor }} data-mm-plane-part="point" />
+                          : <circle cx={passBadge.x} cy={passBadge.y} r="3.5" style={{ fill: 'var(--mm-surface)', stroke: passColor }} strokeWidth="2" data-mm-plane-part="open" />}
+                      </g>
+                    )}
                     {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" style={{ stroke: 'var(--mm-surface)' }} strokeWidth="2" data-mm-plane-part="point" />}
                   </g>
                 );
@@ -209,6 +250,7 @@ export const MyMathPathWheel = ({
                     <ul id={listId} style={{ margin: 0, padding: '0 6px 6px', listStyle: 'none', display: 'grid', gap: 2 }}>
                       {arc.members.map((entry) => {
                         const status = statusOf(entry);
+                        const level = levelOf(status);
                         return (
                           <li key={entry.code}>
                             <button
@@ -220,8 +262,8 @@ export const MyMathPathWheel = ({
                               onMouseLeave={() => setFocusedTeks(null)}
                               style={{ width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', gap: 9, padding: '6px 8px', border: 0, borderRadius: 8, background: focusedTeks === entry.code ? 'var(--mm-primary-soft)' : 'transparent', textAlign: 'left', cursor: 'pointer', font: 'inherit' }}
                             >
-                              {/* The wedge's colour; under a contrast theme, its fill (theme/forcedColors.css). */}
-                              <span aria-hidden="true" data-mm-swatch={MASTERY_STATUS_FILLS[status] || MASTERY_STATUS_FILLS[NOT_ENOUGH_EVIDENCE]} style={{ flex: '0 0 auto', width: 12, height: 12, borderRadius: 999, background: MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS[NOT_ENOUGH_EVIDENCE], border: '1px solid var(--mm-border-strong)' }} />
+                              {/* The wedge's colour and fill (wheelFills.js); under a contrast theme, its fill alone (theme/forcedColors.css). */}
+                              <span aria-hidden="true" data-mm-swatch={level.fill} style={{ flex: '0 0 auto', width: 'calc(12 * var(--mm-px))', height: 'calc(12 * var(--mm-px))', borderRadius: 999, ...wheelSwatchStyle(level) }} />
                               <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 'calc(13 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{studentLabelForTeks(entry.code)}</span>
                               <span style={{ flex: '0 0 auto', fontSize: 'calc(11.5 * var(--mm-px))', fontWeight: 750, color: 'var(--mm-text-muted)', textAlign: 'right' }}>{status}</span>
                             </button>

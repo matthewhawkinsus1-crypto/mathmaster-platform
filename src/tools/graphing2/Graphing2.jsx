@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -27,6 +28,11 @@ import { toFraction, formatFraction } from '../shared/linearEquations.js';
 // an exact rational (e.g. -4/3 stored/derived as -1.3333333333333333) — the
 // student needs the exact value MathDisplay can stack, not a rounded decimal
 // that also happens to be mathematically confusing mid-lesson.
+// A saved plot is a list of [x, y] points (toolDraftShape.js): an entry that
+// is not one (null, a number, a pair with a word in it) is dropped, and the
+// other points come back where the student put them.
+const normalizePlottedPoints = draftNormalizer(s.list(s.point()));
+
 const formatSlopeForHint = (value) => {
   const number = Number(value);
   if (!Number.isFinite(number)) return String(value);
@@ -206,7 +212,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const reference = mode === 'pointSlope' ? referenceLineOf(questionData) : null;
   const policy = resolveConstructionPolicy(questionData);
   const requiredPointCount = requiredConstructionPointCount(questionData);
-  const [points, setPoints] = usePersistentToolState('points', []);
+  const [points, setPoints] = usePersistentToolState('points', [], { normalize: normalizePlottedPoints });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const hintsAllowed = useHintsAllowed();
   // A ladder of the tool's own only where the host has none (HELP-10).

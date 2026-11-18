@@ -216,6 +216,18 @@ test('every job starts the servers its steps call before it calls them', () => {
   }
 });
 
+// A driver whose own file is outside the workflow's area (scripts/lib/ciAreas.mjs) is run on a pull request only when
+// something else changed: My Math Path's topic browser journey ran here with neither its driver, its page nor the
+// helper the page builds its lesson evidence with in the area.
+test('a pull request that changes a driver this workflow runs, or the page and helper the topic browser opens, runs it', () => {
+  const drivers = [...new Set([...workflow.matchAll(/^ {8}run: node (tests\/browser\/[\w/.-]+\.mjs)\b/gm)].map(([, file]) => file))];
+  assert.ok(drivers.length >= 25, `${drivers.length} drivers`);
+  assert.ok(drivers.includes('tests/browser/pathTopicBrowser.mjs'), 'the topic browser journey is one of them');
+  drivers.forEach((file) => assert.ok(runsOnPullRequest('accessibility-certification.yml', file), `a change to ${file} runs the workflow`));
+  ['tests/browser/pathTopicBrowser.html', 'tests/browser/pathTopicBrowserMain.jsx', 'tests/platform/helpers/assignmentWork.mjs']
+    .forEach((file) => assert.ok(runsOnPullRequest('accessibility-certification.yml', file), `a change to ${file} runs the workflow`));
+});
+
 test("after a job's first test step, each one runs whatever happened to the one before it", () => {
   for (const [job, text] of Object.entries(jobs)) {
     const tests = stepsOf(text).filter(commandOf);

@@ -35,6 +35,7 @@ import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { db, fns, studentRequest, teacherRequest } from '../canonicalPersistenceHarness.mjs';
+import { createRequire } from 'node:module';
 import { getQuestionCredit, normalizeQuestionRecord } from '../../../src/attemptPolicy.js';
 import {
   CLASS_ID,
@@ -65,6 +66,11 @@ const ASSIGNMENT = 'wreopen-lmr';
 // a loaded CI runner to make every capture before it closes (asserted below).
 const TIMER_MS = 25_000;
 const MINUTE = 60_000;
+// A question record is stored as a summary on grades/{id} and its detail in
+// grades/{id}/responseDetail/{assignmentId}; every reader that shows the
+// question (the browser, here) reads the two joined.
+const { hydrateGradeData } = createRequire(import.meta.url)('../../../functions/lib/gradeDetailStore.js');
+const joinedGrade = async (gradeRef, snapshot) => hydrateGradeData({ db, gradeRef, gradeData: snapshot.data() || {}, assignmentIds: [ASSIGNMENT] });
 
 const pad = (value) => String(value).padStart(2, '0');
 const dateKeyOf = (ms) => {
@@ -116,7 +122,8 @@ const lessonFor = ({ day }) => {
 };
 
 const readRecord = async () => {
-  const grade = (await db.collection('grades').doc(STUDENT).get()).data() || {};
+  const gradeRef = db.collection('grades').doc(STUDENT);
+  const grade = await joinedGrade(gradeRef, await gradeRef.get());
   return grade?.gradesByAssignment?.[ASSIGNMENT]?.['0'] ?? null;
 };
 const readAssignment = async () => ({ id: ASSIGNMENT, ...(await db.collection('assignments').doc(ASSIGNMENT).get()).data() });
@@ -140,7 +147,7 @@ const serverStateOf = async (checkpointId) => {
   ]);
   const plain = (value) => JSON.parse(JSON.stringify(value ?? null));
   return {
-    record: plain(grade.data()?.gradesByAssignment?.[ASSIGNMENT]?.['0']),
+    record: plain((await joinedGrade(gradeRef, grade))?.gradesByAssignment?.[ASSIGNMENT]?.['0']),
     checkpoint: plain(checkpoint.data()),
     inspection: plain(inspection.docs.map((doc) => ({ id: doc.id, ...doc.data() }))),
     events: plain(events.docs.map((doc) => ({ id: doc.id, ...doc.data() }))),

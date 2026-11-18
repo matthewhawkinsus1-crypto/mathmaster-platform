@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import QuestionPrompt from './QuestionPrompt';
-import PointMeaningBuilder from './PointMeaningBuilder';
+import PointMeaningBuilder, { pointMeaningDraftShape } from './PointMeaningBuilder';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer } from './tools/shared/toolDraftShape.js';
 import {
   buildNaturalMeaning,
   EMPTY_POINT_MEANING,
@@ -11,6 +12,8 @@ import { pointMeaningWork } from '../functions/shared/toolMath/scenario/scenario
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 
+const POINT_MEANING_DRAFT = draftNormalizer(pointMeaningDraftShape());
+
 export default function ContextInterpretation({
   question,
   onStateChange,
@@ -19,7 +22,7 @@ export default function ContextInterpretation({
   draftKey,
   disabled = false,
 }) {
-  const history = useUndoHistory(EMPTY_POINT_MEANING, 80, draftKey ? `${draftKey}:context-interpretation` : null);
+  const history = useUndoHistory(EMPTY_POINT_MEANING, 80, draftKey ? `${draftKey}:context-interpretation` : null, { normalize: POINT_MEANING_DRAFT });
   const values = history.value || EMPTY_POINT_MEANING;
   // The student's raw work (the seven point-meaning entries). The verdict comes
   // ONLY from the shared grader the server also runs

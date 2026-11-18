@@ -58,4 +58,6 @@ export {
   scheduledDolDateFor,
 } from '../../platform/assessment/assessmentRecovery.js';
 export { describeFeedbackRelease, releaseHoldReport } from './feedbackReleaseHold.js';
+export { createWeeklyPathProgressRefresh } from '../../platform/path/weeklyPathProgressRefresh.js';
+export { followWeeklyPathProgress } from './weeklyPathProgress.js';
 export { readReleaseControls } from './feedbackReleaseControls.js';

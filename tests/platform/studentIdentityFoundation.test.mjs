@@ -58,8 +58,9 @@ test('classroom alerts stack below the measured identity bar instead of competin
   assert.doesNotMatch(packUp, /position: 'fixed'/);
   const publish = region(identity, 'const publishHeight = () => {', '};', 'stack height');
   assert.match(publish, /const noticeHeight = noticeRef\.current\?\.offsetHeight \|\| 0;/);
-  assert.match(publish, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight \+ noticeHeight\}px`\)/);
-  assert.match(publish, /setProperty\(STUDENT_IDENTITY_BAR_HEIGHT, `\$\{bar\.offsetHeight\}px`\)/);
+  assert.match(publish, /const barHeight = bar\.offsetHeight;/);
+  assert.match(publish, /STUDENT_IDENTITY_STACK_OFFSET, `\$\{barHeight \+ noticeHeight\}px`/);
+  assert.match(publish, /STUDENT_IDENTITY_BAR_HEIGHT, `\$\{barHeight\}px`/);
   // The notice row is watched with the bar (the targets above).
   assert.match(identity, /targets: \[bar, noticeRef\.current\]/);
   const noticeRow = region(identity, '{notice && (', ')}', 'notice row');

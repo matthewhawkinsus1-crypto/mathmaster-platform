@@ -188,12 +188,57 @@ const byPriority = (a, b) => (
 );
 
 /**
+ * The assignments a summary is worth building for: the dashboard's audience
+ * rule, then the cheap date and record checks (sectionMayBeActionable). It
+ * reads no tracker, so a caller can keep it until what it does read changes
+ * (App: the clock, the assignments, the Recovery records; not the tracker,
+ * which inside an assignment changes with every saved step).
+ */
+export const recoveryDiscoveryCandidates = ({
+  assignments = [],
+  sectionRecoveryByAssignment = {},
+  studentId = null,
+  classId = null,
+  classPeriod = null,
+  schedule = null,
+  studentProfile = null,
+  nowValue = Date.now(),
+} = {}) => {
+  if (!studentId) return [];
+  return list(assignments).filter((assignment) => {
+    if (!assignment?.id) return false;
+    // The dashboard's own audience rule: a hidden, paused or archived
+    // assignment is not offered as work, and secure assessments have their
+    // own retest process (the server refuses Recovery for them).
+    if (!assignmentIsForStudent(assignment, { classId, classPeriod })) return false;
+    if (assignmentIsArchived(assignment) || assignmentIsUnpublished(assignment)) return false;
+    if (assignment.secure === true || isTestCycleAssignment(assignment)) return false;
+    const records = sectionRecoveryByAssignment?.[assignment.id] || null;
+    return RECOVERY_SECTIONS.some((section) => sectionMayBeActionable({
+      assignment,
+      section,
+      record: records?.[section] || null,
+      studentId,
+      classId,
+      classPeriod,
+      schedule,
+      studentProfile,
+      nowValue,
+    }));
+  });
+};
+
+/**
  * Every Warm-Up/DOL Recovery this student can act on now, most urgent first.
  *
  * `trackerByAssignment` is the student's canonical tracker with teacher
  * per-question overrides applied and NO Recovery projected into it — the
  * original a Recovery is compared against, exactly as the Results screen and
  * the server read it.
+ *
+ * `candidates`: what recoveryDiscoveryCandidates gave for these same
+ * assignments, records, student, schedule and moment, when the caller kept
+ * it; a summary is built only for those. Without it they are found here.
  */
 export const buildStudentRecoveryDiscovery = ({
   assignments = [],
@@ -208,30 +253,15 @@ export const buildStudentRecoveryDiscovery = ({
   schedule = null,
   studentProfile = null,
   nowValue = Date.now(),
+  candidates = null,
 } = {}) => {
   if (!studentId) return [];
   const opportunities = [];
-  list(assignments).forEach((assignment) => {
-    if (!assignment?.id) return;
-    // The dashboard's own audience rule: a hidden, paused or archived
-    // assignment is not offered as work, and secure assessments have their
-    // own retest process (the server refuses Recovery for them).
-    if (!assignmentIsForStudent(assignment, { classId, classPeriod })) return;
-    if (assignmentIsArchived(assignment) || assignmentIsUnpublished(assignment)) return;
-    if (assignment.secure === true || isTestCycleAssignment(assignment)) return;
+  const worthBuilding = candidates ?? recoveryDiscoveryCandidates({
+    assignments, sectionRecoveryByAssignment, studentId, classId, classPeriod, schedule, studentProfile, nowValue,
+  });
+  list(worthBuilding).forEach((assignment) => {
     const records = sectionRecoveryByAssignment?.[assignment.id] || null;
-    const worthBuilding = RECOVERY_SECTIONS.some((section) => sectionMayBeActionable({
-      assignment,
-      section,
-      record: records?.[section] || null,
-      studentId,
-      classId,
-      classPeriod,
-      schedule,
-      studentProfile,
-      nowValue,
-    }));
-    if (!worthBuilding) return;
     buildStudentRecoverySummary({
       assignment,
       tracker: trackerByAssignment?.[assignment.id] || {},
@@ -249,4 +279,3 @@ export const buildStudentRecoveryDiscovery = ({
   });
   return opportunities.sort(byPriority);
 };
-

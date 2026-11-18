@@ -6,6 +6,7 @@ import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './pla
 import { buildMobileMathTools, nthRootOnlyWhereNeeded } from './platform/interaction/mobileKeypadPolicy.js';
 import { keysForConstants, useKeypadConstants } from './platform/interaction/keypadConstants.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
+import { readViewportInnerSize } from './platform/mobile/mobileInteractionFoundation.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
 import { revealMathFieldHost, revealUnlessVisibleWhileZoomed } from './platform/layout/pinchZoomReveal.js';
@@ -232,7 +233,8 @@ const withExtraKeys = (keys, extraKeys) => (extraKeys.length
   ? withExit(mergeToolKeys(keys.filter((key) => key !== EXIT_GROUP_KEY), extraKeys))
   : keys);
 
-const detectMobileInput = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
+// innerWidth read once per change of the viewport: a phone lays the page out to report it (mobileInteractionFoundation.js).
+const detectMobileInput = () => typeof window !== 'undefined' && (readViewportInnerSize(window).width <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
 
 // The keypad toggle's picture: a small keyboard (TL23). Drawn, not a glyph, so
 // every device shows the same shape; decorative, because the button's name

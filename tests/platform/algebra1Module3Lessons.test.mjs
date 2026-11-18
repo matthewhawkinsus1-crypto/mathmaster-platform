@@ -24,6 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileTeacherImport } from '../../scripts/check-teacher-import.mjs';
+import { ADVISORY_FINDING_GROUPS } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { gradeMultiAnswerResponse } from '../../functions/shared/ordinaryResponseGrading.mjs';
 import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { getPlatformQuestionFamily } from '../../functions/shared/questionFamilyRegistry.mjs';
@@ -56,14 +57,36 @@ const compiled = (lesson, id) => {
   assert.ok(question, `${lesson} compiles ${id}`);
   return question;
 };
-const ADVISORY_GROUPS = ['hiddenHints', 'hintAnswers', 'attemptFeedback', 'solutionReviews'];
+// Every advice panel of Review's Check step (the model's own list, so a panel
+// added later is held here too), and the only advice these lessons get:
+//   - Spanish: no lesson writes translations.es, so each has the notes that
+//     its hints and worked solutions have no Spanish version, and no other
+//     Spanish note (a translation that changes the mathematics, a line too many);
+//   - T2 L2 Classwork 18 says "Use the prices you found", and the prices are
+//     Classwork 17's answer: a true problem left for the lesson's authors
+//     (docs/handoffs/NOVEMBER_BUILD_2026-11.md, section 5). Question 21 of the
+//     compiled lesson, which counts the Warm-Up's three.
+const NO_SPANISH_WRITTEN = /^(?:Question \d+|\d+ questions — [\d, ]+(?: and \d+ more)?) (?:has|have) (?:hints|a worked solution) with no Spanish version, so a student who reads in Spanish sees (?:them|it) in English only\./;
+const EXPECTED_ADVICE = {
+  'T2 L2': {
+    otherQuestionReferences: ['Question 21 says "Use the prices you found", which needs an answer from another question. A student who meets this question first, or without that one, has nothing to use. Repeat the value in this prompt, or make the two questions one multi-part question.'],
+  },
+};
 
 for (const [key, lesson] of Object.entries(LESSONS)) {
-  test(`${key}: Pre-Flight finds no error, warning or advisory, and Recovery is ready for the Warm-Up and the DOL`, () => {
+  test(`${key}: Pre-Flight finds no error or warning, and no advice but the notes named above; Recovery is ready for the Warm-Up and the DOL`, () => {
     assert.deepEqual(lesson.model.errors, []);
     assert.deepEqual(lesson.model.warnings || [], []);
     assert.equal(lesson.model.isValid, true);
-    ADVISORY_GROUPS.forEach((group) => assert.deepEqual(lesson.model[group]?.warnings || [], [], group));
+    assert.ok(ADVISORY_FINDING_GROUPS.length >= 10, 'every advice panel, the answer-key and double-check panels among them');
+    ADVISORY_FINDING_GROUPS.forEach(({ id }) => {
+      const found = lesson.model[id]?.warnings || [];
+      if (id === 'spanishVersions') {
+        assert.ok(found.length > 0 && found.every((note) => NO_SPANISH_WRITTEN.test(note)), `${id}: ${JSON.stringify(found)}`);
+        return;
+      }
+      assert.deepEqual(found, EXPECTED_ADVICE[key]?.[id] || [], id);
+    });
     assert.deepEqual(lesson.semantic.errors, []);
     assert.deepEqual(lesson.semantic.warnings, []);
     const generation = lesson.model.questionGeneration;

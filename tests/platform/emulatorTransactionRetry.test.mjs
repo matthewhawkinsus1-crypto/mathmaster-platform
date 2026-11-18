@@ -101,7 +101,9 @@ test('every npm script that runs the integration suites loads the retry', () => 
   const integration = Object.entries(scripts).filter(([, command]) => /node --[^"]*test[^"]* tests\/integration\//.test(command) || /node .*--test tests\/integration\//.test(command));
   assert.ok(integration.length >= 5, `found ${integration.length} integration scripts`);
   for (const [name, command] of integration) {
-    assert.match(command, /node --import \.\/tests\/integration\/support\/emulatorTransactions\.mjs --test tests\/integration\//, `${name} loads the emulator transaction retry`);
+    // A runner flag after --test (test:callable-boundaries:emulator runs its
+    // files one at a time, --test-concurrency=1) still loads the retry first.
+    assert.match(command, /node --import \.\/tests\/integration\/support\/emulatorTransactions\.mjs --test(?: --test-[\w-]+(?:=\S+)?)* tests\/integration\//, `${name} loads the emulator transaction retry`);
   }
 });
 

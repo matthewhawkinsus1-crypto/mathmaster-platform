@@ -205,7 +205,11 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             xMin={graphBounds.xMin ?? -8} xMax={graphBounds.xMax ?? 8}
             yMin={graphBounds.yMin ?? -8} yMax={graphBounds.yMax ?? 8}
             functions={[graphF, ...(canInvert ? [graphInverse] : [])]}
-            lines={[{m:1,b:0,stroke:'#667085'}]}
+            // Each named on the plane (WCAG 1.4.1): f and the mirror line are
+            // both solid, so their colours were all that told them apart. The
+            // mirror keeps its solid stroke: a dash already says f⁻¹ here.
+            functionLabels={['f', ...(canInvert ? ['f⁻¹'] : [])]}
+            lines={[{m:1,b:0,stroke:'#667085',label:'y = x'}]}
             points={Number.isFinite(fx) && canInvert ? [
               {x:Number(x),y:fx,label:'(x, f(x))',fill:'#1a73e8'},
               {x:fx,y:inverseAtFx,label:'swapped',fill:'#d93025'},

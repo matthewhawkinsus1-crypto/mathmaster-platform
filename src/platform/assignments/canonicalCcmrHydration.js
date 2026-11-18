@@ -34,7 +34,7 @@ import { normalizeAssignmentV5 } from '../contract/assignmentSchemaV5.js';
 import { buildAssignmentV5PreflightModel } from '../preflight/assignmentV5PreflightModel.js';
 import { newlyIntroducedPreflightErrors } from '../preflight/preflightQuestionRepair.js';
 import { validateQuestionSemantics } from '../contract/semanticValidation.js';
-import { inspectHonorsRigor } from '../rigor/courseRigor.js';
+import { HONORS_CHECK_LABELS, inspectHonorsRigor } from '../rigor/courseRigor.js';
 import { withHonorsExtension } from '../rigor/honorsExtensionRecipes.js';
 import { keepExplicitQuestionValue } from '../../../functions/shared/questionValue.mjs';
 
@@ -546,7 +546,9 @@ export const confirmHonorsCandidateForCreate = ({
     ccmrTargetRequired: honorsCandidate.ccmrTargetRequired !== false,
   });
   if (!honorsReport.isHonorsReady) {
-    throw new Error(`The Honors version is still missing: ${honorsReport.missing.join(', ')}. Nothing was created.`);
+    // Named as Review and the import check name them, never by the report's keys.
+    const missing = honorsReport.missing.map((key) => HONORS_CHECK_LABELS[key] || key);
+    throw new Error(`The Honors version is still missing: ${missing.join(', ')}. Nothing was created.`);
   }
   return { assignmentV5: model.assignmentV5, model, honorsReport, record: honorsCcmrRecord(honorsCandidate) };
 };

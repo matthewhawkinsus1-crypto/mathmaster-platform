@@ -43,7 +43,9 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
 const VIEWPORTS = (process.env.VIEWPORTS || '1366x768,390x844')
   .split(',').map((entry) => entry.split('x').map(Number)).map(([width, height]) => ({ width, height }));
-const asStudent = 'as=student&studentId=910001';
+// With questions the student app renders (fixture.js `?questions=real`): in the default lesson, `freeResponse`, the
+// question S7 and S8 open was QuestionEngine's "This question could not be displayed".
+const asStudent = 'as=student&studentId=910001&questions=real';
 
 const launchOptions = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
