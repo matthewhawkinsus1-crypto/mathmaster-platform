@@ -27,7 +27,8 @@
  * SupportEvidenceReportView draw nothing and hold nothing (the drawer's read
  * of the student's rewards waits for it to open; Ctrl+K is App's own
  * listener). AssignmentHub draws nothing and reports no class to App
- * (onClassChange(null)), which is where App's own value starts.
+ * (onClassChange(null)), which is where App's own value starts, and reports
+ * none again as it leaves the page.
  */
 import { closedPanel, drawnPanel, onDemandCode } from './onDemandCode.js';
 

@@ -287,6 +287,29 @@ test('useOnDemandCode: nothing until wanted; asked once, not while offline; the 
   assert.equal(broken.output.props.module, null);
 });
 
+// Mounted closed with the workspace, an assignment's details reported no
+// class as they mounted, so whatever they had reported before the workspace
+// last left the page (a preview, Live Teaching) was cleared. Mounted only when
+// opened, they must clear it as they leave: App's controls scope reads the
+// hub's class while a target is set (App.jsx teacherControlsScope), and a
+// class left over from before would start, and at once stop, a listener on
+// its students' controls.
+test('an assignment\'s details report no class once they leave the page', async () => {
+  const { default: AssignmentHub } = await loader.ssrLoadModule('/src/components/teacher/AssignmentHub.jsx');
+  const reported = [];
+  const view = shim.mount(AssignmentHub, {
+    open: true,
+    assignment: { id: 'A1', title: 'Lesson 4: Slope', assignedClassIds: ['C1'] },
+    classes: [{ classId: 'C1', name: 'Algebra I — Period 1', period: 'Period 1', status: 'active' }],
+    students: [],
+    onClassChange: (classId) => reported.push(classId),
+    onClose: () => {},
+  });
+  assert.equal(reported.at(-1), 'C1', 'open, they report their class');
+  view.unmount();
+  assert.equal(reported.at(-1), null, 'gone, they report none');
+});
+
 test('Ask my teacher: the math is asked for as soon as a question waits, and the questions are drawn only once it is here', async () => {
   const { default: StudentQuestionsPanel, QuestionRow } = await loader.ssrLoadModule('/src/components/teacher/StudentQuestionsPanel.jsx');
   const store = await loader.ssrLoadModule('/tests/platform/helpers/askTeacherStoreStub.mjs');
