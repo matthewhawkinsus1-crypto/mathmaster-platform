@@ -2,14 +2,30 @@
 // modules, half a second and 45 MB of heap to load. platformEntry.js loads the
 // Classroom section entries, which load this file, so a require at the top put
 // all of that into every instance of every function, the ones that never talk
-// to Google included (answer ingestion, Live Challenge, secure tests). It is
-// loaded here instead, the first time a function builds a Google client.
-// tests/platform/functionsColdLoad.test.mjs loads the real entry point and
-// fails if it comes back.
-let googleClient = null;
-function google() {
-  if (!googleClient) googleClient = require("googleapis").google;
-  return googleClient;
+// to Google included (answer ingestion, Live Challenge, secure tests).
+//
+// Two things keep that out:
+//   - nothing Google is loaded until a function first builds a client;
+//   - a function that does build one loads the two APIs this file uses, not
+//     all of them: about 170 modules, 100 ms and 9 MB.
+// `googleapis/build/src/apis/<name>` is the module the package's own `google`
+// object builds each client from, so these are the same Classroom, Drive and
+// OAuth2 classes `google.classroom()`, `google.drive()` and
+// `google.auth.OAuth2` gave. The path is not a documented entry point of the
+// package: tests/platform/functionsColdLoad.test.mjs checks, against the
+// installed version, that it still resolves and still gives those classes,
+// that the entry point loads nothing Google, and that building a client does
+// not load the whole package.
+let classroomApiModule = null;
+function classroomApi() {
+  if (!classroomApiModule) classroomApiModule = require("googleapis/build/src/apis/classroom");
+  return classroomApiModule;
+}
+
+let driveApiModule = null;
+function driveApi() {
+  if (!driveApiModule) driveApiModule = require("googleapis/build/src/apis/drive");
+  return driveApiModule;
 }
 
 const { getFirestore } = require("firebase-admin/firestore");
@@ -50,7 +66,7 @@ function requiredPublicEnv(name) {
 }
 
 function createOAuthClient() {
-  return new (google().auth.OAuth2)(
+  return new (classroomApi().auth.OAuth2)(
     readGoogleClientId(),
     readGoogleClientSecret(),
     requiredPublicEnv("GOOGLE_OAUTH_REDIRECT_URI")
@@ -194,7 +210,7 @@ async function getClassroomClient(teacherUid) {
     );
   });
 
-  return google().classroom({ version: "v1", auth: oauth2Client });
+  return classroomApi().classroom({ version: "v1", auth: oauth2Client });
 }
 
 async function getDriveClient(teacherUid) {
@@ -209,7 +225,7 @@ async function getDriveClient(teacherUid) {
       console.error("Failed to persist refreshed Google tokens", err)
     );
   });
-  return google().drive({ version: "v3", auth: oauth2Client });
+  return driveApi().drive({ version: "v3", auth: oauth2Client });
 }
 
 async function getConnectionHealth(teacherUid) {
