@@ -274,6 +274,11 @@ const runCover = async (browser, origins, surface, size) => {
 };
 
 // ------------------------------------------------------------------------------------------------ badges (R17)
+// Still the default lesson, whose questions are `freeResponse`: the question under the header is QuestionEngine's
+// "This question could not be displayed", and the room for its work is the box around that panel. With
+// `?questions=real` (a real Classwork Q1, "Write 6/8 in lowest terms.") a 360x740 phone at 100% text leaves it 149px
+// with progress shown, under PROGRESS_WORK_MIN: its task panel is 51px taller ("Read a part" takes a row of its own
+// under Vocabulary, and 6/8 is set as a stacked fraction). It moves once that has room.
 const STUDENT_APP = '/tests/browser/teacherWorkflow/index.html?reset=1&as=student&studentId=910002';
 // The header of the assignment screen, and what the question shows of its tries and its completion.
 export const HEADER_ITEMS = Object.freeze({

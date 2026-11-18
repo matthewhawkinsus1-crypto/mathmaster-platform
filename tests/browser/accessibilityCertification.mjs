@@ -91,7 +91,10 @@ const ROOM_ID = 'a11y-room';
 const PLAYER_KEY = 'a11y-player';
 
 // ------------------------------------------------------------------ drivers
-const appUrl = (origins) => `${origins.app}/tests/browser/teacherWorkflow/index.html?reset=1&as=student&studentId=${STUDENT_ID}`;
+// The student's lessons with questions the student app renders (fixture.js `?questions=real`). The fixture's default
+// lesson is `freeResponse`, a type it does not: a screen that opened a question (the finished section's, through
+// openCompletedSection) read QuestionEngine's "This question could not be displayed" instead of a question.
+const appUrl = (origins) => `${origins.app}/tests/browser/teacherWorkflow/index.html?reset=1&as=student&studentId=${STUDENT_ID}&questions=real`;
 
 const openStudentApp = async (page, origins) => {
   await page.goto(appUrl(origins), { timeout: 180_000 });
@@ -204,6 +207,9 @@ const openExamPracticeChip = (theme) => async (page, origins) => {
 // student has last week's Warm-Up right, and the active lesson opens with that
 // tab marked "Complete" (pass 3, A11Y-7: its badge was 9px white on #a66b00,
 // 4.44:1, and no scene rendered it). darkModeCertification.mjs opens the same.
+// It lands on the lesson's first Classwork question: open the app with
+// `?questions=real` (appUrl), or that question is the fixture's `freeResponse`
+// and the scene reads QuestionEngine's fallback for a type it cannot show.
 export const openCompletedSection = async (page) => {
   await page.getByRole('button', { name: 'Continue' }).first().click();
   const showProgress = page.getByRole('button', { name: 'Show progress' }).first();
