@@ -64,10 +64,11 @@ const shortTypedValue = (rng) => typedInput(rng, rng.pick(SHORT_CLASSES)).text;
  *
  * Each balanced move adds a term to both sides, and nothing makes a student
  * combine them, so a side can hold many terms. Reopening a draft with a move
- * in progress rebuilds that move (makePendingMove), and the cost of that is
- * not linear in the terms: measured at 9 and at 18 terms, 18 took over twenty
- * times as long (November 2026), and 24 did not finish. A time limit would
- * depend on the machine; the RATIO does not, so that is what is held.
+ * in progress rebuilds that move (makePendingMove). Until mathjs's
+ * simplifyCore was ported without its discarded call (simplifyCoreOnce.mjs,
+ * issue #559), that cost doubled with every term: 18 terms took over twenty
+ * times as long as 9, and 24 did not finish. A time limit would depend on the
+ * machine; the RATIO does not, so that is what is held.
  */
 const GROWTH_TERMS = Object.freeze({ short: 9, long: 18 });
 const GROWTH_RATIO_LIMIT = 8;

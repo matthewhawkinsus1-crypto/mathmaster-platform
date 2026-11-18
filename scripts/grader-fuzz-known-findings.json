@@ -225,20 +225,6 @@
         }
       },
       "replay": "timed"
-    },
-    "drafts/reopen-time-grows-with-length/algebra": {
-      "what": "Reopening a Step Algebra draft with a move in progress (rehydrateAlgebraDraft -> makePendingMove) takes over twenty times as long at 18 terms on a side as at 9, about 2 s at 20 and no end at 24. Nothing makes a student combine terms, so a side can grow by one term a move.",
-      "whyLeft": "It is Step Algebra's own engine, which PR #552's branch is changing (simplify reads its rules once; equation facts once). Reported there rather than raced.",
-      "tracked": "https://github.com/matthewhawkinsus1-crypto/mathmaster-platform/issues/559",
-      "repro": {
-        "target": "drafts",
-        "kind": "algebra-growth",
-        "source": "synthetic:algebra-growth",
-        "terms": {
-          "short": 9,
-          "long": 18
-        }
-      }
     }
   }
 }
