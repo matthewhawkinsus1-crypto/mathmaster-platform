@@ -1,0 +1,1923 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Solving Systems by Linear Combinations (M3 T2 L3)",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Module 3/Topic 2/Lesson 3",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": {
+      "warmup": "shared",
+      "classwork": "shared",
+      "practice": "personalized",
+      "dol": "personalized"
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Building Blocks for Linear Combinations",
+      "recommendedMinutes": 10,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l3-wu-1",
+          "standard": "A.5A",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5A",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveStepByStep"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Building block 1 — Multiplying keeps an equation true. Today you will multiply whole equations by a number. Solve {{equation}}. Start by multiplying BOTH sides by the denominator of the fraction, so the fraction disappears.",
+          "questionFamily": {
+            "id": "linear.twoStepEquation",
+            "version": 3,
+            "constraints": {
+              "coefficientForm": "fraction",
+              "solutionForm": "integer",
+              "distribute": false
+            }
+          },
+          "hints": [
+            "Which number could you multiply both sides by so the coefficient of x becomes a whole number?",
+            "Multiply EVERY term on both sides by the denominator — the constant terms too.",
+            "Now isolate x: undo the addition or subtraction, then divide by the coefficient of x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. When you multiply both sides of a true equation by the same nonzero number, the new equation…",
+            "options": [
+              "is still true, and it has the same solution",
+              "has a different solution"
+            ],
+            "correct": "is still true, and it has the same solution"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Multiply both sides by the denominator of the fraction, distributing to every term, so every coefficient is a whole number.",
+              "Undo the addition or subtraction on the side with x.",
+              "Divide by the coefficient of x, and check your value in the original equation."
+            ],
+            "commonError": "Multiplying only the x-term by the denominator and leaving the constants unchanged."
+          }
+        },
+        {
+          "questionId": "m3t2l3-wu-2",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Building block 2 — Once you know one variable. After you find one variable today, you will substitute it back to find the other. Analyze the system {{system}}. Substitute to find the value of y, then write the solution of the system.",
+          "questionFamily": {
+            "id": "systems.knownValue"
+          },
+          "hints": [
+            "Which equation tells you what x equals?",
+            "Replace x in the other equation with that number or expression. Now the equation has only y in it: solve it.",
+            "Use the equation that gives x to find x, then write the ordered pair with x first."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If a system tells you what x equals, you can…",
+            "options": [
+              "replace x with that value or expression in the other equation",
+              "ignore that equation and solve the other one alone"
+            ],
+            "correct": "replace x with that value or expression in the other equation"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Replace x in the other equation with what the first equation says x equals.",
+              "Solve the new equation for y.",
+              "Find x, and write the solution as (x, y)."
+            ],
+            "commonError": "Writing the solution as (y, x) — the x-coordinate comes first."
+          }
+        },
+        {
+          "questionId": "m3t2l3-wu-3",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Building block 3 — Make a variable disappear. Look at the system {{system}}. One variable has the SAME coefficient or OPPOSITE coefficients in the two equations. Add the equations (opposites) or subtract one from the other (the same) so that variable disappears. Solve, then substitute back to find the other variable.",
+          "questionFamily": {
+            "id": "systems.elimination",
+            "constraints": {
+              "requireMatchingCoefficient": true
+            }
+          },
+          "hints": [
+            "Compare the x-coefficients, then the y-coefficients. Which pair is the same, or opposite?",
+            "Opposite coefficients, like 2y and −2y, add to 0: add the equations. The same coefficients subtract to 0: subtract one equation from the other.",
+            "Solve the one-variable equation that is left. Then substitute that value into either original equation to find the other variable."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Two terms that are additive inverses, like 3y and −3y, add to…",
+            "options": [
+              "0",
+              "6y"
+            ],
+            "correct": "0"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Find the variable whose coefficients are the same or opposite.",
+              "Add the equations (opposites) or subtract them (the same): that variable’s terms become 0.",
+              "Solve for the variable that is left, substitute it into either equation, and write the ordered pair."
+            ],
+            "commonError": "Subtracting when the coefficients are opposites — that doubles the term instead of removing it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — The Linear Combinations Method",
+      "recommendedMinutes": 15,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l3-cw-1",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Getting Started — Coding Class. There are a total of 324 students taking a coding class. The number of 9th-grade students outnumbers the number of 10th-grade students by 34. Let x be the number of 9th-grade students and y the number of 10th-grade students.",
+          "responses": [
+            {
+              "id": "total",
+              "label": "An equation for the total number of students",
+              "answer": "x + y = 324",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "more",
+              "label": "An equation that says the 9th graders outnumber the 10th graders by 34",
+              "answer": "x - y = 34",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "sum",
+              "label": "Stack x + y = 324 over x − y = 34. Add the left sides together and the right sides together. Write the new equation (combine like terms).",
+              "answer": "2x = 358",
+              "inputProfile": "equation",
+              "gradingMode": "sidesAsKeyed"
+            },
+            {
+              "id": "why",
+              "label": "Why is y gone from the new equation?",
+              "type": "choice",
+              "options": [
+                "y and −y are additive inverses, so they add to 0.",
+                "Adding two equations always removes the second variable, whatever its coefficients.",
+                "The value of y is 0, so the y-terms do not count.",
+                "x has the larger total, so only the x-terms stay."
+              ],
+              "answer": "y and −y are additive inverses, so they add to 0."
+            }
+          ],
+          "hints": [
+            "The story gives two facts: a total and a difference. Which operation matches each?",
+            "“Outnumber by 34” means (number of 9th graders) − (number of 10th graders) = 34.",
+            "To add the equations, add x + x, then y + (−y), then 324 + 34."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Total: x + y = 324. Difference: x − y = 34.",
+              "Add the equations: (x + x) + (y − y) = 324 + 34, so 2x = 358.",
+              "The y-terms are additive inverses, so they cancel and leave one variable."
+            ],
+            "commonError": "Writing y − x = 34, which says there are 34 MORE 10th graders."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. What is y + (−y)?",
+            "options": [
+              "0",
+              "2y"
+            ],
+            "correct": "0"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Adding equations",
+                "instruction": "If a = b and c = d, then a + c = b + d. You add equal amounts to both sides, so the new equation is still true."
+              },
+              {
+                "title": "Linear combinations method",
+                "instruction": "Add two equations together so that one variable cancels, leaving an equation with ONE variable. Solve it, then substitute that value into either original equation to find the other variable."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "m3t2l3-cw-2",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Now show it in the Systems Workspace. Solve the coding-class system x + y = 324 and x − y = 34 using linear combinations: eliminate y, solve for x, substitute back to find y, and check both equations.",
+          "equations": [
+            "x + y = 324",
+            "x - y = 34"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Which variable already has coefficients that are additive inverses?",
+            "Choose y to eliminate. The coefficients 1 and −1 are already opposites, so multiply each equation by 1 and add.",
+            "After you find x, substitute it into x + y = 324 to find y. Then check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To eliminate y from x + y = 324 and x − y = 34, you…",
+            "options": [
+              "add the equations",
+              "subtract the equations"
+            ],
+            "correct": "add the equations"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Add: 2x = 358, so x = 179.",
+              "Substitute: 179 + y = 324, so y = 145.",
+              "Check: 179 + 145 = 324 and 179 − 145 = 34. The solution is (179, 145)."
+            ],
+            "commonError": "Stopping after x = 179 without substituting back to find y."
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "The steps",
+                "instruction": "1. Choose the variable to eliminate. 2. Make its coefficients additive inverses (here they already are). 3. Add the equations. 4. Solve for the variable left. 5. Substitute back. 6. Check in BOTH equations."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "m3t2l3-cw-3",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Make sense of the solution. Mateo solved the coding-class system by substitution (x = y + 34). Minh added the two equations. Both got (179, 145).",
+          "responses": [
+            {
+              "id": "meaning",
+              "label": "What does the solution (179, 145) mean in this situation?",
+              "type": "choice",
+              "options": [
+                "179 ninth graders and 145 tenth graders take the coding class.",
+                "145 ninth graders and 179 tenth graders take the class, since y comes second.",
+                "179 students take the class in all, and 145 of them are 9th graders.",
+                "There are 179 more 9th graders than 10th graders."
+              ],
+              "answer": "179 ninth graders and 145 tenth graders take the coding class."
+            },
+            {
+              "id": "check",
+              "label": "Check (179, 145) in the second equation, x − y = 34. What is 179 − 145?",
+              "answer": "34"
+            },
+            {
+              "id": "structure",
+              "label": "What feature of the system made Minh’s strategy efficient?",
+              "type": "choice",
+              "options": [
+                "y and −y are additive inverses, so adding the equations cancels y.",
+                "Both constants, 324 and 34, are positive, so adding them makes the equation simpler.",
+                "The x-terms, x and x, are the same, so adding the equations cancels x.",
+                "Both equations are already solved for y, so they can be added right away."
+              ],
+              "answer": "y and −y are additive inverses, so adding the equations cancels y."
+            },
+            {
+              "id": "both",
+              "label": "Who reasoned correctly?",
+              "type": "choice",
+              "options": [
+                "Both — each kept the equations true, so both methods reach the same solution.",
+                "Only Mateo — two equations cannot be added, because adding changes the solution.",
+                "Only Minh — substitution needs an equation that is already solved for y first.",
+                "Neither — a system can only be solved exactly by graphing both of the lines."
+              ],
+              "answer": "Both — each kept the equations true, so both methods reach the same solution."
+            }
+          ],
+          "hints": [
+            "In the ordered pair (x, y), which grade does x stand for?",
+            "Look at the y-terms of the two equations. What do y and −y add to?",
+            "Adding equal amounts to both sides of an equation keeps it true. Does substituting an equal expression keep it true too?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "x = 179 ninth graders and y = 145 tenth graders.",
+              "Minh’s method was quick because y and −y are additive inverses.",
+              "Both students kept every equation true, so both methods are correct."
+            ],
+            "commonError": "Reading the pair backwards and matching 179 to the 10th graders."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. In (179, 145), the first number is the value of…",
+            "options": [
+              "x, the number of 9th graders",
+              "y, the number of 10th graders"
+            ],
+            "correct": "x, the number of 9th graders"
+          }
+        },
+        {
+          "questionId": "m3t2l3-cw-4",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Worked example — multiply first. In the system 7x + 2y = 24 and 4x + y = 15, no variable cancels yet. Multiply the second equation by a constant so its y-term is the additive inverse of 2y. Then add.",
+          "responses": [
+            {
+              "id": "multiplier",
+              "label": "What number should you multiply 4x + y = 15 by?",
+              "answer": "-2"
+            },
+            {
+              "id": "scaled",
+              "label": "Write the new second equation after multiplying EVERY term on both sides by that number.",
+              "answer": "-8x - 2y = -30",
+              "inputProfile": "equation",
+              "gradingMode": "sidesAsKeyed"
+            },
+            {
+              "id": "added",
+              "label": "Add 7x + 2y = 24 and your new equation. Write the result.",
+              "answer": "-x = -6",
+              "inputProfile": "equation",
+              "gradingMode": "sidesAsKeyed"
+            },
+            {
+              "id": "solution",
+              "label": "The solution of the system (x, y)",
+              "answer": "(6, -9)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "The first equation has 2y. What y-term would cancel it when you add?",
+            "Which number times the y-coefficient of the second equation gives the opposite of 2? Multiply every term — 4x, y and 15 — by that number.",
+            "After adding, divide by the coefficient of x. Then substitute your x into 7x + 2y = 24 to find y."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Multiply 4x + y = 15 by −2: −8x − 2y = −30.",
+              "Add to 7x + 2y = 24: −x = −6, so x = 6.",
+              "7(6) + 2y = 24 → 42 + 2y = 24 → 2y = −18 → y = −9. The solution is (6, −9)."
+            ],
+            "commonError": "Multiplying only the left side and writing −8x − 2y = 15."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. When you multiply an equation by a number, you multiply…",
+            "options": [
+              "every term on both sides",
+              "only the terms that have a variable"
+            ],
+            "correct": "every term on both sides"
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Multiply to make additive inverses",
+                "instruction": "When no variable cancels yet, multiply one equation — every term on BOTH sides — by a constant so that one variable’s coefficients become additive inverses."
+              },
+              {
+                "title": "Why only one equation here?",
+                "instruction": "The y-coefficient 1 divides evenly into 2, so multiplying the second equation by −2 is enough."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "m3t2l3-cw-5",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Your turn — multiply ONE equation. Solve 6x − 5y = 3 and 2x + 2y = 12 using linear combinations in the Systems Workspace. Choose the variable to eliminate, multiply one equation so that variable’s coefficients are additive inverses, add, and check.",
+          "equations": [
+            "6x - 5y = 3",
+            "2x + 2y = 12"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Compare the x-coefficients, 6 and 2. What could you multiply 2x by to get −6x?",
+            "Eliminate x: multiply every term of the second equation by that number, keep the first equation as it is, and add.",
+            "Add, solve for y, then substitute your y into 2x + 2y = 12 to find x. Check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Which number turns 2x into the additive inverse of 6x?",
+            "options": [
+              "−3",
+              "3"
+            ],
+            "correct": "−3"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Multiply 2x + 2y = 12 by −3: −6x − 6y = −36.",
+              "Add to 6x − 5y = 3: −11y = −33, so y = 3.",
+              "2x + 2(3) = 12 → x = 3. Check: 6(3) − 5(3) = 3 and 2(3) + 2(3) = 12. The solution is (3, 3)."
+            ],
+            "commonError": "Multiplying by 3 instead of −3, so the x-terms add to 12x instead of 0."
+          }
+        },
+        {
+          "questionId": "m3t2l3-cw-6",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Multiply BOTH equations. In 4x + 2y = 3 and 5x + 3y = 4, neither y-coefficient divides evenly into the other. Multiply EACH equation by a constant so the y-terms become additive inverses, add, and solve. Keep the solution exact (fractions, not decimals).",
+          "equations": [
+            "4x + 2y = 3",
+            "5x + 3y = 4"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "What is the least common multiple of the y-coefficients 2 and 3?",
+            "Make one y-term 6y and the other −6y: multiply 4x + 2y = 3 by 3 and 5x + 3y = 4 by −2.",
+            "Add to get an equation with x alone, solve it as a fraction, then substitute into 4x + 2y = 3."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To turn 2y into 6y, multiply the first equation by…",
+            "options": [
+              "3",
+              "4"
+            ],
+            "correct": "3"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "3(4x + 2y) = 3(3) → 12x + 6y = 9, and −2(5x + 3y) = −2(4) → −10x − 6y = −8.",
+              "Add: 2x = 1, so x = 1/2.",
+              "4(1/2) + 2y = 3 → 2 + 2y = 3 → y = 1/2. The solution is (1/2, 1/2)."
+            ],
+            "commonError": "Multiplying only the left side of an equation, such as writing 12x + 6y = 3."
+          },
+          "guidedNotes": {
+            "steps": [
+              {
+                "title": "Both equations change",
+                "instruction": "When neither coefficient of a variable is a multiple of the other (like 2 and 3), multiply both equations so the coefficients reach a common multiple with opposite signs (6 and −6)."
+              }
+            ]
+          }
+        },
+        {
+          "questionId": "m3t2l3-cw-7",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "sortIntoCategories"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Plan the first move. Sort each system by the first step that eliminates a variable with the LEAST work.",
+          "categories": [
+            {
+              "id": "add",
+              "label": "Add the equations as written"
+            },
+            {
+              "id": "subtract",
+              "label": "Subtract one equation from the other as written"
+            },
+            {
+              "id": "one",
+              "label": "Multiply ONE equation by a number other than 1 or −1, then add"
+            },
+            {
+              "id": "both",
+              "label": "Multiply BOTH equations by numbers other than 1 or −1, then add"
+            }
+          ],
+          "items": [
+            {
+              "id": "a",
+              "label": "x + y = 324 and x − y = 34"
+            },
+            {
+              "id": "b",
+              "label": "−4x + y = 10 and −2x − y = −1"
+            },
+            {
+              "id": "c",
+              "label": "5x + 2y = 10 and 3x + 2y = 6"
+            },
+            {
+              "id": "d",
+              "label": "3x − 4y = 2 and 3x + y = 12"
+            },
+            {
+              "id": "e",
+              "label": "x + 3y = 15 and 5x + 2y = 7"
+            },
+            {
+              "id": "f",
+              "label": "4x + 3y = 24 and 3x + y = −2"
+            },
+            {
+              "id": "g",
+              "label": "4x + 3y = 12 and 3x + 2y = 4"
+            },
+            {
+              "id": "h",
+              "label": "3x + 5y = 17 and 2x + 3y = 11"
+            }
+          ],
+          "validSchemes": [
+            {
+              "id": "firstStep",
+              "groups": [
+                {
+                  "id": "add",
+                  "itemIds": [
+                    "a",
+                    "b"
+                  ]
+                },
+                {
+                  "id": "subtract",
+                  "itemIds": [
+                    "c",
+                    "d"
+                  ]
+                },
+                {
+                  "id": "one",
+                  "itemIds": [
+                    "e",
+                    "f"
+                  ]
+                },
+                {
+                  "id": "both",
+                  "itemIds": [
+                    "g",
+                    "h"
+                  ]
+                }
+              ]
+            }
+          ],
+          "hints": [
+            "For each system, compare the x-coefficients, then the y-coefficients. Is any pair already opposite, or the same?",
+            "If no pair matches, is one coefficient of a variable a multiple of the other (like 1 and 5, or 1 and 3)? Then only one equation has to change.",
+            "If neither coefficient divides the other for either variable (like 4 and 3, and 3 and 2), both equations must change."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Opposite coefficients — add: x + y = 324 and x − y = 34 (y, −y); −4x + y = 10 and −2x − y = −1 (y, −y).",
+              "The same coefficient — subtract: 5x + 2y = 10 and 3x + 2y = 6 (2y, 2y); 3x − 4y = 2 and 3x + y = 12 (3x, 3x).",
+              "One coefficient is a multiple of the other — multiply one equation: multiply x + 3y = 15 by −5 to cancel x; multiply 3x + y = −2 by −3 to cancel y.",
+              "No coefficient divides the other — multiply both: 4x + 3y = 12 and 3x + 2y = 4 (for example, by 2 and −3 to cancel y); 3x + 5y = 17 and 2x + 3y = 11 (by 2 and −3 to cancel x)."
+            ],
+            "commonError": "Multiplying when the coefficients are already the same or opposite — it works, but it is extra work."
+          }
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Solving Systems by Linear Combinations",
+      "recommendedMinutes": 55,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "m3t2l3-pr-1",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve the system {{system}} using linear combinations, and check your solution in both equations.",
+          "questionFamily": {
+            "id": "systems.algebraic2x2",
+            "constraints": {
+              "solutionCase": "one",
+              "solutionForm": "integer"
+            }
+          },
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Compare the coefficients of x, then of y. Which variable is quicker to eliminate?",
+            "Multiply one or both equations so that variable’s coefficients are additive inverses — every term, on both sides.",
+            "Add, solve for the variable that is left, substitute back into an original equation, and check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To eliminate a variable by adding, its two coefficients must be…",
+            "options": [
+              "additive inverses, like 6 and −6",
+              "the same number, like 6 and 6"
+            ],
+            "correct": "additive inverses, like 6 and −6"
+          },
+          "attemptFeedback": [
+            "When you multiplied an equation, did you multiply EVERY term — the constant on the right side too?",
+            "If your check fails in one equation, look for a sign error when you added the two equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Choose a variable and multiply one or both equations so its coefficients are additive inverses.",
+              "Add the equations and solve for the variable that is left.",
+              "Substitute back to find the other variable, and check the pair in both original equations."
+            ],
+            "commonError": "Multiplying the left side of an equation but not the constant on the right."
+          }
+        },
+        {
+          "questionId": "m3t2l3-pr-2",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve the system {{system}} using linear combinations, and check your solution in both equations.",
+          "questionFamily": {
+            "id": "systems.algebraic2x2",
+            "constraints": {
+              "solutionCase": "one",
+              "solutionForm": "integer"
+            }
+          },
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Compare the coefficients of x, then of y. Which variable is quicker to eliminate?",
+            "Multiply one or both equations so that variable’s coefficients are additive inverses — every term, on both sides.",
+            "Add, solve for the variable that is left, substitute back into an original equation, and check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To eliminate a variable by adding, its two coefficients must be…",
+            "options": [
+              "additive inverses, like 6 and −6",
+              "the same number, like 6 and 6"
+            ],
+            "correct": "additive inverses, like 6 and −6"
+          },
+          "attemptFeedback": [
+            "When you multiplied an equation, did you multiply EVERY term — the constant on the right side too?",
+            "If your check fails in one equation, look for a sign error when you added the two equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Choose a variable and multiply one or both equations so its coefficients are additive inverses.",
+              "Add the equations and solve for the variable that is left.",
+              "Substitute back to find the other variable, and check the pair in both original equations."
+            ],
+            "commonError": "Multiplying the left side of an equation but not the constant on the right."
+          }
+        },
+        {
+          "questionId": "m3t2l3-pr-3",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the system {{system}} using linear combinations, and check your solution in both equations.",
+          "questionFamily": {
+            "id": "systems.algebraic2x2",
+            "constraints": {
+              "solutionCase": "one",
+              "solutionForm": "integer"
+            }
+          },
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Compare the coefficients of x, then of y. Which variable is quicker to eliminate?",
+            "Multiply one or both equations so that variable’s coefficients are additive inverses — every term, on both sides.",
+            "Add, solve for the variable that is left, substitute back into an original equation, and check both equations."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. To eliminate a variable by adding, its two coefficients must be…",
+            "options": [
+              "additive inverses, like 6 and −6",
+              "the same number, like 6 and 6"
+            ],
+            "correct": "additive inverses, like 6 and −6"
+          },
+          "attemptFeedback": [
+            "When you multiplied an equation, did you multiply EVERY term — the constant on the right side too?",
+            "If your check fails in one equation, look for a sign error when you added the two equations."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Choose a variable and multiply one or both equations so its coefficients are additive inverses.",
+              "Add the equations and solve for the variable that is left.",
+              "Substitute back to find the other variable, and check the pair in both original equations."
+            ],
+            "commonError": "Multiplying the left side of an equation but not the constant on the right."
+          }
+        },
+        {
+          "questionId": "m3t2l3-pr-4",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve −4x + y = 10 and −2x − y = −1 using linear combinations. Keep the solution exact, and check it in both equations.",
+          "equations": [
+            "-4x + y = 10",
+            "-2x - y = -1"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Which variable already has opposite coefficients?",
+            "Add the equations as written (multiply each by 1) to eliminate y.",
+            "Solve for x as a fraction, then substitute into −4x + y = 10 to find y."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. y and −y are…",
+            "options": [
+              "additive inverses",
+              "equal"
+            ],
+            "correct": "additive inverses"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Add: −6x = 9, so x = −3/2.",
+              "−4(−3/2) + y = 10 → 6 + y = 10 → y = 4.",
+              "Check: −2(−3/2) − 4 = 3 − 4 = −1. The solution is (−3/2, 4)."
+            ],
+            "commonError": "Writing x = −2/3 by dividing 6 by 9 instead of 9 by −6."
+          },
+          "attemptFeedback": [
+            "Divide the constant by the coefficient: −6x = 9 means x = 9 ÷ (−6).",
+            "Keep x as an exact fraction when you substitute back."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-5",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve 4x + 3y = 24 and 3x + y = −2 using linear combinations, and check your solution in both equations.",
+          "equations": [
+            "4x + 3y = 24",
+            "3x + y = -2"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "The y-coefficients are 3 and 1. Which equation is easier to multiply?",
+            "Multiply every term of 3x + y = −2 by −3 so its y-term is −3y.",
+            "Add, solve for x, then substitute into 3x + y = −2 to find y."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying 3x + y = −2 by −3 makes the y-term…",
+            "options": [
+              "−3y",
+              "3y"
+            ],
+            "correct": "−3y"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "−3(3x + y) = −3(−2) → −9x − 3y = 6.",
+              "Add to 4x + 3y = 24: −5x = 30, so x = −6.",
+              "3(−6) + y = −2 → y = 16. Check: 4(−6) + 3(16) = 24. The solution is (−6, 16)."
+            ],
+            "commonError": "Writing −3(−2) as −6 instead of 6."
+          },
+          "attemptFeedback": [
+            "When you multiply by −3, the constant −2 becomes positive 6.",
+            "Check both original equations, not the multiplied one."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-6",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve 3x + 5y = 17 and 2x + 3y = 11 using linear combinations. You will need to multiply both equations. Check your solution in both equations.",
+          "equations": [
+            "3x + 5y = 17",
+            "2x + 3y = 11"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Neither x-coefficient divides the other. What is the least common multiple of 3 and 2?",
+            "Make the x-terms 6x and −6x: multiply the first equation by 2 and the second by −3.",
+            "Add, solve for y, then substitute into either original equation to find x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. The least common multiple of 3 and 2 is…",
+            "options": [
+              "6",
+              "5"
+            ],
+            "correct": "6"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "2(3x + 5y) = 2(17) → 6x + 10y = 34; −3(2x + 3y) = −3(11) → −6x − 9y = −33.",
+              "Add: y = 1.",
+              "3x + 5(1) = 17 → x = 4. Check: 2(4) + 3(1) = 11. The solution is (4, 1)."
+            ],
+            "commonError": "Multiplying both equations by positive numbers, so the x-terms add to 12x instead of 0."
+          },
+          "attemptFeedback": [
+            "For the terms to cancel when you add, one multiplier must be negative.",
+            "Multiply the constants too: 2(17) and −3(11)."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-7",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Fractions can cancel too. Solve −(1/2)x + 5y = −6 and (1/2)x + y = −6 using linear combinations, and check your solution in both equations.",
+          "equations": [
+            "-(1/2)x + 5y = -6",
+            "(1/2)x + y = -6"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Look at the x-coefficients, −1/2 and 1/2. What do they add to?",
+            "Add the equations as written to eliminate x.",
+            "Solve for y, then substitute into (1/2)x + y = −6 and solve for x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −1/2 + 1/2 =",
+            "options": [
+              "0",
+              "1"
+            ],
+            "correct": "0"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Add: 6y = −12, so y = −2.",
+              "(1/2)x + (−2) = −6 → (1/2)x = −4 → x = −8.",
+              "Check: −(1/2)(−8) + 5(−2) = 4 − 10 = −6. The solution is (−8, −2)."
+            ],
+            "commonError": "Solving (1/2)x = −4 as x = −2 by dividing by 2 instead of multiplying by 2."
+          },
+          "attemptFeedback": [
+            "The x-coefficients are already opposites: add the equations as written.",
+            "To undo (1/2)x, multiply both sides by 2."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-8",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Error analysis. Jada is solving 5x + 4y = 6 and 2x + y = 3. She multiplied the second equation by −4 and wrote −8x − 4y = 3.",
+          "responses": [
+            {
+              "id": "error",
+              "label": "What did Jada do wrong?",
+              "type": "choice",
+              "options": [
+                "She multiplied the left side by −4 but not the constant 3 on the right side.",
+                "She should have multiplied by 4, because a multiplier must always be a positive number.",
+                "She multiplied the wrong equation: only the first equation can be changed.",
+                "Nothing — the constant stays the same when you multiply an equation."
+              ],
+              "answer": "She multiplied the left side by −4 but not the constant 3 on the right side."
+            },
+            {
+              "id": "fixed",
+              "label": "Write the correct equation after multiplying 2x + y = 3 by −4.",
+              "answer": "-8x - 4y = -12",
+              "inputProfile": "equation",
+              "gradingMode": "sidesAsKeyed"
+            },
+            {
+              "id": "solution",
+              "label": "Finish the problem. The solution of the system (x, y)",
+              "answer": "(2, -1)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "An equation is balanced. If you multiply one side by −4, what must you do to the other side?",
+            "Multiply 2x, y AND 3 by −4.",
+            "Add the corrected equation to 5x + 4y = 6, solve for x, then substitute back into 2x + y = 3."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Jada must multiply both sides: −4(2x + y) = −4(3) → −8x − 4y = −12.",
+              "Add to 5x + 4y = 6: −3x = −6, so x = 2.",
+              "2(2) + y = 3 → y = −1. Check: 5(2) + 4(−1) = 6. The solution is (2, −1)."
+            ],
+            "commonError": "Jada’s slip: with −8x − 4y = 3, adding gives −3x = 9 and x = −3, which fails the check."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. Multiplying 3 by −4 gives…",
+            "options": [
+              "−12",
+              "3"
+            ],
+            "correct": "−12"
+          },
+          "attemptFeedback": [
+            "Multiply the constant on the right side too.",
+            "Check your pair in both ORIGINAL equations."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-9",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve 6x + 3y = 5 and 2x + y = 1 using linear combinations. Decide whether the system has one solution, no solution, or infinitely many solutions.",
+          "equations": [
+            "6x + 3y = 5",
+            "2x + y = 1"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "What number turns 2x into the additive inverse of 6x?",
+            "Multiply every term of 2x + y = 1 by −3, then add. What happens to BOTH variables?",
+            "If every variable cancels, decide whether the statement left is true or false."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If adding the equations leaves a false statement such as 0 = 2, the system has…",
+            "options": [
+              "no solution",
+              "infinitely many solutions"
+            ],
+            "correct": "no solution"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "−3(2x + y) = −3(1) → −6x − 3y = −3.",
+              "Add to 6x + 3y = 5: 0 = 2, which is false.",
+              "No pair makes both equations true: no solution. The lines are parallel (both have slope −2)."
+            ],
+            "commonError": "Deciding the solution is x = 0 and y = 0 because both variables cancelled."
+          },
+          "attemptFeedback": [
+            "Both variables cancelled. Is the statement that is left true or false?",
+            "A false statement with no variable means the lines never meet."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-10",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.3F",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve x + 2y = −6 and 2x + 4y = −12 using linear combinations. Decide whether the system has one solution, no solution, or infinitely many solutions.",
+          "equations": [
+            "x + 2y = -6",
+            "2x + 4y = -12"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "What number turns x into the additive inverse of 2x?",
+            "Multiply every term of x + 2y = −6 by −2, then add. What is left?",
+            "If every variable cancels, decide whether the statement left is true or false."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. If adding the equations leaves a true statement such as 0 = 0, the system has…",
+            "options": [
+              "infinitely many solutions",
+              "no solution"
+            ],
+            "correct": "infinitely many solutions"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "−2(x + 2y) = −2(−6) → −2x − 4y = 12.",
+              "Add to 2x + 4y = −12: 0 = 0, which is always true.",
+              "Every point on the line x + 2y = −6 solves both equations: infinitely many solutions. The two equations describe the same line."
+            ],
+            "commonError": "Deciding there is no solution because no variable is left."
+          },
+          "attemptFeedback": [
+            "Both variables cancelled. Is the statement that is left true or false?",
+            "A true statement with no variable means the equations describe the same line."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-11",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Activity 3.3 — Applying the Linear Combinations Method. A snow resort offers two winter specials. The Get-Away Special offers two nights of lodging and four meals for $270. The Extended Stay Special offers three nights of lodging and eight meals for $435. Let n be the cost of one night of lodging and m the cost of one meal, in dollars.",
+          "responses": [
+            {
+              "id": "getaway",
+              "label": "An equation in standard form for the Get-Away Special",
+              "answer": "2n + 4m = 270",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "extended",
+              "label": "An equation in standard form for the Extended Stay Special",
+              "answer": "3n + 8m = 435",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "compare",
+              "label": "How are the two equations alike, and how are they different?",
+              "type": "choice",
+              "options": [
+                "Both add nights and meals to a total price; the numbers of nights and meals, and the totals, differ.",
+                "Both have a total in dollars, so they describe the same special with the same nights and meals.",
+                "Both are in slope-intercept form; they differ because only the Extended Stay includes meals.",
+                "They differ only in the total price, because both buy the same numbers of nights and meals."
+              ],
+              "answer": "Both add nights and meals to a total price; the numbers of nights and meals, and the totals, differ."
+            },
+            {
+              "id": "plan",
+              "label": "To eliminate m, what is a good first step?",
+              "type": "choice",
+              "options": [
+                "Multiply the Get-Away equation by −2, so 4m becomes −8m.",
+                "Multiply the Extended Stay equation by −2, so 8m becomes −16m.",
+                "Add the equations as written, because both m-terms are positive.",
+                "Multiply the Get-Away equation by 2, so 4m becomes 8m, then add."
+              ],
+              "answer": "Multiply the Get-Away equation by −2, so 4m becomes −8m."
+            }
+          ],
+          "hints": [
+            "Each special’s price is (number of nights)·n + (number of meals)·m. What does the Get-Away Special include?",
+            "Standard form puts both variable terms on the left and the total on the right.",
+            "For m to cancel, 4m must become the additive inverse of 8m. What times 4 is −8?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Get-Away: 2n + 4m = 270. Extended Stay: 3n + 8m = 435.",
+              "Both total the cost of nights and meals; the counts and totals differ.",
+              "Multiplying the first equation by −2 gives −4n − 8m = −540, which cancels 8m when you add."
+            ],
+            "commonError": "Multiplying by 2 instead of −2, so the m-terms add to 16m."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. The cost of 2 nights is…",
+            "options": [
+              "2n",
+              "n + 2"
+            ],
+            "correct": "2n"
+          },
+          "attemptFeedback": [
+            "Each special’s price is (nights)·n + (meals)·m. Check the counts against the sentence.",
+            "For a term to cancel when you add, its two coefficients must be additive inverses."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-12",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the snow-resort system 2n + 4m = 270 and 3n + 8m = 435 using linear combinations, and check both prices in both equations.",
+          "equations": [
+            "2n + 4m = 270",
+            "3n + 8m = 435"
+          ],
+          "variables": [
+            "n",
+            "m"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Which variable is quicker to eliminate: n (2 and 3) or m (4 and 8)?",
+            "Multiply every term of 2n + 4m = 270 by −2, then add it to 3n + 8m = 435.",
+            "Solve for n, then substitute into 2n + 4m = 270 to find m."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −2 times 270 is…",
+            "options": [
+              "−540",
+              "540"
+            ],
+            "correct": "−540"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "−2(2n + 4m) = −2(270) → −4n − 8m = −540.",
+              "Add to 3n + 8m = 435: −n = −105, so n = 105.",
+              "2(105) + 4m = 270 → 4m = 60 → m = 15. Check: 3(105) + 8(15) = 315 + 120 = 435."
+            ],
+            "commonError": "Stopping at −n = −105 and reading the price as −$105."
+          },
+          "attemptFeedback": [
+            "Multiply the constant 270 by your multiplier too.",
+            "Check both prices in BOTH original equations."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-13",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Interpret the snow-resort solution. The system solves to n = 105 and m = 15.",
+          "responses": [
+            {
+              "id": "night",
+              "label": "What does the resort charge for one night of lodging, in dollars?",
+              "answer": "105"
+            },
+            {
+              "id": "meal",
+              "label": "What does the resort charge for one meal, in dollars?",
+              "answer": "15"
+            },
+            {
+              "id": "check",
+              "label": "Check the Extended Stay Special: 3(105) + 8(15) =",
+              "answer": "435"
+            },
+            {
+              "id": "deal",
+              "label": "Is the Extended Stay Special the better deal?",
+              "type": "choice",
+              "options": [
+                "No — both specials charge $105 a night and $15 a meal; the Extended Stay just includes more.",
+                "Yes — it includes more nights and meals for its price, so each night and each meal costs less.",
+                "Yes — the Extended Stay charges less for each meal than the Get-Away Special does.",
+                "No — the Get-Away Special charges less for each night than the Extended Stay Special does."
+              ],
+              "answer": "No — both specials charge $105 a night and $15 a meal; the Extended Stay just includes more."
+            }
+          ],
+          "hints": [
+            "Which variable stands for the cost of a night, and which for a meal?",
+            "Use the same n and m in each special. Does either special get a different price per night or per meal?",
+            "Multiply the number of nights by the price of a night and the number of meals by the price of a meal, then add."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "One night costs $105 and one meal costs $15.",
+              "3(105) + 8(15) = 315 + 120 = 435, which matches the Extended Stay price.",
+              "Both specials use the same prices, so neither is a better deal per night or per meal."
+            ],
+            "commonError": "Deciding the bigger package is cheaper per item without checking the prices."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. In this system, n stands for…",
+            "options": [
+              "the cost of one night",
+              "the number of nights"
+            ],
+            "correct": "the cost of one night"
+          },
+          "attemptFeedback": [
+            "n is a price per night and m is a price per meal — not the number of nights or meals.",
+            "Compare the price per night and per meal in each special, not the total prices."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-14",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Activity 3.4 — Fractions and Linear Combinations. The School Spirit Club has enough beads to make a total of 84 bracelets in two lengths, 5 inches and 7 inches. So far they have made 49 bracelets, which is 1/2 of the 5-inch bracelets plus 3/4 of the 7-inch bracelets they plan to make. Let x be the number of 5-inch bracelets and y the number of 7-inch bracelets they plan to make.",
+          "responses": [
+            {
+              "id": "total",
+              "label": "An equation for the total number of bracelets planned",
+              "answer": "x + y = 84",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "made",
+              "label": "An equation for the 49 bracelets made so far",
+              "answer": "(1/2)x + (3/4)y = 49",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation"
+            },
+            {
+              "id": "who",
+              "label": "Aaliyah says the first step is to multiply the second equation by the LCD of the fractions. Liam says the first step is to multiply the first equation by −1/2. Who is correct?",
+              "type": "choice",
+              "options": [
+                "Both — each move keeps its equation true: Aaliyah clears fractions, and Liam makes the x-terms opposites.",
+                "Only Aaliyah — the linear combinations method cannot be used until every fraction in the system is cleared.",
+                "Only Liam — multiplying an equation by the LCD changes the solution of the whole system.",
+                "Neither — a system with fractions in it has to be solved by graphing instead of combining."
+              ],
+              "answer": "Both — each move keeps its equation true: Aaliyah clears fractions, and Liam makes the x-terms opposites."
+            },
+            {
+              "id": "cleared",
+              "label": "Follow Aaliyah: multiply (1/2)x + (3/4)y = 49 by the LCD, 4. Write the equation without fractions.",
+              "answer": "2x + 3y = 196",
+              "inputProfile": "equation",
+              "gradingMode": "sidesAsKeyed"
+            }
+          ],
+          "hints": [
+            "Which fact is a total, and which says how many have been made so far?",
+            "“1/2 of the 5-inch bracelets” is (1/2)x. What is “3/4 of the 7-inch bracelets”?",
+            "Multiply each term, (1/2)x, (3/4)y and 49, by 4."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Total: x + y = 84. Made so far: (1/2)x + (3/4)y = 49.",
+              "Both first steps keep the equation true, so both are correct.",
+              "4·(1/2)x + 4·(3/4)y = 4·49 → 2x + 3y = 196."
+            ],
+            "commonError": "Multiplying only the fractions by 4 and leaving 49 unchanged: 2x + 3y = 49."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. The least common denominator of 1/2 and 3/4 is…",
+            "options": [
+              "4",
+              "8"
+            ],
+            "correct": "4"
+          },
+          "attemptFeedback": [
+            "“1/2 of the 5-inch bracelets” is (1/2)x; “3/4 of the 7-inch bracelets” is (3/4)y.",
+            "When you multiply by the LCD, multiply the 49 too."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-15",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the bracelet system x + y = 84 and (1/2)x + (3/4)y = 49 using linear combinations in the Systems Workspace. You may clear the fractions first (Aaliyah) or multiply x + y = 84 by −1/2 (Liam). Check your solution in both original equations.",
+          "equations": [
+            "x + y = 84",
+            "(1/2)x + (3/4)y = 49"
+          ],
+          "variables": [
+            "x",
+            "y"
+          ],
+          "method": "elimination",
+          "requireVerification": true,
+          "hints": [
+            "Choose a variable to eliminate. What multiplier makes x’s coefficient in x + y = 84 the additive inverse of 1/2?",
+            "Liam’s way: multiply x + y = 84 by −1/2 and add. Aaliyah’s way: multiply the second equation by 4, then multiply x + y = 84 by −2 and add.",
+            "Solve for y, then substitute into x + y = 84 to find x."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. −1/2 times 84 is…",
+            "options": [
+              "−42",
+              "42"
+            ],
+            "correct": "−42"
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Multiply x + y = 84 by −1/2: −(1/2)x − (1/2)y = −42.",
+              "Add to (1/2)x + (3/4)y = 49: (1/4)y = 7, so y = 28.",
+              "x + 28 = 84 → x = 56. Check: (1/2)(56) + (3/4)(28) = 28 + 21 = 49."
+            ],
+            "commonError": "Adding 1/2 and 3/4 incorrectly when combining the y-terms: (3/4)y − (1/2)y = (1/4)y."
+          },
+          "attemptFeedback": [
+            "Multiply every term, the constant included, by your multiplier.",
+            "Check your pair in both ORIGINAL equations, the one with fractions too."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-16",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Interpret the bracelet solution. The system solves to x = 56 and y = 28.",
+          "responses": [
+            {
+              "id": "meaning",
+              "label": "What does the solution mean?",
+              "type": "choice",
+              "options": [
+                "The club plans to make 56 five-inch bracelets and 28 seven-inch bracelets.",
+                "The club plans to make 28 five-inch bracelets and 56 seven-inch bracelets.",
+                "The club has already made 56 five-inch and 28 seven-inch bracelets.",
+                "The club needs 56 more bracelets, 28 of them 7 inches long."
+              ],
+              "answer": "The club plans to make 56 five-inch bracelets and 28 seven-inch bracelets."
+            },
+            {
+              "id": "fiveMade",
+              "label": "How many 5-inch bracelets has the club made so far? (Half of the planned 5-inch bracelets.)",
+              "answer": "28"
+            },
+            {
+              "id": "left",
+              "label": "How many bracelets does the club still need to make?",
+              "answer": "35"
+            }
+          ],
+          "hints": [
+            "x is the number of 5-inch bracelets PLANNED, not the number made so far.",
+            "Half of the planned 5-inch bracelets have been made. What is half of 56?",
+            "The club plans 84 bracelets in all and has made 49."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "x = 56 five-inch and y = 28 seven-inch bracelets are planned.",
+              "Made so far: (1/2)(56) = 28 five-inch and (3/4)(28) = 21 seven-inch, for 49 in all.",
+              "Still to make: 84 − 49 = 35 bracelets."
+            ],
+            "commonError": "Treating the planned numbers as the bracelets already made."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. In this system, x stands for…",
+            "options": [
+              "the number of 5-inch bracelets planned",
+              "the number of 5-inch bracelets made so far"
+            ],
+            "correct": "the number of 5-inch bracelets planned"
+          },
+          "attemptFeedback": [
+            "x and y are the bracelets PLANNED, not the ones already made.",
+            "Bracelets still to make = planned total − bracelets made so far."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-17",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Talk the Talk — There’s a Method in My Madness. You have three methods for solving a system: graphing, substitution and linear combinations. For each method, choose when it is most appropriate.",
+          "responses": [
+            {
+              "id": "graphing",
+              "label": "Graphing is most appropriate when…",
+              "type": "choice",
+              "options": [
+                "both equations are easy to graph, as in slope-intercept form, and an estimate of the solution is enough.",
+                "you need an exact solution with fractions, because a graph shows every fraction exactly at the crossing.",
+                "one equation is already solved for a variable, because then the other line cannot be drawn.",
+                "a variable has opposite coefficients, because lines with opposite coefficients are easiest to draw."
+              ],
+              "answer": "both equations are easy to graph, as in slope-intercept form, and an estimate of the solution is enough."
+            },
+            {
+              "id": "substitution",
+              "label": "Substitution is most appropriate when…",
+              "type": "choice",
+              "options": [
+                "one equation is already solved for a variable, or a variable has a coefficient of 1 or −1.",
+                "both equations are in standard form with large coefficients on every variable, like 7x + 9y = 4.",
+                "a variable has opposite coefficients, because substitution works by adding the equations.",
+                "you only need an estimate of the solution, because substitution gives approximate answers."
+              ],
+              "answer": "one equation is already solved for a variable, or a variable has a coefficient of 1 or −1."
+            },
+            {
+              "id": "combinations",
+              "label": "Linear combinations is most appropriate when…",
+              "type": "choice",
+              "options": [
+                "both equations are in standard form and a variable’s coefficients are, or can be made, opposites.",
+                "one equation is already solved for y, because then neither equation needs to be multiplied.",
+                "the equations have no constant terms, because constants cannot be added together in a system.",
+                "you want to see where the two lines cross, because adding equations draws both lines at once."
+              ],
+              "answer": "both equations are in standard form and a variable’s coefficients are, or can be made, opposites."
+            },
+            {
+              "id": "pick",
+              "label": "Which method is most efficient for 5x + 3y = 9 and 2x − 3y = 12?",
+              "type": "choice",
+              "options": [
+                "Linear combinations — 3y and −3y are additive inverses, so adding the equations cancels y.",
+                "Substitution — x has a coefficient of 1 in one equation, so it is quick to isolate.",
+                "Graphing — both equations are in slope-intercept form, so each line is quick to draw by hand.",
+                "Substitution — both equations are already solved for y, so substitute right away."
+              ],
+              "answer": "Linear combinations — 3y and −3y are additive inverses, so adding the equations cancels y."
+            },
+            {
+              "id": "solve",
+              "label": "Use the method you chose. The solution of 5x + 3y = 9 and 2x − 3y = 12 (x, y)",
+              "answer": "(3, -2)",
+              "answerFormat": "orderedPair"
+            }
+          ],
+          "hints": [
+            "Think about the form of each equation. What does each method need to get started?",
+            "Substitution starts by isolating a variable. When is that quick?",
+            "Linear combinations starts by making a pair of coefficients additive inverses. When are they already close?"
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Graphing: easy to graph, shows the solution, but may only estimate it.",
+              "Substitution: one equation solved (or easy to solve) for a variable.",
+              "Linear combinations: standard form, with coefficients that are or can be made additive inverses. For 5x + 3y = 9 and 2x − 3y = 12, adding cancels y: 7x = 21, so x = 3, and 5(3) + 3y = 9 gives y = −2."
+            ],
+            "commonError": "Choosing graphing for systems whose solution has fractions, where a graph only estimates it."
+          },
+          "scaffold": {
+            "prompt": "Let’s back up. A system with 4y and −4y is quickest to solve by…",
+            "options": [
+              "linear combinations",
+              "graphing"
+            ],
+            "correct": "linear combinations"
+          },
+          "attemptFeedback": [
+            "Think about what each method needs to get started: a graph, an isolated variable, or additive-inverse coefficients.",
+            "After you add the equations, check your pair in both of them."
+          ]
+        },
+        {
+          "questionId": "m3t2l3-pr-18",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "{{situation}} Write a system of equations for the situation, solve it using linear combinations, and answer the last question.",
+          "questionFamily": {
+            "id": "systems.contextModel",
+            "constraints": {
+              "shape": "sumAndTotal"
+            }
+          },
+          "hints": [
+            "What two facts does the situation give: a count of items, and a total cost?",
+            "Write one equation for the count and one for the money. Then multiply the count equation so one variable’s coefficients are additive inverses.",
+            "Add, solve, substitute back, and check both values in both equations before answering the last question."
+          ],
+          "scaffold": {
+            "prompt": "Let’s back up. An equation for the number of items adds…",
+            "options": [
+              "the two counts",
+              "the two prices"
+            ],
+            "correct": "the two counts"
+          },
+          "attemptFeedback": [
+            "Check each equation against the situation: does it say the same thing as the sentence it came from?",
+            "Substitute your two values into both of your equations. Both must be true."
+          ],
+          "solutionReview": {
+            "reasoning": [
+              "Count equation: (first count) + (second count) = total items.",
+              "Money equation: (price)·(first count) + (price)·(second count) = total paid.",
+              "Multiply the count equation by the opposite of one price, add, solve, and substitute back."
+            ],
+            "commonError": "Putting the total money in the count equation."
+          }
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Solving Systems by Linear Combinations",
+      "recommendedMinutes": 10,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "m3t2l3-dol-1",
+          "standard": "A.5C",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "primary"
+            }
+          ],
+          "studentActions": [
+            "solveSystem"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "Solve the system {{system}} using linear combinations, and check your solution in both equations.",
+          "questionFamily": {
+            "id": "systems.algebraic2x2",
+            "constraints": {
+              "solutionCase": "one",
+              "solutionForm": "integer"
+            }
+          },
+          "method": "elimination",
+          "requireVerification": true,
+          "solutionReview": {
+            "reasoning": [
+              "Choose a variable and multiply one or both equations so its coefficients are additive inverses.",
+              "Add the equations and solve for the variable that is left.",
+              "Substitute back to find the other variable, and check the pair in both original equations."
+            ],
+            "commonError": "Multiplying the left side of an equation but not the constant on the right."
+          }
+        },
+        {
+          "questionId": "m3t2l3-dol-2",
+          "standard": "A.2I",
+          "alignments": [
+            {
+              "framework": "teks",
+              "code": "A.2I",
+              "role": "primary"
+            },
+            {
+              "framework": "teks",
+              "code": "A.5C",
+              "role": "secondary"
+            }
+          ],
+          "studentActions": [
+            "multipleResponses"
+          ],
+          "dok": 2,
+          "difficultyBand": 3,
+          "prompt": "{{situation}} Write a system of equations for the situation, solve it using linear combinations, and answer the last question.",
+          "questionFamily": {
+            "id": "systems.contextModel",
+            "constraints": {
+              "shape": "sumAndTotal"
+            }
+          },
+          "solutionReview": {
+            "reasoning": [
+              "Count equation: (first count) + (second count) = total items.",
+              "Money equation: (price)·(first count) + (price)·(second count) = total paid.",
+              "Multiply the count equation by the opposite of one price, add to eliminate that variable, solve, substitute back, and answer the last question."
+            ],
+            "commonError": "Putting the total money in the count equation."
+          }
+        }
+      ]
+    }
+  ]
+}

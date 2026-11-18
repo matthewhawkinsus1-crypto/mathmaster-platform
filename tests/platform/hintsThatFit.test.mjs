@@ -233,8 +233,10 @@ test('over every real lesson, every teacher-written hint is shown, and none of t
   // ALEKS bridge's PR 3, which showed only fallbacks), and the Step Algebra
   // version of Solving Radical Equations — Honors 51 (the same hints as the
   // analyzer version's, which is among the 272), every one shown (none is
-  // in BASE_DROPPED, and nowDropped is unchanged).
-  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370 + 21 + 51);
+  // in BASE_DROPPED, and nowDropped is unchanged), and the Algebra I Module 3
+  // Topic 2 Lesson 3, Solving Systems by Linear Combinations, 84 (three on
+  // each of its 28 Warm-Up, Classwork and Practice questions), every one shown.
+  assert.equal(total, 200 + 87 + 90 + 39 + 66 + 44 + 417 + 430 + 229 + 272 + 58 + 227 + 370 + 21 + 51 + 84);
   assert.equal(BASE_DROPPED.length, 32);
   // The Lesson 3 Honors file repeats the Regular lesson's questions (and their
   // ids), so each hint that is shown now is listed once, not once per file.
