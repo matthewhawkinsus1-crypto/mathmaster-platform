@@ -35,14 +35,18 @@ const SCENES = [
   {
     name: 'progress',
     ready: 'Skills that moved most',
+    // Weeks hit: five weeks have a goal, and the week in progress (1 of 4 done)
+    // is not a miss, so the count is of the four closed weeks, three of them
+    // hit (functions/shared/weeklyPathHistory.mjs, `weeksCounted`). "3 of 5"
+    // would count this week as missed.
     mustContain: [
       'My Progress', 'This week vs 4 weeks ago', 'Skills mastered', 'Average score', 'Skills practised',
       'On the 4 skills you had started by then', 'Skills that moved most', 'Newly mastered',
-      'Weekly Path', '2 weeks in a row', '3 of 5 recent weeks hit', 'This week', '1 of 4 done so far',
+      'Weekly Path', '2 weeks in a row', '3 of 4 recent weeks hit', 'This week', '1 of 4 done so far',
       'Week of Sep 28', 'Goal hit', 'Week of Sep 14', 'Not finished', '2 of 4 done by the deadline', 'Grade',
       'Go to this week',
     ],
-    mustNotContain: ['NaN', 'undefined', 'Path Pass', 'Mastery challenge', 'Week of Aug 31'],
+    mustNotContain: ['NaN', 'undefined', 'Path Pass', 'Mastery challenge', 'Week of Aug 31', '3 of 5 recent weeks hit'],
   },
   {
     name: 'progressNewStudent',
