@@ -44,6 +44,7 @@ import { branchRestartedBy, buildWorkflowReviewState, firstIncorrectWorkflowInde
 import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
+import { useStepRoom } from './useStepRoom.js';
 import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
 import { scrollMotion } from '../../motionPreference.js';
 import './WorkflowFocusMode.css';
@@ -1274,6 +1275,10 @@ export default function WorkflowRunner({
     stageNavigationRequestedRef.current = false;
     bringActiveStageIntoView(focusRootRef.current);
   }, [activeStageIndex]);
+  // In Work View: whether the step has the height to be bounded, and how tall
+  // its plane may be, as the step is laid out (stepRoom.js, WorkViewShell.css).
+  const { enlarged: inWorkView } = useWorkViewPresentation();
+  const stepRoom = useStepRoom(focusRootRef, { enlarged: inWorkView, stepKey: String(activeStageIndex) });
   // The step strip scrolls sideways on a phone; keep the current step's tab in
   // it. Only the strip moves: a step that opened past the right edge left the
   // student with no tab showing where they were.
@@ -1537,7 +1542,13 @@ export default function WorkflowRunner({
   );
 
   return (
-    <div ref={focusRootRef} className="workflow-focus" data-family={activeFamily}>
+    <div
+      ref={focusRootRef}
+      className="workflow-focus"
+      data-family={activeFamily}
+      data-step-room={stepRoom.flow ? 'flow' : undefined}
+      style={stepRoom.planeMax != null ? { '--mm-step-plane-max': `${stepRoom.planeMax}px` } : undefined}
+    >
       {promptAndScenario}
 
       <div

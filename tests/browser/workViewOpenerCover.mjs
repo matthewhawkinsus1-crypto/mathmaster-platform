@@ -3,7 +3,7 @@
  *
  *   npx vite --config tests/browser/forcedColors.vite.config.mjs --host 127.0.0.1 --port 5198 --strictPort &   # stubbed harnesses
  *   npx vite --config tests/browser/teacherWorkflow/vite.config.mjs &                                          # the real app, in memory
- *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,scroll] [--only=<surface>,...] [--sizes=<size>,...]
+ *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,scroll,staged] [--only=<surface>,...] [--sizes=<size>,...]
  *
  *   AUDIT_ORIGIN (default http://127.0.0.1:5198: any server of the repository with its services stubbed, as the
  *   accessibility certification serves them), TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188),
@@ -31,9 +31,14 @@
  *   scroll  With Work View open on a 390x844, 360x740 and 320x568 phone, a 1366x768 Chromebook and a 1920x1080
  *           desktop, for every plane tool, the table tools and the Step Algebra boards: the view itself is the one
  *           thing that scrolls up and down (no scroller inside a scroller), and the plane fits the height it is
- *           given (#386 R10), but for a staged question's plane, which is reported (KNOWN_SCROLL, left for the
- *           owner). A row wider than a phone that scrolls sideways (a long formula, a source-data list) is
- *           reported, not failed: it is a region of its own the keyboard scrolls.
+ *           given (#386 R10). A row wider than a phone that scrolls sideways (a long formula, a source-data list)
+ *           is reported, not failed: it is a region of its own the keyboard scrolls.
+ *   staged  With Work View open on every step of the staged questions (WorkflowRunner's focus mode), on the three
+ *           phones at 100% and 200% text, a Chromebook at both and a desktop: the step has the height to be worked
+ *           in (a bounded step at least 200px, or the view scrolling as one), no scroller inside a scroller, and
+ *           the step's plane fits its scroller together with the row of its own controls under it, wherever the
+ *           room holds both with the plane at its 160px floor (src/platform/workflow/stepRoom.js). A step whose content is taller than its room even so (the plotting
+ *           step's point cards) is reported: it scrolls, its own step or the view.
  *
  * NOTHING LEAVES LOCALHOST: every context aborts non-local requests.
  */
@@ -45,6 +50,7 @@ import { openCues } from './colourAloneCues.mjs';
 import { openCompletedSection } from './accessibilityCertification.mjs';
 import { MATH_TOOLS_LAB_SCREEN } from './accessibilityTeacherScreens.mjs';
 import { newSchoolContext } from './teacherWorkflow/schoolClock.mjs';
+import { PLANE_MIN, STEP_MIN_ROOM } from '../../src/platform/workflow/stepRoom.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
@@ -413,20 +419,14 @@ export const SCROLL_SCENES = Object.freeze([
 ]);
 
 /*
- * LEFT FOR THE OWNER, AND SAID SO ON EVERY RUN.
+ * LEFT FOR THE OWNER, AND SAID SO ON EVERY RUN: nothing now.
  *
- * A staged question's step (WorkflowRunner's focus mode, a graph to build and describe) is the one thing that
- * scrolls in its Work View, as R10 asks, but its plane does not fit the step: WorkViewShell.css caps the plane at
- * the view's height less 280px, an estimate of the chrome made before the first-hint offer took a row under the
- * Previous/Next footer. At 1366x768 the plane is 488px in a 430px step, at 1920x1080 765px in 742px, and on a
- * 320x568 phone the regular chrome leaves the step no height at all. A fix needs the step's own height (a
- * measured height, or the step as a size container) rather than an estimate: the owner's call (the November
- * handoff, section 6). Each entry is reported, not failed; an entry that no longer happens fails the run, so it
- * goes when it is fixed.
+ * A staged question's plane did not fit its step (the plane capped at the view less 280px, an estimate: 488px in a
+ * 430px step at 1366x768, 765px in 742px at 1920x1080, and on a 320x568 phone no step at all). The step is measured
+ * now (src/platform/workflow/stepRoom.js) and the three entries are gone, so the run fails on each again. An entry
+ * here is reported instead of failed, and fails the run once it no longer happens.
  */
-export const KNOWN_SCROLL = Object.freeze({
-  'legacy-functionCharacteristics': Object.freeze(['320x568', '1366x768', '1920x1080']),
-});
+export const KNOWN_SCROLL = Object.freeze({});
 
 const MEASURE_SCROLL = () => {
   const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
@@ -500,6 +500,117 @@ const runScroll = async (browser, origins, size) => {
   return { check: 'scroll', surface: 'assignment', size: size.id, scenes, known, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
 };
 
+// ------------------------------------------------------------------------------------------------ staged steps
+// The staged questions the harness mounts (the authoring catalog's examples), every step of each, opened on that step
+// through its draft (window.__ux.atStep): a step shows whether or not the steps before it are answered.
+export const STAGED_SCENES = Object.freeze(['legacy-functionCharacteristics', 'legacy-relationshipModel']);
+// The phones at 100% and 200% text, a Chromebook at both, and a desktop.
+export const STAGED_SIZES = Object.freeze([
+  ...SIZES,
+  Object.freeze({ id: '1366x768@200%', width: 1366, height: 768, phone: false, textScale: 2 }),
+  Object.freeze({ id: '1920x1080', width: 1920, height: 1080, phone: false, textScale: 1 }),
+]);
+
+const MEASURE_STEP = () => {
+  const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+  const root = host?.querySelector('.workflow-focus');
+  if (!root) return { open: Boolean(host), staged: false };
+  const surface = host.querySelector('.mathmaster-work-view-surface');
+  const body = root.querySelector('.workflow-focus__workspace-body');
+  const stage = root.querySelector('.workflow-focus__active-stage');
+  const scrolls = (element) => /(auto|scroll)/.test(getComputedStyle(element).overflowY) && element.scrollHeight > element.clientHeight + 1;
+  const name = (element) => element.getAttribute('aria-label')
+    || `${element.tagName.toLowerCase()}${typeof element.className === 'string' && element.className.trim() ? `.${element.className.trim().split(/\s+/)[0]}` : ''}`;
+  const nested = [];
+  for (const element of surface.querySelectorAll('*')) {
+    if (!scrolls(element)) continue;
+    for (let node = element.parentElement; node && node !== host; node = node.parentElement) {
+      if (scrolls(node)) { nested.push(`${name(element)} (${element.clientHeight} of ${element.scrollHeight}px) inside ${name(node)}`); break; }
+    }
+  }
+  const flow = root.getAttribute('data-step-room') === 'flow';
+  const heading = (root.querySelector('.workflow-focus__workspace-heading h4') || root.querySelector('h4'))?.textContent.trim() || '';
+  const step = { heading, flow, body: [body.clientHeight, body.scrollHeight], nested, plane: null };
+  // The step scrolls inside itself (bounded), or is taller than the view (flow).
+  step.scrollsBy = flow ? Math.max(0, stage.offsetHeight - surface.clientHeight) : Math.max(0, body.scrollHeight - body.clientHeight);
+  const planes = [...stage.querySelectorAll('.mathmaster-function-workspace-graph svg, svg.mathmaster-responsive-canvas')]
+    .map((svg) => ({ svg, box: svg.getBoundingClientRect() }))
+    .filter(({ box }) => box.width > 80 && box.height > 80)
+    .sort((a, b) => b.box.width * b.box.height - a.box.width * a.box.height);
+  if (planes[0]) {
+    const { svg, box } = planes[0];
+    let scroller = svg.parentElement;
+    while (scroller && scroller !== host && !scrolls(scroller)) scroller = scroller.parentElement;
+    const room = scroller && scroller !== host ? scroller.clientHeight : surface.clientHeight;
+    // Its own controls: the first row of buttons right under it, in the first box above it that is taller.
+    let own = svg.parentElement;
+    while (own && own !== stage && own.getBoundingClientRect().height <= box.height + 1) own = own.parentElement;
+    const controls = [...(own || stage).querySelectorAll('button')].map((button) => button.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.height > 0 && r.top >= box.bottom - 1 && r.top <= box.bottom + 32)
+      .reduce((bottom, r) => Math.max(bottom, r.bottom), box.bottom);
+    step.plane = {
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+      room: Math.round(room),
+      withControls: Math.round(controls - box.top),
+    };
+  }
+  return { open: true, staged: true, ...step };
+};
+
+const runStaged = async (browser, origins, size) => {
+  const { context, page, errors } = await newPage(browser, size);
+  const problems = [];
+  const steps = {};
+  const scrolling = [];
+  const cramped = [];
+  try {
+    const ids = await openAssignment(page, origins.audit);
+    if (size.textScale !== 1 && !(await textScaleApplied(page, size))) problems.push('the text-size setting did not apply');
+    const elsewhere = ids.find((id) => !STAGED_SCENES.includes(id));
+    for (const id of STAGED_SCENES) {
+      await goToQuestion(page, id);
+      const count = await page.evaluate((qid) => document.querySelectorAll(`[data-question-id="${qid}"] .workflow-focus__active-stage > *`).length, id);
+      if (!count) { problems.push(`${id}: no staged steps to read`); continue; }
+      for (let index = 0; index < count; index += 1) {
+        // Mounted again on this step.
+        await goToQuestion(page, elsewhere);
+        await page.evaluate(([qid, at]) => window.__ux.atStep(qid, at), [id, index]);
+        await goToQuestion(page, id);
+        await page.locator(`[data-question-id="${id}"] .mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button.mathmaster-work-view-opener`).first()
+          .evaluate((button) => button.click());
+        await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ timeout: 30_000 });
+        await settled(page, 1200);
+        const m = await page.evaluate(MEASURE_STEP);
+        const where = `${id} step ${index + 1}${m.heading ? ` (${m.heading.replace(/^Step \d+\.\s*/, '')})` : ''}`;
+        steps[`${id}#${index + 1}`] = m;
+        if (!m.staged) problems.push(`${where}: Work View did not open on the staged step`);
+        else {
+          if (!m.flow && m.body[0] < STEP_MIN_ROOM) problems.push(`${where}: the step has ${m.body[0]}px of the view, and the view does not scroll as one`);
+          m.nested.forEach((entry) => problems.push(`${where}: ${entry}`));
+          if (m.plane && m.plane.height > m.plane.room + 1) problems.push(`${where}: the plane is ${m.plane.height}px tall and its step shows ${m.plane.room}px`);
+          else if (m.plane && m.plane.withControls > m.plane.room + 1) {
+            // Its controls with it wherever the room holds them and a plane at its floor (stepRoom.js PLANE_MIN); a view
+            // shorter than that (the Work View at 320x568 with 200% text is 172px) keeps the plane whole, and says so.
+            const controls = m.plane.withControls - m.plane.height;
+            if (m.plane.room >= PLANE_MIN + controls) problems.push(`${where}: the plane and its controls under it are ${m.plane.withControls}px, and its step shows ${m.plane.room}px`);
+            else cramped.push(`${where}: ${m.plane.room}px, the plane ${m.plane.height}px and its controls ${controls}px`);
+          }
+          if (m.scrollsBy > 1) scrolling.push(`${where} by ${m.scrollsBy}px`);
+        }
+        await page.evaluate(() => [...document.querySelectorAll('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header button')].find((button) => button.textContent.trim().startsWith('Close'))?.click());
+        await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
+        await settled(page, 200);
+      }
+    }
+  } catch (error) {
+    problems.push(`could not read the staged steps: ${error.message.split('\n')[0]}`);
+  } finally {
+    await context.close();
+  }
+  return { check: 'staged', surface: 'assignment', size: size.id, steps, scrolling, cramped, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
+};
+
 // ------------------------------------------------------------------------------------------------ the run
 const KIND_WORDS = {
   text: 'text', point: 'a point', 'point-name': 'a point\'s name', 'axis-label': 'an axis label', 'curve-name': 'a curve\'s name',
@@ -527,6 +638,8 @@ const say = (result) => {
   const problems = problemsOf(result);
   const summary = result.check === 'cover'
     ? `${result.scenes} scenes, ${result.openers} openers (${result.stacked} on a row of their own): ${result.covered.length} covered${result.over.length ? `, ${result.over.length} drawn over the opener while it scrolls under a bar` : ''}`
+    : result.check === 'staged'
+      ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane${result.cramped?.length ? `; a view too short for a plane at its floor and its controls together (the plane whole): ${result.cramped.join(', ')}` : ''}${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
     : result.check === 'scroll'
       ? `${Object.keys(result.scenes).length} Work Views${Object.values(result.scenes).some((scene) => scene.sideways?.length) ? `; sideways: ${[...new Set(Object.values(result.scenes).flatMap((scene) => scene.sideways || []))].join(', ')}` : ''}${result.known?.length ? `; left for the owner: ${result.known.join('; ')}` : ''}`
       : `${Object.keys(result.readings).length} states${result.cutWithProgress?.length ? `; with progress shown, cut by the screen: ${result.cutWithProgress.join(', ')}` : ''}`;
@@ -536,7 +649,7 @@ const say = (result) => {
 
 const main = async () => {
   const arg = (name) => process.argv.find((entry) => entry.startsWith(`--${name}=`))?.slice(name.length + 3) || null;
-  const checks = new Set((arg('check') || 'cover,badges,scroll').split(','));
+  const checks = new Set((arg('check') || 'cover,badges,scroll,staged').split(','));
   const only = new Set((arg('only') || '').split(',').filter(Boolean));
   const sizesWanted = new Set((arg('sizes') || '').split(',').filter(Boolean));
   const sized = (list) => list.filter((size) => !sizesWanted.size || sizesWanted.has(size.id));
@@ -564,6 +677,9 @@ const main = async () => {
   if (checks.has('scroll') && (!only.size || only.has('assignment'))) {
     for (const size of sized(SCROLL_SIZES)) tasks.push(() => runScroll(browser, origins, size));
   }
+  if (checks.has('staged') && (!only.size || only.has('assignment'))) {
+    for (const size of sized(STAGED_SIZES)) tasks.push(() => runStaged(browser, origins, size));
+  }
   let results = [];
   try {
     results = await pool(tasks, Number(process.env.OPENER_COVER_CONCURRENCY) || 3, say);
@@ -577,7 +693,7 @@ const main = async () => {
     console.log(`What Work View's opener covers: ${failed} reading(s) failed.`);
     process.exitCode = 1;
   } else {
-    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View.');
+    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, and its plane fits it.');
   }
 };
 

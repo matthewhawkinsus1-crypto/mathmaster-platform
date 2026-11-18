@@ -125,8 +125,9 @@ test('a portrait Work View puts the plane before the point list at every width, 
   // The old sidebar-first rule tied with App.css's graph-first rule, so DOM
   // order put the five point cards above the plane.
   assert.doesNotMatch(css, /\.mathmaster-function-workspace-sidebar \{\s*order: -1;/);
-  // The plane never outgrows the stage body it scrolls in.
-  assert.match(css, /\.workflow-focus__active-stage \.mathmaster-function-workspace-graph svg \{\s*max-height: max\(200px, calc\(var\(--mm-work-view-height, 100dvh\) - 280px\)\);/);
+  // The plane never outgrows the stage body it scrolls in: the body as the runner measures it (stepRoom.js), the old
+  // estimate of the chrome only until it has (stagedStepRoom.test.mjs holds the rule).
+  assert.match(css, /\.workflow-focus__active-stage \.mathmaster-function-workspace-graph svg,\n\[data-open="true"\] \.mathmaster-work-view-surface \.workflow-focus__active-stage svg\.mathmaster-responsive-canvas \{\s*max-height: var\(--mm-step-plane-max, max\(200px, calc\(var\(--mm-work-view-height, 100dvh\) - 280px\)\)\);/);
 
   const app = read('src/App.css');
   const enlarged = app.slice(app.indexOf('ENLARGING A PLOTTING WORKSPACE ON A PHONE'), app.indexOf('Enlarged domain/range analysis'));

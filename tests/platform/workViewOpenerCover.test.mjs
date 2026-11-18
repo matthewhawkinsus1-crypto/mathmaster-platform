@@ -186,7 +186,7 @@ test('in Work View a region the keyboard scrolls takes its own height: the view 
 /* ------------------------------------------------- the browser sweep, wired into CI */
 
 test('the sweep reads every surface the opener floats over, at the phones, at 200% text and on a Chromebook', async () => {
-  const { SIZES, SCROLL_SIZES, SURFACES, SCROLL_SCENES, HEADER_ITEMS } = await import('../browser/workViewOpenerCover.mjs');
+  const { SIZES, SCROLL_SIZES, SURFACES, SCROLL_SCENES, HEADER_ITEMS, KNOWN_SCROLL, STAGED_SCENES, STAGED_SIZES } = await import('../browser/workViewOpenerCover.mjs');
   assert.deepEqual(SIZES.map((size) => size.id), ['390x844', '360x740', '320x568', '390x844@200%', '360x740@200%', '320x568@200%', '1366x768']);
   assert.ok(SIZES.filter((size) => size.phone).every((size) => size.width <= 390));
   assert.deepEqual(SCROLL_SIZES.map((size) => size.id), ['390x844', '360x740', '320x568', '1366x768', '1920x1080']);
@@ -207,6 +207,19 @@ test('the sweep reads every surface the opener floats over, at the phones, at 20
   for (const id of ['tool-graphing2', 'tool-transformationsLab', 'tool-systemsWorkspace', 'tool-dataModelingLab', 'tool-linearTableWorkbench', 'tool-stepAlgebra2', 'legacy-stepAlgebra']) {
     assert.ok(SCROLL_SCENES.includes(id), id);
   }
+  // Nothing is left for the owner: a staged question's plane fits its step now, and the run fails where it does not.
+  assert.deepEqual(KNOWN_SCROLL, {});
+  // Every step of every staged question the harness mounts, at the phones at 100% and 200% text, a Chromebook at both
+  // and a desktop, and by default.
+  assert.deepEqual([...STAGED_SCENES], ['legacy-functionCharacteristics', 'legacy-relationshipModel']);
+  assert.deepEqual(STAGED_SIZES.map((size) => size.id), [...SIZES.map((size) => size.id), '1366x768@200%', '1920x1080']);
+  const sweep = read('tests/browser/workViewOpenerCover.mjs');
+  assert.match(sweep, /const checks = new Set\(\(arg\('check'\) \|\| 'cover,badges,scroll,staged'\)\.split\(','\)\);/);
+  assert.match(sweep, /if \(!m\.flow && m\.body\[0\] < STEP_MIN_ROOM\) problems\.push\(/, 'a step with no room fails');
+  assert.match(sweep, /if \(m\.plane && m\.plane\.height > m\.plane\.room \+ 1\) problems\.push\(/, 'a plane taller than its step fails');
+  assert.match(sweep, /else if \(m\.plane && m\.plane\.withControls > m\.plane\.room \+ 1\) \{[\s\S]*?if \(m\.plane\.room >= PLANE_MIN \+ controls\) problems\.push\(/, 'and one whose controls fall out of a step that could hold them');
+  assert.match(sweep, /m\.nested\.forEach\(\(entry\) => problems\.push\(`\$\{where\}: \$\{entry\}`\)\);/, 'and a scroller inside a scroller');
+  assert.match(read('tests/browser/studentUxPlatformMain.jsx'), /writeQuestionDraft\(`\$\{draftKeyFor\(flat\)\}:workflow-stage`, index, \{ edit: false \}\);/, 'the harness opens a staged question on a chosen step');
   // R17's: the tries line, the completion medallion and the opener are among what is measured.
   for (const kind of ['tries', 'completion medallion', 'section progress', 'closed verdict', 'opener']) assert.ok(kind in HEADER_ITEMS, kind);
   // The assignment harness mounts every registry tool, every Path tool and every legacy question type.
@@ -234,6 +247,8 @@ test('a pull request that changes the sweep, what it reads or what draws it runs
     'tests/platform/fixtures/pathToolQuestions.mjs', 'src/components/common/WorkViewShell.css', 'src/components/common/EnlargeableFigure.jsx',
     'src/QuestionEngine.jsx', 'src/App.css', 'src/GraphScenarioMatch.jsx', 'src/components/labs/InteractiveModelingLabPlayer.jsx',
     'src/components/student/PathQuestionStimulus.jsx', 'src/tools/dataModeling/DataModelingLab.jsx', 'src/GraphDisplay.jsx',
+    'src/platform/workflow/WorkflowRunner.jsx', 'src/platform/workflow/stepRoom.js', 'src/platform/workflow/useStepRoom.js',
+    'src/platform/workflow/WorkflowFocusMode.css',
   ]) {
     assert.ok(runsOnPullRequest('work-view-browser-matrix.yml', file), `a change to ${file} runs the opener sweep`);
   }

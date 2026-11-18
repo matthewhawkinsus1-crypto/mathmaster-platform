@@ -454,6 +454,10 @@ export const CI_AREAS = {
     'src/tools/shared/usePersistentToolState.js',
     'src/tools/toolStatePersistence.js',
     'src/platform/workflow/WorkflowRunner.jsx',
+    // A staged step's room in Work View: measured by the runner, laid out by WorkViewShell.css (opener sweep, staged).
+    'src/platform/workflow/stepRoom.js',
+    'src/platform/workflow/useStepRoom.js',
+    'src/platform/workflow/WorkflowFocusMode.css',
     'src/tools/**',
     'scripts/run-draft-persistence-certification.mjs',
     'scripts/lib/gateServer.mjs',

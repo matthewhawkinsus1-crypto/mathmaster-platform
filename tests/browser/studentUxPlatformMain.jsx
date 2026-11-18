@@ -53,7 +53,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
-import { buildQuestionDraftKey } from '../../src/questionDraftStorage.js';
+import { buildQuestionDraftKey, writeQuestionDraft } from '../../src/questionDraftStorage.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
@@ -415,6 +415,14 @@ window.__ux = {
     try { return JSON.parse(window.localStorage.getItem(`${draftKeyFor(flat)}:work:tool`))?.value ?? null; } catch { return null; }
   },
   grades: () => [...grades],
+  // A staged question opens on this step the next time it is mounted (WorkflowRunner keeps the step a student is on
+  // in its draft, and shows it whether or not the steps before it are answered): a driver can read every step.
+  atStep: (questionId, index) => {
+    const flat = allQuestions.findIndex((entry) => entry.question.questionId === questionId);
+    if (flat === -1) return false;
+    writeQuestionDraft(`${draftKeyFor(flat)}:workflow-stage`, index, { edit: false });
+    return true;
+  },
   question: (questionId) => allQuestions.find((entry) => entry.question.questionId === questionId)?.question || null,
   draftRejections: () => listDraftSyncRejections(),
 };

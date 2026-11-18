@@ -615,13 +615,26 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   order: -1;
 }
 
-/* Never taller than the stage body it scrolls in. At 1366x768 the plane was
-   570px in a 508px body, so its bottom and the point list's Check button were
-   below the fold of the view opened to show it. ~280px is the Work View header,
-   instruction, step heading and Previous/Next footer. Clicks stay exact on the
-   resulting letterboxed plane (responsiveCoordinates.js). */
-[data-open="true"] .workflow-focus__active-stage .mathmaster-function-workspace-graph svg {
-  max-height: max(200px, calc(var(--mm-work-view-height, 100dvh) - 280px));
+/*
+ * A STAGED STEP'S PLANE FITS THE STEP, AS THE STEP IS MEASURED.
+ *
+ * Never taller than the step it is drawn in. The plane was capped at the view's
+ * height less 280px, an estimate of the Work View header, instruction, step
+ * heading and Previous/Next footer made before the first-hint offer took a row
+ * under the footer, and a plane a step marks or reads (GraphFeatureSelectStage)
+ * at 88% of the screen: at 1366x768 the plotting step's plane was 488px in a
+ * 430px step and a "decide" step's 676px, its Yes and No 750px down; at
+ * 1920x1080 765px in 742px. The runner now measures the step as it is laid out
+ * and publishes --mm-step-plane-max (stepRoom.js, useStepRoom.js): as tall as
+ * lets the step's whole content fit, its controls and answers with it, and
+ * where a column beside the plane is taller than the step, as tall as keeps
+ * the plane whole in it. The estimate is only the first frame's, before the
+ * step is measured. Clicks stay exact on the resulting letterboxed plane
+ * (responsiveCoordinates.js).
+ */
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus__active-stage .mathmaster-function-workspace-graph svg,
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus__active-stage svg.mathmaster-responsive-canvas {
+  max-height: var(--mm-step-plane-max, max(200px, calc(var(--mm-work-view-height, 100dvh) - 280px)));
 }
 
 /* Phones still need both the reference and the current response visible at
@@ -647,9 +660,9 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+  [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface .workflow-focus__active-stage
     .mathmaster-function-workspace-graph svg {
-    max-height: min(42dvh, 320px);
+    max-height: min(42dvh, 320px, var(--mm-step-plane-max, 320px));
   }
 
   [data-open="true"] .workflow-focus__progress-text {
@@ -677,9 +690,9 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
     gap: 8px !important;
   }
 
-  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+  [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface .workflow-focus__active-stage
     .mathmaster-function-workspace-graph svg {
-    max-height: 56dvh;
+    max-height: min(56dvh, var(--mm-step-plane-max, 56dvh));
   }
 }
 
@@ -734,6 +747,39 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   .workflow-focus {
   height: 100%;
   min-height: 0;
+}
+
+/*
+ * TOO SHORT FOR A BOUNDED STEP: THE VIEW SCROLLS AS ONE.
+ *
+ * Bounded, the step gets the height the chrome leaves it. On a 320x568 phone,
+ * and on every phone at 200% text, the task, the instruction, the step heading,
+ * Previous/Next and the hint offer took all of it: the step was 0px tall, and
+ * its table, its plane and its inputs could not be reached at all. Where the
+ * bounded step would have less than 200px, the runner marks it
+ * data-step-room="flow" (stepRoom.js): the view scrolls as one document, the
+ * step takes its content's height and is never a scroller inside the view, and
+ * Previous/Next follow the step. Not pinned: at 200% text the footer is a third
+ * of a phone's view, and a pinned one covered the plane the view brought into
+ * sight.
+ */
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) {
+  overflow-y: auto !important;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace,
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace > fieldset {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace > fieldset > div,
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus[data-step-room="flow"],
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus[data-step-room="flow"] .workflow-focus__workspace,
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus[data-step-room="flow"] .workflow-focus__workspace-body {
+  flex: 0 0 auto;
+  height: auto;
+  overflow: visible;
 }
 
 /*
