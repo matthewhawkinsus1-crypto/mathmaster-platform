@@ -38,7 +38,10 @@
 //           before its next frame): the box is there but has not yet been
 //           given the cursor, which waits for a frame. The 5 goes into the
 //           box, and the box has the cursor. (A Chromebook: a phone types on
-//           the keypad the box brings.)
+//           the keypad the box brings.) Then "(-5)", "(", "pi" and "sqrt(2)",
+//           every key typed before the frame: each gives what the same keys
+//           give once the box has the cursor (measured first, on a fresh
+//           stage), a key pressed in the box, not text put in it.
 //   check   a whole step on the standalone board: Divide, 5, placed on both
 //           sides, the 5s crossed out, 7 typed in the simplification box, then
 //           checked with Enter or with Check my simplification (a phone taps
@@ -285,6 +288,10 @@ for (const journey of ['plain', 'cold', 'steps', 'list']) {
 
 /* ======================================================== a blind digit */
 
+// Typed before the frame in `blind`, after the digit: a pair opened, a pair
+// left open, and two of MathLive's inline shortcuts.
+const BLIND_OPERANDS = ['(-5)', '(', 'pi', 'sqrt(2)'];
+
 // Where the cursor is: the operation box, or what else holds it.
 const cursorOn = (page) => page.evaluate(() => {
   let active = document.activeElement;
@@ -328,6 +335,56 @@ if (wanted('blind') && deviceNames.includes('chromebook')) {
     }
     const { runs, lost } = tally[label] || { runs: 0, lost: 0 };
     check(lost === 0, `${label}: ${runs - lost} of ${runs} digits typed before a frame are in the box (${blind} reached the tile first)`);
+  }
+
+  // Not a digit only (review after 608e5ee6). The key that reaches the tile was
+  // put in the box as typed text, past the box's own keyboard path: "(" typed
+  // before the frame stayed a bare "(" — "(-5)" became \left((-5\right),
+  // shown "((-5)", and placed on both sides it failed with "Parenthesis )
+  // expected"; "(" alone stayed open — and "pi" and "sqrt(2)" stayed letters,
+  // every time. Each operand's every key is typed before the frame; what the
+  // box and the draft then hold must be what the same keys give once the box
+  // has the cursor, measured first on a fresh stage.
+  const typedOnce = {};
+  await throttle(cdp, 1);
+  for (const operand of BLIND_OPERANDS) {
+    await freshStage(page);
+    await divide(page).waitFor({ timeout: 120_000 });
+    await divide(page).click();
+    await operandBox(page).waitFor({ timeout: 60_000 });
+    await painted(page);
+    await settle(page, 400);
+    await page.keyboard.type(operand, { delay: 30 });
+    await settle(page, 800);
+    const control = await operandNow(page);
+    typedOnce[operand] = { box: control.box, draft: control.draft };
+    const typed = control.box === control.draft && control.operation === 'divide';
+    check(typed, `blind: "${operand}" typed in the box once it has the cursor gives ${JSON.stringify(control.box)}`, typed ? '' : JSON.stringify(control));
+  }
+  for (const rate of THROTTLE) {
+    const label = `blind chromebook ×${rate}, keys that are not a digit`;
+    for (const operand of BLIND_OPERANDS) {
+      await throttle(cdp, rate);
+      await freshStage(page);
+      await divide(page).waitFor({ timeout: 120_000 });
+      await painted(page);
+      await page.evaluate(() => window.__frames.hold());
+      await divide(page).click();
+      await page.keyboard.type(operand, { delay: 30 });
+      await page.evaluate(() => {
+        const field = document.querySelector('.algebra-operation-composer math-field');
+        if (field) field.__r12Typed = true;
+        window.__frames.release();
+      });
+      await settle(page, 1000 * rate);
+      const after = await operandNow(page);
+      const cursor = await cursorOn(page);
+      const reachedTile = new RegExp(`"key":"${operand[0].replace(/[()]/g, '\\$&')}","to":"(?!operation box)`).test(after.log);
+      const expected = typedOnce[operand];
+      const kept = after.box === expected.box && after.draft === expected.draft && after.operation === 'divide' && after.sameBox && cursor === 'the operation box';
+      count(label, !kept);
+      check(kept, `${label}: "${operand}" typed before a frame gives ${JSON.stringify(expected.box)}, as typed in the box${reachedTile ? '' : ' (its first key did not reach the tile)'}`, kept ? '' : `box ${JSON.stringify(after.box)}, draft ${JSON.stringify(after.draft)}, cursor on ${cursor}\n      ${after.log}`);
+    }
   }
   await throttle(cdp, 1);
   await context.close();

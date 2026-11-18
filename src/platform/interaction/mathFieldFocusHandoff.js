@@ -27,8 +27,12 @@
  *   2. A STALE FIELD CANNOT CONSUME A KEY. If a keydown still reaches a field
  *      MathLive has already blurred (some other route kept its sink focused),
  *      the key is stopped before MathLive sees it, focus moves to the field
- *      that is actually active, and a printable key or Backspace is replayed
- *      there. A finished answer is never edited by a key meant for another box.
+ *      that is actually active, and a printable key, Backspace or Delete is
+ *      replayed there. A finished answer is never edited by a key meant for
+ *      another box. The replay is a key pressed in that field
+ *      (pressKeyInMathField, mathLiveCompat.js): replayed as `typedText`, a
+ *      "(" typed as focus moved stayed a bare "(" and "pi" stayed letters
+ *      (tests/browser/mathBoxFocus.mjs).
  *
  *   3. A FIELD THE PAGE HAS MOVED ON FROM CANNOT TAKE FOCUS BACK
  *      (guardStaleMathFieldFocus). The same 60 ms timer runs whenever ANYTHING
@@ -56,6 +60,7 @@
 import {
   mathFieldHasFocus as mathLiveHasFocus,
   mathFieldKeyboardSink,
+  pressKeyInMathField,
   reportMathLiveCompatProblem,
   settleMathFieldBlur,
 } from '../math/mathLiveCompat.js';
@@ -303,11 +308,9 @@ export const bindMathFieldFocusHandoff = (mathField, { documentObject = typeof d
     event.stopPropagation();
     focusMathFieldWithoutScroll(target);
     try {
-      if (PRINTABLE(event)) target.executeCommand?.(['typedText', event.key]);
-      else if (event.key === 'Backspace') target.executeCommand?.('deleteBackward');
-      else if (event.key === 'Delete') target.executeCommand?.('deleteForward');
-      else return;
-      target.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+      // As if pressed in the field the student is in: its keyboard path, and
+      // its own report of the change, as for any key typed there.
+      if (PRINTABLE(event) || event.key === 'Backspace' || event.key === 'Delete') pressKeyInMathField(target, event);
     } catch {
       // A replay that fails leaves the key dropped, which is still better than
       // editing the answer the student already finished.

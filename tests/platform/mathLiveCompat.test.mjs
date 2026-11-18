@@ -21,10 +21,12 @@ import {
   mathFieldCompatProblems,
   mathFieldHasFocus,
   mathFieldKeyboardSink,
+  pressKeyInMathField,
   reportMathLiveCompatProblem,
   resetMathLiveCompatReports,
   settleMathFieldBlur,
 } from '../../src/platform/math/mathLiveCompat.js';
+import { fieldWithKeyboardPath, installKeyEvents } from './helpers/mathLiveKeyPath.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -73,6 +75,62 @@ test('MathLive still focuses a field late, through the sink element\'s own focus
   assert.match(bundle, /focus: \(\) => \{\s*if \(!focusInProgress && typeof keyboardSink\.focus === "function"\) \{\s*focusInProgress = true;\s*keyboardSink\.focus\(\{ preventScroll: true \}\);/, `${UPGRADE} (the delegate no longer calls the sink's focus)`);
   assert.match(bundle, /host\.addEventListener\("blur", this, true\);/, `${UPGRADE} (the host blur listener is gone)`);
   assert.match(bundle, /if \(evt\.type !== "blur"\) return;[\s\S]{0,600}this\._mathfield\) == null \? void 0 : _e\.onBlur\(\{ dispatchEvents: false \}\)/, `${UPGRADE} (a host blur no longer blurs the model)`);
+});
+
+test('MathLive still takes a key from a keydown on the sink, and a character it leaves from the sink\'s input', () => {
+  // pressKeyInMathField replays a key (a Step Algebra tile's, a stale field's)
+  // through this path, so "(" opens MathLive's pair and "pi" is π. If it moved,
+  // the replay would type nothing, or a bare character again.
+  const bundle = read('node_modules/mathlive/mathlive.mjs');
+  const delegate = bundle.slice(bundle.indexOf('function delegateKeyboardEvents('), bundle.indexOf('function keyboardEventToChar('));
+  assert.ok(delegate.length > 0, `${UPGRADE} (the keyboard delegate is gone)`);
+  assert.match(delegate, /keyboardSink\.addEventListener\(\s*"keydown",\s*\(event\) => \{[\s\S]*?if \(!delegate\.onKeystroke\(event\)\) keydownEvent = null;[\s\S]*?\},\s*\{ capture: true, signal \}/, `${UPGRADE} (a keydown on the sink no longer runs the keystroke handler)`);
+  assert.match(delegate, /keyboardSink\.addEventListener\(\s*"input",\s*\(ev\) => \{[\s\S]*?delegate\.onInput\(\(_a3 = ev\.data\) != null \? _a3 : ""\);/, `${UPGRADE} (a character is no longer typed from the sink's input)`);
+  // The handler skips a key the page already handled only when it is trusted:
+  // a replayed key is stopped above the sink instead (pressKeyInMathField).
+  const keystroke = bundle.slice(bundle.indexOf('function onKeystroke(mathfield, evt) {'), bundle.indexOf('function detectScientificNotation('));
+  assert.match(keystroke, /if \(evt\.isTrusted && evt\.defaultPrevented\) \{/, `${UPGRADE} (the keystroke handler's handled-key check changed)`);
+});
+
+test('a replayed key is pressed on the sink: what it said, once, then the text entry it was left to', () => {
+  installKeyEvents();
+  const field = fieldWithKeyboardPath();
+  const keydowns = [];
+  const inputs = [];
+  field.sink.addEventListener('keydown', (event) => keydowns.push(event), { capture: true });
+  field.sink.addEventListener('input', (event) => inputs.push({ data: event.data, inputType: event.inputType }));
+  const original = { key: '5', code: 'Digit5', location: 0, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, repeat: false };
+  assert.equal(pressKeyInMathField(field, original), true);
+  assert.equal(keydowns.length, 1);
+  assert.deepEqual(
+    ['key', 'code', 'location', 'shiftKey', 'ctrlKey', 'altKey', 'metaKey', 'bubbles', 'cancelable', 'composed'].map((name) => keydowns[0][name]),
+    ['5', 'Digit5', 0, false, false, false, false, true, true, true],
+    'the key as pressed, through every listener a key typed in the field passes',
+  );
+  assert.deepEqual(inputs, [{ data: '5', inputType: 'insertText' }], 'nothing took it, so its text follows once');
+  assert.equal(field.value, '5');
+
+  // Taken as it went down (MathLive's pair, a key binding): no text after it.
+  pressKeyInMathField(field, { key: '(', code: 'Digit9', shiftKey: true });
+  assert.equal(field.value, '5\\left(\\right)');
+  pressKeyInMathField(field, { key: 'Backspace', code: 'Backspace' });
+  assert.deepEqual(field.keysSeen, ['5', '(', 'Backspace']);
+  assert.equal(inputs.length, 1);
+  // A shortcut types nothing.
+  pressKeyInMathField(field, { key: 'a', code: 'KeyA', ctrlKey: true });
+  assert.equal(inputs.length, 1);
+
+  // Handled by the page above the sink (MathInput's own "\"): MathLive is not
+  // given it, as it skips such a key when it is trusted, and no text follows.
+  const handled = fieldWithKeyboardPath({ hostCapture: [(event) => { if (event.key === '\\') event.preventDefault(); }] });
+  pressKeyInMathField(handled, { key: '\\', code: 'Backslash' });
+  assert.deepEqual(handled.keysSeen, [], 'the field\'s keystroke handler never saw it');
+  assert.equal(handled.value, '');
+  assert.equal(handled.shadowRoot.listeners.length, 0, 'and the stop is taken away again');
+
+  // No sink yet (MathLive has not built the field): nothing is pressed.
+  assert.equal(pressKeyInMathField(fieldWithKeyboardPath({ built: false }), original), false);
+  assert.equal(pressKeyInMathField(null, original), false);
 });
 
 test('a field whose model still thinks it is focused is told otherwise, with no DOM focus change', () => {

@@ -18,6 +18,7 @@ import {
   guardStaleMathFieldFocus,
   mathFieldKeyboardSink,
 } from '../../src/platform/interaction/mathFieldFocusHandoff.js';
+import { fieldWithKeyboardPath, installKeyEvents } from './helpers/mathLiveKeyPath.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const makeDocument = () => {
@@ -27,37 +28,29 @@ const makeDocument = () => {
 };
 
 // A stand-in <math-field>: a host with listeners, an open shadow root holding
-// a focusable sink, and MathLive's own idea of focus (`hasFocus`).
+// a focusable sink with MathLive's keyboard path on it (helpers/
+// mathLiveKeyPath.mjs: a key pressed in the field and a character inserted
+// into it come out differently, as in the browser), and MathLive's own idea
+// of focus (`hasFocus`).
+installKeyEvents();
 const makeField = (doc, name) => {
   const listeners = [];
-  const sink = { name: `${name}-sink`, focusCalls: [] };
-  const field = {
-    name,
-    isConnected: true,
+  // A key on its way to the sink passes the host's capture listeners first:
+  // its own guardStaleKeys among them.
+  const field = fieldWithKeyboardPath({ name, hostCapture: [(event) => fire(field, event.type, event, { capture: true })] });
+  const { sink } = field;
+  Object.assign(field, {
     mathLiveFocused: false,
-    value: '',
-    commands: [],
     dispatched: [],
-    shadowRoot: {
-      activeElement: null,
-      querySelector: (selector) => (/keyboard-sink/.test(selector) ? sink : null),
-    },
     hasFocus() { return this.mathLiveFocused; },
     addEventListener(type, handler, options) { listeners.push({ type, handler, capture: Boolean(options?.capture || options === true) }); },
     removeEventListener(type, handler) {
       const index = listeners.findIndex((entry) => entry.type === type && entry.handler === handler);
       if (index >= 0) listeners.splice(index, 1);
     },
-    executeCommand(command) {
-      this.commands.push(command);
-      if (Array.isArray(command) && command[0] === 'typedText') this.value += command[1];
-      if (command === 'deleteBackward') this.value = this.value.slice(0, -1);
-      return true;
-    },
     dispatchEvent(event) { this.dispatched.push(event.type); return true; },
     listeners,
-    sink,
-  };
+  });
   sink.focus = (options) => {
     sink.focusCalls.push(options);
     doc.fields.forEach((other) => { other.shadowRoot.activeElement = null; });
@@ -141,7 +134,44 @@ test('a key reaching a field MathLive has left is replayed on the active field, 
   fire(slope, 'keydown', keyEvent('4'), { capture: true });
   assert.equal(slope.value, '5');
   assert.equal(intercept.value, '4');
-  assert.ok(intercept.dispatched.includes('input'), 'the replay reports an input so React state follows');
+  assert.deepEqual(intercept.keysSeen, ['Backspace', '4'], 'each key reached the active field once, as a key pressed there (it reports the change itself)');
+  assert.deepEqual(slope.keysSeen, [], 'the stale field saw neither');
+});
+
+// Review after 608e5ee6: replayed with executeCommand(['typedText', key]) a
+// key skipped the active field's keyboard path. Measured in Chromium (the math
+// box focus harness, a key typed as focus moved between boxes): "(" stayed a
+// bare "(", "(-5)" became \left((-5\right), "pi" and "sqrt(2)" stayed letters.
+test('a key replayed on the active field is typed as a key pressed there: "(" opens its pair, "p" then "i" make π', () => {
+  const doc = makeDocument();
+  const slope = makeField(doc, 'slope');
+  const intercept = makeField(doc, 'intercept');
+  slope.value = '5';
+  bindMathFieldFocusHandoff(slope, { documentObject: doc });
+  bindMathFieldFocusHandoff(intercept, { documentObject: doc });
+  slope.sink.focus();
+  intercept.mathLiveFocused = true;
+  slope.mathLiveFocused = false;
+
+  fire(slope, 'keydown', keyEvent('('), { capture: true });
+  assert.equal(intercept.value, '\\left(\\right)', 'the field\'s own pair, not a bare "("');
+  assert.equal(slope.value, '5');
+  assert.deepEqual(intercept.commands, [], 'nothing inserted behind the keyboard path');
+
+  const piDoc = makeDocument();
+  const left = makeField(piDoc, 'left');
+  const chosen = makeField(piDoc, 'chosen');
+  bindMathFieldFocusHandoff(left, { documentObject: piDoc });
+  bindMathFieldFocusHandoff(chosen, { documentObject: piDoc });
+  left.sink.focus();
+  chosen.mathLiveFocused = true;
+  fire(left, 'keydown', keyEvent('p'), { capture: true });
+  // The next key reaches the field the student is in directly.
+  const next = new KeyboardEvent('keydown', { key: 'i', cancelable: true });
+  next.isTrusted = true;
+  if (chosen.sink.dispatchEvent(next)) chosen.sink.dispatchEvent(new InputEvent('input', { data: 'i' }));
+  assert.equal(chosen.value, '\\pi', 'the shortcut sees the replayed letter too');
+  assert.equal(left.value, '');
 });
 
 test('the active field handles its own keys untouched', () => {

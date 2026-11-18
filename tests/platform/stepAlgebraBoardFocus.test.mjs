@@ -23,6 +23,7 @@ import {
   typesACharacter,
 } from '../../src/platform/algebra/boardFocus.js';
 import { h } from './helpers/miniDom.mjs';
+import { fieldWithKeyboardPath, installKeyEvents } from './helpers/mathLiveKeyPath.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 /* ------------------------------------------------------- after a step */
@@ -103,37 +104,62 @@ test('only a key that types one character is taken from the tile', () => {
   assert.equal(typesACharacter(null), false);
 });
 
-// A stand-in <math-field>, as tests/platform/mathFieldFocusHandoff.test.mjs
-// builds one: an open shadow root holding a focusable sink.
-const makeField = ({ built = true, connected = true } = {}) => {
-  const sink = { focusCalls: [] };
-  const field = {
-    isConnected: connected,
-    value: '',
-    dispatched: [],
-    shadowRoot: { activeElement: null, querySelector: (selector) => (built && /keyboard-sink/.test(selector) ? sink : null) },
-    executeCommand(command) {
-      if (Array.isArray(command) && command[0] === 'typedText') this.value += command[1];
-      return true;
-    },
-    dispatchEvent(event) { this.dispatched.push(event.type); return true; },
-    sink,
-  };
-  sink.focus = (options) => {
-    sink.focusCalls.push(options);
-    field.shadowRoot.activeElement = sink;
-  };
-  return field;
+// A stand-in <math-field> with MathLive's keyboard path on its sink
+// (helpers/mathLiveKeyPath.mjs): a key pressed in it, and a character merely
+// inserted into it, come out differently, as they do in the browser.
+installKeyEvents();
+const makeField = (options = {}) => fieldWithKeyboardPath({ name: 'operand', ...options });
+// The student's next key, once the box has the cursor: MathLive's own path.
+const typeInBox = (field, value) => {
+  const down = new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true, composed: true });
+  down.isTrusted = true;
+  if (field.sink.dispatchEvent(down)) field.sink.dispatchEvent(new InputEvent('input', { data: value, inputType: 'insertText' }));
 };
 
 test('a character typed at the tile goes into the box, which takes the cursor in the same event', () => {
   const field = makeField();
-  const event = key('5');
+  const event = key('5', { code: 'Digit5' });
   assert.equal(typeAheadIntoOperand(event, field), true);
   assert.equal(field.value, '5', 'the character is in the box');
   assert.deepEqual(field.sink.focusCalls, [{ preventScroll: true }], 'with the cursor, and the page does not scroll');
-  assert.equal(event.prevented, true, 'the tile does nothing with it');
-  assert.ok(field.dispatched.includes('input'), 'the box reports it, so the operand state follows');
+  assert.equal(event.prevented, true, 'the tile does nothing with it, and the browser types it nowhere else');
+  assert.deepEqual(field.keysSeen, ['5'], 'the box saw the key once, as a key pressed in it');
+});
+
+// Review after 608e5ee6: replayed with executeCommand(['typedText', key]) the
+// key skipped the box's keyboard path. Measured in Chromium, typed before the
+// box's first frame: "(-5)" became \left((-5\right) (shown "((-5)"; placed on
+// both sides, "Parenthesis ) expected"), "pi" and "sqrt(2)" stayed letters.
+test('the key is typed as a key pressed in the box: "(" opens its pair, and "p" then "i" make π', () => {
+  const paren = makeField();
+  typeAheadIntoOperand(key('(', { code: 'Digit9', shiftKey: true }), paren);
+  assert.equal(paren.value, '\\left(\\right)', 'the box\'s own pair, not a bare "("');
+  assert.deepEqual(paren.commands, [], 'nothing inserted behind the keyboard path');
+
+  const pi = makeField();
+  typeAheadIntoOperand(key('p', { code: 'KeyP' }), pi);
+  typeInBox(pi, 'i');
+  assert.equal(pi.value, '\\pi', 'the shortcut sees the first letter too');
+
+  // What the old replay did, in the same stand-in: the letters stay letters.
+  const inserted = makeField();
+  inserted.executeCommand(['typedText', 'p']);
+  typeInBox(inserted, 'i');
+  assert.equal(inserted.value, 'pi');
+});
+
+test('the replayed key carries what the student pressed, and is typed exactly once', () => {
+  const field = makeField();
+  const seen = [];
+  field.sink.addEventListener('keydown', (event) => seen.push({ key: event.key, code: event.code, shiftKey: event.shiftKey, bubbles: event.bubbles, composed: event.composed, cancelable: event.cancelable }), { capture: true });
+  const inputs = [];
+  field.sink.addEventListener('input', (event) => inputs.push(event.data));
+  typeAheadIntoOperand(key('(', { code: 'Digit9', shiftKey: true }), field);
+  assert.deepEqual(seen, [{ key: '(', code: 'Digit9', shiftKey: true, bubbles: true, composed: true, cancelable: true }]);
+  assert.deepEqual(inputs, [], 'a key the box took as it went down sends no text after it');
+  typeAheadIntoOperand(key('7', { code: 'Digit7' }), field);
+  assert.deepEqual(inputs, ['7'], 'a character it left to text entry arrives once, as the browser would send it');
+  assert.equal(field.value, '\\left(\\right)7');
 });
 
 test('anything else is left to the tile', () => {

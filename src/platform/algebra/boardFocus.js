@@ -26,9 +26,12 @@
  * keys went to the tile as well. A character typed at a tile while its box is
  * on the page now goes into the box, with the cursor, the way a key reaching
  * a math field MathLive has left is replayed on the field the student chose
- * (mathFieldFocusHandoff.js guardStaleKeys).
+ * (mathFieldFocusHandoff.js guardStaleKeys): typed as a key pressed in the box
+ * (mathLiveCompat.js pressKeyInMathField), so "(" opens the box's pair and
+ * "pi" is π, as they are once the box has the cursor.
  */
 import { deepActiveElement, focusMathFieldWithoutScroll } from '../interaction/mathFieldFocusHandoff.js';
+import { pressKeyInMathField } from '../math/mathLiveCompat.js';
 
 /** The cursor is nowhere: on the page itself, as when the control that had it was removed. */
 export const focusFellToPage = (documentObject = typeof document !== 'undefined' ? document : null) => {
@@ -85,19 +88,19 @@ export const typesACharacter = (event) => Boolean(
 /**
  * A character typed at an operation tile goes into the operation box (`field`)
  * when the box is on the page and MathLive has built it: the box takes the
- * cursor in this same event and the character is typed there. Returns whether
- * the key was taken. Anything else — Space, Enter, Tab, a shortcut, no box
- * yet — is left to the tile.
+ * cursor in this same event and the character is typed there, as a key
+ * pressed in the box (it reports the change itself, as for any key typed in
+ * it). The tile's own key is prevented, so neither the tile nor the box, which
+ * now has the cursor, types it again. Returns whether the key was taken.
+ * Anything else — Space, Enter, Tab, a shortcut, no box yet — is left to the
+ * tile.
  */
 export const typeAheadIntoOperand = (event, field) => {
   if (!typesACharacter(event) || !field?.isConnected) return false;
   if (!focusMathFieldWithoutScroll(field)) return false;
   event.preventDefault();
   try {
-    field.executeCommand?.(['typedText', event.key]);
-    // MathInput follows the box's input events, and a command need not send
-    // one (as guardStaleKeys replays a key).
-    field.dispatchEvent?.(new Event('input', { bubbles: true, composed: true }));
+    pressKeyInMathField(field, event);
   } catch {
     // The box has the cursor; only this one key is dropped.
   }

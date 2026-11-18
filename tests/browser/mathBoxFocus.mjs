@@ -30,6 +30,8 @@
  * types into it and leaves focus there; MathLive's own keyboard stays hidden
  * and a phone's keyboard suppressed; its menu stays shut; and an IME
  * composition (typed through Chromium's IME interface) lands in the box.
+ * And a key that still reaches the box MathLive has left (part 2) is typed in
+ * the box it moved to as a key pressed there: "(", "(-5)", "pi", "sqrt(2)".
  *
  * Exits non-zero on any failure.
  */
@@ -254,6 +256,55 @@ for (const size of SIZES) {
     }));
     assert.deepEqual(state, { keyboard: false, menu: false, inputmode: size.touch ? 'none' : null }, 'keyboard, menu and input mode');
     assert.equal(await where(page), 'box:Slope', 'focus stayed in the box');
+    await close();
+  });
+
+  // A key that reaches the box MathLive has just left (its sink still holds
+  // DOM focus for 60 ms) is replayed in the box it moved to
+  // (mathFieldFocusHandoff.js guardStaleKeys). Replayed as typed text, it
+  // skipped that box's keyboard path: "(" stayed a bare "(", "(-5)" became
+  // \left((-5\right), "pi" and "sqrt(2)" stayed letters (review after
+  // 608e5ee6). Now it is a key pressed there: each gives what the same keys
+  // give typed into the box, and the box left keeps its answer.
+  await check(`${at}: a key typed in the box MathLive has left is typed in the box it moved to as a key pressed there`, async () => {
+    const { page, close } = await open(size);
+    const values = () => page.evaluate(() => JSON.parse(document.querySelector('[data-test="values"]').textContent));
+    const misses = [];
+    for (const operand of ['(', '(-5)', 'pi', 'sqrt(2)']) {
+      // What these keys give typed into the box itself.
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.locator('math-field').nth(BOXES.length - 1).waitFor();
+      await press(page, size, 'y-intercept');
+      await page.waitForTimeout(250);
+      await page.keyboard.type(operand, { delay: 30 });
+      await page.waitForTimeout(250);
+      const typedThere = (await values())['y-intercept'];
+      // The same keys, the first while the Slope box's sink still has focus:
+      // y-intercept takes focus as a keypad key or Undo gives it.
+      let run = null;
+      for (let attempt = 0; attempt < 3 && run?.firstKeyIn !== 'box:Slope'; attempt += 1) {
+        await page.reload({ waitUntil: 'networkidle' });
+        await page.locator('math-field').nth(BOXES.length - 1).waitFor();
+        await press(page, size, 'Slope');
+        await page.waitForTimeout(250);
+        await page.keyboard.type('7');
+        await page.waitForTimeout(250);
+        await page.evaluate(() => { window.__mathBoxFocus.clear(); window.__mathBoxFocus.focusBox('y-intercept', 'element'); });
+        await page.keyboard.type(operand, { delay: 30 });
+        await page.waitForTimeout(300);
+        run = {
+          firstKeyIn: (await focusLog(page)).find((entry) => entry.type === 'key')?.name,
+          values: await values(),
+          end: await where(page),
+        };
+      }
+      // A key later than the hand-over tested nothing: after 3 tries, say so.
+      if (run.firstKeyIn !== 'box:Slope') misses.push(`"${operand}": the first key never came inside the hand-over (${run.firstKeyIn})`);
+      else if (run.values['y-intercept'] !== typedThere || run.values.Slope !== '7' || run.end !== 'box:y-intercept') {
+        misses.push(`"${operand}": y-intercept ${JSON.stringify(run.values['y-intercept'])} (typed there: ${JSON.stringify(typedThere)}), Slope ${JSON.stringify(run.values.Slope)}, cursor ${run.end}`);
+      }
+    }
+    assert.deepEqual(misses, [], 'every key went to the box the student was in, as a key pressed there');
     await close();
   });
 
