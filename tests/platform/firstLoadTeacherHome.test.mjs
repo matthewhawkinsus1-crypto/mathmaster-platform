@@ -309,6 +309,57 @@ test('a panel opened offline asks for nothing and says so, and asks once the dev
   }
 });
 
+// Code asked for already (the idle prefetch, cut off as the Wi-Fi dropped)
+// promises nothing offline: the browser keeps a failed module URL for the
+// life of the page, so only a new page can bring it. The panel goes through
+// its lazy as online, and the failure reaches AppErrorBoundary, whose
+// connection panel loads the page again once the device is back online
+// (teacherCodeRecovery.mjs C11). A request still on its way is drawn when it
+// lands, or fails the same way.
+test('offline, a panel whose code was asked for already promises nothing: a failure goes on to AppErrorBoundary', async () => {
+  const { closedPanel, drawnPanel } = await loader.ssrLoadModule('/src/app/teacher/onDemandCode.js');
+  const failure = new TypeError('Failed to fetch dynamically imported module: https://example.test/assets/StudentProfileDrawer-abc.js');
+  const was = globalThis.window;
+  // The panel and, for one drawn closed, the one mount it draws, as React
+  // would draw them; a drawn panel is that mount itself.
+  const drawnOffline = (Panel, props) => {
+    const win = offlineWindow();
+    globalThis.window = win;
+    try {
+      const view = shim.mount(() => {
+        const element = Panel(props);
+        return typeof element?.type === 'function' ? element.type(element.props) : element;
+      }, {});
+      return { view, win };
+    } finally {
+      globalThis.window = was;
+    }
+  };
+  for (const [kind, make, props] of [
+    ['a panel drawn closed', (load) => closedPanel(load, (p) => p.open, 'This device is offline. The student\'s details open when it is back online.'), { open: true, onClose: () => {} }],
+    ['a drawn panel', (load) => drawnPanel(load, 'This device is offline. The Spotlight shows when it is back online.'), {}],
+  ]) {
+    let asked = 0;
+    const Panel = make(() => { asked += 1; return Promise.reject(failure); });
+    Panel.prefetch();
+    await settle();
+    const { view, win } = drawnOffline(Panel, props);
+    const output = view.output;
+    assert.notEqual(output?.type?.name, 'OfflineNote', `${kind}: no note`);
+    assert.notEqual(output?.props?.['data-panel-offline'], '', `${kind}: no note`);
+    const lazyLoad = output?.props?.children?.[0]?.type;
+    assert.equal(typeof lazyLoad, 'function', `${kind}: its lazy, at once`);
+    await assert.rejects(lazyLoad(), (error) => error === failure, `${kind}: which throws the kept failure on to AppErrorBoundary`);
+    assert.equal(asked, 1, `${kind}: asked for once, never again`);
+    assert.equal(win.listening('online'), false, `${kind}: and nothing waits for the connection`);
+  }
+  // On its way as the device went offline: drawn when it lands, no note.
+  const onItsWay = closedPanel(() => new Promise(() => {}), (p) => p.open, 'This device is offline. Find opens when it is back online.');
+  onItsWay.prefetch();
+  const { view } = drawnOffline(onItsWay, { open: true, onClose: () => {} });
+  assert.equal(typeof view.output?.props?.children?.[0]?.type, 'function', 'a request on its way: its lazy, no note');
+});
+
 test('Find is asked for at once as the workspace draws, on a device that saves data too, and never while offline', async () => {
   const { prefetchTeacherPanels } = await loader.ssrLoadModule('/src/app/teacher/teacherPanelPrefetch.js');
   const { TeacherQuickSearch } = await loader.ssrLoadModule('/src/app/teacher/teacherPanels.js');

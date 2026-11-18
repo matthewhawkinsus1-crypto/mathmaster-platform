@@ -55,6 +55,11 @@
 //       not that MathMaster was updated, and its button reloads only once the
 //       device is back online (a reload offline is the browser's own error
 //       page)
+//   C11 a student's details whose idle prefetch was cut off as the Wi-Fi
+//       dropped, opened offline: no note promises they will open (only a new
+//       page can bring code whose request failed); AppErrorBoundary says to
+//       check the connection, and back online its button loads a page where
+//       they open
 //
 // Offline is the device's as the app reads it (navigator.onLine and the
 // online event), with every request failing while it lasts. Chromium's own
@@ -77,6 +82,7 @@ const CLASSES_SCREEN = /\/ClassesWorkspace(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
 const ASSIGNMENT_DETAILS = /\/AssignmentHub(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
 const FIND_PALETTE = /\/TeacherQuickSearch(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
 const PROMPT_MATH = /\/MathText(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
+const STUDENT_DETAILS = /\/StudentProfileDrawer(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
 const HOSTING_REWRITE = { status: 200, contentType: 'text/html', body: '<!doctype html><html><head><title>MathMaster</title></head><body><div id="root"></div></body></html>' };
 
 const launchOptions = { args: ['--no-sandbox'] };
@@ -100,8 +106,9 @@ const panel = (page) => page.locator('[data-recovery-panel]');
 // `watch`: the code whose requests `asked` counts (the authoring code unless
 // named); `before(page)`: run on the store before the teacher's page opens;
 // `ready(page)`: what the page has drawn when the scene starts (Home's heading
-// unless named).
-const openTeacher = async ({ saveData = false, fail = [], watch = AUTHORING_CODE, query = 'reset=1', before = null, ready = null, network = null } = {}) => {
+// unless named); `cut`: code whose requests fail as a dropped connection does
+// (until `context.unroute`).
+const openTeacher = async ({ saveData = false, fail = [], cut = [], watch = AUTHORING_CODE, query = 'reset=1', before = null, ready = null, network = null } = {}) => {
   const context = await newSchoolContext(browser, { viewport: { width: 1366, height: 768 } });
   if (network) await emulateConnection(context, network);
   if (saveData) {
@@ -110,6 +117,7 @@ const openTeacher = async ({ saveData = false, fail = [], watch = AUTHORING_CODE
     });
   }
   for (const pattern of fail) await context.route(pattern, (route) => route.fulfill(HOSTING_REWRITE));
+  for (const pattern of cut) await context.route(pattern, (route) => route.abort('internetdisconnected'));
   const page = await context.newPage();
   const asked = [];
   page.on('request', (request) => { if (watch.test(request.url())) asked.push(request.url()); });
@@ -370,6 +378,42 @@ await scene('C10', async () => {
   await sidebar(page, 'Classes').click();
   await page.getByRole('button', { name: /Algebra II — Period 3/ }).first().waitFor({ timeout: 120_000 });
   expect('C10 back online, its button loads a page whose screen draws', (await panel(page).count()) === 0, 'the panel is still there');
+  await context.close();
+});
+
+const offlineNote = (page) => page.locator('[data-panel-offline]');
+const studentDetails = (page) => page.locator('[data-student-profile-drawer]');
+const focused = (page) => page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.getAttribute('placeholder') || document.activeElement?.textContent || '');
+// C11: a student's details whose code was cut off in the idle prefetch.
+await scene('C11', async () => {
+  const network = connection();
+  const { context, page, asked } = await openTeacher({ network, cut: [STUDENT_DETAILS], watch: STUDENT_DETAILS });
+  await untilAsked(page, asked);
+  expect('C11 the idle prefetch asked for a student\'s details, and the Wi-Fi cut it off', asked.length > 0, 'no request for them within 30 s');
+  expect('C11 that shows nothing', (await panel(page).count()) === 0 && await homeHeading(page).isVisible(), await panel(page).first().innerText().catch(() => 'Home\'s heading is gone'));
+  await context.unroute(STUDENT_DETAILS);
+  await network.offline(page);
+  await page.locator('[data-live-tile] button').first().click();
+  const shown = await panel(page).first().waitFor({ timeout: 60_000 }).then(() => true, () => false);
+  expect('C11 opened offline, no note promises the details will open', (await offlineNote(page).count()) === 0, await offlineNote(page).first().innerText().catch(() => ''));
+  expect('C11 AppErrorBoundary takes the screen at once', shown, 'no recovery panel within 60 s');
+  if (!shown) { await context.close(); return; }
+  const text = await panel(page).first().innerText();
+  expect('C11 it says to check the connection, not that MathMaster was updated', /connected to the internet/i.test(text) && !/was just updated/i.test(text), text.split('\n').slice(0, 3).join(' / '));
+  const requested = asked.length;
+  await network.online(page);
+  await Promise.all([
+    page.waitForURL(/_mm_reload=/, { timeout: 60_000 }),
+    page.getByRole('button', { name: /Try again|Load the new version/ }).first().click(),
+  ]);
+  await homeHeading(page).waitFor({ timeout: 120_000 });
+  await page.locator('[data-live-tile] button').first().click();
+  const opened = await studentDetails(page).waitFor({ timeout: 60_000 }).then(() => true, () => false);
+  expect('C11 back online, its button loads a page where the details open', opened && asked.length > requested, opened ? `${asked.length - requested} new request(s)` : 'no drawer within 60 s');
+  if (opened) {
+    await page.waitForTimeout(600);
+    expect('C11 with focus on their Close', /Close student profile/.test(await focused(page)), `focus on "${await focused(page)}"`);
+  }
   await context.close();
 });
 

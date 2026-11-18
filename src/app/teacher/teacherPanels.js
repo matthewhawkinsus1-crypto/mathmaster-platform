@@ -30,8 +30,10 @@
  * (onClassChange(null)), which is where App's own value starts, and reports
  * none again as it leaves the page.
  *
- * Opened while the device is offline before its code is here, each says so
- * in its place, and opens once the device is back online (./onDemandCode.js).
+ * Opened while the device is offline before anything asked for its code, each
+ * says so in its place, and opens once the device is back online. Code whose
+ * request already failed goes to AppErrorBoundary instead: only a new page can
+ * bring it (./onDemandCode.js).
  */
 import { closedPanel, drawnPanel, onDemandCode } from './onDemandCode.js';
 

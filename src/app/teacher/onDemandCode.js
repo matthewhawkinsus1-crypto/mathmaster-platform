@@ -34,13 +34,18 @@
  * Suspense of its own with nothing as its fallback, as every teacher panel:
  * one on its way never suspends up to AppShell's boundary, which would hide
  * the whole workspace, and one that cannot load reaches AppErrorBoundary.
- * Opened while the device is offline, it asks for nothing (the request would
- * fail, and the browser would keep the failure for the life of the page):
- * `offlineNote` says it opens once the device is back online, and it asks
- * then. Before these panels loaded on demand they opened from memory offline;
- * a request that failed there showed "MathMaster was just updated", whose
- * button reloaded into the browser's own error page. Each has `prefetch()`,
- * for the workspace's idle prefetch.
+ * Opened while the device is offline before anything asked for its code, it
+ * asks for nothing (the request would fail, and the browser would keep the
+ * failure for the life of the page): `offlineNote` says it opens once the
+ * device is back online, and it asks then. Before these panels loaded on
+ * demand they opened from memory offline; a request that failed there showed
+ * "MathMaster was just updated", whose button reloaded into the browser's own
+ * error page. Code asked for already (the idle prefetch cut off as the Wi-Fi
+ * dropped) promises nothing: only a new page can bring code whose request
+ * failed, so the panel goes through its lazy as online, and the failure
+ * reaches AppErrorBoundary, which offline says to check the connection and
+ * loads the page again only once the device is back online. Each has
+ * `prefetch()`, for the workspace's idle prefetch.
  *
  *   useOnDemandCode(code, wanted)
  *                        for a screen that holds what it draws until the code
@@ -79,6 +84,8 @@ export const onDemandCode = (load) => {
   let pending = null;
   const code = {
     loaded: () => loaded,
+    // Here, on its way, or failed (and failed for the life of the page).
+    asked: () => Boolean(pending),
     load: () => {
       if (loaded) return Promise.resolve(loaded);
       if (!pending) pending = load().then((module) => { loaded = module; return module; });
@@ -92,12 +99,12 @@ export const onDemandCode = (load) => {
 // One mount of a panel. What it draws is chosen once, as it mounts, above its
 // Suspense boundary (as the student screens' visit, app/lazyScreens.js): the
 // panel itself when its code is here, else a lazy of its own, which keeps a
-// rejected import and throws it on to AppErrorBoundary. Offline, neither yet:
-// its note, until the device is back online.
+// rejected import and throws it on to AppErrorBoundary. Offline with its code
+// never asked for, neither yet: its note, until the device is back online.
 const choose = (code) => code.loaded()?.default || lazy(code.load);
 const drawWhenHere = (code, offlineNote) => function OnDemandPanel(props) {
   const win = browserWindow();
-  const [Panel, setPanel] = useState(() => (code.loaded() || !offline(win) ? choose(code) : null));
+  const [Panel, setPanel] = useState(() => (code.asked() || !offline(win) ? choose(code) : null));
   useEffect(() => {
     if (Panel) return undefined;
     return whenOnline(win, () => setPanel(() => choose(code)));
