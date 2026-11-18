@@ -150,8 +150,10 @@ export default function HintPanel({
       ) : (
         <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>A hint points you at the next move without giving the answer.</p>
       )}
+      {/* Focus comes here once it is asked for (hintPanelFocusTarget): its
+          button goes. Not a live region, so read once. */}
       {diagnosisShown ? (
-        <div data-miss-diagnosis-hint={diagnosisShown.source || ''} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', lineHeight: 1.55 }}>
+        <div data-miss-diagnosis-hint={diagnosisShown.source || ''} tabIndex={-1} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', lineHeight: 1.55 }}>
           <strong style={{ display: 'block', marginBottom: 4, color: 'var(--mm-primary-text)' }}>What might have gone wrong</strong>
           <MathText>{diagnosisShown.text}</MathText>
           <SupportedTextActions text={diagnosisShown.text} readAloud={readAloud} translation={translation} label="what might have gone wrong" onEvidence={onSupportEvidence} />
