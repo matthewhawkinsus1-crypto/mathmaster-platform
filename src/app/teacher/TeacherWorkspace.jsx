@@ -47,6 +47,8 @@ import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projecte
 import { assignmentFeedbackWasReleased, assignmentUsesTeacherReleasePolicy, createQuestionId, normalizeAssignmentQuestions, toDateTimeLocalInputValue, formatDueDate, formatLateDueDate, formatTimeStamp } from '../student/assignmentRuntimeHelpers.js';
 import { CLASS_SCOPED_TABS } from '../screenScopes.js';
 import { AssignmentAiHealth, AssignmentContentUpgradeModal, AssignmentGradeOverrideControls, AssignmentHub, AssignmentIntake, AssignmentLibrary, AssignmentQuestionEditor, AttendanceHistoryPanel, ClassContextBar, ClassCourseSettings, ClassesAdmin, ClassesWorkspace, ClassRewardCatalogEditor, ClassRewardRequestsPanel, ClassroomManagerV2, ClassroomSyncReview, ClassScheduleSettings, DemoExperience, GradebookAssignmentBar, GradebookClassChooser, GradeTransferCenter, LessonPreflightModal, LiveChallengeTeacher, MarkingPeriodSettings, MathToolsLab, PacingControls, ParentContactCenter, PathCoverageAudit, PathSimulator, PreproductionReset, SectionRecoveryAuditTrail, SignInAccess, StudentCaseReviewView, StudentDolRecoveryRow, StudentProfileDrawer, StudentResponseInspector, StudentsRoster, SupportEvidenceReportView, TeacherActionCenter, TeacherAnalyticsDashboard, TeacherAssignmentPdfDialog, TeacherHome, TeacherQuickSearch, TeacherSecureExamDashboard, TeacherSidebar, TestCyclePreview, TexasStandardsDashboard, WeeklyPathControls, WeeklyPathGradePanel } from '../lazyScreens.js';
+// Home's math, on demand (./teacherPanels.js), fetched while the browser is idle.
+import { prefetchTeacherPanels } from './teacherPanelPrefetch.js';
 import { compareStudentsByName, formatStudentName } from '../../platform/studentName';
 import { isTestCycleAssignment } from '../../platform/assessment/testCycle.js';
 import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePolicy } from '../../services/testCycleService.js';
@@ -325,6 +327,9 @@ export default function TeacherWorkspace({
   // AppErrorBoundary ("MathMaster was just updated"), as a teacher screen's
   // chunk that cannot load does.
   const [authoringKitError, setAuthoringKitError] = useState(null);
+  // Home's math (./teacherPanelPrefetch.js), then the authoring code, while
+  // the browser is idle once the workspace has drawn.
+  useEffect(() => prefetchTeacherPanels(), []);
   useEffect(() => prefetchAuthoringKit(), []);
   if (authoringKitError) throw authoringKitError;
   const authoringKit = () => loadAuthoringKit().catch((error) => {

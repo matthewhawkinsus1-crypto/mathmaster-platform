@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../../firebase.js';
-import MathText from '../common/MathText.jsx';
+// MathText draws each prompt, with MathLive: it arrives on demand, and the
+// panel draws its questions once it is here (below; app/teacher/teacherPanels.js).
+import { promptMath } from '../../app/teacher/teacherPanels.js';
+import { useOnDemandCode } from '../../app/teacher/onDemandCode.js';
 import { getStoredAssignmentQuestions } from '../../platform/contract/storedAssignmentV5.js';
 import { ANSWER_TEXT_MAX, TEACHER_QUESTIONS_SHOWN, cleanQuestionText, hasFollowUp, sortQuestions, teacherQuestionPlace } from '../../platform/supports/askTeacher.js';
 import { answerTeacherQuestion, openTeacherQuestionsQuery, watchQuestions } from '../../platform/supports/askTeacherStore.js';
@@ -30,7 +33,7 @@ const askedAt = (value) => {
 };
 
 // Exported so a test can draw one row (a follow-up's context) without Firestore.
-export function QuestionRow({ question, place, studentName, studentIdText, prompt, teacherEmail, onOpenStudent, onAnswered }) {
+export function QuestionRow({ question, place, studentName, studentIdText, prompt, teacherEmail, onOpenStudent, onAnswered, MathText = null }) {
   const [answer, setAnswer] = useState('');
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -69,7 +72,7 @@ export function QuestionRow({ question, place, studentName, studentIdText, promp
       <div className="tw-small tw-muted">
         {place.title} · {place.label}
       </div>
-      {prompt ? (
+      {prompt && MathText ? (
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--mm-primary-text)' }}>The question</summary>
           <MathText as="p" style={{ margin: '6px 0 0', overflowWrap: 'anywhere' }}>{prompt}</MathText>
@@ -122,6 +125,12 @@ export default function StudentQuestionsPanel({ teacherEmail = '', students = []
   const waiting = sortQuestions(questions);
   // The list loads at most TEACHER_QUESTIONS_SHOWN; answering lets more in.
   const more = questions.length >= TEACHER_QUESTIONS_SHOWN;
+  // Any waiting question can draw its prompt through MathText (the prompt is
+  // the teacher's own copy of the assignment, which can arrive after the
+  // question), so the code is asked for as soon as one waits, withheld too,
+  // and the questions are drawn once it is here: the panel appears whole, with
+  // no prompt or LaTeX arriving after it (teacher's first load).
+  const math = useOnDemandCode(promptMath, waiting.length > 0);
 
   // While a class is in session or the room tiles are projected: how many,
   // and nothing a click could open (TT26).
@@ -135,6 +144,12 @@ export default function StudentQuestionsPanel({ teacherEmail = '', students = []
     ) : null;
   }
   if (!waiting.length && !unavailable && !sentNotice) return null;
+  if (waiting.length && !math.module) {
+    // Code that cannot load (a deploy replaced it) reaches AppErrorBoundary's
+    // "MathMaster was just updated" here, where the list needs it.
+    if (math.failure) throw math.failure;
+    return null;
+  }
   return (
     <details className="tw-disclosure" data-student-questions="" style={{ marginBottom: 16 }}>
       <summary>
@@ -163,6 +178,7 @@ export default function StudentQuestionsPanel({ teacherEmail = '', students = []
                   teacherEmail={teacherEmail}
                   onOpenStudent={onOpenStudent}
                   onAnswered={(studentName) => setSentNotice(`Answer sent to ${studentName}.`)}
+                  MathText={math.module.default}
                 />
               );
             })}

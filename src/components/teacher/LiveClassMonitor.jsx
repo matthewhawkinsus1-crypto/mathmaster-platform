@@ -7,7 +7,10 @@ import {
   LIVE_ACTIVITY, LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
 } from '../../livePresence';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
-import StudentSpotlightView from './StudentSpotlightView.jsx';
+// Drawn only while a student presents (a Spotlight they accepted), with MathText and
+// so MathLive: its code arrives then, or before it with the workspace's idle
+// prefetch (app/teacher/teacherPanels.js, teacher's first load).
+import { StudentSpotlightView } from '../../app/teacher/teacherPanels.js';
 import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
 import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
 import HelpAcknowledgeControls from './HelpAcknowledgeControls.jsx';

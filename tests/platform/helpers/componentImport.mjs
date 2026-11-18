@@ -17,6 +17,13 @@
  * its own boundary for code that cannot load; `studentPanel`: one panel of
  * such a screen, Review My Work on the result page, with a boundary of its own.)
  *
+ * Since the teacher's first load (second pass), what a teacher's screens draw
+ * only once something opens it comes from src/app/teacher/teacherPanels.js,
+ * on demand too:
+ *
+ *   import { …, Name, … } from '…/app/teacher/teacherPanels.js';
+ *     with  export const Name = drawnPanel(() => import('../../components/…/Name.jsx')…
+ *
  * `importsComponent(sourcePath, name, componentPath)` answers 'static',
  * 'onDemand' or null. Paths are repo-relative ('src/App.jsx').
  */
@@ -29,19 +36,26 @@ const relativeSpecifier = (fromFile, toFile) => {
   const relative = path.posix.relative(path.posix.dirname(fromFile), toFile);
   return relative.startsWith('.') ? relative : `./${relative}`;
 };
-const LAZY_SCREENS = 'src/app/lazyScreens.js';
+// Each module that loads components on demand, with the helpers its entries use.
+const ON_DEMAND_MODULES = [
+  ['src/app/lazyScreens.js', 'lazy|teacherPanel|studentScreen|studentPanel'],
+  ['src/app/teacher/teacherPanels.js', 'drawnPanel'],
+];
 
 export const importsComponent = (sourcePath, name, componentPath) => {
   const source = read(sourcePath);
   const component = escape(relativeSpecifier(sourcePath, componentPath));
   const staticImport = new RegExp(`^import (?:${name}\\b[^;]*|[^;]*\\{[^}]*\\b${name}\\b[^}]*\\}) from '${component}';$`, 'm');
   if (staticImport.test(source)) return 'static';
-  const screens = escape(relativeSpecifier(sourcePath, LAZY_SCREENS));
-  const fromScreens = source.match(new RegExp(`^import \\{([^}]*)\\} from '${screens}';$`, 'm'));
-  if (!fromScreens || !fromScreens[1].split(',').map((entry) => entry.trim()).includes(name)) return null;
-  const loaded = escape(relativeSpecifier(LAZY_SCREENS, componentPath));
-  const entry = new RegExp(`^export const ${name} = (?:lazy|teacherPanel|studentScreen|studentPanel)\\(\\(\\) => import\\('${loaded}'\\)`, 'm');
-  return entry.test(read(LAZY_SCREENS)) ? 'onDemand' : null;
+  for (const [modulePath, helpers] of ON_DEMAND_MODULES) {
+    const from = escape(relativeSpecifier(sourcePath, modulePath));
+    const imported = source.match(new RegExp(`^import \\{([^}]*)\\} from '${from}';$`, 'm'));
+    if (!imported || !imported[1].split(',').map((entry) => entry.trim()).includes(name)) continue;
+    const loaded = escape(relativeSpecifier(modulePath, componentPath));
+    const entry = new RegExp(`^export const ${name} = (?:${helpers})\\(\\(\\) => import\\('${loaded}'\\)`, 'm');
+    return entry.test(read(modulePath)) ? 'onDemand' : null;
+  }
+  return null;
 };
 
 export default importsComponent;
