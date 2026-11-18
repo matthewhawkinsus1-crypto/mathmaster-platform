@@ -106,3 +106,26 @@ export const typeAheadIntoOperand = (event, field) => {
   }
   return true;
 };
+
+/*
+ * SPACE CHOOSES A TILE AS IT GOES DOWN (a review after #386).
+ *
+ * A button is pressed by Enter as it goes down, by Space only as it comes up.
+ * A student who pressed Space on Divide and typed 5 before letting Space go
+ * (key rollover, as a fast typist types) typed the 5 at a tile not chosen yet:
+ * it did nothing, and the box Space's release then opened was empty. Measured
+ * in Chromium (tests/browser/stepAlgebraFirstOperand.mjs `space`): Space held,
+ * 5, Space up left the box empty; with 6 typed after the release, the box
+ * held only the 6. So Space chooses the tile as it goes down, as Enter does:
+ * the 5 then reaches a chosen tile, which hands it to its box (above). The
+ * press is taken in that keydown, so Space's release presses nothing again.
+ *
+ * What a key on an operation tile does: 'choose' (Space, not a repeat, no
+ * modifier), 'type' (a character typed at the tile already chosen), or null:
+ * the tile's own (Enter, Tab, a shortcut, a held Space repeating).
+ */
+export const operationTileKeyAction = (event, { chosen = false } = {}) => {
+  if (!event || event.defaultPrevented || event.isComposing) return null;
+  if (event.key === ' ') return !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey ? 'choose' : null;
+  return chosen && typesACharacter(event) ? 'type' : null;
+};

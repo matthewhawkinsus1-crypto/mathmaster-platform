@@ -97,7 +97,7 @@ import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 import { focusForEnter, resolveToolEnterAction } from './platform/interaction/answerEntryUx.js';
 import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
-import { focusFellToPage, operationTileAfterStep, typeAheadIntoOperand } from './platform/algebra/boardFocus.js';
+import { focusFellToPage, operationTileAfterStep, operationTileKeyAction, typeAheadIntoOperand } from './platform/algebra/boardFocus.js';
 import { START_OVER } from './platform/student/studentWords.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
@@ -2190,6 +2190,20 @@ export default function StepByStepAlgebra({
     setOperationFocusSignal((value) => value + 1);
   };
 
+  // A KEY ON AN OPERATION TILE (boardFocus.js operationTileKeyAction). Space
+  // chooses the tile as it goes down, as Enter does, so a character typed
+  // before Space comes up reaches a chosen tile; its own release then presses
+  // nothing. A character typed at the tile just chosen goes into its box.
+  const operationTileKeyDown = (event, operation, sourceSide) => {
+    const action = operationTileKeyAction(event, { chosen: armedTile?.operation === operation });
+    if (action === 'choose') {
+      event.preventDefault();
+      selectOperation(operation, sourceSide);
+    } else if (action === 'type') {
+      typeIntoOperationBox(event);
+    }
+  };
+
   const activateTapPlacement = () => {
     // The `isMobile` guard used to live here too, so even a caller that reached
     // this function on a desktop was turned away at the door.
@@ -2922,7 +2936,7 @@ export default function StepByStepAlgebra({
       {mobileInteraction.isMobile && !pendingMove && !inlineToolActive && (
         <div className="algebra-mobile-operation-palette" role="group" aria-label="Choose an algebra operation">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`mobile-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={(event) => operationTileKeyDown(event, operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               <span aria-hidden="true">{operation.symbol}</span><small>{operation.label}</small>
             </button>
           ))}
@@ -2932,7 +2946,7 @@ export default function StepByStepAlgebra({
       <div className={`algebra-balance-workspace-shell ${mobileInteraction.isMobile ? 'is-mobile-tap-layout' : ''}`}>
         {!mobileInteraction.isMobile && !inlineToolActive && <div ref={leftRailRef} className="algebra-rail algebra-rail-left">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`left-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'left')} onKeyDown={(event) => operationTileKeyDown(event, operation.id, 'left')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}
@@ -3102,7 +3116,7 @@ export default function StepByStepAlgebra({
 
         {!mobileInteraction.isMobile && !inlineToolActive && <div ref={rightRailRef} className="algebra-rail algebra-rail-right">
           {OPERATIONS.map((operation) => (
-            <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} onKeyDown={armedTile?.operation === operation.id ? typeIntoOperationBox : undefined} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
+            <button type="button" key={`right-${operation.id}`} className={`algebra-rail-tile ${armedTile?.operation === operation.id ? 'is-selected' : ''}`} onClick={() => selectOperation(operation.id, 'right')} onKeyDown={(event) => operationTileKeyDown(event, operation.id, 'right')} disabled={disabled || savingStep || Boolean(pendingMove)} title={operation.label} aria-label={`Choose ${operation.label} operation`}>
               {operation.symbol}
             </button>
           ))}

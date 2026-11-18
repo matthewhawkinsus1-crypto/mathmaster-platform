@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs';
 import {
   focusFellToPage,
   operationTileAfterStep,
+  operationTileKeyAction,
   typeAheadIntoOperand,
   typesACharacter,
 } from '../../src/platform/algebra/boardFocus.js';
@@ -227,11 +228,37 @@ test('a cancellation committed with no operation in hand sends the cursor where 
   assert.match(cancel.slice(signal), new RegExp(`^setStepCommitFocus\\(\\{ ticket: ${ticket[1]}, operation: null, side, phone: Boolean\\(mobileInteraction\\?\\.isMobile\\) \\}\\);`), 'no operation, on the cancelled side');
 });
 
-test('every tile of the operation just chosen sends a character typed at it into its box', () => {
+test('every tile chooses itself on Space going down, and the tile just chosen sends a character typed at it into its box', () => {
   const handler = region(board, 'const typeIntoOperationBox = useCallback((event) => {', '}, []);', 'the tile key handler');
   assert.match(handler, /typeAheadIntoOperand\(event, operationComposerRef\.current\?\.querySelector\('math-field'\)\);/, 'the operation box, as Enter there reads it');
   assert.match(board, /<div ref=\{operationComposerRef\} className="algebra-operation-composer"/, 'which is the composer\'s own box');
+  assert.match(board, /import \{[^}]*\boperationTileKeyAction\b[^}]*\} from '\.\/platform\/algebra\/boardFocus\.js';/);
+  const keyDown = region(board, 'const operationTileKeyDown = (event, operation, sourceSide) => {', 'const activateTapPlacement', 'the tile key handler');
+  assert.match(keyDown, /const action = operationTileKeyAction\(event, \{ chosen: armedTile\?\.operation === operation \}\);/, 'chosen: the tile of the operation in hand');
+  assert.match(keyDown, /if \(action === 'choose'\) \{\s*event\.preventDefault\(\);\s*selectOperation\(operation, sourceSide\);\s*\} else if \(action === 'type'\) \{\s*typeIntoOperationBox\(event\);\s*\}/, 'Space chooses it as a click does, and its release clicks nothing');
   const tileTags = board.match(/<button type="button" key=\{`(?:mobile|left|right)-\$\{operation\.id\}`\}[\s\S]*?aria-label=\{`Choose \$\{operation\.label\} operation`\}>/g) || [];
   assert.equal(tileTags.length, 3, 'the phone palette and both rails');
-  tileTags.forEach((tag) => assert.match(tag, /onKeyDown=\{armedTile\?\.operation === operation\.id \? typeIntoOperationBox : undefined\}/, tag.slice(0, 60)));
+  tileTags.forEach((tag) => {
+    const side = tag.match(/onClick=\{\(\) => selectOperation\(operation\.id, '(left|right)'\)\}/)?.[1];
+    assert.ok(side, tag.slice(0, 60));
+    assert.ok(tag.includes(`onKeyDown={(event) => operationTileKeyDown(event, operation.id, '${side}')}`), `${tag.slice(0, 60)}: every tile, the side its click chooses from`);
+  });
+});
+
+// A review after #386: a tile pressed with Space is chosen as Space comes up,
+// so a 5 typed while Space was still held reached a tile not chosen yet and
+// was lost (Space held, 5, Space up: an empty box), measured in Chromium
+// (stepAlgebraFirstOperand.mjs `space`).
+test('Space on a tile chooses it as it goes down; a character goes to the box only from the tile already chosen', () => {
+  assert.equal(operationTileKeyAction(key(' ')), 'choose');
+  assert.equal(operationTileKeyAction(key(' '), { chosen: true }), 'choose', 'the tile in hand too, as a click on it does');
+  assert.equal(operationTileKeyAction(key(' ', { repeat: true })), null, 'a held Space repeating chooses nothing again');
+  assert.equal(operationTileKeyAction(key(' ', { ctrlKey: true })), null, 'nor a shortcut');
+  assert.equal(operationTileKeyAction(key(' ', { isComposing: true })), null);
+  assert.equal(operationTileKeyAction(key(' ', { defaultPrevented: true })), null, 'nor a key already handled');
+  assert.equal(operationTileKeyAction(key('Enter')), null, 'Enter presses the tile as it goes down already');
+  assert.equal(operationTileKeyAction(key('5')), null, 'a tile not chosen keeps a character');
+  assert.equal(operationTileKeyAction(key('5'), { chosen: true }), 'type');
+  assert.equal(operationTileKeyAction(key('Tab'), { chosen: true }), null);
+  assert.equal(operationTileKeyAction(null), null);
 });

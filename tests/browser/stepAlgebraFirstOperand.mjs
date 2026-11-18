@@ -5,7 +5,7 @@
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/stepAlgebraFirstOperand.mjs
 //
-//   ONLY=plain,cold,steps,list,blind,check,cancel,double   some journeys (names below)
+//   ONLY=plain,cold,steps,list,blind,space,check,cancel,double   some journeys (names below)
 //   REPEAT=<n>       fresh stages raced in each journey, per device and speed
 //                    (default 3)
 //   THROTTLE=1,4,6   CPU throttling rates (default 1,4)
@@ -42,6 +42,12 @@
 //           every key typed before the frame: each gives what the same keys
 //           give once the box has the cursor (measured first, on a fresh
 //           stage), a key pressed in the box, not text put in it.
+//   space   Divide pressed with Space and a digit typed before Space comes up
+//           (key rollover, as a fast typist types): Space held, 5, Space up;
+//           then 6 after it; the same with the next frame held; Space alone;
+//           and Enter then 5. The box holds what was typed (5, 56, 5, nothing,
+//           5), with the cursor: Space chooses the tile as it goes down, as
+//           Enter does, and its release presses nothing again. (A Chromebook.)
 //   check   a whole step on the standalone board: Divide, 5, placed on both
 //           sides, the 5s crossed out, 7 typed in the simplification box, then
 //           checked with Enter or with Check my simplification (a phone taps
@@ -75,7 +81,7 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
-const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'blind', 'check', 'cancel', 'double'];
+const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'blind', 'space', 'check', 'cancel', 'double'];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const REPEAT = Number(process.env.REPEAT ?? 3);
 const THROTTLE = (process.env.THROTTLE || '1,4').split(',').map(Number).filter((rate) => rate >= 1);
@@ -394,6 +400,55 @@ if (wanted('blind') && deviceNames.includes('chromebook')) {
       const kept = after.box === expected.box && after.draft === expected.draft && after.operation === 'divide' && after.sameBox && cursor === 'the operation box';
       count(label, !kept);
       check(kept, `${label}: "${operand}" typed before a frame gives ${JSON.stringify(expected.box)}, as typed in the box${reachedTile ? '' : ' (its first key did not reach the tile)'}`, kept ? '' : `box ${JSON.stringify(after.box)}, draft ${JSON.stringify(after.draft)}, cursor on ${cursor}\n      ${after.log}`);
+    }
+  }
+  await throttle(cdp, 1);
+  await context.close();
+}
+
+/* ======================================================== Space held */
+
+// A review after #386: a tile is pressed by Space as Space comes up, and the
+// type-ahead into its box listens only on the tile already chosen. A 5 typed
+// while Space was still held reached a tile not chosen yet and was lost: Space
+// held, 5, Space up left the box empty, and with 6 typed after the release the
+// box held only the 6.
+const SPACE_PRESSES = [
+  { name: 'Space held, 5, Space up', typed: '5', run: async (page) => { await page.keyboard.down('Space'); await page.keyboard.press('5'); await page.keyboard.up('Space'); } },
+  { name: 'Space held, 5, Space up, then 6', typed: '56', run: async (page) => { await page.keyboard.down('Space'); await page.keyboard.press('5'); await page.keyboard.up('Space'); await page.keyboard.press('6'); } },
+  {
+    name: 'Space held, 5 before the next frame, Space up',
+    typed: '5',
+    run: async (page) => {
+      await page.evaluate(() => window.__frames.hold());
+      await page.keyboard.down('Space');
+      await page.keyboard.press('5');
+      await page.keyboard.up('Space');
+      await page.evaluate(() => window.__frames.release());
+    },
+  },
+  { name: 'Space alone', typed: '', run: (page) => page.keyboard.press('Space') },
+  { name: 'Enter, then 5', typed: '5', run: async (page) => { await page.keyboard.press('Enter'); await page.keyboard.press('5'); } },
+];
+
+if (wanted('space') && deviceNames.includes('chromebook')) {
+  console.log('\nspace');
+  const { context, page, cdp } = await open('plain', 'chromebook');
+  for (const rate of THROTTLE) {
+    for (const how of SPACE_PRESSES) {
+      const label = `space chromebook ×${rate}, ${how.name}`;
+      await throttle(cdp, rate);
+      await freshStage(page);
+      await divide(page).waitFor({ timeout: 120_000 });
+      await painted(page);
+      await divide(page).focus();
+      await how.run(page);
+      await settle(page, 1000 * rate);
+      const after = await operandNow(page);
+      const cursor = await cursorOn(page);
+      const kept = after.box === how.typed && after.draft === how.typed && after.operation === 'divide' && cursor === 'the operation box';
+      count(label, !kept);
+      check(kept, `${label}: Divide is chosen and its box holds ${JSON.stringify(how.typed)}, with the cursor`, kept ? '' : `box ${JSON.stringify(after.box)}, draft ${JSON.stringify(after.draft)}, cursor on ${cursor}\n      ${after.log}`);
     }
   }
   await throttle(cdp, 1);
