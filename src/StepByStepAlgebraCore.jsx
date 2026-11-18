@@ -580,6 +580,20 @@ export default function StepByStepAlgebra({
   const [shake, setShake] = useState(false);
   const [savingStep, setSavingStep] = useState(false);
   const [cancelAnimating, setCancelAnimating] = useState(false);
+  /*
+   * ONE STEP COMMITTED AT A TIME (a review after #386). A balanced step settles
+   * for 620 ms (its animation) before it is saved, and Check my
+   * simplification, disabled only while the save ran, took a second press in
+   * between: two clicks, a double click, Enter twice in the box or on the
+   * button, a phone's second tap, in a composed question's step too. Each
+   * committed the step again: 2 step grades and 2 work steps, both "Divided
+   * both sides by 5" (stepAlgebraFirstOperand.mjs `double`). The check now
+   * waits for the step to settle like Keep as written, and this mark, taken
+   * in the event that begins a commit (commitMove, a pair cancelled with no
+   * operation in hand) and given back once the step is committed or held,
+   * refuses any second commit before then, from whatever control.
+   */
+  const stepCommitInFlightRef = useRef(false);
   // The cancellation sequence. `lockedStroke` is the line the student drew,
   // kept on screen after the pointer lifts so the strike reads as a decision
   // rather than as ink that vanished; `struckIndices` highlights what it went
@@ -1122,12 +1136,16 @@ export default function StepByStepAlgebra({
   };
 
   const commitMove = async (move, { resolution = 'normal', crossedSidesOverride = null } = {}) => {
+    // One commit at a time (stepCommitInFlightRef): a second press while this
+    // step settles commits nothing.
+    if (stepCommitInFlightRef.current) return;
+    stepCommitInFlightRef.current = true;
     // Taken as the student commits (their Enter, Check or last cross-out), so
     // anything they do while the step settles outranks the focus below.
     const focusTicket = deferredFocusHost?.ticket({ since: 'now', channel: 'step-commit' }) || null;
     setCancelAnimating(true);
     setCollapsingSides(move.requiredCancellationSides || []);
-    window.setTimeout(async () => {
+    const settle = async () => {
       const verdict = evaluateMove(move, supportLevel);
       const normalizedSimplificationAnswers = Object.fromEntries(
         Object.entries(simplificationAnswers || {}).map(([side, value]) => [side, latexToExpression(value)]),
@@ -1211,7 +1229,9 @@ export default function StepByStepAlgebra({
               ? 'Balanced step complete. Continue from the equation shown.'
               : verdict.message,
       });
-    }, motionDuration(620, reducedMotion, { floor: 40 }));
+    };
+    // Committed, held for "Apply the step again", or failed: the next commit may begin.
+    window.setTimeout(() => { settle().finally(() => { stepCommitInFlightRef.current = false; }); }, motionDuration(620, reducedMotion, { floor: 40 }));
   };
 
   const hasPartialCancellationSelection = () => Object.values(selectedCancellationIndices || {})
@@ -1687,7 +1707,8 @@ export default function StepByStepAlgebra({
   };
 
   const commitStandaloneCancellation = async (side, model) => {
-    if (!model?.resultExpression || savingStep || cancelAnimating) return;
+    if (!model?.resultExpression || savingStep || cancelAnimating || stepCommitInFlightRef.current) return;
+    stepCommitInFlightRef.current = true;
     // Taken as the student completes the pair (Enter on a term, a click, a
     // slash), as a committed step's is: anything they do while the
     // cancellation settles outranks the focus below.
@@ -1734,6 +1755,7 @@ export default function StepByStepAlgebra({
       } finally {
         setSavingStep(false);
         setCancelAnimating(false);
+        stepCommitInFlightRef.current = false;
       }
     }, motionDuration(420, reducedMotion, { floor: 40 }));
   };
@@ -1837,7 +1859,8 @@ export default function StepByStepAlgebra({
   };
 
   const checkSimplifications = async () => {
-    if (!pendingMove || savingStep) return;
+    // Not while the step settles: its 620 ms come before the save.
+    if (!pendingMove || savingStep || cancelAnimating) return;
     const targets = pendingMove.simplificationTargets || [];
     const missing = targets.filter((target) => !String(simplificationAnswers[target.side] || '').trim());
     if (missing.length) {
@@ -3201,7 +3224,7 @@ export default function StepByStepAlgebra({
             {!equation.objective?.requireSimplifiedFinalForm && (
               <button type="button" className="algebra-keep-written" onClick={keepPendingMoveAsWritten} disabled={savingStep || cancelAnimating}>Keep as written</button>
             )}
-            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep}>Check my simplification</button>
+            <button type="button" className="algebra-check-simplification" onClick={checkSimplifications} disabled={savingStep || cancelAnimating}>Check my simplification</button>
           </div>
           <p className="algebra-simplification-note">
             {equation.objective?.requireSimplifiedFinalForm

@@ -5,7 +5,7 @@
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/stepAlgebraFirstOperand.mjs
 //
-//   ONLY=plain,cold,steps,list,blind,check,cancel   some journeys (names below)
+//   ONLY=plain,cold,steps,list,blind,check,cancel,double   some journeys (names below)
 //   REPEAT=<n>       fresh stages raced in each journey, per device and speed
 //                    (default 3)
 //   THROTTLE=1,4,6   CPU throttling rates (default 1,4)
@@ -55,6 +55,16 @@
 //           and the pressed term goes with it; the cursor is on the first
 //           operation tile of the cancelled side's rail (the phone's palette),
 //           as after a committed step, not on the page.
+//   double  a step's commit pressed twice, the second press while the step
+//           settles (its 620 ms animation, before it is saved): Check my
+//           simplification clicked twice, double-clicked, tapped twice on a
+//           phone; Enter twice in the simplification box (and the number
+//           pad's Enter), Enter and Space twice on the button; Keep as
+//           written clicked twice; a pair cancelled with no operation in hand
+//           by Enter twice, a double click or two taps; and Check clicked
+//           twice and Enter twice in a composed question's balance step.
+//           Each commits the step once: one step grade, one work step.
+//           (At the first THROTTLE rate: the window is the animation's.)
 //
 // A saved draft that arrives from the server after the student started is
 // raced in the real App: tests/browser/teacherWorkflow/
@@ -65,7 +75,7 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
-const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'blind', 'check', 'cancel'];
+const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'blind', 'check', 'cancel', 'double'];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const REPEAT = Number(process.env.REPEAT ?? 3);
 const THROTTLE = (process.env.THROTTLE || '1,4').split(',').map(Number).filter((rate) => rate >= 1);
@@ -396,8 +406,8 @@ const press = (locator, device) => (device === 'phone' ? locator.tap() : locator
 const boardState = (page) => page.evaluate(() => String(document.querySelector('[data-math-state]')?.getAttribute('data-math-state') || '').replace(/[\s~]/g, ''));
 
 // Divide by 5, placed on both sides, the 5s crossed out, 7 typed as the right
-// side, and checked: with Enter, or with Check my simplification.
-const wholeStep = async (page, device, how) => {
+// side (stagedStep), and checked: with Enter, or with Check my simplification.
+const stagedStep = async (page, device) => {
   await divide(page).waitFor({ timeout: 120_000 });
   await press(divide(page), device);
   await operandBox(page).waitFor({ timeout: 60_000 });
@@ -423,6 +433,9 @@ const wholeStep = async (page, device, how) => {
   if (device === 'phone') await page.locator('button[aria-label="Insert 7"]').filter({ visible: true }).first().tap();
   else await page.keyboard.type('7');
   await settle(page, 300);
+};
+const wholeStep = async (page, device, how) => {
+  await stagedStep(page, device);
   if (how === 'Enter') await page.keyboard.press('Enter');
   else await press(page.locator('button.algebra-check-simplification'), device);
   for (let tries = 0; tries < 40 && await boardState(page) !== 'x=7'; tries += 1) await settle(page, 250);
@@ -488,6 +501,100 @@ if (wanted('cancel')) {
       await throttle(cdp, 1);
       await context.close();
     }
+  }
+}
+
+/* ===================================================== a second press */
+
+// A review after #386: a balanced step settles for 620 ms before it is saved,
+// and Check my simplification took a second press in between. Two clicks
+// committed the step twice: 2 step grades, 2 work steps "Divided both sides
+// by 5" (one press: 1 and 1). Measured on the base in Chromium for every way
+// below that reaches Check, and in a composed question's step; Keep as
+// written and a cancelled pair already refused the second press.
+const commitsNow = (page) => page.evaluate(() => {
+  const keys = Object.keys(window.localStorage).filter((key) => key.endsWith(':step-algebra'));
+  const latest = keys.map((key) => JSON.parse(window.localStorage.getItem(key))).sort((a, b) => (b.touchedAt || 0) - (a.touchedAt || 0))[0];
+  return { grades: window.__steps.length, workSteps: (latest?.value?.workSteps || []).length };
+});
+// A second click or tap lands where the first did, on whatever is there by
+// then: a disabled button takes nothing (a locator would wait for it).
+const centreOf = async (locator) => {
+  // In the middle of the screen, clear of the question's sticky bar, and
+  // shown to be what a press there reaches.
+  await locator.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  const box = await locator.boundingBox();
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const reached = await locator.evaluate((element, point) => element.contains(document.elementFromPoint(point.x, point.y)), at);
+  if (!reached) throw new Error(`a press at the centre of ${await locator.evaluate((element) => element.outerHTML.slice(0, 80))} reaches something else`);
+  return at;
+};
+const SECOND_PRESS_MS = 120;
+const twice = async (page, act) => {
+  await act();
+  await settle(page, SECOND_PRESS_MS);
+  await act();
+};
+const checkButton = (page) => page.locator('button.algebra-check-simplification').first();
+const pairTerm = (page) => page.locator('[aria-label$=", select to cancel"]').nth(1);
+const clickTwice = async (page, locator) => {
+  const at = await centreOf(locator);
+  await twice(page, () => page.mouse.click(at.x, at.y));
+};
+const DOUBLE_PRESSES = [
+  { scene: 'plain', device: 'chromebook', how: 'Check my simplification clicked twice', run: (page) => clickTwice(page, checkButton(page)) },
+  { scene: 'plain', device: 'chromebook', how: 'Check my simplification double-clicked', run: async (page) => { const at = await centreOf(checkButton(page)); await page.mouse.dblclick(at.x, at.y); } },
+  { scene: 'plain', device: 'chromebook', how: 'Enter twice in the simplification box', run: (page) => twice(page, () => page.keyboard.press('Enter')) },
+  { scene: 'plain', device: 'chromebook', how: 'the number pad\'s Enter twice in the box', run: (page) => twice(page, () => page.keyboard.press('NumpadEnter')) },
+  { scene: 'plain', device: 'chromebook', how: 'Enter twice on Check my simplification', run: async (page) => { await checkButton(page).focus(); await twice(page, () => page.keyboard.press('Enter')); } },
+  { scene: 'plain', device: 'chromebook', how: 'Space twice on Check my simplification', run: async (page) => { await checkButton(page).focus(); await twice(page, () => page.keyboard.press(' ')); } },
+  { scene: 'plain', device: 'chromebook', how: 'Keep as written clicked twice', board: 'x=\\frac{35}{5}', run: (page) => clickTwice(page, page.locator('button.algebra-keep-written').first()) },
+  { scene: 'plain', device: 'phone', how: 'Check my simplification tapped twice', run: async (page) => { const at = await centreOf(checkButton(page)); await twice(page, () => page.touchscreen.tap(at.x, at.y)); } },
+  { scene: 'cancel', device: 'chromebook', how: 'Enter twice on a term of the pair', board: 'x=9', run: async (page) => { await pairTerm(page).focus(); await twice(page, () => page.keyboard.press('Enter')); } },
+  { scene: 'cancel', device: 'chromebook', how: 'a term of the pair double-clicked', board: 'x=9', run: async (page) => { const at = await centreOf(pairTerm(page)); await page.mouse.dblclick(at.x, at.y); } },
+  { scene: 'cancel', device: 'phone', how: 'a term of the pair tapped twice', board: 'x=9', run: async (page) => { const at = await centreOf(pairTerm(page)); await twice(page, () => page.touchscreen.tap(at.x, at.y)); } },
+  // A composed question's balance step reports no step grade to this host: its work steps say it.
+  { scene: 'steps', device: 'chromebook', how: 'Check my simplification clicked twice in a composed question', composed: true, run: (page) => clickTwice(page, checkButton(page)) },
+  { scene: 'steps', device: 'chromebook', how: 'Enter twice in a composed question\'s simplification box', composed: true, run: (page) => twice(page, () => page.keyboard.press('Enter')) },
+];
+
+if (wanted('double')) {
+  console.log('\ndouble');
+  const rate = THROTTLE[0];
+  const groups = [...new Set(DOUBLE_PRESSES.map((way) => `${way.scene}|${way.device}`))];
+  for (const group of groups) {
+    const [scene, device] = group.split('|');
+    if (!deviceNames.includes(device)) continue;
+    const { context, page, cdp } = await open(scene, device);
+    await throttle(cdp, rate);
+    for (const way of DOUBLE_PRESSES.filter((entry) => `${entry.scene}|${entry.device}` === group)) {
+      const label = `double ${device} ×${rate}: ${way.how}`;
+      await freshStage(page);
+      if (scene === 'cancel') {
+        await pairTerm(page).waitFor({ timeout: 60_000 });
+        await painted(page);
+      } else {
+        if (scene === 'steps') {
+          await typeStepOne(page);
+          await page.getByRole('button', { name: /Next step/ }).click();
+        }
+        await stagedStep(page, device);
+      }
+      const before = await commitsNow(page);
+      const boardBefore = await boardState(page);
+      await way.run(page);
+      for (let tries = 0; tries < 40 && await boardState(page) === boardBefore; tries += 1) await settle(page, 250);
+      // Long enough for a second commit to settle and be saved too.
+      await settle(page, 2000 * rate);
+      const after = await commitsNow(page);
+      const board = await boardState(page);
+      const expectedBoard = way.board || 'x=7';
+      const grades = after.grades - before.grades;
+      const once = board === expectedBoard && after.workSteps === 1 && (way.composed ? grades <= 1 : grades === 1);
+      check(once, `${label}: the step is committed once (${expectedBoard})`, `${grades} step grade(s), ${after.workSteps} work step(s), board ${board}`);
+    }
+    await throttle(cdp, 1);
+    await context.close();
   }
 }
 
