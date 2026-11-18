@@ -4,12 +4,15 @@
 // back as index.html, so a long-open tab's next lazy import fails. These pin
 // that every browser's spelling of that failure is recognised, that the reload
 // it triggers cannot loop, that both boundaries route it to "updated" rather
-// than "broken question" / "could not start", and that the client diagnostic
-// log keeps nothing identifying.
+// than "broken question" / "could not start", that offline AppErrorBoundary
+// says to check the connection and does not reload into the browser's own
+// error page, and that the client diagnostic log keeps nothing identifying.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createServer } from 'vite';
 import {
   CHUNK_RELOAD_COOLDOWN_MS,
   CHUNK_RELOAD_GUARD_KEY,
@@ -78,12 +81,63 @@ test('both boundaries route a failed chunk to the update panel, never to "broken
 
   const app = executableSource(readFileSync(new URL('../../src/components/common/AppErrorBoundary.jsx', import.meta.url), 'utf8'));
   assert.match(app, /const chunk = isChunkLoadError\(error\)/);
-  assert.match(app, /chunk && !reloadedRecently[\s\S]*?MathMaster was just updated[\s\S]*?onPrimary=\{\(\) => reloadForCurrentBuild\(\)\}/);
+  // The update panel's button reloads for the current build, unless the
+  // device is offline (rendered below).
+  assert.match(app, /const reload = \(\) => \{ if \(!offline\(\)\) reloadForCurrentBuild\(\); \};/);
+  assert.match(app, /chunk && !reloadedRecently && !offline\(\)[\s\S]*?MathMaster was just updated[\s\S]*?onPrimary=\{reload\}/);
   assert.doesNotMatch(app, /error\?\.stack/, 'no stack trace on a student\'s screen');
   const main = readFileSync(new URL('../../src/main.jsx', import.meta.url), 'utf8');
   assert.match(main, /import AppErrorBoundary from '\.\/components\/common\/AppErrorBoundary\.jsx';/);
   assert.match(main, /<AppErrorBoundary>/);
   assert.match(main, /installClientDiagnostics\(window\)/);
+});
+
+// Offline, code that did not load is the connection, not an update, and a
+// reload would trade MathMaster for the browser's own error page. A teacher's
+// panels opened offline wait for the connection (app/teacher/onDemandCode.js);
+// what still reaches AppErrorBoundary offline (a teacher screen's chunk, the
+// authoring code) gets the connection panel, whose button reloads only once
+// the device is back online, as a student screen's Try again does
+// (retryableChunk.js). teacherCodeRecovery.mjs C10 drives it in the real App.
+test('offline, AppErrorBoundary says to check the connection and reloads only once the device is back online', async () => {
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' });
+  const was = { window: globalThis.window, navigator: Object.getOwnPropertyDescriptor(globalThis, 'navigator') };
+  try {
+    const { default: AppErrorBoundary } = await server.ssrLoadModule('/src/components/common/AppErrorBoundary.jsx');
+    const failed = new TypeError('Failed to fetch dynamically imported module: https://example.test/assets/ClassesWorkspace-abc.js');
+    const device = { onLine: true };
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, get: () => device });
+    const replaced = [];
+    const stored = new Map();
+    globalThis.window = {
+      location: { href: 'https://example.test/', replace: (url) => replaced.push(url) },
+      sessionStorage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, String(value)) },
+    };
+    const failedIn = () => {
+      const boundary = new AppErrorBoundary({ children: 'the app' });
+      boundary.state = { ...boundary.state, ...AppErrorBoundary.getDerivedStateFromError(failed) };
+      return boundary.render();
+    };
+    // Online, the failure is a tab that outlived a deploy, as before.
+    assert.match(renderToStaticMarkup(failedIn()), /MathMaster was just updated/);
+    device.onLine = false;
+    const shown = failedIn();
+    const markup = renderToStaticMarkup(shown);
+    assert.match(markup, /MathMaster could not load this screen/);
+    assert.match(markup, /Check that this device is connected to the internet, then try again\./);
+    assert.doesNotMatch(markup, /was just updated/);
+    const panel = shown.props.children;
+    panel.props.onPrimary();
+    assert.equal(replaced.length, 0, 'no reload while the device is offline');
+    device.onLine = true;
+    panel.props.onPrimary();
+    assert.equal(replaced.length, 1, 'back online, its button loads the page again');
+    assert.match(replaced[0], /_mm_reload=/);
+  } finally {
+    globalThis.window = was.window;
+    if (was.navigator) Object.defineProperty(globalThis, 'navigator', was.navigator);
+    await server.close();
+  }
 });
 
 test('the client diagnostic log keeps no email, id, query string or long message', async () => {

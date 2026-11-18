@@ -50,6 +50,11 @@
 //       that saves data (nothing fetched ahead): nothing replaces the app, a
 //       note says they open once the device is back online, and then they
 //       open, with focus on their Close
+//   C10 a teacher screen whose code is not here, opened offline:
+//       AppErrorBoundary says it could not load and to check the connection,
+//       not that MathMaster was updated, and its button reloads only once the
+//       device is back online (a reload offline is the browser's own error
+//       page)
 //
 // Offline is the device's as the app reads it (navigator.onLine and the
 // online event), with every request failing while it lasts. Chromium's own
@@ -336,6 +341,35 @@ await scene('C9', async () => {
     const focus = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.textContent || '');
     expect('C9 with focus on their Close', /Close student profile/.test(focus), `focus on "${focus}"`);
   }
+  await context.close();
+});
+
+// C10: a teacher screen whose code is not here, opened offline.
+await scene('C10', async () => {
+  const network = connection();
+  const { context, page } = await openTeacher({ network });
+  await page.waitForTimeout(1500);
+  await network.offline(page);
+  await sidebar(page, 'Classes').click();
+  const shown = await panel(page).first().waitFor({ timeout: 60_000 }).then(() => true, () => false);
+  expect('C10 AppErrorBoundary takes the screen', shown, 'no recovery panel within 60 s');
+  if (!shown) { await context.close(); return; }
+  const text = await panel(page).first().innerText();
+  expect('C10 it says the screen could not load and to check the connection', /could not load/i.test(text) && /connected to the internet/i.test(text), text.split('\n').slice(0, 3).join(' / '));
+  expect('C10 it does not say MathMaster was updated', !/was just updated/i.test(text), text.split('\n')[0]);
+  const before = page.url();
+  await page.getByRole('button', { name: /Try again|Load the new version/ }).first().click();
+  await page.waitForTimeout(2500);
+  expect('C10 its button does not reload while the device is offline', page.url() === before && (await panel(page).count()) === 1, `now at ${page.url()}`);
+  await network.online(page);
+  await Promise.all([
+    page.waitForURL(/_mm_reload=/, { timeout: 60_000 }),
+    page.getByRole('button', { name: /Try again|Load the new version/ }).first().click(),
+  ]);
+  await homeHeading(page).waitFor({ timeout: 120_000 });
+  await sidebar(page, 'Classes').click();
+  await page.getByRole('button', { name: /Algebra II — Period 3/ }).first().waitFor({ timeout: 120_000 });
+  expect('C10 back online, its button loads a page whose screen draws', (await panel(page).count()) === 0, 'the panel is still there');
   await context.close();
 });
 
