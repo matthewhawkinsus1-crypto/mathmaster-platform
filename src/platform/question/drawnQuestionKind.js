@@ -35,10 +35,11 @@
  * Object property such as "constructor".
  *
  * QuestionEngine calls this on the question it renders, after generation;
- * the validator on the authored question, or a family slot's generated
- * preview. A runtime repair that would rescue a stored question (a mis-cased
- * "StepAlgebra2") is deliberately not applied here: QuestionEngine skips it
- * under server grading, so the validator does not count on it.
+ * the validator on every version of a question a student can be given
+ * (studentQuestionVersions.js): the stored question repaired as the student
+ * player repairs it, then each of its variants, each version of a variant
+ * family, or a family slot's preview. The rule applies no repair itself: what
+ * it is handed is what is drawn.
  *
  * Pure: no React.
  */

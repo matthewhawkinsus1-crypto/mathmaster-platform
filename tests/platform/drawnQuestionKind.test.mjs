@@ -11,9 +11,12 @@
  *   the engine     QuestionEngine takes its route from the rule, and its switch draws exactly the rule's types
  *   the validator  refuses what the rule draws nothing for, naming the question, its type and its toolId; judges
  *                  the tool it does draw; and still accepts every type the app draws and every real lesson
- *   real content   for every question of every lesson in teacher-import-jsons and the demo bank, the rule on the
- *                  question the validator judges is the rule on the question QuestionEngine renders, which is what
- *                  QuestionEngine's dispatch, read from its source, draws
+ *   every version  a student is given one version of a question: the stored question repaired as the student player
+ *                  repairs it, then one of its variants, or one version of a variant family. Every one is judged,
+ *                  and a refusal names the version (studentQuestionVersions.js)
+ *   real content   for every question of the lessons in teacher-import-jsons, the district DOL 2 drafts and the demo
+ *                  bank, every version the validator judges draws, and what QuestionEngine renders and draws for a
+ *                  student, by the rule and by its dispatch read from its source, is one of them
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,7 +31,9 @@ import { prepareQuestionForRuntimeRouting } from '../../src/platform/algebra/alg
 import { generateQuestion } from '../../src/problemGenerator.js';
 import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
 import { withShuffledSortCards } from '../../src/platform/workflow/sortCardOrder.js';
-import { isFamilyBackedQuestion, resolveFamilyPreviewInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { resolveFamilyPreviewInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { repairQuestionForCurrentRuntime } from '../../src/platform/assignments/assignmentRuntimeRepair.js';
+import { studentQuestionVersions } from '../../src/platform/question/studentQuestionVersions.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const repo = new URL('../../', import.meta.url);
@@ -57,6 +62,9 @@ const refusal = (questions) => {
 
 const LESSON_FILES = readdirSync(new URL('teacher-import-jsons/', repo), { recursive: true }).map(String)
   .filter((file) => file.endsWith('.json')).sort().map((file) => `teacher-import-jsons/${file}`);
+// The district DOL 2: every question an assignment-local family of 48 authored variants.
+const DOL2_FILES = ['assignment.json', 'makeup-practice.json', 'makeup-honors-ready.json'].map((file) => `drafts/district-dol2/${file}`);
+const students = (count) => Array.from({ length: count }, (_, seat) => `drawn-kind|student-${seat}|0`);
 
 // QuestionEngine's dispatch as its source declares it: a composed question, else a registry loader its toolId and
 // then its type names (the registry's own object lookup), else a case of its switch, else the panel.
@@ -67,10 +75,13 @@ const engineDispatch = (question) => {
   if (tool) return `tool:${tool.toolId}`;
   return SWITCH_CASES.includes(question?.type) && question.type !== PREPARATION_FAILURE ? `type:${question.type}` : 'panel';
 };
-// The question QuestionEngine renders: runtime-repaired, generated, set in its context, its sort cards dealt.
-const rendered = (question, serverGraded = false) => withShuffledSortCards(normalizeContextualQuestion(generateQuestion(
-  prepareQuestionForRuntimeRouting(question, { serverGraded }), `drawn-kind|${question.questionId}|0`,
-)));
+// The question QuestionEngine renders for one student: the stored question as the student player hands it over
+// (repaired for the current runtime whatever the grading mode: App.jsx, prepareAssignmentForRuntime), repaired again
+// by QuestionEngine outside server grading, generated, set in its context, its sort cards dealt.
+const playerQuestion = (question) => repairQuestionForCurrentRuntime(question, { source: 'activeAssignmentPlayer' }).question;
+const rendered = (question, serverGraded = false, key = `drawn-kind|${question.questionId}|0`) => withShuffledSortCards(
+  normalizeContextualQuestion(generateQuestion(prepareQuestionForRuntimeRouting(playerQuestion(question), { serverGraded }), key)),
+);
 
 test('the registry the rule reads is the registry QuestionEngine mounts, and the switch draws the rule\'s types', () => {
   assert.ok(REGISTRY_TOOL_IDS.length >= 25, `the loader parser broke: ${REGISTRY_TOOL_IDS.length}`);
@@ -156,8 +167,6 @@ test('the validator refuses a question the app draws nothing for, naming it, its
     questionFamily: { scope: 'assignment' },
   };
   assert.match(refusal([local]) || '', /^Question 1 has type freeResponse and toolId multiAnswer in its generated version: .*could not be displayed/);
-  // The validator does not count on a runtime repair QuestionEngine skips under server grading.
-  assert.match(refusal([{ type: 'StepAlgebra2', toolId: 'multiAnswer', mode: 'linearIntercepts', prompt }]) || '', UNDRAWN);
 });
 
 test('a teacher\'s import that carries the pair is refused by the validator and by Pre-Flight; the same file drawable imports', () => {
@@ -197,6 +206,89 @@ test('the validator judges the tool or type that is drawn, as well as the name i
   assert.match(refusal([{ type: 'graphing2', workflow: [stage], prompt: 'Graph the line.' }]) || '', /^Question 1 \(graphing2\) is invalid: /);
 });
 
+const STAGE = Object.freeze({ id: 's1', kind: 'classification', prompt: 'Which is it?', choices: [{ id: 'a', label: 'Increasing' }, { id: 'b', label: 'Decreasing' }] });
+const withVariants = (...variants) => ({ questionId: 'q1', type: 'multiAnswer', prompt: 'What is 3 + 4?', answerFields: [{ id: 'answer', answer: '7' }], variants });
+const kindsShown = (question, count = 40) => sorted(new Set(students(count).map((key) => drawn(rendered(question, false, key)))));
+
+test('each variant is judged as the version a student is given, and a refusal names it', () => {
+  // A question with variants is never shown as itself: each student is given one variant spread over it.
+  const pair = withVariants({ prompt: 'What is 3 + 5?' }, { type: 'freeResponse', toolId: 'multiAnswer', prompt: 'What is 3 + 6?' });
+  assert.match(refusal([pair]) || '', /^Question 1 has type freeResponse and toolId multiAnswer in its variant 2 of 2: MathMaster draws a question by its type unless its toolId names an interactive tool, and freeResponse is not a type it draws, so students given that variant would see "This question could not be displayed" instead of a question\. Use type multiAnswer\.$/);
+  assert.deepEqual(kindsShown(pair), ['panel', 'type:multiAnswer'], 'students are given that variant, and see the panel');
+  assert.match(refusal([withVariants({ type: 'freeResponse', prompt: 'What is 3 + 5?' }, { prompt: 'What is 3 + 6?' })]) || '',
+    /^Question 1 has type freeResponse in its variant 1 of 2: freeResponse is not a type MathMaster draws, so students given that variant would see/);
+  // A variant that opens a tool is judged as that tool, and a variant's own key as its own.
+  assert.match(refusal([withVariants({ prompt: 'a' }, { type: 'graphing2', prompt: 'Graph y = 2x.' })]) || '', /^Question 1 \(graphing2\) is invalid in its variant 2 of 2: /);
+  assert.match(refusal([{ questionId: 'q3', type: 'fraction', prompt: 'p', answer: '3/4', variants: [{ answer: '1/2' }, { answer: 'three quarters' }] }]) || '',
+    /^Question 1 fraction answer "three quarters" in its variant 2 of 2 is not a number/);
+  // Through the import: a portable export with one bad variant, refused by the validator and by Pre-Flight.
+  const lesson = parseAssignmentBlueprintText(read('teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations.json')).assignmentV5;
+  const portable = { ...structuredClone(lesson), portableContract: { kind: 'mathmasterCanonicalAssignmentV5', version: 1 } };
+  const flat = portable.sections.flatMap((section) => section.questions);
+  const target = flat.find((question) => question.type === 'multiAnswer' && !question.questionFamily);
+  target.variants = [{ prompt: `${target.prompt} (version A)` }, { type: 'freeResponse', toolId: 'multiAnswer', prompt: `${target.prompt} (version B)` }];
+  const parsed = parseAssignmentBlueprintText(JSON.stringify(portable));
+  const expected = new RegExp(`^Question ${flat.indexOf(target) + 1} has type freeResponse and toolId multiAnswer in its variant 2 of 2: `);
+  assert.match(refusal(parsed.questions) || '', expected);
+  assert.ok(buildAssignmentV5PreflightModel(parsed.assignmentV5).errors.some((error) => expected.test(error)), 'Pre-Flight shows it');
+});
+
+test('a composed type whose workflow is only in its variants is accepted: every student is given a workflow', () => {
+  // Accepted before 328bd638, and QuestionEngine draws each variant as a workflow; the stored question alone has
+  // none, but it is never what a student is given.
+  const composed = { questionId: 'q2', type: 'functionCharacteristics', prompt: 'Describe the function.', variants: [{ prompt: 'Describe f.', workflow: [STAGE] }, { prompt: 'Describe g.', workflow: [STAGE] }] };
+  assert.equal(drawn(composed), 'panel', 'the stored question alone draws nothing');
+  assert.equal(refusal([composed]), null);
+  assert.deepEqual(kindsShown(composed, 12), ['workflow']);
+  // One variant without it is refused, by its name.
+  assert.match(refusal([{ ...composed, variants: [composed.variants[0], { prompt: 'Describe h.' }] }]) || '',
+    /^Question 1 has type functionCharacteristics in its variant 2 of 2 and no workflow: /);
+});
+
+test('every version of a variant family is judged, not only its first preview', () => {
+  // The district DOL 2's question 1 is an assignment-local family of 48 authored variants; one carries the pair.
+  const source = JSON.parse(read('drafts/district-dol2/assignment.json'));
+  const q1 = source.sections[0].questions[0];
+  assert.equal(q1.variants.length, 48);
+  Object.assign(q1.variants[7], { type: 'freeResponse', toolId: 'multiAnswer' });
+  const parsed = parseAssignmentBlueprintText(JSON.stringify(source));
+  const slot = parsed.questions.find((question) => question.questionId === q1.questionId);
+  assert.equal(drawn(resolveFamilyPreviewInstance(slot).question), 'type:multiAnswer', 'its first preview draws');
+  // Students are dealt that version: one preview seat lands on it.
+  assert.ok(Array.from({ length: 48 }, (_, index) => drawn(resolveFamilyPreviewInstance(slot, { index }).question)).includes('panel'));
+  const expected = /^Question 1 has type freeResponse and toolId multiAnswer in its variant 8 of 48: .*students given that variant would see "This question could not be displayed"/;
+  assert.match(refusal(parsed.questions) || '', expected);
+  assert.ok(buildAssignmentV5PreflightModel(parsed.assignmentV5).errors.some((error) => expected.test(error)), 'Pre-Flight shows it');
+  // Each of the 48 is a version the validator judges, built as the family deals it.
+  const { versions } = studentQuestionVersions(slot);
+  assert.equal(versions.length, 48);
+  assert.deepEqual(versions.map(({ question }) => drawn(question)).map((kind, index) => (kind === 'panel' ? index : null)).filter((index) => index !== null), [7]);
+});
+
+test('a stored type the runtime repair rescues is judged as the student player draws it, at import as in Pre-Flight', () => {
+  // The student player repairs every stored question before QuestionEngine, whatever the grading mode, and
+  // Pre-Flight judges that view: a stepAlgebra2 question in linearIntercepts mode opens Step Algebra, its type
+  // read without case and its toolId kept.
+  const repairable = { questionId: 'q1', type: 'StepAlgebra2', toolId: 'multiAnswer', mode: 'linearIntercepts', equation: '2x + 4y = 8', prompt: 'Find both intercepts of 2x + 4y = 8.' };
+  for (const serverGraded of [false, true]) assert.equal(drawn(rendered(repairable, serverGraded)), 'type:stepAlgebra', `server graded: ${serverGraded}`);
+  assert.equal(refusal([repairable]), null);
+  const lesson = parseAssignmentBlueprintText(read('teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations.json')).assignmentV5;
+  const portable = { ...structuredClone(lesson), portableContract: { kind: 'mathmasterCanonicalAssignmentV5', version: 1 } };
+  const flat = portable.sections.flatMap((section) => section.questions);
+  const target = flat.find((question) => question.type === 'multiAnswer' && !question.questionFamily);
+  Object.assign(target, { type: 'StepAlgebra2', toolId: 'multiAnswer', mode: 'linearIntercepts', equation: '2x + 4y = 8' });
+  const parsed = parseAssignmentBlueprintText(JSON.stringify(portable));
+  assert.doesNotThrow(() => validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignmentV5.variantPolicy?.mode }), 'the import check');
+  const about = new RegExp(`^Question ${flat.indexOf(target) + 1}\\b`);
+  assert.deepEqual(buildAssignmentV5PreflightModel(parsed.assignmentV5).errors.filter((error) => about.test(error)), [], 'and Pre-Flight agree');
+  // A version is never repaired on its own: QuestionEngine repairs the stored question before it deals a variant,
+  // so the same fields in a variant draw nothing for the students given it.
+  const { questionId: _id, prompt: _prompt, ...fields } = repairable;
+  const inVariant = withVariants({ prompt: 'What is 3 + 5?' }, fields);
+  assert.match(refusal([inVariant]) || '', /^Question 1 has type StepAlgebra2 and toolId multiAnswer in its variant 2 of 2: /);
+  assert.ok(kindsShown(inVariant).includes('panel'));
+});
+
 test('every type the app draws stays accepted, and so does every real lesson', () => {
   for (const type of [...REGISTRY_TOOL_IDS, ...QUESTION_ENGINE_TYPES]) {
     const message = refusal([{ questionId: 'q1', type, prompt: 'p' }]) || '';
@@ -205,34 +297,46 @@ test('every type the app draws stays accepted, and so does every real lesson', (
   }
   // A type with no content check of its own is accepted outright.
   for (const type of QUESTION_ENGINE_TYPES.filter((entry) => entry !== 'modelingLab')) assert.equal(refusal([{ type, prompt: 'p' }]), null, type);
-  for (const file of LESSON_FILES) {
+  for (const file of [...LESSON_FILES, ...DOL2_FILES]) {
     const parsed = parseAssignmentBlueprintText(read(file));
     assert.doesNotThrow(() => validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignmentV5?.variantPolicy?.mode }), file);
   }
 });
 
-test('for every real question, the rule on what the validator judges is what QuestionEngine renders and draws', () => {
+test('for every real question, every version the validator judges draws, and QuestionEngine draws one of them for each student', (t) => {
   const questions = [
-    ...LESSON_FILES.flatMap((file) => parseAssignmentBlueprintText(read(file)).questions.map((question) => ({ file, question }))),
+    ...[...LESSON_FILES, ...DOL2_FILES].flatMap((file) => parseAssignmentBlueprintText(read(file)).questions.map((question) => ({ file, question }))),
     ...JSON.parse(read('src/demo/demoAssignmentBank.json')).flatMap((assignment) => assignment.questions.map((question) => ({ file: `demo ${assignment.id}`, question }))),
   ];
-  assert.ok(questions.length > 1300, `${questions.length} questions`);
+  assert.ok(questions.length > 1390, `${questions.length} questions`);
   const seen = new Set();
+  let versionCount = 0;
+  let manyVersions = 0;
   for (const { file, question } of questions) {
     const label = `${file} ${question.questionId}`;
-    const judged = isFamilyBackedQuestion(question) ? resolveFamilyPreviewInstance(question).question : question;
-    const validatorView = drawn(judged);
-    const engineQuestion = rendered(question);
-    assert.notEqual(validatorView, 'panel', label);
-    assert.equal(drawn(engineQuestion), validatorView, `${label}: the validator judges what the engine renders`);
-    assert.equal(engineDispatch(engineQuestion), validatorView, `${label}: and the engine's own dispatch draws it`);
-    // Under server grading the runtime repair is skipped; the kind does not move.
-    assert.equal(drawn(rendered(question, true)), drawn(engineQuestion), label);
-    seen.add(validatorView);
+    const { versions, error } = studentQuestionVersions(question);
+    assert.equal(error, null, label);
+    const judged = new Set(versions.map(({ question: version }) => drawn(version)));
+    assert.ok(versions.length > 0 && !judged.has('panel'), `${label}: ${[...judged].join(', ')}`);
+    versionCount += versions.length;
+    if (versions.length > 1) manyVersions += 1;
+    // One student where there is one version, six where there are several.
+    for (const key of students(versions.length > 1 ? 6 : 1).map((student) => `${student}|${question.questionId}`)) {
+      const engineQuestion = rendered(question, false, key);
+      const kind = drawn(engineQuestion);
+      assert.ok(judged.has(kind), `${label}: QuestionEngine draws ${kind}, which the validator judged none of (${[...judged].join(', ')})`);
+      assert.equal(engineDispatch(engineQuestion), kind, `${label}: and its own dispatch draws it`);
+      // Under server grading QuestionEngine skips its own repair; the student player's has already run.
+      assert.equal(drawn(rendered(question, true, key)), kind, label);
+      seen.add(kind);
+    }
   }
-  // Every route, and most of what the content uses, is exercised.
+  t.diagnostic(`${questions.length} questions, ${versionCount} versions judged, ${manyVersions} questions with more than one`);
+  // Every route, and most of what the content uses, is exercised, and the variant families are walked.
   for (const route of ['workflow', 'tool:', 'type:']) assert.ok([...seen].some((kind) => kind.startsWith(route)), route);
   assert.ok(seen.size >= 20, [...seen].join(', '));
+  // The DOL 2 drafts' 33 variant families, 48 authored versions each.
+  assert.ok(manyVersions >= 33 && versionCount > questions.length + 1500, `${manyVersions} questions with versions, ${versionCount} versions`);
 });
 
 test('a browser harness that swaps a registry tool swaps one the catalogue names, and its questions are drawn as it', () => {
