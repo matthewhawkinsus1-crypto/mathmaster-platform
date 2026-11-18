@@ -6,15 +6,22 @@
  * simplification, Keep as written, the last cross-out) the control the cursor
  * was in goes with the step, and focus fell to the page, in a composed
  * question and on the standalone board alike. It now goes back to the tile the
- * move began from. tests/browser/workflowStepEnter.mjs and
+ * move began from. And a character typed at the tile just chosen, before its
+ * box's deferred focus, went to the tile and cost the box its cursor; it now
+ * goes into the box. tests/browser/workflowStepEnter.mjs and
  * tests/browser/stepAlgebraFirstOperand.mjs press the keys in Chromium; these
- * pin the rule and the board's wiring. Every rule below is mutation-checked.
+ * pin the rules and the board's wiring. Every rule below is mutation-checked.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { focusFellToPage, operationTileAfterStep } from '../../src/platform/algebra/boardFocus.js';
+import {
+  focusFellToPage,
+  operationTileAfterStep,
+  typeAheadIntoOperand,
+  typesACharacter,
+} from '../../src/platform/algebra/boardFocus.js';
 import { h } from './helpers/miniDom.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
@@ -69,6 +76,82 @@ test('a tile that cannot take the cursor is passed over, and nothing is invented
   assert.equal(operationTileAfterStep(null, { label: 'Divide by' }), null);
 });
 
+/* ------------------------------------------- a key typed at the tile */
+
+const key = (value, extra = {}) => ({
+  key: value,
+  ctrlKey: false,
+  metaKey: false,
+  altKey: false,
+  isComposing: false,
+  defaultPrevented: false,
+  prevented: false,
+  preventDefault() { this.prevented = true; this.defaultPrevented = true; },
+  ...extra,
+});
+
+test('only a key that types one character is taken from the tile', () => {
+  ['5', 'x', '-', '/', '(', 'π'].forEach((value) => assert.equal(typesACharacter(key(value)), true, value));
+  assert.equal(typesACharacter(key(' ')), false, 'Space presses the tile');
+  assert.equal(typesACharacter(key('Enter')), false, 'so does Enter');
+  ['Tab', 'Shift', 'ArrowRight', 'Backspace', 'Escape'].forEach((value) => assert.equal(typesACharacter(key(value)), false, value));
+  assert.equal(typesACharacter(key('c', { ctrlKey: true })), false, 'a shortcut');
+  assert.equal(typesACharacter(key('v', { metaKey: true })), false);
+  assert.equal(typesACharacter(key('5', { altKey: true })), false);
+  assert.equal(typesACharacter(key('5', { isComposing: true })), false, 'mid-composition');
+  assert.equal(typesACharacter(key('5', { defaultPrevented: true })), false, 'already handled');
+  assert.equal(typesACharacter(null), false);
+});
+
+// A stand-in <math-field>, as tests/platform/mathFieldFocusHandoff.test.mjs
+// builds one: an open shadow root holding a focusable sink.
+const makeField = ({ built = true, connected = true } = {}) => {
+  const sink = { focusCalls: [] };
+  const field = {
+    isConnected: connected,
+    value: '',
+    dispatched: [],
+    shadowRoot: { activeElement: null, querySelector: (selector) => (built && /keyboard-sink/.test(selector) ? sink : null) },
+    executeCommand(command) {
+      if (Array.isArray(command) && command[0] === 'typedText') this.value += command[1];
+      return true;
+    },
+    dispatchEvent(event) { this.dispatched.push(event.type); return true; },
+    sink,
+  };
+  sink.focus = (options) => {
+    sink.focusCalls.push(options);
+    field.shadowRoot.activeElement = sink;
+  };
+  return field;
+};
+
+test('a character typed at the tile goes into the box, which takes the cursor in the same event', () => {
+  const field = makeField();
+  const event = key('5');
+  assert.equal(typeAheadIntoOperand(event, field), true);
+  assert.equal(field.value, '5', 'the character is in the box');
+  assert.deepEqual(field.sink.focusCalls, [{ preventScroll: true }], 'with the cursor, and the page does not scroll');
+  assert.equal(event.prevented, true, 'the tile does nothing with it');
+  assert.ok(field.dispatched.includes('input'), 'the box reports it, so the operand state follows');
+});
+
+test('anything else is left to the tile', () => {
+  for (const value of [' ', 'Enter', 'Tab']) {
+    const field = makeField();
+    const event = key(value);
+    assert.equal(typeAheadIntoOperand(event, field), false, value);
+    assert.equal(event.prevented, false);
+    assert.equal(field.sink.focusCalls.length, 0);
+  }
+  const unbuilt = makeField({ built: false });
+  const early = key('5');
+  assert.equal(typeAheadIntoOperand(early, unbuilt), false, 'a box MathLive has not built yet');
+  assert.equal(early.prevented, false);
+  assert.equal(typeAheadIntoOperand(key('5'), makeField({ connected: false })), false, 'a box no longer on the page');
+  assert.equal(typeAheadIntoOperand(key('5'), null), false, 'no box open');
+});
+
 /* -------------------------------------------------- the board's wiring */
 
 const board = executableSource(readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8'));
@@ -92,4 +175,13 @@ test('the board sends the cursor back to the tile after a committed step, throug
   assert.match(effect, /const tile = operationTileAfterStep\(boardRootRef\.current, \{ label, side, phone \}\);[\s\S]*?tile\?\.focus\(\{ preventScroll: true \}\);/);
   // The tile the move began from is the one the student chose.
   assert.match(region(board, 'const selectOperation = (operation, sourceSide) => {', 'setArmedTile({ operation, sourceSide });'), /operationTileRef\.current = \{ operation, sourceSide \};/);
+});
+
+test('every tile of the operation just chosen sends a character typed at it into its box', () => {
+  const handler = region(board, 'const typeIntoOperationBox = useCallback((event) => {', '}, []);', 'the tile key handler');
+  assert.match(handler, /typeAheadIntoOperand\(event, operationComposerRef\.current\?\.querySelector\('math-field'\)\);/, 'the operation box, as Enter there reads it');
+  assert.match(board, /<div ref=\{operationComposerRef\} className="algebra-operation-composer"/, 'which is the composer\'s own box');
+  const tileTags = board.match(/<button type="button" key=\{`(?:mobile|left|right)-\$\{operation\.id\}`\}[\s\S]*?aria-label=\{`Choose \$\{operation\.label\} operation`\}>/g) || [];
+  assert.equal(tileTags.length, 3, 'the phone palette and both rails');
+  tileTags.forEach((tag) => assert.match(tag, /onKeyDown=\{armedTile\?\.operation === operation\.id \? typeIntoOperationBox : undefined\}/, tag.slice(0, 60)));
 });

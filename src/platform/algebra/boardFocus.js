@@ -1,7 +1,7 @@
 /*
  * WHERE THE CURSOR GOES ON STEP ALGEBRA'S BOARD WHEN WHAT HELD IT GOES AWAY.
  *
- * Measured in Chromium (tests/browser/workflowStepEnter.mjs,
+ * Two moments, both measured in Chromium (tests/browser/workflowStepEnter.mjs,
  * tests/browser/stepAlgebraFirstOperand.mjs).
  *
  * AFTER A STEP IS COMMITTED (#386, after R5). Checking a simplification (Enter
@@ -16,8 +16,19 @@
  * from (or the phone's palette), as Simplify sends it back to the Simplify
  * button when it closes. Only when focus fell to the page: a student who
  * clicked or tabbed somewhere else while the step settled stays there.
+ *
+ * A KEY TYPED BEFORE THE OPERATION BOX HAS THE CURSOR (#386, after R12).
+ * Choosing an operation opens "Divide by what?" and puts the cursor in it a
+ * frame later (MathInput's focus signal, a deferred focus). A digit typed in
+ * between went to the tile, which still had focus, and did nothing; and
+ * because the student had pressed a key since, the deferred focus was dropped
+ * (deferredFocusAuthority.js), so the box never got the cursor and the next
+ * keys went to the tile as well. A character typed at a tile while its box is
+ * on the page now goes into the box, with the cursor, the way a key reaching
+ * a math field MathLive has left is replayed on the field the student chose
+ * (mathFieldFocusHandoff.js guardStaleKeys).
  */
-import { deepActiveElement } from '../interaction/mathFieldFocusHandoff.js';
+import { deepActiveElement, focusMathFieldWithoutScroll } from '../interaction/mathFieldFocusHandoff.js';
 
 /** The cursor is nowhere: on the page itself, as when the control that had it was removed. */
 export const focusFellToPage = (documentObject = typeof document !== 'undefined' ? document : null) => {
@@ -58,4 +69,37 @@ export const operationTileAfterStep = (root, { label = '', side = 'left', phone 
     if (tile) return tile;
   }
   return null;
+};
+
+/** A key that types one character: not Space or Enter (they press the tile), not a shortcut, not mid-composition. */
+export const typesACharacter = (event) => Boolean(
+  event
+    && typeof event.key === 'string'
+    && event.key.length === 1
+    && event.key !== ' '
+    && !event.ctrlKey && !event.metaKey && !event.altKey
+    && !event.isComposing
+    && !event.defaultPrevented,
+);
+
+/**
+ * A character typed at an operation tile goes into the operation box (`field`)
+ * when the box is on the page and MathLive has built it: the box takes the
+ * cursor in this same event and the character is typed there. Returns whether
+ * the key was taken. Anything else — Space, Enter, Tab, a shortcut, no box
+ * yet — is left to the tile.
+ */
+export const typeAheadIntoOperand = (event, field) => {
+  if (!typesACharacter(event) || !field?.isConnected) return false;
+  if (!focusMathFieldWithoutScroll(field)) return false;
+  event.preventDefault();
+  try {
+    field.executeCommand?.(['typedText', event.key]);
+    // MathInput follows the box's input events, and a command need not send
+    // one (as guardStaleKeys replays a key).
+    field.dispatchEvent?.(new Event('input', { bubbles: true, composed: true }));
+  } catch {
+    // The box has the cursor; only this one key is dropped.
+  }
+  return true;
 };

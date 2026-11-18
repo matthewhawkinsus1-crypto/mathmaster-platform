@@ -1,10 +1,11 @@
 // THE FIRST OPERAND ON A FRESH STEP ALGEBRA STAGE IS KEPT (issue #386 R12),
-// AND A COMMITTED STEP LEAVES THE CURSOR ON THE BOARD (#386, after R5).
+// A DIGIT TYPED BEFORE ITS BOX HAS THE CURSOR GOES INTO IT, AND A COMMITTED
+// STEP LEAVES THE CURSOR ON THE BOARD (#386, after R12 and R5).
 //
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/stepAlgebraFirstOperand.mjs
 //
-//   ONLY=plain,cold,steps,list,check   some journeys (names below)
+//   ONLY=plain,cold,steps,list,blind,check   some journeys (names below)
 //   REPEAT=<n>       fresh stages raced in each journey, per device and speed
 //                    (default 3)
 //   THROTTLE=1,4,6   CPU throttling rates (default 1,4)
@@ -32,6 +33,12 @@
 //   list    the same two steps on one screen: the balance step waits for step
 //           1 and mounts on its first answer, then follows every key of it;
 //           the student presses Divide the moment they finish step 1
+//   blind   the 5 typed the moment Divide is pressed, before the page has
+//           run a frame since (frames held, as a busy Chromebook runs the key
+//           before its next frame): the box is there but has not yet been
+//           given the cursor, which waits for a frame. The 5 goes into the
+//           box, and the box has the cursor. (A Chromebook: a phone types on
+//           the keypad the box brings.)
 //   check   a whole step on the standalone board: Divide, 5, placed on both
 //           sides, the 5s crossed out, 7 typed in the simplification box, then
 //           checked with Enter or with Check my simplification (a phone taps
@@ -48,7 +55,7 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
-const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'check'];
+const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'blind', 'check'];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const REPEAT = Number(process.env.REPEAT ?? 3);
 const THROTTLE = (process.env.THROTTLE || '1,4').split(',').map(Number).filter((rate) => rate >= 1);
@@ -116,6 +123,39 @@ function installOperandWatch() {
   }, true);
 }
 
+// Frames on hold, for `blind`: while held, what the page asks to run on its
+// next frame waits, as on a busy Chromebook that handles a key before it
+// draws again; released, it all runs on the next real frame. (As the restore
+// race holds the restore's frame: restoredDraftFocusRaceJourneys.mjs.) Typed
+// with no hold, the key reaches the tile first only now and then (1 of 120
+// runs at 4x and 6x, measured for #386), so only a hold makes it every run.
+function installFrameHold() {
+  const nativeRequest = window.requestAnimationFrame.bind(window);
+  const nativeCancel = window.cancelAnimationFrame.bind(window);
+  const held = new Map();
+  let serial = 0;
+  let holding = false;
+  window.requestAnimationFrame = (callback) => {
+    if (!holding) return nativeRequest(callback);
+    serial += 1;
+    held.set(-serial, callback);
+    return -serial;
+  };
+  window.cancelAnimationFrame = (id) => {
+    if (held.has(id)) held.delete(id);
+    else nativeCancel(id);
+  };
+  window.__frames = {
+    hold: () => { holding = true; },
+    release: () => {
+      holding = false;
+      const callbacks = [...held.values()];
+      held.clear();
+      nativeRequest((time) => callbacks.forEach((callback) => callback(time)));
+    },
+  };
+}
+
 /* ------------------------------------------------------------- the page */
 
 const pageUrl = (scene) => `${ORIGIN}/tests/browser/stepAlgebraFirstOperand.html?scene=${scene}&run=${Date.now()}`;
@@ -125,6 +165,7 @@ const settle = (page, ms) => page.waitForTimeout(ms);
 
 const open = async (scene, device) => {
   const context = await browser.newContext(DEVICES[device]);
+  await context.addInitScript(installFrameHold);
   await context.addInitScript(installOperandWatch);
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${scene} ${device}: page error ${error.message}`));
@@ -235,7 +276,7 @@ for (const journey of ['plain', 'cold', 'steps', 'list']) {
   for (const device of deviceNames) await raceScene(journey, device);
 }
 
-/* ==================================================== after a whole step */
+/* ======================================================== a blind digit */
 
 // Where the cursor is: the operation box, or what else holds it.
 const cursorOn = (page) => page.evaluate(() => {
@@ -249,6 +290,43 @@ const cursorOn = (page) => page.evaluate(() => {
       : owner?.closest?.('.algebra-mobile-operation-palette') ? ' in the phone palette' : '';
   return `${String(owner?.tagName || 'nothing').toLowerCase()} "${owner?.getAttribute?.('aria-label') || ''}"${group}`;
 });
+
+if (wanted('blind') && deviceNames.includes('chromebook')) {
+  console.log('\nblind');
+  const { context, page, cdp } = await open('plain', 'chromebook');
+  for (const rate of THROTTLE) {
+    const label = `blind chromebook ×${rate}`;
+    let blind = 0;
+    for (let index = 0; index < REPEAT; index += 1) {
+      await throttle(cdp, rate);
+      await freshStage(page);
+      await divide(page).waitFor({ timeout: 120_000 });
+      await painted(page);
+      await page.evaluate(() => window.__frames.hold());
+      await divide(page).click();
+      await page.keyboard.type('5');
+      await page.evaluate(() => {
+        const field = document.querySelector('.algebra-operation-composer math-field');
+        if (field) field.__r12Typed = true;
+        window.__frames.release();
+      });
+      await settle(page, 1000 * rate);
+      const after = await operandNow(page);
+      const cursor = await cursorOn(page);
+      // Typed blind: the key reached something other than the box.
+      if (/"key":"5","to":"(?!operation box)/.test(after.log)) blind += 1;
+      const kept = after.box === '5' && after.draft === '5' && after.operation === 'divide' && after.sameBox && cursor === 'the operation box';
+      count(label, !kept);
+      if (!kept) check(false, `${label}: the digit is in the box, and the box has the cursor`, `box ${JSON.stringify(after.box)}, draft ${JSON.stringify(after.draft)}, cursor on ${cursor}\n      ${after.log}`);
+    }
+    const { runs, lost } = tally[label] || { runs: 0, lost: 0 };
+    check(lost === 0, `${label}: ${runs - lost} of ${runs} digits typed before a frame are in the box (${blind} reached the tile first)`);
+  }
+  await throttle(cdp, 1);
+  await context.close();
+}
+
+/* ==================================================== after a whole step */
 
 const press = (locator, device) => (device === 'phone' ? locator.tap() : locator.click());
 const boardState = (page) => page.evaluate(() => String(document.querySelector('[data-math-state]')?.getAttribute('data-math-state') || '').replace(/[\s~]/g, ''));
