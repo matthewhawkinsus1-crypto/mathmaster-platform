@@ -9,8 +9,13 @@
  * passes them all (src/App.jsx, `<TeacherWorkspace`); no-undef (src/**) and
  * appShellSplit.test.mjs hold the seam. The JSX, the handlers inlined in it
  * and the order of every branch are unchanged.
+ *
+ * Its own state is the authoring code it loads on demand (teacher's first
+ * load): Pre-Flight's model, the compiler and the rest, which its handlers and
+ * the Assignments list take from ./teacherAuthoringKit.js (./authoringKitLoader
+ * .js) instead of importing them, so they are not downloaded before Home.
  */
-import { Suspense } from 'react';
+import { Suspense, use, useEffect, useState } from 'react';
 // Shared with App so the sheets form their own chunk that links before App.css.
 import '../shell/leadingStyles.js';
 // The teacher's own sheets, here and not on a student's first load (PF01). The
@@ -24,13 +29,9 @@ import { joinTrackerInTransaction, writeTrackerSplit } from '../../platform/grad
 import { db } from '../../firebase';
 import { classDolFieldPatch } from '../../platform/assessment/dolAttemptGrantClient.js';
 import { updateAssignmentClassroomPublications } from '../../classroomApi';
-import { stripAssignmentInstanceState } from '../../../functions/shared/assignmentPrivacy.mjs';
 import { emptyQuestionRecord, normalizeQuestionRecord, getQuestionCredit } from '../../attemptPolicy';
-import { parseAssignmentBlueprintText, validateAssignmentQuestions, assertFirestoreSafeAssignmentPayload } from '../../assignmentBlueprint';
-import { markIncompleteAssignmentDraftPublished } from '../../platform/preflight/incompleteAssignmentDraftStore.js';
 import { hydrateAssignmentCcmr } from '../../services/assignmentCcmrService.js';
 import { auditAlignmentSpecificity, validateAlignments } from '../../platform/contract/alignments';
-import { validateQuestionsSemantics } from '../../platform/contract/semanticValidation';
 import { CLASS_PERIODS, assignmentIsForStudent, getAssignmentLifecycle, localDateKey, resolveDOLQuestionIndex, getCurrentContentQuestionIndices, questionIsIncluded, studentRequiredQuestions } from '../../assignmentLifecycle';
 import { resolveQuestionActivityRole } from '../../platform/policies/activityPolicies';
 import { matchesSmartView, SMART_VIEWS } from '../../assignmentSmartViews';
@@ -38,35 +39,29 @@ import { assignmentFolderMatches, normalizeFolderPath, titleOrFolderMatches } fr
 import { buildDestinationGroups, destinationAssignmentKey, findAssignmentKeyConflict, isLibraryAssignment, resolveAssignmentDates, resolveCreationMode } from '../../assignmentDestinations';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../platform/contract/assignmentSchemaV5.js';
 import { canonicalV5PersistencePatch, getStoredAssignmentQuestions, getStoredAssignmentTypeProjection, getStoredAssignmentVariantMode, getStoredSectionVariantModes, storedAssignmentToV5, testCycleContractFields } from '../../platform/contract/storedAssignmentV5.js';
-import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
-import { canSalvageV5IntakeResult } from '../../platform/preflight/assignmentAuthoringState.js';
 import { contentVersionOf, contentVersionLabel, latestCurrentLibraryRelease } from '../../platform/assignments/assignmentContentVersion.js';
-import { questionFingerprint, repairAssignmentTrackerForGranularWorkflowCredit, repairAssignmentTrackerForLiveCorrections } from '../../platform/assignment/liveQuestionCorrection.js';
-import { GRAPH_VIEWPORT_REPAIR_KIND } from '../../../functions/shared/liveResponseRepairPolicy.mjs';
 import { normalizeQuestionWeight } from '../../platform/grading/questionWeights.js';
 import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
-import { normalizeLabDefinition } from '../../platform/labs/labDefinitionSchema.js';
 import { splitGrade, splitGradesBySection, COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability } from '../../platform/teacher/gradeEvidence.js';
 import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor } from '../../platform/grading/canonicalGradeProjection.js';
 import { assignmentFeedbackWasReleased, assignmentUsesTeacherReleasePolicy, createQuestionId, normalizeAssignmentQuestions, toDateTimeLocalInputValue, formatDueDate, formatLateDueDate, formatTimeStamp } from '../student/assignmentRuntimeHelpers.js';
 import { CLASS_SCOPED_TABS } from '../screenScopes.js';
-import { AssignmentAiHealth, AssignmentContentUpgradeModal, AssignmentGradeOverrideControls, AssignmentHub, AssignmentIntake, AssignmentLibrary, AssignmentQuestionEditor, AttendanceHistoryPanel, ClassContextBar, ClassCourseSettings, ClassesAdmin, ClassesWorkspace, ClassRewardCatalogEditor, ClassRewardRequestsPanel, ClassroomManagerV2, ClassroomSyncReview, ClassScheduleSettings, DemoExperience, GradebookAssignmentBar, GradebookClassChooser, GradeTransferCenter, LessonPreflightModal, LiveChallengeTeacher, MarkingPeriodSettings, MathToolsLab, PacingControls, ParentContactCenter, PathCoverageAudit, PathSimulator, PreproductionReset, SectionRecoveryAuditTrail, SignInAccess, StudentCaseReviewView, StudentDolRecoveryRow, StudentProfileDrawer, StudentResponseInspector, StudentsRoster, SupportEvidenceReportView, TeacherActionCenter, TeacherAnalyticsDashboard, TeacherAssignmentPdfDialog, TeacherHome, TeacherQuickSearch, TeacherSecureExamDashboard, TeacherSidebar, TestCyclePreview, TexasStandardsDashboard, WeeklyPathControls, WeeklyPathGradePanel } from '../lazyScreens.js';
+import { AssignmentAiHealth, AssignmentContentUpgradeModal, AssignmentGradeOverrideControls, AssignmentIntake, AssignmentLibrary, AssignmentQuestionEditor, AttendanceHistoryPanel, ClassContextBar, ClassCourseSettings, ClassesAdmin, ClassesWorkspace, ClassRewardCatalogEditor, ClassRewardRequestsPanel, ClassroomManagerV2, ClassScheduleSettings, DemoExperience, GradebookAssignmentBar, GradebookClassChooser, GradeTransferCenter, LessonPreflightModal, LiveChallengeTeacher, MarkingPeriodSettings, MathToolsLab, PacingControls, ParentContactCenter, PathCoverageAudit, PathSimulator, PreproductionReset, SectionRecoveryAuditTrail, SignInAccess, StudentCaseReviewView, StudentDolRecoveryRow, StudentResponseInspector, StudentsRoster, TeacherActionCenter, TeacherAnalyticsDashboard, TeacherAssignmentPdfDialog, TeacherHome, TeacherSecureExamDashboard, TeacherSidebar, TestCyclePreview, TexasStandardsDashboard, WeeklyPathControls, WeeklyPathGradePanel } from '../lazyScreens.js';
+// The five panels drawn closed on every screen, each mounted when it first
+// opens (./teacherPanels.js), and their code fetched while the browser is idle.
+import { AssignmentHub, ClassroomSyncReview, StudentProfileDrawer, SupportEvidenceReportView, TeacherQuickSearch } from './teacherPanels.js';
+import { prefetchTeacherPanels } from './teacherPanelPrefetch.js';
 import { compareStudentsByName, formatStudentName } from '../../platform/studentName';
 import { isTestCycleAssignment } from '../../platform/assessment/testCycle.js';
 import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePolicy } from '../../services/testCycleService.js';
 import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from '../../platform/assessment/testCycleContractEdit.js';
 import { currentGradingPeriodStamp } from '../../platform/student/gradingPeriods.js';
-import { buildSafeLibraryContentRepair, inspectLibraryContentRepair, prepareStoredAssignmentForReuse } from '../../platform/assignments/libraryAssignmentReuse.js';
-import { confirmHonorsCandidateForCreate, proveImportedCcmrClaims } from '../../platform/assignments/canonicalCcmrHydration.js';
-import { ccmrAuditWarnings } from '../../platform/assignments/ccmrAuditWarnings.js';
 import { shouldAutoPublishClassroomPackage } from '../../platform/classroom/automaticClassroomPublishing.js';
 import { practicePassesAllowed, rewardPolicyAfterEdit, rewardPolicyForNewAssignment } from '../../platform/rewards/practicePassPolicy.js';
 import { resolveStudentCourseContext, studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../../platform/teacher/studentSupportSignals.js';
 import { buildReturnCheckInEvent } from '../../platform/attendance/returnCheckIn.js';
 import { fetchAllParentContactsForExport, recordParentContact, recordParentContactResolution } from '../../platform/teacher/parentContactStore.js';
-import { certifyHonorsExtensionQuestion } from '../../platform/rigor/honorsExtensionRecipes.js';
-import { withAppendedQuestionSections } from '../../platform/rigor/honorsExtensionSwap.js';
 import { isRootAdminEmail } from '../../../functions/shared/rolePolicy.mjs';
 import { describeWorkloadSummary } from '../../../functions/shared/reducedWorkload.mjs';
 import AssignmentCardMenu from '../../AssignmentCardMenu';
@@ -74,12 +69,13 @@ import { classGradeProgress } from '../../platform/teacher/assignmentProgress.js
 import { groupAssignmentList } from '../../platform/teacher/assignmentListGroups.js';
 import StudentNameLink from '../../components/common/StudentNameLink.jsx';
 import { EmptyState, SearchField } from '../../ui/primitives';
-import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts } from '../../platform/recovery/teacherRecoveryAudit.js';
-import { creationRecoveryContent } from '../../platform/recovery/recoveryContentAuthoring.js';
-import { recoveryPreparationAvailable } from '../../../functions/shared/recoveryContentPlan.mjs';
+// The gradebook's R, Held and LC marks, without the Recovery audit they come from.
+import { completedRecoverySections, heldRecoverySections, warmupChallengeCounts } from '../../platform/recovery/gradebookRecoveryMarks.js';
 import StudentPerformanceBadge from '../../components/common/StudentPerformanceBadge.jsx';
 import { MAIN_CONTENT_ID, SkipToContent } from '../../components/common/pageChrome.jsx';
 import { tabKeyTarget } from '../../platform/interaction/tabListKeys.js';
+// Pre-Flight's model, the compiler and the rest of the authoring code, on demand.
+import { loadAuthoringKit, loadedAuthoringKit, prefetchAuthoringKit } from './authoringKitLoader.js';
 
 // The administrator's five sections, as a tab list (TT27): the selected tab is
 // the one Tab stop, the arrow keys, Home and End move focus between the tabs
@@ -326,6 +322,30 @@ export default function TeacherWorkspace({
   weeklyPathWeekComplete,
   weeklyPathWeekKey,
 }) {
+  // THE AUTHORING CODE, ON DEMAND (./authoringKitLoader.js). The handlers
+  // below that run Pre-Flight's model, the compiler or its checks take them
+  // from the kit, which arrives while the workspace is idle; an action that
+  // comes first asks for it at once and waits. A failed request reaches
+  // AppErrorBoundary ("MathMaster was just updated"), as a teacher screen's
+  // chunk that cannot load does.
+  const [authoringKitError, setAuthoringKitError] = useState(null);
+  // The closed panels' code and Home's math (./teacherPanelPrefetch.js), then
+  // the authoring code, while the browser is idle once the workspace has drawn.
+  useEffect(() => prefetchTeacherPanels(), []);
+  useEffect(() => prefetchAuthoringKit(), []);
+  if (authoringKitError) throw authoringKitError;
+  const authoringKit = () => loadAuthoringKit().catch((error) => {
+    setAuthoringKitError(error);
+    throw error;
+  });
+  // For code that runs once the kit is here: a helper an action calls after
+  // awaiting authoringKit(), or an action that has checked loadedAuthoringKit().
+  const requireAuthoringKit = () => {
+    const kit = loadedAuthoringKit();
+    if (!kit) throw new Error('The assignment tools have not finished loading. Try again in a moment.');
+    return kit;
+  };
+
   // The teacher-only handlers that only this screen calls, moved from App
   // with it, verbatim and in their original order (G2): Pre-Flight, the
   // assignment intake and setup editor, the question editor, duplicate,
@@ -334,6 +354,7 @@ export default function TeacherWorkspace({
   // Reads the one supported Assignment V5 object and reports what is wrong in
   // terms an AI can act on, rather than throwing a single opaque message.
   const readAssignmentJson = (rawText) => {
+    const { parseAssignmentBlueprintText, validateAssignmentQuestions, validateQuestionsSemantics } = requireAuthoringKit();
     const errors = [];
     const warnings = [];
     let parsed = null;
@@ -423,6 +444,7 @@ export default function TeacherWorkspace({
 
   // Single entry point for pasted, uploaded and dropped JSON.
   const handleAssignmentJsonReady = async ({ text, sourceName, incompleteDraftId = null }) => {
+    const { buildAssignmentV5PreflightModel, canSalvageV5IntakeResult, ccmrAuditWarnings, parseAssignmentBlueprintText, proveImportedCcmrClaims } = await authoringKit();
     let sourceText = text;
     let ccmrAudit = null;
 
@@ -513,6 +535,10 @@ export default function TeacherWorkspace({
     // it must never read as "not created", or a second press duplicates it.
     let committed = false;
     try {
+      const {
+        assertFirestoreSafeAssignmentPayload, buildAssignmentV5PreflightModel, certifyHonorsExtensionQuestion, confirmHonorsCandidateForCreate,
+        creationRecoveryContent, markIncompleteAssignmentDraftPublished, normalizeLabDefinition, validateAssignmentQuestions,
+      } = await authoringKit();
       if (!teacherReview || typeof teacherReview !== 'object') {
         throw new Error('Publishing requires the completed Assignment Review settings.');
       }
@@ -947,6 +973,7 @@ export default function TeacherWorkspace({
   };
 
   const updateExistingAssignmentFromReview = async ({ draft, assignmentV5 }) => {
+    const { assertFirestoreSafeAssignmentPayload, buildAssignmentV5PreflightModel } = await authoringKit();
     const assignmentId = assignmentPreflight?.existingAssignmentId;
     const existing = assignments.find((item) => item.id === assignmentId);
     if (!assignmentId || !existing) throw new Error('The assignment being edited could not be found.');
@@ -1182,11 +1209,18 @@ export default function TeacherWorkspace({
       return false;
     }
     setQuestionEditorAssignment(assignment);
+    // Its Save runs the authoring code: asked for now, it is here by then, and
+    // code that cannot load says so before any edit is made, not at Save.
+    authoringKit().catch(() => { /* AppErrorBoundary has it */ });
     return true;
   };
 
   const saveQuestionEditor = async ({ title, questions, liveRepairs = [], appendedSections = [] }) => {
     if (!questionEditorAssignment?.id) return;
+    const {
+      GRAPH_VIEWPORT_REPAIR_KIND, buildAssignmentV5PreflightModel, questionFingerprint,
+      repairAssignmentTrackerForGranularWorkflowCredit, repairAssignmentTrackerForLiveCorrections, withAppendedQuestionSections,
+    } = await authoringKit();
     const normalizedQuestions = normalizeAssignmentQuestions(questions);
     const included = normalizedQuestions.filter(questionIsIncluded);
     if (!included.length) throw new Error('At least one included question is required.');
@@ -1434,6 +1468,7 @@ export default function TeacherWorkspace({
 
   const handleDuplicateAssignment = async (assignment) => {
     try {
+      const { buildAssignmentV5PreflightModel, creationRecoveryContent, stripAssignmentInstanceState } = await authoringKit();
       const duplicateQuestions = getStoredAssignmentQuestions(assignment).map((question) => ({
         ...question,
         questionId: createQuestionId(),
@@ -1503,7 +1538,8 @@ export default function TeacherWorkspace({
     }
   };
 
-  const openStoredAssignmentForPreflight = (assignment, draftOverrides = {}) => {
+  const openStoredAssignmentForPreflight = async (assignment, draftOverrides = {}) => {
+    const { prepareStoredAssignmentForReuse } = await authoringKit();
     // A stored assignment is ALREADY canonical V5. Sending it back through the
     // authoring compiler used to reinterpret internal renderer contracts as new
     // AI intent. A composed function workflow could therefore collapse into the
@@ -1526,7 +1562,14 @@ export default function TeacherWorkspace({
   };
 
   const beginEditAssignmentSetup = (assignment) => {
+    // At once when the authoring code is here, as before it loaded on demand
+    // (the hub that asks closes as the review opens); else once it arrives.
+    if (!loadedAuthoringKit()) {
+      authoringKit().then(() => beginEditAssignmentSetup(assignment), () => { /* AppErrorBoundary has it */ });
+      return;
+    }
     try {
+      const { prepareStoredAssignmentForReuse } = requireAuthoringKit();
       const prepared = prepareStoredAssignmentForReuse(assignment, { resetAssignmentKey: false });
       const canonicalV5 = prepared.assignmentV5;
       const currentDraft = {
@@ -1611,6 +1654,7 @@ export default function TeacherWorkspace({
   };
 
   const handleRepairAssignmentFromLibrary = async (assignment) => {
+    const { buildSafeLibraryContentRepair, inspectLibraryContentRepair } = await authoringKit();
     const inspection = inspectLibraryContentRepair(assignment, assignments);
     if (!inspection.source || !inspection.questionIds.length) {
       toastError(
@@ -1714,7 +1758,7 @@ export default function TeacherWorkspace({
     // fresh V5 authoring. The library template remains untouched and reusable.
     if (isLibraryAssignment(assignment) && editedClassIds.length) {
       try {
-        openStoredAssignmentForPreflight(assignment, {
+        await openStoredAssignmentForPreflight(assignment, {
           title: assignment.title,
           folder: assignment.folder || '',
           dueAt: editingAssignmentDates.dueAt,
@@ -1751,7 +1795,7 @@ export default function TeacherWorkspace({
       try {
         const addedRecords = classes.filter((entry) => addedClassIds.includes(entry.classId) && entry?.status !== 'archived');
         const addedPeriods = [...new Set(addedRecords.map((entry) => entry.period).filter(Boolean))];
-        openStoredAssignmentForPreflight(assignment, {
+        await openStoredAssignmentForPreflight(assignment, {
           title: assignment.title,
           folder: assignment.folder || '',
           dueAt: editingAssignmentDates.dueAt,
@@ -1950,6 +1994,13 @@ export default function TeacherWorkspace({
     );
   }
 
+  // The Assignments list reads two checks on each card from the authoring
+  // code: whether Recovery can be added, and a Library copy to repair from.
+  // Opened before the code has arrived, the screen waits for it as for its own
+  // code (AppShell's loading screen), and a failure to load it reaches
+  // AppErrorBoundary. Reopened on Assignments, the page asks for it at once.
+  const assignmentListKit = teacherTab === 'assignments' ? (loadedAuthoringKit() || use(loadAuthoringKit())) : null;
+
   return (
     <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-sunken)', minHeight: '100vh', padding: '20px' }}>
       {/* The first Tab stop: past the navigation (the collapse button and 22 destinations) and the
@@ -2002,6 +2053,9 @@ export default function TeacherWorkspace({
           }
           fullAuditAuthorized={rootAdminUiEligible || user.assignmentRepairer === true}
           studentActivityStatus={allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined) ? 'present' : 'unavailable'}
+          // Pre-Flight's findings in the editor count question versions
+          // against the same class Assignment Review does.
+          rosterSizesByClassId={preflightRosterSizesByClassId}
           onSave={saveQuestionEditor}
           onClose={() => setQuestionEditorAssignment(null)}
         />
@@ -2478,6 +2532,7 @@ export default function TeacherWorkspace({
                 />
               )}
               {(() => {
+              const { inspectLibraryContentRepair, recoveryPreparationAvailable } = assignmentListKit;
               const renderAssignmentCard = (assignment) => {
                 const lifecycle = getAssignmentLifecycle(assignment, now);
                 const affectedStudents = teacherStudentDataMode === 'full'
@@ -2758,6 +2813,9 @@ export default function TeacherWorkspace({
               onOpenAssignment={openAssignmentHub}
               onSelectClass={(classContext) => { setLiveFocus(null); setActiveClass(classContext); }}
               liveFocus={liveFocus}
+              // Live View opens the same Response Inspector, through the same
+              // callable and its authorization, as the gradebook below.
+              onInspectResponse={(target) => setResponseInspectorTarget(target)}
             />
           )}
 

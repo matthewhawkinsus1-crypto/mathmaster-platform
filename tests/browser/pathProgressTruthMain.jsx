@@ -10,6 +10,8 @@ import { evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions } from '../../fu
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
 
 const WEEK = '2026-10-05';
+// The Wednesday of that week. The panel judges whether the week has closed by
+// the page's clock, so pathProgressTruth.mjs holds the page's clock here too.
 const NOW = Date.parse('2026-10-07T18:00:00Z');
 const slot = (n, teks, label, purpose = 'currentLearning') => ({
   slot: n, weeklySlotKey: `${n}|skill:${teks}|${teks}|${purpose}|course|2|3`, skillId: `teks:${teks}`, teksCode: teks,

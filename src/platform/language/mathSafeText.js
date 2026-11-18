@@ -86,7 +86,9 @@ const DELIMITED = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\
 // the escaped sign, so the second price lost its "dollars" and the closing
 // "$" reached the voice ("54 dollars minus 30", "3 dollars $"). Translate's
 // masked lines are keyed to the split as it is, so it keeps DELIMITED.
-const DELIMITED_SPEECH = /\$\$[\s\S]+?\$\$|\$(?:\\.|[^$\\\n])+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\{\{[^{}]+\}\}/g;
+// Read aloud itself finds these spans in one pass (speechText.js speechSpans,
+// held to this expression by tests/platform/readAloudLongText.test.mjs).
+export const DELIMITED_SPEECH = /\$\$[\s\S]+?\$\$|\$(?:\\.|[^$\\\n])+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\]|\{\{[^{}]+\}\}/g;
 const LATEX_COMMAND = /\\[a-zA-Z]+(?:\s*\{[^{}]*\})*/g;
 
 /** Tokens: words, numbers, whitespace, LaTeX, single characters. */
@@ -218,28 +220,34 @@ export const NOT_TWO_VARIABLES = new Set([
   'ln', 'pi', 'cm', 'mm', 'km', 'kg', 'mg', 'ml', 'ft', 'yd', 'oz', 'lb', 'hr',
 ]);
 
-/** The matching close for the bracket at `start`, or -1. Same line only. */
-const matchingClose = (text, start) => {
-  let depth = 0;
-  for (let index = start; index < text.length; index += 1) {
+/*
+ * The matching close of every bracket in `text`: where the depth counted from
+ * it comes back to 0, on its own line (or none). Half-open intervals close
+ * with the other bracket: [0, 5). Found in one pass: scanning on from every
+ * bracket to its close, or to the end of a line of brackets that never close,
+ * was quadratic, and Read aloud splits a long box with this.
+ */
+const matchingCloses = (text) => {
+  const closes = new Map();
+  const open = [];
+  for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
-    if (char === '\n') return -1;
-    if (OPENERS.has(char)) depth += 1;
-    else if (char === ')' || char === ']') {
-      depth -= 1;
-      // Half-open intervals close with the other bracket: [0, 5).
-      if (depth === 0) return index;
-    }
+    if (char === '\n') open.length = 0;
+    else if (OPENERS.has(char)) open.push(index);
+    else if ((char === ')' || char === ']') && open.length) closes.set(open.pop(), index);
   }
-  return -1;
+  return closes;
 };
 
 /**
  * Split text into ordered segments `{ kind: 'text' | 'math', value }`.
  * Joining the values always reproduces the input exactly. `speech` is Read
- * aloud's split: ∘, ∪ and ∈ are mathematics too (SPEECH_OPERATOR).
+ * aloud's split: ∘, ∪ and ∈ are mathematics too (SPEECH_OPERATOR). `spans`
+ * finds the delimited spans as a global expression does (`exec` from
+ * `lastIndex`): Read aloud passes its own, which finds them in one pass
+ * (speechText.js speechSpans).
  */
-export const segmentMathText = (input, { language = 'en', speech = false } = {}) => {
+export const segmentMathText = (input, { language = 'en', speech = false, spans = speech ? DELIMITED_SPEECH : DELIMITED } = {}) => {
   const words = oneLetterWordsFor(language);
   const operator = speech ? SPEECH_OPERATOR : OPERATOR;
   const text = String(input ?? '');
@@ -247,14 +255,21 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   // 1. Protected spans that are unambiguous: delimited LaTeX, placeholders and
   //    bare LaTeX commands.
   const protectedSpans = [];
+  // A pattern's matches come in order, each after the spans it kept, so only
+  // the spans kept before it can overlap one: they are put in order and passed
+  // with a pointer (testing every span kept, at every match, was quadratic in
+  // a long box of spans).
   const collect = (pattern, accept = () => true, { delimited = false } = {}) => {
+    const earlier = protectedSpans.sort((a, b) => a.start - b.start).length;
+    let next = 0;
     pattern.lastIndex = 0;
     let match;
     while ((match = pattern.exec(text))) {
       const start = match.index;
       const end = start + match[0].length;
       if (!accept(match[0], end)) { pattern.lastIndex = start + 1; continue; }
-      if (!protectedSpans.some((span) => start < span.end && end > span.start)) protectedSpans.push({ start, end, delimited });
+      while (next < earlier && protectedSpans[next].end <= start) next += 1;
+      if (next === earlier || protectedSpans[next].start >= end) protectedSpans.push({ start, end, delimited });
     }
   };
   // A pair of prices on one line ("$4 and $5", "$15.75, medium baskets for
@@ -264,7 +279,7 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   // it is how a LaTeX author writes the number 7, never a price (PR-4).
   // For Read aloud only a "$" before a number opens the next price: "${{p}} $
   // to the left" (an ASVAB key) is a span with a stray space (math-speech-4).
-  collect(speech ? DELIMITED_SPEECH : DELIMITED, (value, end) => !(speech && opensPriceProse(value, text.slice(end))) && ((
+  collect(spans, (value, end) => !(speech && opensPriceProse(value, text.slice(end))) && ((
     !/^\$\d[\d,]*(?:\.\d+)?[,;:.]?\s+[A-Za-z]{2,}/.test(value)
     && !(/^\$\d[\d,]*(?:\.\d+)?[\s,;:]+\$$/.test(value) && (!speech || /^\d/.test(text.slice(end))))
   ) || /[\\{}^=]/.test(value)), { delimited: true });
@@ -275,11 +290,12 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   const atoms = []; // { kind: 'math'|'text'|'space'|'word'|'punct', value }
   let cursor = 0;
   const tokenize = (chunk) => {
+    const closes = matchingCloses(chunk);
     let index = 0;
     while (index < chunk.length) {
       const char = chunk[index];
       if (OPENERS.has(char)) {
-        const close = matchingClose(chunk, index);
+        const close = closes.get(index) ?? -1;
         // Read aloud: a bracket pressed against a letter is its argument or a
         // factor, as a power's bracket is: "f(bx)" was "f (bx)" (math-speech-4).
         // So is a denominator's: "b⁴/(ac)" and "V/(lw)" were "b to the power
@@ -438,10 +454,19 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
   // Read aloud's math runs say whether they hold a $…$ span (`delimited`):
   // in a run with none, every "$" is a price's ("10(6) + 40 = $100").
   const segments = [];
+  // The last segment's last character that is not a space, kept as it is
+  // pushed: trimming the whole run at every space copied it each time, which
+  // was quadratic in a long run of mathematics.
+  let lastSolid = '';
   const push = (kind, value, delimited = false) => {
     const last = segments[segments.length - 1];
     if (last && last.kind === kind) last.value += value;
-    else segments.push({ kind, value });
+    else {
+      segments.push({ kind, value });
+      lastSolid = '';
+    }
+    const solid = value.trim();
+    if (solid) lastSolid = solid.slice(-1);
     if (speech && delimited) segments[segments.length - 1].delimited = true;
   };
   for (let index = 0; index < atoms.length; index += 1) {
@@ -457,7 +482,7 @@ export const segmentMathText = (input, { language = 'en', speech = false } = {})
       while (atoms[lookahead]?.kind === 'space') lookahead += 1;
       const nextMath = atoms[lookahead]?.kind === 'math';
       const touchesOperator = previousMath && nextMath && (
-        operator.test(segments[segments.length - 1].value.trim().slice(-1))
+        operator.test(lastSolid)
         || operator.test(atoms[lookahead].value.trim().charAt(0))
       );
       if (touchesOperator) push('math', atom.value);

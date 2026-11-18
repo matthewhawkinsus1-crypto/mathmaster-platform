@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -39,6 +40,25 @@ import {
  * Every verdict is the shared grader's (functions/shared/serverGrading/tools/
  * matrixLab.mjs), the same function the server records.
  */
+
+/*
+ * WHAT A SAVED MATRIX LAB MAY RESTORE (toolDraftShape.js). Every matrix is a
+ * grid of typed cells the size the question gives it, a column a list of
+ * cells, and each answer box the text typed into it. A row that was not a list
+ * threw on every load (every row's cells are read); it comes back as a blank
+ * row in its place, a cell that is not a value as a blank cell, and every
+ * other cell as typed.
+ */
+const LAB_CELL = s.cell({ or: '' });
+const normalizeDimensions = draftNormalizer(s.record({ rows: s.required(LAB_CELL), cols: s.required(LAB_CELL) }));
+const normalizeChosenElements = draftNormalizer(s.map(s.record({ row: s.cell(), col: s.cell() })));
+const normalizeOpenGrid = draftNormalizer(s.grid());
+const normalizeGrid = (rows, cols) => draftNormalizer(s.grid(rows, cols));
+const normalizeColumn = (length) => draftNormalizer(s.list(LAB_CELL, { keepPositions: true, length }));
+const normalizeSingularReason = draftNormalizer(s.record({
+  row: s.required(LAB_CELL), otherRow: s.required(LAB_CELL), factor: s.required(LAB_CELL), constant: s.required(LAB_CELL),
+}));
+const normalizeSystemRows = draftNormalizer(s.map(s.record({ coefficients: s.list(LAB_CELL, { keepPositions: true }), constant: s.cell() })));
 
 const SHELL = {
   locate: { title: 'Matrix Lab', subtitle: 'Read a matrix: its dimensions, and where each element lives.', badge: 'Algebra II · Matrices' },
@@ -128,8 +148,8 @@ export default function MatrixLab({ questionData = {}, onAction }) {
 
 function LocateMode({ questionData, model, onAction }) {
   const matrix = model.matrix;
-  const [dimensions, setDimensions] = usePersistentToolState('dimensions', { rows: '', cols: '' });
-  const [targets, setTargets] = usePersistentToolState('targets', {});
+  const [dimensions, setDimensions] = usePersistentToolState('dimensions', { rows: '', cols: '' }, { normalize: normalizeDimensions });
+  const [targets, setTargets] = usePersistentToolState('targets', {}, { normalize: normalizeChosenElements });
   const tapTargets = model.targets.filter((target) => target.kind === 'tap');
   const [activeId, setActiveId] = useState(() => tapTargets.find((target) => !targets?.[target.id])?.id || tapTargets[0]?.id || null);
   const work = useMemo(() => matrixLabWork(questionData, { dimensions, targets }), [questionData, dimensions, targets]);
@@ -281,8 +301,8 @@ export function ProductExpansion({ authored, focus, requested = null, methodWith
 function OperateMode({ questionData, model, onAction }) {
   const { leftMatrix, rightMatrix } = model;
   const [defined, setDefined] = usePersistentToolState('defined', '');
-  const [dimensions, setDimensions] = usePersistentToolState('dimensions', { rows: '', cols: '' });
-  const [entries, setEntries] = usePersistentToolState('entries', []);
+  const [dimensions, setDimensions] = usePersistentToolState('dimensions', { rows: '', cols: '' }, { normalize: normalizeDimensions });
+  const [entries, setEntries] = usePersistentToolState('entries', [], { normalize: normalizeOpenGrid });
   const [inverses, setInverses] = usePersistentToolState('inverses', '');
   const [focus, setFocus] = useState(null);
   // Which product cell the student asked to see the terms of (a fading expansion, R-7).
@@ -460,8 +480,8 @@ const untouchedStart = (model, initial, A, B) => (model.startA.length > 0 || mod
 
 function EquationMode({ questionData, model, onAction }) {
   const initial = useMemo(() => startCells(model), [model]);
-  const [A, setA] = usePersistentToolState('A', initial.A);
-  const [B, setB] = usePersistentToolState('B', initial.B);
+  const [A, setA] = usePersistentToolState('A', initial.A, { normalize: normalizeGrid(initial.A.length, initial.A[0]?.length) });
+  const [B, setB] = usePersistentToolState('B', initial.B, { normalize: normalizeColumn(initial.B.length) });
   const work = useMemo(() => matrixLabWork(questionData, { A, B }), [questionData, A, B]);
   const { feedback, check, clearFeedback, fixList } = useLabSubmission(questionData, onAction, work, 'equation');
   useLabUndo(questionData, { A, B }, (restored) => {
@@ -540,14 +560,14 @@ const CLASSIFICATIONS = [
 
 function SolveMode({ questionData, model, onAction }) {
   const initial = useMemo(() => startCells(model), [model]);
-  const [A, setA] = usePersistentToolState('A', initial.A);
-  const [B, setB] = usePersistentToolState('B', initial.B);
+  const [A, setA] = usePersistentToolState('A', initial.A, { normalize: normalizeGrid(initial.A.length, initial.A[0]?.length) });
+  const [B, setB] = usePersistentToolState('B', initial.B, { normalize: normalizeColumn(initial.B.length) });
   const size = model.variables.length;
-  const [inverse, setInverse] = usePersistentToolState('inverse', resizeCells([], size, size));
+  const [inverse, setInverse] = usePersistentToolState('inverse', resizeCells([], size, size), { normalize: normalizeGrid(size, size) });
   const [classification, setClassification] = usePersistentToolState('classification', '');
-  const [values, setValues] = usePersistentToolState('values', model.variables.map(() => ''));
+  const [values, setValues] = usePersistentToolState('values', model.variables.map(() => ''), { normalize: normalizeColumn(model.variables.length) });
   const [usedTechnology, setUsedTechnology] = usePersistentToolState('usedTechnology', false);
-  const [singularReason, setSingularReason] = usePersistentToolState('singularReason', EMPTY_REASON);
+  const [singularReason, setSingularReason] = usePersistentToolState('singularReason', EMPTY_REASON, { normalize: normalizeSingularReason });
   const state = { A, B, inverse, classification, values, usedTechnology, singularReason };
   const work = useMemo(() => matrixLabWork(questionData, state), [questionData, A, B, inverse, classification, values, usedTechnology, singularReason]); // eslint-disable-line react-hooks/exhaustive-deps
   const { feedback, check, clearFeedback, fixList, wrongCells } = useLabSubmission(questionData, onAction, work, 'solve');
@@ -673,7 +693,7 @@ function SolveMode({ questionData, model, onAction }) {
 /* ---------------------------------------------------------- completeSystem */
 
 function CompleteSystemMode({ questionData, model, onAction }) {
-  const [rows, setRows] = usePersistentToolState('rows', {});
+  const [rows, setRows] = usePersistentToolState('rows', {}, { normalize: normalizeSystemRows });
   const work = useMemo(() => matrixLabWork(questionData, { rows }), [questionData, rows]);
   const { feedback, check, clearFeedback, fixList } = useLabSubmission(questionData, onAction, work, 'completeSystem');
   useLabUndo(questionData, { rows }, (restored) => setRows(restored.rows || {}), clearFeedback, 'Undo the last equation change');

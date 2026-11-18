@@ -9,7 +9,19 @@
  *
  * The returned callback ref is cached per variable name so React sees the same
  * function every render and does not detach/re-attach the observer.
+ *
+ * Measured as the element arrives, before the first paint, and written with
+ * what the rest of the commit measured (layoutWrites.js): a variable written
+ * here made every later measurement in the commit lay the page out again. The
+ * task card and the action bar are the next question's on every Next, so the
+ * old one leaves and the new one arrives in one commit: the variable is
+ * removed only if nothing has come back by then, and set only if the height
+ * changed, so the whole page is not restyled twice for a bar of the same
+ * height. A resize is published where its ResizeObserver reports it, as
+ * before.
  */
+import { deferLayoutWrite, writeStyleVariable } from './layoutWrites.js';
+
 const refs = new Map();
 
 export const stickyHeightRef = (variableName) => {
@@ -19,13 +31,14 @@ export const stickyHeightRef = (variableName) => {
     observer?.disconnect();
     observer = null;
     if (typeof document === 'undefined') return;
-    const root = document.documentElement;
+    const { style } = document.documentElement;
     if (!element) {
-      root.style.removeProperty(variableName);
+      deferLayoutWrite(variableName, () => writeStyleVariable(style, variableName, null));
       return;
     }
-    const publish = () => root.style.setProperty(variableName, `${element.offsetHeight}px`);
-    publish();
+    const height = `${element.offsetHeight}px`;
+    deferLayoutWrite(variableName, () => writeStyleVariable(style, variableName, height));
+    const publish = () => writeStyleVariable(style, variableName, `${element.offsetHeight}px`);
     observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publish) : null;
     observer?.observe(element);
   };

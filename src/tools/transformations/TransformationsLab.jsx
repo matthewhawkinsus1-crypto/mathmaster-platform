@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -80,6 +81,11 @@ const parameterFields = (values, setters, keys) => (
   </div>
 );
 
+// A saved plot is a list of [x, y] points (toolDraftShape.js): an entry that
+// is not one (null, a number, a pair with a word in it) is dropped, and the
+// other points come back where the student put them.
+const normalizePlottedPoints = draftNormalizer(s.list(s.point()));
+
 export default function TransformationsLab({ questionData = {}, onAction }) {
   const viewportWidth = useViewportWidth();
   // The bridge and each mode's first step are the mapping rule the item
@@ -120,7 +126,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const [horizontalDistance, setHorizontalDistance] = usePersistentToolState('horizontalDistance', '');
   const [verticalDirection, setVerticalDirection] = usePersistentToolState('verticalDirection', '');
   const [verticalDistance, setVerticalDistance] = usePersistentToolState('verticalDistance', '');
-  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', []);
+  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', [], { normalize: normalizePlottedPoints });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   /*
@@ -348,7 +354,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         </> : null}
 
         {mode === 'plotTransform' ? <>
-          <p style={{ marginTop: 0 }}>Map <strong>S1 → P1, S2 → P2</strong>, and so on. Plot the transformed defining points in source order; the source graph stays visible while you work.</p>
+          <p style={{ marginTop: 0 }}>Map <strong>S1 → P1, S2 → P2</strong>, and so on. Plot the transformed defining points in source order; the source graph stays visible while you work, its points squares and yours dots.</p>
           <CoordinatePlane
             {...graphBounds}
             snapStep={questionData.snapStep || 1}
@@ -370,10 +376,13 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               { points: sourcePoints, stroke: '#5f6b7a', strokeWidth: 3 },
               { points: plottedPoints, stroke: '#1a73e8', strokeWidth: 3 },
             ]}
+            // The source's points are squares and the student's dots, as well
+            // as S1… and P1… (WCAG 1.4.1): the two graphs are both solid, and
+            // their colours were all that told one line from the other.
             points={[
               ...sourcePoints.map((point, index) => {
                 const [x, y] = pointCoordinates(point);
-                return { x, y, label: `S${index + 1}`, fill: '#5f6b7a', movable: false };
+                return { x, y, label: `S${index + 1}`, fill: '#5f6b7a', shape: 'square', movable: false };
               }),
               ...plottedPoints.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}` })),
             ]}

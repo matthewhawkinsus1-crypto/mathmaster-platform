@@ -250,7 +250,10 @@ test('the save line: moving between questions saves a draft, and only a sent ans
 test('App wires the save line: the model it imports, an answer marked as sent on submit, the line from the model', () => {
   const app = code('src/App.jsx');
   assert.match(app, /import \{ describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject(?:, [A-Za-z]+)* \} from '\.\/platform\/student\/saveStatusModel\.js';/);
-  assert.match(app, /const studentSaveSubject = nextSaveSubject\(studentSaveSubjectState, \{ type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount \}\);/);
+  // The subject follows the status and the answers still owed through the
+  // model, folded in render from the one the last render showed (renderFold:
+  // no render of its own, appRenderWork.test.mjs).
+  assert.match(app, /const studentSaveSubject = renderFold\('saveSubject', studentSaveSubjectState, \(subject\) => nextSaveSubject\(subject, \{ type: 'status', status: studentPersistenceStatus, pendingGradeCount: studentPendingGradeCount \}\)\);/);
   assert.match(app, /const studentSaveLine = describeRuntimeSaveLine\(\{ persistenceStatus: studentPersistenceStatus, subject: studentSaveSubject,/);
   const mount = region(app, '<QuestionEngine\n              key={`${activeAssignmentId}', '/>', 'the assignment question mount');
   // An answer is marked as sent only once it is in the device queue — the

@@ -124,8 +124,9 @@ test('rewriteLinearForm mode is dispatched before the legacy ax + b = c workspac
 // the regions that do the work, not anywhere in the file.
 test('rewriteLinearForm persists the equation and history and gives Universal Undo to the embedded core', () => {
   const source = fs.readFileSync(new URL('../../src/tools/stepAlgebra2/RewriteLinearForm.jsx', import.meta.url), 'utf8');
-  assert.match(source, /usePersistentToolState\('rewriteEquationState', initialEquationState\)/);
-  assert.match(source, /usePersistentToolState\('rewriteHistory', \[\]\)/);
+  // (The options, each mirror's restore shape, toolDraftShape.js, are not part of that.)
+  assert.match(source, /usePersistentToolState\('rewriteEquationState', initialEquationState(?:, \{[^}]*\})?\)/);
+  assert.match(source, /usePersistentToolState\('rewriteHistory', \[\](?:, \{[^}]*\})?\)/);
 
   const core = source.slice(source.indexOf('<StepByStepAlgebraCore'), source.indexOf('/>', source.indexOf('<StepByStepAlgebraCore')));
   assert.match(core, /draftKey=\{coreDraftKey\}/, 'the core must persist under this question\'s draft key');

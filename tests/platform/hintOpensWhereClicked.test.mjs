@@ -25,7 +25,12 @@ import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import {
   HINT_PANEL_PLACES,
+  SETTLE_LIMIT_MS,
+  SETTLE_QUIET_FRAMES,
+  hintPanelFocusTarget,
   hintPanelRevealTarget,
+  keepHintPanelInView,
+  laidOutAt,
   requestedHintPanelPlace,
   revealHintPanel,
 } from '../../src/platform/supports/hints/hintPanelReveal.js';
@@ -125,8 +130,183 @@ test('the work bar\'s Hint control opens the panel at the top, and closing it le
 });
 
 test('the page follows the newest hint, and again when the panel moves', () => {
-  // ...and when a rung that was loading arrives (hint-ladder timing).
-  const effect = region(engine, 'revealHintPanel(hintPanelRef.current', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending]);', 'the reveal effect');
-  assert.match(effect, /revealHintPanel\(hintPanelRef\.current, \{ place: hintPanelPlace, similarOpen, behavior: scrollMotion\(\) \}\);/);
-  assert.match(engine, /import \{ requestedHintPanelPlace, revealHintPanel \} from '\.\/platform\/supports\/hints\/hintPanelReveal\.js';/);
+  // ...and when a rung that was loading arrives (hint-ladder timing), and while the page settles around it (below).
+  const effect = region(engine, 'useEffect(() => {\n    if (!hintPanelOpen) return undefined;', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, focusAuthority]);', 'the reveal effect');
+  assert.match(effect, /return keepHintPanelInView\(panel, \{ place: hintPanelPlace, similarOpen, behavior: scrollMotion\(\) \}\);/, 'its watch stops when the effect is cleaned up');
+  assert.match(effect, /const panel = hintPanelRef\.current;/);
+  assert.match(engine, /import \{ hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace \} from '\.\/platform\/supports\/hints\/hintPanelReveal\.js';/);
+  assert.doesNotMatch(engine, /revealHintPanel\(/, 'no reveal that runs once and leaves the page to move on');
+});
+
+/* ------------------------------------------- the hint stays in sight while a staged step settles */
+
+// A browser window as the watch uses it: frames run one at a time, 16ms apart, and the listeners on the document.
+const fakeWindow = () => {
+  let clock = 0;
+  let serial = 0;
+  const frames = new Map();
+  const listeners = new Map();
+  return {
+    document: {
+      addEventListener: (type, listener, options) => listeners.set(type, { listener, options }),
+      removeEventListener: (type, listener, capture) => {
+        if (listeners.get(type)?.listener === listener && capture === true) listeners.delete(type);
+      },
+    },
+    performance: { now: () => clock },
+    requestAnimationFrame: (callback) => { serial += 1; frames.set(serial, callback); return serial; },
+    cancelAnimationFrame: (id) => frames.delete(id),
+    frame() {
+      clock += 16;
+      const due = [...frames.values()];
+      frames.clear();
+      due.forEach((callback) => callback());
+    },
+    listeners,
+    get waiting() { return frames.size; },
+  };
+};
+
+// The newest hint in the results, under a step in an open Work View: its place in the layout, and its reveals.
+const stagedHint = () => {
+  const reveals = [];
+  const view = { offsetTop: 58, offsetParent: null, scrollTop: 0 };
+  const hint = { offsetTop: 414, offsetHeight: 136, offsetParent: view, isConnected: true, scrollIntoView: (options) => reveals.push(options) };
+  return { hint, view, reveals, panel: fakePanel({ hints: [hint] }) };
+};
+
+test('a scroll is not a move: the hint\'s place is read from the layout', () => {
+  const { hint, view } = stagedHint();
+  assert.deepEqual(laidOutAt(hint), { top: 472, bottom: 608 }, 'its offsets, up to the fixed layer it is in');
+  view.scrollTop = 300;
+  assert.deepEqual(laidOutAt(hint), { top: 472, bottom: 608 }, 'the view scrolled: the hint has not moved');
+  hint.offsetTop = 815;
+  assert.deepEqual(laidOutAt(hint), { top: 873, bottom: 1009 }, 'the step flowed: it has');
+});
+
+test('the hint stays in sight while a staged step flows under it, and the watch ends once the page settles', () => {
+  // As measured on the base at 1366x768 on the staged table: the hint at 472 to 608 for two frames, then 873 to 1009
+  // once the step flowed, in a view that ends at 767.
+  const { hint, reveals, panel } = stagedHint();
+  const win = fakeWindow();
+  const stop = keepHintPanelInView(panel, { place: 'results', behavior: 'auto', win });
+  assert.deepEqual(reveals, [{ block: 'nearest', behavior: 'auto' }], 'revealed as the panel opens, as before');
+  win.frame();
+  win.frame();
+  assert.equal(reveals.length, 1, 'still bounded: nothing more to do');
+  hint.offsetTop = 815;
+  win.frame();
+  assert.equal(reveals.length, 2, 'the step flowed and moved it: revealed again, in the same frame');
+  assert.deepEqual(reveals[1], { block: 'nearest', behavior: 'auto' });
+  hint.offsetHeight = 150;
+  win.frame();
+  assert.equal(reveals.length, 3, 'it grew (its mathematics drawn): again');
+  for (let frame = 1; frame < SETTLE_QUIET_FRAMES; frame += 1) win.frame();
+  assert.equal(win.waiting, 1, 'watched until it has been still for the quiet frames');
+  win.frame();
+  assert.equal(win.waiting, 0, 'then the watch ends');
+  assert.equal(win.listeners.size, 0, 'and its listeners go with it');
+  assert.equal(reveals.length, 3);
+  stop();
+  assert.ok(SETTLE_QUIET_FRAMES >= 8 && SETTLE_QUIET_FRAMES <= 30, String(SETTLE_QUIET_FRAMES));
+});
+
+test('the student\'s own press, tap, key or wheel ends the watch; the app\'s own events and the cleanup do too, and nothing else is moved', () => {
+  for (const type of ['pointerdown', 'touchstart', 'keydown', 'wheel']) {
+    const { hint, reveals, panel } = stagedHint();
+    const win = fakeWindow();
+    keepHintPanelInView(panel, { place: 'results', win });
+    assert.deepEqual(win.listeners.get(type)?.options, { capture: true, passive: true }, `${type}: listened for before anything under it`);
+    win.listeners.get(type).listener({ type, isTrusted: false });
+    assert.equal(win.waiting, 1, `${type}: an event the app made is not the student`);
+    win.listeners.get(type).listener({ type, isTrusted: true });
+    assert.equal(win.waiting, 0, `${type}: the student's own ends it`);
+    assert.equal(win.listeners.size, 0);
+    hint.offsetTop = 815;
+    win.frame();
+    assert.equal(reveals.length, 1, `${type}: the view is the student's now`);
+  }
+  // The effect's cleanup (another hint, the panel closing, the question going) stops it.
+  const { hint, reveals, panel } = stagedHint();
+  const win = fakeWindow();
+  const stop = keepHintPanelInView(panel, { place: 'results', win });
+  stop();
+  assert.equal(win.waiting, 0);
+  assert.equal(win.listeners.size, 0);
+  hint.offsetTop = 815;
+  win.frame();
+  assert.equal(reveals.length, 1);
+  // A hint taken out of the page ends it; a page that never settles is watched for SETTLE_LIMIT_MS at most.
+  const gone = stagedHint();
+  const goneWin = fakeWindow();
+  keepHintPanelInView(gone.panel, { place: 'results', win: goneWin });
+  gone.hint.isConnected = false;
+  goneWin.frame();
+  assert.equal(goneWin.waiting, 0);
+  const moving = stagedHint();
+  const movingWin = fakeWindow();
+  keepHintPanelInView(moving.panel, { place: 'results', win: movingWin });
+  let frames = 0;
+  while (movingWin.waiting && frames < 1000) { moving.hint.offsetTop += 1; movingWin.frame(); frames += 1; }
+  assert.equal(frames, Math.ceil(SETTLE_LIMIT_MS / 16), 'a page that keeps moving is followed for the limit, then left');
+  assert.ok(SETTLE_LIMIT_MS >= 1000 && SETTLE_LIMIT_MS <= 5000, String(SETTLE_LIMIT_MS));
+  // Nothing to reveal, or no frames: one reveal at most, and nothing to stop.
+  assert.equal(typeof keepHintPanelInView(null, { place: 'results', win: fakeWindow() }), 'function');
+  const once = stagedHint();
+  keepHintPanelInView(once.panel, { place: 'results', win: {} })();
+  assert.equal(once.reveals.length, 1);
+});
+
+/* ------------------------------------------- focus goes to what the press asked for */
+
+const element = (attributes = {}) => ({ getAttribute: (name) => attributes[name] ?? null });
+
+test('focus goes to the newest hint, to the panel while that rung loads, and to the worked example\'s heading', () => {
+  const own = element({ 'data-hint-panel': '' });
+  const summary = element();
+  const [first, second] = [element({ 'data-hint-source': 'authored' }), element({ 'data-hint-source': 'tool' })];
+  const panelWith = (hints, { example = false } = {}) => ({
+    querySelector: (selector) => ({ '[data-hint-panel]': own, '[data-similar-example] > summary': example ? summary : null }[selector] ?? null),
+    querySelectorAll: (selector) => (selector === 'li[data-hint-source]' ? hints : []),
+  });
+  assert.equal(hintPanelFocusTarget(panelWith([first, second])), second, 'the newest hint');
+  assert.equal(hintPanelFocusTarget(panelWith([first, second]), { asked: 'hint' }), second);
+  // A rung still loading shows a line that is a status of its own ("Loading the hint for this question…"): focus on
+  // it would read that line twice. The panel ("Hints") holds focus until the hint is here.
+  assert.equal(hintPanelFocusTarget(panelWith([first, element({ 'data-hint-source': 'pending' })])), own);
+  assert.equal(hintPanelFocusTarget(panelWith([])), own, 'nothing read yet: the panel');
+  assert.equal(hintPanelFocusTarget(panelWith([first], { example: true }), { asked: 'example' }), summary, 'the example: its heading');
+  assert.equal(hintPanelFocusTarget(panelWith([first]), { asked: 'example' }), own);
+  assert.equal(hintPanelFocusTarget(null), null);
+  // Asked of the panel itself (the one in Work View's Help drawer, where its own button was pressed): the same, in it.
+  const drawer = {
+    querySelector: () => null,
+    querySelectorAll: (selector) => (selector === 'li[data-hint-source]' ? [first, second] : []),
+  };
+  assert.equal(hintPanelFocusTarget(drawer), second);
+  const loadingInDrawer = { ...drawer, querySelectorAll: () => [element({ 'data-hint-source': 'pending' })] };
+  assert.equal(hintPanelFocusTarget(loadingInDrawer), loadingInDrawer, 'a rung loading there: that panel holds focus');
+});
+
+test('a press that reveals a hint or opens the example sends focus there once it is drawn, unless the student has acted since', () => {
+  const asks = region(engine, 'const requestHintFocus = (asked, from) => {', '\n  };', 'asking for focus');
+  assert.match(asks, /hintFocusRequestRef\.current = \{ asked, scope, ticket: focusAuthority\.ticket\(\{ since: 'now', channel: 'hint' \}\) \};/);
+  // A press made in a panel (its own "Show the next hint", "Try a similar one") hands over its click event: focus
+  // stays in that panel, which in Work View may be the Help drawer's, not the one in the work.
+  assert.match(asks, /const scope = from\?\.currentTarget\?\.closest\?\.\('\[data-hint-panel\]'\) \|\| null;/);
+  // Every press that reveals one asks, after its own guard: the offers under a miss and under the work, the one-try
+  // notice, a tool's result area and the panel's own "Show the next hint" all go through these two.
+  const reveal = region(engine, 'const revealNextHint = (place) => {', '};', 'revealing a hint');
+  assert.match(reveal, /if \(!hintState\.canRevealNext \|\| !hintLadder\.next\) return;\s*requestHintFocus\('hint', place\);/);
+  const similar = region(engine, 'const openSimilarExample = (place) => {', '};', 'opening the example');
+  assert.match(similar, /if \(!similarExample\) return;\s*requestHintFocus\('example', place\);/);
+  // The work bar's Hint control opens and closes the panel and keeps focus: it asks for none.
+  assert.doesNotMatch(region(engine, 'data-hint-control=""', 'style={{ minHeight', 'the Hint control'), /requestHintFocus/);
+  const effect = region(engine, 'useEffect(() => {\n    if (!hintPanelOpen) return undefined;', '[hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, focusAuthority]);', 'the reveal effect');
+  assert.match(effect, /const request = hintFocusRequestRef\.current;\s*hintFocusRequestRef\.current = null;/, 'one focus per press');
+  assert.match(effect, /if \(request && focusAuthority\.isLive\(request\.ticket\)\) \{/, 'a press, tap or key since, or focus moved, wins');
+  assert.match(effect, /const target = hintPanelFocusTarget\(request\.scope\?\.isConnected \? request\.scope : panel, \{ asked: request\.asked \}\);\s*target\?\.focus\?\.\(\{ preventScroll: true \}\);/, 'focus does not scroll: the watch does');
+  // While the rung loads the panel holds focus, and the hint takes it when it arrives (the effect runs again then).
+  assert.match(effect, /if \(target && request\.asked === 'hint' && !target\.matches\?\.\('li\[data-hint-source\]'\)\) \{\s*hintFocusRequestRef\.current = \{ \.\.\.request, ticket: focusAuthority\.ticket\(\{ since: 'now', channel: 'hint' \}\) \};/);
+  assert.ok(effect.indexOf('target?.focus?.(') < effect.indexOf('return keepHintPanelInView('), 'focus first, then the reveal');
 });

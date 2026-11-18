@@ -44,6 +44,9 @@
  *               a rewrite changes a side into an equivalent one; a relation
  *               step passes validateRelationTransition, the workspace's own
  *               gate; an intercept check matches the line's intercept.
+ *   offered     a relation step only Raise both sides to a power, Factor or
+ *               Zero-product property makes comes from a tool the item offers
+ *               (relationToolsOffered): the workspace shows no other.
  *
  * A step that fails either earns nothing: it is recorded as an
  * `unverified-step` (accepted: false, earned 0, possible 0, no denominator,
@@ -77,6 +80,7 @@ import { parse } from '../algebra/safeMath.mjs';
 import { compactStepStateKey, normalizeQuestionRecord } from '../attemptPolicy.mjs';
 import { normalizeStepWork, STEP_WORK_LIMITS, STEP_WORK_VERSION } from '../submissionEnvelope.mjs';
 import {
+  RADICAL_ALGEBRA_TOOLS,
   relationStateToLatex,
   relationStateToText,
   validateRelationTransition,
@@ -88,6 +92,7 @@ import {
   substitutionEquationText,
 } from '../toolMath/stepAlgebra2/linearInterceptsMath.mjs';
 import { serverResponseGradingSupport } from './gradingSupport.mjs';
+import { radicalGradingContext } from './stepAlgebraRadicalGrading.mjs';
 import {
   IDENTITY,
   compareIdentically,
@@ -159,6 +164,27 @@ export const RELATION_STEP_KINDS = Object.freeze([
   // The radical-equation and quadratic tools (algebraRelationFoundation.mjs).
   'radical-raise', 'factor', 'zero-product',
 ]);
+
+/*
+ * THE RADICAL / QUADRATIC TOOLS A RELATION ITEM OFFERS.
+ *
+ * Raise both sides to a power, Factor and Zero-product property are opt-in
+ * (algebraRelationFoundation.mjs RADICAL_ALGEBRA_TOOLS): every one on a radical
+ * equation the lesson verifies, and otherwise only those the item names in
+ * `algebraTools` (a standalone quadratic lesson asks for ["factor",
+ * "zeroProduct"]). One rule, two readers: the workspace draws a button for
+ * exactly these (src/relationRadicalToolsModel.js relationToolsFor), and the
+ * replay below refuses a step whose transition only a tool the item does not
+ * offer can make, however valid its mathematics.
+ */
+export const relationToolsOffered = (question, pristine) => {
+  const declared = new Set((Array.isArray(question?.algebraTools) ? question.algebraTools : []).map(String));
+  if (radicalGradingContext(pristine)) RADICAL_ALGEBRA_TOOLS.forEach((tool) => declared.add(tool.id));
+  return RADICAL_ALGEBRA_TOOLS.filter((tool) => declared.has(tool.id));
+};
+
+/** The tool that makes each of these transitions (validateRelationTransition kind -> tool id). */
+export const RELATION_TOOL_TRANSITIONS = Object.freeze({ radicalRaise: 'raisePower', factor: 'factor', zeroProduct: 'zeroProduct' });
 
 export const UNVERIFIED_STEP_KIND = 'unverified-step';
 
@@ -814,6 +840,12 @@ const verifyRelationStep = ({ work, question, record }) => {
   // makes of its counterpart in `before` — never more than the engine may be
   // handed (see the composed budget above).
   if (!relationCompositionFits(before, after, transition, composedBudget)) return declinedBeyondBudget(action);
+  // A tool's step only where the item offers the tool: the workspace shows no
+  // other (relationToolsOffered).
+  const tool = Object.hasOwn(RELATION_TOOL_TRANSITIONS, transition.kind) ? RELATION_TOOL_TRANSITIONS[transition.kind] : null;
+  if (tool && !relationToolsOffered(question, pristine).some((offered) => offered.id === tool)) {
+    return unverified(action, 'step-tool-not-offered');
+  }
   // The workspace's own gate (commitState / chooseRelationSymbol).
   if (!validateRelationTransition(before, after, transition).valid) return unverified(action, 'step-transition-invalid');
   return outcome({

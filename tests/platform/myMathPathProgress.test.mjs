@@ -170,9 +170,11 @@ test('each surface gets only what it can read: student, read-only teacher, simul
   assert.match(mastery, /if \(caught\?\.code === 'permission-denied'\) return null;\s*throw caught;/);
   assert.match(app, /import \{ fetchStudentMasteryHistory \} from '\.\.\/\.\.\/platform\/mastery\/masteryHistoryStore\.js';/);
 
-  const weekly = region(app, 'const loadWeeklyHistory = useMemo(() => {', '}, [sessionProvider, readOnly, assignedWeeklyGoal]);', 'weekly loader');
+  const weekly = region(app, 'const loadWeeklyHistory = useMemo(() => {', '}, [sessionProvider, readOnly, assignedWeeklyGoal, liveWeek]);', 'weekly loader');
   // A teacher cannot call a student-only callable; the screen says so instead.
-  assert.match(weekly, /return readOnly \? null : fetchMyWeeklyPathHistory;/);
+  // The live student's recent weeks are the page's (studentWeeklyPath.js),
+  // asked for once a minute and again after Path work, not on every visit.
+  assert.match(weekly, /if \(readOnly\) return null;\s*return liveWeek \? liveWeek\.history : fetchMyWeeklyPathHistory;/);
   // The simulator grades its synthetic week with the callable's own builder.
   assert.match(weekly, /buildWeeklyPathHistory\(\{[\s\S]*sessions: sessionProvider\.listPathSessions\?\.\(\) \|\| \[\]/);
   assert.match(app, /import \{[^}]*\bfetchMyWeeklyPathHistory\b[^}]*\} from '\.\.\/\.\.\/platform\/path\/pathStore\.js';/);

@@ -7,7 +7,8 @@ import {
   validateLessonPublishingIntent,
 } from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
-import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { advisoryCountsText, advisoryTotalText, buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
+import { preflightClassSizeFor } from '../../platform/preflight/questionPreflightFindings.js';
 import { findAssignmentKeyConflict } from '../../assignmentDestinations.js';
 import { applySafeToolContractRepairs } from '../../platform/contract/questionToolContract.js';
 import { formatPlannedTime } from '../../platform/teacher/classworkPacing.js';
@@ -30,10 +31,10 @@ import {
   applyHonorsDepthAiSections,
   buildHonorsDepthAiRepairRequest,
   honorsMissingLabels,
+  judgeHonorsDepthRepair,
   nonCcmrHonorsMissing,
   nonCcmrHonorsReady,
   separateHonorsDepthAiRepair,
-  unresolvedRequestedHonorsGaps,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
   assignmentAiDiagnostics,
@@ -306,14 +307,13 @@ export const LessonPreflightModal = ({
     () => buildPreflightReviewedAssignmentV5(workingAssignmentV5, draft),
     [workingAssignmentV5, draft],
   );
-  // The largest class this assignment will be given to: uniqueness is per class.
-  const preflightClassSize = useMemo(() => {
-    const chosen = Array.isArray(draft.assignedClassIds) && draft.assignedClassIds.length
-      ? draft.assignedClassIds
-      : Object.keys(rosterSizesByClassId || {});
-    const sizes = chosen.map((classId) => Number(rosterSizesByClassId?.[classId]) || 0).filter((size) => size > 0);
-    return sizes.length ? Math.max(...sizes) : null;
-  }, [draft.assignedClassIds, rosterSizesByClassId]);
+  // The largest class this assignment will be given to: uniqueness is per
+  // class. The Question Editor counts against the same class
+  // (questionPreflightFindings.js).
+  const preflightClassSize = useMemo(
+    () => preflightClassSizeFor(draft.assignedClassIds, rosterSizesByClassId),
+    [draft.assignedClassIds, rosterSizesByClassId],
+  );
   const preflightModel = useMemo(
     () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize }),
     [reviewedAssignmentV5, preflightClassSize],
@@ -804,16 +804,14 @@ export const LessonPreflightModal = ({
       throw new Error(`The Honors repair introduced a new assignment blocker:\n${newErrors.join('\n')}`);
     }
 
-    const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
-    const requestedGaps = nonCcmrHonorsMissing(honorsReport);
-    const unresolvedRequested = unresolvedRequestedHonorsGaps(requestedGaps, candidateReport);
-    if (unresolvedRequested.length) {
-      throw new Error(`${sourceLabel} did not resolve the Honors gap(s) it was asked to repair: ${honorsMissingLabels(unresolvedRequested).join(', ')}. The original assignment was kept unchanged.`);
-    }
-    if (!nonCcmrHonorsReady(candidateReport)) {
-      const unresolved = nonCcmrHonorsMissing(candidateReport);
-      throw new Error(`${sourceLabel} could not safely resolve enough Honors depth: ${honorsMissingLabels(unresolved).join(', ')}. Honors requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions. The original assignment was kept unchanged.`);
-    }
+    // Taken when the Honors check passes it, as Review would, even if a gap
+    // the request listed is still open (honorsDepthAiRepair.js).
+    const verdict = judgeHonorsDepthRepair({
+      questions: candidateModel.questions,
+      requestedMissing: nonCcmrHonorsMissing(honorsReport),
+      sourceLabel,
+    });
+    if (!verdict.accepted) throw new Error(verdict.message);
 
     const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
     const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
@@ -825,7 +823,7 @@ export const LessonPreflightModal = ({
     setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
     setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
     setHonorsAiMessage(
-      candidateReport.checks.ccmrEnrichment
+      verdict.report.checks.ccmrEnrichment
         ? `${sourceLabel} repaired the Honors depth requirements and the assignment passed Preflight again.`
         : `${sourceLabel} repaired the Honors depth requirements. MathMaster is checking the Honors version again, with its audited CCMR Practice, below.`,
     );
@@ -2054,13 +2052,14 @@ export const LessonPreflightModal = ({
 
       {renderRecoveryReadiness()}
 
-      {/* The advice below, counted (TT14, TT21): it never stops the
-          assignment from being ready (assignmentV5PreflightModel.js
-          summarizeAdvisoryFindings). */}
+      {/* The advice below, counted (TT14, TT21), every panel of it, each
+          count in the number it needs ("1 hint that states the answer"): it
+          never stops the assignment from being ready
+          (assignmentV5PreflightModel.js summarizeAdvisoryFindings). */}
       {preflightModel.advisory?.total > 0 && (
         <p data-preflight-advisory={preflightModel.advisory.total} style={{ margin: '0 0 12px', fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-text)' }}>
-          <strong>{preflightModel.advisory.total === 1 ? '1 suggestion' : `${preflightModel.advisory.total} suggestions`} below</strong>
-          {' '}({preflightModel.advisory.groups.map((group) => `${group.count} ${group.label}`).join(', ')}). Advice only: they never stop the assignment from being ready or published.
+          <strong>{advisoryTotalText(preflightModel.advisory)} below</strong>
+          {' '}({advisoryCountsText(preflightModel.advisory)}). Advice only: they never stop the assignment from being ready or published.
         </p>
       )}
 
@@ -2163,6 +2162,44 @@ export const LessonPreflightModal = ({
             <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.impossibleItems.warnings.length === 1 ? '1 note' : `${preflightModel.impossibleItems.warnings.length} notes`}</summary>
             <ul data-impossible-items-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
               {preflightModel.impossibleItems.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
+      {/* Advice, not a readiness finding (otherQuestionReferencePreflight.js,
+          #554 item 6): a prompt that needs another question's answer, which
+          a student can meet first or without that question. Graded as
+          before, so it never turns the assignment "Needs Review". */}
+      {preflightModel.otherQuestionReferences?.warnings?.length > 0 && (
+        <div data-other-question-reference-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Questions that need another question&apos;s answer</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            Questions can be shown one at a time or in another order, given as a Recovery version, or left out for a student with fewer items, so a question that uses an earlier answer can reach a student without it. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.otherQuestionReferences.warnings.length === 1 ? '1 question' : `${preflightModel.otherQuestionReferences.warnings.length} questions`}</summary>
+            <ul data-other-question-reference-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.otherQuestionReferences.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        </div>
+      )}
+
+      {/* Advice, not a readiness finding (graphingCalculatorPromptPreflight.js,
+          #554 item 6): a prompt that names a graphing calculator, on a
+          question whose calculator, with this review's Calculator setting,
+          cannot graph. */}
+      {preflightModel.graphingCalculatorPrompts?.warnings?.length > 0 && (
+        <div data-graphing-calculator-prompt-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Graphing calculator in the prompt</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 'calc(12.5 * var(--mm-px))', lineHeight: 1.5 }}>
+            These prompts tell students to use a graphing calculator, but the calculator students get on that question cannot graph. A question&apos;s own calculator setting comes first, and on an exit ticket, quiz or test the lesson&apos;s setting can only make it stricter. This does not stop you publishing.
+          </p>
+          <details>
+            <summary style={{ cursor: 'pointer', minHeight: 24, fontSize: 'calc(12.5 * var(--mm-px))', fontWeight: 800 }}>{preflightModel.graphingCalculatorPrompts.warnings.length === 1 ? '1 question' : `${preflightModel.graphingCalculatorPrompts.warnings.length} questions`}</summary>
+            <ul data-graphing-calculator-prompt-warnings="true" style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 'calc(13 * var(--mm-px))', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.graphingCalculatorPrompts.warnings.map((warning) => <li key={warning}>{warning}</li>)}
             </ul>
           </details>
         </div>

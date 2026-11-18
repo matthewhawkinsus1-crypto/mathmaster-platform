@@ -8,6 +8,8 @@ import {
   prepareAssignmentForRuntime,
 } from '../../src/platform/contract/storedAssignmentV5.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
+import { DRAWN_QUESTION_ROUTE, drawnQuestionKind } from '../../src/platform/question/drawnQuestionKind.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const staleGeneratedQuestion = () => ({
   questionId: '0d24f506-f272-4004-9a1e-5b4986492b51',
@@ -136,9 +138,16 @@ test('authored workflow remains explicit and is not rewritten by the shared runt
 });
 
 test('student QuestionEngine routes composed questions through the shared self-healing reader', () => {
-  const source = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
-  assert.match(source, /readComposedQuestion\(processedQuestion\)\.composed/);
+  const source = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
+  // QuestionEngine's composed route is the workflow route of the rule it draws by (drawnQuestionKind.js)...
+  assert.match(source, /const drawnKind = useMemo\(\(\) => drawnQuestionKind\(processedQuestion\), \[processedQuestion\]\);/);
+  assert.match(source, /const isComposed = drawnKind\?\.route === DRAWN_QUESTION_ROUTE\.WORKFLOW;/);
   assert.match(source, /<WorkflowRunner/);
+  // ...and the rule decides it with the self-healing reader, before any other route.
+  const rule = executableSource(readFileSync(new URL('../../src/platform/question/drawnQuestionKind.js', import.meta.url), 'utf8'));
+  const firstRoute = region(rule, 'export const drawnQuestionKind = (question) => {', 'const toolId =', 'the rule\'s first route');
+  assert.match(firstRoute, /if \(readComposedQuestion\(question\)\.composed\) return WORKFLOW;/);
+  assert.equal(drawnQuestionKind(staleGeneratedQuestion())?.route, DRAWN_QUESTION_ROUTE.WORKFLOW);
 });
 
 test('preflight and teacher worksheet consumers use the prepared runtime assignment', () => {

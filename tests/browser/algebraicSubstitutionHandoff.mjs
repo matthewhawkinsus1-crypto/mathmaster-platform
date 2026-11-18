@@ -20,6 +20,10 @@
 //   student-old-draft-simplify  the same draft before the token was made, taking
 //                            the optional "Simplify first" route the error
 //                            message recommends
+//   student-simplify-unreadable  the same draft, "Simplify first" with rewrites
+//                            the box cannot read on its own ("2y)-(3",
+//                            "x=2y-3"): refused in words, nothing recorded,
+//                            no token; then 2y - 3 takes the step
 //   preview-fresh            Teacher Preview, select-then-place instead of drag,
 //                            including a wrong destination first
 //   student-keyboard         the same draft worked by keys alone: the line beside
@@ -60,7 +64,23 @@ const note = (journey, detail) => findings.push({ journey, detail });
 
 /* ------------------------------------------------------------------ helpers */
 
-const openFresh = async (page, { scope = 'student', seed = null, questionIndex = 1 } = {}) => {
+// Every opening gets a fresh context, and the one before it is closed first. One
+// page navigated and reloaded again and again on the Vite dev server leaves
+// Chromium's shared-memory files in /tmp (about 3 GB for two navigations), and
+// they go only when the renderer does (docs/handoffs/NOVEMBER_BUILD_2026-11.md,
+// section 6). `page` is the page now open; the journeys read it after each opening.
+let context = null;
+let page = null;
+const freshPage = async () => {
+  if (context) await context.close();
+  context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  page = await context.newPage();
+  page.on('pageerror', (error) => note('page', `uncaught page error: ${error.message}`));
+  return page;
+};
+
+const openFresh = async (_previousPage, { scope = 'student', seed = null, questionIndex = 1 } = {}) => {
+  await freshPage();
   const url = `${PAGE}?scope=${scope}&q=${questionIndex}`;
   await page.goto(url);
   await page.waitForFunction(() => Boolean(window.__mmHandoff));
@@ -73,7 +93,7 @@ const openFresh = async (page, { scope = 'student', seed = null, questionIndex =
   // A reload re-evaluates every module, so only what is really in storage can
   // come back — the same as a student opening the assignment the next day.
   await page.reload();
-  await page.waitForSelector('.mathmaster-algebraic-system-workflow', { timeout: 20000 });
+  await page.locator('.mathmaster-algebraic-system-workflow').first().waitFor({ timeout: 20000 });
   await page.waitForTimeout(300);
 };
 
@@ -278,10 +298,6 @@ const assertInlineDistributionWorkspace = async (page, journey) => {
 
 /* ----------------------------------------------------------------- journeys */
 
-const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
-const page = await context.newPage();
-page.on('pageerror', (error) => note('page', `uncaught page error: ${error.message}`));
-
 // 1. Student View, fresh question state, real HTML5 drag.
 await openFresh(page, { scope: 'student' });
 await isolateXWithStepAlgebra(page);
@@ -295,7 +311,7 @@ await shoot(page, 'student-fresh');
 await page.evaluate(() => window.__mmHandoff.go(0));
 await page.waitForTimeout(600);
 await page.evaluate(() => window.__mmHandoff.go(1));
-await page.waitForSelector('.mathmaster-algebraic-system-workflow', { timeout: 15000 });
+await page.locator('.mathmaster-algebraic-system-workflow').first().waitFor({ timeout: 15000 });
 await page.waitForTimeout(600);
 await assertStepAlgebraOpenedForY(page, 'student-leave-return');
 await shoot(page, 'student-leave-return');
@@ -333,6 +349,60 @@ await shoot(page, 'student-old-draft');
     await assertStepAlgebraOpenedForY(page, 'student-old-draft-simplify');
   }
   await shoot(page, 'student-old-draft-simplify');
+}
+
+// 4b. The same draft, "Simplify first", with rewrites the box cannot read on
+//     their own: "2y)-(3" is 2y - 3 only inside "(typed) - (isolated)", and
+//     "x=2y-3" is an equation. The old check took both and made each the
+//     token. Now each is refused in words, records nothing and makes no
+//     token; then 2y - 3 is taken and reaches the solve for y as before.
+{
+  const journey = 'student-simplify-unreadable';
+  const workTool = BROKEN_DRAFT[':work:tool'];
+  const beforeToken = {
+    ...BROKEN_DRAFT,
+    ':work:tool': { ...workTool, isolation: { ...workTool.isolation, tokenExpression: null } },
+  };
+  await openFresh(page, { scope: 'student', seed: beforeToken });
+  const thrown = [];
+  const onPageError = (error) => thrown.push(String(error?.message || error));
+  page.on('pageerror', onPageError);
+  await page.locator('button', { hasText: 'Simplify first (optional)' }).click();
+  const field = page.locator('math-field[aria-label="Optional simplified expression to substitute"]');
+  await field.waitFor();
+  const typeRewrite = async (latex) => {
+    await field.evaluate((element, value) => {
+      element.setValue(value);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }, latex);
+    await page.waitForTimeout(250);
+  };
+  const isolationDraft = async () => (await page.evaluate(() => window.__mmHandoff.drafts()))[':work:tool']?.isolation || null;
+  const WORDS = 'MathMaster could not read that yet. Enter one expression, without an equals sign.';
+  const refusal = page.locator('[data-isolation-unreadable="true"][role="status"]');
+  for (const typed of ['2y)-(3', 'x=2y-3']) {
+    await typeRewrite(typed);
+    const before = await isolationDraft();
+    await page.locator('button', { hasText: 'Check and use my simplification' }).click();
+    await refusal.first().waitFor({ timeout: 3000 }).catch(() => {});
+    const said = (await refusal.allInnerTexts()).map((text) => text.trim());
+    if (!said.includes(WORDS)) note(journey, `"${typed}" was not refused in words (${JSON.stringify(said)})`);
+    if (await page.locator(TOKEN).count()) note(journey, `"${typed}" became the token`);
+    if (await page.locator('text=That rewrite is not equivalent').count()) note(journey, `"${typed}" was judged not equivalent instead of unreadable`);
+    const after = await isolationDraft();
+    if (JSON.stringify(before) !== JSON.stringify(after)) note(journey, `checking "${typed}" changed the draft: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+  }
+  await typeRewrite('2y-3');
+  if (await refusal.count()) note(journey, 'the refusal stayed after the box changed');
+  await page.locator('button', { hasText: 'Check and use my simplification' }).click();
+  await page.locator(TOKEN).waitFor({ timeout: 5000 }).catch(() => note(journey, '2y - 3 did not become the token'));
+  const token = (await isolationDraft())?.tokenExpression;
+  if (String(latexToExpression(String(token || ''))).replace(/\s+/g, '') !== '2y-3') note(journey, `the token is "${token}", not 2y - 3`);
+  await dropTokenOnEquationTwoX(page, 'click');
+  await assertStepAlgebraOpenedForY(page, journey);
+  page.off('pageerror', onPageError);
+  if (thrown.length) note(journey, `the page threw: ${thrown.join(' | ')}`);
+  await shoot(page, journey);
 }
 
 // 5. Teacher Preview, fresh, select-then-place (the touch/keyboard route),

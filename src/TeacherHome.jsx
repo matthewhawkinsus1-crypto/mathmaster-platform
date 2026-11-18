@@ -8,7 +8,9 @@ import {
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
 import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
 import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
-import StudentPersistenceRecoveryPanel from './components/teacher/StudentPersistenceRecoveryPanel.jsx';
+// Submission recovery's panel, drawn once a class and an assignment are chosen
+// in its fold: on demand (app/teacher/teacherPanels.js, teacher's first load).
+import { StudentPersistenceRecoveryPanel } from './app/teacher/teacherPanels.js';
 import ClassLessonControls from './components/teacher/ClassLessonControls.jsx';
 import StudentQuestionsPanel from './components/teacher/StudentQuestionsPanel.jsx';
 import { projectClassLessons } from './platform/teacher/classLessonControls.js';
@@ -29,7 +31,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null, gradingPeriodSettings = null, onLiveClassChange = null }) {
+export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null, gradingPeriodSettings = null, onLiveClassChange = null, onInspectResponse = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [recoveryClassId, setRecoveryClassId] = useState('');
   // The live tiles are on the projector (LiveClassMonitor's Large room tiles).
@@ -332,6 +334,9 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
           onEndLiveTeaching={onEndLiveTeaching}
           focusAssignmentId={liveFocus?.assignmentId || null}
           focusKey={liveFocus?.nonce || null}
+          // A student's current question in the Response Inspector, as the
+          // gradebook opens it (TeacherWorkspace's one inspector).
+          onInspectResponse={onInspectResponse}
         />
       </div>
 

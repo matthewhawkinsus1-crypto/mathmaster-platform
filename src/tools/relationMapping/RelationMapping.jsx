@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
@@ -38,6 +39,17 @@ import {
   relationToggleMessage,
   toggleRelationPlottedPoint,
 } from './relationPlotKeyboard.js';
+
+/*
+ * WHAT A SAVED RELATION MAY RESTORE (toolDraftShape.js). An arrow is a pair
+ * [domain value, range value], a plotted point [x, y], and each analysis box
+ * holds what was typed in it. An arrow that is not a pair (null, a number)
+ * threw on every load, because the diagram reads each arrow's two ends; it is
+ * dropped, as is a point that is not two numbers, and the rest comes back.
+ */
+const normalizeArrows = draftNormalizer(s.list(s.tuple([s.cell(), s.cell()])));
+const normalizeFieldAnswers = draftNormalizer(s.map(s.cell()));
+const normalizePlottedPoints = draftNormalizer(s.list(s.point()));
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
@@ -254,15 +266,15 @@ export default function RelationMapping({ questionData = {}, onAction, coachingR
   const analysisFields = useMemo(() => relationAnalysisFieldsOf(questionData.answerFields), [questionData.answerFields]);
   const allowTypedPlot = questionData.plotEntryMode === 'typed' || questionData.plotEntryMode === 'clickOrType';
 
-  const [arrows, setArrows] = usePersistentToolState('arrows', []);
+  const [arrows, setArrows] = usePersistentToolState('arrows', [], { normalize: normalizeArrows });
   const [selectedDomain, setSelectedDomain] = useState(null);
   // What the last arrow press did, said in the status line (TOOL-10).
   const [lastArrowChange, setLastArrowChange] = useState(null);
   const [domainAnswer, setDomainAnswer] = usePersistentToolState('domainAnswer', '');
   const [rangeAnswer, setRangeAnswer] = usePersistentToolState('rangeAnswer', '');
   const [functionAnswer, setFunctionAnswer] = usePersistentToolState('functionAnswer', '');
-  const [fieldAnswers, setFieldAnswers] = usePersistentToolState('fieldAnswers', {});
-  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', []);
+  const [fieldAnswers, setFieldAnswers] = usePersistentToolState('fieldAnswers', {}, { normalize: normalizeFieldAnswers });
+  const [plottedPoints, setPlottedPoints] = usePersistentToolState('plottedPoints', [], { normalize: normalizePlottedPoints });
   const [plotX, setPlotX] = usePersistentToolState('plotX', '');
   const [plotY, setPlotY] = usePersistentToolState('plotY', '');
   const restoreMath = useCallback((state) => {

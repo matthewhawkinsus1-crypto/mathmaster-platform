@@ -1217,7 +1217,7 @@ export default function ClassroomManagerV2({
                         </div>
                       </td>
                       <td style={{ padding: 7 }}>
-                        <span style={sync.status === 'synced' && !sync.queued ? okPill : sync.queued || sync.status?.startsWith('skipped') || ['recovery-held', 'rate-limited'].includes(sync.status) ? warnPill : badPill}>{statusLabel}</span>
+                        <span style={sync.status === 'synced' && !sync.queued ? okPill : sync.queued || sync.status?.startsWith('skipped') || ['recovery-held', 'rate-limited', 'graded-not-returned'].includes(sync.status) ? warnPill : badPill}>{statusLabel}</span>
                         {gradeSyncErrorText(sync) && (
                           <div style={{ marginTop: 4, maxWidth: 260, color: 'var(--mm-text-muted)', fontSize: 'calc(10.5 * var(--mm-px))', lineHeight: 1.35, overflowWrap: 'anywhere' }}>{gradeSyncErrorText(sync)}</div>
                         )}

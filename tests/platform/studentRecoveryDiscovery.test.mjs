@@ -30,6 +30,7 @@ import {
   RECOVERY_PHASE,
   buildStudentRecoveryDiscovery,
   groupRecoveryOpportunitiesByAssignment,
+  recoveryDiscoveryCandidates,
   markRecoveryNotified,
   markRecoverySeen,
   recoveryIsUnseen,
@@ -520,13 +521,48 @@ test('App builds one Recovery list, from the same original the Results panel com
   assert.match(memo, /\[[^\]]*\bnow\]\)/);
   // Only what is on screen: every assignment on the dashboard screens, the one
   // open assignment inside it (its tracker changes with every saved step), and
-  // nothing for a teacher.
+  // nothing for a teacher. The scope picks the candidates; the list is built
+  // only for those.
   const scope = region(app, 'const recoveryDiscoveryScope = ', ';\n', 'Recovery discovery scope');
   assert.match(scope, /user\?\.role !== 'student' \|\| !user\?\.id\s*\?\s*null/);
   assert.match(scope, /activeView === 'dashboard'\s*\?\s*RECOVERY_DISCOVERY_ALL/);
   assert.match(scope, /\(activeView === 'assignment' && activeAssignmentId\) \|\| null/);
-  assert.match(memo, /recoveryDiscoveryScope === RECOVERY_DISCOVERY_ALL\s*\?\s*assignments\s*:\s*assignments\.filter\(\(assignment\) => assignment\.id === recoveryDiscoveryScope\)/);
-  assert.match(memo, /\[recoveryDiscoveryScope,/, 'a change of screen rebuilds it');
+  const candidates = region(app, 'const studentRecoveryCandidates = useMemo(', 'const studentRecoveryDiscovery = useMemo(', 'Recovery candidates memo');
+  assert.match(candidates, /if \(!recoveryDiscoveryScope \|\| !studentRecoveryKit\) return NO_RECOVERY_OPPORTUNITIES;/);
+  assert.match(candidates, /return studentRecoveryKit\.recoveryDiscoveryCandidates\(\{/);
+  assert.match(candidates, /recoveryDiscoveryScope === RECOVERY_DISCOVERY_ALL\s*\?\s*assignments\s*:\s*assignments\.filter\(\(assignment\) => assignment\.id === recoveryDiscoveryScope\)/);
+  assert.match(candidates, /\[recoveryDiscoveryScope,/, 'a change of screen finds them again');
+  // The same student, schedule, profile and moment as the list it gates.
+  for (const argument of ['sectionRecoveryByAssignment,', 'studentId: user.id,', 'classId: user.classId || null,', 'classPeriod: user.classPeriod,', 'schedule: classSchedule,', 'studentProfile: user.timingProfile || null,', 'nowValue: now,']) {
+    assert.ok(candidates.includes(argument) && memo.includes(argument), argument);
+  }
+  // WORKED OUT WHEN WHAT IT READS CHANGES: the candidates read no tracker, so
+  // a Submit's tracker changes do not walk the Warm-Up and DOL windows again,
+  // and with no candidate the list is the one stable empty list.
+  assert.doesNotMatch(executableSource(candidates), /\btracker\b|teacherGradeOverridesByAssignment/);
+  assert.match(memo, /if \(!studentRecoveryCandidates\.length\) return NO_RECOVERY_OPPORTUNITIES;/);
+  assert.match(memo, /candidates: studentRecoveryCandidates,/);
+  assert.match(memo, /\[recoveryDiscoveryScope, studentRecoveryKit, studentRecoveryCandidates,/);
+  assert.doesNotMatch(executableSource(memo), /assignments\.filter|\bassignments,/, 'the list is built from the candidates, not from every assignment');
+});
+
+test('the candidates are exactly the assignments a list is built for, so building from them changes nothing', () => {
+  const otherClass = buildAssignment({ id: 'asg-other-class', assignedClassIds: ['class-B'] });
+  const archived = buildAssignment({ id: 'asg-archived', archived: true });
+  const secure = buildAssignment({ id: 'asg-secure', secure: true });
+  // The original's own day still ahead: nothing to recover yet.
+  const upcoming = buildAssignment({ id: 'asg-upcoming', warmup: { instructionDate: '2026-10-20' }, dol: { instructionDate: '2026-10-20' }, lateDueAt: '2026-10-30T23:00:00Z' });
+  const assignments = [otherClass, archived, secure, upcoming, buildAssignment()];
+  const inputs = { assignments, sectionRecoveryByAssignment: {}, studentId: STUDENT, classId: CLASS, classPeriod: PERIOD, schedule: null, studentProfile: null, nowValue: NOW };
+  const candidates = recoveryDiscoveryCandidates(inputs);
+  assert.deepEqual(candidates.map((assignment) => assignment.id), ['asg-recovery'], 'the audience rule and the window check, as the list applies them');
+  const trackerByAssignment = Object.fromEntries(assignments.map((assignment) => [assignment.id, TRACKER]));
+  const built = buildStudentRecoveryDiscovery({ ...inputs, trackerByAssignment, candidates });
+  assert.ok(built.length > 0, 'a list with something on it');
+  assert.deepEqual(built, buildStudentRecoveryDiscovery({ ...inputs, trackerByAssignment }), 'the same list as one that finds its own candidates');
+  // No candidate: nothing is built, whatever the tracker says.
+  assert.deepEqual(buildStudentRecoveryDiscovery({ ...inputs, trackerByAssignment, candidates: [] }), []);
+  assert.deepEqual(recoveryDiscoveryCandidates({ ...inputs, studentId: null }), []);
 });
 
 test('Home, the Assignments Center and the assignment header all render the list and open it through one handler', () => {

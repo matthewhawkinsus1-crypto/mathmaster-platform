@@ -1,0 +1,540 @@
+{
+ "description": "Every distinct set of response-module drafts the draft-persistence journey (tests/browser/draftPersistenceScenes.mjs, its edit and resume steps) and the cross-device journey (tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs, its two multi-answer questions) wrote in Chromium on the build before checkedQuestionDraft.js (fa22bb2b), after each step, by scene of fixtures/toolDraftScenes.mjs RESPONSE_MODULE_SCENES; and the guided notes position and state every question wrote beside them. Synthetic data.",
+ "scenes": {
+  "guided-coach": [
+   {
+    ":guided-collapsed": true,
+    ":guided-step": 0
+   }
+  ],
+  "journey:literal-input": [
+   {
+    ":literal": ""
+   },
+   {
+    ":literal": "\\frac{A}{l}"
+   }
+  ],
+  "journey:multi-answer": [
+   {
+    ":multi-answer": {}
+   },
+   {
+    ":multi-answer": {
+     "domain": "\\left\\lbrack-4,4\\right\\rbrack"
+    }
+   },
+   {
+    ":multi-answer": {
+     "domain": "\\left\\lbrack-4,4\\right\\rbrack",
+     "range": "\\left\\lbrack0,16\\right\\rbrack"
+    }
+   }
+  ],
+  "journey:table": [
+   {
+    ":table": {}
+   },
+   {
+    ":table": {
+     "0:y": "1"
+    }
+   },
+   {
+    ":table": {
+     "0:y": "1",
+     "1:y": "3"
+    }
+   },
+   {
+    ":table": {
+     "0:y": "1",
+     "1:y": "3",
+     "2:y": "5"
+    }
+   }
+  ],
+  "journey:composed-workflow": [
+   {
+    ":workflow-responses": {},
+    ":workflow-stage": 0
+   },
+   {
+    ":workflow-responses": {
+     "domain": "\\left\\lbrack-2,5\\right\\rbrack"
+    },
+    ":workflow-stage": 0
+   }
+  ],
+  "journey:interactive-graph": [
+   {
+    ":graph-stage": "construct",
+    ":graph-analysis": {
+     "selections": {},
+     "answers": {},
+     "typedPoints": {},
+     "noneSelections": {},
+     "inversePointsValidated": false,
+     "inverseStrokes": [],
+     "inverseSketchView": null,
+     "inverseSnapped": false
+    },
+    ":graph-construction": {
+     "placements": {},
+     "chosenXValues": {
+      "p1": "0",
+      "p2": "2"
+     },
+     "pointsValidated": false,
+     "strokes": [],
+     "sketchView": null,
+     "snapped": false,
+     "markerPlacements": {}
+    }
+   },
+   {
+    ":graph-stage": "construct",
+    ":graph-analysis": {
+     "selections": {},
+     "answers": {},
+     "typedPoints": {},
+     "noneSelections": {},
+     "inversePointsValidated": false,
+     "inverseStrokes": [],
+     "inverseSketchView": null,
+     "inverseSnapped": false
+    },
+    ":graph-construction": {
+     "placements": {
+      "p1": [
+       0,
+       3
+      ]
+     },
+     "chosenXValues": {
+      "p1": "0",
+      "p2": "2"
+     },
+     "pointsValidated": false,
+     "strokes": [],
+     "sketchView": null,
+     "snapped": false,
+     "markerPlacements": {}
+    }
+   },
+   {
+    ":graph-stage": "construct",
+    ":graph-analysis": {
+     "selections": {},
+     "answers": {},
+     "typedPoints": {},
+     "noneSelections": {},
+     "inversePointsValidated": false,
+     "inverseStrokes": [],
+     "inverseSketchView": null,
+     "inverseSnapped": false
+    },
+    ":graph-construction": {
+     "placements": {
+      "p1": [
+       0,
+       3
+      ],
+      "p2": [
+       2,
+       5
+      ]
+     },
+     "chosenXValues": {
+      "p1": "0",
+      "p2": "2"
+     },
+     "pointsValidated": false,
+     "strokes": [],
+     "sketchView": null,
+     "snapped": false,
+     "markerPlacements": {}
+    }
+   }
+  ],
+  "journey:step-algebra": [
+   {
+    ":step-algebra": {
+     "algebraDraftVersion": 2,
+     "equation": {
+      "left": "2*x + 5",
+      "right": "19",
+      "variable": "x",
+      "objective": {
+       "kind": "isolate",
+       "variable": "x",
+       "simplifyRequired": true,
+       "requireSimplifiedFinalForm": false,
+       "targetForm": null
+      }
+     },
+     "supportLevel": 3,
+     "operand": "",
+     "distributionState": null,
+     "structureTool": null,
+     "workSteps": [],
+     "armedTile": null,
+     "pendingMove": null,
+     "crossedSides": [],
+     "cancelledPairIds": {},
+     "selectedCancellationIndices": {},
+     "simplificationAnswers": {},
+     "promptAnswers": {},
+     "simplifyTool": null
+    }
+   },
+   {
+    ":step-algebra": {
+     "algebraDraftVersion": 2,
+     "equation": {
+      "left": "2*x + 5",
+      "right": "19",
+      "variable": "x",
+      "objective": {
+       "kind": "isolate",
+       "variable": "x",
+       "simplifyRequired": true,
+       "requireSimplifiedFinalForm": false,
+       "targetForm": null
+      }
+     },
+     "supportLevel": 3,
+     "operand": "",
+     "distributionState": null,
+     "structureTool": null,
+     "workSteps": [],
+     "armedTile": {
+      "operation": "subtract",
+      "sourceSide": "left"
+     },
+     "pendingMove": null,
+     "crossedSides": [],
+     "cancelledPairIds": {},
+     "selectedCancellationIndices": {},
+     "simplificationAnswers": {},
+     "promptAnswers": {},
+     "simplifyTool": null
+    }
+   },
+   {
+    ":step-algebra": {
+     "algebraDraftVersion": 2,
+     "equation": {
+      "left": "2*x + 5",
+      "right": "19",
+      "variable": "x",
+      "objective": {
+       "kind": "isolate",
+       "variable": "x",
+       "simplifyRequired": true,
+       "requireSimplifiedFinalForm": false,
+       "targetForm": null
+      }
+     },
+     "supportLevel": 3,
+     "operand": "5",
+     "distributionState": null,
+     "structureTool": null,
+     "workSteps": [],
+     "armedTile": {
+      "operation": "subtract",
+      "sourceSide": "left"
+     },
+     "pendingMove": null,
+     "crossedSides": [],
+     "cancelledPairIds": {},
+     "selectedCancellationIndices": {},
+     "simplificationAnswers": {},
+     "promptAnswers": {},
+     "simplifyTool": null
+    }
+   }
+  ],
+  "journey:step-algebra-mid-move": [
+   {
+    ":step-algebra": {
+     "algebraDraftVersion": 2,
+     "equation": {
+      "left": "3*x + 4",
+      "right": "19",
+      "variable": "x",
+      "objective": {
+       "kind": "isolate",
+       "variable": "x",
+       "simplifyRequired": true,
+       "requireSimplifiedFinalForm": false,
+       "targetForm": null
+      }
+     },
+     "supportLevel": 3,
+     "operand": "",
+     "distributionState": null,
+     "structureTool": null,
+     "workSteps": [],
+     "armedTile": null,
+     "pendingMove": null,
+     "crossedSides": [],
+     "cancelledPairIds": {},
+     "selectedCancellationIndices": {},
+     "simplificationAnswers": {},
+     "promptAnswers": {},
+     "simplifyTool": null
+    }
+   },
+   {
+    ":step-algebra": {
+     "algebraDraftVersion": 2,
+     "equation": {
+      "left": "3*x + 4",
+      "right": "19",
+      "variable": "x",
+      "objective": {
+       "kind": "isolate",
+       "variable": "x",
+       "simplifyRequired": true,
+       "requireSimplifiedFinalForm": false,
+       "targetForm": null
+      }
+     },
+     "supportLevel": 3,
+     "operand": "",
+     "distributionState": null,
+     "structureTool": null,
+     "workSteps": [],
+     "armedTile": {
+      "operation": "subtract",
+      "sourceSide": "left"
+     },
+     "pendingMove": null,
+     "crossedSides": [],
+     "cancelledPairIds": {},
+     "selectedCancellationIndices": {},
+     "simplificationAnswers": {},
+     "promptAnswers": {},
+     "simplifyTool": null
+    }
+   },
+   {
+    ":step-algebra": {
+     "algebraDraftVersion": 2,
+     "equation": {
+      "left": "3*x + 4",
+      "right": "19",
+      "variable": "x",
+      "objective": {
+       "kind": "isolate",
+       "variable": "x",
+       "simplifyRequired": true,
+       "requireSimplifiedFinalForm": false,
+       "targetForm": null
+      }
+     },
+     "supportLevel": 3,
+     "operand": "4",
+     "distributionState": null,
+     "structureTool": null,
+     "workSteps": [],
+     "armedTile": {
+      "operation": "subtract",
+      "sourceSide": "left"
+     },
+     "pendingMove": null,
+     "crossedSides": [],
+     "cancelledPairIds": {},
+     "selectedCancellationIndices": {},
+     "simplificationAnswers": {},
+     "promptAnswers": {},
+     "simplifyTool": null
+    }
+   },
+   {
+    ":step-algebra": {
+     "algebraDraftVersion": 2,
+     "equation": {
+      "left": "3*x + 4",
+      "right": "19",
+      "variable": "x",
+      "objective": {
+       "kind": "isolate",
+       "variable": "x",
+       "simplifyRequired": true,
+       "requireSimplifiedFinalForm": false,
+       "targetForm": null
+      }
+     },
+     "supportLevel": 3,
+     "operand": "4",
+     "distributionState": null,
+     "structureTool": null,
+     "workSteps": [],
+     "armedTile": null,
+     "pendingMove": {
+      "operation": "subtract",
+      "operandExpression": "4",
+      "placementBySide": {
+       "left": {
+        "kind": "before",
+        "termIndex": 1
+       },
+       "right": {
+        "kind": "before",
+        "termIndex": 0
+       }
+      }
+     },
+     "crossedSides": [],
+     "cancelledPairIds": {},
+     "selectedCancellationIndices": {},
+     "simplificationAnswers": {},
+     "promptAnswers": {},
+     "simplifyTool": null
+    }
+   }
+  ],
+  "journey:relation-symbol-pending": [
+   {
+    ":multi-relation": {
+     "relationState": {
+      "kind": "relation",
+      "variable": "x",
+      "branches": [
+       {
+        "expressions": [
+         "-2 x + 3",
+         "7"
+        ],
+        "relations": [
+         ">"
+        ]
+       }
+      ],
+      "connective": null,
+      "special": null,
+      "original": "-2x + 3 > 7"
+     },
+     "activeBranch": 0,
+     "pendingRelationFlip": null,
+     "candidateChecks": {},
+     "solutionSet": null
+    }
+   },
+   {
+    ":multi-relation": {
+     "relationState": {
+      "kind": "relation",
+      "variable": "x",
+      "branches": [
+       {
+        "expressions": [
+         "(-2 x + 3) / (-2)",
+         "(7) / (-2)"
+        ],
+        "relations": [
+         ">"
+        ]
+       }
+      ],
+      "connective": null,
+      "special": null,
+      "original": "-2x + 3 > 7"
+     },
+     "activeBranch": 0,
+     "pendingRelationFlip": {
+      "branchIndex": 0,
+      "before": {
+       "kind": "relation",
+       "variable": "x",
+       "branches": [
+        {
+         "expressions": [
+          "-2 x + 3",
+          "7"
+         ],
+         "relations": [
+          ">"
+         ]
+        }
+       ],
+       "connective": null,
+       "special": null,
+       "original": "-2x + 3 > 7"
+      },
+      "label": "Divide by -2",
+      "validationContext": {
+       "kind": "balancedOperation",
+       "operation": "divide",
+       "operandExpression": "-2",
+       "branchIndices": [
+        0
+       ]
+      },
+      "branchResults": [
+       {
+        "branchIndex": 0
+       }
+      ]
+     },
+     "candidateChecks": {},
+     "solutionSet": null
+    }
+   },
+   {
+    ":multi-relation": {
+     "relationState": {
+      "kind": "relation",
+      "variable": "x",
+      "branches": [
+       {
+        "expressions": [
+         "(-2 x + 3) / (-2)",
+         "(7) / (-2)"
+        ],
+        "relations": [
+         "<"
+        ]
+       }
+      ],
+      "connective": null,
+      "special": null,
+      "original": "-2x + 3 > 7"
+     },
+     "activeBranch": 0,
+     "pendingRelationFlip": null,
+     "candidateChecks": {},
+     "solutionSet": null
+    }
+   }
+  ],
+  "cross-device-fraction": [
+   {
+    ":multi-answer": {}
+   },
+   {
+    ":multi-answer": {
+     "f": "7"
+    }
+   }
+  ],
+  "cross-device-line": [
+   {
+    ":multi-answer": {}
+   },
+   {
+    ":multi-answer": {
+     "m": "-\\frac23"
+    }
+   },
+   {
+    ":multi-answer": {
+     "m": "-\\frac23",
+     "b": "4"
+    }
+   }
+  ]
+ }
+}

@@ -99,16 +99,138 @@ export const writePersistedUndo = (key, { resetKey = null, state, stack } = {}) 
   }
 };
 
+/*
+ * A SAVED STEP IS READ BACK AS A CLAIM, AS A DRAFT IS.
+ *
+ * The history sits in the same storage as the draft and is as open to damage:
+ * an older build's shape, another device's, anything that rewrote it. A draft
+ * field is checked before a tool sees it (usePersistentToolState.js,
+ * hydrateToolDraftField), but an Undo handed a saved step to the tool's setters
+ * unchecked, so a step holding a value the tool cannot draw threw in the render
+ * after the press: "This question could not be displayed", on an action rather
+ * than on load (the November build's handoff, section 6).
+ *
+ * So each key of a saved step goes through the check of the draft field it is
+ * restored into (`checks`; useMathUndoHistory builds them from the tool's
+ * `draftFields`). A value its field keeps comes back as the field restores it:
+ * the same value when it is valid, its valid part when not. A step that is not
+ * a record, or holds a value its field would not keep at all, is dropped: an
+ * Undo never writes a field's blank over the student's work, it goes to the
+ * step before instead. A key no field claims is left as it is (a tool's restore
+ * reads only its own keys), and `__proto__` is removed. A valid step comes back
+ * as the very object saved.
+ */
+const isStep = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+// Two values read from JSON hold the same: a field's check may hand back an
+// equal copy of a valid value (Representation Match's assignments are rebuilt
+// on every read), which is no repair, so the step keeps the value it saved.
+const sameValue = (a, b, depth = 0) => {
+  if (Object.is(a, b)) return true;
+  if (depth > 64 || !a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length
+    && keys.every((key) => Object.prototype.hasOwnProperty.call(b, key) && sameValue(a[key], b[key], depth + 1));
+};
+
+export const repairUndoStep = (step, checks = {}) => {
+  if (!isStep(step)) return { value: undefined, issues: ['not-a-record'] };
+  const issues = [];
+  let changed = false;
+  const kept = {};
+  for (const key of Object.keys(step)) {
+    if (key === '__proto__') {
+      changed = true;
+      issues.push('hostile-key');
+      continue;
+    }
+    const check = Object.prototype.hasOwnProperty.call(checks, key) ? checks[key] : null;
+    let result = null;
+    try {
+      result = typeof check === 'function' ? check(step[key]) : null;
+    } catch {
+      return { value: undefined, issues: [...issues, `${key}: check-failed`] };
+    }
+    if (result === null) {
+      kept[key] = step[key];
+      continue;
+    }
+    const found = Array.isArray(result?.issues) ? result.issues.map(String) : [];
+    if (result?.restored !== true) return { value: undefined, issues: [...issues, `${key}: ${found.join(', ') || 'not-kept'}`] };
+    if (sameValue(result.value, step[key])) {
+      kept[key] = step[key];
+      continue;
+    }
+    found.forEach((issue) => issues.push(`${key}: ${issue}`));
+    changed = true;
+    kept[key] = result.value;
+  }
+  return { value: changed ? kept : step, issues };
+};
+
+// What one repair says, at most this many times (the diagnostic is bounded).
+const MAX_REPORTED_STEPS = 12;
+
+/*
+ * The saved steps through `repair`. Nothing that needed repair: the very array
+ * read. Otherwise a dropped step is gone, and so is one that now reads as the
+ * state after it (an Undo that would change nothing); `onRepair` hears what.
+ */
+const repairedSteps = (steps, repair, state, onRepair) => {
+  const issues = [];
+  const note = (issue) => { if (issues.length < MAX_REPORTED_STEPS) issues.push(issue); };
+  let changed = false;
+  const kept = [];
+  steps.forEach((step, index) => {
+    let result;
+    try {
+      result = repair(step);
+    } catch {
+      result = { value: undefined, issues: ['repair-failed'] };
+    }
+    const found = Array.isArray(result?.issues) && result.issues.length ? ` (${result.issues.join(', ')})` : '';
+    if (result?.value === undefined) {
+      changed = true;
+      note(`step ${index + 1} dropped${found}`);
+      return;
+    }
+    if (result.value !== step) {
+      changed = true;
+      note(`step ${index + 1} repaired${found}`);
+    }
+    kept.push({ value: result.value, index });
+  });
+  if (!changed) return steps;
+  const out = [];
+  let after = mathematicalSnapshot(state);
+  for (let position = kept.length - 1; position >= 0; position -= 1) {
+    const snapshot = mathematicalSnapshot(kept[position].value);
+    if (snapshot === after) {
+      note(`step ${kept[position].index + 1} dropped (no change)`);
+      continue;
+    }
+    out.unshift(kept[position].value);
+    after = snapshot;
+  }
+  onRepair?.({ issues, saved: steps.length, kept: out.length });
+  return out;
+};
+
 /**
  * The saved stack, only if it was recorded for THIS question and ends at the
  * state the tool restored. Anything else — another question, a teacher reset,
  * a newer server draft restored over this device — is history for a different
  * state, and replaying it would hand the student work they never had.
+ *
+ * `repair` reads each saved step back (repairUndoStep with the tool's checks);
+ * `onRepair` hears what it repaired or dropped. A stack in which nothing needed
+ * repair comes back exactly as it was saved.
  */
-export const readPersistedUndo = (key, { resetKey = null, state, limit } = {}) => {
+export const readPersistedUndo = (key, { resetKey = null, state, limit, repair = null, onRepair = null } = {}) => {
   const saved = key ? readQuestionDraft(key, null) : null;
   if (!saved || saved.resetKey !== resetKey || !Array.isArray(saved.entries)) return EMPTY_MATH_UNDO_STACK;
   if (saved.snapshot !== mathematicalSnapshot(state)) return EMPTY_MATH_UNDO_STACK;
-  const entries = Number(limit) > 0 ? saved.entries.slice(-Number(limit)) : saved.entries;
+  const recent = Number(limit) > 0 ? saved.entries.slice(-Number(limit)) : saved.entries;
+  const entries = typeof repair === 'function' ? repairedSteps(recent, repair, state, onRepair) : recent;
   return entries.length ? { entries } : EMPTY_MATH_UNDO_STACK;
 };

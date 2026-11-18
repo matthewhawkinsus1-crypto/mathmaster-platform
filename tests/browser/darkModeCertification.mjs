@@ -381,7 +381,9 @@ const certify = async ({ role, steps, viewport, theme }) => {
   const page = await context.newPage();
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
-  const query = { student: '?reset=1&as=student&studentId=910002', admin: '?reset=1&rootAdmin=1' }[role] || '?reset=1';
+  // The student's lessons with questions the student app renders (`?questions=real`): the default lesson's are
+  // `freeResponse`, and its finished section's question read "This question could not be displayed".
+  const query = { student: '?reset=1&as=student&studentId=910002&questions=real', admin: '?reset=1&rootAdmin=1' }[role] || '?reset=1';
   await page.goto(`${appOrigin}/tests/browser/teacherWorkflow/index.html${query}`);
   if (role !== 'student') await page.getByRole('heading', { name: 'Live Class', exact: true }).waitFor({ timeout: 90_000 });
   else await page.locator('nav[aria-label="Student navigation"]').first().waitFor({ timeout: 90_000 });

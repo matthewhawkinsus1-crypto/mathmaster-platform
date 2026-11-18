@@ -121,7 +121,7 @@ test('the Assignments Center is a distinct dashboard mode, not an overload of Ho
   const centerRender = region(app, '<StudentAssignmentsCenter', '/>', 'Assignments Center render');
   // Both models are handed in; the screen builds neither.
   assert.match(centerRender, /dashboard=\{studentDashboard\}/);
-  assert.match(centerRender, /gradeCenter=\{studentGradeCenter\}/);
+  assert.match(centerRender, /gradeCenter=\{studentGradeCenterNow\(\)\}/);
   assert.match(centerRender, /origin: 'assignments'/);
 });
 

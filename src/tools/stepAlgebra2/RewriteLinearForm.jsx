@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
@@ -36,6 +37,24 @@ import { SubmitText, useSubmitActionName } from '../shared/ToolRuntimeContext';
  * the equation and history they left — nothing is lost in the move.
  */
 
+/*
+ * WHAT A SAVED REWRITE MAY RESTORE (toolDraftShape.js). The mirrored equation
+ * is its two typed sides, and each step of the history names the equation
+ * before and after it. A step that was not one (null) threw on every load,
+ * because the history draws both equations; the history is kept up to its
+ * first damaged step, and an equation without both sides starts again from
+ * the question's.
+ */
+const STEP_EQUATION = s.record({ left: s.required(s.cell()), right: s.required(s.cell()) });
+const normalizeRewriteEquation = draftNormalizer(s.record({ left: s.required(s.text()), right: s.required(s.text()), variable: s.text() }));
+const normalizeRewriteHistory = draftNormalizer(s.list(s.record({
+  kind: s.text(),
+  description: s.text(),
+  parts: s.list(s.either(s.text(), s.record({ latex: s.required(s.text()) }))),
+  before: s.required(STEP_EQUATION),
+  after: s.required(STEP_EQUATION),
+}), { untilInvalid: true }));
+
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 
 const GAP_MESSAGES = {
@@ -55,8 +74,8 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
   const factoredTarget = targetForm === 'factoredLinear';
   const initialEquationState = useMemo(() => buildInitialEquationState(questionData), [questionData]);
   // Mirrors of the core's committed equation and step log (see above).
-  const [equationState, setEquationState] = usePersistentToolState('rewriteEquationState', initialEquationState);
-  const [history, setHistory] = usePersistentToolState('rewriteHistory', []);
+  const [equationState, setEquationState] = usePersistentToolState('rewriteEquationState', initialEquationState, { normalize: normalizeRewriteEquation });
+  const [history, setHistory] = usePersistentToolState('rewriteHistory', [], { normalize: normalizeRewriteHistory });
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const [coreUndo, setCoreUndo] = useState(null);
 

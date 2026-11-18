@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { readQuestionDraft, studentInputMark, studentInputSince, writeQuestionDraft } from './questionDraftStorage';
+import { studentInputMark, studentInputSince, writeQuestionDraft } from './questionDraftStorage';
+import { readCheckedQuestionDraft } from './platform/persistence/checkedQuestionDraft.js';
 
 const cloneValue = (value) => {
   if (value === undefined) return value;
@@ -20,16 +21,24 @@ const cloneValue = (value) => {
  * the workspace changes the value: an edit when the student has touched the
  * page since this hook loaded its draft, unless the caller knows better and
  * passes `{ edit }` (WorkflowRunner does, per step).
+ *
+ * What is read back is checked first (checkedQuestionDraft.js): the kind of
+ * `initialValue`, and `options.normalize`, the module's own statement of the
+ * shape of its work (toolDraftShape.js `draftNormalizer`). A valid draft
+ * comes back exactly as saved; a damaged one as its valid part.
  */
-export default function useLocalDraftState(storageKey, initialValue) {
+export default function useLocalDraftState(storageKey, initialValue, options = {}) {
   const initialValueRef = useRef(initialValue);
+  // The latest check: it usually closes over the question on screen.
+  const normalizeRef = useRef(options.normalize || null);
+  normalizeRef.current = options.normalize || null;
   const activeKeyRef = useRef(storageKey);
   const skipNextWriteRef = useRef(false);
   const inputMarkRef = useRef(0);
   const [value, setValue] = useState(() => {
     const fallback = typeof initialValue === 'function' ? initialValue() : initialValue;
     inputMarkRef.current = studentInputMark();
-    return cloneValue(readQuestionDraft(storageKey, fallback));
+    return cloneValue(readCheckedQuestionDraft(storageKey, fallback, { normalize: normalizeRef.current }));
   });
 
   useEffect(() => {
@@ -39,7 +48,7 @@ export default function useLocalDraftState(storageKey, initialValue) {
     const source = initialValueRef.current;
     const fallback = typeof source === 'function' ? source() : source;
     inputMarkRef.current = studentInputMark();
-    setValue(cloneValue(readQuestionDraft(storageKey, fallback)));
+    setValue(cloneValue(readCheckedQuestionDraft(storageKey, fallback, { normalize: normalizeRef.current })));
   }, [storageKey]);
 
   useEffect(() => {

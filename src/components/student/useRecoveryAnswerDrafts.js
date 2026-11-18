@@ -6,16 +6,22 @@
  * Recovery opens, when the connection comes back, when the student returns to
  * the tab, and once more just before Submit — so Submit sends every answer
  * the student saved on any Chromebook.
+ *
+ * Each of those reads is held for the next save (heldDraftRead.js), which is
+ * written in the read's own transaction instead of reading the document again:
+ * opening a Recovery and saving its first answer read the server copy once.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createHeldDraftReads } from '../../platform/persistence/heldDraftRead.js';
 import {
   RECOVERY_ANSWER_SAVED_WHERE,
   buildRecoveryAnswerValue,
   createRecoveryAnswerSync,
   projectRecoveryAnswer,
+  readRecoveryDraftEntries,
   recoveryAnswerKey,
 } from '../../platform/recovery/recoveryAnswerDrafts.js';
-import { readRecoveryAnswerDraft, writeRecoveryAnswerDraft } from '../../platform/recovery/recoveryAnswerDraftStore.js';
+import { openRecoveryAnswerDraft, writeRecoveryAnswerDraft } from '../../platform/recovery/recoveryAnswerDraftStore.js';
 
 // How long Submit waits for a save already on its way before it goes anyway
 // with what this device has (the server grades whatever arrives).
@@ -59,11 +65,17 @@ export default function useRecoveryAnswerDrafts({ studentId, assignmentId, secti
   useEffect(() => {
     if (!studentId || !assignmentId) return undefined;
     let cancelled = false;
+    // The server copy's reads, each held for the save after it; a save with no
+    // read landed (offline, or before the first) reads for itself.
+    const drafts = createHeldDraftReads({
+      open: () => openRecoveryAnswerDraft({ studentId, assignmentId }),
+      write: writeRecoveryAnswerDraft,
+    });
     const sync = createRecoveryAnswerSync({
       studentId,
       assignmentId,
       writer,
-      flush: (patch) => writeRecoveryAnswerDraft(patch),
+      flush: (patch) => drafts.save(patch),
       persist: (snapshot) => writeLocal(localKey, snapshot),
       onChange: () => { if (!cancelled) setVersion((value) => value + 1); },
     });
@@ -93,10 +105,10 @@ export default function useRecoveryAnswerDrafts({ studentId, assignmentId, secti
     const read = () => {
       if (cancelled) return Promise.resolve(false);
       if (reading) return reading;
-      reading = readRecoveryAnswerDraft({ studentId, assignmentId })
+      reading = drafts.read()
         .then((stored) => {
           if (cancelled) return false;
-          sync.noteServerCopy(stored);
+          sync.noteServerCopy(readRecoveryDraftEntries(stored));
           setServerRead(true);
           return true;
         })
@@ -119,6 +131,8 @@ export default function useRecoveryAnswerDrafts({ studentId, assignmentId, secti
       window.removeEventListener('online', online);
       document.removeEventListener('visibilitychange', visible);
       sync.stop();
+      // A read no save took ends without writing.
+      drafts.release();
       if (syncRef.current === sync) syncRef.current = null;
     };
   // `items` is read only to date legacy answers when the Recovery opens.

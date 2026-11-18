@@ -43,3 +43,33 @@ test('p3EndMin defaults to 50 and moves the end', () => {
   assert.equal(period3().end, NOON + 50);
   assert.equal(period3('p3EndMin=3').end, NOON + 3);
 });
+
+// Near midnight, Period 3 still holds the moment the harness opens, read by
+// the schedule code Teacher Home uses (resolvePeriodWindow). The fixture had
+// clamped the end to 23:55 and the start to 00:05, so a journey that opened
+// the harness in the five minutes either side of midnight found no class in
+// session (CI run 138, 23:55 UTC).
+const { resolvePeriodWindow } = await import('../../functions/shared/classSchedule.mjs');
+const inSessionAt = (now, query = '') => {
+  const fixture = buildTeacherWorkflowFixture({ now, Timestamp, params: new URLSearchParams(query) });
+  const window = resolvePeriodWindow({ schedule: fixture['settings/classSchedule'], classPeriod: 'Period 3', nowValue: now });
+  return Boolean(window) && now >= window.startMs && now <= window.endMs;
+};
+
+test('Period 3 is in session at every minute around midnight', () => {
+  for (const [hour, minute, second] of [[23, 9, 0], [23, 54, 0], [23, 55, 20], [23, 58, 30], [23, 59, 59]]) {
+    const now = new Date(2026, 10, 16, hour, minute, second, 0).getTime();
+    assert.equal(inSessionAt(now), true, `${hour}:${minute}:${second} with no parameters`);
+    assert.equal(inSessionAt(now, 'p3EndMin=3'), true, `${hour}:${minute}:${second} with p3EndMin=3`);
+  }
+  for (const [hour, minute] of [[0, 0], [0, 2], [0, 4], [0, 39]]) {
+    const now = new Date(2026, 10, 17, hour, minute, 30, 0).getTime();
+    assert.equal(inSessionAt(now), true, `${hour}:${minute} with no parameters`);
+    assert.equal(inSessionAt(now, 'p3StartMin=40'), true, `${hour}:${minute} with p3StartMin=40`);
+  }
+});
+
+test('at noon the window is exactly the one the parameters ask for', () => {
+  assert.equal(inSessionAt(NOW), true);
+  assert.equal(inSessionAt(NOW, 'p3StartMin=40'), true);
+});

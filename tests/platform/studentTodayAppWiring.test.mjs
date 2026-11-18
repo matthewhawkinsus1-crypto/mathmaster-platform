@@ -17,10 +17,11 @@ test('Recovery for every assignment is built and fed to the dashboard, with its 
   assert.match(app, /import\s*\{[^}]*\brecoveryStatesFromSummaries\b[^}]*\}\s*from\s*'\.\/platform\/student\/recoveryStates\.js'/);
   // Built by the student's Recovery kit, which loads after Home: until it
   // arrives the dashboard sees no Recovery, and when it does the memo rebuilds.
+  // (Worked out when a screen asks for it, on the same inputs: appRenderWork.test.mjs.)
   assert.match(app, /import\s*\{[^}]*\bloadStudentRecoveryKit\b[^}]*\}\s*from\s*'\.\/app\/student\/studentRecoveryKitLoader\.js'/);
-  assert.match(app, /useMemo\(\(\)\s*=>\s*\(user\?\.role === 'student' && user\?\.id && studentRecoveryKit\s*\?\s*studentRecoveryKit\.buildRecoverySummariesByAssignment\(/);
-  const memo = region(app, 'const studentRecoverySummariesByAssignment = useMemo(', ']);', 'summaries memo');
-  assert.match(memo, /\[studentRecoveryKit, /);
+  assert.match(app, /\],\s*\(\)\s*=>\s*\(user\?\.role === 'student' && user\?\.id && studentRecoveryKit\s*\?\s*studentRecoveryKit\.buildRecoverySummariesByAssignment\(/);
+  const memo = region(app, "const studentRecoverySummariesNow = () => renderMemo('recoverySummaries', ", '], () => (', 'summaries memo');
+  assert.match(memo, /^const studentRecoverySummariesNow = \(\) => renderMemo\('recoverySummaries', \[studentRecoveryKit, /);
   // The kit hands App the very builder the dashboard's tests exercise.
   const kit = await import('../../src/app/student/studentRecoveryKit.js');
   const { buildRecoverySummariesByAssignment } = await import('../../src/platform/student/recoverySummaries.js');
@@ -30,7 +31,7 @@ test('Recovery for every assignment is built and fed to the dashboard, with its 
 test('the dashboard model receives the student, their Recovery states and the teacher section lock', () => {
   const call = region(app, 'buildStudentDashboardModel({', 'matchesSmartView: (assignment', 'the dashboard model call');
   assert.match(call, /studentId:\s*user\.id/);
-  assert.match(call, /recoveryStateByAssignment:\s*recoveryStatesFromSummaries\(studentRecoverySummariesByAssignment\)/);
+  assert.match(call, /recoveryStateByAssignment:\s*recoveryStatesFromSummaries\(studentRecoverySummariesNow\(\)\)/);
   assert.match(call, /\bgetSectionAccessState,/);
   assert.match(app, /import\s*\{[^}]*\bgetSectionAccessState\b/);
   // "Finished" counts a family slot on the question it dealt, from what this
@@ -116,7 +117,7 @@ test('the result page receives the Today entry, Up next and Continue; the Assign
 test('Grades gets Start, ways to raise and What changed; Home gets the count — with imports', () => {
   assert.match(app, /import \{ buildWaysToRaise, countWaysToRaise \} from '\.\/platform\/student\/waysToRaiseModel\.js'/);
   const ways = region(app, 'function studentWaysToRaiseNow() {', '}) : [];', 'ways builder');
-  assert.match(ways, /recoverySummariesByAssignment: studentRecoverySummariesByAssignment/);
+  assert.match(ways, /recoverySummariesByAssignment: studentRecoverySummariesNow\(\)/);
   // Filtered by the Today rule (review finding C / item 3).
   assert.match(ways, /todayByAssignment: studentTodayByAssignment\(\)/);
   const grades = region(app, '<StudentGradeCenter', '/>\n', 'Grades');
@@ -161,7 +162,7 @@ test('Review My Work shows only for closed, released, non-Test-Cycle work — wi
 
 test('"Use a Practice Pass" is offered only to a student who holds one', () => {
   const ways = region(app, 'function studentWaysToRaiseNow() {', '}) : [];', 'ways builder');
-  assert.match(ways, /practicePassEligibleAssignmentIds: studentRewardWallet\?\.practicePasses\?\.count > 0 \? studentPracticePassEligibleAssignments : \[\]/);
+  assert.match(ways, /practicePassEligibleAssignmentIds: studentRewardWallet\?\.practicePasses\?\.count > 0 \? studentPracticePassEligibleNow\(\) : \[\]/);
 });
 
 test('entry shares the Today rule\'s predicates, with their imports (review findings 1, 2, 5)', () => {

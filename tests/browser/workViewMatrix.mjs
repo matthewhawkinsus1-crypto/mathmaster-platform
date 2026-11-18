@@ -805,6 +805,26 @@ const shoot = async (page, name) => {
   shots.push(path.relative(repo, file));
 };
 
+/*
+ * THE TOOL ITSELF, NOT ITS PLACEHOLDER.
+ *
+ * A scene's tool is loaded on demand, and until it is the question shows
+ * "Opening Work View…" (QuestionEngine's Suspense fallback). A fixed 450ms
+ * after mounting was enough on a quiet machine; at a load average of 15 to 24
+ * the Systems scene was still that placeholder when its state was first read,
+ * and the run failed it for "opening Work View changed the mathematics" and
+ * "no current instruction in the enlarged view", which were the tool arriving
+ * late. Each reading now waits for the placeholder to go, once after the scene
+ * mounts and once after Work View opens. A tool that never arrives fails the
+ * scene by name instead of being read as nothing.
+ */
+const TOOL_LOAD_TIMEOUT_MS = Number(process.env.WORK_VIEW_TOOL_TIMEOUT_MS) || 60_000;
+const toolLoaded = (page) => page.waitForFunction(
+  () => !document.querySelector('.mathmaster-work-view-loading'),
+  null,
+  { timeout: TOOL_LOAD_TIMEOUT_MS },
+).then(() => true, () => false);
+
 for (const device of DEVICES) {
   const context = await browser.newContext({
     viewport: { width: device.width, height: device.height },
@@ -823,6 +843,12 @@ for (const device of DEVICES) {
     const tag = `${device.id}__${scene.id}`;
     await page.evaluate((payload) => window.__mmWorkView(payload), { id: scene.id, question: scene.question });
     await page.waitForSelector(`[data-scene-id="${scene.id}"]`);
+    if (!(await toolLoaded(page))) {
+      problems.push({ rule: 'controls', detail: `the tool was still loading ("Opening Work View…") ${TOOL_LOAD_TIMEOUT_MS / 1000}s after the scene mounted` });
+      rows.push({ device: device.id, scene: scene.id, opened: false });
+      findings.push({ device: device.id, scene: scene.id, problems });
+      continue;
+    }
     await page.waitForTimeout(450);
 
     // 1. Standard view, before anything is enlarged.
@@ -834,7 +860,14 @@ for (const device of DEVICES) {
 
     // 2. Work View.
     const opened = await page.evaluate(OPEN_WORK_VIEW);
+    const loadedInView = await toolLoaded(page);
     await page.waitForTimeout(400);
+    if (!loadedInView) {
+      problems.push({ rule: 'controls', detail: `the tool was still loading ("Opening Work View…") ${TOOL_LOAD_TIMEOUT_MS / 1000}s after Work View opened` });
+      rows.push({ device: device.id, scene: scene.id, opened: false });
+      findings.push({ device: device.id, scene: scene.id, problems });
+      continue;
+    }
     if (!opened) {
       problems.push({ rule: 'controls', detail: 'no control opens Work View on this tool' });
       rows.push({ device: device.id, scene: scene.id, opened: false });

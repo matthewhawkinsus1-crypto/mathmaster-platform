@@ -2071,10 +2071,10 @@
 }
 
 /* A toast never covers the action bar: on the assignment screen it rises
-   above the bar's actual top (--mm-action-bar-clearance, published by App
-   from where the bar is), not only by the bar's height, which assumed the bar
-   was stuck to the bottom of the screen. Phones (≤640px) place toasts at the
-   top instead (uiKit.css). */
+   above the bar's actual top (--mm-action-bar-clearance, measured every frame
+   while a toast is shown: src/platform/layout/toastClearance.js), not only by
+   the bar's height, which assumed the bar was stuck to the bottom of the
+   screen. Phones (≤640px) place toasts at the top instead (uiKit.css). */
 @media (min-width: 641px) {
   body:has(.mathmaster-assignment-screen) .mm-toast-viewport {
     bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--mm-action-bar-clearance, var(--mm-action-bar-height, 0px)));
@@ -2085,6 +2085,63 @@
    questions should land below it when changeQuestion scrolls the stage. */
 .mathmaster-question-stage {
   scroll-margin-top: 142px;
+}
+
+/*
+ * ON A NARROW SCREEN THE SECTION TABS KEEP THEIR OWN ROWS (#386 R17).
+ *
+ * Expanded ("Show progress"), the navigator's top row is the back arrow, the
+ * section tabs, the Warm-Up's time left, the status chip and Focus view. The
+ * tabs may shrink to nothing (min-width: 0) and wrap, but a tab cannot be
+ * narrower than its words, so where the row had no room for them the tabs ran
+ * on under the chips: at 360x740 and 320x568 with 200% text "Classwork 0/2"
+ * lay under "More" and "⏱ 9 min" over Classwork, Practice and their "0/2", and
+ * at 320x568 the time left over the same two tabs
+ * (tests/browser/workViewOpenerCover.mjs --check=badges). Below 22em the
+ * tabs are never narrower than the widest of them, and the row wraps: the
+ * chips and Focus view take the row under the tabs when the tabs need the
+ * width. An `em` in a media query is the browser's own text size, so a phone
+ * at 100% (360px is 22.5em) keeps its one row as it was, and the rule takes a
+ * 320px phone and any phone at 125% text and over; a laptop never.
+ */
+@media (max-width: 22em) {
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav:not(.is-collapsed) .mathmaster-assignment-unified-top {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav:not(.is-collapsed) .mathmaster-section-tabs {
+    flex: 1 1 0;
+    min-width: min-content;
+  }
+}
+
+/*
+ * WITH "SHOW PROGRESS" OPEN ON A NARROW SCREEN, THE QUESTION KEEPS ITS SCREEN.
+ *
+ * A phone held upright is one screen per question: the navigator on top, the
+ * question in what it leaves, and the page does not scroll. Expanded ("Show
+ * progress"), with its tabs on rows of their own below 22em (above), the
+ * navigator is 306px of a 320x568 phone and 420 to 520px of a phone at 200%
+ * text, and the question under it had 16px for its work, or none at all: at
+ * 320x568 at 200% its tries and Work View's opener were below the screen and
+ * could not be reached until the student folded the navigator (Focus view).
+ * There the page scrolls instead: the navigator first, and under it the
+ * question keeps a whole screen, as much room as in Focus view or more once
+ * the navigator is scrolled out of the way. Focus view is one screen, as
+ * before; a wider screen, or a phone at 100% text from 360px, is unchanged.
+ */
+@media (max-width: 22em) and (orientation: portrait) {
+  .mathmaster-assignment-screen:has(.mathmaster-assignment-unified-nav:not(.is-collapsed)) {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .mathmaster-assignment-screen:has(.mathmaster-assignment-unified-nav:not(.is-collapsed)) .mathmaster-assignment-shell {
+    height: auto !important;
+    grid-template-rows: auto calc(100dvh - var(--mm-student-identity-stack-offset, 0px));
+    overflow: visible;
+  }
 }
 
 /* --- Section completion achievement state ---------------------------------

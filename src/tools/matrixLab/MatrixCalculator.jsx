@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MatrixGrid from '../../components/common/MatrixGrid.jsx';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import { nextCalculatorHistory } from './matrixCalculatorDisplay.js';
 import { CALCULATOR_ERROR_TEXT, dimensionsOf, formatDecimal, formatRational, parseMatrix, runCalculator } from './matrixLabMath.js';
 import { buttonStyle, choiceStyle } from './matrixLabUi.jsx';
@@ -23,6 +24,10 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
  * errors students meet in the lesson read the way the calculator prints them:
  * ERR: SINGULAR MATRIX and ERR: DIMENSION MISMATCH.
  */
+
+// The commands the calculator ran, by name (toolDraftShape.js); an entry that
+// is not a name is dropped.
+const normalizeCalculatorHistory = draftNormalizer(s.list(s.text()));
 
 const OPERATION_LABEL = Object.freeze({
   multiply: (left, right) => `[${left}]·[${right}]`,
@@ -54,7 +59,7 @@ export default function MatrixCalculator({ left, right, operations = [], onRun, 
   // screen side by side, so A⁻¹ is still there beside X, and they come back
   // after a reload. Only the commands are kept: each result is worked out
   // again from the matrices as they are now, so none outlives its matrix.
-  const [history, setHistory] = usePersistentToolState(historyKey, []);
+  const [history, setHistory] = usePersistentToolState(historyKey, [], { normalize: normalizeCalculatorHistory });
   const [view, setView] = useState('fraction');
   if (!operations.length || !left) return null;
   const available = (operation) => Boolean(OPERATION_LABEL[operation]) && operations.includes(operation) && (operation === 'inverse' || Boolean(right));

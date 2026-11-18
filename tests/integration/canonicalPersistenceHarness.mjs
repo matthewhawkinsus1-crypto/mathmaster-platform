@@ -59,6 +59,8 @@ require.cache[classroomModulePath] = {
 
 export const patchGradeCalls = () => classroomCalls.filter((entry) => entry.call === 'patchGrade');
 export const resetClassroomCalls = () => { classroomCalls.length = 0; };
+/** Every call the stubbed Classroom client has had since the last reset, in order. */
+export const classroomCallLog = () => classroomCalls.map((entry) => ({ ...entry }));
 
 /* --- the real functions, loaded after the seam is in place ---------------- */
 

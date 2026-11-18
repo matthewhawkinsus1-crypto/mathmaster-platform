@@ -282,6 +282,55 @@ test('the section trigger does the same for a section column', async () => {
   assert.equal((await audit(SECTION.id)).status, 'synced');
 });
 
+/* --- a return Google refuses ---------------------------------------------- */
+
+// What Google answers a return of work the student never turned in, tagged
+// with its step as functions/lib/classroom.js tags it (the harness's stub
+// stands in for that module).
+const notTurnedInError = () => {
+  const config = { url: 'https://classroom.googleapis.com/v1/x:return', method: 'POST', headers: {} };
+  const data = { error: {
+    code: 400, message: 'Precondition check failed.', status: 'FAILED_PRECONDITION',
+    errors: [{ message: 'Precondition check failed.', domain: 'global', reason: 'failedPrecondition' }],
+  } };
+  return Object.assign(
+    new GaxiosError(data.error.message, config, { status: 400, statusText: '', data, headers: {}, config, request: { responseURL: config.url } }),
+    { classroomStep: 'return-submission' },
+  );
+};
+
+test('a section grade Google will not return is saved and said so, is not asked for again, and is returned on a teacher\'s retry', async () => {
+  calls.length = 0;
+  refuse = (name, args) => (name === 'returnSubmission' && args.courseWorkId === SECTION.courseworkId ? notTurnedInError() : null);
+  await runSection(await signal({ requestedAt: new Date().toISOString(), reason: 'section-grade-reconcile' }));
+  assert.deepEqual(calls.map((call) => call.name), ['findSubmissionForStudent', 'patchGrade', 'returnSubmission']);
+  const refused = await audit(SECTION.id);
+  assert.equal(refused.status, 'graded-not-returned');
+  assert.equal(refused.returnedToStudent, false);
+  assert.equal(refused.returnRefusedReason, 'not-turned-in');
+  assert.equal(refused.returnRefusedState, 'CREATED');
+  assert.equal(refused.errorStatus, 'FAILED_PRECONDITION');
+  assert.match(refused.message, /^Grade saved in Classroom, not returned/);
+
+  // Sent again by a reconcile: the grade goes, the refused return is not asked for.
+  calls.length = 0;
+  await runSection(await signal({ requestedAt: new Date().toISOString(), reason: 'section-grade-reconcile' }));
+  assert.deepEqual(calls.map((call) => call.name), ['findSubmissionForStudent', 'patchGrade']);
+  assert.equal((await audit(SECTION.id)).status, 'graded-not-returned');
+
+  // The teacher retries once the student has turned it in: Google returns it.
+  refuse = null;
+  calls.length = 0;
+  await runSection(await signal({ requestedAt: new Date().toISOString(), reason: 'manual-retry' }));
+  assert.deepEqual(calls.map((call) => call.name), ['findSubmissionForStudent', 'patchGrade', 'returnSubmission']);
+  const returned = await audit(SECTION.id);
+  assert.equal(returned.status, 'synced');
+  assert.equal(returned.returnedToStudent, true);
+  for (const field of ['error', 'errorStatus', 'message', 'returnRefusedReason', 'returnRefusedState', 'returnRefusedAt']) {
+    assert.equal(returned[field], undefined, `the returned row keeps no ${field}`);
+  }
+});
+
 /* --- the teacher's buttons ------------------------------------------------ */
 
 test('"Retry all" queues every failed push the teacher owns in one call, and the monitor shows them queued', async () => {

@@ -26,7 +26,7 @@ test('the Rush round is laid out below the identity bar, which stays on top', ()
   assert.equal(offsetVar, '--mm-student-identity-stack-offset');
   assert.ok(barZ > 0, 'the identity bar has a z-index');
   // The bar keeps the published height current as it wraps.
-  assert.match(bar, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight \+ noticeHeight\}px`\)/);
+  assert.match(bar, /const barHeight = bar\.offsetHeight;[\s\S]*STUDENT_IDENTITY_STACK_OFFSET, `\$\{barHeight \+ noticeHeight\}px`/);
   // Measured again whenever the bar's size changes, in the frame after its
   // observer reports it (publishAfterResize.test.mjs).
   assert.match(bar, /observeThenPublish\(\{ targets: \[bar, noticeRef\.current\], publish: publishHeight \}\)/);

@@ -174,9 +174,13 @@ test('weekly launches wait until the week\'s sessions are known, and resume what
   const effect = region(facts, 'useEffect(() => {', '}, [weeklyGoalWeekKey,', 'facts effect');
   // Every (re)load unsettles the facts BEFORE it starts reading.
   const unsettle = effect.indexOf("setWeeklySessionFacts((current) => (current.status === 'loading' ? current : { ...current, status: 'loading' }));");
-  assert.ok(unsettle > -1 && unsettle < effect.indexOf('const load ='), 'a reload marks the facts loading before it reads');
-  assert.match(region(effect, '.then((facts) => {', '.catch(', 'facts loaded'), /status: 'ready'/);
-  assert.match(region(effect, '.catch((caught) => {', 'return () =>', 'facts failed'), /status: 'failed'/);
+  assert.ok(unsettle > -1 && unsettle < effect.indexOf('const ready =') && unsettle < effect.indexOf('const load ='), 'a reload marks the facts loading before it reads');
+  assert.match(region(effect, 'const ready = (facts) => {', '};', 'facts loaded'), /status: 'ready'/);
+  assert.match(region(effect, 'const failed = (caught) => {', '};', 'facts failed'), /status: 'failed'/);
+  // The live student's week (the page's, studentWeeklyPath.js) and every
+  // other source settle the facts the same way.
+  assert.match(effect, /liveWeek\.follow\(weeklyGoalWeekKey, \{ apply: \(\{ facts \}\) => ready\(facts\), fail: failed \}\)/);
+  assert.match(effect, /load\.then\(ready\)\.catch\(failed\);/);
   // Facts for another week are not this week's.
   assert.match(facts, /const weeklyFactsStatus = weeklySessionFacts\.weekKey === weeklyGoalWeekKey \? weeklySessionFacts\.status : 'loading';/);
   assert.match(facts, /const retryWeeklyFacts = useCallback\(\(\) => setWeeklyRefreshKey\(\(value\) => value \+ 1\), \[\]\);/);

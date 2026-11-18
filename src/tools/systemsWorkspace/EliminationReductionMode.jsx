@@ -23,6 +23,7 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState, { ToolDraftScopeProvider, readToolDraftRecord, useToolDraftScope } from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
@@ -102,6 +103,14 @@ import {
   eliminationSmallActionStyle,
 } from './EliminationStack.jsx';
 import './AlgebraicSystemMode.css';
+
+// A classification or plane reading is tagged with the outcome it answers
+// (toolDraftShape.js): { identity, choice, kind } and { identity, answers,
+// checked }. One that is not that shape is not kept, and the question asks for
+// it again. The reduction's own state is repaired by repairEliminationState on every
+// read, so it needs no shape here.
+const normalizeOutcomeClassification = draftNormalizer(s.nullable(s.record({ identity: s.text(), choice: s.text(), kind: s.text() })));
+const normalizePlaneWork = draftNormalizer(s.nullable(s.record({ identity: s.text(), answers: s.map(s.text()), checked: s.boolean() })));
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
@@ -193,8 +202,8 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   // every round transition; a reduced-2×2 classification and the plane answers
   // live beside it and are revoked here, in the SAME update, so one Undo
   // restores the algebra and its interpretation together (#392).
-  const [subsystemClassification, setSubsystemClassification] = usePersistentToolState('subsystemClassification', null);
-  const [planeWork, setPlaneWork] = usePersistentToolState('planeRelationships', null);
+  const [subsystemClassification, setSubsystemClassification] = usePersistentToolState('subsystemClassification', null, { normalize: normalizeOutcomeClassification });
+  const [planeWork, setPlaneWork] = usePersistentToolState('planeRelationships', null, { normalize: normalizePlaneWork });
   const apply = useCallback((transition) => {
     if (!transition) return;
     if (transition.state && transition.state !== elimination) {
@@ -291,6 +300,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     onRestore: restore,
     resetKey: questionUndoResetKey(questionData),
     ownerId: 'algebraic-elimination-history',
+    draftFields: { elimination: setStoredElimination, subsystemClassification: setSubsystemClassification, planeWork: setPlaneWork },
   });
   const hasPostSubsystemWork = Boolean(elimination.back?.destinationId || Object.keys(elimination.verification || {}).length);
   const compositeUndo = useMemo(() => {

@@ -28,6 +28,9 @@ import {
   withoutSupersessionLink,
 } from './platform/assignments/questionSupersession.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
+import { preflightClassSizeFor } from './platform/preflight/questionPreflightFindings.js';
+import useQuestionPreflightFindings from './components/teacher/useQuestionPreflightFindings.js';
+import { PreflightFindingsState, QuestionPreflightFindings } from './components/teacher/PreflightFindings.jsx';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
 import { normalizeQuestionWeight, questionWeightShares } from './platform/grading/questionWeights.js';
@@ -70,7 +73,7 @@ const SUPERSESSION_TONES = Object.freeze({
   muted: { background: 'var(--mm-surface-muted)', border: 'var(--mm-border)', text: 'var(--mm-text-muted)' },
 });
 
-export default function AssignmentQuestionEditor({ assignment, hasLiveProtection, onSave, onClose }) {
+export default function AssignmentQuestionEditor({ assignment, hasLiveProtection, onSave, onClose, rosterSizesByClassId = null }) {
   const { confirm: confirmAction, toastSuccess } = useToast();
   const [title, setTitle] = useState(assignment.title || '');
   const originalQuestions = useMemo(
@@ -117,6 +120,19 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   // Each section is graded and exported on its own, so a weight is shown as
   // its share of its section's grade as well as of the whole assignment's.
   const weightShares = useMemo(() => questionWeightShares(questions), [questions]);
+  // What Pre-Flight says about each question, from the model Review and Save
+  // run, on the candidate Save would judge, against the class Review counts
+  // versions against (questionPreflightFindings.js). Advice for the teacher:
+  // it never blocks a save (only the model's errors do, in save()).
+  const preflightClassSize = useMemo(
+    () => preflightClassSizeFor(assignment?.assignedClassIds, rosterSizesByClassId),
+    [assignment, rosterSizesByClassId],
+  );
+  const preflightStore = useQuestionPreflightFindings({
+    source: candidateSource,
+    questions,
+    classSize: preflightClassSize,
+  });
 
   const copyAiWeightReview = async () => {
     setWeightReviewBusy(true);
@@ -684,6 +700,10 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
             </div>
           </div>
           <div style={{ display: 'grid', gap: '12px' }}>
+            {/* What Pre-Flight says that names no question: the whole assignment's. */}
+            <PreflightFindingsState store={preflightStore} source={candidateSource} questions={questions} classSize={preflightClassSize}>
+              <QuestionPreflightFindings store={preflightStore} subject="the whole assignment" />
+            </PreflightFindingsState>
             {questions.map((question, index) => {
               const excluded = question.teacherExcluded === true;
               const metadataSummary = getQuestionMetadataSummary(question);
@@ -772,6 +792,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                       <button type="button" onClick={() => removeQuestion(index)} style={{ color: 'var(--mm-danger)' }}>{hasLiveProtection ? 'Throw Out Safely' : 'Remove'}</button>
                     </div>
                   </div>
+                  {/* Below the question's controls, so a finding that comes or
+                      goes while the teacher types a weight moves nothing above it. */}
+                  <QuestionPreflightFindings store={preflightStore} questionId={question.questionId} subject={`Question ${index + 1}`} />
                   {supersession.isVersioned && supersessionSummary && (
                     <div
                       id={`supersession-note-${index}`}

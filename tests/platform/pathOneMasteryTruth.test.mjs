@@ -109,7 +109,8 @@ test('"what\'s left to master this" names exactly the unmet conditions', () => {
 
 test('the live app, the simulator and the mastery fetch all build from the unified profiles', async () => {
   const app = executableSource(read('src/App.jsx'));
-  const options = region(app, 'const studentPathOptions = useMemo(() => buildStudentPathOptions({', '}), [studentRecord', 'student path options');
+  // (Worked out when Home or My Math Path asks for it: appRenderWork.test.mjs.)
+  const options = region(app, 'const studentPathOptionsNow = () => renderMemo(', '}));', 'student path options');
   assert.match(options, /serverMasteryProfiles: studentServerMasteryProfiles/);
   assert.match(app, /subscribeStudentServerMasteryProfiles\(\{/);
   assert.match(app, /import \{ subscribeStudentServerMasteryProfiles \} from '.\/platform\/mastery\/serverMasteryProfiles.js';/);

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useMethodWithheld, useRevealAnswers, SubmitText } from '../shared/ToolRuntimeContext';
@@ -19,6 +20,16 @@ import {
 } from './signSolutionMath';
 import { linearReadout, radicalEquationReadout, radicalReadout, raiseBothSidesText } from './radicalSolveReadout.js';
 import { radicalSolveMissMessage } from './radicalSolveFeedback.js';
+
+/*
+ * WHAT A SAVED ANALYSIS MAY RESTORE (toolDraftShape.js). The sign chart keeps
+ * the indexes of the chosen intervals, and an index this question's chart does
+ * not have threw on every load (the answer line reads that interval); it is
+ * dropped. A candidate kept as a solution is a value, and each check row the
+ * text typed into it; a row that is not one stays an empty row in its place.
+ */
+const normalizeChosenCandidates = draftNormalizer(s.list(s.cell()));
+const normalizeCheckRows = draftNormalizer(s.list(s.nullable(s.record({ left: s.text(), right: s.text(), decision: s.text() })), { keepPositions: true }));
 
 const RELATION_SYMBOLS = { '>': '>', '<': '<', '>=': '≥', '<=': '≤' };
 const relationSymbol = (relation) => RELATION_SYMBOLS[relation] || relation;
@@ -42,7 +53,9 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
   const analysis = useMemo(() => buildSignIntervals(spec, relation), [numeratorFactors, denominatorFactors, relation]);
   const expectedPieces = useMemo(() => solutionPiecesForRelation(spec, relation), [numeratorFactors, denominatorFactors, relation]);
   const expectedIdx = analysis.intervals.map((interval, index) => interval.included ? index : null).filter((value) => value !== null);
-  const [selected, setSelected] = usePersistentToolState('selected', []);
+  const [selected, setSelected] = usePersistentToolState('selected', [], {
+    normalize: draftNormalizer(s.list(s.number({ integer: true, min: 0, max: analysis.intervals.length - 1 }))),
+  });
   const toggle = (index) => setSelected((old) => old.includes(index) ? old.filter((value) => value !== index) : [...old, index]);
   // Universal Undo over the chosen intervals (TOOL-2, useFieldUndoHistory.js).
   useFieldUndoHistory({ questionData, fields: { selected: [selected, setSelected] } });
@@ -148,7 +161,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
   const candidates = questionData.candidates || [3,-15];
   const revealAnswers = useRevealAnswers();
   const expected = validRadicalCandidates(spec, candidates);
-  const [selected, setSelected] = usePersistentToolState('selected', []);
+  const [selected, setSelected] = usePersistentToolState('selected', [], { normalize: normalizeChosenCandidates });
   const toggle = (value) => setSelected((old) => old.includes(value) ? old.filter((entry) => entry !== value) : [...old, value]);
   useFieldUndoHistory({ questionData, fields: { selected: [selected, setSelected] } });
   const work = { selected };
@@ -251,7 +264,7 @@ function RadicalSolve({ questionData, feedback, submit, onAction }) {
   const [isolated, setIsolated] = usePersistentToolState('isolated', '');
   const [raised, setRaised] = usePersistentToolState('raised', '');
   const [candidates, setCandidates] = usePersistentToolState('candidates', '');
-  const [rows, setRows] = usePersistentToolState('rows', []);
+  const [rows, setRows] = usePersistentToolState('rows', [], { normalize: normalizeCheckRows });
   const [finalAnswer, setFinalAnswer] = usePersistentToolState('finalAnswer', '');
   const [noRealSolution, setNoRealSolution] = usePersistentToolState('noRealSolution', false);
   useFieldUndoHistory({ questionData, fields: {

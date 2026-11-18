@@ -394,9 +394,11 @@ export const questionDraftRestoreGeneration = () => restoreGeneration;
  * back — as what they are, not edits, so those writes never outrank the copy
  * arriving here (see writeQuestionDraft). App then remounts the question
  * (`workspaceDraftGeneration`), and every workspace reads what was restored,
- * exactly as if the student had never left.
+ * exactly as if the student had never left — when one of the drafts restored
+ * is that question's own: `changed`, a Set the caller passes, collects the
+ * key of every draft restored here (draftsOfQuestionChanged, below).
  */
-export const restoreQuestionDrafts = (entries = []) => {
+export const restoreQuestionDrafts = (entries = [], { changed = null } = {}) => {
   if (!storageAvailable()) return 0;
   let restored = 0;
   (Array.isArray(entries) ? entries : []).forEach((entry) => {
@@ -423,6 +425,7 @@ export const restoreQuestionDrafts = (entries = []) => {
         ...(resetAt ? { resetAt } : {}),
       }));
       restored += 1;
+      changed?.add(key);
     } catch {
       // Out of quota: the student keeps whatever this device already had.
     }
@@ -466,10 +469,11 @@ const currentServerEntries = (entries, canonicalSavedAt) => new Map((Array.isArr
  * Without this, a Chromebook whose student touched the question before the
  * read landed went on showing only that touch, and its next save carried the
  * partial record as the newest copy of the whole workspace. Returns how many
- * records were settled; the caller remounts the question when it is not 0,
- * as for restoreQuestionDrafts.
+ * records were settled; a Set passed as `changed` collects the keys of those
+ * whose fields changed here, and the caller remounts the question on screen
+ * when one is its own (draftsOfQuestionChanged).
  */
-export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0 } = {}) => {
+export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0, changed = null } = {}) => {
   if (!storageAvailable() || !studentId || !assignmentId) return 0;
   const prefix = `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
   const server = currentServerEntries(entries, canonicalSavedAt);
@@ -500,6 +504,10 @@ export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignme
     try {
       window.localStorage.setItem(key, JSON.stringify(next));
       settled += 1;
+      // A record kept as it was, only no longer fresh, changes nothing the
+      // question shows: like an unchanged answer (reconcileFieldRecordDrafts),
+      // it needs no remount. Cached copies still read it again (below).
+      if (orderedJson(next.value) !== orderedJson(toolWorkspaceFields(envelope.value))) changed?.add(key);
     } catch {
       // Out of quota: the record stays fresh here, and the server merge still
       // keeps the server's copy whole.
@@ -517,6 +525,66 @@ const serverCopiesSeen = new Set();
 const assignmentDraftPrefix = (studentId, assignmentId) => `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
 const serverCopySeen = (key) => [...serverCopiesSeen].some((prefix) => String(key).startsWith(prefix));
 
+/*
+ * THE OPERATION A STUDENT IS TYPING IS NOT TAKEN BACK BY A COPY OF THE SAME
+ * BOARD (issue #386 R12).
+ *
+ * Step Algebra's work on the equation is one answer, taken whole from one copy
+ * (workspaceDraftSchema.mjs), and only a committed step dates it: choosing an
+ * operation and typing its value ("Divide by what?" 3) do not. On a device that
+ * opened the question before the server's copy was read, those were undated,
+ * and a tie goes to the saved copy: work begun on a fresh device yields to
+ * saved work. When the saved copy held the same equation and steps, with an
+ * older operation or none (one the student cancelled), the read landed, the
+ * question was remounted, and the 3 the student had just typed became the
+ * other copy's 7, or the box closed.
+ *
+ * Yielding protects saved steps; here nothing committed differs, so nothing is
+ * protected by it. When both copies hold the same equation, steps and step
+ * answers, the copy edited later keeps its operation and value, as every other
+ * answer goes to the copy that edited it last. Where the saved copy holds work
+ * this one lacks, it still comes back whole: an operation typed here was
+ * chosen for an equation that is no longer on the board.
+ */
+const STEP_ALGEBRA_WORK = 'work';
+const keepNewerOperationOnSameBoard = (kind, own, saved, merged) => {
+  if (kind !== 'step-algebra' || !merged) return merged;
+  const mine = fieldRecordGroups(kind, own?.value).get(STEP_ALGEBRA_WORK);
+  const theirs = fieldRecordGroups(kind, saved?.value).get(STEP_ALGEBRA_WORK);
+  // The signature of this group is its committed work alone.
+  if (!mine || !theirs || mine.signature !== theirs.signature) return merged;
+  // At the same time too: the saved copy can be this device's own first save,
+  // which the server merged with the older operation in it.
+  if (own.savedAtIsEdit !== true || (Number(own.savedAt) || 0) < (Number(saved.savedAt) || 0)) return merged;
+  const value = { ...merged.value };
+  (fieldRecordGroups(kind, merged.value).get(STEP_ALGEBRA_WORK)?.fields || []).forEach((field) => { delete value[field]; });
+  copyFieldRecordGroup(value, own.value, mine);
+  return { ...merged, value };
+};
+
+/*
+ * THE SAME ANSWERS ARE NOT A CHANGE, IN ANY ORDER.
+ *
+ * The merge builds its copy answer by answer, so the fields come back in
+ * another order, and Step Algebra's prompt answers, kept one by one, leave no
+ * empty map behind. Compared as text, every Step Algebra copy a device held
+ * read as changed whenever the server's copy was read: the question was
+ * remounted under a student who was typing, for nothing.
+ */
+const orderedJson = (value) => JSON.stringify(value, (_key, field) => (
+  field && typeof field === 'object' && !Array.isArray(field)
+    ? Object.fromEntries(Object.keys(field).sort().map((name) => [name, field[name]]))
+    : field
+));
+const withoutEmptyPromptAnswers = (kind, value) => {
+  if (kind !== 'step-algebra' || !value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const prompts = Object.hasOwn(value, 'promptAnswers') ? value.promptAnswers : undefined;
+  if (!prompts || typeof prompts !== 'object' || Array.isArray(prompts) || Object.keys(prompts).length) return value;
+  const { promptAnswers: _none, ...rest } = value;
+  return rest;
+};
+const sameAnswers = (kind, left, right) => orderedJson(withoutEmptyPromptAnswers(kind, left)) === orderedJson(withoutEmptyPromptAnswers(kind, right));
+
 /**
  * Settle every multi-answer, Step Algebra and composed-step draft this device
  * holds against the server's copy of the same draft, answer by answer
@@ -532,12 +600,13 @@ const serverCopySeen = (key) => [...serverCopiesSeen].some((prefix) => String(ke
  * question's last submitted attempt are left out (`canonicalSavedAt`), and a
  * draft this device does not hold at all is left to restoreQuestionDrafts.
  *
- * Returns `{ settled, keys }`: how many drafts changed here (the caller
- * remounts the question when it is not 0) and every key settled here, which
- * the caller must not then restore whole. Fresh markers go either way: this
- * device has now seen the server's copy.
+ * Returns `{ settled, keys }`: how many drafts changed here and every key
+ * settled here, which the caller must not then restore whole. A Set passed as
+ * `changed` collects the key of each draft that changed (the caller remounts
+ * the question on screen when one is its own: draftsOfQuestionChanged). Fresh
+ * markers go either way: this device has now seen the server's copy.
  */
-export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0 } = {}) => {
+export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0, changed: changedKeys = null } = {}) => {
   const keys = new Set();
   if (!studentId || !assignmentId) return { settled: 0, keys };
   const prefix = assignmentDraftPrefix(studentId, assignmentId);
@@ -572,7 +641,7 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
     // reached this one's records yet.
     let canonicalAt = Math.max(0, Number(entry?.canonicalAt) || 0);
     try { canonicalAt = Math.max(canonicalAt, Number(typeof canonicalSavedAt === 'function' ? canonicalSavedAt(entry) : 0) || 0); } catch { /* the entry's own */ }
-    const merged = mergeFieldRecordCopies({
+    const merged = keepNewerOperationOnSameBoard(kind, envelope, entry, mergeFieldRecordCopies({
       kind,
       // This device's copy, with its answers dated even if an older build wrote it.
       a: { ...envelope, fieldEditedAt: adoptedFieldEditedAt(kind, envelope) },
@@ -581,7 +650,7 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       // A copy from before the question's last submission and one from after
       // it are not merged answer by answer: the restore decides, whole.
       canonicalAt,
-    });
+    }));
     if (!merged) {
       if (!fresh) return;
       // Copies this rule cannot merge (a value an older build stored): the
@@ -591,11 +660,12 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
       return;
     }
     keys.add(key);
-    const changed = JSON.stringify(merged.value) !== JSON.stringify(envelope.value);
+    const changed = !sameAnswers(kind, merged.value, envelope.value);
     const next = {
       version: 2,
       savedAt: merged.savedAt,
-      value: merged.value,
+      // The same answers stay as the page wrote them.
+      value: changed ? merged.value : envelope.value,
       ...(envelope.touchedAt ? { touchedAt: envelope.touchedAt } : {}),
       ...(merged.savedAtIsEdit ? { savedAtIsEdit: true } : {}),
       fieldEditedAt: merged.fieldEditedAt,
@@ -603,7 +673,10 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
     };
     try {
       window.localStorage.setItem(key, JSON.stringify(next));
-      if (changed) settled += 1;
+      if (changed) {
+        settled += 1;
+        changedKeys?.add(key);
+      }
       // Unchanged answers need no remount, and the page already shows them:
       // it is caught up with this copy's time, so its write-backs still count.
       else if (pageView.has(key)) pageView.set(key, { ...pageView.get(key), savedAt: merged.savedAt });
@@ -616,6 +689,28 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
   if (settled) restoreGeneration += 1;
   return { settled, keys };
 };
+
+/*
+ * ONLY THE QUESTION WHOSE DRAFT CHANGED IS REMOUNTED (issue #386, after R12).
+ *
+ * The server's copy of a student's drafts covers the whole assignment, and App
+ * remounted the question on screen whenever any draft in it was restored or
+ * settled. A newer copy of another question's work (typed on another
+ * Chromebook, read as the lesson opened or when the page came back) remounted
+ * the question the student was typing in: in the real App, at 4x and 6x CPU
+ * throttling, on a Chromebook and a phone, every such read did (80 of 80
+ * runs). The box was without the cursor for about 50 to 75 ms while the
+ * question was rebuilt, and a key typed then was lost (11 of the 80); a
+ * Chromebook's caret went to the end of the box (40 of 40), and a screen
+ * reader's place in the question went with the old one. Another question
+ * reads its restored drafts when it opens; the question on screen is
+ * remounted only for a draft of its own (draftCrossDeviceJourneys.mjs,
+ * `other`).
+ */
+export const draftsOfQuestionChanged = (changedKeys, questionIndex) => (
+  Number.isInteger(questionIndex)
+  && [...(changedKeys || [])].some((key) => parseQuestionDraftKey(key)?.questionIndex === questionIndex)
+);
 
 export const removeQuestionDraft = (key) => {
   if (!key) return;

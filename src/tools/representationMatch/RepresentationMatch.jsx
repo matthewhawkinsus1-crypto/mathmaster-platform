@@ -1,9 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import './RepresentationMatch.css';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel, controlStep } from '../shared/ToolShell';
 import { useMethodWithheld } from '../shared/ToolRuntimeContext';
 import { ChoiceMark, useChoiceGroup } from '../../platform/interaction/choiceGroup.js';
+
+// The row chosen in a table audit is a row index, or none yet
+// (toolDraftShape.js).
+const normalizeChosenRow = draftNormalizer(s.nullable(s.number({ integer: true, min: 0 })));
 
 const CardSetStack = ({ children }) => (
   <div className="mathmaster-tool-card-set-stack" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 18 }}>{children}</div>
@@ -288,7 +293,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const [table, setTable] = usePersistentToolState('table', '');
   const [context, setContext] = usePersistentToolState('context', '');
   const [mismatchKind, setMismatchKind] = usePersistentToolState('mismatchKind', '');
-  const [badRow, setBadRow] = usePersistentToolState('badRow', null);
+  const [badRow, setBadRow] = usePersistentToolState('badRow', null, { normalize: normalizeChosenRow });
   const [graphId, setGraphId] = usePersistentToolState('graphId', '');
   const { feedback, submit } = useToolSubmission(onAction);
 

@@ -40,7 +40,13 @@ test('Weekly Path teacher view reads secure completed sessions and shows a weekl
   const teacherWorkspace = read('src/app/teacher/TeacherWorkspace.jsx');
   assert.match(teacherWorkspace, /goalsByStudentId=\{teacherWeeklyGoalsByStudent\}/);
   assert.match(teacherWorkspace, /completionsByStudentId=\{weeklyPathCompletionsByStudent\}/);
-  assert.match(app, /setInterval\(\(\) => loadProgress\(\), 60_000\)/);
+  // Kept fresh about once a minute while a teacher is on it, through the
+  // teacher kit's refresh (weeklyPathProgressRefresh.test.mjs: not while the
+  // page is hidden, not again within the minute, only for the class shown).
+  // App hands its client to the teacher kit, which asks with it for the class shown.
+  assert.match(app, /return teacherKit\.followWeeklyPathProgress\(weeklyPathProgress, \{[\s\S]*?path: \{ completions: fetchTeacherWeeklyPathCompletions,/);
+  assert.match(read('src/app/teacher/weeklyPathProgress.js'), /fetch: \(weekKey\) => path\.completions\(\{ classId, weekKey \}\),/);
+  assert.match(read('src/platform/path/weeklyPathProgressRefresh.js'), /export const WEEKLY_PATH_PROGRESS_FRESH_MS = 60_000;/);
   assert.match(store, /httpsCallable\(functions, 'getTeacherWeeklyPathCompletions'\)/);
   assert.match(functions, /exports\.getTeacherWeeklyPathCompletions = onCall/);
   assert.match(functions, /Only the teacher of record for this class can view its Weekly Path progress/);

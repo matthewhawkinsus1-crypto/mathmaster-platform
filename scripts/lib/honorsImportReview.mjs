@@ -20,7 +20,7 @@
  * many tests do, stays cheap.
  */
 import { createRequire } from 'node:module';
-import { HONORS_DEPTH_AREAS, HONORS_DEPTH_REQUIRED, inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
+import { HONORS_CHECK_LABELS, HONORS_DEPTH_AREAS, HONORS_DEPTH_REQUIRED, inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
 import { buildHonorsCcmrCandidate, composeHonorsCcmrCandidate } from '../../src/platform/assignments/canonicalCcmrHydration.js';
 import { collectReviewBlockers } from '../../src/components/teacher/preflightSteps.js';
 
@@ -40,12 +40,10 @@ export const isHonorsImport = ({ filePath = '', title = '' } = {}) => (
   SAYS_HONORS.test(String(filePath || '')) || SAYS_HONORS.test(String(title || ''))
 );
 
-export const HONORS_AREA_LABELS = Object.freeze({
-  higherOrderReasoning: 'higher-order reasoning',
-  multipleRepresentations: 'multiple representations',
-  justification: 'explanation / justification',
-  modelingApplication: 'modeling / application',
-});
+// The depth areas, in the rule's order, by the names Review and Create use (courseRigor.js).
+export const HONORS_AREA_LABELS = Object.freeze(Object.fromEntries(
+  HONORS_DEPTH_AREAS.map((area) => [area, HONORS_CHECK_LABELS[area]]),
+));
 
 /*
  * How to supply each area, for the author: what inspectHonorsRigor

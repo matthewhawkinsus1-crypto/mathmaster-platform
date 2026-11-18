@@ -94,6 +94,94 @@ function classroomPushFailure(error, { mayRequeue }) {
   return { description, quota, audit: { status: "failed", ...fields } };
 }
 
+/*
+ * A GRADE CLASSROOM HOLDS BUT WOULD NOT RETURN.
+ *
+ * Google's grading guide: "The submission can only be returned if it has
+ * already been turned in by the student." Setting a grade has no such rule.
+ * MathMaster students work in MathMaster, and many never press Turn in on
+ * Classroom, so a section's final grade was patched and then its return was
+ * refused with 400 FAILED_PRECONDITION ("Precondition check failed."). The row
+ * was marked failed, logged as an error, and every later grade write sent the
+ * grade and asked for the return again: about 100-200 errors a pass, from
+ * ordinary grade syncs as well as the pushes after a checkpoint (Nov 1-12,
+ * 2026, issue #545).
+ *
+ * Such a row is now "graded-not-returned". The grade stays in Classroom, the
+ * row says why it was not returned, and the section trigger does not ask
+ * Google to return that submission again while it is still in the state Google
+ * refused it in, unless a teacher sends that grade again.
+ */
+const CLASSROOM_GRADED_NOT_RETURNED = "graded-not-returned";
+// Google's states for work that is not turned in: never opened (NEW), opened
+// (CREATED), and turned in and then unsubmitted (RECLAIMED_BY_STUDENT).
+const NOT_TURNED_IN_STATES = new Set(["NEW", "CREATED", "RECLAIMED_BY_STUDENT"]);
+const RETURN_REFUSED_MESSAGES = Object.freeze({
+  "not-turned-in": "Grade saved in Classroom, not returned: the student hasn't turned it in there, and Google lets MathMaster return only turned-in work. Return it in Classroom, or press Retry once they turn it in.",
+  refused: "Grade saved in Classroom, not returned: Classroom refused to return it. MathMaster won't ask again until the submission changes there. Return it in Classroom, or press Retry.",
+});
+
+const submissionStateText = (value) => text(value, 40).toUpperCase();
+
+function returnRefusalFields(reason, submissionState) {
+  return {
+    status: CLASSROOM_GRADED_NOT_RETURNED,
+    message: RETURN_REFUSED_MESSAGES[reason],
+    returnRefusedReason: reason,
+    returnRefusedState: submissionState || null,
+  };
+}
+
+/**
+ * The row for a return Google refused for its precondition, after the grade
+ * itself was saved, or null for any other error (those stay failures).
+ * `submissionState` is the state the submission was in when it was refused.
+ */
+function classroomReturnRefusal(error, { submissionState = null } = {}) {
+  const description = describeClassroomError(error);
+  const precondition = description.googleStatus === "FAILED_PRECONDITION"
+    || description.reasons.some((reason) => /^failed.?precondition$/i.test(reason));
+  if (description.step !== CLASSROOM_ERROR_STEPS.returnSubmission || !precondition) return null;
+  const state = submissionStateText(submissionState) || null;
+  const reason = NOT_TURNED_IN_STATES.has(state) ? "not-turned-in" : "refused";
+  return {
+    description,
+    reason,
+    submissionState: state,
+    audit: {
+      ...classroomErrorAuditFields(description),
+      ...returnRefusalFields(reason, state),
+      returnRefusedAt: FieldValue.serverTimestamp(),
+    },
+  };
+}
+
+/**
+ * A refusal that still stands: the row says Google refused to return this same
+ * submission, and it is still in the state it was refused in, so asking again
+ * would be refused again. Null when anything Google could act on has changed.
+ */
+function standingClassroomReturnRefusal({ prior = {}, courseworkId, submissionId, submissionState } = {}) {
+  if (prior?.status !== CLASSROOM_GRADED_NOT_RETURNED) return null;
+  const refusedIn = submissionStateText(prior.returnRefusedState);
+  if (!refusedIn || refusedIn !== submissionStateText(submissionState)) return null;
+  if (text(prior.submissionId, 200) !== text(submissionId, 200)) return null;
+  if (text(prior.courseworkId, 200) !== text(courseworkId, 200)) return null;
+  const reason = prior.returnRefusedReason === "not-turned-in" ? "not-turned-in" : "refused";
+  return { reason, submissionState: refusedIn, audit: returnRefusalFields(reason, refusedIn) };
+}
+
+// A row synced after a refused return no longer says it was not returned.
+function clearedReturnRefusalFields(prior = {}) {
+  if (prior?.status !== CLASSROOM_GRADED_NOT_RETURNED && prior?.returnRefusedReason == null) return {};
+  return {
+    message: FieldValue.delete(),
+    returnRefusedReason: FieldValue.delete(),
+    returnRefusedState: FieldValue.delete(),
+    returnRefusedAt: FieldValue.delete(),
+  };
+}
+
 // A column not sent because Google already refused this teacher in this push.
 function classroomPushHeldForLimit({ mayRequeue }) {
   return {
@@ -116,12 +204,17 @@ async function classroomStep(step, call) {
 
 module.exports = {
   CLASSROOM_ERROR_STEPS,
+  CLASSROOM_GRADED_NOT_RETURNED,
   CLASSROOM_RATE_LIMITED_MESSAGE,
+  RETURN_REFUSED_MESSAGES,
   classroomErrorAuditFields,
   classroomPushFailure,
   classroomPushHeldForLimit,
+  classroomReturnRefusal,
   clearedClassroomErrorFields,
+  clearedReturnRefusalFields,
   classroomStep,
   describeClassroomError,
   isClassroomQuotaError,
+  standingClassroomReturnRefusal,
 };

@@ -175,20 +175,41 @@ export const ingestStudentSubmissions = ({ studentId, submissions = [] } = {}) =
   }
   const now = Date.now();
   const receipts = incoming.map((raw) => {
-    const progress = ingestion.normalizeProgressEnvelope(raw);
-    if (progress) {
-      progress.studentId = studentId;
-      return recordOneQuestionProgress({ studentId, envelope: progress });
-    }
-    const envelope = ingestion.normalizeSubmissionEnvelope(raw);
-    if (!envelope) {
-      return { actionId: String(raw?.actionId || '').slice(0, 200) || null, disposition: SUBMISSION_DISPOSITION.NEEDS_REVIEW, reason: 'unreadable-envelope' };
-    }
-    envelope.studentId = studentId;
-    return ingestOneSubmission({ studentId, envelope, now });
+    const receipt = ingestOneEnvelope({ studentId, raw, now });
+    deliveries.push({
+      studentId,
+      envelope: copy(raw),
+      receipt: copy(receipt),
+      record: copy(recordFor(harnessStore.get(`grades/${studentId}`), String(raw?.assignmentId || ''), raw?.questionIndex)),
+    });
+    return receipt;
   });
   return { receipts, ingestedAt: now };
 };
+
+const ingestOneEnvelope = ({ studentId, raw, now }) => {
+  const progress = ingestion.normalizeProgressEnvelope(raw);
+  if (progress) {
+    progress.studentId = studentId;
+    return recordOneQuestionProgress({ studentId, envelope: progress });
+  }
+  const envelope = ingestion.normalizeSubmissionEnvelope(raw);
+  if (!envelope) {
+    return { actionId: String(raw?.actionId || '').slice(0, 200) || null, disposition: SUBMISSION_DISPOSITION.NEEDS_REVIEW, reason: 'unreadable-envelope' };
+  }
+  envelope.studentId = studentId;
+  return ingestOneSubmission({ studentId, envelope, now });
+};
+
+/*
+ * WHAT THE SERVER WAS HANDED, AND WHAT IT MADE OF IT: every envelope as the
+ * app sent it (the browser's own record of the work is in it), its receipt,
+ * and the record the server held once it was ingested. A journey sets the
+ * browser's grading beside the server's for the same work
+ * (radicalServerGradingJourneys.mjs). Kept on this page only.
+ */
+const deliveries = [];
+const copy = (value) => (value === undefined || value === null ? null : JSON.parse(JSON.stringify(value)));
 
 /*
  * THE DEADLINE FINALIZER — functions/index.js finalizeOneResponseCheckpoint,
@@ -270,5 +291,5 @@ export const finalizeResponseCheckpoints = ({ now = Date.now(), timeZone = null 
 };
 
 if (typeof window !== 'undefined') {
-  window.__mmHarnessServer = { ingestStudentSubmissions, finalizeResponseCheckpoints };
+  window.__mmHarnessServer = { ingestStudentSubmissions, finalizeResponseCheckpoints, deliveries };
 }

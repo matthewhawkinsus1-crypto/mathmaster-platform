@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import { evaluateStaticGraphFunction, graphAsymptoteLines, resolvePointFill, resolvePointRadius, STATIC_GRAPH_ASYMPTOTE_STYLE, staticGraphScaleViews } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
@@ -10,6 +10,8 @@ import { quadrantLabelPositions } from './platform/graph/quadrantLabels.js';
 import { BOUNDARY_DASH } from './platform/graph/verticalLineStyle.js';
 import { boundaryIsLine, boundaryIsVertical, SHADE_OPACITY, shadingPolygon, shadingRegions } from './platform/graph/halfPlaneShading.js';
 import { constraintColor } from './tools/systemsWorkspace/constraintPalette.js';
+import { placeCurveLabels } from './platform/graph/curveLabels.js';
+import { useCoveredByOpener } from './platform/graph/useCoveredByOpener.js';
 import { describeCoordinatePlane, GRAPH_WORDS, joinSegmentPaths } from './platform/language/graphDescription.js';
 import { useQuestionLifecycle } from './platform/question/QuestionLifecycleContext.jsx';
 import { PublishFigureReading, describedContent, describedIn, useFigureWords } from './platform/language/figureReadings.js';
@@ -324,6 +326,10 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const plotClipId = `mm-graph-plot-${useId().replace(/[^A-Za-z0-9_-]/g, '')}`;
   // "Fix the scale" (R-9): which of a misleading-scale figure's two drawings is showing.
   const [scaleFixed, setScaleFixed] = useState(false);
+  // Where a curve the author named is named, Work View's opener over the plot's
+  // corner is measured, so no name goes under it (useCoveredByOpener.js).
+  const svgRef = useRef(null);
+  const openerCover = useCoveredByOpener(svgRef, DEFAULT_WIDTH, Array.isArray(graph?.functions) && graph.functions.some((spec) => String(spec?.label ?? '').trim()));
   if (!graph) return null;
 
   // STATIC_GRAPH_PLOT_ASPECT is this plot area's (620 x 430 less padding).
@@ -443,6 +449,61 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
   const axisX = yMin <= 0 && yMax >= 0 ? toScreenY(0) : toScreenY(yMin);
   const axisY = xMin <= 0 && xMax >= 0 ? toScreenX(0) : toScreenX(xMin);
 
+  /*
+   * AN AUTHOR'S NAME FOR A CURVE (WCAG 1.4.1, platform/graph/curveLabels.js).
+   * Two solid functions on one figure differ only by the colours an author
+   * gave them, and a contrast theme draws both in its text colour. One the
+   * author named (`label`: "f", "g", "Popcorn") is named beside itself, nearer
+   * to it than to any other line, clear of the figure's points, their names
+   * and the axes' numbers. A figure that names none is drawn as it was: the
+   * platform makes up no name, and an equation it wrote would answer a
+   * question that asks for one.
+   */
+  const curveName = (spec) => String(spec?.label ?? '').trim();
+  const keptClearAsymptotes = functions.some(curveName) ? graphAsymptoteLines(graph) : [];
+  const curveNameSpots = functions.some(curveName) ? placeCurveLabels({
+    curves: [
+      ...functions.map((spec) => ({ label: curveName(spec), paths: buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY) })),
+      ...verticalLines.map((line) => ({ label: '', paths: [[[toScreenX(line.x), PADDING], [toScreenX(line.x), PADDING + innerHeight]]] })),
+      ...segments.map((segment) => {
+        const from = segment.from || segment.start;
+        const to = segment.to || segment.end;
+        return { label: '', paths: Array.isArray(from) && Array.isArray(to) ? [[[toScreenX(Number(from[0])), toScreenY(Number(from[1]))], [toScreenX(Number(to[0])), toScreenY(Number(to[1]))]]] : [] };
+      }),
+      ...keptClearAsymptotes.map((line) => ({
+        label: '',
+        paths: [line.axis === 'horizontal'
+          ? [[plotLeft, toScreenY(line.value)], [plotLeft + innerWidth, toScreenY(line.value)]]
+          : [[toScreenX(line.value), PADDING], [toScreenX(line.value), PADDING + innerHeight]]],
+      })),
+      { label: '', paths: [[[plotLeft, axisX], [plotLeft + innerWidth, axisX]]] },
+      { label: '', paths: [[[axisY, PADDING], [axisY, PADDING + innerHeight]]] },
+    ],
+    dots: [
+      ...points.map((point) => {
+        const coordinates = readGraphPointCoordinates(point);
+        return coordinates ? { x: toScreenX(coordinates[0]), y: toScreenY(coordinates[1]), radius: resolvePointRadius(point, 5) + 2 } : null;
+      }),
+      ...endpointRequirements.map((requirement) => (Array.isArray(requirement.point)
+        ? { x: toScreenX(Number(requirement.point[0])), y: toScreenY(Number(requirement.point[1])), radius: 14 }
+        : null)),
+    ],
+    avoid: [
+      ...points.map((point) => {
+        const coordinates = readGraphPointCoordinates(point);
+        if (!coordinates || Array.isArray(point) || !point.label) return null;
+        const left = toScreenX(coordinates[0]) + 9;
+        const baseline = toScreenY(coordinates[1]) - 9;
+        return { left, right: left + String(point.label).length * 0.62 * 13, top: baseline - 0.78 * 13, bottom: baseline + 0.2 * 13 };
+      }).filter(Boolean),
+      ...(showXTickLabels ? xTicks.map((tick) => ({ left: toScreenX(tick) - String(tick).length * 4, right: toScreenX(tick) + String(tick).length * 4, top: axisX + 10, bottom: axisX + 23 })) : []),
+      ...(showYTickLabels ? yTicks.filter((tick) => tick !== 0).map((tick) => ({ left: axisY - 9 - String(tick).length * 8, right: axisY - 8, top: toScreenY(tick) - 6, bottom: toScreenY(tick) + 7 })) : []),
+    ],
+    hidden: openerCover ? [openerCover] : [],
+    bounds: { left: plotLeft, right: plotLeft + innerWidth, top: PADDING, bottom: PADDING + innerHeight },
+    textSize: 14,
+  }) : [];
+
   const authoredDescription = String(graph.accessibleDescription || displayGraph.accessibleDescription || '').trim();
   const reading = (detail) => describeStaticGraph({
     xMin, xMax, yMin, yMax, xStep, yStep, functions, points, segments, endpointRequirements, verticalBoundaries: verticalLines, shaded,
@@ -515,6 +576,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
       )}
       <svg
         className="mathmaster-responsive-canvas"
+        ref={svgRef}
         viewBox={`0 0 ${DEFAULT_WIDTH} ${DEFAULT_HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
@@ -791,6 +853,23 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
             </g>
           );
         })}
+
+        {/* An author's name for a curve, on a halo of the plane's own background. */}
+        {curveNameSpots.map((spot, index) => (spot ? (
+          <text
+            key={`curve-name-${index}`}
+            data-curve-label={curveName(functions[index])}
+            aria-hidden="true"
+            x={spot.x}
+            y={spot.y}
+            textAnchor="middle"
+            fontSize="14"
+            fontWeight="bold"
+            style={{ fill: 'var(--mm-graph-label)', stroke: 'var(--mm-graph-bg)', strokeWidth: 4, strokeLinejoin: 'round', paintOrder: 'stroke' }}
+          >
+            {curveName(functions[index])}
+          </text>
+        ) : null))}
 
         {interactionHighlight.showPoint === true && showHighlightX && showHighlightY && (
           <g>

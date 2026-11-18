@@ -113,3 +113,28 @@ test('a synced row becomes stale when canonical section evidence changes without
     shouldReturn: true,
   }), false);
 });
+
+// A grade Classroom saved but would not return (functions/lib/classroomPushErrors.js):
+// with the same evidence there is nothing to send, since Google would only
+// refuse the return again; new evidence sends it again.
+test('a graded-not-returned row is current for the same evidence and stale for new evidence', () => {
+  const base = {
+    assignmentId: 'a1', publicationId: 'warmup-post', sectionKey: 'warmup', questionIndices: [0],
+    grade: 100, classroomGrade: 100, maxPoints: 100, stage: 'final-complete', studentVisible: true,
+  };
+  const evidence = sectionGradeEvidenceFingerprint({ ...base, tracker: { 0: { status: 'correct', totalAttempts: 1 } } });
+  const prior = {
+    status: 'graded-not-returned',
+    returnedToStudent: false,
+    reconciliationVersion: CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+    evidenceFingerprint: evidence,
+  };
+  assert.equal(sectionGradeSyncIsCurrent({ prior, evidenceFingerprint: evidence, returnedToStudent: false, shouldReturn: true }), true);
+  const changed = sectionGradeEvidenceFingerprint({ ...base, tracker: { 0: { status: 'correct', totalAttempts: 2 } } });
+  assert.equal(sectionGradeSyncIsCurrent({ prior, evidenceFingerprint: changed, returnedToStudent: false, shouldReturn: true }), false);
+  assert.equal(sectionGradeSyncIsCurrent({ prior: { ...prior, reconciliationVersion: 0 }, evidenceFingerprint: evidence, shouldReturn: true }), false);
+  // Every other unsent row is still sent again.
+  for (const status of ['failed', 'rate-limited', 'submission-not-found', 'auth-error', 'skipped-unlinked']) {
+    assert.equal(sectionGradeSyncIsCurrent({ prior: { ...prior, status }, evidenceFingerprint: evidence, shouldReturn: true }), false, status);
+  }
+});

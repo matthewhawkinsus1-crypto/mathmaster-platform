@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import useLocalDraftState from './useLocalDraftState';
 import MathInput from './MathInput';
 import MathDisplay from './MathDisplay';
@@ -7,6 +7,7 @@ import GraphDisplay from './GraphDisplay';
 import QuestionVisual from './QuestionVisual';
 import { gradeSystemResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
+import { nameSystemLines } from './platform/graph/systemLineNames.js';
 
 // One empty list for every system without authored equations: a fresh `[]`
 // per render is a new dependency for the report effect below on every render.
@@ -17,6 +18,10 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
   // Same null-vs-undefined trap as TableGrader: `= []` does not catch an
   // explicit null, and this value is used via `.length` further down.
   const equationsLatex = Array.isArray(question.equationsLatex) ? question.equationsLatex : NO_EQUATIONS;
+  // Each line named on the graph by its equation, where the list below shows
+  // it (WCAG 1.4.1): the list's swatches paired an equation with its line by
+  // colour alone (platform/graph/systemLineNames.js).
+  const shownGraph = useMemo(() => nameSystemLines({ graph, equations: equationsLatex, showEquations }), [graph, equationsLatex, showEquations]);
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:system` : null, '');
   // Correctness comes from the shared grading contract so every caller of it —
   // this screen, the deadline finalizer, the tests — marks alike.
@@ -57,7 +62,7 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
         </div>
       )}
       <QuestionVisual question={question} includeGraph={false} />
-      {showGraph && graph && <GraphDisplay graph={graph} title="System of equations graph" enlargeable={false} />}
+      {showGraph && graph && <GraphDisplay graph={shownGraph} title="System of equations graph" enlargeable={false} />}
       <div style={{ marginTop: '24px' }}>
         <MathDisplay value="(x, y) =" format="ascii-math" inline style={{ display: 'block', marginBottom: '10px', fontSize: 'calc(21 * var(--mm-px))', fontWeight: 'bold' }} />
         <MathInput value={answer} onChange={setAnswer} placeholder="(x, y)" ariaLabel="Solution to the system as an ordered pair" onUndoStateChange={onUndoStateChange} inputStatus={incorrect ? 'incorrect' : 'neutral'} />

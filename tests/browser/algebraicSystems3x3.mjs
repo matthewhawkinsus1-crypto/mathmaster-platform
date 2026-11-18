@@ -27,6 +27,9 @@
 //                      opens with no method to choose, each equation solved on
 //                      its own (z = 3 as written), checked in all three
 //                      equations and graded correct, at 1366×768 and 390×844
+//   unreadable-rewrite x = -y - z + 6 rewritten as "6)-(y+z" or "x=6-y-z", which
+//                      cannot be read on their own: refused in words, the
+//                      reduction unchanged, no token; then 6 - y - z is taken
 //   no-preview/*       Step Algebra -9x + 21 = 1 in Student View and Teacher
 //                      Preview: selecting/typing does not preview; an actual
 //                      drag and one-sided drop DO show a layout-neutral ghost
@@ -93,7 +96,7 @@ const open = async (page, { scope = 'student', q = 0, fresh = true } = {}) => {
 const reloadInPlace = async (page) => {
   await page.reload();
   await page.waitForFunction(() => Boolean(window.__mm341));
-  await page.waitForSelector('.mathmaster-reduction-workflow', { timeout: 20000 });
+  await page.locator('.mathmaster-reduction-workflow').first().waitFor({ timeout: 20000 });
   await settle(page, 800);
 };
 
@@ -102,7 +105,7 @@ const leaveAndReturn = async (page) => {
   await page.evaluate(() => window.__mm341.go(1));
   await settle(page, 600);
   await page.evaluate(() => window.__mm341.go(0));
-  await page.waitForSelector('.mathmaster-reduction-workflow', { timeout: 20000 });
+  await page.locator('.mathmaster-reduction-workflow').first().waitFor({ timeout: 20000 });
   await settle(page, 800);
 };
 
@@ -372,7 +375,7 @@ const runFull3x3 = async (context, scope) => {
   const page = await context.newPage();
   page.on('pageerror', (error) => note(journey, `uncaught page error: ${error.message}`));
   await open(page, { scope });
-  await page.waitForSelector('.mathmaster-reduction-workflow', { timeout: 20000 });
+  await page.locator('.mathmaster-reduction-workflow').first().waitFor({ timeout: 20000 });
 
   const ok = await step(page, journey, 'initial view', async () => {
     // #359 added elimination as a real 3×3 path, so the badge now names both
@@ -647,12 +650,55 @@ const runDiagonal3x3 = async (browserInstance, name, viewport) => {
 };
 
 /** Start question over clears the whole 3×3 workflow, nested drafts included. */
+// The optional rewrite of x = -y - z + 6, read on its own before it is judged
+// (isolationSimplification.js): "6)-(y+z" is the same expression only inside
+// "(typed) - (isolated)", and "x=6-y-z" is an equation. The old check took both
+// as the token. Each is refused in words and the reduction is left exactly as
+// it was; then -y - z + 6 written as 6 - y - z is taken.
+const runUnreadableRewrite = async (browserInstance) => {
+  const journey = 'unreadable-rewrite';
+  // Its own context, closed at the end: a renderer's shared-memory files in
+  // /tmp go only when it does.
+  const scoped = await browserInstance.newContext({ viewport: { width: 1366, height: 900 } });
+  const page = await scoped.newPage();
+  page.on('pageerror', (error) => note(journey, `uncaught page error: ${error.message}`));
+  await open(page, { scope: 'student' });
+  await page.locator('.mathmaster-reduction-workflow').first().waitFor({ timeout: 20000 });
+  const observed = { journey, refused: [] };
+  await step(page, journey, 'isolate x, then rewrite it', async () => {
+    await isolateXInEquationOne(page, journey);
+    await page.locator('button', { hasText: 'Simplify first (optional)' }).click();
+    const field = page.locator('math-field[aria-label="Optional simplified expression to substitute"]');
+    const WORDS = 'MathMaster could not read that yet. Enter one expression, without an equals sign.';
+    for (const typed of ['6)-(y+z', 'x=6-y-z']) {
+      await setMathField(page, field, typed);
+      const before = await reduction(page);
+      await page.locator('button', { hasText: 'Check and use my simplification' }).click();
+      await settle(page, 400);
+      const said = (await errorText(page)).map((text) => text.trim());
+      if (expect(journey, said.includes(WORDS), `"${typed}" was not refused in words (${JSON.stringify(said)})`)) observed.refused.push(typed);
+      expect(journey, !said.some((text) => /not equivalent/.test(text)), `"${typed}" was judged not equivalent instead of unreadable`);
+      expect(journey, (await page.locator('.mathmaster-systems-substitution-token').count()) === 0, `"${typed}" became the token`);
+      expect(journey, JSON.stringify(await reduction(page)) === JSON.stringify(before), `checking "${typed}" changed the reduction`);
+    }
+    await setMathField(page, field, '6-y-z');
+    expect(journey, !(await errorText(page)).some((text) => /could not read/.test(text)), 'the refusal stayed after the box changed');
+    await page.locator('button', { hasText: 'Check and use my simplification' }).click();
+    await page.locator('.mathmaster-systems-substitution-token').waitFor({ timeout: 5000 });
+    observed.token = (await reduction(page))?.isolation?.tokenExpression;
+    expect(journey, String(observed.token || '').replace(/\s+/g, '') === '6-y-z', `the token is "${observed.token}", not 6 - y - z`);
+    await shoot(page, journey);
+  });
+  report.push(observed);
+  await scoped.close();
+};
+
 const runReset = async (context) => {
   const journey = 'student-reset';
   const page = await context.newPage();
   page.on('pageerror', (error) => note(journey, `uncaught page error: ${error.message}`));
   await open(page, { scope: 'student' });
-  await page.waitForSelector('.mathmaster-reduction-workflow', { timeout: 20000 });
+  await page.locator('.mathmaster-reduction-workflow').first().waitFor({ timeout: 20000 });
   const observed = { journey };
   await step(page, journey, 'reset after isolating and substituting', async () => {
     await isolateXInEquationOne(page, journey);
@@ -685,7 +731,7 @@ const runNegatedGroup = async (context) => {
   const page = await context.newPage();
   page.on('pageerror', (error) => note(journey, `uncaught page error: ${error.message}`));
   await open(page, { scope: 'teacherPreview' });
-  await page.waitForSelector('.mathmaster-reduction-workflow', { timeout: 20000 });
+  await page.locator('.mathmaster-reduction-workflow').first().waitFor({ timeout: 20000 });
   const observed = { journey };
   await step(page, journey, 'isolate y in E1 and substitute into E2', async () => {
     await page.locator('button[aria-label="Isolate y in Equation 1"]').click();
@@ -833,6 +879,7 @@ if (wanted('preview-negated')) await runNegatedGroup(context);
 if (wanted('student-3x3')) await runFull3x3(context, 'student');
 if (wanted('teacherPreview-3x3')) await runFull3x3(context, 'teacherPreview');
 if (wanted('student-reset')) await runReset(context);
+if (wanted('unreadable-rewrite')) await runUnreadableRewrite(browser);
 await context.close();
 
 if (wanted('diagonal-3x3')) {
@@ -903,7 +950,7 @@ for (const [name, viewport] of wanted('layout') ? [['chromebook', { width: 1280,
   const responsive = await browser.newContext({ viewport });
   const page = await responsive.newPage();
   await open(page, { scope: 'student' });
-  await page.waitForSelector('.mathmaster-reduction-workflow', { timeout: 20000 });
+  await page.locator('.mathmaster-reduction-workflow').first().waitFor({ timeout: 20000 });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   if (overflow > 1) note(`layout-${name}`, `page scrolls horizontally by ${overflow}px at ${viewport.width}px`);
   await shoot(page, `layout-${name}`);

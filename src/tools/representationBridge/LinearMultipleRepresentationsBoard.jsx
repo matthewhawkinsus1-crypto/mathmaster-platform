@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState, { useToolDraftScope } from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { AttemptOutcome } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -31,6 +32,7 @@ import { toFraction } from '../shared/linearEquations.js';
 import {
   CARD_PART_KEYS,
   cardHasWork,
+  CARD_RESPONSE_FIELDS,
   cardResponseKey,
   crossRepresentationConsistencyFor,
   deriveLinearMultipleRepresentations,
@@ -107,6 +109,26 @@ import { FactsAtHand, KnownPointChips, LockedCardBody, ProcessFactsStrip } from 
  * process components live in ./process/. Worksheet Mode — the default — is
  * untouched by any of it.
  */
+
+/*
+ * WHAT A SAVED BOARD MAY RESTORE (toolDraftShape.js). A table row is the x and
+ * y typed into it, a graph's points are [x, y] pairs, a card's check is the
+ * fingerprint of the work it checked, and a card is open or closed. A check
+ * saved under a name that is no card ("constructor", a key an older build or
+ * damage left) threw on every load, because each check is matched against its
+ * card's fields; it is dropped, as is a row or a point that is not one, and the
+ * rest of the board comes back as the student left it. The process log and
+ * the work in progress inside a method are read by the board's own readers
+ * (normalizeProcessLog, readProcessDraft), so they only need to be records.
+ */
+const BOARD_CELL = s.cell({ or: '' });
+const normalizeBoardTableRows = draftNormalizer(s.list(s.record({ x: s.required(BOARD_CELL), y: s.required(BOARD_CELL) }), { min: 1 }));
+const normalizeBoardGraphPoints = draftNormalizer(s.list(s.point()));
+const normalizeCheckedCards = draftNormalizer(s.map(s.text(), {
+  keys: (cardId) => cardId === 'context' || Object.prototype.hasOwnProperty.call(CARD_RESPONSE_FIELDS, cardId),
+}));
+const normalizeExpandedCards = draftNormalizer(s.map(s.boolean()));
+const normalizeProcessRecord = draftNormalizer(s.nullable(s.record({})));
 
 const touchButton = {
   minHeight: 44,
@@ -624,11 +646,11 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const [featurePoint1, setFeaturePoint1] = usePersistentToolState('featurePoint1', '');
   const [featurePoint2, setFeaturePoint2] = usePersistentToolState('featurePoint2', '');
 
-  const [tableRows, setTableRows] = usePersistentToolState('tableRows', defaultTableRows);
+  const [tableRows, setTableRows] = usePersistentToolState('tableRows', defaultTableRows, { normalize: normalizeBoardTableRows });
 
-  const [graph1Points, setGraph1Points] = usePersistentToolState('graph1Points', []);
-  const [graph2Points, setGraph2Points] = usePersistentToolState('graph2Points', []);
-  const [graph3Points, setGraph3Points] = usePersistentToolState('graph3Points', []);
+  const [graph1Points, setGraph1Points] = usePersistentToolState('graph1Points', [], { normalize: normalizeBoardGraphPoints });
+  const [graph2Points, setGraph2Points] = usePersistentToolState('graph2Points', [], { normalize: normalizeBoardGraphPoints });
+  const [graph3Points, setGraph3Points] = usePersistentToolState('graph3Points', [], { normalize: normalizeBoardGraphPoints });
 
   const [contextIndependent, setContextIndependent] = usePersistentToolState('contextIndependent', '');
   const [contextDependent, setContextDependent] = usePersistentToolState('contextDependent', '');
@@ -641,8 +663,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // pressed Check (or Save) on, which the shared marking turns into facts here
   // and on the server — and the work still in progress inside each method.
   // Both are the student's mathematics; neither ever holds a verdict.
-  const [processLog, setProcessLog] = usePersistentToolState('processLog', null);
-  const [rawProcessDraft, setRawProcessDraft] = usePersistentToolState('processDraft', null);
+  const [processLog, setProcessLog] = usePersistentToolState('processLog', null, { normalize: normalizeProcessRecord });
+  const [rawProcessDraft, setRawProcessDraft] = usePersistentToolState('processDraft', null, { normalize: normalizeProcessRecord });
 
   // WHICH work the student has pressed Check on — a fingerprint per card, and
   // nothing else. The verdict is never stored: it is recomputed from the
@@ -651,8 +673,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // WHOLE record, silently ending the server backup of every equation, table
   // and graph on the board. Fingerprints keep a reload looking exactly the way
   // the student left it without carrying any grading.
-  const [checkedCards, setCheckedCards] = usePersistentToolState('checkedCards', {});
-  const [storedExpanded, setExpandedCards] = usePersistentToolState('expandedCards', DEFAULT_EXPANDED);
+  const [checkedCards, setCheckedCards] = usePersistentToolState('checkedCards', {}, { normalize: normalizeCheckedCards });
+  const [storedExpanded, setExpandedCards] = usePersistentToolState('expandedCards', DEFAULT_EXPANDED, { normalize: normalizeExpandedCards });
   const expandedCards = { ...DEFAULT_EXPANDED, ...storedExpanded };
 
   // Presentation only. The notice is what the polite live region says; each
@@ -998,6 +1020,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     resetKey: questionUndoResetKey(questionData),
     ownerId: 'lmr-board',
     persist: true,
+    // Every field Undo records is written back through its own setter.
+    draftFields: fieldSetters,
   });
   // ONE UNDO (owner decision 2026-10-23, R-14 in student-ux-platform-pass): a
   // graph has no Undo of its own, only Start over. The enlarged graph is a

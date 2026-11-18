@@ -180,7 +180,9 @@ test('NAV-18: Home and the workspace print the whole lines, not the old label an
   assert.match(home, /\{dates\.dueLine\}\{dates\.finalLine \? ` · \$\{dates\.finalLine\}` : ''\}/);
   assert.doesNotMatch(home, /dates\.dueLabel|dates\.finalLabel/);
   const app = executableSource(read('src/App.jsx'));
-  assert.match(app, /const dates = studentDueDateLines\(assignment, lifecycle\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
+  // The workspace header's lines, from the student's own lifecycle (kept
+  // until the assignment or that lifecycle changes: App's render work).
+  assert.match(app, /const dates = renderMemo\('dueDateLines', \[assignment, lifecycle\], \(\) => studentDueDateLines\(assignment, lifecycle\)\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
 });
 
 test('NAV-18: a skill to refresh is a nudge, not an error', () => {

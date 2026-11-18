@@ -1,4 +1,4 @@
-import { readStableViewportBox } from '../mobile/mobileInteractionFoundation.js';
+import { readStableViewportBox, readViewportInnerSize } from '../mobile/mobileInteractionFoundation.js';
 
 export const WORK_VIEW_MOBILE_MAX = 720;
 
@@ -88,8 +88,9 @@ export function resolveWorkViewLayout({ width, height, visualHeight = height, of
 export function readBottomKeypadHeight(windowObject = typeof window !== 'undefined' ? window : null) {
   const root = windowObject?.document?.documentElement;
   if (!root || root.dataset?.mobileKeypadOpen !== 'true') return 0;
-  const width = Number(windowObject.innerWidth) || 0;
-  const height = Number(windowObject.innerHeight) || 0;
+  const inner = readViewportInnerSize(windowObject);
+  const width = Number(inner.width) || 0;
+  const height = Number(inner.height) || 0;
   // Docked right, not under the work (MathToolMobileLayout.css).
   if (width > height && height <= 500) return 0;
   const value = root.style?.getPropertyValue?.('--mm-mobile-keypad') || '';
@@ -99,14 +100,16 @@ export function readBottomKeypadHeight(windowObject = typeof window !== 'undefin
 
 export function readWorkViewViewport(windowObject = typeof window !== 'undefined' ? window : null) {
   if (!windowObject) return resolveWorkViewLayout({ width: 1024, height: 768 });
+  // Read once per change of the viewport (mobileInteractionFoundation.js).
   const viewport = readStableViewportBox(windowObject);
+  const inner = readViewportInnerSize(windowObject);
   return resolveWorkViewLayout({
-    width: viewport.width || windowObject.innerWidth,
-    height: windowObject.innerHeight,
+    width: viewport.width || inner.width,
+    height: inner.height,
     // At scale > 1, readStableViewportBox deliberately returns layout height:
     // Work View stays the same sheet while the browser magnifies it instead of
     // repeatedly shrinking/repositioning fixed boundaries into the zoomed area.
-    visualHeight: viewport.height || windowObject.innerHeight,
+    visualHeight: viewport.height || inner.height,
     offsetTop: viewport.offsetTop || 0,
     keypadHeight: readBottomKeypadHeight(windowObject),
   });

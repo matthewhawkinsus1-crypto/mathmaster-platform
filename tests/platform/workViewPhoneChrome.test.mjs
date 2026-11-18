@@ -149,7 +149,8 @@ test('what the view carries is a caption, not a column of disabled-looking butto
 test('the Enlarge button says how big it is, and the rows it floats over leave it room', () => {
   const effect = region(figure, 'const publishSpace = () => {', '}, [enlarged]);', 'the opener measurement');
   assert.match(effect, /opener\.offsetWidth/);
-  assert.match(effect, /'--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`/);
+  assert.match(effect, /const bottomEdge = \(\) => Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\);/);
+  assert.match(effect, /'--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{leavesItsRow \? bottomEdge\(\) : bottom\}px`/);
   // Measured again when the button or the room beside it changes, in the
   // frame after its observer reports it (P-5, openerRoomObserver.test.mjs).
   assert.match(effect, /observeOpenerRoom\(\{ opener, surface, publish: publishSpace \}\)/);

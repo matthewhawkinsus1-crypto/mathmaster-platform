@@ -61,16 +61,27 @@ test('the sticky stack is offset by measured heights, not guesses', () => {
   assert.match(app, /<nav ref=\{stickyHeightRef\(ASSIGNMENT_NAV_HEIGHT_VAR\)\} className=\{`mathmaster-assignment-unified-nav/);
 });
 
-test('the navigator height ref is stable across renders and publishes the height', () => {
+test('the navigator height ref is stable across renders and publishes the height', async () => {
   assert.equal(stickyHeightRef('--x-test'), stickyHeightRef('--x-test'), 'same function every render');
+  const values = new Map();
   const set = [];
   const removed = [];
-  globalThis.document = { documentElement: { style: { setProperty: (k, v) => set.push([k, v]), removeProperty: (k) => removed.push(k) } } };
+  const style = {
+    getPropertyValue: (k) => values.get(k) || '',
+    setProperty: (k, v) => { values.set(k, v); set.push([k, v]); },
+    removeProperty: (k) => { values.delete(k); removed.push(k); },
+  };
+  globalThis.document = { documentElement: { style } };
+  // Written with the commit's other measured writes, in a microtask before the
+  // next frame (layoutWrites.js; measuredWritesAfterReads.test.mjs has the rest).
+  const commitWritten = () => new Promise((resolve) => queueMicrotask(resolve));
   try {
     const ref = stickyHeightRef('--x-publish');
     ref({ offsetHeight: 143 });
+    await commitWritten();
     assert.deepEqual(set.at(-1), ['--x-publish', '143px']);
     ref(null);
+    await commitWritten();
     assert.deepEqual(removed, ['--x-publish']);
   } finally {
     delete globalThis.document;

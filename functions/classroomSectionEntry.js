@@ -30,26 +30,35 @@ const {
   gradeSyncDocumentId,
 } = require("./lib/publication");
 const { runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
-const { classroomPublicationGrade } = require("./lib/classroomSectionGrade");
+const {
+  activeAssignmentGradeOverride,
+  classroomPublicationGrade,
+  gradeProgressWithTeacherOverrides,
+} = require("./lib/classroomSectionGrade");
 const { studentOmittedFor } = require("./lib/studentWorkloadIndices");
 const studentWorkloadIndices = require("./lib/studentWorkloadIndices");
 const {
-  assignmentGradeProgress,
   releaseSignalReason,
   resolveClassroomGradeStage,
   classroomGradeReleasePolicy,
+  classroomReceiptNeedsWriting,
   deferredClassCheckpoint,
   toDate,
 } = require("./lib/classroomGradeRuntime");
+const { trackerChangedBeyondTimeOnTask } = require("./lib/classroomTrackerChange");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
 const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
 const { CLASSROOM_GRADE_TRIGGER_CAPACITY } = require("./lib/classroomGradeTriggerCapacity");
 const {
   classroomPushFailure,
   classroomPushHeldForLimit,
+  classroomReturnRefusal,
   clearedClassroomErrorFields,
+  clearedReturnRefusalFields,
+  standingClassroomReturnRefusal,
 } = require("./lib/classroomPushErrors");
 const classroomPushQueue = require("./lib/classroomPushQueue");
+const classroomCheckpointScan = require("./lib/classroomCheckpointScan");
 const classroomStudentCheckpoints = require("./lib/classroomStudentCheckpoints");
 const {
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
@@ -72,6 +81,21 @@ const SECTION_CHECKPOINT_ASSIGNMENT_FIELDS = Object.freeze([
   "lateDueAt",
   "lateDueDate",
   "assignedClassIds",
+]);
+// The only publication fields syncSectionGradeToClassroom reads: a link also
+// carries its launch URL, materials and title. Kept in step with the trigger
+// by tests/platform/classroomSectionPassbackReads.test.mjs.
+const SECTION_PASSBACK_LINK_FIELDS = Object.freeze([
+  "status",
+  "publicationKind",
+  "courseworkId",
+  "sectionGradePassbackEnabled",
+  "publishAt",
+  "sectionKey",
+  "sectionLabel",
+  "courseId",
+  "maxPoints",
+  "teacherUid",
 ]);
 
 function requireTeacher(request) {
@@ -606,8 +630,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
     const beforeData = event.data?.before?.exists ? event.data.before.data() || {} : {};
     const afterByAssignment = afterData.gradesByAssignment || {};
     const beforeByAssignment = beforeData.gradesByAssignment || {};
+    // A change that moves only time on task (a Next's `timeSpent`) is no
+    // change: nothing here reads it (lib/classroomTrackerChange.js).
     const gradeChangedAssignmentIds = Object.keys(afterByAssignment).filter(
-      (assignmentId) => JSON.stringify(afterByAssignment[assignmentId]) !== JSON.stringify(beforeByAssignment[assignmentId])
+      (assignmentId) => trackerChangedBeyondTimeOnTask(beforeByAssignment[assignmentId], afterByAssignment[assignmentId])
     );
     const afterSignals = afterData.classroomReleaseSignals || {};
     const beforeSignals = beforeData.classroomReleaseSignals || {};
@@ -618,7 +644,16 @@ const syncSectionGradeToClassroom = onDocumentWritten(
     // A completed Practice-based Recovery rescores a Warm-Up/DOL section, so it
     // wakes the section passback exactly like a changed answer does.
     const recoveryChangedIds = sectionRecoveryGrades.recoveryChangedAssignmentIds(afterData, beforeData);
-    const assignmentIds = [...new Set([...gradeChangedAssignmentIds, ...signaledAssignmentIds, ...recoveryChangedIds])];
+    // A teacher's override changes the grade MathMaster shows, so it wakes the
+    // section columns as it wakes the whole-assignment one. The two override
+    // callables also send a Retry in the same write, so this reads nothing
+    // more for them.
+    const afterOverrides = afterData.teacherGradeOverridesByAssignment || {};
+    const beforeOverrides = beforeData.teacherGradeOverridesByAssignment || {};
+    const overrideChangedIds = [...new Set([...Object.keys(afterOverrides), ...Object.keys(beforeOverrides)])].filter(
+      (assignmentId) => JSON.stringify(afterOverrides[assignmentId] || {}) !== JSON.stringify(beforeOverrides[assignmentId] || {})
+    );
+    const assignmentIds = [...new Set([...gradeChangedAssignmentIds, ...signaledAssignmentIds, ...recoveryChangedIds, ...overrideChangedIds])];
     // TT23: a support-profile change that moves which items the student owes
     // moves their section columns too. It gets the same push an answer would,
     // but only to correct a grade Classroom already holds (the whole-assignment
@@ -665,42 +700,63 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           assignmentId, studentId: event.params.studentId, message: String(error?.message || error),
         }),
       });
-      let correctionTracker = afterByAssignment[assignmentId] || {};
+      // A teacher's overrides decide the grade MathMaster shows, so every
+      // column is graded with them, by the whole-assignment trigger's rules
+      // (lib/classroomSectionGrade.js): a per-question score for the attempt
+      // it was given on, and an assignment-level grade that replaces each
+      // column's. They are applied once, here, with or without a workload
+      // correction.
+      const teacherOverrides = afterData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+      const assignmentGradeOverride = activeAssignmentGradeOverride(teacherOverrides);
       let correctionPracticeWaived = [];
       if (afterData.profile?.workloadCorrections?.[assignmentId]) {
         const corrections = require("./lib/retroactiveAccommodation");
-        correctionTracker = await corrections.projectCorrectionTracker(correctionTracker, afterData.teacherGradeOverridesByAssignment?.[assignmentId] || {});
         correctionPracticeWaived = await corrections.readPracticeWaiver({ db, studentId: event.params.studentId, gradeData: afterData, assignment: { ...assignment, id: assignmentId } });
         correctionPracticeWaived.forEach((index) => studentOmitted.add(index));
       }
       // A completed Recovery credits its section at the recorded score in the
-      // same section grade (functions/lib/sectionRecoveryGrades.js). This path
-      // grades without teacher overrides, so the original is read the same way.
+      // same section grade (functions/lib/sectionRecoveryGrades.js). Its
+      // original is read with the teacher's corrections, as the whole
+      // assignment's is, and the overrides inside a section it rescored are
+      // dropped: they only shaped that original.
       // eslint-disable-next-line no-await-in-loop
-      const { tracker } = await sectionRecoveryGrades.projectRecoveredGradeInputs({
+      const recovered = await sectionRecoveryGrades.projectRecoveredGradeInputs({
         assignment,
-        tracker: correctionTracker,
+        tracker: afterByAssignment[assignmentId] || {},
         questions,
-        overrides: {},
+        overrides: teacherOverrides,
         recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
         // A Live Challenge Warm-Up result is the Warm-Up grade.
         challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
-        gradeProgress: (gradeTracker, indices, gradeQuestions) => assignmentGradeProgress(gradeTracker, indices, gradeQuestions),
+        gradeProgress: gradeProgressWithTeacherOverrides,
         omittedIndices: studentOmitted,
       });
+      const { tracker } = recovered;
       const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
       const signalReason = releaseSignalReason(releaseSignal);
       // A push queued again after Google's per-minute limit sends only the
       // columns that did not go through; the rest are already current.
       const quotaRetry = Math.max(0, Number(releaseSignal?.quotaRetry) || 0);
       const forceRetry = (signalReason === "manual-retry" || signalReason === "section-grade-reconcile") && quotaRetry === 0;
+      // A teacher sending this grade again asks Google to return a submission
+      // even if it refused before: Retry, Retry all, a grade override, a
+      // resolved Recovery, a repost or a correction sync, all "manual-retry".
+      // Nothing else does while the submission is unchanged.
+      const teacherRetry = signalReason === "manual-retry" && quotaRetry === 0;
       const mayRequeue = quotaRetry < classroomPushQueue.MAX_QUOTA_RETRIES;
       let requeueForLimit = false;
+      // Grades saved in Classroom whose return Google refused: counted for one
+      // warning per assignment, not an error per column.
+      const notReturned = { refused: 0, notAskedAgain: 0, states: new Set(), reasons: new Set() };
 
+      // Only the publication fields used below: a link also carries its
+      // launch URL, materials and title (issue #545, item 2). The same
+      // documents as before, in the same place, so the same reads.
       // eslint-disable-next-line no-await-in-loop
       const publicationSnapshot = await db
         .collection("classroomLinks")
         .where("assignmentId", "==", assignmentId)
+        .select(...SECTION_PASSBACK_LINK_FIELDS)
         .get();
       const publications = publicationSnapshot.docs.filter((doc) => {
         const publication = doc.data() || {};
@@ -729,7 +785,9 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             publication,
             tracker,
             questions,
-            gradeProgress: assignmentGradeProgress,
+            gradeProgress: gradeProgressWithTeacherOverrides,
+            overrides: recovered.overrides,
+            assignmentGradeOverride,
             omittedIndices: studentOmitted,
           });
         } catch (error) {
@@ -750,8 +808,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         // A HELD Practice-based Recovery in this column's section (or any, for
         // a whole-assignment column): the section grade is not settled, so
         // nothing is sent until the teacher resolves the hold
-        // (functions/lib/sectionRecoveryGrades.js). This path grades without
-        // teacher overrides, so none can stand in for the resolution here.
+        // (functions/lib/sectionRecoveryGrades.js). It holds this column even
+        // when an assignment-level teacher grade decides the other columns:
+        // the Recovery is still the teacher's to resolve
+        // (tests/integration/sectionRecoveryPlatformFailure.test.mjs).
         const recoveryHold = sectionRecoveryGrades.recoveryPassbackHold({
           recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
           sectionKey: gradeResult.sectionKey,
@@ -998,20 +1058,76 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           });
           let submissionState = patched.state || submission.state || null;
           let returnedToStudent = String(submissionState || "").toUpperCase() === "RETURNED";
+          let returnRefusal = null;
           if (releasePolicy.shouldReturn && !returnedToStudent) {
-            // eslint-disable-next-line no-await-in-loop
-            await classroomLib.returnSubmission(classroom, {
-              courseId,
-              courseWorkId: publication.courseworkId,
+            // Google returns only work the student turned in. Once it has
+            // refused this submission, it is not asked again while the
+            // submission is in the same state (lib/classroomPushErrors.js).
+            returnRefusal = teacherRetry ? null : standingClassroomReturnRefusal({
+              prior,
+              courseworkId: publication.courseworkId,
               submissionId: submission.id,
+              submissionState,
             });
-            submissionState = "RETURNED";
-            returnedToStudent = true;
+            if (returnRefusal) {
+              notReturned.notAskedAgain += 1;
+            } else {
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                await classroomLib.returnSubmission(classroom, {
+                  courseId,
+                  courseWorkId: publication.courseworkId,
+                  submissionId: submission.id,
+                });
+                submissionState = "RETURNED";
+                returnedToStudent = true;
+              } catch (error) {
+                returnRefusal = classroomReturnRefusal(error, { submissionState });
+                // Every other refusal is a failed push, as before.
+                if (!returnRefusal) throw error;
+                notReturned.refused += 1;
+              }
+            }
+          }
+
+          if (returnRefusal) {
+            notReturned.states.add(returnRefusal.submissionState || "unknown");
+            notReturned.reasons.add(returnRefusal.reason);
+            // The grade is in Classroom; only its return is missing.
+            // eslint-disable-next-line no-await-in-loop
+            await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+              ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+              assignmentId,
+              courseId,
+              courseworkId: publication.courseworkId,
+              submissionId: submission.id,
+              submissionState,
+              stage,
+              grade: gradeResult.grade,
+              classroomGrade,
+              maxPoints,
+              attempted: gradeResult.attempted,
+              total: gradeResult.total,
+              creditOnAttempted: gradeResult.creditOnAttempted,
+              isFinal,
+              studentVisible: releasePolicy.studentVisible,
+              returnedToStudent: false,
+              sectionKey: gradeResult.sectionKey,
+              sectionLabel: gradeResult.sectionLabel,
+              questionIndices: gradeResult.questionIndices,
+              gradePassbackMode: "section",
+              reconciliationVersion: CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
+              evidenceFingerprint,
+              syncedAt: FieldValue.serverTimestamp(),
+              ...returnRefusal.audit,
+            });
+            continue;
           }
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             ...(afterData.profile?.workloadCorrections?.[assignmentId] ? { correctionEventId: afterData.profile.workloadCorrections[assignmentId].eventId } : {}),
+            ...clearedReturnRefusalFields(prior),
             ...clearedClassroomErrorFields(),
             assignmentId,
             courseId,
@@ -1091,16 +1207,35 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         }
       }
 
+      if (notReturned.refused || notReturned.notAskedAgain) {
+        logger.warn("Section grades saved in Classroom but not returned", {
+          assignmentId,
+          studentId: event.params.studentId,
+          // Google refused the return in this push.
+          refused: notReturned.refused,
+          // Refused before, and the submission has not changed: not asked.
+          notAskedAgain: notReturned.notAskedAgain,
+          submissionStates: [...notReturned.states],
+          reasons: [...notReturned.reasons],
+        });
+      }
+
       if (successfulBySection.size) {
+        // A draft receipt no student screen shows, over none or another
+        // draft, is not written (lib/classroomGradeRuntime.js
+        // classroomReceiptNeedsWriting): the write would only run both grades
+        // triggers again.
+        const storedReceipts = afterData.classroomSectionSyncStatusByAssignment?.[assignmentId] || {};
         const updateArgs = [];
         successfulBySection.forEach((status, sectionKey) => {
+          if (!classroomReceiptNeedsWriting(status, storedReceipts[sectionKey])) return;
           updateArgs.push(
             new FieldPath("classroomSectionSyncStatusByAssignment", assignmentId, sectionKey),
             status
           );
         });
         // eslint-disable-next-line no-await-in-loop
-        await after.ref.update(...updateArgs);
+        if (updateArgs.length) await after.ref.update(...updateArgs);
       }
 
       if (requeueForLimit) {
@@ -1129,15 +1264,20 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
   // Split-section publications only, asked of Firestore (issue #545): 445 of
   // the 480 published links on Nov 11, 2026, where this read all 480 every 5
   // minutes and dropped the whole-assignment ones itself
-  // (tests/platform/classroomCheckpointScans.test.mjs).
-  const publicationSnapshot = await db
-    .collection("classroomLinks")
-    .where("status", "==", "published")
-    .where("publicationKind", "==", "section")
-    .select("publicationKind", "courseworkId", "sectionGradePassbackEnabled", "assignmentId")
-    .limit(1000)
-    .get();
-  const assignmentIds = [...new Set(publicationSnapshot.docs
+  // (tests/platform/classroomCheckpointScans.test.mjs). Every one of them, a
+  // page at a time: one unordered limit(1000) would have dropped classes'
+  // checkpoints past 1,000 links (lib/classroomCheckpointScan.js).
+  const scan = await classroomCheckpointScan.scanPublishedLinks(db, {
+    filters: [["status", "published"], ["publicationKind", "section"]],
+    fields: ["publicationKind", "courseworkId", "sectionGradePassbackEnabled", "assignmentId"],
+  });
+  const scanConcerns = classroomCheckpointScan.checkpointScanConcerns({ links: scan.docs.length, complete: scan.complete });
+  if (!scan.complete) {
+    logger.error("Section checkpoint scan stopped at its limit", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  } else if (scanConcerns.length) {
+    logger.warn("Section checkpoint scan is near its limits", { links: scan.docs.length, pages: scan.pages, concerns: scanConcerns });
+  }
+  const assignmentIds = [...new Set(scan.docs
     .map((doc) => doc.data() || {})
     .filter((publication) => publication.publicationKind === "section"
       && publication.courseworkId
@@ -1146,13 +1286,23 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
     .filter(Boolean))];
   if (!assignmentIds.length) return;
 
-  const assignmentSnapshots = await db.getAll(
-    ...assignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
-    { fieldMask: [...SECTION_CHECKPOINT_ASSIGNMENT_FIELDS] }
+  const assignmentSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    assignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)),
+    { fieldMask: SECTION_CHECKPOINT_ASSIGNMENT_FIELDS }
   );
+  const existingAssignments = assignmentSnapshots.filter((snapshot) => snapshot.exists);
+  // Each assignment's state document, read a hundred at a time rather than one
+  // by one: 81 on Nov 11, 2026, most of a run's 3.5 s. A run writes only each
+  // assignment's own state, so this reads what the loop would have read; a
+  // student a trigger records meanwhile is woken on the next run.
+  const stateSnapshots = await classroomCheckpointScan.getAllInBatches(
+    db,
+    existingAssignments.map((snapshot) => db.collection(SECTION_CHECKPOINT_COLLECTION).doc(snapshot.id))
+  );
+  const stateById = new Map(stateSnapshots.map((snapshot) => [snapshot.id, snapshot]));
 
-  for (const assignmentSnapshot of assignmentSnapshots) {
-    if (!assignmentSnapshot.exists) continue;
+  for (const assignmentSnapshot of existingAssignments) {
     const assignmentId = assignmentSnapshot.id;
     const assignment = assignmentSnapshot.data() || {};
     const releaseAt = toDate(assignment.releaseAt || assignment.releaseDate);
@@ -1161,9 +1311,8 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
       assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate
     );
     const stateRef = db.collection(SECTION_CHECKPOINT_COLLECTION).doc(assignmentId);
-    // eslint-disable-next-line no-await-in-loop
-    const stateSnapshot = await stateRef.get();
-    const state = stateSnapshot.exists ? stateSnapshot.data() || {} : {};
+    const stateSnapshot = stateById.get(assignmentId);
+    const state = stateSnapshot?.exists ? stateSnapshot.data() || {} : {};
 
     // H-116: wake each student whose OWN due time or final cutoff has now
     // arrived — recorded by the section trigger when it set the class's
@@ -1221,6 +1370,14 @@ const queueClassroomSectionGradeCheckpoints = onSchedule({
       queuedStudents,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+  }
+
+  // The run may last 300 s; one that takes this long says so while it still fits.
+  const elapsedMs = Date.now() - now;
+  if (elapsedMs >= classroomCheckpointScan.CHECKPOINT_SLOW_RUN_MS) {
+    logger.warn("Section checkpoint scan is near its limits", {
+      links: scan.docs.length, assignments: assignmentIds.length, elapsedMs, concerns: ["slow-run"],
+    });
   }
 });
 

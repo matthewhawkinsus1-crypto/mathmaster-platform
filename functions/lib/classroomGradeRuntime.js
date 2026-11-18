@@ -206,15 +206,20 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
     assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
     studentFinalCutoff
   );
+  // A finished section is final, whatever wakes it: the class's due or final
+  // wake-up, an assessment release, a retry. It was assigned and returned when
+  // it was finished. The due-date wake-up relabelled it "due-checkpoint", not
+  // final, and either wake-up's label made a column Classroom already held
+  // look changed, so it was sent again (#545).
+  if (progress.complete) return "final-complete";
   // H-116: "final-deadline" and "due-checkpoint" are queued for the whole
   // roster at the CLASS's cutoff and due time. They speak for this student
   // only once THEIR own has arrived; before it the grade is ordinary progress
   // (not returned), and the scheduler wakes them again at their own time.
   if (reason === "final-deadline" && !(lateDueAt && now < lateDueAt.getTime())) return "final-deadline";
   if (reason === "due-checkpoint" && !(dueAt && now < dueAt.getTime())) return "due-checkpoint";
-  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+  if (reason === "assessment-release") return "assessment-release";
 
-  if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
   if (reason === "initial-reconcile") {
     if (dueAt && now >= dueAt.getTime()) return "due-checkpoint";
@@ -312,7 +317,32 @@ function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now(),
   };
 }
 
+/*
+ * THE STUDENT'S CLASSROOM RECEIPT, WRITTEN ONLY WHEN A SCREEN COULD SHOW IT.
+ *
+ * After a push goes through, both grades triggers write a receipt back to the
+ * student's own grade record (classroomSyncStatusByAssignment, and
+ * classroomSectionSyncStatusByAssignment for a section column). That write is
+ * a change to grades/{studentId}, so it runs both triggers again and is sent
+ * to every teacher listening to the gradebook.
+ *
+ * Before the due date nearly every answer that moves the grade is pushed as a
+ * teacher's draft, which the student cannot see in Classroom, and no student
+ * screen shows a draft receipt: the toast, Home's card, the result page and
+ * the Grade Center all read only a receipt whose `studentVisible` is true
+ * (App.jsx, StudentDashboardView.jsx, StudentAssignmentResult.jsx). So a draft
+ * receipt over no receipt, or over another draft, changed nothing anyone sees,
+ * and it is not written. A receipt the student can see is always written, and
+ * so is a draft that replaces one they could see, exactly as before. The push
+ * and its audit row (classroomGradeSyncs, what the teacher's monitor reads)
+ * are not touched by this.
+ */
+function classroomReceiptNeedsWriting(next, stored) {
+  return next?.studentVisible === true || stored?.studentVisible === true;
+}
+
 module.exports = {
+  classroomReceiptNeedsWriting,
   clampPercent,
   toDate,
   normalizeStoredQuestionRecord,

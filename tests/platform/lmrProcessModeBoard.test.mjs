@@ -34,8 +34,9 @@ test('Process Mode is chosen by the question, and a Worksheet board\'s work keep
   assert.match(response, /\.\.\.\(processMode \? \{ processLog \} : \{\}\),/, 'the process log travels only with a Process Mode board');
   // The work is draft-backed: a refresh, a lost connection or another
   // Chromebook brings back the process and the work in progress.
-  assert.match(source, /usePersistentToolState\('processLog', null\)/);
-  assert.match(source, /usePersistentToolState\('processDraft', null\)/);
+  // (Its options, the restore shape of toolDraftShape.js, are not part of that.)
+  assert.match(source, /usePersistentToolState\('processLog', null(?:, \{[^}]*\})?\)/);
+  assert.match(source, /usePersistentToolState\('processDraft', null(?:, \{[^}]*\})?\)/);
 });
 
 test('what the student has established is the shared marking\'s — the function the server grades with — never the device\'s', () => {

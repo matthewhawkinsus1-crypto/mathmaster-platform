@@ -1064,7 +1064,7 @@ test('MultiRelationAlgebraCore reports the shared verdict, and keeps the nested 
   const core = executableSource(read(RELATION_CORE));
   assert.match(core, /const sharedResult = useMemo\(\s*\(\) => gradeToolCheck\(workGraderForQuestion\(question\), question, gradingWork\),/);
   assert.match(core, /relationWorkspaceWork\(\{\s*relationState,\s*awaitingSymbolDecision: Boolean\(pendingRelationFlip\),\s*candidateChecks,\s*representation: representationWork,/);
-  const report = region(core, 'const relationText = relationStateToText(relationState);', 'onRelationDisplayChange?.(relationStateToLatex', 'state report');
+  const report = region(core, 'const relationText = relationStateToText(relationState);', 'onRelationDisplayChange?.(', 'state report');
   assert.match(report, /answerStateFromSharedGrading\(sharedResult/);
   assert.match(report, /\.\.\.shared,/);
   assert.doesNotMatch(report, /isCorrect:(?!\s*false\b)/);

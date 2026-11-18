@@ -19,6 +19,7 @@ import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/as
 import { proveImportedCcmrClaims } from '../../src/platform/assignments/canonicalCcmrHydration.js';
 import { ccmrAuditWarnings } from '../../src/platform/assignments/ccmrAuditWarnings.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { takesFromAuthoringKit } from './helpers/authoringKitImport.mjs';
 import { promisingAGraph } from './helpers/ccmrGraphPromiseFixtures.mjs';
 
 const require = createRequire(import.meta.url);
@@ -119,10 +120,11 @@ test('import asks for the candidates, proves them before the lesson is compiled,
   assert.match(block, /await hydrateAssignmentCcmr\(raw, \{ ensurePracticeTarget: false, includeCandidates: true \}\)/);
   assert.match(block, /const proven = proveImportedCcmrClaims\(\{ rawAssignment: raw, authoredAssignmentV5, hydration: hydrated \}\);\s*sourceText = JSON\.stringify\(proven\.assignment\);\s*ccmrAudit = proven\.audit;/);
   assert.ok(block.indexOf('proveImportedCcmrClaims(') < block.indexOf('readAssignmentJson(sourceText)'), 'proven before Review compiles the lesson');
-  // A call in .jsx with no import passes the build and fails at runtime.
-  assert.match(workspace, /^import \{[^}]*\bproveImportedCcmrClaims\b[^}]*\} from '\.\.\/\.\.\/platform\/assignments\/canonicalCcmrHydration\.js';$/m);
+  // A call in .jsx with no binding passes the build and fails at runtime: the
+  // import binds both from the authoring code it awaits.
+  assert.ok(takesFromAuthoringKit(block, 'proveImportedCcmrClaims', 'src/platform/assignments/canonicalCcmrHydration.js'));
   // The warnings are the teacher workspace's own module (TT11 moved them out of App).
-  assert.match(workspace, /^import \{ ccmrAuditWarnings \} from '\.\.\/\.\.\/platform\/assignments\/ccmrAuditWarnings\.js';$/m);
+  assert.ok(takesFromAuthoringKit(block, 'ccmrAuditWarnings', 'src/platform/assignments/ccmrAuditWarnings.js'));
   assert.match(block, /const bankWarnings = \[\.\.\.ccmrAuditWarnings\(ccmrAudit\)\];/);
   assert.doesNotMatch(executableSource(read('src/App.jsx')), /ccmrAuditWarnings/, 'App no longer carries them on the student first load');
   const warnings = ccmrAuditWarnings({ misses: [{ reason: 'no_audited_item_passed_checks', questionNumber: 24 }] });

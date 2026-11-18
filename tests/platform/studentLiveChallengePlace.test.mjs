@@ -49,7 +49,10 @@ test('NAV-25 review B1: never on an exit ticket, quiz or test whose outcome is w
   assert.match(rule, /\.isPracticeOnly\) return false;/);
   assert.match(rule, /const role = entries\.find\(\(entry\) => entry\.storageIndex === currentQuestionIndex\)\?\.logicalRole/);
   assert.match(rule, /return sectionHoldsLobbyInvite\(\{\s*entries,\s*role,\s*feedbackMode: role \? getEffectiveActivityPolicy\(role\)\.feedback : 'immediate',\s*released: assignmentFeedbackWasReleased\(assignment\),\s*recordOf: \(storageIndex\) => tracker\?\.\[activeAssignmentId\]\?\.\[storageIndex\],\s*\}\);/);
-  assert.match(app, /const lobbyInviteHeldHere = studentWorkspaceHoldsOutcome\(\);/);
+  // Worked out once per change of what the rule reads (renderMemo): the
+  // student, the screen, the open assignment and question, the lessons, the
+  // clock (its lifecycle) and that assignment's records.
+  assert.match(app, /const lobbyInviteHeldHere = renderMemo\('lobbyInviteHeld', \[user\?\.role, user\?\.id, activeView, activeAssignmentId, assignments, now, currentQuestionIndex, tracker\?\.\[activeAssignmentId\]\], studentWorkspaceHoldsOutcome\);/);
   // The banner, the phone chip and the announcement all use it; the running
   // hand-off banner (pre-existing, deliberate) does not.
   assert.equal((app.match(/!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(/g) || []).length, 2);

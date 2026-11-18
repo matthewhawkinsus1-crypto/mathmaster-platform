@@ -290,8 +290,16 @@ export const mergeRecoveryDraftDocument = ({ existing = null, patch } = {}) => {
  * answer rather than this one. `read`/`write` are the transaction's, so the
  * client (recoveryAnswerDraftStore.js) and the emulator tests share this.
  */
-export const applyRecoveryAnswerPatch = async ({ read, write }, patch) => {
-  const existing = await read();
+export const applyRecoveryAnswerPatch = async ({ read, write }, patch) => (
+  writeRecoveryAnswerPatch(await read(), patch, write)
+);
+
+/**
+ * Its write, for a document already read (`existing`): what the transaction
+ * that read the server copy as the Recovery opened writes with its first save
+ * (recoveryAnswerDraftStore.js openRecoveryAnswerDraft).
+ */
+export const writeRecoveryAnswerPatch = (existing, patch, write) => {
   const merged = mergeRecoveryDraftDocument({ existing, patch });
   write(merged);
   const sent = new Set(patch.entries.map((entry) => entry.key));

@@ -47,20 +47,34 @@ export const checkpointSchedulerFirestore = (collections) => {
       },
     };
   };
-  const query = (collection, state = { filters: [], fields: null, limit: null }) => ({
+  const query = (collection, state = { filters: [], fields: null, limit: null, orderBy: null, startAfter: null }) => ({
     where: (field, op, value) => query(collection, { ...state, filters: [...state.filters, { field, op, value }] }),
     select: (...fields) => query(collection, { ...state, fields: fields.map(pathSegments) }),
     limit: (limit) => query(collection, { ...state, limit }),
+    // Document-id order and a cursor after a document, as a paged scan uses them.
+    orderBy: (field) => {
+      assert.equal(String(field), '__name__', 'the fake orders by document id only');
+      return query(collection, { ...state, orderBy: '__name__' });
+    },
+    startAfter: (cursor) => query(collection, { ...state, startAfter: typeof cursor === 'string' ? cursor : cursor.id }),
     doc: (id) => ref(`${collection}/${id}`),
     async get() {
-      reads.push({ kind: 'query', collection, filters: state.filters, fields: state.fields });
-      const docs = Object.entries(collections[collection] || {})
+      assert.ok(!state.startAfter || state.orderBy, 'a cursor needs an order');
+      let entries = Object.entries(collections[collection] || {})
         .filter(([, data]) => state.filters.every(({ field, op, value }) => {
           assert.equal(op, '==', 'the fake supports equality only');
           return data[field] === value;
-        }))
+        }));
+      if (state.orderBy) entries = entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+      if (state.startAfter) entries = entries.filter(([id]) => id > state.startAfter);
+      const docs = entries
         .slice(0, state.limit ?? undefined)
         .map(([id, data]) => ({ id, ref: ref(`${collection}/${id}`), exists: true, data: () => project(data, state.fields) }));
+      // `returned`: Firestore bills a query by the documents it returns (one if none).
+      reads.push({
+        kind: 'query', collection, filters: state.filters, fields: state.fields,
+        orderBy: state.orderBy, startAfter: state.startAfter, limit: state.limit, returned: docs.length,
+      });
       return { docs, empty: docs.length === 0, size: docs.length };
     },
   });

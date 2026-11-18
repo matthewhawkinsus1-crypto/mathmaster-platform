@@ -168,7 +168,9 @@ test('both student date displays read the student\'s lifecycle, not the class da
   assert.match(dashboard, /import \{[^}]*\bstudentDueDateLines\b[^}]*\} from '\.\.\/\.\.\/assignmentLifecycle';/);
   assert.match(dashboard, /const dates = studentDueDateLines\(assignment, lifecycle\);/);
   assert.match(dashboard, /studentDueDateLines\(resumeAssignment, resumeLifecycle\)\.dueLine/);
-  assert.match(app, /const dates = studentDueDateLines\(assignment, lifecycle\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
+  // The workspace header's lines, from the student's own lifecycle (kept
+  // until the assignment or that lifecycle changes: App's render work).
+  assert.match(app, /const dates = renderMemo\('dueDateLines', \[assignment, lifecycle\], \(\) => studentDueDateLines\(assignment, lifecycle\)\); return <>\{dates\.dueLine\}\{dates\.finalLine \? <><br \/>\{dates\.finalLine\}<\/> : null\}<\/>;/);
   // The name is in App's import block from assignmentLifecycle (wherever in
   // the list): a call with no import passes every other gate (AGENTS.md).
   const lifecycleImport = app.match(/import \{([^}]*)\} from '\.\/assignmentLifecycle';/);

@@ -75,6 +75,12 @@ export const workedSolutionDepth = (stored) => {
 
 export const hasAuthoredCommonError = (question) => Boolean(clean(safely(() => buildPrivateSupport(question || {}).solutionReview?.commonError, '')));
 
+// The two notes that cover many questions at once, written for any list of
+// question numbers: Review shows each once for the whole assignment, and the
+// Question Editor gives each question its own (questionPreflightFindings.js).
+export const answerOnlyNote = (numbers = []) => `${numbers.length === 1 ? 'Question' : `${numbers.length} questions —`} ${numbersText(numbers)} ${numbers.length === 1 ? 'shows' : 'show'} only the answer after the last try, with no worked steps. Add solutionReview.reasoning (a few short steps) so a student who missed it can see how to get there.`;
+export const noCommonErrorNote = (numbers = []) => `${numbers.length === 1 ? 'Question' : `${numbers.length} questions —`} ${numbersText(numbers)} ${numbers.length === 1 ? 'has' : 'have'} no solutionReview.commonError. One line naming the usual mistake is shown to every student who reads the worked solution.`;
+
 export const auditAssignmentSolutionReviews = (questions = [], { deliveredOnly = true } = {}) => {
   const answerOnly = [];
   const noCommonError = [];
@@ -87,12 +93,8 @@ export const auditAssignmentSolutionReviews = (questions = [], { deliveredOnly =
     optionRationaleProblems(question).forEach((problem) => reasonProblems.push(`Question ${number}: ${problem}.`));
   });
   const warnings = [];
-  if (answerOnly.length) {
-    warnings.push(`${answerOnly.length === 1 ? 'Question' : `${answerOnly.length} questions —`} ${numbersText(answerOnly)} ${answerOnly.length === 1 ? 'shows' : 'show'} only the answer after the last try, with no worked steps. Add solutionReview.reasoning (a few short steps) so a student who missed it can see how to get there.`);
-  }
-  if (noCommonError.length) {
-    warnings.push(`${noCommonError.length === 1 ? 'Question' : `${noCommonError.length} questions —`} ${numbersText(noCommonError)} ${noCommonError.length === 1 ? 'has' : 'have'} no solutionReview.commonError. One line naming the usual mistake is shown to every student who reads the worked solution.`);
-  }
+  if (answerOnly.length) warnings.push(answerOnlyNote(answerOnly));
+  if (noCommonError.length) warnings.push(noCommonErrorNote(noCommonError));
   warnings.push(...reasonProblems);
   return { warnings, answerOnly, noCommonError };
 };

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useHostSubmitLabel, useMethodWithheld, useSubmitLabel } from '../shared/ToolRuntimeContext';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
@@ -40,6 +41,23 @@ import {
   toggleBuiltEndpoint as toggledBuiltEndpoints,
   togglePendingEndpoint,
 } from './endpointEditing.js';
+
+/*
+ * WHAT A SAVED NUMBER LINE MAY RESTORE (toolDraftShape.js). A built interval is
+ * { min, max, minClosed, maxClosed }, a missing or null end being infinite;
+ * the endpoint still waiting for its partner is { value, closed }. An entry
+ * that is not an interval (null, a number) threw on every load, because every
+ * interval is read for its ends; it is dropped, an end that is not a value is
+ * read as infinite, and the other intervals come back as drawn.
+ */
+const INTERVAL_END = s.nullable(s.cell());
+const normalizeBuiltIntervals = draftNormalizer(s.list(s.record({
+  min: INTERVAL_END,
+  max: INTERVAL_END,
+  minClosed: s.boolean(),
+  maxClosed: s.boolean(),
+})));
+const normalizePendingEndpoint = draftNormalizer(s.nullable(s.record({ value: s.required(s.number()), closed: s.boolean() })));
 
 const INF = Number.POSITIVE_INFINITY;
 const { WIDTH, HEIGHT, PAD } = NUMBER_LINE_GEOMETRY;
@@ -243,8 +261,8 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
    * always a real endpoint the student stopped on, and a sudden shutdown
    * mid-drag can cost at most a fraction of one gesture.
    */
-  const [pending, setPending] = usePersistentToolState('pending', null, { coalesceMs: TOOL_DRAFT_COALESCE_MS });
-  const [built, setBuilt] = usePersistentToolState('built', [], { coalesceMs: TOOL_DRAFT_COALESCE_MS });
+  const [pending, setPending] = usePersistentToolState('pending', null, { coalesceMs: TOOL_DRAFT_COALESCE_MS, normalize: normalizePendingEndpoint });
+  const [built, setBuilt] = usePersistentToolState('built', [], { coalesceMs: TOOL_DRAFT_COALESCE_MS, normalize: normalizeBuiltIntervals });
   const [closedEnd, setClosedEnd] = usePersistentToolState('closedEnd', true);
   const [notation, setNotation] = usePersistentToolState('notation', '');
   const [inequality, setInequality] = usePersistentToolState('inequality', '');

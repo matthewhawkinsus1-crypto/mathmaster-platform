@@ -10,6 +10,7 @@ import {
 } from '../../src/platform/assignments/assignmentRuntimeRepair.js';
 import { ALGEBRA_WORKSPACE_ROUTES, resolveAlgebraWorkspaceRoute } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
 import { parseRelationSource, relationStateToLatex, relationStateToText } from '../../src/algebraRelationFoundation.js';
+import { relationStateLatex } from '../../src/relationRadicalToolsModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 // ROUTES THAT OPENED THE WRONG MATHEMATICS (Job 1 routing + Job 4 mismatches).
@@ -113,7 +114,10 @@ test('the relation work history renders classroom math, not solver syntax', () =
 
   const core = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
   const emit = region(core, 'onRelationDisplayChange?.(', ')', 'the display emission');
-  assert.match(emit, /relationStateToLatex\(relationState/);
+  // relationStateLatex is relationStateToLatex wherever that can draw the
+  // state, and text where it cannot, never an exception (typedValueRenderSweep).
+  assert.match(emit, /relationStateLatex\(relationState/);
+  assert.equal(relationStateLatex(state), latex, 'the history holds the same classroom math');
 
   const wrapper = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
   assert.match(wrapper, /onRelationDisplayChange=\{handleRelationDisplayChange\}/);

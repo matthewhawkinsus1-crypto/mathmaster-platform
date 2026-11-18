@@ -3,6 +3,7 @@ import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import Dialog from './ui/Dialog.jsx';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import graphScenarioMatchGrader from '../functions/shared/serverGrading/tools/graphScenarioMatch.mjs';
 import { scenarioMatchWork } from '../functions/shared/toolMath/scenario/scenarioWork.mjs';
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
@@ -22,6 +23,8 @@ const isVisibleInside = (childRect, paneRect) => (
 );
 
 const NO_MATCHES = Object.freeze({});
+// The saved matches: the graph id given to each scenario id.
+const MATCHES_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftShape.cell())));
 
 export default function GraphScenarioMatch({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const scenarios = useMemo(
@@ -32,7 +35,7 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
     () => (Array.isArray(question.graphs) ? question.graphs.filter((item) => item?.id && item?.graph) : []),
     [question.graphs],
   );
-  const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-scenario-match` : null);
+  const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-scenario-match` : null, { normalize: MATCHES_DRAFT });
   // A restored draft of `null` must not become a new `{}` per render: the
   // connector layout effect depends on `matches` and sets state every time.
   const matches = history.value || NO_MATCHES;

@@ -42,7 +42,10 @@ test('student home reads the caller-only weekly goal snapshot before declaring a
     read('src/platform/path/pathStore.js'),
     read('functions/index.js'),
   ]);
-  assert.match(app, /fetchStudentWeeklyPathGoalSnapshot/);
+  // Home asks the page's week for the frozen goal too (goal: true), which is
+  // pathStore's fetchStudentWeeklyPathGoalSnapshot (studentWeeklyPath.js).
+  assert.match(app, /studentWeeklyPathFacts\.follow\(currentWeekKey, \{\s*goal: true,/);
+  assert.match(store, /goal: fetchStudentWeeklyPathGoalSnapshot,/);
   assert.match(store, /getStudentWeeklyPathGoalSnapshot/);
   assert.match(functions, /exports\.getStudentWeeklyPathGoalSnapshot/);
   assert.match(functions, /const \{ studentId \} = requireStudent\(request\)/);
