@@ -55,6 +55,8 @@ import { QuestionResolutionFailure } from '../../QuestionResolutionBoundary.jsx'
 import { QUESTION_RESOLUTION_FAILURE, recoveryForFailure } from '../../platform/generation/familyPinReplay.js';
 import { normalizeDeliveryPin } from '../../../functions/shared/questionGenerationIdentity.mjs';
 import { RECOVERY_ANSWER_SAVED_WHERE, describeSavedRecoveryAnswer } from '../../platform/recovery/recoveryAnswerDrafts.js';
+import { readRecoveryStepRecords, readRecoveryUnavailable } from '../../platform/recovery/recoveryDeviceRecords.js';
+import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics.js';
 import useRecoveryAnswerDrafts from './useRecoveryAnswerDrafts.js';
 import { RECOVERY_PRACTICE_ANSWERS, RECOVERY_PRACTICE_ONE_ANSWER, recoveryAttemptLimit } from '../../platform/recovery/recoveryPracticeAttempts.js';
 import { recoveryMeterRule, recoveryPracticeOutcomeMessage } from '../../platform/recovery/recoveryPracticeCopy.js';
@@ -84,13 +86,27 @@ const storageKeyFor = ({ kind, studentId, assignmentId, section, opportunity }) 
   `mathmaster:recovery-${kind}:${encodeURIComponent(studentId)}:${encodeURIComponent(assignmentId)}:${section}:o${opportunity}`
 );
 
-const readSaved = (key) => {
+/*
+ * This device's bookkeeping, read back through its shape
+ * (recoveryDeviceRecords.js `read`): a damaged step record or mark is dropped,
+ * never shown as a try used or a question MathMaster could not show, and never
+ * thrown as the Recovery opens; the rest comes back as saved. What was dropped
+ * is reported once, as a repaired draft is.
+ */
+const readSaved = (key, read, what) => {
+  let parsed = null;
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(key) || 'null');
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    parsed = JSON.parse(window.localStorage.getItem(key) || 'null');
   } catch {
     return {};
   }
+  const { value, issues } = read(parsed);
+  if (issues.length) {
+    const message = `${what}: ${issues.join(', ')}`;
+    console.warn(`MathMaster repaired this device's Recovery record before showing it — ${message}`);
+    recordClientDiagnostic({ kind: 'draft-repaired', source: 'recovery-device', message });
+  }
+  return value;
 };
 
 const writeSaved = (key, value) => {
@@ -588,7 +604,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
     legacyKey: responsesKey,
   });
   const { responses } = drafts;
-  const [stepRecords, setStepRecords] = useState(() => readSaved(stepsKey));
+  const [stepRecords, setStepRecords] = useState(() => readSaved(stepsKey, readRecoveryStepRecords, 'step records'));
   // Tries used up here, or on another device (the draft's flag).
   const itemOver = (itemId) => isOver(stepRecords[itemId]) || drafts.closed[itemId] === true;
   const [position, setPosition] = useState(() => Math.max(0, items.findIndex((item) => !submittedIds.has(item.itemId))));
@@ -597,7 +613,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
   // itemId -> classification, for each question this device could not show.
   // Kept on the device like the answers, so leaving and coming back still
   // reports it (and the Submit warning never calls it incorrect).
-  const [unavailable, setUnavailable] = useState(() => readSaved(unavailableKey));
+  const [unavailable, setUnavailable] = useState(() => readSaved(unavailableKey, readRecoveryUnavailable, 'questions not shown'));
   const { renderedRef, dealt: dealtByPin, noteDealt } = useDealtQuestions();
   const policy = useMemo(() => assessmentPolicy(entry.section), [entry.section]);
 

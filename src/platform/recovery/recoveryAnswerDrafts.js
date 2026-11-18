@@ -51,6 +51,27 @@ export const MAX_RECOVERY_ANSWER_ENTRIES = 120;
 export const MAX_RECOVERY_ANSWER_BYTES = 60_000;
 export const MAX_RECOVERY_DOCUMENT_BYTES = 400_000;
 
+/*
+ * A STORED VALUE IS READ AS TEXT OR A NUMBER WITHOUT THROWING. This device's
+ * copy, an older build's key and the server's copy are each whatever some
+ * build wrote, or damage left; a record whose toString is not a function
+ * cannot be turned into text or a number at all, and String or Number threw on
+ * it. Reading this device's copy, that took the whole Recovery down as it
+ * opened; reading the server's, it failed the read, so every answer the
+ * account held was missing on every device. Such a value reads as nothing.
+ */
+const asText = (value) => {
+  try { return String(value ?? ''); } catch { return ''; }
+};
+const asNumber = (value) => {
+  try { return Number(value); } catch { return Number.NaN; }
+};
+// A time a copy was saved at: a finite number of milliseconds, else none.
+const asStamp = (value) => {
+  const stamp = asNumber(value);
+  return Number.isFinite(stamp) ? Math.max(0, stamp) : 0;
+};
+
 /** The draft document's own assignment id: never the assignment's, so no assignment-draft reader sees it. */
 export const recoveryDraftAssignmentId = (assignmentId) => `${String(assignmentId ?? '')}-recovery`;
 
@@ -65,7 +86,7 @@ export const recoveryAnswerKey = ({ section, opportunity = 1, itemId } = {}) => 
 );
 
 export const parseRecoveryAnswerKey = (key) => {
-  const match = /^recovery-answer:([^:]*):o(\d+):([^:]+)$/.exec(String(key || ''));
+  const match = /^recovery-answer:([^:]*):o(\d+):([^:]+)$/.exec(asText(key || ''));
   if (!match) return null;
   try {
     return { section: decodeURIComponent(match[1]), opportunity: Number(match[2]), itemId: decodeURIComponent(match[3]) };
@@ -107,7 +128,7 @@ export const forbiddenRecoveryDraftPath = (value, path = '', depth = 0) => {
   return null;
 };
 
-const text = (value, max) => String(value ?? '').slice(0, max);
+const text = (value, max) => asText(value).slice(0, max);
 
 /**
  * The student's answer, and nothing else, or null when it cannot be stored.
@@ -118,6 +139,15 @@ const text = (value, max) => String(value ?? '').slice(0, max);
  */
 export const projectRecoveryAnswer = (response) => {
   if (!response || typeof response !== 'object' || Array.isArray(response)) return null;
+  // A stored response read back may hold what nothing can read (above): then
+  // it is no answer this can store, as any other it cannot.
+  try {
+    return projectedRecoveryAnswer(response);
+  } catch {
+    return null;
+  }
+};
+const projectedRecoveryAnswer = (response) => {
   let projected;
   if (response.kind === 'tool') {
     const tool = normalizeToolResponse(response);
@@ -210,7 +240,7 @@ export const newerRecoveryEntry = (current, incoming) => {
 
 /** One entry as stored, or null when it may not be. */
 export const storableRecoveryEntry = (entry) => {
-  const key = String(entry?.key || '');
+  const key = asText(entry?.key || '');
   if (!parseRecoveryAnswerKey(key)) return null;
   let value = entry?.value;
   if (value === undefined && typeof entry?.valueJson === 'string') {
@@ -223,13 +253,13 @@ export const storableRecoveryEntry = (entry) => {
   return {
     key,
     valueJson,
-    savedAt: Math.max(0, Number(entry?.savedAt) || 0),
+    savedAt: asStamp(entry?.savedAt),
     // The workspace-draft entry shape (workspaceDraftSchema.mjs); a Recovery
     // answer has no assignment question/variant index of its own.
     questionIndex: null,
     variantIndex: null,
     writer: text(entry?.writer, 80),
-    revision: Math.max(0, Math.floor(Number(entry?.revision) || 0)),
+    revision: Math.max(0, Math.floor(asNumber(entry?.revision) || 0)),
   };
 };
 
@@ -452,12 +482,15 @@ export const createRecoveryAnswerSync = ({
   return {
     /** This device's fallback copy, from before this page. Not yet on the server unless it says so. */
     hydrate(local = {}) {
-      Object.values(local || {}).forEach((entry) => {
-        adopt({ ...entry, synced: entry?.synced === true }, { origin: 'device' });
-        const savedAt = Number(entry?.savedAt) || 0;
+      Object.entries(local || {}).forEach(([stored, entry]) => {
+        // The copy keeps each answer under its own key (snapshot): an entry
+        // whose key was damaged is the answer its place names.
+        const key = parseRecoveryAnswerKey(entry?.key) ? entry.key : stored;
+        adopt({ ...entry, key, synced: entry?.synced === true }, { origin: 'device' });
+        const savedAt = asStamp(entry?.savedAt);
         lastStamp = Math.max(lastStamp, savedAt);
         // A copy this device already had acknowledged was on the server then.
-        if (entry?.synced === true && savedAt > (serverSavedAt.get(entry.key) || 0)) serverSavedAt.set(entry.key, savedAt);
+        if (entry?.synced === true && savedAt > (serverSavedAt.get(key) || 0)) serverSavedAt.set(key, savedAt);
       });
       // Persisted at once: a copy handed in from elsewhere (an older build's
       // key, which the caller then retires) must be on this device's own

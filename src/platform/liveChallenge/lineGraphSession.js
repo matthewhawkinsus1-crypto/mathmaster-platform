@@ -531,17 +531,51 @@ export const lineQueueKey = (roomId, roundIndex, roundVersion) => `${LINE_QUEUE_
 
 const ATTEMPT_KINDS = new Set(Object.values(LINE_ATTEMPT_KIND));
 
+/*
+ * A STORED ATTEMPT, AS THIS DEVICE QUEUED IT (recordCheck, recordSkip): its id,
+ * item and kind, and what it answers as the device writes it, a line's two
+ * points, a choice's letter, an equation's typed boxes. The server reads each
+ * with Number or String, and a stored value neither can read (a record whose
+ * toString is not a function, from damage) threw there, failing the whole
+ * batch: sent again on every retry, the queue never emptied and the round
+ * never opened on this device. An attempt whose answer is not one is dropped;
+ * a typed box or a time that is not one is left out, as the server reads a
+ * missing one.
+ */
+const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
+const isRecord = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const LINE_ANSWERS = Object.freeze({
+  [LINE_ATTEMPT_KIND.LINE]: (attempt) => Array.isArray(attempt.points) && attempt.points.length === 2
+    && attempt.points.every((point) => isRecord(point) && isFiniteNumber(point.x) && isFiniteNumber(point.y)),
+  [LINE_ATTEMPT_KIND.CHOICE]: (attempt) => typeof attempt.choice === 'string' && /^[a-d]$/.test(attempt.choice.trim()),
+  [LINE_ATTEMPT_KIND.EQUATION]: (attempt) => isRecord(attempt.fields),
+});
+const typedBox = (value) => typeof value === 'string' || isFiniteNumber(value);
+const storedLineAttempt = (attempt) => {
+  if (!isRecord(attempt)
+    || typeof attempt.attemptId !== 'string'
+    || !/^[A-Za-z0-9_-]{1,40}$/.test(attempt.attemptId)
+    || !Number.isInteger(attempt.questionIndex)
+    || !ATTEMPT_KINDS.has(attempt.kind)) return null;
+  if (LINE_ANSWERS[attempt.kind] && !LINE_ANSWERS[attempt.kind](attempt)) return null;
+  const elapsedDamaged = attempt.clientElapsedMs !== undefined && !(isFiniteNumber(attempt.clientElapsedMs) && attempt.clientElapsedMs >= 0);
+  const boxesDamaged = attempt.kind === LINE_ATTEMPT_KIND.EQUATION && !Object.values(attempt.fields).every(typedBox);
+  // Kept as stored where nothing needed leaving out, as it is resent.
+  if (!elapsedDamaged && !boxesDamaged) return attempt;
+  const { clientElapsedMs, fields, ...rest } = attempt;
+  return {
+    ...rest,
+    ...(elapsedDamaged ? {} : { clientElapsedMs }),
+    ...(fields === undefined ? {} : { fields: boxesDamaged ? Object.fromEntries(Object.entries(fields).filter(([, value]) => typedBox(value))) : fields }),
+  };
+};
+
 /** A stored queue, shape-checked: anything malformed is dropped, not sent. */
 export const parseStoredLineQueue = (raw) => {
   let parsed;
   try { parsed = JSON.parse(raw || '[]'); } catch { return []; }
   if (!Array.isArray(parsed)) return [];
-  return parsed.filter((attempt) => attempt
-    && typeof attempt.attemptId === 'string'
-    && /^[A-Za-z0-9_-]{1,40}$/.test(attempt.attemptId)
-    && Number.isInteger(attempt.questionIndex)
-    && ATTEMPT_KINDS.has(attempt.kind))
-    .slice(0, LINE_LIMITS.perRound);
+  return parsed.map(storedLineAttempt).filter(Boolean).slice(0, LINE_LIMITS.perRound);
 };
 
 /** A device's attempt id: a UUID where the browser has one, else the same alphabet (at most 40 characters). */

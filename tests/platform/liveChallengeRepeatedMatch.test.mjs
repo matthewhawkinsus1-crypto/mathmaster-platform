@@ -127,7 +127,10 @@ test('a refresh after answering keeps the round locked', () => {
 test('the server\'s answer survives a refresh in a live room, never in a rehearsal', () => {
   const round = region(student, 'export function ChallengeRound(', 'export default function LiveChallengeStudent', 'ChallengeRound');
   assert.match(round, /const resultKey = persistResult \? challengeResultKey\(room\.roomId, roundIndex, room\.roundVersion\) : null;/);
-  assert.match(round, /const \[result, setResult\] = useState\(\(\) => readStoredJson\(resultKey\)\);/);
+  // Read back on mount through its check (challengeRoundStore.js), which keeps
+  // every result the server returns (liveChallengeSavedStores.test.mjs).
+  assert.match(round, /const \[result, setResult\] = useState\(\(\) => readStoredResult\(resultKey\)\);/);
+  assert.match(student, /const readStoredResult = \(key\) => \{[\s\S]{0,120}readStoredChallengeResult\(readStoredJson\(key\)\)/);
   const settle = region(round, 'const settle = (grading) => {', '};', 'settle');
   assert.match(settle, /writeStoredJson\(resultKey, grading\);/);
   // The live screen opts in; the dry run (which can revisit a round) does not.

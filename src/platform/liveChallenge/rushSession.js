@@ -1003,16 +1003,51 @@ export const promptReserve = ({ features = [], inequality = null, systems = null
 export const rushQueueKey = (roomId, roundIndex, roundVersion) => `graph-feature-rush-queue-${roomId}-${roundIndex}-${Number(roundVersion) || 0}`;
 export const RUSH_QUEUE_KEY_PREFIX = 'graph-feature-rush-queue-';
 
+/*
+ * A STORED ATTEMPT, AS THIS DEVICE QUEUED IT. Its id, graph and kind, a tap's
+ * point and a check's drawing as the device writes them (recordTap,
+ * recordCheck), and its other fields (the tap's tolerance and pointer, the
+ * time) only when they are of their kind: one that is not is left out, as
+ * the server reads a missing one. The server reads every field with Number or
+ * String, and a stored value neither can read (a record whose toString is not
+ * a function, from damage) threw there, failing the whole batch: sent again
+ * on every retry, the queue never emptied and the round never opened on this
+ * device. An attempt whose point or drawing is not one is dropped, not sent.
+ */
+const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
+const isRecord = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const storedDrawing = (drawing) => isRecord(drawing)
+  && Array.isArray(drawing.points)
+  && drawing.points.every((point) => (Array.isArray(point)
+    ? isFiniteNumber(point[0]) && (point[1] === undefined || typeof point[1] === 'boolean')
+    : isRecord(point) && isFiniteNumber(point.value) && (point.closed === undefined || typeof point.closed === 'boolean')))
+  && ['left', 'right'].every((side) => drawing[side] === undefined || typeof drawing[side] === 'boolean');
+const OPTIONAL_ATTEMPT_FIELDS = Object.freeze({
+  tolerance: (value) => isRecord(value) && ['x', 'y'].every((axis) => value[axis] === null || value[axis] === undefined || isFiniteNumber(value[axis])),
+  pointer: (value) => typeof value === 'string' && value.length <= 24,
+  clientElapsedMs: (value) => isFiniteNumber(value) && value >= 0,
+});
+const storedRushAttempt = (attempt) => {
+  if (!isRecord(attempt)
+    || typeof attempt.attemptId !== 'string'
+    || !Number.isInteger(attempt.questionIndex)
+    || !Object.values(RUSH_ATTEMPT_KIND).includes(attempt.kind)) return null;
+  if (attempt.kind === RUSH_ATTEMPT_KIND.TAP && !(isFiniteNumber(attempt.x) && isFiniteNumber(attempt.y))) return null;
+  if (attempt.kind === RUSH_ATTEMPT_KIND.CHECK && !storedDrawing(attempt.drawing)) return null;
+  const damaged = Object.entries(OPTIONAL_ATTEMPT_FIELDS)
+    .filter(([field, valid]) => attempt[field] !== undefined && !valid(attempt[field]))
+    .map(([field]) => field);
+  // Kept as stored where nothing needed leaving out, as it is resent.
+  if (!damaged.length) return attempt;
+  return Object.fromEntries(Object.entries(attempt).filter(([field]) => !damaged.includes(field)));
+};
+
 /** A stored queue, shape-checked: anything malformed is dropped, not sent. */
 export const parseStoredQueue = (raw) => {
   let parsed;
   try { parsed = JSON.parse(raw || '[]'); } catch { return []; }
   if (!Array.isArray(parsed)) return [];
-  return parsed.filter((attempt) => attempt
-    && typeof attempt.attemptId === 'string'
-    && Number.isInteger(attempt.questionIndex)
-    && Object.values(RUSH_ATTEMPT_KIND).includes(attempt.kind))
-    .slice(0, RUSH_LIMITS.perRound);
+  return parsed.map(storedRushAttempt).filter(Boolean).slice(0, RUSH_LIMITS.perRound);
 };
 
 /** A device's attempt id: a UUID where the browser has one, else the same alphabet. */

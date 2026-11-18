@@ -213,8 +213,11 @@ test('server and student contracts include idempotency, immediate lock, trust bo
   assert.match(student, /performance\.now\(\) - roundOriginMonoRef\.current/);
   assert.match(student, /Retry locked answer/);
   assert.match(student, /addEventListener\('online', recover\)/);
-  // The locked envelope survives a reload: it is read back from storage on mount.
-  assert.match(student, /const \[pending, setPending\] = useState\(\(\) => readStoredJson\(pendingKey\)\)/);
+  // The locked envelope survives a reload: it is read back from storage on
+  // mount, through its check (challengeRoundStore.js), which keeps every
+  // envelope the round writes (liveChallengeSavedStores.test.mjs).
+  assert.match(student, /const \[pending, setPending\] = useState\(\(\) => readStoredPending\(pendingKey, \{ roomId: room\.roomId, roundIndex, roundVersion: room\.roundVersion \}\)\)/);
+  assert.match(student, /const readStoredPending = \(key, round\) => \{[\s\S]{0,120}readStoredPendingAnswer\(readStoredJson\(key\), round\)/);
   assert.match(student, /const readStoredJson = \(key\) => \{[\s\S]{0,80}JSON\.parse\(window\.localStorage\.getItem\(key\)/);
   assert.match(student, /const recover = \(\) => retryPending\(\)/);
   assert.match(student, /submitResponse\(pending\)/);
