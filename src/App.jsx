@@ -131,6 +131,7 @@ import {
 import {
   buildQuestionDraftKey,
   clearResumeAction,
+  draftsOfQuestionChanged,
   questionDraftSavedAt,
   readResumeAction,
   reconcileFieldRecordDrafts,
@@ -4438,10 +4439,16 @@ function App() {
           // then restored whole. Neither settle reads an entry older than the
           // question's last submitted attempt: its fields are an older
           // attempt's (PR #458 review).
-          const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
-          const fieldRecords = reconcileFieldRecordDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt });
-          const restored = restoreQuestionDrafts(restorable.filter((entry) => !fieldRecords.keys.has(entry.key)));
-          if (restored || settled || fieldRecords.settled) {
+          // Every draft this read changed on this device, by key. Only the
+          // question on screen is remounted, and only for a draft of its own:
+          // another question reads its restored work when it opens, and
+          // remounting this one for it lost the key in flight, moved the caret
+          // and a screen reader's place (draftsOfQuestionChanged).
+          const changed = new Set();
+          reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt, changed });
+          const fieldRecords = reconcileFieldRecordDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId, canonicalSavedAt, changed });
+          restoreQuestionDrafts(restorable.filter((entry) => !fieldRecords.keys.has(entry.key)), { changed });
+          if (draftsOfQuestionChanged(changed, currentQuestionIndexRef.current)) {
             setDraftRestoreFocus({
               questionIndex: currentQuestionIndexRef.current,
               position: answerFocusPosition(assignmentQuestionStageRef.current),

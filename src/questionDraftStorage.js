@@ -394,9 +394,11 @@ export const questionDraftRestoreGeneration = () => restoreGeneration;
  * back — as what they are, not edits, so those writes never outrank the copy
  * arriving here (see writeQuestionDraft). App then remounts the question
  * (`workspaceDraftGeneration`), and every workspace reads what was restored,
- * exactly as if the student had never left.
+ * exactly as if the student had never left — when one of the drafts restored
+ * is that question's own: `changed`, a Set the caller passes, collects the
+ * key of every draft restored here (draftsOfQuestionChanged, below).
  */
-export const restoreQuestionDrafts = (entries = []) => {
+export const restoreQuestionDrafts = (entries = [], { changed = null } = {}) => {
   if (!storageAvailable()) return 0;
   let restored = 0;
   (Array.isArray(entries) ? entries : []).forEach((entry) => {
@@ -423,6 +425,7 @@ export const restoreQuestionDrafts = (entries = []) => {
         ...(resetAt ? { resetAt } : {}),
       }));
       restored += 1;
+      changed?.add(key);
     } catch {
       // Out of quota: the student keeps whatever this device already had.
     }
@@ -466,10 +469,11 @@ const currentServerEntries = (entries, canonicalSavedAt) => new Map((Array.isArr
  * Without this, a Chromebook whose student touched the question before the
  * read landed went on showing only that touch, and its next save carried the
  * partial record as the newest copy of the whole workspace. Returns how many
- * records were settled; the caller remounts the question when it is not 0,
- * as for restoreQuestionDrafts.
+ * records were settled; a Set passed as `changed` collects the keys of those
+ * whose fields changed here, and the caller remounts the question on screen
+ * when one is its own (draftsOfQuestionChanged).
  */
-export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0 } = {}) => {
+export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0, changed = null } = {}) => {
   if (!storageAvailable() || !studentId || !assignmentId) return 0;
   const prefix = `${DRAFT_PREFIX}:${normalizeKeyPart(studentId)}:${normalizeKeyPart(assignmentId)}:`;
   const server = currentServerEntries(entries, canonicalSavedAt);
@@ -500,6 +504,10 @@ export const reconcileToolWorkspaceDrafts = (entries = [], { studentId, assignme
     try {
       window.localStorage.setItem(key, JSON.stringify(next));
       settled += 1;
+      // A record kept as it was, only no longer fresh, changes nothing the
+      // question shows: like an unchanged answer (reconcileFieldRecordDrafts),
+      // it needs no remount. Cached copies still read it again (below).
+      if (orderedJson(next.value) !== orderedJson(toolWorkspaceFields(envelope.value))) changed?.add(key);
     } catch {
       // Out of quota: the record stays fresh here, and the server merge still
       // keeps the server's copy whole.
@@ -592,12 +600,13 @@ const sameAnswers = (kind, left, right) => orderedJson(withoutEmptyPromptAnswers
  * question's last submitted attempt are left out (`canonicalSavedAt`), and a
  * draft this device does not hold at all is left to restoreQuestionDrafts.
  *
- * Returns `{ settled, keys }`: how many drafts changed here (the caller
- * remounts the question when it is not 0) and every key settled here, which
- * the caller must not then restore whole. Fresh markers go either way: this
- * device has now seen the server's copy.
+ * Returns `{ settled, keys }`: how many drafts changed here and every key
+ * settled here, which the caller must not then restore whole. A Set passed as
+ * `changed` collects the key of each draft that changed (the caller remounts
+ * the question on screen when one is its own: draftsOfQuestionChanged). Fresh
+ * markers go either way: this device has now seen the server's copy.
  */
-export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0 } = {}) => {
+export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignmentId, canonicalSavedAt = () => 0, changed: changedKeys = null } = {}) => {
   const keys = new Set();
   if (!studentId || !assignmentId) return { settled: 0, keys };
   const prefix = assignmentDraftPrefix(studentId, assignmentId);
@@ -664,7 +673,10 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
     };
     try {
       window.localStorage.setItem(key, JSON.stringify(next));
-      if (changed) settled += 1;
+      if (changed) {
+        settled += 1;
+        changedKeys?.add(key);
+      }
       // Unchanged answers need no remount, and the page already shows them:
       // it is caught up with this copy's time, so its write-backs still count.
       else if (pageView.has(key)) pageView.set(key, { ...pageView.get(key), savedAt: merged.savedAt });
@@ -677,6 +689,28 @@ export const reconcileFieldRecordDrafts = (entries = [], { studentId, assignment
   if (settled) restoreGeneration += 1;
   return { settled, keys };
 };
+
+/*
+ * ONLY THE QUESTION WHOSE DRAFT CHANGED IS REMOUNTED (issue #386, after R12).
+ *
+ * The server's copy of a student's drafts covers the whole assignment, and App
+ * remounted the question on screen whenever any draft in it was restored or
+ * settled. A newer copy of another question's work (typed on another
+ * Chromebook, read as the lesson opened or when the page came back) remounted
+ * the question the student was typing in: in the real App, at 4x and 6x CPU
+ * throttling, on a Chromebook and a phone, every such read did (80 of 80
+ * runs). The box was without the cursor for about 50 to 75 ms while the
+ * question was rebuilt, and a key typed then was lost (11 of the 80); a
+ * Chromebook's caret went to the end of the box (40 of 40), and a screen
+ * reader's place in the question went with the old one. Another question
+ * reads its restored drafts when it opens; the question on screen is
+ * remounted only for a draft of its own (draftCrossDeviceJourneys.mjs,
+ * `other`).
+ */
+export const draftsOfQuestionChanged = (changedKeys, questionIndex) => (
+  Number.isInteger(questionIndex)
+  && [...(changedKeys || [])].some((key) => parseQuestionDraftKey(key)?.questionIndex === questionIndex)
+);
 
 export const removeQuestionDraft = (key) => {
   if (!key) return;

@@ -615,9 +615,11 @@ test('App.jsx settles field-record drafts on the server read and does not then r
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   assert.match(app, /import \{[^}]*\breconcileFieldRecordDrafts\b[^}]*\} from '\.\/questionDraftStorage';/, 'imported next to its call');
   const read = region(app, 'const readServerCopy = () => {', '.catch((error) => {');
-  assert.match(read, /const fieldRecords = reconcileFieldRecordDrafts\(entries, \{ studentId: user\.id, assignmentId: activeAssignmentId, canonicalSavedAt \}\);/);
-  assert.match(read, /reconcileToolWorkspaceDrafts\(entries, \{ studentId: user\.id, assignmentId: activeAssignmentId, canonicalSavedAt \}\)/, 'the tool settle reads the canonical guard too');
-  assert.match(read, /restoreQuestionDrafts\(restorable\.filter\(\(entry\) => !fieldRecords\.keys\.has\(entry\.key\)\)\)/);
-  assert.match(read, /if \(restored \|\| settled \|\| fieldRecords\.settled\) \{/);
+  assert.match(read, /const fieldRecords = reconcileFieldRecordDrafts\(entries, \{ studentId: user\.id, assignmentId: activeAssignmentId, canonicalSavedAt, changed \}\);/);
+  assert.match(read, /reconcileToolWorkspaceDrafts\(entries, \{ studentId: user\.id, assignmentId: activeAssignmentId, canonicalSavedAt, changed \}\)/, 'the tool settle reads the canonical guard too');
+  assert.match(read, /restoreQuestionDrafts\(restorable\.filter\(\(entry\) => !fieldRecords\.keys\.has\(entry\.key\)\), \{ changed \}\)/);
+  // A draft whose answers changed here remounts its question when it is the
+  // one on screen (draftRestoreRemountScope.test.mjs).
+  assert.match(read, /if \(draftsOfQuestionChanged\(changed, currentQuestionIndexRef\.current\)\) \{/);
   assert.ok(read.indexOf('reconcileFieldRecordDrafts(') < read.indexOf('restoreQuestionDrafts('), 'settled before anything is restored whole');
 });

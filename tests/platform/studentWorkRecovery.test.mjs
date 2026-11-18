@@ -1091,7 +1091,7 @@ test('only what the fresh device\'s student edited overrides; a newer copy that 
   assert.deepEqual(readWorkspaceDraftEntries(applyPatch(freshStored, own)).find((entry) => entry.key === BOARD_KEY).value, { slopeInterceptEquation: 'y=4x' });
 });
 
-test('the server read settles a workspace this device started from nothing before restoring, and remounts for either', () => {
+test('the server read settles a workspace this device started from nothing before restoring, and remounts the open question for either', () => {
   const app = appSource.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
   assert.match(app, /import \{[^}]*\breconcileToolWorkspaceDrafts\b[^}]*\} from '\.\/questionDraftStorage';/, 'imported next to its call');
   const start = app.indexOf('const readServerCopy = () => {');
@@ -1099,11 +1099,14 @@ test('the server read settles a workspace this device started from nothing befor
   const read = app.slice(start, app.indexOf('\n    readServerCopy();', start));
   // (It also takes the canonical guard, and field-record drafts are settled
   // beside it — Batch 3; fieldRecordDraftMerge.test.mjs.)
-  const settle = read.indexOf('const settled = reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId');
-  const restore = read.indexOf('const restored = restoreQuestionDrafts(restorable');
+  const settle = read.indexOf('reconcileToolWorkspaceDrafts(entries, { studentId: user.id, assignmentId: activeAssignmentId');
+  const restore = read.indexOf('restoreQuestionDrafts(restorable');
   assert.notEqual(settle, -1, 'the read settles fresh workspaces');
   assert.ok(restore > settle, 'before the restore, so a newer server copy is not then swapped in over the student\'s edits');
-  assert.match(read.slice(restore), /^const restored = restoreQuestionDrafts\(restorable\b[^;]*;\s*if \(restored \|\| settled\b[^)]*\) \{[\s\S]*?setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/, 'and the question remounts for either');
+  // Both report what they wrote in, and the question on screen remounts for
+  // either when it is one of its own drafts (draftRestoreRemountScope.test.mjs).
+  assert.match(read.slice(settle), /^reconcileToolWorkspaceDrafts\(entries, \{[^}]*\bchanged \}\);/, 'the settle reports the workspaces it changed');
+  assert.match(read.slice(restore), /^restoreQuestionDrafts\(restorable\b[^;]*\{ changed \}\);\s*if \(draftsOfQuestionChanged\(changed, currentQuestionIndexRef\.current\)\) \{[\s\S]*?setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/, 'and the question remounts for either');
 });
 
 test('a merge that would outgrow the value cap falls back to the newer copy, whole', () => {
