@@ -328,7 +328,7 @@ test('the sweep reads every surface the opener floats over, at the phones, at 20
   assert.deepEqual([...STAGED_SCENES], ['legacy-functionCharacteristics', 'legacy-relationshipModel']);
   assert.deepEqual(STAGED_SIZES.map((size) => size.id), [...SIZES.map((size) => size.id), '1366x768@200%', '1920x1080']);
   const sweep = read('tests/browser/workViewOpenerCover.mjs');
-  assert.match(sweep, /const checks = new Set\(\(arg\('check'\) \|\| 'cover,badges,scroll,staged,settle'\)\.split\(','\)\);/);
+  assert.match(sweep, /const checks = new Set\(\(arg\('check'\) \|\| 'cover,badges,scroll,staged,settle,hint'\)\.split\(','\)\);/);
   assert.match(sweep, /if \(!m\.flow && m\.body\[0\] < STEP_MIN_ROOM\) problems\.push\(/, 'a step with no room fails');
   // The question's results never drawn over the step (the review of 2026-11-18: in a flowing view they were).
   assert.match(sweep, /step\.resultsOverStep = resultsBox\.top < stepBox\.bottom - 1 && resultsBox\.bottom > stepBox\.top \+ 1;/);
@@ -360,6 +360,64 @@ test('the sweep reads every surface the opener floats over, at the phones, at 20
   assert.match(harness, /questionFromToolPayload\(buildPublicToolPayload\(authored\)\)/, 'as My Math Path delivers it');
 });
 
+test('the sweep presses "Show a hint" on every staged step, and fails a hint out of sight or focus left on the page', async () => {
+  const { HINT_SIZES, HINT_SCENES, HINT_SETTLE_MS, SETTLE_SCENES, STAGED_SCENES, hintProblems } = await import('../browser/workViewOpenerCover.mjs');
+  // Where a step switched to flowing under its hint (the review of 2026-11-18): a Chromebook with and without its
+  // shelf, a 1280x689 laptop, and three phones, by touch.
+  assert.deepEqual(HINT_SIZES.map((size) => size.id), ['1366x768', '1366x657', '1280x689', '390x844', '360x740', '412x915']);
+  assert.deepEqual(HINT_SIZES.filter((size) => size.phone).map((size) => size.id), ['390x844', '360x740', '412x915']);
+  for (const size of HINT_SIZES) assert.equal(`${size.width}x${size.height}`, size.id);
+  assert.ok(HINT_SIZES.every((size) => size.textScale === 1));
+  // Every step of the harness's staged questions: its staged table and the two staged question types.
+  assert.equal(HINT_SCENES, SETTLE_SCENES);
+  assert.deepEqual([...HINT_SCENES], ['ux-staged-table', ...STAGED_SCENES]);
+  assert.ok(HINT_SETTLE_MS >= 1000, 'the step has flowed, and its plane been capped, before it is read');
+
+  // As measured on the base at 1366x768, the staged table: the hint 873px down a view that ends at 767, the button
+  // pressed gone and focus on <body>.
+  const hidden = { flow: true, view: [58, 767], scrollTop: 0, hint: { top: 873, bottom: 1009, height: 136, seen: 0 }, focus: { on: 'body', hint: false, panel: false } };
+  assert.deepEqual(hintProblems(hidden), [
+    'the newest hint has 0 of its 136px in sight once the step has settled (the view scrolling as one, scrolled 0px)',
+    'focus is on body, not on the hint or its panel',
+  ]);
+  // Whole where it fits: Axis of symmetry at 1366x657 showed 132 of its 136px, and that fails too.
+  const cut = { ...hidden, hint: { top: 635, bottom: 771, height: 136, seen: 132 }, focus: { on: 'li', hint: true, panel: true } };
+  assert.deepEqual(hintProblems(cut), ['the newest hint has 132 of its 136px in sight once the step has settled (the view scrolling as one, scrolled 0px)']);
+  assert.deepEqual(hintProblems({ ...cut, flow: false, scrollTop: 12 }), ['the newest hint has 132 of its 136px in sight once the step has settled (a bounded step, scrolled 12px)']);
+  // In sight, and focus on the hint or anywhere in its panel: nothing.
+  const fixed = { ...hidden, scrollTop: 242, hint: { top: 631, bottom: 767, height: 136, seen: 136 }, focus: { on: 'li', hint: true, panel: true } };
+  assert.deepEqual(hintProblems(fixed), []);
+  assert.deepEqual(hintProblems({ ...fixed, hint: { ...fixed.hint, seen: 135 } }), [], 'a pixel of rounding is not a fault');
+  assert.deepEqual(hintProblems({ ...fixed, focus: { on: 'section', hint: false, panel: true } }), [], 'the panel, while a rung loads');
+  // Focus anywhere else is not the hint: the page, or a control left in the step.
+  assert.deepEqual(hintProblems({ ...fixed, focus: { on: 'button.workflow-focus__nav-button "Next step"', hint: false, panel: false } }), ['focus is on button.workflow-focus__nav-button "Next step", not on the hint or its panel']);
+  // A hint taller than the view fills it.
+  assert.deepEqual(hintProblems({ ...fixed, view: [58, 300], hint: { top: 40, bottom: 400, height: 360, seen: 242 } }), []);
+  assert.equal(hintProblems({ ...fixed, view: [58, 300], hint: { top: 100, bottom: 460, height: 360, seen: 200 } }).length, 1);
+  // A step that could not be read is not a pass.
+  assert.deepEqual(hintProblems(null), ['Work View did not stay open on the staged step']);
+  assert.deepEqual(hintProblems({ ...fixed, hint: null }), ['"Show a hint" opened no hint']);
+
+  // Run by default; on each step the first hint is offered again (the help a question had is kept across a remount),
+  // the offer under the work is pressed as a student presses it, and each problem fails the size.
+  const sweep = read('tests/browser/workViewOpenerCover.mjs');
+  const hint = region(sweep, 'const runHint = async', '\n};\n', 'the hint check');
+  assert.match(hint, /\?legacy=1&staged=1&identity=1/, 'the harness\'s staged table, with the identity bar');
+  assert.match(hint, /window\.__ux\.forgetHelp\(qid\) && window\.__ux\.atStep\(qid, at\)/);
+  assert.match(hint, /const offer = page\.locator\(`\$\{OPEN\} \.mathmaster-attempt-results \[data-first-hint-offer\] button`, \{ hasText: 'Show a hint' \}\)\.first\(\);/);
+  assert.match(hint, /if \(size\.phone\) await offer\.tap\(\);\s*else await offer\.click\(\);\s*await settled\(page, HINT_SETTLE_MS\);\s*const reading = await page\.evaluate\(READ_HINT\);/);
+  assert.match(hint, /hintProblems\(reading\)\.forEach\(\(problem\) => problems\.push\(`\$\{where\}: \$\{problem\}`\)\);/);
+  assert.match(hint, /problems\.push\(`\$\{where\}: no "Show a hint" offered under the step`\);/, 'a step with nothing to press is not a pass');
+  assert.match(sweep, /for \(const size of sized\(HINT_SIZES\)\) tasks\.push\(\(\) => runHint\(browser, origins, size\)\);/);
+  // What is read: the newest hint, the reveal's target, against the view's own box inside the window.
+  const reader = region(sweep, 'export const READ_HINT = () => {', '\n};\n', 'the hint reader');
+  assert.match(reader, /const hint = hints\[hints\.length - 1\] \|\| null;/);
+  assert.match(reader, /const bottom = Math\.min\(window\.innerHeight, s\.top \+ surface\.clientTop \+ surface\.clientHeight\);/);
+  assert.match(reader, /focus: \{ on: name\(active\), hint: Boolean\(hint\) && active === hint, panel: Boolean\(panel\?\.contains\(active\)\) \},/);
+  const harness = read('tests/browser/studentUxPlatformMain.jsx');
+  assert.match(harness, /window\.localStorage\.removeItem\(supportUseStorageKey\(draftKeyFor\(flat\)\)\);/, 'the harness forgets a question\'s help on request');
+});
+
 test('a pull request that changes the sweep, what it reads or what draws it runs the opener sweep', () => {
   const job = jobsOf(readWorkflow('work-view-browser-matrix.yml'))['work-view-opener-cover'];
   assert.ok(job, 'the job is in the Work View workflow');
@@ -378,7 +436,7 @@ test('a pull request that changes the sweep, what it reads or what draws it runs
     'src/QuestionEngine.jsx', 'src/App.css', 'src/GraphScenarioMatch.jsx', 'src/components/labs/InteractiveModelingLabPlayer.jsx',
     'src/components/student/PathQuestionStimulus.jsx', 'src/tools/dataModeling/DataModelingLab.jsx', 'src/GraphDisplay.jsx',
     'src/platform/workflow/WorkflowRunner.jsx', 'src/platform/workflow/stepRoom.js', 'src/platform/workflow/useStepRoom.js',
-    'src/platform/workflow/WorkflowFocusMode.css',
+    'src/platform/workflow/WorkflowFocusMode.css', 'src/platform/supports/hints/hintPanelReveal.js', 'src/platform/supports/hints/HintPanel.jsx',
   ]) {
     assert.ok(runsOnPullRequest('work-view-browser-matrix.yml', file), `a change to ${file} runs the opener sweep`);
   }

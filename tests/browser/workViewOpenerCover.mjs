@@ -3,7 +3,7 @@
  *
  *   npx vite --config tests/browser/forcedColors.vite.config.mjs --host 127.0.0.1 --port 5198 --strictPort &   # stubbed harnesses
  *   npx vite --config tests/browser/teacherWorkflow/vite.config.mjs &                                          # the real app, in memory
- *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,scroll,staged,settle] [--only=<surface>,...] [--sizes=<size>,...]
+ *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,scroll,staged,settle,hint] [--only=<surface>,...] [--sizes=<size>,...]
  *
  *   AUDIT_ORIGIN (default http://127.0.0.1:5198: any server of the repository with its services stubbed, as the
  *   accessibility certification serves them), TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188),
@@ -18,7 +18,7 @@
  * y-axis under the button on a 360-390 px phone, and the colour-alone page's figures on their own drew a point and
  * its name, and a system's first equation, under it.
  *
- * WHAT. Three checks, each fails the run:
+ * WHAT. Six checks, each fails the run:
  *
  *   cover   Every opener on every surface (SURFACES), on a 390x844, 360x740 and 320x568 touch phone at 100% and
  *           200% text, and on a 1366x768 Chromebook as the control: everything a student needs whose box meets the
@@ -47,6 +47,12 @@
  *           step's point cards) is reported: it scrolls, its own step or the view. And the step's heading row is whole,
  *           on the page and in Work View: its name, its kind, its review status and its counter ("3 of 17") neither
  *           run past their own box or out of the row nor are cut off at its side (STEP_HEADING_ITEMS).
+ *   hint    On a 1366x768 and a 1366x657 Chromebook (its shelf shown), a 1280x689 laptop and a 390x844, 360x740 and
+ *           412x915 touch phone, with Work View open on every step of the staged questions and the staged table:
+ *           "Show a hint" under the step pressed (tapped on a phone), and once the step has settled the newest hint
+ *           whole in the view where it fits, and focus on it or in its panel. The panel takes the step's room, and a
+ *           step left too little flows (stepRoom.js), the hint with the results after its Previous/Next: on the base it
+ *           was out of sight, and focus on <body> (hintPanelReveal.js).
  *
  * NOTHING LEAVES LOCALHOST: every context aborts non-local requests.
  */
@@ -855,6 +861,123 @@ const runSettle = async (browser, origins, size) => {
   return { check: 'settle', surface: 'assignment', size: size.id, readings, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
 };
 
+// ------------------------------------------------------------------------------------------------ hint
+// "Show a hint" under a staged step opens the hint panel in the question's results, under the step, and the panel
+// takes the step's room: where that leaves the step too little (stepRoom.js), the step flows a frame or two later and
+// the results, the hint with them, follow the step and its Previous/Next. The hint was brought into view once, as it
+// opened, while the step was still bounded: at 1366x768 the staged table's hint was in view for two frames and then
+// 873px down a 709px view, and the button pressed was gone, so focus was on <body> (the review of 2026-11-18). The
+// staged and settle checks only open and watch a step; this one presses. On every step of the harness's staged
+// questions, at the sizes where a step switched (a Chromebook with and without its shelf, a 1280x689 laptop, three
+// phones by touch): once the step has settled, the newest hint whole in the view where it fits, and focus on it or in
+// its panel.
+export const HINT_SIZES = Object.freeze([
+  Object.freeze({ id: '1366x768', width: 1366, height: 768, phone: false, textScale: 1 }),
+  Object.freeze({ id: '1366x657', width: 1366, height: 657, phone: false, textScale: 1 }),
+  Object.freeze({ id: '1280x689', width: 1280, height: 689, phone: false, textScale: 1 }),
+  Object.freeze({ id: '390x844', width: 390, height: 844, phone: true, textScale: 1 }),
+  Object.freeze({ id: '360x740', width: 360, height: 740, phone: true, textScale: 1 }),
+  Object.freeze({ id: '412x915', width: 412, height: 915, phone: true, textScale: 1 }),
+]);
+export const HINT_SCENES = SETTLE_SCENES;
+export const HINT_SETTLE_MS = 1500;
+
+// The newest hint (what the reveal brings into view: li[data-hint-source]) against the view (the surface's padding
+// box, inside the window), the step's layout, and where focus is.
+export const READ_HINT = () => {
+  const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+  const root = host?.querySelector('.workflow-focus');
+  const surface = host?.querySelector('.mathmaster-work-view-surface');
+  if (!root || !surface) return null;
+  const s = surface.getBoundingClientRect();
+  const top = Math.max(0, s.top + surface.clientTop);
+  const bottom = Math.min(window.innerHeight, s.top + surface.clientTop + surface.clientHeight);
+  const panel = host.querySelector('.mathmaster-hint-panel');
+  const hints = panel ? [...panel.querySelectorAll('li[data-hint-source]')] : [];
+  const hint = hints[hints.length - 1] || null;
+  const box = hint?.getBoundingClientRect();
+  const active = document.activeElement;
+  const name = (element) => (!element || element === document.body ? 'body'
+    : `${element.tagName.toLowerCase()}${typeof element.className === 'string' && element.className.trim() ? `.${element.className.trim().split(/\s+/)[0]}` : ''}${element.textContent ? ` "${element.textContent.replace(/\s+/g, ' ').trim().slice(0, 24)}"` : ''}`);
+  return {
+    flow: root.getAttribute('data-step-room') === 'flow',
+    view: [Math.round(top), Math.round(bottom)],
+    scrollTop: Math.round(surface.scrollTop),
+    hint: box ? {
+      top: Math.round(box.top),
+      bottom: Math.round(box.bottom),
+      height: Math.round(box.height),
+      seen: Math.round(Math.max(0, Math.min(bottom, box.bottom) - Math.max(top, box.top))),
+    } : null,
+    focus: { on: name(active), hint: Boolean(hint) && active === hint, panel: Boolean(panel?.contains(active)) },
+  };
+};
+
+export const hintProblems = (reading) => {
+  if (!reading) return ['Work View did not stay open on the staged step'];
+  if (!reading.hint) return ['"Show a hint" opened no hint'];
+  const problems = [];
+  // Whole where it fits; a hint taller than the view fills it.
+  const whole = Math.min(reading.hint.height, reading.view[1] - reading.view[0]);
+  if (reading.hint.seen < whole - 1) {
+    problems.push(`the newest hint has ${reading.hint.seen} of its ${reading.hint.height}px in sight once the step has settled (${reading.flow ? 'the view scrolling as one' : 'a bounded step'}, scrolled ${reading.scrollTop}px)`);
+  }
+  if (!reading.focus.panel) problems.push(`focus is on ${reading.focus.on}, not on the hint or its panel`);
+  return problems;
+};
+
+const runHint = async (browser, origins, size) => {
+  const { context, page, errors } = await newPage(browser, size);
+  const problems = [];
+  const readings = {};
+  const OPEN = '.mathmaster-work-view-host[data-open="true"]';
+  try {
+    await page.goto(`${origins.audit}${UX_PAGE}?legacy=1&staged=1&identity=1&run=opener-hint-${Date.now()}`, { timeout: 180_000 });
+    await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id]'), null, { timeout: 180_000 });
+    const ids = await page.evaluate(() => window.__ux.ids());
+    const elsewhere = ids.find((id) => !HINT_SCENES.includes(id));
+    for (const id of HINT_SCENES) {
+      if (!ids.includes(id)) { problems.push(`${id}: not in the harness`); continue; }
+      await goToQuestion(page, id);
+      const count = await page.evaluate((qid) => document.querySelectorAll(`[data-question-id="${qid}"] .workflow-focus__active-stage > *`).length, id);
+      if (!count) { problems.push(`${id}: no staged steps to read`); continue; }
+      for (let index = 0; index < count; index += 1) {
+        // Mounted again on this step, the hint read on the step before forgotten: the first hint is offered again.
+        await goToQuestion(page, elsewhere);
+        await page.evaluate(([qid, at]) => window.__ux.forgetHelp(qid) && window.__ux.atStep(qid, at), [id, index]);
+        await goToQuestion(page, id);
+        await page.locator(`[data-question-id="${id}"] .mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button.mathmaster-work-view-opener`).first()
+          .evaluate((button) => button.click());
+        await page.locator(OPEN).waitFor({ timeout: 30_000 });
+        await settled(page, 1200);
+        const heading = await page.evaluate((open) => document.querySelector(`${open} .workflow-focus__workspace-heading h4`)?.textContent.trim() || '', OPEN);
+        const where = `${id} step ${index + 1}${heading ? ` (${heading.replace(/^Step \d+\.\s*/, '')})` : ''}`;
+        // The first-hint offer under the work, pressed as a student presses it: a tap on a phone, a click elsewhere.
+        const offer = page.locator(`${OPEN} .mathmaster-attempt-results [data-first-hint-offer] button`, { hasText: 'Show a hint' }).first();
+        if (!(await offer.count())) {
+          problems.push(`${where}: no "Show a hint" offered under the step`);
+        } else {
+          const before = await page.evaluate((open) => document.querySelector(`${open} .workflow-focus`)?.getAttribute('data-step-room') === 'flow', OPEN);
+          if (size.phone) await offer.tap();
+          else await offer.click();
+          await settled(page, HINT_SETTLE_MS);
+          const reading = await page.evaluate(READ_HINT);
+          readings[`${id}#${index + 1}`] = { before: { flow: before }, after: reading };
+          hintProblems(reading).forEach((problem) => problems.push(`${where}: ${problem}`));
+        }
+        await page.evaluate(() => [...document.querySelectorAll('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header button')].find((button) => button.textContent.trim().startsWith('Close'))?.click());
+        await page.locator(OPEN).waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
+        await settled(page, 200);
+      }
+    }
+  } catch (error) {
+    problems.push(`could not press "Show a hint" on the staged steps: ${error.message.split('\n')[0]}`);
+  } finally {
+    await context.close();
+  }
+  return { check: 'hint', surface: 'assignment', size: size.id, readings, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
+};
+
 // ------------------------------------------------------------------------------------------------ the run
 const KIND_WORDS = {
   text: 'text', point: 'a point', 'point-name': 'a point\'s name', 'axis-label': 'an axis label', 'curve-name': 'a curve\'s name',
@@ -884,6 +1007,8 @@ const say = (result) => {
     ? `${result.scenes} scenes, ${result.openers} openers (${result.stacked} on a row of their own): ${result.covered.length} covered${result.over.length ? `, ${result.over.length} drawn over the opener while it scrolls under a bar` : ''}`
     : result.check === 'settle'
       ? `${Object.keys(result.readings).length} steps watched for ${SETTLE_WATCH_MS}ms after settling, ${Object.values(result.readings).filter((reading) => reading.typing).length} with the keypad up`
+    : result.check === 'hint'
+      ? `${Object.keys(result.readings).length} steps, "Show a hint" pressed on each: the newest hint whole in sight on ${Object.values(result.readings).filter(({ after }) => after?.hint && !hintProblems({ ...after, focus: { panel: true } }).length).length}, focus on it or in its panel on ${Object.values(result.readings).filter(({ after }) => after?.focus?.panel).length}; flowing before ${Object.values(result.readings).filter(({ before }) => before.flow).length}, after ${Object.values(result.readings).filter(({ after }) => after?.flow).length}`
     : result.check === 'staged'
       ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane, the counter under its heading (no room beside it) on ${Object.values(result.steps).filter((step) => step.headingRow?.page?.counterBelow).length} on the page and ${Object.values(result.steps).filter((step) => step.headingRow?.view?.counterBelow).length} in Work View${result.cramped?.length ? `; a view too short for a plane at its floor and its controls together (the plane whole): ${result.cramped.join(', ')}` : ''}${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
     : result.check === 'scroll'
@@ -895,7 +1020,7 @@ const say = (result) => {
 
 const main = async () => {
   const arg = (name) => process.argv.find((entry) => entry.startsWith(`--${name}=`))?.slice(name.length + 3) || null;
-  const checks = new Set((arg('check') || 'cover,badges,scroll,staged,settle').split(','));
+  const checks = new Set((arg('check') || 'cover,badges,scroll,staged,settle,hint').split(','));
   const only = new Set((arg('only') || '').split(',').filter(Boolean));
   const sizesWanted = new Set((arg('sizes') || '').split(',').filter(Boolean));
   const sized = (list) => list.filter((size) => !sizesWanted.size || sizesWanted.has(size.id));
@@ -929,6 +1054,9 @@ const main = async () => {
   if (checks.has('settle') && (!only.size || only.has('assignment'))) {
     for (const size of sized(SETTLE_SIZES)) tasks.push(() => runSettle(browser, origins, size));
   }
+  if (checks.has('hint') && (!only.size || only.has('assignment'))) {
+    for (const size of sized(HINT_SIZES)) tasks.push(() => runHint(browser, origins, size));
+  }
   let results = [];
   try {
     results = await pool(tasks, Number(process.env.OPENER_COVER_CONCURRENCY) || 3, say);
@@ -942,7 +1070,7 @@ const main = async () => {
     console.log(`What Work View's opener covers: ${failed} reading(s) failed.`);
     process.exitCode = 1;
   } else {
-    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, its plane fits it, its heading is whole, and it settles.');
+    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, its plane fits it, its heading is whole, it settles, and a hint asked for on it is in sight with focus.');
   }
 };
 

@@ -54,6 +54,7 @@ import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
 import { buildQuestionDraftKey, writeQuestionDraft } from '../../src/questionDraftStorage.js';
+import { supportUseStorageKey } from '../../src/platform/supports/supportUseMemory.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher/preflightV5Review.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
@@ -421,6 +422,14 @@ window.__ux = {
     const flat = allQuestions.findIndex((entry) => entry.question.questionId === questionId);
     if (flat === -1) return false;
     writeQuestionDraft(`${draftKeyFor(flat)}:workflow-stage`, index, { edit: false });
+    return true;
+  },
+  // The help a question had is kept across a remount (supportUseMemory.js): a hint read on one step is still read on
+  // the next. Forgotten, the question offers its first hint again the next time it is mounted.
+  forgetHelp: (questionId) => {
+    const flat = allQuestions.findIndex((entry) => entry.question.questionId === questionId);
+    if (flat === -1) return false;
+    window.localStorage.removeItem(supportUseStorageKey(draftKeyFor(flat)));
     return true;
   },
   question: (questionId) => allQuestions.find((entry) => entry.question.questionId === questionId)?.question || null,

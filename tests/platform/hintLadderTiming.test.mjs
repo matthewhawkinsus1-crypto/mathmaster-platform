@@ -121,6 +121,12 @@ test('in a pending rung\'s place the panel says the hint is loading, never the f
     assert.match(arrived, /<li data-hint-source="tool"/);
     assert.doesNotMatch(arrived, /data-hint-source="pending"|Loading the hint/);
     assert.match(arrived, /Try again with that hint/);
+    // Focus goes to the hint a press revealed (hintPanelReveal.js, hintPanelFocusTarget): a hint shown can take it,
+    // and so can the panel, which holds it while the rung loads. The loading line is a status that says itself, and
+    // focus on it would read it twice: it is never a focus target.
+    assert.match(arrived, /<li data-hint-source="tool" tabindex="-1"/);
+    assert.match(waiting, /<section aria-label="Hints" data-hint-panel=""[^>]* tabindex="-1"/);
+    assert.doesNotMatch(waiting, /<li data-hint-source="pending"[^>]*tabindex/);
     // A tool with no rungs: the fallback, and the pointer, as before.
     const none = render(hintLadderView({ ladder: BEFORE, revealedTexts: [], revealedCount: 1 }));
     assert.ok(none.includes(BEFORE[0].text));

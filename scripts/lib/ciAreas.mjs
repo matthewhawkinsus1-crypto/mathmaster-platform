@@ -468,6 +468,9 @@ export const CI_AREAS = {
     'src/platform/workflow/stepRoom.js',
     'src/platform/workflow/useStepRoom.js',
     'src/platform/workflow/WorkflowFocusMode.css',
+    // A hint asked for on a staged step stays in sight while the step settles, and takes focus (opener sweep, hint).
+    'src/platform/supports/hints/hintPanelReveal.js',
+    'src/platform/supports/hints/HintPanel.jsx',
     'src/tools/**',
     'scripts/run-draft-persistence-certification.mjs',
     'scripts/lib/gateServer.mjs',

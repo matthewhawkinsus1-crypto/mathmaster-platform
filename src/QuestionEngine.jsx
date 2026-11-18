@@ -26,7 +26,7 @@ import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
-import { requestedHintPanelPlace, revealHintPanel } from './platform/supports/hints/hintPanelReveal.js';
+import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
@@ -1932,6 +1932,15 @@ function QuestionEngineBody({
     if (locked && helpRequested && typeof onAskTeacher === 'function') onAskTeacher(false);
   }, [locked, helpRequested, onAskTeacher]);
   const hintPanelRef = useRef(null);
+  // What a press asked the panel for ('hint' or 'example'), with the moment it
+  // asked (a deferred-focus ticket): focus goes there once it is drawn. A press
+  // made in a panel stays in that panel: Work View's Help drawer draws one of
+  // its own beside the one in the work.
+  const hintFocusRequestRef = useRef(null);
+  const requestHintFocus = (asked, from) => {
+    const scope = from?.currentTarget?.closest?.('[data-hint-panel]') || null;
+    hintFocusRequestRef.current = { asked, scope, ticket: focusAuthority.ticket({ since: 'now', channel: 'hint' }) };
+  };
   // Where the panel opens (FB10): 'results' from an offer under a miss, 'top'
   // from the one-try notice. Anything else leaves it where it is — the panel's
   // own buttons hand their click event over, and must not move the panel.
@@ -1941,6 +1950,7 @@ function QuestionEngineBody({
   };
   const revealNextHint = (place) => {
     if (!hintState.canRevealNext || !hintLadder.next) return;
+    requestHintFocus('hint', place);
     const next = hintLadder.next;
     // A fallback opened while the tool's rungs are on their way is read when
     // they arrive (above); every other rung is kept as read now.
@@ -1955,6 +1965,7 @@ function QuestionEngineBody({
   // the example lives in the panel, so the panel opens with it.
   const openSimilarExample = (place) => {
     if (!similarExample) return;
+    requestHintFocus('example', place);
     setSimilarOpen(true);
     setWorkedExampleUsed(true);
     placeHintPanel(place);
@@ -1968,11 +1979,27 @@ function QuestionEngineBody({
     setHintPanelOpen(true);
   };
   useEffect(() => {
-    if (!hintPanelOpen) return;
+    if (!hintPanelOpen) return undefined;
+    const panel = hintPanelRef.current;
+    // Focus goes to what the press asked for: the button pressed is usually
+    // gone by now, and focus with it (hintPanelFocusTarget). Not after the
+    // student has pressed, tapped or typed anything else, or moved focus. A
+    // rung still loading holds it on the panel until the hint is here.
+    const request = hintFocusRequestRef.current;
+    hintFocusRequestRef.current = null;
+    if (request && focusAuthority.isLive(request.ticket)) {
+      const target = hintPanelFocusTarget(request.scope?.isConnected ? request.scope : panel, { asked: request.asked });
+      target?.focus?.({ preventScroll: true });
+      if (target && request.asked === 'hint' && !target.matches?.('li[data-hint-source]')) {
+        hintFocusRequestRef.current = { ...request, ticket: focusAuthority.ticket({ since: 'now', channel: 'hint' }) };
+      }
+    }
     // Under a miss the page moves only as far as the newest hint needs; a rung
-    // that was loading is that hint again once it is here.
-    revealHintPanel(hintPanelRef.current, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
-  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending]);
+    // that was loading is that hint again once it is here. And again while the
+    // page settles around it: a staged step in Work View can flow a frame or
+    // two after the panel takes its room, and move the hint out of the view.
+    return keepHintPanelInView(panel, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
+  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, focusAuthority]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
     : null;
