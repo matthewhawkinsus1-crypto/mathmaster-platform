@@ -39,7 +39,9 @@
  *           in (a bounded step at least 200px, or the view scrolling as one), no scroller inside a scroller, and
  *           the step's plane fits its scroller together with the row of its own controls under it, wherever the
  *           room holds both with the plane at its 160px floor (src/platform/workflow/stepRoom.js). A step whose content is taller than its room even so (the plotting
- *           step's point cards) is reported: it scrolls, its own step or the view.
+ *           step's point cards) is reported: it scrolls, its own step or the view. And the step's heading row is whole,
+ *           on the page and in Work View: its name, its kind, its review status and its counter ("3 of 17") neither
+ *           run past their own box or out of the row nor are cut off at its side (STEP_HEADING_ITEMS).
  *
  * NOTHING LEAVES LOCALHOST: every context aborts non-local requests.
  */
@@ -570,6 +572,99 @@ const MEASURE_STEP = () => {
   return { open: true, staged: true, ...step };
 };
 
+/*
+ * THE STEP'S HEADING ROW, WHOLE: its name, its kind ("Decide"), its review status and its counter ("3 of 17"), read
+ * on the page before Work View opens and again in Work View. In a question every box may shrink to nothing
+ * (MathToolMobileLayout.css), and in this row the counter did: at 200% text on a 390px phone 45px of "3 of 17" ran
+ * past the right edge on every step, "3 of" left on screen, and at 320x568 its last 11 to 13px. Each item fails when
+ * its words run past its own box, out of the row, or are cut off by a box that does not scroll. Read sideways: that
+ * is where a row is cut, and what a scroller cuts up or down is reached by scrolling it. A box clips only what it
+ * contains (an open Work View is a fixed layer the question's boxes do not clip), and the page clips at its sides. A
+ * name the short Work View ellipsizes on purpose (WorkViewShell.css) is its box, not its words.
+ */
+export const STEP_HEADING_ITEMS = Object.freeze({
+  'step name': 'h4',
+  'step kind': '.workflow-focus__family',
+  'review status': '.workflow-focus__review-status',
+  counter: '.workflow-focus__counter',
+});
+
+export const READ_STEP_HEADING = ([scope, items]) => {
+  const row = document.querySelector(scope)?.querySelector('.workflow-focus__workspace-heading');
+  if (!row) return null;
+  const name = (element) => (element === document.documentElement ? 'the page'
+    : `${element.tagName.toLowerCase()}${typeof element.className === 'string' && element.className.trim() ? `.${element.className.trim().split(/\s+/)[0]}` : ''}`);
+  const fixedBlock = (style) => style.transform !== 'none' || style.perspective !== 'none' || style.filter !== 'none'
+    || /paint|layout|strict|content/.test(style.contain || '') || /transform|perspective|filter/.test(style.willChange || '');
+  // The element's containing blocks, up to the page: the only boxes whose overflow can clip it.
+  const blocks = (element) => {
+    const list = [];
+    for (let node = element; node && node !== document.documentElement;) {
+      const { position } = getComputedStyle(node);
+      let next = node.parentElement;
+      const skip = position === 'fixed' ? (style) => !fixedBlock(style) : position === 'absolute' ? (style) => style.position === 'static' && !fixedBlock(style) : null;
+      if (skip) while (next && next !== document.documentElement && skip(getComputedStyle(next))) next = next.parentElement;
+      if (!next) break;
+      list.push(next);
+      node = next;
+    }
+    return list;
+  };
+  const scrollsSideways = (node) => /(auto|scroll)/.test(getComputedStyle(node).overflowX) && node.scrollWidth > node.clientWidth + 1;
+  const rowBox = row.getBoundingClientRect();
+  const found = [];
+  Object.entries(items).forEach(([kind, selector]) => row.querySelectorAll(selector).forEach((element) => {
+    const style = getComputedStyle(element);
+    const box = element.getBoundingClientRect();
+    if (!(box.width > 0 && box.height > 0) || style.visibility === 'hidden') return;
+    const ellipsis = style.textOverflow === 'ellipsis' && style.overflowX !== 'visible';
+    // Its words, where they run out of its box (nowrap words in a box that shrank, a word wider than its line).
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const words = range.getBoundingClientRect();
+    const left = ellipsis || !words.width ? box.left : Math.min(box.left, words.left);
+    const right = ellipsis || !words.width ? box.right : Math.max(box.right, words.right);
+    let seenLeft = left;
+    let seenRight = right;
+    let cutBy = null;
+    for (const node of blocks(element)) {
+      if (getComputedStyle(node).overflowX === 'visible' || scrollsSideways(node)) continue;
+      const edge = node === document.documentElement ? { left: 0, right: document.documentElement.clientWidth } : node.getBoundingClientRect();
+      if (edge.left > seenLeft + 0.5 || edge.right < seenRight - 0.5) cutBy ||= name(node);
+      seenLeft = Math.max(seenLeft, edge.left);
+      seenRight = Math.min(seenRight, edge.right);
+    }
+    found.push({
+      kind,
+      text: element.textContent.replace(/\s+/g, ' ').trim().slice(0, 40),
+      overflow: ellipsis ? 0 : Math.max(0, element.scrollWidth - element.clientWidth),
+      outOfRow: Math.round(Math.max(0, right - rowBox.right, rowBox.left - left)),
+      cut: Math.round(Math.max(0, (right - left) - Math.max(0, seenRight - seenLeft))),
+      cutBy,
+      box: [box.left, box.top, box.right, box.bottom].map(Math.round),
+    });
+  }));
+  const heading = found.find((item) => item.kind === 'step name');
+  const counter = found.find((item) => item.kind === 'counter');
+  return {
+    row: [rowBox.left, rowBox.top, rowBox.right, rowBox.bottom].map(Math.round),
+    items: found,
+    // Beside the heading's first line, or on a line under it (no room beside it).
+    counterBelow: Boolean(heading && counter) && counter.box[1] >= heading.box[1] + Math.min(heading.box[3] - heading.box[1], 40),
+  };
+};
+
+export const stepHeadingProblems = (reading) => {
+  if (!reading) return ['no step heading to read'];
+  return reading.items.flatMap((item) => {
+    const parts = [];
+    if (item.overflow > 1) parts.push(`runs ${item.overflow}px past its own box`);
+    if (item.outOfRow > 1) parts.push(`is ${item.outOfRow}px out of the heading's row`);
+    if (item.cut > 1) parts.push(`has ${item.cut}px cut off by ${item.cutBy}`);
+    return parts.length ? [`the ${item.kind} "${item.text}" ${parts.join(', ')}`] : [];
+  });
+};
+
 const runStaged = async (browser, origins, size) => {
   const { context, page, errors } = await newPage(browser, size);
   const problems = [];
@@ -589,13 +684,18 @@ const runStaged = async (browser, origins, size) => {
         await goToQuestion(page, elsewhere);
         await page.evaluate(([qid, at]) => window.__ux.atStep(qid, at), [id, index]);
         await goToQuestion(page, id);
+        // Its heading on the page, as the question shows it before Work View opens.
+        const headingOnPage = await page.evaluate(READ_STEP_HEADING, [`[data-question-id="${id}"] .mathmaster-work-view-host[data-open="false"]`, STEP_HEADING_ITEMS]);
         await page.locator(`[data-question-id="${id}"] .mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button.mathmaster-work-view-opener`).first()
           .evaluate((button) => button.click());
         await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ timeout: 30_000 });
         await settled(page, 1200);
         const m = await page.evaluate(MEASURE_STEP);
         const where = `${id} step ${index + 1}${m.heading ? ` (${m.heading.replace(/^Step \d+\.\s*/, '')})` : ''}`;
+        m.headingRow = { page: headingOnPage, view: await page.evaluate(READ_STEP_HEADING, ['.mathmaster-work-view-host[data-open="true"]', STEP_HEADING_ITEMS]) };
         steps[`${id}#${index + 1}`] = m;
+        stepHeadingProblems(m.headingRow.page).forEach((problem) => problems.push(`${where}, on the page: ${problem}`));
+        stepHeadingProblems(m.headingRow.view).forEach((problem) => problems.push(`${where}, in Work View: ${problem}`));
         if (!m.staged) problems.push(`${where}: Work View did not open on the staged step`);
         else {
           if (!m.flow && m.body[0] < STEP_MIN_ROOM) problems.push(`${where}: the step has ${m.body[0]}px of the view, and the view does not scroll as one`);
@@ -651,7 +751,7 @@ const say = (result) => {
   const summary = result.check === 'cover'
     ? `${result.scenes} scenes, ${result.openers} openers (${result.stacked} on a row of their own): ${result.covered.length} covered${result.over.length ? `, ${result.over.length} drawn over the opener while it scrolls under a bar` : ''}`
     : result.check === 'staged'
-      ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane${result.cramped?.length ? `; a view too short for a plane at its floor and its controls together (the plane whole): ${result.cramped.join(', ')}` : ''}${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
+      ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane, the counter under its heading (no room beside it) on ${Object.values(result.steps).filter((step) => step.headingRow?.page?.counterBelow).length} on the page and ${Object.values(result.steps).filter((step) => step.headingRow?.view?.counterBelow).length} in Work View${result.cramped?.length ? `; a view too short for a plane at its floor and its controls together (the plane whole): ${result.cramped.join(', ')}` : ''}${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
     : result.check === 'scroll'
       ? `${Object.keys(result.scenes).length} Work Views${Object.values(result.scenes).some((scene) => scene.sideways?.length) ? `; sideways: ${[...new Set(Object.values(result.scenes).flatMap((scene) => scene.sideways || []))].join(', ')}` : ''}${result.known?.length ? `; left for the owner: ${result.known.join('; ')}` : ''}`
       : `${Object.keys(result.readings).length} states${result.workRoom?.['progress shown'] != null ? `; the question's work: ${result.workRoom['progress shown']}px with progress shown, ${result.workRoom['focus view']}px in Focus view` : ''}`;
@@ -705,7 +805,7 @@ const main = async () => {
     console.log(`What Work View's opener covers: ${failed} reading(s) failed.`);
     process.exitCode = 1;
   } else {
-    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, and its plane fits it.');
+    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, its plane fits it, and its heading is whole.');
   }
 };
 

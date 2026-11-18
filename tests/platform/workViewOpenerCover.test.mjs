@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { parseCss, declared, rulesFor } from './helpers/cssRules.mjs';
-import { atRuleHolds } from './helpers/cssCascade.mjs';
+import { atRuleHolds, winning } from './helpers/cssCascade.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
 import { OPENER_GAP, openerSharesRow } from '../../src/platform/workView/openerPlacement.js';
 
@@ -214,6 +214,87 @@ test('in Work View a region the keyboard scrolls takes its own height: the view 
   const table = region(lab, 'aria-label="Residual table"', '>', 'the residual table');
   assert.match(table, /tabIndex=\{0\}/);
   assert.match(lab, /<div role="region" aria-label="Residual table"/);
+});
+
+/* ------------------------------------------------- a staged step's heading row */
+
+// The sheets that reach the row, in either order: the question's resets (every box in a question may shrink to
+// nothing) before or after the staged runner's own sheet and Work View's.
+const stepSheet = (name) => ({ name, rules: parseCss(read(name)) });
+const RESETS = ['src/components/student/MathToolMobileLayout.css', 'src/platform/mobile/MobileInteractionFoundation.css'].map(stepSheet);
+const STAGED_SHEETS = ['src/platform/workflow/WorkflowFocusMode.css', 'src/components/common/WorkViewShell.css'].map(stepSheet);
+const STEP_SHEET_ORDERS = { 'resets first': [...RESETS, ...STAGED_SHEETS], 'resets last': [...STAGED_SHEETS, ...RESETS] };
+const PHONE_200 = { width: 390, height: 844, pointer: 'coarse', fontSize: 32 };
+const QUESTION = [
+  { tag: 'html' }, { tag: 'body' }, { tag: 'div', id: 'root' }, { tag: 'div', classes: ['mathmaster-question-container', 'mode-portrait'] },
+  { tag: 'div', classes: ['mathmaster-work-view-host'], attrs: { 'data-open': 'true', 'data-height': 'regular' } },
+  { tag: 'figure', classes: ['mathmaster-work-view-surface'] }, { tag: 'div', classes: ['workflow-focus'] },
+];
+// Above the step, as the page and a regular Work View draw it; and in a short Work View's Previous/Next row.
+const ABOVE = [...QUESTION, { tag: 'main', classes: ['workflow-focus__workspace'] }, { tag: 'div', classes: ['workflow-focus__workspace-heading'] }];
+const SHORT = [
+  ...QUESTION.slice(0, 4), { tag: 'div', classes: ['mathmaster-work-view-host'], attrs: { 'data-open': 'true', 'data-height': 'short' } },
+  ...QUESTION.slice(5), { tag: 'footer', classes: ['workflow-focus__footer'] }, { tag: 'div', classes: ['workflow-focus__workspace-heading'] },
+];
+const COUNTER = { tag: 'span', classes: ['workflow-focus__counter'] };
+const LEFT = { tag: 'div', classes: ['workflow-focus__workspace-heading-left'] };
+
+test('a staged step\'s counter is never cut off: never narrower than its words, beside its heading where it fits and under it where it does not', () => {
+  // At 200% text on every phone "3 of 17" ran 23 to 57px past its box, 3 to 39px of it cut off, on every step of
+  // both staged questions: a question's reset let it shrink under its words in a row that did not wrap.
+  for (const [order, sheets] of Object.entries(STEP_SHEET_ORDERS)) {
+    const won = (path, property) => winning({ sheets, path, property, device: PHONE_200 });
+    for (const [place, row] of [['above the step', ABOVE], ['in a short Work View', SHORT]]) {
+      const counter = [...row, COUNTER];
+      // The reset still reaches it (that is what shrank it); what holds it is that it never shrinks.
+      assert.equal(won(counter, 'min-width')?.value, '0', `${order}, ${place}: the reset is still there`);
+      assert.equal(won(counter, 'flex')?.value?.split(/\s+/)[1], '0', `${order}, ${place}: the counter never shrinks under its words`);
+      assert.equal(won(counter, 'white-space')?.value, 'nowrap', 'one line');
+    }
+    // Above the step the row wraps, so the counter drops under the heading where there is no room beside it...
+    assert.equal(won(ABOVE, 'flex-wrap')?.value, 'wrap', `${order}: the row above the step wraps`);
+    assert.equal(won([...ABOVE, COUNTER], 'margin-left')?.value, 'auto', 'and the counter stays at the right, beside the heading or under it');
+    // ...and only where the heading's longest word does not fit beside it: the heading's side counts its least width
+    // (with its one-line width before it, for a browser without the keyword), and grows into the rest of the row.
+    assert.equal(won([...ABOVE, LEFT], 'flex-basis')?.value, 'min-content', order);
+    assert.equal(won([...ABOVE, LEFT], 'flex')?.value, '1 1 auto', order);
+    // A word wider than the whole row ("Increasing/decreasing" at 200% text on a 360px phone) breaks, there only.
+    assert.equal(won([...ABOVE, { tag: 'h4' }], 'overflow-wrap')?.value, 'break-word', order);
+    // A short Work View keeps its one row (the heading in the Previous/Next row, the name ellipsized), untouched.
+    assert.notEqual(won(SHORT, 'flex-wrap')?.value, 'wrap', `${order}: the Previous/Next row stays one line`);
+    assert.equal(won([...SHORT, LEFT], 'flex-basis'), null, 'nor counts the heading\'s least width');
+    assert.equal(won([...SHORT, LEFT, { tag: 'h4' }], 'text-overflow')?.value, 'ellipsis');
+  }
+});
+
+test('the sweep fails a staged step whose heading row is cut, on the page and in Work View', async () => {
+  const { STEP_HEADING_ITEMS, stepHeadingProblems } = await import('../browser/workViewOpenerCover.mjs');
+  for (const kind of ['counter', 'step name', 'step kind', 'review status']) assert.ok(kind in STEP_HEADING_ITEMS, kind);
+  const whole = { kind: 'counter', text: '3 of 17', overflow: 0, outOfRow: 0, cut: 0, cutBy: null };
+  assert.deepEqual(stepHeadingProblems({ items: [whole, { ...whole, kind: 'step name', text: 'Step 3. x-intercept?' }] }), []);
+  // As measured on the base at 390x844 with 200% text, in Work View: "3 of 1" on screen.
+  const [problem] = stepHeadingProblems({ items: [{ ...whole, overflow: 24, outOfRow: 24, cut: 9, cutBy: 'figure.mathmaster-work-view-surface' }] });
+  assert.match(problem, /^the counter "3 of 17" runs 24px past its own box, is 24px out of the heading's row, has 9px cut off by figure\.mathmaster-work-view-surface$/);
+  // Each of the three fails on its own: 2px into the step's padding at 390x844 was a failure too.
+  assert.equal(stepHeadingProblems({ items: [{ ...whole, overflow: 2 }] }).length, 1);
+  assert.equal(stepHeadingProblems({ items: [{ ...whole, outOfRow: 3 }] }).length, 1);
+  assert.equal(stepHeadingProblems({ items: [{ ...whole, cut: 6, cutBy: 'the page' }] }).length, 1);
+  assert.match(stepHeadingProblems({ items: [{ ...whole, kind: 'step name', text: 'Step 10. Increasing/decreasing', overflow: 68 }] })[0], /^the step name "Step 10\. Increasing\/decreasing" runs 68px/);
+  assert.deepEqual(stepHeadingProblems(null), ['no step heading to read'], 'a heading that is not there is not whole');
+  // Read on every step on the page before Work View opens, and again in it; each problem fails the size.
+  const sweep = read('tests/browser/workViewOpenerCover.mjs');
+  const staged = region(sweep, 'const runStaged = async', '\n};\n', 'the staged check');
+  const onPage = staged.indexOf('const headingOnPage = await page.evaluate(READ_STEP_HEADING, [`[data-question-id="${id}"] .mathmaster-work-view-host[data-open="false"]`, STEP_HEADING_ITEMS]);');
+  assert.ok(onPage > 0 && onPage < staged.indexOf('button.mathmaster-work-view-opener'), 'the page is read before the opener is pressed');
+  assert.match(staged, /m\.headingRow = \{ page: headingOnPage, view: await page\.evaluate\(READ_STEP_HEADING, \['\.mathmaster-work-view-host\[data-open="true"\]', STEP_HEADING_ITEMS\]\) \};/);
+  assert.match(staged, /stepHeadingProblems\(m\.headingRow\.page\)\.forEach\(\(problem\) => problems\.push\(`\$\{where\}, on the page: \$\{problem\}`\)\);/);
+  assert.match(staged, /stepHeadingProblems\(m\.headingRow\.view\)\.forEach\(\(problem\) => problems\.push\(`\$\{where\}, in Work View: \$\{problem\}`\)\);/);
+  // What clips is read through the containing blocks (an open Work View is a fixed layer the question does not clip),
+  // up to the page's own edges; a name a short Work View ellipsizes is its box.
+  const reader = region(sweep, 'export const READ_STEP_HEADING = ', '\n};\n', 'the heading reader');
+  assert.match(reader, /for \(const node of blocks\(element\)\) \{/);
+  assert.match(reader, /node === document\.documentElement \? \{ left: 0, right: document\.documentElement\.clientWidth \}/);
+  assert.match(reader, /overflow: ellipsis \? 0 : Math\.max\(0, element\.scrollWidth - element\.clientWidth\),/);
 });
 
 /* ------------------------------------------------- the browser sweep, wired into CI */
