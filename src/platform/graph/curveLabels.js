@@ -82,6 +82,14 @@ const PREFERRED = [0.88, 0.12, 0.76, 0.24, 0.64, 0.36, 0.5, 0.95, 0.05];
 const ALONG = Object.freeze([...PREFERRED, ...Array.from({ length: 19 }, (_, i) => (i + 1) / 20).filter((fraction) => !PREFERRED.includes(fraction))]);
 // Beside the curve, and failing that a little farther out (in ems of the name).
 const FARTHER = Object.freeze([0, 0.9]);
+// A curve is drawn from hundreds of points (a figure's line from 501, the graph
+// workspace's curve from 561, a stroke from every pointer move), and each of the
+// hundred places tried is measured against every piece of every curve. Only the
+// points that change its shape are kept: none left out lies farther than half a
+// unit from what is kept, and a run keeps 48 at most, those that change it most
+// (a stroke drawn by hand wobbles). A line is its two ends.
+const THIN_WITHIN = 0.5;
+const THIN_MOST = 48;
 
 const finite = (point) => Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]);
 
@@ -173,6 +181,33 @@ const distanceToSegment = (point, segment) => {
 
 const distanceToSegments = (point, segments) => segments.reduce((nearest, segment) => Math.min(nearest, distanceToSegment(point, segment)), Number.POSITIVE_INFINITY);
 
+/**
+ * A run of points with only those that change its shape (Douglas–Peucker, the
+ * point farthest from what is kept first): every point left out lies within
+ * THIN_WITHIN of the run kept, or the run keeps THIN_MOST points.
+ */
+export const thinRun = (run) => {
+  if (!Array.isArray(run) || run.length <= 2) return run;
+  const keep = new Set([0, run.length - 1]);
+  const farthest = (from, to) => {
+    let at = -1;
+    let away = 0;
+    for (let index = from + 1; index < to; index += 1) {
+      const distance = distanceToSegment(run[index], [run[from], run[to]]);
+      if (distance > away) [at, away] = [index, distance];
+    }
+    return { from, to, at, away };
+  };
+  const spans = [farthest(0, run.length - 1)];
+  while (keep.size < THIN_MOST) {
+    const worst = spans.reduce((most, span) => (span.away > (most?.away ?? 0) ? span : most), null);
+    if (!worst || worst.away <= THIN_WITHIN) break;
+    keep.add(worst.at);
+    spans.splice(spans.indexOf(worst), 1, farthest(worst.from, worst.at), farthest(worst.at, worst.to));
+  }
+  return run.filter((_, index) => keep.has(index));
+};
+
 // The point of `segments` nearest `point`.
 const nearestOnSegments = (point, segments) => {
   let nearest = null;
@@ -220,7 +255,8 @@ const pointAlong = (runs, fraction) => {
  * takes it, centred (`anchor` 'middle').
  */
 export const placeCurveLabels = ({ curves = [], dots = [], avoid = [], hidden = [], bounds = null, textSize = 12, gap = 4, unit = 0 } = {}) => {
-  const drawn = curves.map((curve) => visibleRuns(curve?.paths, bounds));
+  // Each curve as drawn inside the plot, thinned to the points that shape it.
+  const drawn = curves.map((curve) => visibleRuns(curve?.paths, bounds).map(thinRun));
   const segments = drawn.map(segmentsOf);
   const fewestUnits = ROOM_PX * (Number(unit) > 0 ? Number(unit) : 0);
   const dotRoom = Math.max(DOT_ROOM * textSize, fewestUnits);

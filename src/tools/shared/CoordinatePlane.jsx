@@ -13,7 +13,8 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
-import { curveLabelSize, placeCurveLabels, sampleFunctionRuns } from '../../platform/graph/curveLabels.js';
+import { curveLabelSize, sampleFunctionRuns } from '../../platform/graph/curveLabels.js';
+import { useCurveLabelPlacer } from '../../platform/graph/curveLabelPlacer.js';
 import { useCoveredByOpener } from '../../platform/graph/useCoveredByOpener.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
@@ -816,6 +817,8 @@ export default function CoordinatePlane({
     || polylines.some((entry) => entry?.label) || curveLabels.some((entry) => entry?.label);
   // Work View's opener over the plot's corner: no name goes under it.
   const openerCover = useCoveredByOpener(planeRef, width, curveNamed);
+  // Placed again only when what the names are placed among changes: not for the readout following a pointer.
+  const placeNames = useCurveLabelPlacer();
   const curveTextSize = svgFont(12);
   const inView = (path) => (Array.isArray(path) ? path : []).map((point) => pointXY(point))
     .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)).map(([x, y]) => [sx(x), sy(y)]);
@@ -837,7 +840,7 @@ export default function CoordinatePlane({
     ...(xMin <= 0 && xMax >= 0 ? [{ label: '', paths: [[[sx(0), pad], [sx(0), height - pad]]] }] : []),
     ...(yMin <= 0 && yMax >= 0 ? [{ label: '', paths: [[[pad, sy(0)], [width - pad, sy(0)]]] }] : []),
   ] : [];
-  const curveLabelSpots = curveNamed ? placeCurveLabels({
+  const curveLabelSpots = curveNamed ? placeNames({
     curves: namedCurves,
     dots: points.map((point, index) => {
       let [pointX, pointY] = pointXY(point);
