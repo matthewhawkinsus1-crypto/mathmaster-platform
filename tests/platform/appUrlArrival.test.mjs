@@ -17,6 +17,7 @@ import {
 } from '../../src/app/routes/urlArrival.js';
 import { studentQuestionEntries } from '../../src/app/routes/questionAddress.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const lesson = (id, extra = {}) => ({
   id,
@@ -182,7 +183,13 @@ test('App hands the arrival its real actions, each declared before the call (no 
 test('the arrival notice about the work waits for the workspace commit, and the start says when it opened it', () => {
   const start = region(appCode, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', 'const openStudentDashboardMode = ', 'startAssignment');
   assert.match(start, /setActiveView\('assignment'\);\s*return true;\s*\};\s*$/);
-  const notice = region(appCode, 'const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);', '}, [workspaceArrivalNotices, activeView, toastInfo]);', 'workspace notice effect');
+  // Since the App split the queue and its effect are useWorkspaceArrivalNotices',
+  // which App calls with the toast and the screen, for showWhenWorkspaceOpens.
+  const noticeHook = executableSource(appHookSource('useWorkspaceArrivalNotices'));
+  const notice = region(noticeHook, 'const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);', '}, [workspaceArrivalNotices, activeView, toastInfo]);', 'workspace notice effect');
+  assert.match(noticeHook, /return \{ showWhenWorkspaceOpens \};/);
+  const noticeCall = 'const { showWhenWorkspaceOpens } = useWorkspaceArrivalNotices({ toastInfo, activeView });';
+  assert.notEqual(appCode.indexOf(noticeCall), -1, 'App takes showWhenWorkspaceOpens from the hook, given the toast and the screen');
   assert.match(notice, /const showWhenWorkspaceOpens = useCallback\(\(notice\) => \{\s*if \(notice\?\.title\) setWorkspaceArrivalNotices\(\(current\) => \[\.\.\.current, notice\]\);/);
   // Shown only once the workspace is on screen. A screen committed with the
   // notice still queued but without the workspace drops it, so it never shows
@@ -198,7 +205,7 @@ test('the arrival notice about the work waits for the workspace commit, and the 
   assert.doesNotMatch(start, /toastInfo\('That question is not open right now'/);
   const call = region(appCode, 'useUrlArrival({', '\n  });', 'useUrlArrival call');
   assert.match(call, /showWhenWorkspaceOpens,/);
-  assert.ok(appCode.indexOf('const showWhenWorkspaceOpens = useCallback(') < appCode.indexOf('useUrlArrival({'));
+  assert.ok(appCode.indexOf(noticeCall) < appCode.indexOf('useUrlArrival({'));
 });
 
 test('startAssignment still redirects every Test Cycle to its card, before any requested question', () => {

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { READING_ACTIVITY_EVENTS, subscribeToReadingActivity } from '../../src/components/common/readingActivity.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = executableSource(read('src/App.jsx'));
@@ -44,8 +45,12 @@ test('moving to another question is announced from the rendered prompt', () => {
 });
 
 test('reading with a screen reader keeps the idle prompt away', () => {
-  assert.match(app, /import \{ subscribeToReadingActivity \} from '\.\/components\/common\/readingActivity\.js';/);
-  const effect = region(app, "const suppressIdlePrompt = activeSupportPresentation.disableIdleTimer;", 'activeSupportPresentation.disableIdleTimer]);', 'the idle effect');
+  // Since the App split the idle effect is useActiveTimeClock's, which App
+  // calls for the isIdle the overlay below is drawn from.
+  const clock = executableSource(appHookSource('useActiveTimeClock'));
+  assert.match(clock, /import \{ subscribeToReadingActivity \} from '\.\.\/\.\.\/components\/common\/readingActivity\.js';/);
+  assert.match(app, /const \{ isIdle, setIsIdle \} = useActiveTimeClock\(\{[^}]*\bactiveSupportPresentation\b[^}]*\}\);/);
+  const effect = region(clock, "const suppressIdlePrompt = activeSupportPresentation.disableIdleTimer;", 'activeSupportPresentation.disableIdleTimer]);', 'the idle effect');
   assert.match(effect, /const stopReadingActivity = subscribeToReadingActivity\(window, resetActivity\);/);
   assert.match(effect, /stopReadingActivity\(\);/, 'and unsubscribes');
   assert.deepEqual([...READING_ACTIVITY_EVENTS].sort(), ['focusin', 'keyup', 'scroll', 'selectionchange']);
@@ -81,10 +86,18 @@ test('the document title names the screen', () => {
     assert.match(chrome, new RegExp(`${mode}: '${title}'`), mode);
   }
   assert.match(chrome, /if \(view === 'assignment'\) return `\$\{String\(assignmentTitle \|\| ''\)\.trim\(\) \|\| 'Assignment'\} – \$\{suffix\}`;/);
-  assert.match(app, /import \{ MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle \} from '\.\/components\/common\/pageChrome\.jsx';/);
+  assert.match(app, /import \{ MAIN_CONTENT_ID, SkipToContent \} from '\.\/components\/common\/pageChrome\.jsx';/);
+  // Since the App split the title is useStudentScreenChange's, which App calls
+  // with what the title is made from.
+  const screenChange = executableSource(appHookSource('useStudentScreenChange'));
+  assert.match(screenChange, /import \{ pageTitleFor, useDocumentTitle \} from '\.\.\/\.\.\/components\/common\/pageChrome\.jsx';/);
+  const titleCall = region(app, 'useStudentScreenChange({', '});', "App's call of the title hook");
+  for (const input of ['user', 'activeView', 'studentDashboardMode', 'teacherTab', 'assignments', 'activeAssignmentId']) {
+    assert.match(titleCall, new RegExp(`[{,\\s]${input},`), input);
+  }
   // The title is computed once (the screen-change announcement reads it too, NAV-3) and set.
-  assert.match(app, /const documentTitle = pageTitleFor\(\{\s*signedIn: Boolean\(user\),\s*role: user\?\.role \|\| null,\s*view: activeView,\s*studentMode: studentDashboardMode,/);
-  assert.match(app, /\n\s*useDocumentTitle\(documentTitle\);/);
+  assert.match(screenChange, /const documentTitle = pageTitleFor\(\{\s*signedIn: Boolean\(user\),\s*role: user\?\.role \|\| null,\s*view: activeView,\s*studentMode: studentDashboardMode,/);
+  assert.match(screenChange, /\n\s*useDocumentTitle\(documentTitle\);/);
 });
 
 // WCAG 2.4.1: the first Tab stop on a student screen skips the navigation.

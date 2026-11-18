@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 // The scroll-driven auto-compact rule (shouldCompactAssignmentNavigation) and
 // its unit test were removed with the module once App stopped using it (OT03).
@@ -21,12 +22,21 @@ test('the navigator starts compact, on every size and every open path', async ()
 
 test('Show progress and Focus view keep the work where it was', async () => {
   const source = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  const toggle = region(source, 'const toggleAssignmentNavigation = () => {', '};', 'the navigator toggle');
+  // Since the App split the toggle and the anchor are
+  // useAssignmentNavigatorToggle's, which App calls with the navigator's
+  // state and the question stage, for the toggle the navigator's button runs.
+  const hook = appHookSource('useAssignmentNavigatorToggle');
+  const call = region(source, 'const { toggleAssignmentNavigation } = useAssignmentNavigatorToggle({', '});', "App's call of the navigator hook");
+  for (const input of ['assignmentNavigationCollapsed', 'setAssignmentNavigationCollapsed', 'assignmentQuestionStageRef']) {
+    assert.match(call, new RegExp(`[{,\\s]${input},`), input);
+  }
+  assert.match(hook, /return \{ toggleAssignmentNavigation \};/);
+  const toggle = region(hook, 'const toggleAssignmentNavigation = () => {', '};', 'the navigator toggle');
   assert.match(toggle, /navigationToggleAnchorRef\.current = work \? \{ element: work, top: work\.getBoundingClientRect\(\)\.top \} : null;/);
-  const keep = region(source, 'useLayoutEffect(() => {\n    const anchor = navigationToggleAnchorRef.current;', '}, [assignmentNavigationCollapsed]);', 'the work anchor');
+  const keep = region(hook, 'useLayoutEffect(() => {\n    const anchor = navigationToggleAnchorRef.current;', '}, [assignmentNavigationCollapsed]);', 'the work anchor');
   assert.match(keep, /const moved = anchor\.element\.getBoundingClientRect\(\)\.top - anchor\.top;/);
   assert.match(keep, /window\.scrollBy\(\{ top: moved/);
-  assert.match(source, /^import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';$/m);
+  assert.match(hook, /^import \{[^}]*\buseLayoutEffect\b[^}]*\} from 'react';$/m);
   const nav = region(source, '<nav ref={stickyHeightRef(ASSIGNMENT_NAV_HEIGHT_VAR)}', '</nav>', 'the navigator');
   assert.match(nav, /onClick=\{toggleAssignmentNavigation\}/);
 });
