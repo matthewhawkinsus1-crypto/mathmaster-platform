@@ -86,6 +86,17 @@ test('an effect whose code or dependencies changed is not called a move', () => 
   assert.deepEqual([compared.moved.length, compared.added.length, compared.removed.length], [0, 1, 1]);
 });
 
+test('whitespace inside a string, a template or a regular expression is a change', () => {
+  const withEffect = (body) => ({ 'src/App.jsx': `
+    import { useEffect } from 'react';
+    export default function App() { useEffect(() => { ${body} }, []); return null; }` });
+  const same = (left, right) => compareLedgers(ledgerOf(withEffect(left)), ledgerOf(withEffect(right))).effects.same;
+  assert.equal(same("document.title = 'Exit Ticket';", "document.title   =\n 'Exit Ticket'; // said aloud\n"), true, 'spacing and comments between tokens are not');
+  assert.equal(same("document.title = 'Exit Ticket';", "document.title = 'ExitTicket';"), false);
+  assert.equal(same('say(`Exit ${kind} ticket`);', 'say(`Exit ${kind}ticket`);'), false);
+  assert.equal(same('if (/a b/.test(text)) go();', 'if (/ab/.test(text)) go();'), false);
+});
+
 test('a dynamic import is compared as the file it names, so re-aiming its path is not a change', () => {
   const before = { 'src/App.jsx': `
     import { useEffect } from 'react';

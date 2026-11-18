@@ -15,8 +15,8 @@
  *   an effect at a new position     listed, with the effects it passed
  *   a hash on one side only         the code itself changed
  *
- * Hashes ignore whitespace and comments, so a re-indented move is the same
- * code, and read a dynamic import's relative path as the file it names. They do not ignore names: a renamed variable is a change to look at.
+ * Hashes ignore whitespace and comments between tokens (never inside a string,
+ * template or regular expression), so a re-indented move is the same code, and read a dynamic import's relative path as the file it names. They do not ignore names: a renamed variable is a change to look at.
  */
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -146,17 +146,31 @@ export const createHookLedger = (read) => {
     return found;
   };
 
+  // Text whose spaces are part of what the code does: strings, template text, regular expressions.
+  const literalSpans = (node, found = []) => {
+    if (node.type === 'TemplateElement' || (node.type === 'Literal' && (typeof node.value === 'string' || node.regex)) || node.type === 'JSXText') found.push(node);
+    for (const child of children(node)) literalSpans(child, found);
+    return found;
+  };
+
   const codeOf = (module, node) => {
-    let text = module.source.slice(node.start, node.end);
-    const comments = module.comments.filter((comment) => comment.start >= node.start && comment.end <= node.end)
-      .map((comment) => ({ start: comment.start - node.start, end: comment.end - node.start }));
-    // Blank each comment (same length) so the literals' positions still hold.
-    for (const comment of comments) text = text.slice(0, comment.start) + ' '.repeat(comment.end - comment.start) + text.slice(comment.end);
-    for (const literal of relativeImports(node).sort((a, b) => b.start - a.start)) {
-      const target = posix.normalize(posix.join(posix.dirname(module.path), literal.value));
-      text = `${text.slice(0, literal.start - node.start)}'${target}'${text.slice(literal.end - node.start)}`;
+    const comments = module.comments.filter((comment) => comment.start >= node.start && comment.end <= node.end);
+    const reAimed = new Map(relativeImports(node).map((literal) => [literal, posix.normalize(posix.join(posix.dirname(module.path), literal.value))]));
+    // Whitespace and comments go from the code between literals; a literal is kept as written.
+    const kept = literalSpans(node).sort((left, right) => left.start - right.start);
+    let text = '';
+    let at = node.start;
+    const between = (from, to) => normalizeCode(
+      module.source.slice(from, to),
+      comments.filter((comment) => comment.start >= from && comment.end <= to).map((comment) => ({ start: comment.start - from, end: comment.end - from })),
+    );
+    for (const literal of kept) {
+      if (literal.start < at) continue;
+      text += between(at, literal.start);
+      text += reAimed.has(literal) ? `'${reAimed.get(literal)}'` : module.source.slice(literal.start, literal.end);
+      at = literal.end;
     }
-    return normalizeCode(text);
+    return text + between(at, node.end);
   };
 
   const hookName = (call) => {
