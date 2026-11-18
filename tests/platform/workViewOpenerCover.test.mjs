@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { parseCss, declared, rulesFor } from './helpers/cssRules.mjs';
+import { atRuleHolds } from './helpers/cssCascade.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
 import { OPENER_GAP, openerSharesRow } from '../../src/platform/workView/openerPlacement.js';
 
@@ -166,6 +167,38 @@ test('below 22em the section tabs are never narrower than their widest tab, and 
 });
 
 /* ------------------------------------------------- #386 R10: one scroller in Work View */
+
+test('with "Show progress" open on a narrow screen the page scrolls, and the question under the navigator keeps a whole screen', () => {
+  // At 320x568, and on every phone at 200% text, the expanded navigator was 306 to 520px of a screen that does not
+  // scroll: the question had 16px for its work, or none, and at 320x568 at 200% its tries and opener were below it.
+  const app = parseCss(read('src/App.css'));
+  const NARROW_UPRIGHT = '(max-width: 22em) and (orientation: portrait)';
+  const screen = '.mathmaster-assignment-screen:has(.mathmaster-assignment-unified-nav:not(.is-collapsed))';
+  const shell = `${screen} .mathmaster-assignment-shell`;
+  assert.deepEqual(declared(app, screen, 'height', { media: NARROW_UPRIGHT }), { value: 'auto', important: true });
+  assert.deepEqual(declared(app, screen, 'overflow', { media: NARROW_UPRIGHT }), { value: 'visible', important: true });
+  assert.deepEqual(declared(app, shell, 'height', { media: NARROW_UPRIGHT }), { value: 'auto', important: true });
+  assert.equal(declared(app, shell, 'overflow', { media: NARROW_UPRIGHT })?.value, 'visible');
+  // The navigator's row, then the question's: a whole screen under the identity bar, as Focus view gives it.
+  assert.equal(declared(app, shell, 'grid-template-rows', { media: NARROW_UPRIGHT })?.value, 'auto calc(100dvh - var(--mm-student-identity-stack-offset, 0px))');
+  // Only there: one screen per question everywhere else, and folded (Focus view) as before.
+  assert.ok([...rulesFor(app, screen), ...rulesFor(app, shell)].every((rule) => rule.atRules.length === 1 && rule.atRules[0].includes(NARROW_UPRIGHT)));
+  // In the browser's own text size: a 320px phone, and every phone at 200% text; not a 360 or 390px phone at 100%, not
+  // a phone on its side, not a Chromebook at 200%.
+  const holds = (width, height, fontSize = 16) => atRuleHolds(`@media ${NARROW_UPRIGHT}`, { width, height, fontSize });
+  assert.ok(holds(320, 568) && holds(390, 844, 32) && holds(360, 740, 32) && holds(320, 568, 32));
+  assert.ok(!holds(360, 740) && !holds(390, 844) && !holds(844, 390, 32) && !holds(1366, 768, 32));
+  assert.match(screen, /:not\(\.is-collapsed\)/);
+  // The !important it outranks: the phone's one-screen frame (App.css, "One phone viewport = one question").
+  const frame = region(read('src/App.css'), '@media (max-width: 768px) and (orientation: portrait) {\n  /* One phone viewport = one question.', '.mathmaster-assignment-screen .mathmaster-assignment-header,', 'the one-screen frame');
+  assert.match(frame, /\.mathmaster-assignment-screen \{[^}]*height: calc\(100dvh - var\(--mm-student-identity-stack-offset, 0px\)\) !important;[^}]*overflow: hidden !important;/);
+  // The sweep holds it in a browser: every header badge whole with progress shown, and room for the question's work.
+  const sweep = read('tests/browser/workViewOpenerCover.mjs');
+  assert.match(sweep, /reading\.items\.filter\(\(item\) => item\.cut && BADGE_KINDS\.has\(item\.kind\)\)\.forEach\(\(item\) => problems\.push\(`\$\{state\}: \$\{item\.kind\} "\$\{item\.text\}" is cut off by a box that does not scroll`\)\);\n  \}/);
+  assert.doesNotMatch(sweep, /if \(state\.startsWith\('focus view'\)\) \{/, 'not only in Focus view');
+  assert.match(sweep, /if \(workRoom\['progress shown'\] != null && workRoom\['progress shown'\] < PROGRESS_WORK_MIN\) \{/);
+  assert.match(sweep, /export const PROGRESS_WORK_MIN = 160;/);
+});
 
 test('in Work View a region the keyboard scrolls takes its own height: the view is the one thing that scrolls up and down', () => {
   // The Data Modeling Lab's residual table, capped at 185 px, was a scroller inside the view's scroll at every

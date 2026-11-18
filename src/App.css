@@ -2116,6 +2116,34 @@
   }
 }
 
+/*
+ * WITH "SHOW PROGRESS" OPEN ON A NARROW SCREEN, THE QUESTION KEEPS ITS SCREEN.
+ *
+ * A phone held upright is one screen per question: the navigator on top, the
+ * question in what it leaves, and the page does not scroll. Expanded ("Show
+ * progress"), with its tabs on rows of their own below 22em (above), the
+ * navigator is 306px of a 320x568 phone and 420 to 520px of a phone at 200%
+ * text, and the question under it had 16px for its work, or none at all: at
+ * 320x568 at 200% its tries and Work View's opener were below the screen and
+ * could not be reached until the student folded the navigator (Focus view).
+ * There the page scrolls instead: the navigator first, and under it the
+ * question keeps a whole screen, as much room as in Focus view or more once
+ * the navigator is scrolled out of the way. Focus view is one screen, as
+ * before; a wider screen, or a phone at 100% text from 360px, is unchanged.
+ */
+@media (max-width: 22em) and (orientation: portrait) {
+  .mathmaster-assignment-screen:has(.mathmaster-assignment-unified-nav:not(.is-collapsed)) {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .mathmaster-assignment-screen:has(.mathmaster-assignment-unified-nav:not(.is-collapsed)) .mathmaster-assignment-shell {
+    height: auto !important;
+    grid-template-rows: auto calc(100dvh - var(--mm-student-identity-stack-offset, 0px));
+    overflow: visible;
+  }
+}
+
 /* --- Section completion achievement state ---------------------------------
    Completing a whole activity section is a milestone, not merely another
    progress fraction. Gold is paired with a check icon + COMPLETE text so the

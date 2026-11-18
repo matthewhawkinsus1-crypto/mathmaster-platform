@@ -27,7 +27,8 @@
  *   badges  The real assignment screen (the app in memory, a lesson with a finished section) at the same sizes: the
  *           section's "Complete" and its medallion, each section's progress, the question numbers, the tries line
  *           ("3 of 3 tries left", "Question complete"), the grade weight, the closed verdict and the opener overlap
- *           neither each other nor any other control of the header, and none is cut off by its own box (#386 R17).
+ *           neither each other nor any other control of the header, and none is cut off by its own box (#386 R17);
+ *           on a phone with "Show progress" open the question keeps room for its work (PROGRESS_WORK_MIN).
  *   scroll  With Work View open on a 390x844, 360x740 and 320x568 phone, a 1366x768 Chromebook and a 1920x1080
  *           desktop, for every plane tool, the table tools and the Step Algebra boards: the view itself is the one
  *           thing that scrolls up and down (no scroller inside a scroller), and the plane fits the height it is
@@ -292,6 +293,8 @@ export const HEADER_ITEMS = Object.freeze({
   opener: 'button.mathmaster-work-view-opener',
 });
 const BADGE_KINDS = new Set(['completion medallion', 'section progress', 'tries', 'grade weight', 'one try', 'closed verdict', 'opener']);
+// The least room a question's work has on a phone with progress shown: a 360x740 phone at 100% text gives it 201px.
+export const PROGRESS_WORK_MIN = 160;
 
 const READ_HEADER = (items) => {
   const shown = (element) => {
@@ -351,6 +354,7 @@ const runBadges = async (browser, origins, size) => {
   const { context, page, errors } = await newPage(browser, size, { school: true });
   const problems = [];
   const readings = {};
+  const workRoom = {};
   try {
     await page.goto(`${origins.app}${STUDENT_APP}`, { timeout: 180_000 });
     await page.locator('nav[aria-label="Student navigation"]').first().waitFor({ timeout: 180_000 });
@@ -363,6 +367,14 @@ const runBadges = async (browser, origins, size) => {
     await page.evaluate(() => window.scrollTo(0, 0));
     await settled(page, 600);
     readings['progress shown'] = await page.evaluate(READ_HEADER, HEADER_ITEMS);
+    // The question's room for its work with progress shown, the page scrolled as far as it goes (a phone).
+    if (size.phone) {
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await settled(page, 400);
+      workRoom['progress shown'] = await page.evaluate(() => document.querySelector('.math-tool-workspace')?.clientHeight ?? null);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await settled(page, 300);
+    }
     // The finished section's first question: "Question complete" (and, in a Warm-Up's time, its time left).
     await page.locator('.mathmaster-section-tab.is-complete').first().evaluate((tab) => tab.click());
     await page.waitForFunction(() => /Question complete/.test(document.querySelector('.mathmaster-question-attempt-strip')?.textContent || ''), null, { timeout: 60_000 });
@@ -374,6 +386,7 @@ const runBadges = async (browser, origins, size) => {
     await page.locator('.mathmaster-assignment-unified-nav.is-collapsed').waitFor({ timeout: 30_000 });
     await settled(page, 700);
     readings['focus view, a finished question'] = await page.evaluate(READ_HEADER, HEADER_ITEMS);
+    if (size.phone) workRoom['focus view'] = await page.evaluate(() => document.querySelector('.math-tool-workspace')?.clientHeight ?? null);
     await page.evaluate(() => document.querySelector('button.mathmaster-work-view-opener')?.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await settled(page, 500);
     readings['focus view, opener in view'] = await page.evaluate(READ_HEADER, HEADER_ITEMS);
@@ -385,12 +398,13 @@ const runBadges = async (browser, origins, size) => {
   }
   for (const [state, reading] of Object.entries(readings)) {
     reading.overlaps.forEach((overlap) => problems.push(`${state}: ${overlap}`));
-    // Whole where the question has the screen. With "Show progress" open on the smallest phone at 200% text the
-    // navigator takes most of a screen that does not scroll, and the question under it is cut by design until
-    // the student folds it (reported in the run, not failed).
-    if (state.startsWith('focus view')) {
-      reading.items.filter((item) => item.cut && BADGE_KINDS.has(item.kind)).forEach((item) => problems.push(`${state}: ${item.kind} "${item.text}" is cut off by a box that does not scroll`));
-    }
+    // Whole, with progress shown too: on a narrow screen the page scrolls past the navigator to the question
+    // (App.css), where the navigator once took a screen that did not scroll and cut the question under it.
+    reading.items.filter((item) => item.cut && BADGE_KINDS.has(item.kind)).forEach((item) => problems.push(`${state}: ${item.kind} "${item.text}" is cut off by a box that does not scroll`));
+  }
+  // And room for its work: 16px of it, or none, on a narrow phone with progress shown before.
+  if (workRoom['progress shown'] != null && workRoom['progress shown'] < PROGRESS_WORK_MIN) {
+    problems.push(`progress shown: the question has ${workRoom['progress shown']}px for its work (${workRoom['focus view'] ?? '?'}px in Focus view)`);
   }
   const kinds = (state) => [...new Set((readings[state]?.items || []).map((item) => item.kind))];
   // The scenes must show what they are for, or they prove nothing.
@@ -400,9 +414,7 @@ const runBadges = async (browser, origins, size) => {
     if (readings[state] && !(readings[state].items || []).some((item) => item.kind === 'tries' && /Question complete/.test(item.text))) problems.push(`${state}: "Question complete" is not on screen`);
   }
   if (readings['focus view, opener in view'] && !kinds('focus view, opener in view').includes('opener')) problems.push('the opener is not on screen');
-  const cutWithProgress = Object.entries(readings).filter(([state]) => state.startsWith('progress shown'))
-    .flatMap(([state, reading]) => reading.items.filter((item) => item.cut && BADGE_KINDS.has(item.kind)).map((item) => `${state}: ${item.kind} "${item.text}"`));
-  return { check: 'badges', surface: 'assignment-screen', size: size.id, readings, cutWithProgress, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
+  return { check: 'badges', surface: 'assignment-screen', size: size.id, readings, workRoom, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
 };
 
 // ------------------------------------------------------------------------------------------------ scroll (R10)
@@ -642,7 +654,7 @@ const say = (result) => {
       ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane${result.cramped?.length ? `; a view too short for a plane at its floor and its controls together (the plane whole): ${result.cramped.join(', ')}` : ''}${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
     : result.check === 'scroll'
       ? `${Object.keys(result.scenes).length} Work Views${Object.values(result.scenes).some((scene) => scene.sideways?.length) ? `; sideways: ${[...new Set(Object.values(result.scenes).flatMap((scene) => scene.sideways || []))].join(', ')}` : ''}${result.known?.length ? `; left for the owner: ${result.known.join('; ')}` : ''}`
-      : `${Object.keys(result.readings).length} states${result.cutWithProgress?.length ? `; with progress shown, cut by the screen: ${result.cutWithProgress.join(', ')}` : ''}`;
+      : `${Object.keys(result.readings).length} states${result.workRoom?.['progress shown'] != null ? `; the question's work: ${result.workRoom['progress shown']}px with progress shown, ${result.workRoom['focus view']}px in Focus view` : ''}`;
   console.log(`${problems.length ? 'FAIL' : 'ok  '} ${result.check.padEnd(6)} ${result.surface.padEnd(18)} ${result.size.padEnd(13)} ${summary}`);
   problems.forEach((problem) => console.log(`       ${problem}`));
 };
