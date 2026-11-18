@@ -156,6 +156,13 @@ export default function CoordinatePlane({
   // the curve's `stroke`.
   functionLabels = [],
   curveLabels = [],
+  // Words a tool writes on the plane itself, beside its points, as children
+  // ({ x, y, label } in graph units; `dx`, `dy` from there to where the text
+  // starts and `textSize`, in viewBox units): the Systems Workspace's build
+  // mode writes a test point's coordinates, "Your point", a vertex's letter, a
+  // handle's number. The curves' names keep clear of them, as of the plane's
+  // own point names.
+  toolLabels = [],
   onPlot = null,
   // The tool's count after a plot, said with it ("2 of 2 points plotted.").
   // Optional: without it a screen reader hears what the plot did and no count.
@@ -853,6 +860,12 @@ export default function CoordinatePlane({
     avoid: [
       ...axisNumberBoxes,
       ...labelSpots.map((spot, index) => (spot ? placedLabelBox({ spot, label: points[index].label, textSize: svgFont(11) }) : null)).filter(Boolean),
+      ...toolLabels.map((entry) => {
+        const [pointX, pointY] = pointXY(entry);
+        if (!entry?.label || !Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
+        const spot = { x: sx(pointX) + (Number(entry.dx) || 0), y: sy(pointY) + (Number(entry.dy) || 0), anchor: entry.anchor || 'start' };
+        return placedLabelBox({ spot, label: String(entry.label), textSize: Number(entry.textSize) || 12 });
+      }).filter(Boolean),
     ],
     hidden: openerCover ? [openerCover] : [],
     bounds: { left: pad, right: width - pad, top: pad, bottom: height - pad },

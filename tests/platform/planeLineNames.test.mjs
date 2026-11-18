@@ -83,6 +83,57 @@ test('the student-build workspace numbers each boundary it draws, and keeps the 
   assert.deepEqual(names(markup), ['1', '2']);
 });
 
+/*
+ * The build mode writes names beside its points itself (a test point's coordinates, "Your point", a vertex's letter, a
+ * handle's number), as the plane's children: the plane kept each boundary's ringed number off its own point names
+ * only, and a ring sat on a test point's coordinates ("(5, 8)" under ring 1 read "(5"). With the default system, a
+ * test point at (5, 3), (5, 7) or (5, 8) was covered.
+ */
+const ringsIn = (markup) => [...markup.matchAll(/<g data-curve-label="(\d)"[^>]*>\s*<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)]
+  .map(([, label, cx, cy, r]) => ({ label, cx: Number(cx), cy: Number(cy), r: Number(r) }));
+
+test('the build mode\'s constraint numbers keep off the coordinates it writes beside a test point, wherever the point is', async () => {
+  let read = 0;
+  for (let x = -5; x <= 7; x += 1) {
+    for (let y = -3; y <= 9; y += 1) {
+      const markup = await render('/src/tools/systemsWorkspace/SystemsWorkspace.jsx', { questionData: { mode: 'inequalities', studentBuild: { shading: true }, testPoint: { x, y } }, onAction: () => {} });
+      const rings = ringsIn(markup);
+      assert.deepEqual(rings.map((ring) => ring.label), ['1', '2'], `(${x}, ${y}): both boundaries numbered`);
+      // The point's coordinates as written (a minus sign for a negative), and the box the plane gives a word: 0.62em
+      // a letter, from where the text starts.
+      const written = `(${x}, ${y})`.replace(/-/g, '−');
+      const word = [...markup.matchAll(/<text ([^>]*)>([^<]*)<\/text>/g)].find(([, , text]) => text === written);
+      assert.ok(word, `${written} is written beside the test point`);
+      const at = attributes(`<text ${word[1]}>`);
+      const size = Number(at['font-size']);
+      const box = { left: Number(at.x), right: Number(at.x) + written.length * 0.62 * size, top: Number(at.y) - 0.78 * size, bottom: Number(at.y) + 0.2 * size };
+      for (const ring of rings) {
+        const gap = Math.max(box.left - (ring.cx + ring.r), ring.cx - ring.r - box.right, box.top - (ring.cy + ring.r), ring.cy - ring.r - box.bottom);
+        assert.ok(gap >= 2, `ring ${ring.label} is ${gap.toFixed(1)} units from ${written}`);
+      }
+      read += 1;
+    }
+  }
+  assert.equal(read, 169);
+});
+
+test('the build mode hands the plane every name it writes beside a point, and the plane keeps the rings off them', () => {
+  // One list: what InequalityGraphLayers writes is what the plane is told of, whatever the step (a handle's number, a
+  // vertex's letter, "Your point", a test point's coordinates).
+  const mode = executableSource(read('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'));
+  assert.match(mode, /const pointNames = graphPoints\.map\(\(point, index\) => \(graphPointRoles\[index\]\?\.label\s*\? \{ x: point\.x, y: point\.y, label: graphPointRoles\[index\]\.label, \.\.\.POINT_NAME_PLACE \}/);
+  assert.match(region(mode, '<CoordinatePlane', '</CoordinatePlane>', 'the build mode\'s plane'), /\n\s+toolLabels=\{pointNames\}\n/);
+  assert.match(region(mode, '<InequalityGraphLayers', '/>', 'its layers'), /\n\s+pointNames=\{pointNames\}\n/);
+  const layers = region(executableSource(read('src/tools/systemsWorkspace/InequalityBuildPanels.jsx')), 'export function InequalityGraphLayers(', '\n}\n', 'InequalityGraphLayers');
+  const words = [...layers.matchAll(/<text\b/g)];
+  assert.equal(words.length, 1, 'one place the layers write a word');
+  assert.match(layers, /\{pointNames\.map\(\(\{ x, y, label, dx, dy, textSize \}, index\) => \(\s*<text key=\{`label\$\{index\}`\} x=\{sx\(x\) \+ dx\} y=\{sy\(y\) \+ dy\} fontSize=\{textSize\}/);
+  // The plane: each such word's box among those its curves' names keep off.
+  const plane = executableSource(read('src/tools/shared/CoordinatePlane.jsx'));
+  const placing = region(plane, 'const curveLabelSpots = curveNamed ? placeNames({', 'textSize: curveTextSize,', 'the curves\' names');
+  assert.match(placing, /\.\.\.toolLabels\.map\(\(entry\) => \{[\s\S]*?placedLabelBox\(\{ spot, label: String\(entry\.label\), textSize: Number\(entry\.textSize\) \|\| 12 \}\)/);
+});
+
 test('the Transformations Lab draws the source\'s points as squares and the student\'s as dots', async () => {
   const spec = await sampleSpec('transformationsLab');
   const markup = await render('/src/tools/transformations/TransformationsLab.jsx', { questionData: spec, onAction: () => {} });

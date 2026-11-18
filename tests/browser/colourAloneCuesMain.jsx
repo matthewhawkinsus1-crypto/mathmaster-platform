@@ -9,7 +9,8 @@
  * with both kinds of round done and its key, the CCMR readiness wheel in every
  * state, and the planes that drew two lines alike but for their colour (the
  * Inverse & Composition Lab's f and y = x, the Exponential ↔ Log Bridge's, the
- * Systems Workspace's two non-strict boundaries in both its modes, the
+ * Systems Workspace's two non-strict boundaries in both its modes (the
+ * build mode again with a test point, whose coordinates it writes itself), the
  * Transformations Lab's source and image, the graph workspace's curve and its
  * inverse, a figure's two named solid functions, a system of equations' two
  * lines beside its equations, two more whose steep lines leave a long name no
@@ -187,6 +188,10 @@ function Cues() {
       </Scene>
       <Scene id="systems-build" title="Systems Workspace, built by the student" wide>
         <SystemsWorkspace questionData={{ mode: 'inequalities', studentBuild: { shading: true } }} onAction={ignore} />
+      </Scene>
+      {/* A test point where a boundary's number went: the build mode writes its coordinates beside it itself. */}
+      <Scene id="systems-build-test-point" title="Systems Workspace, built by the student, with a test point" wide>
+        <SystemsWorkspace questionData={{ mode: 'inequalities', studentBuild: { shading: true }, testPoint: { x: 5, y: 8 } }} onAction={ignore} />
       </Scene>
       <Scene id="transformations" title="Transformations Lab, plot mode" wide>
         <ToolDraftScopeProvider draftKey={TRANSFORM_KEY}>

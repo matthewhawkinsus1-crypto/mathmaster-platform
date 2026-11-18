@@ -64,6 +64,7 @@ export const PLANE_NAMES = Object.freeze({
   'exp-log': ['f', 'f⁻¹', 'y = x'],
   systems: ['1', '2'],
   'systems-build': ['1', '2'],
+  'systems-build-test-point': ['1', '2'],
   'workspace-inverse': ['f', 'f⁻¹'],
   'static-figure': ['f', 'g'],
   // The page's generated systems (their keys are fixed): each line named by the equation listed for it.

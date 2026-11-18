@@ -67,6 +67,7 @@ import {
   LINE_STYLE_OPTIONS,
   ModelingFields,
   PhaseCard,
+  POINT_NAME_PLACE,
   STEP_INSTRUCTIONS,
   StepHeading,
   StepRow,
@@ -776,6 +777,11 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
     graphPoints.push({ x: v.x, y: v.y, fill: POINT_COLORS.vertex, movable: false });
     graphPointRoles.push({ kind: 'vertex', label: String.fromCharCode(65 + index) });
   });
+  // The names written beside the points, drawn by InequalityGraphLayers and handed to the plane, which keeps each
+  // boundary's ringed number off them: a ring drawn over a test point's "(5, 8)" left "(5" to read.
+  const pointNames = graphPoints.map((point, index) => (graphPointRoles[index]?.label
+    ? { x: point.x, y: point.y, label: graphPointRoles[index].label, ...POINT_NAME_PLACE }
+    : null)).filter(Boolean);
   const handleMovePoint = (planeIndex, point) => {
     const role = graphPointRoles[planeIndex];
     if (role?.kind !== 'boundary') return;
@@ -1003,6 +1009,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
             cursorLabel={tapAction.kind === 'boundaryPoint' ? `Point ${tapAction.which}` : 'Point'}
             points={graphPoints}
             curveLabels={boundaryTags}
+            toolLabels={pointNames}
             ariaLabel={graphLabel}
             // What InequalityGraphLayers draws, said by the plane, as messages a
             // Spanish reading says too (inequalityGraphMarks.js; AX05, slice 3).
@@ -1024,8 +1031,7 @@ export default function StudentBuildInequalityMode({ questionData, onAction, dra
                 studentPolygon={studentPolygon}
                 emphasised={emphasised}
                 hatchId={hatchId}
-                graphPoints={graphPoints}
-                graphPointRoles={graphPointRoles}
+                pointNames={pointNames}
               />
             )}
           </CoordinatePlane>
