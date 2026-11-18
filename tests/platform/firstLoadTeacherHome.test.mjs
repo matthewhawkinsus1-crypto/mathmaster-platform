@@ -279,10 +279,9 @@ test('a panel opened offline asks for nothing and says so, and asks once the dev
       return element ? element.type(element.props) : null;
     };
     const view = shim.mount(Host, {});
-    assert.equal(view.output?.type, 'p', 'its note in its place');
-    assert.equal(view.output.props.role, 'status');
-    assert.equal(view.output.props['data-panel-offline'], '');
-    assert.match(view.output.props.children.join(''), /offline.*open when it is back online/);
+    assert.equal(view.output?.type?.name, 'OfflineNote', 'its note in its place');
+    assert.match(view.output.props.text, /offline.*open when it is back online/);
+    assert.equal(typeof view.output.props.onClose, 'function', 'given the panel\'s own onClose, to put it away');
     assert.equal(asked, 0, 'nothing asked for while offline');
     assert.ok(win.listening('online'), 'it waits for the connection');
     controls.setOpen(false);
@@ -292,7 +291,7 @@ test('a panel opened offline asks for nothing and says so, and asks once the dev
     // Back online: the panel's own lazy, inside its Suspense.
     const lazyLoad = view.output?.props?.children?.[0]?.type;
     assert.equal(typeof lazyLoad, 'function', 'back online, the panel is drawn from its code');
-    assert.notEqual(view.output.type, 'p', 'and the note is gone');
+    assert.notEqual(view.output.type?.name, 'OfflineNote', 'and the note is gone');
   } finally {
     globalThis.window = was;
   }
@@ -302,7 +301,8 @@ test('a panel opened offline asks for nothing and says so, and asks once the dev
   try {
     const Real = real.closedPanel(() => new Promise(() => {}), (props) => props.open, 'This device is offline. Find opens when it is back online.');
     const markup = renderToStaticMarkup(createElement(Real, { open: true }));
-    assert.match(markup, /^<p role="status" data-panel-offline="" style="[^"]*position:fixed[^"]*">This device is offline\. Find opens when it is back online\.<\/p>$/);
+    // A toast (ui/uiKit.css), floating as the panel would.
+    assert.match(markup, /^<div class="mm-toast" data-tone="warning" data-panel-offline="" data-dialog-allow-focus="" style="[^"]*position:fixed[^"]*"><p role="status" class="mm-toast__title">This device is offline\. Find opens when it is back online\.<\/p><button type="button" class="mm-toast__close" aria-label="Dismiss">×<\/button><\/div>$/);
     assert.equal(renderToStaticMarkup(createElement(Real, { open: false })), '', 'never opened: nothing at all');
   } finally {
     globalThis.window = was;
@@ -358,6 +358,118 @@ test('offline, a panel whose code was asked for already promises nothing: a fail
   onItsWay.prefetch();
   const { view } = drawnOffline(onItsWay, { open: true, onClose: () => {} });
   assert.equal(typeof view.output?.props?.children?.[0]?.type, 'function', 'a request on its way: its lazy, no note');
+});
+
+// The note can be put away, by its button or Escape, which closes the panel
+// (its own onClose). Escape is taken in the capture phase and marked handled,
+// so a dialog beneath it (ui/Dialog.jsx stands down for a handled key) stays
+// open: the note stands where the panel, the top layer, would be.
+test('a closed panel\'s note is put away by its button and by Escape, ahead of a dialog beneath it', async () => {
+  const { closedPanel } = await loader.ssrLoadModule('/src/app/teacher/onDemandCode.js');
+  const Panel = closedPanel(() => new Promise(() => {}), (props) => props.open, 'This device is offline. The student\'s details open when it is back online.');
+  const listeners = [];
+  const doc = {
+    addEventListener: (type, listener, capture) => listeners.push({ type, listener, capture }),
+    removeEventListener: (type, listener, capture) => {
+      const index = listeners.findIndex((entry) => entry.type === type && entry.listener === listener && entry.capture === capture);
+      if (index >= 0) listeners.splice(index, 1);
+    },
+  };
+  const win = { ...offlineWindow(), document: doc };
+  const was = globalThis.window;
+  globalThis.window = win;
+  try {
+    let closed = 0;
+    const host = shim.mount(() => {
+      const element = Panel({ open: true, onClose: () => { closed += 1; } });
+      return element.type(element.props);
+    }, {});
+    const { type: OfflineNote, props } = host.output;
+    const note = shim.mount(OfflineNote, props);
+    assert.deepEqual(listeners.map(({ type, capture }) => [type, capture]), [['keydown', true]], 'one key listener, in the capture phase');
+    const press = (key, handled = false) => {
+      const event = { key, defaultPrevented: handled, preventDefault() { this.defaultPrevented = true; } };
+      listeners.forEach(({ listener }) => listener(event));
+      return event;
+    };
+    assert.equal(press('Enter').defaultPrevented, false);
+    assert.equal(closed, 0, 'another key: nothing');
+    const escape = press('Escape');
+    assert.equal(closed, 1, 'Escape closes the panel');
+    assert.equal(escape.defaultPrevented, true, 'and is marked handled, for a dialog beneath');
+    press('Escape', true);
+    assert.equal(closed, 1, 'an Escape something else handled is left to it');
+    const button = findElement(note.output, (element) => element.type === 'button');
+    assert.equal(button.props['aria-label'], 'Dismiss');
+    button.props.onClick();
+    assert.equal(closed, 2, 'its button closes the panel');
+    assert.equal(note.output.props['data-dialog-allow-focus'], '', 'a dialog beneath lets focus onto it');
+    note.unmount();
+    assert.equal(listeners.length, 0, 'the key listener goes with the note');
+  } finally {
+    globalThis.window = was;
+  }
+  assert.match(executableSource(read('src/ui/Dialog.jsx')), /const handledInside = event\.defaultPrevented;\s*if \(handledInside \|\| !onTop\(\)\) return;/, 'a dialog stands down for a key handled before it');
+});
+
+// Back online, a panel whose note still shows opens as the note said: these
+// panels are dialogs, which take focus as they open. If the teacher is typing
+// in a box by then, the rest would go into the panel, so it closes instead
+// (its onClose) and mounts closed when its code comes; the box keeps the
+// typing (teacherCodeRecovery.mjs C13; C9 when nothing is typed).
+test('back online, a panel opens as its note said, unless the teacher is typing in a box: then it closes', async () => {
+  const { closedPanel } = await loader.ssrLoadModule('/src/app/teacher/onDemandCode.js');
+  const Panel = closedPanel(() => new Promise(() => {}), (props) => props.open, 'This device is offline. The student\'s details open when it is back online.');
+  const field = (tagName, readWrite) => ({ tagName, matches: (selector) => readWrite && selector === ':read-write' });
+  const was = globalThis.window;
+  for (const [focus, typing] of [
+    [field('INPUT', true), true], [field('TEXTAREA', true), true], [field('DIV', true), true], [field('MATH-FIELD', false), true],
+    [field('BUTTON', false), false], [field('INPUT', false), false], [field('BODY', false), false], [null, false],
+  ]) {
+    const win = { ...offlineWindow(), document: { activeElement: focus } };
+    const goOnline = win.goOnline.bind(win);
+    globalThis.window = win;
+    try {
+      let closes = 0;
+      const view = shim.mount(() => {
+        const [open, setOpen] = shim.useState(true);
+        const element = Panel({ open, onClose: () => { closes += 1; setOpen(false); } });
+        return element ? element.type(element.props) : null;
+      }, {});
+      assert.equal(view.output?.type?.name, 'OfflineNote');
+      goOnline();
+      const label = focus ? `${focus.tagName}${focus.matches(':read-write') ? ' that takes text' : ''}` : 'nothing';
+      const drawn = view.output?.props?.children?.[0];
+      assert.equal(typeof drawn?.type, 'function', `focus on ${label}: the panel mounts from its code`);
+      assert.equal(closes, typing ? 1 : 0, `focus on ${label}: ${typing ? 'it closes' : 'it does not close'}`);
+      assert.equal(drawn.props.open, !typing, `focus on ${label}: ${typing ? 'mounted closed, so it takes no focus' : 'it opens'}`);
+    } finally {
+      globalThis.window = was;
+    }
+  }
+});
+
+// As wide as its words, up to the screen's (it was squeezed to half the
+// screen: 195 px and six lines on a phone); at the top, or on a phone at the
+// bottom, clear of the navigation (teacherCodeRecovery.mjs C14).
+test('a closed panel\'s note is as wide as its words up to the screen\'s, and on a phone at the bottom', () => {
+  const Real = real.closedPanel(() => new Promise(() => {}), (props) => props.open, 'This device is offline. Find opens when it is back online.');
+  const was = globalThis.window;
+  const style = (innerWidth) => {
+    globalThis.window = { ...offlineWindow(), innerWidth };
+    try {
+      return renderToStaticMarkup(createElement(Real, { open: true })).match(/^<div[^>]* style="([^"]*)"/)[1];
+    } finally {
+      globalThis.window = was;
+    }
+  };
+  for (const [innerWidth, edge, other] of [[1366, 'top', 'bottom'], [390, 'bottom', 'top']]) {
+    const css = style(innerWidth);
+    assert.match(css, /(?:^|;)width:max-content(?:;|$)/, `${innerWidth} px: as wide as its words`);
+    assert.match(css, /max-width:calc\(100vw - 32px\)/, `${innerWidth} px: up to the screen's width`);
+    assert.match(css, new RegExp(`(?:^|;)${edge}:12px(?:;|$)`), `${innerWidth} px: at the ${edge}`);
+    assert.doesNotMatch(css, new RegExp(`(?:^|;)${other}:`), `${innerWidth} px: not at the ${other}`);
+  }
 });
 
 test('Find is asked for at once as the workspace draws, on a device that saves data too, and never while offline', async () => {

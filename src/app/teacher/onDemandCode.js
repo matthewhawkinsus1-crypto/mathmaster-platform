@@ -47,6 +47,14 @@
  * loads the page again only once the device is back online. Each has
  * `prefetch()`, for the workspace's idle prefetch.
  *
+ * A closed panel's note floats as the panel would, as wide as its words up to
+ * the screen's (at the bottom on a phone, clear of the navigation), and can be
+ * put away, by its button or Escape, which closes the panel: it then stays
+ * closed. Back online it opens as the note said, unless the teacher is typing
+ * in a box: these panels are dialogs, which take focus as they open, and the
+ * rest of what was typed would go into the panel, so it closes instead and
+ * the box keeps it.
+ *
  *   useOnDemandCode(code, wanted)
  *                        for a screen that holds what it draws until the code
  *                        is here (Ask my teacher's questions, whose prompts
@@ -65,7 +73,7 @@
  *
  * Plain JS (createElement, no JSX), so node tests drive it.
  */
-import { Suspense, createElement, lazy, useEffect, useState } from 'react';
+import { Suspense, createElement, lazy, useEffect, useRef, useState } from 'react';
 
 const browserWindow = () => (typeof window !== 'undefined' ? window : null);
 const offline = (win) => win?.navigator?.onLine === false;
@@ -100,14 +108,20 @@ export const onDemandCode = (load) => {
 // Suspense boundary (as the student screens' visit, app/lazyScreens.js): the
 // panel itself when its code is here, else a lazy of its own, which keeps a
 // rejected import and throws it on to AppErrorBoundary. Offline with its code
-// never asked for, neither yet: its note, until the device is back online.
+// never asked for, neither yet: its note, until the device is back online,
+// when `backOnline` (props as they are then) comes first.
 const choose = (code) => code.loaded()?.default || lazy(code.load);
-const drawWhenHere = (code, offlineNote) => function OnDemandPanel(props) {
+const drawWhenHere = (code, offlineNote, backOnline) => function OnDemandPanel(props) {
   const win = browserWindow();
+  const latest = useRef(props);
+  useEffect(() => { latest.current = props; });
   const [Panel, setPanel] = useState(() => (code.asked() || !offline(win) ? choose(code) : null));
   useEffect(() => {
     if (Panel) return undefined;
-    return whenOnline(win, () => setPanel(() => choose(code)));
+    return whenOnline(win, () => {
+      backOnline?.(latest.current, win);
+      setPanel(() => choose(code));
+    });
   }, [Panel, win]);
   if (!Panel) return offlineNote(props);
   return createElement(Suspense, { fallback: null }, createElement(Panel, props));
@@ -116,13 +130,52 @@ const drawWhenHere = (code, offlineNote) => function OnDemandPanel(props) {
 // What a panel opened offline shows in its place: a closed panel floats over
 // the page, as the panel itself would; a drawn panel stands in its own place.
 const NOTE = { margin: 0, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 700 };
-const FLOATING_NOTE = { ...NOTE, position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 11000, maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box', boxShadow: '0 8px 24px rgba(0, 0, 0, .18)' };
 const note = (text, style) => createElement('p', { role: 'status', 'data-panel-offline': '', style }, text);
+// A closed panel's note is a toast (ui/uiKit.css), centred, as wide as its
+// words up to the screen's; at the top, or on a phone (the toasts' 640px) at
+// the bottom, where it covers no navigation. Put away by its button or by
+// Escape: the top layer, so a dialog beneath (ui/Dialog.jsx reads the key as
+// handled) stays open, and lets focus onto its button.
+function OfflineNote({ text, onClose }) {
+  useEffect(() => {
+    const doc = browserWindow()?.document;
+    if (!doc) return undefined;
+    const onKey = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      onClose?.();
+    };
+    doc.addEventListener('keydown', onKey, true);
+    return () => doc.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  return createElement(
+    'div',
+    {
+      className: 'mm-toast',
+      'data-tone': 'warning',
+      'data-panel-offline': '',
+      'data-dialog-allow-focus': '',
+      style: {
+        position: 'fixed', zIndex: 11000, [browserWindow()?.innerWidth <= 640 ? 'bottom' : 'top']: 12, left: 16, right: 16, margin: '0 auto',
+        width: 'max-content', maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box', padding: '8px 8px 8px 14px', alignItems: 'center',
+      },
+    },
+    createElement('p', { role: 'status', className: 'mm-toast__title' }, text),
+    createElement('button', { type: 'button', className: 'mm-toast__close', 'aria-label': 'Dismiss', onClick: () => onClose?.() }, '×'),
+  );
+}
+// Typing in a box: a field that takes text (:read-write, so no button, box to
+// tick or slider), or a math field.
+const typing = (el) => Boolean(el?.matches?.(':read-write') || el?.tagName === 'MATH-FIELD');
 
 export const closedPanel = (load, isOpen, offlineNote) => {
   const code = onDemandCode(load);
   // Only while it is open: closed again while it waits, it says nothing.
-  const Draw = drawWhenHere(code, (props) => (isOpen(props) ? note(offlineNote, FLOATING_NOTE) : null));
+  const Draw = drawWhenHere(
+    code,
+    (props) => (isOpen(props) ? createElement(OfflineNote, { text: offlineNote, onClose: props.onClose }) : null),
+    (props, win) => { if (isOpen(props) && typing(win?.document?.activeElement)) props.onClose?.(); },
+  );
   function ClosedPanel(props) {
     const open = Boolean(isOpen(props));
     const [opened, setOpened] = useState(open);

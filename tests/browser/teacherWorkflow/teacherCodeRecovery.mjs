@@ -5,7 +5,8 @@
 //
 //   (TEACHER_HARNESS_ORIGIN=<origin> if not http://127.0.0.1:5188; it runs the
 //    same on the harness built as production, vite.production.config.mjs;
-//    PLAYWRIGHT_MODULE and CHROMIUM_PATH as journeys.mjs.)
+//    PLAYWRIGHT_MODULE and CHROMIUM_PATH as journeys.mjs; ONLY=C9,C12 to run
+//    some scenes.)
 //
 // The teacher's workspace takes its authoring code from a module it loads on
 // demand (src/app/teacher/teacherAuthoringKit.js, through authoringKitLoader
@@ -60,6 +61,13 @@
 //       page can bring code whose request failed); AppErrorBoundary says to
 //       check the connection, and back online its button loads a page where
 //       they open
+//   C12 the note put away, by Escape and by its button: back online the
+//       details stay closed, and open at once when asked for again
+//   C13 the note still showing as the Wi-Fi returns while the teacher types
+//       in the student search: the details do not open and take focus, and
+//       the rest of the name goes into the search box
+//   C14 on a phone: the note is as wide as the screen allows, covers no
+//       navigation, and a tap on its button puts it away
 //
 // Offline is the device's as the app reads it (navigator.onLine and the
 // online event), with every request failing while it lasts. Chromium's own
@@ -108,8 +116,8 @@ const panel = (page) => page.locator('[data-recovery-panel]');
 // `ready(page)`: what the page has drawn when the scene starts (Home's heading
 // unless named); `cut`: code whose requests fail as a dropped connection does
 // (until `context.unroute`).
-const openTeacher = async ({ saveData = false, fail = [], cut = [], watch = AUTHORING_CODE, query = 'reset=1', before = null, ready = null, network = null } = {}) => {
-  const context = await newSchoolContext(browser, { viewport: { width: 1366, height: 768 } });
+const openTeacher = async ({ saveData = false, fail = [], cut = [], watch = AUTHORING_CODE, query = 'reset=1', before = null, ready = null, network = null, viewport = { width: 1366, height: 768 } } = {}) => {
+  const context = await newSchoolContext(browser, { viewport });
   if (network) await emulateConnection(context, network);
   if (saveData) {
     await context.addInitScript(() => {
@@ -170,7 +178,9 @@ const panelSays = async (page, label) => {
 
 // Each scene on a context of its own; one that cannot be driven is a finding,
 // and the next still runs.
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const scene = async (label, run) => {
+  if (ONLY && !label.split('/').some((name) => ONLY.includes(name))) return;
   try {
     await run();
   } catch (error) {
@@ -384,6 +394,15 @@ await scene('C10', async () => {
 const offlineNote = (page) => page.locator('[data-panel-offline]');
 const studentDetails = (page) => page.locator('[data-student-profile-drawer]');
 const focused = (page) => page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.getAttribute('placeholder') || document.activeElement?.textContent || '');
+// Until the code asked for has arrived and run (no request for 500 ms), so a
+// panel that would open has opened.
+const settled = async (page, asked) => {
+  const deadline = Date.now() + 30_000;
+  while (!asked.length && Date.now() < deadline) await page.waitForTimeout(250);
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await page.waitForTimeout(1500);
+};
+
 // C11: a student's details whose code was cut off in the idle prefetch.
 await scene('C11', async () => {
   const network = connection();
@@ -414,6 +433,90 @@ await scene('C11', async () => {
     await page.waitForTimeout(600);
     expect('C11 with focus on their Close', /Close student profile/.test(await focused(page)), `focus on "${await focused(page)}"`);
   }
+  await context.close();
+});
+
+// C12: the note put away, by Escape and by its button.
+await scene('C12', async () => {
+  const network = connection();
+  const { context, page, asked } = await openTeacher({ saveData: true, network, watch: STUDENT_DETAILS });
+  await page.waitForTimeout(1500);
+  await network.offline(page);
+  const student = page.locator('[data-live-tile] button').first();
+  await student.click();
+  await offlineNote(page).first().waitFor({ timeout: 15_000 });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  expect('C12 Escape puts the note away', (await offlineNote(page).count()) === 0, 'the note is still there');
+  await student.click();
+  await offlineNote(page).first().waitFor({ timeout: 15_000 });
+  await offlineNote(page).getByRole('button', { name: 'Dismiss' }).click();
+  await page.waitForTimeout(400);
+  expect('C12 and so does its button', (await offlineNote(page).count()) === 0, 'the note is still there');
+  await network.online(page);
+  await settled(page, asked);
+  expect('C12 back online, details the teacher put away stay closed', (await studentDetails(page).count()) === 0 && (await panel(page).count()) === 0, 'the drawer opened by itself');
+  await student.click();
+  const opened = await studentDetails(page).waitFor({ timeout: 60_000 }).then(() => true, () => false);
+  expect('C12 asked for again, they open', opened, 'no drawer within 60 s');
+  if (opened) {
+    await page.waitForTimeout(600);
+    expect('C12 with focus on their Close', /Close student profile/.test(await focused(page)), `focus on "${await focused(page)}"`);
+  }
+  await context.close();
+});
+
+// C13: the Wi-Fi returns while the teacher types in another box.
+await scene('C13', async () => {
+  const network = connection();
+  const { context, page, asked } = await openTeacher({ saveData: true, network, watch: STUDENT_DETAILS });
+  await sidebar(page, 'Students').click();
+  const search = page.getByPlaceholder('Search student or class');
+  await search.waitFor({ timeout: 120_000 });
+  await page.waitForTimeout(1000);
+  await network.offline(page);
+  await page.getByRole('button', { name: 'Adler, Parker' }).first().click();
+  await offlineNote(page).first().waitFor({ timeout: 15_000 });
+  await search.click();
+  await page.keyboard.type('Ga', { delay: 60 });
+  await network.online(page);
+  await settled(page, asked);
+  expect('C13 back online while the teacher types in a box, the details do not open over it', (await studentDetails(page).count()) === 0, 'the drawer opened');
+  expect('C13 and their note is gone', (await offlineNote(page).count()) === 0, 'the note is still there');
+  await page.keyboard.type('rza', { delay: 60 });
+  expect('C13 the rest of the name goes into the box', (await search.inputValue()) === 'Garza', `the search box: "${await search.inputValue()}", focus on "${await focused(page)}"`);
+  await context.close();
+});
+
+// C14: on a phone, from the Students screen, its navigation row on screen.
+await scene('C14', async () => {
+  const network = connection();
+  const { context, page } = await openTeacher({ saveData: true, network, viewport: { width: 390, height: 844 } });
+  await sidebar(page, 'Students').click();
+  await page.getByPlaceholder('Search student or class').waitFor({ timeout: 120_000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(1000);
+  await network.offline(page);
+  await page.getByRole('button', { name: 'Adler, Parker' }).first().click();
+  const note = offlineNote(page).first();
+  await note.waitFor({ timeout: 15_000 });
+  const box = await note.boundingBox();
+  expect('C14 the note is as wide as the screen allows, not squeezed', box.width >= 390 - 32 - 1 && box.height <= 90, `${Math.round(box.width)}×${Math.round(box.height)} px`);
+  // Any part of a navigation button on screen under the note.
+  const covered = await page.evaluate(() => {
+    const n = document.querySelector('[data-panel-offline]').getBoundingClientRect();
+    return [...document.querySelectorAll('nav[aria-label="Teacher dashboard navigation"] button')].filter((button) => {
+      const r = button.getBoundingClientRect();
+      const left = Math.max(r.left, 0);
+      const right = Math.min(r.right, innerWidth);
+      if (!r.width || right <= left || r.bottom <= 0 || r.top >= innerHeight) return false;
+      return left < n.right && right > n.left && r.top < n.bottom && r.bottom > n.top;
+    }).map((button) => button.textContent.trim());
+  });
+  expect('C14 it covers no navigation', covered.length === 0, `covers ${covered.join(', ')}`);
+  await note.getByRole('button', { name: 'Dismiss' }).click();
+  await page.waitForTimeout(400);
+  expect('C14 a tap on its button puts it away', (await offlineNote(page).count()) === 0, 'the note is still there');
   await context.close();
 });
 

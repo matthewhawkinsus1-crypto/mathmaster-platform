@@ -31,9 +31,10 @@
  * none again as it leaves the page.
  *
  * Opened while the device is offline before anything asked for its code, each
- * says so in its place, and opens once the device is back online. Code whose
- * request already failed goes to AppErrorBoundary instead: only a new page can
- * bring it (./onDemandCode.js).
+ * says so in its place, in a note the teacher can put away, and opens once the
+ * device is back online, unless the teacher is typing in a box by then. Code
+ * whose request already failed goes to AppErrorBoundary instead: only a new
+ * page can bring it (./onDemandCode.js).
  */
 import { closedPanel, drawnPanel, onDemandCode } from './onDemandCode.js';
 
