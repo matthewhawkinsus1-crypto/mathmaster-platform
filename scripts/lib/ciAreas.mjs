@@ -387,6 +387,8 @@ export const CI_AREAS = {
     'tests/browser/feedbackTeaches*',
     'tests/browser/readAloudTranslate*',
     'tests/browser/reviewMyWork*',
+    // The accommodation review's QA journey, run after its emulator test.
+    'tests/browser/accommodationReviewQa*',
     'tests/browser/support/touchEmulation*',
     // How readAloudTranslate, studentUxPlatform and the matrices lesson on a phone read the Work View opener's cover.
     'tests/browser/support/openerCover*',
@@ -550,6 +552,8 @@ export const CI_AREAS = {
     'src/platform/mobile/**',
     'src/ScratchpadOverlay.jsx',
     'tests/browser/workViewCertification*',
+    // The terminal transition's driver and the page it opens.
+    'tests/browser/workViewTerminalTransition*',
     'tests/platform/workViewStage4Certification.test.mjs',
   ],
 };
