@@ -2106,9 +2106,11 @@ const proseAsides = (text, segments) => {
 };
 // A mark is found from the first space before it (a match never starts inside
 // a run of spaces), and what is said before it is read from the end of that.
+// A mark whose spaces the mark before it took ("(… (…) )", an aside closing
+// inside another) is found on its own, as it was before the run rule.
 const asidesAsPauses = (text) => (ASIDE_MARKS.test(text) ? text
-  .replace(/(?<!\s)\s*\uE022\s*/g, (mark, offset, whole) => (PAUSES_BEFORE.test(spaceTail(whole, offset)) ? ', ' : ' '))
-  .replace(/(?<!\s)\s*\uE023\s*/g, (mark, offset, whole) => (PAUSES_AFTER.test(whole.slice(offset + mark.length)) ? ', ' : ' ')) : text);
+  .replace(/(?:(?<!\s)\s+)?\uE022\s*/g, (mark, offset, whole) => (PAUSES_BEFORE.test(spaceTail(whole, offset)) ? ', ' : ' '))
+  .replace(/(?:(?<!\s)\s+)?\uE023\s*/g, (mark, offset, whole) => (PAUSES_AFTER.test(whole.slice(offset + mark.length)) ? ', ' : ' ')) : text);
 
 /*
  * AN ELLIPSIS IN A LIST IS "AND SO ON" (math-speech-4; 808 texts hand the

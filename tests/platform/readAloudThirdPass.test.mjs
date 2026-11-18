@@ -67,6 +67,17 @@ test('a bracket that holds a relation is an aside, said between pauses', () => {
   assert.equal(speechTextFor('A false statement (0 = −10.5) means', es), 'A false statement, 0 es igual a negativo 10.5, means');
   // A bracket pressed against a name is the name's argument, never an aside.
   assert.equal(speechTextFor('P(x ≤ 3)'), 'P of the quantity x is less than or equal to 3');
+  // An aside that closes inside another, with a space between the two
+  // brackets: the second close is a pause too, never a mark the voice is
+  // handed (a review of the one-pass reading found it left raw).
+  assert.equal(speechTextFor('The answer (x = 2 (when y = 3) ) is shown.'), 'The answer, x equals 2, when y equals 3, is shown.');
+  assert.equal(speechTextFor('Prices (in dollars (cost = 5) ) vary.'), 'Prices, in dollars, cost equals 5, vary.');
+  assert.equal(speechTextFor('The answer (x = 2 (when y = 3) ) is shown.', es), 'The answer, x es igual a 2, when y es igual a 3, is shown.');
+  assert.equal(spokenMathLabel('The answer (x = 2 (when y = 3) ) is shown.'), 'The answer, x equals 2, when y equals 3, is shown.');
+  // A long run of spaces before a close is read once (the run rule's reason).
+  const started = Date.now();
+  assert.doesNotMatch(speechTextFor(`word (a = b (c = d)${' '.repeat(15000)})`), /[]/);
+  assert.ok(Date.now() - started < 2000, 'a run of spaces before an aside\'s close is read in linear time');
 });
 
 test('an arrow between two statements is "gives"', () => {
