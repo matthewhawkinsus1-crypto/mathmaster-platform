@@ -48,6 +48,11 @@ const DRIVERS = [
     // #386 R12: the first operand on a fresh Step Algebra stage is kept.
     // #386 R5: Enter in a composed question's step never submits it.
     'stepAlgebraFirstOperand', 'workflowStepEnter',
+    // My Math Path's weekly panel (the grade so far), a session's end (the next
+    // weekly session) and My Progress (the weeks hit). They ran by hand only,
+    // and each had failed since 10 to 13 October. What they show is worked out
+    // in functions/shared, which this workflow's area reaches.
+    'pathProgressTruth', 'pathSessionEnd', 'myMathPathProgress',
   ]],
   ['student-runtime-browser-gates.yml', 'pass3-secure-screens', 'self', ['secureResults', 'secureExamNavigation']],
   // CI10: the M2 T2 lessons' every question, laptop and phone, and their tries.
@@ -191,10 +196,18 @@ test('a pull request that changes one of these drivers, or a page it opens, runs
     'afterLastMiss', 'day1Systems', 'day2Nonunique', 'assignmentMobile', 'studentHomeToday', 'studentGradesRaise',
     'studentResultUpNext', 'studentWhatChanged', 'gradeCenterMobile', 'secureResults', 'secureExamNavigation',
     'secureAccessParity', 'stepNotQueued', 'toolOutcomeReach', 'feedbackReasons2', 'toolChoiceGroups', 'mathBoxFocus',
-    'stepAlgebraFirstOperand', 'workflowStepEnter'].forEach((driver) => {
+    'stepAlgebraFirstOperand', 'workflowStepEnter', 'pathProgressTruth', 'pathSessionEnd', 'myMathPathProgress'].forEach((driver) => {
     for (const file of [`tests/browser/${driver}.mjs`, `tests/browser/${driver}.html`]) {
       assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
     }
+  });
+  // The My Math Path pages, and the shared rules that work out what they show:
+  // the grade so far and its label, which sessions count toward a week, the
+  // weeks hit, and the session's review.
+  ['tests/browser/pathProgressTruthMain.jsx', 'tests/browser/pathSessionEndMain.jsx', 'tests/browser/myMathPathProgressMain.jsx',
+    'functions/shared/weeklyPathGrade.mjs', 'functions/shared/weeklyPathCompletion.mjs', 'functions/shared/weeklyPathHistory.mjs',
+    'functions/shared/pathSessionRecap.mjs'].forEach((file) => {
+    assert.ok(runsOnPullRequest(gates, file), `a change to ${file} runs the gates`);
   });
   // toolChoiceGroups (W7-2) opens the keyboard sweep's page.
   assert.ok(runsOnPullRequest(gates, 'tests/browser/keyboardSweep.html'));

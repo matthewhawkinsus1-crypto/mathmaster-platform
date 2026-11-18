@@ -44,6 +44,10 @@ export const CI_AREAS = {
     'tests/browser/closedVerdictChip*',
     'tests/browser/workBarPrimaryLabel*',
     'tests/browser/myMathPathLandmarks*',
+    // The topic browser's journey, and the helper its page builds its lesson
+    // evidence with.
+    'tests/browser/pathTopicBrowser*',
+    'tests/platform/helpers/assignmentWork.mjs',
     'tests/browser/studentAccessibleNames*',
     'tests/browser/support/touchEmulation*',
     'tests/browser/support/sceneShards*',
@@ -326,6 +330,10 @@ export const CI_AREAS = {
     'tests/browser/day2Nonunique*',
     'tests/browser/assignmentMobile*',
     'tests/browser/studentHomeToday*',
+    // My Math Path's weekly panel, a session's end and My Progress, run after Home.
+    'tests/browser/pathProgressTruth*',
+    'tests/browser/pathSessionEnd*',
+    'tests/browser/myMathPathProgress*',
     'tests/browser/studentGradesRaise*',
     'tests/browser/studentResultUpNext*',
     'tests/browser/studentWhatChanged*',
