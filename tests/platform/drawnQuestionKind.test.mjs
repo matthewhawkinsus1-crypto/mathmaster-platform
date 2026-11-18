@@ -235,26 +235,39 @@ test('for every real question, the rule on what the validator judges is what Que
   assert.ok(seen.size >= 20, [...seen].join(', '));
 });
 
-test('a browser harness that swaps a registry tool swaps one the catalogue names, so the rule draws it', () => {
+test('a browser harness that swaps a registry tool swaps one the catalogue names, and its questions are drawn as it', () => {
   // The module recovery harness put its crash probe in the registry under an id
   // of its own; the rule names a registry tool only by the catalogue's ids, so
   // the probe was drawn as the "could not be displayed" panel and
   // moduleRecoveryLock.mjs never met the failure it checks (CI on 4d429447).
-  const sources = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (
+  // So a harness that swaps a tool must swap a catalogue tool, and every
+  // question it mounts must be drawn as that tool: a question that does not
+  // name it (by toolId or type) mounts something else, and the journey checks
+  // nothing it meant to. Read from the repository, wherever the test runs.
+  const sources = (dir) => readdirSync(new URL(dir, repo), { withFileTypes: true }).flatMap((entry) => (
     entry.isDirectory()
-      ? (entry.name === 'artifacts' ? [] : sources(`${dir}/${entry.name}`))
-      : (/\.(jsx?|mjs)$/.test(entry.name) ? [`${dir}/${entry.name}`] : [])
+      ? (entry.name === 'artifacts' ? [] : sources(`${dir}${entry.name}/`))
+      : (/\.(jsx?|mjs)$/.test(entry.name) ? [`${dir}${entry.name}`] : [])
   ));
-  const swapped = sources('tests/browser').flatMap((file) => {
-    const text = readFileSync(file, 'utf8');
+  const swapped = sources('tests/browser/').flatMap((file) => {
+    const text = read(file);
     return [
-      ...[...text.matchAll(/TOOL_REGISTRY\.([A-Za-z0-9_$]+)\s*=(?!=)/g)].map((match) => ({ file, id: match[1] })),
-      ...[...text.matchAll(/TOOL_REGISTRY\[\s*['"]([^'"]+)['"]\s*\]\s*=(?!=)/g)].map((match) => ({ file, id: match[1] })),
+      ...[...text.matchAll(/TOOL_REGISTRY\.([A-Za-z0-9_$]+)\s*=(?!=)/g)].map((match) => ({ file, text, id: match[1] })),
+      ...[...text.matchAll(/TOOL_REGISTRY\[\s*['"]([^'"]+)['"]\s*\]\s*=(?!=)/g)].map((match) => ({ file, text, id: match[1] })),
     ];
   });
   assert.ok(swapped.some(({ file }) => file.endsWith('moduleRecoveryLockMain.jsx')), 'the module recovery harness swaps a registry tool');
-  for (const { file, id } of swapped) {
+  for (const { file, text, id } of swapped) {
     assert.ok(Object.prototype.hasOwnProperty.call(TOOL_CATALOG, id), `${file} puts a tool in the registry as "${id}", which the catalogue does not name, so it is drawn as no tool`);
-    assert.ok(drawnQuestionKind({ type: 'probe', toolId: id })?.route === DRAWN_QUESTION_ROUTE.REGISTRY_TOOL, id);
+    // Each question literal the harness writes, one to a line: its type and toolId.
+    const questions = text.split('\n')
+      .map((line) => line.match(/\{\s*type:\s*'([^']+)'(.*)$/))
+      .filter(Boolean)
+      .map(([, type, rest]) => ({ type, ...(rest.match(/toolId:\s*'([^']+)'/) ? { toolId: rest.match(/toolId:\s*'([^']+)'/)[1] } : {}) }));
+    assert.ok(questions.length > 0, `${file}: no question it mounts was found`);
+    for (const question of questions) {
+      const kind = drawnQuestionKind(question);
+      assert.ok(kind?.route === DRAWN_QUESTION_ROUTE.REGISTRY_TOOL && kind.toolId === id, `${file}: ${JSON.stringify(question)} is drawn as ${JSON.stringify(kind)}, not as the swapped tool ${id}`);
+    }
   }
 });
