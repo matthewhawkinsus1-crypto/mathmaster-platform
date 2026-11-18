@@ -3,7 +3,7 @@
  *
  *   npx vite --config tests/browser/forcedColors.vite.config.mjs --host 127.0.0.1 --port 5198 --strictPort &   # stubbed harnesses
  *   npx vite --config tests/browser/teacherWorkflow/vite.config.mjs &                                          # the real app, in memory
- *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,scroll,staged] [--only=<surface>,...] [--sizes=<size>,...]
+ *   node tests/browser/workViewOpenerCover.mjs [--check=cover,badges,scroll,staged,settle] [--only=<surface>,...] [--sizes=<size>,...]
  *
  *   AUDIT_ORIGIN (default http://127.0.0.1:5198: any server of the repository with its services stubbed, as the
  *   accessibility certification serves them), TEACHER_HARNESS_ORIGIN (default http://127.0.0.1:5188),
@@ -34,6 +34,11 @@
  *           thing that scrolls up and down (no scroller inside a scroller), and the plane fits the height it is
  *           given (#386 R10). A row wider than a phone that scrolls sideways (a long formula, a source-data list)
  *           is reported, not failed: it is a region of its own the keyboard scrolls.
+ *   settle  On a 360x640 and a 412x915 phone, and at 1920x970 and 1920x1080, with Work View open on every step of the
+ *           staged questions and of the harness's staged table (?staged=1, with the identity bar): after the step has
+ *           settled, its layout (bounded or flowing) and its plane's cap (--mm-step-plane-max) do not change again
+ *           for 1.5s, and on a phone neither do they once the number keypad is up for a row of the table, where the
+ *           box typed into stays in sight above the keys (stepRoom.js measures what its own cap changes).
  *   staged  With Work View open on every step of the staged questions (WorkflowRunner's focus mode), on the three
  *           phones at 100% and 200% text, a Chromebook at both and a desktop: the step has the height to be worked
  *           in (a bounded step at least 200px, or the view scrolling as one), no scroller inside a scroller, and
@@ -550,6 +555,16 @@ const MEASURE_STEP = () => {
   const flow = root.getAttribute('data-step-room') === 'flow';
   const heading = (root.querySelector('.workflow-focus__workspace-heading h4') || root.querySelector('h4'))?.textContent.trim() || '';
   const step = { heading, flow, body: [body.clientHeight, body.scrollHeight], nested, plane: null };
+  // The results under the question's work (the hint offer; after a Submit the outcome, Continue): after the step, never
+  // drawn over it. In a flowing view they were laid out at the view's height, inside the step, and painted under it.
+  const results = host.querySelector('.mathmaster-attempt-results');
+  const resultsBox = results?.getBoundingClientRect();
+  if (resultsBox && resultsBox.height > 0) {
+    const stepBox = root.getBoundingClientRect();
+    step.results = [Math.round(resultsBox.top), Math.round(resultsBox.bottom)];
+    step.stepBox = [Math.round(stepBox.top), Math.round(stepBox.bottom)];
+    step.resultsOverStep = resultsBox.top < stepBox.bottom - 1 && resultsBox.bottom > stepBox.top + 1;
+  }
   // The step scrolls inside itself (bounded), or is taller than the view (flow).
   step.scrollsBy = flow ? Math.max(0, stage.offsetHeight - surface.clientHeight) : Math.max(0, body.scrollHeight - body.clientHeight);
   const planes = [...stage.querySelectorAll('.mathmaster-function-workspace-graph svg, svg.mathmaster-responsive-canvas')]
@@ -704,6 +719,7 @@ const runStaged = async (browser, origins, size) => {
         if (!m.staged) problems.push(`${where}: Work View did not open on the staged step`);
         else {
           if (!m.flow && m.body[0] < STEP_MIN_ROOM) problems.push(`${where}: the step has ${m.body[0]}px of the view, and the view does not scroll as one`);
+          if (m.resultsOverStep) problems.push(`${where}: the question's results (${m.results.join(' to ')}px) are drawn over the step (${m.stepBox.join(' to ')}px)${m.flow ? ', the view scrolling as one' : ''}`);
           m.nested.forEach((entry) => problems.push(`${where}: ${entry}`));
           if (m.plane && m.plane.height > m.plane.room + 1) problems.push(`${where}: the plane is ${m.plane.height}px tall and its step shows ${m.plane.room}px`);
           else if (m.plane && m.plane.withControls > m.plane.room + 1) {
@@ -726,6 +742,117 @@ const runStaged = async (browser, origins, size) => {
     await context.close();
   }
   return { check: 'staged', surface: 'assignment', size: size.id, steps, scrolling, cramped, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
+};
+
+// ------------------------------------------------------------------------------------------------ settle
+// The step's room is measured from the page, and the cap it sets changes the page: a reading that turns on what the
+// cap changes undoes itself (the review of 2026-11-18 found two: a flowing step whose tool workspace kept the view's
+// height, and the plotting step's "is a column beside the plane lower?"). One snapshot per step does not see that;
+// this watches each step after it has settled, and with the number keypad up for a row of the staged table.
+export const SETTLE_SIZES = Object.freeze([
+  Object.freeze({ id: '360x640', width: 360, height: 640, phone: true, textScale: 1 }),
+  Object.freeze({ id: '412x915', width: 412, height: 915, phone: true, textScale: 1 }),
+  Object.freeze({ id: '1920x970', width: 1920, height: 970, phone: false, textScale: 1 }),
+  Object.freeze({ id: '1920x1080', width: 1920, height: 1080, phone: false, textScale: 1 }),
+]);
+export const SETTLE_SCENES = Object.freeze(['ux-staged-table', ...STAGED_SCENES]);
+export const SETTLE_WATCH_MS = 1500;
+
+// Every write of the step's layout and cap for `watchMs`, and on each frame whether the box being typed into (if any)
+// is in sight: inside the step's scroller (the view when it flows) and above the keypad.
+const WATCH_STEP = (watchMs) => new Promise((resolve) => {
+  const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+  const root = host?.querySelector('.workflow-focus');
+  if (!root) { resolve(null); return; }
+  const surface = host.querySelector('.mathmaster-work-view-surface');
+  const body = host.querySelector('.workflow-focus__workspace-body');
+  const read = () => `${root.getAttribute('data-step-room') || 'bounded'} ${root.style.getPropertyValue('--mm-step-plane-max').trim() || 'no cap'}`;
+  const seen = [read()];
+  let changes = 0;
+  const observer = new MutationObserver(() => {
+    const now = read();
+    if (now !== seen[seen.length - 1]) { changes += 1; seen.push(now); }
+  });
+  observer.observe(root, { attributes: true, attributeFilter: ['data-step-room', 'style'] });
+  const typing = document.activeElement?.matches?.('input') ? document.activeElement : null;
+  let frames = 0;
+  let hidden = 0;
+  const started = performance.now();
+  const tick = () => {
+    frames += 1;
+    if (typing) {
+      const keys = document.querySelector('.mathmaster-mobile-numeric-keypad')?.getBoundingClientRect();
+      const scroller = (root.getAttribute('data-step-room') === 'flow' ? surface : body).getBoundingClientRect();
+      const box = typing.getBoundingClientRect();
+      if (!(box.top >= scroller.top - 1 && box.bottom <= scroller.bottom + 1 && (!keys || box.bottom <= keys.top + 1))) hidden += 1;
+    }
+    if (performance.now() - started < watchMs) requestAnimationFrame(tick);
+    else {
+      observer.disconnect();
+      resolve({ changes, values: [...new Set(seen)].slice(0, 4), frames, hidden, typing: Boolean(typing), keypad: Boolean(document.querySelector('.mathmaster-mobile-numeric-keypad')) });
+    }
+  };
+  requestAnimationFrame(tick);
+});
+
+const runSettle = async (browser, origins, size) => {
+  const { context, page, errors } = await newPage(browser, size);
+  const problems = [];
+  const readings = {};
+  try {
+    await page.goto(`${origins.audit}${UX_PAGE}?legacy=1&staged=1&identity=1&run=opener-settle-${Date.now()}`, { timeout: 180_000 });
+    await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id]'), null, { timeout: 180_000 });
+    const ids = await page.evaluate(() => window.__ux.ids());
+    const elsewhere = ids.find((id) => !SETTLE_SCENES.includes(id));
+    for (const id of SETTLE_SCENES) {
+      if (!ids.includes(id)) { problems.push(`${id}: not in the harness`); continue; }
+      await goToQuestion(page, id);
+      const count = await page.evaluate((qid) => document.querySelectorAll(`[data-question-id="${qid}"] .workflow-focus__active-stage > *`).length, id);
+      if (!count) { problems.push(`${id}: no staged steps to read`); continue; }
+      for (let index = 0; index < count; index += 1) {
+        await goToQuestion(page, elsewhere);
+        await page.evaluate(([qid, at]) => window.__ux.atStep(qid, at), [id, index]);
+        await goToQuestion(page, id);
+        await page.locator(`[data-question-id="${id}"] .mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button.mathmaster-work-view-opener`).first()
+          .evaluate((button) => button.click());
+        await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ timeout: 30_000 });
+        await settled(page, 1500);
+        const heading = await page.evaluate(() => document.querySelector('.mathmaster-work-view-host[data-open="true"] .workflow-focus__workspace-heading h4')?.textContent.trim() || '');
+        const where = `${id} step ${index + 1}${heading ? ` (${heading.replace(/^Step \d+\.\s*/, '')})` : ''}`;
+        const opened = await page.evaluate(WATCH_STEP, SETTLE_WATCH_MS);
+        readings[`${id}#${index + 1}`] = { opened };
+        if (!opened) problems.push(`${where}: Work View did not open on the staged step`);
+        else if (opened.changes) problems.push(`${where}: after settling, the step's layout and cap changed ${opened.changes} times in ${SETTLE_WATCH_MS}ms (${opened.values.join(', ')})`);
+        // A row of the table, typed into with the number keypad up (a phone).
+        const rows = page.locator('.mathmaster-work-view-host[data-open="true"] .workflow-focus__active-stage input[aria-label^="Row "]');
+        if (size.phone && opened && await rows.count()) {
+          const last = rows.nth((await rows.count()) - 1);
+          await last.evaluate((element) => element.scrollIntoView({ block: 'end' }));
+          await page.waitForTimeout(150);
+          await last.tap();
+          await page.waitForSelector('.mathmaster-mobile-numeric-keypad', { timeout: 10_000 }).catch(() => {});
+          await settled(page, 900);
+          const typing = await page.evaluate(WATCH_STEP, SETTLE_WATCH_MS);
+          readings[`${id}#${index + 1}`].typing = typing;
+          if (!typing?.keypad) problems.push(`${where}: the number keypad did not come up for a row of the table`);
+          else {
+            if (typing.changes) problems.push(`${where}, the keypad up: the step's layout and cap changed ${typing.changes} times in ${SETTLE_WATCH_MS}ms (${typing.values.join(', ')})`);
+            if (typing.hidden) problems.push(`${where}, the keypad up: the box typed into was out of sight in ${typing.hidden} of ${typing.frames} frames`);
+          }
+          await page.locator('.mathmaster-keypad-done').first().tap().catch(() => {});
+          await settled(page, 300);
+        }
+        await page.evaluate(() => [...document.querySelectorAll('.mathmaster-work-view-host[data-open="true"] .mathmaster-work-view-header button')].find((button) => button.textContent.trim().startsWith('Close'))?.click());
+        await page.locator('.mathmaster-work-view-host[data-open="true"]').waitFor({ state: 'detached', timeout: 30_000 }).catch(() => {});
+        await settled(page, 200);
+      }
+    }
+  } catch (error) {
+    problems.push(`could not watch the staged steps: ${error.message.split('\n')[0]}`);
+  } finally {
+    await context.close();
+  }
+  return { check: 'settle', surface: 'assignment', size: size.id, readings, problems: [...problems, ...errors.map((message) => `page error: ${message}`)] };
 };
 
 // ------------------------------------------------------------------------------------------------ the run
@@ -755,6 +882,8 @@ const say = (result) => {
   const problems = problemsOf(result);
   const summary = result.check === 'cover'
     ? `${result.scenes} scenes, ${result.openers} openers (${result.stacked} on a row of their own): ${result.covered.length} covered${result.over.length ? `, ${result.over.length} drawn over the opener while it scrolls under a bar` : ''}`
+    : result.check === 'settle'
+      ? `${Object.keys(result.readings).length} steps watched for ${SETTLE_WATCH_MS}ms after settling, ${Object.values(result.readings).filter((reading) => reading.typing).length} with the keypad up`
     : result.check === 'staged'
       ? `${Object.keys(result.steps).length} steps, ${Object.values(result.steps).filter((step) => step.flow).length} in a view that scrolls as one, ${Object.values(result.steps).filter((step) => step.plane).length} with a plane, the counter under its heading (no room beside it) on ${Object.values(result.steps).filter((step) => step.headingRow?.page?.counterBelow).length} on the page and ${Object.values(result.steps).filter((step) => step.headingRow?.view?.counterBelow).length} in Work View${result.cramped?.length ? `; a view too short for a plane at its floor and its controls together (the plane whole): ${result.cramped.join(', ')}` : ''}${result.scrolling.length ? `; taller than the room it has, so it scrolls (left as it is): ${result.scrolling.join(', ')}` : ''}`
     : result.check === 'scroll'
@@ -766,7 +895,7 @@ const say = (result) => {
 
 const main = async () => {
   const arg = (name) => process.argv.find((entry) => entry.startsWith(`--${name}=`))?.slice(name.length + 3) || null;
-  const checks = new Set((arg('check') || 'cover,badges,scroll,staged').split(','));
+  const checks = new Set((arg('check') || 'cover,badges,scroll,staged,settle').split(','));
   const only = new Set((arg('only') || '').split(',').filter(Boolean));
   const sizesWanted = new Set((arg('sizes') || '').split(',').filter(Boolean));
   const sized = (list) => list.filter((size) => !sizesWanted.size || sizesWanted.has(size.id));
@@ -797,6 +926,9 @@ const main = async () => {
   if (checks.has('staged') && (!only.size || only.has('assignment'))) {
     for (const size of sized(STAGED_SIZES)) tasks.push(() => runStaged(browser, origins, size));
   }
+  if (checks.has('settle') && (!only.size || only.has('assignment'))) {
+    for (const size of sized(SETTLE_SIZES)) tasks.push(() => runSettle(browser, origins, size));
+  }
   let results = [];
   try {
     results = await pool(tasks, Number(process.env.OPENER_COVER_CONCURRENCY) || 3, say);
@@ -810,7 +942,7 @@ const main = async () => {
     console.log(`What Work View's opener covers: ${failed} reading(s) failed.`);
     process.exitCode = 1;
   } else {
-    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, its plane fits it, and its heading is whole.');
+    console.log('What Work View\'s opener covers: nothing, on every surface and size; the header\'s badges clear; one scroller in Work View; every staged step has room, its plane fits it, its heading is whole, and it settles.');
   }
 };
 

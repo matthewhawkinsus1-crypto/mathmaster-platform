@@ -300,7 +300,7 @@ test('the sweep fails a staged step whose heading row is cut, on the page and in
 /* ------------------------------------------------- the browser sweep, wired into CI */
 
 test('the sweep reads every surface the opener floats over, at the phones, at 200% text and on a Chromebook', async () => {
-  const { SIZES, SCROLL_SIZES, SURFACES, SCROLL_SCENES, HEADER_ITEMS, KNOWN_SCROLL, STAGED_SCENES, STAGED_SIZES } = await import('../browser/workViewOpenerCover.mjs');
+  const { SIZES, SCROLL_SIZES, SURFACES, SCROLL_SCENES, HEADER_ITEMS, KNOWN_SCROLL, STAGED_SCENES, STAGED_SIZES, SETTLE_SIZES, SETTLE_SCENES, SETTLE_WATCH_MS } = await import('../browser/workViewOpenerCover.mjs');
   assert.deepEqual(SIZES.map((size) => size.id), ['390x844', '360x740', '320x568', '390x844@200%', '360x740@200%', '320x568@200%', '1366x768']);
   assert.ok(SIZES.filter((size) => size.phone).every((size) => size.width <= 390));
   assert.deepEqual(SCROLL_SIZES.map((size) => size.id), ['390x844', '360x740', '320x568', '1366x768', '1920x1080']);
@@ -328,8 +328,24 @@ test('the sweep reads every surface the opener floats over, at the phones, at 20
   assert.deepEqual([...STAGED_SCENES], ['legacy-functionCharacteristics', 'legacy-relationshipModel']);
   assert.deepEqual(STAGED_SIZES.map((size) => size.id), [...SIZES.map((size) => size.id), '1366x768@200%', '1920x1080']);
   const sweep = read('tests/browser/workViewOpenerCover.mjs');
-  assert.match(sweep, /const checks = new Set\(\(arg\('check'\) \|\| 'cover,badges,scroll,staged'\)\.split\(','\)\);/);
+  assert.match(sweep, /const checks = new Set\(\(arg\('check'\) \|\| 'cover,badges,scroll,staged,settle'\)\.split\(','\)\);/);
   assert.match(sweep, /if \(!m\.flow && m\.body\[0\] < STEP_MIN_ROOM\) problems\.push\(/, 'a step with no room fails');
+  // The question's results never drawn over the step (the review of 2026-11-18: in a flowing view they were).
+  assert.match(sweep, /step\.resultsOverStep = resultsBox\.top < stepBox\.bottom - 1 && resultsBox\.bottom > stepBox\.top \+ 1;/);
+  assert.match(sweep, /if \(m\.resultsOverStep\) problems\.push\(/, 'results drawn over the step fail');
+  // Every staged step watched once it has settled, and with the keypad up on a phone: a step that changes its layout
+  // or its plane's cap again, or a box typed into that leaves the view, fails. At the sizes the review found loops.
+  assert.deepEqual(SETTLE_SIZES.map((size) => size.id), ['360x640', '412x915', '1920x970', '1920x1080']);
+  assert.ok(SETTLE_SIZES.filter((size) => size.phone).every((size) => size.width < 700), 'the phones are touch phones');
+  assert.deepEqual([...SETTLE_SCENES], ['ux-staged-table', ...STAGED_SCENES]);
+  assert.ok(SETTLE_WATCH_MS >= 1000);
+  const settle = region(sweep, 'const runSettle = async', '\n};\n', 'the settle check');
+  assert.match(settle, /\?legacy=1&staged=1&identity=1/, 'the harness\'s staged table, with the identity bar');
+  assert.match(settle, /else if \(opened\.changes\) problems\.push\(/);
+  assert.match(settle, /if \(typing\.changes\) problems\.push\(/);
+  assert.match(settle, /if \(typing\.hidden\) problems\.push\(/);
+  assert.match(settle, /if \(!typing\?\.keypad\) problems\.push\(/, 'a keypad that does not come up is not a pass');
+  assert.match(sweep, /observer\.observe\(root, \{ attributes: true, attributeFilter: \['data-step-room', 'style'\] \}\);/, 'every write of the layout and the cap is counted');
   assert.match(sweep, /if \(m\.plane && m\.plane\.height > m\.plane\.room \+ 1\) problems\.push\(/, 'a plane taller than its step fails');
   assert.match(sweep, /else if \(m\.plane && m\.plane\.withControls > m\.plane\.room \+ 1\) \{[\s\S]*?if \(m\.plane\.room >= PLANE_MIN \+ controls\) problems\.push\(/, 'and one whose controls fall out of a step that could hold them');
   assert.match(sweep, /m\.nested\.forEach\(\(entry\) => problems\.push\(`\$\{where\}: \$\{entry\}`\)\);/, 'and a scroller inside a scroller');
