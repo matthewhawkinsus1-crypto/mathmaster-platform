@@ -1,6 +1,7 @@
 import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
 import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
+import { QUESTION_ENGINE_TYPES, drawnQuestionKind } from './platform/question/drawnQuestionKind.js';
 import { compileAuthoringIntentV5, keyLooksLikeFiniteSet } from './platform/contract/authoringIntentV5.js';
 import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { orderedPairKey } from '../functions/shared/answerUtils.mjs';
@@ -757,6 +758,35 @@ export const CORE_QUESTION_TYPES = Object.freeze([
 
 export const SUPPORTED_QUESTION_TYPES = Object.freeze([...CORE_QUESTION_TYPES, ...MISSING_TOOL_IDS]);
 
+// The composed types above: the student app draws them only as the steps of a
+// workflow, never by their name.
+const WORKFLOW_ONLY_TYPES = Object.freeze(CORE_QUESTION_TYPES.filter((type) => !QUESTION_ENGINE_TYPES.includes(type)));
+
+const shownName = (value) => (typeof value === 'string' ? value : JSON.stringify(value));
+
+/*
+ * A supported name is not yet a question a student can be shown. The student
+ * app draws a question by the rule in drawnQuestionKind.js (its workflow, else
+ * the registry tool its toolId and then its type names, else QuestionEngine's
+ * own module for its type), and a question it draws nothing for shows the
+ * panel "This question could not be displayed". The name check above judges
+ * `toolId || type`, so a core type in toolId over a type the app does not draw
+ * ({ type: 'freeResponse', toolId: 'multiAnswer' }) passed it and reached
+ * students as that panel.
+ */
+const undrawnQuestionMessage = (label, question, which) => {
+  const { type, toolId } = question || {};
+  const panel = 'students would see "This question could not be displayed" instead of a question';
+  if (WORKFLOW_ONLY_TYPES.includes(type)) {
+    return `${label} has type ${type}${toolId ? ` and toolId ${shownName(toolId)}` : ''}${which} and no workflow: MathMaster draws ${type} only as the steps of a workflow, so ${panel}. Give it a workflow, or a recipe that builds one.`;
+  }
+  const hasType = type !== undefined && type !== null && type !== '';
+  const named = hasType ? `type ${shownName(type)} and toolId ${shownName(toolId)}` : `toolId ${shownName(toolId)} and no type`;
+  const why = hasType ? `${shownName(type)} is not a type it draws` : 'this question has none';
+  const fix = QUESTION_ENGINE_TYPES.includes(toolId) ? `Use type ${toolId}.` : 'Use a type MathMaster draws.';
+  return `${label} has ${named}${which}: MathMaster draws a question by its type unless its toolId names an interactive tool, and ${why}, so ${panel}. ${fix}`;
+};
+
 export const validateAssignmentQuestions = (questions, options = {}) => {
   if (!Array.isArray(questions) || questions.length === 0) {
     throw new Error('JSON must be a non-empty array of questions.');
@@ -788,27 +818,32 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     if (!supportedTypes.has(questionType)) {
       throw new Error(`Question ${index + 1} uses unsupported type ${questionType}.`);
     }
-    if (MISSING_TOOL_IDS.includes(questionType)) {
-      const toolValidation = validateToolQuestion({ ...rendered, toolId: questionType });
+    const which = rendered === question ? '' : ' in its generated version';
+    const drawn = drawnQuestionKind(rendered);
+    if (!drawn) throw new Error(undrawnQuestionMessage(`Question ${index + 1}`, rendered, which));
+    // The checks a tool or a type has are run for the name above and for the
+    // tool or type the student app draws, where the two differ: a registry
+    // tool's type behind a core toolId opens that tool, and is judged as it.
+    const judged = [...new Set([questionType, drawn.toolId || drawn.type].filter(Boolean))];
+    judged.filter((name) => MISSING_TOOL_IDS.includes(name)).forEach((toolId) => {
+      const toolValidation = validateToolQuestion({ ...rendered, toolId });
       if (!toolValidation.isValid) {
-        const which = rendered === question ? '' : ' in its generated version';
-        throw new Error(`Question ${index + 1} (${questionType}) is invalid${which}: ${toolValidation.errors.join(' | ')}`);
+        throw new Error(`Question ${index + 1} (${toolId}) is invalid${which}: ${toolValidation.errors.join(' | ')}`);
       }
-    }
+    });
     // A fraction answer is graded as one written number, so an answer key
     // that is not one ("three quarters", "3:4", "x/4") could never be matched.
     // A fraction question with no answer is a drill and stays valid. A family
     // slot's key is a template ("{{n}}/{{d}}"): the key it generates is judged.
-    if (questionType === 'fraction') {
+    if (judged.includes('fraction')) {
       const answerKey = rendered.answer;
       const hasAnswer = answerKey !== undefined && answerKey !== null && String(answerKey).trim() !== '';
       if (hasAnswer && !parseWrittenNumber(answerKey)) {
         const shown = typeof answerKey === 'string' ? answerKey : JSON.stringify(answerKey);
-        const which = rendered === question ? '' : ' in its generated version';
         throw new Error(`Question ${index + 1} fraction answer "${shown}"${which} is not a number MathMaster can grade (write it like 3/4).`);
       }
     }
-    if (questionType === 'modelingLab') {
+    if (judged.includes('modelingLab')) {
       if (!question.labDefinition || typeof question.labDefinition !== 'object') throw new Error(`Question ${index + 1} modelingLab is missing labDefinition.`);
       const labDok = Number(question.labDefinition.dokLevel ?? question.dok ?? 3);
       if (![3, 4].includes(labDok)) throw new Error(`Question ${index + 1} modelingLab DOK must be 3 or 4.`);

@@ -1,24 +1,28 @@
 /*
- * WHAT THE STUDENT APP DRAWS FOR A QUESTION IS ONE RULE.
+ * WHAT THE STUDENT APP DRAWS AND WHAT A TEACHER MAY PUBLISH ARE ONE RULE.
  *
  * QuestionEngine draws a question by its workflow, else by the registry tool its toolId and then its type names, else
- * by its own module for its type, else it shows the panel "This question could not be displayed". That decision is
- * src/platform/question/drawnQuestionKind.js, pure, so what decides whether a teacher may publish a question can read
- * the very rule QuestionEngine draws it by. This holds:
+ * by its own module for its type, else it shows the panel "This question could not be displayed". The assignment
+ * validator, which every teacher path that writes question content runs, judged `toolId || type` instead: a core type
+ * in toolId over a type the app does not draw ({ type: 'freeResponse', toolId: 'multiAnswer' }, or toolId 'literal')
+ * passed it, and nothing after it stops one. Both now read src/platform/question/drawnQuestionKind.js. This holds:
  *
  *   the rule       enumerated from the registry's own loaders and QuestionEngine's own switch, never by hand
  *   the engine     QuestionEngine takes its route from the rule, and its switch draws exactly the rule's types
+ *   the validator  refuses what the rule draws nothing for, naming the question, its type and its toolId; judges
+ *                  the tool it does draw; and still accepts every type the app draws and every real lesson
  *   real content   for every question of every lesson in teacher-import-jsons and the demo bank, the rule on the
- *                  question as authored (or a family slot's preview) is the rule on the question QuestionEngine
- *                  renders, which is what QuestionEngine's dispatch, read from its source, draws
+ *                  question the validator judges is the rule on the question QuestionEngine renders, which is what
+ *                  QuestionEngine's dispatch, read from its source, draws
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
 import { DRAWN_QUESTION_ROUTE, QUESTION_ENGINE_TYPES, drawnQuestionKind } from '../../src/platform/question/drawnQuestionKind.js';
-import { CORE_QUESTION_TYPES, parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
+import { CORE_QUESTION_TYPES, parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
+import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { prepareQuestionForRuntimeRouting } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
 import { generateQuestion } from '../../src/problemGenerator.js';
@@ -45,6 +49,11 @@ const kindOf = (kind) => (!kind ? 'panel'
   : kind.route === DRAWN_QUESTION_ROUTE.WORKFLOW ? 'workflow'
     : kind.route === DRAWN_QUESTION_ROUTE.REGISTRY_TOOL ? `tool:${kind.toolId}` : `type:${kind.type}`);
 const drawn = (question) => kindOf(drawnQuestionKind(question));
+const UNDRAWN = /could not be displayed/;
+const refusal = (questions) => {
+  try { validateAssignmentQuestions(questions); } catch (error) { return error.message; }
+  return null;
+};
 
 const LESSON_FILES = readdirSync(new URL('teacher-import-jsons/', repo), { recursive: true }).map(String)
   .filter((file) => file.endsWith('.json')).sort().map((file) => `teacher-import-jsons/${file}`);
@@ -126,7 +135,83 @@ test('the rule, for every registry tool and every type QuestionEngine draws', ()
   assert.equal(drawn({ type: 'multiAnswer', toolId: 'hasOwnProperty' }), 'type:multiAnswer');
 });
 
-test('for every real question, the rule on the question as authored is the rule on what QuestionEngine renders and draws', () => {
+test('the validator refuses a question the app draws nothing for, naming it, its type and its toolId', () => {
+  const prompt = 'What is 3 + 4?';
+  for (const toolId of ['multiAnswer', 'literal']) {
+    const message = refusal([{ questionId: 'q1', type: 'multiAnswer', prompt }, { questionId: 'q2', type: 'freeResponse', toolId, prompt }]);
+    assert.ok(message, `{ type: 'freeResponse', toolId: '${toolId}' } is refused`);
+    assert.match(message, new RegExp(`^Question 2 has type freeResponse and toolId ${toolId}: `));
+    assert.match(message, UNDRAWN);
+    assert.match(message, new RegExp(`Use type ${toolId}\\.$`));
+  }
+  // Every core type behind toolId, enumerated.
+  for (const toolId of QUESTION_ENGINE_TYPES) assert.match(refusal([{ type: 'freeResponse', toolId, prompt }]) || '', UNDRAWN, toolId);
+  assert.match(refusal([{ toolId: 'multiAnswer', prompt }]) || '', /^Question 1 has toolId multiAnswer and no type: .*could not be displayed/);
+  assert.match(refusal([{ type: 'functionCharacteristics', prompt }]) || '', /^Question 1 has type functionCharacteristics and no workflow: MathMaster draws functionCharacteristics only as the steps of a workflow/);
+  // A family slot is judged on the version a student is given.
+  const local = {
+    questionId: 'local-1', type: 'freeResponse', toolId: 'multiAnswer', prompt: 'What is {{a}} + {{b}}?',
+    generator: { parameters: { a: { min: 1, max: 5 }, b: { min: 1, max: 5 } }, derived: { ans: 'a + b' } },
+    answerFields: [{ id: 'answer', answer: '{{ans}}' }],
+    questionFamily: { scope: 'assignment' },
+  };
+  assert.match(refusal([local]) || '', /^Question 1 has type freeResponse and toolId multiAnswer in its generated version: .*could not be displayed/);
+  // The validator does not count on a runtime repair QuestionEngine skips under server grading.
+  assert.match(refusal([{ type: 'StepAlgebra2', toolId: 'multiAnswer', mode: 'linearIntercepts', prompt }]) || '', UNDRAWN);
+});
+
+test('a teacher\'s import that carries the pair is refused by the validator and by Pre-Flight; the same file drawable imports', () => {
+  // Only a MathMaster portable export keeps each question's type and toolId: other V5 is compiled from studentActions.
+  const lesson = parseAssignmentBlueprintText(read('teacher-import-jsons/algebra1-module3/T1_L1_Solving_Linear_Equations.json')).assignmentV5;
+  const portable = { ...structuredClone(lesson), portableContract: { kind: 'mathmasterCanonicalAssignmentV5', version: 1 } };
+  const target = portable.sections.flatMap((section) => section.questions).find((question) => question.type === 'multiAnswer' && !question.questionFamily);
+  const position = portable.sections.flatMap((section) => section.questions).indexOf(target) + 1;
+  const imported = (pair) => {
+    const copy = structuredClone(portable);
+    Object.assign(copy.sections.flatMap((section) => section.questions).find((question) => question.questionId === target.questionId), pair);
+    const parsed = parseAssignmentBlueprintText(JSON.stringify(copy));
+    assert.ok(parsed.repairs.some((repair) => /portable export/.test(repair)), 'read as a portable export, not recompiled');
+    return parsed;
+  };
+  const drawable = imported({ type: 'multiAnswer' });
+  assert.doesNotThrow(() => validateAssignmentQuestions(drawable.questions, { variantMode: drawable.assignmentV5.variantPolicy?.mode }));
+  assert.deepEqual(buildAssignmentV5PreflightModel(drawable.assignmentV5).errors, []);
+  for (const toolId of ['multiAnswer', 'literal']) {
+    const parsed = imported({ type: 'freeResponse', toolId });
+    const carried = parsed.questions.find((question) => question.questionId === target.questionId);
+    assert.deepEqual([carried.type, carried.toolId], ['freeResponse', toolId], 'the import keeps the pair');
+    assert.throws(() => validateAssignmentQuestions(parsed.questions), new RegExp(`^Error: Question ${position} has type freeResponse and toolId ${toolId}: .*could not be displayed`));
+    const preflight = buildAssignmentV5PreflightModel(parsed.assignmentV5);
+    assert.ok(preflight.errors.some((error) => new RegExp(`^Question ${position} has type freeResponse and toolId ${toolId}: `).test(error)), preflight.errors.join(' | '));
+  }
+});
+
+test('the validator judges the tool or type that is drawn, as well as the name it always judged', () => {
+  // graphing2 behind a core toolId opens Graphing; its board is judged as one.
+  assert.match(refusal([{ type: 'graphing2', toolId: 'multiAnswer', prompt: 'Graph the line.' }]) || '', /^Question 1 \(graphing2\) is invalid: /);
+  assert.match(refusal([{ type: 'fraction', toolId: 'multiAnswer', prompt: 'p', answer: 'three quarters' }]) || '', /fraction answer "three quarters" is not a number/);
+  assert.match(refusal([{ type: 'modelingLab', toolId: 'multiAnswer', prompt: 'p' }]) || '', /modelingLab is missing labDefinition/);
+  // The name judged before is still judged: a fraction toolId's key, a tool type's board inside a workflow.
+  assert.match(refusal([{ type: 'multiAnswer', toolId: 'fraction', prompt: 'p', answer: 'three quarters' }]) || '', /fraction answer "three quarters"/);
+  const stage = { kind: 'classification', choices: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] };
+  assert.match(refusal([{ type: 'graphing2', workflow: [stage], prompt: 'Graph the line.' }]) || '', /^Question 1 \(graphing2\) is invalid: /);
+});
+
+test('every type the app draws stays accepted, and so does every real lesson', () => {
+  for (const type of [...REGISTRY_TOOL_IDS, ...QUESTION_ENGINE_TYPES]) {
+    const message = refusal([{ questionId: 'q1', type, prompt: 'p' }]) || '';
+    assert.doesNotMatch(message, UNDRAWN, `${type}: ${message}`);
+    assert.doesNotMatch(refusal([{ questionId: 'q1', type, toolId: type, prompt: 'p' }]) || '', UNDRAWN, type);
+  }
+  // A type with no content check of its own is accepted outright.
+  for (const type of QUESTION_ENGINE_TYPES.filter((entry) => entry !== 'modelingLab')) assert.equal(refusal([{ type, prompt: 'p' }]), null, type);
+  for (const file of LESSON_FILES) {
+    const parsed = parseAssignmentBlueprintText(read(file));
+    assert.doesNotThrow(() => validateAssignmentQuestions(parsed.questions, { variantMode: parsed.assignmentV5?.variantPolicy?.mode }), file);
+  }
+});
+
+test('for every real question, the rule on what the validator judges is what QuestionEngine renders and draws', () => {
   const questions = [
     ...LESSON_FILES.flatMap((file) => parseAssignmentBlueprintText(read(file)).questions.map((question) => ({ file, question }))),
     ...JSON.parse(read('src/demo/demoAssignmentBank.json')).flatMap((assignment) => assignment.questions.map((question) => ({ file: `demo ${assignment.id}`, question }))),
@@ -136,14 +221,14 @@ test('for every real question, the rule on the question as authored is the rule 
   for (const { file, question } of questions) {
     const label = `${file} ${question.questionId}`;
     const judged = isFamilyBackedQuestion(question) ? resolveFamilyPreviewInstance(question).question : question;
-    const authoredView = drawn(judged);
+    const validatorView = drawn(judged);
     const engineQuestion = rendered(question);
-    assert.notEqual(authoredView, 'panel', label);
-    assert.equal(drawn(engineQuestion), authoredView, `${label}: the question as authored is drawn as the engine renders it`);
-    assert.equal(engineDispatch(engineQuestion), authoredView, `${label}: and the engine's own dispatch draws it`);
+    assert.notEqual(validatorView, 'panel', label);
+    assert.equal(drawn(engineQuestion), validatorView, `${label}: the validator judges what the engine renders`);
+    assert.equal(engineDispatch(engineQuestion), validatorView, `${label}: and the engine's own dispatch draws it`);
     // Under server grading the runtime repair is skipped; the kind does not move.
     assert.equal(drawn(rendered(question, true)), drawn(engineQuestion), label);
-    seen.add(authoredView);
+    seen.add(validatorView);
   }
   // Every route, and most of what the content uses, is exercised.
   for (const route of ['workflow', 'tool:', 'type:']) assert.ok([...seen].some((kind) => kind.startsWith(route)), route);
