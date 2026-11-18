@@ -30,7 +30,11 @@ function CrashProbe() {
     </div>
   );
 }
-TOOL_REGISTRY.crashProbe = { ...TOOL_REGISTRY.openSortBoard, component: CrashProbe };
+// What a question draws is one rule (drawnQuestionKind.js), which names a
+// registry tool only by the catalogue's own ids, as the assignment validator
+// does: a tool added to the registry here alone is drawn as no tool. So the
+// probe stands in for a catalogue tool, named by the question's toolId.
+TOOL_REGISTRY.openSortBoard = { ...TOOL_REGISTRY.openSortBoard, component: CrashProbe };
 
 const params = new URLSearchParams(window.location.search);
 const scene = params.get('scene') || 'fresh';
@@ -42,8 +46,8 @@ const record = (value) => ({
   variantIndex: 0,
 });
 const question = (index) => (scene === 'pathPlayer'
-  ? { type: 'crashProbe', prompt: `Probe question ${index}.` }
-  : { type: 'crashProbe', id: `probe-${index}`, questionId: `probe-${index}`, prompt: `Probe question ${index}.` });
+  ? { type: 'crashProbe', toolId: 'openSortBoard', prompt: `Probe question ${index}.` }
+  : { type: 'crashProbe', toolId: 'openSortBoard', id: `probe-${index}`, questionId: `probe-${index}`, prompt: `Probe question ${index}.` });
 const pathRecord = (value) => ({ status: value, attemptCount: value === 'unattempted' ? 0 : 1 });
 
 function Harness() {

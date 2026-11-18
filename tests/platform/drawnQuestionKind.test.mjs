@@ -234,3 +234,27 @@ test('for every real question, the rule on what the validator judges is what Que
   for (const route of ['workflow', 'tool:', 'type:']) assert.ok([...seen].some((kind) => kind.startsWith(route)), route);
   assert.ok(seen.size >= 20, [...seen].join(', '));
 });
+
+test('a browser harness that swaps a registry tool swaps one the catalogue names, so the rule draws it', () => {
+  // The module recovery harness put its crash probe in the registry under an id
+  // of its own; the rule names a registry tool only by the catalogue's ids, so
+  // the probe was drawn as the "could not be displayed" panel and
+  // moduleRecoveryLock.mjs never met the failure it checks (CI on 4d429447).
+  const sources = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (
+    entry.isDirectory()
+      ? (entry.name === 'artifacts' ? [] : sources(`${dir}/${entry.name}`))
+      : (/\.(jsx?|mjs)$/.test(entry.name) ? [`${dir}/${entry.name}`] : [])
+  ));
+  const swapped = sources('tests/browser').flatMap((file) => {
+    const text = readFileSync(file, 'utf8');
+    return [
+      ...[...text.matchAll(/TOOL_REGISTRY\.([A-Za-z0-9_$]+)\s*=(?!=)/g)].map((match) => ({ file, id: match[1] })),
+      ...[...text.matchAll(/TOOL_REGISTRY\[\s*['"]([^'"]+)['"]\s*\]\s*=(?!=)/g)].map((match) => ({ file, id: match[1] })),
+    ];
+  });
+  assert.ok(swapped.some(({ file }) => file.endsWith('moduleRecoveryLockMain.jsx')), 'the module recovery harness swaps a registry tool');
+  for (const { file, id } of swapped) {
+    assert.ok(Object.prototype.hasOwnProperty.call(TOOL_CATALOG, id), `${file} puts a tool in the registry as "${id}", which the catalogue does not name, so it is drawn as no tool`);
+    assert.ok(drawnQuestionKind({ type: 'probe', toolId: id })?.route === DRAWN_QUESTION_ROUTE.REGISTRY_TOOL, id);
+  }
+});
