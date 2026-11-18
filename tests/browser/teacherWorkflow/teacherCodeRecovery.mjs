@@ -27,6 +27,20 @@
 //       panel
 //   C4  a teacher screen's own chunk (Classes): the same panel
 //
+// The panels the workspace draws closed, and Home's Ask my teacher math, load
+// on demand too (src/app/teacher/teacherPanels.js), each fetched while the
+// browser is idle once the workspace has drawn:
+//
+//   C5  an assignment's details: its idle prefetch fails and nothing is shown,
+//       Home stays; the details opened from Home: "MathMaster was just updated"
+//   C6  Ask my teacher's math, with a student's question waiting: while
+//       Period 3 is in session the panel only counts, which needs no math, so
+//       its failure shows nothing; once the class ends the list needs it: the
+//       same panel; the new version's page draws the question, its prompt's
+//       mathematics typeset
+//   C7  Find, on a device that saves data (no prefetch), opened before its
+//       code is here: the same panel
+//
 // Exit code 1 on any finding.
 
 import { newSchoolContext } from './schoolClock.mjs';
@@ -39,6 +53,10 @@ const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html`;
 // production build (/assets/teacherAuthoringKit-<hash>.js).
 const AUTHORING_CODE = /\/teacherAuthoringKit(?:-[\w-]+)?\.js(?:\?|$)/;
 const CLASSES_SCREEN = /\/ClassesWorkspace(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
+// A closed panel's chunk, and the prompts' math (MathText's, which brings MathLive).
+const ASSIGNMENT_DETAILS = /\/AssignmentHub(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
+const FIND_PALETTE = /\/TeacherQuickSearch(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
+const PROMPT_MATH = /\/MathText(?:-[\w-]+)?\.(?:jsx|js)(?:\?|$)/;
 const HOSTING_REWRITE = { status: 200, contentType: 'text/html', body: '<!doctype html><html><head><title>MathMaster</title></head><body><div id="root"></div></body></html>' };
 
 const launchOptions = { args: ['--no-sandbox'] };
@@ -59,7 +77,11 @@ const panel = (page) => page.locator('[data-recovery-panel]');
 
 // A school Chromebook on this harness; `saveData` as a device that asks to
 // save data (no prefetch: each screen's code arrives when it is opened).
-const openTeacher = async ({ saveData = false, fail = [] } = {}) => {
+// `watch`: the code whose requests `asked` counts (the authoring code unless
+// named); `before(page)`: run on the store before the teacher's page opens;
+// `ready(page)`: what the page has drawn when the scene starts (Home's heading
+// unless named).
+const openTeacher = async ({ saveData = false, fail = [], watch = AUTHORING_CODE, query = 'reset=1', before = null, ready = null } = {}) => {
   const context = await newSchoolContext(browser, { viewport: { width: 1366, height: 768 } });
   if (saveData) {
     await context.addInitScript(() => {
@@ -69,10 +91,22 @@ const openTeacher = async ({ saveData = false, fail = [] } = {}) => {
   for (const pattern of fail) await context.route(pattern, (route) => route.fulfill(HOSTING_REWRITE));
   const page = await context.newPage();
   const asked = [];
-  page.on('request', (request) => { if (AUTHORING_CODE.test(request.url())) asked.push(request.url()); });
-  await page.goto(`${PAGE}?reset=1`, { waitUntil: 'domcontentloaded', timeout: 180_000 });
-  await homeHeading(page).waitFor({ timeout: 120_000 });
+  page.on('request', (request) => { if (watch.test(request.url())) asked.push(request.url()); });
+  if (before) {
+    await page.goto(`${PAGE}?reset=1&questions=real&signedOut=1`, { waitUntil: 'domcontentloaded', timeout: 180_000 });
+    await page.waitForFunction(() => Boolean(window.__mmHarnessStore), null, { timeout: 120_000 });
+    await before(page);
+  }
+  await page.goto(`${PAGE}?${query}`, { waitUntil: 'domcontentloaded', timeout: 180_000 });
+  await (ready ? ready(page) : homeHeading(page).waitFor({ timeout: 120_000 }));
   return { context, page, asked };
+};
+
+// Waits until `asked` has a request, or 30 s (the idle prefetch runs within 5 s at 1x CPU).
+const untilAsked = async (page, asked) => {
+  const deadline = Date.now() + 30_000;
+  while (!asked.length && Date.now() < deadline) await page.waitForTimeout(250);
+  await page.waitForTimeout(1500);
 };
 
 const panelSays = async (page, label) => {
@@ -144,6 +178,84 @@ await scene('C4', async () => {
   const { context, page } = await openTeacher({ fail: [CLASSES_SCREEN] });
   await sidebar(page, 'Classes').click();
   await panelSays(page, 'C4 Classes');
+  await context.close();
+});
+
+// C5: an assignment's details, a panel drawn closed on every screen.
+await scene('C5', async () => {
+  const { context, page, asked } = await openTeacher({ fail: [ASSIGNMENT_DETAILS], watch: ASSIGNMENT_DETAILS });
+  await untilAsked(page, asked);
+  expect('C5 the idle prefetch asks for an assignment\'s details once Home has drawn', asked.length > 0, 'no request for it within 30 s');
+  expect('C5 its failure shows nothing', (await panel(page).count()) === 0, await panel(page).first().innerText().catch(() => ''));
+  expect('C5 and Home stays', await homeHeading(page).isVisible(), 'Home\'s heading is gone');
+  await page.locator('section[aria-labelledby="home-class-now"]').getByRole('button', { name: 'Details' }).first().click();
+  await panelSays(page, 'C5 an assignment\'s details');
+  await context.close();
+});
+
+// C6: Ask my teacher's math. A Period 5 student's question about "Write 6/8
+// in lowest terms." waits; Period 3 is in session, so Home only counts it.
+const P5_QUESTION = {
+  schemaVersion: 1, studentId: '910020', classId: 'c-alg1-p5', teacherEmail: 'teacher@harness.example', assignmentId: 'a-p5',
+  assignmentTitle: 'Linear Equations — Lesson 5', questionIndex: 1, questionLabel: 'Classwork · Question 1',
+  text: 'How do I make the fraction smaller?', status: 'open',
+};
+const endPeriodThree = (page) => page.evaluate(() => {
+  const store = window.__mmHarnessStore;
+  const schedule = JSON.parse(JSON.stringify(store.get('settings/classSchedule')));
+  Object.values(schedule.modifiedSchedules).forEach((day) => { day.periods['Period 3'] = { enabled: true, start: '05:00', end: '05:30' }; });
+  store.set('settings/classSchedule', schedule);
+});
+await scene('C6', async () => {
+  const { context, page, asked } = await openTeacher({
+    fail: [PROMPT_MATH],
+    watch: PROMPT_MATH,
+    query: '',
+    before: (seed) => seed.evaluate((question) => {
+      const now = Date.now();
+      window.__mmHarnessStore.set('askTeacherQuestions/910020__a-p5__1', { ...question, createdAt: now - 60_000, updatedAt: now - 60_000 });
+    }, P5_QUESTION),
+    // The count, or the recovery panel if the failure took the screen.
+    ready: (page) => page.locator('[data-student-questions][data-withheld], [data-recovery-panel]').first().waitFor({ timeout: 120_000 }),
+  });
+  const counted = page.locator('[data-student-questions][data-withheld]');
+  const shown = await counted.waitFor({ timeout: 60_000 }).then(() => true, () => false);
+  expect('C6 in class, Home counts the waiting question', shown && /Questions from students\s*1/.test(await counted.innerText().catch(() => '')), 'no count');
+  await untilAsked(page, asked);
+  expect('C6 the prompts\' math is asked for as soon as a question waits', asked.length > 0, 'no request for it within 30 s');
+  await page.waitForTimeout(3000);
+  expect('C6 while only the count needs drawing, its failure shows nothing', (await panel(page).count()) === 0, await panel(page).first().innerText().catch(() => ''));
+  expect('C6 and Home stays', await homeHeading(page).isVisible(), 'Home\'s heading is gone');
+  // The class ends (the bell schedule is live): the list would draw its prompt.
+  await endPeriodThree(page);
+  if (!await panelSays(page, 'C6 the class ends, the list needs the math')) { await context.close(); return; }
+  await context.unroute(PROMPT_MATH);
+  await Promise.all([
+    page.waitForURL(/_mm_reload=/, { timeout: 60_000 }),
+    page.getByRole('button', { name: 'Load the new version' }).click(),
+  ]);
+  await homeHeading(page).waitFor({ timeout: 120_000 });
+  const questions = page.locator('details[data-student-questions]');
+  await questions.waitFor({ timeout: 60_000 });
+  await questions.locator(':scope > summary').click();
+  const prompt = questions.locator('[data-student-question] details');
+  await prompt.locator('summary').click();
+  const typeset = await page.waitForFunction(() => {
+    const element = document.querySelector('[data-student-questions] [data-student-question] details math-span, [data-student-questions] [data-student-question] details math-div');
+    return Boolean(element?.shadowRoot?.querySelector('[part="render"]')?.innerHTML);
+  }, null, { timeout: 60_000 }).then(() => true, () => false);
+  expect('C6 after the new version loads, the question draws, its prompt\'s mathematics typeset', typeset && (await panel(page).count()) === 0, typeset ? 'the panel is still there' : 'the prompt\'s math was not typeset within 60 s');
+  await context.close();
+});
+
+// C7: Find, opened on a device that saves data (nothing fetched ahead).
+await scene('C7', async () => {
+  const { context, page, asked } = await openTeacher({ saveData: true, fail: [FIND_PALETTE], watch: FIND_PALETTE });
+  await page.waitForTimeout(6500);
+  expect('C7 a device saving data does not fetch Find ahead', asked.length === 0, `${asked.length} request(s)`);
+  await page.getByRole('button', { name: /^Find…/ }).first().click();
+  await panelSays(page, 'C7 Find');
+  expect('C7 opening it asked for its code', asked.length > 0, 'no request');
   await context.close();
 });
 
