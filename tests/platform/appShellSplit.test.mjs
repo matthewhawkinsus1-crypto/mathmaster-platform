@@ -147,12 +147,13 @@ const CLOSED_TEACHER_PANELS = {
 
 test('the panels drawn closed load on demand when first opened, each inside its own Suspense boundary', () => {
   const helpers = executableSource(read('src/app/teacher/onDemandCode.js'));
-  assert.match(helpers, /const \[Panel\] = useState\(\(\) => code\.loaded\(\)\?\.default \|\| lazy\(code\.load\)\);\s*return createElement\(Suspense, \{ fallback: null \}, createElement\(Panel, props\)\);/, 'a lazy, or the panel once here, inside Suspense with no fallback, every prop passed through');
+  assert.match(helpers, /const choose = \(code\) => code\.loaded\(\)\?\.default \|\| lazy\(code\.load\);/, 'a lazy, or the panel once its code is here');
+  assert.match(helpers, /if \(!Panel\) return offlineNote\(props\);\s*return createElement\(Suspense, \{ fallback: null \}, createElement\(Panel, props\)\);/, 'inside Suspense with no fallback, every prop passed through (offline, its note: firstLoadTeacherHome.test.mjs)');
   const panels = executableSource(read('src/app/teacher/teacherPanels.js'));
   const imported = importedFrom('./teacherPanels.js', teacherWorkspace);
   for (const [name, [path, openProp]] of Object.entries(CLOSED_TEACHER_PANELS)) {
     const escaped = path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-    assert.match(panels, new RegExp(`^export const ${name} = closedPanel\\(\\(\\) => import\\('\\.\\./\\.\\./${escaped}'\\), \\(props\\) => props\\.${openProp}\\);$`, 'm'), `${name} loads ${path} when props.${openProp} first holds`);
+    assert.match(panels, new RegExp(`^export const ${name} = closedPanel\\(\\(\\) => import\\('\\.\\./\\.\\./${escaped}'\\), \\(props\\) => props\\.${openProp}, "This device is offline\\. [^"]+ when it is back online\\."\\);$`, 'm'), `${name} loads ${path} when props.${openProp} first holds, and says what waits for the connection`);
     assert.ok(imported.includes(name), `the teacher workspace takes ${name} from teacherPanels.js`);
     assert.doesNotMatch(read('src/app/lazyScreens.js'), new RegExp(`^export const ${name} =`, 'm'), `${name} is declared in lazyScreens.js as well`);
     assert.doesNotMatch(app, new RegExp(`^import [^;]* from '\\./${escaped}';$`, 'm'), `App imports ${path} statically`);

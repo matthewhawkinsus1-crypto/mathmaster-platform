@@ -99,8 +99,8 @@ for (const [file, why] of [
 test('what Home and the workspace draw on demand comes from teacherPanels.js, each by the helper that fits it', () => {
   const panels = executableSource(read('src/app/teacher/teacherPanels.js'));
   assert.match(panels, /^export const promptMath = onDemandCode\(\(\) => import\('\.\.\/\.\.\/components\/common\/MathText\.jsx'\)\);$/m);
-  assert.match(panels, /^export const StudentSpotlightView = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/StudentSpotlightView\.jsx'\)\);$/m);
-  assert.match(panels, /^export const StudentPersistenceRecoveryPanel = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/StudentPersistenceRecoveryPanel\.jsx'\)\);$/m);
+  assert.match(panels, /^export const StudentSpotlightView = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/StudentSpotlightView\.jsx'\), "This device is offline\. The Spotlight shows when it is back online\."\);$/m);
+  assert.match(panels, /^export const StudentPersistenceRecoveryPanel = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/StudentPersistenceRecoveryPanel\.jsx'\), "This device is offline\. Submission recovery shows when it is back online\."\);$/m);
   // Taken from there, and from nowhere statically.
   assert.equal(importsComponent('src/components/teacher/LiveClassMonitor.jsx', 'StudentSpotlightView', 'src/components/teacher/StudentSpotlightView.jsx'), 'onDemand');
   assert.equal(importsComponent('src/TeacherHome.jsx', 'StudentPersistenceRecoveryPanel', 'src/components/teacher/StudentPersistenceRecoveryPanel.jsx'), 'onDemand');
@@ -247,7 +247,11 @@ test('once opened, a panel stays mounted as it closes and opens again, so it beh
   assert.equal(view.output.type, mounted.type);
 });
 
-// A window whose device is offline until goOnline().
+// Opened while the device is offline before its code is here, a panel asks
+// for nothing: the request would fail, and the browser would keep the failure
+// for the life of the page, so the panel could only ever show "MathMaster was
+// just updated". Its note says it opens once the device is back online, and
+// then it asks (teacherCodeRecovery.mjs C9 drives it in the real App).
 const offlineWindow = () => {
   const listeners = new Map();
   return {
@@ -258,6 +262,53 @@ const offlineWindow = () => {
     listening: (type) => listeners.has(type),
   };
 };
+test('a panel opened offline asks for nothing and says so, and asks once the device is back online', async () => {
+  const { closedPanel } = await loader.ssrLoadModule('/src/app/teacher/onDemandCode.js');
+  let asked = 0;
+  const Panel = closedPanel(() => { asked += 1; return new Promise(() => {}); }, (props) => props.open, 'This device is offline. The student\'s details open when it is back online.');
+  const win = offlineWindow();
+  const was = globalThis.window;
+  globalThis.window = win;
+  try {
+    const controls = {};
+    // The panel and the one mount it draws, as React would draw them.
+    const Host = () => {
+      const [open, setOpen] = shim.useState(true);
+      controls.setOpen = setOpen;
+      const element = Panel({ open, onClose: () => {} });
+      return element ? element.type(element.props) : null;
+    };
+    const view = shim.mount(Host, {});
+    assert.equal(view.output?.type, 'p', 'its note in its place');
+    assert.equal(view.output.props.role, 'status');
+    assert.equal(view.output.props['data-panel-offline'], '');
+    assert.match(view.output.props.children.join(''), /offline.*open when it is back online/);
+    assert.equal(asked, 0, 'nothing asked for while offline');
+    assert.ok(win.listening('online'), 'it waits for the connection');
+    controls.setOpen(false);
+    assert.equal(view.output, null, 'closed again while it waits: nothing');
+    controls.setOpen(true);
+    win.goOnline();
+    // Back online: the panel's own lazy, inside its Suspense.
+    const lazyLoad = view.output?.props?.children?.[0]?.type;
+    assert.equal(typeof lazyLoad, 'function', 'back online, the panel is drawn from its code');
+    assert.notEqual(view.output.type, 'p', 'and the note is gone');
+  } finally {
+    globalThis.window = was;
+  }
+  // What the note is, drawn by React.
+  const realWin = offlineWindow();
+  globalThis.window = realWin;
+  try {
+    const Real = real.closedPanel(() => new Promise(() => {}), (props) => props.open, 'This device is offline. Find opens when it is back online.');
+    const markup = renderToStaticMarkup(createElement(Real, { open: true }));
+    assert.match(markup, /^<p role="status" data-panel-offline="" style="[^"]*position:fixed[^"]*">This device is offline\. Find opens when it is back online\.<\/p>$/);
+    assert.equal(renderToStaticMarkup(createElement(Real, { open: false })), '', 'never opened: nothing at all');
+  } finally {
+    globalThis.window = was;
+  }
+});
+
 test('Find is asked for at once as the workspace draws, on a device that saves data too, and never while offline', async () => {
   const { prefetchTeacherPanels } = await loader.ssrLoadModule('/src/app/teacher/teacherPanelPrefetch.js');
   const { TeacherQuickSearch } = await loader.ssrLoadModule('/src/app/teacher/teacherPanels.js');

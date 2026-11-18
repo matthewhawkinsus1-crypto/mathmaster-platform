@@ -29,18 +29,21 @@
  * listener). AssignmentHub draws nothing and reports no class to App
  * (onClassChange(null)), which is where App's own value starts, and reports
  * none again as it leaves the page.
+ *
+ * Opened while the device is offline before its code is here, each says so
+ * in its place, and opens once the device is back online (./onDemandCode.js).
  */
 import { closedPanel, drawnPanel, onDemandCode } from './onDemandCode.js';
 
-export const TeacherQuickSearch = closedPanel(() => import('../../components/teacher/TeacherQuickSearch.jsx'), (props) => props.open);
-export const ClassroomSyncReview = closedPanel(() => import('../../components/teacher/ClassroomSyncReview.jsx'), (props) => props.proposal);
-export const AssignmentHub = closedPanel(() => import('../../components/teacher/AssignmentHub.jsx'), (props) => props.open);
-export const StudentProfileDrawer = closedPanel(() => import('../../components/teacher/StudentProfileDrawer.jsx'), (props) => props.open);
-export const SupportEvidenceReportView = closedPanel(() => import('../../components/teacher/SupportEvidenceReportView.jsx'), (props) => props.open);
+export const TeacherQuickSearch = closedPanel(() => import('../../components/teacher/TeacherQuickSearch.jsx'), (props) => props.open, "This device is offline. Find opens when it is back online.");
+export const ClassroomSyncReview = closedPanel(() => import('../../components/teacher/ClassroomSyncReview.jsx'), (props) => props.proposal, "This device is offline. The Classroom sync review opens when it is back online.");
+export const AssignmentHub = closedPanel(() => import('../../components/teacher/AssignmentHub.jsx'), (props) => props.open, "This device is offline. The assignment's details open when it is back online.");
+export const StudentProfileDrawer = closedPanel(() => import('../../components/teacher/StudentProfileDrawer.jsx'), (props) => props.open, "This device is offline. The student's details open when it is back online.");
+export const SupportEvidenceReportView = closedPanel(() => import('../../components/teacher/SupportEvidenceReportView.jsx'), (props) => props.open, "This device is offline. The support evidence report opens when it is back online.");
 
 // MathText, for Ask my teacher's prompts (components/teacher/StudentQuestionsPanel.jsx).
 export const promptMath = onDemandCode(() => import('../../components/common/MathText.jsx'));
 // The Spotlight's projector view (components/teacher/LiveClassMonitor.jsx).
-export const StudentSpotlightView = drawnPanel(() => import('../../components/teacher/StudentSpotlightView.jsx'));
+export const StudentSpotlightView = drawnPanel(() => import('../../components/teacher/StudentSpotlightView.jsx'), "This device is offline. The Spotlight shows when it is back online.");
 // Submission recovery's panel (src/TeacherHome.jsx), mounted again for each class and assignment chosen.
-export const StudentPersistenceRecoveryPanel = drawnPanel(() => import('../../components/teacher/StudentPersistenceRecoveryPanel.jsx'));
+export const StudentPersistenceRecoveryPanel = drawnPanel(() => import('../../components/teacher/StudentPersistenceRecoveryPanel.jsx'), "This device is offline. Submission recovery shows when it is back online.");

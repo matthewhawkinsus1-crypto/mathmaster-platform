@@ -42,10 +42,19 @@
 //       workspace draws all the same (it opens on a keystroke), and its
 //       failure shows nothing until Find is opened: then the same panel
 //
-// And code that has not arrived yet:
+// And code that has not arrived yet, or cannot while the device is offline:
 //
 //   C8  Find on a device that saves data, with focus in another box: Ctrl+K
 //       and a name typed at once go to Find's box, not to the other one
+//   C9  a student's details opened while the device is offline, on a device
+//       that saves data (nothing fetched ahead): nothing replaces the app, a
+//       note says they open once the device is back online, and then they
+//       open, with focus on their Close
+//
+// Offline is the device's as the app reads it (navigator.onLine and the
+// online event), with every request failing while it lasts. Chromium's own
+// offline mode would also cut the dev server's live-reload socket, whose
+// reconnection reloads the page.
 //
 // Exit code 1 on any finding.
 
@@ -87,8 +96,9 @@ const panel = (page) => page.locator('[data-recovery-panel]');
 // named); `before(page)`: run on the store before the teacher's page opens;
 // `ready(page)`: what the page has drawn when the scene starts (Home's heading
 // unless named).
-const openTeacher = async ({ saveData = false, fail = [], watch = AUTHORING_CODE, query = 'reset=1', before = null, ready = null } = {}) => {
+const openTeacher = async ({ saveData = false, fail = [], watch = AUTHORING_CODE, query = 'reset=1', before = null, ready = null, network = null } = {}) => {
   const context = await newSchoolContext(browser, { viewport: { width: 1366, height: 768 } });
+  if (network) await emulateConnection(context, network);
   if (saveData) {
     await context.addInitScript(() => {
       Object.defineProperty(Navigator.prototype, 'connection', { configurable: true, get: () => ({ saveData: true, addEventListener() {}, removeEventListener() {} }) });
@@ -106,6 +116,24 @@ const openTeacher = async ({ saveData = false, fail = [], watch = AUTHORING_CODE
   await page.goto(`${PAGE}?${query}`, { waitUntil: 'domcontentloaded', timeout: 180_000 });
   await (ready ? ready(page) : homeHeading(page).waitFor({ timeout: 120_000 }));
   return { context, page, asked };
+};
+
+// The device's connection as the page sees it: `network.offline(page)` and
+// `network.online(page)` flip navigator.onLine and fire the browser's event;
+// while offline every request fails as a dropped connection does.
+const connection = () => ({ isOffline: false });
+const emulateConnection = async (context, network) => {
+  await context.addInitScript(() => {
+    let offline = false;
+    Object.defineProperty(Navigator.prototype, 'onLine', { configurable: true, get: () => !offline });
+    window.__mmSetOffline = (value) => {
+      offline = value;
+      window.dispatchEvent(new Event(value ? 'offline' : 'online'));
+    };
+  });
+  await context.route('**/*', (route) => (network.isOffline ? route.abort('internetdisconnected') : route.fallback()));
+  network.offline = async (page) => { network.isOffline = true; await page.evaluate(() => window.__mmSetOffline(true)); };
+  network.online = async (page) => { network.isOffline = false; await page.evaluate(() => window.__mmSetOffline(false)); };
 };
 
 // Waits until `asked` has a request, or 30 s (the idle prefetch runs within 5 s at 1x CPU).
@@ -283,6 +311,31 @@ await scene('C8', async () => {
   const other = await search.inputValue();
   expect('C8 what is typed after Ctrl+K goes to Find\'s box', typed === 'Garza', `Find's box: "${typed}"`);
   expect('C8 and not to the box that had focus', other === '', `the student search box: "${other}"`);
+  await context.close();
+});
+
+// C9: a student's details, opened offline before their code is here.
+await scene('C9', async () => {
+  const network = connection();
+  const { context, page } = await openTeacher({ saveData: true, network });
+  await page.waitForTimeout(1500);
+  await network.offline(page);
+  await page.locator('[data-live-tile] button').first().click();
+  const note = page.locator('[data-panel-offline]');
+  const noted = await note.first().waitFor({ timeout: 15_000 }).then(() => true, () => false);
+  expect('C9 opened offline, a note says the student\'s details open once the device is back online', noted && /offline/i.test(await note.first().innerText()), noted ? await note.first().innerText() : 'no note');
+  await page.waitForTimeout(2000);
+  expect('C9 nothing replaces the app', (await panel(page).count()) === 0 && await homeHeading(page).isVisible(), await panel(page).first().innerText().catch(() => 'Home\'s heading is gone'));
+  await network.online(page);
+  const drawer = page.locator('[data-student-profile-drawer]');
+  const opened = await drawer.waitFor({ timeout: 60_000 }).then(() => true, () => false);
+  expect('C9 back online, the details open', opened, 'no drawer within 60 s');
+  if (opened) {
+    await page.waitForTimeout(600);
+    expect('C9 and the note is gone', (await note.count()) === 0, 'the note is still there');
+    const focus = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.textContent || '');
+    expect('C9 with focus on their Close', /Close student profile/.test(focus), `focus on "${focus}"`);
+  }
   await context.close();
 });
 
