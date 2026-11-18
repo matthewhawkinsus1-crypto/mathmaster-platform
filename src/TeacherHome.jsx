@@ -8,7 +8,9 @@ import {
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
 import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
 import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
-import StudentPersistenceRecoveryPanel from './components/teacher/StudentPersistenceRecoveryPanel.jsx';
+// Submission recovery's panel, drawn once a class and an assignment are chosen
+// in its fold: on demand (app/teacher/teacherPanels.js, teacher's first load).
+import { StudentPersistenceRecoveryPanel } from './app/teacher/teacherPanels.js';
 import ClassLessonControls from './components/teacher/ClassLessonControls.jsx';
 import StudentQuestionsPanel from './components/teacher/StudentQuestionsPanel.jsx';
 import { projectClassLessons } from './platform/teacher/classLessonControls.js';

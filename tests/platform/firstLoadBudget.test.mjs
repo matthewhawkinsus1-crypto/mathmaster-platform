@@ -72,26 +72,37 @@ test("the teacher's path is the student's Home plus what a teacher's Home asks f
   assert.throws(() => criticalPaths(manifest), /no chunk for src\/TeacherSidebar\.jsx/);
 });
 
-// TEACHER_HOME_KEYS names what the workspace draws on Home before anything is
-// opened: a production build at 4x CPU requests exactly these chunks between a
-// teacher's sign-in and Home's heading. Each is a screen the workspace takes
-// from lazyScreens.js (its own chunk), and each is drawn on Home.
-test("the teacher's Home keys are the screens and panels the workspace draws on Home", () => {
+// TEACHER_HOME_KEYS names what the workspace asks for on Home before anything
+// is opened: a production build at 4x CPU requests exactly these chunks
+// between a teacher's sign-in and Home's heading. Each is a screen the
+// workspace takes from lazyScreens.js (its own chunk), and each is drawn on
+// Home. The panels it draws closed on every screen are not among them (the
+// teacher's first load, second pass): each mounts, and asks for its code, when
+// it first opens (app/teacher/teacherPanels.js).
+test("the teacher's Home keys are the screens the workspace draws on Home, and none of the panels it draws closed", () => {
   const workspacePath = 'src/app/teacher/TeacherWorkspace.jsx';
   const workspace = executableSource(readFileSync(new URL(`../../${workspacePath}`, import.meta.url), 'utf8'));
+  const panels = executableSource(readFileSync(new URL('../../src/app/teacher/teacherPanels.js', import.meta.url), 'utf8'));
   const [kit, workspaceKey, ...screens] = TEACHER_HOME_KEYS;
   assert.equal(kit, 'src/app/teacher/teacherKit.js');
   assert.equal(workspaceKey, workspacePath);
   const names = screens.map((key) => key.split('/').pop().replace(/\.jsx$/, ''));
-  // The sidebar and the panels, drawn whatever the tab (closed until opened),
-  // and Home, the screen a teacher lands on, with the class bar above it.
-  const everyScreen = ['TeacherSidebar', 'TeacherQuickSearch', 'ClassroomSyncReview', 'AssignmentHub', 'StudentProfileDrawer', 'SupportEvidenceReportView'];
-  assert.deepEqual([...names].sort(), [...everyScreen, 'TeacherHome', 'ClassContextBar'].sort(), 'the list names exactly what Home draws');
+  // The sidebar, drawn whatever the tab, and Home, the screen a teacher lands
+  // on, with the class bar above it.
+  assert.deepEqual([...names].sort(), ['ClassContextBar', 'TeacherHome', 'TeacherSidebar'], 'the list names exactly what Home draws');
   screens.forEach((key, index) => {
     assert.equal(importsComponent(workspacePath, names[index], key), 'onDemand', `${names[index]} is a chunk of its own, loaded by the workspace on demand`);
   });
   const shell = region(workspace, '{renderTeacherScratchpadDialog()}', '<div className="mm-dashboard-content"', 'the workspace around its screens');
-  for (const name of everyScreen) assert.match(shell, new RegExp(`<${name}\\b`), `${name} is drawn on every screen`);
+  assert.match(shell, /<TeacherSidebar\b/, 'the sidebar is drawn on every screen');
+  // Drawn on every screen, closed until opened, and mounted only then.
+  for (const name of ['TeacherQuickSearch', 'ClassroomSyncReview', 'AssignmentHub', 'StudentProfileDrawer', 'SupportEvidenceReportView']) {
+    const key = `src/components/teacher/${name}.jsx`;
+    assert.match(shell, new RegExp(`<${name}\\b`), `${name} is drawn on every screen`);
+    assert.equal(importsComponent(workspacePath, name, key), 'onDemand', `${name} is loaded on demand`);
+    assert.match(panels, new RegExp(`^export const ${name} = closedPanel\\(`, 'm'), `${name} mounts, and asks for its code, when it first opens`);
+    assert.ok(!TEACHER_HOME_KEYS.includes(key), `${name} is not asked for before Home draws`);
+  }
   assert.match(workspace, /\{teacherTab === 'home' && \(\s*<TeacherHome\b/);
   assert.match(workspace, /\{CLASS_SCOPED_TABS\[teacherTab\] && \([\s\S]{0,120}<ClassContextBar\b/);
 });

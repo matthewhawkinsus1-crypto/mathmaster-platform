@@ -22,7 +22,7 @@
  * on demand too:
  *
  *   import { …, Name, … } from '…/app/teacher/teacherPanels.js';
- *     with  export const Name = drawnPanel(() => import('../../components/…/Name.jsx')…
+ *     with  export const Name = closedPanel|drawnPanel(() => import('../../components/…/Name.jsx')…
  *
  * `importsComponent(sourcePath, name, componentPath)` answers 'static',
  * 'onDemand' or null. Paths are repo-relative ('src/App.jsx').
@@ -39,7 +39,7 @@ const relativeSpecifier = (fromFile, toFile) => {
 // Each module that loads components on demand, with the helpers its entries use.
 const ON_DEMAND_MODULES = [
   ['src/app/lazyScreens.js', 'lazy|teacherPanel|studentScreen|studentPanel'],
-  ['src/app/teacher/teacherPanels.js', 'drawnPanel'],
+  ['src/app/teacher/teacherPanels.js', 'closedPanel|drawnPanel'],
 ];
 
 export const importsComponent = (sourcePath, name, componentPath) => {

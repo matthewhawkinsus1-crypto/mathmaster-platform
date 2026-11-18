@@ -3,10 +3,18 @@
 //
 // After the authoring code left it (firstLoadTeacherWorkspace.test.mjs), a
 // teacher still downloaded, before Home's heading, what Home's first screen
-// never draws: MathText, for the prompts of Ask my teacher's questions,
-// inside two folds (components/teacher/StudentQuestionsPanel.jsx), and for
-// the Spotlight's projector view: with it MathLive, whose <math-span> renders
-// a prompt as static markup, and the spoken copies MathDisplay adds.
+// never draws:
+//
+//   - MathText, for the prompts of Ask my teacher's questions, inside two
+//     folds (components/teacher/StudentQuestionsPanel.jsx), and for the
+//     Spotlight's projector view: with it MathLive, whose <math-span> renders
+//     a prompt as static markup, and the spoken copies MathDisplay adds;
+//   - the five panels the workspace draws closed on every screen (Find, the
+//     Classroom sync review, an assignment's details, a student's drawer and
+//     the support report), with the question family registry an assignment's
+//     details reaches through its Recovery plan;
+//   - Submission recovery's panel, drawn inside Home's fold of that name once
+//     a class and an assignment are chosen there.
 //
 // Each now arrives when it is first needed (src/app/teacher/onDemandCode.js,
 // named in src/app/teacher/teacherPanels.js), and the workspace fetches it all
@@ -62,6 +70,22 @@ for (const [file, why] of [
   ['src/mathDisplayFormat.js', 'how MathDisplay reads a formula'],
   ['src/components/teacher/StudentSpotlightView.jsx', 'drawn only while a student presents'],
   ['src/tools/graphing2/storedLineText.js', 'the Spotlight\'s reading of a student\'s line'],
+  ['src/components/teacher/TeacherQuickSearch.jsx', 'Find, mounted when it first opens'],
+  ['src/platform/teacher/teacherSearch.js', 'Find\'s search'],
+  ['src/components/teacher/ClassroomSyncReview.jsx', 'the Classroom sync review, mounted when a proposal first opens it'],
+  ['src/components/teacher/AssignmentHub.jsx', 'an assignment\'s details, mounted when first opened'],
+  ['functions/shared/questionFamilyRegistry.mjs', 'the question family registry (73 KB gzip), through an assignment\'s details and its Recovery plan'],
+  ['functions/shared/recoveryContentPlan.mjs', 'an assignment\'s Recovery plan'],
+  ['functions/shared/sectionRecoveryService.mjs', 'who can recover, in an assignment\'s details'],
+  ['src/components/teacher/AssignmentSupportLayer.jsx', 'an assignment\'s supports and evidence'],
+  ['src/components/teacher/StudentProfileDrawer.jsx', 'a student\'s drawer, mounted when first opened'],
+  ['src/components/teacher/rewards/StudentRewardsPanel.jsx', 'the drawer\'s rewards'],
+  ['src/components/teacher/StudentSupportEvidencePanel.jsx', 'the drawer\'s supports and evidence'],
+  ['src/components/teacher/StudentAssignmentsList.jsx', 'the drawer\'s assignments'],
+  ['src/components/teacher/SupportEvidenceReportView.jsx', 'the support evidence report, mounted when first opened'],
+  ['src/platform/supportEvidence/supportEvidenceReport.js', 'what the report builds'],
+  ['src/components/teacher/SupportProfileEditor.jsx', 'a student\'s support profile, in the drawer, the hub and the report'],
+  ['src/components/teacher/StudentPersistenceRecoveryPanel.jsx', 'Submission recovery, once a class and an assignment are chosen'],
 ]) {
   test(`${path.basename(file)} is not in a teacher's first load: ${why}`, () => {
     const key = file.startsWith('pkg:') ? file : path.join(repo, file);
@@ -72,15 +96,22 @@ for (const [file, why] of [
   });
 }
 
-test('what Home draws on demand comes from teacherPanels.js, each by the helper that fits it', () => {
+test('what Home and the workspace draw on demand comes from teacherPanels.js, each by the helper that fits it', () => {
   const panels = executableSource(read('src/app/teacher/teacherPanels.js'));
   assert.match(panels, /^export const promptMath = onDemandCode\(\(\) => import\('\.\.\/\.\.\/components\/common\/MathText\.jsx'\)\);$/m);
   assert.match(panels, /^export const StudentSpotlightView = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/StudentSpotlightView\.jsx'\)\);$/m);
+  assert.match(panels, /^export const StudentPersistenceRecoveryPanel = drawnPanel\(\(\) => import\('\.\.\/\.\.\/components\/teacher\/StudentPersistenceRecoveryPanel\.jsx'\)\);$/m);
   // Taken from there, and from nowhere statically.
   assert.equal(importsComponent('src/components/teacher/LiveClassMonitor.jsx', 'StudentSpotlightView', 'src/components/teacher/StudentSpotlightView.jsx'), 'onDemand');
-  // The spotlight is drawn where it was, with the same props.
+  assert.equal(importsComponent('src/TeacherHome.jsx', 'StudentPersistenceRecoveryPanel', 'src/components/teacher/StudentPersistenceRecoveryPanel.jsx'), 'onDemand');
+  for (const name of ['TeacherQuickSearch', 'ClassroomSyncReview', 'AssignmentHub', 'StudentProfileDrawer', 'SupportEvidenceReportView']) {
+    assert.equal(importsComponent('src/app/teacher/TeacherWorkspace.jsx', name, `src/components/teacher/${name}.jsx`), 'onDemand', `the workspace takes ${name} on demand`);
+  }
+  // The spotlight and the recovery panel are drawn where they were, with the same props.
   const monitor = executableSource(read('src/components/teacher/LiveClassMonitor.jsx'));
   assert.match(monitor, /\{activeSpotlight\?\.status === SPOTLIGHT_STATUS\.ACCEPTED && <StudentSpotlightView request=\{activeSpotlight\} frame=\{spotlightFrame\} onStop=\{stopSpotlight\} \/>\}/);
+  const home = executableSource(read('src/TeacherHome.jsx'));
+  assert.match(region(home, '{recoveryAssignmentId && (', ')}', 'Submission recovery'), /<StudentPersistenceRecoveryPanel\s+key=\{`\$\{recoveryClassId\}::\$\{recoveryAssignmentId\}`\}/);
 });
 
 /*
@@ -96,6 +127,28 @@ const deferred = () => {
 };
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 
+test('a panel drawn closed draws and asks for nothing until it opens, then draws exactly itself once its code is here', async () => {
+  const Fake = ({ label, open }) => createElement('aside', { 'data-fake': '', 'data-open': String(open) }, label);
+  const code = deferred();
+  let asked = 0;
+  const Panel = real.closedPanel(() => { asked += 1; return code.promise; }, (props) => props.open);
+  assert.equal(renderToStaticMarkup(createElement(Panel, { open: false, label: 'Find' })), '', 'closed: nothing in its place');
+  assert.equal(asked, 0, 'and its code is not asked for');
+  // Opened before its code is here: a Suspense of its own, nothing in its place.
+  assert.equal(renderToStaticMarkup(createElement(Panel, { open: true, label: 'Find' })), '');
+  assert.equal(asked, 1, 'asked for as it opens');
+  code.resolve({ default: Fake });
+  await settle();
+  // Once here (the idle prefetch, or that first request), drawn at once and
+  // exactly as the panel draws itself: nothing of the helper reaches the page.
+  assert.equal(
+    renderToStaticMarkup(createElement(Panel, { open: true, label: 'Find' })),
+    renderToStaticMarkup(createElement(Fake, { open: true, label: 'Find' })),
+  );
+  Panel.prefetch();
+  assert.equal(asked, 1, 'one request per page, shared by the prefetch');
+});
+
 test('a drawn panel asks for its code as it is drawn and draws exactly itself once here; the prefetch asks first', async () => {
   const Fake = ({ frame }) => createElement('section', null, frame);
   let asked = 0;
@@ -108,7 +161,7 @@ test('a drawn panel asks for its code as it is drawn and draws exactly itself on
 });
 
 test('a failed request is kept, and handed to whoever needs the code', async () => {
-  const failure = new TypeError('Failed to fetch dynamically imported module: https://example.test/assets/StudentSpotlightView-abc.js');
+  const failure = new TypeError('Failed to fetch dynamically imported module: https://example.test/assets/AssignmentHub-abc.js');
   let asked = 0;
   const code = real.onDemandCode(() => { asked += 1; return Promise.reject(failure); });
   code.prefetch();
@@ -118,7 +171,7 @@ test('a failed request is kept, and handed to whoever needs the code', async () 
   assert.equal(asked, 1, 'not asked again: a browser keeps a failed module URL for the life of the page');
   assert.equal(code.loaded(), null);
   // A panel's lazy is given the same failure, which reaches AppErrorBoundary
-  // ("MathMaster was just updated").
+  // ("MathMaster was just updated"): teacherCodeRecovery.mjs C5 and C6 show it.
   const helpers = executableSource(read('src/app/teacher/onDemandCode.js'));
   assert.match(helpers, /lazy\(code\.load\)/);
   assert.equal((helpers.match(/\bpending = /g) || []).length, 2, 'pending is declared, and set once by the request: a failed request is not forgotten');
@@ -166,6 +219,29 @@ test.before(async () => {
   shim = await loader.ssrLoadModule(RERENDERING_SHIM);
 });
 test.after(async () => { await loader?.close(); });
+
+test('once opened, a panel stays mounted as it closes and opens again, so it behaves as when it was mounted closed', async () => {
+  const { closedPanel } = await loader.ssrLoadModule('/src/app/teacher/onDemandCode.js');
+  const Panel = closedPanel(() => new Promise(() => {}), (props) => props.open);
+  const controls = {};
+  // The panel's hooks run as part of the host's render (the shim renders one
+  // component; its children are plain elements).
+  const Host = () => {
+    const [open, setOpen] = shim.useState(false);
+    controls.setOpen = setOpen;
+    return Panel({ open, label: 'details' });
+  };
+  const view = shim.mount(Host, {});
+  assert.equal(view.output, null, 'never opened: nothing');
+  controls.setOpen(true);
+  const mounted = view.output;
+  assert.ok(mounted && mounted.props.label === 'details' && mounted.props.open === true, 'opened: the panel, with every prop');
+  controls.setOpen(false);
+  assert.equal(view.output?.type, mounted.type, 'closed again: still mounted, so its state is kept');
+  assert.equal(view.output.props.open, false, 'and it is told it is closed, as before');
+  controls.setOpen(true);
+  assert.equal(view.output.type, mounted.type);
+});
 
 test('useOnDemandCode: nothing until wanted; asked once, not while offline; the module once here; a failure handed back', async () => {
   const { onDemandCode, useOnDemandCode } = await loader.ssrLoadModule('/src/app/teacher/onDemandCode.js');
@@ -284,7 +360,7 @@ test('the questions panel asks before its early returns and holds only where its
   assert.ok(empty > 0 && hold > empty && hold < body.indexOf('<details className="tw-disclosure" data-student-questions=""'), 'held after "nothing waiting", before the panel');
   // A request that failed is thrown there, where the list needs the code
   // (AppErrorBoundary's "MathMaster was just updated"), never in the withheld
-  // count, which draws no mathematics.
+  // count, which draws no mathematics (teacherCodeRecovery.mjs C6).
   assert.match(region(body, 'if (waiting.length && !math.module) {', '\n  }\n', 'the hold'), /^if \(waiting\.length && !math\.module\) \{\s*if \(math\.failure\) throw math\.failure;\s*return null;$/);
   assert.doesNotMatch(region(body, 'if (withheld) {', '\n  }\n', 'the withheld count'), /math/);
   assert.match(body, /MathText=\{math\.module\.default\}/);
@@ -292,7 +368,7 @@ test('the questions panel asks before its early returns and holds only where its
   assert.doesNotMatch(panel, /^import [^;]*MathText[^;]*;$/m, 'MathText is not imported statically');
 });
 
-test('the workspace fetches Home\'s math while the browser is idle, once it has drawn', async () => {
+test('the workspace fetches the closed panels and Home\'s math while the browser is idle, once it has drawn', async () => {
   const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
   assert.match(workspace, /useEffect\(\(\) => prefetchTeacherPanels\(\), \[\]\);\s*useEffect\(\(\) => prefetchAuthoringKit\(\), \[\]\);/, 'asked before the authoring code, which is larger');
   assert.match(workspace, /^import \{ prefetchTeacherPanels \} from '\.\/teacherPanelPrefetch\.js';$/m);

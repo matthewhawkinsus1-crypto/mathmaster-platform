@@ -15,8 +15,8 @@
  *
  * `teacherFirstLoadGraph()` is a teacher's: the student's, then the walk from
  * each module a teacher's Home asks for (the budget's teacherHome path,
- * TEACHER_HOME_KEYS: the teacher kit, the workspace, the sidebar, Home, the
- * class bar and the panels drawn closed), as the budget measures it.
+ * TEACHER_HOME_KEYS: the teacher kit, the workspace, the sidebar, Home and the
+ * class bar), as the budget measures it.
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';

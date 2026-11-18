@@ -2,11 +2,11 @@
  * CODE A TEACHER'S SCREEN DRAWS ONLY ONCE SOMETHING OPENS IT (the teacher's
  * first load, second pass).
  *
- * Home drew the prompts of Ask my teacher's questions through MathText,
- * folded away twice, and the live monitor drew the Spotlight's projector view
- * with it: their code, MathLive among it, was downloaded, parsed and run
- * before Home's heading, for what a teacher sees only once they open
- * something (./teacherPanels.js names each). Two shapes:
+ * The workspace drew five panels closed on every screen, and Home drew the
+ * prompts of Ask my teacher's questions through MathText, folded away twice:
+ * their code, MathLive among it, was downloaded, parsed and run before Home's
+ * heading, for what a teacher sees only once they open something
+ * (./teacherPanels.js names each). Three shapes:
  *
  *   onDemandCode(load)   one request per page, shared by every caller (the
  *                        idle prefetch and whatever needs the code first).
@@ -16,15 +16,23 @@
  *                        would fail the same way. What needs the code hands
  *                        the failure to AppErrorBoundary ("MathMaster was just
  *                        updated"), as a teacher screen's chunk does.
+ *   closedPanel(load, isOpen)
+ *                        a panel drawn closed: nothing at all, and nothing
+ *                        asked for, until `isOpen(props)` is first true; then
+ *                        the panel itself, kept mounted from then on, so it
+ *                        closes and opens again exactly as when it was mounted
+ *                        closed from the start (its state, and its effects as
+ *                        it opens: focus on Close, a fresh query, a fresh read).
  *   drawnPanel(load)     code drawn only while something holds it on screen
- *                        (the Spotlight's projector view): mounted when drawn,
- *                        as app/lazyScreens.js's teacherPanel.
+ *                        (the Spotlight's projector view, Submission recovery's
+ *                        panel): mounted when drawn, as app/lazyScreens.js's
+ *                        teacherPanel.
  *
  * A panel whose code is here is drawn at once, in the same render (after the
  * prefetch nothing waits a frame). Before that it is React.lazy inside a
  * Suspense of its own with nothing as its fallback, as every teacher panel:
  * one on its way never suspends up to AppShell's boundary, which would hide
- * the whole workspace, and one that cannot load reaches AppErrorBoundary. It
+ * the whole workspace, and one that cannot load reaches AppErrorBoundary. Each
  * has `prefetch()`, for the workspace's idle prefetch.
  *
  *   useOnDemandCode(code, wanted)
@@ -65,6 +73,20 @@ export const onDemandCode = (load) => {
 const drawWhenHere = (code) => function OnDemandPanel(props) {
   const [Panel] = useState(() => code.loaded()?.default || lazy(code.load));
   return createElement(Suspense, { fallback: null }, createElement(Panel, props));
+};
+
+export const closedPanel = (load, isOpen) => {
+  const code = onDemandCode(load);
+  const Draw = drawWhenHere(code);
+  function ClosedPanel(props) {
+    const open = Boolean(isOpen(props));
+    const [opened, setOpened] = useState(open);
+    // The render that first finds it open: React draws again at once, opened.
+    if (open && !opened) setOpened(true);
+    return opened || open ? createElement(Draw, props) : null;
+  }
+  ClosedPanel.prefetch = code.prefetch;
+  return ClosedPanel;
 };
 
 export const drawnPanel = (load) => {

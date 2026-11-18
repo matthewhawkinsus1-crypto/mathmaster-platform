@@ -14,14 +14,16 @@
  *                 imports): the teacher kit and the workspace, which App
  *                 fetches at a teacher's sign-in (app/teacher/teacherKitLoader
  *                 .js); the sidebar and Home itself, which the workspace waits
- *                 for; and the class bar and the panels the workspace draws on
- *                 every screen while closed. Those have Suspense of their own,
- *                 so Home does not wait for them, but they are requested in the
- *                 same render, before Home draws, and share the download and the
+ *                 for; and the class bar, which has Suspense of its own, so
+ *                 Home does not wait for it, but is requested in the same
+ *                 render, before Home draws, and shares the download and the
  *                 main thread with it (a production build at 4x CPU requests
- *                 exactly these). Home is where a teacher lands; a restored
- *                 screen (the workspace reopens the teacher's last one) loads
- *                 its own screen in Home's place.
+ *                 exactly these). The panels the workspace draws closed on
+ *                 every screen are not: each mounts, and asks for its code,
+ *                 when it first opens (app/teacher/teacherPanels.js). Home is
+ *                 where a teacher lands; a restored screen (the workspace
+ *                 reopens the teacher's last one) loads its own screen in
+ *                 Home's place.
  *
  * The ratchet: a path's bytes may grow by at most `allowanceBytes` over its
  * checked-in baseline (scripts/first-load-baseline.json). Ordinary growth from
@@ -42,11 +44,6 @@ export const TEACHER_HOME_KEYS = Object.freeze([
   'src/TeacherSidebar.jsx',
   'src/TeacherHome.jsx',
   'src/components/teacher/ClassContextBar.jsx',
-  'src/components/teacher/TeacherQuickSearch.jsx',
-  'src/components/teacher/ClassroomSyncReview.jsx',
-  'src/components/teacher/AssignmentHub.jsx',
-  'src/components/teacher/StudentProfileDrawer.jsx',
-  'src/components/teacher/SupportEvidenceReportView.jsx',
 ]);
 
 const entryKeyOf = (manifest) => {
