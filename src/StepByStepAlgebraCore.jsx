@@ -1688,6 +1688,10 @@ export default function StepByStepAlgebra({
 
   const commitStandaloneCancellation = async (side, model) => {
     if (!model?.resultExpression || savingStep || cancelAnimating) return;
+    // Taken as the student completes the pair (Enter on a term, a click, a
+    // slash), as a committed step's is: anything they do while the
+    // cancellation settles outranks the focus below.
+    const focusTicket = deferredFocusHost?.ticket({ since: 'now', channel: 'step-commit' }) || null;
 
     const beforeEquation = equation;
     const nextEquation = { ...equation, [side]: model.resultExpression };
@@ -1723,6 +1727,10 @@ export default function StepByStepAlgebra({
           tone: 'success',
           text: 'Cancellation complete. Continue from the equation shown.',
         });
+        // The term the student pressed went with its pair. The cursor goes
+        // where a committed step sends it, with no operation in hand: the
+        // first tile of the cancelled side's rail (the phone's palette).
+        setStepCommitFocus({ ticket: focusTicket, operation: null, side, phone: Boolean(mobileInteraction?.isMobile) });
       } finally {
         setSavingStep(false);
         setCancelAnimating(false);

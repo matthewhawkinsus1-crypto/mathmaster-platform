@@ -6,6 +6,8 @@
  * tests/browser/workflowStepEnter.mjs.
  *
  *   ?scene=plain     a Step Algebra question, 5x = 35, opened with no draft
+ *   ?scene=cancel    x + 4 − 4 = 9: a pair to cancel on the left side with no
+ *                    operation in hand (?scene=cancelRight: x = 9 + 4 − 4)
  *   ?scene=steps     a composed question of four steps (one shown at a time):
  *                    write the equation, solve it on the balance workspace
  *                    (the equation is the student's own, from step 1), then
@@ -44,6 +46,9 @@ const STEP_PAIR = [
 
 const QUESTIONS = {
   plain: { questionId: 'r12-plain', type: 'stepAlgebra', prompt: 'Solve for x.', equation: '5x = 35', solveFor: 'x', activityRole: 'classwork' },
+  // A pair to cancel with no operation in hand: on the left side, and on the right.
+  cancel: { questionId: 'r12-cancel', type: 'stepAlgebra', prompt: 'Solve for x.', equation: 'x + 4 - 4 = 9', solveFor: 'x', activityRole: 'classwork' },
+  cancelRight: { questionId: 'r12-cancel-right', type: 'stepAlgebra', prompt: 'Solve for x.', equation: 'x = 9 + 4 - 4', solveFor: 'x', activityRole: 'classwork' },
   steps: {
     questionId: 'r12-steps',
     type: 'workflow',

@@ -5,7 +5,7 @@
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/stepAlgebraFirstOperand.mjs
 //
-//   ONLY=plain,cold,steps,list,blind,check   some journeys (names below)
+//   ONLY=plain,cold,steps,list,blind,check,cancel   some journeys (names below)
 //   REPEAT=<n>       fresh stages raced in each journey, per device and speed
 //                    (default 3)
 //   THROTTLE=1,4,6   CPU throttling rates (default 1,4)
@@ -45,6 +45,13 @@
 //           it). The step is committed and its box goes; the cursor is back on
 //           the Divide tile the move began from, not on the page. (In a
 //           composed question: tests/browser/workflowStepEnter.mjs.)
+//   cancel  a pair cancelled with no operation in hand on the standalone
+//           board: x + 4 − 4 = 9 (and x = 9 + 4 − 4), one term of the pair
+//           pressed by keyboard (Enter on it, as the directions say) or by
+//           pointer (a click, a tap on a phone). The cancellation is committed
+//           and the pressed term goes with it; the cursor is on the first
+//           operation tile of the cancelled side's rail (the phone's palette),
+//           as after a committed step, not on the page.
 //
 // A saved draft that arrives from the server after the student started is
 // raced in the real App: tests/browser/teacherWorkflow/
@@ -55,7 +62,7 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
-const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'blind', 'check'];
+const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'blind', 'check', 'cancel'];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const REPEAT = Number(process.env.REPEAT ?? 3);
 const THROTTLE = (process.env.THROTTLE || '1,4').split(',').map(Number).filter((rate) => rate >= 1);
@@ -383,6 +390,47 @@ if (wanted('check')) {
     }
     await throttle(cdp, 1);
     await context.close();
+  }
+}
+
+/* ============================================ a pair cancelled on its own */
+
+// One term of the pair, pressed the way the directions say (Tab to it and
+// press Enter: focused, then Enter) or with the pointer.
+const cancelPair = async (page, device, how) => {
+  const term = page.locator('[aria-label$=", select to cancel"]').nth(1);
+  await term.waitFor({ timeout: 60_000 });
+  await painted(page);
+  if (how === 'keyboard') {
+    await term.focus();
+    await page.keyboard.press('Enter');
+  } else {
+    await press(term, device);
+  }
+};
+
+if (wanted('cancel')) {
+  console.log('\ncancel');
+  for (const [scene, side, after] of [['cancel', 'left', 'x=9'], ['cancelRight', 'right', 'x=9']]) {
+    for (const device of deviceNames) {
+      const { context, page, cdp } = await open(scene, device);
+      const expected = device === 'phone' ? 'button "Choose Add operation" in the phone palette' : `button "Choose Add operation" in the ${side} rail`;
+      for (const rate of THROTTLE) {
+        for (const how of ['keyboard', 'pointer']) {
+          const label = `cancel ${scene} ${device} ×${rate}, ${how}`;
+          await throttle(cdp, rate);
+          await freshStage(page);
+          await cancelPair(page, device, how);
+          for (let tries = 0; tries < 40 && await boardState(page) !== after; tries += 1) await settle(page, 250);
+          await settle(page, 600 * rate);
+          check(await boardState(page) === after, `${label}: the cancellation is committed (${after})`, await boardState(page));
+          const cursor = await cursorOn(page);
+          check(cursor === expected, `${label}: the cursor is on the cancelled side's first operation tile`, cursor);
+        }
+      }
+      await throttle(cdp, 1);
+      await context.close();
+    }
   }
 }
 

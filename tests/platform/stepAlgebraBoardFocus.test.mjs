@@ -177,6 +177,30 @@ test('the board sends the cursor back to the tile after a committed step, throug
   assert.match(region(board, 'const selectOperation = (operation, sourceSide) => {', 'setArmedTile({ operation, sourceSide });'), /operationTileRef\.current = \{ operation, sourceSide \};/);
 });
 
+// A pair cancelled with no operation in hand (commitStandaloneCancellation):
+// measured in Chromium before this (stepAlgebraFirstOperand.mjs `cancel`),
+// the pressed term went with its pair and the cursor fell to the page in 8 of
+// 8 runs (left and right side, Chromebook and phone, keyboard and pointer).
+test('with no operation in hand the cursor goes to the first tile of the cancelled side\'s rail, or the phone\'s palette', () => {
+  assert.equal(named(operationTileAfterStep(desktopBoard(), { label: '', side: 'left' })), 'left:Choose Add operation');
+  assert.equal(named(operationTileAfterStep(desktopBoard(), { label: '', side: 'right' })), 'right:Choose Add operation');
+  assert.equal(named(operationTileAfterStep(phoneBoard(), { label: '', side: 'right', phone: true })), 'phone:Choose Add operation');
+  assert.equal(named(operationTileAfterStep(desktopBoard({ right: { disabled: ['Add'] } }), { label: '', side: 'right' })), 'right:Choose Subtract operation', 'the first that can take it');
+});
+
+test('a cancellation committed with no operation in hand sends the cursor where a committed step does, through the question\'s authority', () => {
+  const cancel = region(board, 'const commitStandaloneCancellation = async (side, model) => {', 'const registerCancellationHits = async', 'commitStandaloneCancellation');
+  // Taken as the student completes the pair, before the cancellation settles.
+  const ticket = cancel.match(/const (\w+) = deferredFocusHost\?\.ticket\(\{ since: 'now', channel: 'step-commit' \}\) \|\| null;/);
+  assert.ok(ticket, 'a ticket of its own, from the moment the pair is complete');
+  assert.ok(cancel.indexOf(ticket[0]) < cancel.indexOf('window.setTimeout('), 'before it settles');
+  // Asked for only once the cancellation is committed, never for a held one.
+  const signal = cancel.indexOf('setStepCommitFocus({');
+  assert.ok(signal > cancel.indexOf('setEquation(nextEquation);'), 'after the pair leaves the board');
+  assert.ok(signal > cancel.indexOf('if (holdUnsavedStep('), 'never for a cancellation that was held');
+  assert.match(cancel.slice(signal), new RegExp(`^setStepCommitFocus\\(\\{ ticket: ${ticket[1]}, operation: null, side, phone: Boolean\\(mobileInteraction\\?\\.isMobile\\) \\}\\);`), 'no operation, on the cancelled side');
+});
+
 test('every tile of the operation just chosen sends a character typed at it into its box', () => {
   const handler = region(board, 'const typeIntoOperationBox = useCallback((event) => {', '}, []);', 'the tile key handler');
   assert.match(handler, /typeAheadIntoOperand\(event, operationComposerRef\.current\?\.querySelector\('math-field'\)\);/, 'the operation box, as Enter there reads it');
