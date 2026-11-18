@@ -1210,7 +1210,11 @@ test('a finalized attempt goes through the canonical grades document, waking the
   // The canonical grade row is the ONLY thing the finalizer writes that the
   // Classroom trigger watches — and it now carries every projection an ordinary
   // Submit would have written, not just the question record.
-  assert.match(block, /new FieldPath\("gradesByAssignment", assignmentId, String\(checkpoint\.questionIndex\)\)/);
+  // The record is written split (functions/lib/gradeDetailStore.js): its
+  // summary on this grades document path, its detail beside it, one transaction.
+  assert.match(block, /\.\.\.await questionRecordUpdates\(\{\s*writer: transaction, gradeRef, studentId: gradeRef\.id, assignmentId,\s*questionKey: String\(checkpoint\.questionIndex\), record: finalization\.record,/);
+  const detailStore = readFileSync(new URL('../../functions/lib/gradeDetailStore.js', import.meta.url), 'utf8');
+  assert.match(detailStore, /return \[new FieldPath\("gradesByAssignment", String\(assignmentId\), String\(questionKey\)\), summary\];/);
   assert.match(block, /transaction\.update\(gradeRef, \.\.\.gradeUpdates\)/);
   // No second Classroom system: the finalizer talks to no Classroom API.
   assert.doesNotMatch(block, /classroom|courseWork|studentSubmissions/i);

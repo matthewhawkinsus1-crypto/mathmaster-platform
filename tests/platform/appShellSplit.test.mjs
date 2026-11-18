@@ -93,13 +93,8 @@ test('every screen in lazyScreens.js is a lazy import, so none joins the first l
  * AppShell's boundary, which would hide the whole teacher workspace.
  */
 const TEACHER_PANELS = {
-  SupportEvidenceReportView: 'components/teacher/SupportEvidenceReportView.jsx',
   ClassContextBar: 'components/teacher/ClassContextBar.jsx',
   WeeklyPathGradePanel: 'components/teacher/WeeklyPathGradePanel.jsx',
-  ClassroomSyncReview: 'components/teacher/ClassroomSyncReview.jsx',
-  TeacherQuickSearch: 'components/teacher/TeacherQuickSearch.jsx',
-  StudentProfileDrawer: 'components/teacher/StudentProfileDrawer.jsx',
-  AssignmentHub: 'components/teacher/AssignmentHub.jsx',
   GradebookAssignmentBar: 'components/teacher/GradebookAssignmentBar.jsx',
   GradebookClassChooser: 'components/teacher/GradebookAssignmentBar.jsx',
   StudentResponseInspector: 'components/teacher/StudentResponseInspector.jsx',
@@ -135,6 +130,38 @@ test('the teacher-only panels load on demand, each inside its own Suspense bound
 });
 
 /*
+ * The teacher's first load (second pass): the five panels the workspace draws
+ * closed on every screen moved from lazyScreens.js to app/teacher/
+ * teacherPanels.js, where each mounts, and asks for its code, when it first
+ * opens. Still a lazy import in a Suspense boundary of its own with nothing as
+ * its fallback (app/teacher/onDemandCode.js), still taken by the workspace and
+ * by nothing statically (firstLoadTeacherHome.test.mjs drives the helper).
+ */
+const CLOSED_TEACHER_PANELS = {
+  TeacherQuickSearch: ['components/teacher/TeacherQuickSearch.jsx', 'open'],
+  ClassroomSyncReview: ['components/teacher/ClassroomSyncReview.jsx', 'proposal'],
+  AssignmentHub: ['components/teacher/AssignmentHub.jsx', 'open'],
+  StudentProfileDrawer: ['components/teacher/StudentProfileDrawer.jsx', 'open'],
+  SupportEvidenceReportView: ['components/teacher/SupportEvidenceReportView.jsx', 'open'],
+};
+
+test('the panels drawn closed load on demand when first opened, each inside its own Suspense boundary', () => {
+  const helpers = executableSource(read('src/app/teacher/onDemandCode.js'));
+  assert.match(helpers, /const choose = \(code\) => code\.loaded\(\)\?\.default \|\| lazy\(code\.load\);/, 'a lazy, or the panel once its code is here');
+  assert.match(helpers, /if \(!Panel\) return offlineNote\(props\);\s*return createElement\(Suspense, \{ fallback: null \}, createElement\(Panel, props\)\);/, 'inside Suspense with no fallback, every prop passed through (offline, its note: firstLoadTeacherHome.test.mjs)');
+  const panels = executableSource(read('src/app/teacher/teacherPanels.js'));
+  const imported = importedFrom('./teacherPanels.js', teacherWorkspace);
+  for (const [name, [path, openProp]] of Object.entries(CLOSED_TEACHER_PANELS)) {
+    const escaped = path.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    assert.match(panels, new RegExp(`^export const ${name} = closedPanel\\(\\(\\) => import\\('\\.\\./\\.\\./${escaped}'\\), \\(props\\) => props\\.${openProp}, "This device is offline\\. [^"]+ when it is back online\\."\\);$`, 'm'), `${name} loads ${path} when props.${openProp} first holds, and says what waits for the connection`);
+    assert.ok(imported.includes(name), `the teacher workspace takes ${name} from teacherPanels.js`);
+    assert.doesNotMatch(read('src/app/lazyScreens.js'), new RegExp(`^export const ${name} =`, 'm'), `${name} is declared in lazyScreens.js as well`);
+    assert.doesNotMatch(app, new RegExp(`^import [^;]* from '\\./${escaped}';$`, 'm'), `App imports ${path} statically`);
+    assert.doesNotMatch(teacherWorkspace, new RegExp(`^import [^;]* from '\\.\\./\\.\\./${escaped}';$`, 'm'), `TeacherWorkspace imports ${path} statically`);
+  }
+});
+
+/*
  * G2: the teacher's whole screen — App's `if (user.role === 'teacher')`
  * branch — is src/app/teacher/TeacherWorkspace.jsx, loaded on demand. Moved
  * verbatim; every input is explicit. App passes each prop as `name={name}`, so
@@ -165,8 +192,18 @@ test('the teacher workspace is App\'s teacher branch, given every input it reads
   for (const name of props) {
     assert.match(app, new RegExp(`(?:\\bconst \\[?\\s*${name}\\b|\\bconst \\[[^\\]]*\\b${name}\\b[^\\]]*\\]|\\bconst \\{[^}]*\\b${name}\\b[^}]*\\}|\\bfunction ${name}\\(|^import [^;]*\\b${name}\\b[^;]*;|\\blet ${name}\\b)`, 'm'), `${name} is declared or imported in App`);
   }
-  // Hooks stay in App: the branch had none, and the workspace calls none.
-  assert.doesNotMatch(teacherWorkspaceCode, /\buse[A-Z]\w*\(/);
+  // App's state stays in App: the branch had no hooks. The workspace calls
+  // only its own, for the code it loads on demand: the failure of the
+  // authoring code (app/teacher/authoringKitLoader.js) it hands
+  // AppErrorBoundary, the idle prefetches once it has drawn (the panels drawn
+  // closed and Home's math, app/teacher/teacherPanelPrefetch.js, then the
+  // authoring code), and the Assignments list's wait for the authoring code.
+  const hooks = [...teacherWorkspaceCode.matchAll(/\b(use(?:[A-Z]\w*)?)\(/g)].map((match) => match[1]);
+  assert.deepEqual(hooks.sort(), ['use', 'useEffect', 'useEffect', 'useState'], 'no other hook in the workspace');
+  assert.match(teacherWorkspaceCode, /const \[authoringKitError, setAuthoringKitError\] = useState\(null\);/);
+  assert.match(teacherWorkspaceCode, /useEffect\(\(\) => prefetchTeacherPanels\(\), \[\]\);/);
+  assert.match(teacherWorkspaceCode, /useEffect\(\(\) => prefetchAuthoringKit\(\), \[\]\);/);
+  assert.match(teacherWorkspaceCode, /teacherTab === 'assignments' \? \(loadedAuthoringKit\(\) \|\| use\(loadAuthoringKit\(\)\)\) : null;/);
 });
 
 test('the session gate renders for any screen that does not belong to the account signed in now', () => {

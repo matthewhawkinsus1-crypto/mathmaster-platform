@@ -402,7 +402,11 @@ test('the runner saves through the drafts, says where, and submits what every de
   assert.doesNotMatch(copy, /\[RECOVERY_ANSWER_SAVED_WHERE\.SAVING\]: 'Answer saved/);
   assert.doesNotMatch(assessment, /Answer saved — you can change it/, 'the old unqualified "saved" is gone');
   const hook = readFileSync(new URL('../../src/components/student/useRecoveryAnswerDrafts.js', import.meta.url), 'utf8');
-  assert.match(hook, /flush: \(patch\) => writeRecoveryAnswerDraft\(patch\)/);
+  // Every save through the server copy's held reads (heldDraftRead.js): with
+  // the read landed before it, in that read's transaction; else on its own
+  // (recoveryDraftOpeningReadOnce.test.mjs runs both against the real store).
+  assert.match(hook, /const drafts = createHeldDraftReads\(\{\s*open: \(\) => openRecoveryAnswerDraft\(\{ studentId, assignmentId \}\),\s*write: writeRecoveryAnswerDraft,\s*\}\);/);
+  assert.match(hook, /flush: \(patch\) => drafts\.save\(patch\)/);
   assert.match(hook, /window\.addEventListener\('online', online\)/, 'back online, the pending answers are sent');
 });
 

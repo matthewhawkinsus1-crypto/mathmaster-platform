@@ -3,6 +3,7 @@ import {
   TABBABLE_SELECTOR, initialFocusChoice, isTabbableFacts, isTopDialog, looksLikeCloseControl, nextFocusIndex, pushDialog, revealInDialog,
 } from './dialogFocus.js';
 import { MATHLIVE_VIRTUAL_KEYBOARD_SELECTOR } from '../platform/math/mathLiveCompat.js';
+import { createDisabledOpenerMemory } from './disabledOpener.js';
 
 /*
  * THE ONE ACCESSIBLE MODAL DIALOG.
@@ -85,17 +86,16 @@ const inAllowedLayer = (element) => Boolean(element?.closest?.(ALLOWED_FOCUS_LAY
 // <body>. Only that case borrows it as the opener. A button press that never
 // took focus at all (Safari, iPadOS) leaves nothing here, so closing never
 // jumps to whatever was focused long before — an answer field whose focus
-// would open the phone keypad (PR #454 review M1).
-let disabledOpener = null;
-const DISABLED_OPENER_WINDOW_MS = 4000;
+// would open the phone keypad (PR #454 review M1). Held for the 4 s it can be
+// read and then let go, so a closed lesson's tree is not kept alive through it
+// (./disabledOpener.js).
+const disabledOpener = createDisabledOpenerMemory();
 if (typeof document !== 'undefined') {
   document.addEventListener('focusout', (event) => {
-    if (event.target?.disabled === true) disabledOpener = { element: event.target, at: Date.now() };
+    if (event.target?.disabled === true) disabledOpener.remember(event.target);
   }, true);
 }
-const recentDisabledOpener = () => (
-  disabledOpener && Date.now() - disabledOpener.at <= DISABLED_OPENER_WINDOW_MS ? disabledOpener.element : null
-);
+const recentDisabledOpener = () => disabledOpener.recent();
 
 // Elements of the Dialogs currently open (they order themselves by the stack).
 const openDialogElements = new Set();

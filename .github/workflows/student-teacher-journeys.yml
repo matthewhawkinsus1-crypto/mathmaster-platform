@@ -10,6 +10,11 @@ name: Student and Teacher Journeys
 #                          DOL fire drill, moving classwork, exports)
 #   support evidence       tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
 #   case review            tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+#   response inspector     tests/browser/teacherWorkflow/responseInspectorJourneys.mjs
+#                          (in the case review's job: opened from the gradebook
+#                          on each kind of question and from Live View, read
+#                          field by field with its reasons; never on the
+#                          projector)
 #   walkthrough scope      tests/browser/teacherWorkflow/walkthroughJourneys.mjs
 #                          (only the selected class's live assignments; class
 #                          switch; empty state; a stale saved session retired)
@@ -24,6 +29,14 @@ name: Student and Teacher Journeys
 #                          (D7: a student with extra time keeps working after
 #                          the class's DOL closed and reads their own close;
 #                          a classmate's is closed; Live view lists who)
+#   a teacher's code that  tests/browser/teacherWorkflow/teacherCodeRecovery.mjs
+#   cannot load            (in the teacher job: the authoring code the
+#                          workspace loads on demand, and a screen's own
+#                          chunk, answered with Hosting's HTML page after a
+#                          deploy: a failed idle prefetch shows nothing;
+#                          Assignments, an action and a screen reach
+#                          "MathMaster was just updated", whose button loads
+#                          the new version)
 #   private controls       tests/browser/teacherWorkflow/privateControlsJourneys.mjs
 #                          (its own job: one own-controls listener per student,
 #                          one class listener per teacher; a shared Chromebook
@@ -49,6 +62,15 @@ name: Student and Teacher Journeys
 #                          restore's frame, MathLive's 60 ms timer — moves the
 #                          cursor; held deterministically, then raced many
 #                          times; Chromebook, iPad, phone; 50x/20x nightly)
+#   Step Algebra's first   tests/browser/teacherWorkflow/stepAlgebraOperandDraftJourneys.mjs
+#   operand                (its own job, #386 R12: the value a student types on
+#                          a fresh Step Algebra stage, before the server's copy
+#                          of their drafts is read, is still there when that
+#                          copy lands, and the question is not remounted under
+#                          them; a saved step still comes back whole; the read
+#                          held, then raced at random moments; Chromebook and
+#                          phone, at normal speed and 4x CPU throttling; 25x at
+#                          4x and 6x nightly)
 #   Warm-Up reopen         tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
 #                          (lmr-wu-1: partial work, timer close, teacher reopen,
 #                          resume, submit; malformed drafts; a second board;
@@ -81,6 +103,14 @@ name: Student and Teacher Journeys
 #                          (a met prerequisite opens Classwork and Practice,
 #                          the server accepts the answer; Warm-Up and DOL stay
 #                          shut; without it the lesson still opens later)
+#   radical server grading tests/browser/teacherWorkflow/radicalServerGradingJourneys.mjs
+#                          (its own job: the Algebra II Honors radical lesson
+#                          as today's lesson, a radical equation solved on
+#                          Step Algebra through its controls and submitted;
+#                          with the harness server every step and the answer
+#                          are accepted and marked by the shared ingestion,
+#                          step for step and part for part as the browser
+#                          marked them, the extraneous root kept as well)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
 #   submit and finish      tests/browser/teacherWorkflow/submitAndFinishJourneys.mjs
 #                          (its own job: Submit names the try it spends, the
@@ -217,6 +247,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryDraftCrossDeviceJourneys.mjs
+      - name: A teacher's code that cannot load reaches "MathMaster was just updated"
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/teacherCodeRecovery.mjs
 
   # Case review and held Recovery, on a runner of their own (see teacher).
   teacher-case-review:
@@ -240,6 +275,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
+      - name: Response Inspector — from the gradebook and from Live View
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/responseInspectorJourneys.mjs
 
   # Unfinished work across Chromebooks and the Warm-Up reopen (see teacher).
   teacher-drafts:
@@ -398,6 +438,29 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/dol2ReviewHonorsJourneys.mjs
 
+  # Its own runner: the teacher job is near its time limit. A radical equation
+  # solved on Step Algebra in the real App (#548), the harness's server
+  # (`&server=1`: the shared ingestion functions/index.js calls) grading every
+  # step from its raw work and the answer from its raw response, exactly as the
+  # browser graded them. Two solves, 1366x768: about 1½ minutes locally
+  # (84-87 s in four runs).
+  radical-server-grading:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: A radical solve graded by the server's ingestion as the browser graded it, step by step
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/radicalServerGradingJourneys.mjs
+
   # Its own runner: the teacher job is near its time limit. One journey,
   # 1366x768 and 390x844.
   submit-and-finish:
@@ -466,6 +529,34 @@ jobs:
           REPEAT: "50"
           THROTTLED_REPEAT: "20"
         run: node tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
+
+  # Its own runner: every race starts a fresh Chromebook (a browser context of
+  # its own) on the real App. Pull requests race each journey twice at normal
+  # speed and twice at 4x CPU throttling; the nightly run races it 25 times at
+  # 4x and 25 times at 6x.
+  step-algebra-operand:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: The operand typed on a fresh Step Algebra stage outlives the server's copy arriving (Chromebook, phone)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/stepAlgebraOperandDraftJourneys.mjs
+      - name: The operand race 25 times at 4x and 25 at 6x (nightly and on demand)
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          REPEAT: "25"
+          THROTTLE: "4,6"
+        run: node tests/browser/teacherWorkflow/stepAlgebraOperandDraftJourneys.mjs
 
   # Its own runner: the teacher job is near its time limit. A few minutes:
   # every student screen reloaded, on a Chromebook and a phone.

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, ResultPill, TaskCard, controlStep } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -26,6 +27,23 @@ const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1
 const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 'calc(15 * var(--mm-px))' };
 const formatCoord = (value) => (Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000));
 
+/*
+ * WHAT A SAVED WORKBENCH MAY RESTORE (toolDraftShape.js). A recorded interval
+ * is { i, j, dx, dy, rate }: two of this table's rows and the three boxes
+ * typed for them. An entry that is not one (null) threw on every load, because
+ * the list names both rows; it is dropped, as is an interval between rows the
+ * table does not have, and the other intervals come back as typed. The row
+ * chosen for repair is one of the table's rows, or none.
+ */
+const tableRowIndex = (rowCount) => s.number({ integer: true, min: 0, max: Math.max(0, rowCount - 1) });
+const intervalEvidence = (rowCount) => s.list(s.record({
+  i: s.required(tableRowIndex(rowCount)),
+  j: s.required(tableRowIndex(rowCount)),
+  dx: s.text(),
+  dy: s.text(),
+  rate: s.text(),
+}));
+
 const emptyState = { evidence: [], classification: '', repairRowIndex: null, repairedValue: '', m: '', b: '', equation: '' };
 
 export default function LinearTableWorkbench({ questionData = {}, onAction }) {
@@ -38,9 +56,9 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   const mode = resolveLinearTableWorkbenchMode(questionData);
   const requiredComparisons = linearTableRequiredComparisons(questionData);
 
-  const [evidence, setEvidence] = usePersistentToolState('evidence', []);
+  const [evidence, setEvidence] = usePersistentToolState('evidence', [], { normalize: draftNormalizer(intervalEvidence(rows.length)) });
   const [classification, setClassification] = usePersistentToolState('classification', '');
-  const [repairRowIndex, setRepairRowIndex] = usePersistentToolState('repairRowIndex', null);
+  const [repairRowIndex, setRepairRowIndex] = usePersistentToolState('repairRowIndex', null, { normalize: draftNormalizer(s.nullable(tableRowIndex(rows.length))) });
   const [repairedValue, setRepairedValue] = usePersistentToolState('repairedValue', '');
   const [m, setM] = usePersistentToolState('m', '');
   const [b, setB] = usePersistentToolState('b', '');

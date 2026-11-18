@@ -189,18 +189,15 @@ export const ReviewMyWork = studentPanel(() => import('../components/student/Rev
  * nearest boundary is AppShell's, which would swap the whole teacher
  * workspace for the loading screen while one panel downloads.
  */
+// (The five the workspace draws closed on every screen, mounted when each
+// first opens, are app/teacher/teacherPanels.js's: teacher's first load.)
 const teacherPanel = (load) => {
   const Lazy = lazy(load);
   const Panel = (props) => createElement(Suspense, { fallback: null }, createElement(Lazy, props));
   return Panel;
 };
-export const SupportEvidenceReportView = teacherPanel(() => import('../components/teacher/SupportEvidenceReportView.jsx'));
 export const ClassContextBar = teacherPanel(() => import('../components/teacher/ClassContextBar.jsx'));
 export const WeeklyPathGradePanel = teacherPanel(() => import('../components/teacher/WeeklyPathGradePanel.jsx'));
-export const ClassroomSyncReview = teacherPanel(() => import('../components/teacher/ClassroomSyncReview.jsx'));
-export const TeacherQuickSearch = teacherPanel(() => import('../components/teacher/TeacherQuickSearch.jsx'));
-export const StudentProfileDrawer = teacherPanel(() => import('../components/teacher/StudentProfileDrawer.jsx'));
-export const AssignmentHub = teacherPanel(() => import('../components/teacher/AssignmentHub.jsx'));
 export const GradebookAssignmentBar = teacherPanel(() => import('../components/teacher/GradebookAssignmentBar.jsx'));
 // A named export of the same module (lazy() takes a default).
 export const GradebookClassChooser = teacherPanel(() => import('../components/teacher/GradebookAssignmentBar.jsx').then((module) => ({ default: module.GradebookClassChooser })));

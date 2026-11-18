@@ -106,7 +106,7 @@ test('a control that focus scrolls up into view stops below the sticky identity 
   // The bar sticks at the top of every student screen and publishes its measured height (with the pack-up line).
   const bar = componentSource('src/components/student/StudentIdentityBar.jsx');
   assert.match(region(bar, 'className="mm-identity-bar"', 'color:', 'the bar\'s element'), /position: 'sticky', top: 0,/, 'the bar sticks at the top');
-  assert.match(bar, /setProperty\(STUDENT_IDENTITY_STACK_OFFSET, `\$\{bar\.offsetHeight \+ noticeHeight\}px`\)/, 'and publishes its height');
+  assert.match(bar, /const barHeight = bar\.offsetHeight;[\s\S]*STUDENT_IDENTITY_STACK_OFFSET, `\$\{barHeight \+ noticeHeight\}px`/, 'and publishes its height');
   // Shift+Tab up Grades left "See results" under it, and a secure exam's Tab coming round left its first control
   // there: the page keeps that much room at the top for whatever focus scrolls into view.
   const padded = parseCss(read('src/components/student/StudentIdentityBar.css')).filter((rule) => rule.declarations['scroll-padding-top']);

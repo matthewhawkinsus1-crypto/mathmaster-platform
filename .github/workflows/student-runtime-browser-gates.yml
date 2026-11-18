@@ -139,7 +139,17 @@ name: Student Runtime Browser Gates
 #     studentHomeToday, studentGradesRaise, studentResultUpNext,
 #     studentWhatChanged, gradeCenterMobile; and wave 7's stepNotQueued
 #     (W7-3), toolOutcomeReach and feedbackReasons2 (W7-4), toolChoiceGroups
-#     (W7-2)
+#     (W7-2); and stepAlgebraFirstOperand (#386 R12: the first value typed
+#     on a fresh Step Algebra stage, a plain question's and a composed
+#     question's, is kept on a Chromebook and a phone, slowed 4x as well) and
+#     workflowStepEnter (#386 R5: Enter in a composed question's step never
+#     submits it, presses no Start over or Reset, and never reaches a step
+#     not on screen); and, after Home, My Math Path's weekly panel, a
+#     session's end and My Progress (pathProgressTruth, pathSessionEnd,
+#     myMathPathProgress; they ran by hand only): the grade so far, the next
+#     weekly session and the weeks hit. functions/shared works each of them
+#     out, and this workflow's area reaches it; the accessibility
+#     certification's does not
 #   pass3-secure-screens (each starts its own stubbed Vite; nothing reaches
 #     Firebase)
 #     secureResults, secureExamNavigation, secureAccessParity; and
@@ -148,6 +158,22 @@ name: Student Runtime Browser Gates
 #   (testCycleRichToolQa and liveChallengeShellQa, which run the real
 #   callables on the Firestore emulator, are in
 #   student-pass3-emulator-journeys.yml: their own paths, and nightly)
+#
+# Radical equations on Step Algebra (#548; they ran by hand until now), in a
+# job of their own, radical-step-algebra (plain Vite, 5199), its journeys in
+# three shards:
+#
+#   algebra2RadicalStepAlgebra  the Algebra II Honors radical lesson imported
+#                       through the teacher chain, its items solved only
+#                       through the relation workspace's controls (isolate,
+#                       raise both sides, Factor, Zero-product, every candidate
+#                       checked in the original, the final set); the app's own
+#                       response graded by the server's grader and every step
+#                       it reported replayed by the server's verifier, each
+#                       agreeing with the browser. Also generated versions,
+#                       misses never credited, a resume, Undo, an absolute-value
+#                       item unchanged, a DOL that reveals nothing, and every
+#                       question of the lesson opening at Chromebook widths
 #
 # ci.yml calls this when a pull request changes a file in its area
 # (scripts/lib/ciAreas.mjs), and on every push to main.
@@ -498,6 +524,24 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/studentHomeToday.mjs
+      - name: My Math Path's weekly panel — a half-done session is Resume, not done, and the grade so far; the skill card
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/pathProgressTruth.mjs
+      - name: A Path session's end — the next weekly session or the week reached, skills that moved, what was missed
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/pathSessionEnd.mjs
+      - name: My Progress — the weeks hit, past weeks and their grades; Practice History
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/myMathPathProgress.mjs
       - name: Grades — Start on open work, ways to raise it, how it is figured
         if: ${{ !cancelled() }}
         env:
@@ -528,6 +572,18 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/stepNotQueued.mjs
+      - name: The first operand typed on a fresh Step Algebra stage is kept, on a Chromebook and a phone
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/stepAlgebraFirstOperand.mjs
+      - name: Enter in a composed question's step never submits it, resets nothing, and stays on the step
+        if: ${{ !cancelled() }}
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/workflowStepEnter.mjs
       - name: A tool's outcome box can be reached on every screen
         if: ${{ !cancelled() }}
         env:
@@ -595,3 +651,37 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: node tests/browser/secureExamToolFocus.mjs
+
+  # Radical equations on Step Algebra (#548), which ran by hand until now (see
+  # the header). One browser took 17 minutes for every journey on a loaded
+  # 4-core machine (2026-11-16: examples 186 s, shapes 152, variants 296,
+  # misses 138, resume 47, undo 37, regression 22, dol 51, lesson 69), so the
+  # journeys are split over three shards of about 6 minutes there (351-403 s
+  # in two runs each), one `ONLY=` list each; every journey is in exactly one
+  # (tests/platform/pass3BrowserDriversInCi.test.mjs).
+  radical-step-algebra:
+    name: radical-step-algebra (${{ matrix.shard.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - { name: solves, only: "examples,shapes" }
+          - { name: versions, only: "variants,resume" }
+          - { name: misses, only: "misses,undo,regression,dol,lesson" }
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with: { browser: "true" }
+      - name: Start the harness server
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/radical-step-algebra-vite.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5199/tests/browser/algebra2RadicalStepAlgebra.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/radical-step-algebra-vite.log; exit 1
+      - name: Radical equations solved through Step Algebra's controls, graded and replayed by the server's code
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          ONLY: ${{ matrix.shard.only }}
+        run: node tests/browser/algebra2RadicalStepAlgebra.mjs

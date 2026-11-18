@@ -202,11 +202,18 @@ test('App.jsx imports what it calls (a call with no import passes every other ch
 });
 
 test('the student\'s live grade listener adopts the server\'s records ahead of the session', () => {
-  const listener = region(appCode, "doc(db, 'grades', user.id),\n      (snapshot) => {", 'classroomSyncStatusByAssignment || {};', 'the student grade listener');
-  assert.match(listener, /const serverGrades = snapshot\.data\(\)\?\.gradesByAssignment \|\| \{\};/);
-  assert.match(listener, /setTracker\(\(current\) => \{[\s\S]*adoptCanonicalAdvances\(current, serverGrades\)[\s\S]*return grades;/);
+  // Records are stored split (functions/shared/gradeEntryStorage.mjs): the
+  // adoption runs from either snapshot (the grades document or its stored
+  // detail), on the trackers joined to the detail that has arrived.
+  const adopt = region(appCode, 'const adoptServerGrades = () => {', "const stopGrades = onSnapshot(", 'the adoption of server records');
+  assert.match(adopt, /const serverGrades = serverTrackersForAdoption\(latestServerGrades, latestDetail\);/);
+  assert.match(adopt, /setTracker\(\(current\) => \{[\s\S]*adoptCanonicalAdvances\(current, serverGrades\)[\s\S]*return grades;/);
   // Server attempts are not counted as this session's (rapid-correctness baseline).
-  assert.match(listener, /liveSessionAttemptBaselineRef\.current/);
+  assert.match(adopt, /liveSessionAttemptBaselineRef\.current/);
+  const listener = region(appCode, "doc(db, 'grades', user.id),\n      (snapshot) => {", 'classroomSyncStatusByAssignment || {};', 'the student grade listener');
+  assert.match(listener, /latestServerGrades = snapshot\.data\(\)\?\.gradesByAssignment \|\| \{\};/);
+  assert.match(listener, /\(detail\) => \{ latestDetail = detail; adoptServerGrades\(\); \}/, 'a detail that arrives after its summary is adopted then');
+  assert.match(listener, /adoptServerGrades\(\);/);
 });
 
 test('both draft readers date the recorded answer the same way', () => {

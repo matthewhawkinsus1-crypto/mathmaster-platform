@@ -208,13 +208,16 @@ function profileMovedAssignmentIds({ db, beforeData, afterData, nowValue = Date.
 
 /**
  * Does a push that only a profile change asked for still have to go out? Only
- * when Classroom already holds a grade MathMaster pushed (`prior.status` is
- * "synced") and the grade now differs from it. A profile change corrects a grade
- * Classroom has; it never starts a column, retries a failed one, or sends the
- * same number again.
+ * when Classroom already holds a grade MathMaster pushed and the grade now
+ * differs from it. Classroom holds it when `prior.status` is "synced", or
+ * "graded-not-returned": the grade was saved and only its return was refused
+ * (lib/classroomPushErrors.js). A teacher told to return that work in
+ * Classroom returns the grade Classroom holds, so it has to be the right one.
+ * A profile change corrects a grade Classroom has; it never starts a column,
+ * retries a failed one, or sends the same number again.
  */
 function profileChangeNeedsPush(prior, grade) {
-  return prior?.status === "synced" && Number(prior.grade) !== Number(grade);
+  return ["synced", "graded-not-returned"].includes(prior?.status) && Number(prior.grade) !== Number(grade);
 }
 
 module.exports = {

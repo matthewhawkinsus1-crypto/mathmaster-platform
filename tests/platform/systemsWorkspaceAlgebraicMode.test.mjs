@@ -97,10 +97,14 @@ test('every stage of mathematical work required by the spec is stored through us
 
 test('the only local useState fields are transient interaction/Undo presentation state', () => {
   const useStateFields = [...modeSource.matchAll(/const\s*\[\s*([A-Za-z0-9_$]+)\s*,\s*set[A-Za-z0-9_$]*\s*\]\s*=\s*useState\(/g)].map((m) => m[1]);
-  assert.deepEqual(useStateFields.sort(), ['dragOverVariable', 'embeddedUndoController', 'scaleEditors', 'slotAttempt'].sort());
+  // unreadableIsolationDraft: the rewrite last refused as unreadable, kept only
+  // so its words show while the box still holds it; the refusal records nothing
+  // (isolationSimplification.js).
+  assert.deepEqual(useStateFields.sort(), ['dragOverVariable', 'embeddedUndoController', 'scaleEditors', 'slotAttempt', 'unreadableIsolationDraft'].sort());
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.slotAttempt);
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.embeddedUndoController);
   assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.scaleEditors);
+  assert.ok(TOOL_STATE_PERSISTENCE.systemsWorkspace.transientState.unreadableIsolationDraft);
 });
 
 test('each Step Algebra embed gets a draft key scoped to the exact mathematical identity being solved, so a different choice never rehydrates stale work', () => {
@@ -144,7 +148,12 @@ test('substitution token creation lets the student keep the valid isolated form 
   assert.match(modeSource, /onClick=\{useIsolatedExpressionAsToken\} style=\{secondaryButtonStyle\}>Use this expression</);
   assert.match(modeSource, /Simplify first \(optional\)/);
   assert.match(modeSource, /Skip simplification/);
-  assert.match(modeSource, /expressionsEquivalent\(draft, isolatedExpr, selection\.variable\)/);
+  // The rewrite becomes the token only when the shared judge, which reads it on
+  // its own and then asks for equivalence with the isolated form, accepts it
+  // (isolationSimplification.js; systemsIsolationTypedRead.test.mjs).
+  const check = region(modeSource, 'const checkAndUseIsolationSimplification = () => {', 'const changeSubstitutionTokenExpression', 'Check and use my simplification');
+  assert.match(check, /const judged = judgeIsolationSimplification\(draft, isolatedExpr, selection\.variable\);/);
+  assert.match(check, /if \(judged\.verdict !== 'accepted'\) \{\s*setIsolation\(\(current\) => \(\{ \.\.\.current, simplificationChecked: true, simplificationValid: false \}\)\);\s*return;\s*\}\s*const \{ tokenExpression \} = judged;/);
   assert.match(modeSource, /tokenExpression: isolatedExpr/);
   assert.match(modeSource, /expression=\{substitutionTokenExpression\}/);
 });
@@ -222,9 +231,17 @@ test('embedded solver reveal is presentation-only and does not solve or choose a
 });
 
 test('the ordered pair is only assembled after both variables are solved, and verification is required before the workspace considers the attempt ready to check', () => {
-  // Through a method: once both solves are done. Rows that each hold one
-  // variable (TL43): once every row has its value (none pending).
-  assert.match(modeSource, /const solution = separated\s*\?\s*\(separatedPending \? null : separatedPair\('value'\)\)\s*:\s*\(secondSolvedDone \? \{ \[survivingVariable\]: firstSolved\.value, \[removedVariable\]: secondSolved\.value \} : null\);/);
+  // Through a method: once both solves are done, each with the variable it
+  // belongs to (a restored draft can hold the second without the first, or
+  // without the selection that names the variables: toolDraftShape.js). Rows
+  // that each hold one variable (TL43): once every row has its value (none
+  // pending).
+  const methodPair = modeSource.match(/const solution = separated\s*\?\s*\(separatedPending \? null : separatedPair\('value'\)\)\s*:\s*\(([A-Za-z]+) \? \{ \[survivingVariable\]: firstSolved\.value, \[removedVariable\]: secondSolved\.value \} : null\);/);
+  assert.ok(methodPair, 'the ordered pair a method assembles');
+  const gate = methodPair[1] === 'secondSolvedDone' ? methodPair[1] : (modeSource.match(new RegExp(`const ${methodPair[1]} = ([^;]+);`)) || [])[1] || '';
+  for (const condition of ['secondSolvedDone', 'firstSolvedDone', 'survivingVariable', 'removedVariable']) {
+    assert.match(gate, new RegExp(`\\b${condition}\\b`), `the pair waits for ${condition}`);
+  }
   assert.match(modeSource, /const separatedPending = separatedValues\.find\(\(entry\) => entry\.value === null\)\?\.row \|\| null;/);
   assert.match(modeSource, /readyToSubmit = isDegenerate \? Boolean\(!subsystem && specialCaseAnswered\) : Boolean\(solution && \(!config\.requireVerification \|\| allVerified\)\)/);
 });

@@ -237,7 +237,11 @@ const studentJourney = async (mode, viewport) => {
   await home(page);
   const end = await stats(page);
   expect(label, end.subscriptions[CONTROLS] === 1, `the own-controls listener was opened once (${end.subscriptions[CONTROLS]})`);
-  expect(label, end.subscriptions.assignments === 1, `the lessons listener was opened once (${end.subscriptions.assignments})`);
+  // Opened once and never again on the way round: counted as the listens the
+  // server sees (fakeFirestore.js targetsOpened). Sign-in holds the lessons
+  // query open while it reads it, and the screen's listener then rides that
+  // same target (App.jsx signInHoldsRef): two registrations, one listen.
+  expect(label, end.targetsOpened?.assignments === 1, `the lessons query was listened to once (${end.targetsOpened?.assignments} listens, ${end.subscriptions.assignments} listeners)`);
   expect(label, end.openListeners === start.openListeners, `back home, the same listeners are open (${start.openListeners} → ${end.openListeners})`);
   expect(label, end.clientWrites.every((write) => !write.path.startsWith(`${CONTROLS}/`)), 'the student\'s browser never writes a controls record');
   expect(label, errors.length === 0, `no page errors (${errors.slice(0, 2).join(' | ')})`);

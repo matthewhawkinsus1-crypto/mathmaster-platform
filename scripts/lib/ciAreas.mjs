@@ -44,6 +44,10 @@ export const CI_AREAS = {
     'tests/browser/closedVerdictChip*',
     'tests/browser/workBarPrimaryLabel*',
     'tests/browser/myMathPathLandmarks*',
+    // The topic browser's journey, and the helper its page builds its lesson
+    // evidence with.
+    'tests/browser/pathTopicBrowser*',
+    'tests/platform/helpers/assignmentWork.mjs',
     'tests/browser/studentAccessibleNames*',
     'tests/browser/support/touchEmulation*',
     'tests/browser/support/sceneShards*',
@@ -239,11 +243,18 @@ export const CI_AREAS = {
     'tests/browser/lineGraphGame*',
     'tests/browser/graphFeatureRushStudent*',
     'tests/browser/graphFeatureRushTeacher*',
+    // Systems of Equations Rush's round screen (S5): its driver and page, and
+    // the plain dev server's config it serves the page with.
+    'tests/browser/systemsRushScreens*',
+    'vite.config.js',
     'tests/fixtures/secureRichToolAnswers.mjs',
     'tests/fixtures/testCycleCertificationFixture.mjs',
     // The drivers load it in node, before the server: the emulator's closed
     // transaction re-run as production re-runs it.
     'tests/integration/support/emulatorTransactions.mjs',
+    // liveChallengeShellQa loads it in node to work a banked line's equation
+    // step by step (scripts/check-emulator-journey-paths.mjs found it missing).
+    'tests/browser/equationWorkspacePlanner.mjs',
     'scripts/check-emulator-journey-paths.mjs',
     'package.json',
     'package-lock.json',
@@ -263,6 +274,14 @@ export const CI_AREAS = {
     'tests/browser/phoneToolPanelReach*',
     'tests/browser/algebra1Module2Topic2*',
     'teacher-import-jsons/algebra1-module2-topic2/**',
+    // Radical equations on Step Algebra (#548): the driver, its page and
+    // student emulator, the scenarios it appends, the lesson it imports, and
+    // the dev server's config (one mathjs for browser and server grading).
+    'tests/browser/algebra2RadicalStepAlgebra*',
+    'tests/browser/radicalStepAlgebraDriver.mjs',
+    'tests/browser/fixtures/radicalStepAlgebraScenarios.json',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
+    'vite.config.js',
     'tests/browser/undoTyping*',
     'tests/browser/toolFocusAndUndo*',
     'tests/browser/composedOutcomePolicy*',
@@ -311,11 +330,19 @@ export const CI_AREAS = {
     'tests/browser/day2Nonunique*',
     'tests/browser/assignmentMobile*',
     'tests/browser/studentHomeToday*',
+    // My Math Path's weekly panel, a session's end and My Progress, run after Home.
+    'tests/browser/pathProgressTruth*',
+    'tests/browser/pathSessionEnd*',
+    'tests/browser/myMathPathProgress*',
     'tests/browser/studentGradesRaise*',
     'tests/browser/studentResultUpNext*',
     'tests/browser/studentWhatChanged*',
     'tests/browser/gradeCenterMobile*',
     'tests/browser/stepNotQueued*',
+    // #386 R12 and R5: the first operand on a fresh Step Algebra stage, and
+    // Enter in a composed question's step (its driver opens the same page).
+    'tests/browser/stepAlgebraFirstOperand*',
+    'tests/browser/workflowStepEnter*',
     'tests/browser/toolOutcomeReach*',
     'tests/browser/feedbackReasons2*',
     'tests/browser/toolChoiceGroups*',
@@ -360,9 +387,16 @@ export const CI_AREAS = {
     'tests/browser/feedbackTeaches*',
     'tests/browser/readAloudTranslate*',
     'tests/browser/reviewMyWork*',
+    // The accommodation review's QA journey, run after its emulator test.
+    'tests/browser/accommodationReviewQa*',
     'tests/browser/support/touchEmulation*',
     // How readAloudTranslate, studentUxPlatform and the matrices lesson on a phone read the Work View opener's cover.
     'tests/browser/support/openerCover*',
+    // The radical server-grading journeys (#548): the student emulator they
+    // solve with, and the lesson the harness imports as today's.
+    'tests/browser/radicalStepAlgebraDriver.mjs',
+    'tests/browser/relationWorkspaceDriver.mjs',
+    'teacher-import-jsons/algebra2-polynomials-radicals-honors/5_Solving_Radical_Equations_Honors_Step_Algebra.json',
     'package.json',
     'package-lock.json',
     'firebase.json',
@@ -403,6 +437,8 @@ export const CI_AREAS = {
     'tests/browser/forcedColors*',
     'scripts/lib/forcedColors.mjs',
     'tests/platform/forcedColors*',
+    // What colour alone told apart, read in the app's own themes (WCAG 1.4.1), and walked under forced colours too.
+    'tests/browser/colourAloneCues*',
     'tests/browser/accessibilityCertification.mjs',
     'tests/browser/accessibilityTeacherScreens.mjs',
     'tests/browser/accessibilityAudit.mjs',
@@ -428,6 +464,13 @@ export const CI_AREAS = {
     'src/tools/shared/usePersistentToolState.js',
     'src/tools/toolStatePersistence.js',
     'src/platform/workflow/WorkflowRunner.jsx',
+    // A staged step's room in Work View: measured by the runner, laid out by WorkViewShell.css (opener sweep, staged).
+    'src/platform/workflow/stepRoom.js',
+    'src/platform/workflow/useStepRoom.js',
+    'src/platform/workflow/WorkflowFocusMode.css',
+    // A hint asked for on a staged step stays in sight while the step settles, and takes focus (opener sweep, hint).
+    'src/platform/supports/hints/hintPanelReveal.js',
+    'src/platform/supports/hints/HintPanel.jsx',
     'src/tools/**',
     'scripts/run-draft-persistence-certification.mjs',
     'scripts/lib/gateServer.mjs',
@@ -477,6 +520,28 @@ export const CI_AREAS = {
     'tests/browser/workViewMatrix*',
     'tests/platform/fixtures/workViewMatrixFindings.json',
     'tests/platform/workViewMatrixFindings.test.mjs',
+    // What Work View's opener covers on every surface it floats over, the assignment screen's tries and completion
+    // badges, and one scroller in Work View (work-view-opener-cover): the driver, its reader, the pages it reads,
+    // the harnesses that serve them, and what draws the rows, figures and badges it measures.
+    'tests/browser/workViewOpenerCover*',
+    'tests/browser/support/openerCover*',
+    'tests/browser/studentUxPlatform*',
+    'tests/browser/hostAccessibility*',
+    'tests/browser/colourAloneCues*',
+    'tests/browser/accessibilityCertification.mjs',
+    'tests/browser/accessibilityTeacherScreens.mjs',
+    'tests/browser/forcedColors.vite.config.mjs',
+    'tests/browser/teacherWorkflow/**',
+    'tests/platform/fixtures/pathToolQuestions.mjs',
+    'tests/platform/workViewOpenerCover.test.mjs',
+    'src/App.css',
+    'src/GraphDisplay.jsx',
+    'src/GraphScenarioMatch.jsx',
+    'src/components/labs/**',
+    'src/components/student/PathQuestionStimulus.jsx',
+    'src/components/student/MyMathPathSessionRecap.jsx',
+    'src/components/question/RichQuestionRuntime.jsx',
+    'src/dev/MathToolsLab.jsx',
   ],
   'work-view-stage-4-certification': [
     'src/tools/**',
@@ -490,6 +555,8 @@ export const CI_AREAS = {
     'src/platform/mobile/**',
     'src/ScratchpadOverlay.jsx',
     'tests/browser/workViewCertification*',
+    // The terminal transition's driver and the page it opens.
+    'tests/browser/workViewTerminalTransition*',
     'tests/platform/workViewStage4Certification.test.mjs',
   ],
 };

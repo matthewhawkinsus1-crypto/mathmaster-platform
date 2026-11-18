@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /*
- * The student first-load budget (scripts/lib/firstLoadBudget.mjs).
+ * The first-load budget (scripts/lib/firstLoadBudget.mjs): a student's sign-in
+ * screen and Home, and a teacher's Home.
  *
  *   npm run build && node scripts/check-first-load-budget.mjs
  *   node scripts/check-first-load-budget.mjs --report          # every file on each path
@@ -39,8 +40,12 @@ const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
 for (const [name, value] of Object.entries(measured)) console.log(`${name}: ${kb(value.bytes)} gzip in ${value.files} files`);
 if (process.argv.includes('--report')) {
   for (const [name, files] of Object.entries(paths)) {
-    console.log(`\n${name}:`);
-    files.map((file) => [file, sizeOf(file)]).sort((a, b) => b[1] - a[1]).forEach(([file, bytes]) => console.log(`  ${kb(bytes).padStart(9)}  ${file}`));
+    // A teacher's Home holds the student's, listed above: here, what it adds.
+    const student = name === 'teacherHome' ? new Set(paths.studentHome) : new Set();
+    const listed = files.filter((file) => !student.has(file));
+    const added = student.size ? ` (beyond studentHome: ${kb(listed.reduce((sum, file) => sum + sizeOf(file), 0))} in ${listed.length} files)` : '';
+    console.log(`\n${name}${added}:`);
+    listed.map((file) => [file, sizeOf(file)]).sort((a, b) => b[1] - a[1]).forEach(([file, bytes]) => console.log(`  ${kb(bytes).padStart(9)}  ${file}`));
   }
 }
 

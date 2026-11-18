@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import useFieldUndoHistory from '../shared/useFieldUndoHistory.js';
@@ -15,6 +16,10 @@ import {
 } from './functionOperationsMath';
 import { SubmitText } from '../shared/ToolRuntimeContext';
 import { functionOperationsFeedbackText } from './functionOperationsFeedback.js';
+
+// Each operation's box holds what was typed into it (toolDraftShape.js); one
+// that holds anything else comes back empty.
+const normalizeOperationResponses = draftNormalizer(s.map(s.text({ or: '' })));
 
 const inputStyle = {
   width: '100%',
@@ -59,7 +64,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
   // The student's answers, and the reason this file changed: they used to be
   // plain component state, so walking to the next question and back handed the
   // student four empty boxes they had already filled in.
-  const [responses, setResponses] = usePersistentToolState('responses', () => Object.fromEntries(operations.map((operation) => [operation, ''])));
+  const [responses, setResponses] = usePersistentToolState('responses', () => Object.fromEntries(operations.map((operation) => [operation, ''])), { normalize: normalizeOperationResponses });
   const [restrictionResponse, setRestrictionResponse] = usePersistentToolState('restrictionResponse', '');
 
   // Universal Undo over every answer box (TOOL-2, useFieldUndoHistory.js); an

@@ -22,7 +22,8 @@
 //   enter         Enter walks the blanks and never spends an attempt by
 //                 surprise; one-box questions still submit on Enter; a DOL
 //                 asks for a second, deliberate Enter; the board checks the
-//                 card, never the board.
+//                 card, never the board; a box beside a choice is one part of
+//                 two, so Enter brings Submit into focus there.
 //   phone         390×844 touch: one-row bar with Submit; −2/3 typed with the
 //                 keypad's fraction key into a box that stays above the keys;
 //                 one math keypad at a time; group names; no sideways scroll.
@@ -271,6 +272,35 @@ const JOURNEYS = {
     await settle(page);
     check((await grades(page)).every((grade) => grade.questionId !== 'ux-ltw'), 'Enter in the table workbench slope box submitted the tool');
     check((await deepActive(page))?.label === 'y-intercept b', `Enter in the slope box should move to the y-intercept box (focus: ${JSON.stringify(await deepActive(page))})`);
+
+    // A multi-answer question with a choice part and one box: the choice is a part
+    // of the answer too, so Enter in the box brings Submit into focus, as two boxes
+    // do; it used to submit the question (one box counted). The keyboard sweep's
+    // page mounts it through QuestionEngine and records each grade.
+    const mixedPage = await (await browser.newContext(LAPTOP)).newPage();
+    const spec = {
+      prompt: 'Answer both parts.',
+      graph: null,
+      answerFields: [
+        { id: 'kind', label: 'Discrete or continuous?', type: 'choice', options: ['discrete', 'continuous'], answer: 'continuous' },
+        { id: 'slope', label: 'Slope', answer: '3' },
+      ],
+    };
+    await mixedPage.goto(`${ORIGIN}/tests/browser/keyboardSweep.html?tool=multiAnswer&variant=ux-mixed&spec=${encodeURIComponent(JSON.stringify(spec))}`, { timeout: 120000 });
+    await mixedPage.waitForSelector('.mathmaster-question-engine [role="radiogroup"]', { timeout: 120000 });
+    await settle(mixedPage, 1200);
+    const graded = () => mixedPage.evaluate(() => window.__KB_GRADES__.filter((grade) => grade.kind === 'grade').length);
+    await mixedPage.locator('[role="radiogroup"] button').nth(1).click();
+    await typeInto(mixedPage, mixedPage.locator('.mathmaster-question-engine math-field').first(), '3');
+    await mixedPage.keyboard.press('Enter');
+    await settle(mixedPage, 800);
+    check((await graded()) === 0, 'Enter in the box beside a choice submitted the question');
+    const onSubmit = await deepActive(mixedPage);
+    check(onSubmit?.tag === 'button' && /Submit/.test(onSubmit.label), `Enter beside a choice should bring Submit into focus (focus: ${JSON.stringify(onSubmit)})`);
+    await mixedPage.keyboard.press('Enter');
+    await settle(mixedPage, 800);
+    check((await graded()) === 1, 'a second, deliberate Enter on Submit did not submit the question with a choice');
+    await mixedPage.context().close();
   },
 
   async phone(browser) {

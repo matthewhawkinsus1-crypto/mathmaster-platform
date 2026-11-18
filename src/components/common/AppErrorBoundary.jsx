@@ -36,15 +36,21 @@ export default class AppErrorBoundary extends Component {
     const { error, reloadedRecently } = this.state;
     if (!error) return this.props.children;
     const chunk = isChunkLoadError(error);
+    // Offline, code that did not arrive is the connection, not an update, and
+    // a reload would trade MathMaster for the browser's own error page: the
+    // connection panel, and no reload until the device is back online (as a
+    // student screen's Try again, platform/runtime/retryableChunk.js).
+    const offline = () => navigator.onLine === false;
+    const reload = () => { if (!offline()) reloadForCurrentBuild(); };
 
     let panel;
-    if (chunk && !reloadedRecently) {
+    if (chunk && !reloadedRecently && !offline()) {
       panel = (
         <RecoveryPanel
           tone="updated"
           title="MathMaster was just updated"
           primaryLabel="Load the new version"
-          onPrimary={() => reloadForCurrentBuild()}
+          onPrimary={reload}
           offerReport={false}
         >
           <p style={{ margin: 0 }}>
@@ -59,7 +65,7 @@ export default class AppErrorBoundary extends Component {
           tone="offline"
           title="MathMaster could not load this screen"
           primaryLabel="Try again"
-          onPrimary={() => reloadForCurrentBuild()}
+          onPrimary={reload}
           technicalMessage={error?.message || String(error)}
         >
           <p style={{ margin: 0 }}>

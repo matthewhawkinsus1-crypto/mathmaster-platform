@@ -32,6 +32,7 @@
  * Pure. Returns the same object when nothing is adopted.
  */
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
+import { questionRecordView } from '../performance/questionRecordView.js';
 import { DEADLINE_SUBMISSION_ORIGIN } from './canonicalResponseTime.js';
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -40,7 +41,10 @@ const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && 
 export const canonicalRecordIsAhead = (sessionRecord, serverRecord) => {
   if (!serverRecord) return false;
   const server = normalizeQuestionRecord(serverRecord);
-  const session = normalizeQuestionRecord(sessionRecord);
+  // The session's records stay the same objects from one snapshot to the
+  // next (each save makes a new one), so each is read once
+  // (questionRecordView); a snapshot's records are new every time.
+  const session = questionRecordView(sessionRecord);
   if (server.variantIndex !== session.variantIndex) return server.variantIndex > session.variantIndex;
   if (server.totalAttempts !== session.totalAttempts) return server.totalAttempts > session.totalAttempts;
   const fromDeadline = (record) => String(record?.submissionOrigin || '') === DEADLINE_SUBMISSION_ORIGIN;

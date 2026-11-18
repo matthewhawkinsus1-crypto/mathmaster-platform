@@ -380,6 +380,23 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
   box-shadow: none !important;
 }
 
+/*
+ * IN WORK VIEW, THE VIEW IS THE ONE THING THAT SCROLLS UP AND DOWN (#386 R10).
+ *
+ * A region a student scrolls by keyboard (role="region" and a Tab stop, the
+ * keyboard sweep's T6) may cap its height on the page, where the question is one
+ * part of a long screen. In Work View the view already scrolls as one surface,
+ * and a capped region inside it was a scroller inside a scroller: the Data
+ * Modeling Lab's residual table showed 4 of its 7 rows in a 185px box, on a
+ * phone, a Chromebook and a desktop alike (tests/browser/workViewOpenerCover.mjs
+ * --check=scroll). There it takes its own height, as a split's panels do above.
+ * Only the height: a region that scrolls sideways (a row wider than a phone)
+ * still does, a region of its own the keyboard scrolls.
+ */
+[data-open="true"] .mathmaster-work-view-surface [role="region"][tabindex="0"] {
+  max-height: none !important;
+}
+
 /* A temporary editing surface renders the one reachable Universal Undo above
    its backdrop. Hide covered copies rather than leaving two student-facing
    controls that appear to have different histories. */
@@ -598,13 +615,26 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   order: -1;
 }
 
-/* Never taller than the stage body it scrolls in. At 1366x768 the plane was
-   570px in a 508px body, so its bottom and the point list's Check button were
-   below the fold of the view opened to show it. ~280px is the Work View header,
-   instruction, step heading and Previous/Next footer. Clicks stay exact on the
-   resulting letterboxed plane (responsiveCoordinates.js). */
-[data-open="true"] .workflow-focus__active-stage .mathmaster-function-workspace-graph svg {
-  max-height: max(200px, calc(var(--mm-work-view-height, 100dvh) - 280px));
+/*
+ * A STAGED STEP'S PLANE FITS THE STEP, AS THE STEP IS MEASURED.
+ *
+ * Never taller than the step it is drawn in. The plane was capped at the view's
+ * height less 280px, an estimate of the Work View header, instruction, step
+ * heading and Previous/Next footer made before the first-hint offer took a row
+ * under the footer, and a plane a step marks or reads (GraphFeatureSelectStage)
+ * at 88% of the screen: at 1366x768 the plotting step's plane was 488px in a
+ * 430px step and a "decide" step's 676px, its Yes and No 750px down; at
+ * 1920x1080 765px in 742px. The runner now measures the step as it is laid out
+ * and publishes --mm-step-plane-max (stepRoom.js, useStepRoom.js): as tall as
+ * lets the step's whole content fit, its controls and answers with it, and
+ * where a column beside the plane is taller than the step, as tall as keeps
+ * the plane whole in it. The estimate is only the first frame's, before the
+ * step is measured. Clicks stay exact on the resulting letterboxed plane
+ * (responsiveCoordinates.js).
+ */
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus__active-stage .mathmaster-function-workspace-graph svg,
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus__active-stage svg.mathmaster-responsive-canvas {
+  max-height: var(--mm-step-plane-max, max(200px, calc(var(--mm-work-view-height, 100dvh) - 280px)));
 }
 
 /* Phones still need both the reference and the current response visible at
@@ -630,9 +660,9 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+  [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface .workflow-focus__active-stage
     .mathmaster-function-workspace-graph svg {
-    max-height: min(42dvh, 320px);
+    max-height: min(42dvh, 320px, var(--mm-step-plane-max, 320px));
   }
 
   [data-open="true"] .workflow-focus__progress-text {
@@ -660,9 +690,9 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
     gap: 8px !important;
   }
 
-  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
+  [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface .workflow-focus__active-stage
     .mathmaster-function-workspace-graph svg {
-    max-height: 56dvh;
+    max-height: min(56dvh, var(--mm-step-plane-max, 56dvh));
   }
 }
 
@@ -717,6 +747,47 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   .workflow-focus {
   height: 100%;
   min-height: 0;
+}
+
+/*
+ * TOO SHORT FOR A BOUNDED STEP: THE VIEW SCROLLS AS ONE.
+ *
+ * Bounded, the step gets the height the chrome leaves it. On a 320x568 phone,
+ * and on every phone at 200% text, the task, the instruction, the step heading,
+ * Previous/Next and the hint offer took all of it: the step was 0px tall, and
+ * its table, its plane and its inputs could not be reached at all. Where the
+ * bounded step would have less than 200px, the runner marks it
+ * data-step-room="flow" (stepRoom.js): the view scrolls as one document, the
+ * step takes its content's height and is never a scroller inside the view, and
+ * Previous/Next follow the step. Not pinned: at 200% text the footer is a third
+ * of a phone's view, and a pinned one covered the plane the view brought into
+ * sight.
+ */
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) {
+  overflow-y: auto !important;
+}
+
+/* The question's work, and the results the question shows under it (the hint
+   offer, after a Submit the outcome, Continue), in the view's flow: the tool
+   workspace's height:100% (above) held it to the view, so the step ran on past
+   it, the results under it were laid out at the view's height, inside the step,
+   and painted under it, and the view's scroll height left them out. Measured
+   that way, the chrome was 106px less in flow than bounded, and a step on a
+   360x640 phone switched between the two every frame (stepRoom.js). */
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace,
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace > fieldset {
+  flex: 0 0 auto;
+  height: auto;
+  overflow: visible;
+}
+
+[data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace > fieldset > div,
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus[data-step-room="flow"],
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus[data-step-room="flow"] .workflow-focus__workspace,
+[data-open="true"] .mathmaster-work-view-surface .workflow-focus[data-step-room="flow"] .workflow-focus__workspace-body {
+  flex: 0 0 auto;
+  height: auto;
+  overflow: visible;
 }
 
 /*
@@ -965,6 +1036,21 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   margin-right: var(--mm-work-view-opener-space, 176px);
 }
 
+/* Two more rows a question starts with, measured under the button at 1366x768
+   (tests/browser/workViewOpenerCover.mjs): the Visual Match Board's heading row,
+   whose count ("0 of 2 matched") ends at its right edge, and the modeling lab's
+   first row, whose TEKS line ("No TEKS alignment") does. Each keeps the
+   button's width clear wherever the question's work has no row of its own for
+   the button: a wide screen, or a phone on its side. On a phone held upright the
+   work starts below the button (the phone lane, below), and a margin there would
+   take the button's width from the row for nothing. */
+.mathmaster-desktop-question-content .mathmaster-work-view-surface[data-enlarged="false"] .graph-scenario-match-heading-row,
+.mathmaster-question-container.mode-landscape .mathmaster-work-view-surface[data-enlarged="false"] .graph-scenario-match-heading-row,
+.mathmaster-desktop-question-content .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-interactive-lab-heading,
+.mathmaster-question-container.mode-landscape .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-interactive-lab-heading {
+  margin-right: var(--mm-work-view-opener-space, 176px);
+}
+
 /* A centred heading clears the button on its own wherever it has the width;
    on a phone it starts at the left and stops before the button. Step Algebra's
    toolbar WRAPS, and a right margin narrows every row of it — at 344px each
@@ -1075,6 +1161,36 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   .algebra-relation-toolbar
 )) {
   padding-top: var(--mm-work-view-opener-bottom, 52px);
+}
+
+/*
+ * ON A PHONE, A FIGURE THAT IS ITS OWN WORK VIEW STARTS BELOW ITS OPENER TOO.
+ *
+ * The rule above gives a question's work the button's row. A figure that is its
+ * own Work View had none: a plane drawn on its own with an opener of its own
+ * (PathQuestionStimulus: My Math Path's question with a graph, the session
+ * recap, a secure Test's field item), and any figure mounted outside a question,
+ * started right under the button, which floats over its top right corner. On a
+ * 360-390px phone the plane's y-axis name and its top numbers ("y", 4, 6, 8, 10)
+ * were under it, and on the colour-alone page's figures on their own a point and
+ * its name (the Inverse & Composition Lab's (x, f(x)) and "swapped") and a
+ * system's first equation in its list (tests/browser/workViewOpenerCover.mjs).
+ * A point cannot move off its coordinates, and a name moved off its point reads
+ * as another's; the figure's content starts below the button's measured bottom
+ * edge instead, as the question's does. Padding on the surface, which the button
+ * is placed in from the top of its padding box, so the button keeps its place:
+ * `!important` over a figure's own inline padding (GraphDisplay's 12px).
+ *
+ * Not the question's own work area (the rule above has it), not where the button
+ * already has a row of its own (data-opener-stacked: 200% text, a narrow
+ * figure), and not a tool whose header shares the button's row and keeps clear of
+ * its width itself (the Math Tools Lab's registered tools). A phone only: the
+ * sweep finds nothing under these openers on a Chromebook, so nothing moves there.
+ */
+@media (max-width: 600px) {
+  .mathmaster-work-view-surface[data-enlarged="false"]:not([data-opener-stacked="true"]):not(:has(> .mathmaster-question-tool-workspace, .mathmaster-tool-shell-header)) {
+    padding-top: var(--mm-work-view-opener-bottom, 52px) !important;
+  }
 }
 
 /*

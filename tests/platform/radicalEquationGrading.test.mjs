@@ -18,6 +18,7 @@ import {
 import {
   relationWorkspaceWork,
   stepAlgebraWorkGrader,
+  workspacePristineRelation,
 } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import {
   RADICAL_ROUNDED_DECIMAL_REASON,
@@ -27,6 +28,7 @@ import {
   validateRelationTransition,
 } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { relationToolsFor } from '../../src/relationRadicalToolsModel.js';
 
 /*
  * A RADICAL EQUATION IS GRADED EXACTLY, ON THE SERVER, FROM THE ASSIGNED ITEM.
@@ -470,6 +472,114 @@ test('the transitions the workspace validates are the ones the server validates'
       stepWork: stepWorkOf(before, after, 'radical-raise', 'raise', context),
     });
     assert.equal(server.verified === true, workspace, `power ${power}`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The radical / quadratic tools are opt-in on the server too
+// ---------------------------------------------------------------------------
+
+const RAISE = (power) => ({ kind: 'radical-raise', label: `Raise both sides to the power ${power}`, transition: { kind: 'radicalRaise', branchIndex: 0, power } });
+const FACTOR = { kind: 'factor', label: 'Factor', transition: { kind: 'factor', branchIndex: 0 } };
+const ZERO_PRODUCT = { kind: 'zero-product', label: 'Zero-product property', transition: { kind: 'zeroProduct', branchIndex: 0 } };
+const REWRITE = { kind: 'student-rewrite', label: 'Rewrite', transition: { kind: 'equivalentRewrite' } };
+const quadratic = (algebraTools) => ({
+  questionId: 'q-quadratic',
+  type: 'stepAlgebra',
+  prompt: 'Solve x^2 - 5x = 0.',
+  equation: 'x^2-5x=0',
+  solveFor: 'x',
+  relationWorkspace: true,
+  ...(algebraTools === undefined ? {} : { algebraTools }),
+});
+// A radical the workspace does not verify (its radicand is not linear), opened on the relation workspace by its x^2.
+const unverifiedRadical = (algebraTools) => ({
+  questionId: 'q-unverified',
+  type: 'stepAlgebra',
+  prompt: 'Solve sqrt(x^2 + 7) = 4.',
+  equation: 'sqrt(x^2 + 7) = 4',
+  solveFor: 'x',
+  ...(algebraTools === undefined ? {} : { algebraTools }),
+});
+const offeredIds = (question) => relationToolsFor(question, workspacePristineRelation(question)).map((tool) => tool.id);
+const refused = (outcome, label) => {
+  assert.equal(outcome.eligible, true, `${label}: ${outcome.reason}`);
+  assert.equal(outcome.verified, false, `${label}: must not be credited`);
+  assert.equal(outcome.reason, 'step-tool-not-offered', label);
+  assert.equal(outcome.stepGrade.earned, 0);
+  assert.equal(outcome.stepGrade.possible, 0);
+};
+const credited = (outcome, question, before, after, options) => {
+  assert.equal(outcome.eligible, true, `${options.label}: ${outcome.reason}`);
+  assert.equal(outcome.verified, true, `${options.label}: ${outcome.reason}`);
+  assert.deepEqual(outcome.stepGrade, relationStepGrade({ kind: options.kind, label: options.label, before, after, question }), `${options.label}: the workspace's own stepGrade`);
+};
+
+test('replay: a Factor or Zero-product step is credited only where the item offers the tool, however valid its mathematics', () => {
+  const pristine = parseRelationSource('x^2-5x=0', 'x');
+  const product = fromState(pristine, ['x*(x-5)', '0']);
+  const roots = orState(pristine, [['x', '0'], ['x-5', '0']]);
+
+  // Offered: both steps earn exactly what the workspace reports for them.
+  const offered = session(quadratic(['factor', 'zeroProduct']));
+  credited(replay(offered, product, FACTOR), offered.question, pristine, product, FACTOR);
+  credited(replay(offered, roots, ZERO_PRODUCT), offered.question, product, roots, ZERO_PRODUCT);
+
+  // Not offered: the same valid steps earn nothing. The product reached by a plain rewrite, which every
+  // relation item allows, is credited as a rewrite; splitting it still needs the tool.
+  for (const algebraTools of [undefined, [], 'factor', ['raisePower'], ['nonsense']]) {
+    const plain = session(quadratic(algebraTools));
+    refused(replay(plain, product, FACTOR), `factor, algebraTools ${JSON.stringify(algebraTools)}`);
+    credited(replay(plain, product, REWRITE), plain.question, pristine, product, REWRITE);
+    refused(replay(plain, roots, ZERO_PRODUCT), `zero-product, algebraTools ${JSON.stringify(algebraTools)}`);
+    assert.equal(plain.record.stepGrades.filter((step) => step.accepted !== false).length, 1, 'only the rewrite counts');
+  }
+
+  // One tool named, one tool offered.
+  const factorOnly = session(quadratic(['factor']));
+  credited(replay(factorOnly, product, FACTOR), factorOnly.question, pristine, product, FACTOR);
+  refused(replay(factorOnly, roots, ZERO_PRODUCT), 'zero-product, factor only');
+});
+
+test('replay: Raise both sides to a power is credited only where the item offers it — a radical the lesson verifies, or an item that names it', () => {
+  const plain = session(unverifiedRadical());
+  const raised = fromState(plain.state, ['x^2 + 7', '(4)^2']);
+  refused(replay(plain, raised, RAISE(2)), 'an unverified radical');
+  const named = session(unverifiedRadical(['raisePower']));
+  const isolated = named.state;
+  credited(replay(named, raised, RAISE(2)), named.question, isolated, raised, RAISE(2));
+});
+
+test('the buttons and the replay agree: a tool step is credited exactly where relationToolsFor offers the tool', () => {
+  const steps = (question) => {
+    const pristine = workspacePristineRelation(question);
+    if (question === SQRT_PLUS) {
+      const isolated = fromState(pristine, ['sqrt(x+4)', 'x-2']);
+      const standard = fromState(pristine, ['0', 'x^2-5*x']);
+      return [
+        ['raisePower', isolated, fromState(pristine, ['x+4', 'x^2-4*x+4']), RAISE(2)],
+        ['factor', standard, fromState(pristine, ['0', 'x*(x-5)']), FACTOR],
+        ['zeroProduct', fromState(pristine, ['0', 'x*(x-5)']), orState(pristine, [['x', '0'], ['x-5', '0']]), ZERO_PRODUCT],
+      ];
+    }
+    if (question.equation === 'sqrt(x^2 + 7) = 4') return [['raisePower', pristine, fromState(pristine, ['x^2 + 7', '(4)^2']), RAISE(2)]];
+    return [
+      ['factor', pristine, fromState(pristine, ['x*(x-5)', '0']), FACTOR],
+      ['zeroProduct', fromState(pristine, ['x*(x-5)', '0']), orState(pristine, [['x', '0'], ['x-5', '0']]), ZERO_PRODUCT],
+    ];
+  };
+  const questions = [SQRT_PLUS, quadratic(), quadratic(['factor', 'zeroProduct']), quadratic(['zeroProduct']), unverifiedRadical(), unverifiedRadical(['raisePower', 'factor'])];
+  assert.deepEqual(questions.map(offeredIds), [
+    ['raisePower', 'factor', 'zeroProduct'], [], ['factor', 'zeroProduct'], ['zeroProduct'], [], ['raisePower', 'factor'],
+  ]);
+  for (const question of questions) {
+    for (const [tool, before, after, options] of steps(question)) {
+      const record = emptyQuestionRecord();
+      record.algebraState = { relationState: before };
+      const outcome = verifyStepAlgebraStep({ question, record, stepWork: stepWorkOf(before, after, options.kind, options.label, options.transition) });
+      assert.equal(validateRelationTransition(before, after, options.transition).valid, true, `${question.equation} ${tool}: the step itself is valid`);
+      assert.equal(outcome.verified, offeredIds(question).includes(tool), `${question.equation} ${tool}: ${outcome.reason}`);
+    }
   }
 });
 

@@ -15,6 +15,7 @@ import { buildStudentPathOptions } from '../../src/platform/path/studentPathOpti
 import { buildUnifiedMasteryProfiles } from '../../src/platform/mastery/unifiedMastery.js';
 import { teksCodeFromSkillId, teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { coverageKey } from '../../functions/shared/pathCoverage.mjs';
+import { studentWithAssignmentWork } from '../platform/helpers/assignmentWork.mjs';
 
 const everyRankedSkillCovered = (options) => ({
   skills: Object.fromEntries(Object.values(options || {}).filter(Array.isArray).flat()
@@ -35,17 +36,25 @@ const algebraOneServer = {
   'A.12A': profile(91, 8, 5, [2, 3]), // Mastered
   'A.12B': profile(78, 5, 3, [1, 2]), // Secure
   'A.3A': profile(58, 6, 2, [1, 2]), // Developing: holds back what builds on it
-  'A.5A': profile(18, 6, 0, [1]), // Needs Attention: a severe gap that locks
+  'A.5A': profile(18, 6, 0, [1]), // Needs Attention: with the lesson below, a severe gap that locks
   'A.2E': profile(64, 4, 1, [2]),
 };
 
-const optionsFor = (courseId, serverMasteryProfiles) => buildStudentPathOptions({
-  student: { id: 'harness-student' }, assignments: [], courseId, serverMasteryProfiles, nowValue: NOW,
+// Two lesson questions on Solving linear equations, never answered right: an
+// assignment record the one rule can judge (Needs Attention). What only the
+// Path's own evidence knows never locks a skill (src/platform/path/
+// masteryAdapter.js: `gate: false`), so without it the gap above locked
+// nothing, and the locked-skill scene had nothing to open: A.5B, A.5C and
+// A.12E lock on A.5A, and no other skill moves.
+const algebraOneWork = studentWithAssignmentWork({ 'A.5A': [0, 0] }, { studentId: 'harness-student', assignmentId: 'a-solving' });
+
+const optionsFor = (courseId, serverMasteryProfiles, work = null) => buildStudentPathOptions({
+  student: work?.student || { id: 'harness-student' }, assignments: work?.assignments || [], courseId, serverMasteryProfiles, nowValue: NOW,
 });
 
 const algebraOne = {
-  options: optionsFor('algebra1', algebraOneServer),
-  profiles: buildUnifiedMasteryProfiles({ student: { id: 'harness-student' }, assignments: [], serverProfiles: algebraOneServer }),
+  options: optionsFor('algebra1', algebraOneServer, algebraOneWork),
+  profiles: buildUnifiedMasteryProfiles({ student: algebraOneWork.student, assignments: algebraOneWork.assignments, serverProfiles: algebraOneServer }),
 };
 const gradeEightServer = { '8.4A': profile(88, 6, 3, [2, 3]), '8.5I': profile(55, 5, 1, [1, 2]) };
 const gradeEight = {

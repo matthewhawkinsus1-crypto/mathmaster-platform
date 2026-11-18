@@ -88,6 +88,8 @@ Exact paths modified both by the existing Claude snapshot relative to main and b
 
 Review target is **Claude's branch**, never main. Recheck heads and changed paths immediately before preparing a draft PR. If Claude moves, report exact overlaps and stop short of integration. No auto-merge, force push, deployment, production data access or environment publication belongs to this task.
 
+_Updated 2026-11-17: this work reached main through #525 (`8216dc57`, in the merge `55331ab6` of 2026-10-31). The branch-only review target above was true when it was written; it is now reviewed, and released, from main like everything else. The port to main planned under "Releasing this feature without Claude's unrelated work" is no longer needed._
+
 After review, a separate authorized release must deploy the updated rules, `reviewRetroactiveAccommodation`, `syncGradeToClassroom`, `syncSectionGradeToClassroom`, the repository's provenance function, and the web build using repository release procedures. No deployment has been performed. Self-service family authentication and authorization remain an owner decision; the teacher-mediated summary is the supported family workflow for this change.
 
 ### Releasing this feature without Claude's unrelated work

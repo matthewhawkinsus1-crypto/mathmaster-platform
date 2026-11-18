@@ -8,6 +8,51 @@ export const COMPACT_PHONE_BREAKPOINT = 620;
 export const MIN_TOUCH_TARGET_PX = 44;
 export const MOBILE_VIEWPORT_MARGIN_PX = 8;
 
+/*
+ * THE VIEWPORT IS READ ONCE PER CHANGE.
+ *
+ * Reading the visual viewport's size or offset (or, on a phone, innerWidth and
+ * innerHeight) lays the page out first if anything on it has changed, and a
+ * question's components read it as they render and again as they mount: a
+ * forced layout opening an assignment, on every Next and as Work View opens
+ * (the runtime driver's trace mode). It changes only when the window or the
+ * visual viewport does, and the browser says so each time: a resize or an
+ * orientationchange, the visual viewport's resize (Chromium fires it when a
+ * classic scrollbar comes or goes, too) and its scroll. So a reading is kept
+ * from one of those events to the next. Listeners on the window and on the
+ * visual viewport run in the order they were added, and these are added at
+ * the first reading, before any listener that reads through them: every
+ * reader reads as it renders, before its effects listen. So a handler of the
+ * event reads the viewport it reports. (Added then, not as this module loads:
+ * a module that does something as it loads is loaded by every screen that
+ * uses one of its constants.) A window without a visual viewport to say so,
+ * or another window (a test's), is read each time.
+ */
+const readings = { window: undefined, inner: null, visual: null };
+const viewportWindow = () => {
+  if (readings.window !== undefined) return readings.window;
+  const live = typeof window !== 'undefined' && typeof window.visualViewport?.addEventListener === 'function' ? window : null;
+  readings.window = live;
+  if (live) {
+    const forget = () => { readings.inner = null; readings.visual = null; };
+    live.addEventListener('resize', forget);
+    live.addEventListener('orientationchange', forget);
+    live.visualViewport.addEventListener('resize', forget);
+    live.visualViewport.addEventListener('scroll', forget);
+  }
+  return live;
+};
+const readOnce = (windowObject, slot, read) => {
+  if (windowObject !== viewportWindow()) return read();
+  if (!readings[slot]) readings[slot] = read();
+  return readings[slot];
+};
+// innerWidth and innerHeight as the window reports them, read once per change (above). A desktop reads them without a
+// layout, so they are kept apart from the visual viewport, which a desktop lays out for.
+export const readViewportInnerSize = (windowObject = typeof window !== 'undefined' ? window : null) => (windowObject
+  ? readOnce(windowObject, 'inner', () => ({ width: windowObject.innerWidth, height: windowObject.innerHeight }))
+  : { width: undefined, height: undefined });
+
 // Layout should react to keyboard/browser-chrome changes, but NOT to page pinch
 // zoom. When the student zooms the page, the page must behave like paper under
 // a magnifying glass: fixed/sticky regions keep their original layout geometry
@@ -15,12 +60,16 @@ export const MOBILE_VIEWPORT_MARGIN_PX = 8;
 // into it.
 export const readStableViewportBox = (windowObject = typeof window !== 'undefined' ? window : null) => {
   if (!windowObject) return { width:1024, height:768, offsetTop:0, offsetLeft:0, scale:1, pinchZoomed:false };
-  const visual = windowObject.visualViewport;
+  const visual = readOnce(windowObject, 'visual', () => {
+    const viewport = windowObject.visualViewport;
+    return viewport && { width: viewport.width, height: viewport.height, offsetTop: viewport.offsetTop, offsetLeft: viewport.offsetLeft, scale: viewport.scale };
+  });
+  const { width: innerWidth, height: innerHeight } = readViewportInnerSize(windowObject);
   const scale = Number(visual?.scale || 1);
   const pinchZoomed = scale > PINCH_ZOOM_THRESHOLD;
   return {
-    width: pinchZoomed ? Number(windowObject.innerWidth || 0) : Number(visual?.width || windowObject.innerWidth || 0),
-    height: pinchZoomed ? Number(windowObject.innerHeight || 0) : Number(visual?.height || windowObject.innerHeight || 0),
+    width: pinchZoomed ? Number(innerWidth || 0) : Number(visual?.width || innerWidth || 0),
+    height: pinchZoomed ? Number(innerHeight || 0) : Number(visual?.height || innerHeight || 0),
     offsetTop: pinchZoomed ? 0 : Number(visual?.offsetTop || 0),
     offsetLeft: pinchZoomed ? 0 : Number(visual?.offsetLeft || 0),
     scale,

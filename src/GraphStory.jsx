@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import graphStoryGrader from '../functions/shared/serverGrading/tools/graphStory.mjs';
 import {
   graphStoryHasSourceGraph,
@@ -47,6 +48,21 @@ const pointFromEvent = (event, element) => {
   };
 };
 
+// The saved story: each text as typed, and the sketch, a list of strokes of
+// {x, y} points (or [x, y], which the shared grader reads too). A text
+// holding anything else is dropped and opens empty; a stroke or point that is
+// not one is dropped from the sketch.
+const STORY_DRAFT = draftNormalizer(draftShape.record({
+  ...Object.fromEntries(['scenario', 'independent', 'dependent', 'xLabel', 'xUnit', 'yLabel', 'yUnit', 'explanation'].map((key) => [key, draftShape.nullable(draftShape.cell())])),
+  strokes: draftShape.required(draftShape.list(
+    draftShape.list(draftShape.either(
+      draftShape.record({ x: draftShape.required(draftShape.number()), y: draftShape.required(draftShape.number()) }),
+      draftShape.point(),
+    )),
+    { or: [] },
+  )),
+}));
+
 export default function GraphStory({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const initial = {
     scenario: '',
@@ -59,7 +75,7 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
     explanation: '',
     strokes: [],
   };
-  const history = useUndoHistory(initial, 100, draftKey ? `${draftKey}:graph-story` : null);
+  const history = useUndoHistory(initial, 100, draftKey ? `${draftKey}:graph-story` : null, { normalize: STORY_DRAFT });
   const values = history.value;
   const drawingRef = useRef(false);
 

@@ -236,7 +236,9 @@ const journeys = {
   },
 
   async S1(page) {
-    await page.goto(`${PAGE}&as=student&studentId=910002`, { timeout: 180000 });
+    // With questions the student app renders (fixture.js `?questions=real`): in the default lesson, `freeResponse`,
+    // Continue opened QuestionEngine's "This question could not be displayed".
+    await page.goto(`${PAGE}&as=student&studentId=910002&questions=real`, { timeout: 180000 });
     await page.getByText('Log Out').first().waitFor({ timeout: 120000 });
     await page.waitForTimeout(3000);
     const home = await text(page.locator('body'));

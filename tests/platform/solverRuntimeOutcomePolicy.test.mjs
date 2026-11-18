@@ -100,7 +100,7 @@ test('the relation solver decides completion and correctness of the stage throug
   assert.doesNotMatch(relation, /setRepresentationCorrect|representationCorrect ===/, 'no second, local verdict on the graph');
   // The report is the shared grader's verdict; where outcomes are shown it
   // also waits for a right graph, by withholding completion — never granting it.
-  const report = region(relation, 'const relationText = relationStateToText(relationState);', 'onRelationDisplayChange?.(relationStateToLatex', 'state report');
+  const report = region(relation, 'const relationText = relationStateToText(relationState);', 'onRelationDisplayChange?.(', 'state report');
   assert.match(report, /const finished = shared\.isComplete && \(!requireRepresentations \|\| representationStage\.done\);/);
   assert.match(report, /\.\.\.\(finished \? \{\} : \{ isComplete: false \}\),/);
   assert.match(report, /responseKey: finished \?/);

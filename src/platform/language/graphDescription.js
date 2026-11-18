@@ -20,9 +20,12 @@
  *     exactly; anything else is "between" the two gridlines around it —
  *     never more precisely than the eye can read it.
  *   - Text labels only where the plane draws text. CoordinatePlane draws
- *     `point.label` beside a plain dot and nowhere else — not for open/closed
- *     markers, arrows, lines, curves, polylines or regions — so those labels are
- *     never spoken, even when the data carries one.
+ *     `point.label` beside a plain dot — not for open/closed markers, arrows or
+ *     regions — so those labels are never spoken, even when the data carries
+ *     one. It also names a line, curve or polyline that a tool names
+ *     (`label`, `functionLabels`, curveLabels.js: "f", "y = x", a constraint's
+ *     number), so that its colour is not all that tells it from another; those
+ *     names are not spoken here, where each is told apart by what it is.
  *
  * WHILE THE QUESTION CAN STILL BE ANSWERED, NO FEATURE VALUES (`detail`).
  *

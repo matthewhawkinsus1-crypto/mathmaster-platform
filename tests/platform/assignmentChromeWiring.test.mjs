@@ -57,9 +57,12 @@ test('RUN-8: a closed section is viewable, and a locked one says why', () => {
   const available = region(app, 'const entryIsAvailable = (entry) =>', ';\n', 'entryIsAvailable');
   assert.match(available, /sectionAccessFor\(entry\)\.viewable/);
   const access = region(app, 'const sectionAccessFor = (entry) => {', 'sectionAccessCache.set(', 'sectionAccessFor');
-  for (const input of ['warmupState,', 'dolState,', 'hasWork: sectionHasWork(entry?.role),', 'unrestricted: preview || lifecycle.isPracticeOnly,']) {
+  for (const input of ['warmupState,', 'dolState,', 'unrestricted: preview || lifecycle.isPracticeOnly,']) {
     assert.ok(access.includes(input), input);
   }
+  // The section's own work, for the section's role (kept with it: the
+  // navigator's lines are worked out once per change, appRenderWork.test.mjs).
+  assert.match(access, /const hasWork = sectionHasWork\(entry\?\.role\);[\s\S]*\n\s*hasWork,\n/);
   // A locked section never opens: viewable is the only gate, the tab opens
   // only its landing question, and every other way in asks the same gate.
   assert.match(app, /const entryIsAvailable = \(entry\) => sectionAccessFor\(entry\)\.viewable;\n/);
@@ -164,12 +167,13 @@ test('D9: the enlarged workspace is called Work View where a student opens it', 
 test('a toast never covers the action bar: it rises above where the bar actually is', () => {
   // With the compact navigator a short question no longer fills the page, so
   // the bar can sit above the bottom of the screen; lifting toasts by the
-  // bar's height alone put one on Submit at 1366×768.
-  const publish = region(app, 'const publish = () => {', '};\n    publish();', 'the clearance publisher');
-  assert.match(publish, /querySelectorAll\('\.mathmaster-desktop-action-bar, \.portrait-action-bar, \.landscape-action-bar'\)/);
-  assert.match(publish, /Math\.max\(0, Math\.round\(window\.innerHeight - bar\.getBoundingClientRect\(\)\.top\)\)/);
-  assert.match(publish, /root\.style\.setProperty\('--mm-action-bar-clearance', `\$\{clearance\}px`\)/);
-  assert.match(app, /window\.addEventListener\('scroll', publish, \{ passive: true, capture: true \}\);/);
+  // bar's height alone put one on Submit at 1366×768. Where the bar is, is
+  // followed while a toast is shown (toastClearance.test.mjs runs it).
+  const effect = region(app, '  useEffect(() => {\n    if (activeView !== \'assignment\' && activeView !== \'teacherPreview\') return undefined;\n    return followActionBarClearance();', '}, [activeView]);', 'the clearance effect');
+  assert.ok(effect.length > 0);
+  assert.match(app, /import \{ followActionBarClearance \} from '\.\/platform\/layout\/toastClearance\.js';/);
+  // Measured on a scroll, a resize or the page's own size, it went stale.
+  assert.doesNotMatch(executableSource(app), /--mm-action-bar-clearance/);
   const rule = region(css, '@media (min-width: 641px) {\n  body:has(.mathmaster-assignment-screen) .mm-toast-viewport {', '}\n}', 'the toast rule');
   assert.match(rule, /bottom: calc\(max\(18px, env\(safe-area-inset-bottom\)\) \+ var\(--mm-action-bar-clearance, var\(--mm-action-bar-height, 0px\)\)\);/);
 });

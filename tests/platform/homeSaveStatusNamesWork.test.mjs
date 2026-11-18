@@ -72,7 +72,9 @@ test('the outbox drain says which assignment each kept answer is on', async () =
 test('App hands Home the titles of the assignments the work is on', () => {
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
   const drain = region(app, 'const drainStudentOutbox = async', 'return result;', 'the drain');
-  assert.match(drain, /setStudentNeedsReviewAssignmentIds\(\[\.\.\.new Set\(\(result\.retained \|\| \[\]\)\s*\.filter\(\(entry\) => entry\.disposition === SUBMISSION_DISPOSITION\.NEEDS_REVIEW && entry\.assignmentId\)/);
+  // (Kept as the same list while it names the same assignments: keepSame,
+  // appRenderWork.test.mjs.)
+  assert.match(drain, /setStudentNeedsReviewAssignmentIds\((?:keepSame\()?\[\.\.\.new Set\(\(result\.retained \|\| \[\]\)\s*\.filter\(\(entry\) => entry\.disposition === SUBMISSION_DISPOSITION\.NEEDS_REVIEW && entry\.assignmentId\)/);
   const status = region(app, 'const studentSaveStatusNow = () => describeSaveStatus({', '});', 'Home\'s save status');
   assert.match(status, /needsReviewTitles: studentAssignmentTitles\(studentNeedsReviewAssignmentIds\),/);
   assert.match(status, /unsavedDraftTitles: studentAssignmentTitles\(draftSaveHealthVersion >= 0 \? draftSaveProblemAssignmentIds\(user\?\.id\) : \[\]\),/);

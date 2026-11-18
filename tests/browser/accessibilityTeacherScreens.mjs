@@ -81,6 +81,11 @@
  *                        listClassroomRosterLinks (the same file), a row for each Google student and its MathMaster match.
  * teacher-classroom/linked  then a row's "Confirm link": the screen after a link, from the stand-in for
  *                        linkClassroomRosterBatch (the same file).
+ *
+ * teacher-response-inspector  the Response Inspector (#249, #554 item 8) on the harness's `inspector=1` school, where
+ *                        today's lesson is answered and graded (teacherWorkflow/inspectorFixture.js): opened from a
+ *                        student's work in the gradebook, then from the student's tile in Live Class. A modal: audited
+ *                        as the dialog.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -812,6 +817,43 @@ const openClassroomLinked = async (page) => {
   await page.waitForTimeout(900);
 };
 
+// THE RESPONSE INSPECTOR, opened the two ways a teacher opens it, on a student whose answers the
+// inspector has reasons for (teacherWorkflow/inspectorFixture.js INSPECTOR_STUDENT_ID). Programmatic
+// clicks, as above: on a phone a sticky bar can sit over a real one.
+const INSPECTOR_DIALOG = '[role="dialog"][aria-label="Student Response Inspector"]';
+const INSPECTED_STUDENT = '910003';
+const inspectorShown = async (page) => {
+  await page.locator(INSPECTOR_DIALOG).locator('[data-inspector-field-view]').waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(600);
+};
+const closeInspector = async (page) => {
+  const dialog = page.locator(INSPECTOR_DIALOG);
+  if (!await dialog.count()) return;
+  await dialog.getByRole('button', { name: 'Close', exact: true }).evaluate((button) => button.click());
+  await dialog.waitFor({ state: 'detached', timeout: 10_000 });
+};
+const openInspectorFromGradebook = async (page) => {
+  await goHome(page);
+  const tile = page.locator(`[data-live-tile="${INSPECTED_STUDENT}"]`);
+  await tile.waitFor({ timeout: 60_000 });
+  await tile.getByRole('button').first().evaluate((button) => button.click());
+  const drawer = page.locator('aside[aria-label^="Learning profile for"]');
+  await drawer.waitFor({ timeout: 30_000 });
+  await drawer.locator('li', { hasText: 'Systems of Equations — Lesson 3: Elimination' }).getByRole('button', { name: 'Work' }).evaluate((button) => button.click());
+  const inspect = page.locator('article', { hasText: 'Question 2 · multiAnswer' }).getByRole('button', { name: 'Inspect Response / Override Grade' });
+  await inspect.waitFor({ timeout: 60_000 });
+  await inspect.evaluate((button) => button.click());
+  await inspectorShown(page);
+};
+const openInspectorFromLiveClass = async (page) => {
+  await closeInspector(page);
+  await goHome(page);
+  const inspect = page.locator(`[data-live-inspect="${INSPECTED_STUDENT}"]`).first();
+  await inspect.waitFor({ timeout: 60_000 });
+  await inspect.evaluate((button) => button.click());
+  await inspectorShown(page);
+};
+
 const teacherScreen = (id, scenes, extra = {}) => ({
   id, harness: 'app', schoolClock: true, keyboard: true, open: openTeacherApp, scenes, ...extra,
 });
@@ -933,6 +975,11 @@ export const TEACHER_SCREENS = [
     { id: 'linked', run: openClassroomLinked },
   ]),
   teacherScreen('teacher-access', [{ id: null, run: openDestination('Student Access', /^Student Access$/) }]),
+  // The Response Inspector, from the gradebook and from Live Class (a modal: audited as the dialog).
+  teacherScreen('teacher-response-inspector', [
+    { id: 'gradebook', run: openInspectorFromGradebook },
+    { id: 'live', run: openInspectorFromLiveClass },
+  ], { include: INSPECTOR_DIALOG, open: (page, origins) => openTeacherApp(page, origins, '&inspector=1') }),
   // The administrator's workspace: the harness's root-admin teacher, its Administration view, and each of its five sections.
   teacherScreen('teacher-admin', ADMIN_SECTIONS.map(([id, label]) => ({ id, run: openAdministration(label) })), { open: (page, origins) => openTeacherApp(page, origins, '&rootAdmin=1') }),
 ];

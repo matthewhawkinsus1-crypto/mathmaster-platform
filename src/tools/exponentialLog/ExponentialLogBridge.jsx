@@ -43,7 +43,11 @@ function InversePairGraph({ spec, sampleX = 1 }) {
       yMin={boundMin}
       yMax={boundMax}
       functions={[expFn, logFn]}
-      lines={[{ m: 1, b: 0, stroke: '#667085' }]}
+      // Each named on the plane (WCAG 1.4.1): f and the mirror line are both
+      // solid. The mirror keeps its solid stroke, since a dash here says f⁻¹
+      // or an asymptote.
+      functionLabels={['f', 'f⁻¹']}
+      lines={[{ m: 1, b: 0, stroke: '#667085', label: 'y = x' }]}
       verticalLines={[spec.k]}
       horizontalLines={[spec.k]}
       points={[

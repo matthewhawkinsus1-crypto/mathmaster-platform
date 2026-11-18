@@ -85,6 +85,12 @@ Each step's raw work is replayed by `verifyStepAlgebraStep` through the SAME
 `submissionEnvelope.mjs` — **a kind missing there makes the whole step unreadable
 on the server** — and new step kinds in `RELATION_STEP_KINDS`.
 
+A Raise, Factor or Zero-product step is credited only on an item that offers
+that tool. `relationToolsOffered` (`stepAlgebraStepVerification.mjs`) is the one
+rule: the workspace draws its buttons from it (`relationToolsFor`), and the replay
+records a step from any other tool as unverified (`step-tool-not-offered`),
+however valid its mathematics.
+
 `graderVersion` (`step-algebra-workspace-v2`) is intentionally unchanged: nothing
 already graded changes, and regrade tooling reports on it.
 
@@ -120,17 +126,19 @@ an extra branch `x = 5.00000000001` do not read as the list of candidates.
 - The three parts (`relation-work`, `candidate-verification`, `solution-set`) are
   independent rows of the score; none of them completes or passes the question
   alone.
-- `factor` and `zeroProduct` steps are validated by the mathematics, not by
-  whether the item opted into the tools; the buttons are what is opt-in.
 
 ## Reusable for quadratic lessons
 
 *Factor* and *Zero-product property* are not tied to radicals. A lesson turns
 them on with `"algebraTools": ["factor", "zeroProduct"]` on a `stepAlgebra` item.
 No absolute-value or inequality lesson gains a button it did not have.
-Authoring caveat: the shared parser reads `x(x - 5)` as a function call. The
-tools insert the multiplication for what a student types; an authored *given*
-equation should be written `x*(x - 5)` or `(x)(x - 5)`.
+The shared parser reads `x(x - 5)` as a call of a function named x. The tools
+insert the multiplication for what a student types, and an import does the same
+for an authored *given*: `x(x - 5) = 0` is stored as `x*(x - 5) = 0`, and the
+import lists the repair (`src/platform/contract/relationGivenProducts.js`, one
+rule for both). Where the unwritten form reaches Pre-Flight without an import (a
+Question Editor replacement, an assignment stored before this change), Pre-Flight
+warns with the line to write; it never blocks a save or a reuse.
 
 ## The lesson
 
@@ -168,8 +176,9 @@ Firestore rules or indexes.
 
 ### Which Functions
 
-The planner cannot read an import graph, so for any `functions/shared/**` change
-it plans every function (210, in 28 groups, about an hour). The functions that
+When this was written the planner could not read an import graph, so for any `functions/shared/**` change
+it planned every function (210, in 28 groups, about an hour). It now follows imports
+(`scripts/lib/functionsImportGraph.mjs`) and picks these same 18 for this change by itself. The functions that
 can actually load the changed modules are **18** (plus `platformBuildInfo`,
 which every functions release redeploys and then calls to prove the commit):
 

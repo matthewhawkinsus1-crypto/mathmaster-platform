@@ -19,6 +19,7 @@ import { keypadProfileForResponseField } from './platform/interaction/interactio
 import { declaredKeypadProfile, withheldVerdictKeys } from './platform/interaction/withheldVerdictKeypad.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import { choiceAccessibleLabel, choiceFieldAsksDimensions, choiceOptionsForField, choiceSeed, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography, toPlainMath } from './components/common/mathSegments.js';
 import { MathText } from './components/common/MathText.jsx';
@@ -128,6 +129,9 @@ const shouldUsePlainTextInput = (field) => {
 // report effect below depends on what is derived from it.
 const NO_FIELDS = Object.freeze([]);
 const NO_SYMBOLS = Object.freeze([]);
+// The saved answers: what is in each box, by field id. A box holding anything
+// else is dropped and opens empty (checkedQuestionDraft.js).
+const ANSWERS_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftShape.cell())));
 
 // `verdictsWithheld`: an exit ticket, a quiz or a test before its release
 // (QuestionEngine). Then the keypad says nothing about the answer
@@ -153,7 +157,7 @@ function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedbac
       )),
     [question.candidateGraphs, question.questionId, question.prompt, graphsInOrder],
   );
-  const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null);
+  const history = useUndoHistory({}, 60, draftKey ? `${draftKey}:multi-answer` : null, { normalize: ANSWERS_DRAFT });
   const answers = history.value;
   // Each graded field says so in words under it, and its control is described
   // by that sentence and aria-invalid when wrong (GradedEntryMark.jsx): the

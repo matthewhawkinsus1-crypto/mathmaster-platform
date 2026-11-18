@@ -31,6 +31,10 @@ export function gradeSyncStatusLabel(sync = {}) {
   // A Practice-based Recovery MathMaster could not grade is waiting for the
   // teacher; nothing was sent, on purpose (functions/lib/sectionRecoveryGrades.js).
   if (status === 'recovery-held') return 'Held: Recovery needs review';
+  // The grade is in Classroom, but Classroom would not return it, usually
+  // because the student never turned the work in there
+  // (functions/lib/classroomPushErrors.js).
+  if (status === 'graded-not-returned') return 'Graded, not returned';
   return status ? status.replaceAll('-', ' ') : 'Unknown';
 }
 
@@ -38,6 +42,9 @@ export function gradeSyncStatusLabel(sync = {}) {
 // failed." alone says little, so Google's status and reason come with it.
 export function gradeSyncErrorText(sync = {}) {
   const status = clean(sync?.status).toLowerCase();
+  // The grade went through; the row says in plain words why it was not
+  // returned and what the teacher can do.
+  if (status === 'graded-not-returned') return clean(sync?.message);
   if (!['failed', 'rate-limited', 'auth-error'].includes(status)) return '';
   const message = clean(sync?.error || sync?.message);
   if (!message) return '';

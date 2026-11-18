@@ -17,7 +17,8 @@
  * pseudo-classes that hold for it (`hover`, `focus-visible`, `first-child`…);
  * any other state pseudo-class does not. Sibling combinators (+, ~) and :has()
  * never match: a path has no siblings or children. Media queries read the
- * device ({ width, height, pointer, hover, print, colorScheme, reducedMotion });
+ * device ({ width, height, fontSize, pointer, hover, print, colorScheme,
+ * reducedMotion }; an em in a width or height is fontSize, 16px by default);
  * a feature it does not know throws, so a new kind of rule cannot be skipped
  * in silence. Inline styles are not modelled: they beat every rule in any order.
  */
@@ -193,9 +194,11 @@ export const matchesPath = (path, selector) => matchesAt(selector, { path, index
 const featureHolds = (feature, device) => {
   const text = feature.replace(/\s+/g, ' ').trim();
   let match;
-  if ((match = text.match(/^(min|max)-(width|height): ([\d.]+)px$/))) {
+  if ((match = text.match(/^(min|max)-(width|height): ([\d.]+)(px|r?em)$/))) {
     const have = device[match[2]];
-    return match[1] === 'min' ? have >= Number(match[3]) : have <= Number(match[3]);
+    // An em in a media query is the browser's own text size: 16px, unless the device says otherwise.
+    const limit = Number(match[3]) * (match[4] === 'px' ? 1 : (device.fontSize || 16));
+    return match[1] === 'min' ? have >= limit : have <= limit;
   }
   if ((match = text.match(/^orientation: (portrait|landscape)$/))) return (device.height >= device.width ? 'portrait' : 'landscape') === match[1];
   if ((match = text.match(/^(any-)?pointer: (coarse|fine|none)$/))) return (device.pointer || 'fine') === match[2];

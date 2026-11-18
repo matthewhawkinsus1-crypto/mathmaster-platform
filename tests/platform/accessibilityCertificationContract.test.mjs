@@ -120,6 +120,8 @@ const REQUIRED_TEACHER_SCREENS = {
   'teacher-classroom': [null, 'connected', 'roster', 'linked'],
   'teacher-access': [null],
   'teacher-admin': ['classes', 'accounts', 'coverage', 'ai', 'reset'],
+  // The Response Inspector (#249, #554 item 8), opened from a student's work in the gradebook and from Live Class.
+  'teacher-response-inspector': ['gradebook', 'live'],
 };
 
 test('the teacher screens are audited next to the student ones, each scene driven, under one set of unique ratchet keys', () => {

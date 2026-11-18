@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit, controlStep } from '../shared/ToolShell';
@@ -34,6 +35,13 @@ const DEFAULT_HINTS = [
   'For an exponential model, a base between 0 and 1 gives decay when a is positive; a base greater than 1 gives growth.',
 ];
 
+// A saved model is read the way the builder and the server read every model
+// (normalizeBuilderModel): a value it would not keep (a parameter that is an
+// object, a family it does not know) is replaced the way an edit would replace
+// it, and a model it leaves unchanged comes back exactly as saved
+// (toolDraftShape.js). Anything that is not a model starts from the question's.
+const normalizeSavedModel = draftNormalizer(s.via(normalizeBuilderModel));
+
 const numericField = (label, value, setter, step = 1) => (
   <label style={{ display: 'block', fontSize: 'calc(13 * var(--mm-px))', fontWeight: 800, color: 'var(--mm-text)' }}>{label}<input type="number" step={step} value={value} onChange={(event) => setter(Number(event.target.value))} style={inputStyle} /></label>
 );
@@ -48,7 +56,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   // Where a constraint asks "continuous or discrete?", the graph type is the
   // student's judgment: the select offers "Choose…" (judgmentChoices.js).
   const asksGraphType = builderAsksGraphType(questionData.constraints);
-  const [model, setModel] = usePersistentToolState('model', initial);
+  const [model, setModel] = usePersistentToolState('model', initial, { normalize: normalizeSavedModel });
   const [hasEdited, setHasEdited] = usePersistentToolState('hasEdited', false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   // A ladder of the tool's own: hints allowed, and no platform ladder to hand

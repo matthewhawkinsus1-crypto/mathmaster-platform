@@ -95,7 +95,7 @@ test('My Rewards is a student destination with its own screen, imported where it
   const branch = region(app, "if (studentDashboardMode === 'rewards') {", "if (studentDashboardMode === 'grades') {", 'rewards branch');
   assert.match(branch, /<StudentRewardsCenter/);
   assert.match(branch, /onUsePracticePass=\{handleUsePracticePass\}/);
-  assert.match(branch, /eligibleAssignments=\{studentPracticePassEligibleAssignments\}/);
+  assert.match(branch, /eligibleAssignments=\{studentPracticePassEligibleNow\(\)\}/);
   // Statically, or on demand from app/lazyScreens.js (PF01: the screen left
   // the first load): either way a <StudentRewardsCenter> with no import is caught.
   assert.ok(importsComponent('src/App.jsx', 'StudentRewardsCenter', 'src/components/student/rewards/StudentRewardsCenter.jsx'), 'App imports the Rewards screen it renders');

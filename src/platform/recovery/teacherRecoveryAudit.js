@@ -36,7 +36,7 @@ import { projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProj
 import { projectSectionRecoveryForAssignment } from '../grading/sectionRecoveryGrades.js';
 import { splitGradesBySection } from '../teacher/gradeEvidence.js';
 import { SCHOOL_TIME_ZONE, assignmentFinalCloseAt } from '../../../functions/shared/sectionDeadline.mjs';
-import { buildWarmupChallengeGradeState, warmupChallengeScore } from '../../../functions/shared/warmupChallengeGrade.mjs';
+import { buildWarmupChallengeGradeState } from '../../../functions/shared/warmupChallengeGrade.mjs';
 
 export const SECTION_RECOVERY_AUDIT_LABEL = Object.freeze({ warmup: 'Warm-Up', dol: 'DOL' });
 
@@ -337,26 +337,9 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, n
   }).filter(Boolean);
 };
 
-/**
- * Sections of this assignment whose grade includes a completed Recovery — one
- * with a Recovery score (a teacher who closed a held Recovery keeping the
- * original recorded none, and nothing was replaced).
- */
-export const completedRecoverySections = (student = null, assignmentId = null) => {
-  const records = student?.sectionRecoveryByAssignment?.[assignmentId];
-  if (!records || typeof records !== 'object') return new Set();
-  return new Set(['warmup', 'dol'].filter((section) => {
-    const record = normalizeRecoveryRecord(records[section], section);
-    return record?.status === 'completed' && record.rawScore !== null && record.rawScore !== undefined && Number.isFinite(Number(record.rawScore));
-  }));
-};
-
-/** Sections of this assignment whose Recovery is HELD, waiting for this teacher. */
-export const heldRecoverySections = (student = null, assignmentId = null) => {
-  const records = student?.sectionRecoveryByAssignment?.[assignmentId];
-  if (!records || typeof records !== 'object') return new Set();
-  return new Set(['warmup', 'dol'].filter((section) => normalizeRecoveryRecord(records[section], section)?.status === 'held'));
-};
+// The gradebook's section marks (R, Held, LC), read from the stored records
+// alone: their own module, so the gradebook does not load this one.
+export { completedRecoverySections, heldRecoverySections, warmupChallengeCounts } from './gradebookRecoveryMarks.js';
 
 /**
  * The Live Challenge Warm-Up result, as the teacher audits it: the rounds the
@@ -384,8 +367,3 @@ export const buildTeacherWarmupChallengeAudit = ({ student = null, assignment = 
       : 'The authored Warm-Up work scored higher than the Live Challenge result, so it is kept.',
   };
 };
-
-/** Does this student's Warm-Up grade come from a Live Challenge result? */
-export const warmupChallengeCounts = (student = null, assignmentId = null) => (
-  warmupChallengeScore(student?.warmupChallengeByAssignment?.[assignmentId]) !== null
-);

@@ -147,6 +147,118 @@ test('the every-write stress mode is opt-in and does what it says', async () => 
   stop();
 });
 
+// What a session costs (sessionReadsProbe.mjs) is counted the way Firestore
+// bills it, with the SDK's one target per document or query, however many
+// reads and listeners ask for it.
+test('reads are counted as Firestore bills them, once per target however many reads and listeners share it', async () => {
+  const billing = await loadFake('fakeFirestore.js', '?reset=1', 'billing');
+  const db = billing.getFirestore();
+  const roster = billing.collection(db, 'harnessBilling');
+  await billing.setDoc(billing.doc(roster, 'r1'), { classId: 'c1' });
+  await billing.setDoc(billing.doc(roster, 'r2'), { classId: 'c1' });
+  await billing.setDoc(billing.doc(roster, 'r3'), { classId: 'c2' });
+  const stats = () => billing.harnessStore.stats();
+  const classOne = () => billing.query(roster, billing.where('classId', '==', 'c1'));
+  const watch = (target) => {
+    const snapshots = [];
+    return { snapshots, stop: billing.onSnapshot(target, (snapshot) => snapshots.push(snapshot)) };
+  };
+
+  // One-shot reads: a document is one, found or not; a query one per document and at least one.
+  billing.harnessStore.resetStats();
+  await billing.getDocs(classOne());
+  await billing.getDocs(billing.query(roster, billing.where('classId', '==', 'none')));
+  await billing.getDoc(billing.doc(roster, 'missing'));
+  assert.equal(stats().readsBilledTotal, 4);
+  await billing.getDocs(classOne());
+  assert.deepEqual(Object.keys(stats().rereadsAtSameVersion).map((key) => key.split('@')[0]).sort(), ['harnessBilling/r1', 'harnessBilling/r2'], 'the same documents at the same versions, read again');
+
+  // A listener's first snapshot is billed in full; a read of exactly what it holds is answered from it.
+  billing.harnessStore.resetStats();
+  const live = watch(classOne());
+  await settle();
+  await billing.getDocs(classOne());
+  await billing.getDoc(billing.doc(roster, 'r1'));
+  assert.equal(stats().readsBilledTotal, 3, 'the listener\'s two, and the document read, which is another target');
+  assert.deepEqual(stats().readsServedByListener, { harnessBilling: 2 });
+  assert.deepEqual(stats().targetsOpened, { harnessBilling: 1 });
+
+  // After that, a snapshot is billed for what it added or changed, as pushed; a deletion is free.
+  billing.harnessStore.resetStats();
+  await billing.updateDoc(billing.doc(roster, 'r2'), { name: 'Two' });
+  await settle();
+  assert.equal(live.snapshots.length, 2);
+  assert.equal(stats().readsBilledTotal, 1);
+  assert.equal(stats().readsPushedTotal, 1);
+  await billing.deleteDoc(billing.doc(roster, 'r1'));
+  await settle();
+  assert.equal(live.snapshots.length, 3);
+  assert.equal(stats().readsBilledTotal, 1, 'the deletion was free');
+
+  // A second listener on the target rides the first: no new listen, and a change both hear is paid once.
+  billing.harnessStore.resetStats();
+  const second = watch(classOne());
+  await settle();
+  await billing.updateDoc(billing.doc(roster, 'r2'), { name: 'Two again' });
+  await settle();
+  assert.equal(second.snapshots.length, 2, 'it hears everything the first does');
+  assert.equal(stats().readsBilledTotal, 1, 'the change, once');
+  assert.deepEqual(stats().targetsOpened, {});
+  assert.deepEqual(stats().subscriptions, { harnessBilling: 1 });
+  second.stop();
+  live.stop();
+
+  // A read made after a listener opened but before its first snapshot is the one request
+  // both ride; a listener opened while that one is still open rides it too, after it closes.
+  billing.harnessStore.resetStats();
+  const held = watch(classOne());
+  await billing.getDocs(classOne());
+  const adopted = watch(classOne());
+  held.stop();
+  await settle();
+  assert.equal(adopted.snapshots.length, 1);
+  assert.deepEqual(adopted.snapshots[0].docs.map((entry) => entry.id), ['r2']);
+  assert.equal(stats().readsBilledTotal, 1, 'class c1 is r2 now: one read for the read and both listeners');
+  adopted.stop();
+
+  // A listener closed before its first snapshot paid for nothing: the next one pays.
+  billing.harnessStore.resetStats();
+  watch(classOne()).stop();
+  const fresh = watch(classOne());
+  await settle();
+  assert.equal(stats().readsBilledTotal, 1);
+  fresh.stop();
+});
+
+test('presence heartbeats come on the harness\'s timer, or with ?presenceBeat=manual only when a driver beats', async () => {
+  const timers = [];
+  const load = async (search, tag) => {
+    browserGlobals(search);
+    const realSetInterval = globalThis.setInterval;
+    globalThis.setInterval = (fn, ms) => { timers.push({ tag, ms }); return 0; };
+    try {
+      return await import(`../browser/teacherWorkflow/fakeFirestore.js?${tag}`);
+    } finally {
+      globalThis.setInterval = realSetInterval;
+    }
+  };
+  await load('?reset=1', 'timedBeat');
+  const manual = await load('?reset=1&presenceBeat=manual', 'manualBeat');
+  assert.deepEqual(timers, [{ tag: 'timedBeat', ms: 15_000 }], 'one timer by default, none in manual mode');
+  const db = manual.getFirestore();
+  const working = manual.harnessStore.paths('presence/').filter((entry) => manual.harnessStore.get(entry)?.__simulated);
+  assert.ok(working.length > 0);
+  const heard = [];
+  const stop = manual.onSnapshot(manual.doc(db, ...working[0].split('/')), (snapshot) => heard.push(snapshot.data()?.updatedAt));
+  await settle();
+  await new Promise((resolve) => { setTimeout(resolve, 20); });
+  assert.equal(manual.harnessStore.beatPresence(), working.length, 'every working student beats once');
+  await settle();
+  assert.equal(heard.length, 2, 'the beat is heard');
+  assert.ok(heard[1] > heard[0]);
+  stop();
+});
+
 test('a callable the harness does not implement fails loudly, never with {}', async () => {
   const functions = await loadFake('fakeFunctions.js');
   const errors = [];

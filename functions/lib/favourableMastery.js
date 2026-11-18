@@ -39,7 +39,7 @@
  * fails, the server's own profile decides, exactly as before.
  */
 
-const { loadClassAssignments, loadServerPathInputs, loadWeeklyPlanner } = require("./weeklyPathServerPlan");
+const { loadClassAssignments, loadServerPathInputs, loadWeeklyPlanner, wholeStudentRecord } = require("./weeklyPathServerPlan");
 
 const text = (value) => String(value ?? "").trim();
 const byCode = (map, code) => (map && typeof map === "object" ? (map[code] || map[`texas:${code}`] || null) : null);
@@ -59,9 +59,11 @@ async function loadFavourableProfiles({
     const planner = await loadWeeklyPlanner(plannerOptions);
     if (!planner) return null;
     const assignments = await loadClassAssignments(db, classRecord);
+    // Every record whole: its detail is stored beside the grades document.
+    const wholeData = await wholeStudentRecord(db, studentId, studentData);
     return planner.mastery.buildUnifiedMasteryProfiles({
       // The whole grades document, as the browser's mastery state reads it.
-      student: { id: studentId, ...(studentData && typeof studentData === "object" ? studentData : {}) },
+      student: { id: studentId, ...(wholeData && typeof wholeData === "object" ? wholeData : {}) },
       assignments,
       serverProfiles: serverProfiles || {},
       retentionSchedulesByTEKS: retentionSchedules || {},
@@ -118,7 +120,9 @@ async function courseChallengeEarnedByOneRule({
     const course = text(courseId || classRecord?.course);
     if (!planner || !code || !course) return false;
     const { pacing, teacherOverrides, assignments } = await loadServerPathInputs({ db, studentId, classRecord, planner, now });
-    const record = studentData && typeof studentData === "object" ? studentData : {};
+    // Every record whole: its detail is stored beside the grades document.
+    const wholeData = await wholeStudentRecord(db, studentId, studentData);
+    const record = wholeData && typeof wholeData === "object" ? wholeData : {};
     const options = planner.options.buildStudentPathOptions({
       // App.jsx's studentRecord, as the weekly server plan builds it.
       student: { id: studentId, gradesByAssignment: record.gradesByAssignment || {}, supportUsageByAssignment: record.supportUsageByAssignment || {} },

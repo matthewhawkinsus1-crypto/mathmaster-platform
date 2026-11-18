@@ -163,7 +163,11 @@ export const MobileViewportContainer = ({
   // (main.jsx). Setting it here and clearing it on unmount left the next
   // question reading "not zoomed" while the person was still zoomed in.
 
-  useEffect(() => {
+  // A layout effect, so the scroll positions it reads as a question mounts are
+  // read with the commit's other measurements (the task card's, the action
+  // bar's) and before the page is written to again: read after the passive
+  // effects' writes, they laid the page out once more on every Next.
+  useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return undefined;
 

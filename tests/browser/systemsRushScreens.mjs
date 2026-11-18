@@ -1,7 +1,19 @@
-// SYSTEMS OF EQUATIONS RUSH'S ROUND SCREEN IN A REAL BROWSER (QA harness, not CI).
+// SYSTEMS OF EQUATIONS RUSH'S ROUND SCREEN IN A REAL BROWSER.
 //
-//   npx vite --host 127.0.0.1 --port 5199 --strictPort &
-//   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/systemsRushScreens.mjs
+// HOW TO RUN (one command; it starts Vite, the plain dev server, and stops it):
+//
+//   node tests/browser/systemsRushScreens.mjs
+//   SYSTEMS_RUSH_VITE_PORT=6670 node tests/browser/systemsRushScreens.mjs      # another port
+//   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/systemsRushScreens.mjs # a server already running
+//
+// It runs in CI: .github/workflows/student-pass3-emulator-journeys.yml, job
+// pass3-systems-rush-screens, beside the whole Graph Feature Rush games, on a
+// pull request that touches what it loads, nightly and on demand. It needs no
+// emulator and no callables: the round screen is the real GraphFeatureRushRound,
+// its answers graded on the page by the server's own grading function
+// (systemsRushScreensMain.jsx). CI's browser is Playwright's own headless
+// Chromium; CHROMIUM_PATH runs another. Nothing leaves this machine: the page
+// sends nothing anywhere, and the browser refuses every non-local request.
 //
 // On a phone (390×844) and a laptop (1366×768), through rendered controls:
 //
@@ -17,18 +29,67 @@
 //   holds still    the graph keeps its place from an intercept item to a
 //                  solution item and back
 //
-// Exits non-zero on any failure. Screenshots: tests/browser/artifacts/systemsRush.
-import { mkdirSync } from 'node:fs';
+// Exits non-zero on any failure. Screenshots, and the dev server's log when this
+// driver started it: tests/browser/artifacts/systemsRush.
+import { spawn } from 'node:child_process';
+import { closeSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
-const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/systemsRush');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repo = path.resolve(here, '../..');
+const PAGE = '/tests/browser/systemsRushScreens.html';
+const VITE_PORT = Number(process.env.SYSTEMS_RUSH_VITE_PORT || 5199);
+const ORIGIN = process.env.AUDIT_ORIGIN || `http://127.0.0.1:${VITE_PORT}`;
+const ARTIFACTS = path.join(here, 'artifacts/systemsRush');
 mkdirSync(ARTIFACTS, { recursive: true });
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+
+const wait = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+/* ------------------------------ the dev server ---------------------------- */
+
+// Vite runs in a process group of its own, so stopping the group stops
+// everything it started; it is stopped on every way out of this script.
+let vite = null;
+const stopVite = () => {
+  if (!vite) return;
+  try { process.kill(-vite.pid, 'SIGKILL'); } catch { /* already gone */ }
+  vite = null;
+};
+process.on('exit', stopVite);
+[['SIGINT', 130], ['SIGTERM', 143]].forEach(([signal, code]) => process.on(signal, () => { stopVite(); process.exit(code); }));
+
+if (!process.env.AUDIT_ORIGIN) {
+  const logFile = path.join(ARTIFACTS, 'vite.log');
+  const log = openSync(logFile, 'w');
+  vite = spawn('npx', ['vite', '--host', '127.0.0.1', '--port', String(VITE_PORT), '--strictPort'], { cwd: repo, stdio: ['ignore', log, log], detached: true });
+  closeSync(log);
+  let exited = false;
+  vite.once('exit', () => { exited = true; });
+  let up = false;
+  for (let attempt = 0; attempt < 240 && !up && !exited; attempt += 1) {
+    try { up = (await fetch(`${ORIGIN}${PAGE}`)).ok; } catch { /* not up yet */ }
+    if (!up) await wait(500);
+  }
+  if (!up) {
+    console.error(`Vite did not start on ${ORIGIN}${exited ? ' (it exited: is the port taken? SYSTEMS_RUSH_VITE_PORT picks another)' : ''}.`);
+    console.error(readFileSync(logFile, 'utf8').split('\n').slice(-20).join('\n'));
+    process.exit(2);
+  }
+}
+
+/* -------------------------------- the browser ----------------------------- */
+
+// CI's browser is Playwright's own headless Chromium; CHROMIUM_PATH runs another.
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
 const browser = await chromium.launch(launch);
+// Nothing leaves this machine, as in the other Live Challenge drivers: a request
+// anywhere but here is refused.
+const refuseOutside = (context) => context.route('**/*', (route) => (
+  /^(http|ws)s?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(route.request().url()) ? route.continue() : route.abort()
+));
 
 const failures = [];
 const check = (ok, label, detail = '') => {
@@ -54,15 +115,28 @@ const CASES = [
   { name: 'x-intercepts-none', query: 'kind=levelUpright&variant=twoLevel&question=xIntercept&tier=standard', buttons: ['Does Not Exist', 'Skip'], answer: 'Does Not Exist', right: /^Correct — neither line crosses the x-axis\.$/ },
 ];
 
-const open = async (device, query, extra = {}) => {
+const SECOND_LINE = 'svg.mm-rush-graph [data-mm-system-line="2"]';
+const open = async (device, query, extra = {}, timeout = 20_000) => {
   const context = await browser.newContext({ viewport: device.viewport, isMobile: device.isMobile, hasTouch: device.hasTouch, deviceScaleFactor: 2, ...extra });
+  await refuseOutside(context);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error?.message || error)));
-  await page.goto(`${ORIGIN}/tests/browser/systemsRushScreens.html?${query}`);
-  await page.waitForSelector('svg.mm-rush-graph [data-mm-system-line="2"]', { timeout: 20_000 });
+  await page.goto(`${ORIGIN}${PAGE}?${query}`, { timeout: Math.max(timeout, 30_000) });
+  await page.waitForSelector(SECOND_LINE, { timeout });
   return { context, page, errors };
 };
+
+// A cold dev server compiles the page on its first visit, and may reload it
+// once while it optimises dependencies: one visit first, given the time for
+// that, so no check below races it.
+try {
+  const { context } = await open(DEVICES[1], CASES[0].query, {}, 180_000);
+  await context.close();
+} catch (error) {
+  console.error(`The round screen never drew its two lines at ${ORIGIN}${PAGE}: ${error.message}`);
+  process.exit(1);
+}
 
 // Where a graph point is on the screen.
 const pixelOf = async (page, point) => page.evaluate(({ x, y }) => {
@@ -168,6 +242,7 @@ for (const device of DEVICES) {
 }
 
 await browser.close();
+stopVite();
 if (failures.length) {
   console.log(`\n${failures.length} failure(s)`);
   process.exit(1);

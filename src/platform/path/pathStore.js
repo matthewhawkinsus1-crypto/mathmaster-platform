@@ -15,6 +15,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase.js';
 import { normalizeClassPacing } from './curriculumPacing.js';
 import { normalizeWeeklyGoalConfig } from './weeklyPathGoal.js';
+import { createStudentWeeklyPath } from './studentWeeklyPath.js';
 
 export const PACING_DOC = 'classPacing';
 export const WEEKLY_GOAL_DOC = 'weeklyPathGoals';
@@ -359,6 +360,20 @@ export const resolveWeeklyPathGoalSnapshot = async (goal) => {
   const result = await call({ goal });
   return result?.data?.goal || null;
 };
+
+/**
+ * This page's answers about the signed-in student's week, shared by Home and
+ * My Math Path (studentWeeklyPath.js): App.jsx binds the student and class,
+ * the live Path session runtime notes the student's Path work.
+ */
+export const studentWeeklyPath = createStudentWeeklyPath({
+  client: {
+    goal: fetchStudentWeeklyPathGoalSnapshot,
+    resolve: resolveWeeklyPathGoalSnapshot,
+    completions: fetchMyWeeklyPathCompletions,
+    history: fetchMyWeeklyPathHistory,
+  },
+});
 
 export const fetchClassPacing = async () => {
   const snapshot = await getDoc(doc(db, 'settings', PACING_DOC));

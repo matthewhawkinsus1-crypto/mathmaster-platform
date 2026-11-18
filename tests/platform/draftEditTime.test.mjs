@@ -611,7 +611,11 @@ test('the draft hooks write back what they hold as not an edit, and judge their 
       `${file}: the write-back effect is not an edit`);
     const marks = source.match(/inputMarkRef\.current = studentInputMark\(\);/g) || [];
     assert.equal(marks.length, 2, `${file}: the mark is taken where the draft is read — on mount and on a key change`);
-    assert.match(source, /useState\(\(\) => \{[\s\S]*?inputMarkRef\.current = studentInputMark\(\);[\s\S]*?readQuestionDraft\(/);
+    // On mount the mark is taken, then the draft is read (through the
+    // module's check, checkedQuestionDraft.js, which reads it from storage):
+    // both inside the state initializer, in that order.
+    const initializer = source.slice(source.indexOf('useState(() => {'), source.indexOf('\n  });', source.indexOf('useState(() => {')));
+    assert.match(initializer, /inputMarkRef\.current = studentInputMark\(\);[\s\S]*\breturn cloneValue\(read(?:Checked)?QuestionDraft\(/, `${file}: the mark, then the read`);
     assert.doesNotMatch(source, /writeQuestionDraft\((storageKey|persistenceKey), (value|saved)\);/, `${file}: no write leaves the question unanswered`);
   }
   // A setter is an edit once the student has touched the page since that read,

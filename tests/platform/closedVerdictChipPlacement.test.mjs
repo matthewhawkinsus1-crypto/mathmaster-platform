@@ -65,6 +65,8 @@ test('the verdict chip is the first row of the question workspace, above the wor
   const figure = executableSource(read('src/components/common/EnlargeableFigure.jsx'));
   // (0px for both when the button has a row of its own at large text, and the chip starts below it anyway.)
   assert.match(figure, /const width = Math\.ceil\(opener\.offsetWidth\);/);
-  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-space', stacked \? '0px' : `\$\{width \+ OPENER_GAP\}px`\);/);
-  assert.match(figure, /surface\.style\.setProperty\('--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\)\}px`\);/);
+  assert.match(figure, /writeStyleVariable\(surface\.style, '--mm-work-view-opener-space', stacked \? '0px' : `\$\{width \+ OPENER_GAP\}px`\);/);
+  // Its height is the button's bottom edge (read with the other measurements, layoutWrites.js).
+  assert.match(figure, /const bottomEdge = \(\) => Math\.ceil\(opener\.offsetTop \+ opener\.offsetHeight\);/);
+  assert.match(figure, /writeStyleVariable\(surface\.style, '--mm-work-view-opener-bottom', stacked \? '0px' : `\$\{leavesItsRow \? bottomEdge\(\) : bottom\}px`\);/);
 });

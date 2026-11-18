@@ -50,7 +50,11 @@
  *      name plate (34px under the root's 26.1px line, inside a white border)
  *      read 1.30:1 where it is 4.80:1. What the border hid is read instead,
  *      the node's own background. An ancestor's border is still read: text
- *      that runs over one is on it.
+ *      that runs over one is on it. A stacked fraction's bar (MathLive's
+ *      .ML__frac-line) is drawn between its numerator and its denominator,
+ *      never behind either, so a numerator's box stops at the bar's top and a
+ *      denominator's at its bottom: the "6" of "Write 6/8 in lowest terms."
+ *      read 1.00:1 against its own bar, where it is 16.1:1 on white.
  *   3. The node's ratio is the WORST of text-vs-each-stop and text-vs-darkest /
  *      text-vs-lightest pixel. Required: 4.5:1, 3:1 for large text (>= 24px, or
  *      >= 18.66px bold), 3:1 for an icon glyph that is a control's only visible
@@ -426,6 +430,23 @@ export const measurePixels = async (page, index) => {
       const w = Math.min(window.innerWidth, r.right - 1) - x; const h = Math.min(window.innerHeight, r.bottom - 1) - y;
       if (w >= 1 && h >= 1) out.push({ x, y, width: w, height: h });
     };
+    // The bar of every stacked fraction a text is in (MathLive's .ML__frac-line, its own, not a nested fraction's).
+    const bars = (node) => {
+      const found = [];
+      for (let frac = node.parentElement?.closest('.ML__mfrac'); frac; frac = frac.parentElement?.closest('.ML__mfrac')) {
+        const own = [...frac.querySelectorAll('.ML__frac-line')].find((line) => line.closest('.ML__mfrac') === frac);
+        if (own) found.push(own.getBoundingClientRect());
+      }
+      return found;
+    };
+    // A numerator's box stops at the top of its bar, a denominator's at the bottom: the bar is drawn between them,
+    // never behind either, and their boxes, the font's whole height, reach over it.
+    const offTheBars = (r, lines) => lines.reduce((box, line) => {
+      if (line.right <= box.left || line.left >= box.right) return box;
+      return (box.top + box.bottom) / 2 < (line.top + line.bottom) / 2
+        ? { ...box, bottom: Math.min(box.bottom, line.top) }
+        : { ...box, top: Math.max(box.top, line.bottom) };
+    }, { left: r.left, top: r.top, right: r.right, bottom: r.bottom });
     if (el instanceof SVGElement) push(el.getBoundingClientRect());
     else {
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -433,7 +454,8 @@ export const measurePixels = async (page, index) => {
         if (!n.textContent.trim()) continue;
         const range = document.createRange();
         range.selectNodeContents(n);
-        for (const r of range.getClientRects()) push(r);
+        const lines = bars(n);
+        for (const r of range.getClientRects()) push(offTheBars(r, lines));
       }
       if (!out.length) push(el.getBoundingClientRect());
     }

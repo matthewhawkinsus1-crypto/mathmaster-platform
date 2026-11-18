@@ -10,6 +10,7 @@ import {
 import { generateRuntimeUUID } from '../utils/idUtils.js';
 import { toCanonicalKey } from '../utils/teksUtils.js';
 import { buildPathSessionRecap } from '../../functions/shared/pathSessionRecap.mjs';
+import { studentWeeklyPath } from '../platform/path/pathStore.js';
 
 // The live My Math Path runtime.
 //
@@ -97,12 +98,22 @@ const normalizePathCallableError = (caught, operation) => {
   return error;
 };
 
+// Starting a session, being issued a question and answering one change the
+// student's week: what Home and My Math Path hold of it was asked for before,
+// so it is asked for again (studentWeeklyPath.js), from when the call goes out
+// and again once it has landed, whatever it answered.
+const PATH_WORK = new Set(['startMyMathPathSession', 'issueNextQuestion', 'submitPathResponse']);
+
 const invokePathCallable = async (name, payload) => {
+  const work = PATH_WORK.has(name);
+  if (work) studentWeeklyPath.noteWork();
   try {
     const response = await callable(name)(payload);
     return response.data;
   } catch (caught) {
     throw normalizePathCallableError(caught, name);
+  } finally {
+    if (work) studentWeeklyPath.noteWork();
   }
 };
 

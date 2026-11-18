@@ -461,7 +461,10 @@ test('the class pack-up banner stands aside while the student is on their exit t
 
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
   const banner = region(app, 'const renderStudentPackUpNotice = (', 'const renderStudentWarmupBanner = () => {', 'the pack-up line');
-  assert.match(banner, /if \(packUp\.status !== 'active'\) return null;\s*if \(studentExtraTimeDolOpen\(\{ assignments, schedule: classSchedule, classId: user\.classId \|\| null, classPeriod: user\.classPeriod, nowValue: now \}\)\) return null;/);
+  // In the pack-up window the line stands aside while this student's own
+  // exit ticket is open; the check is kept until the lessons, the schedule,
+  // the class or the clock it reads change (App's render work).
+  assert.match(banner, /if \(packUp\.status !== 'active'\) return null;\s*if \(renderMemo\('packUpExtraTime', \[assignments, classSchedule, user\.classId, user\.classPeriod, now\], \(\) => studentExtraTimeDolOpen\(\{ assignments, schedule: classSchedule, classId: user\.classId \|\| null, classPeriod: user\.classPeriod, nowValue: now \}\)\)\) return null;/);
   const lifecycleImport = region(app, "import {\n  CLASS_PERIODS,", "} from './assignmentLifecycle';", 'the assignmentLifecycle import');
   assert.match(lifecycleImport, /\n {2}studentExtraTimeDolOpen,\n/);
 });
@@ -559,7 +562,8 @@ test('on-device Recovery, the finalize hint and the teacher roster take timing f
   assert.equal(opportunity(DISTRICT_DOUBLE_TIME, at(9, 33)).status, ORIGINAL_OPPORTUNITY.OPEN, 'a district multiplier keeps it open on the device too');
 
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  const discovery = region(app, 'studentRecoveryMinute * 60000,', 'const studentRecoverySummary = useMemo(', 'Recovery discovery');
+  // The summaries' inputs (worked out when a screen asks: appRenderWork.test.mjs).
+  const discovery = region(app, "const studentRecoverySummariesNow = () => renderMemo('recoverySummaries', [", '], () => (', 'Recovery summaries');
   assert.match(discovery, /user\?\.timingProfile, assignments/);
   const discoveryCall = app.slice(app.lastIndexOf('schedule: classSchedule,', app.indexOf('studentRecoveryMinute * 60000,')), app.indexOf('studentRecoveryMinute * 60000,'));
   assert.match(discoveryCall, /studentProfile: user\.timingProfile \|\| null,/);

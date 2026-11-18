@@ -1,6 +1,15 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import useEscapeToDismiss from '../../ui/useEscapeToDismiss.js';
-import { DOMAIN_STATE_FILLS, buildDomainReadiness, explainDomain } from '../../platform/ccmr/domainReadiness.js';
+import { DOMAIN_STATE_FILLS, DOMAIN_STATE_PRESENTATION, buildDomainReadiness, explainDomain } from '../../platform/ccmr/domainReadiness.js';
+import WheelHatches from './WheelHatches.jsx';
+import { wedgePaint, wheelSwatchStyle } from './wheelFills.js';
+
+// Every state the wheel draws, as its fill and colour (wheelFills.js, WCAG
+// 1.4.1): strong solid, developing hatched falling, a transfer gap
+// cross-hatched, recommended hatched rising, a prerequisite hatched level,
+// ready but not practised empty, and nothing matched yet empty inside a dashed
+// edge, as a contrast theme draws them and the list beside the wheel shows them.
+const STATES = Object.keys(DOMAIN_STATE_PRESENTATION).map((state) => ({ fill: DOMAIN_STATE_FILLS[state], colour: DOMAIN_STATE_PRESENTATION[state].color }));
 
 // One assessment's readiness, as a wheel.
 //
@@ -47,6 +56,8 @@ export const CCMRReadinessWheel = ({
   // (WCAG 1.4.13). It comes back when the pointer or focus reaches a slice.
   const clearFocused = useCallback(() => setFocused(null), []);
   useEscapeToDismiss(focused != null, clearFocused);
+  // The wheel's own pattern ids: two wheels on a page never share one.
+  const patternScope = `mm-readiness-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
   if (!domains.length) return null;
 
@@ -81,8 +92,11 @@ export const CCMRReadinessWheel = ({
           // fill (DOMAIN_STATE_FILLS; src/theme/forcedColors.css).
           data-mm-drawing=""
         >
+          <WheelHatches scope={patternScope} levels={STATES} />
           {segments.map(({ entry, start, end }) => {
             const isActive = entry.domainId === (focused || selectedDomainId);
+            // Its colour and its fill: hatched over the colour, or empty inside an edge.
+            const look = wedgePaint({ scope: patternScope, fill: DOMAIN_STATE_FILLS[entry.state], colour: entry.color });
             return (
               <g
                 key={entry.domainId}
@@ -103,11 +117,13 @@ export const CCMRReadinessWheel = ({
               >
                 <path
                   d={arcPath(center, center, inner, isActive ? outer + 6 : outer, start, end)}
-                  fill={entry.color}
+                  fill={look.paint}
                   opacity={entry.selectable ? (isActive ? 1 : 0.9) : 0.45}
-                  // Segment gaps are cut in the card's own color.
-                  style={{ stroke: 'var(--mm-surface)' }}
+                  // Segment gaps are cut in the card's own color; an empty one has an edge.
+                  style={{ stroke: look.edge || 'var(--mm-surface)' }}
                   strokeWidth="2"
+                  strokeDasharray={look.dash || undefined}
+                  data-wheel-fill={DOMAIN_STATE_FILLS[entry.state]}
                   // Highlight while it is the one described beside the wheel.
                   data-mm-plane-part={isActive ? 'held' : DOMAIN_STATE_FILLS[entry.state]}
                 />
@@ -147,7 +163,7 @@ export const CCMRReadinessWheel = ({
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             {domains.map((entry) => (
               <li key={entry.domainId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'calc(12 * var(--mm-px))', color: 'var(--mm-text)' }}>
-                <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: entry.color, opacity: entry.selectable ? 1 : 0.45, flexShrink: 0 }} data-mm-swatch={DOMAIN_STATE_FILLS[entry.state]} />
+                <span aria-hidden="true" style={{ width: 'calc(12 * var(--mm-px))', height: 'calc(12 * var(--mm-px))', borderRadius: 3, ...wheelSwatchStyle({ fill: DOMAIN_STATE_FILLS[entry.state], colour: entry.color }), opacity: entry.selectable ? 1 : 0.45, flexShrink: 0 }} data-mm-swatch={DOMAIN_STATE_FILLS[entry.state]} />
                 <span style={{ minWidth: 0 }}>
                   <strong>{entry.title}</strong> — {entry.label}
                 </span>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
@@ -142,6 +143,31 @@ const controlledMissMessage = (wrongCount) => {
   return 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.';
 };
 
+/*
+ * WHAT A SAVED SORT MAY RESTORE (toolDraftShape.js). A group is { id, name,
+ * rationale, itemIds }, and a group that is not one (null, a word, a group with
+ * no card list) threw on every load, because every group's cards are listed;
+ * it is dropped and the other groups come back as sorted. A sort into the
+ * teacher's categories always shows every category: one the draft lost comes
+ * back empty, in its place.
+ */
+const SORT_GROUP = s.record({
+  id: s.required(s.cell()),
+  name: s.required(s.text({ or: '' })),
+  rationale: s.required(s.text({ or: '' })),
+  itemIds: s.required(s.list(s.cell(), { or: [] })),
+});
+const normalizeSortGroups = draftNormalizer(s.list(SORT_GROUP, { min: 1 }));
+const categoryGroup = (category) => ({ id: String(category.id), name: String(category.label), rationale: '', itemIds: [] });
+const normalizeControlledGroups = (categories) => (saved) => {
+  const result = normalizeSortGroups(saved);
+  if (!Array.isArray(result.value)) return result;
+  const byId = new Map(result.value.map((group) => [String(group.id), group]));
+  const rebuilt = categories.map((category) => byId.get(String(category.id)) || categoryGroup(category));
+  const unchanged = rebuilt.length === result.value.length && rebuilt.every((group, index) => group === result.value[index]);
+  return unchanged ? result : { value: rebuilt, issues: [...result.issues, 'restored-categories'] };
+};
+
 const emptyGroups = (count) => Array.from({ length: count }, (_, index) => ({ id: `group-${index + 1}`, name: '', rationale: '', itemIds: [] }));
 
 export default function OpenSortBoard({ questionData = {}, onAction }) {
@@ -156,9 +182,9 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   const { controlled, categories, minGroups, maxGroups, rationaleMinLength, requireRationale } = settings;
   const [groups, setGroups] = usePersistentToolState('groups', () => (
     controlled
-      ? categories.map((category) => ({ id: String(category.id), name: String(category.label), rationale: '', itemIds: [] }))
+      ? categories.map(categoryGroup)
       : emptyGroups(minGroups)
-  ));
+  ), { normalize: controlled ? normalizeControlledGroups(categories) : normalizeSortGroups });
   const [selectedId, setSelectedId] = useState(null);
   // Speech, not work: the polite read-out of the last placement (A11Y-7).
   const [announcement, setAnnouncement] = useState('');
@@ -191,6 +217,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
     onRestore: restoreBoard,
     resetKey: questionUndoResetKey(questionData),
     persist: true,
+    draftFields: { groups: setGroups },
   });
 
   /*

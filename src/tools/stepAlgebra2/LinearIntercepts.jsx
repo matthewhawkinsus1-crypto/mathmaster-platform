@@ -3,6 +3,7 @@ import MathInput from '../../MathInput.jsx';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid, controlStep } from '../shared/ToolShell.jsx';
 import useToolSubmission from '../shared/useToolSubmission.js';
 import { InteractiveStandardEquation, ZERO_TOKEN_DIRECTIONS, ZeroVariableChoice } from './linearInterceptsConceptualUi.jsx';
@@ -23,6 +24,40 @@ import {
   shouldShowConceptRedirect,
   solverIsSolved,
 } from './linearInterceptsMath.js';
+
+/*
+ * WHAT A SAVED INTERCEPT SEARCH MAY RESTORE (toolDraftShape.js). Each of the two
+ * stages is the variable chosen and placed as 0, the one-variable equation
+ * being solved, its steps, and the point typed. A stage's step list that was
+ * not a list threw on every load (the steps are drawn); a damaged part of a
+ * stage is set aside the way an unanswered one reads, steps are kept up to the
+ * first damaged one, and a stage that is not one starts that stage again.
+ */
+const ZERO_VARIABLE = s.nullable(s.oneOf(['x', 'y']));
+const SOLVER_EQUATION = s.record({
+  zeroVariable: s.text(),
+  variable: s.required(s.text()),
+  coefficient: s.required(s.number()),
+  constant: s.required(s.number()),
+  right: s.required(s.number()),
+});
+const INTERCEPT_STAGE = s.record({
+  conceptualZeroChoice: ZERO_VARIABLE,
+  placedZeroVariable: ZERO_VARIABLE,
+  committed: s.boolean(),
+  solverState: s.nullable(SOLVER_EQUATION),
+  workHistory: s.list(s.record({
+    operation: s.text(),
+    operand: s.number(),
+    description: s.text(),
+    before: s.required(SOLVER_EQUATION),
+    after: s.required(SOLVER_EQUATION),
+  }), { untilInvalid: true }),
+  point: s.record({ x: s.cell(), y: s.cell() }),
+  completed: s.boolean(),
+  checked: s.boolean(),
+});
+const normalizeInterceptWork = draftNormalizer(s.record({ activeKind: s.oneOf(['x', 'y']), x: INTERCEPT_STAGE, y: INTERCEPT_STAGE }));
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
@@ -53,7 +88,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
   const feedbackTiming = INTERCEPT_FEEDBACK_TIMINGS.includes(questionData.feedbackTiming)
     ? questionData.feedbackTiming
     : 'delayed';
-  const [work, setWork] = usePersistentToolState('linearInterceptWork', initialInterceptWork);
+  const [work, setWork] = usePersistentToolState('linearInterceptWork', initialInterceptWork, { normalize: normalizeInterceptWork });
   const [operation, setOperation] = usePersistentToolState('linearInterceptOperation', 'divide');
   const [operand, setOperand] = usePersistentToolState('linearInterceptOperand', '');
   const [zeroArmed, setZeroArmed] = useState(false);

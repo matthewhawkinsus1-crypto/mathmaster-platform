@@ -49,6 +49,13 @@ import {
   toolWorkspaceFields,
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics.js';
+import { SCALAR_DRAFT_SHAPES, draftNormalizer, withoutPrototypeKeys } from './toolDraftShape.js';
+// The parsed-workspace cache and the segment name live on their own, so App's
+// "View as Student" can forget a preview's workspaces without this hook on a
+// student's first load (./toolDraftCache.js).
+import { TOOL_DRAFT_SEGMENT, toolDraftCache as stores } from './toolDraftCache.js';
+
+export { TOOL_DRAFT_SEGMENT, forgetAssignmentToolDrafts } from './toolDraftCache.js';
 
 /*
  * `${draftKey}:work:${scope}` — one entry per tool workspace per question.
@@ -61,9 +68,8 @@ import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics
  * the lifecycle: `removeQuestionDraftFamily(draftKey)` already clears
  * `draftKey` and everything under `draftKey:`, so a replacement question
  * retires this entry with the rest of the family and no new teardown path is
- * needed.
+ * needed. (TOOL_DRAFT_SEGMENT, `work`, is ./toolDraftCache.js's.)
  */
-export const TOOL_DRAFT_SEGMENT = 'work';
 export const DEFAULT_TOOL_DRAFT_SCOPE = 'tool';
 
 /*
@@ -121,13 +127,13 @@ const storedRecord = (store) => (store.fresh
   : store.record);
 
 /*
- * One parsed record per key, shared by every field of the tool showing it.
+ * One parsed record per key, shared by every field of the tool showing it
+ * (`stores`, imported above from ./toolDraftCache.js).
  *
  * Without it each field would re-read and re-parse the same JSON, and — worse —
  * two fields writing in the same tick would each serialise from their own stale
  * copy and the second would erase the first.
  */
-const stores = new Map();
 
 /*
  * Bounded. A long assignment visits every question, and each visit parses one
@@ -302,18 +308,30 @@ const resolveInitial = (initialValue) => (typeof initialValue === 'function' ? i
  * where its card map belonged, on every reload and every device, because the
  * draft was still there each time.
  *
- * Two checks, both before the tool sees the value:
+ * The checks, all before the tool sees the value:
  *
  *   - the field's own `normalize` (usePersistentToolState's option), when the
  *     tool gives one. It knows the question — which cards exist, which slots —
  *     so it can keep the valid part of a draft and drop the rest. It returns
- *     `{ value, issues }`.
+ *     `{ value, issues }`; a tool builds it from the shared pieces in
+ *     toolDraftShape.js (`draftNormalizer(shape)`). Every structured field in
+ *     src/tools has one, except the two 3×3 reduction states, which their
+ *     tools repair on every read (tests/platform/toolDraftRestoreSweep.test.mjs).
+ *     A `value` of `undefined` means nothing could be kept (JSON never stores
+ *     `undefined`), and the field starts fresh.
  *   - for EVERY draft-backed field, the collection-shape guard: a field that
  *     starts as a map ({}) restores only a map, and one that starts as a list
  *     ([]) only a list. Every such field in src/tools keeps its kind for life
  *     (no setter assigns one a scalar), so anything else is damage, and the
- *     field starts from its initial value instead. Scalar fields are left to
- *     the tool: `null` becoming a number is an ordinary edit there.
+ *     field starts from its initial value instead.
+ *   - for EVERY draft-backed field, the same guard for the scalar kinds
+ *     (SCALAR_DRAFT_SHAPES): a field that starts as text restores text (an
+ *     older build's number as its digits; text longer than the backup keeps
+ *     is cut to MAX_DRAFT_TEXT_LENGTH), one that starts as true / false a
+ *     boolean, and one that starts as a number a number or what was typed into
+ *     its box. A field that starts as `null` is left to the tool's own
+ *     normalize: `null` becoming a number or a point is an ordinary edit there.
+ *   - no `__proto__` key at any depth (withoutPrototypeKeys).
  *
  * `restored` is false when the initial value is used. `issues` is empty for a
  * clean draft. The stored record is not rewritten here: the next real edit
@@ -322,6 +340,7 @@ const resolveInitial = (initialValue) => (typeof initialValue === 'function' ? i
  */
 const isPlainMap = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const collectionKind = (value) => (Array.isArray(value) ? 'list' : isPlainMap(value) ? 'map' : null);
+const SCALAR_KIND_NAMES = Object.freeze({ string: 'text', boolean: 'boolean', number: 'number' });
 
 export const hydrateToolDraftField = ({ record, field, initialValue, normalize = null } = {}) => {
   const fallback = () => resolveInitial(initialValue);
@@ -343,19 +362,46 @@ export const hydrateToolDraftField = ({ record, field, initialValue, normalize =
     }
   }
   const initial = fallback();
+  if (value === undefined) return { value: initial, restored: false, issues: issues.length ? issues : ['no-value'] };
   const expected = collectionKind(initial);
   if (expected && collectionKind(value) !== expected) {
     return { value: initial, restored: false, issues: [...issues, `expected-${expected}`] };
   }
+  const note = (issue) => { if (!issues.includes(issue)) issues.push(issue); };
+  const scalar = SCALAR_DRAFT_SHAPES[typeof initial];
+  if (scalar) {
+    const checked = draftNormalizer(scalar)(value);
+    if (checked.value === undefined) {
+      return { value: initial, restored: false, issues: [...issues, `expected-${SCALAR_KIND_NAMES[typeof initial]}`] };
+    }
+    value = checked.value;
+    checked.issues.forEach(note);
+  }
+  value = withoutPrototypeKeys(value, note);
   return { value, restored: true, issues };
 };
+
+/*
+ * THE SAME CHECK FOR A VALUE THAT COMES BACK ANOTHER WAY.
+ *
+ * A draft is not the only saved copy of a field. The Undo history this device
+ * keeps across a reload (persistedMathUndo.js) holds the field's earlier
+ * values, in the same storage and as open to damage, and an Undo writes one
+ * back through the field's setter, which checks nothing. So each draft-backed
+ * setter is noted here with its field and the refs that hold the field's
+ * latest initial value and normalize, and the Undo reads a saved value back
+ * through hydrateToolDraftField with them: exactly what the field restores it
+ * as (useMathUndoHistory.js, restoreAsDraftField). Only the note is kept in
+ * this module, which every student's first load carries.
+ */
+export const draftFieldOfSetter = new WeakMap();
 
 /*
  * Say once, without the student, that a draft had to be repaired. The key
  * names the student, so only the assignment, the question's position and the
  * field go into the diagnostic (clientDiagnostics.js scrubs and bounds it).
  */
-const reportDraftRepair = (key, field, issues) => {
+export const reportDraftRepair = (key, field, issues) => {
   if (!issues.length) return;
   const identity = parseQuestionDraftKey(key);
   const where = identity
@@ -404,13 +450,9 @@ export const forgetToolDrafts = (draftKey) => {
   return forgotten;
 };
 
-/**
- * Forget every cached tool workspace for one student/assignment.
- *
- * localStorage can be cleared independently of this module-level parsed cache
- * (teacher "Restart Preview Fresh" is the important case). Clearing only disk
- * and leaving this cache alive resurrects the supposedly deleted answers on
- * the next mount.
+/*
+ * Forgetting every cached tool workspace for one student/assignment
+ * (`forgetAssignmentToolDrafts`, re-exported above) is ./toolDraftCache.js's.
  */
 /**
  * Forget every cached tool workspace under a whole draft FAMILY — a secure
@@ -424,24 +466,6 @@ export const forgetToolDraftFamily = (prefix) => {
   let forgotten = 0;
   [...stores.keys()].forEach((key) => {
     if (key !== prefix && !key.startsWith(`${prefix}:`)) return;
-    const store = stores.get(key);
-    if (store?.timer !== null && store?.timer !== undefined) clearTimeout(store.timer);
-    stores.delete(key);
-    forgotten += 1;
-  });
-  return forgotten;
-};
-
-export const forgetAssignmentToolDrafts = ({ studentId, assignmentId } = {}) => {
-  const wantedStudent = String(studentId ?? '');
-  const wantedAssignment = String(assignmentId ?? '');
-  if (!wantedStudent || !wantedAssignment) return 0;
-  let forgotten = 0;
-  [...stores.keys()].forEach((key) => {
-    const identity = parseQuestionDraftKey(key);
-    if (!identity) return;
-    if (identity.studentId !== wantedStudent || identity.assignmentId !== wantedAssignment) return;
-    if (!String(identity.toolSuffix || '').startsWith(`${TOOL_DRAFT_SEGMENT}:`)) return;
     const store = stores.get(key);
     if (store?.timer !== null && store?.timer !== undefined) clearTimeout(store.timer);
     stores.delete(key);
@@ -586,6 +610,9 @@ export default function usePersistentToolState(field, initialValue, options = {}
       return resolved;
     });
   }, [field, coalesceMs]);
+  // The note an Undo reads a saved value back with (draftFieldOfSetter): the
+  // refs, as the initial value and normalize usually close over the question.
+  if (!draftFieldOfSetter.has(setPersistentValue)) draftFieldOfSetter.set(setPersistentValue, [field, initialRef, normalizeRef]);
 
   return [value, setPersistentValue];
 }

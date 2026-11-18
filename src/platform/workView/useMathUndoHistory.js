@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useToolDraftScope } from '../../tools/shared/usePersistentToolState.js';
-import { persistedUndoKey, readPersistedUndo, writePersistedUndo } from './persistedMathUndo.js';
+import {
+  draftFieldOfSetter, hydrateToolDraftField, reportDraftRepair, useToolDraftScope,
+} from '../../tools/shared/usePersistentToolState.js';
+import { persistedUndoKey, readPersistedUndo, repairUndoStep, writePersistedUndo } from './persistedMathUndo.js';
 import {
   EMPTY_MATH_UNDO_STACK,
   MATH_UNDO_LIMIT,
@@ -81,6 +83,40 @@ export const questionUndoResetKey = (questionData) => (
 
 export const useWorkViewUndoRegistration = () => useContext(WorkViewUndoContext);
 
+/*
+ * What a draft-backed setter's field restores `value` as: hydrateToolDraftField
+ * with the field's own initial value and normalize, exactly as a reload reads
+ * its draft (usePersistentToolState.js, draftFieldOfSetter). `null` for a
+ * function that is not the setter of a draft-backed field.
+ */
+const restoreAsDraftField = (setter, value) => {
+  const note = draftFieldOfSetter.get(setter);
+  if (!note) return null;
+  const [field, initialRef, normalizeRef] = note;
+  return hydrateToolDraftField({ record: { [field]: value }, field, initialValue: initialRef.current, normalize: normalizeRef.current });
+};
+
+/*
+ * Each key of a saved step, checked as the draft-backed field it is restored
+ * into (persistedMathUndo.js, repairUndoStep): `{ key: setter }`, the setter
+ * usePersistentToolState returned for that field, or `{ key: [setter, name] }`
+ * when the key is the `name` property of that field's value.
+ */
+const draftFieldChecks = (draftFields) => Object.fromEntries(Object.entries(draftFields || {}).map(([key, target]) => {
+  const [setter, name = null] = Array.isArray(target) ? target : [target];
+  if (name === null) return [key, (value) => restoreAsDraftField(setter, value)];
+  return [key, (value) => {
+    const result = restoreAsDraftField(setter, { [name]: value });
+    if (!result?.restored) return result;
+    const kept = result.value && Object.prototype.hasOwnProperty.call(result.value, name) ? result.value[name] : undefined;
+    return kept === undefined ? { ...result, value: undefined, restored: false } : { ...result, value: kept };
+  }];
+}));
+const undoStepRepair = (draftFields) => {
+  const checks = draftFieldChecks(draftFields);
+  return (step) => repairUndoStep(step, checks);
+};
+
 export function useActiveUndoOwner({ id, active = true, priority = 0, controller }) {
   const register = useWorkViewUndoRegistration();
   useEffect(() => {
@@ -126,10 +162,22 @@ export default function useMathUndoHistory({
   // device and size-capped — see persistedMathUndo.js for why it must never
   // share the synced work record.
   persist = false,
+  // With `persist`: the usePersistentToolState setter each key of `state` is
+  // restored through ({ key: setter }, or [setter, name] for one property of
+  // that field's value). A saved step is read back through those fields'
+  // checks, as their draft is, so a damaged step is repaired or skipped and
+  // never reaches the tool (persistedMathUndo.js, repairUndoStep).
+  draftFields = null,
 }) {
   const draftScope = useToolDraftScope();
   const persistKey = persist ? persistedUndoKey(draftScope?.key, ownerId) : null;
-  const [initialStack] = useState(() => readPersistedUndo(persistKey, { resetKey, state, limit }));
+  const [initialStack] = useState(() => readPersistedUndo(persistKey, {
+    resetKey,
+    state,
+    limit,
+    repair: undoStepRepair(draftFields),
+    onRepair: ({ issues }) => reportDraftRepair(persistKey, `Undo history (${ownerId})`, issues),
+  }));
   const stackRef = useRef(initialStack);
   const save = useCallback((stack, current) => {
     if (persistKey) writePersistedUndo(persistKey, { resetKey, state: current, stack });

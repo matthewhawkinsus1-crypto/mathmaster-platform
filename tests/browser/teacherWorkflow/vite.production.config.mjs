@@ -21,19 +21,25 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import harness from './vite.config.mjs';
+import { preloadOnlyWhatIsMissing } from '../../../scripts/lib/modulePreload.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
+// As vite.config.js: each import()'s preload list names only the files not
+// already loaded when it runs (scripts/lib/modulePreload.mjs).
+const preload = preloadOnlyWhatIsMissing();
 
 export default defineConfig({
   ...harness,
   // Production mode even when a caller's shell sets NODE_ENV for its tools.
   mode: 'production',
+  plugins: [...harness.plugins, preload.plugin],
   resolve: { ...harness.resolve, dedupe: ['mathjs'] },
   build: {
     outDir: path.resolve(root, process.env.OUT_DIR || 'dist-harness'),
     emptyOutDir: true,
     sourcemap: 'hidden',
+    modulePreload: { resolveDependencies: preload.resolveDependencies },
     rollupOptions: { input: { harness: path.join(here, 'index.html') } },
   },
 });

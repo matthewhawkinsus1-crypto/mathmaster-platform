@@ -6,7 +6,7 @@
 //
 // .github/workflows/student-pass3-emulator-journeys.yml runs its drivers
 // (testCycleRichToolQa, testCycleLifecycleQa, liveChallengeShellQa,
-// graphFeatureRushGame, lineGraphGame) on a pull request only when their files are in the
+// graphFeatureRushGame, lineGraphGame, systemsRushScreens) on a pull request only when their files are in the
 // workflow's area
 // (scripts/lib/ciAreas.mjs, which ci.yml reads), and nightly. A file a driver
 // loads that no pattern reaches is a change that skips the journeys, and its
@@ -63,6 +63,13 @@ const DRIVERS = [
     config: 'tests/browser/emulator/vite.bridge.config.mjs',
     entries: ['/tests/browser/graphFeatureRushStudentMain.jsx', '/tests/browser/graphFeatureRushTeacherMain.jsx'],
   },
+  {
+    // S5: Systems of Equations Rush's round screen, on the plain dev server
+    // (no emulator, no bridge).
+    driver: 'tests/browser/systemsRushScreens.mjs',
+    config: 'vite.config.js',
+    entries: ['/tests/browser/systemsRushScreensMain.jsx'],
+  },
 ];
 
 /** Files a driver loads in node, read from its own imports. */
@@ -80,6 +87,9 @@ const clientGraph = async ({ config, entries }) => {
   const { createServer } = await import(path.join(repo, 'node_modules/vite/dist/node/index.js'));
   const server = await createServer({
     configFile: path.join(repo, config),
+    // The bridge configs name the repository as their root; the plain config
+    // takes the working directory, so name it here for every driver.
+    root: repo,
     server: { middlewareMode: true, hmr: false, watch: null },
     logLevel: 'silent',
     optimizeDeps: { noDiscovery: true, include: [] },

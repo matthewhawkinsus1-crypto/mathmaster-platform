@@ -1,16 +1,12 @@
 import { CONTRACT_SLICES, buildContractSlice } from './authoringContract.js';
 import { compileAuthoringIntentV5 } from './authoringIntentV5.js';
-import { HONORS_DEPTH_REQUIRED } from '../rigor/courseRigor.js';
+import {
+  HONORS_CHECK_LABELS,
+  HONORS_DEPTH_AREAS,
+  HONORS_DEPTH_REQUIRED,
+  inspectHonorsRigor,
+} from '../rigor/courseRigor.js';
 const clean = (value) => String(value ?? '').trim();
-
-const MISSING_LABELS = Object.freeze({
-  coreTeks: 'Core TEKS alignment',
-  higherOrderReasoning: 'higher-order reasoning',
-  multipleRepresentations: 'multiple representations',
-  justification: 'explanation / justification',
-  modelingApplication: 'modeling / application',
-  ccmrEnrichment: 'audited CCMR Practice',
-});
 
 const sectionQuestions = (section = {}) => (
   Array.isArray(section?.questions) ? section.questions : []
@@ -135,7 +131,7 @@ export const nonCcmrHonorsReady = (honorsReport = {}) => Boolean(
 
 export const honorsMissingLabels = (missing = []) => (
   (Array.isArray(missing) ? missing : [])
-    .map((key) => MISSING_LABELS[key] || clean(key))
+    .map((key) => HONORS_CHECK_LABELS[key] || clean(key))
     .filter(Boolean)
 );
 
@@ -144,10 +140,54 @@ export const nonCcmrHonorsMissing = (honorsReport = {}) => (
     .filter((key) => key !== 'ccmrEnrichment')
 );
 
+// The listed gaps a candidate left open. It words a refusal; it is not a
+// reason for one (judgeHonorsDepthRepair).
 export const unresolvedRequestedHonorsGaps = (requestedMissing = [], candidateReport = {}) => {
   const requested = nonCcmrHonorsMissing({ missing: requestedMissing });
   const candidateMissing = new Set(nonCcmrHonorsMissing(candidateReport));
   return requested.filter((key) => candidateMissing.has(key));
+};
+
+// "three of the four", from the rule's own numbers (courseRigor.js).
+const NUMBER_WORDS = Object.freeze(['no', 'one', 'two', 'three', 'four', 'five', 'six']);
+const numberWord = (count) => NUMBER_WORDS[count] || String(count);
+const DEPTH_RULE_WORDS = `${numberWord(HONORS_DEPTH_REQUIRED)} of the ${numberWord(HONORS_DEPTH_AREAS.length)}`;
+
+/*
+ * WHETHER A REPAIRED CANDIDATE IS TAKEN: THE HONORS CHECK'S OWN VERDICT.
+ *
+ * A repair used to be taken only when it resolved every gap the request
+ * listed. Honors needs three of the four depth areas, higher-order reasoning
+ * among them (courseRigor.js), so an assignment one area short is listed as
+ * missing two, and either would do. A candidate that supplied one passed the
+ * Honors check and was refused all the same ("did not resolve the Honors
+ * gap(s) it was asked to repair: multiple representations"): the teacher was
+ * told the repair had failed for an assignment Review would have accepted.
+ *
+ * The candidate is now judged by inspectHonorsRigor, the check Review and
+ * the import check read: Core TEKS, higher-order reasoning and the depth
+ * rule. Its CCMR target is left to the Honors version, as it always was
+ * here: that version sources audited Practice and judges it in its own
+ * blocker. A candidate the check fails is refused with the message it always
+ * had: the listed gaps it left open or, when it closed every one and still
+ * fails, what it lacks.
+ *
+ * `questions` are the candidate's compiled questions; `requestedMissing` is
+ * what the request listed (nonCcmrHonorsMissing of the report it was built
+ * from). Returns the check's report, and the message when it is refused.
+ */
+export const judgeHonorsDepthRepair = ({
+  questions = [],
+  requestedMissing = [],
+  sourceLabel = 'AI',
+} = {}) => {
+  const report = inspectHonorsRigor(questions, { allowNarrowCheckpoint: true, ccmrTargetRequired: false });
+  if (report.isHonorsReady) return { accepted: true, report, message: '' };
+  const unresolvedRequested = unresolvedRequestedHonorsGaps(requestedMissing, report);
+  const message = unresolvedRequested.length
+    ? `${sourceLabel} did not resolve the Honors gap(s) it was asked to repair: ${honorsMissingLabels(unresolvedRequested).join(', ')}. The original assignment was kept unchanged.`
+    : `${sourceLabel} could not safely resolve enough Honors depth: ${honorsMissingLabels(nonCcmrHonorsMissing(report)).join(', ')}. Honors requires Core TEKS, DOK 3+ reasoning, and at least ${DEPTH_RULE_WORDS} depth dimensions. The original assignment was kept unchanged.`;
+  return { accepted: false, report, message };
 };
 
 /**
@@ -338,7 +378,7 @@ export const buildHonorsDepthAiRepairRequest = ({
     '',
     'This request is portable: paste it into ChatGPT, Claude, Gemini, or another capable AI.',
     '',
-    'Repair the current assignment only enough to satisfy the listed Honors depth gaps.',
+    'Repair the current assignment only enough to meet the Honors readiness rule in the repair contract below.',
     'Return exactly one MathMaster Assignment V5 JSON object and nothing else.',
     'The object MUST contain schemaVersion, assignment, and sections. Assignment-level delivery/support/output policies are intentionally omitted from the repair packet because MathMaster preserves them automatically.',
     '',
@@ -355,8 +395,9 @@ export const buildHonorsDepthAiRepairRequest = ({
     '- You may add AT MOST ONE new Honors extension question, and only to Classwork or Practice, if needed to supply missing higher-order depth.',
     '- A new extension must stay on the same lesson TEKS and require genuine reasoning through multiple representations, explanation/justification, or modeling/application as needed. Keep DOK and difficulty distinct.',
     '- Author a NEW extension as V5 mathematical intent: include studentActions and the mathematical data those actions need. Do NOT add type, toolId, questionId, functionSpec, analysisRequests, workflow, or renderer plumbing to the new extension; MathMaster compiles it locally.',
-    '- Honors readiness requires Core TEKS, DOK 3+ reasoning, and at least three of the four depth dimensions (multiple representations, justification, modeling/application, higher-order reasoning). Do not force an unrelated fourth dimension just to satisfy a checklist.',
-    '- Every non-CCMR gap listed at the top of this repair request MUST be resolved by the returned candidate. MathMaster rechecks those exact requested gaps after compilation; reaching the overall 3-of-4 threshold while leaving a requested gap unresolved is not an acceptable repair.',
+    `- Honors readiness requires Core TEKS, DOK 3+ reasoning, and at least ${DEPTH_RULE_WORDS} depth dimensions (multiple representations, justification, modeling/application, higher-order reasoning). Do not force an unrelated fourth dimension just to satisfy a checklist.`,
+    // What judgeHonorsDepthRepair takes: the rule, not every listed gap.
+    `- The returned candidate MUST meet that readiness rule after compilation. MathMaster rechecks the rule itself, not each gap listed at the top of this repair request: a listed Core TEKS or higher-order reasoning gap MUST be resolved, while the other listed gaps need resolving only until the candidate has ${DEPTH_RULE_WORDS} depth dimensions. Leaving one of those unresolved once the rule is met is an acceptable repair.`,
     '- If multiple representations is listed as missing, do not satisfy it only by mentioning equation forms in prose/card text. Author structured V5 representation intent that MathMaster can inspect after compilation, such as connectRepresentations/findRepresentationMismatch with representation sets, connectLinearRepresentations with a structured source, or an item that actually contains two visible representation structures (for example table + graph/function).',
     '- Do not fabricate SAT, ACT, TSIA2, or ASVAB provenance. Audited CCMR Practice is sourced separately from MathMaster Fidelity V2.1 at publish time.',
     '- Do not add assignment-level delivery, grading, support, evidence, PDF, Classroom, or publication settings. MathMaster keeps those from the reviewed source.',

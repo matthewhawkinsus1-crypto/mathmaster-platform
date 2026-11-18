@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { preloadOnlyWhatIsMissing } from './scripts/lib/modulePreload.mjs'
 
 /*
  * A BUILD MUST BE ABLE TO NAME ITSELF.
@@ -28,12 +29,19 @@ const fillBuildIdentity = () => {
 // https://vite.dev/config/
 export default defineConfig(() => {
   fillBuildIdentity()
+  // Each import()'s preload list names only files not already loaded when it
+  // runs (scripts/lib/modulePreload.mjs): the rest were bytes on every
+  // student's first load that told the browser nothing.
+  const preload = preloadOnlyWhatIsMissing()
   return {
-    plugins: [react()],
-    // dist/.vite/manifest.json: what each chunk loads, for the student
-    // first-load budget (scripts/check-first-load-budget.mjs). Hosting ignores
-    // dot-directories, so it is never deployed.
-    build: { manifest: true },
+    plugins: [react(), preload.plugin],
+    build: {
+      // dist/.vite/manifest.json: what each chunk loads, for the student
+      // first-load budget (scripts/check-first-load-budget.mjs). Hosting ignores
+      // dot-directories, so it is never deployed.
+      manifest: true,
+      modulePreload: { resolveDependencies: preload.resolveDependencies },
+    },
     resolve: {
       // The shared graders under functions/shared import mathjs, and so does
       // the browser's own code. When a developer has installed the Functions

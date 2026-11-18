@@ -1,0 +1,470 @@
+{
+  "about": "Workspace drafts recorded in Chromium from every registry tool scene of tests/platform/helpers/toolDraftRender.mjs: a student working each tool (typing, choosing, plotting, checking), the capture journeys of tests/browser/captureToolResponses.mjs and captureRegistryToolResponses.mjs, the draft-persistence scenes edits, and the systems workspace solved by tests/browser/systemsWorkspaceDriver.mjs (substitution, elimination, back-substitution, verification, a special case). Each is a valid draft: toolDraftDamagedRestore.test.mjs asserts it restores exactly as saved. All content is synthetic.",
+  "scenes": {
+    "extra:ax32-locate": [
+      {"dimensions":{"rows":"-2/3","cols":"-2/3"},"targets":{"n1":{"row":"-2/3","col":"-2/3"}}},
+      {"dimensions":{"rows":"3","cols":"3"},"targets":{"n1":{"row":"3","col":"3"}}},
+      {"dimensions":{"rows":"x+1","cols":"x+1"},"targets":{"n1":{"row":"x+1","col":"x+1"}}}
+    ],
+    "extra:complexPlaneLab-division": [
+      {"conjugateRe":"-2/3","conjugateIm":"-2/3","real":"-2/3","imaginary":"-2/3"},
+      {"conjugateRe":"3","conjugateIm":"3","real":"3","imaginary":"3"},
+      {"conjugateRe":"x+1","conjugateIm":"x+1","real":"x+1","imaginary":"x+1"}
+    ],
+    "extra:complexPlaneLab-features": [
+      {"magnitudeAnswer":"-2/3","conjugateRe":"-2/3","conjugateIm":"-2/3"},
+      {"magnitudeAnswer":"3","conjugateRe":"3","conjugateIm":"3"},
+      {"magnitudeAnswer":"x+1","conjugateRe":"x+1","conjugateIm":"x+1"}
+    ],
+    "extra:complexPlaneLab-operations": [
+      {"real":"-2/3","imaginary":"-2/3"},
+      {"real":"3","imaginary":"3"},
+      {"real":"x+1","imaginary":"x+1"}
+    ],
+    "extra:complexPlaneLab-powers": [
+      {"real":"-2/3","imaginary":"-2/3","magnitude":"-2/3"},
+      {"real":"3","imaginary":"3","magnitude":"3"},
+      {"real":"x+1","imaginary":"x+1","magnitude":"x+1"}
+    ],
+    "extra:complexPlaneLab-quadraticRoots": [
+      {"r1Re":"-2/3","r1Im":"-2/3","r2Re":"-2/3","r2Im":"-2/3"},
+      {"r1Re":"3","r1Im":"3","r2Re":"3","r2Im":"3"},
+      {"r1Re":"x+1","r1Im":"x+1","r2Re":"x+1","r2Im":"x+1"}
+    ],
+    "extra:exponentialLogBridge-composition": [
+      {"inverseAfterForward":"-2/3","forwardAfterInverse":"-2/3"},
+      {"inverseAfterForward":"3","forwardAfterInverse":"3"},
+      {"inverseAfterForward":"x+1","forwardAfterInverse":"x+1"}
+    ],
+    "extra:exponentialLogBridge-equivalentForms": [
+      {"logAnswer":"-2/3","expAnswer":"-2/3"},
+      {"logAnswer":"3","expAnswer":"3"},
+      {"logAnswer":"x+1","expAnswer":"x+1"}
+    ],
+    "extra:exponentialLogBridge-solveExponential": [
+      {"exponentAnswer":"-2/3","xAnswer":"-2/3"},
+      {"exponentAnswer":"3","xAnswer":"3"},
+      {"exponentAnswer":"x+1","xAnswer":"x+1"}
+    ],
+    "extra:exponentialLogBridge-solveLogarithmic": [
+      {"argumentAnswer":"-2/3","xAnswer":"-2/3"},
+      {"argumentAnswer":"3","xAnswer":"3"},
+      {"argumentAnswer":"x+1","xAnswer":"x+1"}
+    ],
+    "extra:functionOperationsLab-default": [
+      {"responses":{"sum":"-2/3","difference":"-2/3","product":"-2/3","quotient":"-2/3"},"restrictionResponse":"-2/3"},
+      {"responses":{"sum":"3","difference":"3","product":"3","quotient":"3"},"restrictionResponse":"3"},
+      {"responses":{"sum":"x+1","difference":"x+1","product":"x+1","quotient":"x+1"},"restrictionResponse":"x+1"},
+      {"responses":{"sum":"3x-1","difference":"","product":"","quotient":""}},
+      {"responses":{"sum":"3x-1","difference":"x+7","product":"","quotient":""}},
+      {"responses":{"sum":"3x-1","difference":"x+7","product":"2x^2-5x-12","quotient":""}},
+      {"responses":{"sum":"3x-1","difference":"x+7","product":"2x^2-5x-12","quotient":"\\frac{\\left(2x+3\\right)}{\\left(x-4\\right)}"}},
+      {"responses":{"sum":"3x-1","difference":"x+7","product":"2x^2-5x-12","quotient":"\\frac{\\left(2x+3\\right)}{\\left(x-4\\right)}"},"restrictionResponse":"4"}
+    ],
+    "extra:inverseCompositionLab-deriveInverse": [
+      {"derivation":{"phase":"swapped","left":{"x":1,"y":0,"c":0},"right":{"x":0,"y":2,"c":3},"inverse":null,"history":[{"phase":"original","left":{"x":0,"y":1,"c":0},"right":{"x":2,"y":0,"c":3},"inverse":null}]}},
+      {"derivation":{"phase":"working","left":{"x":4,"y":0,"c":0},"right":{"x":0,"y":8,"c":12},"inverse":null,"history":[{"phase":"original","left":{"x":0,"y":1,"c":0},"right":{"x":2,"y":0,"c":3},"inverse":null},{"phase":"swapped","left":{"x":1,"y":0,"c":0},"right":{"x":0,"y":2,"c":3},"inverse":null}]},"operand":"","operation":"multiply"},
+      {"derivation":{"phase":"working","left":{"x":1,"y":0,"c":0},"right":{"x":0,"y":2,"c":3},"inverse":null,"history":[{"phase":"original","left":{"x":0,"y":1,"c":0},"right":{"x":2,"y":0,"c":3},"inverse":null},{"phase":"swapped","left":{"x":1,"y":0,"c":0},"right":{"x":0,"y":2,"c":3},"inverse":null},{"phase":"working","left":{"x":4,"y":0,"c":0},"right":{"x":0,"y":8,"c":12},"inverse":null}]},"operand":"","operation":"divide"}
+    ],
+    "extra:journey-choice-2x2": [
+      {"method":"substitution"},
+      {"method":"substitution","selection":{"equationIndex":0,"variable":"x"},"isolation":{"expression":"-y + 5","tokenExpression":"-y + 5","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"x","targetEquationIndex":1,"equationText":"(-y + 5) - y = 1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"method":"substitution","selection":{"equationIndex":0,"variable":"x"},"isolation":{"expression":"-y + 5","tokenExpression":"-y + 5","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"x","targetEquationIndex":1,"equationText":"(-y + 5) - y = 1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":"y","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"method":"substitution","selection":{"equationIndex":0,"variable":"x"},"isolation":{"expression":"-y + 5","tokenExpression":"-y + 5","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"x","targetEquationIndex":1,"equationText":"(-y + 5) - y = 1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":"y","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":0},"secondSolved":{"variable":"x","value":3,"expression":"3"},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"method":"substitution","selection":{"equationIndex":0,"variable":"x"},"isolation":{"expression":"-y + 5","tokenExpression":"-y + 5","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"x","targetEquationIndex":1,"equationText":"(-y + 5) - y = 1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":"y","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":0},"secondSolved":{"variable":"x","value":3,"expression":"3"},"verification":{"0":{"placed":{"x":true,"y":true},"leftAnswer":"5","rightAnswer":"","checked":true,"valid":true},"1":{"placed":{"x":true,"y":true},"leftAnswer":"1","rightAnswer":"","checked":true,"valid":true}}}
+    ],
+    "extra:journey-elim-2x2": [
+      {"selection":{"equationIndex":null,"variable":"x"},"isolation":{"expression":null,"tokenExpression":null,"simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":null,"targetEquationIndex":null,"equationText":null},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":null,"variable":"x"},"isolation":{"expression":null,"tokenExpression":null,"simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":null,"targetEquationIndex":null,"equationText":null},"multipliers":{"0":"1","1":""},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":null,"variable":"x"},"isolation":{"expression":null,"tokenExpression":null,"simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":null,"targetEquationIndex":null,"equationText":null},"multipliers":{"0":"1","1":"x+1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":null,"variable":"y"},"isolation":{"expression":null,"tokenExpression":null,"simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":null,"targetEquationIndex":null,"equationText":null},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":"add","attempts":1,"coefficients":{"a":4,"b":0,"c":8},"text":"4x = 8","pendingCoefficients":null,"cancelledRows":{"0":true,"1":true},"cancellationConfirmed":true,"coefficientAnswer":"4x","constantAnswer":"8","combinationChecked":true,"combinationValid":true},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":null,"variable":"y"},"isolation":{"expression":null,"tokenExpression":null,"simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":null,"targetEquationIndex":null,"equationText":null},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":"add","attempts":1,"coefficients":{"a":4,"b":0,"c":8},"text":"4x = 8","pendingCoefficients":null,"cancelledRows":{"0":true,"1":true},"cancellationConfirmed":true,"coefficientAnswer":"4x","constantAnswer":"8","combinationChecked":true,"combinationValid":true},"firstSolved":{"variable":"x","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":null,"variable":"y"},"isolation":{"expression":null,"tokenExpression":null,"simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":null,"targetEquationIndex":null,"equationText":null},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":"add","attempts":1,"coefficients":{"a":4,"b":0,"c":8},"text":"4x = 8","pendingCoefficients":null,"cancelledRows":{"0":true,"1":true},"cancellationConfirmed":true,"coefficientAnswer":"4x","constantAnswer":"8","combinationChecked":true,"combinationValid":true},"firstSolved":{"variable":"x","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":0},"secondSolved":{"variable":"y","value":3,"expression":"3"},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":null,"variable":"y"},"isolation":{"expression":null,"tokenExpression":null,"simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":null,"targetEquationIndex":null,"equationText":null},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":"add","attempts":1,"coefficients":{"a":4,"b":0,"c":8},"text":"4x = 8","pendingCoefficients":null,"cancelledRows":{"0":true,"1":true},"cancellationConfirmed":true,"coefficientAnswer":"4x","constantAnswer":"8","combinationChecked":true,"combinationValid":true},"firstSolved":{"variable":"x","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":0},"secondSolved":{"variable":"y","value":3,"expression":"3"},"verification":{"0":{"placed":{"x":true,"y":true},"leftAnswer":"12","rightAnswer":"","checked":true,"valid":true},"1":{"placed":{"x":true,"y":true},"leftAnswer":"-4","rightAnswer":"","checked":true,"valid":true}}}
+    ],
+    "extra:journey-special-2x2": [
+      {"selection":{"equationIndex":0,"variable":"y"},"isolation":{"expression":null,"tokenExpression":"2x + 1","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"y","targetEquationIndex":1,"equationText":"2 * (2 * x + 1) - 4 * x = 2"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":0,"variable":"y"},"isolation":{"expression":null,"tokenExpression":"2x + 1","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"y","targetEquationIndex":1,"equationText":"2 * (2 * x + 1) - 4 * x = 2"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}},"specialCase":{"isTrueAnswer":"true","solutionsAnswer":"infinite","classificationAnswer":"consistent-dependent"}}
+    ],
+    "extra:journey-sub-2x2": [
+      {"selection":{"equationIndex":0,"variable":"y"},"isolation":{"expression":"-2 x + 7","tokenExpression":"-2 x + 7","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"y","targetEquationIndex":1,"equationText":"x - 1 * (-2 * x + 7) = -1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":null,"value":null,"expression":null},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":0,"variable":"y"},"isolation":{"expression":"-2 x + 7","tokenExpression":"-2 x + 7","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"y","targetEquationIndex":1,"equationText":"x - 1 * (-2 * x + 7) = -1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":"x","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":null},"secondSolved":{"variable":null,"value":null,"expression":null},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":0,"variable":"y"},"isolation":{"expression":"-2 x + 7","tokenExpression":"-2 x + 7","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"y","targetEquationIndex":1,"equationText":"x - 1 * (-2 * x + 7) = -1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":"x","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":0},"secondSolved":{"variable":"y","value":3,"expression":"3"},"verification":{"0":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false},"1":{"placed":{},"leftAnswer":"","rightAnswer":"","checked":false,"valid":false}}},
+      {"selection":{"equationIndex":0,"variable":"y"},"isolation":{"expression":"-2 x + 7","tokenExpression":"-2 x + 7","simplificationDraft":"","simplifying":false,"simplificationChecked":false,"simplificationValid":false},"substitution":{"targetVariable":"y","targetEquationIndex":1,"equationText":"x - 1 * (-2 * x + 7) = -1"},"multipliers":{"0":"1","1":"1"},"appliedMultipliers":{"0":false,"1":false},"multiplierWork":{"0":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false},"1":{"active":false,"a":"","b":"","c":"","checked":false,"valid":false}},"combination":{"operation":null,"attempts":0,"coefficients":null,"text":null,"pendingCoefficients":null,"cancelledRows":{"0":false,"1":false},"cancellationConfirmed":false,"coefficientAnswer":"","constantAnswer":"","combinationChecked":false,"combinationValid":false},"firstSolved":{"variable":"x","value":2,"expression":"2"},"statementWork":{"source":null,"left":"","right":"","checked":false},"backSub":{"equationIndex":0},"secondSolved":{"variable":"y","value":3,"expression":"3"},"verification":{"0":{"placed":{"x":true,"y":true},"leftAnswer":"7","rightAnswer":"","checked":true,"valid":true},"1":{"placed":{"x":true,"y":true},"leftAnswer":"-1","rightAnswer":"","checked":true,"valid":true}}}
+    ],
+    "extra:linearTableWorkbench-repairValue": [
+      {"repairedValue":"-2/3","repairRowIndex":1,"evidence":[{"i":0,"j":2,"dx":"","dy":"","rate":""}]},
+      {"repairedValue":"3","repairRowIndex":2,"evidence":[{"i":0,"j":2,"dx":"","dy":"","rate":""}]},
+      {"repairedValue":"x+1","repairRowIndex":2,"evidence":[{"i":0,"j":2,"dx":"","dy":"","rate":""}]}
+    ],
+    "extra:matrixLab-completeSystem": [
+      {"rows":{"none":{"coefficients":["-2/3","-2/3","-2/3"],"constant":"-2/3"},"many":{"coefficients":["-2/3","-2/3","-2/3"],"constant":"-2/3"}}},
+      {"rows":{"none":{"coefficients":["3","3","3"],"constant":"3"},"many":{"coefficients":["3","3","3"],"constant":"3"}}},
+      {"rows":{"none":{"coefficients":["x+1","x+1","x+1"],"constant":"x+1"},"many":{"coefficients":["x+1","x+1","x+1"],"constant":"x+1"}}}
+    ],
+    "extra:matrixLab-operate": [
+      {"defined":"yes"},
+      {"defined":"no","dimensions":{"rows":"3","cols":"3"}},
+      {"defined":"yes","dimensions":{"rows":"3","cols":"3"}}
+    ],
+    "extra:parabolaGeometryLab-equation": [
+      {"coefficient":"-2/3","opening":"down"},
+      {"coefficient":"3","opening":"left"},
+      {"coefficient":"x+1","opening":"right"}
+    ],
+    "extra:parabolaGeometryLab-equidistance": [
+      {"focusDistance":"-2/3","directrixDistance":"-2/3","onCurve":"no"},
+      {"focusDistance":"3","directrixDistance":"3","onCurve":"no"},
+      {"focusDistance":"x+1","directrixDistance":"x+1","onCurve":"no"}
+    ],
+    "extra:parabolaGeometryLab-fromGeometry": [
+      {"h":"-2/3","k":"-2/3","p":"-2/3"},
+      {"h":"3","k":"3","p":"3"},
+      {"h":"x+1","k":"x+1","p":"x+1"}
+    ],
+    "extra:polynomialWorkshop-addSubtract": [
+      {"opposites":["-2/3","-2/3","-2/3"],"sums":["-2/3","-2/3","-2/3"],"result":"-2/3"},
+      {"opposites":["3","3","3"],"sums":["3","3","3"],"result":"3"},
+      {"opposites":["x+1","x+1","x+1"],"sums":["x+1","x+1","x+1"],"result":"x+1"}
+    ],
+    "extra:polynomialWorkshop-division": [
+      {"quotient":"-2/3","remainder":"-2/3"},
+      {"quotient":"3","remainder":"3"},
+      {"quotient":"x+1","remainder":"x+1"}
+    ],
+    "extra:polynomialWorkshop-factorZero": [
+      {"value":"-2/3","factorChoice":"no"},
+      {"value":"3","factorChoice":"no"},
+      {"value":"x+1","factorChoice":"no"}
+    ],
+    "extra:polynomialWorkshop-longDivision": [
+      {"terms":["-2/3","-2/3","-2/3"],"products":["-2/3","-2/3","-2/3"],"differences":["-2/3","-2/3","-2/3"],"quotient":"-2/3","remainder":"-2/3"},
+      {"terms":["3","3","3"],"products":["3","3","3"],"differences":["3","3","3"],"quotient":"3","remainder":"3"},
+      {"terms":["x+1","x+1","x+1"],"products":["x+1","x+1","x+1"],"differences":["x+1","x+1","x+1"],"quotient":"x+1","remainder":"x+1"}
+    ],
+    "extra:polynomialWorkshop-multiplyArea": [
+      {"terms":["-2/3","-2/3","-2/3","-2/3","-2/3","-2/3"],"product":"-2/3"},
+      {"terms":["3","3","3","3","3","3"],"product":"3"},
+      {"terms":["x+1","x+1","x+1","x+1","x+1","x+1"],"product":"x+1"}
+    ],
+    "extra:polynomialWorkshop-multiplyArea-2": [
+      {"cells":["-2/3","-2/3","-2/3","-2/3"],"expanded":"-2/3"},
+      {"cells":["3","3","3","3"],"expanded":"3"},
+      {"cells":["x+1","x+1","x+1","x+1"],"expanded":"x+1"}
+    ],
+    "extra:polynomialWorkshop-rationalFeatures": [
+      {"choice":"verticalAsymptote"},
+      {"choice":"zero"},
+      {"choice":"none"}
+    ],
+    "extra:polynomialWorkshop-synthetic": [
+      {"root":"-2/3","top":["-2/3","-2/3","-2/3","-2/3"],"middle":["-2/3","-2/3","-2/3"],"bottom":["-2/3","-2/3","-2/3","-2/3"],"value":"-2/3","quotient":"-2/3","factorChoice":"no"},
+      {"root":"3","top":["3","3","3","3"],"middle":["3","3","3"],"bottom":["3","3","3","3"],"value":"3","quotient":"3","factorChoice":"no"},
+      {"root":"x+1","top":["x+1","x+1","x+1","x+1"],"middle":["x+1","x+1","x+1"],"bottom":["x+1","x+1","x+1","x+1"],"value":"x+1","quotient":"x+1","factorChoice":"no"}
+    ],
+    "extra:polynomialWorkshop-synthetic-2": [
+      {"root":"-2/3","top":["-2/3","-2/3","-2/3"],"middle":["-2/3","-2/3"],"bottom":["-2/3","-2/3","-2/3"],"value":"-2/3","quotient":"-2/3"},
+      {"root":"3","top":["3","3","3"],"middle":["3","3"],"bottom":["3","3","3"],"value":"3","quotient":"3"},
+      {"root":"x+1","top":["x+1","x+1","x+1"],"middle":["x+1","x+1"],"bottom":["x+1","x+1","x+1"],"value":"x+1","quotient":"x+1"}
+    ],
+    "extra:polynomialWorkshop-syntheticDivision": [
+      {"r":"-2/3","coefficients":["-2/3","-2/3","-2/3","-2/3"],"products":["-2/3","-2/3","-2/3"],"sums":["-2/3","-2/3","-2/3","-2/3"],"quotient":"-2/3","remainder":"-2/3"},
+      {"r":"3","coefficients":["3","3","3","3"],"products":["3","3","3"],"sums":["3","3","3","3"],"quotient":"3","remainder":"3"},
+      {"r":"x+1","coefficients":["x+1","x+1","x+1","x+1"],"products":["x+1","x+1","x+1"],"sums":["x+1","x+1","x+1","x+1"],"quotient":"x+1","remainder":"x+1"}
+    ],
+    "extra:representationBridge-linearMultipleRepresentations": [
+      {"standardFormEquation":"-2/3","pointSlopeEquation":"-2/3","tableRows":[{"x":"-2/3","y":"-2/3"},{"x":"-2/3","y":"-2/3"},{"x":"-2/3","y":"-2/3"},{"x":"-2/3","y":"-2/3"}],"featureSlope":"-2/3","featureXIntercept":"-2/3","featureYIntercept":"-2/3","featurePoint1":"-2/3","featurePoint2":"-2/3","checkedCards":{"standardForm":"[\"-2/3\"]","pointSlope":"[\"-2/3\"]","table":"[[{\"x\":\"-2/3\",\"y\":\"-2/3\"},{\"x\":\"-2/3\",\"y\":\"-2/3\"},{\"x\":\"-2/3\",\"y\":\"-2/3\"},{\"x\":\"-2/3\",\"y\":\"-2/3\"}]]","slope":"[\"-2/3\"]","xIntercept":"[\"-2/3\"]","yIntercept":"[\"-2/3\"]","twoPoints":"[\"-2/3\",\"-2/3\"]","graphIntercepts":"[[]]","graphSlopeIntercept":"[[]]","graphPointSlope":"[[]]"}},
+      {"standardFormEquation":"3","pointSlopeEquation":"3","tableRows":[{"x":"3","y":"3"},{"x":"3","y":"3"},{"x":"3","y":"3"},{"x":"3","y":"3"}],"featureSlope":"3","featureXIntercept":"3","featureYIntercept":"3","featurePoint1":"3","featurePoint2":"3","checkedCards":{"standardForm":"[\"3\"]","pointSlope":"[\"3\"]","table":"[[{\"x\":\"3\",\"y\":\"3\"},{\"x\":\"3\",\"y\":\"3\"},{\"x\":\"3\",\"y\":\"3\"},{\"x\":\"3\",\"y\":\"3\"}]]","slope":"[\"3\"]","xIntercept":"[\"3\"]","yIntercept":"[\"3\"]","twoPoints":"[\"3\",\"3\"]","graphIntercepts":"[[[-4,-4],[1,-0.333333]]]","graphSlopeIntercept":"[[[-4,-4],[1,0]]]","graphPointSlope":"[[[-4,-4],[1,-0.333333]]]"},"graph1Points":[[-4,-4],[1,-0.333333]],"graph2Points":[[-4,-4],[1,0]],"graph3Points":[[-4,-4],[1,-0.333333]]},
+      {"standardFormEquation":"x+1","pointSlopeEquation":"x+1","tableRows":[{"x":"x+1","y":"x+1"},{"x":"x+1","y":"x+1"},{"x":"x+1","y":"x+1"},{"x":"x+1","y":"x+1"}],"featureSlope":"x+1","featureXIntercept":"x+1","featureYIntercept":"x+1","featurePoint1":"x+1","featurePoint2":"x+1","checkedCards":{"standardForm":"[\"x+1\"]","pointSlope":"[\"x+1\"]","table":"[[{\"x\":\"x+1\",\"y\":\"x+1\"},{\"x\":\"x+1\",\"y\":\"x+1\"},{\"x\":\"x+1\",\"y\":\"x+1\"},{\"x\":\"x+1\",\"y\":\"x+1\"}]]","slope":"[\"x+1\"]","xIntercept":"[\"x+1\"]","yIntercept":"[\"x+1\"]","twoPoints":"[\"x+1\",\"x+1\"]","graphIntercepts":"[[[-4,-4],[1,-0.333333]]]","graphSlopeIntercept":"[[[-4,-4],[1,0]]]","graphPointSlope":"[[[-4,-4],[1,-0.333333]]]"},"graph1Points":[[-4,-4],[1,-0.333333]],"graph2Points":[[-4,-4],[1,0]],"graph3Points":[[-4,-4],[1,-0.333333]]}
+    ],
+    "extra:sequenceExplorer-missingTerm": [
+      {"termAnswer":"-2/3","kindAnswer":"geometric"},
+      {"termAnswer":"3","kindAnswer":"geometric"},
+      {"termAnswer":"x+1","kindAnswer":"geometric"}
+    ],
+    "extra:sequenceExplorer-partialSum": [
+      {"lastTerm":"-2/3","sumAnswer":"-2/3"},
+      {"lastTerm":"3","sumAnswer":"3"},
+      {"lastTerm":"x+1","sumAnswer":"x+1"}
+    ],
+    "extra:sequenceExplorer-ruleBridge": [
+      {"explicitRule":"-2/3","recursiveFirst":"-2/3","recursiveRule":"-2/3"},
+      {"explicitRule":"3","recursiveFirst":"3","recursiveRule":"3"},
+      {"explicitRule":"x+1","recursiveFirst":"x+1","recursiveRule":"x+1"}
+    ],
+    "extra:signSolutionAnalyzer-radicalSolve": [
+      {"isolated":"-2/3","raised":"-2/3","candidates":"-2/3","rows":[{"left":"-2/3","decision":"extraneous"}],"noRealSolution":true},
+      {"isolated":"3","raised":"3","candidates":"3","rows":[{"left":"3","decision":"extraneous","right":"3"}],"noRealSolution":true},
+      {"isolated":"x+1","raised":"x+1","candidates":"x+1","rows":[{"left":"3","decision":"extraneous","right":"3"}],"noRealSolution":false}
+    ],
+    "extra:stepAlgebra2-linearIntercepts": [
+      {"linearInterceptWork":{"activeKind":"x","x":{"conceptualZeroChoice":"x","placedZeroVariable":null,"committed":false,"solverState":null,"workHistory":[],"point":{"x":"","y":""},"completed":false,"checked":false},"y":{"conceptualZeroChoice":null,"placedZeroVariable":null,"committed":false,"solverState":null,"workHistory":[],"point":{"x":"","y":""},"completed":false,"checked":false}}},
+      {"linearInterceptWork":{"activeKind":"x","x":{"conceptualZeroChoice":"y","placedZeroVariable":null,"committed":false,"solverState":null,"workHistory":[],"point":{"x":"","y":""},"completed":false,"checked":false},"y":{"conceptualZeroChoice":null,"placedZeroVariable":null,"committed":false,"solverState":null,"workHistory":[],"point":{"x":"","y":""},"completed":false,"checked":false}}}
+    ],
+    "extra:stepAlgebra2-rewriteLinearForm": [
+      {"rewriteHistory":[],"rewriteEquationState":{"left":"y","right":"15x - 45","variable":"y","objective":{"kind":"factoredLinear","variable":"y","targetForm":"factoredLinear","requireSimplifiedFinalForm":false}}}
+    ],
+    "extra:systemsWorkspace-algebraic": [
+      {"method":"substitution"}
+    ],
+    "extra:systemsWorkspace-algebraic-elimination": [
+      {"elimination":{"version":2,"variable":"x","rounds":{"round1":{"pair":null,"multiplierDrafts":{},"multiplierValues":{},"multiplierWork":{},"operation":null,"operationAttempts":0,"cancelledEquations":{},"combinationWork":null,"combinedText":null},"round2":{"pair":null,"multiplierDrafts":{},"multiplierValues":{},"multiplierWork":{},"operation":null,"operationAttempts":0,"cancelledEquations":{},"combinationWork":null,"combinedText":null}},"back":{"destinationId":null,"placed":{},"solved":null},"verification":{}}}
+    ],
+    "extra:systemsWorkspace-inequalities": [
+      {"activeStep":"c0:boundary","build":[{"method":"slopeIntercept","x1":-1,"y1":4,"x2":3,"y2":1,"slope":"","intercept":"","constant":"","point1Plotted":true,"point2Plotted":true,"boundaryAttempts":1,"style":"","styleAttempts":0,"shadePoint":null,"shadeAttempts":0,"visible":true,"boundaryCheckedWork":"slopeIntercept|||-1,4|3,1"},{"method":"","x1":"","y1":"","x2":"","y2":"","slope":"","intercept":"","constant":"","point1Plotted":false,"point2Plotted":false,"boundaryAttempts":0,"style":"","styleAttempts":0,"shadePoint":null,"shadeAttempts":0,"visible":true}]},
+      {"activeStep":"c0:boundary","build":[{"method":"vertical","x1":-1,"y1":4,"x2":3,"y2":1,"slope":"3","intercept":"4","constant":"","point1Plotted":true,"point2Plotted":true,"boundaryAttempts":2,"style":"","styleAttempts":0,"shadePoint":null,"shadeAttempts":0,"visible":true,"boundaryCheckedWork":"vertical|"},{"method":"","x1":"","y1":"","x2":"","y2":"","slope":"","intercept":"","constant":"","point1Plotted":false,"point2Plotted":false,"boundaryAttempts":0,"style":"","styleAttempts":0,"shadePoint":null,"shadeAttempts":0,"visible":false}]},
+      {"activeStep":"c0:boundary","build":[{"method":"horizontal","x1":-1,"y1":4,"x2":3,"y2":1,"slope":"3","intercept":"4","constant":"4","point1Plotted":true,"point2Plotted":true,"boundaryAttempts":3,"style":"","styleAttempts":0,"shadePoint":null,"shadeAttempts":0,"visible":true,"boundaryCheckedWork":"horizontal|4"},{"method":"","x1":"","y1":"","x2":"","y2":"","slope":"","intercept":"","constant":"","point1Plotted":false,"point2Plotted":false,"boundaryAttempts":0,"style":"","styleAttempts":0,"shadePoint":null,"shadeAttempts":0,"visible":false}]}
+    ],
+    "extra:systemsWorkspace-linear-construct": [
+      {"linePoints":[{"x1":"-2","y1":"-2","x2":"-2","y2":"-2"},{"x1":"-2","y1":"-2","x2":"-2","y2":"-2"}],"classification":"none"},
+      {"linePoints":[{"x1":"4","y1":"4","x2":"4","y2":"4"},{"x1":"4","y1":"4","x2":"4","y2":"4"}],"classification":"infinite"}
+    ],
+    "extra:systemsWorkspace-spatial": [
+      {"visiblePlanes":[false,true,false]},
+      {"visiblePlanes":[false,false,false]},
+      {"visiblePlanes":[true,false,true]}
+    ],
+    "extra:transformationsLab-identify": [
+      {"a":"-2","h":"-2","k":"-2"},
+      {"a":"4","h":"4","k":"4"}
+    ],
+    "extra:transformationsLab-match": [
+      {"a":"-2","h":"-2","k":"-2"},
+      {"a":"4","h":"4","k":"4"}
+    ],
+    "journey:data-modeling": [
+      {"predictionX":"-2","predictionY":"-2","direction":"negative","strength":"moderate","causation":"causation","predictionType":"extrapolation","modelChoice":"exponential"},
+      {"predictionX":"4","predictionY":"4","direction":"none","strength":"weak","causation":"causation","predictionType":"extrapolation","modelChoice":"squareRoot"},
+      {"predictionX":"4","predictionY":"4","direction":"none","strength":"none","causation":"causation","predictionType":"extrapolation","modelChoice":"exponential"},
+      {"direction":"negative"}
+    ],
+    "journey:function-investigation": [
+      {"xIntercepts":"-2/3","yIntercept":"-2/3"},
+      {"xIntercepts":"3","yIntercept":"3"},
+      {"xIntercepts":"x+1","yIntercept":"x+1"},
+      {"xIntercepts":"0, 4"},
+      {"xIntercepts":"0, 4","yIntercept":"0"}
+    ],
+    "journey:interval-number-line": [
+      {"exactEndpoint":"","notation":"-2/3","pending":null,"built":[{"min":2,"max":4,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false}]},
+      {"exactEndpoint":"","notation":"3","pending":null,"built":[{"min":2,"max":4,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false},{"min":1,"max":5,"minClosed":false,"maxClosed":false},{"min":3,"max":4,"minClosed":false,"maxClosed":false}],"closedEnd":false},
+      {"exactEndpoint":"x+1","notation":"x+1","pending":null,"built":[{"min":2,"max":4,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false},{"min":1,"max":5,"minClosed":false,"maxClosed":false},{"min":3,"max":4,"minClosed":false,"maxClosed":false},{"min":1,"max":5,"minClosed":true,"maxClosed":true},{"min":4,"max":null,"minClosed":true,"maxClosed":false}],"closedEnd":true}
+    ],
+    "journey:sequence-explorer": [
+      {"tableValues":["-2/3","-2/3","-2/3","-2/3","-2/3"],"changeAnswer":"-2/3","explicitRule":"-2/3","recursiveFirst":"-2/3","recursiveRule":"-2/3","termAnswer":"-2/3","kindAnswer":"geometric","plottedPoints":[[2,7],[4,5]]},
+      {"tableValues":["3","3","3","3","3"],"changeAnswer":"3","explicitRule":"3","recursiveFirst":"3","recursiveRule":"3","termAnswer":"3","kindAnswer":"geometric","plottedPoints":[[2,3],[3,6],[4,10]]},
+      {"tableValues":["x+1","x+1","x+1","x+1","x+1"],"changeAnswer":"x+1","explicitRule":"x+1","recursiveFirst":"x+1","recursiveRule":"x+1","termAnswer":"x+1","kindAnswer":"geometric","plottedPoints":[[2,3],[3,6],[4,10]]},
+      {"tableValues":["3","","","",""]},
+      {"tableValues":["3","5","","",""]},
+      {"tableValues":["3","5","7","",""]},
+      {"tableValues":["3","5","7","",""],"plottedPoints":[[2,5]]},
+      {"tableValues":["3","5","7","",""],"plottedPoints":[[2,5]],"kindAnswer":"arithmetic"}
+    ],
+    "journey:systems-workspace": [
+      {"classification":"none"},
+      {"classification":"infinite"},
+      {"classification":"one"},
+      {"classification":"one","x":"2"},
+      {"classification":"one","x":"2","y":"5"}
+    ],
+    "journey:transformations": [
+      {"a":"-2","h":"-2","k":"-2"},
+      {"a":"4","h":"4","k":"4"},
+      {"a":"2"},
+      {"a":"2","h":"-1"},
+      {"a":"2","h":"-1","k":"3"}
+    ],
+    "path:dataModelingLab": [
+      {"correlationEntry":"-2","direction":"negative","strength":"moderate"},
+      {"correlationEntry":"4","direction":"none","strength":"weak"},
+      {"correlationEntry":"4","direction":"none","strength":"none"},
+      {"correlationEntry":"1","direction":"positive","strength":"strong"}
+    ],
+    "path:graphing2": [
+      {"points":[[-1,2],[2,-1]]},
+      {"points":[[1,1],[-3,-4]]},
+      {"points":[[0,1],[2,5]]},
+      {"points":[[-1,1]]},
+      {"points":[[-1,1],[2,5]]}
+    ],
+    "path:intervalNumberLineRays": [
+      {"exactEndpoint":"","notation":"-2/3","pending":null,"built":[{"min":-1,"max":2,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false}]},
+      {"exactEndpoint":"","notation":"3","pending":null,"built":[{"min":-1,"max":2,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false},{"min":-3,"max":3,"minClosed":false,"maxClosed":false},{"min":1,"max":3,"minClosed":false,"maxClosed":false}],"closedEnd":false},
+      {"exactEndpoint":"x+1","notation":"x+1","pending":null,"built":[{"min":-1,"max":2,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false},{"min":-3,"max":3,"minClosed":false,"maxClosed":false},{"min":1,"max":3,"minClosed":false,"maxClosed":false},{"min":-3,"max":3,"minClosed":false,"maxClosed":true}],"closedEnd":true},
+      {"closedEnd":true,"exactEndpoint":"","pending":null,"built":[{"min":2,"max":null,"minClosed":false,"maxClosed":false},{"min":null,"max":-3,"minClosed":false,"maxClosed":true}],"notation":"(-\\infty, -3] \\cup (2, \\infty)"}
+    ],
+    "path:regressionCalculator": [
+      {"rows":[{"id":"335071f9-f51f-403f-9f06-588115c8307e","type":"expression","value":"-2/3"},{"id":"10bfe014-cfa8-441f-8f8f-dd6bfc716e76","type":"expression","value":""}],"processEvidence":[{"type":"expressionRowEmerged","afterRow":1}]},
+      {"rows":[{"id":"335071f9-f51f-403f-9f06-588115c8307e","type":"expression","value":"3"},{"id":"10bfe014-cfa8-441f-8f8f-dd6bfc716e76","type":"expression","value":"3"},{"id":"9913a2a0-d264-415b-af85-a61822b06aa2","type":"expression","value":""}],"processEvidence":[{"type":"expressionRowEmerged","afterRow":1},{"type":"expressionRowEmerged","afterRow":2}]},
+      {"rows":[{"id":"335071f9-f51f-403f-9f06-588115c8307e","type":"expression","value":"x+1"},{"id":"10bfe014-cfa8-441f-8f8f-dd6bfc716e76","type":"expression","value":"x+1"},{"id":"9913a2a0-d264-415b-af85-a61822b06aa2","type":"expression","value":"x+1"},{"id":"c397e565-806e-4248-910e-eb1aa29919f2","type":"expression","value":""}],"processEvidence":[{"type":"expressionRowEmerged","afterRow":1},{"type":"expressionRowEmerged","afterRow":2},{"type":"expressionRowEmerged","afterRow":3}]},
+      {"rows":[{"id":"2dabab40-becd-4715-acf5-f637451c891d","type":"table","rows":[["1","2"],["2","4"],["3","5"],["4","8"],["",""]]},{"id":"fb6dfb45-a475-4870-a83e-4f9b7dacdaec","type":"expression","value":""},{"id":"2949944e-e250-4cfa-afeb-21e9c59752e6","type":"expression","value":"y₁ ~ mx₁ + b"}],"processEvidence":[{"type":"orderedPairEntered","row":1},{"type":"expressionRowEmerged","afterRow":1},{"type":"editModeOpened","row":1},{"type":"tableConversionOffered","row":1},{"type":"tableCreated","fromOrderedPair":true},{"type":"tableEdited","row":2,"column":"x1"},{"type":"tableEdited","row":2,"column":"y1"},{"type":"tableEdited","row":3,"column":"x1"},{"type":"tableEdited","row":3,"column":"y1"},{"type":"tableEdited","row":4,"column":"x1"},{"type":"tableEdited","row":4,"column":"y1"},{"type":"expressionAdded","source":"addRegression"},{"type":"addRegressionClicked","pointCount":4},{"type":"regressionExpressionEntered"},{"type":"regressionExecuted","operation":"linearRegression"},{"type":"correlationProduced","value":0.9811557810392123},{"type":"interpretationSelected","kind":"direction"},{"type":"interpretationSelected","kind":"strength"}],"run":{"operation":"linearRegression","table":[[1,2],[2,4],[3,5],[4,8]],"m":1.9,"b":0,"r":0.9811557810392123,"r2":0.9626666666666667},"direction":"positive","strength":"strong"}
+    ],
+    "path:relationMapping": [
+      {"domainAnswer":"-2/3","rangeAnswer":"-2/3","functionAnswer":"yes-definition"},
+      {"domainAnswer":"3","rangeAnswer":"3","functionAnswer":"no-input-repeat"},
+      {"domainAnswer":"x+1","rangeAnswer":"x+1","functionAnswer":"yes-definition"},
+      {"arrows":[[-2,3],[1,2],[3,-1]],"domainAnswer":"-2, 1, 3","rangeAnswer":"-1, 2, 3","functionAnswer":"yes-definition"}
+    ],
+    "path:systemsWorkspace": [
+      {"classification":"none"},
+      {"classification":"infinite"},
+      {"classification":"one","x":"2","y":"5"}
+    ],
+    "path:systemsWorkspaceInequalities": [
+      {"x":"-2","y":"-2"},
+      {"x":"4","y":"4"}
+    ],
+    "path:systemsWorkspaceInequalityConstruct": [
+      {"construction":[{"x1":"-2","y1":"-2","x2":"-2","y2":"-2","boundaryStyle":"solid","shade":"above"},{"x1":"-2","y1":"-2","x2":"-2","y2":"-2","boundaryStyle":"solid","shade":"above"}]},
+      {"construction":[{"x1":"4","y1":"4","x2":"4","y2":"4","boundaryStyle":"dashed","shade":"below"},{"x1":"4","y1":"4","x2":"4","y2":"4","boundaryStyle":"dashed","shade":"below"}]},
+      {"construction":[{"x1":"4","y1":"4","x2":"4","y2":"4","boundaryStyle":"solid","shade":"above"},{"x1":"4","y1":"4","x2":"4","y2":"4","boundaryStyle":"solid","shade":"above"}]},
+      {"construction":[{"x1":"0","y1":"0","x2":"1","y2":"1","boundaryStyle":"solid","shade":"above"},{"x1":"0","y1":"4","x2":"1","y2":"3","boundaryStyle":"dashed","shade":"below"}]}
+    ],
+    "path:systemsWorkspaceMatrix3": [
+      {"classification":"none","technologyUsed":true},
+      {"classification":"infinite","technologyUsed":true},
+      {"technologyUsed":true,"classification":"one","x":"1","y":"2","z":"3"}
+    ],
+    "registry:matrixLab": [
+      {"A":[["-2/3","-2/3","-2/3"],["-2/3","-2/3","-2/3"],["-2/3","-2/3","-2/3"]],"B":["-2/3","-2/3","-2/3"]},
+      {"A":[["3","3","3"],["3","3","3"],["3","3","3"]],"B":["3","3","3"]},
+      {"A":[["x+1","x+1","x+1"],["x+1","x+1","x+1"],["x+1","x+1","x+1"]],"B":["x+1","x+1","x+1"]},
+      {"A":[["2","-3","1"],["1","1","1"],["1","2","4"]],"B":["7","-5","-17"]}
+    ],
+    "registry:polynomialWorkshop": [
+      {"p":"-2/3","q":"-2/3"},
+      {"p":"3","q":"3"},
+      {"p":"x+1","q":"x+1"},
+      {"p":"-2","q":"-3"}
+    ],
+    "registry:representationBridge": [
+      {"studentSlope":"-2/3","generalM":"-2/3","generalB":"-2/3","generalEquation":"-2/3","factoredA":"-2/3","factoredC":"-2/3","factoredEquation":"-2/3","meaningAssignments":{"yIntercept":{"unit":"items","contextMeaning":"starting profit after paying the booth fee"}},"graphPoints":[[2,-2],[4,-10]],"tableEvidence":[{"i":1,"j":3,"dx":"","dy":"","rate":""}]},
+      {"studentSlope":"3","generalM":"3","generalB":"3","generalEquation":"3","factoredA":"3","factoredC":"3","factoredEquation":"3","meaningAssignments":{"yIntercept":{"unit":"items","contextMeaning":"starting profit after paying the booth fee"},"zero":{"unit":"dollars per item","contextMeaning":"starting profit after paying the booth fee"}},"graphPoints":[[4,-6]],"tableEvidence":[{"i":1,"j":3,"dx":"","dy":"","rate":""},{"i":0,"j":2,"dx":"","dy":"","rate":""}]},
+      {"studentSlope":"x+1","generalM":"x+1","generalB":"x+1","generalEquation":"x+1","factoredA":"x+1","factoredC":"x+1","factoredEquation":"x+1","meaningAssignments":{"yIntercept":{"unit":"items","contextMeaning":"starting profit after paying the booth fee"},"zero":{"unit":"dollars per item","contextMeaning":"starting profit after paying the booth fee"}},"graphPoints":[[5,5],[4,-6]],"tableEvidence":[{"i":1,"j":3,"dx":"","dy":"","rate":""},{"i":0,"j":2,"dx":"","dy":"","rate":""}]},
+      {"generalM":"5","generalB":"-20","generalEquation":"y = 5x - 20","factoredA":"5","factoredC":"4","factoredEquation":"y = 5(x - 4)"}
+    ],
+    "registry:representationMatch": [
+      {"linearCorrectionChoice":"plus","linearMismatchSelection":"m:pointSlope"},
+      {"linearCorrectionChoice":"plus","linearMismatchSelection":"m:standard"},
+      {"linearMismatchSelection":"m:pointSlope","linearCorrectionChoice":"minus"}
+    ],
+    "sample:complexPlaneLab": [
+      {"real":"-2/3","imaginary":"-2/3","rotation":"1"},
+      {"real":"3","imaginary":"3","rotation":"2"},
+      {"real":"x+1","imaginary":"x+1","rotation":"3"}
+    ],
+    "sample:constraintFunctionBuilder": [
+      {"hasEdited":true,"model":{"family":"absolute","a":-2,"h":-2,"k":-2,"base":2,"domainMode":"discrete","domainMin":-4,"domainMax":4,"verticalX":0}},
+      {"hasEdited":true,"model":{"family":"linear","a":4,"h":4,"k":4,"base":2,"domainMode":"discrete","domainMin":4,"domainMax":4,"verticalX":0}}
+    ],
+    "sample:dataModelingLab": [
+      {"predictionX":"-2","predictionY":"-2","direction":"negative","strength":"moderate","causation":"causation","predictionType":"extrapolation","modelChoice":"exponential"},
+      {"predictionX":"4","predictionY":"4","direction":"none","strength":"weak","causation":"causation","predictionType":"extrapolation","modelChoice":"squareRoot"},
+      {"predictionX":"4","predictionY":"4","direction":"none","strength":"none","causation":"causation","predictionType":"extrapolation","modelChoice":"exponential"}
+    ],
+    "sample:exponentialLogBridge": [
+      {"inverseAnswer":"-2/3","asymptote":"-2/3","domainSide":"less"},
+      {"inverseAnswer":"3","asymptote":"3","domainSide":"less"},
+      {"inverseAnswer":"x+1","asymptote":"x+1","domainSide":"less"}
+    ],
+    "sample:expressionMeaning": [
+      {"assignments":{"adjustedInput":{"unit":"minutes","contextMeaning":"total time spent selling","mathRole":"y-intercept / constant term"},"rate":{"mathRole":"rate of change / slope"}}},
+      {"assignments":{"adjustedInput":{"unit":"minutes","contextMeaning":"total time spent selling","mathRole":"y-intercept / constant term"},"rate":{"mathRole":"adjusted input"},"constant":{"unit":"dollars","contextMeaning":"selling price earned for each shirt sold","mathRole":"independent variable"}}},
+      {"assignments":{"adjustedInput":{"unit":"minutes","contextMeaning":"total time spent selling","mathRole":"rate of change / slope"},"rate":{"mathRole":"adjusted input"},"constant":{"unit":"dollars","contextMeaning":"selling price earned for each shirt sold","mathRole":"independent variable"}}}
+    ],
+    "sample:functionInvestigation2": [
+      {"domainCode":"xGteH","rangeCode":"yGteK"},
+      {"domainCode":"xGtH","rangeCode":"yLteK"},
+      {"domainCode":"xNotH","rangeCode":"yGtK"}
+    ],
+    "sample:functionOperationsLab": [
+      {"responses":{"sum":"-2/3","difference":"-2/3","product":"-2/3","quotient":"-2/3"},"restrictionResponse":"-2/3"},
+      {"responses":{"sum":"3","difference":"3","product":"3","quotient":"3"},"restrictionResponse":"3"},
+      {"responses":{"sum":"x+1","difference":"x+1","product":"x+1","quotient":"x+1"},"restrictionResponse":"x+1"}
+    ],
+    "sample:graphing2": [
+      {"points":[[-2,1],[2,-2]]},
+      {"points":[[-3,-4],[1,0]]}
+    ],
+    "sample:intervalNumberLine": [
+      {"exactEndpoint":"","notation":"-2/3","pending":null,"built":[{"min":-1,"max":4,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false}]},
+      {"exactEndpoint":"","notation":"3","pending":null,"built":[{"min":-1,"max":4,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false},{"min":-3,"max":5,"minClosed":false,"maxClosed":false},{"min":2,"max":3,"minClosed":false,"maxClosed":false}],"closedEnd":false},
+      {"exactEndpoint":"x+1","notation":"x+1","pending":null,"built":[{"min":-1,"max":4,"minClosed":true,"maxClosed":true},{"min":-0.6666666667,"max":null,"minClosed":true,"maxClosed":false},{"min":-3,"max":5,"minClosed":false,"maxClosed":false},{"min":2,"max":3,"minClosed":false,"maxClosed":false},{"min":-3,"max":5,"minClosed":false,"maxClosed":true}],"closedEnd":true},
+      {"exactEndpoint":"","pending":null,"closedEnd":false,"built":[{"min":-3,"max":5,"minClosed":true,"maxClosed":false}],"notation":"[-3, 5)"}
+    ],
+    "sample:inverseCompositionLab": [
+      {"inverseAnswer":"-2","restrictionChoice":"left"},
+      {"inverseAnswer":"4","restrictionChoice":"right"},
+      {"inverseAnswer":"4","restrictionChoice":"required"}
+    ],
+    "sample:linearTableWorkbench": [
+      {"m":"-2/3","b":"-2/3","equation":"-2/3","evidence":[{"i":0,"j":2,"dx":"","dy":"","rate":""}]},
+      {"m":"3","b":"3","equation":"3","evidence":[{"i":0,"j":2,"dx":"","dy":"","rate":""},{"i":1,"j":3,"dx":"","dy":"","rate":""}]},
+      {"m":"x+1","b":"x+1","equation":"x+1","evidence":[{"i":0,"j":2,"dx":"","dy":"","rate":""},{"i":1,"j":3,"dx":"","dy":"","rate":""}]}
+    ],
+    "sample:matrixLab": [
+      {"A":[["-2/3","-2/3","-2/3"],["-2/3","-2/3","-2/3"],["-2/3","-2/3","-2/3"]],"B":["-2/3","-2/3","-2/3"],"classification":"many"},
+      {"A":[["3","3","3"],["3","3","3"],["3","3","3"]],"B":["3","3","3"],"classification":"none","singularReason":{"row":"3","otherRow":"3","factor":"3","constant":"follows"}},
+      {"A":[["x+1","x+1","x+1"],["x+1","x+1","x+1"],["x+1","x+1","x+1"]],"B":["x+1","x+1","x+1"],"classification":"many","singularReason":{"row":"3","otherRow":"3","factor":"x+1","constant":"breaks"}}
+    ],
+    "sample:openSortBoard": [
+      {"groups":[{"id":"group-1","name":"-2/3","rationale":"","itemIds":["c"]},{"id":"group-2","name":"-2/3","rationale":"","itemIds":[]}]},
+      {"groups":[{"id":"group-1","name":"3","rationale":"","itemIds":["c","b"]},{"id":"group-2","name":"3","rationale":"","itemIds":[]}]},
+      {"groups":[{"id":"group-1","name":"x+1","rationale":"","itemIds":["c","b","a"]},{"id":"group-2","name":"x+1","rationale":"","itemIds":[]}]}
+    ],
+    "sample:parabolaGeometryLab": [
+      {"focusX":"-2/3","focusY":"-2/3","directrix":"-2/3","latus":"-2/3"},
+      {"focusX":"3","focusY":"3","directrix":"3","latus":"3"},
+      {"focusX":"x+1","focusY":"x+1","directrix":"x+1","latus":"x+1"}
+    ],
+    "sample:polynomialWorkshop": [
+      {"behavior":"touches","end":"both ends fall"},
+      {"behavior":"touches","end":"left falls, right rises"},
+      {"behavior":"touches","end":"left rises, right falls"}
+    ],
+    "sample:regressionCalculator": [
+      {"rows":[{"id":"da1277e9-dc4b-422d-9c18-7f2b324289d8","type":"expression","value":"-2/3"},{"id":"4c81577c-6f7d-4cd5-a0eb-cd80953c8440","type":"expression","value":""}],"processEvidence":[{"type":"expressionRowEmerged","afterRow":1}]},
+      {"rows":[{"id":"da1277e9-dc4b-422d-9c18-7f2b324289d8","type":"expression","value":"3"},{"id":"4c81577c-6f7d-4cd5-a0eb-cd80953c8440","type":"expression","value":"3"},{"id":"083c3876-a3c0-48e0-8dae-e24a42b51ba3","type":"expression","value":""}],"processEvidence":[{"type":"expressionRowEmerged","afterRow":1},{"type":"expressionRowEmerged","afterRow":2}]},
+      {"rows":[{"id":"da1277e9-dc4b-422d-9c18-7f2b324289d8","type":"expression","value":"x+1"},{"id":"4c81577c-6f7d-4cd5-a0eb-cd80953c8440","type":"expression","value":"x+1"},{"id":"083c3876-a3c0-48e0-8dae-e24a42b51ba3","type":"expression","value":"x+1"},{"id":"585ac158-8564-4b40-bb15-9293930bcf47","type":"expression","value":""}],"processEvidence":[{"type":"expressionRowEmerged","afterRow":1},{"type":"expressionRowEmerged","afterRow":2},{"type":"expressionRowEmerged","afterRow":3}]}
+    ],
+    "sample:relationMapping": [
+      {"domainAnswer":"-2/3","rangeAnswer":"-2/3","functionAnswer":"yes-output-rule"},
+      {"domainAnswer":"3","rangeAnswer":"3","functionAnswer":"no-input-repeat"},
+      {"domainAnswer":"x+1","rangeAnswer":"x+1","functionAnswer":"yes-output-rule"}
+    ],
+    "sample:representationBridge": [
+      {"studentSlope":"-2/3","tableEvidence":[{"i":1,"j":3,"dx":"","dy":"","rate":""}],"stageChecks":{"rateEvidence":false}},
+      {"studentSlope":"3","tableEvidence":[{"i":1,"j":3,"dx":"","dy":"","rate":""},{"i":0,"j":2,"dx":"","dy":"","rate":""}],"stageChecks":{"rateEvidence":false}},
+      {"studentSlope":"x+1","tableEvidence":[{"i":1,"j":3,"dx":"","dy":"","rate":""},{"i":0,"j":2,"dx":"","dy":"","rate":""}],"stageChecks":{"rateEvidence":false}}
+    ],
+    "sample:representationMatch": [
+      {"table":"quadratic","context":"quadratic","equation":"linear"},
+      {"table":"linear","context":"linear","equation":"quadratic"},
+      {"table":"linear","context":"linear","equation":"linear"}
+    ],
+    "sample:sequenceExplorer": [
+      {"difference":"-2/3","relation":"B","leftPlottedPoints":[[3,41],[5,27]]},
+      {"difference":"3","relation":"equal","leftPlottedPoints":[[3,41],[5,27]],"activeSeries":"B","rightPlottedPoints":[[2,17],[4,34],[6,55]]},
+      {"difference":"x+1","relation":"equal","leftPlottedPoints":[[2,17],[3,41],[4,34],[5,27],[6,55]],"activeSeries":"A","rightPlottedPoints":[[2,17],[4,34],[6,55]]}
+    ],
+    "sample:signSolutionAnalyzer": [
+      {"selected":[0,2]},
+      {"selected":[0,2,1,3]},
+      {"selected":[1,3]}
+    ],
+    "sample:stepAlgebra2": [
+      {"operand":"","history":[{"before":{"a":3,"b":6,"c":21},"operation":"subtract","operand":-2,"after":{"a":3,"b":8,"c":23}}],"state":{"a":3,"b":8,"c":23}},
+      {"operand":"","history":[{"before":{"a":3,"b":6,"c":21},"operation":"subtract","operand":-2,"after":{"a":3,"b":8,"c":23}},{"before":{"a":3,"b":8,"c":23},"operation":"multiply","operand":4,"after":{"a":12,"b":32,"c":92}}],"state":{"a":12,"b":32,"c":92},"operation":"multiply"},
+      {"operand":"","history":[{"before":{"a":3,"b":6,"c":21},"operation":"subtract","operand":-2,"after":{"a":3,"b":8,"c":23}},{"before":{"a":3,"b":8,"c":23},"operation":"multiply","operand":4,"after":{"a":12,"b":32,"c":92}},{"before":{"a":12,"b":32,"c":92},"operation":"divide","operand":4,"after":{"a":3,"b":8,"c":23}}],"state":{"a":3,"b":8,"c":23},"operation":"divide"}
+    ],
+    "sample:systemsWorkspace": [
+      {"count":"1"},
+      {"count":"2","values":{"x1":"4","y1":"4","x2":"","y2":""}},
+      {"count":"2","values":{"x1":"4","y1":"4","x2":"4","y2":"4"}}
+    ],
+    "sample:transformationsLab": [
+      {"plottedPoints":[[-2,1],[2,-2]]},
+      {"plottedPoints":[[-2,1],[2,-2],[-4,-4]]}
+    ]
+  }
+}

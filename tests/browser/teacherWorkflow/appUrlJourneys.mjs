@@ -67,7 +67,9 @@ const TODAY = 'a-today';
 const TODAY_TITLE = 'Systems of Equations — Lesson 3: Elimination';
 const OTHER_CLASS_ASSIGNMENT = 'a-p5';
 const OTHER_CLASS_TITLE = 'Linear Equations — Lesson 5';
-const asStudent = `as=student&studentId=${STUDENT}`;
+// With questions the student app renders (fixture.js `?questions=real`): in the default lesson, `freeResponse`, every
+// question an address opened was QuestionEngine's "This question could not be displayed".
+const asStudent = `as=student&studentId=${STUDENT}&questions=real`;
 // The next student on the same Chromebook (same class), and one excused from
 // today's lesson in the private-controls scenario (fixture.js PRIVATE_CONTROLS).
 const NEXT_STUDENT = '910004';

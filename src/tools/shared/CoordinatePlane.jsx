@@ -13,6 +13,8 @@ import { SR_ONLY_STYLE } from '../../ui/srOnly.js';
 import { describePlot } from './plotAnnouncement.js';
 import { baselineBelowAxis, originLabelPlacement, planeDotGrowth, planeFontSize } from './planeTextScale.js';
 import { axisNumberBox, boxesTouch, placePointLabels, placedLabelBox } from './planePointLabels.js';
+import { curveLabelSize, placeCurveLabels, sampleFunctionRuns } from '../../platform/graph/curveLabels.js';
+import { useCoveredByOpener } from '../../platform/graph/useCoveredByOpener.js';
 import { equalUnitPlaneHeight } from './planeEqualUnits.js';
 import { FINGER_REACH_PX, keyboardGridPoint, pressPicksUpPoint, readoutChipSpot, snapInsideWindow } from './planeTouch.js';
 import { useFocusSafeDisabled } from '../../components/common/useFocusSafeDisabled.js';
@@ -144,6 +146,15 @@ export default function CoordinatePlane({
   equalUnits = false,
   xTickStep = null, yTickStep = null,
   points = [], lines = [], functions = [], polylines = [], regions = [], verticalLines = [], horizontalLines = [],
+  // NAMES ON THE CURVES (WCAG 1.4.1, platform/graph/curveLabels.js). Where two
+  // lines differ only by colour, each is named beside itself: a line's or a
+  // polyline's `label` ("y = x"), `functionLabels[i]` for `functions[i]`
+  // ("f", "f⁻¹"), and `curveLabels` for what a tool draws itself as children
+  // ({ label, points } in graph units). `tag: true` rings the name (a
+  // constraint's number, which a bare digit beside a line would not say), in
+  // the curve's `stroke`.
+  functionLabels = [],
+  curveLabels = [],
   onPlot = null,
   // The tool's count after a plot, said with it ("2 of 2 points plotted.").
   // Optional: without it a screen reader hears what the plot did and no count.
@@ -771,6 +782,11 @@ export default function CoordinatePlane({
       firstRight: firstXRight === null ? null : { x: sx(firstXRight), text: tidy(firstXRight) },
     })
     : null;
+  const axisNumberBoxes = [
+    ...xTicks.filter((x) => x !== 0).map((x) => axisNumberBox({ x: sx(x), y: axisY + baselineBelowAxis(svgFont(11), 17, 6), characters: String(tidy(x)).length, textSize: svgFont(11) })),
+    ...yTicks.filter((y) => y !== 0).map((y) => axisNumberBox({ x: axisX - 9, y: sy(y) + 4, anchor: 'end', characters: String(tidy(y)).length, textSize: svgFont(11) })),
+    ...(originVisible && originSpot ? [axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, textSize: svgFont(10) })] : []),
+  ];
   // Where each point's name is drawn. It keeps its old place (up and to the
   // right) unless that would cover another dot, another name, or a number on
   // an axis (planePointLabels.js: S1 under S2's dot, S2 on the 0).
@@ -786,16 +802,59 @@ export default function CoordinatePlane({
     }),
     textSize: svgFont(11),
     bounds: { left: 0, right: width, top: 0, bottom: height },
-    avoid: [
-      ...xTicks.filter((x) => x !== 0).map((x) => axisNumberBox({ x: sx(x), y: axisY + baselineBelowAxis(svgFont(11), 17, 6), characters: String(tidy(x)).length, textSize: svgFont(11) })),
-      ...yTicks.filter((y) => y !== 0).map((y) => axisNumberBox({ x: axisX - 9, y: sy(y) + 4, anchor: 'end', characters: String(tidy(y)).length, textSize: svgFont(11) })),
-      ...(originVisible && originSpot ? [axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, textSize: svgFont(10) })] : []),
-    ],
+    avoid: axisNumberBoxes,
   });
   // A "0" under a point's name is worse than none: the axes and the dot say
   // where zero is (the same rule the origin follows for the numbers beside it).
   const originBox = originVisible && originSpot ? axisNumberBox({ x: originSpot.x, y: originSpot.y, anchor: originSpot.anchor, characters: 1, textSize: svgFont(10) }) : null;
   const originUnderLabel = Boolean(originBox) && labelSpots.some((spot, index) => spot && boxesTouch(placedLabelBox({ spot, label: points[index].label, textSize: svgFont(11) }), originBox));
+  // NAMES ON THE CURVES (curveLabels.js), only where a curve has one: each
+  // beside its own curve, clear of every dot, point name, axis number and line,
+  // and nearer its own curve than any other. Every drawn line, curve, guide
+  // and axis is kept clear of; only a named one gets a place.
+  const curveNamed = lines.some((line) => line?.label) || functionLabels.some(Boolean)
+    || polylines.some((entry) => entry?.label) || curveLabels.some((entry) => entry?.label);
+  // Work View's opener over the plot's corner: no name goes under it.
+  const openerCover = useCoveredByOpener(planeRef, width, curveNamed);
+  const curveTextSize = svgFont(12);
+  const inView = (path) => (Array.isArray(path) ? path : []).map((point) => pointXY(point))
+    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)).map(([x, y]) => [sx(x), sy(y)]);
+  const namedCurves = curveNamed ? [
+    ...lines.map((line) => ({
+      label: line?.label || '', tag: line?.tag === true, stroke: line?.stroke,
+      paths: [[[sx(xMin), sy(Number(line?.m) * xMin + Number(line?.b))], [sx(xMax), sy(Number(line?.m) * xMax + Number(line?.b))]]],
+    })),
+    ...functions.map((fn, index) => ({ label: functionLabels[index] || '', paths: sampleFunctionRuns(fn, { xMin, xMax, yMin, yMax, sx, sy }) })),
+    ...polylines.map((entry) => ({ label: entry?.label || '', tag: entry?.tag === true, stroke: entry?.stroke, paths: [inView(Array.isArray(entry) ? entry : entry?.points)] })),
+    ...curveLabels.map((entry) => ({
+      label: entry?.label || '', tag: entry?.tag === true, stroke: entry?.stroke,
+      paths: (Array.isArray(entry?.paths) ? entry.paths : [entry?.points]).map(inView),
+    })),
+    // Guides and boundaries, kept clear of: a vertical one at its x (its style is the drawing's, below).
+    ...verticalLines.map((line) => Number(typeof line === 'object' && line ? line.x : line))
+      .filter(Number.isFinite).map((x) => ({ label: '', paths: [[[sx(x), pad], [sx(x), height - pad]]] })),
+    ...horizontalLines.map((y) => ({ label: '', paths: [[[pad, sy(y)], [width - pad, sy(y)]]] })),
+    ...(xMin <= 0 && xMax >= 0 ? [{ label: '', paths: [[[sx(0), pad], [sx(0), height - pad]]] }] : []),
+    ...(yMin <= 0 && yMax >= 0 ? [{ label: '', paths: [[[pad, sy(0)], [width - pad, sy(0)]]] }] : []),
+  ] : [];
+  const curveLabelSpots = curveNamed ? placeCurveLabels({
+    curves: namedCurves,
+    dots: points.map((point, index) => {
+      let [pointX, pointY] = pointXY(point);
+      if (dragIndex === index && pointerPreview) [pointX, pointY] = pointerPreview;
+      else if (keyboardHeldIndex === index && keyboardCursor) [pointX, pointY] = keyboardCursor;
+      if (!Number.isFinite(pointX) || !Number.isFinite(pointY)) return null;
+      const radius = dotRadius(resolvePointRadius(point, 6));
+      return { x: sx(pointX), y: sy(pointY), radius: point?.marker ? Math.max(9, radius + 3) : radius + 2 };
+    }),
+    avoid: [
+      ...axisNumberBoxes,
+      ...labelSpots.map((spot, index) => (spot ? placedLabelBox({ spot, label: points[index].label, textSize: svgFont(11) }) : null)).filter(Boolean),
+    ],
+    hidden: openerCover ? [openerCover] : [],
+    bounds: { left: pad, right: width - pad, top: pad, bottom: height - pad },
+    textSize: curveTextSize,
+  }) : [];
   const showDataTable = !interactive && dataTable !== false && insideControl === false
     && descriptionDetail === 'features' && !readOut && revealCoordinates !== false && pointHoverEnabled !== false
     && generatedDescription.tables.length > 0;
@@ -1124,6 +1183,23 @@ export default function CoordinatePlane({
             clipPath so they stop at the plotting rectangle too. Drawn above,
             once, where the description learns whether it holds a mark. */}
         {toolDrawing}
+
+        {/* The curves' names, over every line (a tool's too), on a halo of the
+            plane's own background, or in a ring in the curve's colour. Under a
+            contrast theme the words are the text colour and the ring a chip. */}
+        {curveLabelSpots.map((spot, index) => {
+          if (!spot) return null;
+          const curve = namedCurves[index];
+          if (curve.tag) {
+            return (
+              <g key={`curve-label-${index}`} data-curve-label={curve.label} aria-hidden="true" pointerEvents="none">
+                <circle cx={spot.cx} cy={spot.cy} r={curveLabelSize({ label: curve.label, textSize: curveTextSize, tag: true }).width / 2} fill="var(--mm-graph-bg)" stroke={curve.stroke || 'var(--mm-graph-label)'} strokeWidth="2" data-mm-plane-part="chip" />
+                <text x={spot.x} y={spot.y} textAnchor="middle" fontSize={curveTextSize} fontWeight="800" style={{ fill: 'var(--mm-graph-label)' }}>{curve.label}</text>
+              </g>
+            );
+          }
+          return <text key={`curve-label-${index}`} data-curve-label={curve.label} aria-hidden="true" pointerEvents="none" x={spot.x} y={spot.y} textAnchor="middle" fontSize={curveTextSize} fontWeight="800" style={POINT_LABEL_STYLE}>{curve.label}</text>;
+        })}
       </svg>
       {axisTitles.x ? (
         <span className="mathmaster-plane-axis-title" data-plane-axis-title="x" aria-hidden="true" style={{ ...AXIS_TITLE, margin: '4px 0 0', textAlign: 'right' }}>

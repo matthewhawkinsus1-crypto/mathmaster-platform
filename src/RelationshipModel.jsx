@@ -2,8 +2,9 @@ import { useEffect, useMemo } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import GraphAxisEditor from './GraphAxisEditor';
-import PointMeaningBuilder from './PointMeaningBuilder';
+import PointMeaningBuilder, { pointMeaningDraftShape } from './PointMeaningBuilder';
 import useUndoHistory from './useUndoHistory';
+import { draftNormalizer, draftShape } from './tools/shared/toolDraftShape.js';
 import {
   buildInterpretationGraph,
   EMPTY_POINT_MEANING,
@@ -39,6 +40,15 @@ const positiveNumberOr = (value, fallback) => {
   return Number.isFinite(number) && number > 0 ? number : fallback;
 };
 
+// The saved model: what was chosen or typed for each quantity, axis and
+// meaning. An entry holding anything else is dropped and opens empty; the point
+// meaning the screen always draws opens empty when it is not one.
+const MODEL_DRAFT = draftNormalizer(draftShape.record({
+  ...Object.fromEntries(['independentId', 'dependentId', 'relationshipType', 'xLabel', 'xUnit', 'yLabel', 'yUnit', 'xStep', 'yStep', 'originMeaning']
+    .map((key) => [key, draftShape.nullable(draftShape.cell())])),
+  pointMeaning: draftShape.required(pointMeaningDraftShape({ or: EMPTY_POINT_MEANING })),
+}));
+
 export default function RelationshipModel({
   question,
   onStateChange,
@@ -64,7 +74,7 @@ export default function RelationshipModel({
     originMeaning: '',
     pointMeaning: EMPTY_POINT_MEANING,
   };
-  const history = useUndoHistory(initial, 80, draftKey ? `${draftKey}:relationship-model` : null);
+  const history = useUndoHistory(initial, 80, draftKey ? `${draftKey}:relationship-model` : null, { normalize: MODEL_DRAFT });
   const values = history.value;
   const axisSetup = question.axisSetup && typeof question.axisSetup === 'object' ? question.axisSetup : {};
   // Which sections to show, how the origin is answered and its point-meaning

@@ -145,7 +145,9 @@ test('the browser never writes a recorded Test Cycle grade', () => {
   // test it did not take. App reads the projection and never sets it.
   const state = region(app, 'const [testCycleGrades, setTestCycleGrades]', 'const studentGradeCenter', 'testCycleGrades state');
   assert.doesNotMatch(state, /updateDoc[^\n]*testCycleGrades/);
-  assert.match(app, /setTestCycleGrades\(snapshot\.data\(\)\?\.testCycleGrades \|\| \{\}\)/);
+  // Read from the grade document's snapshot (kept as it was while that says
+  // the same: keepSame, appRenderWork.test.mjs).
+  assert.match(app, /setTestCycleGrades\((?:keepSame\()?snapshot\.data\(\)\?\.testCycleGrades \|\| \{\}\)/);
   assert.match(app, /testCycleGrades,/);
 });
 

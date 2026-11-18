@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
+import { draftNormalizer, draftShape as s } from '../shared/toolDraftShape.js';
 import ToolShell, { AttemptOutcome, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -26,6 +27,31 @@ import { PublishFigureReading } from '../../platform/language/figureReadings.js'
 import { overflowsSideways } from '../../components/common/matrixScrollRegion.js';
 
 const EMPTY_EXPRESSION = () => ({ id: crypto.randomUUID(), type: 'expression', value: '' });
+
+/*
+ * WHAT A SAVED CALCULATOR MAY RESTORE (toolDraftShape.js). A row is an
+ * expression or the table; a row of neither kind (no type, a number, null)
+ * threw on every load, because the screen draws any row that is not an
+ * expression as the table and maps its pairs. Such a row is dropped, a table
+ * pair that is not two cells is dropped, and the other rows come back as
+ * typed. A regression run is kept only whole: its numbers are drawn with
+ * toFixed.
+ */
+const REGRESSION_ROW = s.either(
+  s.record({ id: s.required(s.cell()), type: s.required(s.oneOf(['expression'])), value: s.required(s.text({ or: '' })) }),
+  s.record({ id: s.required(s.cell()), type: s.required(s.oneOf(['table'])), rows: s.required(s.list(s.tuple([s.cell({ or: '' }), s.cell({ or: '' })]))) }),
+);
+const normalizeRegressionRows = draftNormalizer(s.list(REGRESSION_ROW, { min: 1 }));
+const normalizeRegressionRun = draftNormalizer(s.nullable(s.record({
+  operation: s.required(s.text()),
+  table: s.list(s.point()),
+  m: s.required(s.number()),
+  b: s.required(s.number()),
+  r: s.required(s.number()),
+  r2: s.required(s.number()),
+})));
+const normalizeProcessEvidence = draftNormalizer(s.list(s.record({ type: s.required(s.text()) })));
+
 const orderedPair = (value) => {
   const match = String(value).trim().match(/^\(\s*([+-]?(?:\d+\.?\d*|\.\d+))\s*,\s*([+-]?(?:\d+\.?\d*|\.\d+))\s*\)$/);
   return match ? [Number(match[1]), Number(match[2])] : null;
@@ -74,16 +100,16 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   // The same routing the grading declaration resolves, so the grader marks
   // the view the student actually sees.
   const sourceMode = resolveRegressionCalculatorMode(questionData);
-  const [rows, setRows] = usePersistentToolState('rows', () => [EMPTY_EXPRESSION()]);
+  const [rows, setRows] = usePersistentToolState('rows', () => [EMPTY_EXPRESSION()], { normalize: normalizeRegressionRows });
   const [selectedId, setSelectedId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [run, setRun] = usePersistentToolState('run', null);
+  const [run, setRun] = usePersistentToolState('run', null, { normalize: normalizeRegressionRun });
   const [direction, setDirection] = usePersistentToolState('direction', '');
   const [strength, setStrength] = usePersistentToolState('strength', '');
   const [notice, setNotice] = useState('');
-  const [processEvidence, setProcessEvidence] = usePersistentToolState('processEvidence', []);
+  const [processEvidence, setProcessEvidence] = usePersistentToolState('processEvidence', [], { normalize: normalizeProcessEvidence });
   const inputRefs = useRef([]);
   const givensRef = useRef(null);
   const givensOverflow = useOverflowsSideways(givensRef, `${sourceMode}:${source.length}`);

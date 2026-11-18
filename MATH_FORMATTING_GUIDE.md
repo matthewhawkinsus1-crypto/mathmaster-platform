@@ -30,6 +30,8 @@ Every new question must contain either:
 
 The generator chooses an integer intersection first and builds two different lines through it. Distinct slopes guarantee one solution.
 
+While the equations are shown (`showEquations`, the default), each line is named on the graph by its equation, so the colour beside each equation is not all that pairs it with its line (WCAG 1.4.1). With `showEquations: false` the lines carry no names, as the equations are not given.
+
 ## 3. Function tables with multiple blanks
 
 ```json
@@ -165,6 +167,8 @@ Exact LaTeX requires doubled backslashes in JSON:
 ```
 
 Supported static graph function types include `line`, `quadratic`, `absolute`, `squareRoot`, `cubic`, `cubeRoot`, `logarithmic`, `exponential`, `reciprocal`, and `rational`.
+
+To name a curve on the figure, give it a `label` (`{ "type": "line", "m": 2, "b": 1, "label": "f" }`): the name is drawn beside that curve, clear of the figure's points. Two solid curves that a student must tell apart need names, not only different `stroke` colours: a student who cannot tell the colours apart cannot tell the curves apart (WCAG 1.4.1). Leave out a name that would answer the question (an equation the student is asked to write).
 
 For a static `quadratic`, use exactly one of these forms:
 

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { FakeFirestore, FakeFieldPath, FAKE_FIELD_VALUE } from './helpers/serverCallableHarness.mjs';
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
@@ -149,4 +150,96 @@ test('manual-review rows never invent grade estimates from secure or unresolved 
     assert.equal(row.proposedGrade, null, reason);
     assert.equal(db.writes.length, 0);
   }
+});
+
+/*
+ * A NEXT IS NOT A NEW GRADE INPUT.
+ *
+ * Every Next raises its question's `timeSpent`, which no grade reads
+ * (functions/lib/classroomTrackerChange.js). The sync authorized the inputs
+ * with it, so a Next after the sync held every automatic Classroom push of the
+ * assignment until the teacher asked again, with no sign of it; and a Next
+ * between the preview and the approval, or the approval and the sync, sent the
+ * teacher back to preview. An answer is a new input and still holds them.
+ */
+const stored = (db) => db.data('grades', 'synthetic');
+const store = (db, gradeData) => db.docsOf('grades').set('synthetic', gradeData);
+const next = (db, questionIndex, timeSpent) => {
+  const g = stored(db);
+  g.gradesByAssignment['synthetic-a'][questionIndex] = { ...g.gradesByAssignment['synthetic-a'][questionIndex], timeSpent };
+  store(db, g);
+};
+const allowed = (db, gradeData = stored(db)) => service.correctionSyncAllowed({ db, studentId: 'synthetic', gradeData, assignment });
+const approveAndSync = async (call, name) => {
+  const p = (await call('preview')).rows[0];
+  const applied = await call('approve', { previewToken: p.previewToken, requestId: `synthetic-${name}-approve`, confirmAuthority: true, confirmSelected: true });
+  await call('requestSync', { eventId: applied.eventId, requestId: `synthetic-${name}-sync` });
+  return applied;
+};
+test('a Next after the sync holds no push; an answer after it holds every one, as before', async () => {
+  const { db, call } = setup();
+  await approveAndSync(call, 'next');
+  const synced = stored(db);
+  assert.equal(await allowed(db), true);
+  next(db, 0, 95);
+  assert.equal(await allowed(db), true, 'the push a Next\'s write would carry');
+  assert.equal(await allowed(db, synced), true, 'and one delivered from before the Next');
+  next(db, 0, 240);
+  assert.equal(await allowed(db), true, 'another Next');
+  const afterNexts = stored(db);
+  // A Next on a question never answered creates its record, which can let a
+  // teacher's override apply: a new input, as for the triggers.
+  const skipped = stored(db); skipped.gradesByAssignment['synthetic-a'][2] = { status: 'unattempted', attemptCount: 0, totalAttempts: 0, variantIndex: 0, timeSpent: 30 };
+  store(db, skipped);
+  assert.equal(await allowed(db), false, 'a record a Next creates');
+  store(db, afterNexts);
+  const answered = stored(db); answered.gradesByAssignment['synthetic-a'][1] = { status: 'correct', totalAttempts: 1, timeSpent: 20 };
+  store(db, answered);
+  assert.equal(await allowed(db), false, 'an answer');
+  assert.equal(await allowed(db, afterNexts), false, 'and a push delivered from before it');
+});
+test('a Next between the preview and the approval, or the approval and the sync, asks for no new preview', async () => {
+  const { db, call } = setup();
+  const p = (await call('preview')).rows[0];
+  next(db, 0, 95);
+  const applied = await call('approve', { previewToken: p.previewToken, requestId: 'synthetic-between-approve', confirmAuthority: true, confirmSelected: true });
+  assert.equal(applied.status, 'applied');
+  next(db, 0, 240);
+  const synced = await call('requestSync', { eventId: applied.eventId, requestId: 'synthetic-between-sync' });
+  assert.equal(synced.status, 'requested');
+  assert.equal(await allowed(db), true);
+  // A second request after another Next is the same request.
+  next(db, 0, 300);
+  assert.equal((await call('requestSync', { eventId: applied.eventId, requestId: 'synthetic-between-again' })).duplicate, true);
+  // An answer still needs a new preview.
+  const g = stored(db); g.gradesByAssignment['synthetic-a'][1] = { status: 'correct', totalAttempts: 1 }; store(db, g);
+  await assert.rejects(call('requestSync', { eventId: applied.eventId, requestId: 'synthetic-between-answer' }), /changed/i);
+});
+test('a sync stored before this keeps its grade flowing and holds on a Next as it did; asked again, it no longer does', async () => {
+  const { db, call } = setup();
+  // The student's time on the question so far, as real records carry it.
+  next(db, 0, 40);
+  const applied = await approveAndSync(call, 'legacy');
+  // As the code before this stored them: every input, time on task included,
+  // and the sync's own event under the id that code gave it (its inputs).
+  const g = stored(db); delete g.profile.workloadCorrections['synthetic-a'].syncAuthorization.inputFingerprintWithoutTime; store(db, g);
+  const { inputFingerprint } = g.profile.workloadCorrections['synthetic-a'].syncAuthorization;
+  const legacySyncId = createHash('sha256').update(JSON.stringify(['synthetic', 'synthetic-a', applied.eventId, 'sync', inputFingerprint])).digest('hex');
+  const events = db.docsOf('grades/synthetic/accommodationAdjustments');
+  const written = Object.fromEntries(events);
+  events.clear();
+  for (const [eventId, event] of Object.entries(written)) {
+    const { inputFingerprintWithoutTime: _withoutTime, ...before } = event;
+    events.set(event.action === 'sync-requested' ? legacySyncId : eventId, before);
+  }
+  assert.equal(await allowed(db), true, 'a release holds nothing it authorized');
+  const legacy = stored(db);
+  next(db, 0, 95);
+  assert.equal(await allowed(db), false, 'a Next holds it, as before');
+  store(db, legacy);
+  const again = await call('requestSync', { eventId: applied.eventId, requestId: 'synthetic-legacy-again' });
+  assert.equal(again.status, 'requested');
+  assert.equal(again.duplicate, undefined, 'stored again, without time on task');
+  next(db, 0, 95);
+  assert.equal(await allowed(db), true);
 });

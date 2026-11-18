@@ -23,6 +23,7 @@ import { readQuestionDraftFamily, restoreQuestionDrafts, subscribeToQuestionDraf
 // The Undo history stays on this device (persistedMathUndo.js).
 import { withoutPersistedUndo } from '../../platform/workView/persistedMathUndo.js';
 import { createToolWorkGate } from './toolWorkGate.js';
+import { draftNormalizer, draftShape } from '../../tools/shared/toolDraftShape.js';
 import { assessmentSupportProfile } from '../../studentSupport.js';
 import { SUBMIT_VERB, submitActionLabel, submitTryCost } from '../../platform/student/submitCost.js';
 
@@ -141,6 +142,27 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
 };
 
 /*
+ * A FIELD ITEM'S SAVED ANSWER (the server's draft, or this device's copy of
+ * it) is read back as the kinds the item writes: each response is what was
+ * typed or chosen, and the regression panel's table a list of [x, y] rows of
+ * typed cells. A response that is not one is dropped and its box opens
+ * empty; a regression table that is not one is not restored. A cell that is
+ * not a value stays a blank cell in its place. A valid answer comes back as
+ * saved.
+ */
+const FIELD_RESPONSES_DRAFT = draftNormalizer(draftShape.map(draftShape.nullable(draftShape.cell())));
+const regressionRow = draftShape.list(draftShape.cell({ or: '' }), { keepPositions: true });
+const REGRESSION_DRAFT = draftNormalizer(draftShape.record({
+  rows: draftShape.required(draftShape.list(draftShape.either(regressionRow, draftShape.record({ cells: draftShape.required(regressionRow) })))),
+  ran: draftShape.boolean(),
+}));
+const restoredFieldResponses = (payload) => FIELD_RESPONSES_DRAFT(payload?.responses).value || {};
+const restoredRegression = (payload) => {
+  const saved = payload?.toolState?.linearRegression;
+  return saved ? REGRESSION_DRAFT(saved).value || null : null;
+};
+
+/*
  * A FIELD ITEM. The secure response renderer: radio cards for choices; for a
  * typed answer, the math editor students use everywhere else, or a plain text
  * box where the server grader reads typed text and not the editor's LaTeX
@@ -154,10 +176,10 @@ const InstructionalSupport = ({ policy, feedback, isToolItem, supportProfile = n
  */
 const FieldItem = ({ question, policy, calculatorPolicy, studentSupportProfile, rawStudentSupportProfile = null, graphReadOut = false, initialResponsePayload, busy, closed, feedback, attempt = null, navigationMode = false, calculatorInToolbar = false, examType = null, mainLandmark = true, onSubmit, onDraftChange }) => {
   const Landmark = mainLandmark ? 'main' : 'div';
-  const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
+  const [responses, setResponses] = useState(() => restoredFieldResponses(initialResponsePayload));
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
-    const saved = initialResponsePayload?.toolState?.linearRegression;
+    const saved = restoredRegression(initialResponsePayload);
     return saved ? { ...saved, rows: saved.rows.map((row) => (Array.isArray(row) ? row : row.cells)) } : null;
   });
   // FIGURES IN THE STUDENT'S LANGUAGE (AX05, slice 3). Where a secure item

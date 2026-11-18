@@ -26,7 +26,7 @@ import { SupportedTextActions } from './platform/supports/SupportedText.jsx';
 import MathText from './components/common/MathText.jsx';
 import { buildQuestionHints, diagnosisHint, hintLadderView, hintRelease } from './platform/supports/hints/questionHints.js';
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
-import { requestedHintPanelPlace, revealHintPanel } from './platform/supports/hints/hintPanelReveal.js';
+import { hintPanelFocusTarget, keepHintPanelInView, requestedHintPanelPlace } from './platform/supports/hints/hintPanelReveal.js';
 import { buildSimilarWorkedExample } from './platform/supports/workedExample/similarProblem.js';
 import PracticeLikeThis from './platform/supports/workedExample/PracticeLikeThis.jsx';
 import { chosenOptionReasons, oneTryNotice } from './platform/supports/feedback/oneTryChoice.js';
@@ -55,6 +55,7 @@ import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
+import { DRAWN_QUESTION_ROUTE, drawnQuestionKind } from './platform/question/drawnQuestionKind.js';
 import { composedReasonsNote } from './platform/workflow/workflowReviewState.js';
 import { withShuffledSortCards } from './platform/workflow/sortCardOrder.js';
 import { buildLiteralWorkspaceQuestion, usesLiteralWorkspace } from './literalWorkspace';
@@ -114,7 +115,7 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, answerFocusPosition, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, answerFocusPosition, countAnswerParts, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
 import { AnswerFocusPolicyProvider, DeferredFocusProvider, useDeferredFocusAuthority } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
@@ -491,22 +492,22 @@ function QuestionEngineBody({
     () => (usesLiteralWorkspace(processedQuestion) ? buildLiteralWorkspaceQuestion(processedQuestion) : null),
     [processedQuestion],
   );
+  // WHAT THIS QUESTION DRAWS, decided by the rule the assignment validator
+  // refuses a question by (drawnQuestionKind.js): its workflow, else a registry
+  // tool named by its toolId and then by its type, else this engine's own
+  // module for its type (the switch in renderModule), else the panel there.
+  const drawnKind = useMemo(() => drawnQuestionKind(processedQuestion), [processedQuestion]);
   // A composed question is defined by its workflow, not by its type name.
-  const isComposed = useMemo(
-    () => readComposedQuestion(processedQuestion).composed,
-    [processedQuestion],
-  );
+  const isComposed = drawnKind?.route === DRAWN_QUESTION_ROUTE.WORKFLOW;
   const missingToolDefinition = useMemo(
     // A malformed item can carry a toolId the registry doesn't know while its
-    // `type` names a real tool; fall through to `type` rather than showing the
-    // unsupported-question panel for a tool that exists.
+    // `type` names a real tool: the rule falls through to `type` rather than
+    // to the unsupported-question panel for a tool that exists.
     // A composed question never routes to the registry, and must not be treated
     // as a self-submitting tool either — it is submitted here like every other
-    // question, so the tool lookup is skipped entirely.
-    () => (isComposed
-      ? null
-      : getToolDefinition(processedQuestion?.toolId) || getToolDefinition(processedQuestion?.type)),
-    [processedQuestion, isComposed],
+    // question, so the rule names no tool for one.
+    () => (drawnKind?.route === DRAWN_QUESTION_ROUTE.REGISTRY_TOOL ? getToolDefinition(drawnKind.toolId) : null),
+    [drawnKind],
   );
   const workViewSpan = useMemo(
     () => (missingToolDefinition ? startPerformanceSpan('workview_ready_ms', { toolId: missingToolDefinition.toolId }) : null),
@@ -1931,6 +1932,15 @@ function QuestionEngineBody({
     if (locked && helpRequested && typeof onAskTeacher === 'function') onAskTeacher(false);
   }, [locked, helpRequested, onAskTeacher]);
   const hintPanelRef = useRef(null);
+  // What a press asked the panel for ('hint' or 'example'), with the moment it
+  // asked (a deferred-focus ticket): focus goes there once it is drawn. A press
+  // made in a panel stays in that panel: Work View's Help drawer draws one of
+  // its own beside the one in the work.
+  const hintFocusRequestRef = useRef(null);
+  const requestHintFocus = (asked, from) => {
+    const scope = from?.currentTarget?.closest?.('[data-hint-panel]') || null;
+    hintFocusRequestRef.current = { asked, scope, ticket: focusAuthority.ticket({ since: 'now', channel: 'hint' }) };
+  };
   // Where the panel opens (FB10): 'results' from an offer under a miss, 'top'
   // from the one-try notice. Anything else leaves it where it is — the panel's
   // own buttons hand their click event over, and must not move the panel.
@@ -1940,6 +1950,7 @@ function QuestionEngineBody({
   };
   const revealNextHint = (place) => {
     if (!hintState.canRevealNext || !hintLadder.next) return;
+    requestHintFocus('hint', place);
     const next = hintLadder.next;
     // A fallback opened while the tool's rungs are on their way is read when
     // they arrive (above); every other rung is kept as read now.
@@ -1954,6 +1965,7 @@ function QuestionEngineBody({
   // the example lives in the panel, so the panel opens with it.
   const openSimilarExample = (place) => {
     if (!similarExample) return;
+    requestHintFocus('example', place);
     setSimilarOpen(true);
     setWorkedExampleUsed(true);
     placeHintPanel(place);
@@ -1967,11 +1979,27 @@ function QuestionEngineBody({
     setHintPanelOpen(true);
   };
   useEffect(() => {
-    if (!hintPanelOpen) return;
+    if (!hintPanelOpen) return undefined;
+    const panel = hintPanelRef.current;
+    // Focus goes to what the press asked for: the button pressed is usually
+    // gone by now, and focus with it (hintPanelFocusTarget). Not after the
+    // student has pressed, tapped or typed anything else, or moved focus. A
+    // rung still loading holds it on the panel until the hint is here.
+    const request = hintFocusRequestRef.current;
+    hintFocusRequestRef.current = null;
+    if (request && focusAuthority.isLive(request.ticket)) {
+      const target = hintPanelFocusTarget(request.scope?.isConnected ? request.scope : panel, { asked: request.asked });
+      target?.focus?.({ preventScroll: true });
+      if (target && request.asked === 'hint' && !target.matches?.('li[data-hint-source]')) {
+        hintFocusRequestRef.current = { ...request, ticket: focusAuthority.ticket({ since: 'now', channel: 'hint' }) };
+      }
+    }
     // Under a miss the page moves only as far as the newest hint needs; a rung
-    // that was loading is that hint again once it is here.
-    revealHintPanel(hintPanelRef.current, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
-  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending]);
+    // that was loading is that hint again once it is here. And again while the
+    // page settles around it: a staged step in Work View can flow a frame or
+    // two after the panel takes its room, and move the hint out of the view.
+    return keepHintPanelInView(panel, { place: hintPanelPlace, similarOpen, behavior: scrollMotion() });
+  }, [hintPanelOpen, hintPanelPlace, hintsRevealed, similarOpen, toolRungsPending, focusAuthority]);
   const supportedTextReadAloud = readAloudOffered || (languageTools.tools.includes('read-aloud') && readAloudReady)
     ? { language: 'en' }
     : null;
@@ -2491,6 +2519,9 @@ function QuestionEngineBody({
         // Batch A-D interactive tools never reach this switch: they resolve
         // through the shared registry above, so a new tool becomes
         // student-usable by registering it rather than by editing this switch.
+        // A type that reaches here is one drawnQuestionKind.js draws nothing
+        // for, which the assignment validator refuses: a case added or removed
+        // above changes its QUESTION_ENGINE_TYPES too (drawnQuestionKind.test.mjs).
         return (
           // The type is for a support copy, not the student's screen (RUN-16):
           // "Details for your teacher: unsupported question type …".
@@ -3278,12 +3309,14 @@ function QuestionEngineBody({
         // swallow it. Otherwise, with a submit available:
         //   incomplete           Enter moves to the next empty box
         //   one box, complete    Enter submits (the single-answer convention)
-        //   several boxes, a DOL
+        //   several parts, a DOL
         //   or a one-try item    Enter brings Submit into focus; a second,
         //                        deliberate Enter presses it
-        // Textareas, selects and the calculator keep Enter throughout.
+        // Textareas, selects and the calculator keep Enter throughout. A part
+        // is a typed box or any other answer control (a choice, a select, a
+        // plane): a box beside a choice is not the whole answer.
         if (event.target?.closest?.('[data-mm-enter-owner]')) return;
-        const multipart = isComposed || countAnswerControls(questionEngineRef.current) > 1;
+        const multipart = isComposed || countAnswerParts(questionEngineRef.current) > 1;
         const deliberate = Boolean(dolMode) || resolvedMaximumAttempts <= 1;
         const intent = resolveQuestionEnterIntent({
           event,

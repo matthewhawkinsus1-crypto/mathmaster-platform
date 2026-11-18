@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MathInput from '../../MathInput';
 import useLocalDraftState from '../../useLocalDraftState';
+import { draftNormalizer, draftShape } from '../../tools/shared/toolDraftShape.js';
+import { workflowResponsesDraftShape } from './workflowResponseDraft.js';
 import { studentInputMark, studentInputSince } from '../../questionDraftStorage';
 import MathDisplay from '../../MathDisplay';
 import QuestionPrompt from '../../QuestionPrompt';
@@ -42,6 +44,7 @@ import { branchRestartedBy, buildWorkflowReviewState, firstIncorrectWorkflowInde
 import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
+import { useStepRoom } from './useStepRoom.js';
 import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
 import { scrollMotion } from '../../motionPreference.js';
 import './WorkflowFocusMode.css';
@@ -930,6 +933,8 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
 // dependency the memo that picks the open keypad did not list.
 const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
 
+const STAGE_POSITION_DRAFT = draftNormalizer(draftShape.number({ integer: true, min: 0 }));
+
 export default function WorkflowRunner({
   question,
   onStateChange,
@@ -951,13 +956,18 @@ export default function WorkflowRunner({
   onSupportEvidence = null,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
+  // Each step's saved answer is read back as the kind that step writes
+  // (workflowResponseDraft.js), and the open step as a step's position.
+  const responsesDraft = useMemo(() => draftNormalizer(workflowResponsesDraftShape(authoredWorkflow)), [authoredWorkflow]);
   const [storedResponses, setResponses] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-responses` : null,
     {},
+    { normalize: responsesDraft },
   );
   const [activeStageIndex, setActiveStageIndex] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-stage` : null,
     0,
+    { normalize: STAGE_POSITION_DRAFT },
   );
 
   // A table step that came back from the server copy carries only the
@@ -1265,6 +1275,10 @@ export default function WorkflowRunner({
     stageNavigationRequestedRef.current = false;
     bringActiveStageIntoView(focusRootRef.current);
   }, [activeStageIndex]);
+  // In Work View: whether the step has the height to be bounded, and how tall
+  // its plane may be, as the step is laid out (stepRoom.js, WorkViewShell.css).
+  const { enlarged: inWorkView } = useWorkViewPresentation();
+  const stepRoom = useStepRoom(focusRootRef, { enlarged: inWorkView, stepKey: String(activeStageIndex) });
   // The step strip scrolls sideways on a phone; keep the current step's tab in
   // it. Only the strip moves: a step that opened past the right edge left the
   // student with no tab showing where they were.
@@ -1528,7 +1542,13 @@ export default function WorkflowRunner({
   );
 
   return (
-    <div ref={focusRootRef} className="workflow-focus" data-family={activeFamily}>
+    <div
+      ref={focusRootRef}
+      className="workflow-focus"
+      data-family={activeFamily}
+      data-step-room={stepRoom.flow ? 'flow' : undefined}
+      style={stepRoom.planeMax != null ? { '--mm-step-plane-max': `${stepRoom.planeMax}px` } : undefined}
+    >
       {promptAndScenario}
 
       <div

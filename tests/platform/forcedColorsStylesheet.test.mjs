@@ -169,13 +169,15 @@ test('a Live Class strip bar carries the state the projector may show, never the
 test('the mastery wheel\'s colour key, its topic list and the topic browser mark their swatches with the fill of the level each explains', () => {
   // Under a contrast theme the wheel tells its levels apart by their fills (below), so a swatch is drawn as its level's
   // wedge is: the key names the fill of the very status whose colour it shows.
+  // The level is the wheel's own (levelOf: the fill and the colour of one status), so the swatch names the fill of the
+  // very status whose colour it shows, and in the app's themes draws both (wheelSwatchStyle).
   const key = region(read('src/components/student/MyMathPathDashboard.jsx'), '<strong>What the colours mean</strong>', 'numbers around the wheel', 'the colour key');
-  assert.match(key, /\{Object\.entries\(MASTERY_STATUS_COLORS\)\.map\(\(\[status, color\]\) => \([\s\S]*data-mm-swatch=\{MASTERY_STATUS_FILLS\[status\]\} style=\{\{ width: 11, height: 11, borderRadius: 999, background: color/);
-  // The two round-done dots: a practice round's an empty ring, a Level 3 round's solid, as the wheel's badges.
-  assert.match(key, /<span data-mm-swatch="ring" style=\{\{ color: 'var\(--mm-success-text\)'[^}]*\}\}>●<\/span> practice round done/);
+  assert.match(key, /\{Object\.keys\(MASTERY_STATUS_COLORS\)\.map\(\(status\) => \([\s\S]*data-mm-swatch=\{levelOf\(status\)\.fill\} style=\{\{ width: 'calc\(11 \* var\(--mm-px\)\)', height: 'calc\(11 \* var\(--mm-px\)\)', borderRadius: 999, \.\.\.wheelSwatchStyle\(levelOf\(status\)\) \}\}/);
+  // The two round-done marks: a practice round's an empty ring (○), a Level 3 round's a solid dot (●), as the wheel's.
+  assert.match(key, /<span data-mm-swatch="ring" style=\{\{ color: 'var\(--mm-success-text\)'[^}]*\}\}>○<\/span> practice round done/);
   assert.match(key, /<span data-mm-swatch="point" style=\{\{ color: 'var\(--mm-accent-text\)'[^}]*\}\}>●<\/span> Level 3 \(stretch\) round done/);
   const list = region(read('src/components/student/MyMathPathWheel.jsx'), '{arc.members.map((entry) => {', '</ul>', 'the topic list');
-  assert.match(list, /data-mm-swatch=\{MASTERY_STATUS_FILLS\[status\] \|\| MASTERY_STATUS_FILLS\[NOT_ENOUGH_EVIDENCE\]\} style=\{\{[^}]*background: MASTERY_STATUS_COLORS\[status\]/);
+  assert.match(list, /const level = levelOf\(status\);[\s\S]*data-mm-swatch=\{level\.fill\} style=\{\{[^}]*\.\.\.wheelSwatchStyle\(level\) \}\}/);
   const browser = read('src/components/student/MyMathPathTopicBrowser.jsx');
   assert.match(region(browser, '<span data-mastery-status', '</span>', 'the mastery chip'), /data-mm-swatch=\{MASTERY_STATUS_FILLS\[skill\.masteryStatus\] \|\| 'open'\} style=\{\{[^}]*background: skill\.masteryColor/);
 });
@@ -563,17 +565,21 @@ test('under a contrast theme a wheel tells its levels apart by their fills, each
     assert.deepEqual(angles(swatch), angles(partLook(fill)['mask-image']), `${fill}: the swatch's hatch runs as the wedge's`);
   }
   // The wheel's wedge takes its level's fill, and Highlight while it is the one named in the hub; a round done is an
-  // empty ring and a Level 3 round a solid dot, which the key's two dots say.
+  // empty ring and a Level 3 round a solid dot, on a plate, which the key's ○ and ● say.
   const wheel = read('src/components/student/MyMathPathWheel.jsx');
-  assert.match(wheel, /data-mm-plane-part=\{active \? 'held' : MASTERY_STATUS_FILLS\[status\] \|\| MASTERY_STATUS_FILLS\[NOT_ENOUGH_EVIDENCE\]\} \/>/);
-  assert.match(wheel, /\{passCount > 0 && <circle [^>]*fill=\{passColor\}[^>]*data-mm-plane-part=\{passCount >= 3 \? 'point' : 'open'\} \/>\}/);
+  const wedge = region(wheel, 'const level = levelOf(status);', '{round && (', 'a wedge');
+  assert.match(wedge, /const look = wedgePaint\(\{ scope: patternScope, fill: level\.fill, colour: level\.colour \}\);/);
+  assert.match(wedge, /<path [^>]*fill=\{look\.paint\}[^>]*data-mm-plane-part=\{active \? 'held' : level\.fill\} \/>/);
+  const marks = region(wheel, '{round && (', '\n                    )}', 'a round done');
+  assert.match(marks, /data-mm-plane-part="plate" \/>/);
+  assert.match(marks, /ROUND_MARKS\[round\]\.shape === 'dot'\s*\? <circle [^>]*data-mm-plane-part="point" \/>\s*: <circle [^>]*data-mm-plane-part="open" \/>/);
   const key = region(read('src/components/student/MyMathPathDashboard.jsx'), '<strong>What the colours mean</strong>', 'numbers around the wheel', 'the colour key');
-  assert.match(key, /data-mm-swatch="ring"[^>]*>●<\/span> practice round done/);
+  assert.match(key, /data-mm-swatch="ring"[^>]*>○<\/span> practice round done/);
   assert.match(key, /data-mm-swatch="point"[^>]*>●<\/span> Level 3 \(stretch\) round done/);
   assert.equal(partLook('open').fill, 'Canvas', 'a ring is empty');
   assert.equal(partLook('point').fill, 'CanvasText', 'a dot is solid');
-  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-swatch="ring"]'))?.declarations.color?.value, 'Canvas', 'the key\'s ring is empty');
-  assert.match(rules.find((rule) => rule.selectors.includes('[data-mm-swatch="ring"]'))?.declarations['-webkit-text-stroke']?.value || '', /CanvasText$/, 'inside an edge');
+  // The key's marks are a ring glyph and a dot glyph, each drawn in the text colour: the ring's own shape is empty.
+  assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-swatch="ring"]'))?.declarations.color?.value, 'CanvasText', 'the key\'s ring, as drawn');
   assert.equal(rules.find((rule) => rule.selectors.includes('[data-mm-swatch="point"]'))?.declarations.color?.value, 'CanvasText', 'the key\'s dot is solid');
   // The readiness wheel the same way, beside each domain's name in its list.
   const ccmr = read('src/components/student/CCMRReadinessWheel.jsx');

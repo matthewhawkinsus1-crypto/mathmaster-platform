@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { describeSkill } from '../../platform/path/skillGraph';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions';
 import { curateStudentPanel, resolveChoiceState } from '../../platform/path/studentPanel';
-import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
+import { fetchSessionPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { practisableOptions } from '../../platform/path/recommendedCoverage.js';
 import { toneTextColor } from '../../theme/themeColorRoles.js';
 
@@ -75,7 +75,8 @@ export default function RecommendedSkills({
   teacherOverrides = [],
   requiredSkillIds = [],
   onChooseSkill,
-  // The course's coverage index; read here when not given (tests pass one).
+  // The course's coverage index; read here when not given (tests pass one),
+  // once a session per course (pathCoverageService.js).
   coverage: coverageOverride = undefined,
 }) {
   const [showAll, setShowAll] = useState(false);
@@ -85,7 +86,7 @@ export default function RecommendedSkills({
     if (coverageOverride !== undefined) return undefined;
     let cancelled = false;
     setLoadedCoverage(undefined);
-    fetchPathCoverage(courseId).then((index) => { if (!cancelled) setLoadedCoverage(index || null); });
+    fetchSessionPathCoverage(courseId).then((index) => { if (!cancelled) setLoadedCoverage(index || null); });
     return () => { cancelled = true; };
   }, [courseId, coverageOverride]);
   const coverage = coverageOverride !== undefined ? coverageOverride : loadedCoverage;

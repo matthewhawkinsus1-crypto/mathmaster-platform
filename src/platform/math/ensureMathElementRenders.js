@@ -27,18 +27,35 @@ export function ensureMathElementRenders(element, win = typeof window === 'undef
     element.render?.();
     return true;
   };
-  const observer = typeof win.IntersectionObserver === 'function'
-    ? new win.IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) ensure();
+  // Each look is an observer's: it measures the element as the page is drawn,
+  // and on screen with its 50px margin is near the viewport as nearViewport
+  // means it. Measured here instead, in the observer's callback or the timer's,
+  // after a render had changed the page, it laid the page out once more on a
+  // Next. The second look is an observer of its own, unless the first has said
+  // the element is off screen: it says so again when the element comes in.
+  // Only a browser without observers measures.
+  let offScreen = false;
+  const observers = [];
+  const look = () => {
+    const observer = new win.IntersectionObserver((entries) => {
+      offScreen = !entries.some((entry) => entry.isIntersecting);
+      if (!offScreen && !mathElementHasRendered(element)) element.render?.();
       if (mathElementHasRendered(element)) observer.disconnect();
-    }, { rootMargin: '50px' })
-    : null;
-  const frame = win.requestAnimationFrame?.(() => observer?.observe(element));
-  const timer = win.setTimeout(ensure, 400);
+    }, { rootMargin: '50px' });
+    observer.observe(element);
+    observers.push(observer);
+  };
+  const watching = typeof win.IntersectionObserver === 'function';
+  const frame = watching ? win.requestAnimationFrame?.(look) : undefined;
+  const timer = win.setTimeout(() => {
+    if (mathElementHasRendered(element) || offScreen) return;
+    if (watching) look();
+    else ensure();
+  }, 400);
   return () => {
     win.cancelAnimationFrame?.(frame);
     win.clearTimeout(timer);
-    observer?.disconnect();
+    observers.forEach((observer) => observer.disconnect());
   };
 }
 
