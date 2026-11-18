@@ -21,7 +21,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { joinResponseDetail, needsResponseDetail, serverTrackersForAdoption, subscribeResponseDetail, subscribeResponseDetailRoster, withResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
+import { joinResponseDetail, needsResponseDetail, subscribeResponseDetailRoster, withResponseDetail, writeTrackerSplit } from './platform/grades/responseDetailStore.js';
 import {
   buildResponseCheckpointAction,
   checkpointDocumentId,
@@ -31,14 +31,13 @@ import {
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
 import { FAMILY_PIN_SERVER_WAIT_MS, WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
-import { accountChangeClearsDraftProblems, clearDraftSaveProblems, describeDraftSaveProblems, draftSaveProblemAssignmentIds, draftSaveProblemsFor, draftSaveProblemsForStudent, subscribeDraftSaveHealth } from './platform/persistence/draftSaveHealth.js';
+import { describeDraftSaveProblems, draftSaveProblemAssignmentIds, draftSaveProblemsFor, draftSaveProblemsForStudent } from './platform/persistence/draftSaveHealth.js';
 import { REPLACEMENT_NOT_QUEUED, STEP_NOT_QUEUED, SUBMISSION_NOT_QUEUED } from './platform/student/submissionNotQueued.js';
 import { scrollMotion } from './motionPreference.js';
 import { openWorkspaceDraft, readLatestWorkspaceResume, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { createHeldDraftReads } from './platform/persistence/heldDraftRead.js';
 import { readWorkspaceDeliveryPins, readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { canonicalResponseSavedAt } from './platform/persistence/canonicalResponseTime.js';
-import { adoptCanonicalAdvances } from './platform/persistence/canonicalTrackerReconciliation.js';
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
@@ -49,7 +48,6 @@ import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './
 // kit (app/teacher/teacherKit.js). A student's screen reads only the summary.
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolCloseCopy.js';
-import { receiptRereadsAfter } from './platform/assessment/dolReceiptRefresh.js';
 import { extraTimeFrom } from './platform/assessment/extraTimeWords.js';
 // The DOL grant helpers (platform/assessment/dolAttemptGrantClient.js) are
 // teacher-only: they come from the teacher kit (app/teacher/teacherKit.js).
@@ -90,18 +88,12 @@ import { countedQuestion, countedQuestionKnown, shownDeliveryKey } from './platf
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilySlot.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
 import {
-  fetchAssignmentsById,
   fetchStudentAssignments,
   individuallyAssignedTestCycleIds,
-  markIndividuallyAssigned,
   mergeStudentAssignments,
-  priorWorkAssignmentIds,
-  priorWorkFromClassLeft,
   studentClassAssignmentsQuery,
-  subscribeStudentClassAssignments,
-  workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
-import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments, sameTimingProfile } from './platform/assignments/studentAssignmentControls.js';
+import { EMPTY_STUDENT_CONTROLS, STUDENT_CONTROLS_STATUS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
 import { resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
 import {
@@ -177,20 +169,12 @@ import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './
 import { helpRequestAfterClose, helpRequestFields, nextHelpRequest } from './platform/supports/helpRequest.js';
 import { useAskMyTeacher, useTeacherQuestionsOn } from './platform/supports/useAskMyTeacher.js';
 import { questionFor } from './platform/supports/askTeacher.js';
-import { followRosterClass, followSupportProfile, rosterMembershipOf, sameRosterMembership, studentClassFields } from './platform/student/rosterMembership.js';
+import { studentClassFields } from './platform/student/rosterMembership.js';
 import TeacherAnswers from './components/student/TeacherAnswers.jsx';
 import { TeacherAnswersList } from './components/student/TeacherAnswersList.jsx';
 import {
-  SPOTLIGHT_FRAME_COLLECTION,
-  SPOTLIGHT_REQUEST_COLLECTION,
   SPOTLIGHT_STATUS,
-  buildSpotlightFrame,
-  createSpotlightPublisher,
-  isActiveSpotlightRequest,
-  publicStudentLabel,
-  scheduleSpotlightExpiry,
 } from './platform/liveSpotlight.js';
-import { activeStudentSpotlightQuery } from './platform/liveSpotlightQueries.js';
 // What a question shows a student, for the live-presence tile, is the one thing
 // App needs of the question type catalog. The catalog is authoring metadata
 // (about 13 KB gzip with the validators under it): it loads where questions are
@@ -299,7 +283,6 @@ import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { resolveAssignmentPathLaunch } from './platform/path/assignmentPathLaunch.js';
 import { LEVEL as NAV_LEVEL, normalizeOrigin, resolveBack } from './platform/student/navigationModel.js';
 import { OPEN_NOTICE, describeOpenNotice, teacherClosedState } from './platform/student/studentOpenGate.js';
-import { subscribeStudentServerMasteryProfiles } from './platform/mastery/serverMasteryProfiles.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
 import { projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
@@ -336,7 +319,6 @@ import { ARRIVAL_MESSAGES, readUrlArrival } from './app/routes/urlArrival.js';
 import { useUrlArrival } from './app/routes/useUrlArrival.js';
 import { questionAddressFor, studentQuestionEntries } from './app/routes/questionAddress.js';
 import {
-  DISPLAYED_CHECKPOINT_OUTCOMES,
   activityTitleForRole,
   assignmentFeedbackWasReleased,
   assignmentHasHeldTeacherFeedback,
@@ -428,16 +410,9 @@ import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
-import {
-  emptyClassPointAccount,
-  subscribeToClassPointAnnouncements,
-  subscribeToPracticePassRedemptions,
-  subscribeToStudentClassPoints,
-} from './platform/classPointsClient.js';
 import { practicePassEligibleAssignments } from './platform/rewards/practicePassClientEligibility.js';
 import {
   loadStudentRewardHistory,
-  subscribeToStudentRewardInventory,
   // A callable, not a hook: imported under a name rules-of-hooks reads as one.
   usePracticePass as redeemPracticePassCallable,
 } from './platform/rewards/rewardsClient.js';
@@ -461,11 +436,11 @@ import {
   ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
-  studentWeeklyPath, subscribeStudentPathIntervention,
+  studentWeeklyPath,
 } from './platform/path/pathStore.js';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
 import { forgetSessionPathCoverage } from './platform/path/pathCoverageService.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor, weeklyPlanClassInputs } from './platform/path/weeklyPathGoal.js';
 import {
   blobToBase64,
   generateLessonNotesPdfBlob,
@@ -505,7 +480,6 @@ import {
 } from './platform/rigor/courseProfiles.js';
 import SessionGate from './app/shell/SessionGate.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
-import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
 import {
   WARMUP_CHALLENGE_ROUTE,
@@ -527,6 +501,16 @@ import { useTimedSectionReminders } from './app/student/useTimedSectionReminders
 import { useActiveTimeClock } from './app/student/useActiveTimeClock.js';
 import { useSchoolClock } from './app/shell/useSchoolClock.js';
 import { useAssignmentNavigatorToggle } from './app/student/useAssignmentNavigatorToggle.js';
+import { useRosterClassFollow } from './app/student/useRosterClassFollow.js';
+import { useStudentGradeDocument } from './app/student/useStudentGradeDocument.js';
+import { useStudentSpotlight } from './app/student/useStudentSpotlight.js';
+import { useDolCheckpointReceipts } from './app/student/useDolCheckpointReceipts.js';
+import { useStudentPathSignals } from './app/student/useStudentPathSignals.js';
+import { useStudentWeeklyPathProgress } from './app/student/useStudentWeeklyPathProgress.js';
+import { useAssignmentListeners } from './app/shell/useAssignmentListeners.js';
+import { useLiveChallengeInvite } from './app/student/useLiveChallengeInvite.js';
+import { useDraftSaveHealth } from './app/student/useDraftSaveHealth.js';
+import { useStudentClassPoints } from './app/student/useStudentClassPoints.js';
 
 // Built once: the district instructional calendar is static reference data,
 // not per-render or per-teacher state (see the identical constant in
@@ -544,77 +528,11 @@ function App() {
   // the auth layer says is signed in.
   const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
   const [user, setUser] = useState(null);
-  const emptyStudentClassPoints = () => ({
-    account: emptyClassPointAccount(),
-    transactions: [],
-    announcements: [],
-    // Live waivers only, by assignment: what grading and completion read.
-    redemptionsByAssignment: {},
-    // Every Practice Pass use, undone ones included: what reward history reads.
-    redemptions: [],
-    // The student's usable rewards (rewardGrants with status available);
-    // null until the first snapshot, so "what they already had" is never
-    // mistaken for "just earned".
-    grants: null,
-    inventoryUnavailable: false,
-    unavailable: true,
-  });
-  const [studentClassPoints, setStudentClassPoints] = useState(emptyStudentClassPoints());
 
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
 
-  useEffect(() => {
-    // Teacher Preview and synthetic student views can never cross this role gate.
-    // A student without canonical class membership also creates no query.
-    if (user?.role !== 'student' || !user.id || !user.classId) {
-      setStudentClassPoints(emptyStudentClassPoints());
-      return undefined;
-    }
-    setStudentClassPoints(emptyStudentClassPoints());
-    let walletFailed = false;
-    const unavailable = (error) => {
-      walletFailed = true;
-      console.warn('Class Points are temporarily unavailable:', error);
-      setStudentClassPoints((current) => ({ ...current, unavailable: true }));
-    };
-    const unsubscribeWallet = subscribeToStudentClassPoints({
-      db,
-      studentId: user.id,
-      classId: user.classId,
-      onAccount: (account) => setStudentClassPoints((current) => ({ ...current, account, unavailable: walletFailed })),
-      onHistory: (transactions) => setStudentClassPoints((current) => ({ ...current, transactions })),
-      onError: unavailable,
-    });
-    const unsubscribeAnnouncements = subscribeToClassPointAnnouncements({
-      db,
-      classId: user.classId,
-      onAnnouncements: (announcements) => setStudentClassPoints((current) => ({ ...current, announcements })),
-      // A public celebration feed failure must not hide an otherwise healthy private wallet.
-      onError: (error) => console.warn('Class celebrations are temporarily unavailable:', error),
-    });
-    // The authoritative Practice Pass waiver projection for this student+class.
-    // Read-only here -- redeeming one goes only through redeemPracticePassCallable.
-    const unsubscribeRedemptions = subscribeToPracticePassRedemptions({
-      db,
-      studentId: user.id,
-      classId: user.classId,
-      onRedemptions: (redemptionsByAssignment, redemptions = []) => setStudentClassPoints((current) => ({ ...current, redemptionsByAssignment, redemptions })),
-      onError: (error) => console.warn('Practice Pass redemptions are temporarily unavailable:', error),
-    });
-    // The student's usable rewards. A failure here hides nothing else.
-    const unsubscribeInventory = subscribeToStudentRewardInventory({
-      db,
-      studentId: user.id,
-      classId: user.classId,
-      onGrants: (grants) => setStudentClassPoints((current) => ({ ...current, grants, inventoryUnavailable: false })),
-      onError: (error) => {
-        console.warn('Rewards are temporarily unavailable:', error);
-        setStudentClassPoints((current) => ({ ...current, inventoryUnavailable: true }));
-      },
-    });
-    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); unsubscribeInventory(); };
-  }, [user?.role, user?.id, user?.classId]);
+  const { studentClassPoints } = useStudentClassPoints({ user });
 
   // Growth, effort and mastery rewards (Retest improvement, Corrections,
   // weekly Path goal, mastery milestones) are re-derived by the server from
@@ -918,18 +836,7 @@ function App() {
   // save of that assignment's work is stored: Home and Log Out go on saying
   // it after the line has moved on (saveStatusModel.js, withUnstoredWork).
   const [studentUnstoredAssignmentIds, setStudentUnstoredAssignmentIds] = useState([]);
-  // Unfinished work this device could not save, or the backup could not take
-  // (draftSaveHealth.js). Bumped on every change; the line below reads it.
-  const [draftSaveHealthVersion, setDraftSaveHealthVersion] = useState(0);
-  useEffect(() => subscribeDraftSaveHealth(() => setDraftSaveHealthVersion((value) => value + 1)), []);
-  // A shared Chromebook: the next student never inherits this one's notice,
-  // and a reload keeps this student's (accountChangeClearsDraftProblems).
-  const draftHealthAccountRef = useRef(null);
-  useEffect(() => {
-    const account = user?.id || null;
-    if (accountChangeClearsDraftProblems(draftHealthAccountRef.current, account)) clearDraftSaveProblems();
-    draftHealthAccountRef.current = account;
-  }, [user?.id]);
+  const { draftSaveHealthVersion } = useDraftSaveHealth({ user });
   const [studentReportingError, setStudentReportingError] = useState(null);
   // Set only when it says something new: every Submit and Next reports the
   // device's queue twice, and "nothing went wrong" again, the same null, drew
@@ -940,11 +847,6 @@ function App() {
     studentReportingErrorRef.current = reason;
     setStudentReportingError(reason);
   };
-  // What the deadline finalizer did with each checkpointed question, read back
-  // from the server's own receipt. A student who was not in the tab when time
-  // ended finds out here what happened, and never reads "submitted" for a
-  // response that was not complete.
-  const [checkpointOutcomes, setCheckpointOutcomes] = useState({});
   // Bumped when a server-held draft that this device did not have is restored.
   // It is part of the QuestionEngine key, so the workspace remounts and the
   // tools read the recovered work — without the first render having waited.
@@ -1149,7 +1051,6 @@ function App() {
   // whether a period is closed. No teacher notes or policy live in it.
   const [gradingPeriodSettings, setGradingPeriodSettings] = useState(() => normalizeGradingPeriodSettings({}));
   const [gradingPeriodBusy, setGradingPeriodBusy] = useState(false);
-  const [liveChallengeInvite, setLiveChallengeInvite] = useState(null);
   // Rooms this student has finished or stepped out of. Leaving the inline
   // Warm-Up game has to be recorded, or the route would still say PLAY and drop
   // them straight back into it — a trap with no way into the assignment.
@@ -1380,21 +1281,7 @@ function App() {
     return () => window.removeEventListener('popstate', restoreFromBrowserHistory);
   }, [user?.role]);
 
-  // A Live Challenge invitation is one tiny per-student pointer. Listening at
-  // the App level means the student can be alerted while sitting on the
-  // dashboard OR while working inside an assignment; the heavy game player is
-  // still lazy-loaded only when they actually open it.
-  useEffect(() => {
-    if (user?.role !== 'student' || !user?.id) {
-      setLiveChallengeInvite(null);
-      return undefined;
-    }
-    return watchLiveChallengeInvite(
-      user.id,
-      (invite) => setLiveChallengeInvite(invite),
-      (error) => console.error('Could not watch Live Challenge invitation:', error),
-    );
-  }, [user?.role, user?.id]);
+  const { liveChallengeInvite } = useLiveChallengeInvite({ user });
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [selectedAssignmentIds, setSelectedAssignmentIds] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -2050,9 +1937,6 @@ function App() {
     assignmentId: recoverySession?.assignmentId || null,
   });
   const publishPresenceNowRef = useRef(null);
-  const spotlightPublisherRef = useRef(null);
-  const [studentSpotlightRequest, setStudentSpotlightRequest] = useState(null);
-  const [studentSpotlightMessage, setStudentSpotlightMessage] = useState('');
   // Session-only active time for the live monitor/archive. Assignment question
   // timers are cumulative across resumes, and assignment-activity pending time
   // is periodically flushed/reset, so neither is a valid class-session clock.
@@ -2253,106 +2137,11 @@ function App() {
     setAssignments([]);
   };
 
-  // A changed control, a newly read scope, or a profile revision re-projects
-  // the lessons already held: no listener is re-opened for it.
-  useEffect(() => {
-    if (user?.role === 'student' && user.id) {
-      studentViewerRef.current = { studentId: user.id, profile: user.profile || null, timingProfile: user.timingProfile || null };
-      publishStudentAssignments();
-    } else if (user?.role === 'teacher') {
-      publishTeacherAssignments();
-    }
-    // The publishers read refs; these are what change their answer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.id, user?.profile, user?.timingProfile, studentAssignmentControls, teacherClassControls]);
-
-  useEffect(() => {
-    if (!user?.role || !user.id) return undefined;
-    // What this student has work on when the listener opens: after a move, the
-    // lessons of the class left that it keeps.
-    const studentWorkedIds = user.role === 'student' ? workedAssignmentKey(tracker, individuallyAssignedTestCycleIds(testCycleGrades)).split('|') : [];
-
-    if (user.role === 'student') {
-      return subscribeStudentClassAssignments({
-        db,
-        studentId: user.id,
-        classId: user.classId,
-        onChange: (classAssignments) => {
-          // A move to another class while signed in (rosterMembership.js): as
-          // the new class's lessons come, the lessons of the class left that
-          // this student has work on stay, as prior work, as a fresh load reads
-          // them; the class left's other lessons go.
-          const keptFromClassLeft = priorWorkFromClassLeft({ classAssignments: studentClassAssignmentsRef.current, classId: user.classId, workedIds: studentWorkedIds });
-          if (keptFromClassLeft.length) studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, keptFromClassLeft);
-          studentClassAssignmentsRef.current = classAssignments;
-          publishStudentAssignments();
-          // A teacher DOL unlock is an assignment update; see below.
-          setNow(Date.now());
-        },
-        onError: (error) => console.error('Assignment live update failed:', error),
-      });
-    }
-
-    const unsubscribe = onSnapshot(
-      collection(db, 'assignments'),
-      (snapshot) => {
-        const liveAssignments = snapshot.docs.map((assignmentDoc) => ({
-          id: assignmentDoc.id,
-          ...assignmentDoc.data(),
-        }));
-        liveAssignments.sort((a, b) =>
-          String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')),
-        );
-        teacherSharedAssignmentsRef.current = liveAssignments;
-        publishTeacherAssignments();
-        // A teacher DOL unlock is an assignment update. Refresh the logical
-        // clock with the snapshot so students do not wait for the next 30s
-        // lifecycle tick before seeing an early release.
-        setNow(Date.now());
-      },
-      (error) => console.error('Assignment live update failed:', error),
-    );
-
-    return unsubscribe;
-    // Who is signed in and their class decide the listener; a profile
-    // revision re-projects (above) without re-opening it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.id, user?.classId]);
-
-  // Work a student did under an earlier class: read once per change in the
-  // SET of assignments they have work on (not on every answer), by id.
-  // A Test the student was added to on their own is one of them too, from the
-  // moment the server says so and before they have done anything on it.
-  const studentIndividualTestIds = user?.role === 'student' ? individuallyAssignedTestCycleIds(testCycleGrades) : [];
-  const studentIndividualTestKey = studentIndividualTestIds.join('|');
-  const studentWorkedAssignmentKey = user?.role === 'student' ? workedAssignmentKey(tracker, studentIndividualTestIds) : '';
-  useEffect(() => {
-    if (user?.role !== 'student' || !studentWorkedAssignmentKey) return undefined;
-    let cancelled = false;
-    const loadedIds = [
-      ...studentClassAssignmentsRef.current,
-      ...studentPriorWorkAssignmentsRef.current,
-    ].map((assignment) => assignment.id);
-    const missing = priorWorkAssignmentIds({
-      gradesByAssignment: Object.fromEntries(studentWorkedAssignmentKey.split('|').map((id) => [id, true])),
-      loadedIds,
-    });
-    if (!missing.length) return undefined;
-    fetchAssignmentsById(db, missing, { studentId: user.id })
-      .then((fetched) => {
-        if (cancelled || !fetched.length) return;
-        studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(
-          studentPriorWorkAssignmentsRef.current,
-          markIndividuallyAssigned(fetched, studentIndividualTestKey ? studentIndividualTestKey.split('|') : []),
-        );
-        publishStudentAssignments();
-      })
-      .catch((error) => console.warn('Could not load earlier-class assignments:', error));
-    return () => { cancelled = true; };
-    // publishStudentAssignments reads refs and the current user; the key is
-    // what decides whether there is anything new to read.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.id, studentWorkedAssignmentKey]);
+  useAssignmentListeners({
+    user, tracker, setNow, testCycleGrades, studentAssignmentControls, studentClassAssignmentsRef,
+    studentPriorWorkAssignmentsRef, studentViewerRef, publishStudentAssignments, teacherClassControls,
+    teacherSharedAssignmentsRef, publishTeacherAssignments,
+  });
 
   // Pacing and overrides are advisory: a failure here must not stop a teacher
   // signing in, so it degrades to defaults rather than rejecting the login.
@@ -2390,82 +2179,9 @@ function App() {
     });
   }, [user, weeklyGoalsByClass]);
 
-  // This student's week, as this page holds it for Home and My Math Path
-  // (platform/path/studentWeeklyPath.js): asked for again a minute after the
-  // last answer, or after any Path work, and never while the page is hidden.
-  const studentWeeklyPathFacts = useMemo(() => (
-    user?.role === 'student' && user.id ? studentWeeklyPath.forStudent({ studentId: user.id, classId: user.classId || null }) : null
-  ), [user?.role, user?.id, user?.classId]);
+  const { studentWeeklyPathFacts } = useStudentWeeklyPathProgress({ user, setStudentWeeklyPathProgress, now, studentDashboardMode, studentWeeklyGoalConfig });
 
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id) {
-      setStudentWeeklyPathProgress(null);
-      return undefined;
-    }
-    if (studentDashboardMode !== 'assignments' || !studentWeeklyPathFacts) return undefined;
-
-    const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
-    const settings = normalizeWeeklyGoalConfig(studentWeeklyGoalConfig || {}, { honors });
-    const currentWeekKey = weekKeyFor(now, settings.weekStartsOn || 1);
-    // Nothing until the week is known: an answer the page holds lands in this
-    // same render, else this says "Check your Math Path" until one comes.
-    setStudentWeeklyPathProgress(null);
-
-    // The frozen goal, and the completions the server counts: the rule the
-    // teacher table and Classroom use.
-    return studentWeeklyPathFacts.follow(currentWeekKey, {
-      goal: true,
-      apply: ({ goal, facts: weeklyFacts }) => {
-        if (!goal) {
-          const required = Number(settings.sessions) || 0;
-          setStudentWeeklyPathProgress({
-            required,
-            completed: 0,
-            remaining: required,
-            complete: required === 0,
-            overdue: now > dueAtFor(now, settings) && required > 0,
-          });
-          return;
-        }
-
-        const completions = weeklyFacts?.completions || [];
-        setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
-      },
-      // Without an answer the card says to check, never that nothing is done,
-      // and the week is asked for again in a minute.
-      fail: (error) => {
-        console.error('Could not confirm the student Weekly Path status:', error);
-        setStudentWeeklyPathProgress(null);
-      },
-    });
-  }, [
-    user?.role, user?.id, user?.profile?.courseLevel, studentWeeklyGoalConfig, studentWeeklyPathFacts,
-    studentDashboardMode, Math.floor(now / 3_600_000),
-  ]);
-
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id) {
-      setStudentServerMasteryProfiles(null);
-      return undefined;
-    }
-    return subscribeStudentServerMasteryProfiles({
-      studentId: user.id,
-      onChange: setStudentServerMasteryProfiles,
-      onError: (error) => console.error('Server mastery profile failed to load:', error),
-    });
-  }, [user?.role, user?.id]);
-
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id) {
-      setStudentPathInterventionState(null);
-      return undefined;
-    }
-    return subscribeStudentPathIntervention({
-      studentId: user.id,
-      onChange: setStudentPathInterventionState,
-      onError: (error) => console.error('Personal Path recommendation failed to load:', error),
-    });
-  }, [user?.role, user?.id]);
+  useStudentPathSignals({ user, setStudentPathInterventionState, setStudentServerMasteryProfiles });
 
   const studentOverrides = useMemo(() => {
     if (user?.role !== 'student') return [];
@@ -4196,48 +3912,7 @@ function App() {
       ...liveTeachingSession, updatedAt,
     }).catch((error) => console.error('Could not synchronize Walkthrough:', error));
   }, [user?.role, liveTeachingSession]);
-
-  // The receipts are read again after the open exit ticket closes (RT08,
-  // dolReceiptRefresh.js): a few reads, not a listener.
-  const activeDolOpen = useMemo(() => {
-    if (user?.role !== 'student' || !activeAssignmentId) return null;
-    const assignment = assignments.find((item) => item.id === activeAssignmentId);
-    if (!assignment) return null;
-    const state = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
-    return state.enabled ? state.status === 'active' : null;
-  }, [user, activeAssignmentId, assignments, classSchedule, now]);
-  const [checkpointReadRound, setCheckpointReadRound] = useState(0);
-  const dolReceiptWindowRef = useRef(null);
-  useEffect(() => {
-    const previous = dolReceiptWindowRef.current;
-    const next = activeAssignmentId && activeDolOpen !== null ? { assignmentId: activeAssignmentId, open: activeDolOpen } : null;
-    dolReceiptWindowRef.current = next;
-    const timers = receiptRereadsAfter(previous, next).map((delay) => window.setTimeout(() => setCheckpointReadRound((round) => round + 1), delay));
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [activeAssignmentId, activeDolOpen]);
-
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id || !activeAssignmentId) {
-      setCheckpointOutcomes({});
-      return undefined;
-    }
-    let cancelled = false;
-    getDocs(query(
-      collection(db, 'studentResponseCheckpoints'),
-      where('studentId', '==', user.id),
-      where('assignmentId', '==', activeAssignmentId),
-    )).then((snapshot) => {
-      if (cancelled) return;
-      setCheckpointOutcomes(Object.fromEntries(snapshot.docs
-        .map((entry) => entry.data())
-        .filter((entry) => DISPLAYED_CHECKPOINT_OUTCOMES.includes(String(entry?.status || '')))
-        .map((entry) => [Number(entry.questionIndex), String(entry.status)])));
-    }).catch((error) => {
-      // A missing receipt is not worth interrupting the student for.
-      console.warn('Could not read response checkpoint receipts:', error);
-    });
-    return () => { cancelled = true; };
-  }, [user?.role, user?.id, activeAssignmentId, checkpointReadRound]);
+  const { checkpointOutcomes } = useDolCheckpointReceipts({ user, assignments, activeAssignmentId, now, classSchedule });
 
   /*
    * SERVER-BACKED WORKING DRAFTS.
@@ -4870,105 +4545,7 @@ function App() {
   // Raised or cleared: the teacher sees it now, not on the next 20 s beat.
   useEffect(() => { publishPresenceNowRef.current?.(); }, [helpRequest]);
 
-  // Spotlight consent is its own short-lived channel. Merely opening an
-  // assignment or publishing presence never creates a frame.
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id) {
-      setStudentSpotlightRequest(null);
-      return undefined;
-    }
-    return onSnapshot(
-      activeStudentSpotlightQuery(db, { studentId: user.id }),
-      (snapshot) => {
-        const current = snapshot.docs
-          .map((entry) => ({ id: entry.id, ...entry.data() }))
-          .filter((entry) => [SPOTLIGHT_STATUS.REQUESTED, SPOTLIGHT_STATUS.ACCEPTED].includes(entry.status))
-          .filter((entry) => (entry.expiresAt?.toMillis?.() || 0) > Date.now())
-          .sort((left, right) => (right.requestedAt?.toMillis?.() || 0) - (left.requestedAt?.toMillis?.() || 0))[0] || null;
-        setStudentSpotlightRequest(current);
-      },
-      () => setStudentSpotlightMessage('Presentation connection unavailable. Your MathMaster work is still safe and usable.'),
-    );
-  }, [user?.role, user?.id]);
-
-  useEffect(() => {
-    spotlightPublisherRef.current?.stop();
-    spotlightPublisherRef.current = null;
-    if (!studentSpotlightRequest || !isActiveSpotlightRequest(studentSpotlightRequest)) return undefined;
-    const frameRef = doc(db, SPOTLIGHT_FRAME_COLLECTION, studentSpotlightRequest.id);
-    spotlightPublisherRef.current = createSpotlightPublisher({
-      publish: (frame) => setDoc(frameRef, {
-        ...frame,
-        requestId: studentSpotlightRequest.id,
-        studentId: user.id,
-        expiresAt: studentSpotlightRequest.expiresAt,
-        updatedAt: serverTimestamp(),
-      }).catch(() => setStudentSpotlightMessage('Presentation connection interrupted. Keep working normally while MathMaster reconnects.')),
-    });
-    return () => {
-      spotlightPublisherRef.current?.stop();
-      spotlightPublisherRef.current = null;
-    };
-  }, [studentSpotlightRequest?.id, studentSpotlightRequest?.status, user?.id]);
-
-  const respondToSpotlight = useCallback(async (accepted) => {
-    if (!studentSpotlightRequest || studentSpotlightRequest.status !== SPOTLIGHT_STATUS.REQUESTED) return;
-    try {
-      await updateDoc(doc(db, SPOTLIGHT_REQUEST_COLLECTION, studentSpotlightRequest.id), {
-        status: accepted ? SPOTLIGHT_STATUS.ACCEPTED : SPOTLIGHT_STATUS.DECLINED,
-        respondedAt: serverTimestamp(),
-      });
-      setStudentSpotlightMessage(accepted ? '' : 'You chose Not Now. No work was shared.');
-    } catch {
-      setStudentSpotlightMessage('Could not send your choice. Nothing will be shared unless Present Now succeeds.');
-    }
-  }, [studentSpotlightRequest]);
-
-  const stopStudentSpotlight = useCallback(async () => {
-    const request = studentSpotlightRequest;
-    spotlightPublisherRef.current?.stop();
-    spotlightPublisherRef.current = null;
-    if (!request) return;
-    await deleteDoc(doc(db, SPOTLIGHT_FRAME_COLLECTION, request.id)).catch(() => {});
-    if (request.status === SPOTLIGHT_STATUS.ACCEPTED) {
-      await updateDoc(doc(db, SPOTLIGHT_REQUEST_COLLECTION, request.id), {
-        status: SPOTLIGHT_STATUS.STOPPED,
-        stoppedAt: serverTimestamp(),
-        stoppedBy: 'student',
-      }).catch(() => setStudentSpotlightMessage('The projector connection could not be confirmed stopped. It will expire automatically.'));
-    }
-  }, [studentSpotlightRequest]);
-
-  const publishSpotlightWork = useCallback(({ question, answerState }) => {
-    if (!spotlightPublisherRef.current || !studentSpotlightRequest || !isActiveSpotlightRequest(studentSpotlightRequest)) return;
-    spotlightPublisherRef.current.schedule(buildSpotlightFrame({
-      assignmentId: activeAssignmentId,
-      assignmentTitle: activeAssignmentData?.title,
-      questionIndex: currentQuestionIndex,
-      question,
-      answerState,
-      studentLabel: publicStudentLabel({ ...studentRecord, ...user }),
-    }));
-  }, [studentSpotlightRequest, activeAssignmentId, activeAssignmentData?.title, currentQuestionIndex, studentRecord, user]);
-
-  useEffect(() => {
-    if (!studentSpotlightRequest) return undefined;
-    return scheduleSpotlightExpiry({
-      request: studentSpotlightRequest,
-      onExpire: () => {
-        setStudentSpotlightRequest(null);
-        if (studentSpotlightRequest.status === SPOTLIGHT_STATUS.ACCEPTED) stopStudentSpotlight();
-      },
-      setTimer: window.setTimeout,
-      clearTimer: window.clearTimeout,
-    });
-  }, [studentSpotlightRequest?.id, studentSpotlightRequest?.status, studentSpotlightRequest?.expiresAt, stopStudentSpotlight]);
-
-  useEffect(() => {
-    if (studentSpotlightRequest?.status !== SPOTLIGHT_STATUS.ACCEPTED) return;
-    if (activeView === 'assignment' && activeAssignmentId === studentSpotlightRequest.assignmentId) return;
-    stopStudentSpotlight();
-  }, [studentSpotlightRequest?.status, studentSpotlightRequest?.assignmentId, activeView, activeAssignmentId, stopStudentSpotlight]);
+  const { studentSpotlightRequest, studentSpotlightMessage, respondToSpotlight, stopStudentSpotlight, publishSpotlightWork } = useStudentSpotlight({ user, activeView, activeAssignmentId, currentQuestionIndex, studentRecord, activeAssignmentData });
 
   // Persistent support/intervention history is teacher-authorized and
   // append-only. It is loaded independently of the live presence stream.
@@ -5414,191 +4991,14 @@ function App() {
       unsubs.forEach((unsubscribe) => unsubscribe());
     };
   }, [user?.role, teacherPresenceScreen, presenceRosterKey, teacherPreviewRuntimeActive]);
+  const { studentRosterMembership } = useStudentGradeDocument({
+    toastSuccess, setUser, user, assignmentsRef, setTracker, setDolGradesByAssignment, setClassworkGradesByAssignment,
+    setClassroomSyncStatusByAssignment, setTestCycleGrades, setTeacherGradeOverridesByAssignment,
+    setSectionRecoveryByAssignment, setWarmupChallengeByAssignment, liveSessionAttemptBaselineRef,
+    classroomSyncNoticeRef,
+  });
 
-  // The server writes one compact receipt only after Google Classroom accepts
-  // a grade patch. Listening to that receipt gives students confirmation from
-  // the authoritative passback result rather than assuming a network request
-  // worked. The local assignment tracker is NOT replaced from this snapshot:
-  // the student's own answers move it through the normal save path, and a
-  // snapshot from before an ingestion lands must never roll them back. A
-  // record the server holds AHEAD of this session is the exception, adopted
-  // below (canonicalTrackerReconciliation.js): an attempt this device never
-  // made — the Warm-Up or DOL deadline's auto-submit, or another Chromebook's.
-  // The same listener hears the roster row's class and teacher change: see
-  // studentRosterMembership below.
-  const [studentRosterMembership, setStudentRosterMembership] = useState(null);
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id) {
-      setStudentRosterMembership(null);
-      setClassroomSyncStatusByAssignment({});
-      setTestCycleGrades({});
-      setTeacherGradeOverridesByAssignment({});
-      setSectionRecoveryByAssignment({});
-      setWarmupChallengeByAssignment({});
-      setDolGradesByAssignment({});
-      setClassworkGradesByAssignment({});
-      classroomSyncNoticeRef.current = {};
-      return undefined;
-    }
-
-    // Whoever is signed in now, their row is followed from its first snapshot.
-    setStudentRosterMembership(null);
-    // A record's detail (parts, steps, last response) is stored beside the
-    // grades document (gradeEntryStorage.mjs): the server's trackers are
-    // adopted joined to it, from either snapshot, whichever arrives last.
-    let latestServerGrades = null;
-    let latestDetail = null;
-    let stopDetail = null;
-    const adoptServerGrades = () => {
-      if (!latestServerGrades) return;
-      const serverGrades = serverTrackersForAdoption(latestServerGrades, latestDetail);
-      setTracker((current) => {
-        const { grades, adopted } = adoptCanonicalAdvances(current, serverGrades);
-        // Attempts the server made are not this session's attempts.
-        adopted.forEach(({ assignmentId, questionIndex, totalAttempts }) => {
-          const baseline = liveSessionAttemptBaselineRef.current;
-          if (baseline.assignmentId === assignmentId) {
-            baseline.totalAttemptsByIndex = { ...baseline.totalAttemptsByIndex, [questionIndex]: totalAttempts };
-          }
-        });
-        return grades;
-      });
-    };
-    const stopGrades = onSnapshot(
-      doc(db, 'grades', user.id),
-      (snapshot) => {
-        if (!snapshot.exists()) return;
-        // An attempt the server recorded without this device — the deadline
-        // finalizer's auto-submit above all — reaches the open question now,
-        // not at the next sign-in: a closed question shows as closed, and the
-        // next checkpoint carries the attempt count the server really has.
-        latestServerGrades = snapshot.data()?.gradesByAssignment || {};
-        if (!stopDetail && needsResponseDetail({ gradesByAssignment: latestServerGrades })) {
-          stopDetail = subscribeResponseDetail(
-            db,
-            user.id,
-            (detail) => { latestDetail = detail; adoptServerGrades(); },
-            (error) => console.error('Could not follow saved work detail:', error),
-          );
-        }
-        adoptServerGrades();
-        const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
-        // Each map is kept while the snapshot says the same (keepSame,
-        // renderStability.js). Every Submit and Next brings two snapshots, the
-        // record and the time on task, whose maps say what they said: as new
-        // objects they drew App again and worked out again everything read
-        // from them (the grades, the Recoveries, the sections' locks).
-        setClassroomSyncStatusByAssignment(keepSame(next));
-        // A teacher releasing a secure Test or Retest changes this map, and the
-        // student's card and Grade Center have to follow without a reload.
-        setTestCycleGrades(keepSame(snapshot.data()?.testCycleGrades || {}));
-        setTeacherGradeOverridesByAssignment(keepSame(snapshot.data()?.teacherGradeOverridesByAssignment || {}));
-        // A Recovery the server just recorded must reach the student's grade
-        // and Recovery panel without a reload.
-        setSectionRecoveryByAssignment(keepSame(snapshot.data()?.sectionRecoveryByAssignment || {}));
-        setWarmupChallengeByAssignment(keepSame(snapshot.data()?.warmupChallengeByAssignment || {}));
-        setDolGradesByAssignment(keepSame(snapshot.data()?.dolGradesByAssignment || {}));
-        setClassworkGradesByAssignment(keepSame(snapshot.data()?.classworkGradesByAssignment || {}));
-        // The profile the server grades with: a revision a teacher saves while
-        // this student is working reaches their required items now, not at
-        // the next sign-in.
-        const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
-        // Supports only: the course and level the class sets stay (rosterMembership.js).
-        setUser((current) => followSupportProfile(current, liveProfile));
-        // The DOL window's source (D7): the grade document's own `profile`
-        // field, updated on its own so nothing else about the user changes.
-        const liveTimingProfile = snapshot.data()?.profile || null;
-        setUser((current) => (current && !sameTimingProfile(current.timingProfile, liveTimingProfile) ? { ...current, timingProfile: liveTimingProfile } : current));
-        // The class and its teacher, as a fresh load reads them: a class handed
-        // to another teacher, or this student moved to another class, while they
-        // work (followed below; teacher features walk, item 10).
-        const membership = rosterMembershipOf(snapshot.data());
-        setStudentRosterMembership((current) => (sameRosterMembership(current, membership) ? current : membership));
-
-        Object.entries(next).forEach(([assignmentId, receipt]) => {
-          const notificationId = receipt?.notificationId;
-          if (!notificationId) return;
-          if (classroomSyncNoticeRef.current[assignmentId] === notificationId) return;
-          classroomSyncNoticeRef.current[assignmentId] = notificationId;
-
-          const assignment = assignmentsRef.current.find((item) => item.id === assignmentId);
-          const title = assignment?.title || 'Your assignment';
-          const grade = Number.isFinite(Number(receipt?.grade)) ? Number(receipt.grade) : null;
-          const gradeText = grade == null ? 'Your grade' : `${grade}%`;
-          const stage = String(receipt?.stage || '');
-          const final = receipt?.isFinal === true || stage.startsWith('final-');
-          const studentVisible = receipt?.studentVisible === true;
-
-          if (final) {
-            toastSuccess(
-              'Final grade sent to Google Classroom',
-              `${title}: ${gradeText} was released to you in Google Classroom as the final MathMaster grade.`,
-            );
-            return;
-          }
-
-          if (stage === 'due-checkpoint') {
-            toastSuccess(
-              'Due-date grade sent to Google Classroom',
-              `${title}: ${gradeText} was released to you in Google Classroom at the regular due date. Late work can still improve it before the final cutoff.`,
-            );
-            return;
-          }
-
-          if (stage === 'assessment-release') {
-            toastSuccess(
-              'Released grade sent to Google Classroom',
-              `${title}: ${gradeText} was released to you in Google Classroom after your teacher released the assessment grade.`,
-            );
-            return;
-          }
-
-          if (studentVisible) {
-            toastSuccess(
-              'Updated grade released to Google Classroom',
-              `${title}: your current ${gradeText} is visible in Google Classroom. It is not final—late work can still improve it.`,
-            );
-            return;
-          }
-
-          // A draft the teacher has not released is invisible to the student
-          // in Classroom; announcing it only added sync jargon. No toast.
-        });
-      },
-      (error) => console.error('Could not watch Google Classroom grade receipts:', error),
-    );
-    return () => {
-      stopGrades();
-      if (stopDetail) stopDetail();
-    };
-  }, [user?.role, user?.id, toastSuccess]);
-
-  /*
-   * WHAT THE STUDENT'S SCREENS READ ABOUT THEIR CLASS FOLLOWS THEIR ROSTER ROW
-   * (platform/student/rosterMembership.js). A class handed to another teacher
-   * moves the teacher their next question goes to; a move to another class
-   * takes the new class whole, as a fresh load reads it: its lessons (the class
-   * listener follows user.classId), its bell times, its course and level, and
-   * the class and teacher a question or support evidence names. A class made
-   * after this student signed in is read first, once, and followed with what
-   * that read gave (as sign-in does when it cannot read the class).
-   */
-  const classReadForRosterRef = useRef(null);
-  useEffect(() => {
-    if (user?.role !== 'student' || !studentRosterMembership) return undefined;
-    const { classId } = studentRosterMembership;
-    const follow = (byId) => setUser((current) => followRosterClass(current, studentRosterMembership, { classesById: byId, courseProfiles }));
-    if (!classId || classId === (user.classId || null) || classesById[classId] || classReadForRosterRef.current === classId) {
-      follow(classesById);
-      return undefined;
-    }
-    classReadForRosterRef.current = classId;
-    let cancelled = false;
-    fetchStudentClass(classId).then((loaded) => { if (!cancelled) follow(Object.fromEntries(loaded.map((entry) => [entry.classId, entry]))); });
-    return () => { cancelled = true; };
-    // fetchStudentClass is the component's own loader; the row, the class read and the course settings decide the answer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.classId, studentRosterMembership, classesById, courseProfiles]);
+  useRosterClassFollow({ setUser, user, courseProfiles, classesById, fetchStudentClass, studentRosterMembership });
 
   // Sign-in's holds (signInHoldsRef above) end here: with the user set, the
   // listeners they were waiting for — the lesson listener and the student's own
