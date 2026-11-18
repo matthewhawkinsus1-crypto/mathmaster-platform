@@ -87,6 +87,19 @@ const Legend = ({ items }) => (
   </div>
 );
 
+/*
+ * A SYSTEM'S TWO LINES, EACH NUMBERED ON THE PLANE (WCAG 1.4.1). Both are solid,
+ * blue and red, beside a key whose "Equation 1" and "Equation 2" are swatches of
+ * those colours: the colour was all that paired a line with its equation, and a
+ * contrast theme draws both lines and both swatches in its one text colour. So
+ * each line carries its equation's number in a ring of its colour, as the key
+ * (and, plotting, each equation's card) names it, and as the inequality modes
+ * number their boundaries; both lines stay solid, a dash being a strict
+ * boundary's.
+ */
+const LINE_COLORS = ['#1a73e8', '#d93025'];
+const numberedLine = (line, index) => ({ ...line, stroke:LINE_COLORS[index], label:String(index + 1), tag:true });
+
 function LinearMode({ questionData, onAction }) {
   // A secure host names the final action ("Record answer"); see ToolRuntimeContext.
   const checkSystemLabel = useSubmitLabel('Check system');
@@ -136,14 +149,14 @@ function LinearMode({ questionData, onAction }) {
   }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
-        lines={[{m:system.m1,b:system.b1},{m:system.m2,b:system.b2,stroke:'#d93025'}]}
+        lines={[{m:system.m1,b:system.b1},{m:system.m2,b:system.b2}].map(numberedLine)}
         ariaLabel="Graph of both equations in the system"
         // Marking and labelling the intersection is the answer to the question
         // being asked, so only the teacher bench draws it.
         points={revealAnswers && solution.type === 'one' ? [{x:solution.x,y:solution.y,label:'intersection'}] : []} enlargeable={false} />
       <Legend items={[
-        { label:'Equation 1', color:'#1a73e8', note:formatLine({m:system.m1,b:system.b1}) },
-        { label:'Equation 2', color:'#d93025', note:formatLine({m:system.m2,b:system.b2}) },
+        { label:'Equation 1', color:LINE_COLORS[0], note:formatLine({m:system.m1,b:system.b1}) },
+        { label:'Equation 2', color:LINE_COLORS[1], note:formatLine({m:system.m2,b:system.b2}) },
       ]} />
     </Panel>
     <Panel title="Classify and solve">
@@ -507,7 +520,6 @@ function ClassicInequalityMode({ questionData, onAction }) {
  * intersection exactly as it does for the analyze form. Opt-in: a question
  * without `interaction` keeps LinearMode, unchanged.
  */
-const LINE_COLORS = ['#1a73e8', '#d93025'];
 const emptyLinePoints = () => [0, 1].map(() => ({ x1:'', y1:'', x2:'', y2:'' }));
 
 function LinearConstructMode({ questionData, onAction }) {
@@ -561,11 +573,12 @@ function LinearConstructMode({ questionData, onAction }) {
     x:parseNumericAnswer(entry[`x${which}`]),
     y:parseNumericAnswer(entry[`y${which}`]),
   })));
-  // The lines the student's own points determine — the only lines drawn.
+  // The lines the student's own points determine — the only lines drawn, each
+  // numbered as its equation's card is.
   const drawnLines = parsed.map(([first, second], index) => {
     if ([first.x, first.y, second.x, second.y].some((value) => value == null) || Math.abs(second.x - first.x) <= 1e-9) return null;
     const m = (second.y - first.y) / (second.x - first.x);
-    return { m, b:first.y - m * first.x, stroke:LINE_COLORS[index] };
+    return numberedLine({ m, b:first.y - m * first.x }, index);
   }).filter(Boolean);
   const plotted = parsed.flatMap((ends, index) => ends
     .filter((point) => point.x != null && point.y != null)

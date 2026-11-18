@@ -84,6 +84,45 @@ test('the student-build workspace numbers each boundary it draws, and keeps the 
 });
 
 /*
+ * A system of two equations: graphed for the student (the linear mode), or from the two points the student plots on
+ * each line. Both lines were solid, blue and red, beside a key whose "Equation 1" and "Equation 2" were swatches of
+ * those colours, and a contrast theme draws both lines and both swatches alike. Each line is numbered now, as the
+ * inequality modes number their boundaries.
+ */
+test('the Systems Workspace numbers a system\'s two lines in both its equation modes, each in a ring of its colour, and keeps them solid', async () => {
+  // The student's two lines as a reload finds them: two points typed or plotted on each, in the tool's saved draft.
+  const memory = new Map();
+  const before = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  globalThis.window = { localStorage: { getItem: (key) => (memory.has(key) ? memory.get(key) : null), setItem: (key, value) => memory.set(key, String(value)), removeItem: (key) => memory.delete(key), key: (index) => [...memory.keys()][index] ?? null, get length() { return memory.size; } } };
+  try {
+    const { writeQuestionDraft } = await server.ssrLoadModule('/src/questionDraftStorage.js');
+    const { ToolDraftScopeProvider, toolDraftKey } = await server.ssrLoadModule('/src/tools/shared/usePersistentToolState.js');
+    const { default: SystemsWorkspace } = await server.ssrLoadModule('/src/tools/systemsWorkspace/SystemsWorkspace.jsx');
+    writeQuestionDraft(toolDraftKey('plane-names:plotted'), { linePoints: [{ x1: '0', y1: '1', x2: '1', y2: '3' }, { x1: '0', y1: '7', x2: '1', y2: '6' }] }, { edit: true });
+    const modes = {
+      'graphing both equations': renderToStaticMarkup(React.createElement(SystemsWorkspace, { questionData: {}, onAction: () => {} })),
+      'plotting both lines': renderToStaticMarkup(React.createElement(ToolDraftScopeProvider, { draftKey: 'plane-names:plotted' }, React.createElement(SystemsWorkspace, { questionData: { interaction: 'construct' }, onAction: () => {} }))),
+    };
+    for (const [mode, markup] of Object.entries(modes)) {
+      const lines = [...markup.matchAll(/<line [^>]*data-mm-plane-part="line"[^>]*>/g)].map(([tag]) => attributes(tag));
+      assert.equal(lines.length, 2, `${mode}: two lines`);
+      lines.forEach((line) => assert.equal(line['stroke-dasharray'], undefined, `${mode}: each line solid, as an equation's is`));
+      // Each in a ring of its own line's colour, numbered as the key's "Equation 1" and "Equation 2".
+      const tags = [...markup.matchAll(/<g data-curve-label="(\d)"[^>]*>\s*<circle ([^>]*?)\/?>/g)].map(([, label, circle]) => ({ label, ring: attributes(circle) }));
+      assert.deepEqual(tags.map((tag) => tag.label), ['1', '2'], `${mode}: numbered`);
+      tags.forEach((tag, index) => {
+        assert.equal(tag.ring.stroke, lines[index].stroke, `${mode}: ring ${tag.label} in its line's colour`);
+        assert.equal(tag.ring['data-mm-plane-part'], 'chip', `${mode}: a chip under a contrast theme`);
+      });
+      assert.deepEqual([...markup.matchAll(/<strong>(Equation \d)<\/strong>/g)].map((match) => match[1]), ['Equation 1', 'Equation 2'], `${mode}: the key names them so`);
+    }
+  } finally {
+    if (before) Object.defineProperty(globalThis, 'window', before);
+    else delete globalThis.window;
+  }
+});
+
+/*
  * The build mode writes names beside its points itself (a test point's coordinates, "Your point", a vertex's letter, a
  * handle's number), as the plane's children: the plane kept each boundary's ringed number off its own point names
  * only, and a ring sat on a test point's coordinates ("(5, 8)" under ring 1 read "(5"). With the default system, a

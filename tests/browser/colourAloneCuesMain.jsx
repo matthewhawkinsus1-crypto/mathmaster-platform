@@ -10,7 +10,8 @@
  * state, and the planes that drew two lines alike but for their colour (the
  * Inverse & Composition Lab's f and y = x, the Exponential ↔ Log Bridge's, the
  * Systems Workspace's two non-strict boundaries in both its modes (the
- * build mode again with a test point, whose coordinates it writes itself), the
+ * build mode again with a test point, whose coordinates it writes itself) and
+ * a system's two solid lines, graphed and plotted by the student, the
  * Transformations Lab's source and image, the graph workspace's curve and its
  * inverse, a figure's two named solid functions, a system of equations' two
  * lines beside its equations, two more whose steep lines leave a long name no
@@ -78,6 +79,11 @@ const READINESS_RECOMMENDATIONS = {
 // ------------------------------------------------------------------ the Transformations Lab, plot mode
 // The Lab's sample (S1, S2, S3), with the student's first two images plotted. On the page, not in Work View.
 const TRANSFORM_KEY = 'mm-colour-cues:transformations';
+
+// ------------------------------------------------------------------ the Systems Workspace's two equations
+// Graphed for the student (the default system: y = 2x + 1 and y = −x + 7), and plotted by the student from two points
+// on each line, as a reload finds them.
+const LINES_KEY = 'mm-colour-cues:systems-plotted';
 
 // ------------------------------------------------------------------ the graph workspace, building the inverse
 // y = 2x + 1 from two points, its inverse from the two reflected points: both
@@ -147,6 +153,7 @@ function LineWithoutMethod() {
 
 const seedDrafts = () => {
   writeQuestionDraft(toolDraftKey(TRANSFORM_KEY), { plottedPoints: [[0, -3], [2, -1]] }, { edit: true });
+  writeQuestionDraft(toolDraftKey(LINES_KEY), { linePoints: [{ x1: '0', y1: '1', x2: '1', y2: '3' }, { x1: '0', y1: '7', x2: '1', y2: '6' }] }, { edit: true });
   writeQuestionDraft(`${WORKSPACE_KEY}:graph-stage`, 'analysis', { edit: true });
   writeQuestionDraft(`${WORKSPACE_KEY}:graph-construction`, {
     placements: { p0: [0, 1], p1: [1, 3] }, chosenXValues: { p0: '0', p1: '1' }, pointsValidated: true,
@@ -192,6 +199,14 @@ function Cues() {
       {/* A test point where a boundary's number went: the build mode writes its coordinates beside it itself. */}
       <Scene id="systems-build-test-point" title="Systems Workspace, built by the student, with a test point" wide>
         <SystemsWorkspace questionData={{ mode: 'inequalities', studentBuild: { shading: true }, testPoint: { x: 5, y: 8 } }} onAction={ignore} />
+      </Scene>
+      <Scene id="systems-linear" title="Systems Workspace: a system's two equations, graphed" wide>
+        <SystemsWorkspace questionData={{}} onAction={ignore} />
+      </Scene>
+      <Scene id="systems-linear-plotted" title="Systems Workspace: a system's two lines, plotted by the student" wide>
+        <ToolDraftScopeProvider draftKey={LINES_KEY}>
+          <SystemsWorkspace questionData={{ interaction: 'construct' }} onAction={ignore} />
+        </ToolDraftScopeProvider>
       </Scene>
       <Scene id="transformations" title="Transformations Lab, plot mode" wide>
         <ToolDraftScopeProvider draftKey={TRANSFORM_KEY}>
