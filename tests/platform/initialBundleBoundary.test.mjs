@@ -19,6 +19,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];
@@ -127,8 +128,11 @@ test('App loads the question generator where a student prints, not with Home', (
   const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
   // Whether a question can vary comes with the family engine (familyDelivery.js),
   // not from a static import: its rules resolve a family's definition.
-  assert.doesNotMatch(app, /^import [^\n]*questionVariability\.mjs';$/m);
-  assert.match(app, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
+  // Refused in App and in every hook App imports (they are in App's chunk).
+  assert.doesNotMatch(appSurfaceSource(), /^import [^\n]*questionVariability\.mjs';$/m);
+  // Since the App split, useFamilyDeliveryEngine owns the engine and this rule; App takes both from its one call.
+  assert.match(app, /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(\{ activeAssignmentId \}\);/);
+  assert.match(appHookSource('useFamilyDeliveryEngine'), /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
   const exportPdf = region(app, 'const exportAssignmentWorksheetPdf = async', 'const resolvedQuestion = normalizeContextualQuestion(generateQuestion(', 'the student worksheet export');
   assert.match(exportPdf, /let generateQuestion;\s*let buildStudentFamilyContext;\s*try \{[^}]*\(\{ generateQuestion \} = await import\('\.\/problemGenerator'\)\);\s*\(\{ buildStudentFamilyContext \} = await loadFamilyDelivery\(\)\);\s*\} catch \(error\) \{[^}]*toastError\('Could not export PDF'[^}]*return;/);
 });
@@ -146,14 +150,20 @@ test('the Question Family registry and its families are not in the first load', 
     assert.ok(!graph.has(key), `${file} is in the first load: ${graph.has(key) ? chainTo(graph, key) : ''}`);
   }
   const app = readFileSync(path.join(repo, 'src/App.jsx'), 'utf8');
-  assert.match(app, /import\('\.\/platform\/generation\/familyDelivery\.js'\)/, 'the context builder is loaded, not imported');
+  // Since the App split, useFamilyDeliveryEngine holds the load (its own
+  // relative path), and App takes the engine and its loader from that call.
+  // The hook is a static import of App, so the graph above walks it too.
+  const familyEngine = appHookSource('useFamilyDeliveryEngine');
+  assert.match(familyEngine, /import\('\.\.\/\.\.\/platform\/generation\/familyDelivery\.js'\)/, 'the context builder is loaded, not imported');
+  assert.doesNotMatch(appSurfaceSource(), /^import [^\n]*\/familyDelivery\.js';$/m, 'by App or by any hook App imports');
+  assert.match(app, /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(\{ activeAssignmentId \}\);/);
   // A question waits for it rather than render with its pin unchecked (and,
   // with no pin, for the server's pins: RT15, familyServerDeliveryPin.test.mjs).
   assert.match(app, /const familyEngineLoading = !familyDelivery;/);
   assert.match(app, /\{familyEngineLoading(?: \|\| familyPinPending)? \? <p role="status"[^>]*>Loading this question…<\/p> : <QuestionEngine/);
   // The module lands in a transition, so the question that waited for it
   // mounts without hiding the workspace (familyServerDeliveryPin.test.mjs).
-  assert.match(app, /import\('\.\/platform\/generation\/familyDelivery\.js'\)\.then\(\(module\) => \{\s*startTransition\(\(\) => setFamilyDelivery\(\(current\) => current \|\| module\)\);/);
+  assert.match(familyEngine, /import\('\.\.\/\.\.\/platform\/generation\/familyDelivery\.js'\)\.then\(\(module\) => \{\s*startTransition\(\(\) => setFamilyDelivery\(\(current\) => current \|\| module\)\);/);
 });
 
 // The worksheet and answer-key builders run when someone asks for a PDF, so

@@ -24,6 +24,7 @@ import {
 } from '../../src/app/shell/screenChange.js';
 import { MAIN_CONTENT_ID } from '../../src/components/common/skipTarget.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 // ------------------------------------------------------------ a tiny DOM
 class FakeElement {
@@ -251,8 +252,14 @@ test('NAV-3: a screen that places its own focus, or only speaks, is named and le
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
 
 test('NAV-3: App imports the module and runs it on every student screen-key change, and the shell has the live region', () => {
-  assert.match(app, /^import \{ screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey \} from '\.\/app\/shell\/screenChange\.js';$/m);
-  const effect = region(app, 'const pendingStudentScreenRef = useRef(null);', '}, [currentStudentScreenKey]);');
+  // Since the App split, app/shell/useStudentScreenChange.js owns the effect
+  // (appHookSource checks App imports and calls it): App hands it what the
+  // screen key and the tab's title are made of, and draws what it says.
+  const hook = executableSource(appHookSource('useStudentScreenChange'));
+  assert.match(hook, /^import \{ screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey \} from '\.\/screenChange\.js';$/m);
+  assert.match(app, /const \{ studentScreenAnnouncement \} = useStudentScreenChange\(\{\s*user, assignmentResultRoute, activeView, teacherTab, assignments, activeAssignmentId, studentDashboardMode,\s*activeTestCycleAssignmentId,\s*\}\);/);
+  assert.match(hook, /return \{ studentScreenAnnouncement \};/);
+  const effect = region(hook, 'const pendingStudentScreenRef = useRef(null);', '}, [currentStudentScreenKey]);');
   // Only a change from an earlier student screen starts one (never the first screen after sign-in).
   assert.match(effect, /if \(previous && previous !== currentStudentScreenKey\) \{\s*pendingStudentScreenRef\.current = \{\s*key: currentStudentScreenKey,/);
   // What had focus as the change began: a later look leaves the student's own focus alone.

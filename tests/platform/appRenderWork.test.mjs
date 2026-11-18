@@ -36,6 +36,7 @@ import {
   persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, saveLineIsAboutDrafts,
 } from '../../src/platform/student/saveStatusModel.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { questionRecordView } from '../../src/platform/performance/questionRecordView.js';
 import {
   normalizeQuestionRecord, recordQuestionAttempt, recordQuestionStep, requestReplacementQuestion,
@@ -434,7 +435,13 @@ test('the navigator works out a question\'s line once per change of what it read
   for (const match of all.matchAll(/\blifecycle\.(\w+)/g)) assert.equal(match[1], 'isPracticeOnly');
   for (const match of all.matchAll(/\buser(?:\?\.|\.)(\w+)/g)) assert.ok(['classId', 'role', 'id'].includes(match[1]), `user.${match[1]}`);
   for (const match of all.matchAll(/\bentry\.(\w+)/g)) assert.ok(['index', 'role'].includes(match[1]), `entry.${match[1]}`);
-  assert.match(code, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
+  // Since the App split useFamilyDeliveryEngine owns both: the familyDelivery
+  // among the inputs above is the one its isPersonalizedBlueprint asks.
+  const engine = executableSource(appHookSource('useFamilyDeliveryEngine'));
+  assert.match(engine, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
+  assert.match(engine, /const \[familyDelivery, setFamilyDelivery\] = useState\(null\);/);
+  assert.match(engine, /return \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \};/);
+  assert.match(code, /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(/);
   // What the page was shown is read only for a family slot.
   const counting = region(read('src/platform/generation/shownFamilyQuestion.js'), 'export const countedQuestion = ({', 'export const countedQuestionKnown', 'countedQuestion');
   assert.match(counting, /if \(!assignmentId \|\| !isFamilyBackedQuestion\(storedQuestion\)\) return fallback;/);

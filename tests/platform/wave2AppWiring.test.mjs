@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { describeDolClose } from '../../src/platform/assessment/dolCloseCopy.js';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
@@ -14,8 +15,14 @@ const code = executableSource(app);
 const imports = region(app, 'import ', '\nfunction ', 'App.jsx imports');
 
 test('m13: the DOL reminder is not shown while the student is on that DOL', () => {
-  assert.match(imports, /import \{ shouldShowDolOpenReminder \} from '\.\/platform\/student\/dolReminder\.js';/);
-  const effect = region(app, 'const activeKeys = new Set();', '// A REOPENED DOL OR AN EXTRA ATTEMPT', 'the DOL reminder effect');
+  // Since the App split, app/student/useTimedSectionReminders.js owns the
+  // reminder effect, so the rule's import is that module's: App hands the
+  // hook the view state the rule reads.
+  const reminders = appHookSource('useTimedSectionReminders');
+  assert.match(code, /useTimedSectionReminders\(\{\s*toastSuccess, toastWarning, user, studentRequiredFor, activeView, assignments, activeAssignmentId, tracker,\s*currentQuestionIndex, now, classSchedule,/);
+  const reminderImports = region(reminders, 'import ', '\nexport function ', 'the hook\'s imports');
+  assert.match(reminderImports, /import \{ shouldShowDolOpenReminder \} from '\.\.\/\.\.\/platform\/student\/dolReminder\.js';/);
+  const effect = region(reminders, 'const activeKeys = new Set();', '// A REOPENED DOL OR AN EXTRA ATTEMPT', 'the DOL reminder effect');
   const gate = effect.indexOf('if (!shouldShowDolOpenReminder({');
   assert.ok(gate > 0, 'the reminder asks the rule');
   // Asked after the key is kept (so leaving the DOL does not restart the

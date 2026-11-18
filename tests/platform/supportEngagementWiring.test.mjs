@@ -13,15 +13,22 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const hook = readFileSync(new URL('../../src/platform/supportEvidence/useEngagementLedger.js', import.meta.url), 'utf8');
 
-const idleEffect = region(app, 'THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.', 'activeSupportPresentation.disableIdleTimer]);', 'idle/engagement effect');
-const effectStart = app.lastIndexOf('useEffect(() => {', app.indexOf('THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.'));
-const guard = app.slice(effectStart, app.indexOf('THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.'));
+// Since the App split, app/student/useActiveTimeClock.js owns the idle effect
+// (appHookSource checks App imports and calls it).
+const activeTimeClock = appHookSource('useActiveTimeClock');
+const idleEffect = region(activeTimeClock, 'THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.', 'activeSupportPresentation.disableIdleTimer]);', 'idle/engagement effect');
+const effectStart = activeTimeClock.lastIndexOf('useEffect(() => {', activeTimeClock.indexOf('THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.'));
+const guard = activeTimeClock.slice(effectStart, activeTimeClock.indexOf('THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.'));
 
 test('the idle-timer accommodation no longer stops the engagement counter', () => {
+  // App runs the clock for every student, handing it the whole presentation
+  // (not a flag that could switch it off) and the counters it adds to.
+  assert.match(app, /useActiveTimeClock\(\{\s*user, activeView, activeAssignmentId, currentQuestionIndex, lastActivityRef, liveSessionActiveSecondsRef,\s*activeTimeRef, pendingAssignmentSecondsRef, getModuleTime, activeSupportPresentation, activeWorkingTracker,\s*\}\);/);
   // The early return that skipped the whole effect must not name the accommodation.
   assert.doesNotMatch(guard, /disableIdleTimer/);
   assert.match(guard, /if \(user\?\.role !== 'student' \|\| activeView !== 'assignment'\) \{/);

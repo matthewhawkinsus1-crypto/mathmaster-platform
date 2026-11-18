@@ -17,6 +17,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { dolTeacherRecoveryActiveAt, resolveDolWindow } from '../../functions/shared/sectionDeadline.mjs';
 import { region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 // ASSESSMENT RECOVERY — REOPEN, EXTRA ATTEMPTS, AND THE RECORD OF BOTH (Job 6).
 //
@@ -141,7 +142,15 @@ test('the teacher controls and the server are wired to the one model', () => {
     assert.match(kitExport[1], new RegExp(`\\b${name}\\b`), `${name} comes from the recovery model`);
     assert.match(app, new RegExp(`requireTeacherKit\\(\\)\\.${name}\\(`), `App calls ${name} through the teacher kit`);
   }
-  assert.match(app, /import \{ summarizeStudentRecovery \} from '\.\/platform\/assessment\/studentRecoverySummary\.js';/);
+  // Since the App split the student's reopened / extra-attempt notice is
+  // useTimedSectionReminders', which App calls with the student, the
+  // assignments and the clock.
+  const reminders = appHookSource('useTimedSectionReminders');
+  assert.match(reminders, /import \{ summarizeStudentRecovery \} from '\.\.\/\.\.\/platform\/assessment\/studentRecoverySummary\.js';/);
+  const remindersCall = region(app, 'useTimedSectionReminders({', '});', "App's call of the reminders hook");
+  for (const input of ['toastSuccess', 'toastWarning', 'user', 'assignments', 'now', 'classSchedule']) {
+    assert.match(remindersCall, new RegExp(`[{,\\s]${input},`), input);
+  }
   assert.match(fs.readFileSync('src/platform/assessment/assessmentRecovery.js', 'utf8'), /export \{[^}]*\bsummarizeStudentRecovery\b[^}]*\} from '\.\/studentRecoverySummary\.js';/, 'the summary is part of the one model');
   // Close / Extend / Move / Back-to-schedule are built by the model, never hand-written.
   const dolControl = region(app, 'const handleDolControlForClass = async', 'const openAssignmentHub');
@@ -163,7 +172,7 @@ test('the teacher controls and the server are wired to the one model', () => {
   // …offered beside each student in the gradebook's student detail (the
   // teacher's screen, its own module since G2, given App's handler by name).
   assert.match(fs.readFileSync('src/app/teacher/TeacherWorkspace.jsx', 'utf8'), /(onClick|onGrant)=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
-  assert.match(region(app, 'A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT', '// Warm-Up reminders'), /summarizeStudentRecovery\(\{ assignment, classId: user\.classId \|\| null, studentId: user\.id/);
+  assert.match(region(reminders, 'A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT', '// Warm-Up reminders'), /summarizeStudentRecovery\(\{ assignment, classId: user\.classId \|\| null, studentId: user\.id/);
   // Every student-side maximum includes this student's own grant.
   assert.equal((app.match(/studentId: user\?\.role === 'student' \? user\.id : null,/g) || []).length, 4);
 

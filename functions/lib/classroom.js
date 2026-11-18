@@ -1,4 +1,17 @@
-const { google } = require("googleapis");
+// COLD START. `googleapis` is the client for every Google API: about 950
+// modules, half a second and 45 MB of heap to load. platformEntry.js loads the
+// Classroom section entries, which load this file, so a require at the top put
+// all of that into every instance of every function, the ones that never talk
+// to Google included (answer ingestion, Live Challenge, secure tests). It is
+// loaded here instead, the first time a function builds a Google client.
+// tests/platform/functionsColdLoad.test.mjs loads the real entry point and
+// fails if it comes back.
+let googleClient = null;
+function google() {
+  if (!googleClient) googleClient = require("googleapis").google;
+  return googleClient;
+}
+
 const { getFirestore } = require("firebase-admin/firestore");
 const { CLASSROOM_ERROR_STEPS, classroomStep } = require("./classroomPushErrors");
 const {
@@ -37,7 +50,7 @@ function requiredPublicEnv(name) {
 }
 
 function createOAuthClient() {
-  return new google.auth.OAuth2(
+  return new (google().auth.OAuth2)(
     readGoogleClientId(),
     readGoogleClientSecret(),
     requiredPublicEnv("GOOGLE_OAUTH_REDIRECT_URI")
@@ -181,7 +194,7 @@ async function getClassroomClient(teacherUid) {
     );
   });
 
-  return google.classroom({ version: "v1", auth: oauth2Client });
+  return google().classroom({ version: "v1", auth: oauth2Client });
 }
 
 async function getDriveClient(teacherUid) {
@@ -196,7 +209,7 @@ async function getDriveClient(teacherUid) {
       console.error("Failed to persist refreshed Google tokens", err)
     );
   });
-  return google.drive({ version: "v3", auth: oauth2Client });
+  return google().drive({ version: "v3", auth: oauth2Client });
 }
 
 async function getConnectionHealth(teacherUid) {
