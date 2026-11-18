@@ -536,8 +536,11 @@ export const MyMathPathExperience = ({
         now: Date.now(),
       });
     }
-    return readOnly ? null : fetchMyWeeklyPathHistory;
-  }, [sessionProvider, readOnly, assignedWeeklyGoal]);
+    // The live student's recent weeks, held by the page (studentWeeklyPath.js)
+    // for a minute and never past their Path work, as Home's week is.
+    if (readOnly) return null;
+    return liveWeek ? liveWeek.history : fetchMyWeeklyPathHistory;
+  }, [sessionProvider, readOnly, assignedWeeklyGoal, liveWeek]);
 
 
   // CCMR. The components have existed since Batch 9; what was missing was any

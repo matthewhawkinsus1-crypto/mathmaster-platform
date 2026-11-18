@@ -124,7 +124,7 @@ test('Home reads the same server completions, and App.jsx imports what it calls'
   assert.match(home, /const completions = weeklyFacts\?\.completions \|\| \[\];\s*setStudentWeeklyPathProgress\(evaluateWeeklyGoalProgress\(\{ goal, completions, now \}\)\);/, 'Home weekly status must use server completions');
   assert.match(app, /import \{[^}]*\bstudentWeeklyPath\b[^}]*\} from '.\/platform\/path\/pathStore.js'/s);
   const store = executableSource(read('src/platform/path/pathStore.js'));
-  assert.match(region(store, 'export const studentWeeklyPath = createStudentWeeklyPath({', '});', 'the page week'), /completions: fetchMyWeeklyPathCompletions,/);
+  assert.match(region(store, 'export const studentWeeklyPath = createStudentWeeklyPath({', '});', 'the page week'), /completions: fetchMyWeeklyPathCompletions,\s*history: fetchMyWeeklyPathHistory,/);
   assert.match(read('src/platform/path/studentWeeklyPath.js'), /client\.completions\(\{ weekKey \}\)/);
   assert.doesNotMatch(app, /deriveCompletionsFromEvidence\(/);
 });

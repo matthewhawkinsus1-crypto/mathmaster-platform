@@ -371,6 +371,7 @@ export const studentWeeklyPath = createStudentWeeklyPath({
     goal: fetchStudentWeeklyPathGoalSnapshot,
     resolve: resolveWeeklyPathGoalSnapshot,
     completions: fetchMyWeeklyPathCompletions,
+    history: fetchMyWeeklyPathHistory,
   },
 });
 

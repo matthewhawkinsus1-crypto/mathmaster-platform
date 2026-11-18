@@ -57,7 +57,7 @@ const onePage = ({ goal = FROZEN } = {}) => {
     addEventListener: (type, listener) => { if (type === 'visibilitychange') listeners.add(listener); },
     removeEventListener: (type, listener) => listeners.delete(listener),
   };
-  const server = { goal, completions: [], inProgress: [], fail: new Set(), gates: {} };
+  const server = { goal, completions: [], inProgress: [], weeks: [], fail: new Set(), gates: {} };
   const calls = [];
   // The server answers with what it holds when it is asked; a gate holds the
   // answer back on its way.
@@ -76,6 +76,7 @@ const onePage = ({ goal = FROZEN } = {}) => {
       return server.goal;
     }),
     completions: () => answer('completions', () => ({ completions: [...server.completions], inProgress: [...server.inProgress], truncated: false })),
+    history: () => answer('history', () => ({ weeks: [...server.weeks], weeksHit: server.weeks.length })),
   };
   const week = createStudentWeeklyPath({
     client,
@@ -450,6 +451,63 @@ test('reads of the Path that change nothing are not Path work', async () => {
 
 const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
 const path = executableSource(readFileSync(new URL('../../src/components/student/MyMathPathApp.jsx', import.meta.url), 'utf8'));
+
+test('My Progress\'s recent weeks: asked for once a minute, again after Path work, never held from a failure or for another account', async () => {
+  const page = onePage();
+  page.server.weeks = [{ weekKey: '2026-11-09', hit: true }];
+  const first = await page.student.history();
+  assert.deepEqual(page.calls, ['history'], 'the first visit asks');
+  assert.equal(first.weeksHit, 1);
+
+  page.later(MINUTE - 1);
+  assert.equal(await page.student.history(), first, 'a visit within the minute is answered from the page');
+  assert.deepEqual(page.calls, ['history']);
+
+  page.week.noteWork();
+  page.server.weeks.push({ weekKey: '2026-11-16', hit: true });
+  assert.equal((await page.student.history()).weeksHit, 2, 'Path work since: asked again, and the new week is there');
+  assert.deepEqual(page.calls, ['history', 'history']);
+
+  page.later(MINUTE);
+  await page.student.history();
+  assert.deepEqual(page.calls, ['history', 'history', 'history'], 'a minute on: asked again');
+
+  // One call on its way serves every visit.
+  page.later(MINUTE);
+  page.server.gates.history = deferred();
+  const a = page.student.history();
+  const b = page.student.history();
+  page.server.gates.history.resolve();
+  assert.equal(await a, await b);
+  assert.equal(page.calls.length, 4);
+  delete page.server.gates.history;
+
+  // An answer asked for before Path work and landing after it is held for no later visit.
+  page.later(MINUTE);
+  page.server.gates.history = deferred();
+  const before = page.student.history();
+  page.week.noteWork();
+  page.server.gates.history.resolve();
+  await before;
+  delete page.server.gates.history;
+  await page.student.history();
+  assert.equal(page.calls.length, 6, 'what landed after the work was not kept');
+
+  // A failure holds nothing: Try again asks again.
+  page.later(MINUTE);
+  page.server.fail.add('history');
+  await assert.rejects(page.student.history(), /history failed/);
+  page.server.fail.delete('history');
+  await page.student.history();
+  assert.equal(page.calls.length, 8, 'Try again after a failure asks the server');
+
+  // Another student is asked for; another account forgets.
+  await page.week.forStudent({ studentId: 's2', classId: 'algebra-1-p2' }).history();
+  assert.equal(page.calls.length, 9);
+  page.week.forget();
+  await page.student.history();
+  assert.equal(page.calls.length, 10, 'nothing held past another account');
+});
 
 test('Home follows the page\'s week, with the frozen goal, and says when it has no answer', () => {
   assert.match(app, /const studentWeeklyPathFacts = useMemo\(\(\) => \(\s*user\?\.role === 'student' && user\.id \? studentWeeklyPath\.forStudent\(\{ studentId: user\.id, classId: user\.classId \|\| null \}\) : null\s*\), \[user\?\.role, user\?\.id, user\?\.classId\]\);/);

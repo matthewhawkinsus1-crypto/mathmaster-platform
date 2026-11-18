@@ -26,7 +26,12 @@
  *     while it was hidden is asked for, once;
  *   - a failure holds nothing. The screen says it has no answer (Home's
  *     "Check your Math Path", My Math Path's Try again), never a zero, and it
- *     is asked for again a minute later while the screen is there.
+ *     is asked for again a minute later while the screen is there;
+ *   - My Progress's recent weeks (getMyWeeklyPathHistory, the weeks hit and
+ *     the streak) follow the completions' rule: asked for again only when the
+ *     answer held for the same student is a minute old or the student did
+ *     Path work after it was asked. My Progress asked for them each time its
+ *     tab opened. A failure holds nothing, and Try again asks again.
  *
  * Unlike the teacher's table (weeklyPathProgressRefresh.js), nothing is asked
  * for on a timer while the student looks at a screen: neither screen did,
@@ -53,6 +58,8 @@ export const createStudentWeeklyPath = ({
   const completions = new Map();
   // key -> { goal, at }: a frozen goal, for good; null, for a minute.
   const goals = new Map();
+  // student -> { history, at, work }: My Progress's recent weeks, asked for at `at`.
+  const histories = new Map();
   // id -> { stamp, promise }: the one call of each kind on its way.
   const calls = new Map();
   // What waits for the page to be shown.
@@ -102,6 +109,15 @@ export const createStudentWeeklyPath = ({
     return ask(`facts|${key}`, stamp, () => client.completions({ weekKey }), (facts, at) => {
       const held = completions.get(key);
       if (stamp === work && (!held || held.at <= at)) completions.set(key, { facts, at, work: stamp });
+    });
+  };
+  const history = (key) => {
+    const held = histories.get(key);
+    if (held && held.work === work && now() - held.at < freshMs) return Promise.resolve(held.history);
+    const stamp = work;
+    return ask(`history|${key}`, stamp, () => client.history(), (answer, at) => {
+      const current = histories.get(key);
+      if (stamp === work && (!current || current.at <= at)) histories.set(key, { history: answer, at, work: stamp });
     });
   };
   const askGoal = (key, weekKey) => {
@@ -182,6 +198,7 @@ export const createStudentWeeklyPath = ({
      *   resolve(proposed)  the week frozen from `proposed`: the one already
      *                      known, or the server's (resolveWeeklyPathGoalSnapshot)
      *   frozenGoal(weekKey) the frozen week, if this page knows it
+     *   history()          My Progress's recent weeks (getMyWeeklyPathHistory)
      */
     forStudent({ studentId, classId = null } = {}) {
       const keyOf = (weekKey) => `${studentId}|${classId || ''}|${weekKey}`;
@@ -189,6 +206,7 @@ export const createStudentWeeklyPath = ({
         follow: (weekKey, options) => follow(keyOf(weekKey), weekKey, options),
         resolve: (proposed) => (proposed?.weekKey ? resolve(keyOf(proposed.weekKey), proposed) : Promise.resolve(null)),
         frozenGoal: (weekKey) => goals.get(keyOf(weekKey))?.goal || null,
+        history: () => history(`${studentId}`),
       };
     },
     /** The student started a Path session, was issued a question or answered one. */
@@ -201,6 +219,7 @@ export const createStudentWeeklyPath = ({
       freezes += 1;
       completions.clear();
       goals.clear();
+      histories.clear();
       calls.clear();
     },
   };
