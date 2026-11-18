@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 import { solvedStageUpdate } from '../../src/tools/stepAlgebra2/linearInterceptsMath.js';
 import { unicodeSubscriptsToMathMarkup } from '../../src/mathDisplayFormat.js';
@@ -207,10 +208,15 @@ test('student step navigation brings the step card under the task, on desktop on
 
 test('a question change reveals the question by measuring on desktop', () => {
   const app = source('src/App.jsx');
-  const reveal = region(app, 'const reveal = (behavior) => {', 'const firstFrame', 'question reveal');
+  // Since the App split, useQuestionReveal owns the reveal; App hands it the
+  // open question and the stage it measures.
+  assert.match(app, /useQuestionReveal\(\{ activeView, activeAssignmentId, currentQuestionIndex, assignmentQuestionStageRef \}\);/);
+  const hook = appHookSource('useQuestionReveal');
+  const reveal = region(hook, 'const reveal = (behavior) => {', 'const firstFrame', 'question reveal');
   assert.match(reveal, /if \(isDesktopStickyLayout\(\)\) \{/);
   assert.match(reveal, /revealBelowSticky\(\{ target: stage, sticky: document\.querySelector\('\.mathmaster-assignment-unified-nav'\)/);
-  assert.match(app, /import \{ isDesktopStickyLayout, revealBelowSticky \} from '\.\/platform\/layout\/stickyReveal\.js';/);
+  assert.match(hook, /import \{ isDesktopStickyLayout, revealBelowSticky \} from '\.\.\/\.\.\/platform\/layout\/stickyReveal\.js';/);
+  assert.match(hook, /\}, \[activeView, activeAssignmentId, currentQuestionIndex\]\);/, 'on a question change');
 });
 
 // ─── Calculator, correlation, quadrants, relation copy ─────────────────────

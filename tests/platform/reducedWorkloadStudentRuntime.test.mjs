@@ -23,6 +23,7 @@ import { splitGrade } from '../../src/platform/teacher/gradeEvidence.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
 import { normalizeStudentProfile } from '../../src/studentSupport.js';
 import { region, executableSource } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const NOW = Date.parse('2026-10-26T15:00:00Z');
 const inHours = (hours) => new Date(NOW + hours * 3600e3).toISOString();
@@ -164,10 +165,16 @@ test('every student-runtime site reads the closure', () => {
   const change = executableSource(region(app, 'const changeQuestion = async (newIndex) => {', 'if (isTeacherPreview) {', 'changeQuestion guard'));
   assert.match(change, /if \(required\.omitted\.includes\(newIndex\)\) return;/);
 
-  assert.match(code, /const ownDolIndices = allDolIndices\.filter\(\(index\) => !studentDolOmitted\.has\(index\)\);/, 'DOL close scores the student\'s DOL');
-  assert.match(code, /const questionIndices = ownDolIndices\.length \? ownDolIndices : allDolIndices;/, 'never a DOL over nothing');
+  // Since the App split, useTimedSectionReminders owns the DOL close and the
+  // Warm-Up reminder; App hands it the closure, and both sites read it there.
+  const timedSections = executableSource(appHookSource('useTimedSectionReminders'));
+  assert.match(region(code, 'useTimedSectionReminders({', '});', 'the hook call in App'), /\bstudentRequiredFor,/);
+  assert.match(timedSections, /const studentDolOmitted = new Set\(studentRequiredFor\(assignment, \{ assignmentTracker: tracker\?\.\[assignment\.id\] \|\| null \}\)\.omitted\);/);
+  assert.match(timedSections, /const warmupOmitted = new Set\(studentRequiredFor\(assignment\)\.omitted\);/);
+  assert.match(timedSections, /const ownDolIndices = allDolIndices\.filter\(\(index\) => !studentDolOmitted\.has\(index\)\);/, 'DOL close scores the student\'s DOL');
+  assert.match(timedSections, /const questionIndices = ownDolIndices\.length \? ownDolIndices : allDolIndices;/, 'never a DOL over nothing');
   assert.match(code, /questionIndices: studentDolIndices,/, 'the live DOL projection');
-  assert.match(code, /&& !warmupOmitted\.has\(index\)/, 'Warm-Up reminder');
+  assert.match(timedSections, /&& !warmupOmitted\.has\(index\)/, 'Warm-Up reminder');
   assert.match(code, /&& !bannerOmitted\.has\(index\)/, 'Warm-Up banner');
   assert.match(code, /questionStates: encodeQuestionStates\(activeWorkingTracker, included, \{ notRequired \}\),/, 'presence');
   assert.match(code, /if \(!question \|\| !questionIsIncluded\(question\) \|\| printOmitted\.has\(index\)\) continue;/, 'student PDF');

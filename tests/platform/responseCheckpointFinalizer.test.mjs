@@ -13,6 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assertCapability, executableSource } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import { readFileSync } from 'node:fs';
 
 import {
@@ -1091,12 +1092,15 @@ test('browser DOL close cannot overwrite a DOL the server already finalized', ()
    * close is local feedback only, and even locally it never replaces a
    * projection the server has already finalized.
    */
-  const marker = appSource.indexOf('CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK');
+  // Since the App split, useTimedSectionReminders owns the close effect
+  // (appHookSource checks App still calls it); the whole hook writes nothing.
+  const timedSections = appHookSource('useTimedSectionReminders');
+  assert.doesNotMatch(executableSource(timedSections), /runTransaction\(|updateDoc\(|setDoc\(|FieldPath\('dolGradesByAssignment'/);
+  const marker = timedSections.indexOf('CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK');
   assert.ok(marker >= 0, 'browser/server DOL race guard is documented in the close effect');
-  const block = appSource.slice(
-    marker,
-    appSource.indexOf('}, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);', marker),
-  );
+  const closeEnd = timedSections.indexOf('}, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);', marker);
+  assert.ok(closeEnd > marker, 'the close effect ends after the guard');
+  const block = timedSections.slice(marker, closeEnd);
   assert.doesNotMatch(block, /runTransaction\(|updateDoc\(|setDoc\(|FieldPath\('dolGradesByAssignment'/);
   assert.match(block, /if \(current\?\.\[assignmentId\]\?\.\[dateKey\]\?\.finalized === true\) return current;/);
 });
