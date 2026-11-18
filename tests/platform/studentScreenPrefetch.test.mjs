@@ -19,6 +19,7 @@ import {
   savesData,
 } from '../../src/app/student/studentScreenPrefetch.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const fakeWindow = ({ idle = true, onLine = true, saveData = false } = {}) => {
   const idleCallbacks = new Map();
@@ -132,12 +133,17 @@ test('a browser with no idle callback waits two seconds instead', () => {
 test('App asks for it once a student\'s Home has rendered, for the four screens, through the once-per-page prefetch', () => {
   assert.equal(typeof prefetchStudentScreens, 'function');
   const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
-  assert.match(app, /^import \{ prefetchStudentScreens \} from '\.\/app\/student\/studentScreenPrefetch\.js';$/m);
-  const effect = region(app, 'return prefetchStudentScreens(', '}, [user?.role, activeView, studentDashboardMode]);', 'the student screens prefetch');
+  // Since the App split, app/student/useStudentScreenPrefetch.js owns the
+  // effect (appHookSource checks App imports and calls it); App hands it the
+  // role, the view and the dashboard mode the guard reads.
+  const hook = executableSource(appHookSource('useStudentScreenPrefetch'));
+  assert.match(app, /^\s*useStudentScreenPrefetch\(\{ user, activeView, studentDashboardMode, loadFamilyDelivery \}\);$/m);
+  assert.match(hook, /^import \{ prefetchStudentScreens \} from '\.\/studentScreenPrefetch\.js';$/m);
+  const effect = region(hook, 'return prefetchStudentScreens(', '}, [user?.role, activeView, studentDashboardMode]);', 'the student screens prefetch');
   assert.match(effect, /^return prefetchStudentScreens\(\[StudentGradeCenter, StudentAssignmentsCenter, StudentRewardsCenter, StudentAssignmentResult\]\);/);
   // After Home has rendered (an effect), only on Home (dashboard mode
   // 'assignments'), only for a student; the cleanup is the cancel.
-  const start = app.lastIndexOf('useEffect(() => {', app.indexOf('return prefetchStudentScreens('));
-  const guard = app.slice(start, app.indexOf('return prefetchStudentScreens('));
+  const start = hook.lastIndexOf('useEffect(() => {', hook.indexOf('return prefetchStudentScreens('));
+  const guard = hook.slice(start, hook.indexOf('return prefetchStudentScreens('));
   assert.match(guard, /^useEffect\(\(\) => \{\s*if \(user\?\.role !== 'student' \|\| activeView !== 'dashboard' \|\| studentDashboardMode !== 'assignments'\) return undefined;\s*$/);
 });

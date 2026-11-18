@@ -8,7 +8,7 @@ import {
 import { region } from './helpers/sourceContract.mjs';
 import { describeWarmupControl } from '../../src/platform/teacher/classLessonControls.js';
 import { applyWarmupTeacherControl } from '../../functions/shared/sectionDeadline.mjs';
-import { appAndTeacherWorkspaceSource } from './helpers/appScreens.mjs';
+import { appAndTeacherWorkspaceSource, appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -92,8 +92,12 @@ test('Warm-Up countdown is visible across teacher and student surfaces', () => {
   assert.match(dashboard, /DOLCountdown endsAt=\{state\.endsAt\}/);
   assert.match(app, /renderStudentWarmupBanner/);
   assert.match(app, /WARM-UP ACTIVE/);
-  assert.match(app, /Warm-Up is active — start now/);
-  assert.match(app, /Warm-Up reminder — timer is running/);
+  // Since the App split, app/student/useTimedSectionReminders.js owns the
+  // reminder toasts: App hands it the toast and the state they read.
+  assert.match(app, /useTimedSectionReminders\(\{\s*toastSuccess, toastWarning, user, studentRequiredFor, activeView, assignments, activeAssignmentId, tracker,\s*currentQuestionIndex, now, classSchedule,/);
+  const reminders = appHookSource('useTimedSectionReminders');
+  assert.match(reminders, /Warm-Up is active — start now/);
+  assert.match(reminders, /Warm-Up reminder — timer is running/);
 });
 
 test('a reopened Warm-Up bypasses Practice Mode and reaches the canonical durable save path', () => {

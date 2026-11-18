@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, STICKY_TASK_HEIGHT_VAR, stickyHeightRef } from '../../src/platform/layout/stickyHeightRef.js';
 import { region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 import { workViewCapabilityWord } from '../../src/platform/student/studentWords.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
@@ -243,7 +244,11 @@ test('every embedded systems solver reveals itself when it opens', () => {
 
 test('opening a question lands on its live work when a tool marks one', () => {
   const app = read('src/App.jsx');
-  const effect = app.slice(app.indexOf("const liveWork = stage?.querySelectorAll?.('[data-work-view-focus=\"true\"]');"), app.indexOf("const changeQuestion = async"));
+  // Since the App split, app/student/useQuestionReveal.js owns the reveal
+  // effect: App hands it the open question and the stage it scrolls to.
+  assert.match(app, /^\s*useQuestionReveal\(\{ activeView, activeAssignmentId, currentQuestionIndex, assignmentQuestionStageRef \}\);$/m);
+  const reveal = appHookSource('useQuestionReveal');
+  const effect = region(reveal, "const liveWork = stage?.querySelectorAll?.('[data-work-view-focus=\"true\"]');", '}, [activeView, activeAssignmentId, currentQuestionIndex]);', 'the question reveal effect');
   assert.match(effect, /if \(target\) target\.scrollIntoView\?\.\(\{ behavior, block: 'start' \}\);\s*else stage\?\.scrollIntoView\?\.\(\{ behavior, block: 'start' \}\);/);
   // Re-aims while the next question renders (the page is briefly short and the
   // scroll clamps), and stops as soon as the student scrolls, types or touches.
@@ -292,15 +297,20 @@ test('the inactivity overlay sits above Work View and is a focused, labelled dia
 // and restarted the timer.
 test('only a pointer that actually moved counts as activity', () => {
   const app = read('src/App.jsx');
-  assert.match(app, /const lastPointerRef = useRef\(null\);/);
-  const effect = app.slice(app.indexOf('const resetOnPointerMove = (event) => {'), app.indexOf("window.addEventListener('keydown', resetActivity);"));
+  // Since the App split, app/student/useActiveTimeClock.js owns the activity
+  // listeners: App hands it the last-activity ref they stamp.
+  assert.match(app, /useActiveTimeClock\(\{\s*user, activeView, activeAssignmentId, currentQuestionIndex, lastActivityRef, liveSessionActiveSecondsRef,\s*activeTimeRef, pendingAssignmentSecondsRef, getModuleTime, activeSupportPresentation, activeWorkingTracker,\s*\}\);/);
+  const clock = appHookSource('useActiveTimeClock');
+  assert.match(clock, /const lastPointerRef = useRef\(null\);/);
+  const effect = region(clock, 'const resetOnPointerMove = (event) => {', "window.addEventListener('keydown', resetActivity);", 'the pointer-move listener');
   assert.match(effect, /if \(point === lastPointerRef\.current\) return;/);
   assert.match(effect, /window\.addEventListener\('mousemove', resetOnPointerMove\);/);
-  assert.doesNotMatch(app, /addEventListener\('mousemove', resetActivity\)/);
+  // Refused in App, the teacher workspace and every hook App calls.
+  assert.doesNotMatch(appSurfaceSource(), /addEventListener\('mousemove', resetActivity\)/);
   // Touch reading, wheel scrolling and drags are activity too.
   for (const type of ['pointerdown', 'touchstart', 'wheel']) {
-    assert.match(app, new RegExp(`window\\.addEventListener\\('${type}', resetActivity, passive\\);`), type);
-    assert.match(app, new RegExp(`window\\.removeEventListener\\('${type}', resetActivity, passive\\);`), type);
+    assert.match(clock, new RegExp(`window\\.addEventListener\\('${type}', resetActivity, passive\\);`), type);
+    assert.match(clock, new RegExp(`window\\.removeEventListener\\('${type}', resetActivity, passive\\);`), type);
   }
 });
 

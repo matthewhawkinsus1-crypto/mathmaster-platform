@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -117,7 +118,13 @@ test('RUN-10: a secure test warns at 2:00 and 0:30, never while its clock is sto
 });
 
 test('RUN-14: inside its lesson the Warm-Up is not a toast, and not a banner on a phone', () => {
-  const reminder = region(app, 'const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;', 'toastWarning(', 'the Warm-Up reminder');
+  // Since the App split the Warm-Up reminder is useTimedSectionReminders',
+  // which App calls with the screen and the assignment that is open.
+  const remindersCall = region(app, 'useTimedSectionReminders({', '});', "App's call of the reminders hook");
+  for (const input of ['toastWarning', 'activeView', 'activeAssignmentId']) {
+    assert.match(remindersCall, new RegExp(`[{,\\s]${input},`), input);
+  }
+  const reminder = region(appHookSource('useTimedSectionReminders'), 'const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;', 'toastWarning(', 'the Warm-Up reminder');
   assert.match(reminder, /if \(activeView === 'assignment' && activeAssignmentId === assignment\.id\) return;/);
   assert.match(app, /className="mathmaster-warmup-banner"/);
   const phone = region(css, '@media (max-width: 768px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px) {', '\n}\n', 'the phone rules');
@@ -169,11 +176,16 @@ test('a toast never covers the action bar: it rises above where the bar actually
   // the bar can sit above the bottom of the screen; lifting toasts by the
   // bar's height alone put one on Submit at 1366×768. Where the bar is, is
   // followed while a toast is shown (toastClearance.test.mjs runs it).
-  const effect = region(app, '  useEffect(() => {\n    if (activeView !== \'assignment\' && activeView !== \'teacherPreview\') return undefined;\n    return followActionBarClearance();', '}, [activeView]);', 'the clearance effect');
+  // Since the App split the effect is useAssignmentNavigatorToggle's, which
+  // App calls with the screen it is on.
+  assert.match(region(app, 'useAssignmentNavigatorToggle({', '});', "App's call of the navigator hook"), /[{,\s]activeView,/);
+  const navigatorHook = appHookSource('useAssignmentNavigatorToggle');
+  const effect = region(navigatorHook, '  useEffect(() => {\n    if (activeView !== \'assignment\' && activeView !== \'teacherPreview\') return undefined;\n    return followActionBarClearance();', '}, [activeView]);', 'the clearance effect');
   assert.ok(effect.length > 0);
-  assert.match(app, /import \{ followActionBarClearance \} from '\.\/platform\/layout\/toastClearance\.js';/);
+  assert.match(navigatorHook, /import \{ followActionBarClearance \} from '\.\.\/\.\.\/platform\/layout\/toastClearance\.js';/);
   // Measured on a scroll, a resize or the page's own size, it went stale.
-  assert.doesNotMatch(executableSource(app), /--mm-action-bar-clearance/);
+  // (Refused in App and every hook it calls, so it cannot return by moving.)
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /--mm-action-bar-clearance/);
   const rule = region(css, '@media (min-width: 641px) {\n  body:has(.mathmaster-assignment-screen) .mm-toast-viewport {', '}\n}', 'the toast rule');
   assert.match(rule, /bottom: calc\(max\(18px, env\(safe-area-inset-bottom\)\) \+ var\(--mm-action-bar-clearance, var\(--mm-action-bar-height, 0px\)\)\);/);
 });
