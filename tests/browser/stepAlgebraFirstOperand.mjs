@@ -1,9 +1,10 @@
-// THE FIRST OPERAND ON A FRESH STEP ALGEBRA STAGE IS KEPT (issue #386 R12).
+// THE FIRST OPERAND ON A FRESH STEP ALGEBRA STAGE IS KEPT (issue #386 R12),
+// AND A COMMITTED STEP LEAVES THE CURSOR ON THE BOARD (#386, after R5).
 //
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
 //   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/stepAlgebraFirstOperand.mjs
 //
-//   ONLY=plain,cold,steps,list   some journeys (names below)
+//   ONLY=plain,cold,steps,list,check   some journeys (names below)
 //   REPEAT=<n>       fresh stages raced in each journey, per device and speed
 //                    (default 3)
 //   THROTTLE=1,4,6   CPU throttling rates (default 1,4)
@@ -31,6 +32,12 @@
 //   list    the same two steps on one screen: the balance step waits for step
 //           1 and mounts on its first answer, then follows every key of it;
 //           the student presses Divide the moment they finish step 1
+//   check   a whole step on the standalone board: Divide, 5, placed on both
+//           sides, the 5s crossed out, 7 typed in the simplification box, then
+//           checked with Enter or with Check my simplification (a phone taps
+//           it). The step is committed and its box goes; the cursor is back on
+//           the Divide tile the move began from, not on the page. (In a
+//           composed question: tests/browser/workflowStepEnter.mjs.)
 //
 // A saved draft that arrives from the server after the student started is
 // raced in the real App: tests/browser/teacherWorkflow/
@@ -41,7 +48,7 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
-const JOURNEYS = ['plain', 'cold', 'steps', 'list'];
+const JOURNEYS = ['plain', 'cold', 'steps', 'list', 'check'];
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const REPEAT = Number(process.env.REPEAT ?? 3);
 const THROTTLE = (process.env.THROTTLE || '1,4').split(',').map(Number).filter((rate) => rate >= 1);
@@ -226,6 +233,79 @@ for (const journey of ['plain', 'cold', 'steps', 'list']) {
   if (!wanted(journey)) continue;
   console.log(`\n${journey}`);
   for (const device of deviceNames) await raceScene(journey, device);
+}
+
+/* ==================================================== after a whole step */
+
+// Where the cursor is: the operation box, or what else holds it.
+const cursorOn = (page) => page.evaluate(() => {
+  let active = document.activeElement;
+  while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+  let owner = active;
+  while (owner?.getRootNode?.()?.host) owner = owner.getRootNode().host;
+  if (owner && owner === document.querySelector('.algebra-operation-composer math-field')) return 'the operation box';
+  const group = owner?.closest?.('.algebra-rail-left') ? ' in the left rail'
+    : owner?.closest?.('.algebra-rail-right') ? ' in the right rail'
+      : owner?.closest?.('.algebra-mobile-operation-palette') ? ' in the phone palette' : '';
+  return `${String(owner?.tagName || 'nothing').toLowerCase()} "${owner?.getAttribute?.('aria-label') || ''}"${group}`;
+});
+
+const press = (locator, device) => (device === 'phone' ? locator.tap() : locator.click());
+const boardState = (page) => page.evaluate(() => String(document.querySelector('[data-math-state]')?.getAttribute('data-math-state') || '').replace(/[\s~]/g, ''));
+
+// Divide by 5, placed on both sides, the 5s crossed out, 7 typed as the right
+// side, and checked: with Enter, or with Check my simplification.
+const wholeStep = async (page, device, how) => {
+  await divide(page).waitFor({ timeout: 120_000 });
+  await press(divide(page), device);
+  await operandBox(page).waitFor({ timeout: 60_000 });
+  await painted(page);
+  if (device === 'phone') {
+    await page.locator('.algebra-operation-composer button[aria-label="Insert 5"]').first().tap();
+    await settle(page, 200);
+    await page.locator('.algebra-pickup-button').first().tap();
+  } else {
+    await page.keyboard.type('5');
+    await settle(page, 200);
+    await page.keyboard.press('Enter');
+  }
+  await settle(page, 300);
+  await press(page.locator('[aria-label$="on the left side"]').first(), device);
+  await settle(page, 300);
+  await press(page.locator('[aria-label$="on the right side"]').first(), device);
+  await press(page.locator('[aria-label="5, mark this factor for cancellation"]').first(), device);
+  const simplification = page.locator('math-field[aria-label="Right side: enter your simplification"]').first();
+  await simplification.waitFor({ timeout: 30_000 });
+  await press(simplification, device);
+  await painted(page);
+  if (device === 'phone') await page.locator('button[aria-label="Insert 7"]').filter({ visible: true }).first().tap();
+  else await page.keyboard.type('7');
+  await settle(page, 300);
+  if (how === 'Enter') await page.keyboard.press('Enter');
+  else await press(page.locator('button.algebra-check-simplification'), device);
+  for (let tries = 0; tries < 40 && await boardState(page) !== 'x=7'; tries += 1) await settle(page, 250);
+};
+
+if (wanted('check')) {
+  console.log('\ncheck');
+  for (const device of deviceNames) {
+    const { context, page, cdp } = await open('plain', device);
+    const expected = device === 'phone' ? 'button "Choose Divide by operation" in the phone palette' : 'button "Choose Divide by operation" in the left rail';
+    for (const rate of THROTTLE) {
+      for (const how of device === 'phone' ? ['Check my simplification'] : ['Enter', 'Check my simplification']) {
+        const label = `check ${device} ×${rate}, ${how}`;
+        await throttle(cdp, rate);
+        await freshStage(page);
+        await wholeStep(page, device, how);
+        await settle(page, 600 * rate);
+        check(await boardState(page) === 'x=7', `${label}: the step is committed (x = 7)`, await boardState(page));
+        const cursor = await cursorOn(page);
+        check(cursor === expected, `${label}: the cursor is back on the Divide tile the move began from`, cursor);
+      }
+    }
+    await throttle(cdp, 1);
+    await context.close();
+  }
 }
 
 await browser.close();

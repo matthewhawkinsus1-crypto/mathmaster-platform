@@ -96,6 +96,8 @@ import { useHintsAllowed, useHintUseReporter, useTeacherView, useToolHintPublish
 import { hintCostSentence } from './platform/supports/hints/hintCopy.js';
 import { isStepNotQueued } from './platform/student/submissionNotQueued.js';
 import { focusForEnter, resolveToolEnterAction } from './platform/interaction/answerEntryUx.js';
+import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
+import { focusFellToPage, operationTileAfterStep } from './platform/algebra/boardFocus.js';
 import { START_OVER } from './platform/student/studentWords.js';
 import { SR_ONLY_STYLE } from './ui/srOnly.js';
 
@@ -664,6 +666,30 @@ export default function StepByStepAlgebra({
     else if (decision.kind === 'focus') focusForEnter(decision.target);
   }, []);
 
+  // AFTER A STEP IS COMMITTED the cursor goes back to the tile the move began
+  // from, when the control that had it went with the step (boardFocus.js). A
+  // deferred focus, so it goes through the question's authority: a press or
+  // key since the commit began, or a focus anything else moved, cancels it.
+  const deferredFocusHost = useDeferredFocusHost();
+  const operationTileRef = useRef(null);
+  const [stepCommitFocus, setStepCommitFocus] = useState(null);
+  useEffect(() => {
+    if (!stepCommitFocus) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const { ticket, operation, side, phone } = stepCommitFocus;
+      if (ticket && !deferredFocusHost?.isLive(ticket)) return;
+      if (!focusFellToPage(document)) return;
+      const label = OPERATIONS.find((item) => item.id === operation)?.label || '';
+      const tile = operationTileAfterStep(boardRootRef.current, { label, side, phone });
+      try {
+        tile?.focus({ preventScroll: true });
+      } catch {
+        tile?.focus?.();
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [stepCommitFocus, deferredFocusHost]);
+
   // The committed equation as LaTeX, once per equation: the board's
   // data-math-state, the operand keyboard's letters and the reported work all read it.
   // A side can be one the student typed that the parser cannot read on its
@@ -1088,6 +1114,9 @@ export default function StepByStepAlgebra({
   };
 
   const commitMove = async (move, { resolution = 'normal', crossedSidesOverride = null } = {}) => {
+    // Taken as the student commits (their Enter, Check or last cross-out), so
+    // anything they do while the step settles outranks the focus below.
+    const focusTicket = deferredFocusHost?.ticket({ since: 'now', channel: 'step-commit' }) || null;
     setCancelAnimating(true);
     setCollapsingSides(move.requiredCancellationSides || []);
     window.setTimeout(async () => {
@@ -1136,6 +1165,12 @@ export default function StepByStepAlgebra({
       setCollapsingSides([]);
       setLockedStroke(null);
       setStruckTerms(null);
+      setStepCommitFocus({
+        ticket: focusTicket,
+        operation: operationTileRef.current?.operation || move.operation,
+        side: operationTileRef.current?.sourceSide || 'left',
+        phone: Boolean(mobileInteraction?.isMobile),
+      });
       setBalancePulse(true);
       window.setTimeout(() => setBalancePulse(false), motionDuration(700, reducedMotion, { floor: 60 }));
       // "Continue from the equation shown" has to be true: a committed step can
@@ -2102,6 +2137,7 @@ export default function StepByStepAlgebra({
     setRewriteMenuOpen(false);
     setStructureTool(null);
     const switching = armedTile?.operation !== operation;
+    operationTileRef.current = { operation, sourceSide };
     setArmedTile({ operation, sourceSide });
     setTapPlacementArmed(false);
     if (switching || placedOperationSidesRef.current.length) {

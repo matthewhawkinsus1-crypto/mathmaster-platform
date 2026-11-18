@@ -17,7 +17,9 @@
 //
 //   - in a box of an unfinished question, nothing: the caret stays;
 //   - in the balance step, the box's own action: Pick up from the operation
-//     box, Check my simplification from the simplification box;
+//     box, Check my simplification from the simplification box — and once
+//     that check commits the step, the cursor is back on the Divide tile the
+//     move began from, not on the page (boardFocus.js);
 //   - in the written answer, a new line;
 //   - once every step is answered, it brings Submit into focus, and only a
 //     second Enter, on Submit itself, presses it.
@@ -65,6 +67,8 @@ const focus = () => page.evaluate(() => {
     inShownStep: Boolean(shell?.classList.contains('workflow-focus__stage-shell--active')),
     submit: Boolean(owner?.closest?.('button') && String(owner.closest('button').textContent || '').trim().startsWith('Submit')),
     pickUpPressed: document.querySelector('.algebra-pickup-button')?.getAttribute('aria-pressed') === 'true',
+    label: owner?.getAttribute?.('aria-label') || '',
+    rail: owner?.closest?.('.algebra-rail-left') ? 'left' : owner?.closest?.('.algebra-rail-right') ? 'right' : '',
   };
 });
 const stepHeading = () => page.locator('.workflow-focus__workspace-heading h4').first().innerText();
@@ -109,9 +113,14 @@ await simplification.click();
 await page.keyboard.type('7');
 await quiet();
 const solved = async () => String(await page.locator('[data-math-state]').first().getAttribute('data-math-state')).replace(/[\s~]/g, '');
-await enterIn('step 2 (the balance\'s simplification box)', (where) => console.log(`     (the step is committed and the box goes; the cursor is on ${where.tag || 'nothing'})`));
+await enterIn('step 2 (the balance\'s simplification box)', () => {});
 for (let tries = 0; tries < 20 && await solved() !== 'x=7'; tries += 1) await quiet(300);
 check(await solved() === 'x=7', 'step 2: Enter checks the simplification, the step\'s own check, and the step is solved (x = 7)', await solved());
+// The box went with the step. The cursor is on the tile the move began from
+// (Divide, in the left rail, where the student chose it), not on the page.
+const afterStep = await focus();
+check(afterStep.tag === 'button' && afterStep.label === 'Choose Divide by operation' && afterStep.rail === 'left' && afterStep.inShownStep,
+  'step 2: once the step is committed, the cursor is back on the Divide tile it began from', JSON.stringify(afterStep));
 
 await next();
 await shownBox().click();
