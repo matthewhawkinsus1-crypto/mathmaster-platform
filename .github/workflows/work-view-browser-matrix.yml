@@ -129,10 +129,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # What Work View's opener covers, the header's badges and one scroller in Work View (see the header). The stubbed
-  # harness serves the assignment harness, the hosts' page and the colour-alone page (its own dependency cache:
-  # forcedColors.vite.config.mjs); the in-memory app serves the Math Tools Lab and the assignment screen. About
-  # eleven minutes on a shared four-core machine (2026-11-17), three readings at a time.
+  # What Work View's opener covers, the header's badges, one scroller in Work View and every staged step's room (see
+  # the header). The stubbed harness serves the assignment harness, the hosts' page and the colour-alone page (its own
+  # dependency cache: forcedColors.vite.config.mjs); the in-memory app serves the Math Tools Lab and the assignment
+  # screen. 48 readings: 24 minutes on a shared four-core machine at a load of 12 to 20, two at a time (2026-11-18);
+  # about eleven before the staged steps, three at a time.
   work-view-opener-cover:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -157,7 +158,7 @@ jobs:
           for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
           cat /tmp/opener-cover-teacher.log; exit 1
 
-      - name: Nothing a student needs under Work View's opener; tries and completion badges clear; one scroller in Work View
+      - name: Nothing a student needs under Work View's opener; tries and completion badges clear; one scroller in Work View; every staged step has room
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5198"
