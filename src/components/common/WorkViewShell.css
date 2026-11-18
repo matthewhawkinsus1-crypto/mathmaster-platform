@@ -767,9 +767,17 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   overflow-y: auto !important;
 }
 
+/* The question's work, and the results the question shows under it (the hint
+   offer, after a Submit the outcome, Continue), in the view's flow: the tool
+   workspace's height:100% (above) held it to the view, so the step ran on past
+   it, the results under it were laid out at the view's height, inside the step,
+   and painted under it, and the view's scroll height left them out. Measured
+   that way, the chrome was 106px less in flow than bounded, and a step on a
+   360x640 phone switched between the two every frame (stepRoom.js). */
 [data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace,
 [data-open="true"] .mathmaster-work-view-surface:has(.workflow-focus[data-step-room="flow"]) > .mathmaster-question-tool-workspace > fieldset {
   flex: 0 0 auto;
+  height: auto;
   overflow: visible;
 }
 

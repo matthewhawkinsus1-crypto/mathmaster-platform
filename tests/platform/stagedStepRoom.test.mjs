@@ -30,55 +30,92 @@ test('a step too short to be worked in makes the view scroll as one, and only co
   assert.equal(stepFlows({ boundedRoom: STEP_MIN_ROOM + FLOW_HYSTERESIS, flowing: true }), false);
 });
 
-// Apply a cap the way the page does: the plane is drawn no taller than it, and in a stacked step the step's
-// content changes by what the plane gave.
-const settle = ({ room, content, plane, natural = plane, frame = 0, stacked = true }) => {
-  let state = { content, plane };
+// A step as the page lays it out: the plane's column (the plane and `a` more) beside a column of `beside` px (or
+// nothing beside it), and `rest` above and below them. The page reads it, the runner caps the plane, the plane is
+// drawn no taller than the cap and no taller than it can be, and the page is read again: `settle` does that until
+// nothing changes, and says how many readings that took.
+const layout = ({ rest, a, beside = null }) => ({
+  content: (plane) => rest + Math.max(plane + a, beside ?? Number.NEGATIVE_INFINITY),
+  slack: (plane) => (beside == null ? Number.POSITIVE_INFINITY : plane + a - beside),
+});
+const settle = ({ room, plane, natural = plane, frame = 0, ...shape }) => {
+  const page = layout(shape);
+  let drawn = plane;
   let cap = null;
-  for (let pass = 0; pass < 6; pass += 1) {
-    const next = stepPlaneCap({ room, content: state.content, plane: state.plane, frame, stacked });
-    const drawn = Math.min(natural, next);
-    const content2 = stacked ? state.content + (drawn - state.plane) : state.content;
-    if (next === cap && drawn === state.plane) break;
+  const caps = [];
+  for (let reading = 1; reading <= 8; reading += 1) {
+    const next = stepPlaneCap({ room, content: page.content(drawn), plane: drawn, frame, slack: page.slack(drawn) });
+    caps.push(next);
+    const redrawn = Math.min(natural, next);
+    if (next === cap && redrawn === drawn) return { cap, plane: drawn, content: page.content(drawn), readings: reading, caps };
     cap = next;
-    state = { content: content2, plane: drawn };
+    drawn = redrawn;
   }
-  return { cap, ...state };
+  return { cap, plane: drawn, content: page.content(drawn), readings: Infinity, caps };
 };
 
 test('where the plane can give the room, the step\'s whole content fits: the plane, its controls and the answers', () => {
   // 1366x768, "x-intercept?": a 430px step, the plane 676px, its zoom row and Yes/No 115px under it.
-  const decide = settle({ room: 430, content: 791, plane: 676, frame: 59 });
+  const decide = settle({ room: 430, plane: 676, frame: 59, rest: 115, a: 0 });
   assert.equal(decide.cap, 315);
   assert.equal(decide.content, 430, 'the step no longer scrolls inside itself');
   // 1920x1080, the same step: a 742px step.
-  assert.equal(settle({ room: 742, content: 1037, plane: 922, frame: 59 }).content, 742);
+  assert.equal(settle({ room: 742, plane: 922, frame: 59, rest: 115, a: 0 }).content, 742);
   // Room to spare: a plane under its natural size grows into it, and no further than the step.
-  const spare = settle({ room: 430, content: 300, plane: 200, natural: 400 });
+  const spare = settle({ room: 430, plane: 200, natural: 400, rest: 100, a: 0 });
   assert.equal(spare.plane, 330);
   assert.equal(spare.content, 430);
   // A fixed point: measured again with the cap applied, the cap is the same.
   assert.equal(stepPlaneCap({ room: 430, content: decide.content, plane: decide.plane, frame: 59 }), decide.cap);
+  assert.ok(decide.readings <= 2, `settled in ${decide.readings} readings`);
 });
 
 test('where it cannot, the step scrolls as before and the plane is whole in it, never under its floor', () => {
-  // 1366x768, "Plot the points": the point cards beside the plane are taller than the step (635px in 430px).
-  const beside = settle({ room: 430, content: 946, plane: 488, frame: 11, stacked: false });
+  // 1366x768, "Plot the points": the point cards beside the plane (635px) are taller than the step (430px).
+  const beside = settle({ room: 430, plane: 488, natural: 802, frame: 11, rest: 311, a: 56, beside: 635 });
   assert.equal(beside.cap, 419);
   assert.ok(beside.plane + 11 <= 430, 'the plane, and the room above it in its box, fit the step');
-  // 1920x1080: 765px in 742px before.
-  assert.ok(settle({ room: 742, content: 1132, plane: 765, frame: 11, stacked: false }).plane <= 742 - 11);
   // 360x740, "Mark max/min": the step is 470px with the plane at its 228px, in 295px. Shrinking the plane to its
   // floor would not make it fit, so the plane keeps its size and only has to be whole with its zoom row.
-  const locate = settle({ room: 295, content: 470, plane: 228, frame: 59 });
+  const locate = settle({ room: 295, plane: 228, frame: 59, rest: 242, a: 0 });
   assert.equal(locate.plane, 228);
   assert.equal(locate.cap, 236);
   // Never under the floor, whatever the room.
   assert.equal(stepPlaneCap({ room: 120, content: 900, plane: 400, frame: 59 }), PLANE_MIN);
-  assert.equal(stepPlaneCap({ room: 100, content: 100, plane: 300, stacked: false }), PLANE_MIN);
+  assert.equal(stepPlaneCap({ room: 100, content: 400, plane: 300, slack: -40 }), PLANE_MIN);
   // No plane: nothing to cap.
   assert.equal(stepPlaneCap({ room: 430, content: 430, plane: 0 }), null);
   assert.equal(stepPlaneCap({ room: Number.NaN, content: 430, plane: 200 }), null);
+});
+
+test('the cap is the same whatever height the plane has now, so the plane settles: the plotting step at 1920x1080 looped', () => {
+  // "Plot the points" at 1920x1080 (the review's reading): a 742px step, the point cards 635px beside the plane's
+  // column (the plane and 56px), 464px above and below. With a 374px plane the cards were the lower, so the plane was
+  // given the step's height (731px); with a 731px plane its own column was the lower, so it was shrunk to fit
+  // (374px); nine times a second. Not a fit: the cards and what is around them are 1099px of a 742px step.
+  const plotting = { room: 742, frame: 11, rest: 464, a: 56, beside: 635, natural: 1076 };
+  const caps = [160, 374, 600, 731, 900, 1076].map((plane) => {
+    const page = layout(plotting);
+    return stepPlaneCap({ room: plotting.room, content: page.content(plane), plane, frame: plotting.frame, slack: page.slack(plane) });
+  });
+  assert.deepEqual([...new Set(caps)], [731], `one cap for every plane height: ${caps.join(', ')}`);
+  for (const plane of [374, 731]) {
+    const settled = settle({ ...plotting, plane });
+    assert.equal(settled.cap, 731);
+    assert.ok(settled.readings <= 2, `from ${plane}px: settled in ${settled.readings} readings (${settled.caps.join(' → ')})`);
+  }
+  // A taller screen where the cards and the rest fit (1099px in 1300px): the plane fills what they leave, from any
+  // height, and the step fits whole.
+  const roomy = { room: 1300, frame: 11, rest: 464, a: 56, beside: 635, natural: 1076 };
+  for (const plane of [200, 374, 780, 1000]) {
+    const settled = settle({ ...roomy, plane });
+    assert.equal(settled.cap, 780, `from ${plane}px`);
+    assert.equal(settled.content, 1300);
+    assert.ok(settled.readings <= 3, `from ${plane}px: settled in ${settled.readings} readings (${settled.caps.join(' → ')})`);
+  }
+  // And a step with nothing beside its plane, from any height.
+  const stacked = { room: 430, frame: 59, rest: 115, a: 0, natural: 1000 };
+  assert.deepEqual([...new Set([200, 315, 676, 1000].map((plane) => settle({ ...stacked, plane }).cap))], [315]);
 });
 
 // A box tree with laid-out rectangles, enough for the geometry: children, parentElement, getBoundingClientRect,
@@ -106,21 +143,21 @@ const node = (name, rect, children = [], extra = {}) => {
   return element;
 };
 
-test('a plane beside a taller column is not stacked, and its frame is its box above it and its own control row under it', () => {
+test('a plane\'s slack is how much lower its column reaches than one beside it, and its frame is its box above it and its own control row under it', () => {
   // "Plot the points" at 1366x768: the point cards (230 wide, 635 tall) beside the plane's figure.
   const svg = node('svg', { left: 290, top: 194, width: 802, height: 488 }, [], { tag: 'svg' });
   const figure = node('figure', { left: 274, top: 183, width: 824, height: 544 }, [svg]);
   const cards = node('aside', { left: 28, top: 183, width: 230, height: 635 });
   const grid = node('grid', { left: 28, top: 183, width: 1070, height: 635 }, [cards, figure]);
   const stage = node('stage', { left: 28, top: 20, width: 1070, height: 946 }, [grid]);
-  assert.deepEqual(planeColumn(svg, stage), { stacked: false, frame: 11 });
+  assert.deepEqual(planeColumn(svg, stage), { slack: -91, frame: 11 }, 'the cards reach 91px lower than the plane\'s column');
   // "x-intercept?": the plane, then its zoom row, then the answers; nothing beside it.
   const plane = node('svg', { left: 28, top: 175, width: 1070, height: 676 }, [], { tag: 'svg' });
   const zoom = node('zoom', { left: 28, top: 866, width: 1070, height: 44 }, [node('+', { left: 28, top: 866, width: 44, height: 44 }, [], { tag: 'button' })]);
   const box = node('box', { left: 28, top: 175, width: 1070, height: 735 }, [plane, zoom]);
   const answers = node('answers', { left: 28, top: 922, width: 1070, height: 44 }, [node('No', { left: 28, top: 922, width: 55, height: 44 }, [], { tag: 'button' })]);
   const step = node('step', { left: 28, top: 175, width: 1070, height: 791 }, [box, answers]);
-  assert.deepEqual(planeColumn(plane, step), { stacked: true, frame: 59 }, 'the zoom row, not the answers under it');
+  assert.deepEqual(planeColumn(plane, step), { slack: Number.POSITIVE_INFINITY, frame: 59 }, 'the zoom row, not the answers under it');
   // Its own box is the first one taller than it: not a wrapper of its own height, and not the step's heading above it.
   const drawn = node('svg', { left: 0, top: 100, width: 300, height: 200 }, [], { tag: 'svg' });
   const wrap = node('wrap', { left: 0, top: 100, width: 300, height: 200 }, [drawn]);
@@ -128,7 +165,11 @@ test('a plane beside a taller column is not stacked, and its frame is its box ab
   const ownBox = node('figure', { left: 0, top: 90, width: 300, height: 260 }, [wrap, zoomRow]);
   const heading = node('heading', { left: 0, top: 0, width: 300, height: 80 });
   const section = node('section', { left: 0, top: 0, width: 300, height: 400 }, [heading, ownBox]);
-  assert.deepEqual(planeColumn(drawn, node('stop', { left: 0, top: 0, width: 300, height: 400 }, [section])), { stacked: true, frame: 54 });
+  assert.deepEqual(planeColumn(drawn, node('stop', { left: 0, top: 0, width: 300, height: 400 }, [section])), { slack: Number.POSITIVE_INFINITY, frame: 54 });
+  // A shorter box beside it counts as well: how far the plane's column can shrink before that one is the lower.
+  const tall = node('svg', { left: 300, top: 0, width: 400, height: 300 }, [], { tag: 'svg' });
+  const note = node('note', { left: 0, top: 0, width: 280, height: 120 });
+  assert.equal(planeColumn(tall, node('stop', { left: 0, top: 0, width: 700, height: 300 }, [node('row', { left: 0, top: 0, width: 700, height: 300 }, [note, tall])])).slack, 180);
   // A note further down its box is not its control row.
   const lone = node('svg', { left: 0, top: 0, width: 300, height: 200 }, [], { tag: 'svg' });
   const help = node('help', { left: 0, top: 260, width: 300, height: 93 }, [node('more', { left: 0, top: 300, width: 80, height: 44 }, [], { tag: 'button' })]);
@@ -199,7 +240,15 @@ test('Work View draws the step\'s plane no taller than the cap the step measured
   for (const selector of [
     `[data-open="true"] .mathmaster-work-view-surface:has(${FLOW}) > .mathmaster-question-tool-workspace`,
     `[data-open="true"] .mathmaster-work-view-surface:has(${FLOW}) > .mathmaster-question-tool-workspace > fieldset`,
-  ]) assert.equal(declared(shell, selector, 'overflow')?.value, 'visible', selector);
+  ]) {
+    assert.equal(declared(shell, selector, 'overflow')?.value, 'visible', selector);
+    // Its content's height, not the view's (the review of 2026-11-18): held to the view by the bounded layout's
+    // height:100%, the step ran past it, the results under it were painted under the step, and the view's scroll
+    // height left them out, so the step was read 106px roomier in flow than bounded and switched every frame.
+    assert.equal(declared(shell, selector, 'height')?.value, 'auto', selector);
+  }
+  // The bounded layout's height:100% it overrides: the flowing rule is the more specific.
+  assert.equal(declared(shell, '[data-open="true"] .mathmaster-question-tool-workspace:has(.workflow-focus)', 'height')?.value, '100%');
   assert.equal(rulesFor(shell, `[data-open="true"] .mathmaster-work-view-surface ${FLOW} .workflow-focus__footer`).length, 0, 'the footer is not pinned');
 });
 

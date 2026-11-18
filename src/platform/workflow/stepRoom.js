@@ -28,6 +28,15 @@
  *           step scrolls regardless and the plane is as tall as the room less
  *           its own frame, so it is whole when the step shows it.
  *
+ * NOTHING HERE MAY DEPEND ON THE PLANE'S OWN HEIGHT. The cap sets that height,
+ * and the page is read again once it has: a decision that turns on it is
+ * undone by its own result. Asked "is a column beside the plane lower than
+ * the plane's?", the plotting step at 1920x1080 answered yes with a 374px
+ * plane (whole: 731px) and no with a 731px one (fit: 374px), and its plane
+ * changed size nine times a second. Whether the step fits, and how tall the
+ * plane is when it does, are worked out from what the plane does not set:
+ * the content beside and around it (planeColumn's slack).
+ *
  * Pure geometry, so node can test it; the DOM is read by readStepRoom below.
  */
 
@@ -52,20 +61,29 @@ export const stepFlows = ({ boundedRoom, flowing = false }) => (
  *   plane    the plane's height now
  *   frame    what must be on screen with it: its box above it, and the row of
  *            its own controls under it (planeColumn)
- *   stacked  nothing beside the plane reaches lower than it: the plane's
- *            height is part of the step's
+ *   slack    how much lower the plane's column reaches than the lowest column
+ *            beside it (planeColumn): negative where one beside reaches lower,
+ *            Infinity where nothing is beside it
+ *
+ * The same for any height the plane has now: with the plane `d` shorter, the
+ * content is `d` less while its column is the lower (to `slack`), and the same
+ * once a column beside is. So the step fits exactly when the content the plane
+ * does not set fits, `overflow <= max(0, slack)`, and then the plane fits it at
+ * `plane - overflow + max(0, -slack)`, which is `room` less everything but the
+ * plane, whatever `plane` was.
  */
-export const stepPlaneCap = ({ room, content, plane, frame = 0, stacked = true }) => {
-  if (![room, content, plane].every(Number.isFinite) || !(plane > 0)) return null;
+export const stepPlaneCap = ({ room, content, plane, frame = 0, slack = Number.POSITIVE_INFINITY }) => {
+  if (![room, content, plane].every(Number.isFinite) || !(plane > 0) || Number.isNaN(slack)) return null;
   const whole = Math.max(PLANE_MIN, Math.floor(room - Math.max(0, frame)));
-  if (!stacked) return whole;
   const overflow = content - room;
-  // Room to spare: the plane may grow into it.
-  if (overflow <= 0) return Math.max(PLANE_MIN, Math.floor(plane - overflow));
-  // The plane can give what the step needs: the whole step fits.
-  if (plane - overflow >= PLANE_MIN) return Math.floor(plane - overflow);
-  // It cannot: the step scrolls anyway, and the plane is whole in it.
-  return whole;
+  // A column beside the plane is the step's height, or will be once the plane
+  // has given its own column's lead: the plane cannot make the step fit.
+  if (overflow > Math.max(0, slack)) return whole;
+  // The plane fills what the rest of the step leaves: grows into room to spare,
+  // or gives the step what it needs. Under its floor the step scrolls anyway,
+  // and the plane is whole in it.
+  const fitted = Math.floor(plane - overflow + Math.max(0, -slack));
+  return fitted >= PLANE_MIN ? fitted : whole;
 };
 
 const PLANES = '.mathmaster-function-workspace-graph svg, svg.mathmaster-responsive-canvas';
@@ -74,30 +92,31 @@ const shown = (box) => box.width > 0 && box.height > 0;
 
 /**
  * How the plane sits in its step, from the plane up to `stop`:
- *   stacked  nothing beside it reaches lower than its column (the plotting
- *            step's point cards beside its plane do, on a wide screen)
- *   frame    what has to be on screen with it: its own box's room above it,
- *            and the row of its own controls directly under it (+, -, Reset
- *            view). Not a caption or a note further down its box.
+ *   slack  how much lower the plane's column reaches than the lowest box
+ *          beside it, at the level where that is least (negative where one
+ *          beside reaches lower: the plotting step's point cards beside its
+ *          plane, on a wide screen); Infinity where nothing is beside it
+ *   frame  what has to be on screen with it: its own box's room above it,
+ *          and the row of its own controls directly under it (+, -, Reset
+ *          view). Not a caption or a note further down its box.
  */
 export const planeColumn = (plane, stop) => {
   const p = plane.getBoundingClientRect();
   let box = null;
-  let stacked = true;
+  let slack = Number.POSITIVE_INFINITY;
   for (let child = plane, parent = plane.parentElement; parent && parent !== stop; child = parent, parent = parent.parentElement) {
     const c = child.getBoundingClientRect();
-    const besideAndLower = [...parent.children].some((sibling) => {
-      if (sibling === child) return false;
+    for (const sibling of parent.children) {
+      if (sibling === child) continue;
       const s = sibling.getBoundingClientRect();
-      if (!shown(s)) return false;
+      if (!shown(s)) continue;
       const beside = s.right <= c.left + 1 || s.left >= c.right - 1;
       const level = s.top < c.bottom - 1 && s.bottom > c.top + 1;
-      return beside && level && s.bottom > c.bottom + 1;
-    });
-    if (besideAndLower) { stacked = false; break; }
+      if (beside && level) slack = Math.min(slack, c.bottom - s.bottom);
+    }
     if (!box && parent.getBoundingClientRect().height > p.height + 1) box = parent;
   }
-  if (!box) return { stacked, frame: 0 };
+  if (!box) return { slack, frame: 0 };
   const b = box.getBoundingClientRect();
   // Its controls: the first row after the plane in its box that has a button,
   // where it starts right under the plane.
@@ -105,7 +124,7 @@ export const planeColumn = (plane, stop) => {
     .map((button) => button.getBoundingClientRect())
     .filter((r) => shown(r) && r.top >= p.bottom - 1 && r.top <= p.bottom + 32)
     .reduce((bottom, r) => Math.max(bottom, r.bottom), p.bottom);
-  return { stacked, frame: Math.max(0, p.top - b.top) + Math.max(0, controls - p.bottom) };
+  return { slack, frame: Math.max(0, p.top - b.top) + Math.max(0, controls - p.bottom) };
 };
 
 export const IDLE_STEP_ROOM = Object.freeze({ flow: false, planeMax: null });
@@ -133,9 +152,9 @@ export const readStepRoom = (root, flowing = false) => {
     .sort((a, b) => b.box.width * b.box.height - a.box.width * a.box.height);
   if (!planes.length) return { flow, planeMax: null };
   const { svg, box } = planes[0];
-  const { stacked, frame } = planeColumn(svg, stage);
+  const { slack, frame } = planeColumn(svg, stage);
   const room = flow ? surface.clientHeight : body.clientHeight;
   const content = flow ? stage.offsetHeight : body.scrollHeight;
-  const planeMax = stepPlaneCap({ room, content, plane: box.height, frame, stacked });
+  const planeMax = stepPlaneCap({ room, content, plane: box.height, frame, slack });
   return { flow, planeMax };
 };
