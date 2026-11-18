@@ -14,6 +14,7 @@ import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvi
 import { shouldShowChallengeHandoffBanner, shouldShowChallengeLobbyInvite } from '../../src/platform/liveChallenge/warmupChallengeLink.js';
 import { classroomAnnouncement, classroomAnnouncementState } from '../../src/platform/student/classroomAnnouncements.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => executableSource(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
 const app = read('src/App.jsx');
@@ -56,8 +57,10 @@ test('NAV-25 review B1: never on an exit ticket, quiz or test whose outcome is w
   // The banner, the phone chip and the announcement all use it; the running
   // hand-off banner (pre-existing, deliberate) does not.
   assert.equal((app.match(/!lobbyInviteHeldHere && shouldShowChallengeLobbyInvite\(/g) || []).length, 2);
-  assert.match(app, /invite: user\?\.role === 'student' && !lobbyInviteHeldHere \? liveChallengeInvite : null,/);
-  assert.doesNotMatch(app, /lobbyInviteHeldHere && shouldShowChallengeHandoffBanner/);
+  // Since the App split, useClassroomAnnouncement owns the announcement; App hands it the rule's answer.
+  assert.match(app, /useClassroomAnnouncement\(\{ user, secureExamActive, liveChallengeInvite, studentSpotlightRequest, lobbyInviteHeldHere \}\);/);
+  assert.match(executableSource(appHookSource('useClassroomAnnouncement')), /invite: user\?\.role === 'student' && !lobbyInviteHeldHere \? liveChallengeInvite : null,/);
+  assert.doesNotMatch(executableSource(appSurfaceSource()), /lobbyInviteHeldHere && shouldShowChallengeHandoffBanner/);
 });
 
 test('NAV-25 review R1: a two-question exit ticket with Q1 submitted still holds the invite until it is all submitted or released', () => {
@@ -114,7 +117,11 @@ test('NAV-23: the invite and a Spotlight request are said once, when they newly 
   // The Spotlight request is a labelled region now, not a dialog that never takes focus.
   assert.match(shell, /<section aria-label="Student Spotlight request" data-spotlight-request/);
   assert.doesNotMatch(shell, /role="dialog" aria-label="Student Spotlight request"/);
-  const effect = region(app, 'const classroomAnnouncementTimerRef = useRef(null);', '}, [currentClassroomState.challenge, currentClassroomState.spotlight]);', 'announcement effect');
+  // Since the App split, useClassroomAnnouncement owns the effect and the text the shell's live region shows.
+  assert.match(app, /const \{ classroomAnnouncementText \} = useClassroomAnnouncement\(/);
+  const announcementHook = executableSource(appHookSource('useClassroomAnnouncement'));
+  assert.match(announcementHook, /return \{ classroomAnnouncementText \};/);
+  const effect = region(announcementHook, 'const classroomAnnouncementTimerRef = useRef(null);', '}, [currentClassroomState.challenge, currentClassroomState.spotlight]);', 'announcement effect');
   assert.match(effect, /const text = classroomAnnouncement\(classroomAnnouncementRef\.current, next\);\s*classroomAnnouncementRef\.current = next;/);
   assert.match(effect, /setTimeout\(\(\) => setClassroomAnnouncementText\(''\), 8000\)/);
 });

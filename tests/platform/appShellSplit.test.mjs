@@ -12,6 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const app = read('src/App.jsx');
@@ -251,10 +252,15 @@ test('the app shell shows sign-in itself, names it, prefetches App, and keeps Ap
 });
 
 test('student Home prefetches the question runtime at idle, the chunk an assignment opens with', () => {
-  const effect = appCode.slice(appCode.indexOf('const questionEnginePrefetchedRef = useRef(false);'), appCode.indexOf('}, [user?.role, activeView]);'));
+  // Since the App split the effect is useStudentScreenPrefetch's (in
+  // src/app/student, so the module is two folders up), which App calls with
+  // who is signed in and the screen they are on.
+  assert.match(appCode, /\n\s*useStudentScreenPrefetch\(\{ user, activeView, [^}]*\}\);/);
+  const hook = executableSource(appHookSource('useStudentScreenPrefetch'));
+  const effect = hook.slice(hook.indexOf('const questionEnginePrefetchedRef = useRef(false);'), hook.indexOf('}, [user?.role, activeView]);'));
   assert.ok(effect.length > 0, 'the prefetch effect');
   assert.match(effect, /user\?\.role !== 'student' \|\| activeView !== 'dashboard'/);
-  assert.match(effect, /import\('\.\/QuestionEngine\.jsx'\)/, 'the same module app/lazyScreens.js loads lazily');
+  assert.match(effect, /import\('\.\.\/\.\.\/QuestionEngine\.jsx'\)/, 'the same module app/lazyScreens.js loads lazily');
   assert.match(effect, /requestIdleCallback\(prefetch/);
   // The module App's QuestionEngine loads on demand (memoised there).
   assert.match(read('src/app/lazyScreens.js'), /export const QuestionEngine = (?:memo\()?lazy\(\(\) => import\('\.\.\/QuestionEngine\.jsx'\)\)\)?;/);

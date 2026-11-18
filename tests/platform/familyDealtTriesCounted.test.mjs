@@ -52,6 +52,7 @@ import {
 } from '../../functions/shared/attemptPolicy.mjs';
 import { planSeatAdditions } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import {
   CLASS_ID,
   DAY,
@@ -360,7 +361,11 @@ test('App.jsx tells the question list what is not known before the family engine
   assert.match(region(app, 'const entryMaximumAttempts = (entry) => {', '};', 'entryMaximumAttempts'), /question: countedQuestionFor\(assignment, entry\.index, workingTracker\?\.\[entry\.index\], questions\[entry\.index\], preview\),/);
   // Whether it can vary is the engine's answer, and known only once it is here.
   assert.match(question, /canGenerateFresh: isPersonalizedBlueprint\(questions\[entry\.index\]\),/);
-  assert.match(app, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
+  // Since the App split, useFamilyDeliveryEngine owns the engine and this rule; App takes both from its one call.
+  assert.match(app, /const \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \} = useFamilyDeliveryEngine\(\{ activeAssignmentId \}\);/);
+  const familyEngine = executableSource(appHookSource('useFamilyDeliveryEngine'));
+  assert.match(familyEngine, /const isPersonalizedBlueprint = \(question\) => Boolean\(familyDelivery\?\.canGenerateDistinctVariants\(question\)\);/);
+  assert.match(familyEngine, /return \{ familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint \};/);
   assert.match(question, /replacementKnown: Boolean\(familyDelivery\) \|\| !resolveQuestionReplacementAllowed\(\{ activityPolicy: policy, canGenerateFresh: true \}\),/);
   // Every place a section's count is printed holds it while a question is pending.
   const printed = source.split('\n').filter((line) => line.includes('section.progress.done'));

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { appHookSource, appSurfaceSource } from './helpers/appScreens.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -48,9 +49,13 @@ test('live class active time is session-only, not cumulative assignment time', (
   const app = read('src/App.jsx');
   assert.match(app, /liveSessionActiveSecondsRef/);
   assert.match(app, /assignmentId: activeAssignmentId, seconds: 0/);
-  assert.match(app, /liveSessionActiveSecondsRef\.current\.seconds \+= 1/);
+  // Since the App split, app/student/useActiveTimeClock.js owns the 1 s count:
+  // App hands it the session ref it resets and publishes, and the hook adds to it.
+  assert.match(app, /useActiveTimeClock\(\{\s*user, activeView, activeAssignmentId, currentQuestionIndex, lastActivityRef, liveSessionActiveSecondsRef,\s*activeTimeRef, pendingAssignmentSecondsRef, getModuleTime, activeSupportPresentation, activeWorkingTracker,\s*\}\);/);
+  assert.match(appHookSource('useActiveTimeClock'), /liveSessionActiveSecondsRef\.current\.seconds \+= 1/);
   assert.match(app, /sessionActiveSeconds: Math\.max\(0, Number\(liveSessionActiveSecondsRef\.current\.seconds\)/);
-  assert.doesNotMatch(app, /sessionActiveSeconds:\s*accumulatedSeconds/);
+  // Refused in App, the teacher workspace and every hook App calls.
+  assert.doesNotMatch(appSurfaceSource(), /sessionActiveSeconds:\s*accumulatedSeconds/);
 });
 
 test('resumed assignment history is excluded from current-session integrity counters', () => {

@@ -18,6 +18,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
+import { appHookSource } from './helpers/appScreens.mjs';
 import {
   GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE,
   MIXED_AUTHORITY_GRADE_FIELDS,
@@ -197,8 +198,14 @@ test('signing in shows the canonical record and writes nothing back to it', () =
 });
 
 test('closing a DOL on the student screen writes no projection to the grade document', () => {
+  // Since the App split, useTimedSectionReminders owns the close effect; App
+  // hands it the screen's own DOL state, and nothing that writes.
+  const timedSections = appHookSource('useTimedSectionReminders');
+  assert.match(executableSource(region(app, 'useTimedSectionReminders({', '});', 'the hook call in App')), /\bdolGradesByAssignment, setDolGradesByAssignment,/);
+  // Refused in the whole hook, so a write cannot sit beside the effect either.
+  assert.doesNotMatch(executableSource(timedSections), /runTransaction\(|updateDoc\(|setDoc\(|transaction\.|FieldPath\(|firebase\/firestore/);
   const close = executableSource(region(
-    app, 'CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK', '}, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);', 'DOL close effect',
+    timedSections, 'CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK', '}, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);', 'DOL close effect',
   ));
   assert.doesNotMatch(close, /runTransaction\(|updateDoc\(|setDoc\(|transaction\.|FieldPath\(/);
   // Immediate local feedback stays, and never replaces what the server finalized.

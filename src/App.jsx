@@ -47,7 +47,6 @@ import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './pl
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 // The DOL recovery builders are teacher actions: they load with the teacher
 // kit (app/teacher/teacherKit.js). A student's screen reads only the summary.
-import { summarizeStudentRecovery } from './platform/assessment/studentRecoverySummary.js';
 import { practiceSkillLaunch } from './platform/assessment/practiceSkillLaunch.js';
 import { describeDolClose, DOL_OPEN_NOTICE } from './platform/assessment/dolCloseCopy.js';
 import { receiptRereadsAfter } from './platform/assessment/dolReceiptRefresh.js';
@@ -208,8 +207,7 @@ import { TEXAS_MATH_ACTIVE_COURSES, getTexasStandardsForCourse } from './texasSt
 import QuestionAnnouncer from './components/common/QuestionAnnouncer.jsx';
 import ScreenErrorBoundary from './components/common/ScreenErrorBoundary.jsx';
 import Dialog from './ui/Dialog.jsx';
-import { MAIN_CONTENT_ID, SkipToContent, pageTitleFor, useDocumentTitle } from './components/common/pageChrome.jsx';
-import { subscribeToReadingActivity } from './components/common/readingActivity.js';
+import { MAIN_CONTENT_ID, SkipToContent } from './components/common/pageChrome.jsx';
 
 import DOLCountdown from './components/student/DOLCountdown.jsx';
 import SectionTimeLeft from './components/student/SectionTimeLeft.jsx';
@@ -280,7 +278,6 @@ import { validatePersistedWalkthroughSession, walkthroughEligibility } from './p
 import { describeClassworkPace } from './platform/teacher/classworkModel.js';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath } from './assignmentFolders';
 
-import { isDesktopStickyLayout, revealBelowSticky } from './platform/layout/stickyReveal.js';
 import {
   getStoredAssignmentQuestions,
   prepareAssignmentForRuntime,
@@ -316,7 +313,6 @@ import {
   buildWhatChanged, countUnseenWhatChanged, markWhatChangedSeen, readWhatChangedSeenAt, rememberWhatChangedFirstSeen, untimedWhatChangedKeys,
 } from './platform/student/whatChangedModel.js';
 import { describeLogoutRisk } from './platform/student/logoutGuard.js';
-import { shouldShowDolOpenReminder } from './platform/student/dolReminder.js';
 import { describeRuntimeSaveLine, describeSaveStatus, initialSaveSubject, nextSaveSubject, persistenceStatusAfterDrain, persistenceStatusOnAssignmentChange, persistenceStatusWithQueuedWork, persistenceStatusWithUnstoredWork, saveLineIsAboutDrafts, saveLineIsRoutine, withUnstoredWork, withoutUnstoredWork } from './platform/student/saveStatusModel.js';
 import { buildWaysToRaise, countWaysToRaise } from './platform/student/waysToRaiseModel.js';
 import { loadMyReviewWork } from './services/reviewMyWorkService.js';
@@ -325,7 +321,6 @@ import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscov
 import { whenDateTimeText } from './platform/student/studentWhen.js';
 import { DETOUR_SECTION_LABEL, describeSectionDetour } from './platform/student/sectionDetour.js';
 import { liveChallengeExitLabel, liveChallengeReturnPlace, sectionHoldsLobbyInvite } from './platform/liveChallenge/liveChallengeReturn.js';
-import { classroomAnnouncement, classroomAnnouncementState } from './platform/student/classroomAnnouncements.js';
 import { packUpWorkLine } from './platform/student/packUpLine.js';
 import {
   readRouteOwner,
@@ -383,7 +378,6 @@ import {
   TestCycleCard,
   WarmupChallengeGate,
 } from './app/lazyScreens.js';
-import { prefetchStudentScreens } from './app/student/studentScreenPrefetch.js';
 import {
   TEACHER_HISTORY_DOCUMENT_ID,
   planTeacherHistoryWrite,
@@ -434,7 +428,6 @@ import { RecoveryInlineNotice } from './components/student/RecoveryOpportunities
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
 import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/stickyHeightRef.js';
-import { followActionBarClearance } from './platform/layout/toastClearance.js';
 import {
   emptyClassPointAccount,
   subscribeToClassPointAnnouncements,
@@ -511,7 +504,6 @@ import {
   normalizeCourseProfiles,
 } from './platform/rigor/courseProfiles.js';
 import SessionGate from './app/shell/SessionGate.jsx';
-import { screenAnnouncement, screenChangeMovesFocus, settleScreenChange, studentScreenKey } from './app/shell/screenChange.js';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
 
@@ -525,6 +517,16 @@ import {
 // The administrator identity comes from the same module the callables enforce,
 // so the browser can never believe in a different administrator than the server.
 import { isRootAdminEmail } from '../functions/shared/rolePolicy.mjs';
+import { useWorkspaceArrivalNotices } from './app/student/useWorkspaceArrivalNotices.js';
+import { useClassroomAnnouncement } from './app/student/useClassroomAnnouncement.js';
+import { useQuestionReveal } from './app/student/useQuestionReveal.js';
+import { useStudentScreenChange } from './app/shell/useStudentScreenChange.js';
+import { useStudentScreenPrefetch } from './app/student/useStudentScreenPrefetch.js';
+import { useFamilyDeliveryEngine } from './app/student/useFamilyDeliveryEngine.js';
+import { useTimedSectionReminders } from './app/student/useTimedSectionReminders.js';
+import { useActiveTimeClock } from './app/student/useActiveTimeClock.js';
+import { useSchoolClock } from './app/shell/useSchoolClock.js';
+import { useAssignmentNavigatorToggle } from './app/student/useAssignmentNavigatorToggle.js';
 
 // Built once: the district instructional calendar is static reference data,
 // not per-render or per-teacher state (see the identical constant in
@@ -1006,41 +1008,10 @@ function App() {
     currentQuestionIndexRef.current = currentQuestionIndex;
   }, [currentQuestionIndex]);
 
-  // THE NAVIGATOR STARTS COMPACT, ON EVERY SIZE (pass 3, RUN-7).
-  // One row — back, where you are, Previous/Next — leaves the work the
-  // screen; "Show progress" opens the section tabs and question numbers, and
-  // "Focus view" folds them again. Every open path resets it to compact. (It
-  // used to start full and compact only once the window scrolled, which a
-  // phone's never does: 179px of navigator stayed above every phone question.)
-  //
-  // Folding or opening it keeps the work where it was on screen: the page is
-  // scrolled by however far the toggle moved the work, so "Focus view" no
-  // longer sends a graph further down the page.
-  const navigationToggleAnchorRef = useRef(null);
-  const assignmentWorkElement = () => assignmentQuestionStageRef.current?.querySelector('[data-work-view-focus="true"]')
-    || assignmentQuestionStageRef.current?.querySelector('.math-tool-workspace')
-    || assignmentQuestionStageRef.current;
-  const toggleAssignmentNavigation = () => {
-    const work = assignmentWorkElement();
-    navigationToggleAnchorRef.current = work ? { element: work, top: work.getBoundingClientRect().top } : null;
-    if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
-    setAssignmentNavigationCollapsed((current) => !current);
-  };
-  // TOASTS NEVER COVER THE ACTION BAR. On the assignment screen a toast rises
-  // above where the bar is, measured every frame while a toast is shown
-  // (toastClearance.js), and App.css lifts it by that.
-  useEffect(() => {
-    if (activeView !== 'assignment' && activeView !== 'teacherPreview') return undefined;
-    return followActionBarClearance();
-  }, [activeView]);
-
-  useLayoutEffect(() => {
-    const anchor = navigationToggleAnchorRef.current;
-    navigationToggleAnchorRef.current = null;
-    if (!anchor?.element?.isConnected) return;
-    const moved = anchor.element.getBoundingClientRect().top - anchor.top;
-    if (Math.abs(moved) >= 1) window.scrollBy({ top: moved, left: 0, behavior: 'instant' });
-  }, [assignmentNavigationCollapsed]);
+  const { toggleAssignmentNavigation } = useAssignmentNavigatorToggle({
+    activeView, assignmentNavigationCollapsed, setAssignmentNavigationCollapsed, setAssignmentOverviewExpanded,
+    assignmentQuestionStageRef,
+  });
 
   const [resumeAction, setResumeAction] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -1120,7 +1091,6 @@ function App() {
   const [dolUnlockBusyKey, setDolUnlockBusyKey] = useState(null);
   const [dolAttemptGrantBusyKey, setDolAttemptGrantBusyKey] = useState(null);
   const [dolControlBusyKey, setDolControlBusyKey] = useState(null);
-  const dolRecoveryAnnouncedRef = useRef({});
   const [warmupControlBusyKey, setWarmupControlBusyKey] = useState(null);
   const [sectionAccessBusyKey, setSectionAccessBusyKey] = useState(null);
   const [studentDashboardMode, setStudentDashboardMode] = useState('assignments');
@@ -2039,10 +2009,7 @@ function App() {
   const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-
-  const [isIdle, setIsIdle] = useState(false);
   const lastActivityRef = useRef(Date.now());
-  const lastPointerRef = useRef(null);
   // Academic interaction is deliberately separate from generic mouse/keyboard
   // activity. Presence never records keys or response text; this timestamp is
   // advanced only by meaningful assignment actions below.
@@ -2093,69 +2060,9 @@ function App() {
   const liveSessionAttemptBaselineRef = useRef({ assignmentId: null, totalAttemptsByIndex: {} });
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
-  const lastDOLStatusRef = useRef({});
-  // Last student DOL reminder timestamp, keyed by assignment + class + date.
-  // The active DOL card/banner stays visible; this adds a repeated nudge for a
-  // student who is deep in another question or sitting on the dashboard.
-  const dolOpenAnnouncedRef = useRef({});
-  // Warm-Up notices follow the same student-wide pattern as DOL notices:
-  // visible on every student surface and repeated while unfinished work is
-  // still inside the live Warm-Up window.
-  const warmupOpenAnnouncedRef = useRef({});
   const classroomSyncNoticeRef = useRef({});
 
-  useEffect(() => {
-    const clock = window.setInterval(() => setNow(Date.now()), 30000);
-    return () => window.clearInterval(clock);
-  }, []);
-
-  // The general dashboard clock can stay inexpensive at 30 seconds, while
-  // DOL, Warm-Up auto-close, and pack-up transitions need to happen at the
-  // actual bell/timer-derived second. Schedule one precise wake-up for the
-  // next transition rather than letting a teacher-set Warm-Up timer drift by
-  // as much as the dashboard clock interval.
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.classPeriod) return undefined;
-    const realNow = Date.now();
-    const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
-    const relevantAssignments = assignments
-      .filter((assignment) => assignmentIsForStudent(assignment, studentContext));
-    const targets = relevantAssignments
-      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, ...studentContext, nowValue: realNow }))
-      .map((state) => state.status === 'beforeClass' ? state.window?.start?.getTime()
-        : state.status === 'waiting' ? state.opensAt?.getTime()
-          : state.status === 'active' ? state.endsAt?.getTime() + 100
-            : null)
-      .filter((target) => Number.isFinite(target) && target > realNow);
-
-    relevantAssignments
-      .map((assignment) => getWarmupState({ assignment, schedule: classSchedule, ...studentContext, nowValue: realNow }))
-      .map((state) => state.status === 'waiting'
-        ? state.opensAt?.getTime()
-        : state.status === 'active'
-          ? (state.autoCloseScheduled ? state.autoCloseAt?.getTime() : state.endsAt?.getTime()) + 100
-          : null)
-      .filter((target) => Number.isFinite(target) && target > realNow)
-      .forEach((target) => targets.push(target));
-
-    const packUp = getClassPackUpState({
-      schedule: classSchedule,
-      classPeriod: user.classPeriod,
-      nowValue: realNow,
-      minutesBeforeEnd: 5,
-    });
-    const packTarget = packUp.status === 'waiting'
-      ? packUp.startsAt?.getTime()
-      : packUp.status === 'active'
-        ? packUp.endsAt?.getTime() + 100
-        : null;
-    if (Number.isFinite(packTarget) && packTarget > realNow) targets.push(packTarget);
-
-    if (!targets.length) return undefined;
-    const nextTarget = Math.min(...targets);
-    const timer = window.setTimeout(() => setNow(Date.now()), Math.max(50, nextTarget - realNow));
-    return () => window.clearTimeout(timer);
-  }, [user, assignments, classSchedule, now]);
+  useSchoolClock({ user, assignments, now, setNow, classSchedule });
 
   /*
    * A STUDENT'S DEVICE LISTENS TO ITS OWN CLASS, NOT THE SCHOOL.
@@ -5702,194 +5609,10 @@ function App() {
     if (user) releaseSignInHolds();
   }, [user]);
 
-  // DOL reminders are global to the student experience, not just the open
-  // assignment. The persistent purple DOL card/banner is the primary notice;
-  // this reminder repeats every two minutes until the student submits once.
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.classPeriod) return;
-    const activeKeys = new Set();
-    assignments.forEach((assignment) => {
-      if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) return;
-      const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
-      if (dolState.status !== 'active') return;
-      const dolRecords = (dolState.questionIndices || [dolState.questionIndex])
-        .filter((index) => Number.isInteger(index) && index >= 0)
-        .map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
-      if (dolRecords.some((record) => record.totalAttempts > 0 || ['correct', 'expired'].includes(record.status))) return;
-      const key = `${assignment.id}:${user.classPeriod}:${dolState.instructionDateKey || localDateKey(now)}`;
-      activeKeys.add(key);
-      // Not while the student is on that DOL's questions: it would tell them
-      // to open what they have open (release-candidate QA m13).
-      if (!shouldShowDolOpenReminder({
-        assignmentId: assignment.id,
-        dolQuestionIndices: dolState.questionIndices || [dolState.questionIndex],
-        activeView,
-        activeAssignmentId,
-        currentQuestionIndex,
-      })) return;
-      const lastReminderAt = Number(dolOpenAnnouncedRef.current[key] || 0);
-      if (lastReminderAt && now - lastReminderAt < 120000) return;
-      const firstReminder = lastReminderAt === 0;
-      dolOpenAnnouncedRef.current[key] = now;
-      toastWarning(
-        firstReminder ? `${EXIT_TICKET_SPELLED_OUT} is open — start now` : `${EXIT_TICKET_SPELLED_OUT} reminder — start now`,
-        `${assignment.title}: open the ${exitTicketInSentence} now. The timer is running and ${formatRemainingTime(dolState.millisecondsRemaining)} remains.`,
-      );
-    });
-    Object.keys(dolOpenAnnouncedRef.current).forEach((key) => {
-      if (!activeKeys.has(key) && now - Number(dolOpenAnnouncedRef.current[key] || 0) > 15 * 60000) delete dolOpenAnnouncedRef.current[key];
-    });
-  }, [now, user, assignments, classSchedule, tracker, toastWarning, activeView, activeAssignmentId, currentQuestionIndex]);
-
-  // A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT WHO ALREADY TRIED.
-  // The reminder above stops once a student has attempted the DOL, which is
-  // exactly who a teacher recovery is for. Tell them once per change: the
-  // window reopened (and when it closes), or how many more attempts they have.
-  useEffect(() => {
-    if (user?.role !== 'student') return;
-    assignments.forEach((assignment) => {
-      if (!assignment?.dol?.enabled) return;
-      if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) return;
-      const recovery = summarizeStudentRecovery({ assignment, classId: user.classId || null, studentId: user.id, now });
-      const reopenKey = recovery.reopened ? `${assignment.id}:reopened:${recovery.reopened.openedAt}` : null;
-      if (reopenKey && !dolRecoveryAnnouncedRef.current[reopenKey]) {
-        dolRecoveryAnnouncedRef.current[reopenKey] = true;
-        toastWarning('Your teacher reopened the DOL', `${assignment.title}: the DOL is open again until ${formatDateTime(recovery.reopened.closesAt)}. Your earlier work is still there.`);
-      }
-      // A standing grant matters while the DOL can be worked; do not repeat an
-      // old grant every session on days the DOL is closed.
-      const dolOpen = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now }).status === 'active';
-      const grantKey = recovery.extraAttempts && dolOpen ? `${assignment.id}:attempts:${recovery.extraAttempts}` : null;
-      if (grantKey && !dolRecoveryAnnouncedRef.current[grantKey]) {
-        dolRecoveryAnnouncedRef.current[grantKey] = true;
-        toastSuccess('More DOL attempts', `${assignment.title}: your teacher gave you ${recovery.extraAttempts} extra ${recovery.extraAttempts === 1 ? 'attempt' : 'attempts'} on each DOL question. Your earlier attempts still count.`);
-      }
-    });
-  }, [now, user, assignments, classSchedule, toastWarning, toastSuccess]);
-
-  // Warm-Up reminders are student-wide, just like DOL reminders. The amber
-  // countdown stays visible everywhere; this toast announces the opening and
-  // repeats every two minutes while Warm-Up questions still need work.
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.classPeriod) return;
-    const activeKeys = new Set();
-    const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
-
-    assignments.forEach((assignment) => {
-      if (!assignmentIsForStudent(assignment, classContext)) return;
-      const warmupState = getWarmupState({
-        assignment,
-        schedule: classSchedule,
-        ...classContext,
-        nowValue: now,
-      });
-      if (warmupState.status !== 'active') return;
-
-      const questions = getStoredAssignmentQuestions(assignment);
-      // Only this student's own Warm-Up items (an omitted one is not unfinished).
-      const warmupOmitted = new Set(studentRequiredFor(assignment).omitted);
-      const warmupIndices = questions.reduce((indices, question, index) => {
-        if (
-          questionIsIncluded(question)
-          && !warmupOmitted.has(index)
-          && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
-        ) indices.push(index);
-        return indices;
-      }, []);
-      if (!warmupIndices.length) return;
-
-      const records = warmupIndices.map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
-      if (records.every((record) => ['correct', 'expired'].includes(record.status))) return;
-
-      const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;
-      activeKeys.add(key);
-      // Inside this assignment the Warm-Up's time is already on screen (the
-      // banner, the section pill, the phone's status chip): a toast over the
-      // Submit bar only repeated it (pass 3, RUN-14).
-      if (activeView === 'assignment' && activeAssignmentId === assignment.id) return;
-      const lastReminderAt = Number(warmupOpenAnnouncedRef.current[key] || 0);
-      if (lastReminderAt && now - lastReminderAt < 120000) return;
-
-      const firstReminder = lastReminderAt === 0;
-      warmupOpenAnnouncedRef.current[key] = now;
-      toastWarning(
-        firstReminder ? 'Warm-Up is active — start now' : 'Warm-Up reminder — timer is running',
-        `${assignment.title}: the Warm-Up is open now and ${formatRemainingTime(warmupState.millisecondsRemaining)} remains.`,
-      );
-    });
-
-    Object.keys(warmupOpenAnnouncedRef.current).forEach((key) => {
-      if (
-        !activeKeys.has(key)
-        && now - Number(warmupOpenAnnouncedRef.current[key] || 0) > 15 * 60000
-      ) delete warmupOpenAnnouncedRef.current[key];
-    });
-  }, [now, user, assignments, classSchedule, tracker, toastWarning, activeView, activeAssignmentId]);
-
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.classPeriod) return;
-    const date = new Date(now);
-    const fallbackDateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const closes = [];
-    assignments.forEach((assignment) => {
-      if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) return;
-      const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: now });
-      const previousStatus = lastDOLStatusRef.current[assignment.id];
-      lastDOLStatusRef.current[assignment.id] = dolState.status;
-      if (dolState.status !== 'ended') return;
-      const dateKey = dolState.instructionDateKey || fallbackDateKey;
-      if (dolGradesByAssignment?.[assignment.id]?.[dateKey]?.finalized) return;
-      if (previousStatus && !['active', 'waiting', 'beforeClass'].includes(previousStatus)) return;
-      // This student's own DOL items (a reduced-item-count accommodation may
-      // omit one; the server finalizer filters the same way).
-      const studentDolOmitted = new Set(studentRequiredFor(assignment, { assignmentTracker: tracker?.[assignment.id] || null }).omitted);
-      const allDolIndices = dolState.questionIndices || [dolState.questionIndex];
-      const ownDolIndices = allDolIndices.filter((index) => !studentDolOmitted.has(index));
-      // Never a DOL with no items (the plan keeps one; the server never empties
-      // a list either): scoring the whole DOL beats finalizing a 0 over nothing.
-      const questionIndices = ownDolIndices.length ? ownDolIndices : allDolIndices;
-      closes.push({
-        assignmentId: assignment.id,
-        dateKey,
-        record: {
-          finalized: true,
-          score: calculateDOLSectionScore(
-            gradeDisplayTracker?.[assignment.id] || {},
-            questionIndices,
-            assignment,
-          ),
-          questionIndex: questionIndices[0] ?? dolState.questionIndex,
-          questionIndices,
-          recordedAt: new Date().toISOString(),
-          status: 'section-finalized',
-        },
-      });
-    });
-    if (!closes.length) return;
-
-    // CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK, NOT AUTHORITY.
-    //
-    // The DOL projection is server-owned: ingestion records it as each answer
-    // lands, and the checkpoint finalizer finalizes it for a response still
-    // pending at the cutoff, with no browser mounted. This browser used to
-    // write its own close — a score computed from its local tracker — onto
-    // the grade document. It now only closes the DOL on this screen; a
-    // projection the server has already finalized is never replaced, even
-    // locally. (No grade reads the projection: every DOL score is computed
-    // from the canonical question records.)
-    closes.forEach(({ assignmentId, dateKey, record }) => {
-      setDolGradesByAssignment((current) => {
-        if (current?.[assignmentId]?.[dateKey]?.finalized === true) return current;
-        return {
-          ...current,
-          [assignmentId]: {
-            ...(current?.[assignmentId] || {}),
-            [dateKey]: record,
-          },
-        };
-      });
-    });
-  }, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);
+  useTimedSectionReminders({
+    toastSuccess, toastWarning, user, studentRequiredFor, activeView, assignments, activeAssignmentId, tracker,
+    currentQuestionIndex, now, classSchedule, dolGradesByAssignment, setDolGradesByAssignment, gradeDisplayTracker,
+  });
 
   useEffect(() => {
     if (user?.role !== 'student' || activeView !== 'assignment' || !activeAssignmentId) return;
@@ -5924,264 +5647,21 @@ function App() {
     if (!sameData(resumeAction, action)) setResumeAction(action);
   }, [user, activeView, activeAssignmentId, currentQuestionIndex, assignments, activeQuestionRole, tracker]);
 
-  useEffect(() => {
-    activeTimeRef.current = getModuleTime(activeWorkingTracker, currentQuestionIndex);
-  }, [activeAssignmentId, currentQuestionIndex, activeWorkingTracker]);
-
-  useEffect(() => {
-    if (user?.role !== 'student' || activeView !== 'assignment') {
-      setIsIdle(false);
-      return undefined;
-    }
-    // THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.
-    //
-    // "No idle timer" (inclusion, extra-time, disable-idle-timer) used to
-    // return from this effect before the interval below was created, so the
-    // engagement counter never ran for exactly the students whose support
-    // evidence matters most — the IEP report's "0 min" on scored work. Now the
-    // accommodation only suppresses the "Are you still working?" overlay.
-    // Idle time (no interaction for 2 minutes) still counts for nobody.
-    const suppressIdlePrompt = activeSupportPresentation.disableIdleTimer;
-
-    const resetActivity = () => {
-      lastActivityRef.current = Date.now();
-      if (isIdle) setIsIdle(false);
-    };
-    // Browsers fire a mousemove with unchanged coordinates when content
-    // appears under a resting cursor. The idle overlay itself is such content,
-    // so it dismissed itself the moment it rendered and restarted the timer
-    // (live QA round 2). Only a pointer that actually moved is activity.
-    // Held in a ref: this effect re-subscribes when the overlay appears.
-    const resetOnPointerMove = (event) => {
-      const point = `${event.screenX},${event.screenY}`;
-      if (point === lastPointerRef.current) return;
-      lastPointerRef.current = point;
-      resetActivity();
-    };
-
-    window.addEventListener('mousemove', resetOnPointerMove);
-    window.addEventListener('keydown', resetActivity);
-    window.addEventListener('click', resetActivity);
-    // A phone or tablet student reading and scrolling never fires mousemove,
-    // and a drag that ends away from where it started never fires click.
-    const passive = { passive: true };
-    window.addEventListener('pointerdown', resetActivity, passive);
-    window.addEventListener('touchstart', resetActivity, passive);
-    window.addEventListener('wheel', resetActivity, passive);
-    // A screen-reader student reading the page (./components/common/readingActivity.js).
-    const stopReadingActivity = subscribeToReadingActivity(window, resetActivity);
-
-    const interval = window.setInterval(() => {
-      if (document.hidden) return;
-      if (Date.now() - lastActivityRef.current > 120000) {
-        if (!suppressIdlePrompt) setIsIdle(true);
-        return;
-      }
-      if (!isIdle) {
-        activeTimeRef.current += 1;
-        pendingAssignmentSecondsRef.current += 1;
-        if (liveSessionActiveSecondsRef.current.assignmentId === activeAssignmentId) {
-          liveSessionActiveSecondsRef.current.seconds += 1;
-        }
-      }
-    }, 1000);
-
-    return () => {
-      window.removeEventListener('mousemove', resetOnPointerMove);
-      window.removeEventListener('keydown', resetActivity);
-      window.removeEventListener('click', resetActivity);
-      window.removeEventListener('pointerdown', resetActivity, passive);
-      window.removeEventListener('touchstart', resetActivity, passive);
-      window.removeEventListener('wheel', resetActivity, passive);
-      stopReadingActivity();
-      window.clearInterval(interval);
-    };
-  }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
-
-  // THE LIKELY NEXT CHUNK. From Home a student almost always opens an
-  // assignment, and the question runtime (QuestionEngine, with MathLive) is
-  // its own chunk (app/lazyScreens.js). Fetch it once the browser is idle on
-  // Home, so the first assignment does not wait on it. Nothing here joins the
-  // first paint (scripts/check-first-load-budget.mjs measures that).
-  /*
-   * THE FAMILY ENGINE ARRIVES WITH THE QUESTION RUNTIME.
-   *
-   * buildStudentFamilyContext checks a delivery pin by walking its family, so
-   * its module (familyDelivery.js) carries every family's generator — about
-   * 64 KB of the student's first load while it was imported here. It loads
-   * with QuestionEngine instead: prefetched from Home, and on opening an
-   * assignment. Until it is here, a family-backed question shows "Loading this
-   * question…" rather than render with its pin unchecked.
-   */
-  const [familyDelivery, setFamilyDelivery] = useState(null);
-  // In a transition for the same reason as the pin wait: a family-backed
-  // question waiting for this module mounts when it lands.
-  const loadFamilyDelivery = useCallback(() => import('./platform/generation/familyDelivery.js').then((module) => {
-    startTransition(() => setFamilyDelivery((current) => current || module));
-    return module;
-  }), []);
-  // Can this question come back as a different one (a replacement)? The rules
-  // (questionVariability.mjs) resolve a family's definition, so they arrive
-  // with the engine; the question view waits for it (familyEngineLoading).
-  const isPersonalizedBlueprint = (question) => Boolean(familyDelivery?.canGenerateDistinctVariants(question));
-  useEffect(() => {
-    if (!activeAssignmentId || familyDelivery) return;
-    loadFamilyDelivery().catch((error) => console.error('Could not load the question family engine', error));
-  }, [activeAssignmentId, familyDelivery, loadFamilyDelivery]);
-
-  const questionEnginePrefetchedRef = useRef(false);
-  useEffect(() => {
-    if (user?.role !== 'student' || activeView !== 'dashboard' || questionEnginePrefetchedRef.current) return undefined;
-    const prefetch = () => {
-      questionEnginePrefetchedRef.current = true;
-      import('./QuestionEngine.jsx').catch(() => { /* the real open retries */ });
-      loadFamilyDelivery().catch(() => { /* the question open retries */ });
-    };
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(prefetch, { timeout: 5000 });
-      return () => window.cancelIdleCallback?.(id);
-    }
-    const timer = window.setTimeout(prefetch, 2000);
-    return () => window.clearTimeout(timer);
-  }, [user?.role, activeView]);
-
-  // THE STUDENT'S OTHER SCREENS (PF01). Grades, Assignments, Rewards and an
-  // assignment's result load on demand (app/lazyScreens.js). Once Home has
-  // rendered, their code is fetched while the browser is idle: once per page,
-  // never when the device asks to save data, and not while it is offline
-  // (app/student/studentScreenPrefetch.js). Opening one is then instant.
-  useEffect(() => {
-    if (user?.role !== 'student' || activeView !== 'dashboard' || studentDashboardMode !== 'assignments') return undefined;
-    return prefetchStudentScreens([StudentGradeCenter, StudentAssignmentsCenter, StudentRewardsCenter, StudentAssignmentResult]);
-  }, [user?.role, activeView, studentDashboardMode]);
-
-  // WCAG 2.4.2: the tab names the screen (./components/common/pageChrome.jsx).
-  const documentTitle = pageTitleFor({
-    signedIn: Boolean(user),
-    role: user?.role || null,
-    view: activeView,
-    studentMode: studentDashboardMode,
-    teacherTab,
-    assignmentTitle: assignments.find((item) => item.id === activeAssignmentId)?.title || '',
+  const { isIdle, setIsIdle } = useActiveTimeClock({
+    user, activeView, activeAssignmentId, currentQuestionIndex, lastActivityRef, liveSessionActiveSecondsRef,
+    activeTimeRef, pendingAssignmentSecondsRef, getModuleTime, activeSupportPresentation, activeWorkingTracker,
   });
-  useDocumentTitle(documentTitle);
 
-  /*
-   * NAV-3: a student screen change moves focus to the new screen's heading
-   * and says its name once (app/shell/screenChange.js). Not on the first
-   * screen after sign-in; inside an assignment it only speaks.
-   */
-  const currentStudentScreenKey = studentScreenKey({
-    role: user?.role || null,
-    view: activeView,
-    mode: studentDashboardMode,
-    resultAssignmentId: assignmentResultRoute?.assignmentId || null,
-    testCycleAssignmentId: activeTestCycleAssignmentId,
-    assignmentId: activeAssignmentId,
+  const { familyDelivery, loadFamilyDelivery, isPersonalizedBlueprint } = useFamilyDeliveryEngine({ activeAssignmentId });
+
+  useStudentScreenPrefetch({ user, activeView, studentDashboardMode, loadFamilyDelivery });
+
+  const { studentScreenAnnouncement } = useStudentScreenChange({
+    user, assignmentResultRoute, activeView, teacherTab, assignments, activeAssignmentId, studentDashboardMode,
+    activeTestCycleAssignmentId,
   });
-  const [studentScreenAnnouncement, setStudentScreenAnnouncement] = useState('');
-  const lastStudentScreenKeyRef = useRef(null);
-  // The change still being settled. A lazy screen can suspend the App and
-  // re-run this effect with the same key; the change is finished then, not
-  // dropped.
-  const pendingStudentScreenRef = useRef(null);
-  const documentTitleRef = useRef(documentTitle);
-  documentTitleRef.current = documentTitle;
-  useEffect(() => {
-    const previous = lastStudentScreenKeyRef.current;
-    lastStudentScreenKeyRef.current = currentStudentScreenKey;
-    if (!currentStudentScreenKey) { pendingStudentScreenRef.current = null; return undefined; }
-    if (previous && previous !== currentStudentScreenKey) {
-      pendingStudentScreenRef.current = {
-        key: currentStudentScreenKey,
-        startedAt: Date.now(),
-        // What has focus as the change begins: the place the student pressed,
-        // while the shell keeps it. Focus still there later is not the student's.
-        from: typeof document === 'undefined' ? null : document.activeElement,
-        said: false,
-      };
-      // Cleared first, so the same name said twice in a row is still spoken.
-      setStudentScreenAnnouncement('');
-    }
-    const pending = pendingStudentScreenRef.current;
-    if (!pending || pending.key !== currentStudentScreenKey) return undefined;
-    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
-    let cancelled = false;
-    let timer = null;
-    const settle = () => {
-      if (cancelled) return;
-      // A lazy screen draws its heading a moment later, and one that loads its
-      // data first later still (shell/screenChange.js).
-      const next = settleScreenChange(document, pending, {
-        movesFocus: screenChangeMovesFocus(pending.key),
-        announce: () => setStudentScreenAnnouncement(screenAnnouncement(documentTitleRef.current)),
-      });
-      if (next != null) {
-        timer = window.setTimeout(settle, next);
-        return;
-      }
-      if (pendingStudentScreenRef.current === pending) pendingStudentScreenRef.current = null;
-    };
-    timer = window.setTimeout(settle, 50);
-    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
-  }, [currentStudentScreenKey]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
-    let secondFrame = null;
-    // A question the student already started opens on the live work (the
-    // region a tool marks for Work View), not on the tool header: resuming
-    // a systems question landed 700px above its balance board, and this
-    // scroll cancelled the solver's own reveal. The task stays sticky.
-    const reveal = (behavior) => {
-      const stage = assignmentQuestionStageRef.current;
-      const liveWork = stage?.querySelectorAll?.('[data-work-view-focus="true"]');
-      const target = liveWork?.length ? liveWork[liveWork.length - 1] : null;
-      // Desktop measures instead of trusting scrollIntoView: the page's
-      // scroll-padding and the stage's scroll-margin add up, and aimed at the
-      // stage that landed every question at scrollY 0 (see stickyReveal.js).
-      if (isDesktopStickyLayout()) {
-        if (target) revealBelowSticky({ target, sticky: stage?.querySelector?.('.mathmaster-desktop-question-anchor'), behavior });
-        else if (stage) revealBelowSticky({ target: stage, sticky: document.querySelector('.mathmaster-assignment-unified-nav'), behavior });
-        return;
-      }
-      if (target) target.scrollIntoView?.({ behavior, block: 'start' });
-      else stage?.scrollIntoView?.({ behavior, block: 'start' });
-    };
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => reveal('smooth'));
-    });
-
-    // AIM AGAIN WHILE THE NEXT QUESTION IS STILL ARRIVING.
-    //
-    // Between questions the page is briefly short (the previous tool is gone,
-    // the next has not rendered), the browser clamps the scroll, and the scroll
-    // above lands wherever the short page allowed: scrollY 93 with the tool
-    // 600px down at 1536x900 (live QA round 2, intermittent because it depends
-    // on how fast the question renders). For a moment after the change, the
-    // stage growing re-aims — unless the student has already scrolled, typed
-    // or touched, which is theirs to decide.
-    let settled = false;
-    const studentMoved = () => { settled = true; };
-    const settleEvents = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
-    settleEvents.forEach((type) => window.addEventListener(type, studentMoved, { passive: true }));
-    const observer = typeof ResizeObserver === 'function'
-      ? new ResizeObserver(() => { if (!settled) reveal('auto'); })
-      : null;
-    if (observer && assignmentQuestionStageRef.current) observer.observe(assignmentQuestionStageRef.current);
-    const stopAiming = window.setTimeout(() => {
-      settled = true;
-      observer?.disconnect();
-    }, 1500);
-
-    return () => {
-      window.cancelAnimationFrame(firstFrame);
-      if (secondFrame != null) window.cancelAnimationFrame(secondFrame);
-      window.clearTimeout(stopAiming);
-      observer?.disconnect();
-      settleEvents.forEach((type) => window.removeEventListener(type, studentMoved, { passive: true }));
-    };
-  }, [activeView, activeAssignmentId, currentQuestionIndex]);
+  useQuestionReveal({ activeView, activeAssignmentId, currentQuestionIndex, assignmentQuestionStageRef });
 
   const changeQuestion = async (newIndex) => {
     if (!activeAssignmentId || newIndex === currentQuestionIndex) return;
@@ -11998,51 +11478,9 @@ function App() {
   // on every render.
   const lobbyInviteHeldHere = renderMemo('lobbyInviteHeld', [user?.role, user?.id, activeView, activeAssignmentId, assignments, now, currentQuestionIndex, tracker?.[activeAssignmentId]], studentWorkspaceHoldsOutcome);
 
-  const [classroomAnnouncementText, setClassroomAnnouncementText] = useState('');
-  const classroomAnnouncementRef = useRef(null);
-  const currentClassroomState = classroomAnnouncementState({
-    invite: user?.role === 'student' && !lobbyInviteHeldHere ? liveChallengeInvite : null,
-    spotlightRequested: user?.role === 'student' && studentSpotlightRequest?.status === SPOTLIGHT_STATUS.REQUESTED,
-    secureExamActive,
-  });
-  const classroomAnnouncementTimerRef = useRef(null);
-  useEffect(() => {
-    const next = { challenge: currentClassroomState.challenge, spotlight: currentClassroomState.spotlight };
-    const text = classroomAnnouncement(classroomAnnouncementRef.current, next);
-    classroomAnnouncementRef.current = next;
-    if (!text) return;
-    setClassroomAnnouncementText(text);
-    clearTimeout(classroomAnnouncementTimerRef.current);
-    classroomAnnouncementTimerRef.current = setTimeout(() => setClassroomAnnouncementText(''), 8000);
-  }, [currentClassroomState.challenge, currentClassroomState.spotlight]);
-  useEffect(() => () => clearTimeout(classroomAnnouncementTimerRef.current), []);
+  const { classroomAnnouncementText } = useClassroomAnnouncement({ user, secureExamActive, liveChallengeInvite, studentSpotlightRequest, lobbyInviteHeldHere });
 
-  // A list: an arrival can bring two (the question moved, and the start's own
-  // "not open right now" or a Classroom detour, review S2).
-  const [workspaceArrivalNotices, setWorkspaceArrivalNotices] = useState([]);
-  const shownArrivalNoticesRef = useRef(new WeakSet());
-  const showWhenWorkspaceOpens = useCallback((notice) => {
-    if (notice?.title) setWorkspaceArrivalNotices((current) => [...current, notice]);
-  }, []);
-  useEffect(() => {
-    if (!workspaceArrivalNotices.length) return;
-    // A notice is queued in the same update that opens the workspace, so a
-    // screen committed without it means the workspace never opened (its code
-    // failed to load, or the student left first). The notice belonged to that
-    // opening: dropped, never shown over a later, unrelated one (W6-2, N6).
-    if (activeView !== 'assignment') {
-      setWorkspaceArrivalNotices([]);
-      return;
-    }
-    // Once each, even where the effect runs twice for the same notices
-    // (StrictMode, a suspended tree shown again).
-    workspaceArrivalNotices.forEach((notice) => {
-      if (shownArrivalNoticesRef.current.has(notice)) return;
-      shownArrivalNoticesRef.current.add(notice);
-      toastInfo(notice.title, notice.body);
-    });
-    setWorkspaceArrivalNotices([]);
-  }, [workspaceArrivalNotices, activeView, toastInfo]);
+  const { showWhenWorkspaceOpens } = useWorkspaceArrivalNotices({ toastInfo, activeView });
 
   useUrlArrival({
     urlArrival,
