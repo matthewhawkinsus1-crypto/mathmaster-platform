@@ -12,11 +12,18 @@
  * it is offline (the student screens' idle prefetch, app/student/
  * studentScreenPrefetch.js, as the authoring code's, ./authoringKitLoader.js).
  *
+ * Find is asked for at once, as the workspace draws, not when the browser is
+ * idle, and on a device that saves data too (2.4 KB): it opens on a keystroke,
+ * App's Ctrl+K, and what is typed after it reaches its box only once its code
+ * is here. Asked for later, a name typed straight after Ctrl+K went to the
+ * box that had focus. Never while the device is offline: then once it is back.
+ *
  * Its own module, which only the workspace imports: Home's own modules take
  * what they draw from ./teacherPanels.js, and the student screens' prefetch
  * stays in the chunk it shares with App.
  */
 import { createIdlePrefetch } from '../student/studentScreenPrefetch.js';
+import { whenOnline } from './onDemandCode.js';
 import {
   AssignmentHub, ClassroomSyncReview, StudentPersistenceRecoveryPanel, StudentProfileDrawer, StudentSpotlightView, SupportEvidenceReportView,
   TeacherQuickSearch, promptMath,
@@ -29,5 +36,10 @@ export const TEACHER_PANEL_PREFETCH = Object.freeze([
 ]);
 
 const prefetchOnce = createIdlePrefetch();
-/** Ask for all of it when the browser is next idle; returns a cancel for the effect that asked. */
-export const prefetchTeacherPanels = (win) => prefetchOnce(TEACHER_PANEL_PREFETCH, win);
+const browserWindow = () => (typeof window !== 'undefined' ? window : null);
+/** Ask for Find now and the rest when the browser is next idle; returns a cancel for the effect that asked. */
+export const prefetchTeacherPanels = (win = browserWindow()) => {
+  const cancelFind = whenOnline(win, () => TeacherQuickSearch.prefetch());
+  const cancelRest = prefetchOnce(TEACHER_PANEL_PREFETCH, win);
+  return () => { cancelFind(); cancelRest(); };
+};

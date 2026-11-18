@@ -47,9 +47,25 @@
  *                        throw (to AppErrorBoundary) where it needs the code,
  *                        and only there.
  *
+ *   whenOnline(win, run)
+ *                        `run` now, or, while `win` says the device is
+ *                        offline, once it is back online; returns a cancel.
+ *
  * Plain JS (createElement, no JSX), so node tests drive it.
  */
 import { Suspense, createElement, lazy, useEffect, useState } from 'react';
+
+const browserWindow = () => (typeof window !== 'undefined' ? window : null);
+const offline = (win) => win?.navigator?.onLine === false;
+
+export const whenOnline = (win, run) => {
+  if (!offline(win)) {
+    run();
+    return () => {};
+  }
+  win.addEventListener('online', run, { once: true });
+  return () => win.removeEventListener('online', run);
+};
 
 export const onDemandCode = (load) => {
   let loaded = null;
@@ -96,8 +112,6 @@ export const drawnPanel = (load) => {
   return DrawnPanel;
 };
 
-const browserWindow = () => (typeof window !== 'undefined' ? window : null);
-
 export const useOnDemandCode = (code, wanted, win = browserWindow()) => {
   const [arrived, setArrived] = useState(code.loaded);
   const [failure, setFailure] = useState(null);
@@ -106,18 +120,13 @@ export const useOnDemandCode = (code, wanted, win = browserWindow()) => {
   useEffect(() => {
     if (ready || !wanted) return undefined;
     let live = true;
-    const ask = () => {
+    const cancel = whenOnline(win, () => {
       code.load().then(
         (module) => { if (live) setArrived(module); },
         (error) => { if (live) setFailure(error); },
       );
-    };
-    if (win?.navigator?.onLine === false) {
-      win.addEventListener('online', ask, { once: true });
-      return () => { live = false; win.removeEventListener('online', ask); };
-    }
-    ask();
-    return () => { live = false; };
+    });
+    return () => { live = false; cancel(); };
   }, [code, ready, wanted, win]);
   return { module: ready, failure: ready ? null : failure };
 };

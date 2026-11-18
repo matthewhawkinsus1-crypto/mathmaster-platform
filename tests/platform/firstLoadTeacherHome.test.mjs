@@ -183,7 +183,6 @@ const helpersDir = path.join(repo, 'tests/platform/helpers');
 const STUBS = new Map([
   [path.join(repo, 'src/firebase.js'), path.join(helpersDir, 'emptyModule.mjs')],
   [path.join(repo, 'src/platform/supports/askTeacherStore.js'), path.join(helpersDir, 'askTeacherStoreStub.mjs')],
-  [path.join(repo, 'src/app/teacher/teacherPanels.js'), path.join(helpersDir, 'promptMathStub.mjs')],
 ]);
 let loader;
 let shim;
@@ -203,8 +202,13 @@ test.before(async () => {
         if (!importer || !source.startsWith('.')) return null;
         const resolved = await this.resolve(source, importer, { skipSelf: true });
         const id = String(resolved?.id || '').split('?')[0];
-        // The panel loaded as `…?mathFails` is given math that cannot load.
-        if (importer.includes('?mathFails') && id === path.join(repo, 'src/app/teacher/teacherPanels.js')) return path.join(helpersDir, 'promptMathFailingStub.mjs');
+        // The questions panel's math is a stub; anything else gets the real
+        // teacherPanels.js. The panel loaded as `…?mathFails` is given math
+        // that cannot load.
+        if (id === path.join(repo, 'src/app/teacher/teacherPanels.js')) {
+          if (!importer.includes('StudentQuestionsPanel.jsx')) return null;
+          return path.join(helpersDir, importer.includes('?mathFails') ? 'promptMathFailingStub.mjs' : 'promptMathStub.mjs');
+        }
         return STUBS.get(id) || null;
       },
     }],
@@ -241,6 +245,45 @@ test('once opened, a panel stays mounted as it closes and opens again, so it beh
   assert.equal(view.output.props.open, false, 'and it is told it is closed, as before');
   controls.setOpen(true);
   assert.equal(view.output.type, mounted.type);
+});
+
+// A window whose device is offline until goOnline().
+const offlineWindow = () => {
+  const listeners = new Map();
+  return {
+    navigator: { onLine: false },
+    addEventListener: (type, listener) => listeners.set(type, listener),
+    removeEventListener: (type) => listeners.delete(type),
+    goOnline() { this.navigator.onLine = true; listeners.get('online')?.(); },
+    listening: (type) => listeners.has(type),
+  };
+};
+test('Find is asked for at once as the workspace draws, on a device that saves data too, and never while offline', async () => {
+  const { prefetchTeacherPanels } = await loader.ssrLoadModule('/src/app/teacher/teacherPanelPrefetch.js');
+  const { TeacherQuickSearch } = await loader.ssrLoadModule('/src/app/teacher/teacherPanels.js');
+  // What an opened Find draws from the code it has now: the palette itself,
+  // or the lazy that would load it (the shim draws one component at a time).
+  const drawnNow = () => {
+    const view = shim.mount(() => {
+      const element = TeacherQuickSearch({ open: true });
+      return element.type(element.props);
+    }, {});
+    return view.output?.props?.children?.[0]?.type?.name;
+  };
+  const win = offlineWindow();
+  win.navigator.connection = { saveData: true };
+  win.requestIdleCallback = () => { throw new Error('a device that saves data fetches nothing else ahead'); };
+  const pause = () => new Promise((resolve) => { setTimeout(resolve, 50); });
+  prefetchTeacherPanels(win);
+  // Long enough for a request made anyway to land (Vite compiles the palette
+  // on its first request).
+  for (let tries = 0; tries < 60 && drawnNow() !== 'TeacherQuickSearch'; tries += 1) await pause();
+  assert.notEqual(drawnNow(), 'TeacherQuickSearch', 'offline: not asked for');
+  win.goOnline();
+  for (let tries = 0; tries < 100 && drawnNow() !== 'TeacherQuickSearch'; tries += 1) await pause();
+  assert.equal(drawnNow(), 'TeacherQuickSearch', 'back online, it is asked for, though the device saves data: Find opens with its box at once');
+  const workspace = executableSource(read('src/app/teacher/TeacherWorkspace.jsx'));
+  assert.match(workspace, /useEffect\(\(\) => prefetchTeacherPanels\(\), \[\]\);/, 'as the workspace draws');
 });
 
 test('useOnDemandCode: nothing until wanted; asked once, not while offline; the module once here; a failure handed back', async () => {

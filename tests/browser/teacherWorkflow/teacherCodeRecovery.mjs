@@ -38,8 +38,14 @@
 //       its failure shows nothing; once the class ends the list needs it: the
 //       same panel; the new version's page draws the question, its prompt's
 //       mathematics typeset
-//   C7  Find, on a device that saves data (no prefetch), opened before its
-//       code is here: the same panel
+//   C7  Find, on a device that saves data: its code is asked for as the
+//       workspace draws all the same (it opens on a keystroke), and its
+//       failure shows nothing until Find is opened: then the same panel
+//
+// And code that has not arrived yet:
+//
+//   C8  Find on a device that saves data, with focus in another box: Ctrl+K
+//       and a name typed at once go to Find's box, not to the other one
 //
 // Exit code 1 on any finding.
 
@@ -248,14 +254,35 @@ await scene('C6', async () => {
   await context.close();
 });
 
-// C7: Find, opened on a device that saves data (nothing fetched ahead).
+// C7: Find on a device that saves data, its code gone.
 await scene('C7', async () => {
   const { context, page, asked } = await openTeacher({ saveData: true, fail: [FIND_PALETTE], watch: FIND_PALETTE });
-  await page.waitForTimeout(6500);
-  expect('C7 a device saving data does not fetch Find ahead', asked.length === 0, `${asked.length} request(s)`);
+  await untilAsked(page, asked);
+  expect('C7 a device saving data asks for Find\'s code as the workspace draws', asked.length > 0, 'no request before Find was opened');
+  expect('C7 its failure shows nothing', (await panel(page).count()) === 0 && await homeHeading(page).isVisible(), await panel(page).first().innerText().catch(() => 'Home\'s heading is gone'));
   await page.getByRole('button', { name: /^Find…/ }).first().click();
   await panelSays(page, 'C7 Find');
-  expect('C7 opening it asked for its code', asked.length > 0, 'no request');
+  await context.close();
+});
+
+// C8: Find opened by its keystroke on a device that saves data, while
+// another box has focus.
+await scene('C8', async () => {
+  const { context, page, asked } = await openTeacher({ saveData: true, watch: FIND_PALETTE });
+  await sidebar(page, 'Students').click();
+  const search = page.getByPlaceholder('Search student or class');
+  await search.waitFor({ timeout: 120_000 });
+  expect('C8 Find\'s code is asked for as the workspace draws, on a device that saves data too', asked.length > 0, 'not asked for before Find was opened');
+  await search.click();
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('Garza');
+  const box = page.locator('[aria-label="Find a student, class, assignment or standard"] input[type="search"]');
+  await box.waitFor({ timeout: 60_000 });
+  await page.waitForTimeout(400);
+  const typed = await box.inputValue();
+  const other = await search.inputValue();
+  expect('C8 what is typed after Ctrl+K goes to Find\'s box', typed === 'Garza', `Find's box: "${typed}"`);
+  expect('C8 and not to the box that had focus', other === '', `the student search box: "${other}"`);
   await context.close();
 });
 
