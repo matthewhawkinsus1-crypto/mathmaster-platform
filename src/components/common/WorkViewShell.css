@@ -294,6 +294,31 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
   [data-open="true"]:not([data-height="short"]) > .mathmaster-work-view-header > .mathmaster-work-view-heading { flex: 1 1 100% !important; }
   [data-open="true"]:not([data-height="short"]) > .mathmaster-work-view-header > button { flex: 1 1 auto; min-width: 44px; min-height: 44px; }
 }
+
+/*
+ * AT A LARGE TEXT SIZE ON A PHONE HELD UPRIGHT, THE TASK IN THE HEADER IS TWO LINES.
+ *
+ * The header's chrome is text, and a phone does not grow with it: at 200%
+ * text on a 320x568 phone the task's four lines, the buttons' rows under them
+ * and the actions' rows left the view 172px under a staged question's long
+ * task, and a staged step's plane at its 160px floor and its zoom row (64px
+ * there) need 224px (tests/browser/workViewOpenerCover.mjs --check=room).
+ * Under 28.75em tall, the height that is 460px at 100% text (where a phone
+ * on its side is short: workViewViewport.js WORK_VIEW_SHORT_MAX), the task
+ * keeps two whole lines and scrolls the rest, as it scrolls past four
+ * (EnlargeableFigure makes it a Tab stop then), and the Task button opens all
+ * of it: the view is 240px there. Folded as a phone on its side is (one task
+ * line, the instruction pinned in the header) it was 208px, the short task's
+ * view 32px less than before: the instruction scrolls away with the work, and
+ * pinned it takes back what the task gives. An em in a media query is the
+ * browser's text size: this is every phone at 200% text and the 320x568 and
+ * 375x667 at 150%, and never a phone at 100% text, a Chromebook or a tablet
+ * (wider than 22em).
+ */
+@media (max-width: 22em) and (max-height: 28.75em) and (orientation: portrait) {
+  [data-open="true"]:not([data-height="short"]) .mathmaster-work-view-persistent-task { max-height: calc(1.35em * 2); }
+}
+
 [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface { margin: 6px; padding: 8px; }
 [data-open="true"][data-layout="mobile"] .mathmaster-work-view-capabilities { display: none; }
 

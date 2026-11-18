@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { parseCss, declared, rulesFor } from './helpers/cssRules.mjs';
-import { atRuleHolds, winning } from './helpers/cssCascade.mjs';
+import { atRuleHolds, compareSpecificity, specificity, winning } from './helpers/cssCascade.mjs';
 import { jobsOf, readWorkflow, runsOnPullRequest, stepsOf } from './helpers/ciWorkflows.mjs';
 import { OPENER_GAP, openerSharesRow } from '../../src/platform/workView/openerPlacement.js';
 
@@ -200,6 +200,135 @@ test('with "Show progress" open on a narrow screen the page scrolls, and the que
   assert.match(sweep, /export const PROGRESS_WORK_MIN = 160;/);
 });
 
+/* ------------------------------------------------- a phone question's room at a large text size */
+
+// The stylesheets that reach the assignment screen on a phone, in either order: App.css's one-screen frame and the
+// question's phone column (MathToolMobileLayout.css).
+const ROOM_SHEETS = ['src/App.css', 'src/components/student/MathToolMobileLayout.css'].map((name) => ({ name, rules: parseCss(read(name)) }));
+const ROOM_SHEET_ORDERS = { 'App.css first': ROOM_SHEETS, 'App.css last': [...ROOM_SHEETS].reverse() };
+const SCREEN_PATH = [{ tag: 'html' }, { tag: 'body' }, { tag: 'div', id: 'root' }, { tag: 'div', classes: ['mathmaster-assignment-screen'] }];
+const SHELL_PATH = [...SCREEN_PATH, { tag: 'div', classes: ['mathmaster-assignment-shell'] }];
+const STAGE_PATH = [...SHELL_PATH, { tag: 'main', classes: ['mathmaster-question-stage'] }];
+const CONTEXT_PATH = [
+  ...SHELL_PATH, { tag: 'main', classes: ['mathmaster-question-stage'] }, { tag: 'div', classes: ['mathmaster-question-engine'] },
+  { tag: 'div', classes: ['mathmaster-question-container', 'mode-portrait'] }, { tag: 'div', classes: ['mathmaster-question-context-panel'] },
+];
+const phone = (width, height, scale = 1) => ({ width, height, fontSize: 16 * scale, pointer: 'coarse' });
+const FRAME_HEIGHT = 'calc(100dvh - var(--mm-student-identity-stack-offset, 0px))';
+
+test('at a large text size a phone\'s question keeps a whole screen in Focus view too, and the lines under its task take no more of it than the task does', () => {
+  // Folded (Focus view), the navigator and the identity bar were 174 to 220px of a screen that did not scroll at 150%
+  // and 200% text: a phone's question had 16 to 242px for its work at 200% and 67 to 327px at 150%, and a question of
+  // choices 16px, its one-try line and hint offer 382 to 522px, its tries and Submit below the screen at 320x568.
+  const app = parseCss(read('src/App.css'));
+  const LARGE_UPRIGHT = '(max-width: 19em) and (orientation: portrait)';
+  // The question's screen: the one with the assignment's shell. A Warm-Up played as a Live Challenge is drawn in a
+  // screen of the same name with no shell (App.jsx), and Live Challenge's own questions are in no question stage:
+  // both are the owner's and keep their frame.
+  const screen = '.mathmaster-assignment-screen:has(> .mathmaster-assignment-shell)';
+  const shell = '.mathmaster-assignment-screen .mathmaster-assignment-shell';
+  const context = '.mathmaster-assignment-screen .mathmaster-question-stage .mathmaster-question-container.mode-portrait .mathmaster-question-context-panel';
+  assert.deepEqual(declared(app, screen, 'height', { media: LARGE_UPRIGHT }), { value: 'auto', important: true });
+  assert.deepEqual(declared(app, screen, 'overflow', { media: LARGE_UPRIGHT }), { value: 'visible', important: true });
+  assert.deepEqual(declared(app, shell, 'height', { media: LARGE_UPRIGHT }), { value: 'auto', important: true });
+  assert.equal(declared(app, shell, 'overflow', { media: LARGE_UPRIGHT })?.value, 'visible');
+  // The navigator's row, then the question's: a whole screen under the identity bar, as with progress shown.
+  assert.equal(declared(app, shell, 'grid-template-rows', { media: LARGE_UPRIGHT })?.value, `auto ${FRAME_HEIGHT}`);
+  // Whichever state the navigator is in: the rule asks nothing of it.
+  assert.ok(rulesFor(app, screen, { media: LARGE_UPRIGHT }).every((rule) => rule.selectors.every((selector) => !selector.includes('unified-nav'))));
+  const warmupChallenge = region(executableSource(read('src/App.jsx')), 'if (warmupChallengeDecision?.route === WARMUP_CHALLENGE_ROUTE.PLAY && warmupChallengeDecision.roomId) {', '<WarmupChallengeGate', 'the Warm-Up challenge\'s screen');
+  assert.match(warmupChallenge, /<div className="mathmaster-assignment-screen"/);
+  assert.doesNotMatch(warmupChallenge, /mathmaster-assignment-shell/, 'no shell: the rule leaves it alone');
+  for (const file of ['src/components/liveChallenge/LiveChallengeStudent.jsx', 'src/components/liveChallenge/LiveChallengeFieldQuestion.jsx']) {
+    assert.doesNotMatch(read(file), /mathmaster-question-stage/, `${file}: its questions are in no question stage`);
+  }
+  // The one-screen frame's height is !important too: the question's screen outranks it, by specificity, wherever the
+  // two sheets load.
+  const frame = rulesFor(app, '.mathmaster-assignment-screen', { media: '(max-width: 768px) and (orientation: portrait)' }).find((rule) => rule.declarations.height);
+  assert.deepEqual(frame?.declarations.height, { value: FRAME_HEIGHT, important: true });
+  assert.ok(compareSpecificity(specificity(screen), specificity('.mathmaster-assignment-screen')) > 0);
+  // A question opens on its screen: App.jsx brings the stage into view as a question opens (block: 'start'), and the
+  // stage lands right under the identity bar, the 8px the bar's scroll padding adds taken back, not 142px down (the
+  // desktop's sticky navigator's margin), where the bottom of the question was under the screen's foot.
+  const stage = '.mathmaster-assignment-screen .mathmaster-assignment-shell .mathmaster-question-stage';
+  assert.equal(declared(app, stage, 'scroll-margin-top', { media: LARGE_UPRIGHT })?.value, '-8px');
+  assert.equal(declared(app, '.mathmaster-question-stage', 'scroll-margin-top', { media: null })?.value, '142px');
+  assert.match(read('src/components/student/StudentIdentityBar.css'), /:where\(html:has\(\.mm-identity-bar\)\) \{\n  scroll-padding-top: calc\(var\(--mm-student-identity-stack-offset, 0px\) \+ 8px\);/);
+  const reveal = region(executableSource(read('src/App.jsx')), 'const reveal = (behavior) => {', '\n    };', 'the reveal as a question opens');
+  assert.match(reveal, /else stage\?\.scrollIntoView\?\.\(\{ behavior, block: 'start' \}\);/);
+  // Under the task, what it has (the one-try line and its hint offer, the tries, the grade weight) is a quarter of
+  // the screen at most, as the task card above it is, and scrolls in place past that.
+  assert.equal(declared(app, context, 'max-height', { media: LARGE_UPRIGHT })?.value, '25dvh');
+  assert.equal(declared(app, context, 'overflow-y', { media: LARGE_UPRIGHT })?.value, 'auto');
+  assert.equal(declared(parseCss(read('src/components/student/MathToolMobileLayout.css')), '.mathmaster-question-container.mode-portrait .question-prompt-panel', 'max-height', { media: '(max-width: 768px) and (orientation: portrait)' })?.value, '25dvh', 'the task card\'s own quarter');
+  // In the browser's own text size: every phone at 150% and 200% text (a 412px phone is 17.2em at 150%), and at 125%
+  // the phones to 380px wide (a choice at 375x667 had 92px in the frame there; a 390px phone keeps 269px); no phone
+  // 320px or wider at 100%, which stays one screen; not a phone on its side, a tablet or a Chromebook at 200%.
+  const holds = (width, height, scale = 1) => atRuleHolds(`@media ${LARGE_UPRIGHT}`, phone(width, height, scale));
+  for (const [width, height] of [[320, 568], [360, 740], [375, 667], [390, 844], [412, 915]]) {
+    assert.ok(holds(width, height, 1.5) && holds(width, height, 2), `${width}x${height} at 150% and 200%`);
+    assert.ok(!holds(width, height), `${width}x${height} at 100%`);
+  }
+  assert.ok(holds(320, 568, 1.25) && holds(360, 740, 1.25) && holds(375, 667, 1.25) && !holds(390, 844, 1.25) && !holds(412, 915, 1.25));
+  assert.ok(!holds(844, 390, 2) && !holds(768, 1024, 2) && !holds(1366, 768, 2));
+  // The cascade, as a phone's browser resolves it, in either sheet order: the question's row a whole screen and the
+  // lines under the task capped at a large text size, and both as they were at 100%.
+  for (const [order, sheets] of Object.entries(ROOM_SHEET_ORDERS)) {
+    const won = (path, property, device) => winning({ sheets, path, property, device });
+    for (const device of [phone(320, 568, 2), phone(390, 844, 2), phone(412, 915, 1.5), phone(360, 740, 1.5)]) {
+      const at = `${order}, ${device.width}x${device.height} at ${device.fontSize / 16 * 100}%`;
+      assert.deepEqual(won(SHELL_PATH, 'height', device), { value: 'auto', important: true, sheet: 'src/App.css', selector: shell, specificity: [0, 2, 0] }, at);
+      assert.equal(won(SHELL_PATH, 'grid-template-rows', device)?.value, `auto ${FRAME_HEIGHT}`, at);
+      assert.equal(won(CONTEXT_PATH, 'max-height', device)?.value, '25dvh', at);
+      assert.equal(won(STAGE_PATH, 'scroll-margin-top', device)?.value, '-8px', at);
+    }
+    for (const device of [phone(320, 568), phone(360, 740), phone(390, 844)]) {
+      const at = `${order}, ${device.width}x${device.height} at 100%`;
+      assert.equal(won(SCREEN_PATH, 'height', device)?.value, FRAME_HEIGHT, `${at}: one screen`);
+      assert.equal(won(SHELL_PATH, 'height', device)?.value, FRAME_HEIGHT, at);
+      assert.equal(won(SHELL_PATH, 'grid-template-rows', device)?.value, 'auto minmax(0, 1fr)', at);
+      assert.equal(won(CONTEXT_PATH, 'max-height', device), null, `${at}: the lines under the task as they were`);
+      assert.equal(won(STAGE_PATH, 'scroll-margin-top', device)?.value, '142px', at);
+    }
+  }
+});
+
+test('at a large text size on a phone held upright, Work View\'s task is two lines in its header, and the header keeps its rows', async () => {
+  // At 200% text on a 320x568 phone the task's four lines, the buttons' row and the actions' rows left Work View 172px
+  // under a staged question's long task, too short for a plane at its 160px floor and its zoom row together.
+  const { WORK_VIEW_SHORT_MAX } = await import('../../src/platform/workView/workViewViewport.js');
+  const TASK = '[data-open="true"]:not([data-height="short"]) .mathmaster-work-view-persistent-task';
+  const SHORT_FOR_ITS_TEXT = `(max-width: 22em) and (max-height: ${WORK_VIEW_SHORT_MAX / 16}em) and (orientation: portrait)`;
+  assert.equal(SHORT_FOR_ITS_TEXT, '(max-width: 22em) and (max-height: 28.75em) and (orientation: portrait)', 'the height a phone on its side is short at, in the text\'s size');
+  assert.equal(declared(shellCss, TASK, 'max-height', { media: SHORT_FOR_ITS_TEXT })?.value, 'calc(1.35em * 2)');
+  assert.equal(declared(shellCss, '.mathmaster-work-view-persistent-task', 'max-height', { media: null })?.value, 'calc(1.35em * 4)', 'four lines elsewhere');
+  assert.equal(declared(shellCss, '.mathmaster-work-view-persistent-task', 'overflow-y', { media: null })?.value, 'auto', 'and the rest scrolls');
+  // The device's own text size: every phone at 200%, the 320x568 and 375x667 at 150%; no phone at 100%, not a
+  // 360x740 or 390x844 at 150%, a tablet or a Chromebook at 200%.
+  const holds = (width, height, scale = 1) => atRuleHolds(`@media ${SHORT_FOR_ITS_TEXT}`, phone(width, height, scale));
+  for (const [width, height] of [[320, 568], [360, 740], [375, 667], [390, 844], [412, 915]]) {
+    assert.ok(holds(width, height, 2), `${width}x${height} at 200%`);
+    assert.ok(!holds(width, height), `${width}x${height} at 100%`);
+  }
+  assert.ok(holds(320, 568, 1.5) && holds(375, 667, 1.5) && !holds(360, 740, 1.5) && !holds(390, 844, 1.5));
+  assert.ok(!holds(768, 1024, 2) && !holds(1366, 768, 2) && !holds(844, 390, 2));
+  // The cascade: two lines there, four at 100% and on a Chromebook, and a phone on its side keeps its one line.
+  const sheets = [{ name: 'WorkViewShell.css', rules: shellCss }];
+  const host = (height) => ({ tag: 'div', classes: ['mathmaster-work-view-host'], attrs: { 'data-open': 'true', 'data-height': height } });
+  const task = (height) => [{ tag: 'html' }, { tag: 'body' }, host(height), { tag: 'header', classes: ['mathmaster-work-view-header'] }, { tag: 'div', classes: ['mathmaster-work-view-heading'] }, { tag: 'div', classes: ['mathmaster-work-view-persistent-task'] }];
+  const lines = (height, device) => winning({ sheets, path: task(height), property: 'max-height', device })?.value;
+  assert.equal(lines('regular', phone(320, 568, 2)), 'calc(1.35em * 2)');
+  assert.equal(lines('regular', phone(412, 915, 2)), 'calc(1.35em * 2)');
+  assert.equal(lines('regular', phone(375, 667, 1.5)), 'calc(1.35em * 2)');
+  assert.equal(lines('regular', phone(320, 568)), 'calc(1.35em * 4)');
+  assert.equal(lines('regular', phone(360, 740, 1.5)), 'calc(1.35em * 4)');
+  assert.equal(lines('regular', { width: 1366, height: 768, fontSize: 32 }), 'calc(1.35em * 4)');
+  assert.equal(lines('short', phone(667, 375, 2)), 'none', 'a phone on its side: one line, as before');
+  // The header still puts the task on a row of its own and the buttons under it there (below 22em, not short).
+  const header = [{ tag: 'html' }, { tag: 'body' }, host('regular'), { tag: 'header', classes: ['mathmaster-work-view-header'] }];
+  assert.equal(winning({ sheets, path: header, property: 'flex-wrap', device: phone(320, 568, 2) })?.value, 'wrap');
+});
+
 test('in Work View a region the keyboard scrolls takes its own height: the view is the one thing that scrolls up and down', () => {
   // The Data Modeling Lab's residual table, capped at 185 px, was a scroller inside the view's scroll at every
   // size, phone to desktop.
@@ -328,7 +457,7 @@ test('the sweep reads every surface the opener floats over, at the phones, at 20
   assert.deepEqual([...STAGED_SCENES], ['legacy-functionCharacteristics', 'legacy-relationshipModel']);
   assert.deepEqual(STAGED_SIZES.map((size) => size.id), [...SIZES.map((size) => size.id), '1366x768@200%', '1920x1080']);
   const sweep = read('tests/browser/workViewOpenerCover.mjs');
-  assert.match(sweep, /const checks = new Set\(\(arg\('check'\) \|\| 'cover,badges,scroll,staged,settle,hint'\)\.split\(','\)\);/);
+  assert.match(sweep, /const checks = new Set\(\(arg\('check'\) \|\| 'cover,badges,room,scroll,staged,settle,hint'\)\.split\(','\)\);/);
   assert.match(sweep, /if \(!m\.flow && m\.body\[0\] < STEP_MIN_ROOM\) problems\.push\(/, 'a step with no room fails');
   // The question's results never drawn over the step (the review of 2026-11-18: in a flowing view they were).
   assert.match(sweep, /step\.resultsOverStep = resultsBox\.top < stepBox\.bottom - 1 && resultsBox\.bottom > stepBox\.top \+ 1;/);
@@ -348,6 +477,10 @@ test('the sweep reads every surface the opener floats over, at the phones, at 20
   assert.match(sweep, /observer\.observe\(root, \{ attributes: true, attributeFilter: \['data-step-room', 'style'\] \}\);/, 'every write of the layout and the cap is counted');
   assert.match(sweep, /if \(m\.plane && m\.plane\.height > m\.plane\.room \+ 1\) problems\.push\(/, 'a plane taller than its step fails');
   assert.match(sweep, /else if \(m\.plane && m\.plane\.withControls > m\.plane\.room \+ 1\) \{[\s\S]*?if \(m\.plane\.room >= PLANE_MIN \+ controls\) problems\.push\(/, 'and one whose controls fall out of a step that could hold them');
+  // And a view too short for a plane at its floor and its controls together: reported once (at 320x568 with 200% text
+  // it was 172px), it fails since Work View's task is two lines there.
+  assert.match(region(sweep, 'const runStaged = async', '\n};\n', 'the staged check'), /else problems\.push\(`\$\{where\}: the view is \$\{m\.plane\.room\}px, too short for a plane at its \$\{PLANE_MIN\}px floor/);
+  assert.doesNotMatch(sweep, /cramped/, 'nothing is reported instead of failed');
   assert.match(sweep, /m\.nested\.forEach\(\(entry\) => problems\.push\(`\$\{where\}: \$\{entry\}`\)\);/, 'and a scroller inside a scroller');
   assert.match(read('tests/browser/studentUxPlatformMain.jsx'), /writeQuestionDraft\(`\$\{draftKeyFor\(flat\)\}:workflow-stage`, index, \{ edit: false \}\);/, 'the harness opens a staged question on a chosen step');
   // R17's: the tries line, the completion medallion and the opener are among what is measured.
@@ -418,6 +551,50 @@ test('the sweep presses "Show a hint" on every staged step, and fails a hint out
   assert.match(harness, /window\.localStorage\.removeItem\(supportUseStorageKey\(draftKeyFor\(flat\)\)\);/, 'the harness forgets a question\'s help on request');
 });
 
+test('the sweep fails a phone question left without room for its work at a large text size, in Focus view and with progress shown', async () => {
+  const { ROOM_SIZES, ROOM_SCENES, ROOM_REACH, WORK_ROOM_SHARE } = await import('../browser/workViewOpenerCover.mjs');
+  const { PLANE_MIN } = await import('../../src/platform/workflow/stepRoom.js');
+  // The five phones at 200% text, the smallest at 150%, and the smallest at 100% as the control.
+  assert.deepEqual(ROOM_SIZES.map((size) => size.id), ['320x568', '320x568@150%', '320x568@200%', '360x740@200%', '375x667@200%', '390x844@200%', '412x915@200%']);
+  assert.ok(ROOM_SIZES.every((size) => size.phone && size.width < size.height), 'phones held upright');
+  // A typed answer, a choice, a graph a student draws and a staged question, Work View on the last two.
+  assert.deepEqual(ROOM_SCENES.map((scene) => scene.kind), ['typed', 'choice', 'graph', 'staged']);
+  assert.deepEqual(ROOM_SCENES.filter((scene) => scene.workView).map((scene) => scene.kind), ['graph', 'staged']);
+  assert.ok(ROOM_SCENES.every((scene) => scene.shows), 'each scene must show its kind of work, or it proves nothing');
+  assert.equal(WORK_ROOM_SHARE, 0.2);
+  for (const name of ['tries', 'opener', 'submit', 'next']) assert.ok(name in ROOM_REACH, name);
+  const sweep = read('tests/browser/workViewOpenerCover.mjs');
+  const room = region(sweep, 'const runRoom = async', '\n};\n', 'the room check');
+  // Read in Focus view and with progress shown, each question; Work View on the graph and the staged question.
+  assert.match(room, /for \(const state of \['focus view', 'progress shown'\]\) \{/);
+  assert.match(room, /if \(room && room\.seen < least\) problems\.push\(/, 'too little of the screen for the work fails');
+  assert.match(room, /const least = Math\.round\(size\.height \* WORK_ROOM_SHARE\);/);
+  assert.match(room, /else if \(!target\.reached\) problems\.push\(/, 'a target that cannot be reached fails');
+  assert.match(room, /else if \(zoomRow != null && view\.view < PLANE_MIN \+ zoomRow\) problems\.push\(/, 'a Work View too short for a plane at its floor and its zoom row fails');
+  assert.match(room, /if \(folded && room\?\.pageScrolls\) problems\.push\(/, 'at 100% text a page that scrolls fails');
+  assert.ok(PLANE_MIN === 160);
+  // Reached as a finger reaches it: a box that clips is never scrolled, only one that scrolls, and the page.
+  const reach = region(sweep, 'const READ_REACH = (selector) => {', '\n};\n', 'the reach reader');
+  assert.match(reach, /\? \/\(auto\|scroll\)\/\.test\(getComputedStyle\(node\)\.overflowY\) && node\.scrollHeight > node\.clientHeight \+ 1/);
+  assert.match(reach, /: \/\(auto\|scroll\)\/\.test\(getComputedStyle\(node\)\.overflowX\) && node\.scrollWidth > node\.clientWidth \+ 1\);/);
+  assert.match(reach, /if \(fingerScrolls\(node, 'y'\)\) node\.scrollTop \+=/);
+  assert.match(reach, /if \(fingerScrolls\(node, 'x'\)\) node\.scrollLeft \+=/);
+  // Whole: cut on no side, by any box between it and the page.
+  assert.match(reach, /const cut = seen\.bottom - seen\.top < box\.height - 1 \|\| seen\.right - seen\.left < box\.width - 1;/);
+  assert.doesNotMatch(executableSource(reach), /scrollIntoView/, 'scrollIntoView moves a box that clips');
+  assert.match(reach, /reached: onScreen && !cut && onTop/);
+  // The real App's lesson of one question of each kind.
+  assert.match(room, /await page\.goto\(`\$\{origins\.app\}\$\{ROOM_APP\}`/);
+  assert.match(sweep, /const ROOM_APP = '\/tests\/browser\/teacherWorkflow\/index\.html\?reset=1&as=student&studentId=910002&questions=room';/);
+  const lesson = read('tests/browser/teacherWorkflow/textRoomLesson.js');
+  assert.match(lesson, /studentActions: \['multipleResponses'\],\n\s+responses: \[\{ id: 'm', label: 'Slope'/, 'a typed answer');
+  assert.match(lesson, /type: 'choice',/, 'a choice');
+  assert.match(lesson, /studentActions: \['constructLine'\]/, 'a graph a student draws');
+  assert.match(lesson, /studentActions: \['completeTable', 'constructGraph', 'stateDomain', 'stateRange'\]/, 'a staged question');
+  assert.match(read('tests/browser/teacherWorkflow/fakeFirestore.js'), /requestedLesson === 'room' \? await import\('\.\/textRoomLesson\.js'\)/);
+  assert.match(read('tests/browser/teacherWorkflow/fixture.js'), /\['matrices', 'dividing', 'radicals', 'runtime', 'room'\]\.includes\(questionSet\) && compiledSections/);
+});
+
 test('a pull request that changes the sweep, what it reads or what draws it runs the opener sweep', () => {
   const job = jobsOf(readWorkflow('work-view-browser-matrix.yml'))['work-view-opener-cover'];
   assert.ok(job, 'the job is in the Work View workflow');
@@ -437,6 +614,7 @@ test('a pull request that changes the sweep, what it reads or what draws it runs
     'src/components/student/PathQuestionStimulus.jsx', 'src/tools/dataModeling/DataModelingLab.jsx', 'src/GraphDisplay.jsx',
     'src/platform/workflow/WorkflowRunner.jsx', 'src/platform/workflow/stepRoom.js', 'src/platform/workflow/useStepRoom.js',
     'src/platform/workflow/WorkflowFocusMode.css', 'src/platform/supports/hints/hintPanelReveal.js', 'src/platform/supports/hints/HintPanel.jsx',
+    'tests/browser/teacherWorkflow/textRoomLesson.js', 'src/components/student/MathToolMobileLayout.css',
   ]) {
     assert.ok(runsOnPullRequest('work-view-browser-matrix.yml', file), `a change to ${file} runs the opener sweep`);
   }
