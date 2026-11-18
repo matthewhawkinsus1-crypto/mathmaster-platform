@@ -180,3 +180,30 @@ test('App\'s server read remounts the question on screen only for a draft of its
   );
   assert.ok(read.indexOf('restoreQuestionDrafts(') < read.indexOf('draftsOfQuestionChanged('), 'decided once everything is written in');
 });
+
+/*
+ * THE REF THE READ DECIDES WITH NAMES THE QUESTION THE LAST COMMIT PUT ON SCREEN.
+ *
+ * The next question reads its drafts while it renders, and a Next (set after an
+ * await, a default update) commits in one task and runs its passive effects in
+ * a later one. With the ref set in a passive effect, a read landing between the
+ * two decided for the question the student had left: the next question's newer
+ * copy from another Chromebook went into storage, the stale copy stayed on
+ * screen, and the student's next key saved it over the other Chromebook's work
+ * (review r1). A layout effect runs in the commit's own task: a read lands
+ * before the next question rendered, which then reads what was restored, or
+ * after the ref names it, which is then remounted. draftCrossDeviceJourneys.mjs
+ * `next` lands the read in that gap in the browser.
+ */
+test('App sets the question its read decides for once, in a layout effect of the commit that shows it', () => {
+  const app = executableSource(readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8'));
+  const writes = app.match(/currentQuestionIndexRef\.current\s*=(?!=)/g) || [];
+  assert.equal(writes.length, 1, 'one place moves the ref');
+  assert.match(app, /useLayoutEffect\(\(\) => \{\s*currentQuestionIndexRef\.current = currentQuestionIndex;\s*\}, \[currentQuestionIndex\]\);/, 'a layout effect, on the question that is shown');
+  // The cursor a restore recorded for the question left is still dropped as
+  // any question opens, after the commit, where it was.
+  assert.match(app, /useEffect\(\(\) => \{\s*setDraftRestoreFocus\(null\);\s*\}, \[currentQuestionIndex, activeAssignmentId\]\);/);
+  // And the read still decides with it.
+  const read = region(app, 'const readServerCopy = () => {', '.catch((error) => {');
+  assert.match(read, /draftsOfQuestionChanged\(\w+, currentQuestionIndexRef\.current\)/);
+});

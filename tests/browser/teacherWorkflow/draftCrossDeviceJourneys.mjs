@@ -58,6 +58,16 @@
 //              page comes back online. The line question is not remounted for
 //              another question's draft: no key is lost, the caret stays where
 //              the student put it, and the fraction shows A's work when opened.
+//   next       the next question's work arrives as the student presses Next:
+//              B worked the line question and went back to the fraction; A
+//              then changed the line question's slope. Back on B (the read
+//              held), the student presses Next, and the read lands in the
+//              microtasks right after the commit that drew the line question
+//              from B's own older copy, where a Next's passive effects have not
+//              run unless something in that commit made React run them. The
+//              line question shows A's slope, and the student's next key keeps
+//              it. (With App's ref set in a passive effect and the question's
+//              layout-effect update made passive, it showed 12 and saved 129.)
 //   practice   post-deadline Practice Mode: the student practises on one
 //              device; another opens Practice Mode with the server out of
 //              reach and back without an `online` event (its read failed, its
@@ -550,6 +560,66 @@ if (wanted('other')) {
   await goTo(B.page, Q_FRACTION);
   const newer = await shows(B.page, ['5']);
   check(same(newer, ['5']), 'other: the fraction, opened, shows A\'s newer work', JSON.stringify(newer));
+  await B.context.close();
+}
+
+/* =============================================================== next */
+
+if (wanted('next')) {
+  // B works the line question, then goes back to the fraction (where it will
+  // resume); A, later, gives the line question another slope.
+  const B0 = await openDevice('next: B works the line');
+  await openAssignment(B0.page);
+  await goTo(B0.page, Q_LINE);
+  await typeInto(B0.page, 0, '12');
+  await waitForServer(B0.page, (drafts) => drafts[LINE_KEY]?.value?.m === '12');
+  await goTo(B0.page, Q_FRACTION);
+  await B0.page.waitForTimeout(SAVED);
+  const stateB = await B0.context.storageState();
+  const serverB = await serverDb(B0.page);
+  await B0.context.close();
+  const A6 = await openDevice('next: A changes the slope', { server: serverB });
+  await openAssignment(A6.page);
+  await goTo(A6.page, Q_LINE);
+  await typeInto(A6.page, 0, '34');
+  await waitForServer(A6.page, (drafts) => drafts[LINE_KEY]?.value?.m === '34');
+  const serverWithA = await serverDb(A6.page);
+  await A6.context.close();
+
+  // Back on B, the read held, on the fraction. The read is let through from
+  // a MutationObserver as soon as the line question's boxes are in the page:
+  // the observer runs in the microtasks after React's commit, before the
+  // scheduler's next task, where a Next's passive effects run.
+  const B = await openDevice('next: B back', { storageState: comingBack(stateB, serverWithA), params: { draftReadHold: '1' } });
+  await openAssignment(B.page);
+  await goTo(B.page, Q_FRACTION);
+  await B.page.evaluate(() => {
+    const old = document.querySelector('.mathmaster-question-engine');
+    window.__journeyNext = { released: null };
+    const observer = new MutationObserver(() => {
+      const engine = document.querySelector('.mathmaster-question-engine');
+      if (!engine || engine === old || !engine.querySelector('math-field')) return;
+      if (!/A line passes through/.test(document.querySelector('.mathmaster-question-stage')?.innerText || '')) return;
+      observer.disconnect();
+      // Its boxes are drawn; their values follow in MathInput's effects.
+      window.__journeyNext.released = { boxes: engine.querySelectorAll('math-field').length };
+      window.__mmHarnessStore.releaseDraftReads();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  await B.page.getByRole('button', { name: 'Next question' }).first().click();
+  await B.page.waitForFunction(() => window.__journeyNext.released, null, { timeout: 30000 });
+  const drawn = await B.page.evaluate(() => window.__journeyNext.released);
+  check(drawn.boxes === 2, 'next: the read lands as soon as the line question, read from B\'s own older copy, is in the page', JSON.stringify(drawn));
+  const shown = await shows(B.page, ['34', '']);
+  check(same(shown, ['34', '']), 'next: the line question shows A\'s newer slope', JSON.stringify(shown));
+  // The student types on in the slope box.
+  await B.page.locator('.mathmaster-question-stage math-field').first().click();
+  await B.page.keyboard.press('End');
+  await B.page.keyboard.type('9', { delay: 25 });
+  await B.page.keyboard.press('Tab');
+  const saved = await waitForServer(B.page, (drafts) => /9/.test(drafts[LINE_KEY]?.value?.m || ''));
+  check(saved[LINE_KEY]?.value?.m === '349', 'next: the student\'s next key keeps A\'s slope (34, then 9), and B\'s older 12 never comes back', JSON.stringify(saved[LINE_KEY]?.value));
   await B.context.close();
 }
 

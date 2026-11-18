@@ -121,7 +121,11 @@ test('App records the cursor before a restore remount, for that question only, a
   const restoreBranch = app.slice(restoreStart, app.indexOf('sync.noteServerCopy(entries);', restoreStart));
   assert.match(restoreBranch, /setDraftRestoreFocus\(\{\s*questionIndex: currentQuestionIndexRef\.current,\s*position: answerFocusPosition\(assignmentQuestionStageRef\.current\),\s*\}\);\s*setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/);
   assert.match(app, /draftRestore=\{draftRestoreFocus\?\.questionIndex === currentQuestionIndex \? draftRestoreFocus : null\}/);
-  assert.match(app, /currentQuestionIndexRef\.current = currentQuestionIndex;\s*setDraftRestoreFocus\(null\);\s*\}, \[currentQuestionIndex, activeAssignmentId\]\);/);
+  // Another question, or another assignment, drops it; the ref the read
+  // records it with follows the question shown, from the commit that shows it
+  // (draftRestoreRemountScope.test.mjs).
+  assert.match(app, /useEffect\(\(\) => \{\s*setDraftRestoreFocus\(null\);\s*\}, \[currentQuestionIndex, activeAssignmentId\]\);/);
+  assert.match(app, /useLayoutEffect\(\(\) => \{\s*currentQuestionIndexRef\.current = currentQuestionIndex;\s*\}, \[currentQuestionIndex\]\);/);
   // The restore branch comes first, focuses only through restoreAnswerFocus,
   // and returns before the opening's autofocus can run. It is a deferred
   // focus, so it goes through the question's authority (a student press after

@@ -983,9 +983,28 @@ function App() {
   // A restore's cursor belongs to the question it was read on (draftRestoreFocus):
   // another question, or another assignment, opens as any question opens.
   useEffect(() => {
-    currentQuestionIndexRef.current = currentQuestionIndex;
     setDraftRestoreFocus(null);
   }, [currentQuestionIndex, activeAssignmentId]);
+  // WHICH QUESTION IS ON SCREEN, FROM THE COMMIT THAT PUT IT THERE (#386, after
+  // R12). The server read remounts the question on screen only for a draft of
+  // its own, and asks this ref which question that is (draftsOfQuestionChanged).
+  // The next question reads its drafts while it renders. Set in a passive
+  // effect, the ref still named the question the student had left until that
+  // effect ran, and a Next (set after an await: a default update) commits in one
+  // task and runs its passive effects in a later one: a read landing between
+  // the two wrote the next question's newer copy, from another Chromebook,
+  // into this device, decided for the old question, and left the stale copy on
+  // screen for the student's next key to save over it. A layout effect runs in
+  // the commit's own task, so a read lands before the next question rendered
+  // (it then reads the restored copy) or after the ref names it (it is then
+  // remounted). Today a state update in a layout effect of every question
+  // (MobileViewportContainer's main-landmark check) makes React run the
+  // passive effects inside that task as well, and nothing else kept the gap
+  // shut: with that update made passive, a read let through in the gap lost
+  // the other Chromebook's work every time at 4x and 6x, and none with this.
+  useLayoutEffect(() => {
+    currentQuestionIndexRef.current = currentQuestionIndex;
+  }, [currentQuestionIndex]);
 
   // THE NAVIGATOR STARTS COMPACT, ON EVERY SIZE (pass 3, RUN-7).
   // One row — back, where you are, Previous/Next — leaves the work the
