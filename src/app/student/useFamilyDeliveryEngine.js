@@ -8,11 +8,6 @@
 import { startTransition, useCallback, useEffect, useState } from 'react';
 
 export function useFamilyDeliveryEngine({ activeAssignmentId }) {
-  // THE LIKELY NEXT CHUNK. From Home a student almost always opens an
-  // assignment, and the question runtime (QuestionEngine, with MathLive) is
-  // its own chunk (app/lazyScreens.js). Fetch it once the browser is idle on
-  // Home, so the first assignment does not wait on it. Nothing here joins the
-  // first paint (scripts/check-first-load-budget.mjs measures that).
   /*
    * THE FAMILY ENGINE ARRIVES WITH THE QUESTION RUNTIME.
    *

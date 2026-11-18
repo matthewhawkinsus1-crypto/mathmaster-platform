@@ -10,6 +10,11 @@ import { StudentAssignmentResult, StudentAssignmentsCenter, StudentGradeCenter, 
 import { prefetchStudentScreens } from './studentScreenPrefetch.js';
 
 export function useStudentScreenPrefetch({ user, activeView, studentDashboardMode, loadFamilyDelivery }) {
+  // THE LIKELY NEXT CHUNK. From Home a student almost always opens an
+  // assignment, and the question runtime (QuestionEngine, with MathLive) is
+  // its own chunk (app/lazyScreens.js). Fetch it once the browser is idle on
+  // Home, so the first assignment does not wait on it. Nothing here joins the
+  // first paint (scripts/check-first-load-budget.mjs measures that).
   const questionEnginePrefetchedRef = useRef(false);
   useEffect(() => {
     if (user?.role !== 'student' || activeView !== 'dashboard' || questionEnginePrefetchedRef.current) return undefined;
