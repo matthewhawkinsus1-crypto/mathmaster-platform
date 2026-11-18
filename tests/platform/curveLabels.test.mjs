@@ -112,6 +112,71 @@ test('only a named curve in view gets a place; the same plane gives the same pla
   assert.deepEqual(placeCurveLabels({ curves, dots, bounds: PLOT, textSize: 12 }), spots, 'deterministic');
 });
 
+// The axes, kept clear of and never named, as every plane passes them.
+const AXES = [{ label: '', paths: [[[sx(0), PLOT.top], [sx(0), PLOT.bottom]]] }, { label: '', paths: [[[PLOT.left, sy(0)], [PLOT.right, sy(0)]]] }];
+// What lies between a name and its own curve: every other curve (an axis too) crossing the straight way from the
+// name's middle to the nearest point of its own.
+const turn = (u, v, w) => Math.sign((v[0] - u[0]) * (w[1] - u[1]) - (v[1] - u[1]) * (w[0] - u[0]));
+const between = (spot, own, others) => {
+  let nearest = null;
+  for (const run of own) {
+    run.slice(1).forEach((b, i) => {
+      const a = run[i];
+      const t = Math.max(0, Math.min(1, ((spot.cx - a[0]) * (b[0] - a[0]) + (spot.cy - a[1]) * (b[1] - a[1])) / ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 || 1)));
+      const at = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+      if (!nearest || Math.hypot(spot.cx - at[0], spot.cy - at[1]) < nearest.away) nearest = { at, away: Math.hypot(spot.cx - at[0], spot.cy - at[1]) };
+    });
+  }
+  const p = [spot.cx, spot.cy];
+  return others.filter((other) => other.paths.some((run) => run.slice(1).some((b, i) => {
+    const a = run[i];
+    return turn(p, nearest.at, a) * turn(p, nearest.at, b) < 0 && turn(a, b, p) * turn(a, b, nearest.at) < 0;
+  }))).map((other) => other.label || 'an axis');
+};
+
+test('a name is never put nearer another named line than its own while a place nearer its own is left', () => {
+  // f (y = 2) and g (y = 1) one unit apart, everything on f's far side under a control drawn over the plane: every
+  // place left in sight is nearer g, and the cost alone took one, below f and 8.6 units from g, 9.9 from f. Read as
+  // g's name, it says the wrong thing; under the control it says nothing.
+  const curves = [{ label: 'f', paths: line(0, 2) }, { label: 'g', paths: line(0, 1) }, ...AXES];
+  const hidden = [{ left: PLOT.left - 10, right: PLOT.right + 10, top: PLOT.top - 10, bottom: sy(2) }];
+  const [f] = placeCurveLabels({ curves, hidden, bounds: PLOT, textSize: 12 });
+  const own = distanceTo([f.cx, f.cy], curves[0].paths);
+  const other = distanceTo([f.cx, f.cy], curves[1].paths);
+  assert.ok(own < other, `f is ${own.toFixed(1)} from its own line and ${other.toFixed(1)} from g`);
+});
+
+test('two steep lines that cross on an axis: each long name nearer its own line, with no line between them', () => {
+  // y = −4x + 4 and y = −3x + 4 meet on the y-axis, close all the way: no place for "y = −4x + 4" is clear of every
+  // other line. Every place costing alike, the first in order won, beside the crossing and nearer the other line
+  // (0.89 as far from it as from its own). Nor may a place on the far side of the y-axis do: the axis cuts it off.
+  const curves = [{ label: 'y = −4x + 4', paths: line(-4, 4) }, { label: 'y = −3x + 4', paths: line(-3, 4) }, ...AXES];
+  const spots = placeCurveLabels({ curves, bounds: PLOT, textSize: 12 });
+  [0, 1].forEach((index) => {
+    const spot = spots[index];
+    const own = distanceTo([spot.cx, spot.cy], curves[index].paths);
+    const other = distanceTo([spot.cx, spot.cy], curves[1 - index].paths);
+    assert.ok(other > own, `"${curves[index].label}" is ${own.toFixed(1)} from its own line and ${other.toFixed(1)} from the other`);
+    assert.deepEqual(between(spot, curves[index].paths, curves.filter((_, other) => other !== index)), [], `nothing between "${curves[index].label}" and its line`);
+    assert.ok(inside(spot.box, PLOT), `"${curves[index].label}" inside the plot`);
+  });
+});
+
+test('where two lines leave room, a long name is clearly nearer its own line, not barely', () => {
+  // No place clear of every line (the axes too), so each place was as costly as the next and the first won: a name
+  // 1.11 times as far from the other line as from its own (y = −3x + 2), or 0.99 (y = 3x − 6), where places
+  // half again as far from the other line were there to take.
+  for (const [first, second] of [[[-3, 2, 'y = −3x + 2'], [-1, 2, 'y = −x + 2']], [[3, -6, 'y = 3x − 6'], [2, -2, 'y = 2x − 2']]]) {
+    const curves = [{ label: first[2], paths: line(first[0], first[1]) }, { label: second[2], paths: line(second[0], second[1]) }, ...AXES];
+    const spots = placeCurveLabels({ curves, bounds: PLOT, textSize: 12 });
+    [0, 1].forEach((index) => {
+      const own = distanceTo([spots[index].cx, spots[index].cy], curves[index].paths);
+      const other = distanceTo([spots[index].cx, spots[index].cy], curves[1 - index].paths);
+      assert.ok(other >= own * 1.6, `"${curves[index].label}": ${(other / own).toFixed(2)} times as far from the other line as from its own`);
+    });
+  }
+});
+
 test('a ringed name (a constraint\'s number) takes a square box, larger than its digit', () => {
   const text = curveLabelSize({ label: '2', textSize: 12 });
   const ring = curveLabelSize({ label: '2', textSize: 12, tag: true });

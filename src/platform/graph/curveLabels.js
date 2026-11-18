@@ -17,6 +17,14 @@
  * takes the one that costs least, a dot counting most (planePointLabels.js
  * places a point's name the same way).
  *
+ * Where no place is clear of every other line (two steep lines that cross by
+ * an axis leave a long name, "y = 3x + 4", no room), being read as the wrong
+ * curve's name is what matters most. A place nearer another named curve than
+ * its own is never taken while one nearer its own is left. Among the rest, the
+ * farther the other named curves are, the better; and a place with another
+ * line between the name and its own curve costs as a line through it does, for
+ * that line cuts the name off from its curve.
+ *
  * Pure geometry in the plane's viewBox units, as planePointLabels.js:
  *   a curve  { label, paths: [[[x, y], …], …], tag }: what is drawn, as runs
  *            of points (a curve broken by an asymptote is two runs); `label`
@@ -39,14 +47,21 @@ const DESCENT = 0.2;
 // What covering each kind of thing costs, per unit of area covered (as planePointLabels.js).
 const COST_DOT = 3;
 const COST_LABEL = 1.5;
-const COST_AXIS_NUMBER = 1;
+// Twice what a point's name pays: a name hides a number it covers, while an axis
+// through a name leaves both to be read. So where no place is clear of the other
+// lines, "y = 2x + 4" goes beside the y-axis's −10, not over it.
+const COST_AXIS_NUMBER = 2;
 const COST_OUTSIDE = 4;
-// A line through a name, and a name nearer another curve than its own: each as
-// much as covering a dot the size of the name's own text.
+// A line through a name (or between it and its own curve), and a name not
+// clearly nearer its own curve than any other: each as much as covering a dot
+// the size of the name's own text. The second grows the nearer another named
+// curve comes, to twice on that curve.
 const COST_CROSSING = 3;
 const COST_AMBIGUOUS = 8;
 // Under a control drawn over the plane (Work View's opener) a name is not seen
-// at all: worse than anything else a place can cost.
+// at all: worse than anything else a place can cost. Only being read as another
+// curve's name is worse (below): a name not seen says nothing, that one says the
+// wrong thing.
 const COST_HIDDEN = 60;
 // How much farther from any other curve than from its own a name must be.
 const NEARER_BY = 1.6;
@@ -143,15 +158,36 @@ export const visibleRuns = (paths, bounds) => {
   return runs;
 };
 
-const distanceToSegment = ([px, py], [a, b]) => {
+const nearestOnSegment = ([px, py], [a, b]) => {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const length = dx * dx + dy * dy;
   const t = length > 0 ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / length)) : 0;
-  return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
+  return [a[0] + t * dx, a[1] + t * dy];
+};
+
+const distanceToSegment = (point, segment) => {
+  const [x, y] = nearestOnSegment(point, segment);
+  return Math.hypot(point[0] - x, point[1] - y);
 };
 
 const distanceToSegments = (point, segments) => segments.reduce((nearest, segment) => Math.min(nearest, distanceToSegment(point, segment)), Number.POSITIVE_INFINITY);
+
+// The point of `segments` nearest `point`.
+const nearestOnSegments = (point, segments) => {
+  let nearest = null;
+  let distance = Number.POSITIVE_INFINITY;
+  for (const segment of segments) {
+    const at = nearestOnSegment(point, segment);
+    const away = Math.hypot(point[0] - at[0], point[1] - at[1]);
+    if (away < distance) [nearest, distance] = [at, away];
+  }
+  return nearest;
+};
+
+// Whether segment p→q and segment a→b cross, each passing between the other's ends (touching is not crossing).
+const turn = (u, v, w) => Math.sign((v[0] - u[0]) * (w[1] - u[1]) - (v[1] - u[1]) * (w[0] - u[0]));
+const cuts = (p, q, [a, b]) => turn(p, q, a) * turn(p, q, b) < 0 && turn(a, b, p) * turn(a, b, q) < 0;
 
 const crosses = (segments, box) => segments.some(([a, b]) => clipSegment(a, b, box) !== null);
 
@@ -199,6 +235,8 @@ export const placeCurveLabels = ({ curves = [], dots = [], avoid = [], hidden = 
     if (!label || !drawn[index].length) return null;
     const size = curveLabelSize({ label, textSize, tag: Boolean(curve.tag) });
     const others = segments.filter((_, other) => other !== index);
+    // The curves a name could be taken for: those that carry a name of their own.
+    const named = segments.filter((_, other) => other !== index && String(curves[other]?.label ?? ''));
     let best = null;
     const places = FARTHER.flatMap((farther) => ALONG.map((fraction) => ({ fraction, farther })));
     places.forEach(({ fraction, farther }, order) => {
@@ -214,17 +252,33 @@ export const placeCurveLabels = ({ curves = [], dots = [], avoid = [], hidden = 
         const box = boxAround(cx, cy, size);
         const own = distanceToSegments([cx, cy], segments[index]);
         const nearestOther = others.reduce((nearest, list) => Math.min(nearest, distanceToSegments([cx, cy], list)), Number.POSITIVE_INFINITY);
+        const nearestNamed = named.reduce((nearest, list) => Math.min(nearest, distanceToSegments([cx, cy], list)), Number.POSITIVE_INFINITY);
         const crossing = segments.filter((list) => crosses(list, box)).length;
+        // Not clearly nearer its own curve than any other line: ambiguous, and the more so the nearer another named
+        // curve comes (on that curve, twice as costly as just short of clear).
+        const clear = own * NEARER_BY + gap;
+        const ambiguous = nearestOther < clear;
+        const shortOfClear = Math.max(0, clear - nearestNamed) / clear;
+        // Another line (an axis too) between the name and its own curve, or through the point of it nearest the
+        // name: cut off from it, as by a line through it. Only an ambiguous place can be: that line is no farther than
+        // its own curve. Tested a unit past that point, so a line crossing its own curve just there counts however
+        // the curve is sampled.
+        const ownPoint = ambiguous ? nearestOnSegments([cx, cy], segments[index]) : null;
+        const toOwn = ownPoint ? Math.hypot(cx - ownPoint[0], cy - ownPoint[1]) : 0;
+        const pastOwn = toOwn > 0 ? [ownPoint[0] - (cx - ownPoint[0]) / toOwn, ownPoint[1] - (cy - ownPoint[1]) / toOwn] : null;
+        const cutOff = pastOwn ? others.filter((list) => list.some((segment) => cuts([cx, cy], pastOwn, segment))).length : 0;
         const cost = dotBoxes.reduce((sum, dot) => sum + COST_DOT * overlapArea(box, dot), 0)
           + taken.reduce((sum, other) => sum + COST_LABEL * overlapArea(box, grown(other, labelRoom)), 0)
           + avoided.reduce((sum, other) => sum + COST_AXIS_NUMBER * overlapArea(box, other), 0)
           + hidden.filter(Boolean).reduce((sum, other) => sum + COST_HIDDEN * overlapArea(box, other), 0)
           + COST_OUTSIDE * outsideArea(box, bounds)
-          + COST_CROSSING * textArea * crossing
-          + (nearestOther < own * NEARER_BY + gap ? COST_AMBIGUOUS * textArea : 0)
+          + COST_CROSSING * textArea * (crossing + cutOff)
+          + (ambiguous ? COST_AMBIGUOUS * textArea * (1 + shortOfClear) : 0)
           // The same cost: the earlier place wins.
           + order * 0.01 + (side > 0 ? 0.005 : 0);
-        if (!best || cost < best.cost) best = { cost, cx, cy, box };
+        // Nearer another named curve than its own, it reads as that curve's name: taken only where every place is.
+        const misread = nearestNamed <= own;
+        if (!best || (misread !== best.misread ? !misread : cost < best.cost)) best = { cost, misread, cx, cy, box };
       }
     });
     if (!best) return null;

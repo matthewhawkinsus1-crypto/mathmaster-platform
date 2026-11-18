@@ -35,6 +35,8 @@
  *     outside its plane, or under something drawn over it, Work View's opener
  *     included), or covering a point or another word on its plane (a point's
  *     name, an axis number, another curve's name);
+ *   - a name as near another named line as its own, where the scene says which
+ *     line is whose (data-named-lines: a figure's f and g, each system's two);
  *   - the Transformations Lab's source points not squares beside the student's
  *     dots, and Graph the Line's line drawn without the method without its badge.
  * A picture of each scene, grey, is kept for each reading.
@@ -64,8 +66,10 @@ export const PLANE_NAMES = Object.freeze({
   'systems-build': ['1', '2'],
   'workspace-inverse': ['f', 'f⁻¹'],
   'static-figure': ['f', 'g'],
-  // The page's generated system (its key is fixed): each line named by the equation listed for it.
+  // The page's generated systems (their keys are fixed): each line named by the equation listed for it.
   'system-equations': ['y = 2x − 1', 'y = −x + 8'],
+  'system-equations-crossing': ['y = −3x − 2', 'y = −x + 2'],
+  'system-equations-steep': ['y = 5x − 42', 'y = 4x − 34'],
 });
 
 /**
@@ -227,6 +231,35 @@ const READ = ({ planeNames }) => {
         const near = overlap({ left: r.left - CLEAR, right: r.right + CLEAR, top: r.top - CLEAR, bottom: r.bottom + CLEAR }, o);
         if (near > 1) problems.push(`${id}: "${label}" ${overlap(r, o) > 1 ? 'covers' : 'touches'} ${isPoint ? 'a point' : `"${other.textContent.trim().slice(0, 24)}"`} (${near.toFixed(1)} px²)`);
       }
+    }
+  }
+
+  // ---------------------------------------------------------------- whose line each name is beside
+  // Where a scene says which drawn line each name names (by its colour), the name is nearer its own line than any
+  // other it names: measured in the plane's own units, from the middle of the name to each line as drawn.
+  const pointsOf = (path) => [...(path.getAttribute('d') || '').matchAll(/[ML]\s*(-?[\d.]+)[\s,]+(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  const distanceTo = ([px, py], runs) => runs.reduce((nearest, run) => run.slice(1).reduce((best, b, i) => {
+    const a = run[i];
+    const t = Math.max(0, Math.min(1, ((px - a[0]) * (b[0] - a[0]) + (py - a[1]) * (b[1] - a[1])) / ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 || 1)));
+    return Math.min(best, Math.hypot(px - (a[0] + t * (b[0] - a[0])), py - (a[1] + t * (b[1] - a[1]))));
+  }, nearest), Infinity);
+  facts.nearest = {};
+  for (const scene of document.querySelectorAll('[data-cue-scene][data-named-lines]')) {
+    const id = scene.getAttribute('data-cue-scene');
+    const strokes = JSON.parse(scene.getAttribute('data-named-lines'));
+    const svg = scene.querySelector('svg[data-mm-plane]');
+    const runsOf = (stroke) => [...(svg?.querySelectorAll('path[data-mm-plane-part="line"]') || [])]
+      .filter((path) => (path.getAttribute('stroke') || '').toLowerCase() === String(stroke).toLowerCase()).map(pointsOf);
+    for (const name of svg?.querySelectorAll('[data-curve-label]') || []) {
+      const label = name.getAttribute('data-curve-label');
+      const text = name.matches('text') ? name : name.querySelector('text');
+      const b = text.getBBox();
+      const middle = [b.x + b.width / 2, b.y + b.height / 2];
+      const own = distanceTo(middle, runsOf(strokes[label]));
+      const others = Object.entries(strokes).filter(([other]) => other !== label).map(([other, stroke]) => ({ other, away: distanceTo(middle, runsOf(stroke)) }));
+      const nearest = others.reduce((best, entry) => (entry.away < best.away ? entry : best), { other: null, away: Infinity });
+      (facts.nearest[id] ||= {})[label] = Math.round((nearest.away / own) * 100) / 100;
+      if (!(own < Infinity) || !(own < nearest.away)) problems.push(`${id}: "${label}" is ${own.toFixed(1)} from its own line and ${nearest.away.toFixed(1)} from "${nearest.other}"`);
     }
   }
 
