@@ -67,6 +67,7 @@ const PINNED = Object.freeze({
   'teacher-import-jsons/algebra1-module3/T2_L1_Solving_Systems_by_Graphing_Honors.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L2_Solving_Systems_by_Substitution.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L2_Solving_Systems_by_Substitution_Honors.json': ['3/3/3 ready', '2/2/2 ready'],
+  'teacher-import-jsons/algebra1-module3/T2_L3_Solving_Systems_by_Linear_Combinations.json': ['3/3/3 ready', '2/2/2 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L4_Graphing_Inequalities_in_Two_Variables_Honors.json': ['3/3/3 ready', '3/3/3 ready'],
   'teacher-import-jsons/algebra1-module3/T2_L5_Systems_of_Linear_Inequalities.json': ['3/3/3 ready', '3/3/3 ready'],
@@ -101,8 +102,8 @@ const PINNED = Object.freeze({
 });
 
 const TOTALS = Object.freeze({
-  warmup: { questions: 135, now: 84, prepared: 121, lessonsWithSection: 46, lessonsReady: 41 },
-  dol: { questions: 126, now: 73, prepared: 108, lessonsWithSection: 46, lessonsReady: 40 },
+  warmup: { questions: 138, now: 87, prepared: 124, lessonsWithSection: 47, lessonsReady: 42 },
+  dol: { questions: 128, now: 75, prepared: 110, lessonsWithSection: 47, lessonsReady: 41 },
 });
 
 // What is left: [shape, questions, lessons], most first. A typed-and-chosen
@@ -197,8 +198,11 @@ test('the interval family is what changed: without it the five number-line quest
   // ALEKS bridge lesson's 3 + 2 questions and Warm-Up, and Lesson 4's 2
   // exit-ticket questions, and the District review's Warm-Up Q2–Q4. The last
   // term of each sum is the Step Algebra radical lesson (2026-11-12): 3 + 3
-  // family-slot questions and one lesson, which never needed the interval family.)
-  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 2 + 2 + 1 + 2 + 2 + 3 + 3 + 3, 26 + 7 + 1 + 2 + 1 + 1 + 1 + 1, 67 + 21 + 1 + 3 + 2 + 1 + 3 + 2 + 2 + 2 + 3]);
+  // family-slot questions and one lesson, which never needed the interval family;
+  // and the terms after it are Algebra I M3 T2 Lesson 3, Solving Systems by
+  // Linear Combinations: 3 + 2 family-slot questions and one lesson, which
+  // never needed it either.)
+  assert.deepEqual([before.totals.warmup.prepared, before.totals.warmup.lessonsReady, before.totals.dol.prepared], [78 + 21 + 2 + 2 + 1 + 2 + 2 + 3 + 3 + 3 + 3, 26 + 7 + 1 + 2 + 1 + 1 + 1 + 1 + 1, 67 + 21 + 1 + 3 + 2 + 1 + 3 + 2 + 2 + 2 + 3 + 2]);
 });
 
 const BASELINE_LMR = 'docs/assignments/algebra1-linear-multiple-representations-final-v5.json';
@@ -442,8 +446,8 @@ test('the import\'s parse, which the report reads, plans exactly as Pre-Flight\'
 test('the printed report says the same', () => {
   const text = renderRecoveryCoverageText(REPORT);
   assert.match(text, /^teacher-import-jsons\/algebra2-honors-module1\/L1_Day1_Interval_Domain_Range\.json +Warm-Up 3\/3 ready +DOL 3\/3 ready$/m);
-  assert.match(text, /^Warm-Up: 121 of 135 questions have Recovery once prepared \(84 with nothing prepared\); 41 of 46 lessons ready\.$/m);
-  assert.match(text, /^DOL: 108 of 126 questions have Recovery once prepared \(73 with nothing prepared\); 40 of 46 lessons ready\.$/m);
+  assert.match(text, /^Warm-Up: 124 of 138 questions have Recovery once prepared \(87 with nothing prepared\); 42 of 47 lessons ready\.$/m);
+  assert.match(text, /^DOL: 110 of 128 questions have Recovery once prepared \(75 with nothing prepared\); 41 of 47 lessons ready\.$/m);
   assert.match(text, /^docs\/assignments\/algebra1-linear-multiple-representations-final-v5\.json +Warm-Up 2\/2 ready +DOL 1\/1 ready$/m);
   assert.match(text, /^ +16 {2}multiAnswer {2}\(7 lessons\)$/m);
   assert.match(text, /L2_Day1_Parent_Functions_Key_Attributes\.json {2}Warm-Up Q2 {2}graphAnalysis · increasing \+ decreasing {2}no-certified-family/);
