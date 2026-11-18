@@ -332,6 +332,7 @@ const moreMathFollows = (offset, whole, match) => typeof whole === 'string'
  * a "\u2212" after it is still "minus".
  */
 const QUANTITY_END = '\uE005';
+const isMinusSign = (char) => char === '-' || char === '\u2212';
 /*
  * ONE NUMBER OR ONE LETTER IN BRACKETS IS NOT A QUANTITY (math-speech-3).
  * "6(4) + 4 = 28" was "6 times the quantity 4 plus 4 equals 28", which is how
@@ -352,6 +353,10 @@ const markQuantityEnds = (text, w, operatorWords) => {
   const denominator = new RegExp(`(?:^|\\s)(?:${words[2]}|${words[3]})\\s*$`);
   const binaryMinus = (inner) => [...inner.matchAll(/(\S+)\s*[\u2212-]\s*(?=\S)/g)]
     .some(([, before]) => /[\p{L}\p{N})\]]$/u.test(before) && !operatorWords.includes(before));
+  // How many minus signs come before each place, counted once: a bracket's
+  // content with none has no minus between terms, and is not read for one.
+  const minusesBefore = new Int32Array(text.length + 1);
+  for (let index = 0; index < text.length; index += 1) minusesBefore[index + 1] = minusesBefore[index] + (isMinusSign(text[index]) ? 1 : 0);
   const ends = [];
   const open = [];
   const dropped = new Set();
@@ -366,7 +371,10 @@ const markQuantityEnds = (text, w, operatorWords) => {
         dropped.add(start).add(index);
         continue;
       }
-      if ((terms.test(inner) || binaryMinus(inner)) && continues.test(text.slice(index + 1))) ends.push(index + 1);
+      // A minus between terms is looked for only in a bracket that holds a
+      // minus: each of a long nest's brackets was read for one from every
+      // character ("((…x…))": 4 s at 2,000 characters, 100 s at 6,000).
+      if ((terms.test(inner) || (minusesBefore[index] > minusesBefore[start + 1] && binaryMinus(inner))) && continues.test(text.slice(index + 1))) ends.push(index + 1);
     }
   }
   const kept = dropped.size ? text.split('').map((char, index) => (dropped.has(index) ? ' ' : char)).join('') : text;
@@ -418,25 +426,35 @@ const isFunctionBefore = (name, argument, named, w) => {
  * ("f(f(f(…"). Inside a bracket the pairs are the bracket's own, and the
  * characters around it, ( and ), read as an edge does.
  */
-const readApplications = (text, letters, named, w, closes = roundBrackets(text), start = 0, end = text.length) => {
+const readApplications = (text, letters, named, w, closes = roundBrackets(text)) => {
   const head = new RegExp(`(?<![A-Za-z])([${letters}])(⁻¹|\\^\\(\\s*-1\\s*\\)|\\^\\s*[-−]1(?![0-9./]))?\\(`, 'g');
-  head.lastIndex = start;
-  let out = '';
-  let from = start;
-  for (let match = head.exec(text); match && match.index < end; match = head.exec(text)) {
-    const open = match.index + match[0].length - 1;
-    const close = closes.get(open) ?? -1;
-    if (close === -1) continue;
-    const [, name, inverse] = match;
-    const argument = readApplications(text, letters, named, w, closes, open + 1, close);
-    const follows = /[^\s.,;:?!)\]]/.test(text.slice(close + 1, end));
-    out += text.slice(from, match.index) + (inverse || isFunctionBefore(name, argument, named, w)
+  // Each bracket being read is a frame, the whole text the first: an
+  // application found in one is read before it, from the inside out, without
+  // a call for each bracket (one per bracket overflowed the stack on a box of
+  // "f(f(f(…" past about 5,000 deep: every reader threw).
+  const frames = [{ from: 0, end: text.length, out: '' }];
+  for (;;) {
+    const frame = frames[frames.length - 1];
+    head.lastIndex = frame.from;
+    let match = head.exec(text);
+    let close = -1;
+    while (match && match.index < frame.end && (close = closes.get(match.index + match[0].length - 1) ?? -1) === -1) match = head.exec(text);
+    if (match && match.index < frame.end) {
+      Object.assign(frame, { match, close });
+      frames.push({ from: match.index + match[0].length, end: close, out: '' });
+      continue;
+    }
+    const argument = frame.out + text.slice(frame.from, frame.end);
+    frames.pop();
+    if (!frames.length) return argument;
+    const outer = frames[frames.length - 1];
+    const [, name, inverse] = outer.match;
+    const follows = /[^\s.,;:?!)\]]/.test(text.slice(outer.close + 1, outer.end));
+    outer.out += text.slice(outer.from, outer.match.index) + (inverse || isFunctionBefore(name, argument, named, w)
       ? applicationSpeech(w, '', inverse ? `${name} ${w.inverse}` : name, argument, follows)
       : `${name}(${argument})`);
-    from = close + 1;
-    head.lastIndex = from;
+    outer.from = outer.close + 1;
   }
-  return out + text.slice(from, end);
 };
 
 /*
@@ -2286,6 +2304,10 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
   const segments = proseArrowsToWords(split, w, functionLettersFor(names));
   const dimensionsText = /dimension|matri|dimensi/i.test(text);
   let whole = null;
+  // A piece of mathematics is read once a text: what it says depends only on
+  // itself and whether intervals are cued. A box of many short pieces ("x y
+  // x y …", "1 2 3 …") read each of its thousands from the start.
+  const spokenPieces = new Map();
   return segments
     .map((segment, index) => {
       // "1st": the number is split from its suffix, and "1 st" is read
@@ -2297,7 +2319,10 @@ export const speechTextFor = (raw, { language = 'en', functionNames = '' } = {})
       }
       if (segment.kind === 'math') {
         const intervals = segments[index - 1]?.kind === 'text' && INTERVAL_CUE.test(segments[index - 1].value);
-        const spoken = mathToSpeech(withPriceSigns(segment), { language, functionNames: names, intervals });
+        const piece = withPriceSigns(segment);
+        const key = `${intervals ? 'i' : 'p'}${piece}`;
+        if (!spokenPieces.has(key)) spokenPieces.set(key, mathToSpeech(piece, { language, functionNames: names, intervals }));
+        const spoken = spokenPieces.get(key);
         // An aside in brackets after a word is said between pauses: "is 153,
         // f of 153 equals 598.75." (relationAsidesAsPauses).
         if (!isWholeAside(segment.value)) return ` ${spoken} `;
