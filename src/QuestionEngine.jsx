@@ -55,6 +55,7 @@ import GuidedClassworkCoach from './GuidedClassworkCoach';
 import RelationshipModel from './RelationshipModel';
 import WorkflowRunner from './platform/workflow/WorkflowRunner';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
+import { DRAWN_QUESTION_ROUTE, drawnQuestionKind } from './platform/question/drawnQuestionKind.js';
 import { composedReasonsNote } from './platform/workflow/workflowReviewState.js';
 import { withShuffledSortCards } from './platform/workflow/sortCardOrder.js';
 import { buildLiteralWorkspaceQuestion, usesLiteralWorkspace } from './literalWorkspace';
@@ -491,22 +492,22 @@ function QuestionEngineBody({
     () => (usesLiteralWorkspace(processedQuestion) ? buildLiteralWorkspaceQuestion(processedQuestion) : null),
     [processedQuestion],
   );
+  // WHAT THIS QUESTION DRAWS, decided by the rule the assignment validator
+  // refuses a question by (drawnQuestionKind.js): its workflow, else a registry
+  // tool named by its toolId and then by its type, else this engine's own
+  // module for its type (the switch in renderModule), else the panel there.
+  const drawnKind = useMemo(() => drawnQuestionKind(processedQuestion), [processedQuestion]);
   // A composed question is defined by its workflow, not by its type name.
-  const isComposed = useMemo(
-    () => readComposedQuestion(processedQuestion).composed,
-    [processedQuestion],
-  );
+  const isComposed = drawnKind?.route === DRAWN_QUESTION_ROUTE.WORKFLOW;
   const missingToolDefinition = useMemo(
     // A malformed item can carry a toolId the registry doesn't know while its
-    // `type` names a real tool; fall through to `type` rather than showing the
-    // unsupported-question panel for a tool that exists.
+    // `type` names a real tool: the rule falls through to `type` rather than
+    // to the unsupported-question panel for a tool that exists.
     // A composed question never routes to the registry, and must not be treated
     // as a self-submitting tool either — it is submitted here like every other
-    // question, so the tool lookup is skipped entirely.
-    () => (isComposed
-      ? null
-      : getToolDefinition(processedQuestion?.toolId) || getToolDefinition(processedQuestion?.type)),
-    [processedQuestion, isComposed],
+    // question, so the rule names no tool for one.
+    () => (drawnKind?.route === DRAWN_QUESTION_ROUTE.REGISTRY_TOOL ? getToolDefinition(drawnKind.toolId) : null),
+    [drawnKind],
   );
   const workViewSpan = useMemo(
     () => (missingToolDefinition ? startPerformanceSpan('workview_ready_ms', { toolId: missingToolDefinition.toolId }) : null),
@@ -2491,6 +2492,9 @@ function QuestionEngineBody({
         // Batch A-D interactive tools never reach this switch: they resolve
         // through the shared registry above, so a new tool becomes
         // student-usable by registering it rather than by editing this switch.
+        // A type that reaches here is one drawnQuestionKind.js draws nothing
+        // for, which the assignment validator refuses: a case added or removed
+        // above changes its QUESTION_ENGINE_TYPES too (drawnQuestionKind.test.mjs).
         return (
           // The type is for a support copy, not the student's screen (RUN-16):
           // "Details for your teacher: unsupported question type …".
