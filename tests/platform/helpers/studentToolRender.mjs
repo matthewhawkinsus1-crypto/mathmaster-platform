@@ -4,6 +4,7 @@
  * components through Vite, as markup, with a browser that can speak.
  */
 import { prerenderToNodeStream } from 'react-dom/static';
+import { within } from './boundedWait.mjs';
 
 export const text = (markup) => markup.replace(/<[^>]+>/g, ' ').replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
@@ -40,12 +41,23 @@ export const withBrowser = async (run) => {
   }
 };
 
-// Server render that waits for lazy components (the registry tools are lazy).
+// Server render that waits for lazy components (the registry tools are lazy):
+// one whose code never arrives fails the test within the bound, naming the
+// element rendered (boundedWait.mjs), and the render is stopped.
 export const render = async (element) => {
-  const { prelude } = await prerenderToNodeStream(element);
-  let markup = '';
-  for await (const chunk of prelude) markup += chunk;
-  return markup;
+  const stop = new AbortController();
+  const name = element?.type?.displayName || element?.type?.name || String(element?.type || 'element');
+  try {
+    return await within((async () => {
+      const { prelude } = await prerenderToNodeStream(element, { signal: stop.signal });
+      let markup = '';
+      for await (const chunk of prelude) markup += chunk;
+      return markup;
+    })(), `rendering <${name}>, which waits for its lazy parts' code`);
+  } catch (error) {
+    stop.abort();
+    throw error;
+  }
 };
 
 export const buttonsOf = (markup) => [...markup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)].map((match) => ({
