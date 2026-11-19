@@ -266,6 +266,20 @@ export const chunk = (list, size) => {
 };
 
 /**
+ * The targets a run is narrowed to (buildReleasePlan's `only`), or null for
+ * everything the diff needs.
+ *
+ * `--functions a,b` deploys those functions and nothing else: it used to add
+ * every other target the diff needed, so taking a few functions early also
+ * shipped rules and Hosting against a fleet still on the old code. Other
+ * targets ride along only when `--only` names them; the retry command
+ * (retryCommandFor) names the held ones in a second run.
+ */
+export const releaseScope = ({ only = null, functionNames = null } = {}) => (functionNames?.length
+  ? [...new Set([...(only || []), RELEASE_TARGETS.FUNCTIONS])]
+  : (only?.length ? only : null));
+
+/**
  * The ordered steps of a release.
  *
  * `only` narrows to named targets; `functionNames` limits the default codebase
