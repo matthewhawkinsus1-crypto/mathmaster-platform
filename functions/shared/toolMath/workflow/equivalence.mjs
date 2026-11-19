@@ -6,7 +6,7 @@
 // The hardened instance (../../algebra/safeMath.mjs): this runs on student
 // text on the server, where a range, an allocating call or a namespace change
 // would reach every student graded by the same instance.
-import { parse, simplify } from '../../algebra/safeMath.mjs';
+import { fraction, parse, simplify } from '../../algebra/safeMath.mjs';
 import { compareMathAnswer, normalizeMathAnswer } from '../../answerUtils.mjs';
 import { sameValue as sharedAnswerEquivalent } from '../../answerEquivalence.mjs';
 import { algebraicExpressionInput } from './expressionSafety.mjs';
@@ -43,7 +43,7 @@ export const isAlgebraicallyEquivalent = (studentExpression, expectedExpression,
     // answer a student can type stalls the tab or the server (simplifyBudget.mjs).
     const difference = parse(`(${student}) - (${expected})`);
     if (!withinSimplifyBudget(difference)) {
-      const decided = decidePastBudget(difference, studentNode, expectedNode);
+      const decided = decidePastBudget(difference, studentNode, expectedNode, fraction);
       if (decided !== 'simplify') return decided === SAMPLED.EQUAL;
     }
     const simplified = simplify(`(${student}) - (${expected})`).toString().replace(/\s+/g, '');

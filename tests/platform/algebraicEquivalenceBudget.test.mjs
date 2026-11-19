@@ -22,7 +22,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parse } from '../../functions/shared/algebra/safeMath.mjs';
+import { fraction, parse } from '../../functions/shared/algebra/safeMath.mjs';
 import { gradeComposedWorkflowCheck } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { composedWorkflowWork } from '../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
@@ -107,7 +107,7 @@ test('a composed question marks a long chain at once, on the device and on the s
   }
 });
 
-const sides = (student, key) => [parse(`(${student}) - (${key})`), parse(student), parse(key)];
+const sides = (student, key) => [parse(`(${student}) - (${key})`), parse(student), parse(key), fraction];
 
 test('past the budget a wrong answer is wrong at once, and simplify still decides what it can finish', () => {
   // 11 to 14 links: sides that agree at every point are still simplify's to
@@ -145,24 +145,74 @@ test('past what simplify finishes, equal at every point is equal and anything el
     assert.equal(decidePastBudget(...sides(student, key)), verdict ? SAMPLED.EQUAL : SAMPLED.DIFFERENT, `${student.slice(0, 30)}… for ${key}`);
     assert.equal(isAlgebraicallyEquivalent(student, key), verdict, `${student.slice(0, 30)}… for ${key}`);
   }
-  // Too few points defined to say: not shown equal.
-  const undefinedEverywhere = repeated('sqrt(-1-x^2)', 16, '+');
-  assert.equal(decidePastBudget(...sides(undefinedEverywhere, `2*${undefinedEverywhere}`)), SAMPLED.DIFFERENT);
+  // A name nothing can evaluate says nothing: not shown equal.
+  const unknownName = repeated('g(x)', 16, '*');
+  assert.equal(decidePastBudget(...sides(unknownName, `2*${unknownName}`)), SAMPLED.DIFFERENT);
 });
 
-test('compareAtSamples says equal only when enough points are defined and all agree', () => {
-  const compare = (left, right) => compareAtSamples(parse(left), parse(right));
+// PR #560 review: two ways the sample points could give a wrong verdict past
+// what simplify finishes. Both were real, on the device and on the server.
+test('past what simplify finishes, a large shared term hides nothing and a root of a negative number is still a value', () => {
+  // The sides differ by exactly one at every point. A relative tolerance called that equal.
+  for (const [student, key] of [
+    [`10000000+x${'+0'.repeat(15)}`, '10000001+x'],
+    [`1000000000000000+x${'+0'.repeat(15)}`, '1000000000000001+x'],
+    [`x^3+123456789${'+0'.repeat(15)}`, 'x^3+123456790'],
+    [`(1000000x+1)/x${'+0'.repeat(15)}`, '(1000000x+2)/x'],
+  ]) {
+    assert.equal(decidePastBudget(...sides(student, key)), SAMPLED.DIFFERENT, `${student.slice(0, 24)}… for ${key}`);
+    assert.equal(isAlgebraicallyEquivalent(student, key), false, `${student.slice(0, 24)}… for ${key}`);
+  }
+  assert.equal(isAlgebraicallyEquivalent(`10000001+x${'+0'.repeat(15)}`, '10000001+x'), true, 'and the right one is still right');
+  // Defined at no sample as a real number, equal at every one as a complex one:
+  // simplify proved these equal, and they are.
+  for (const [student, key, verdict] of [
+    [repeated('sqrt(x-100)', 15, '+'), '15*sqrt(x-100)', true],
+    [repeated('sqrt(x-100)', 15, '+'), '14*sqrt(x-100)', false],
+    [repeated('sqrt(x-100)', 15, '+'), '15*sqrt(x-99)', false],
+    [repeated('log(x-100)', 15, '+'), '15*log(x-100)', true],
+    [repeated('ln(x)', 15, '+'), '15*ln(x)', true],
+    [repeated('ln(x)', 15, '+'), '15*ln(x+1)', false],
+    [repeated('x^(1/2)', 15, '*'), 'x^(15/2)', true],
+  ]) assert.equal(isAlgebraicallyEquivalent(student, key), verdict, `${student.slice(0, 24)}… for ${key}`);
+  // The same through a composed question, on the device and on the server.
+  const question = composedQuestion();
+  const mark = (equation, key) => {
+    const asked = { ...question, grading: { equation: key } };
+    const device = gradeComposedWorkflowCheck(asked, composedWorkflowWork({ equation }));
+    const server = gradeServerResponse({ question: asked, response: JSON.parse(JSON.stringify(device.toolResponse)) });
+    const part = (result) => result.parts.find((entry) => entry.id === 'equation').isCorrect;
+    assert.equal(part(server), part(device));
+    return part(device);
+  };
+  assert.equal(mark(`10000000+x${'+0'.repeat(15)}`, '10000001+x'), false);
+  assert.equal(mark(repeated('sqrt(x-100)', 15, '+'), '15*sqrt(x-100)'), true);
+});
+
+test('compareAtSamples: exact where the expression is rational, two lines where it is not', () => {
+  const compare = (left, right) => compareAtSamples(parse(left), parse(right), fraction);
   assert.equal(compare('(x+1)^2', 'x^2+2x+1'), SAMPLED.EQUAL);
   assert.equal(compare('(x+1)^2', 'x^2+2x+2'), SAMPLED.DIFFERENT);
   assert.equal(compare('x/x', '1'), SAMPLED.EQUAL, 'a point where a side is undefined is skipped');
-  assert.equal(compare('sqrt(-1-x^2)', 'sqrt(-1-x^2)'), SAMPLED.UNKNOWN, 'defined nowhere it is sampled');
   assert.equal(compare('f(x)+1', 'f(x)+1'), SAMPLED.UNKNOWN, 'a name it cannot evaluate');
+  assert.equal(compare('1/(x-x)', '1/(x-x)'), SAMPLED.UNKNOWN, 'defined nowhere');
   assert.equal(compare('2*pi', 'pi+pi'), SAMPLED.EQUAL);
   assert.equal(compare('2*pi', '6.28'), SAMPLED.DIFFERENT);
-  assert.equal(sampledIdentity(parse('x+x'), parse('2x')), true);
-  // A long sum loses digits to rounding; that is not a difference.
-  const long = repeated('0.1*x', 40, '+');
-  assert.equal(compare(long, '4x'), SAMPLED.EQUAL);
+  assert.equal(compare('sqrt(-1-x^2)', 'sqrt(-1-x^2)'), SAMPLED.EQUAL, 'a complex value is a value');
+  assert.equal(sampledIdentity(parse('x+x'), parse('2x'), fraction), true);
+  // Fractions do not round: forty tenths are four, and a difference of one in ten million is a difference.
+  assert.equal(compare(repeated('0.1*x', 40, '+'), '4x'), SAMPLED.EQUAL);
+  assert.equal(compare('10000000+x', '10000001+x'), SAMPLED.DIFFERENT);
+  assert.equal(compare('x^2+1e15', 'x^2+1e15+1'), SAMPLED.DIFFERENT);
+  // In floating point, a difference too small to call is 'unknown', never 'equal'.
+  assert.equal(compare('sqrt(x^2+1)+1e9', 'sqrt(x^2+1)+1e9+1'), SAMPLED.UNKNOWN);
+  assert.equal(compare('sqrt(x^2+1)+1e3', 'sqrt(x^2+1)+1e3+1'), SAMPLED.DIFFERENT);
+  // Without the exact constructor it is floating point throughout.
+  assert.equal(compareAtSamples(parse('(x+1)^2'), parse('x^2+2x+1')), SAMPLED.EQUAL);
+  // A tower of powers is never raised exactly (it would be enormous): it still gets an answer, at once.
+  const started = performance.now();
+  assert.notEqual(compare('((x^99)^99)^99', '((x^99)^99)^98'), SAMPLED.EQUAL);
+  assert.ok(performance.now() - started < 1000);
 });
 
 test('inside the budget the rule is the one it always was', () => {

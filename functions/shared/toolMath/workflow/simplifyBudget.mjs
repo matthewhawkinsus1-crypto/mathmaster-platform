@@ -32,8 +32,12 @@
  *                             it finishes (SIMPLIFY_LIMIT), so the verdict is
  *                             the one it always gave; past that, where it
  *                             never gave one, agreeing everywhere is equal
- *   too few points defined    as above while simplify can be asked; past
- *                             that, not shown equal
+ *   a point says nothing      (too few defined, or float values too close to
+ *                             call): as above while simplify can be asked;
+ *                             past that, not shown equal
+ *
+ * "Agree" is exact wherever it can be: a rational expression is evaluated in
+ * fractions, so no tolerance stands in for equality (see compareAtSamples).
  *
  * So no verdict simplify gave in about a second changes, and no input stalls.
  * simplify does not expand or factor (`2(x+3)` is not `2x+6` to it), and the
@@ -102,8 +106,8 @@ export const SAMPLED = Object.freeze({ EQUAL: 'equal', DIFFERENT: 'different', U
  * How a difference past the budget is decided (the table above):
  * 'different', 'equal', or 'simplify' when mathjs should still be asked.
  */
-export const decidePastBudget = (differenceNode, leftNode, rightNode) => {
-  const sampled = compareAtSamples(leftNode, rightNode);
+export const decidePastBudget = (differenceNode, leftNode, rightNode, fraction = null) => {
+  const sampled = compareAtSamples(leftNode, rightNode, fraction);
   if (sampled === SAMPLED.DIFFERENT) return SAMPLED.DIFFERENT;
   if (withinSimplifyBudget(differenceNode, SIMPLIFY_LIMIT)) return 'simplify';
   return sampled === SAMPLED.EQUAL ? SAMPLED.EQUAL : SAMPLED.DIFFERENT;
@@ -111,13 +115,30 @@ export const decidePastBudget = (differenceNode, leftNode, rightNode) => {
 
 // Irregular, so no small-integer coincidence makes two expressions agree; of
 // both signs and none zero or one, so a denominator or a root is defined at
-// most of them. The same points Step Algebra samples at.
-const SAMPLE_VALUES = Object.freeze([1.37, -2.11, 3.73, 0.59, -4.29, 2.91, 5.17, -0.83, 1.93, -3.47, 4.61, 0.27]);
+// most of them. The same points Step Algebra samples at, as exact hundredths.
+const SAMPLE_HUNDREDTHS = Object.freeze([137, -211, 373, 59, -429, 291, 517, -83, 193, -347, 461, 27]);
 const MINIMUM_VALID_SAMPLES = 6;
 const CONSTANT_NAMES = new Set(['e', 'pi', 'i', 'Infinity', 'NaN', 'true', 'false', 'null']);
-// Looser than a typed number's tolerance: a long sum loses digits to rounding,
-// and a false 'different' here would lower a verdict simplify used to give.
-const TOLERANCE = 1e-6;
+
+/*
+ * TWO WAYS TO READ A POINT, AND WHAT EACH IS EVIDENCE OF (PR #560 review).
+ *
+ * EXACTLY, in fractions, wherever the expression is rational (sums, products,
+ * quotients, whole powers): the two values are the same fraction or they are
+ * not. No tolerance, so a large shared term hides nothing: `10000000+x` and
+ * `10000001+x` differ by exactly one at every point.
+ *
+ * IN FLOATING POINT, where a root, a logarithm, π or a fractional power makes
+ * a fraction impossible. A real or a complex value counts (a root of a
+ * negative number is a value both sides share, not a hole in the domain).
+ * Rounding makes equal values differ a little, so there are two lines, not
+ * one: past SCREEN the sides differ; within AGREE they agree; between the two
+ * a point says nothing, and a comparison with such a point is 'unknown',
+ * never 'equal'.
+ */
+const SCREEN_TOLERANCE = 1e-6;
+const AGREE_TOLERANCE = 1e-12;
+const POINT = Object.freeze({ AGREE: 'agree', DIFFER: 'differ', UNDEFINED: 'undefined', UNSURE: 'unsure' });
 
 const lettersOf = (node) => {
   const names = new Set();
@@ -128,23 +149,73 @@ const lettersOf = (node) => {
   return [...names];
 };
 
-const valueAt = (code, scope) => {
+// Fraction arithmetic is exact, so a tower of powers is exact and enormous:
+// it is only tried where the powers are small whole numbers.
+const MAX_EXACT_DEGREE = 64;
+const exactDegree = (node) => {
+  if (!node) return 1;
+  if (node.isParenthesisNode) return exactDegree(node.content);
+  if (node.isOperatorNode && node.fn === 'pow') {
+    let exponent = node.args[1];
+    while (exponent?.isParenthesisNode) exponent = exponent.content;
+    if (exponent?.isOperatorNode && exponent.fn === 'unaryMinus') exponent = exponent.args[0];
+    if (!exponent?.isConstantNode || !Number.isInteger(exponent.value) || exponent.value < 0) return Infinity;
+    return exactDegree(node.args[0]) * Math.max(1, exponent.value);
+  }
+  let degree = 1;
+  node.forEach((child) => { degree = Math.max(degree, exactDegree(child)); });
+  return degree;
+};
+
+const isFraction = (value) => Boolean(value) && typeof value === 'object' && typeof value.equals === 'function' && 'n' in value && 'd' in value;
+
+const exactAt = (code, scope) => {
   try {
     const value = code.evaluate({ ...scope });
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    return isFraction(value) ? value : null;
   } catch {
     return null;
   }
 };
 
-const close = (left, right) => Math.abs(left - right) <= TOLERANCE * Math.max(1, Math.abs(left), Math.abs(right));
+/** A finite real or complex value as [re, im], or null. */
+const floatAt = (code, scope) => {
+  try {
+    const value = code.evaluate({ ...scope });
+    if (typeof value === 'number') return Number.isFinite(value) ? [value, 0] : null;
+    if (value && typeof value === 'object' && typeof value.re === 'number' && typeof value.im === 'number') {
+      return Number.isFinite(value.re) && Number.isFinite(value.im) ? [value.re, value.im] : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const naturalLog = (value) => (typeof value === 'number' && value > 0 ? Math.log(value) : Number.NaN);
+
+const comparePoint = (left, right, exactScope, floatScope, tryExact) => {
+  if (tryExact) {
+    const a = exactAt(left, exactScope);
+    const b = exactAt(right, exactScope);
+    if (a && b) return a.equals(b) ? POINT.AGREE : POINT.DIFFER;
+  }
+  const a = floatAt(left, floatScope);
+  const b = floatAt(right, floatScope);
+  if (!a || !b) return POINT.UNDEFINED;
+  const distance = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const scale = Math.max(1, Math.hypot(a[0], a[1]), Math.hypot(b[0], b[1]));
+  if (distance > SCREEN_TOLERANCE * scale) return POINT.DIFFER;
+  return distance <= AGREE_TOLERANCE * scale ? POINT.AGREE : POINT.UNSURE;
+};
 
 /**
  * Two parsed expressions at the sample points: 'different' when a point both
- * are defined at disagrees, 'equal' when enough are defined and all agree,
- * 'unknown' when too few are defined to say (or a side cannot be evaluated).
+ * are defined at disagrees, 'equal' when enough are defined and every one
+ * agrees (exactly, or to the last digits a float keeps), 'unknown' otherwise.
+ * `fraction` is the exact number constructor of the instance that parsed them.
  */
-export function compareAtSamples(leftNode, rightNode) {
+export function compareAtSamples(leftNode, rightNode, fraction = null) {
   let left;
   let right;
   try {
@@ -154,23 +225,23 @@ export function compareAtSamples(leftNode, rightNode) {
     return SAMPLED.UNKNOWN;
   }
   const letters = [...new Set([...lettersOf(leftNode), ...lettersOf(rightNode)])].sort();
-  if (!letters.length) {
-    const a = valueAt(left, {});
-    const b = valueAt(right, {});
-    if (a === null || b === null) return SAMPLED.UNKNOWN;
-    return close(a, b) ? SAMPLED.EQUAL : SAMPLED.DIFFERENT;
+  const tryExact = typeof fraction === 'function' && exactDegree(leftNode) <= MAX_EXACT_DEGREE && exactDegree(rightNode) <= MAX_EXACT_DEGREE;
+  const points = letters.length ? SAMPLE_HUNDREDTHS.length : 1;
+  let agreed = 0;
+  let unsure = false;
+  for (let sample = 0; sample < points; sample += 1) {
+    const hundredths = letters.map((name, index) => [name, SAMPLE_HUNDREDTHS[(sample * 5 + index * 7) % SAMPLE_HUNDREDTHS.length]]);
+    // `ln` is how a student writes the natural logarithm; mathjs only knows `log`.
+    const floatScope = { ...(letters.includes('ln') ? {} : { ln: naturalLog }), ...Object.fromEntries(hundredths.map(([name, value]) => [name, value / 100])) };
+    const exactScope = tryExact ? Object.fromEntries(hundredths.map(([name, value]) => [name, fraction(value, 100)])) : null;
+    const point = comparePoint(left, right, exactScope, floatScope, tryExact);
+    if (point === POINT.DIFFER) return SAMPLED.DIFFERENT;
+    if (point === POINT.AGREE) agreed += 1;
+    if (point === POINT.UNSURE) unsure = true;
   }
-  let valid = 0;
-  for (let sample = 0; sample < SAMPLE_VALUES.length; sample += 1) {
-    const scope = Object.fromEntries(letters.map((name, index) => [name, SAMPLE_VALUES[(sample * 5 + index * 7) % SAMPLE_VALUES.length]]));
-    const a = valueAt(left, scope);
-    const b = valueAt(right, scope);
-    if (a === null || b === null) continue;
-    if (!close(a, b)) return SAMPLED.DIFFERENT;
-    valid += 1;
-  }
-  return valid >= MINIMUM_VALID_SAMPLES ? SAMPLED.EQUAL : SAMPLED.UNKNOWN;
+  if (unsure) return SAMPLED.UNKNOWN;
+  return agreed >= (letters.length ? MINIMUM_VALID_SAMPLES : 1) ? SAMPLED.EQUAL : SAMPLED.UNKNOWN;
 }
 
 /** Are two parsed expressions shown equal for every value of every letter in them? */
-export const sampledIdentity = (leftNode, rightNode) => compareAtSamples(leftNode, rightNode) === SAMPLED.EQUAL;
+export const sampledIdentity = (leftNode, rightNode, fraction = null) => compareAtSamples(leftNode, rightNode, fraction) === SAMPLED.EQUAL;
